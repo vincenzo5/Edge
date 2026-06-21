@@ -1,5 +1,5 @@
 import type { ChartLayout } from "./chartConfig";
-import { DEFAULT_LAYOUT, DEFAULT_CELL } from "./chartConfig";
+import { DEFAULT_LAYOUT, DEFAULT_CELL, DEFAULT_TOOLBAR_PREFS, migrateCellIndicators } from "./chartConfig";
 
 const STORAGE_KEY = "tv-ai:layout:v1";
 
@@ -14,14 +14,16 @@ export function loadLayout(): ChartLayout {
     }
     // Migrate cells missing the drawings field (added in a later version).
     // Also ensure pane layout fields (paneOrder, collapsedPanes, maximizedPane) are present.
-    const cells = parsed.cells.map((c) => ({
-      ...DEFAULT_CELL,
-      ...c,
-      drawings: Array.isArray(c.drawings) ? c.drawings : [],
-      paneOrder: Array.isArray(c.paneOrder) ? c.paneOrder : undefined,
-      collapsedPanes: Array.isArray(c.collapsedPanes) ? c.collapsedPanes : undefined,
-      maximizedPane: c.maximizedPane ?? null,
-    }));
+    const cells = parsed.cells.map((c) =>
+      migrateCellIndicators({
+        ...DEFAULT_CELL,
+        ...c,
+        drawings: Array.isArray(c.drawings) ? c.drawings : [],
+        paneOrder: Array.isArray(c.paneOrder) ? c.paneOrder : undefined,
+        collapsedPanes: Array.isArray(c.collapsedPanes) ? c.collapsedPanes : undefined,
+        maximizedPane: c.maximizedPane ?? null,
+      }),
+    );
     return {
       ...DEFAULT_LAYOUT,
       ...parsed,
@@ -29,6 +31,11 @@ export function loadLayout(): ChartLayout {
         typeof parsed.activeCellIndex === "number" && parsed.activeCellIndex >= 0
           ? parsed.activeCellIndex
           : 0,
+      toolbarPrefs: {
+        ...DEFAULT_TOOLBAR_PREFS,
+        ...parsed.toolbarPrefs,
+        groupSelections: parsed.toolbarPrefs?.groupSelections,
+      },
       cells,
     } as ChartLayout;
   } catch {

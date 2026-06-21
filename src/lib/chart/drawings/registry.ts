@@ -7,6 +7,7 @@ import { ray } from './ray';
 import { parallelChannel, priceChannel } from './channels';
 import { circle, fibRetracement } from './fib_retracement';
 import { priceLine, annotation } from './annotation';
+import { measure } from './measure';
 
 const reg = new Map<string, DrawingPlugin>();
 
@@ -33,3 +34,4 @@ registerDrawing(circle);
 registerDrawing(fibRetracement);
 registerDrawing(priceLine);
 registerDrawing(annotation);
+registerDrawing(measure);
