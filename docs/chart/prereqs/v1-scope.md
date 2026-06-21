@@ -32,3 +32,12 @@ All 12 features MUST ship in V1. No deferrals.
 - Volume profile, order flow, etc.
 
 This is the immutable contract. Any implementation must deliver 100% of the above.
+
+## Implementation status (living)
+
+| # | Feature | Status (June 2025) |
+|---|---------|-------------------|
+| 1–5 | Pan/zoom, candles, crosshair, axes, symbol pipeline | **Mostly done**; pinch + edge fetch on scroll-left still open |
+| 6–8 | Indicators + drawings | **Partial** — MA/MACD done; BOLL/RSI/VOL/EMA + most drawings stub |
+| 9–10 | Persist drawings + layout | **Done** |
+| 11–12 | Multi-chart grid + link + crosshair sync | **Done** — see [features.md](../features.md) §9–§6 |

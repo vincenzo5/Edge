@@ -11,6 +11,7 @@ export type ChartHandle = {
   restoreDrawings: (data: SerializedDrawing[]) => void;
   resize: () => void;
   onCrosshair: (cb: (timestamp: number | null) => void) => () => void;
+  setCrosshairFromSync: (timestamp: number | null) => void;
   getTrackedOverlays: () => TrackedOverlay[];
   removeOverlay: (id: string) => void;
   setOverlayVisible: (id: string, visible: boolean) => void;
@@ -22,25 +23,37 @@ export type ChartHandle = {
   subscribeOverlayChange: (cb: () => void) => () => void;
   getSubPaneId: (key: IndicatorKey) => string | undefined;
   applyPaneHeights: (heights: Map<IndicatorKey, number | null>) => void;
+  resetChartView: () => void;
+  isViewportModified: () => boolean;
 };
 ```
 
-## Components That Stay Unchanged
-- StockApp.tsx (layout state)
-- ChartGrid.tsx (grid + linked propagation)
-- ChartCell.tsx (toolbar, ObjectTree, BarReplay, IndicatorPicker, OverlayContextMenu, ChartSyncBridge)
-- ObjectTree.tsx, DrawingToolbar.tsx, BarReplay.tsx, etc. — they call the handle methods.
+## Components That Stay Unchanged (shell)
+- ObjectTree.tsx, DrawingToolbar.tsx, BarReplay.tsx, IndicatorPicker, etc. — they call the handle methods.
+
+## Components updated for multi-chart layout (June 2025)
+- **StockApp.tsx** — layout controller: `applyCellUpdate` (atomic link propagation), `activeCellIndex`, grid mode clamping
+- **ChartGrid.tsx** — viewport-fitting grid shell, `ChartSyncProvider`, compact multi-cell mode
+- **ChartCell.tsx** — active cell focus, `onCrosshairTimestamp` → sync broadcast, `ChartSyncBridge` subscribe receiver
+- **ChartSyncContext.tsx** — `broadcast` gated on `linked`
+- **EdgeChart.tsx** — `setCrosshairFromSync`, `onCrosshairTimestamp` prop
 
 ## What Gets Replaced
 - src/app/components/Chart.tsx → deleted after EdgeChart works
 - All klinecharts imports, init, dispose, createIndicator, createOverlay, _panes hacks
+
+## Feature inventory (living doc)
+
+See **[features.md](../features.md)** for a row-by-row status of every chart capability (done / partial / stub / planned), test coverage, and known gaps. Update it when shipping chart work.
+
+For the external benchmark, see **[tradingview-reference.md](../tradingview-reference.md)** (TradingView Supercharts feature inventory).
 
 ## Data Flow
 CellConfig (from localStorage) → EdgeChart (via props) → L0 series fetch → L1 viewport → L2/L3 draw → plugins for indicators/drawings
 
 onConfigChange called on drawings change (debounced), indicator toggle, paneOrder change.
 
-Crosshair ts broadcast via ChartSyncContext (fix the current no-op receiver).
+Crosshair sync: source chart `onCrosshairTimestamp` → `ChartSyncContext.broadcast` (when `layout.linked`) → peer `setCrosshairFromSync`. Requires **Link symbols** checked in toolbar.
 
 ## File Changes
 - New: src/lib/chart/* (series, viewport, renderer, panes, indicators/*, drawings/*, pluginHost)
