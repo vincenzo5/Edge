@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { createViewport, attachViewportHelpers } from './viewport';
 import { TIME_AXIS_HEIGHT } from './layout';
 import {
@@ -8,7 +8,10 @@ import {
   findDataIndexForTimestamp,
   clampIndexToViewport,
 } from './crosshair';
+import { registerIndicator } from './indicators/registry';
+import { clearComputeCache } from './indicatorCompute';
 import type { Candle } from './contracts';
+import type { IndicatorPlugin } from './plugin-api';
 
 const sample: Candle[] = [
   { t: 1, o: 10, h: 12, l: 9, c: 11 },
@@ -39,10 +42,53 @@ describe('priceForPlotY', () => {
 });
 
 describe('formatCrosshairValue', () => {
+  beforeEach(() => {
+    clearComputeCache();
+  });
+
   it('formats price pane values using plot-area coordinates', () => {
     const vp = createViewport(sample, 800, 400, 3);
     const label = formatCrosshairValue('price', 0, vp, sample, 1, [], true);
     expect(label).toBe(vp.priceMax.toFixed(2).replace(/0+$/, '').replace(/\.$/, ''));
+  });
+
+  it('uses explicit valueAt for MACD sub-pane', () => {
+    const vp = createViewport(sample, 800, 400, 3);
+    const label = formatCrosshairValue(
+      'MACD::sub',
+      100,
+      vp,
+      sample,
+      2,
+      [{ id: 'macd-1', name: 'MACD', pane: 'sub' }],
+      true,
+    );
+    expect(label).not.toBe('');
+  });
+
+  it('falls back to first output when valueAt is not defined', () => {
+    const plugin: IndicatorPlugin = {
+      name: 'CrosshairDefaultTest',
+      category: 'Momentum',
+      description: 'Crosshair default test',
+      pane: 'sub',
+      compute: () => ({ primary: [1.5, 2.5, 3.5] }),
+      outputs: [{ id: 'primary', label: 'Primary', key: 'primary', decimals: 2 }],
+      draw: () => {},
+    };
+    registerIndicator(plugin);
+
+    const vp = createViewport(sample, 800, 400, 3);
+    const label = formatCrosshairValue(
+      'CrosshairDefaultTest::sub',
+      100,
+      vp,
+      sample,
+      1,
+      [{ id: 'crosshair-1', name: 'CrosshairDefaultTest', pane: 'sub' }],
+      true,
+    );
+    expect(label).toBe('2.5');
   });
 });
 

@@ -11,6 +11,10 @@ vi.mock('@/lib/chart/series', () => ({
   ]),
   toHeikinAshi: (x: unknown[]) => x,
   applyVisibleSlice: (x: unknown[]) => x,
+  transformCandlesForChartType: (candles: unknown[]) => candles,
+  mergeCandlesPrepend: (base: unknown[], older: unknown[]) => [...older, ...base],
+  fetchOlderCandles: vi.fn().mockResolvedValue([]),
+  shouldPrefetchEdge: () => false,
 }));
 
 const config: CellConfig = {

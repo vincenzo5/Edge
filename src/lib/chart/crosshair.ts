@@ -2,6 +2,7 @@ import type { Candle, IndicatorConfig, VisibleRange } from './contracts';
 import { formatPrice } from './format';
 import { plotHeight } from './layout';
 import { IndicatorRegistry } from './pluginHost';
+import { defaultValueAt } from './indicatorCompute';
 import { formatAxisTime } from './time';
 
 /** Map plot-area Y (0..plotHeight) to price; vp.priceForY uses full canvas height. */
@@ -32,8 +33,10 @@ export function formatCrosshairValue(
   const ind = indicators[0];
   if (ind && dataIndex >= 0 && dataIndex < candles.length) {
     const plugin = IndicatorRegistry.get(ind.name);
-    if (plugin?.valueAt) {
-      const at = plugin.valueAt(dataIndex, candles, ind.params);
+    if (plugin) {
+      const at =
+        plugin.valueAt?.(dataIndex, candles, ind.params) ??
+        defaultValueAt(plugin, dataIndex, candles, ind.params);
       if (at != null && Number.isFinite(at)) {
         return formatPrice(at, 4);
       }

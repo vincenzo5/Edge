@@ -111,6 +111,16 @@ export function attachViewportHelpers(vp: ViewportState, candleCount: number): V
   return next as VisibleRange;
 }
 
+/** Shift viewport indices after prepending bars so the visible window stays fixed. */
+export function adjustViewportForPrepend(vp: ViewportState, addedCount: number): ViewportState {
+  if (addedCount <= 0) return vp;
+  return {
+    ...vp,
+    startIndex: vp.startIndex + addedCount,
+    endIndex: vp.endIndex + addedCount,
+  };
+}
+
 /** Clamp indices and re-fit price after candle count changes (same dims). */
 export function refreshViewportForDataChange(
   vp: VisibleRange,

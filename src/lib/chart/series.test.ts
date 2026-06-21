@@ -6,6 +6,10 @@ import {
   toHeikinAshi,
   applyVisibleSlice,
   toTimestampMs,
+  mergeCandlesPrepend,
+  shouldPrefetchEdge,
+  transformCandlesForChartType,
+  PREFETCH_START_INDEX_THRESHOLD,
 } from './series';
 import type { Candle } from './contracts';
 
@@ -93,6 +97,65 @@ describe('toHeikinAshi', () => {
 
   it('returns empty array for empty input', () => {
     expect(toHeikinAshi([])).toEqual([]);
+  });
+});
+
+describe('mergeCandlesPrepend', () => {
+  const existing: Candle[] = [
+    { t: 2000, o: 10, h: 12, l: 9, c: 11 },
+    { t: 3000, o: 11, h: 13, l: 10, c: 12 },
+    { t: 4000, o: 12, h: 14, l: 11, c: 13 },
+  ];
+
+  it('prepends older candles, dedupes by timestamp, and sorts ascending', () => {
+    const older: Candle[] = [
+      { t: 500, o: 8, h: 9, l: 7, c: 8 },
+      { t: 1000, o: 9, h: 10, l: 8, c: 9 },
+      { t: 2000, o: 99, h: 99, l: 99, c: 99 }, // duplicate of existing[0]
+    ];
+    const merged = mergeCandlesPrepend(existing, older);
+    expect(merged).toHaveLength(5);
+    expect(merged.map((c) => c.t)).toEqual([500, 1000, 2000, 3000, 4000]);
+    expect(merged[2].o).toBe(10); // kept existing candle, not duplicate
+  });
+
+  it('returns existing unchanged when older is empty', () => {
+    expect(mergeCandlesPrepend(existing, [])).toBe(existing);
+  });
+});
+
+describe('shouldPrefetchEdge', () => {
+  it('returns true when startIndex is below threshold', () => {
+    expect(shouldPrefetchEdge(0)).toBe(true);
+    expect(shouldPrefetchEdge(PREFETCH_START_INDEX_THRESHOLD - 1)).toBe(true);
+  });
+
+  it('returns false when startIndex is at or above threshold', () => {
+    expect(shouldPrefetchEdge(PREFETCH_START_INDEX_THRESHOLD)).toBe(false);
+    expect(shouldPrefetchEdge(PREFETCH_START_INDEX_THRESHOLD + 10)).toBe(false);
+  });
+
+  it('respects custom threshold', () => {
+    expect(shouldPrefetchEdge(5, 10)).toBe(true);
+    expect(shouldPrefetchEdge(10, 10)).toBe(false);
+  });
+});
+
+describe('transformCandlesForChartType', () => {
+  const input: Candle[] = [
+    { t: 1, o: 10, h: 12, l: 9, c: 11 },
+    { t: 2, o: 11, h: 13, l: 10, c: 12 },
+  ];
+
+  it('returns candles unchanged for non-heikin types', () => {
+    expect(transformCandlesForChartType(input, 'candle_solid')).toBe(input);
+  });
+
+  it('applies Heikin Ashi transform for heikin_ashi type', () => {
+    const ha = transformCandlesForChartType(input, 'heikin_ashi');
+    expect(ha).toHaveLength(2);
+    expect(ha[0].o).toBeCloseTo(10.5);
+    expect(ha[0].c).toBeCloseTo(10.5);
   });
 });
 

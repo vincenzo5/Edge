@@ -21,6 +21,7 @@ import {
   defaultRightMarginBars,
   isViewportModified,
   isTimeWindowModified,
+  adjustViewportForPrepend,
 } from './viewport';
 import type { Candle } from './contracts';
 import { plotWidth } from './layout';
@@ -30,6 +31,23 @@ const sample: Candle[] = [
   { t: 2, o: 11, h: 13, l: 10, c: 12 },
   { t: 3, o: 12, h: 14, l: 11, c: 13 },
 ];
+
+describe('adjustViewportForPrepend', () => {
+  it('shifts startIndex and endIndex by addedCount', () => {
+    const vp = createViewport(sample, 800, 400, 3);
+    const shifted = adjustViewportForPrepend(vp, 50);
+    expect(shifted.startIndex).toBe(vp.startIndex + 50);
+    expect(shifted.endIndex).toBe(vp.endIndex + 50);
+    expect(shifted.priceMin).toBe(vp.priceMin);
+    expect(shifted.priceMax).toBe(vp.priceMax);
+  });
+
+  it('returns same viewport when addedCount is zero or negative', () => {
+    const vp = createViewport(sample, 800, 400, 3);
+    expect(adjustViewportForPrepend(vp, 0)).toBe(vp);
+    expect(adjustViewportForPrepend(vp, -5)).toBe(vp);
+  });
+});
 
 describe('createViewport', () => {
   it('creates a viewport with correct initial range and price bounds', () => {

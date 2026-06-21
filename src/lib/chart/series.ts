@@ -1,4 +1,5 @@
 import type { Candle, Range, Interval } from './contracts';
+import type { ChartType } from '@/lib/chartConfig';
 
 export type { Candle, Range, Interval };
 
@@ -43,6 +44,48 @@ export function toHeikinAshi(candles: Candle[]): Candle[] {
 export function applyVisibleSlice(candles: Candle[], visibleCount: number | null): Candle[] {
   if (visibleCount == null || visibleCount <= 0) return candles;
   return candles.slice(0, visibleCount);
+}
+
+export function transformCandlesForChartType(candles: Candle[], chartType: ChartType): Candle[] {
+  if (chartType === 'heikin_ashi') return toHeikinAshi(candles);
+  return candles;
+}
+
+/** Merge older candles before existing series; dedupe by timestamp, sort ascending. */
+export function mergeCandlesPrepend(existing: Candle[], older: Candle[]): Candle[] {
+  if (older.length === 0) return existing;
+  const seen = new Set(existing.map((c) => c.t));
+  const merged = [...older.filter((c) => !seen.has(c.t)), ...existing];
+  merged.sort((a, b) => a.t - b.t);
+  return merged;
+}
+
+export const EDGE_FETCH_BAR_COUNT = 200;
+export const PREFETCH_START_INDEX_THRESHOLD = 30;
+
+export function shouldPrefetchEdge(startIndex: number, threshold = PREFETCH_START_INDEX_THRESHOLD): boolean {
+  return startIndex < threshold;
+}
+
+export async function fetchOlderCandles(
+  symbol: string,
+  interval: Interval,
+  beforeTimestampMs: number,
+  barCount = EDGE_FETCH_BAR_COUNT,
+  signal?: AbortSignal,
+): Promise<Candle[]> {
+  const res = await fetch('/api/candles', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ symbol, interval, before: beforeTimestampMs, barCount }),
+    signal,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `Request failed (${res.status})`);
+  }
+  const { candles: raw } = (await res.json()) as { candles: unknown[] };
+  return validateCandles(raw);
 }
 
 // Simple range filter (future use for edge prefetch)

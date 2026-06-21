@@ -3,21 +3,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import EdgeChart, { type ChartHandle, indicatorKey } from "./EdgeChart";
 import SearchBar from "./SearchBar";
-import DrawingToolbar from "./DrawingToolbar";
+import DrawingToolbar, { resolveGroupSelections } from "./DrawingToolbar";
 import BarReplay from "./BarReplay";
 import IndicatorPicker from "./IndicatorPicker";
 import ObjectTree from "./ObjectTree";
+import IndicatorSettingsModal from "./IndicatorSettingsModal";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { useChartSync } from "./ChartSyncContext";
+import type { Candle } from "@/lib/chart/contracts";
 import {
   CHART_TYPES,
   INTERVALS,
   RANGES,
   PRICE_PANE_KEY,
+  createIndicatorInstance,
   type CellConfig,
   type IndicatorConfig,
+  type ToolbarPrefs,
   type TrackedOverlay,
 } from "@/lib/chartConfig";
+import type { DrawingToolName } from "./chart-icons/toolGroups";
 
 type Props = {
   chartId: string;
@@ -25,8 +30,10 @@ type Props = {
   theme: "light" | "dark";
   compact?: boolean;
   isActive?: boolean;
+  toolbarPrefs: ToolbarPrefs;
   onFocus?: () => void;
   onConfigChange: (next: CellConfig) => void;
+  onToolbarPrefsChange: (next: ToolbarPrefs) => void;
   onCandleCount?: (n: number) => void;
 };
 
@@ -36,14 +43,27 @@ export default function ChartCell({
   theme,
   compact = false,
   isActive = true,
+  toolbarPrefs,
   onFocus,
   onConfigChange,
+  onToolbarPrefsChange,
   onCandleCount,
 }: Props) {
   const chartRef = useRef<ChartHandle>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState<number | null>(null);
   const [candleCount, setCandleCount] = useState(0);
+  const [displayCandles, setDisplayCandles] = useState<Candle[]>([]);
+  const [crosshairData, setCrosshairData] = useState<{
+    dataIndex: number | null;
+    timestamp: number | null;
+  }>({ dataIndex: null, timestamp: null });
+  const crosshairRafRef = useRef<number | null>(null);
+  const pendingCrosshairRef = useRef<{
+    dataIndex: number | null;
+    timestamp: number | null;
+  } | null>(null);
+  const [settingsIndicatorId, setSettingsIndicatorId] = useState<string | null>(null);
   const [objectTreeVisible, setObjectTreeVisible] = useState(false);
   const [overlays, setOverlays] = useState<TrackedOverlay[]>([]);
   const [contextMenu, setContextMenu] = useState<{
@@ -52,8 +72,15 @@ export default function ChartCell({
     header?: string;
   } | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState("__cursor__");
   const overlaysDirtyRef = useRef(false);
   const sync = useChartSync();
+
+  const magnet = toolbarPrefs.magnet ?? false;
+  const keepDrawing = toolbarPrefs.keepDrawing ?? false;
+  const groupSelections = resolveGroupSelections(
+    toolbarPrefs.groupSelections as Record<string, DrawingToolName> | undefined,
+  );
 
   // Pane layout state derived from persisted config (paneOrder, collapsedPanes, maximizedPane).
   // This replaces previous local-only state so changes survive reloads.
@@ -93,6 +120,18 @@ export default function ChartCell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlays]);
 
+  // Apply layout toolbar prefs to the chart when active or prefs change.
+  useEffect(() => {
+    if (!isActive) return;
+    chartRef.current?.setMagnet(magnet);
+    chartRef.current?.setKeepDrawingMode(keepDrawing);
+  }, [isActive, magnet, keepDrawing]);
+
+  const allLocked =
+    overlays.length > 0 && overlays.every((o) => o.locked);
+  const allHidden =
+    overlays.length > 0 && overlays.every((o) => !o.visible);
+
   const update = useCallback(
     (patch: Partial<CellConfig>) => {
       onConfigChange({ ...config, ...patch });
@@ -129,7 +168,7 @@ export default function ChartCell({
   );
 
   const toggleIndicator = useCallback(
-    (ind: IndicatorConfig) => {
+    (ind: Pick<IndicatorConfig, "name" | "pane">) => {
       const exists = config.indicators.find(
         (i) => i.name === ind.name && i.pane === ind.pane,
       );
@@ -137,7 +176,7 @@ export default function ChartCell({
         ? config.indicators.filter(
             (i) => !(i.name === ind.name && i.pane === ind.pane),
           )
-        : [...config.indicators, ind];
+        : [...config.indicators, createIndicatorInstance(ind.name, ind.pane)];
       update({ indicators: next });
     },
     [config.indicators, update],
@@ -145,6 +184,7 @@ export default function ChartCell({
 
   const handleToolSelect = useCallback((toolName: string) => {
     if (!isActive) return;
+    setActiveTool(toolName);
     if (toolName === "__cursor__") {
       chartRef.current?.stopDrawing();
     } else {
@@ -152,11 +192,110 @@ export default function ChartCell({
     }
   }, [isActive]);
 
+  const handleDrawingDisarmed = useCallback(() => {
+    setActiveTool("__cursor__");
+  }, []);
+
+  const handleToggleMagnet = useCallback(
+    (on: boolean) => {
+      chartRef.current?.setMagnet(on);
+      onToolbarPrefsChange({ ...toolbarPrefs, magnet: on });
+    },
+    [toolbarPrefs, onToolbarPrefsChange],
+  );
+
+  const handleToggleKeepDrawing = useCallback(
+    (on: boolean) => {
+      chartRef.current?.setKeepDrawingMode(on);
+      onToolbarPrefsChange({ ...toolbarPrefs, keepDrawing: on });
+    },
+    [toolbarPrefs, onToolbarPrefsChange],
+  );
+
+  const handleGroupSelectionsChange = useCallback(
+    (next: Record<string, DrawingToolName>) => {
+      onToolbarPrefsChange({ ...toolbarPrefs, groupSelections: next });
+    },
+    [toolbarPrefs, onToolbarPrefsChange],
+  );
+
+  const handleToggleLockAll = useCallback(() => {
+    const next = !allLocked;
+    chartRef.current?.lockAllDrawings(next);
+  }, [allLocked]);
+
+  const handleToggleHideAll = useCallback(() => {
+    const nextHidden = !allHidden;
+    chartRef.current?.setAllDrawingsVisible(!nextHidden);
+  }, [allHidden]);
+
+  const handleZoomIn = useCallback(() => {
+    chartRef.current?.zoomIn();
+  }, []);
+
+  const handleDataLoaded = useCallback(
+    (info: { count: number }) => {
+      setCandleCount(info.count);
+      onCandleCount?.(info.count);
+      setDisplayCandles(chartRef.current?.getCandles() ?? []);
+    },
+    [onCandleCount],
+  );
+
+  const handleCrosshairMove = useCallback(
+    (ev: { timestamp: number | null; dataIndex: number | null }) => {
+      pendingCrosshairRef.current = ev;
+      if (crosshairRafRef.current != null) return;
+      crosshairRafRef.current = requestAnimationFrame(() => {
+        crosshairRafRef.current = null;
+        if (pendingCrosshairRef.current) {
+          setCrosshairData(pendingCrosshairRef.current);
+        }
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (crosshairRafRef.current != null) {
+        cancelAnimationFrame(crosshairRafRef.current);
+      }
+    };
+  }, []);
+
+  const handleLegendAction = useCallback((actionId: string) => {
+    const match = /^settings-(.+)$/.exec(actionId);
+    if (match) setSettingsIndicatorId(match[1]);
+  }, []);
+
+  const handleIndicatorParamsSave = useCallback(
+    (id: string, params: Record<string, number>) => {
+      onConfigChange({
+        ...config,
+        indicators: config.indicators.map((ind) =>
+          ind.id === id ? { ...ind, params } : ind,
+        ),
+      });
+    },
+    [config, onConfigChange],
+  );
+
+  const settingsIndicator = useMemo(
+    () => config.indicators.find((i) => i.id === settingsIndicatorId) ?? null,
+    [config.indicators, settingsIndicatorId],
+  );
+
   // Pane actions - uniform for price pane (PRICE_PANE_KEY) and indicator panes.
   // Operate on paneOrder / collapsedPanes / maximizedPane in config for persistence.
-  const getPaneOrder = () => (config.paneOrder && config.paneOrder.length > 0
-    ? [...config.paneOrder]
-    : [PRICE_PANE_KEY, ...config.indicators.map((i) => indicatorKey(i))]);
+  const getPaneOrder = () => {
+    const subKeys = config.indicators
+      .filter((i) => i.pane === 'sub')
+      .map((i) => indicatorKey(i));
+    return config.paneOrder && config.paneOrder.length > 0
+      ? [...config.paneOrder]
+      : [PRICE_PANE_KEY, ...subKeys];
+  };
 
   const handleCollapsePane = useCallback(
     (key: string) => {
@@ -222,10 +361,7 @@ export default function ChartCell({
   const handleClearDrawings = useCallback(() => {
     chartRef.current?.clearDrawings();
     setSelectedOverlayId(null);
-  }, []);
-
-  const handleToggleMagnet = useCallback((on: boolean) => {
-    chartRef.current?.setMagnet(on);
+    setActiveTool("__cursor__");
   }, []);
 
   // Overlay actions (wired to both context menu and object tree).
@@ -389,16 +525,29 @@ export default function ChartCell({
 
       {/* Body: drawing rail + chart + optional tree */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <DrawingToolbar
+        <div className="relative z-20 shrink-0 overflow-visible">
+          <DrawingToolbar
           compact={compact}
           disabled={!isActive}
+          activeTool={activeTool}
+          magnet={magnet}
+          keepDrawing={keepDrawing}
+          allLocked={allLocked}
+          allHidden={allHidden}
+          groupSelections={groupSelections}
+          onGroupSelectionsChange={handleGroupSelectionsChange}
           onToolSelect={handleToolSelect}
           onClear={handleClearDrawings}
           onToggleMagnet={handleToggleMagnet}
+          onToggleKeepDrawing={handleToggleKeepDrawing}
+          onToggleLockAll={handleToggleLockAll}
+          onToggleHideAll={handleToggleHideAll}
+          onZoomIn={handleZoomIn}
           onDeleteSelected={
             selectedOverlayId && isActive ? handleDeleteSelected : undefined
           }
-        />
+          />
+        </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1">
           <EdgeChart
             ref={chartRef}
@@ -407,6 +556,9 @@ export default function ChartCell({
             visibleCount={visibleCount}
             chartId={chartId}
             onCrosshairTimestamp={handleCrosshairFire}
+            onCrosshairMove={handleCrosshairMove}
+            onLegendAction={handleLegendAction}
+            onDrawingDisarmed={handleDrawingDisarmed}
             onConfigChange={onConfigChange}
             onOverlayRightClick={handleOverlayRightClick}
             onChartContextMenu={handleChartContextMenu}
@@ -416,6 +568,7 @@ export default function ChartCell({
             onMoveIndicatorUp={handleMovePaneUp}
             onMoveIndicatorDown={handleMovePaneDown}
             onPaneHeightsChange={handlePaneHeightsChange}
+            onDataLoaded={handleDataLoaded}
             collapsedKeys={collapsedKeys}
             maximizedKey={maximizedKey}
             paneOrder={paneOrder}
@@ -426,6 +579,16 @@ export default function ChartCell({
             chartId={chartId}
             config={config}
             overlays={overlays}
+            dataWindow={{
+              dataIndex: crosshairData.dataIndex,
+              candles: displayCandles,
+              indicators: config.indicators.filter((i) => i.visible !== false),
+              symbol: config.symbol,
+              symbolName: config.symbolName,
+              exchange: config.exchange,
+              interval: config.interval,
+              theme,
+            }}
             onConfigChange={onConfigChange}
             onOverlayAction={overlayActions()}
             onAddIndicator={() => setPickerOpen(true)}
@@ -446,6 +609,13 @@ export default function ChartCell({
         active={config.indicators}
         onToggle={toggleIndicator}
         onClose={() => setPickerOpen(false)}
+      />
+
+      <IndicatorSettingsModal
+        open={settingsIndicatorId != null}
+        indicator={settingsIndicator}
+        onClose={() => setSettingsIndicatorId(null)}
+        onSave={handleIndicatorParamsSave}
       />
 
       <ContextMenu

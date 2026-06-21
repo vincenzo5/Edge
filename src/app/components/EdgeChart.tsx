@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -23,9 +24,13 @@ import { PRICE_PANE_KEY } from '@/lib/chartConfig';
 import ChartCanvas from '@/lib/chart/canvas';
 import CrosshairOverlay from '@/lib/chart/CrosshairOverlay';
 import ChartLegendBar from './ChartLegendBar';
+import PaneLegendBar from './PaneLegendBar';
+import { resolveIndicatorLegend, appendLegendSettingsAction } from '@/lib/chart/legend';
+import { IndicatorRegistry } from '@/lib/chart/pluginHost';
 import { createInitialLayout, applyBoundaryResize, computePaneBoundaries, PANE_SEPARATOR_HEIGHT, type PaneLayout } from '@/lib/chart/panes';
 import PaneSeparators from './PaneSeparators';
-import { fetchYahooCandles, toHeikinAshi, applyVisibleSlice } from '@/lib/chart/series';
+import PaneControls, { type PaneRect } from './PaneControls';
+import { fetchYahooCandles, applyVisibleSlice, mergeCandlesPrepend, fetchOlderCandles, shouldPrefetchEdge, transformCandlesForChartType } from '@/lib/chart/series';
 import type { Candle } from '@/lib/chart/contracts';
 import { hitTestAll, hitTestControlPoint, serializeAll } from '@/lib/chart/pluginHost';
 import { plotToPoint } from '@/lib/chart/drawingCoords';
@@ -46,6 +51,7 @@ import {
   stopDraggingCp,
   drawingModeFromState,
   shouldHideCrosshair,
+  shouldSuppressPan,
   newDrawingId,
   getPluginForTool,
 } from '@/lib/chart/drawingController';
@@ -54,6 +60,10 @@ import {
   normalizeWheelDelta,
   zoomFactorForDelta,
 } from '@/lib/chart/wheel';
+import { createPinchHandler } from '@/lib/chart/pinch';
+import {
+  adjustViewportForPrepend,
+} from '@/lib/chart/viewport';
 import {
   buildSyncedCrosshairState,
   clampIndexToViewport,
@@ -61,10 +71,19 @@ import {
 } from '@/lib/chart/crosshair';
 
 export type IndicatorKey = string;
+
 export function indicatorKey(ind: IndicatorConfig): IndicatorKey {
-  return `${ind.name}::${ind.pane}`;
+  return ind.id;
 }
-export function parseIndicatorKey(key: IndicatorKey): IndicatorConfig | null {
+
+export function parseIndicatorKey(
+  key: IndicatorKey,
+  indicators: IndicatorConfig[],
+): IndicatorConfig | null {
+  return indicators.find((ind) => ind.id === key) ?? null;
+}
+
+export function legacyParseIndicatorKey(key: IndicatorKey): Pick<IndicatorConfig, 'name' | 'pane'> | null {
   const parts = key.split('::');
   if (parts.length < 2) return null;
   const pane = parts.pop() as 'main' | 'sub';
@@ -98,6 +117,15 @@ export type ChartHandle = {
   selectDrawing: (id: string | null) => void;
   onSelectionChange: (cb: (id: string | null) => void) => () => void;
   getMagnetEnabled: () => boolean;
+  setKeepDrawingMode: (on: boolean) => void;
+  getKeepDrawingMode: () => boolean;
+  zoomIn: () => void;
+  lockAllDrawings: (locked: boolean) => void;
+  areAllDrawingsLocked: () => boolean;
+  setAllDrawingsVisible: (visible: boolean) => void;
+  areAllDrawingsHidden: () => boolean;
+  getRawCandleCount: () => number;
+  getCandles: () => Candle[];
 };
 
 type Props = {
@@ -119,6 +147,14 @@ type Props = {
   paneOrder?: string[];
   /** Fired when the local crosshair moves (for multi-chart sync). Not fired during sync apply. */
   onCrosshairTimestamp?: (timestamp: number | null) => void;
+  /** Fired when drawing mode returns to cursor (e.g. after placing with keep-drawing off). */
+  onDrawingDisarmed?: () => void;
+  /** Fired after initial candle load for symbol/range/interval/chartType. */
+  onDataLoaded?: (info: { count: number }) => void;
+  /** Fired when crosshair moves locally (includes dataIndex for Object Tree). */
+  onCrosshairMove?: (ev: { timestamp: number | null; dataIndex: number | null }) => void;
+  /** Fired when a legend action button is clicked (e.g. settings-{indicatorId}). */
+  onLegendAction?: (actionId: string) => void;
 };
 
 const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) {
@@ -139,12 +175,26 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     onMoveIndicatorDown,
     onPaneHeightsChange,
     onCrosshairTimestamp,
+    onDrawingDisarmed,
+    onDataLoaded,
+    onCrosshairMove,
+    onLegendAction,
   } = props;
+
+  const onDataLoadedRef = useRef(onDataLoaded);
+  onDataLoadedRef.current = onDataLoaded;
 
   const onCrosshairTimestampRef = useRef(onCrosshairTimestamp);
   onCrosshairTimestampRef.current = onCrosshairTimestamp;
 
+  const onCrosshairMoveRef = useRef(onCrosshairMove);
+  onCrosshairMoveRef.current = onCrosshairMove;
+
+  const onLegendActionRef = useRef(onLegendAction);
+  onLegendActionRef.current = onLegendAction;
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const [baseCandles, setBaseCandles] = useState<Candle[]>([]);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +210,9 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const crosshairCbsRef = useRef<Set<(ts: number | null) => void>>(new Set());
   const syncingCrosshairRef = useRef(false);
   const candlesRef = useRef<Candle[]>([]);
+  const baseCandlesRef = useRef<Candle[]>([]);
+  const fetchStateRef = useRef({ inFlight: false, hasMoreHistory: true, abortController: null as AbortController | null });
+  const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const configRef = useRef(config);
   configRef.current = config;
   const drawingsRef = useRef<SerializedDrawing[]>(config.drawings ?? []);
@@ -171,8 +224,14 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const [drawingFsm, setDrawingFsm] = useState<DrawingControllerState>(initialDrawingState());
   const [dragHeights, setDragHeights] = useState<Record<string, number> | null>(null);
   const dragHeightsRef = useRef<Record<string, number> | null>(null);
+  const paneWrapperRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [paneRects, setPaneRects] = useState<Map<IndicatorKey, PaneRect>>(new Map());
+  const lastPaneRectsRef = useRef<Map<IndicatorKey, PaneRect>>(new Map());
   const drawingStateRef = useRef<DrawingControllerState>(initialDrawingState());
   const magnetEnabledRef = useRef(false);
+  const keepDrawingRef = useRef(false);
+  const onDrawingDisarmedRef = useRef(onDrawingDisarmed);
+  onDrawingDisarmedRef.current = onDrawingDisarmed;
   const selectionChangeCbsRef = useRef<Set<(id: string | null) => void>>(new Set());
   const onOverlayRightClickRef = useRef(onOverlayRightClick);
   onOverlayRightClickRef.current = onOverlayRightClick;
@@ -191,6 +250,14 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const notifyOverlayChange = useCallback(() => {
     overlayChangeCbsRef.current.forEach((cb) => cb());
     setDrawTick((n) => n + 1);
+  }, []);
+
+  const finishAfterCommit = useCallback((state: DrawingControllerState): DrawingControllerState => {
+    if (!keepDrawingRef.current && state.activeTool) {
+      onDrawingDisarmedRef.current?.();
+      return disarmTool(state);
+    }
+    return state;
   }, []);
 
   const addCommittedDrawing = useCallback(
@@ -221,6 +288,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     try {
       if (timestamp == null) {
         setCrosshair(null);
+        onCrosshairMoveRef.current?.({ timestamp: null, dataIndex: null });
         return;
       }
 
@@ -249,6 +317,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
           segment,
         }),
       );
+      onCrosshairMoveRef.current?.({ timestamp, dataIndex });
     } finally {
       syncingCrosshairRef.current = false;
     }
@@ -280,6 +349,42 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       magnetEnabledRef.current = on;
     },
     getMagnetEnabled: () => magnetEnabledRef.current,
+    setKeepDrawingMode: (on: boolean) => {
+      keepDrawingRef.current = on;
+    },
+    getKeepDrawingMode: () => keepDrawingRef.current,
+    zoomIn: () => {
+      const priceHandle = paneHandlesRef.current.get('price');
+      const el = containerRef.current;
+      if (!priceHandle || !el) return;
+      const anchorX = el.clientWidth / 2;
+      const vp = priceHandle.applyWheelAction({ type: 'zoom', factor: 1.25 }, anchorX);
+      if (vp) syncSiblings(vp.startIndex, vp.endIndex, 'price');
+    },
+    lockAllDrawings: (locked: boolean) => {
+      for (const o of trackedRef.current.values()) {
+        o.locked = locked;
+        const d = drawingsRef.current.find((x) => x.id === o.id);
+        if (d) (d as { locked: boolean }).locked = locked;
+      }
+      notifyOverlayChange();
+    },
+    areAllDrawingsLocked: () => {
+      const list = Array.from(trackedRef.current.values());
+      return list.length > 0 && list.every((o) => o.locked);
+    },
+    setAllDrawingsVisible: (visible: boolean) => {
+      for (const o of trackedRef.current.values()) {
+        o.visible = visible;
+        const d = drawingsRef.current.find((x) => x.id === o.id);
+        if (d) (d as { visible: boolean }).visible = visible;
+      }
+      notifyOverlayChange();
+    },
+    areAllDrawingsHidden: () => {
+      const list = Array.from(trackedRef.current.values());
+      return list.length > 0 && list.every((o) => !o.visible);
+    },
     getSelectedDrawingId: () => drawingStateRef.current.selectedId,
     selectDrawing: (id: string | null) => {
       const next = selectDrawingState(drawingStateRef.current, id);
@@ -420,21 +525,26 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       }
       return false;
     },
+    getRawCandleCount: () => baseCandlesRef.current.length,
+    getCandles: () => candlesRef.current,
   }), [notifyOverlayChange, applyCrosshairFromSync, syncDrawingState, notifySelectionChange, addCommittedDrawing]);
 
-  // Data fetch (same contract as before)
+  // Data fetch — full base dataset; replay slice applied separately
   useEffect(() => {
     let cancelled = false;
+    fetchStateRef.current.hasMoreHistory = true;
+    fetchStateRef.current.abortController?.abort();
+    fetchStateRef.current.abortController = null;
+    fetchStateRef.current.inFlight = false;
     setLoading(true);
     setError(null);
     (async () => {
       try {
         const raw = await fetchYahooCandles(config.symbol, config.range, config.interval);
         if (cancelled) return;
-        const data = config.chartType === 'heikin_ashi' ? toHeikinAshi(raw) : raw;
-        const sliced = applyVisibleSlice(data, visibleCount);
-        setCandles(sliced);
-        candlesRef.current = sliced;
+        baseCandlesRef.current = raw;
+        setBaseCandles(raw);
+        onDataLoadedRef.current?.({ count: raw.length });
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load');
       } finally {
@@ -444,7 +554,15 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     return () => {
       cancelled = true;
     };
-  }, [config.symbol, config.range, config.interval, config.chartType, visibleCount]);
+  }, [config.symbol, config.range, config.interval]);
+
+  // Apply chart type transform + Bar Replay slice without re-fetching
+  useEffect(() => {
+    const transformed = transformCandlesForChartType(baseCandles, config.chartType);
+    const sliced = applyVisibleSlice(transformed, visibleCount);
+    candlesRef.current = sliced;
+    setCandles(sliced);
+  }, [baseCandles, config.chartType, visibleCount]);
 
   // Resize observer for real dimensions
   useEffect(() => {
@@ -489,6 +607,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       if (!syncingCrosshairRef.current) {
         crosshairCbsRef.current.forEach((cb) => cb(null));
         onCrosshairTimestampRef.current?.(null);
+        onCrosshairMoveRef.current?.({ timestamp: null, dataIndex: null });
       }
       return;
     }
@@ -511,6 +630,10 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     if (!syncingCrosshairRef.current) {
       crosshairCbsRef.current.forEach((cb) => cb(event.timestamp));
       onCrosshairTimestampRef.current?.(event.timestamp);
+      onCrosshairMoveRef.current?.({
+        timestamp: event.timestamp,
+        dataIndex: event.dataIndex,
+      });
     }
   }, []);
 
@@ -520,6 +643,52 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     });
   }, []);
 
+  const runEdgeFetch = useCallback(async () => {
+    const base = baseCandlesRef.current;
+    if (base.length === 0 || fetchStateRef.current.inFlight || !fetchStateRef.current.hasMoreHistory) {
+      return;
+    }
+    const firstTs = base[0].t;
+    fetchStateRef.current.inFlight = true;
+    const controller = new AbortController();
+    fetchStateRef.current.abortController = controller;
+    try {
+      const older = await fetchOlderCandles(
+        config.symbol,
+        config.interval,
+        firstTs,
+        undefined,
+        controller.signal,
+      );
+      if (older.length === 0) {
+        fetchStateRef.current.hasMoreHistory = false;
+        return;
+      }
+      const merged = mergeCandlesPrepend(base, older);
+      const added = merged.length - base.length;
+      if (added <= 0) {
+        fetchStateRef.current.hasMoreHistory = false;
+        return;
+      }
+      const priceHandle = paneHandlesRef.current.get('price');
+      const vp = priceHandle?.getViewport();
+      if (vp) {
+        const shifted = adjustViewportForPrepend(vp, added);
+        priceHandle?.syncTimeWindow(shifted.startIndex, shifted.endIndex, true);
+        syncSiblings(shifted.startIndex, shifted.endIndex, 'price');
+      }
+      baseCandlesRef.current = merged;
+      setBaseCandles(merged);
+      onDataLoadedRef.current?.({ count: merged.length });
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      fetchStateRef.current.hasMoreHistory = false;
+    } finally {
+      fetchStateRef.current.inFlight = false;
+      fetchStateRef.current.abortController = null;
+    }
+  }, [config.symbol, config.interval, syncSiblings]);
+
   const registerPane: RegisterPane = useCallback((handle) => {
     paneHandlesRef.current.set(handle.paneId, handle);
     return () => paneHandlesRef.current.delete(handle.paneId);
@@ -528,7 +697,14 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const handleViewport = useCallback((vp: VisibleRange, paneId: string) => {
     if (paneId === 'price') latestVpRef.current = vp;
     syncSiblings(vp.startIndex, vp.endIndex, paneId);
-  }, [syncSiblings]);
+
+    if (paneId !== 'price' || !shouldPrefetchEdge(vp.startIndex)) return;
+    if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
+    prefetchTimerRef.current = setTimeout(() => {
+      prefetchTimerRef.current = null;
+      void runEdgeFetch();
+    }, 150);
+  }, [syncSiblings, runEdgeFetch]);
 
   const flushWheel = useCallback(() => {
     wheelRafRef.current = null;
@@ -593,6 +769,48 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       if (wheelEndTimerRef.current) clearTimeout(wheelEndTimerRef.current);
     };
   }, [flushWheel]);
+
+  const drawingFsmRef = useRef(drawingFsm);
+  drawingFsmRef.current = drawingFsm;
+
+  const applyPinchZoom = useCallback(
+    (factor: number, anchorX: number) => {
+      const priceHandle = paneHandlesRef.current.get('price');
+      if (!priceHandle) return;
+      const vp = priceHandle.applyWheelAction({ type: 'zoom', factor }, anchorX);
+      if (vp) syncSiblings(vp.startIndex, vp.endIndex, 'price');
+    },
+    [syncSiblings],
+  );
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handler = createPinchHandler({
+      onPinch: (action, anchorX) => {
+        wheelingRef.current = true;
+        if (wheelEndTimerRef.current) clearTimeout(wheelEndTimerRef.current);
+        wheelEndTimerRef.current = setTimeout(() => {
+          wheelingRef.current = false;
+        }, 120);
+        applyPinchZoom(action.factor, anchorX);
+      },
+      shouldSuppress: () => shouldSuppressPan(drawingFsmRef.current),
+      getContainerRect: () => el.getBoundingClientRect(),
+    });
+
+    el.addEventListener('pointerdown', handler.onPointerDown);
+    el.addEventListener('pointermove', handler.onPointerMove);
+    el.addEventListener('pointerup', handler.onPointerUp);
+    el.addEventListener('pointercancel', handler.onPointerCancel);
+    return () => {
+      el.removeEventListener('pointerdown', handler.onPointerDown);
+      el.removeEventListener('pointermove', handler.onPointerMove);
+      el.removeEventListener('pointerup', handler.onPointerUp);
+      el.removeEventListener('pointercancel', handler.onPointerCancel);
+    };
+  }, [applyPinchZoom]);
 
   const getPriceShowTimeAxis = useCallback(() => {
     const segment = paneSegmentsRef.current.find((s) => s.paneId === 'price');
@@ -695,7 +913,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
             drawingsRef.current
           );
           addCommittedDrawing(drawing);
-          syncDrawingState(nextState);
+          syncDrawingState(finishAfterCommit(nextState));
           setPreviewDrawing(null);
           placingAnchorRef.current = null;
           return;
@@ -722,7 +940,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
               drawingsRef.current
             );
             addCommittedDrawing(drawing);
-            syncDrawingState(nextState);
+            syncDrawingState(finishAfterCommit(nextState));
             return;
           }
           if (isTwoPointTool(tool)) {
@@ -774,7 +992,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
               drawingsRef.current
             );
             addCommittedDrawing(drawing);
-            syncDrawingState(nextState);
+            syncDrawingState(finishAfterCommit(nextState));
             setPreviewDrawing(null);
             placingAnchorRef.current = null;
           }
@@ -783,6 +1001,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     },
     [
       getPriceShowTimeAxis,
+      finishAfterCommit,
       syncDrawingState,
       notifySelectionChange,
       addCommittedDrawing,
@@ -830,8 +1049,12 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [syncDrawingState]);
 
-  // Compute pane layout for price + sub indicators
-  const subKeys = config.indicators.filter((i) => i.pane === 'sub').map(indicatorKey);
+  // Compute pane layout for price + visible sub indicators
+  const visibleIndicators = useMemo(
+    () => config.indicators.filter((i) => i.visible !== false),
+    [config.indicators],
+  );
+  const subKeys = visibleIndicators.filter((i) => i.pane === 'sub').map(indicatorKey);
   const effectivePaneHeights = dragHeights ?? config.paneHeights;
   const layout: PaneLayout = createInitialLayout(
     subKeys,
@@ -886,9 +1109,32 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const hasMultiplePanes = layout.stack.length > 1;
 
   const mainIndicators = useMemo(
-    () => config.indicators.filter((i) => i.pane === 'main'),
-    [config.indicators]
+    () => visibleIndicators.filter((i) => i.pane === 'main'),
+    [visibleIndicators],
   );
+
+  const buildIndicatorLegendSections = useCallback(
+    (ind: IndicatorConfig) => {
+      const sections = resolveIndicatorLegend(
+        ind,
+        candles,
+        crosshair?.dataIndex ?? null,
+        theme,
+      );
+      if (!sections) return null;
+      const plugin = IndicatorRegistry.get(ind.name);
+      if (plugin?.paramSchema && Object.keys(plugin.paramSchema).length > 0) {
+        return appendLegendSettingsAction(sections, ind.id);
+      }
+      return sections;
+    },
+    [candles, crosshair?.dataIndex, theme],
+  );
+
+  const handleLegendAction = useCallback((actionId: string) => {
+    onLegendActionRef.current?.(actionId);
+  }, []);
+
   const priceDrawings = useMemo(() => [...drawingsRef.current], [drawTick]);
   const activeTool = activeDrawingTool ?? '__cursor__';
   const drawingMode = drawingModeFromState(drawingFsm);
@@ -901,6 +1147,63 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     },
     [onChartContextMenu],
   );
+
+  const measurePaneRects = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+    const newRects = new Map<IndicatorKey, PaneRect>();
+
+    paneWrapperRefs.current.forEach((el, key) => {
+      const rect = el.getBoundingClientRect();
+      newRects.set(key as IndicatorKey, {
+        top: rect.top - containerRect.top,
+        left: rect.left - containerRect.left,
+        width: rect.width,
+        height: rect.height,
+      });
+    });
+
+    const prev = lastPaneRectsRef.current;
+    let changed = prev.size !== newRects.size;
+    if (!changed) {
+      for (const [key, rect] of newRects) {
+        const p = prev.get(key);
+        if (
+          !p ||
+          p.top !== rect.top ||
+          p.left !== rect.left ||
+          p.width !== rect.width ||
+          p.height !== rect.height
+        ) {
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    lastPaneRectsRef.current = new Map(newRects);
+    if (changed) setPaneRects(newRects);
+  }, []);
+
+  useLayoutEffect(() => {
+    measurePaneRects();
+  }, [
+    measurePaneRects,
+    subKeys,
+    paneOrder,
+    collapsedKeys,
+    maximizedKey,
+    dims.width,
+    dims.height,
+    dragHeights,
+    loading,
+  ]);
+
+  const setPaneWrapperRef = useCallback((key: string, el: HTMLDivElement | null) => {
+    if (el) paneWrapperRefs.current.set(key, el);
+    else paneWrapperRefs.current.delete(key);
+  }, []);
 
   return (
     <div
@@ -933,19 +1236,36 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                   style={{ height: PANE_SEPARATOR_HEIGHT, flexShrink: 0 }}
                 />
               )}
-              <div className="relative" style={{ height: pane.height, flexShrink: 0 }}>
+              <div
+                ref={(el) => setPaneWrapperRef(PRICE_PANE_KEY, el)}
+                className="relative"
+                style={{ height: pane.height, flexShrink: 0 }}
+              >
                 {!loading && !error && candles.length > 0 && (
-                  <ChartLegendBar
-                    symbol={config.symbol}
-                    symbolName={config.symbolName}
-                    exchange={config.exchange}
-                    interval={config.interval}
-                    candles={candles}
-                    dataIndex={
-                      crosshair?.activePaneId === 'price' ? crosshair.dataIndex : null
-                    }
-                    theme={theme}
-                  />
+                  <>
+                    <ChartLegendBar
+                      symbol={config.symbol}
+                      symbolName={config.symbolName}
+                      exchange={config.exchange}
+                      interval={config.interval}
+                      candles={candles}
+                      dataIndex={crosshair?.dataIndex ?? null}
+                      theme={theme}
+                    />
+                    {mainIndicators.map((ind, idx) => {
+                      const sections = buildIndicatorLegendSections(ind);
+                      if (!sections) return null;
+                      return (
+                        <PaneLegendBar
+                          key={ind.id}
+                          sections={sections}
+                          theme={theme}
+                          onAction={handleLegendAction}
+                          style={{ top: `${28 + idx * 22}px` }}
+                        />
+                      );
+                    })}
+                  </>
                 )}
                 <ChartCanvas
                   key="price"
@@ -977,7 +1297,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
           );
         }
 
-        const subInd = config.indicators.find((ind) => indicatorKey(ind) === pane.key);
+        const subInd = visibleIndicators.find((ind) => indicatorKey(ind) === pane.key);
         if (!subInd) return null;
 
         return (
@@ -988,7 +1308,21 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                 style={{ height: PANE_SEPARATOR_HEIGHT, flexShrink: 0 }}
               />
             )}
-            <div style={{ height: pane.height, flexShrink: 0 }}>
+            <div
+              ref={(el) => setPaneWrapperRef(pane.key, el)}
+              className="relative"
+              style={{ height: pane.height, flexShrink: 0 }}
+            >
+              {!loading && !error && candles.length > 0 && (() => {
+                const sections = buildIndicatorLegendSections(subInd);
+                return sections ? (
+                  <PaneLegendBar
+                    sections={sections}
+                    theme={theme}
+                    onAction={handleLegendAction}
+                  />
+                ) : null;
+              })()}
               <ChartCanvas
                 key={pane.key}
                 paneId={pane.key}
@@ -1012,6 +1346,23 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
           </Fragment>
         );
       })}
+
+      {!loading && !error && config.indicators.length > 0 && (
+        <PaneControls
+          indicators={config.indicators}
+          onRemove={onRemoveIndicator}
+          onCollapse={onCollapseIndicator}
+          onMaximize={onMaximizeIndicator}
+          onMoveUp={onMoveIndicatorUp}
+          onMoveDown={onMoveIndicatorDown}
+          collapsedKeys={collapsedKeys ?? new Set()}
+          maximizedKey={maximizedKey ?? null}
+          paneRects={paneRects}
+          lastPaneRects={lastPaneRectsRef.current}
+          paneOrder={paneOrder}
+          subPaneKeys={subKeys}
+        />
+      )}
 
       <CrosshairOverlay
         width={dims.width}
