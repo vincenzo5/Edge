@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import ChartCell from "./ChartCell";
-import type { CellConfig, GridMode, Theme } from "@/lib/chartConfig";
+import type { CellConfig, GridMode, Theme, ToolbarPrefs } from "@/lib/chartConfig";
 import { cellCountFor } from "@/lib/chartConfig";
 import { ChartSyncProvider } from "./ChartSyncContext";
 
@@ -12,8 +12,10 @@ type Props = {
   theme: Theme;
   cells: CellConfig[];
   activeCellIndex: number;
+  toolbarPrefs: ToolbarPrefs;
   onCellChange: (index: number, next: CellConfig) => void;
   onActiveCellChange: (index: number) => void;
+  onToolbarPrefsChange: (next: ToolbarPrefs) => void;
 };
 
 export default function ChartGrid({
@@ -22,8 +24,10 @@ export default function ChartGrid({
   theme,
   cells,
   activeCellIndex,
+  toolbarPrefs,
   onCellChange,
   onActiveCellChange,
+  onToolbarPrefsChange,
 }: Props) {
   const count = cellCountFor(gridMode);
 
@@ -48,8 +52,10 @@ export default function ChartGrid({
               theme={theme}
               compact={count > 1}
               isActive={i === activeCellIndex}
+              toolbarPrefs={toolbarPrefs}
               onFocus={() => onActiveCellChange(i)}
               onConfigChange={(next) => onCellChange(i, next)}
+              onToolbarPrefsChange={onToolbarPrefsChange}
             />
           </div>
         ))}

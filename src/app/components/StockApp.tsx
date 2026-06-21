@@ -6,12 +6,14 @@ import ChartGrid from "./ChartGrid";
 import {
   DEFAULT_CELL,
   DEFAULT_LAYOUT,
+  DEFAULT_TOOLBAR_PREFS,
   cellCountFor,
   pickLinkFields,
   type CellConfig,
   type ChartLayout,
   type GridMode,
   type Theme,
+  type ToolbarPrefs,
 } from "@/lib/chartConfig";
 import { loadLayout, saveLayout } from "@/lib/layoutStorage";
 
@@ -102,6 +104,10 @@ export default function StockApp() {
     setLayout((prev) => ({ ...prev, linked }));
   }, []);
 
+  const handleToolbarPrefsChange = useCallback((next: ToolbarPrefs) => {
+    setLayout((prev) => ({ ...prev, toolbarPrefs: next }));
+  }, []);
+
   const handleReset = useCallback(() => {
     if (!confirm("Reset layout to defaults? This clears saved drawings.")) return;
     setLayout({ ...DEFAULT_LAYOUT });
@@ -131,8 +137,10 @@ export default function StockApp() {
         theme={layout.theme}
         cells={cells}
         activeCellIndex={layout.activeCellIndex}
+        toolbarPrefs={layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
         onCellChange={applyCellUpdate}
         onActiveCellChange={handleActiveCellChange}
+        onToolbarPrefsChange={handleToolbarPrefsChange}
       />
     </div>
   );

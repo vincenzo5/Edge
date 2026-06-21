@@ -7,12 +7,27 @@ import {
   useState,
 } from "react";
 import type { CellConfig, TrackedOverlay } from "@/lib/chartConfig";
-import { INDICATORS } from "@/lib/indicators";
+import type { Candle, IndicatorConfig, Theme } from "@/lib/chart/contracts";
+import { getCatalogEntry } from "@/lib/chart/indicators/registry";
+import { resolveIndicatorLegend, resolvePriceLegend } from "@/lib/chart/legend";
+import { IndicatorRegistry } from "@/lib/chart/pluginHost";
+
+export type DataWindowProps = {
+  dataIndex: number | null;
+  candles: Candle[];
+  indicators: IndicatorConfig[];
+  symbol: string;
+  symbolName?: string;
+  exchange?: string;
+  interval: CellConfig["interval"];
+  theme: Theme;
+};
 
 type Props = {
   chartId: string;
   config: CellConfig;
   overlays: TrackedOverlay[];
+  dataWindow?: DataWindowProps;
   onConfigChange: (next: CellConfig) => void;
   onOverlayAction: {
     remove: (id: string) => void;
@@ -68,6 +83,7 @@ export default function ObjectTree({
   chartId,
   config,
   overlays,
+  dataWindow,
   onConfigChange,
   onOverlayAction,
   onAddIndicator,
@@ -103,11 +119,21 @@ export default function ObjectTree({
 
   // Remove indicator from config.
   const removeIndicator = useCallback(
-    (name: string, pane: "main" | "sub") => {
+    (id: string) => {
       onConfigChange({
         ...config,
-        indicators: config.indicators.filter(
-          (i) => !(i.name === name && i.pane === pane),
+        indicators: config.indicators.filter((i) => i.id !== id),
+      });
+    },
+    [config, onConfigChange],
+  );
+
+  const toggleIndicatorVisible = useCallback(
+    (id: string) => {
+      onConfigChange({
+        ...config,
+        indicators: config.indicators.map((i) =>
+          i.id === id ? { ...i, visible: i.visible === false } : i,
         ),
       });
     },
@@ -132,8 +158,7 @@ export default function ObjectTree({
   const sortedOverlays = [...overlays].sort((a, b) => b.zLevel - a.zLevel);
 
   // Get indicator metadata for display names.
-  const getIndicatorMeta = (name: string) =>
-    INDICATORS.find((i) => i.name === name);
+  const getIndicatorMeta = (name: string) => getCatalogEntry(name);
 
   // Data window placeholder values.
   const indicatorCount = config.indicators.length;
@@ -184,11 +209,22 @@ export default function ObjectTree({
             ) : (
               config.indicators.map((ind) => {
                 const meta = getIndicatorMeta(ind.name);
+                const isVisible = ind.visible !== false;
                 return (
                   <div
-                    key={`${ind.name}-${ind.pane}`}
-                    className="flex items-center gap-1 px-2 py-0.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
+                    key={ind.id}
+                    className={`flex items-center gap-1 px-2 py-0.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-900 ${
+                      !isVisible ? "opacity-40" : ""
+                    }`}
                   >
+                    <button
+                      type="button"
+                      title={isVisible ? "Hide" : "Show"}
+                      onClick={() => toggleIndicatorVisible(ind.id)}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      {isVisible ? "👁" : "—"}
+                    </button>
                     <span className="truncate text-gray-700 dark:text-gray-300">
                       {ind.name}
                     </span>
@@ -200,7 +236,7 @@ export default function ObjectTree({
                     <button
                       type="button"
                       title={`Remove ${ind.name}`}
-                      onClick={() => removeIndicator(ind.name, ind.pane)}
+                      onClick={() => removeIndicator(ind.id)}
                       className="ml-auto flex h-5 w-5 items-center justify-center rounded text-xs text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
                     >
                       ×
@@ -335,11 +371,111 @@ export default function ObjectTree({
           onToggle={toggleSection}
         />
         {!collapsed.data && (
-          <div className="px-2 py-1 text-xs text-gray-400 dark:text-gray-500 italic">
-            Hover over the chart to see values.
-          </div>
+          <DataWindowSection dataWindow={dataWindow} />
         )}
       </div>
+    </div>
+  );
+}
+
+function DataWindowSection({ dataWindow }: { dataWindow?: DataWindowProps }) {
+  if (!dataWindow || dataWindow.candles.length === 0) {
+    return (
+      <div className="px-2 py-1 text-xs italic text-gray-400 dark:text-gray-500">
+        Hover over the chart to see values.
+      </div>
+    );
+  }
+
+  const visibleIndicators = dataWindow.indicators.filter((i) => i.visible !== false);
+  const priceSections = resolvePriceLegend({
+    symbol: dataWindow.symbol,
+    symbolName: dataWindow.symbolName,
+    exchange: dataWindow.exchange,
+    interval: dataWindow.interval,
+    candles: dataWindow.candles,
+    dataIndex: dataWindow.dataIndex,
+  });
+
+  const indicatorBlocks = visibleIndicators
+    .map((ind) => {
+      if (!IndicatorRegistry.get(ind.name)) return null;
+      const sections = resolveIndicatorLegend(
+        ind,
+        dataWindow.candles,
+        dataWindow.dataIndex,
+        dataWindow.theme,
+      );
+      if (!sections) return null;
+      const values = sections.filter((s) => s.kind === "value");
+      if (values.length === 0) return null;
+    const titleSection = sections.find((s) => s.kind === "text");
+      const title =
+        titleSection?.kind === "text" ? titleSection.text : ind.name;
+      return { id: ind.id, title, values };
+    })
+    .filter(Boolean) as Array<{
+    id: string;
+    title: string;
+    values: Array<{ label: string; value: string; color?: string }>;
+  }>;
+
+  if (!priceSections && indicatorBlocks.length === 0) {
+    return (
+      <div className="px-2 py-1 text-xs italic text-gray-400 dark:text-gray-500">
+        Hover over the chart to see values.
+      </div>
+    );
+  }
+
+  const ohlcv = priceSections
+    ?.filter((s) => s.kind === "value")
+    .map((s) =>
+      s.kind === "value"
+        ? { id: s.id, label: s.label, value: s.value, color: s.color }
+        : null,
+    )
+    .filter(Boolean) as Array<{ id: string; label: string; value: string; color?: string }>;
+
+  return (
+    <div className="space-y-2 border-b border-gray-100 px-2 py-1.5 dark:border-gray-800">
+      {ohlcv && ohlcv.length > 0 && (
+        <div>
+          <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            OHLCV
+          </div>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono text-[11px] tabular-nums">
+            {ohlcv.map((row) => (
+              <div key={row.id} className="flex justify-between gap-1">
+                <span className="text-gray-400">{row.label || row.id}</span>
+                <span style={row.color ? { color: row.color } : undefined} className="text-gray-800 dark:text-gray-200">
+                  {row.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {indicatorBlocks.map((block) => (
+        <div key={block.id}>
+          <div className="mb-0.5 truncate text-[10px] font-medium text-gray-500 dark:text-gray-400">
+            {block.title}
+          </div>
+          <div className="space-y-0.5 font-mono text-[11px] tabular-nums">
+            {block.values.map((row) => (
+              <div key={row.label + row.value} className="flex justify-between gap-1">
+                <span className="text-gray-400">{row.label}</span>
+                <span
+                  style={row.color ? { color: row.color } : undefined}
+                  className="text-gray-800 dark:text-gray-200"
+                >
+                  {row.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

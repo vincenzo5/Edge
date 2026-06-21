@@ -64,7 +64,16 @@ export async function getChartCandles(
   interval: Interval = "1d",
 ): Promise<Candle[]> {
   const { period1, period2 } = rangeToPeriods(range);
+  return getChartCandlesInPeriod(symbol, period1, period2, interval);
+}
 
+/** Fetch candles for an explicit period window (used for edge prefetch). */
+export async function getChartCandlesInPeriod(
+  symbol: string,
+  period1: Date,
+  period2: Date,
+  interval: Interval = "1d",
+): Promise<Candle[]> {
   const result = await yahooFinance.chart(symbol, {
     period1,
     period2,
@@ -79,7 +88,6 @@ export async function getChartCandles(
       continue;
     }
     candles.push({
-      // KLineChart expects unix seconds.
       timestamp: Math.floor(q.date.getTime() / 1000),
       open: q.open,
       high: q.high,
@@ -90,6 +98,40 @@ export async function getChartCandles(
   }
 
   return candles;
+}
+
+/** Fetch older candles ending just before `beforeTimestampMs`. */
+export async function getChartCandlesBefore(
+  symbol: string,
+  beforeTimestampMs: number,
+  interval: Interval = "1d",
+  barCount = 200,
+): Promise<Candle[]> {
+  const intervalMs = intervalToMs(interval);
+  const period2 = new Date(beforeTimestampMs - intervalMs);
+  const period1 = new Date(period2.getTime() - barCount * intervalMs);
+  return getChartCandlesInPeriod(symbol, period1, period2, interval);
+}
+
+export function intervalToMs(interval: Interval): number {
+  switch (interval) {
+    case "5m":
+      return 5 * 60 * 1000;
+    case "15m":
+      return 15 * 60 * 1000;
+    case "30m":
+      return 30 * 60 * 1000;
+    case "1h":
+      return 60 * 60 * 1000;
+    case "1d":
+      return 24 * 60 * 60 * 1000;
+    case "1wk":
+      return 7 * 24 * 60 * 60 * 1000;
+    case "1mo":
+      return 30 * 24 * 60 * 60 * 1000;
+    default:
+      return 24 * 60 * 60 * 1000;
+  }
 }
 
 // ---------------------------------------------------------------------------

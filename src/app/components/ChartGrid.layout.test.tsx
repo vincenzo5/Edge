@@ -13,6 +13,7 @@ import { render, screen } from '@testing-library/react';
 import ChartGrid from './ChartGrid';
 import {
   DEFAULT_CELL,
+  DEFAULT_TOOLBAR_PREFS,
   GRID_MODES,
   cellCountFor,
   type GridMode,
@@ -37,8 +38,10 @@ describe('ChartGrid layout shell', () => {
           theme="light"
           cells={cells}
           activeCellIndex={0}
+          toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
           onCellChange={vi.fn()}
           onActiveCellChange={vi.fn()}
+          onToolbarPrefsChange={vi.fn()}
         />,
       );
 
@@ -60,8 +63,10 @@ describe('ChartGrid layout shell', () => {
         theme="light"
         cells={cells}
         activeCellIndex={0}
+        toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
         onCellChange={vi.fn()}
         onActiveCellChange={vi.fn()}
+        onToolbarPrefsChange={vi.fn()}
       />,
     );
 
