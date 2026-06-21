@@ -1,6 +1,9 @@
 import type { Range, Interval } from "./yahoo";
+import type { IndicatorConfig } from "./chart/contracts";
+import { getIndicator } from "./chart/indicators/registry";
 
 export type { Range, Interval };
+export type { IndicatorConfig } from "./chart/contracts";
 
 export type ChartType =
   | "candle_solid"
@@ -13,10 +16,8 @@ export type Theme = "light" | "dark";
 
 export type GridMode = "1x1" | "2x1" | "2x2" | "3x1" | "1x2";
 
-export type IndicatorConfig = {
-  name: string;
-  pane: "main" | "sub";
-};
+/** @deprecated Use IndicatorConfig from chart/contracts */
+export type LegacyIndicatorConfig = IndicatorConfig;
 
 /** Sentinel key representing the price (main candle) pane in paneOrder / collapsedPanes / maximizedPane. */
 export const PRICE_PANE_KEY = "price";
@@ -51,6 +52,20 @@ export type SerializedDrawing = {
   paneId?: string;
 };
 
+export type ToolbarPrefs = {
+  /** Last-selected tool per flyout group id (lines, shapes, annotation). */
+  groupSelections?: Record<string, string>;
+  /** Stay in active tool after placing a drawing. Default false (TV parity). */
+  keepDrawing?: boolean;
+  /** Snap drawing points to OHLC. */
+  magnet?: boolean;
+};
+
+export const DEFAULT_TOOLBAR_PREFS: ToolbarPrefs = {
+  keepDrawing: false,
+  magnet: false,
+};
+
 export type CellConfig = {
   symbol: string;
   symbolName?: string;
@@ -77,6 +92,8 @@ export type ChartLayout = {
   /** Index of the chart cell that receives drawing tools and focus ring. */
   activeCellIndex: number;
   theme: Theme;
+  /** Drawing toolbar preferences (group selections, magnet, keep-drawing). */
+  toolbarPrefs?: ToolbarPrefs;
   cells: CellConfig[];
 };
 
@@ -169,4 +186,69 @@ export function cellCountFor(mode: GridMode): number {
     case "2x2":
       return 4;
   }
+}
+
+export function generateIndicatorId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `ind_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+}
+
+export function legacyIndicatorKey(name: string, pane: "main" | "sub"): string {
+  return `${name}::${pane}`;
+}
+
+export function createIndicatorInstance(
+  name: string,
+  pane: "main" | "sub",
+): IndicatorConfig {
+  const plugin = getIndicator(name);
+  return {
+    id: generateIndicatorId(),
+    name,
+    pane,
+    params: plugin?.defaultParams ? { ...plugin.defaultParams } : undefined,
+    visible: true,
+  };
+}
+
+export function migrateCellIndicators(cell: CellConfig): CellConfig {
+  const keyRemap = new Map<string, string>();
+
+  const indicators: IndicatorConfig[] = cell.indicators.map((ind) => {
+    const existing = ind as IndicatorConfig & { id?: string };
+    const id = existing.id ?? generateIndicatorId();
+    keyRemap.set(legacyIndicatorKey(ind.name, ind.pane), id);
+    if (ind.id) keyRemap.set(ind.id, id);
+    return {
+      ...ind,
+      id,
+      visible: ind.visible ?? true,
+    };
+  });
+
+  const remapKey = (key: string) => {
+    if (keyRemap.has(key)) return keyRemap.get(key)!;
+    if (key.includes("::")) {
+      for (const ind of indicators) {
+        if (legacyIndicatorKey(ind.name, ind.pane) === key) return ind.id;
+      }
+    }
+    return key;
+  };
+
+  return {
+    ...cell,
+    indicators,
+    paneOrder: cell.paneOrder?.map(remapKey),
+    collapsedPanes: cell.collapsedPanes?.map(remapKey),
+    maximizedPane:
+      cell.maximizedPane != null ? remapKey(cell.maximizedPane) : cell.maximizedPane,
+    paneHeights: cell.paneHeights
+      ? Object.fromEntries(
+          Object.entries(cell.paneHeights).map(([k, v]) => [remapKey(k), v]),
+        )
+      : undefined,
+  };
 }

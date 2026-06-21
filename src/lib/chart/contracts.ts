@@ -14,9 +14,11 @@ export type Range = '1d' | '5d' | '1mo' | '3mo' | '6mo' | 'ytd' | '1y' | '2y' | 
 export type Interval = '5m' | '15m' | '30m' | '1h' | '1d' | '1wk' | '1mo';
 
 export type IndicatorConfig = {
+  id: string;
   name: string;
   pane: 'main' | 'sub';
   params?: Record<string, number>;
+  visible?: boolean;
 };
 
 export type SerializedDrawing = {
@@ -75,6 +77,8 @@ export type VisibleRange = {
   priceForY: (y: number) => number;
   /** Auto-fit Y to visible bars, or manual after price-axis drag. */
   priceScaleMode?: 'auto' | 'manual';
+  /** When true, Y mapping excludes the bottom time-axis strip. */
+  reserveTimeAxis?: boolean;
 };
 
 /** Shared horizontal window across panes; price scale stays per-pane. */

@@ -1,7 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { computeMacd, ema, mergeRanges, symmetricRangeAroundZero } from './math';
+import { computeMacd, computeRsi, ema, mergeRanges, sma, stddev, symmetricRangeAroundZero } from './math';
 
 describe('indicator math', () => {
+  it('computes SMA with warmup period', () => {
+    const values = [1, 2, 3, 4, 5];
+    const result = sma(values, 3);
+    expect(result[1]).toBeNaN();
+    expect(result[2]).toBe(2);
+    expect(result[4]).toBe(4);
+  });
+
+  it('computes rolling stddev', () => {
+    const values = [2, 4, 4, 4, 5, 5, 7, 9];
+    const result = stddev(values, 3);
+    expect(result[1]).toBeNaN();
+    expect(result[2]).toBeGreaterThan(0);
+  });
+
+  it('computes RSI within bounds', () => {
+    const closes = Array.from({ length: 30 }, (_, i) => 100 + i * 0.5);
+    const rsi = computeRsi(closes, 14);
+    expect(rsi[29]).toBeGreaterThanOrEqual(0);
+    expect(rsi[29]).toBeLessThanOrEqual(100);
+  });
   it('computes EMA with warmup period', () => {
     const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const result = ema(values, 3);

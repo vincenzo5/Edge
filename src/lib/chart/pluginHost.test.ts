@@ -12,6 +12,15 @@ describe('IndicatorRegistry', () => {
     const ma = IndicatorRegistry.get('MA');
     expect(ma).toBeDefined();
   });
+
+  it('registered plugins include catalog metadata and param schema', () => {
+    for (const plugin of IndicatorRegistry.getAll()) {
+      expect(plugin.category).toBeTruthy();
+      expect(plugin.description).toBeTruthy();
+      expect(plugin.paramSchema).toBeDefined();
+      expect(typeof plugin.compute).toBe('function');
+    }
+  });
 });
 
 describe('DrawingRegistry', () => {

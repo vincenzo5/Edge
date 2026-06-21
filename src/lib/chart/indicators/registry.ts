@@ -1,9 +1,17 @@
 import type { IndicatorPlugin } from '../plugin-api';
+import {
+  INDICATOR_CATALOG,
+  INDICATOR_CATEGORIES,
+  type IndicatorMeta,
+  isMainPane,
+  getCatalogMeta,
+} from './catalog';
 import { ma } from './ma';
+import { emaPlugin } from './ema';
 import { boll } from './boll';
 import { macd } from './macd';
 import { rsi } from './rsi';
-// ... import remaining 24 as they are implemented
+import { vol } from './vol';
 
 const registry = new Map<string, IndicatorPlugin>();
 
@@ -11,19 +19,64 @@ export function registerIndicator(plugin: IndicatorPlugin) {
   registry.set(plugin.name, plugin);
 }
 
-export function getIndicator(name: string) {
+export function getIndicator(name: string): IndicatorPlugin | undefined {
   return registry.get(name);
 }
 
-export function getAllIndicators() {
+export function getAllIndicators(): IndicatorPlugin[] {
   return Array.from(registry.values());
 }
 
-// Auto-register core ones for V1
+export function isIndicatorImplemented(plugin: IndicatorPlugin | undefined): boolean {
+  return plugin != null && typeof plugin.compute === 'function';
+}
+
+export type CatalogEntry = IndicatorMeta & {
+  implemented: boolean;
+  plugin?: IndicatorPlugin;
+};
+
+export function getCatalogEntry(name: string): CatalogEntry | undefined {
+  const meta = getCatalogMeta(name);
+  if (!meta) return undefined;
+  const plugin = registry.get(name);
+  return {
+    ...meta,
+    implemented: isIndicatorImplemented(plugin),
+    plugin,
+  };
+}
+
+export function getCatalog(): CatalogEntry[] {
+  return INDICATOR_CATALOG.map((meta) => {
+    const plugin = registry.get(meta.name);
+    return {
+      ...meta,
+      implemented: isIndicatorImplemented(plugin),
+      plugin,
+    };
+  });
+}
+
+export function getCatalogByCategory(): Record<
+  (typeof INDICATOR_CATEGORIES)[number],
+  CatalogEntry[]
+> {
+  const out = Object.fromEntries(
+    INDICATOR_CATEGORIES.map((c) => [c, [] as CatalogEntry[]]),
+  ) as Record<(typeof INDICATOR_CATEGORIES)[number], CatalogEntry[]>;
+
+  for (const entry of getCatalog()) {
+    out[entry.category].push(entry);
+  }
+  return out;
+}
+
+export { INDICATOR_CATALOG, INDICATOR_CATEGORIES, isMainPane, getCatalogMeta };
+
 registerIndicator(ma);
+registerIndicator(emaPlugin);
 registerIndicator(boll);
 registerIndicator(macd);
 registerIndicator(rsi);
-
-// TODO: register the other 24 from current INDICATORS list (AVP, SAR, KDJ, etc.)
-// Each follows the same {name, pane, draw, valueAt?} shape.
+registerIndicator(vol);

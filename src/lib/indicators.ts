@@ -1,77 +1,30 @@
-import type { IndicatorConfig } from "./chartConfig";
+export type { IndicatorCategory, ParamDef } from './chart/plugin-api';
+export type { IndicatorMeta } from './chart/indicators/catalog';
+export type { CatalogEntry } from './chart/indicators/registry';
+export {
+  getCatalog,
+  getCatalogByCategory,
+  getCatalogEntry,
+  getCatalogMeta,
+  isMainPane,
+  INDICATOR_CATALOG,
+  INDICATOR_CATEGORIES,
+} from './chart/indicators/registry';
 
-// Built-in indicator names extracted from klinecharts 9.8.x source.
-// `getSupportedIndicators()` exists at runtime (browser only) and should
-// match this list; we hardcode for categorization since the lib is
-// browser-only and cannot be imported from node/SSR.
-export type IndicatorCategory = "Trend" | "Momentum" | "Volume" | "Volatility" | "Other";
+import { getCatalog } from './chart/indicators/registry';
+import type { IndicatorConfig } from './chartConfig';
 
-export type IndicatorMeta = {
-  name: string;
-  category: IndicatorCategory;
-  defaultPane: "main" | "sub";
-  description: string;
-};
-
-export const INDICATORS: IndicatorMeta[] = [
-  // Trend (overlay on main pane)
-  { name: "MA", category: "Trend", defaultPane: "main", description: "Moving Average" },
-  { name: "EMA", category: "Trend", defaultPane: "main", description: "Exponential Moving Average" },
-  { name: "SMA", category: "Trend", defaultPane: "main", description: "Simple Moving Average" },
-  { name: "BBI", category: "Trend", defaultPane: "main", description: "Bull and Bear Index" },
-  { name: "BOLL", category: "Trend", defaultPane: "main", description: "Bollinger Bands" },
-  { name: "SAR", category: "Trend", defaultPane: "main", description: "Stop and Reverse (Parabolic)" },
-  { name: "AVP", category: "Trend", defaultPane: "main", description: "Average Price" },
-  // Momentum (sub pane)
-  { name: "MACD", category: "Momentum", defaultPane: "sub", description: "Moving Average Convergence Divergence" },
-  { name: "RSI", category: "Momentum", defaultPane: "sub", description: "Relative Strength Index" },
-  { name: "KDJ", category: "Momentum", defaultPane: "sub", description: "Stochastic Oscillator" },
-  { name: "CCI", category: "Momentum", defaultPane: "sub", description: "Commodity Channel Index" },
-  { name: "BIAS", category: "Momentum", defaultPane: "sub", description: "Bias" },
-  { name: "BRAR", category: "Momentum", defaultPane: "sub", description: "BRAR" },
-  { name: "CR", category: "Momentum", defaultPane: "sub", description: "CR" },
-  { name: "DMI", category: "Momentum", defaultPane: "sub", description: "Directional Movement Index" },
-  { name: "DMA", category: "Momentum", defaultPane: "sub", description: "Difference of Moving Averages" },
-  { name: "EMV", category: "Momentum", defaultPane: "sub", description: "Ease of Movement" },
-  { name: "MTM", category: "Momentum", defaultPane: "sub", description: "Momentum" },
-  { name: "PSY", category: "Momentum", defaultPane: "sub", description: "Psychological Line" },
-  { name: "ROC", category: "Momentum", defaultPane: "sub", description: "Rate of Change" },
-  { name: "TRIX", category: "Momentum", defaultPane: "sub", description: "Triple Exponential Average" },
-  { name: "AO", category: "Momentum", defaultPane: "sub", description: "Awesome Oscillator" },
-  { name: "WR", category: "Momentum", defaultPane: "sub", description: "Williams %R" },
-  // Volume (sub pane)
-  { name: "VOL", category: "Volume", defaultPane: "sub", description: "Volume" },
-  { name: "VR", category: "Volume", defaultPane: "sub", description: "Volume Ratio" },
-  { name: "OBV", category: "Volume", defaultPane: "sub", description: "On-Balance Volume" },
-  { name: "PVT", category: "Volume", defaultPane: "sub", description: "Price-Volume Trend" },
-];
+/** Flat catalog metadata (backward compatibility). */
+export const INDICATORS = getCatalog().map(
+  ({ name, category, defaultPane, description }) => ({
+    name,
+    category,
+    defaultPane,
+    description,
+  }),
+);
 
 export const INDICATOR_NAMES = new Set(INDICATORS.map((i) => i.name));
-
-export const INDICATOR_CATEGORIES: IndicatorCategory[] = [
-  "Trend",
-  "Momentum",
-  "Volume",
-  "Volatility",
-  "Other",
-];
-
-export function indicatorsByCategory(): Record<IndicatorCategory, IndicatorMeta[]> {
-  const out: Record<IndicatorCategory, IndicatorMeta[]> = {
-    Trend: [],
-    Momentum: [],
-    Volume: [],
-    Volatility: [],
-    Other: [],
-  };
-  for (const i of INDICATORS) out[i.category].push(i);
-  return out;
-}
-
-export function isMainPane(name: string): boolean {
-  const meta = INDICATORS.find((i) => i.name === name);
-  return meta?.defaultPane === "main";
-}
 
 export function indicatorConfigEqual(a: IndicatorConfig, b: IndicatorConfig): boolean {
   return a.name === b.name && a.pane === b.pane;

@@ -1,3 +1,78 @@
+import type { Candle, Theme, VisibleRange } from '../contracts';
+import { plotWidth } from '../layout';
+
+export function closes(candles: Candle[]): number[] {
+  return candles.map((c) => c.c);
+}
+
+export function volumes(candles: Candle[]): number[] {
+  return candles.map((c) => c.v ?? 0);
+}
+
+/** Simple moving average. */
+export function sma(values: number[], period: number): number[] {
+  const n = values.length;
+  const out = new Array(n).fill(NaN);
+  if (period < 1 || n < period) return out;
+
+  for (let i = period - 1; i < n; i++) {
+    let sum = 0;
+    for (let j = i - period + 1; j <= i; j++) sum += values[j];
+    out[i] = sum / period;
+  }
+  return out;
+}
+
+/** Rolling population standard deviation. */
+export function stddev(values: number[], period: number): number[] {
+  const n = values.length;
+  const out = new Array(n).fill(NaN);
+  if (period < 1 || n < period) return out;
+
+  for (let i = period - 1; i < n; i++) {
+    let sum = 0;
+    for (let j = i - period + 1; j <= i; j++) sum += values[j];
+    const mean = sum / period;
+    let sq = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      const d = values[j] - mean;
+      sq += d * d;
+    }
+    out[i] = Math.sqrt(sq / period);
+  }
+  return out;
+}
+
+export function highest(values: number[], period: number): number[] {
+  const n = values.length;
+  const out = new Array(n).fill(NaN);
+  if (period < 1 || n < period) return out;
+
+  for (let i = period - 1; i < n; i++) {
+    let max = -Infinity;
+    for (let j = i - period + 1; j <= i; j++) {
+      if (Number.isFinite(values[j])) max = Math.max(max, values[j]);
+    }
+    out[i] = max === -Infinity ? NaN : max;
+  }
+  return out;
+}
+
+export function lowest(values: number[], period: number): number[] {
+  const n = values.length;
+  const out = new Array(n).fill(NaN);
+  if (period < 1 || n < period) return out;
+
+  for (let i = period - 1; i < n; i++) {
+    let min = Infinity;
+    for (let j = i - period + 1; j <= i; j++) {
+      if (Number.isFinite(values[j])) min = Math.min(min, values[j]);
+    }
+    out[i] = min === Infinity ? NaN : min;
+  }
+  return out;
+}
+
 /** Simple moving average seed, then exponential moving average. */
 export function ema(values: number[], period: number): number[] {
   const n = values.length;
@@ -80,6 +155,56 @@ export function computeMacd(
   return { macd, signal, histogram };
 }
 
+export function computeBollinger(
+  closes: number[],
+  period = 20,
+  mult = 2,
+): { middle: number[]; upper: number[]; lower: number[] } {
+  const middle = sma(closes, period);
+  const dev = stddev(closes, period);
+  const n = closes.length;
+  const upper = new Array(n).fill(NaN);
+  const lower = new Array(n).fill(NaN);
+
+  for (let i = 0; i < n; i++) {
+    if (Number.isFinite(middle[i]) && Number.isFinite(dev[i])) {
+      upper[i] = middle[i] + mult * dev[i];
+      lower[i] = middle[i] - mult * dev[i];
+    }
+  }
+
+  return { middle, upper, lower };
+}
+
+/** Wilder-smoothed RSI. */
+export function computeRsi(closes: number[], period = 14): number[] {
+  const n = closes.length;
+  const out = new Array(n).fill(NaN);
+  if (n <= period) return out;
+
+  let avgGain = 0;
+  let avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const change = closes[i] - closes[i - 1];
+    if (change >= 0) avgGain += change;
+    else avgLoss -= change;
+  }
+  avgGain /= period;
+  avgLoss /= period;
+  out[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+
+  for (let i = period + 1; i < n; i++) {
+    const change = closes[i] - closes[i - 1];
+    const gain = change > 0 ? change : 0;
+    const loss = change < 0 ? -change : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+    out[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  }
+
+  return out;
+}
+
 export function rangeInViewport(
   series: number[],
   startIndex: number,
@@ -123,4 +248,8 @@ export function symmetricRangeAroundZero(
   const bound = Math.max(Math.abs(range.min), Math.abs(range.max));
   if (bound === 0) return { min: -1, max: 1 };
   return { min: -bound, max: bound };
+}
+
+export function fixedRange(min: number, max: number): { min: number; max: number } {
+  return { min, max };
 }

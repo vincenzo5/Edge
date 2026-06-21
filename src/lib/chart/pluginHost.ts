@@ -20,6 +20,7 @@ export const drawingAliases: Record<string, string> = {
   fibonacciLine: 'fib_retracement',
   priceLine: 'price_line',
   simpleAnnotation: 'annotation',
+  measure: 'measure',
 };
 
 export const DrawingRegistry = {
