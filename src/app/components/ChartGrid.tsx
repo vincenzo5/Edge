@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import ChartCell from "./ChartCell";
 import type { CellConfig, GridMode, Theme } from "@/lib/chartConfig";
 import { cellCountFor } from "@/lib/chartConfig";
@@ -11,7 +11,9 @@ type Props = {
   linked: boolean;
   theme: Theme;
   cells: CellConfig[];
+  activeCellIndex: number;
   onCellChange: (index: number, next: CellConfig) => void;
+  onActiveCellChange: (index: number) => void;
 };
 
 export default function ChartGrid({
@@ -19,46 +21,35 @@ export default function ChartGrid({
   linked,
   theme,
   cells,
+  activeCellIndex,
   onCellChange,
+  onActiveCellChange,
 }: Props) {
   const count = cellCountFor(gridMode);
-  const lastCountRef = useRef(count);
 
-  // When count grows, ensure cells array has entries (caller manages this,
-  // but we guard against missing entries defensively).
   const visibleCells = useMemo(
     () => cells.slice(0, count),
     [cells, count],
   );
 
-  const handleCellChange = (index: number, next: CellConfig) => {
-    onCellChange(index, next);
-    if (linked) {
-      // Propagate symbol/range/interval to all other cells.
-      for (let i = 0; i < cells.length; i++) {
-        if (i === index) continue;
-        onCellChange(i, {
-          ...cells[i],
-          symbol: next.symbol,
-          range: next.range,
-          interval: next.interval,
-        });
-      }
-    }
-  };
-
   const gridClass = useMemo(() => gridContainerClass(gridMode), [gridMode]);
 
   return (
-    <ChartSyncProvider>
-      <div className={`grid flex-1 gap-1 ${gridClass}`}>
+    <ChartSyncProvider linked={linked}>
+      <div
+        data-testid="chart-grid"
+        className={`grid min-h-0 min-w-0 flex-1 gap-1 overflow-hidden ${gridClass}`}
+      >
         {visibleCells.map((cell, i) => (
-          <div key={i} className="flex min-h-0 min-w-0 flex-col">
+          <div key={i} className="flex min-h-0 min-w-0 flex-col overflow-hidden">
             <ChartCell
               chartId={`cell-${i}`}
               config={cell}
               theme={theme}
-              onConfigChange={(next) => handleCellChange(i, next)}
+              compact={count > 1}
+              isActive={i === activeCellIndex}
+              onFocus={() => onActiveCellChange(i)}
+              onConfigChange={(next) => onCellChange(i, next)}
             />
           </div>
         ))}
@@ -70,14 +61,14 @@ export default function ChartGrid({
 function gridContainerClass(mode: GridMode): string {
   switch (mode) {
     case "1x1":
-      return "grid-cols-1 grid-rows-1";
+      return "grid-cols-1 chart-grid-rows-1";
     case "2x1":
-      return "grid-cols-1 grid-rows-2";
+      return "grid-cols-1 chart-grid-rows-2";
     case "1x2":
-      return "grid-cols-2 grid-rows-1";
+      return "grid-cols-2 chart-grid-rows-1";
     case "3x1":
-      return "grid-cols-1 grid-rows-3";
+      return "grid-cols-1 chart-grid-rows-3";
     case "2x2":
-      return "grid-cols-2 grid-rows-2";
+      return "grid-cols-2 chart-grid-rows-2";
   }
 }

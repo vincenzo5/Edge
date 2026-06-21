@@ -21,6 +21,19 @@
 html,
 body {
   height: 100%;
+  overflow: hidden;
   background-color: var(--app-bg);
   color: var(--app-text);
+}
+
+@utility chart-grid-rows-1 {
+  grid-template-rows: repeat(1, minmax(0, 1fr));
+}
+
+@utility chart-grid-rows-2 {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+@utility chart-grid-rows-3 {
+  grid-template-rows: repeat(3, minmax(0, 1fr));
 }

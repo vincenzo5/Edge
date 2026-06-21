@@ -5,6 +5,7 @@ import {
   GRID_MODES,
   INTERVALS,
   RANGES,
+  cellCountFor,
   type CellConfig,
   type GridMode,
   type Theme,
@@ -14,6 +15,7 @@ type Props = {
   gridMode: GridMode;
   theme: Theme;
   linked: boolean;
+  activeCellIndex: number;
   onGridModeChange: (mode: GridMode) => void;
   onThemeChange: (theme: Theme) => void;
   onLinkedChange: (linked: boolean) => void;
@@ -24,6 +26,7 @@ export default function Toolbar({
   gridMode,
   theme,
   linked,
+  activeCellIndex,
   onGridModeChange,
   onThemeChange,
   onLinkedChange,
@@ -56,6 +59,12 @@ export default function Toolbar({
         />
         Link symbols
       </label>
+
+      {cellCountFor(gridMode) > 1 && (
+        <span className="text-xs opacity-60">
+          Cell {activeCellIndex + 1}/{cellCountFor(gridMode)}
+        </span>
+      )}
 
       <div className="flex-1" />
 

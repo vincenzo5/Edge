@@ -13,7 +13,7 @@ export default function SearchBar({
   initial = "",
   compact = false,
 }: {
-  onSelect: (symbol: string) => void;
+  onSelect: (result: SearchResult) => void;
   initial?: string;
   compact?: boolean;
 }) {
@@ -22,13 +22,21 @@ export default function SearchBar({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const focusedRef = useRef(false);
+
+  useEffect(() => {
+    setQuery(initial);
+  }, [initial]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = query.trim();
-    if (!trimmed) {
-      setResults([]);
-      setOpen(false);
+    if (!trimmed || !focusedRef.current) {
+      if (!trimmed) {
+        setResults([]);
+        setOpen(false);
+      }
       return;
     }
 
@@ -41,10 +49,12 @@ export default function SearchBar({
           body: JSON.stringify({ query: trimmed }),
         });
         const body = await res.json();
-        setResults(body.results ?? []);
-        setOpen(true);
+        const next = body.results ?? [];
+        setResults(next);
+        setOpen(focusedRef.current && next.length > 0);
       } catch {
         setResults([]);
+        setOpen(false);
       } finally {
         setLoading(false);
       }
@@ -56,19 +66,28 @@ export default function SearchBar({
   }, [query]);
 
   const handleSelect = (result: SearchResult) => {
-    onSelect(result.symbol);
+    onSelect(result);
     setQuery(result.symbol);
+    setResults([]);
     setOpen(false);
+    inputRef.current?.blur();
   };
 
   return (
     <div className={`relative ${compact ? "w-32" : "w-full max-w-md"}`}>
       <input
+        ref={inputRef}
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => results.length > 0 && setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onFocus={() => {
+          focusedRef.current = true;
+          if (results.length > 0) setOpen(true);
+        }}
+        onBlur={() => {
+          focusedRef.current = false;
+          setTimeout(() => setOpen(false), 150);
+        }}
         placeholder={compact ? "Symbol" : "Search stocks (e.g. AAPL, Apple)"}
         className="w-full rounded border border-gray-300 bg-transparent px-2 py-1 text-sm outline-none focus:border-blue-500 dark:border-gray-700"
       />

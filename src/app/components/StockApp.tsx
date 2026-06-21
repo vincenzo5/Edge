@@ -7,6 +7,7 @@ import {
   DEFAULT_CELL,
   DEFAULT_LAYOUT,
   cellCountFor,
+  pickLinkFields,
   type CellConfig,
   type ChartLayout,
   type GridMode,
@@ -37,7 +38,7 @@ export default function StockApp() {
     return () => clearTimeout(t);
   }, [layout]);
 
-  // Ensure cells array matches grid mode count.
+  // Ensure cells array matches grid mode count; clamp active cell index.
   useEffect(() => {
     if (!hydratedRef.current) return;
     const needed = cellCountFor(layout.gridMode);
@@ -46,15 +47,46 @@ export default function StockApp() {
       while (cells.length < needed) {
         cells.push({ ...DEFAULT_CELL });
       }
-      return { ...prev, cells: cells.slice(0, Math.max(needed, cells.length)) };
+      const trimmed = cells.slice(0, Math.max(needed, cells.length));
+      const maxIndex = Math.max(0, needed - 1);
+      const activeCellIndex = Math.min(prev.activeCellIndex ?? 0, maxIndex);
+      if (
+        trimmed.length === prev.cells.length &&
+        activeCellIndex === prev.activeCellIndex
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        cells: trimmed,
+        activeCellIndex,
+      };
     });
   }, [layout.gridMode]);
 
-  const handleCellChange = useCallback((index: number, next: CellConfig) => {
+  const applyCellUpdate = useCallback((index: number, next: CellConfig) => {
     setLayout((prev) => {
+      const count = cellCountFor(prev.gridMode);
       const cells = [...prev.cells];
       cells[index] = next;
+      if (prev.linked) {
+        const linkFields = pickLinkFields(next);
+        for (let i = 0; i < count; i++) {
+          if (i !== index) {
+            cells[i] = { ...cells[i], ...linkFields };
+          }
+        }
+      }
       return { ...prev, cells };
+    });
+  }, []);
+
+  const handleActiveCellChange = useCallback((index: number) => {
+    setLayout((prev) => {
+      const maxIndex = cellCountFor(prev.gridMode) - 1;
+      const activeCellIndex = Math.max(0, Math.min(index, maxIndex));
+      if (activeCellIndex === prev.activeCellIndex) return prev;
+      return { ...prev, activeCellIndex };
     });
   }, []);
 
@@ -82,11 +114,12 @@ export default function StockApp() {
   );
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       <Toolbar
         gridMode={layout.gridMode}
         theme={layout.theme}
         linked={layout.linked}
+        activeCellIndex={layout.activeCellIndex}
         onGridModeChange={handleGridModeChange}
         onThemeChange={handleThemeChange}
         onLinkedChange={handleLinkedChange}
@@ -97,7 +130,9 @@ export default function StockApp() {
         linked={layout.linked}
         theme={layout.theme}
         cells={cells}
-        onCellChange={handleCellChange}
+        activeCellIndex={layout.activeCellIndex}
+        onCellChange={applyCellUpdate}
+        onActiveCellChange={handleActiveCellChange}
       />
     </div>
   );

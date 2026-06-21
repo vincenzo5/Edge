@@ -24,6 +24,8 @@ const TOOLS: Tool[] = [
 ];
 
 type Props = {
+  compact?: boolean;
+  disabled?: boolean;
   onToolSelect: (toolName: string) => void;
   onClear: () => void;
   onToggleMagnet: (on: boolean) => void;
@@ -31,6 +33,8 @@ type Props = {
 };
 
 export default function DrawingToolbar({
+  compact = false,
+  disabled = false,
   onToolSelect,
   onClear,
   onToggleMagnet,
@@ -40,12 +44,17 @@ export default function DrawingToolbar({
   const [magnet, setMagnet] = useState(false);
 
   const handleClick = (tool: Tool) => {
+    if (disabled) return;
     setActive(tool.name);
     onToolSelect(tool.name);
   };
 
   return (
-    <div className="flex w-10 flex-col items-center gap-1 border-r border-gray-200 py-2 dark:border-gray-800">
+    <div
+      className={`flex shrink-0 flex-col items-center gap-1 border-r border-gray-200 py-2 dark:border-gray-800 ${
+        compact ? "w-8" : "w-10"
+      } ${disabled ? "pointer-events-none opacity-40" : ""}`}
+    >
       {TOOLS.map((t) => (
         <button
           key={t.name}

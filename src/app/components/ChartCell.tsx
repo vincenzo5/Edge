@@ -7,7 +7,7 @@ import DrawingToolbar from "./DrawingToolbar";
 import BarReplay from "./BarReplay";
 import IndicatorPicker from "./IndicatorPicker";
 import ObjectTree from "./ObjectTree";
-import OverlayContextMenu from "./OverlayContextMenu";
+import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { useChartSync } from "./ChartSyncContext";
 import {
   CHART_TYPES,
@@ -23,6 +23,9 @@ type Props = {
   chartId: string;
   config: CellConfig;
   theme: "light" | "dark";
+  compact?: boolean;
+  isActive?: boolean;
+  onFocus?: () => void;
   onConfigChange: (next: CellConfig) => void;
   onCandleCount?: (n: number) => void;
 };
@@ -31,6 +34,9 @@ export default function ChartCell({
   chartId,
   config,
   theme,
+  compact = false,
+  isActive = true,
+  onFocus,
   onConfigChange,
   onCandleCount,
 }: Props) {
@@ -40,9 +46,10 @@ export default function ChartCell({
   const [candleCount, setCandleCount] = useState(0);
   const [objectTreeVisible, setObjectTreeVisible] = useState(false);
   const [overlays, setOverlays] = useState<TrackedOverlay[]>([]);
-  const [ctxMenu, setCtxMenu] = useState<{
-    overlay: TrackedOverlay;
+  const [contextMenu, setContextMenu] = useState<{
     position: { x: number; y: number };
+    items: ContextMenuItem[];
+    header?: string;
   } | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const overlaysDirtyRef = useRef(false);
@@ -62,9 +69,14 @@ export default function ChartCell({
       setOverlays(chart.getTrackedOverlays());
       overlaysDirtyRef.current = true;
     });
-    // Initial load.
+    const unsubSel = chart.onSelectionChange?.((id) => {
+      setSelectedOverlayId(id);
+    });
     setOverlays(chart.getTrackedOverlays());
-    return unsub;
+    return () => {
+      unsub();
+      unsubSel?.();
+    };
   }, []);
 
   // Persist drawings to config when overlays change.
@@ -89,7 +101,12 @@ export default function ChartCell({
   );
 
   const handleSymbolSelect = useCallback(
-    (symbol: string) => update({ symbol }),
+    (result: { symbol: string; name: string; exchange: string }) =>
+      update({
+        symbol: result.symbol,
+        symbolName: result.name,
+        exchange: result.exchange,
+      }),
     [update],
   );
 
@@ -127,12 +144,13 @@ export default function ChartCell({
   );
 
   const handleToolSelect = useCallback((toolName: string) => {
+    if (!isActive) return;
     if (toolName === "__cursor__") {
       chartRef.current?.stopDrawing();
     } else {
       chartRef.current?.startDrawing(toolName);
     }
-  }, []);
+  }, [isActive]);
 
   // Pane actions - uniform for price pane (PRICE_PANE_KEY) and indicator panes.
   // Operate on paneOrder / collapsedPanes / maximizedPane in config for persistence.
@@ -194,6 +212,13 @@ export default function ChartCell({
     [config.paneOrder, config.indicators, update],
   );
 
+  const handlePaneHeightsChange = useCallback(
+    (heights: Record<string, number>) => {
+      update({ paneHeights: heights });
+    },
+    [update],
+  );
+
   const handleClearDrawings = useCallback(() => {
     chartRef.current?.clearDrawings();
     setSelectedOverlayId(null);
@@ -203,22 +228,13 @@ export default function ChartCell({
     chartRef.current?.setMagnet(on);
   }, []);
 
-  // Overlay right-click on canvas.
-  const handleOverlayRightClick = useCallback(
-    (overlay: TrackedOverlay, pos: { x: number; y: number }) => {
-      setCtxMenu({ overlay, position: pos });
-      setSelectedOverlayId(overlay.id);
-    },
-    [],
-  );
-
   // Overlay actions (wired to both context menu and object tree).
   const overlayActions = useCallback(
     () => ({
       remove: (id: string) => {
         chartRef.current?.removeOverlay(id);
         if (selectedOverlayId === id) setSelectedOverlayId(null);
-        setCtxMenu(null);
+        setContextMenu(null);
       },
       setVisible: (id: string, visible: boolean) => {
         chartRef.current?.setOverlayVisible(id, visible);
@@ -237,7 +253,7 @@ export default function ChartCell({
       },
       duplicate: (id: string) => {
         chartRef.current?.duplicateOverlay(id);
-        setCtxMenu(null);
+        setContextMenu(null);
       },
       subscribe: (cb: () => void) => {
         return chartRef.current?.subscribeOverlayChange(cb) ?? (() => {});
@@ -246,12 +262,49 @@ export default function ChartCell({
     [selectedOverlayId],
   );
 
+  const handleOverlayRightClick = useCallback(
+    (overlay: TrackedOverlay, pos: { x: number; y: number }) => {
+      setSelectedOverlayId(overlay.id);
+      const actions = overlayActions();
+      setContextMenu({
+        position: pos,
+        header: overlay.label || overlay.name,
+        items: buildOverlayContextMenuItems(overlay, actions, (id) => {
+          const o = overlays.find((ov) => ov.id === id);
+          if (o) {
+            const name = prompt("Rename drawing:", o.label);
+            if (name?.trim()) actions.rename(id, name.trim());
+          }
+          setContextMenu(null);
+        }),
+      });
+    },
+    [overlayActions, overlays],
+  );
+
+  const handleChartContextMenu = useCallback((pos: { x: number; y: number }) => {
+    const modified = chartRef.current?.isViewportModified() ?? false;
+    const items: ContextMenuItem[] = [];
+    if (modified) {
+      items.push({
+        id: "reset-view",
+        label: "Reset chart view",
+        action: () => {
+          chartRef.current?.resetChartView();
+          setContextMenu(null);
+        },
+      });
+    }
+    if (items.length === 0) return;
+    setContextMenu({ position: pos, items });
+  }, []);
+
   // Delete selected drawing.
   const handleDeleteSelected = useCallback(() => {
     if (selectedOverlayId) {
       chartRef.current?.removeOverlay(selectedOverlayId);
       setSelectedOverlayId(null);
-      setCtxMenu(null);
+      setContextMenu(null);
     }
   }, [selectedOverlayId]);
 
@@ -263,15 +316,15 @@ export default function ChartCell({
     [sync, chartId],
   );
 
-  const setCrosshairReceiver = useCallback(
-    (cb: (ts: number | null) => void) => { void cb; },
-    [],
-  );
-
   return (
-    <div className="flex h-full flex-col">
+    <div
+      className={`flex h-full min-h-0 flex-col overflow-hidden ${
+        isActive ? "ring-2 ring-inset ring-blue-500" : "ring-1 ring-inset ring-transparent"
+      }`}
+      onPointerDown={() => onFocus?.()}
+    >
       {/* Compact cell toolbar */}
-      <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 px-1 py-1 dark:border-gray-800">
+      <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-gray-200 px-1 py-1 dark:border-gray-800">
         <SearchBar
           onSelect={handleSymbolSelect}
           initial={config.symbol}
@@ -299,61 +352,70 @@ export default function ChartCell({
             </option>
           ))}
         </select>
-        <select
-          value={config.chartType}
-          onChange={handleChartTypeChange}
-          className="rounded border border-gray-300 bg-transparent px-1 py-1 text-xs dark:border-gray-700"
-        >
-          {CHART_TYPES.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => setPickerOpen((o) => !o)}
-          className="rounded border border-gray-300 px-1.5 py-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
-        >
-          +Indicators
-        </button>
-        <button
-          type="button"
-          onClick={() => setObjectTreeVisible((o) => !o)}
-          className={`rounded border px-1.5 py-1 text-xs transition-colors ${
-            objectTreeVisible
-              ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-              : "border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
-          }`}
-        >
-          Tree {objectTreeVisible ? "▾" : "▸"}
-        </button>
+        {!compact && (
+          <>
+            <select
+              value={config.chartType}
+              onChange={handleChartTypeChange}
+              className="rounded border border-gray-300 bg-transparent px-1 py-1 text-xs dark:border-gray-700"
+            >
+              {CHART_TYPES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setPickerOpen((o) => !o)}
+              className="rounded border border-gray-300 px-1.5 py-1 text-xs hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
+            >
+              +Indicators
+            </button>
+            <button
+              type="button"
+              onClick={() => setObjectTreeVisible((o) => !o)}
+              className={`rounded border px-1.5 py-1 text-xs transition-colors ${
+                objectTreeVisible
+                  ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                  : "border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
+              }`}
+            >
+              Tree {objectTreeVisible ? "▾" : "▸"}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Body: drawing rail + chart + optional tree */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <DrawingToolbar
+          compact={compact}
+          disabled={!isActive}
           onToolSelect={handleToolSelect}
           onClear={handleClearDrawings}
           onToggleMagnet={handleToggleMagnet}
           onDeleteSelected={
-            selectedOverlayId ? handleDeleteSelected : undefined
+            selectedOverlayId && isActive ? handleDeleteSelected : undefined
           }
         />
-        <div className="flex flex-1 flex-col overflow-hidden p-1">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1">
           <EdgeChart
             ref={chartRef}
             config={config}
             theme={theme}
             visibleCount={visibleCount}
             chartId={chartId}
+            onCrosshairTimestamp={handleCrosshairFire}
             onConfigChange={onConfigChange}
             onOverlayRightClick={handleOverlayRightClick}
+            onChartContextMenu={handleChartContextMenu}
             onRemoveIndicator={(name, pane) => toggleIndicator({ name, pane })}
             onCollapseIndicator={handleCollapsePane}
             onMaximizeIndicator={handleMaximizePane}
             onMoveIndicatorUp={handleMovePaneUp}
             onMoveIndicatorDown={handleMovePaneDown}
+            onPaneHeightsChange={handlePaneHeightsChange}
             collapsedKeys={collapsedKeys}
             maximizedKey={maximizedKey}
             paneOrder={paneOrder}
@@ -371,11 +433,13 @@ export default function ChartCell({
         )}
       </div>
 
-      <BarReplay
-        total={candleCount}
-        onVisibleChange={setVisibleCount}
-        disabled={false}
-      />
+      {!compact && (
+        <BarReplay
+          total={candleCount}
+          onVisibleChange={setVisibleCount}
+          disabled={false}
+        />
+      )}
 
       <IndicatorPicker
         open={pickerOpen}
@@ -384,71 +448,100 @@ export default function ChartCell({
         onClose={() => setPickerOpen(false)}
       />
 
-      {/* Overlay context menu (rendered at root level, positioned fixed) */}
-      <OverlayContextMenu
-        overlay={ctxMenu?.overlay ?? null}
-        position={ctxMenu?.position ?? null}
-        onRemove={(id) => overlayActions().remove(id)}
-        onLock={(id, locked) => overlayActions().setLocked(id, locked)}
-        onHide={(id, visible) => overlayActions().setVisible(id, visible)}
-        onRename={(id) => {
-          const o = overlays.find((ov) => ov.id === id);
-          if (o) {
-            const name = prompt("Rename drawing:", o.label);
-            if (name?.trim()) overlayActions().rename(id, name.trim());
-          }
-          setCtxMenu(null);
-        }}
-        onBringForward={(id) => overlayActions().bringForward(id)}
-        onSendBackward={(id) => overlayActions().sendBackward(id)}
-        onDuplicate={(id) => overlayActions().duplicate(id)}
-        onClose={() => setCtxMenu(null)}
+      <ContextMenu
+        open={!!contextMenu}
+        position={contextMenu?.position ?? null}
+        items={contextMenu?.items ?? []}
+        header={contextMenu?.header}
+        onClose={() => setContextMenu(null)}
       />
 
       {/* Crosshair sync wiring */}
-      <ChartSyncBridge
-        chartRef={chartRef}
-        chartId={chartId}
-        onFire={handleCrosshairFire}
-        onReceiver={setCrosshairReceiver}
-      />
+      <ChartSyncBridge chartRef={chartRef} chartId={chartId} />
     </div>
   );
 }
 
 /**
- * Internal helper that wires up crosshair subscribe/broadcast via the chart
- * ref's onCrosshair method.
+ * Subscribes to crosshair timestamps from peer charts via ChartSyncContext.
  */
 function ChartSyncBridge({
   chartRef,
   chartId,
-  onFire,
-  onReceiver,
 }: {
   chartRef: React.RefObject<ChartHandle | null>;
   chartId: string;
-  onFire: (ts: number | null) => void;
-  onReceiver: (cb: (ts: number | null) => void) => void;
 }) {
   const sync = useChartSync();
 
-  useMemo(() => {
+  useEffect(() => {
     if (!sync) return;
-    const unsubscribe = sync.subscribe(chartId, (ts) => {
-      if (ts != null) {
-        // Future: programmatic crosshair. For now, no-op.
-      }
+    return sync.subscribe(chartId, (ts) => {
+      chartRef.current?.setCrosshairFromSync(ts);
     });
-    const unsubFire = chartRef.current?.onCrosshair((ts) => onFire(ts));
-    onReceiver((ts) => {
-      void ts;
-    });
-    return () => {
-      unsubscribe();
-      unsubFire?.();
-    };
-  }, [sync, chartId, chartRef, onFire, onReceiver]);
+  }, [sync, chartId, chartRef]);
 
   return null;
+}
+
+type OverlayActionHandlers = {
+  remove: (id: string) => void;
+  setVisible: (id: string, visible: boolean) => void;
+  setLocked: (id: string, locked: boolean) => void;
+  rename: (id: string, label: string) => void;
+  bringForward: (id: string) => void;
+  sendBackward: (id: string) => void;
+  duplicate: (id: string) => void;
+};
+
+function buildOverlayContextMenuItems(
+  overlay: TrackedOverlay,
+  actions: OverlayActionHandlers,
+  onRenamePrompt: (id: string) => void,
+): ContextMenuItem[] {
+  return [
+    {
+      id: "rename",
+      label: "Rename",
+      shortcut: "F2",
+      action: () => onRenamePrompt(overlay.id),
+    },
+    {
+      id: "lock",
+      label: overlay.locked ? "Unlock" : "Lock",
+      shortcut: "⌘L",
+      action: () => actions.setLocked(overlay.id, !overlay.locked),
+    },
+    {
+      id: "hide",
+      label: overlay.visible ? "Hide" : "Show",
+      action: () => actions.setVisible(overlay.id, !overlay.visible),
+    },
+    {
+      id: "forward",
+      label: "Bring to Front",
+      action: () => actions.bringForward(overlay.id),
+      dividerAfter: true,
+    },
+    {
+      id: "backward",
+      label: "Send to Back",
+      action: () => actions.sendBackward(overlay.id),
+      dividerAfter: true,
+    },
+    {
+      id: "duplicate",
+      label: "Duplicate",
+      shortcut: "⌘D",
+      action: () => actions.duplicate(overlay.id),
+      dividerAfter: true,
+    },
+    {
+      id: "remove",
+      label: "Remove",
+      shortcut: "⌫",
+      danger: true,
+      action: () => actions.remove(overlay.id),
+    },
+  ];
 }

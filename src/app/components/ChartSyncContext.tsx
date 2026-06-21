@@ -5,6 +5,8 @@ import { createContext, useCallback, useContext, useMemo, useRef } from "react";
 type CrosshairListener = (timestamp: number | null) => void;
 
 type SyncContextValue = {
+  /** Whether crosshair sync is enabled (linked layouts). */
+  linked: boolean;
   /** Register a listener for crosshair events from other charts. */
   subscribe: (chartId: string, listener: CrosshairListener) => () => void;
   /** Broadcast a crosshair timestamp from a chart to all others. */
@@ -13,9 +15,16 @@ type SyncContextValue = {
 
 const ChartSyncContext = createContext<SyncContextValue | null>(null);
 
-export function ChartSyncProvider({ children }: { children: React.ReactNode }) {
-  // Map of chartId -> listener. Using a ref so broadcast is stable.
+export function ChartSyncProvider({
+  children,
+  linked,
+}: {
+  children: React.ReactNode;
+  linked: boolean;
+}) {
   const listenersRef = useRef<Map<string, CrosshairListener>>(new Map());
+  const linkedRef = useRef(linked);
+  linkedRef.current = linked;
 
   const subscribe = useCallback((chartId: string, listener: CrosshairListener) => {
     listenersRef.current.set(chartId, listener);
@@ -25,14 +34,15 @@ export function ChartSyncProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const broadcast = useCallback((chartId: string, timestamp: number | null) => {
+    if (!linkedRef.current) return;
     listenersRef.current.forEach((listener, id) => {
       if (id !== chartId) listener(timestamp);
     });
   }, []);
 
   const value = useMemo(
-    () => ({ subscribe, broadcast }),
-    [subscribe, broadcast],
+    () => ({ linked, subscribe, broadcast }),
+    [linked, subscribe, broadcast],
   );
 
   return (
