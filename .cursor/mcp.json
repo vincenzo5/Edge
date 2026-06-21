@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "logoloom": {
+      "command": "npx",
+      "args": ["-y", "@mcpware/logoloom"]
+    },
+    "quiverai": {
+      "url": "https://app.quiver.ai/mcp"
+    }
+  }
+}

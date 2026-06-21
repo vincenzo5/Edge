@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --app-bg: #ffffff;
+  --app-text: #1a1a1a;
+  --app-border: #e5e7eb;
+  --app-surface: #f9fafb;
+  --app-muted: #6b7280;
+}
+
+.dark {
+  --app-bg: #0e1116;
+  --app-text: #e8e9ed;
+  --app-border: #1e222d;
+  --app-surface: #131722;
+  --app-muted: #9598a1;
+}
+
+html,
+body {
+  height: 100%;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+}

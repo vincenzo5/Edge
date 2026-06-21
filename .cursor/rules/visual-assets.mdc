@@ -1,0 +1,50 @@
+---
+description: When building the Edge landing page or producing visual assets, use the project's configured visual asset tools and follow the production workflow.
+globs:
+alwaysApply: true
+---
+
+# Edge Visual Asset Production
+
+## Available MCP Tools
+
+Two MCP servers are configured in `.cursor/mcp.json` for visual asset production:
+
+- **LogoLoom** (`logoloom`): Generate complete brand kits — logo SVG, favicon, OG image, all PNG sizes. Use for brand identity assets (logo, favicon, social share image).
+- **QuiverAI** (`quiverai`): Generate SVG icons and illustrations from text prompts, vectorize raster images, animate existing SVGs. Use for custom icons and any SVG asset generation.
+
+## Available Skills
+
+Three project skills provide detailed production instructions:
+
+- **visual-assets**: Full asset inventory, brand context, icon prompts, and tool-to-asset mapping. Read this first when producing any visual asset.
+- **visual-production**: Orchestrates the production workflow in the correct phase order. Use when starting a visual asset production session.
+- **dashmotion**: Generates animated data-flow diagrams as self-contained HTML/SVG files. Use for the signature "Chart → Edge → Research/AI" animation and "How It Works" step flow.
+
+## Brand Design Tokens (Source of Truth)
+
+All visual assets must use these tokens from `docs/foundation/design-system.md`:
+
+- Background: `#0A0B0E` | Surface: `#12131A` | Border: `#1E2030`
+- Accent: `#00FF88` (use sparingly — CTAs and highlights only)
+- Text: `#E8E9ED` primary, `#8B8FA3` secondary, `#5A5E73` muted
+- Display font: Space Grotesk | Body font: DM Sans
+- Aesthetic: Minimalist & Refined (Dark Finance)
+
+## When to Use Which Tool
+
+| Asset Type | Tool |
+|---|---|
+| Logo, favicon, OG image | LogoLoom MCP |
+| Custom SVG icons | QuiverAI MCP |
+| Animated flow diagrams | Dashmotion skill |
+| Product UI mockups | Superdesign (web, not MCP) |
+| Background effects, scroll animations, hover states | Code (CSS/JS) |
+| Particle effects | tsParticles library |
+| Cinematic scroll reveals | Framer Motion |
+| Third-party logos | `simple-icons` npm package |
+
+## Production Workflow
+
+Always follow the phase order in the `visual-production` skill:
+1. Brand identity (LogoLoom) → 2. Icons (QuiverAI) → 3. Mockup (Superdesign) → 4. Animations (Dashmotion) → 5. Verify

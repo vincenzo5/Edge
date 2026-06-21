@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8B8FA3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Pain Point: Fragmented Research  disconnected windows -->
+  <!-- Tab 1 (green accent) -->
+  <rect x="2" y="3" width="7" height="5" rx="1" stroke="#00FF88" stroke-width="1.5"/>
+  <line x1="2" y1="5" x2="9" y2="5" stroke="#00FF88" stroke-width="1.5"/>
+  <!-- Tab 2 (scattered) -->
+  <rect x="11" y="5" width="6" height="4.5" rx="1" stroke="#1E2030" stroke-width="1.5"/>
+  <line x1="11" y1="6.5" x2="17" y2="6.5" stroke="#1E2030" stroke-width="1.5"/>
+  <!-- Tab 3 (offset) -->
+  <rect x="4" y="11" width="7" height="5" rx="1" stroke="#1E2030" stroke-width="1.5"/>
+  <line x1="4" y1="13" x2="11" y2="13" stroke="#1E2030" stroke-width="1.5"/>
+  <!-- Tab 4 (further offset) -->
+  <rect x="14" y="13" width="6" height="5" rx="1" stroke="#1E2030" stroke-width="1.5"/>
+  <line x1="14" y1="14.5" x2="20" y2="14.5" stroke="#1E2030" stroke-width="1.5"/>
+  <!-- Dashed connectors suggesting fragmentation -->
+  <line x1="9" y1="6" x2="11" y2="7" stroke="#8B8FA3" stroke-width="0.75" stroke-dasharray="1.5 1.5"/>
+  <line x1="9" y1="8" x2="7" y2="11" stroke="#8B8FA3" stroke-width="0.75" stroke-dasharray="1.5 1.5"/>
+</svg>

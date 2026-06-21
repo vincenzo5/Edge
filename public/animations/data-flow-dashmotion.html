@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edge — Data Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0A0B0E; color: #E8E9ED; font-family: 'Space Grotesk', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 40px 20px; }
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #00FF88; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.8); } }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .subtitle { color: #8B8FA3; font-size: 13px; font-weight: 500; margin-bottom: 32px; }
+  .card { background: #12131A; border: 1px solid #1E2030; border-radius: 12px; padding: 32px; max-width: 900px; width: 100%; position: relative; }
+  .toggle { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 8px; background: #1E2030; border: 1px solid #2A2D3E; color: #8B8FA3; font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .toggle:hover { background: #252840; }
+  .grid-bg { position: absolute; inset: 0; border-radius: 12px; opacity: 0.15; background-image: repeating-linear-gradient(0deg, #1E2030 0px, #1E2030 0.5px, transparent 0.5px, transparent 40px), repeating-linear-gradient(90deg, #1E2030 0px, #1E2030 0.5px, transparent 0.5px, transparent 40px); pointer-events: none; }
+  svg { display: block; margin: 0 auto; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .flow { stroke-dasharray: 5 5; animation: dashmove 0.75s linear infinite; }
+    @keyframes dashmove { to { stroke-dashoffset: -10; } }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flow { stroke-dasharray: none; animation: none; }
+    .dot { display: none; }
+  }
+
+  .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; max-width: 900px; width: 100%; }
+  .summary-card { background: #12131A; border: 1px solid #1E2030; border-radius: 10px; padding: 16px; }
+  .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-dot.green { background: #00FF88; }
+  .card-dot.cyan { background: #22d3ee; }
+  .card-dot.violet { background: #a78bfa; }
+  .summary-card h3 { font-size: 13px; font-weight: 700; letter-spacing: -0.3px; }
+  .summary-card ul { list-style: none; padding: 0; }
+  .summary-card li { font-size: 12px; color: #8B8FA3; line-height: 1.7; padding-left: 12px; position: relative; }
+  .summary-card li::before { content: ''; position: absolute; left: 0; top: 9px; width: 4px; height: 4px; border-radius: 50%; background: #1E2030; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="pulse-dot"></div>
+  <h1>Edge Data Flow</h1>
+</div>
+<p class="subtitle">How your chart, research, and AI connect — in one workspace</p>
+
+<div class="card">
+  <div class="grid-bg"></div>
+  <button class="toggle" onclick="togglePause()" title="Pause/Play">&#9654;</button>
+
+  <svg viewBox="0 0 860 300" width="860" height="300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Data flow diagram showing how Edge connects Chart, Research, and AI" aria-description="Three nodes connected by animated flowing connectors with traveling green dots representing data moving from Chart through Edge to Research and AI">
+
+    <!-- Arrow marker -->
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+      <radialGradient id="glow1" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#00FF88" stop-opacity="0.12"/>
+        <stop offset="100%" stop-color="#00FF88" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <!-- Glow effects behind nodes -->
+    <ellipse cx="130" cy="150" rx="90" ry="60" fill="url(#glow1)"/>
+    <ellipse cx="430" cy="150" rx="90" ry="60" fill="url(#glow1)"/>
+    <ellipse cx="730" cy="150" rx="90" ry="60" fill="url(#glow1)"/>
+
+    <!-- Connectors -->
+    <!-- Chart → Edge -->
+    <path d="M214 150 L346 150" class="flow" fill="none" stroke="#00FF88" stroke-width="1.5" opacity="0.85" marker-end="url(#arrow)"/>
+    <!-- Edge → Research & AI -->
+    <path d="M514 150 L646 150" class="flow" fill="none" stroke="#00FF88" stroke-width="1.5" opacity="0.85" marker-end="url(#arrow)"/>
+
+    <!-- Traveling dots -->
+    <circle r="4" class="dot" fill="#00FF88" opacity="0.9">
+      <animateMotion dur="2s" repeatCount="indefinite" path="M214 150 L346 150"/>
+    </circle>
+    <circle r="4" class="dot" fill="#00FF88" opacity="0.9">
+      <animateMotion dur="2s" repeatCount="indefinite" path="M514 150 L646 150" begin="0.7s"/>
+    </circle>
+    <circle r="3" class="dot" fill="#00FF88" opacity="0.6">
+      <animateMotion dur="2s" repeatCount="indefinite" path="M214 150 L346 150" begin="1s"/>
+    </circle>
+    <circle r="3" class="dot" fill="#00FF88" opacity="0.6">
+      <animateMotion dur="2s" repeatCount="indefinite" path="M514 150 L646 150" begin="1.7s"/>
+    </circle>
+
+    <!-- Node: Chart (Frontend type — cyan tint) -->
+    <rect x="46" y="100" width="168" height="100" rx="10" fill="#0A0B0E"/>
+    <rect x="46" y="100" width="168" height="100" rx="10" fill="rgba(8, 51, 68, 0.45)" stroke="#22d3ee" stroke-width="1.5"/>
+    <!-- Chart icon inside -->
+    <line x1="66" y1="170" x2="66" y2="130" stroke="#22d3ee" stroke-width="1" opacity="0.5"/>
+    <line x1="66" y1="170" x2="100" y2="170" stroke="#22d3ee" stroke-width="1" opacity="0.5"/>
+    <rect x="72" y="150" width="8" height="20" rx="1" fill="none" stroke="#22d3ee" stroke-width="0.75" opacity="0.4"/>
+    <rect x="82" y="140" width="8" height="30" rx="1" fill="none" stroke="#22d3ee" stroke-width="0.75" opacity="0.4"/>
+    <rect x="92" y="145" width="8" height="25" rx="1" fill="none" stroke="#22d3ee" stroke-width="0.75" opacity="0.4"/>
+    <text x="130" y="142" fill="#E8E9ED" font-size="15" font-weight="700" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Chart</text>
+    <text x="130" y="160" fill="#8B8FA3" font-size="10" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Technical Analysis</text>
+
+    <!-- Node: Edge (Backend type — green/emerald tint) -->
+    <rect x="346" y="90" width="168" height="120" rx="10" fill="#0A0B0E"/>
+    <rect x="346" y="90" width="168" height="120" rx="10" fill="rgba(6, 78, 59, 0.45)" stroke="#00FF88" stroke-width="2"/>
+    <!-- Edge logo mark inside -->
+    <text x="430" y="148" fill="#00FF88" font-size="26" font-weight="700" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Edge</text>
+    <text x="430" y="168" fill="#8B8FA3" font-size="10" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Unified Research</text>
+    <!-- Small signal bars next to Edge -->
+    <rect x="460" y="128" width="8" height="2" rx="1" fill="#00FF88" opacity="0.6"/>
+    <rect x="460" y="125" width="6" height="2" rx="1" fill="#00FF88" opacity="0.4"/>
+    <rect x="460" y="122" width="3" height="2" rx="1" fill="#00FF88" opacity="0.2"/>
+
+    <!-- Node: Research & AI (Database type — violet tint) -->
+    <rect x="646" y="100" width="168" height="100" rx="10" fill="#0A0B0E"/>
+    <rect x="646" y="100" width="168" height="100" rx="10" fill="rgba(76, 29, 149, 0.45)" stroke="#a78bfa" stroke-width="1.5"/>
+    <!-- AI brain icon inside -->
+    <circle cx="680" cy="148" r="10" fill="none" stroke="#a78bfa" stroke-width="0.75" opacity="0.4"/>
+    <circle cx="680" cy="148" r="5" fill="none" stroke="#a78bfa" stroke-width="0.75" opacity="0.3"/>
+    <text x="730" y="142" fill="#E8E9ED" font-size="14" font-weight="700" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Research</text>
+    <text x="730" y="157" fill="#E8E9ED" font-size="14" font-weight="700" text-anchor="middle" font-family="'Space Grotesk', sans-serif">& AI</text>
+    <text x="730" y="172" fill="#8B8FA3" font-size="10" text-anchor="middle" font-family="'Space Grotesk', sans-serif">6 Data Layers</text>
+
+    <!-- Legend -->
+    <text x="20" y="285" fill="#8B8FA3" font-size="10" font-family="'Space Grotesk', sans-serif">
+      <tspan fill="#22d3ee">&#9679;</tspan> Frontend
+      <tspan dx="12" fill="#00FF88">&#9679;</tspan> Processing
+      <tspan dx="12" fill="#a78bfa">&#9679;</tspan> Intelligence
+      <tspan dx="12" fill="#00FF88">&#8594;</tspan> Data flow
+    </text>
+
+  </svg>
+</div>
+
+<!-- Summary cards -->
+<div class="cards-grid">
+  <div class="summary-card">
+    <div class="card-header"><div class="card-dot green"></div><h3>Request Path</h3></div>
+    <ul>
+      <li>Chart pattern detected</li>
+      <li>Edge connects context layers</li>
+      <li>Research synthesized with AI</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <div class="card-header"><div class="card-dot cyan"></div><h3>Data Layers</h3></div>
+    <ul>
+      <li>Fundamentals &amp; financials</li>
+      <li>Macro &amp; sentiment signals</li>
+      <li>Catalysts &amp; sector context</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <div class="card-header"><div class="card-dot violet"></div><h3>Context-Aware AI</h3></div>
+    <ul>
+      <li>Understands your chart</li>
+      <li>Knows your timeframe</li>
+      <li>Answers with research, not chat</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  let paused = false;
+  const svg = document.querySelector('svg');
+  const toggle = document.querySelector('.toggle');
+
+  function togglePause() {
+    paused = !paused;
+    if (paused) {
+      svg.pauseAnimations();
+      document.querySelectorAll('.flow').forEach(el => el.style.animationPlayState = 'paused');
+      toggle.innerHTML = '&#9654;';
+    } else {
+      svg.unpauseAnimations();
+      document.querySelectorAll('.flow').forEach(el => el.style.animationPlayState = 'running');
+      toggle.innerHTML = '&#9646;&#9646;';
+    }
+  }
+
+  // Check reduced motion preference
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.querySelectorAll('.dot').forEach(el => el.remove());
+    document.querySelectorAll('.flow').forEach(el => {
+      el.style.strokeDasharray = 'none';
+      el.style.animation = 'none';
+    });
+  }
+</script>
+
+</body>
+</html>
