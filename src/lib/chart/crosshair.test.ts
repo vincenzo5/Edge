@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createViewport } from './viewport';
+import { createViewport, attachViewportHelpers } from './viewport';
 import { TIME_AXIS_HEIGHT } from './layout';
 import {
   formatCrosshairValue,
@@ -28,10 +28,13 @@ describe('priceForPlotY', () => {
     expect(priceForPlotY(ph, vp, true)).toBeCloseTo(vp.priceMin, 5);
   });
 
-  it('differs from full-canvas priceForY when time axis is reserved', () => {
-    const vp = createViewport(sample, 800, 400, 3);
+  it('matches viewport priceForY when reserveTimeAxis is set', () => {
+    const vp = attachViewportHelpers(
+      { ...createViewport(sample, 800, 400, 3), reserveTimeAxis: true },
+      sample.length
+    );
     const plotY = 100;
-    expect(priceForPlotY(plotY, vp, true)).not.toBeCloseTo(vp.priceForY(plotY), 5);
+    expect(priceForPlotY(plotY, vp, true)).toBeCloseTo(vp.priceForY(plotY), 5);
   });
 });
 

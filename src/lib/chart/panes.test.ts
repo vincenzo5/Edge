@@ -12,6 +12,7 @@ describe('createInitialLayout', () => {
     const layout = createInitialLayout([], 400, new Set(), null);
     expect(layout.pricePane.height).toBe(400);
     expect(layout.subPanes).toHaveLength(0);
+    expect(layout.stack).toHaveLength(1);
   });
 
   it('allocates remainder to price pane when sub-panes are present', () => {
@@ -19,6 +20,33 @@ describe('createInitialLayout', () => {
     expect(layout.pricePane.height).toBe(400 - PANE_SEPARATOR_HEIGHT - 100);
     expect(layout.subPanes[0].height).toBe(100);
     expect(layout.subPanes[0].top).toBe(layout.pricePane.height + PANE_SEPARATOR_HEIGHT);
+  });
+
+  it('collapses price pane height when price is in collapsed set', () => {
+    const layout = createInitialLayout(['macd'], 400, new Set(['price']), null);
+    expect(layout.pricePane.height).toBe(24);
+    expect(layout.pricePane.isCollapsed).toBe(true);
+  });
+
+  it('expands price pane and collapses subs when price is maximized', () => {
+    const layout = createInitialLayout(['macd', 'rsi'], 400, new Set(), 'price');
+    expect(layout.pricePane.isMaximized).toBe(true);
+    expect(layout.pricePane.height).toBeGreaterThan(300);
+    expect(layout.subPanes.every((p) => p.height === 24)).toBe(true);
+  });
+
+  it('orders stack by paneOrder', () => {
+    const layout = createInitialLayout(
+      ['macd::sub', 'rsi::sub'],
+      400,
+      new Set(),
+      null,
+      undefined,
+      ['macd::sub', 'price', 'rsi::sub']
+    );
+    expect(layout.stack.map((p) => p.key)).toEqual(['macd::sub', 'price', 'rsi::sub']);
+    expect(layout.stack[0].top).toBe(0);
+    expect(layout.stack[1].top).toBe(100 + PANE_SEPARATOR_HEIGHT);
   });
 
   it('uses custom sub-pane heights when provided', () => {

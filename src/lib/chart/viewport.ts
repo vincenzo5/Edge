@@ -9,7 +9,13 @@ export type ViewportState = {
   width: number;
   height: number;
   priceScaleMode?: 'auto' | 'manual';
+  /** When true, Y mapping excludes the bottom time-axis strip (default true). */
+  reserveTimeAxis?: boolean;
 };
+
+function plotAreaHeight(vp: ViewportState): number {
+  return plotHeight(vp.height, vp.reserveTimeAxis ?? true);
+}
 
 export const MIN_CANDLES = 10;
 /** Default number of bars visible on initial load and after reset. */
@@ -176,8 +182,10 @@ export function indexAtX(x: number, vp: ViewportState, candleCount: number): num
 }
 
 export function priceAtY(y: number, vp: ViewportState): number {
+  const ph = plotAreaHeight(vp);
   const range = vp.priceMax - vp.priceMin;
-  return vp.priceMax - (y / vp.height) * range;
+  if (ph <= 0 || range <= 0) return vp.priceMax;
+  return vp.priceMax - (y / ph) * range;
 }
 
 export function xForIndex(i: number, vp: ViewportState): number {
@@ -187,9 +195,10 @@ export function xForIndex(i: number, vp: ViewportState): number {
 }
 
 export function yForPrice(p: number, vp: ViewportState): number {
+  const ph = plotAreaHeight(vp);
   const range = vp.priceMax - vp.priceMin;
-  if (range <= 0) return 0;
-  return ((vp.priceMax - p) / range) * vp.height;
+  if (range <= 0 || ph <= 0) return 0;
+  return ((vp.priceMax - p) / range) * ph;
 }
 
 // Core pan (deltaX in pixels, positive = pan right = show older candles)
@@ -226,7 +235,9 @@ export function zoom(
 export function panPrice(vp: ViewportState, deltaY: number, totalCandles: number): VisibleRange {
   const range = vp.priceMax - vp.priceMin;
   if (range <= 0) return vp as VisibleRange;
-  const shift = (deltaY / vp.height) * range;
+  const ph = plotAreaHeight(vp);
+  if (ph <= 0) return vp as VisibleRange;
+  const shift = (deltaY / ph) * range;
   const priceMin = vp.priceMin + shift;
   const priceMax = vp.priceMax + shift;
   return attachViewportHelpers({ ...vp, priceMin, priceMax }, totalCandles);

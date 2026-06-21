@@ -71,6 +71,7 @@ function snapshotViewport(vp: VisibleRange): ViewportState {
     width: vp.width,
     height: vp.height,
     priceScaleMode: vp.priceScaleMode,
+    reserveTimeAxis: vp.reserveTimeAxis,
   };
 }
 
@@ -238,15 +239,34 @@ export default function ChartCanvas({
       return;
     }
     if (!vpRef.current) {
-      vpRef.current = getDefaultViewport(candles, width, height);
+      vpRef.current = attachViewportHelpers(
+        { ...getDefaultViewport(candles, width, height), reserveTimeAxis: showTimeAxis },
+        candles.length
+      );
     } else {
       vpRef.current = refreshViewportForDataChange(vpRef.current, candles, width, height);
     }
+    vpRef.current = attachViewportHelpers(
+      { ...vpRef.current!, reserveTimeAxis: showTimeAxis },
+      candles.length
+    );
     vpRef.current = fitPriceScaleIfAuto(vpRef.current!);
     emitViewport(vpRef.current!);
     drawRef.current();
     prevDimsRef.current = { width, height };
-  }, [candles, width, height, fitPriceScaleIfAuto]);
+  }, [candles, width, height, fitPriceScaleIfAuto, showTimeAxis]);
+
+  // Re-bind Y helpers when time-axis reservation changes without a size change.
+  useEffect(() => {
+    if (!vpRef.current || candles.length === 0) return;
+    const reserve = showTimeAxis;
+    if ((vpRef.current.reserveTimeAxis ?? true) === reserve) return;
+    vpRef.current = attachViewportHelpers(
+      { ...vpRef.current, reserveTimeAxis: reserve },
+      candles.length
+    );
+    drawRef.current();
+  }, [showTimeAxis, candles.length]);
 
   // Imperative pane registration for time sync + centralized wheel (no React state per tick).
   useEffect(() => {

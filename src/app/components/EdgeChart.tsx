@@ -595,8 +595,8 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   }, [flushWheel]);
 
   const getPriceShowTimeAxis = useCallback(() => {
-    const layout = layoutRef.current;
-    return !layout || layout.subPanes.length === 0;
+    const segment = paneSegmentsRef.current.find((s) => s.paneId === 'price');
+    return segment?.showTimeAxis ?? true;
   }, []);
 
   const placingAnchorRef = useRef<{ plotX: number; plotY: number } | null>(null);
@@ -838,34 +838,17 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     dims.height || 400,
     collapsedKeys ?? new Set(),
     maximizedKey ?? null,
-    effectivePaneHeights
+    effectivePaneHeights,
+    paneOrder
   );
   layoutRef.current = layout;
 
-  const paneSegments: PaneSegment[] = (() => {
-    const segments: PaneSegment[] = [];
-    let top = 0;
-    const subsPresent = layout.subPanes.length > 0;
-    segments.push({
-      paneId: 'price',
-      top,
-      height: layout.pricePane.height,
-      showTimeAxis: !subsPresent,
-    });
-    top += layout.pricePane.height;
-    layout.subPanes.forEach((sub, i) => {
-      top += PANE_SEPARATOR_HEIGHT;
-      const isLast = i === layout.subPanes.length - 1;
-      segments.push({
-        paneId: sub.key,
-        top,
-        height: sub.height,
-        showTimeAxis: isLast,
-      });
-      top += sub.height;
-    });
-    return segments;
-  })();
+  const paneSegments: PaneSegment[] = layout.stack.map((pane, i) => ({
+    paneId: pane.key === PRICE_PANE_KEY ? 'price' : pane.key,
+    top: pane.top,
+    height: pane.height,
+    showTimeAxis: i === layout.stack.length - 1,
+  }));
   paneSegmentsRef.current = paneSegments;
 
   const paneBoundaries = computePaneBoundaries(layout);
@@ -880,14 +863,15 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         deltaY,
         dims.height || 400,
         collapsedKeys ?? new Set(),
-        maximizedKey ?? null
+        maximizedKey ?? null,
+        paneOrder
       );
       if (next) {
         dragHeightsRef.current = next;
         setDragHeights(next);
       }
     },
-    [subKeys, config.paneHeights, dims.height, collapsedKeys, maximizedKey]
+    [subKeys, config.paneHeights, dims.height, collapsedKeys, maximizedKey, paneOrder]
   );
 
   const handleSeparatorResizeEnd = useCallback(() => {
@@ -899,7 +883,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     }
   }, [onPaneHeightsChange]);
 
-  const hasSubs = layout.subPanes.length > 0;
+  const hasMultiplePanes = layout.stack.length > 1;
 
   const mainIndicators = useMemo(
     () => config.indicators.filter((i) => i.pane === 'main'),
@@ -935,75 +919,91 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         </div>
       )}
 
-      {/* Price pane (main indicators + drawings) */}
-      <div className="relative" style={{ height: layout.pricePane.height, flexShrink: 0 }}>
-        {!loading && !error && candles.length > 0 && (
-          <ChartLegendBar
-            symbol={config.symbol}
-            symbolName={config.symbolName}
-            exchange={config.exchange}
-            interval={config.interval}
-            candles={candles}
-            dataIndex={
-              crosshair?.activePaneId === 'price' ? crosshair.dataIndex : null
-            }
-            theme={theme}
-          />
-        )}
-        <ChartCanvas
-          key={`price-${drawTick}`}
-          paneId="price"
-          candles={candles}
-          chartType={config.chartType}
-          theme={theme}
-          visibleCount={visibleCount}
-          width={dims.width}
-          height={layout.pricePane.height}
-          drawings={priceDrawings}
-          previewDrawing={previewDrawing}
-          selectedDrawingId={selectedDrawingId}
-          drawingMode={drawingMode}
-          indicators={mainIndicators}
-          registerPane={registerPane}
-          wheelingRef={wheelingRef}
-          interval={config.interval}
-          showTimeAxis={!hasSubs}
-          activeTool={activeTool}
-          suppressCrosshair={hideCrosshair}
-          onDrawingPointer={handleDrawingPointer}
-          onDrawingContextMenu={handleDrawingContextMenu}
-          onCrosshairMove={handleCrosshairMove}
-          onViewportChange={handleViewport}
-        />
-      </div>
+      {layout.stack.map((pane, i) => {
+        const isLast = i === layout.stack.length - 1;
+        const showTimeAxis = isLast;
+        const isPrice = pane.key === PRICE_PANE_KEY;
 
-      {/* Sub-panes for sub indicators (MACD, RSI, etc.) */}
-      {layout.subPanes.map((sub, i) => {
-        const subInd = config.indicators.find((ind) => indicatorKey(ind) === sub.key);
+        if (isPrice) {
+          return (
+            <Fragment key={pane.key}>
+              {i > 0 && (
+                <div
+                  aria-hidden
+                  style={{ height: PANE_SEPARATOR_HEIGHT, flexShrink: 0 }}
+                />
+              )}
+              <div className="relative" style={{ height: pane.height, flexShrink: 0 }}>
+                {!loading && !error && candles.length > 0 && (
+                  <ChartLegendBar
+                    symbol={config.symbol}
+                    symbolName={config.symbolName}
+                    exchange={config.exchange}
+                    interval={config.interval}
+                    candles={candles}
+                    dataIndex={
+                      crosshair?.activePaneId === 'price' ? crosshair.dataIndex : null
+                    }
+                    theme={theme}
+                  />
+                )}
+                <ChartCanvas
+                  key="price"
+                  paneId="price"
+                  candles={candles}
+                  chartType={config.chartType}
+                  theme={theme}
+                  visibleCount={visibleCount}
+                  width={dims.width}
+                  height={pane.height}
+                  drawings={priceDrawings}
+                  previewDrawing={previewDrawing}
+                  selectedDrawingId={selectedDrawingId}
+                  drawingMode={drawingMode}
+                  indicators={mainIndicators}
+                  registerPane={registerPane}
+                  wheelingRef={wheelingRef}
+                  interval={config.interval}
+                  showTimeAxis={showTimeAxis}
+                  activeTool={activeTool}
+                  suppressCrosshair={hideCrosshair}
+                  onDrawingPointer={handleDrawingPointer}
+                  onDrawingContextMenu={handleDrawingContextMenu}
+                  onCrosshairMove={handleCrosshairMove}
+                  onViewportChange={handleViewport}
+                />
+              </div>
+            </Fragment>
+          );
+        }
+
+        const subInd = config.indicators.find((ind) => indicatorKey(ind) === pane.key);
         if (!subInd) return null;
-        const isLast = i === layout.subPanes.length - 1;
+
         return (
-          <Fragment key={sub.id}>
-            <div
-              aria-hidden
-              style={{ height: PANE_SEPARATOR_HEIGHT, flexShrink: 0 }}
-            />
-            <div style={{ height: sub.height || 100, flexShrink: 0 }}>
+          <Fragment key={pane.key}>
+            {i > 0 && (
+              <div
+                aria-hidden
+                style={{ height: PANE_SEPARATOR_HEIGHT, flexShrink: 0 }}
+              />
+            )}
+            <div style={{ height: pane.height, flexShrink: 0 }}>
               <ChartCanvas
-                key={`${sub.id}-${drawTick}`}
-                paneId={sub.key}
+                key={pane.key}
+                paneId={pane.key}
                 candles={candles}
                 chartType={config.chartType}
                 theme={theme}
                 visibleCount={visibleCount}
                 width={dims.width}
-                height={sub.height || 100}
+                height={pane.height}
                 drawings={[]}
                 indicators={[subInd]}
                 registerPane={registerPane}
                 wheelingRef={wheelingRef}
                 interval={config.interval}
-                showTimeAxis={isLast}
+                showTimeAxis={showTimeAxis}
                 activeTool={activeTool}
                 onCrosshairMove={handleCrosshairMove}
                 onViewportChange={handleViewport}
@@ -1020,7 +1020,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         crosshair={hideCrosshair ? null : crosshair}
       />
 
-      {layout.subPanes.length > 0 && (
+      {hasMultiplePanes && (
         <PaneSeparators
           boundaries={paneBoundaries}
           width={dims.width}
