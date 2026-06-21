@@ -52,6 +52,11 @@ export function filterByTimeRange(candles: Candle[], startTs: number, endTs: num
 
 // --- Normalization & Validation (canonical short-form Candle from contracts) ---
 
+/** Yahoo / KLineChart use Unix seconds; chart contract uses milliseconds. */
+export function toTimestampMs(t: number): number {
+  return t > 0 && t < 1e12 ? t * 1000 : t;
+}
+
 type RawCandle = {
   timestamp?: number;
   open?: number;
@@ -69,8 +74,9 @@ type RawCandle = {
 
 export function normalizeCandle(raw: RawCandle | Record<string, unknown>): Candle {
   const r = raw as Record<string, unknown>;
+  const rawT = (r.t as number) ?? (r.timestamp as number) ?? 0;
   return {
-    t: (r.t as number) ?? (r.timestamp as number) ?? 0,
+    t: toTimestampMs(rawT),
     o: (r.o as number) ?? (r.open as number) ?? 0,
     h: (r.h as number) ?? (r.high as number) ?? 0,
     l: (r.l as number) ?? (r.low as number) ?? 0,

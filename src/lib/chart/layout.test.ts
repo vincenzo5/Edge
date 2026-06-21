@@ -3,12 +3,20 @@ import {
   PRICE_AXIS_WIDTH,
   TIME_AXIS_HEIGHT,
   resolveDragMode,
+  resolveHoverCursor,
   plotWidth,
   plotHeight,
 } from './layout';
 
 const WIDTH = 800;
 const HEIGHT = 400;
+
+const navigateCtx = {
+  showTimeAxis: true,
+  activeTool: '__cursor__',
+  isDragging: false,
+  dragMode: null,
+};
 
 describe('resolveDragMode', () => {
   it('returns body for center of plot area', () => {
@@ -25,6 +33,68 @@ describe('resolveDragMode', () => {
 
   it('returns price for bottom-right corner (price strip priority)', () => {
     expect(resolveDragMode(WIDTH - 10, HEIGHT - 10, WIDTH, HEIGHT)).toBe('price');
+  });
+});
+
+describe('resolveHoverCursor', () => {
+  it('returns crosshair on plot in navigate mode', () => {
+    expect(resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, navigateCtx)).toBe('crosshair');
+  });
+
+  it('returns ns-resize on price axis', () => {
+    expect(resolveHoverCursor(WIDTH - 10, HEIGHT / 2, WIDTH, HEIGHT, navigateCtx)).toBe('ns-resize');
+  });
+
+  it('returns ew-resize on time axis', () => {
+    expect(resolveHoverCursor(WIDTH / 2, HEIGHT - 10, WIDTH, HEIGHT, navigateCtx)).toBe('ew-resize');
+  });
+
+  it('returns crosshair on plot when a drawing tool is active', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        activeTool: 'straightLine',
+      })
+    ).toBe('crosshair');
+  });
+
+  it('returns ns-resize on price axis even when a drawing tool is active', () => {
+    expect(
+      resolveHoverCursor(WIDTH - 10, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        activeTool: 'straightLine',
+      })
+    ).toBe('ns-resize');
+  });
+
+  it('returns grabbing while panning the plot', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        isDragging: true,
+        dragMode: 'body',
+      })
+    ).toBe('grabbing');
+  });
+
+  it('returns ns-resize while dragging the price axis', () => {
+    expect(
+      resolveHoverCursor(WIDTH - 10, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        isDragging: true,
+        dragMode: 'price',
+      })
+    ).toBe('ns-resize');
+  });
+
+  it('returns ew-resize while dragging the time axis', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT - 10, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        isDragging: true,
+        dragMode: 'timeAxis',
+      })
+    ).toBe('ew-resize');
   });
 });
 

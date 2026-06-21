@@ -1,14 +1,14 @@
 import type { DrawingPlugin } from '../plugin-api';
 import { trendLine } from './trend_line';
-import { hline } from './hline';
-import { rect } from './rect';
+import { horizontalLine } from './hline';
+import { verticalLine } from './vertical_line';
+import { rectangle } from './rect';
+import { ray } from './ray';
+import { parallelChannel, priceChannel } from './channels';
+import { circle, fibRetracement } from './fib_retracement';
+import { priceLine, annotation } from './annotation';
 
 const reg = new Map<string, DrawingPlugin>();
-
-// Register core drawing tools on module load
-registerDrawing(trendLine);
-registerDrawing(hline);
-registerDrawing(rect);
 
 export function registerDrawing(p: DrawingPlugin) {
   reg.set(p.name, p);
@@ -21,3 +21,15 @@ export function getDrawing(name: string) {
 export function getAllDrawings() {
   return Array.from(reg.values());
 }
+
+registerDrawing(trendLine);
+registerDrawing(horizontalLine);
+registerDrawing(verticalLine);
+registerDrawing(rectangle);
+registerDrawing(ray);
+registerDrawing(parallelChannel);
+registerDrawing(priceChannel);
+registerDrawing(circle);
+registerDrawing(fibRetracement);
+registerDrawing(priceLine);
+registerDrawing(annotation);

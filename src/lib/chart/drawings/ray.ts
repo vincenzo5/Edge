@@ -1,19 +1,22 @@
 import type { DrawingPlugin } from '../plugin-api';
 import { plotToPoint } from '../drawingCoords';
+import { plotWidth } from '../layout';
 import {
+  distanceToRay,
   defaultDrawingStroke,
   previewDrawingStroke,
   drawControlPoints,
-  pointInRect,
+  extendRayToBounds,
+  HIT_TOLERANCE_PX,
 } from './primitives';
 import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUtils';
 
-export const rectangle: DrawingPlugin = {
-  name: 'rectangle',
-  defaultLabel: 'Rectangle',
+export const ray: DrawingPlugin = {
+  name: 'ray',
+  defaultLabel: 'Ray',
   placement: 'two-point',
   create(start) {
-    return baseDrawing('rectangle', 'Rectangle', [start, { ...start }]);
+    return baseDrawing('ray', 'Ray', [start, { ...start }]);
   },
   updatePreview(draft, cursor) {
     return updateTwoPointPreview(draft, cursor);
@@ -22,23 +25,23 @@ export const rectangle: DrawingPlugin = {
     if (d.points.length < 2) return;
     const showTimeAxis = opts?.showTimeAxis ?? true;
     const [a, b] = plotsForPoints(d, vp, candles, showTimeAxis);
-    const x = Math.min(a.x, b.x);
-    const y = Math.min(a.y, b.y);
-    const w = Math.abs(b.x - a.x);
-    const h = Math.abs(b.y - a.y);
+    const end = extendRayToBounds(a.x, a.y, b.x, b.y, vp.width, vp.height, showTimeAxis);
     ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
     ctx.lineWidth = 1.5;
     if (opts?.preview) ctx.setLineDash([4, 4]);
-    ctx.strokeRect(x, y, w, h);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
     ctx.setLineDash([]);
-    if (selected && !opts?.preview) {
-      drawControlPoints(ctx, [a, b], theme, true);
-    }
+    if (selected && !opts?.preview) drawControlPoints(ctx, [a, b], theme, true);
   },
   hitTest(px, py, d, vp, candles, showTimeAxis = true) {
     if (d.points.length < 2) return false;
     const [a, b] = plotsForPoints(d, vp, candles, showTimeAxis);
-    return pointInRect(px, py, a.x, a.y, b.x, b.y, true);
+    const pw = plotWidth(vp.width);
+    const ph = vp.height;
+    return distanceToRay(px, py, a.x, a.y, b.x, b.y, pw, ph) <= HIT_TOLERANCE_PX;
   },
   getControlPoints(d, vp, candles, showTimeAxis = true) {
     return plotsForPoints(d, vp, candles, showTimeAxis);
@@ -46,9 +49,7 @@ export const rectangle: DrawingPlugin = {
   updateFromControl(d, cpIndex, plotX, plotY, vp, candles, showTimeAxis = true) {
     const pt = plotToPoint(plotX, plotY, vp, candles, { showTimeAxis });
     const points = d.points.map((p, i) =>
-      i === cpIndex
-        ? { timestamp: pt.timestamp, value: pt.value, dataIndex: pt.dataIndex }
-        : p
+      i === cpIndex ? { timestamp: pt.timestamp, value: pt.value, dataIndex: pt.dataIndex } : p
     );
     return { ...d, points };
   },

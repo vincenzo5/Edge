@@ -35,6 +35,7 @@ export type TrackedOverlay = OverlayMeta & {
 };
 
 export type SerializedDrawing = {
+  id?: string;
   name: string;
   label: string;
   points: Array<{
@@ -47,10 +48,13 @@ export type SerializedDrawing = {
   visible: boolean;
   locked: boolean;
   zLevel: number;
+  paneId?: string;
 };
 
 export type CellConfig = {
   symbol: string;
+  symbolName?: string;
+  exchange?: string;
   range: Range;
   interval: Interval;
   chartType: ChartType;
@@ -62,15 +66,35 @@ export type CellConfig = {
   collapsedPanes?: string[];
   /** Key of the pane currently maximized (others collapsed). */
   maximizedPane?: string | null;
+  /** User-resized sub-pane heights keyed by indicator key (price pane height is derived). */
+  paneHeights?: Record<string, number>;
 };
 
 export type ChartLayout = {
   version: 1;
   gridMode: GridMode;
   linked: boolean;
+  /** Index of the chart cell that receives drawing tools and focus ring. */
+  activeCellIndex: number;
   theme: Theme;
   cells: CellConfig[];
 };
+
+/** Fields propagated to all cells when layout.linked is true. */
+export type LinkFields = Pick<
+  CellConfig,
+  "symbol" | "symbolName" | "exchange" | "range" | "interval"
+>;
+
+export function pickLinkFields(cell: CellConfig): LinkFields {
+  return {
+    symbol: cell.symbol,
+    symbolName: cell.symbolName,
+    exchange: cell.exchange,
+    range: cell.range,
+    interval: cell.interval,
+  };
+}
 
 export const DEFAULT_CELL: CellConfig = {
   symbol: "AAPL",
@@ -82,12 +106,14 @@ export const DEFAULT_CELL: CellConfig = {
   paneOrder: undefined,
   collapsedPanes: undefined,
   maximizedPane: null,
+  paneHeights: undefined,
 };
 
 export const DEFAULT_LAYOUT: ChartLayout = {
   version: 1,
   gridMode: "1x1",
   linked: false,
+  activeCellIndex: 0,
   theme: "light",
   cells: [DEFAULT_CELL],
 };

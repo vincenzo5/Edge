@@ -1,5 +1,6 @@
-import type { Candle, VisibleRange, Theme } from './contracts';
-import { PRICE_AXIS_WIDTH, TIME_AXIS_HEIGHT } from './layout';
+import type { Candle, VisibleRange, Theme, Interval } from './contracts';
+import { PRICE_AXIS_WIDTH, TIME_AXIS_HEIGHT, plotWidth, plotHeight } from './layout';
+import { formatAxisTime } from './time';
 
 const COLORS = {
   light: {
@@ -64,7 +65,8 @@ export function drawCandles(
   const c = getColors(theme);
   const visibleSpan = vp.endIndex - vp.startIndex;
   if (visibleSpan <= 0) return;
-  const w = (vp.width / visibleSpan) * 0.7;
+  const pw = plotWidth(vp.width);
+  const w = (pw / visibleSpan) * 0.7;
 
   if (chartType === 'area') {
     ctx.fillStyle = c.up + '33';
@@ -72,10 +74,12 @@ export function drawCandles(
     ctx.lineWidth = 2;
     ctx.beginPath();
     let first = true;
-    for (let idx = vp.startIndex; idx < vp.endIndex; idx++) {
+    for (let idx = Math.floor(vp.startIndex); idx < Math.ceil(vp.endIndex); idx++) {
       if (idx < 0 || idx >= candles.length) continue;
+      const candle = candles[idx];
+      if (!candle) continue;
       const x = vp.xForIndex(idx);
-      const y = vp.yForPrice(candles[idx].c);
+      const y = vp.yForPrice(candle.c);
       if (first) {
         ctx.moveTo(x, y);
         first = false;
@@ -95,9 +99,10 @@ export function drawCandles(
     return;
   }
 
-  for (let idx = vp.startIndex; idx < vp.endIndex; idx++) {
+  for (let idx = Math.floor(vp.startIndex); idx < Math.ceil(vp.endIndex); idx++) {
     if (idx < 0 || idx >= candles.length) continue;
     const candle = candles[idx];
+    if (!candle) continue;
     const x = vp.xForIndex(idx);
     const isUp = candle.c >= candle.o;
     const color = isUp ? c.up : c.down;
@@ -146,48 +151,172 @@ export function drawCrosshair(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  vp: VisibleRange,
+  _vp: VisibleRange,
   width: number,
   height: number,
-  theme: Theme
+  theme: Theme,
+  price?: number,
+  timeLabel?: string
 ) {
   const c = getColors(theme);
+  const pw = plotWidth(width);
+  const ph = plotHeight(height);
+  const clampedX = Math.max(0, Math.min(pw, x));
+  const clampedY = Math.max(0, Math.min(ph, y));
+
   ctx.strokeStyle = c.crosshair;
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 2]);
   ctx.beginPath();
-  ctx.moveTo(x, 0);
-  ctx.lineTo(x, height);
+  ctx.moveTo(clampedX, 0);
+  ctx.lineTo(clampedX, ph);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(0, y);
-  ctx.lineTo(width, y);
+  ctx.moveTo(0, clampedY);
+  ctx.lineTo(pw, clampedY);
   ctx.stroke();
   ctx.setLineDash([]);
+
+  if (price != null && Number.isFinite(price)) {
+    drawAxisBadge(ctx, price.toFixed(2), width - PRICE_AXIS_WIDTH + 4, clampedY, theme, 'right');
+  }
+  if (timeLabel) {
+    drawAxisBadge(ctx, timeLabel, clampedX, height - TIME_AXIS_HEIGHT + 4, theme, 'bottom');
+  }
 }
 
-export function drawLastPrice(ctx: CanvasRenderingContext2D, price: number, vp: VisibleRange, width: number, theme: Theme) {
-  if (!Number.isFinite(price)) return;
+/** One crosshair spanning all stacked panes (drawn on chart container overlay). */
+export function drawUnifiedCrosshair(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  totalHeight: number,
+  theme: Theme,
+  crosshair: {
+    plotX: number;
+    globalY: number;
+    paneTop: number;
+    paneHeight: number;
+    paneReserveTimeAxis: boolean;
+    valueLabel: string;
+    timeLabel: string;
+  }
+) {
+  const c = getColors(theme);
+  const pw = plotWidth(width);
+  const plotBottom = totalHeight - TIME_AXIS_HEIGHT;
+  const clampedX = Math.max(0, Math.min(pw, crosshair.plotX));
+
+  const panePlotTop = crosshair.paneTop;
+  const panePlotBottom = panePlotTop + plotHeight(crosshair.paneHeight, crosshair.paneReserveTimeAxis);
+  const clampedY = Math.max(panePlotTop, Math.min(panePlotBottom, crosshair.globalY));
+
+  ctx.strokeStyle = c.crosshair;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 2]);
+  ctx.beginPath();
+  ctx.moveTo(clampedX, 0);
+  ctx.lineTo(clampedX, plotBottom);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, clampedY);
+  ctx.lineTo(pw, clampedY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (crosshair.valueLabel) {
+    drawAxisBadge(ctx, crosshair.valueLabel, width - PRICE_AXIS_WIDTH + 4, clampedY, theme, 'right');
+  }
+  if (crosshair.timeLabel) {
+    drawAxisBadge(
+      ctx,
+      crosshair.timeLabel,
+      clampedX,
+      totalHeight - TIME_AXIS_HEIGHT + 4,
+      theme,
+      'bottom'
+    );
+  }
+}
+
+function drawAxisBadge(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  anchorX: number,
+  anchorY: number,
+  theme: Theme,
+  align: 'right' | 'bottom'
+) {
+  const c = getColors(theme);
+  ctx.font = '11px Inter, sans-serif';
+  const metrics = ctx.measureText(text);
+  const padX = 4;
+  const padY = 2;
+  const textW = metrics.width;
+  const textH = 14;
+
+  let rectX: number;
+  let rectY: number;
+  let textX: number;
+  let textY: number;
+
+  if (align === 'right') {
+    rectX = anchorX;
+    rectY = anchorY - textH / 2 - padY;
+    textX = rectX + padX;
+    textY = anchorY + 4;
+  } else {
+    rectX = anchorX - textW / 2 - padX;
+    rectY = anchorY;
+    textX = rectX + padX;
+    textY = anchorY + textH;
+  }
+
+  ctx.fillStyle = c.crosshair;
+  ctx.fillRect(rectX, rectY, textW + padX * 2, textH + padY * 2);
+  ctx.fillStyle = c.axisBg;
+  ctx.fillText(text, textX, textY);
+}
+
+export function drawLastPrice(
+  ctx: CanvasRenderingContext2D,
+  price: number,
+  vp: VisibleRange,
+  width: number,
+  theme: Theme
+) {
+  if (!Number.isFinite(price) || !Number.isFinite(width) || !vp?.yForPrice) return;
   const c = getColors(theme);
   const y = vp.yForPrice(price);
+  if (!Number.isFinite(y)) return;
   ctx.strokeStyle = c.lastPrice;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(0, y);
   ctx.lineTo(width, y);
   ctx.stroke();
-  // label
   ctx.fillStyle = c.lastPrice;
   ctx.font = '11px Inter, sans-serif';
   ctx.fillText(price.toFixed(2), width - 50, y - 4);
 }
 
-export function drawAxes(ctx: CanvasRenderingContext2D, vp: VisibleRange, width: number, height: number, theme: Theme, candles?: Candle[]) {
-  drawAxisStrips(ctx, width, height, theme);
+export function drawAxes(
+  ctx: CanvasRenderingContext2D,
+  vp: VisibleRange,
+  width: number,
+  height: number,
+  theme: Theme,
+  candles?: Candle[],
+  interval?: Interval,
+  showTimeAxis = true
+) {
+  if (!Number.isFinite(vp.priceMin) || !Number.isFinite(vp.priceMax) || !vp.yForPrice || !vp.xForIndex) {
+    return;
+  }
+
+  drawAxisStrips(ctx, width, height, theme, showTimeAxis);
   const c = getColors(theme);
   ctx.fillStyle = c.text;
   ctx.font = '11px Inter, sans-serif';
-  // price labels
   const step = (vp.priceMax - vp.priceMin) / 6;
   if (!Number.isFinite(step) || step <= 0) return;
   for (let p = vp.priceMin; p <= vp.priceMax; p += step) {
@@ -195,27 +324,34 @@ export function drawAxes(ctx: CanvasRenderingContext2D, vp: VisibleRange, width:
     const y = vp.yForPrice(p);
     ctx.fillText(p.toFixed(2), width - 45, y + 4);
   }
-  // time labels
-  if (candles) {
+  if (showTimeAxis && candles) {
     const timeStep = Math.max(1, Math.floor((vp.endIndex - vp.startIndex) / 5));
     for (let i = vp.startIndex; i < vp.endIndex; i += timeStep) {
       if (i < 0 || i >= candles.length) continue;
       const x = vp.xForIndex(i);
       const t = candles[i]?.t;
-      const label = t ? new Date(t).toLocaleDateString() : '';
+      const label = formatAxisTime(t, interval);
       ctx.fillText(label, x, height - 4);
     }
   }
 }
 
-function drawAxisStrips(ctx: CanvasRenderingContext2D, width: number, height: number, theme: Theme) {
+function drawAxisStrips(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  theme: Theme,
+  showTimeAxis = true
+) {
   const c = getColors(theme);
   const pw = width - PRICE_AXIS_WIDTH;
-  const ph = height - TIME_AXIS_HEIGHT;
+  const ph = showTimeAxis ? height - TIME_AXIS_HEIGHT : height;
 
   ctx.fillStyle = c.axisBg;
   ctx.fillRect(pw, 0, PRICE_AXIS_WIDTH, height);
-  ctx.fillRect(0, ph, pw, TIME_AXIS_HEIGHT);
+  if (showTimeAxis) {
+    ctx.fillRect(0, ph, pw, TIME_AXIS_HEIGHT);
+  }
 
   ctx.strokeStyle = c.axisBorder;
   ctx.lineWidth = 1;
@@ -223,8 +359,10 @@ function drawAxisStrips(ctx: CanvasRenderingContext2D, width: number, height: nu
   ctx.moveTo(pw, 0);
   ctx.lineTo(pw, height);
   ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(0, ph);
-  ctx.lineTo(pw, ph);
-  ctx.stroke();
+  if (showTimeAxis) {
+    ctx.beginPath();
+    ctx.moveTo(0, ph);
+    ctx.lineTo(pw, ph);
+    ctx.stroke();
+  }
 }

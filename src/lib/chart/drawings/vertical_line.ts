@@ -1,6 +1,6 @@
 import type { DrawingPlugin } from '../plugin-api';
 import { plotToPoint, pointToPlot } from '../drawingCoords';
-import { plotWidth } from '../layout';
+import { plotHeight } from '../layout';
 import {
   defaultDrawingStroke,
   previewDrawingStroke,
@@ -9,41 +9,41 @@ import {
 } from './primitives';
 import { baseDrawing, plotsForPoints } from './drawingUtils';
 
-export const horizontalLine: DrawingPlugin = {
-  name: 'horizontal_line',
-  defaultLabel: 'H-Line',
+export const verticalLine: DrawingPlugin = {
+  name: 'vertical_line',
+  defaultLabel: 'V-Line',
   placement: 'one-point',
   create(start) {
-    return baseDrawing('horizontal_line', 'H-Line', [start]);
+    return baseDrawing('vertical_line', 'V-Line', [start]);
   },
   draw(ctx, d, vp, theme, selected, candles, opts) {
-    if (d.points.length < 1 || d.points[0].value == null) return;
+    if (d.points.length < 1) return;
     const showTimeAxis = opts?.showTimeAxis ?? true;
-    const pw = plotWidth(vp.width);
-    const y = pointToPlot(d.points[0], vp, candles, showTimeAxis).y;
+    const ph = plotHeight(vp.height, showTimeAxis);
+    const x = pointToPlot(d.points[0], vp, candles, showTimeAxis).x;
     ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
     ctx.lineWidth = 1.5;
-    if (opts?.preview) ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(pw, y);
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, ph);
     ctx.stroke();
-    ctx.setLineDash([]);
     if (selected && !opts?.preview) {
-      drawControlPoints(ctx, [{ x: pw / 2, y }], theme, true);
+      drawControlPoints(ctx, [{ x, y: ph / 2 }], theme, true);
     }
   },
   hitTest(px, py, d, vp, candles, showTimeAxis = true) {
-    if (d.points.length < 1) return false;
-    const y = pointToPlot(d.points[0], vp, candles, showTimeAxis).y;
-    return Math.abs(py - y) <= HIT_TOLERANCE_PX;
+    const x = pointToPlot(d.points[0], vp, candles, showTimeAxis).x;
+    return Math.abs(px - x) <= HIT_TOLERANCE_PX;
   },
   getControlPoints(d, vp, candles, showTimeAxis = true) {
-    const y = pointToPlot(d.points[0], vp, candles, showTimeAxis).y;
-    return [{ x: plotWidth(vp.width) / 2, y, role: 'price' }];
+    const x = pointToPlot(d.points[0], vp, candles, showTimeAxis).x;
+    return [{ x, y: plotHeight(vp.height, showTimeAxis) / 2, role: 'time' }];
   },
   updateFromControl(d, _cpIndex, plotX, plotY, vp, candles, showTimeAxis = true) {
     const pt = plotToPoint(plotX, plotY, vp, candles, { showTimeAxis });
-    return { ...d, points: [{ ...d.points[0], value: pt.value }] };
+    return {
+      ...d,
+      points: [{ timestamp: pt.timestamp, value: pt.value, dataIndex: pt.dataIndex }],
+    };
   },
 };

@@ -2,6 +2,7 @@
 // Minimal plugin interfaces for indicators and drawings
 
 import type { Candle, VisibleRange, Theme, SerializedDrawing } from './contracts';
+import type { DrawingPoint } from './drawingCoords';
 
 export interface IndicatorPlugin {
   name: string;
@@ -15,25 +16,58 @@ export interface IndicatorPlugin {
     params?: Record<string, number>
   ) => void;
   valueAt?: (index: number, candles: Candle[], params?: Record<string, number>) => number | null;
+  valueRangeForViewport?: (
+    candles: Candle[],
+    vp: VisibleRange,
+    params?: Record<string, number>
+  ) => { min: number; max: number } | null;
 }
+
+export type DrawingPlacement = 'one-point' | 'two-point' | 'multi-point';
 
 export interface DrawingPlugin {
   name: string;
-  create: (startPoint: { x: number; y: number }, vp: VisibleRange) => SerializedDrawing;
+  defaultLabel?: string;
+  placement: DrawingPlacement;
+  maxControlPoints?: number;
+  create: (start: DrawingPoint, vp: VisibleRange, candles: Candle[]) => SerializedDrawing;
+  updatePreview?: (
+    draft: SerializedDrawing,
+    cursor: DrawingPoint,
+    vp: VisibleRange,
+    candles: Candle[]
+  ) => SerializedDrawing;
+  finalize?: (draft: SerializedDrawing, vp: VisibleRange, candles: Candle[]) => SerializedDrawing;
   draw: (
     ctx: CanvasRenderingContext2D,
     drawing: SerializedDrawing,
     vp: VisibleRange,
     theme: Theme,
-    selected: boolean
+    selected: boolean,
+    candles: Candle[],
+    opts?: { preview?: boolean; showTimeAxis?: boolean }
   ) => void;
-  hitTest: (x: number, y: number, drawing: SerializedDrawing, vp: VisibleRange) => boolean;
-  getControlPoints?: (drawing: SerializedDrawing, vp: VisibleRange) => Array<{ x: number; y: number }>;
+  hitTest: (
+    plotX: number,
+    plotY: number,
+    drawing: SerializedDrawing,
+    vp: VisibleRange,
+    candles: Candle[],
+    showTimeAxis?: boolean
+  ) => boolean;
+  getControlPoints?: (
+    drawing: SerializedDrawing,
+    vp: VisibleRange,
+    candles: Candle[],
+    showTimeAxis?: boolean
+  ) => Array<{ x: number; y: number; role?: string }>;
   updateFromControl?: (
     drawing: SerializedDrawing,
     cpIndex: number,
-    newX: number,
-    newY: number,
-    vp: VisibleRange
+    plotX: number,
+    plotY: number,
+    vp: VisibleRange,
+    candles: Candle[],
+    showTimeAxis?: boolean
   ) => SerializedDrawing;
 }

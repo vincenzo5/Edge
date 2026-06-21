@@ -22,7 +22,15 @@ export function loadLayout(): ChartLayout {
       collapsedPanes: Array.isArray(c.collapsedPanes) ? c.collapsedPanes : undefined,
       maximizedPane: c.maximizedPane ?? null,
     }));
-    return { ...DEFAULT_LAYOUT, ...parsed, cells } as ChartLayout;
+    return {
+      ...DEFAULT_LAYOUT,
+      ...parsed,
+      activeCellIndex:
+        typeof parsed.activeCellIndex === "number" && parsed.activeCellIndex >= 0
+          ? parsed.activeCellIndex
+          : 0,
+      cells,
+    } as ChartLayout;
   } catch {
     return DEFAULT_LAYOUT;
   }

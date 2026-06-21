@@ -20,6 +20,7 @@ export type IndicatorConfig = {
 };
 
 export type SerializedDrawing = {
+  id?: string;
   name: string;
   label: string;
   points: Array<{ dataIndex?: number; timestamp?: number; value?: number }>;
@@ -28,6 +29,7 @@ export type SerializedDrawing = {
   visible: boolean;
   locked: boolean;
   zLevel: number;
+  paneId?: string;
 };
 
 export type TrackedOverlay = {
@@ -42,6 +44,8 @@ export type TrackedOverlay = {
 
 export type CellConfig = {
   symbol: string;
+  symbolName?: string;
+  exchange?: string;
   range: Range;
   interval: Interval;
   chartType: 'candle_solid' | 'candle_stroke' | 'ohlc' | 'area' | 'heikin_ashi';
@@ -69,11 +73,43 @@ export type VisibleRange = {
   yForPrice: (p: number) => number;
   indexForX: (x: number) => number;
   priceForY: (y: number) => number;
-  scaleMode?: 'auto' | 'manual';
+  /** Auto-fit Y to visible bars, or manual after price-axis drag. */
+  priceScaleMode?: 'auto' | 'manual';
 };
 
+/** Shared horizontal window across panes; price scale stays per-pane. */
 export type SyncedTimeWindow = {
   startIndex: number;
   endIndex: number;
-  scaleMode: 'auto' | 'manual';
+};
+
+export type CrosshairMoveEvent = {
+  paneId: string;
+  plotX: number;
+  plotY: number;
+  localY: number;
+  timestamp: number | null;
+  dataIndex: number;
+  valueLabel: string;
+  timeLabel: string;
+};
+
+export type CrosshairState = {
+  plotX: number;
+  globalY: number;
+  activePaneId: string;
+  paneTop: number;
+  paneHeight: number;
+  paneReserveTimeAxis: boolean;
+  timestamp: number | null;
+  dataIndex: number;
+  valueLabel: string;
+  timeLabel: string;
+};
+
+export type PaneSegment = {
+  paneId: string;
+  top: number;
+  height: number;
+  showTimeAxis: boolean;
 };
