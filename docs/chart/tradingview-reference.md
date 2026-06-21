@@ -388,12 +388,12 @@ Use [features.md](./features.md) for live status. High-level overlap:
 | TradingView area | Edge equivalent | Parity level |
 |------------------|-----------------|--------------|
 | 5 basic chart types | candle_solid, candle_stroke, ohlc, area, heikin_ashi | Partial (5 of 20+) |
-| Pan/zoom/crosshair | Viewport + CrosshairOverlay + legend | Strong |
+| Pan/zoom/crosshair | Viewport + pinch + edge fetch + CrosshairOverlay + legend | **Strong** |
 | Multi-chart + sync | Grid 1×1–2×2; link symbols + crosshair sync when linked; active cell focus | **Strong** (within 4-cell cap; no drawing sync or granular toggles) |
-| 400+ indicators | 28 picker / 4 plugins | Minimal |
-| 110+ drawings | 12 toolbar / 3 stub plugins | Minimal |
-| Bar replay | BarReplay panel + slice | Partial (UI works; candle total not wired) |
-| Magnets, keep drawing, sync drawings | Toolbar stubs; magnet logs only | Minimal |
+| 400+ indicators | 27 catalog / 6 plugins (MA, EMA, BOLL, MACD, RSI, VOL) | Minimal (V1 subset done) |
+| 110+ drawings | 12 toolbar tools implemented | Minimal (V1 set done) |
+| Bar replay | BarReplay + `onDataLoaded` + slice | **Done** |
+| Magnets, keep drawing | Magnet + keep-drawing on toolbar | **Partial** — no drawing sync across cells |
 | Pine Script | Plugin API only | None |
 | Alerts | — | None |
 | Volume profile / footprint | Out of V1 scope | None |

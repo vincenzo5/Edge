@@ -1,6 +1,6 @@
 # Edge Chart — Feature Inventory
 
-Living record of what the custom chart engine (`EdgeChart` + `src/lib/chart/`) supports today, what is partial, and what remains planned. Updated as implementation progresses.
+Living record of what the custom chart engine (`EdgeChart` + `src/lib/chart/`) supports today, what is partial, and what remains planned. **V1 chart contract closed June 2025** — see [v1-scope.md](./prereqs/v1-scope.md) and §13 post-V1 backlog below.
 
 **Status key**
 
@@ -10,7 +10,7 @@ Living record of what the custom chart engine (`EdgeChart` + `src/lib/chart/`) s
 | **Partial** | Core path exists; gaps noted |
 | **Stub** | Wired in UI/API but engine logic incomplete |
 | **Planned** | Spec'd in prereqs; not implemented |
-| **Legacy** | Old klinecharts path; superseded but file may remain |
+| **Legacy removed** | Former klinecharts path; deleted in Phase 4 |
 
 For V1 targets and gesture specs, see [v1-scope.md](./prereqs/v1-scope.md) and [gesture-bible.md](./prereqs/gesture-bible.md).
 
@@ -23,18 +23,20 @@ StockApp → ChartGrid → ChartCell → EdgeChart
               │ ChartSyncProvider (linked → crosshair broadcast)
               └─ per-cell wrapper (min-h-0, viewport-fitting grid)
                                       ├─ ChartLegendBar (OHLCV overlay, price pane)
+                                      ├─ PaneLegendBar (indicator legend overlays, sub-panes)
                                       ├─ ChartCanvas (price pane)
                                       ├─ ChartCanvas (sub-panes, one per sub indicator)
                                       ├─ PaneSeparators (drag-resize between panes)
+                                      ├─ PaneControls (collapse / maximize / reorder on hover)
                                       └─ CrosshairOverlay (unified crosshair)
 ```
 
-- **Engine**: Canvas 2D (`src/lib/chart/canvas.tsx`); active path uses `EdgeChart` (`ChartCell` import). Legacy klinecharts wrapper remains in `Chart.tsx`.
-- **Data**: Yahoo OHLCV via `/api/candles` → `series.ts` normalization.
+- **Engine**: Canvas 2D (`src/lib/chart/canvas.tsx`); `ChartCell` → `EdgeChart` only (legacy klinecharts removed June 2025).
+- **Data**: Yahoo OHLCV via `POST /api/candles` (range load + optional `before` for edge prepend) → `series.ts` normalization.
+- **Input**: Wheel + pinch on `[data-edge-chart]`, rAF-batched (`wheel.ts`, `pinch.ts`); pan momentum in `canvas.tsx`.
 - **Plugins**: Indicators and drawings register through `pluginHost.ts` / registries; toolbar names are aliased to registry keys.
 - **Multi-pane sync**: Imperative `ChartPaneHandle` registration (`paneHandle.ts`); time window synced across panes without React state on every wheel tick.
-- **Multi-chart sync**: `ChartSyncProvider` in `ChartGrid`; source chart fires `onCrosshairTimestamp` → `broadcast`; peers receive via `ChartSyncBridge` → `setCrosshairFromSync`. Gated on `ChartLayout.linked` (symbol link checkbox enables both symbol propagation and crosshair sync in V1).
-- **Wheel input**: Single container listener on `[data-edge-chart]`, rAF-batched (`wheel.ts`).
+- **Multi-chart sync**: `ChartSyncProvider` in `ChartGrid`; source chart fires `onCrosshairTimestamp` → `broadcast`; peers receive via `ChartSyncBridge` → `setCrosshairFromSync`. Gated on `ChartLayout.linked`.
 - **Persistence**: `ChartLayout` + per-cell `CellConfig` in `localStorage` via `layoutStorage.ts` (debounced 500 ms).
 
 ---
@@ -49,7 +51,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | `range` | History window: `1d`, `5d`, `1mo`, `3mo`, `6mo`, `ytd`, `1y`, `5y`, `max` |
 | `interval` | Bar size: `5m`, `15m`, `30m`, `1h`, `1d`, `1wk`, `1mo` |
 | `chartType` | `candle_solid`, `candle_stroke`, `ohlc`, `area`, `heikin_ashi` |
-| `indicators` | `{ name, pane: 'main' \| 'sub' }[]` |
+| `indicators` | `{ id, name, pane, params?, visible? }[]` — UUID instance ids |
 | `drawings` | Serialized overlay array |
 | `paneOrder?` | Visual stacking order (`PRICE_PANE_KEY` + indicator keys) |
 | `collapsedPanes?` | Pane keys collapsed to 24 px header height |
@@ -83,8 +85,8 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Yahoo candle fetch | **Done** | `fetchYahooCandles()` in `series.ts` |
 | Candle validation / normalization | **Done** | Short-form `{ t,o,h,l,c,v }`; ms timestamps |
 | Heikin Ashi transform | **Done** | Applied when `chartType === 'heikin_ashi'` |
-| Bar Replay data slice | **Partial** | `applyVisibleSlice()` + `visibleCount` prop work; `candleCount` in `ChartCell` never updated from loaded data (replay slider shows `total={0}`) |
-| Infinite scroll / edge fetch | **Planned** | Virtual scroll buffer exists (`SCROLL_BUFFER_CANDLES`); no fetch-on-pan-left |
+| Bar Replay data slice | **Done** | `onDataLoaded` → `candleCount`; `baseCandles` + `applyVisibleSlice` (no refetch on scrub) |
+| Infinite scroll / edge fetch | **Done** | Pan-left (`startIndex < 30`, 150 ms throttle) prepends via `POST /api/candles` `{ before }`; `adjustViewportForPrepend` keeps window stable |
 | Loading / error states | **Done** | Overlay text in `EdgeChart` while fetching or on failure |
 
 ---
@@ -111,10 +113,14 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Chart legend overlay | **Done** | `ChartLegendBar` on price pane (`EdgeChart`) |
-| Crosshair bar values | **Done** | When crosshair is on price pane, legend shows that bar's OHLCV |
-| Last-bar fallback | **Done** | When crosshair absent or on sub-pane, legend shows last candle |
+| Chart legend overlay | **Done** | `ChartLegendBar` → `PaneLegendBar` on price pane (`EdgeChart`) |
+| Indicator pane legend | **Done** | `PaneLegendBar` on each sub-pane; `resolveIndicatorLegend()` + plugin `legendAt` |
+| Crosshair bar values | **Done** | Global sync: all legends use crosshair `dataIndex` when crosshair is active |
+| Last-bar fallback | **Done** | When crosshair absent, legends show last candle / last bar values |
 | Change / change % | **Done** | vs previous close; `resolveLegendBar()` in `legend.ts` |
+| Legend hover chrome | **Done** | Gray rounded background on legend hover (`PaneLegendBar`) |
+| Per-section tooltips | **Done** | Reusable `Tooltip` component with hover/focus delay and `role="tooltip"` |
+| Legend action slots | **Done** | Settings gear opens `IndicatorSettingsModal`; eye/delete still planned |
 | Price / volume formatting | **Done** | `formatPrice`, `formatVolume`, `formatChange` in `format.ts` |
 | Symbol display name | **Done** | Uses `symbolName` from config or fetches via `/api/search` |
 | Interval / exchange labels | **Done** | Shown in legend header |
@@ -141,7 +147,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Viewport modified detection | **Done** | `isViewportModified()` compares pan/zoom/scale to defaults |
 | Hover cursors | **Done** | `resolveHoverCursor()` — crosshair, grab/grabbing, ns/ew-resize on axes |
 | Drawing-tool cursor mode | **Done** | Active drawing tool shows crosshair cursor on canvas |
-| Pinch zoom | **Planned** | Not implemented |
+| Pinch zoom | **Done** | Two-pointer pinch on `[data-edge-chart]`; reuses `applyWheelAction` zoom |
 | Per-pane independent time | **N/A** | Time is shared; price scale is per-pane |
 
 ---
@@ -155,12 +161,12 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Fixed default sub height (100 px) | **Done** | `SUB_DEFAULT` in `panes.ts` |
 | Collapsed sub height (24 px) | **Done** | When in `collapsedPanes` |
 | Min price pane height (80 px) | **Done** | Clamps + shrinks subs in short cells |
-| Maximize one pane | **Partial** | Layout math in `panes.ts`; config persisted from `ChartCell`; no in-chart header UI |
-| Collapse pane | **Partial** | Same as above |
-| Pane reorder (`paneOrder`) | **Partial** | Config + handlers in `ChartCell`; **EdgeChart does not yet reorder/stack by `paneOrder`** |
+| Maximize one pane | **Done** | `PaneControls` + `panes.ts`; persisted `maximizedPane` |
+| Collapse pane | **Done** | Same; 24 px collapsed height |
+| Pane reorder (`paneOrder`) | **Done** | `resolvePaneStackOrder` in `panes.ts`; move up/down in `PaneControls` |
 | Drag-resize pane separator | **Done** | `PaneSeparators` + `applyBoundaryResize()`; persists `paneHeights` on drag end |
 | Separator disabled states | **Done** | Disabled when adjacent pane collapsed or maximized |
-| Pane header controls (hover) | **Planned** | Callbacks passed to `EdgeChart` but no overlay UI yet (existed on old `Chart.tsx`) |
+| Pane header controls (hover) | **Done** | `PaneControls.tsx` overlaid on measured pane rects |
 | 1 px border between sub-panes | **Done** | CSS `borderTop`; accounted in crosshair segment offsets |
 
 ---
@@ -179,35 +185,57 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Clear on container leave | **Done** | |
 | No clear during wheel | **Done** | `wheelingRef` suppresses flicker |
 | Clear when leaving chart (not sibling pane) | **Done** | `shouldClearCrosshairOnLeave()` |
-| Hide crosshair while drawing | **Planned** | Not implemented |
+| Hide crosshair while drawing | **Done** | `shouldHideCrosshair()` suppresses overlay + price pane crosshair during draw |
 | Multi-chart crosshair sync | **Done** | `onCrosshairTimestamp` on source chart → `ChartSyncContext.broadcast` (when `linked`) → peer `setCrosshairFromSync(ts)` via `findDataIndexForTimestamp` + `buildSyncedCrosshairState`; feedback loop guarded by `syncingCrosshairRef` |
 
 ---
 
 ## 7. Indicators
 
-**Picker UI**: 28 names in `src/lib/indicators.ts` across Trend (7), Momentum (16), and Volume (4) categories. Volatility and Other categories exist in the type system but have no entries yet.
+**Architecture:** Unified catalog in `src/lib/chart/indicators/catalog.ts` + plugin registry in `registry.ts`. Picker reads `getCatalog()` — only `implemented: true` entries are clickable. MACD is the reference plugin pattern: `compute` → `outputs` → `draw`, with shared helpers in `indicators/math.ts` and `indicators/draw.ts`.
 
-**Engine registry** (`indicators/registry.ts`): only registered plugins render.
+**Picker UI:** 27 catalog names across Trend (7), Momentum (16), and Volume (4) categories. Volatility and Other categories exist in the type system but have no entries yet.
+
+**Engine registry** (`indicators/registry.ts`): **6 implemented** V1 plugins (MA, EMA, BOLL, MACD, RSI, VOL); 21 catalog entries remain picker-disabled.
 
 | Indicator | Pane | Status | Notes |
 |-----------|------|--------|-------|
-| MA | main | **Done** | Simple moving average line |
-| BOLL | main | **Stub** | Plugin registered; band math incomplete (middle band only) |
-| MACD | sub | **Done** | Lines + histogram; `valueAt`, `valueRangeForViewport`, EMA math in `indicators/math.ts` |
-| RSI | sub | **Stub** | Flat placeholder line at pane midline |
-| EMA, SMA, BBI, SAR, AVP | main | **Planned** | Listed in picker only |
-| KDJ, CCI, BIAS, … (momentum) | sub | **Planned** | Listed in picker only |
-| VOL, OBV, VR, PVT | sub | **Planned** | Listed in picker only |
+| MA | main | **Done** | `compute` + `sma`; paramSchema for period |
+| EMA | main | **Done** | Exponential MA; settings modal |
+| BOLL | main | **Done** | Upper/middle/lower bands via `computeBollinger` |
+| MACD | sub | **Done** | Reference plugin: `compute` + `outputs`; shared draw helpers |
+| RSI | sub | **Done** | Wilder RSI; fixed 0–100 Y-scale; 30/70 guides |
+| VOL | sub | **Done** | Volume bars colored by candle direction |
+| SMA, BBI, SAR, AVP | main | **Planned** | In catalog; picker disabled |
+| KDJ, CCI, BIAS, … (momentum) | sub | **Planned** | In catalog; picker disabled |
+| OBV, VR, PVT | sub | **Planned** | In catalog; picker disabled |
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Toggle indicator in picker | **Done** | Adds/removes from `CellConfig.indicators` |
+| Toggle indicator in picker | **Done** | Implemented indicators only; unimplemented show as disabled |
 | Picker grouped by category | **Done** | Trend / Momentum / Volume with descriptions |
+| Indicator instance ids | **Done** | UUID per instance in `CellConfig.indicators`; `indicatorKey()` returns id |
+| Param schema on plugins | **Done** | `paramSchema` + `defaultParams`; persisted via `createIndicatorInstance` |
 | Main-pane overlay draw | **Done** | Filtered to price `ChartCanvas` |
 | Sub-pane auto Y-scale | **Done** | `applyPanePriceScale()` uses `valueRangeForViewport` when available |
-| Indicator params UI | **Planned** | Defaults only (`defaultParams` on plugins) |
+| Sub-pane legend overlay | **Done** | `PaneLegendBar` + declarative `compute`/`outputs`; MACD shows MACD/Signal/Hist |
+| Declarative legend contract | **Done** | `compute` + `outputs` auto-build legend; optional `legendAt` override |
+| Memoized indicator compute | **Done** | `getComputedSeries()` cache in `indicatorCompute.ts` (64 entries, keyed by params + candle bounds) |
+| Default crosshair value | **Done** | `defaultValueAt()` uses first `outputs` entry when `valueAt` not defined |
+| Indicator params UI | **Done** | Settings gear on sub-pane + main overlay legends → `IndicatorSettingsModal` |
+| Indicator visibility toggle | **Done** | `visible` on `IndicatorConfig`; Object Tree eye toggle; hidden subs omitted from pane stack |
 | Remove via Object Tree | **Done** | Per-indicator × button |
+
+**Adding a new indicator**
+
+1. Add catalog entry in `indicators/catalog.ts` (if not already listed)
+2. Create plugin file following MACD pattern in `indicators/`
+3. Register in `indicators/registry.ts`
+4. Plugin must include: `category`, `description`, `paramSchema`, `compute`, `outputs`, `draw`
+5. Use shared helpers from `math.ts` and `draw.ts`
+6. Optionally override `valueAt`, `legendAt`, or `valueRangeForViewport`
+
+Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defaultValueAt` (first output).
 
 ---
 
@@ -215,11 +243,13 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 
 **Design:** [drawing-engine-design.md](./drawing-engine-design.md) — V1 drawing engine architecture, FSM, coordinate model, phased plan, and test oracles.
 
-**Toolbar**: 12 tools in `DrawingToolbar.tsx` (cursor, hline, vline, trend, ray, channels, rect, circle, fib, price line, annotation).
+**Toolbar design:** [drawing-toolbar-design.md](./drawing-toolbar-design.md) — grouped flyouts, utilities rail, icon system, persistence, phased TV parity.
 
-**Registry aliases** (`pluginHost.ts`): all 12 toolbar names mapped to registry keys.
+**Toolbar layout:** Left rail in `ChartCell` — cursor + 3 grouped flyouts (Lines, Channels & Shapes, Annotation) + utilities (zoom, measure, magnet, keep-drawing, lock-all, hide-all, delete, clear).
 
-**Engine registry** (`drawings/registry.ts`): 12 plugins registered.
+**Registry aliases** (`pluginHost.ts`): 13 drawing tool names mapped to registry keys (12 grouped + measure utility).
+
+**Engine registry** (`drawings/registry.ts`): 13 plugins registered.
 
 | Tool (toolbar name) | Registry name | Status |
 |---------------------|---------------|--------|
@@ -234,10 +264,14 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Fib Retracement | `fib_retracement` | **Done** |
 | Price Line | `price_line` | **Done** |
 | Annotation | `annotation` | **Done** |
+| Measure (utility §6.9) | `measure` | **Done** (persisted; ephemeral in Phase 2) |
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Start/stop drawing tool | **Done** | FSM: stay in tool after create |
+| Grouped toolbar flyouts | **Done** | Lines, Channels & Shapes, Annotation; hover (desktop) / pin (touch) |
+| Toolbar utilities rail | **Done** | Zoom, measure, magnet, keep-drawing, lock-all, hide-all, delete, clear |
+| Toolbar prefs persistence | **Done** | `ChartLayout.toolbarPrefs` — group selections, magnet, keep-drawing |
+| Start/stop drawing tool | **Done** | FSM: return to cursor after create unless keep-drawing ON |
 | Two-point create + preview | **Done** | Click-click or drag-release; dashed ghost |
 | Click select + CP edit | **Done** | `hitTestAll` + control-point drag |
 | Draw on chart | **Done** | Price pane; z-sorted render |
@@ -266,12 +300,12 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Drawing toolbar rail | **Done** | Left column in `ChartCell` |
 | Object Tree panel | **Done** | Toggle per cell; section collapse persisted per `chartId` |
 | Object Tree — symbol section | **Done** | Shows symbol, range, interval |
-| Object Tree — data window | **Partial** | Placeholder text only (“Hover over the chart…”) |
+| Object Tree — data window | **Done** | Live OHLCV + visible indicator values at crosshair via `legend.ts` |
 | Indicator picker modal | **Done** | |
-| Bar Replay panel | **Partial** | UI + speeds (0.5×–5×) work; candle total not fed from chart |
+| Bar Replay panel | **Done** | Slider driven by `onDataLoaded`; slice via `visibleCount` without refetch |
 | Chart context menu | **Done** | “Reset chart view” when viewport modified |
 | Overlay context menu | **Done** | Rename, lock, hide, z-order, duplicate (latter two stubbed) |
-| Old Chart (`Chart.tsx`) | **Legacy** | klinecharts-based; not used by `ChartCell` |
+| Old Chart (`Chart.tsx`) | **Legacy removed** | klinecharts wrapper deleted; `ChartCell` uses `EdgeChart` only |
 
 ---
 
@@ -286,6 +320,8 @@ Imperative API consumed by `ChartCell`, Object Tree, and sync bridge.
 | `serializeDrawings` / `restoreDrawings` | **Done** | |
 | `resize` | **Done** | Reads container `clientWidth/Height` |
 | `onCrosshair` | **Done** | Fires timestamp on move (imperative subscribe) |
+| `onCrosshairMove` (prop) | **Done** | `{ timestamp, dataIndex }` for Object Tree data window |
+| `getRawCandleCount` / `getCandles` | **Done** | Full base dataset length and display candles |
 | `setCrosshairFromSync` | **Done** | Applies peer crosshair at timestamp; no re-broadcast |
 | `getTrackedOverlays` | **Done** | |
 | `removeOverlay` | **Done** | |
@@ -312,13 +348,14 @@ Chart engine tests live under `src/lib/chart/` (Vitest). App/layout tests under 
 
 | Module | File | Covers |
 |--------|------|--------|
-| Viewport | `viewport.test.ts` | Pan, zoom, scale, auto/manual price, scroll buffer, `isViewportModified` |
+| Viewport | `viewport.test.ts` | Pan, zoom, scale, scroll buffer, `adjustViewportForPrepend`, `isViewportModified` |
 | Layout | `layout.test.ts` | Plot width/height, drag mode, cursor resolution |
 | Panes | `panes.test.ts` | Height allocation, clamping, `applyBoundaryResize`, `computePaneBoundaries` |
 | Crosshair | `crosshair.test.ts` | Plot Y mapping, leave logic, `findDataIndexForTimestamp`, `clampIndexToViewport` |
 | Wheel | `wheel.test.ts` | Delta normalization, axis routing |
+| Pinch | `pinch.test.ts` | Distance ratio → zoom factor |
 | Renderer | `renderer.test.ts` | Draw helpers |
-| Series | `series.test.ts` | Heikin Ashi, slice, validation |
+| Series | `series.test.ts` | Heikin Ashi, slice, validation, `mergeCandlesPrepend`, `shouldPrefetchEdge` |
 | Time | `time.test.ts` | Axis time formatting |
 | Legend | `legend.test.ts` | Crosshair vs last-bar resolution, change calc |
 | Canvas | `canvas.test.tsx` | Pane handle registration smoke |
@@ -343,12 +380,15 @@ Run layout/sync tests: `npm test -- --run src/app/components/ChartGrid.layout.te
 | Area | Path |
 |------|------|
 | React chart host | `src/app/components/EdgeChart.tsx` |
+| Pane header controls | `src/app/components/PaneControls.tsx` |
+| Indicator settings modal | `src/app/components/IndicatorSettingsModal.tsx` |
 | OHLCV legend overlay | `src/app/components/ChartLegendBar.tsx` |
 | Pane drag-resize UI | `src/app/components/PaneSeparators.tsx` |
 | Per-pane canvas | `src/lib/chart/canvas.tsx` |
 | Crosshair overlay | `src/lib/chart/CrosshairOverlay.tsx` |
 | Viewport math | `src/lib/chart/viewport.ts` |
 | Wheel input | `src/lib/chart/wheel.ts` |
+| Pinch input | `src/lib/chart/pinch.ts` |
 | Pane sync handles | `src/lib/chart/paneHandle.ts` |
 | Pane layout | `src/lib/chart/panes.ts` |
 | Price scaling | `src/lib/chart/indicatorScale.ts` |
@@ -364,59 +404,59 @@ Run layout/sync tests: `npm test -- --run src/app/components/ChartGrid.layout.te
 | Layout controller | `src/app/components/StockApp.tsx` |
 | Crosshair sync bus | `src/app/components/ChartSyncContext.tsx` |
 | Config types | `src/lib/chartConfig.ts` |
-| Indicator catalog | `src/lib/indicators.ts` |
+| Indicator catalog | `src/lib/chart/indicators/catalog.ts` |
 | Layout persistence | `src/lib/layoutStorage.ts` |
 
 ---
 
-## 13. Known gaps (priority hints)
+## 13. Post-V1 backlog (not blockers)
 
-1. **V1 must-ship — indicators** — BOLL, RSI, VOL, EMA still stub or missing; 24 of 28 picker entries have no engine plugin (TradingView §5).
-2. **V1 must-ship — Bar Replay** — Wire `candleCount` from loaded candles (or expose count via `ChartHandle`) (TradingView §7).
-3. **V1 must-ship — pane controls UI** — Collapse/maximize/reorder persisted but no in-chart header controls on `EdgeChart` (TradingView multi-pane workflow).
-4. **`paneOrder` stacking** — Config exists; layout always price-then-subs.
-5. **Object Tree data window** — Placeholder only; no live crosshair values in panel (TradingView §4 readout).
-6. **Edge fetch on pan-left** — Virtual scroll buffer exists; no fetch-on-scroll (V1 scope item 1).
-7. **Delete klinecharts** — After parity verification (`Chart.tsx` still in repo).
+V1 chart contract closed June 2025 (Phases 0–4). Remaining work is polish and catalog expansion — not V1 must-ship.
 
-**Recently closed:** drawing engine V1 (12 tools, FSM, selection, magnet, persist); multi-chart layout + crosshair sync (June 2025).
+| Area | Notes |
+|------|-------|
+| **Catalog indicators** | 21 of 27 catalog entries still picker-disabled; batch using MACD/MA plugin template |
+| **`valueAt` on all plugins** | MACD + defaults cover crosshair; explicit overrides optional for remaining plugins |
+| **Legend eye/delete actions** | Settings gear done; per-legend visibility/delete still deferred |
+| **Granular layout sync** | Single `linked` checkbox; separate symbol/interval/crosshair toggles deferred |
+| **Drawing sync across cells** | Drawings per-cell only |
+| **Undo/redo drawings** | Not implemented |
+| **Log / percent / indexed scale modes** | Auto + manual price scale only |
+| **Go to date** | Not implemented |
+| **Replay position persist** | Bar Replay state not saved to `CellConfig` |
+
+**Recently closed (V1 contract):** EMA + VOL plugins; Bar Replay wiring; pane controls (`PaneControls`); edge fetch on pan-left; Object Tree data window; indicator params modal; pinch zoom; klinecharts removal.
 
 ---
 
-## 14. Recommended next work (TradingView-aligned)
+## 14. Recommended next work (post-V1)
 
-Prioritized against [v1-scope.md](./prereqs/v1-scope.md) must-ship list and [tradingview-reference.md](./tradingview-reference.md). Edge is a chart engine, not a full TV platform — defer alerts, Pine, screeners, and cross-device sync.
+Prioritized against [tradingview-reference.md](./tradingview-reference.md). Edge is a chart engine, not a full TV platform — defer alerts, Pine, screeners, and cross-device sync.
 
-### Tier A — Finish V1 contract (highest ROI)
+### Tier A — High ROI polish
 
-| Priority | Edge work | TradingView reference | Why now |
-|----------|-----------|----------------------|---------|
-| A1 | **Indicator plugins**: EMA + BOLL (main), RSI + VOL (sub) | §5 Indicators | V1 items 6–7; picker already lists them |
-| A2 | **Bar Replay fix**: expose candle count from `EdgeChart`, drive slider + slice | §7 Bar Replay | UI exists; one wiring fix unlocks replay |
-| A3 | **Pane header UI** on `EdgeChart` (collapse / maximize / move up-down) | Multi-pane layout (implicit in TV) | Config already persists; users can't reach it |
+| Priority | Edge work | Notes |
+|----------|-----------|-------|
+| A1 | **Batch indicator plugins** — next 5–10 catalog entries | Follow `macd.ts` / `ma.ts` template; enable in picker as shipped |
+| A2 | **Granular layout sync toggles** | Separate symbol / interval / crosshair (not one checkbox) |
+| A3 | **Undo/redo for drawings** | Standard TV drawing workflow |
 
-### Tier B — TV parity polish (post-V1 or late V1 if time)
+### Tier B — TV parity (lower urgency)
 
-| Priority | Edge work | TradingView reference | Notes |
-|----------|-----------|----------------------|-------|
-| B1 | **Granular layout sync toggles** — separate symbol / interval / crosshair (not one checkbox) | §2 Synchronized layouts | Better multi-chart UX; crosshair already works via `linked` |
-| B2 | **Object Tree data window** — live OHLCV + indicator values at crosshair | §4 Crosshair & readout | Complements legend bar |
-| B3 | **Drawing sync across layout cells** | §2 Sync drawings | Requires stable drawing IDs + link rules |
-| B4 | **Hide drawings / indicators** (layout-level visibility) | §2 Hide options | Quick win for cluttered grids |
-| B5 | **Keep drawing mode** + **Undo/redo** for drawings | §6.10, §3 Undo/redo | Standard TV drawing workflow |
-| B6 | **Log / percent / indexed-to-100** price scale modes | §3 Viewport & scale | Scale mode selector |
-| B7 | **Go to date** / jump viewport | §3 Go to date | Date picker + viewport pan |
+| Priority | Edge work | Notes |
+|----------|-----------|-------|
+| B1 | **Drawing sync across layout cells** | Stable drawing IDs + link rules |
+| B2 | **Log / percent / indexed-to-100** price scale modes | Scale mode selector |
+| B3 | **Go to date** / jump viewport | Date picker + viewport pan |
+| B4 | **Persist Bar Replay position** | Optional `CellConfig` field |
 
-### Tier C — Explicit deferrals (TV has; Edge should not chase yet)
+### Tier C — Explicit deferrals
 
-- Pine Script / community indicators (§5)
-- Alerts on price or drawings (§8)
-- Non-time charts: Renko, P&F, Kagi (§1; already out of V1 scope)
-- Volume footprint, TPO, session profile (§1 advanced volume)
-- 16-chart layouts, watchlists, spreads, custom seconds intervals (§2 platform)
-- Cross-device cloud sync (§13)
-
-**Suggested sprint order:** A1 → A2 → A3, then B1–B2 if multi-chart polish is the theme.
+- Pine Script / community indicators
+- Alerts on price or drawings
+- Non-time charts: Renko, P&F, Kagi
+- Volume footprint, TPO, session profile
+- 16-chart layouts, watchlists, cloud sync
 
 ---
 

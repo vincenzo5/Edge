@@ -31,16 +31,19 @@ export type ChartHandle = {
 ## Components That Stay Unchanged (shell)
 - ObjectTree.tsx, DrawingToolbar.tsx, BarReplay.tsx, IndicatorPicker, etc. — they call the handle methods.
 
-## Components updated for multi-chart layout (June 2025)
+## What Was Replaced (complete)
+- ~~`src/app/components/Chart.tsx`~~ — deleted (June 2025)
+- ~~`src/lib/themes.ts`~~, ~~`src/lib/overlays.ts`~~ — deleted
+- ~~`klinecharts` npm dependency~~ — removed
+
+## Components updated for V1 chart contract (June 2025)
 - **StockApp.tsx** — layout controller: `applyCellUpdate` (atomic link propagation), `activeCellIndex`, grid mode clamping
 - **ChartGrid.tsx** — viewport-fitting grid shell, `ChartSyncProvider`, compact multi-cell mode
-- **ChartCell.tsx** — active cell focus, `onCrosshairTimestamp` → sync broadcast, `ChartSyncBridge` subscribe receiver
+- **ChartCell.tsx** — active cell focus, crosshair snapshot → Object Tree, `IndicatorSettingsModal`, Bar Replay wiring
 - **ChartSyncContext.tsx** — `broadcast` gated on `linked`
-- **EdgeChart.tsx** — `setCrosshairFromSync`, `onCrosshairTimestamp` prop
-
-## What Gets Replaced
-- src/app/components/Chart.tsx → deleted after EdgeChart works
-- All klinecharts imports, init, dispose, createIndicator, createOverlay, _panes hacks
+- **EdgeChart.tsx** — edge fetch, pinch, `PaneControls`, legend settings actions, `onDataLoaded`, `onCrosshairMove`
+- **PaneControls.tsx** — collapse / maximize / reorder overlay (extracted from legacy Chart)
+- **ObjectTree.tsx** — live data window, indicator visibility toggle
 
 ## Feature inventory (living doc)
 
@@ -55,10 +58,10 @@ onConfigChange called on drawings change (debounced), indicator toggle, paneOrde
 
 Crosshair sync: source chart `onCrosshairTimestamp` → `ChartSyncContext.broadcast` (when `layout.linked`) → peer `setCrosshairFromSync`. Requires **Link symbols** checked in toolbar.
 
-## File Changes
-- New: src/lib/chart/* (series, viewport, renderer, panes, indicators/*, drawings/*, pluginHost)
-- New: src/app/components/EdgeChart.tsx
-- Modify: ChartCell.tsx (import swap + ref type)
-- Delete: Chart.tsx, remove klinecharts from package.json after verification
+## File Changes (current)
+- **Engine**: `src/lib/chart/*` (series, viewport, renderer, panes, pinch, indicators/*, drawings/*, pluginHost)
+- **Host**: `src/app/components/EdgeChart.tsx`, `PaneControls.tsx`, `IndicatorSettingsModal.tsx`
+- **Shell**: `ChartCell.tsx` imports EdgeChart only
+- **Removed**: `Chart.tsx`, `themes.ts`, `overlays.ts`, `klinecharts` package
 
 This ensures zero breakage to existing UI while swapping the engine.

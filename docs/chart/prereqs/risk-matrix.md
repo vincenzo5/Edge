@@ -10,11 +10,12 @@
 - Crosshair sync visual lag of 1 frame (16 ms) is OK
 - Drawing creation UX can be basic (no live preview during drag for complex tools)
 - Sub-pane indicator value labels on crosshair can be implemented later if perf tight
+- Edge fetch stops retrying after first non-abort error (`hasMoreHistory = false`)
 
-## Deferred Entirely (V2)
-- Mobile pinch + touch drawing + long-press context menus
+## Deferred Entirely (post-V1)
+- Advanced mobile touch (beyond basic pinch zoom)
 - Custom indicator authoring UI
-- Infinite left-scroll data fetching (edge prefetch only for current range)
+- Bi-directional infinite scroll (pan-right beyond last bar)
 - Non-time chart types, volume-by-price, footprint, etc.
 
 ## Mitigation Strategy

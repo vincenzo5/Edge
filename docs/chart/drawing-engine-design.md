@@ -235,7 +235,7 @@ Each point in `SerializedDrawing.points`:
 }
 ```
 
-**Why timestamp + value (not pixel x/y):** Matches existing `chartConfig.SerializedDrawing`, legacy klinecharts `overlays.ts`, and TV’s bar-anchored geometry. Drawings reflow when viewport changes.
+**Why timestamp + value (not pixel x/y):** Matches `chartConfig.SerializedDrawing` and TV’s bar-anchored geometry. Drawings reflow when viewport changes.
 
 **Do not persist** plot pixels or container coordinates.
 
@@ -328,7 +328,9 @@ export interface DrawingPlugin {
 
 ### 5.3 Registry aliases (complete map)
 
-Add to `pluginHost.ts`:
+Toolbar grouping and flyout UX: [drawing-toolbar-design.md](./drawing-toolbar-design.md).
+
+In `pluginHost.ts`:
 
 | Toolbar name | Registry `name` |
 |--------------|-----------------|
@@ -343,6 +345,7 @@ Add to `pluginHost.ts`:
 | `fibonacciLine` | `fib_retracement` |
 | `priceLine` | `price_line` |
 | `simpleAnnotation` | `annotation` |
+| `measure` | `measure` |
 
 Registry key is the stable `SerializedDrawing.name` written to JSON.
 
@@ -393,6 +396,7 @@ Placement key: **1P** = one-point click, **2P** = two-point (click-click or drag
 | 9 | Fib Retracement | `fib_retracement` | 2P | swing low → swing high | Horizontal levels 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1 + labels | 4px to any level | 2 | §6.3 Fib retracement |
 | 10 | Price Line | `price_line` | 1P | `[{value}]` | H-line + price label on axis (reuse last-price label style) | 4px | 1 | §6.7 Price label |
 | 11 | Annotation | `annotation` | 1P | `[{timestamp, value}]` | Text box with default "Note" | box hit | 1 (move) | §6.7 Text/Note |
+| 12 | Measure (utility) | `measure` | 2P | 2 points | Ruler + price/%/bars label | 4px segment | 2 | §6.9 Measure |
 
 ### 6.1 Tool notes
 

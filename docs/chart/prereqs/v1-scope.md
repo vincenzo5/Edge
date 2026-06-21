@@ -22,7 +22,7 @@ All 12 features MUST ship in V1. No deferrals.
 - Drawing toolbar + magnet + context menu (rename/lock/hide/z-order/duplicate)
 - Pane collapse/maximize/move with persisted paneOrder/collapsedPanes/maximizedPane
 - Light/dark themes with live switch
-- 28 indicators registered (Trend/Momentum/Volume categories)
+- 27 indicators registered (Trend/Momentum/Volume categories)
 - 12 drawing tools (cursor, hline, vline, trend, ray, parallel channel, price channel, rect, circle, fib, price line, annotation)
 
 ## Out of Scope for V1
@@ -35,9 +35,32 @@ This is the immutable contract. Any implementation must deliver 100% of the abov
 
 ## Implementation status (living)
 
-| # | Feature | Status (June 2025) |
-|---|---------|-------------------|
-| 1–5 | Pan/zoom, candles, crosshair, axes, symbol pipeline | **Mostly done**; pinch + edge fetch on scroll-left still open |
-| 6–8 | Indicators + drawings | **Partial** — MA/MACD done; BOLL/RSI/VOL/EMA + most drawings stub |
-| 9–10 | Persist drawings + layout | **Done** |
-| 11–12 | Multi-chart grid + link + crosshair sync | **Done** — see [features.md](../features.md) §9–§6 |
+**V1 chart contract closed — June 2025.** Phases 0–4 complete. See [features.md](../features.md) for row-by-row inventory.
+
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | Pan, zoom, scroll (wheel, pinch, drag, momentum, edge fetch) | **Done** |
+| 2 | Candlestick rendering (5 types) | **Done** |
+| 3 | Crosshair + readout | **Done** |
+| 4 | Auto-scaled axes | **Done** |
+| 5 | Symbol + interval + range pipeline | **Done** |
+| 6 | Overlay indicators (MA, EMA, BOLL) | **Done** — 6 V1-named plugins shipped; 21 catalog entries remain disabled in picker |
+| 7 | Sub-pane indicators (MACD, RSI, VOL) | **Done** |
+| 8 | Core drawings (12 tools) | **Done** |
+| 9 | Drawing persist | **Done** |
+| 10 | Layout persistence | **Done** |
+| 11 | Multi-chart grid + symbol link | **Done** |
+| 12 | Crosshair sync | **Done** |
+
+**Additional requirements**
+
+| Requirement | Status |
+|-------------|--------|
+| Bar Replay | **Done** — `onDataLoaded` + `visibleCount` slice |
+| Object Tree | **Done** — indicators, drawings, live data window |
+| Pane collapse/maximize/move | **Done** — `PaneControls.tsx` |
+| Themes | **Done** |
+| 27 indicators registered | **Done** — catalog; 6 implemented for V1 |
+| Legacy klinecharts removed | **Done** — Phase 4 |
+
+**Post-V1 (not contract blockers):** Implement remaining 21 catalog indicators; granular sync toggles; undo/redo; advanced scale modes.

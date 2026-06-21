@@ -8,7 +8,7 @@
 - **Latency**: Crosshair move → label update < 16 ms (one frame). Drawing create < 50 ms.
 
 ## Qualitative Rules
-- "Native feel": pan/zoom must match or exceed current klinecharts smoothness. No visible jank, tearing, or dropped frames.
+- "Native feel": pan/zoom must feel smooth at 60 fps (EdgeChart canvas engine). No visible jank, tearing, or dropped frames.
 - All gestures respond within 16 ms of input.
 - Dark theme text/icons must meet WCAG AA contrast on #0A0B0E background.
 - No console errors or warnings in normal operation.
