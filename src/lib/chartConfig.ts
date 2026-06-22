@@ -1,9 +1,9 @@
 import type { Range, Interval } from "./yahoo";
-import type { IndicatorConfig } from "./chart/contracts";
+import type { IndicatorConfig, SerializedDrawing } from "./chart/contracts";
 import { getIndicator } from "./chart/indicators/registry";
 
 export type { Range, Interval };
-export type { IndicatorConfig } from "./chart/contracts";
+export type { IndicatorConfig, SerializedDrawing, DrawingStyles, TrackedOverlay } from "./chart/contracts";
 
 export type ChartType =
   | "candle_solid"
@@ -31,27 +31,6 @@ export type OverlayMeta = {
   zLevel: number;
 };
 
-export type TrackedOverlay = OverlayMeta & {
-  paneId: string;
-};
-
-export type SerializedDrawing = {
-  id?: string;
-  name: string;
-  label: string;
-  points: Array<{
-    dataIndex?: number;
-    timestamp?: number;
-    value?: number;
-  }>;
-  mode?: string;
-  styles?: unknown;
-  visible: boolean;
-  locked: boolean;
-  zLevel: number;
-  paneId?: string;
-};
-
 export type ToolbarPrefs = {
   /** Last-selected tool per flyout group id (lines, shapes, annotation). */
   groupSelections?: Record<string, string>;
@@ -64,6 +43,17 @@ export type ToolbarPrefs = {
 export const DEFAULT_TOOLBAR_PREFS: ToolbarPrefs = {
   keepDrawing: false,
   magnet: false,
+};
+
+/** Right sidebar panel identifiers — extend as new panels ship. */
+export type SidebarPanelId = "object-tree";
+
+export type SidebarPrefs = {
+  activePanel: SidebarPanelId | null;
+};
+
+export const DEFAULT_SIDEBAR_PREFS: SidebarPrefs = {
+  activePanel: null,
 };
 
 export type CellConfig = {
@@ -94,6 +84,8 @@ export type ChartLayout = {
   theme: Theme;
   /** Drawing toolbar preferences (group selections, magnet, keep-drawing). */
   toolbarPrefs?: ToolbarPrefs;
+  /** Right sidebar panel state. */
+  sidebar?: SidebarPrefs;
   cells: CellConfig[];
 };
 
@@ -132,6 +124,7 @@ export const DEFAULT_LAYOUT: ChartLayout = {
   linked: false,
   activeCellIndex: 0,
   theme: "light",
+  sidebar: DEFAULT_SIDEBAR_PREFS,
   cells: [DEFAULT_CELL],
 };
 
