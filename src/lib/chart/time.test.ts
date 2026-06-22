@@ -6,22 +6,22 @@ import { toTimestampMs } from './series';
 const KNOWN_DATE_MS = new Date(2024, 5, 15, 12, 0, 0).getTime();
 
 describe('formatAxisTime', () => {
-  it('formats daily intervals as date only', () => {
+  it('formats daily intervals with weekday and short date', () => {
     const label = formatAxisTime(KNOWN_DATE_MS, '1d');
-    expect(label).toMatch(/2024/);
+    expect(label).toMatch(/Sat 15 Jun '24/);
     expect(label).not.toMatch(/1970/);
   });
 
   it('formats intraday intervals with date and time', () => {
     const label = formatAxisTime(KNOWN_DATE_MS, '5m');
-    expect(label).toMatch(/Jun 15/);
+    expect(label).toMatch(/Jun/);
     expect(label).toMatch(/12:00/);
     expect(label).not.toMatch(/1970/);
   });
 
-  it('defaults to date-only when interval is omitted', () => {
+  it('defaults to daily-style when interval is omitted', () => {
     const label = formatAxisTime(KNOWN_DATE_MS);
-    expect(label).toMatch(/2024/);
+    expect(label).toMatch(/Jun '24/);
   });
 
   it('returns empty string for zero timestamp', () => {
