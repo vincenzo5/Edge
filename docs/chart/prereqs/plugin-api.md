@@ -1,54 +1,39 @@
 # Plugin API Surface — Minimal Interfaces
 
+See [indicator-foundation-plan.md](../indicator-foundation-plan.md) for Tier 1 + Tier 2 architecture.
+
 ## IndicatorPlugin
 
 ```ts
-export type IndicatorCategory = 'Trend' | 'Momentum' | 'Volume' | 'Volatility' | 'Other';
+export type InputValue = number | string | boolean;
+export type ResolvedInputs = Record<string, InputValue>;
 
-export type ParamDef = {
-  label: string;
-  default: number;
-  min?: number;
-  max?: number;
-  step?: number;
-};
+export type ParamDef =
+  | { kind: 'number'; label: string; default: number; min?; max?; step? }
+  | { kind: 'enum'; label: string; default: string; options: { value: string; label: string }[] }
+  | { kind: 'boolean'; label: string; default: boolean }
+  | { kind: 'source'; label: string; default: PriceSource };
 
 export interface IndicatorPlugin {
   name: string;
   category: IndicatorCategory;
   description: string;
   pane: 'main' | 'sub';
-  defaultParams?: Record<string, number>;
-  paramSchema?: Record<string, ParamDef>;
-  compute?: (candles: Candle[], params?: Record<string, number>) => Record<string, number[]>;
-  outputs?: SeriesOutput[];
-  draw: (
-    ctx: CanvasRenderingContext2D,
-    candles: Candle[],
-    viewport: VisibleRange,
-    theme: Theme,
-    params?: Record<string, number>
-  ) => void;
-  valueAt?: (index: number, candles: Candle[], params?: Record<string, number>) => number | null;
-  legendAt?: (
-    index: number,
-    candles: Candle[],
-    params?: Record<string, number>,
-    theme?: Theme,
-  ) => LegendValueEntry[] | null;
-  valueRangeForViewport?: (
-    candles: Candle[],
-    vp: VisibleRange,
-    params?: Record<string, number>
-  ) => { min: number; max: number } | null;
+  inputSchema?: Record<string, ParamDef>;
+  defaultInputs?: Record<string, InputValue>;
+  defaultStyles?: Record<string, LineStyleOverride>;
+  compute?: (candles: Candle[], inputs: ResolvedInputs) => Record<string, number[]>;
+  outputs?: SeriesOutput[]; // plot: 'line' | 'histogram' | 'hline' | 'columns'; fillBetween for bands
+  draw?: (ctx, candles, vp, theme, inputs, options?) => void; // omit for declarative-only plugins
+  valueAt?: (index, candles, inputs) => number | null;
+  legendAt?: (index, candles, inputs, theme?) => LegendValueEntry[] | null;
+  valueRangeForViewport?: (candles, vp, inputs) => { min; max } | null;
 }
 ```
 
-**Canonical pattern:** `compute` → `outputs` → `draw`. MACD is the reference implementation.
+**Canonical pattern:** `resolveIndicatorInputs` → `compute` → `outputs` → `drawIndicator` (declarative `drawFromOutputs` when `draw` is omitted). MACD is the reference plugin. BOLL uses `fillBetween` for band fill.
 
-Catalog metadata lives in `src/lib/chart/indicators/catalog.ts`. Plugins register in `registry.ts`. The picker reads `getCatalog()` which merges catalog entries with registered plugins.
-
-All 27 catalog indicators must eventually be implemented as plugins. Unimplemented entries show as disabled in the picker. V1 ships six named plugins (MA, EMA, BOLL, MACD, RSI, VOL).
+Use `getInputSchema(plugin)` and `resolveIndicatorInputs(plugin, instance)` from `indicatorInputs.ts`.
 
 ## IndicatorConfig (instance)
 
@@ -57,12 +42,14 @@ export type IndicatorConfig = {
   id: string;
   name: string;
   pane: 'main' | 'sub';
-  params?: Record<string, number>;
+  params?: Record<string, number>;   // legacy read fallback
+  inputs?: Record<string, InputValue>;
+  styles?: Record<string, LineStyleOverride>;
   visible?: boolean;
 };
 ```
 
-Use `createIndicatorInstance(name, pane)` in `chartConfig.ts` when adding from the picker.
+Use `createIndicatorInstance(name, pane)` in `chartConfig.ts` when adding from the picker (always creates a new id).
 
 ## DrawingPlugin
 

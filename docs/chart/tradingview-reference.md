@@ -200,7 +200,7 @@ Edge implements a **small, fixed plugin set** with the same *basic* chart workfl
 | **Library size** | 400+ built-in + 100k+ community | 27 catalog names; **6 working** (MA, EMA, BOLL, MACD, RSI, VOL) |
 | **Extensibility** | Pine Script (indicators, strategies, libraries) | TypeScript plugins only; no user scripting |
 | **Instances** | Multiple of same indicator (e.g. two MAs) | One per name per pane |
-| **Settings** | Inputs + style (colors, line width, plot type) | Numeric params only; colors hardcoded in plugins |
+| **Settings** | Inputs + style (colors, line width, plot type) | **Partial** — Inputs + Style tabs in `IndicatorSettingsModal`; colors/width per output series; no plot type switching |
 | **Visual richness** | Fills, barcolor, labels, tables, shapes | Lines, histograms, horizontal guides |
 | **Lifecycle basics** | Add / hide / remove / object tree | **Same** — picker, Object Tree, settings gear |
 | **Pane layout** | Reorder, collapse, maximize, resize | **Same** — `paneOrder`, collapse, maximize, drag heights |

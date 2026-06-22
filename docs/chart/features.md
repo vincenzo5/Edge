@@ -49,7 +49,8 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 |-------|---------|
 | `symbol`, `symbolName?`, `exchange?` | Ticker and display metadata (name/exchange set by symbol search) |
 | `range` | History window: `1d`, `5d`, `1mo`, `3mo`, `6mo`, `ytd`, `1y`, `5y`, `max` |
-| `interval` | Bar size: `5m`, `15m`, `30m`, `1h`, `1d`, `1wk`, `1mo` |
+| `interval` | Bar size: `1m`, `5m`, `15m`, `30m`, `1h`, `2h`, `1d`, `1wk`, `1mo` |
+| `rangePreset?` | Active bottom-bar preset (`Range \| null`); `null` on default landing view |
 | `chartType` | `candle_solid`, `candle_stroke`, `ohlc`, `area`, `heikin_ashi` |
 | `indicators` | `{ id, name, pane, params?, visible? }[]` — UUID instance ids |
 | `drawings` | Serialized overlay array |
@@ -57,6 +58,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | `collapsedPanes?` | Pane keys collapsed to 28 px header height |
 | `maximizedPane?` | Single pane expanded; others collapsed |
 | `paneHeights?` | User-resized sub-pane heights (px), keyed by indicator key |
+| `chartSettings?` | Grouped chart display settings (symbol, status line, scales, canvas, trading) — see `ChartSettingsModal` |
 
 ### `ChartLayout` (app-wide)
 
@@ -69,7 +71,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | `theme` | `light` \| `dark` (applied to `<html>` class) |
 | `cells` | Array of `CellConfig` (length matches grid mode) |
 
-**Multi-chart layout shell** (implemented): `StockApp` uses `h-screen overflow-hidden`; `ChartGrid` uses `flex-1 min-h-0 overflow-hidden` plus `chart-grid-rows-*` utilities in `globals.css` so all grid modes fit the viewport without page scroll. When `cellCount > 1`, cells use **compact chrome** (symbol + range/interval only; no per-cell Bar Replay).
+**Multi-chart layout shell** (implemented): `StockApp` uses `h-screen overflow-hidden`; `ChartGrid` uses `flex-1 min-h-0 overflow-hidden` plus `chart-grid-rows-*` utilities in `globals.css` so all grid modes fit the viewport without page scroll. When `cellCount > 1`, cells use **compact chrome** (symbol + interval only; no per-cell Bar Replay).
 
 ---
 
@@ -79,8 +81,8 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 |---------|--------|-------|
 | Symbol search | **Done** | `SearchBar` in `ChartCell`; Yahoo lookup via `/api/search` |
 | Symbol metadata persistence | **Done** | `symbolName`, `exchange` stored in `CellConfig` on select |
-| Range selector | **Done** | 1D, 5D, 1M, 3M, 6M, YTD, 1Y, 5Y, MAX — persisted in `CellConfig.range` |
-| Interval selector | **Done** | 5m, 15m, 30m, 1h, 1D, 1W, 1M — persisted in `CellConfig.interval` |
+| Range selector (bottom bar) | **Done** | 1D, 5D, 1M, 3M, 6M, YTD, 1Y, 5Y, All — sets visible window **and** default interval (1D→1m, 5D→5m, 1M→30m, 3M→1h, 6M→2h, YTD/1Y→1d, 5Y→1wk, All→1mo). Click active preset again to deselect and restore default 1Y/1D landing view. Top interval dropdown overrides bar size and clears preset highlight. Calendar icon opens **Go to** modal (date or custom range) |
+| Interval selector | **Done** | 1m, 5m, 15m, 30m, 1h, 2h, 1D, 1W, 1M — candle/bar resolution only; top toolbar dropdown |
 | Chart type selector | **Done** | Cell toolbar; 5 types from `CHART_TYPES` |
 | Yahoo candle fetch | **Done** | `fetchYahooCandles()` in `series.ts` |
 | Candle validation / normalization | **Done** | Short-form `{ t,o,h,l,c,v }`; ms timestamps |
@@ -101,7 +103,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Area chart | **Done** | `area` |
 | Heikin Ashi display | **Done** | Data transformed before render |
 | Price grid | **Done** | Horizontal + vertical grid lines |
-| Price / time axes | **Done** | Right price strip (50 px), bottom time strip (30 px) on bottom pane only |
+| Price / time axes | **Done** | Right price strip (50 px), bottom time strip (30 px) on bottom pane only; time labels abstracted by visible span (month/year on daily zoom-out) |
 | Last price line | **Done** | Blue horizontal line + label on price pane |
 | Light / dark theme | **Done** | `Theme` tokens in `renderer.ts`; `StockApp` toggles `<html>` class |
 | Last-price / axis guards | **Done** | Finite checks before draw (no `toFixed` on NaN) |
@@ -131,7 +133,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Initial viewport | **Done** | ~150 bars visible; auto price fit |
+| Initial viewport | **Done** | Range preset aligns left/right to selected window anchored on latest bar |
 | Horizontal pan (drag body) | **Done** | `pan()`; preserves visible count |
 | Pan momentum | **Done** | Decay 0.9/frame after release (`applyMomentum`) |
 | Vertical wheel zoom | **Done** | Zoom anchored to cursor X; 10–5000 candle clamp |
@@ -194,6 +196,8 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 
 **TradingView reference:** Full indicator taxonomy (script kinds, placement, visuals, lifecycle) and a concise TV-vs-Edge comparison live in [tradingview-reference.md §5](./tradingview-reference.md#58-tradingview-vs-edge--indicators-summary).
 
+**Foundation plan:** Scaling gaps (multiple instances, typed inputs, instance styles, declarative draw) and Tier 1 / Tier 2 rollout are documented in [indicator-foundation-plan.md](./indicator-foundation-plan.md).
+
 **Architecture:** Unified catalog in `src/lib/chart/indicators/catalog.ts` + plugin registry in `registry.ts`. Picker reads `getCatalog()` — only `implemented: true` entries are clickable. MACD is the reference plugin pattern: `compute` → `outputs` → `draw`, with shared helpers in `indicators/math.ts` and `indicators/draw.ts`.
 
 **Picker UI:** 27 catalog names across Trend (7), Momentum (16), and Volume (4) categories. Volatility and Other categories exist in the type system but have no entries yet.
@@ -214,7 +218,11 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Toggle indicator in picker | **Done** | Implemented indicators only; unimplemented show as disabled |
+| Toggle indicator in picker | **Done** | Add-only list; remove via Object Tree / pane controls |
+| Multiple instances per name | **Done** | Picker always adds; lifecycle keyed by `id` |
+| Typed indicator inputs | **Done** | `inputSchema` union (`number`, `enum`, `boolean`, `source`); `resolveIndicatorInputs` |
+| Per-instance styles | **Done** | `styles` on `IndicatorConfig`; Settings modal Inputs + Style |
+| Declarative plot draw | **Done** | `drawFromOutputs`; optional `draw` on plugins; `fillBetween` for BOLL bands |
 | Picker grouped by category | **Done** | Trend / Momentum / Volume with descriptions |
 | Indicator instance ids | **Done** | UUID per instance in `CellConfig.indicators`; `indicatorKey()` returns id |
 | Param schema on plugins | **Done** | `paramSchema` + `defaultParams`; persisted via `createIndicatorInstance` |
@@ -313,9 +321,10 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Object Tree — data window | **Done** | Live OHLCV + visible indicator values at crosshair via `legend.ts`; candles from active cell `EdgeChart.onCandlesChange` (display slice, not fetch callback); expanded by default in sidebar |
 | Indicator picker modal | **Done** | |
 | Bar Replay panel | **Done** | Slider driven by `onDataLoaded`; slice via `visibleCount` without refetch |
-| Blank chart context menu | **Partial** | Reset, copy price, object tree, bulk remove wired via `chartContextMenu.ts`; Settings/templates/table still deferred — [context-menu-reference.md §1](./context-menu-reference.md#1-blank-chart-plot-area) |
-| Drawing overlay context menu | **Done** | Rename, lock, hide, z-order, duplicate, remove — [context-menu-reference.md §2.2](./context-menu-reference.md#22-edge-overlay-menu-today) |
-| Price / time axis context menus | **Partial** | Double-click price axis → reset auto scale; no axis right-click menus — [context-menu-reference.md §3–4](./context-menu-reference.md#3-price-scale-y-axis-context-menu) |
+| Blank chart context menu | **Partial** | Reset, copy price, paste drawings, object tree, chart templates, bulk remove, settings — [context-menu-reference.md §1](./context-menu-reference.md#1-blank-chart-plot-area) |
+| Drawing overlay context menu | **Done** | Rename, settings, copy, paste, lock, hide, z-order, duplicate, remove — [context-menu-reference.md §2.2](./context-menu-reference.md#22-edge-overlay-menu-today) |
+| Chart / study templates | **Done** | `presetStorage.ts` (`tv-ai:presets:v1`); save chart from blank menu; apply via `TemplatePickerModal`; save study from indicator settings |
+| Price / time axis context menus | **Partial** | Price axis right-click → scale type menu + reset; double-click reset; time axis menu deferred — [context-menu-reference.md §3–4](./context-menu-reference.md#3-price-scale-y-axis-context-menu) |
 | Old Chart (`Chart.tsx`) | **Legacy removed** | klinecharts wrapper deleted; `ChartCell` uses `EdgeChart` only |
 
 ---
@@ -338,7 +347,8 @@ Imperative API consumed by `ChartCell`, Object Tree, and sync bridge.
 | `removeOverlay` | **Done** | |
 | `setOverlayVisible` / `setOverlayLocked` | **Done** | |
 | `renameOverlay` | **Done** | |
-| `duplicateOverlay` | **Done** | Clone with offset timestamp/value |
+| `duplicateOverlay` | **Done** | Clone via `drawingClone.ts` (offset anchor) |
+| `pasteDrawings` | **Done** | Batch add from clipboard at crosshair anchor |
 | `bringForward` / `sendBackward` | **Done** | zLevel swap |
 | `subscribeOverlayChange` | **Done** | |
 | `getSubPaneId` | **Stub** | Returns key unchanged |
@@ -420,6 +430,9 @@ Run layout/sync tests: `npm test -- --run src/app/components/ChartGrid.layout.te
 | Config types | `src/lib/chartConfig.ts` |
 | Indicator catalog | `src/lib/chart/indicators/catalog.ts` |
 | Layout persistence | `src/lib/layoutStorage.ts` |
+| Template library | `src/lib/presetStorage.ts`, `src/lib/chart/presets/` |
+| Drawing clipboard | `src/lib/chart/chartClipboard.ts`, `src/lib/chart/drawingClone.ts` |
+| Template picker UI | `src/app/components/TemplatePickerModal.tsx` |
 
 ---
 
@@ -429,14 +442,18 @@ V1 chart contract closed June 2025 (Phases 0–4). Remaining work is polish and 
 
 | Area | Notes |
 |------|-------|
-| **Catalog indicators** | 21 of 27 catalog entries still picker-disabled; batch using MACD/MA plugin template |
+| **Indicator platform (Tier 1 + 2)** | [indicator-foundation-plan.md](./indicator-foundation-plan.md) — id lifecycle, typed inputs, styles, declarative draw; blocks catalog batch |
+| **Catalog indicators** | 21 of 27 catalog entries still picker-disabled; batch using MACD/MA plugin template after foundation Tier 1 |
 | **`valueAt` on all plugins** | MACD + defaults cover crosshair; explicit overrides optional for remaining plugins |
 | **Legend eye/delete actions** | Settings gear done; per-legend visibility/delete still deferred |
 | **Granular layout sync** | Single `linked` checkbox; separate symbol/interval/crosshair toggles deferred |
 | **Drawing sync across cells** | Drawings per-cell only |
+| **Named drawing templates** | Copy/paste only; no “Save as template” on drawings |
+| **Drawing visibility intervals** | Deferred — show drawing only on selected timeframes |
+| **Template export/import** | localStorage only; no JSON download |
 | **Undo/redo drawings** | Not implemented |
-| **Log / percent / indexed scale modes** | Auto + manual price scale only |
-| **Go to date** | Not implemented |
+| **Log / percent / indexed scale modes** | **Done** | `priceScaleType` in `chartSettings`; price-axis context menu + Settings modal |
+| **Go to date** | **Done** | Range-bar calendar icon + chart context menu (⌥G); centers single date or fits custom range; fetches older bars when needed |
 | **Replay position persist** | Bar Replay state not saved to `CellConfig` |
 
 **Recently closed (V1 contract):** EMA + VOL plugins; Bar Replay wiring; pane controls (`PaneControlBar`); edge fetch on pan-left; Object Tree data window; indicator params modal; pinch zoom; klinecharts removal.
@@ -451,18 +468,18 @@ Prioritized against [tradingview-reference.md](./tradingview-reference.md). Edge
 
 | Priority | Edge work | Notes |
 |----------|-----------|-------|
-| A0 | **Blank chart context menu — remaining** | Settings modal, ⌥R shortcut — core items done in `chartContextMenu.ts` |
+| A0 | ~~**Blank chart context menu — remaining**~~ | **Done** — `ChartSettingsModal`, blank-menu **Settings…**, cell toolbar gear, ⌥R reset |
 | A1 | **Batch indicator plugins** — next 5–10 catalog entries | Follow `macd.ts` / `ma.ts` template; enable in picker as shipped |
 | A2 | **Granular layout sync toggles** | Separate symbol / interval / crosshair (not one checkbox) |
-| A3 | **Undo/redo for drawings** | Standard TV drawing workflow |
+| A3 | ~~**Undo/redo for drawings**~~ | **Done** — `DrawingStore` + ⌘Z / ⌘⇧Z in active cell |
 
 ### Tier B — TV parity (lower urgency)
 
 | Priority | Edge work | Notes |
 |----------|-----------|-------|
 | B1 | **Drawing sync across layout cells** | Stable drawing IDs + link rules |
-| B2 | **Log / percent / indexed-to-100** price scale modes | Scale mode selector |
-| B3 | **Go to date** / jump viewport | Date picker + viewport pan |
+| B2 | ~~**Log / percent / indexed-to-100** price scale modes~~ | **Done** — `priceScaleTransform` + axis menu + settings |
+| B3 | ~~**Go to date** / jump viewport~~ | **Done** — `ChartGoToModal`, `goTo.ts`, range-bar icon |
 | B4 | **Persist Bar Replay position** | Optional `CellConfig` field |
 
 ### Tier C — Explicit deferrals

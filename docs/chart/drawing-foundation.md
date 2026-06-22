@@ -2,7 +2,7 @@
 
 Architecture and UX foundation status for Edge Chart's drawing stack. Use this when deciding whether to add individual tools or invest in platform-layer work first.
 
-**Related:** [drawing-engine-design.md](./drawing-engine-design.md) (target design), [drawing-toolbar-design.md](./drawing-toolbar-design.md) (rail UX), [features.md §8](./features.md) (shipped tool list), [tradingview-reference.md §6](./tradingview-reference.md) (TV benchmark).
+**Related:** [drawing-engine-design.md](./drawing-engine-design.md) (target design), [drawing-toolbar-design.md](./drawing-toolbar-design.md) (rail UX), [features.md §8](./features.md) (shipped tool list), [tradingview-reference.md §6](./tradingview-reference.md) (TV benchmark), [indicator-foundation-plan.md](./indicator-foundation-plan.md) (parallel indicator platform upgrade; shared `LineStyleOverride` pattern).
 
 ---
 
@@ -219,7 +219,7 @@ Implementation: `DrawingToolbar.tsx`, `DrawingToolGroup.tsx`, `toolGroups.ts`, `
 3. **Command history** — unblocks undo/redo (expected TV workflow)
 4. **Pane routing** — unblocks indicator-pane trendlines
 
-**Implementation plan:** [drawing-platform-plan.md](./drawing-platform-plan.md) — phased slices, acceptance criteria, test oracles, and sub-agent execution model.
+**Implementation plan:** [drawing-platform-plan.md](./drawing-platform-plan.md) — phased slices, acceptance criteria, test oracles, and sub-agent execution model. Indicator counterpart: [indicator-foundation-plan.md](./indicator-foundation-plan.md).
 
 After that, new tools are mostly **plugin files** — the intended clean path to the full toolset.
 

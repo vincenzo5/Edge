@@ -11,7 +11,7 @@ export type Candle = {
 };
 
 export type Range = '1d' | '5d' | '1mo' | '3mo' | '6mo' | 'ytd' | '1y' | '2y' | '5y' | 'max';
-export type Interval = '5m' | '15m' | '30m' | '1h' | '1d' | '1wk' | '1mo';
+export type Interval = '1m' | '5m' | '15m' | '30m' | '1h' | '2h' | '1d' | '1wk' | '1mo';
 
 export type IndicatorConfig = {
   name: string;

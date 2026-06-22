@@ -45,7 +45,7 @@ Right-click on empty canvas (not on a drawing, legend, or axis). TradingView **a
 | Item | Shortcut | Description | Edge status | Edge notes |
 |------|----------|-------------|-------------|------------|
 | **Copy price** *N.NN* | — | Copy Y-axis price at cursor to clipboard | **Done** | Crosshair `valueLabel` → blank menu → `navigator.clipboard.writeText` |
-| **Paste** | ⌘ V | Paste copied drawing(s) or config from clipboard | **None** | No drawing clipboard pipeline |
+| **Paste** | ⌘ V | Paste copied drawing(s) or config from clipboard | **Done** | In-memory `chartClipboard.ts`; paste at crosshair via `EdgeChart.pasteDrawings`; blank + drawing menus |
 
 ### 1.3 Alerts & trading (symbol @ price)
 
@@ -70,16 +70,16 @@ Shown when a broker is connected and/or alerts are enabled. Labels include symbo
 |------|----------|-------------|-------------|------------|
 | **Table view** | — | Tabular OHLC / study values | **None** | Object Tree data window is related but not TV table view |
 | **Object tree** | — | Open Object Tree panel | **Done** | Blank menu + toolbar “Tree” toggle → `ObjectTree` panel |
-| **Chart template** → submenu | — | Save / apply / manage chart templates | **None** | Layout persists in localStorage; no named templates |
+| **Chart template** → submenu | — | Save / apply / manage chart templates | **Partial** | Flat menu items: Save / Apply → `presetStorage.ts` + `TemplatePickerModal`; no rename/export |
 
 **Chart template submenu (TradingView):**
 
 | Sub-item | Description | Edge status |
 |----------|-------------|-------------|
-| Save chart template | Save indicators, chart type, scales, appearance as preset | **None** |
-| Apply chart template | Load saved preset | **None** |
-| Apply defaults | Reset to factory chart settings | **None** |
-| Manage templates | List / rename / delete templates | **None** |
+| Save chart template | Save indicators, chart type, scales, appearance as preset | **Done** | Blank menu → `chartTemplateFromCell` → `tv-ai:presets:v1` |
+| Apply chart template | Load saved preset | **Done** | Blank menu → `TemplatePickerModal` (chart tab) |
+| Apply defaults | Reset to factory chart settings | **None** | Use `ChartSettingsModal` reset |
+| Manage templates | List / rename / delete templates | **Partial** | Delete in picker modal; no rename in v1 |
 
 ### 1.6 Bulk remove
 
@@ -95,20 +95,20 @@ Dynamic labels reflect counts on the chart.
 
 | Item | Shortcut | Description | Edge status | Edge notes |
 |------|----------|-------------|-------------|------------|
-| **Settings…** | — | Full chart settings dialog (Symbol, Status line, Scales, Canvas, Trading, Alerts, Events, Template) | **Partial** | Per-indicator `IndicatorSettingsModal` from legend gear; no unified chart settings modal |
+| **Settings…** | — | Full chart settings dialog (Symbol, Status line, Scales, Canvas, Trading, Template) | **Partial** | Blank menu + cell toolbar gear → `ChartSettingsModal` (Symbol, Status line, Scales, Canvas, Trading, Template; excludes Alerts/Events); indicator/drawing modals separate |
 
 **Settings dialog sections (TradingView — opened from blank menu or gear):**
 
 | Section | Key options | Edge status |
 |---------|-------------|-------------|
-| Symbol | Colors, session, precision, timezone, data adjustments | **Partial** — symbol/range/interval/chart type in cell toolbar |
-| Status line | Logo, title, OHLC values visibility | **Partial** — legend bar only |
-| Scales and lines | Price scale mode, labels, countdown, time format | **Partial** — auto/manual Y-scale; no log/percent/indexed |
-| Canvas | Background, grid, crosshair style, watermark | **Partial** — theme tokens; limited customization |
-| Trading | Buy/sell buttons, order display, P&L labels | **None** |
+| Symbol | Candle colors, precision, timezone, previous-close coloring | **Partial** — body/border/wick colors, precision, timezone; no dividend adjustment |
+| Status line | Logo, title, OHLC values visibility | **Partial** — granular toggles in `ChartSettingsModal`; legend bar |
+| Scales and lines | Price scale mode, labels, countdown, time format | **Partial** — log/percent/indexed, labels, countdown, axis text size |
+| Canvas | Background, grid, crosshair style, watermark | **Partial** — background, grid orientation/style/opacity, crosshair mode/style, margins, button visibility prefs |
+| Trading | Buy/sell buttons, order display, P&L labels | **Partial** — display-only toggles persisted; no broker overlays yet |
 | Alerts | Alert line appearance on chart | **None** |
 | Events | Dividends, earnings, news markers | **None** |
-| Template | Save/apply (duplicate of submenu) | **None** |
+| Template | Save/apply (duplicate of submenu) | **Partial** — Template section + blank menu items |
 
 ---
 
@@ -120,7 +120,7 @@ Right-click on a selected or hit-tested drawing. Edge implements this via `build
 
 | Item | Shortcut | Description | Edge status | Edge notes |
 |------|----------|-------------|-------------|------------|
-| **Settings…** | — | Drawing style dialog (color, line, extend, labels, visibility intervals) | **None** | TV per-drawing style modal; Edge uses defaults at create time |
+| **Settings…** | — | Drawing style dialog (color, line, extend, labels, visibility intervals) | **Partial** | `DrawingSettingsModal` — line color/width/dash, extend, fill, text (tool-aware); no visibility intervals |
 | **Rename** | F2 | Edit drawing label | **Done** | Context menu + Object Tree inline rename |
 | **Lock** / **Unlock** | ⌘ L | Prevent move/edit | **Done** | Per-drawing + toolbar lock-all |
 | **Hide** / **Show** | — | Toggle visibility | **Done** | Per-drawing + toolbar hide-all |
@@ -129,8 +129,8 @@ Right-click on a selected or hit-tested drawing. Edge implements this via `build
 | **Bring Forward** | — | One z-level up | **Done** | Menu label “Bring to Front” maps to `bringForward` |
 | **Send Backward** | — | One z-level down | **Done** | Menu label “Send to Back” maps to `sendBackward` |
 | **Clone** | Ctrl/Cmd+drag | Duplicate in place | **Partial** | **Duplicate** menu item (`⌘D`); no drag-clone |
-| **Copy** | ⌘ C | Copy drawing to clipboard | **None** | — |
-| **Paste** | ⌘ V | Paste at cursor | **None** | — |
+| **Copy** | ⌘ C | Copy drawing to clipboard | **Done** | `chartClipboard.ts` + active-cell ⌘C |
+| **Paste** | ⌘ V | Paste at cursor | **Done** | Crosshair anchor via `drawingClone.ts` |
 | **Add alert on drawing…** | — | Alert on drawing geometry / levels | **Out of scope** | — |
 | **Create a group** | — | Object Tree grouping | **None** | — |
 | **Save as template** | — | Save drawing preset | **None** | — |
@@ -141,14 +141,17 @@ Right-click on a selected or hit-tested drawing. Edge implements this via `build
 Current items (when right-click hits a drawing on the price pane):
 
 1. Rename (F2)
-2. Lock / Unlock (⌘L)
-3. Hide / Show
-4. Bring to Front
-5. Send to Back
-6. Duplicate (⌘D)
-7. Remove (⌫)
+2. Settings…
+3. Copy (⌘C)
+4. Paste (⌘V) — when clipboard has drawings
+5. Lock / Unlock (⌘L)
+6. Hide / Show
+7. Bring to Front
+8. Send to Back
+9. Duplicate (⌘D)
+10. Remove (⌫)
 
-**Gaps vs TradingView:** Settings, Copy/Paste, Clone-via-drag, alerts, groups, templates, explicit Bring Forward / Send Backward labels.
+**Gaps vs TradingView:** Clone-via-drag, alerts, groups, named drawing templates, visibility intervals, explicit Bring Forward / Send Backward labels.
 
 ---
 
@@ -161,10 +164,10 @@ Right-click the price axis strip.
 | **Reset price scale** | Double-click axis | Return to auto-fit for pane | **Done** | Double-click price axis → `resetPanePriceScale()` |
 | **Scale price chart only** | — | Indicators don’t affect Y range | **None** | TV option when indicator compresses candles |
 | **Invert scale** | ⌥ I | Flip price axis | **None** | — |
-| **Auto** | — | Linear auto scale | **Done** | Default `priceScaleMode: 'auto'` |
-| **Logarithmic** | — | Log scale | **None** | Deferred [features.md §14 B2](./features.md) |
-| **Percent** | — | % from first visible bar | **None** | Deferred |
-| **Indexed to 100** | — | Rebase to 100 | **None** | Deferred |
+| **Auto** | — | Linear auto scale | **Done** | Default `priceScaleType: 'linear'` |
+| **Logarithmic** | — | Log scale | **Done** | Price axis menu + Settings → Scales |
+| **Percent** | — | % from first visible bar | **Done** | Price axis menu + Settings → Scales |
+| **Indexed to 100** | — | Rebase to 100 | **Done** | Price axis menu + Settings → Scales |
 | **Merge all scales to left** / **to right** | — | Multi-pane scale alignment | **None** | — |
 | **More settings…** | — | Opens chart settings → Scales | **None** | — |
 
@@ -177,7 +180,7 @@ Right-click the time axis strip.
 | Item | Shortcut | Description | Edge status | Edge notes |
 |------|----------|-------------|-------------|------------|
 | **Reset bar spacing** | Double-click time axis | Default zoom / bar width | **Partial** | `resetChartView()` resets time window; no axis-only menu |
-| **Go to date…** | ⌥ G | Jump viewport to date | **None** | Deferred [features.md §14 B3](./features.md) |
+| **Go to date…** | ⌥ G | Jump viewport to date | **Done** | Chart context menu + range-bar calendar; `ChartHandle.goTo` |
 | **Lock/unlock time scale** | — | Prevent horizontal zoom/pan | **None** | — |
 | **More settings…** | — | Time format, weekdays, pin to left | **None** | — |
 
@@ -234,7 +237,7 @@ Only when paper/live trading is enabled. Not applicable to Edge chart engine sco
 |------|---------|----------|
 | Blank chart | `chartContextMenu.ts` → `buildChartContextMenuItems`; `ChartCell.tsx` → `handleChartContextMenu` | Fallback when price-pane context menu is not consumed: reset (disabled when default), copy price, object tree, bulk remove when counts > 0 |
 | Drawing overlay | `canvas.tsx` hit-test → `handleDrawingContextMenu` (returns consumed); `ChartCell.tsx` → `buildOverlayContextMenuItems` | Full overlay menu (§2.2); consumed hits call `stopPropagation` so blank menu does not overwrite |
-| Price axis | `canvas.tsx` double-click on price axis | Reset auto scale only; no right-click menu |
+| Price axis | `canvas.tsx` right-click on price strip | Scale type menu (Auto/Log/Percent/Indexed), reset, More settings…; double-click → reset auto |
 | Indicator settings | `PaneLegendBar` gear → `onLegendAction` | Modal, not context menu |
 | Object Tree | `ChartCell.tsx` toolbar toggle + blank menu | Panel |
 
@@ -250,11 +253,11 @@ Prioritized to close parity with TradingView’s blank-chart panel without platf
 | ~~P1~~ | ~~Copy price at cursor~~ | **Done** |
 | ~~P1~~ | ~~Object tree~~ | **Done** |
 | ~~P1~~ | ~~Remove *N* drawings / Remove *N* indicators~~ | **Done** |
-| P2 | Settings… (minimal chart settings modal) | Medium |
+| ~~P2~~ | ~~Settings… (minimal chart settings modal)~~ | **Done** |
 | P2 | Reset chart view shortcut ⌥R | Small |
 | P2 | Lock vertical cursor by time (toggle) | Medium |
-| P3 | Paste / Copy drawings | Medium |
-| P3 | Chart template submenu | Large |
+| ~~P3~~ | ~~Paste / Copy drawings~~ | **Done** |
+| ~~P3~~ | ~~Chart template save/apply~~ | **Done** — study templates via indicator settings |
 | P3 | Table view | Large |
 | — | Alerts, trading, orders | Out of scope |
 
