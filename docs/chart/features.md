@@ -192,6 +192,8 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 
 ## 7. Indicators
 
+**TradingView reference:** Full indicator taxonomy (script kinds, placement, visuals, lifecycle) and a concise TV-vs-Edge comparison live in [tradingview-reference.md §5](./tradingview-reference.md#58-tradingview-vs-edge--indicators-summary).
+
 **Architecture:** Unified catalog in `src/lib/chart/indicators/catalog.ts` + plugin registry in `registry.ts`. Picker reads `getCatalog()` — only `implemented: true` entries are clickable. MACD is the reference plugin pattern: `compute` → `outputs` → `draw`, with shared helpers in `indicators/math.ts` and `indicators/draw.ts`.
 
 **Picker UI:** 27 catalog names across Trend (7), Momentum (16), and Volume (4) categories. Volatility and Other categories exist in the type system but have no entries yet.
@@ -243,6 +245,10 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 
 **Design:** [drawing-engine-design.md](./drawing-engine-design.md) — V1 drawing engine architecture, FSM, coordinate model, phased plan, and test oracles.
 
+**Foundation assessment:** [drawing-foundation.md](./drawing-foundation.md) — architecture readiness for scaling to the full TV toolset; UX shell alignment; platform gaps (multi-point loop, styles, undo, pane routing).
+
+**Implementation plan:** [drawing-platform-plan.md](./drawing-platform-plan.md) — phased workstreams for multi-point FSM, typed styles, undo/redo, and pane routing.
+
 **Toolbar design:** [drawing-toolbar-design.md](./drawing-toolbar-design.md) — grouped flyouts, utilities rail, icon system, persistence, phased TV parity.
 
 **Toolbar layout:** Left rail in `ChartCell` — cursor + 3 grouped flyouts (Lines, Channels & Shapes, Annotation) + utilities (zoom, measure, magnet, keep-drawing, lock-all, hide-all, delete, clear).
@@ -274,7 +280,10 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Start/stop drawing tool | **Done** | FSM: return to cursor after create unless keep-drawing ON |
 | Two-point create + preview | **Done** | Click-click or drag-release; dashed ghost |
 | Click select + CP edit | **Done** | `hitTestAll` + control-point drag |
-| Draw on chart | **Done** | Price pane; z-sorted render |
+| Draw on chart | **Done** | Price + sub-panes; z-sorted render per pane |
+| Sub-pane drawing routing (platform 4.1) | **Done** | Pane-scoped input, coords, render; trend/hline on RSI |
+| Full sub-pane tool parity (platform 4.2) | **Done** | All 13 tools; pane-scoped hit-test + selection |
+| Object Tree pane labels (platform 4.2) | **Done** | Badge per drawing (`Price` vs indicator name) |
 | Serialize to `CellConfig.drawings` | **Done** | `timestamp`+`value` points; debounced 500 ms |
 | Hit test / select | **Done** | 4px tolerance; topmost z-order |
 | Edit control points | **Done** | Magnet applies on CP drag |
@@ -282,7 +291,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Magnet (snap OHLC) | **Done** | 5px strong magnet |
 | Drawing context menu (rename/lock/hide/z) | **Done** | Canvas right-click hit-test → overlay menu — see [context-menu-reference.md §2](./context-menu-reference.md#2-drawing--overlay-context-menu) |
 | Z-order / duplicate | **Done** | `bringForward`/`sendBackward`/`duplicateOverlay` |
-| Object Tree drawings section | **Done** | Lists tracked overlays; reorder via z-level |
+| Object Tree drawings section | **Done** | Lists tracked overlays; pane badge; reorder via z-level |
 
 ---
 
@@ -294,13 +303,14 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Link symbols (range/interval/symbol) | **Done** | Atomic propagation via `applyCellUpdate` in `StockApp`; includes `symbolName`/`exchange` |
 | Active cell focus | **Done** | `activeCellIndex` persisted; focus ring; drawing tools disabled on inactive cells |
 | Per-cell config | **Done** | `CellConfig` per grid cell |
-| Layout persistence (localStorage) | **Done** | `loadLayout` / `saveLayout` in `layoutStorage.ts` |
+| Layout persistence (localStorage) | **Done** | `loadLayout` / `saveLayout` in `layoutStorage.ts`; includes `sidebar.activePanel` |
 | Theme persistence | **Done** | Part of `ChartLayout`; live switch via toolbar |
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
 | Drawing toolbar rail | **Done** | Left column in `ChartCell` |
-| Object Tree panel | **Done** | Toggle per cell; section collapse persisted per `chartId` |
+| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.ts` for future panels (watchlist, alerts, chat) |
+| Object Tree panel | **Done** | Right sidebar panel (`object-tree`); follows active chart via `ActiveChartContext`; section collapse persisted per `chartId` |
 | Object Tree — symbol section | **Done** | Shows symbol, range, interval |
-| Object Tree — data window | **Done** | Live OHLCV + visible indicator values at crosshair via `legend.ts` |
+| Object Tree — data window | **Done** | Live OHLCV + visible indicator values at crosshair via `legend.ts`; candles from active cell `EdgeChart.onCandlesChange` (display slice, not fetch callback); expanded by default in sidebar |
 | Indicator picker modal | **Done** | |
 | Bar Replay panel | **Done** | Slider driven by `onDataLoaded`; slice via `visibleCount` without refetch |
 | Blank chart context menu | **Partial** | Reset, copy price, object tree, bulk remove wired via `chartContextMenu.ts`; Settings/templates/table still deferred — [context-menu-reference.md §1](./context-menu-reference.md#1-blank-chart-plot-area) |

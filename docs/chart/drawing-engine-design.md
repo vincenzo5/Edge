@@ -4,7 +4,7 @@ Implementation-ready design for the custom-canvas drawing stack. **Planning only
 
 **Benchmarks:** [tradingview-reference.md §6 / §6.10](./tradingview-reference.md), [v1-scope.md items 8–9](./prereqs/v1-scope.md), [gesture-bible.md §Drawing Tools](./prereqs/gesture-bible.md), [plugin-api.md](./prereqs/plugin-api.md).
 
-**Related:** [features.md §8](./features.md) (live status).
+**Related:** [features.md §8](./features.md) (live status), [drawing-foundation.md](./drawing-foundation.md) (post-V1 foundation assessment — what scales vs what needs platform work).
 
 ---
 
@@ -204,6 +204,7 @@ Only three aliases exist; nine toolbar tools resolve to `undefined` in `DrawingR
 8. **Escape key** → cancel `PLACING` preview → previous state (`TOOL_ARMED` or `IDLE`).
 9. **Locked drawing** → hit-test passes for selection; control-point drag and move rejected (`not-allowed` cursor).
 10. **Hidden drawing** → skip in hit-test and draw.
+11. **Multi-point tools** (parallel channel, pitchforks, patterns): click → `PLACING`; each click advances `placingStep` and appends a CP until `points.length >= maxControlPoints` or `DrawingPlugin.isPlacementComplete(draft)` returns true → commit → `TOOL_ARMED`. Mousemove updates preview via `updatePreview` between clicks. **Variable-N** tools (polylines): same loop with no fixed max; **double-click** on the second mousedown (`detail === 2`) finishes when `isPlacementComplete` is satisfied — see [drawing-platform-plan.md § Slice 1.2](./drawing-platform-plan.md).
 
 ### 3.3 Input routing fix
 

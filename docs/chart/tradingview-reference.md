@@ -100,13 +100,87 @@ Plan limits (approximate, from public pricing/marketing):
 
 ## 5. Indicators & technical analysis
 
-### Scale
+TradingView uses **indicator**, **study**, and **script** somewhat interchangeably in the UI. In Pine Script, the script *kind* declared at the top of the file is the precise taxonomy.
 
-- **400+ built-in indicators and strategies**
-- **100,000+ public/community indicators** (Pine Script library)
-- Indicators visualized as **overlays** (on price) or **oscillators** (separate pane)
+### 5.1 Taxonomy — script kinds (Pine Script)
 
-### Built-in analysis features (platform-level)
+| Kind | Declares with | Purpose | Backtesting | Typical output |
+|------|---------------|---------|-------------|----------------|
+| **Indicator** | `indicator()` | Analysis and visualization only | No | Plots, fills, labels on chart |
+| **Strategy** | `strategy()` | Indicator logic + simulated orders | Yes (Strategy Tester) | Same visuals + trade markers, P&L |
+| **Library** | `library()` | Reusable functions for other scripts | No | No plots; imported via `import` |
+
+Indicators are preferred over strategies when you only need calculations — they skip the broker emulator and run faster.
+
+### 5.2 Taxonomy — data source & origin
+
+| Class | Source data | Where it comes from | Examples |
+|-------|-------------|---------------------|----------|
+| **Built-in technical** | OHLCV from exchange feed | TradingView platform (~400+) | MA, MACD, RSI, Ichimoku, VWAP |
+| **Community / Pine** | Any data Pine can access | User-published scripts (100k+) | Custom composites, branded tools |
+| **Fundamental** | Financial statements, ratios | Fundamental Graphs / screener fields | P/E, revenue, margins |
+| **Symbol overlay** | Another symbol's price series | Overlay / Compare studies | Compare AAPL vs MSFT |
+| **Platform analysis** | Derived / detected patterns | Built-in engines (not classic studies) | Auto chart patterns, candlestick patterns, seasonals, volume profile |
+
+### 5.3 Taxonomy — placement on chart
+
+| Placement | Pine `overlay` | Renders in | Examples |
+|-----------|----------------|------------|----------|
+| **Overlay** | `true` | Price pane (on candles) | MA, Bollinger, VWAP, Ichimoku |
+| **Pane / oscillator** | `false` | Separate sub-pane below or above price | RSI, MACD, Volume, Stochastic |
+| **Forced overlay** | `force_overlay = true` on a plot | Price pane even when script runs in its own pane | Mixed layouts in advanced Pine |
+
+Each sub-pane indicator gets its own price scale, legend row, and pane controls (move, collapse, maximize).
+
+### 5.4 Taxonomy — visual output types (Pine)
+
+Plot visuals (recalculate every bar):
+
+| Function | Output |
+|----------|--------|
+| `plot()` | Lines, histograms, areas, columns, circles, crosses, steplines |
+| `hline()` | Fixed horizontal levels (static color; e.g. RSI 30/70) |
+| `fill()` | Color between two `plot()` or `hline()` series |
+| `bgcolor()` | Background tint behind bars |
+| `barcolor()` | Candle body/wick color override |
+| `plotshape()` | Markers at bars |
+
+Drawing objects (managed by ID — create, update, delete):
+
+| Object | Use |
+|--------|-----|
+| `line`, `box`, `label`, `table`, `polyline` | Annotations, levels, HUD tables |
+
+Named plots appear in the **Data Window** and can be referenced by other scripts via `input.source`.
+
+### 5.5 Lifecycle — from discovery to removal
+
+```
+Discover → Add → Configure inputs → Style → Live on chart → Manage → Remove
+                                              ↓
+                                    Persist (layout / template / sync)
+```
+
+| Stage | What the user can do |
+|-------|------------------------|
+| **Discover** | Indicators dialog: Technicals, Fundamentals, Community; search; favorites |
+| **Add** | One or more instances per chart (plan limits: Free 3 → Premium 25+) |
+| **Configure** | Inputs tab — period, source (close/hlc3), smoothing, etc. |
+| **Style** | Style tab — per-series color, linewidth, plot type, transparency |
+| **While active** | Legend values at crosshair; Data Window; drawings on any pane; snap to indicator values |
+| **Manage** | Hide/show; lock; reorder/collapse/maximize pane; interval visibility; clone |
+| **Organize** | Object tree; study templates; chart templates; bulk remove |
+| **Alert** | Alert on indicator condition (cloud execution) |
+| **Remove** | Per-instance, bulk, or template reset |
+| **Persist** | Saved in layout; syncs across web/desktop/mobile (plan-dependent) |
+
+### 5.6 Runtime model (brief)
+
+- Scripts execute **bar-by-bar** across history, then **re-execute on each tick** of the open realtime bar (with rollback until bar close).
+- **Indicators** recalculate on every tick; **strategies** default to once per bar at close (configurable).
+- Community scripts follow a separate **publish → version → update** lifecycle in the Pine Editor.
+
+### 5.7 Built-in analysis features (platform-level, beyond classic studies)
 
 | Feature | Description |
 |---------|-------------|
@@ -117,14 +191,28 @@ Plan limits (approximate, from public pricing/marketing):
 | **Fundamental graphs** | Overlay/compare 100+ fundamental metrics on chart |
 | **Seasonals** | Year-over-year seasonal price patterns |
 
-### Indicator workflow
+### 5.8 TradingView vs Edge — indicators (summary)
 
-- Add/remove from indicator dialog
-- **Parameter settings** per indicator
-- **Style** customization (colors, line width)
-- **Visibility** toggle
-- Alerts on indicator conditions
-- Drawings can overlay **indicator panes** (e.g. trendline on RSI)
+Edge implements a **small, fixed plugin set** with the same *basic* chart workflow (add, configure numbers, hide, remove, pane layout). TradingView is a **full indicator platform** (hundreds of built-ins, Pine scripting, alerts, templates, styling).
+
+| Area | TradingView | Edge |
+|------|-------------|------|
+| **Library size** | 400+ built-in + 100k+ community | 27 catalog names; **6 working** (MA, EMA, BOLL, MACD, RSI, VOL) |
+| **Extensibility** | Pine Script (indicators, strategies, libraries) | TypeScript plugins only; no user scripting |
+| **Instances** | Multiple of same indicator (e.g. two MAs) | One per name per pane |
+| **Settings** | Inputs + style (colors, line width, plot type) | Numeric params only; colors hardcoded in plugins |
+| **Visual richness** | Fills, barcolor, labels, tables, shapes | Lines, histograms, horizontal guides |
+| **Lifecycle basics** | Add / hide / remove / object tree | **Same** — picker, Object Tree, settings gear |
+| **Pane layout** | Reorder, collapse, maximize, resize | **Same** — `paneOrder`, collapse, maximize, drag heights |
+| **Templates & favorites** | Study templates, chart templates, starred indicators | None |
+| **Alerts** | On indicator conditions | None |
+| **Drawings on indicator panes** | Yes (e.g. trendline on RSI) | Drawings stay on price pane |
+| **Fundamentals / compare symbols** | Yes | None |
+| **Persistence** | Cloud layouts, cross-device | Local layout storage per cell |
+
+**In one sentence:** Edge has TradingView's indicator *workflow skeleton* (picker → settings → legend → panes → object tree) but not its *platform depth* (library size, Pine, styling, alerts, templates, or advanced visuals).
+
+For Edge's live implementation status, see [features.md §7](./features.md#7-indicators).
 
 ---
 

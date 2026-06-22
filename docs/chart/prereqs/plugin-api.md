@@ -88,6 +88,28 @@ export interface DrawingPlugin {
 
 Magnet mode: when creating, snap y to nearest candle price if within 5px.
 
+### DrawingStyles
+
+Persisted on `SerializedDrawing.styles`. Resolved at draw time via `resolveDrawingStyles(drawing, theme, selected)` and applied with `strokeFromStyles` in each plugin's `draw`.
+
+```ts
+export type DrawingStyles = {
+  lineColor?: string;
+  lineWidth?: number;
+  lineDash?: number[];
+  fillColor?: string;
+  fillOpacity?: number;
+  extendLeft?: boolean;
+  extendRight?: boolean;
+  text?: string;
+  fontSize?: number;
+};
+```
+
+Defaults live in `drawingStyles.ts` (`defaultStylesForTool`, `mergeStyles`). Chart handle: `updateDrawingStyles(id, patch)` merges a partial style patch onto the selected drawing.
+
+Context menu **Settings…** on overlays opens a minimal style editor (line color + width) in `ChartCell`.
+
 ## Registry Usage
 
 - `registerIndicator(plugin)` — `src/lib/chart/indicators/registry.ts`

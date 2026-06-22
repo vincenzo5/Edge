@@ -232,8 +232,8 @@ Only when paper/live trading is enabled. Not applicable to Edge chart engine sco
 
 | Menu | File(s) | Behavior |
 |------|---------|----------|
-| Blank chart | `chartContextMenu.ts` → `buildChartContextMenuItems`; `ChartCell.tsx` → `handleChartContextMenu` | Always shown: reset (disabled when default), copy price, object tree, bulk remove when counts > 0 |
-| Drawing overlay | `canvas.tsx` hit-test → `handleDrawingContextMenu`; `ChartCell.tsx` → `buildOverlayContextMenuItems` | Full overlay menu (§2.2) |
+| Blank chart | `chartContextMenu.ts` → `buildChartContextMenuItems`; `ChartCell.tsx` → `handleChartContextMenu` | Fallback when price-pane context menu is not consumed: reset (disabled when default), copy price, object tree, bulk remove when counts > 0 |
+| Drawing overlay | `canvas.tsx` hit-test → `handleDrawingContextMenu` (returns consumed); `ChartCell.tsx` → `buildOverlayContextMenuItems` | Full overlay menu (§2.2); consumed hits call `stopPropagation` so blank menu does not overwrite |
 | Price axis | `canvas.tsx` double-click on price axis | Reset auto scale only; no right-click menu |
 | Indicator settings | `PaneLegendBar` gear → `onLegendAction` | Modal, not context menu |
 | Object Tree | `ChartCell.tsx` toolbar toggle + blank menu | Panel |
