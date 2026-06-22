@@ -6,12 +6,14 @@ import SearchBar from "./SearchBar";
 import DrawingToolbar, { resolveGroupSelections } from "./DrawingToolbar";
 import BarReplay from "./BarReplay";
 import IndicatorPicker from "./IndicatorPicker";
-import ObjectTree from "./ObjectTree";
 import IndicatorSettingsModal from "./IndicatorSettingsModal";
+import DrawingSettingsModal from "./DrawingSettingsModal";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { buildChartContextMenuItems } from "./chartContextMenu";
 import { useChartSync } from "./ChartSyncContext";
-import type { Candle } from "@/lib/chart/contracts";
+import { useActiveChartBridge } from "./ActiveChartContext";
+import { useSidebarOptional } from "./SidebarContext";
+import type { Candle, DrawingStyles } from "@/lib/chart/contracts";
 import {
   CHART_TYPES,
   INTERVALS,
@@ -67,7 +69,7 @@ export default function ChartCell({
     valueLabel: string | null;
   } | null>(null);
   const [settingsIndicatorId, setSettingsIndicatorId] = useState<string | null>(null);
-  const [objectTreeVisible, setObjectTreeVisible] = useState(false);
+  const [settingsOverlayId, setSettingsOverlayId] = useState<string | null>(null);
   const [overlays, setOverlays] = useState<TrackedOverlay[]>([]);
   const [contextMenu, setContextMenu] = useState<{
     position: { x: number; y: number };
@@ -78,6 +80,8 @@ export default function ChartCell({
   const [activeTool, setActiveTool] = useState("__cursor__");
   const overlaysDirtyRef = useRef(false);
   const sync = useChartSync();
+  const activeChartBridge = useActiveChartBridge();
+  const sidebar = useSidebarOptional();
 
   const magnet = toolbarPrefs.magnet ?? false;
   const keepDrawing = toolbarPrefs.keepDrawing ?? false;
@@ -129,6 +133,31 @@ export default function ChartCell({
     chartRef.current?.setMagnet(magnet);
     chartRef.current?.setKeepDrawingMode(keepDrawing);
   }, [isActive, magnet, keepDrawing]);
+
+  // Disarm drawing tools when this cell loses focus.
+  useEffect(() => {
+    if (isActive) return;
+    chartRef.current?.stopDrawing();
+    setActiveTool('__cursor__');
+  }, [isActive]);
+
+  // Drawing undo/redo when this cell is active (⌘Z / ⌘⇧Z).
+  useEffect(() => {
+    if (!isActive) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+      const chart = chartRef.current;
+      if (!chart) return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        chart.redo();
+      } else {
+        chart.undo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isActive]);
 
   const allLocked =
     overlays.length > 0 && overlays.every((o) => o.locked);
@@ -240,7 +269,6 @@ export default function ChartCell({
     (info: { count: number }) => {
       setCandleCount(info.count);
       onCandleCount?.(info.count);
-      setDisplayCandles(chartRef.current?.getCandles() ?? []);
     },
     [onCandleCount],
   );
@@ -292,6 +320,17 @@ export default function ChartCell({
     () => config.indicators.find((i) => i.id === settingsIndicatorId) ?? null,
     [config.indicators, settingsIndicatorId],
   );
+
+  const settingsDrawing = useMemo(() => {
+    if (!settingsOverlayId) return null;
+    const drawings = chartRef.current?.serializeDrawings() ?? [];
+    return drawings.find((d) => d.id === settingsOverlayId) ?? null;
+  }, [settingsOverlayId, overlays]);
+
+  const handleDrawingStylesSave = useCallback((id: string, patch: Partial<DrawingStyles>) => {
+    chartRef.current?.updateDrawingStyles(id, patch);
+    overlaysDirtyRef.current = true;
+  }, []);
 
   // Pane actions - uniform for price pane (PRICE_PANE_KEY) and indicator panes.
   // Operate on paneOrder / collapsedPanes / maximizedPane in config for persistence.
@@ -405,6 +444,54 @@ export default function ChartCell({
     [selectedOverlayId],
   );
 
+  useEffect(() => {
+    if (!activeChartBridge) return;
+
+    if (!isActive) {
+      activeChartBridge.unregister(chartId);
+      return;
+    }
+
+    return () => {
+      activeChartBridge.unregister(chartId);
+    };
+  }, [activeChartBridge, isActive, chartId]);
+
+  useEffect(() => {
+    if (!activeChartBridge || !isActive) return;
+
+    activeChartBridge.register(chartId, {
+      chartId,
+      config,
+      theme,
+      overlays,
+      dataWindow: {
+        dataIndex: crosshairData.dataIndex,
+        candles: displayCandles,
+        indicators: config.indicators.filter((i) => i.visible !== false),
+        symbol: config.symbol,
+        symbolName: config.symbolName,
+        exchange: config.exchange,
+        interval: config.interval,
+        theme,
+      },
+      overlayActions: overlayActions(),
+      onConfigChange,
+      openIndicatorPicker: () => setPickerOpen(true),
+    });
+  }, [
+    activeChartBridge,
+    isActive,
+    chartId,
+    config,
+    theme,
+    overlays,
+    crosshairData.dataIndex,
+    displayCandles,
+    overlayActions,
+    onConfigChange,
+  ]);
+
   const handleOverlayRightClick = useCallback(
     (overlay: TrackedOverlay, pos: { x: number; y: number }) => {
       setSelectedOverlayId(overlay.id);
@@ -418,6 +505,9 @@ export default function ChartCell({
             const name = prompt("Rename drawing:", o.label);
             if (name?.trim()) actions.rename(id, name.trim());
           }
+          setContextMenu(null);
+        }, (id) => {
+          setSettingsOverlayId(id);
           setContextMenu(null);
         }),
       });
@@ -445,7 +535,7 @@ export default function ChartCell({
             setContextMenu(null);
           },
           openObjectTree: () => {
-            setObjectTreeVisible(true);
+            sidebar?.openPanel("object-tree");
             setContextMenu(null);
           },
           removeDrawings: () => {
@@ -466,6 +556,7 @@ export default function ChartCell({
       crosshairData.valueLabel,
       handleClearDrawings,
       update,
+      sidebar,
     ],
   );
 
@@ -488,9 +579,7 @@ export default function ChartCell({
 
   return (
     <div
-      className={`flex h-full min-h-0 flex-col overflow-hidden ${
-        isActive ? "ring-2 ring-inset ring-blue-500" : "ring-1 ring-inset ring-transparent"
-      }`}
+      className="flex h-full min-h-0 flex-col overflow-hidden"
       onPointerDown={() => onFocus?.()}
     >
       {/* Compact cell toolbar */}
@@ -542,22 +631,11 @@ export default function ChartCell({
             >
               +Indicators
             </button>
-            <button
-              type="button"
-              onClick={() => setObjectTreeVisible((o) => !o)}
-              className={`rounded border px-1.5 py-1 text-xs transition-colors ${
-                objectTreeVisible
-                  ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                  : "border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
-              }`}
-            >
-              Tree {objectTreeVisible ? "▾" : "▸"}
-            </button>
           </>
         )}
       </div>
 
-      {/* Body: drawing rail + chart + optional tree */}
+      {/* Body: drawing rail + chart */}
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="relative z-20 flex h-full shrink-0 self-stretch overflow-visible">
           <DrawingToolbar
@@ -604,31 +682,12 @@ export default function ChartCell({
             onMoveIndicatorDown={handleMovePaneDown}
             onPaneHeightsChange={handlePaneHeightsChange}
             onDataLoaded={handleDataLoaded}
+            onCandlesChange={setDisplayCandles}
             collapsedKeys={collapsedKeys}
             maximizedKey={maximizedKey}
             paneOrder={paneOrder}
           />
         </div>
-        {objectTreeVisible && (
-          <ObjectTree
-            chartId={chartId}
-            config={config}
-            overlays={overlays}
-            dataWindow={{
-              dataIndex: crosshairData.dataIndex,
-              candles: displayCandles,
-              indicators: config.indicators.filter((i) => i.visible !== false),
-              symbol: config.symbol,
-              symbolName: config.symbolName,
-              exchange: config.exchange,
-              interval: config.interval,
-              theme,
-            }}
-            onConfigChange={onConfigChange}
-            onOverlayAction={overlayActions()}
-            onAddIndicator={() => setPickerOpen(true)}
-          />
-        )}
       </div>
 
       {!compact && (
@@ -651,6 +710,14 @@ export default function ChartCell({
         indicator={settingsIndicator}
         onClose={() => setSettingsIndicatorId(null)}
         onSave={handleIndicatorParamsSave}
+      />
+
+      <DrawingSettingsModal
+        open={settingsOverlayId != null}
+        drawing={settingsDrawing}
+        theme={theme}
+        onClose={() => setSettingsOverlayId(null)}
+        onSave={handleDrawingStylesSave}
       />
 
       <ContextMenu
@@ -703,6 +770,7 @@ function buildOverlayContextMenuItems(
   overlay: TrackedOverlay,
   actions: OverlayActionHandlers,
   onRenamePrompt: (id: string) => void,
+  onOpenSettings: (id: string) => void,
 ): ContextMenuItem[] {
   return [
     {
@@ -710,6 +778,12 @@ function buildOverlayContextMenuItems(
       label: "Rename",
       shortcut: "F2",
       action: () => onRenamePrompt(overlay.id),
+    },
+    {
+      id: "settings",
+      label: "Settings…",
+      action: () => onOpenSettings(overlay.id),
+      dividerAfter: true,
     },
     {
       id: "lock",

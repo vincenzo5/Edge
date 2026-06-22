@@ -3,15 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Toolbar from "./Toolbar";
 import ChartGrid from "./ChartGrid";
+import RightSidebar from "./sidebar/RightSidebar";
+import { SidebarProvider } from "./SidebarContext";
+import { ActiveChartProvider } from "./ActiveChartContext";
 import {
   DEFAULT_CELL,
   DEFAULT_LAYOUT,
+  DEFAULT_SIDEBAR_PREFS,
   DEFAULT_TOOLBAR_PREFS,
   cellCountFor,
   pickLinkFields,
   type CellConfig,
   type ChartLayout,
   type GridMode,
+  type SidebarPanelId,
   type Theme,
   type ToolbarPrefs,
 } from "@/lib/chartConfig";
@@ -108,6 +113,29 @@ export default function StockApp() {
     setLayout((prev) => ({ ...prev, toolbarPrefs: next }));
   }, []);
 
+  const handleSidebarPanelChange = useCallback((activePanel: SidebarPanelId | null) => {
+    setLayout((prev) => ({
+      ...prev,
+      sidebar: {
+        ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
+        activePanel,
+      },
+    }));
+  }, []);
+
+  const handleSidebarToggle = useCallback((id: SidebarPanelId) => {
+    setLayout((prev) => {
+      const current = prev.sidebar?.activePanel ?? null;
+      return {
+        ...prev,
+        sidebar: {
+          ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
+          activePanel: current === id ? null : id,
+        },
+      };
+    });
+  }, []);
+
   const handleReset = useCallback(() => {
     if (!confirm("Reset layout to defaults? This clears saved drawings.")) return;
     setLayout({ ...DEFAULT_LAYOUT });
@@ -120,28 +148,43 @@ export default function StockApp() {
   );
 
   return (
-    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
-      <Toolbar
-        gridMode={layout.gridMode}
-        theme={layout.theme}
-        linked={layout.linked}
-        activeCellIndex={layout.activeCellIndex}
-        onGridModeChange={handleGridModeChange}
-        onThemeChange={handleThemeChange}
-        onLinkedChange={handleLinkedChange}
-        onReset={handleReset}
-      />
-      <ChartGrid
-        gridMode={layout.gridMode}
-        linked={layout.linked}
-        theme={layout.theme}
-        cells={cells}
-        activeCellIndex={layout.activeCellIndex}
-        toolbarPrefs={layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
-        onCellChange={applyCellUpdate}
-        onActiveCellChange={handleActiveCellChange}
-        onToolbarPrefsChange={handleToolbarPrefsChange}
-      />
-    </div>
+    <SidebarProvider
+      activePanel={layout.sidebar?.activePanel ?? null}
+      onActivePanelChange={handleSidebarPanelChange}
+    >
+      <div className="flex h-screen min-h-0 flex-col overflow-hidden">
+        <Toolbar
+          gridMode={layout.gridMode}
+          theme={layout.theme}
+          linked={layout.linked}
+          activeCellIndex={layout.activeCellIndex}
+          onGridModeChange={handleGridModeChange}
+          onThemeChange={handleThemeChange}
+          onLinkedChange={handleLinkedChange}
+          onReset={handleReset}
+        />
+        <ActiveChartProvider>
+          <div className="flex min-h-0 flex-1">
+            <ChartGrid
+              gridMode={layout.gridMode}
+              linked={layout.linked}
+              theme={layout.theme}
+              cells={cells}
+              activeCellIndex={layout.activeCellIndex}
+              toolbarPrefs={layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
+              onCellChange={applyCellUpdate}
+              onActiveCellChange={handleActiveCellChange}
+              onToolbarPrefsChange={handleToolbarPrefsChange}
+            />
+            <RightSidebar
+              theme={layout.theme}
+              activePanel={layout.sidebar?.activePanel ?? null}
+              onTogglePanel={handleSidebarToggle}
+              onClosePanel={() => handleSidebarPanelChange(null)}
+            />
+          </div>
+        </ActiveChartProvider>
+      </div>
+    </SidebarProvider>
   );
 }

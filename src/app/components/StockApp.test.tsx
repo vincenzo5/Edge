@@ -18,10 +18,11 @@ describe('StockApp', () => {
     localStorageMock.clear();
   });
 
-  it('renders the toolbar and chart grid without crashing', () => {
+  it('renders the toolbar, chart grid, and sidebar rail without crashing', () => {
     render(<StockApp />);
     // Toolbar contains the app title / controls
     expect(screen.getByText(/Stock Charts/i)).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-rail')).toBeInTheDocument();
   });
 
   it('applies theme class to html element after hydration', async () => {

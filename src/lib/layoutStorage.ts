@@ -1,5 +1,12 @@
 import type { ChartLayout } from "./chartConfig";
-import { DEFAULT_LAYOUT, DEFAULT_CELL, DEFAULT_TOOLBAR_PREFS, migrateCellIndicators } from "./chartConfig";
+import {
+  DEFAULT_LAYOUT,
+  DEFAULT_CELL,
+  DEFAULT_SIDEBAR_PREFS,
+  DEFAULT_TOOLBAR_PREFS,
+  migrateCellIndicators,
+  type SidebarPanelId,
+} from "./chartConfig";
 
 const STORAGE_KEY = "tv-ai:layout:v1";
 
@@ -36,6 +43,12 @@ export function loadLayout(): ChartLayout {
         ...parsed.toolbarPrefs,
         groupSelections: parsed.toolbarPrefs?.groupSelections,
       },
+      sidebar: {
+        ...DEFAULT_SIDEBAR_PREFS,
+        activePanel: isSidebarPanelId(parsed.sidebar?.activePanel)
+          ? parsed.sidebar!.activePanel
+          : DEFAULT_SIDEBAR_PREFS.activePanel,
+      },
       cells,
     } as ChartLayout;
   } catch {
@@ -50,6 +63,12 @@ export function saveLayout(layout: ChartLayout): void {
   } catch {
     // Storage may be full or disabled; ignore.
   }
+}
+
+const VALID_SIDEBAR_PANELS = new Set<SidebarPanelId>(["object-tree"]);
+
+function isSidebarPanelId(value: unknown): value is SidebarPanelId {
+  return typeof value === "string" && VALID_SIDEBAR_PANELS.has(value as SidebarPanelId);
 }
 
 export function clearLayout(): void {

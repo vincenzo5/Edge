@@ -10,6 +10,7 @@ import type { CellConfig, TrackedOverlay } from "@/lib/chartConfig";
 import type { Candle, IndicatorConfig, Theme } from "@/lib/chart/contracts";
 import { getCatalogEntry } from "@/lib/chart/indicators/registry";
 import { resolveIndicatorLegend, resolvePriceLegend } from "@/lib/chart/legend";
+import { resolvePaneLabel } from "@/lib/chart/paneLabels";
 import { IndicatorRegistry } from "@/lib/chart/pluginHost";
 
 export type DataWindowProps = {
@@ -40,6 +41,8 @@ type Props = {
     subscribe: (cb: () => void) => () => void;
   };
   onAddIndicator: () => void;
+  /** When true, renders without outer chrome (for right sidebar panel). */
+  embedded?: boolean;
 };
 
 type Section = "symbol" | "indicators" | "drawings" | "data";
@@ -87,6 +90,7 @@ export default function ObjectTree({
   onConfigChange,
   onOverlayAction,
   onAddIndicator,
+  embedded = false,
 }: Props) {
   const [collapsed, setCollapsed] = useState<Record<Section, boolean>>(() =>
     loadSectionState(chartId),
@@ -165,14 +169,22 @@ export default function ObjectTree({
   const drawingCount = overlays.length;
 
   return (
-    <div className="flex w-[220px] shrink-0 flex-col overflow-hidden border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
-      <div className="flex items-center justify-between border-b border-gray-100 px-2 py-1.5 dark:border-gray-800">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-          Objects
-        </span>
-      </div>
+    <div
+      className={
+        embedded
+          ? "flex min-h-0 flex-col"
+          : "flex w-[220px] shrink-0 flex-col overflow-hidden border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"
+      }
+    >
+      {!embedded && (
+        <div className="flex items-center justify-between border-b border-gray-100 px-2 py-1.5 dark:border-gray-800">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Objects
+          </span>
+        </div>
+      )}
 
-      <div className="flex-1 overflow-auto">
+      <div className={embedded ? "min-h-0 flex-1" : "flex-1 overflow-auto"}>
         {/* Symbol Section */}
         <SectionHeader
           section="symbol"
@@ -335,15 +347,23 @@ export default function ObjectTree({
                       className="min-w-0 flex-1 rounded border border-blue-300 bg-white px-1 py-0 text-xs dark:border-blue-600 dark:bg-gray-800 dark:text-gray-200"
                     />
                   ) : (
-                    <span
-                      className="min-w-0 flex-1 cursor-default truncate text-xs text-gray-700 dark:text-gray-300"
-                      onDoubleClick={() =>
-                        startRename(o.id, o.label)
-                      }
-                      title="Double-click to rename"
-                    >
-                      {o.label || o.name}
-                    </span>
+                    <>
+                      <span
+                        className="shrink-0 rounded bg-gray-100 px-1 py-0 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                        title={`Pane: ${resolvePaneLabel(o.paneId, config.indicators)}`}
+                      >
+                        {resolvePaneLabel(o.paneId, config.indicators)}
+                      </span>
+                      <span
+                        className="min-w-0 flex-1 cursor-default truncate text-xs text-gray-700 dark:text-gray-300"
+                        onDoubleClick={() =>
+                          startRename(o.id, o.label)
+                        }
+                        title="Double-click to rename"
+                      >
+                        {o.label || o.name}
+                      </span>
+                    </>
                   )}
 
                   {/* Delete */}
