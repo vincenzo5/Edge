@@ -27,7 +27,8 @@ export type PaneBoundary = {
 };
 
 const SUB_DEFAULT = 100;
-const SUB_COLLAPSED = 24;
+/** Visible header strip height when a pane is collapsed. */
+export const PANE_COLLAPSED_HEIGHT = 28;
 export const MIN_PRICE_HEIGHT = 80;
 export const MIN_SUB_HEIGHT = 48;
 
@@ -50,7 +51,7 @@ function resolveSubHeight(
   isCol: boolean,
   isMax: boolean
 ): number {
-  if (isCol) return SUB_COLLAPSED;
+  if (isCol) return PANE_COLLAPSED_HEIGHT;
   if (isMax) return SUB_DEFAULT;
   const custom = customHeights?.[key];
   if (custom != null && Number.isFinite(custom)) {
@@ -82,7 +83,7 @@ export function resolvePaneStackOrder(
 }
 
 function shrinkableSlack(key: string, height: number): number {
-  const floor = key === PRICE_PANE_KEY ? MIN_PRICE_HEIGHT : SUB_COLLAPSED;
+  const floor = key === PRICE_PANE_KEY ? MIN_PRICE_HEIGHT : PANE_COLLAPSED_HEIGHT;
   return Math.max(0, height - floor);
 }
 
@@ -105,6 +106,50 @@ function shrinkOverflow(
     const cut = Math.min(slack, Math.ceil((slack / shrinkable) * overflow));
     heights[key] -= cut;
     remaining -= cut;
+  }
+}
+
+/** Give non-collapsed panes all space left after collapsed headers. */
+function distributeNormalPaneHeights(
+  heights: Record<string, number>,
+  stackOrder: string[],
+  paneBudget: number,
+  collapsed: Set<string>
+): void {
+  const expanded = stackOrder.filter((k) => !collapsed.has(k));
+  if (expanded.length === 0) return;
+
+  const collapsedTotal = stackOrder.filter((k) => collapsed.has(k)).length * PANE_COLLAPSED_HEIGHT;
+  const expandedSubs = expanded.filter((k) => k !== PRICE_PANE_KEY);
+  const subsBaseSum = expandedSubs.reduce((sum, k) => sum + heights[k], 0);
+
+  if (expanded.includes(PRICE_PANE_KEY)) {
+    heights[PRICE_PANE_KEY] = Math.max(
+      MIN_PRICE_HEIGHT,
+      paneBudget - collapsedTotal - subsBaseSum
+    );
+    return;
+  }
+
+  const remainder = paneBudget - collapsedTotal - subsBaseSum;
+  if (remainder <= 0 || expandedSubs.length === 0) return;
+
+  if (expandedSubs.length === 1) {
+    const key = expandedSubs[0];
+    heights[key] = Math.max(MIN_SUB_HEIGHT, heights[key] + remainder);
+    return;
+  }
+
+  let allocated = 0;
+  for (let i = 0; i < expandedSubs.length; i++) {
+    const key = expandedSubs[i];
+    if (i === expandedSubs.length - 1) {
+      heights[key] = Math.max(MIN_SUB_HEIGHT, heights[key] + remainder - allocated);
+    } else {
+      const share = Math.floor((remainder * heights[key]) / subsBaseSum);
+      heights[key] = Math.max(MIN_SUB_HEIGHT, heights[key] + share);
+      allocated += share;
+    }
   }
 }
 
@@ -132,7 +177,7 @@ export function createInitialLayout(
 
     if (key === PRICE_PANE_KEY) {
       if (isCol || isOtherMax) {
-        heights[key] = SUB_COLLAPSED;
+        heights[key] = PANE_COLLAPSED_HEIGHT;
       } else if (paneCount === 1) {
         heights[key] = paneBudget;
       } else {
@@ -146,7 +191,7 @@ export function createInitialLayout(
   if (isPriceMax) {
     for (const key of stackOrder) {
       if (key !== PRICE_PANE_KEY) {
-        heights[key] = SUB_COLLAPSED;
+        heights[key] = PANE_COLLAPSED_HEIGHT;
       }
     }
     const othersSum = stackOrder
@@ -154,12 +199,12 @@ export function createInitialLayout(
       .reduce((sum, k) => sum + heights[k], 0);
     heights[PRICE_PANE_KEY] = Math.max(MIN_PRICE_HEIGHT, paneBudget - othersSum);
   } else if (isOtherMax) {
-    heights[PRICE_PANE_KEY] = SUB_COLLAPSED;
+    heights[PRICE_PANE_KEY] = PANE_COLLAPSED_HEIGHT;
     const maxKey = maximized!;
     for (const key of stackOrder) {
       if (key === PRICE_PANE_KEY || key === maxKey) continue;
       heights[key] = collapsed.has(key)
-        ? SUB_COLLAPSED
+        ? PANE_COLLAPSED_HEIGHT
         : resolveSubHeight(key, customHeights, false, false);
     }
     const othersSum = stackOrder
@@ -170,29 +215,11 @@ export function createInitialLayout(
       paneBudget - othersSum
     );
   } else if (paneCount > 1) {
-    const flexKey = stackOrder.find((k) => heights[k] === 0);
+    distributeNormalPaneHeights(heights, stackOrder, paneBudget, collapsed);
 
-    if (flexKey) {
-      const fixedSum = stackOrder.reduce(
-        (sum, k) => sum + (heights[k] === 0 ? 0 : heights[k]),
-        0
-      );
-      heights[flexKey] = Math.max(minPaneHeight(flexKey), paneBudget - fixedSum);
-
-      let total = stackOrder.reduce((sum, k) => sum + heights[k], 0);
-      if (total > paneBudget) {
-        shrinkOverflow(heights, stackOrder, total - paneBudget, flexKey);
-        total = stackOrder.reduce((sum, k) => sum + heights[k], 0);
-        if (total > paneBudget) {
-          heights[flexKey] = Math.max(
-            minPaneHeight(flexKey),
-            heights[flexKey] - (total - paneBudget)
-          );
-        }
-      }
-    } else {
-      const overflow = stackOrder.reduce((sum, k) => sum + heights[k], 0) - paneBudget;
-      if (overflow > 0) shrinkOverflow(heights, stackOrder, overflow);
+    const total = stackOrder.reduce((sum, k) => sum + heights[k], 0);
+    if (total > paneBudget) {
+      shrinkOverflow(heights, stackOrder, total - paneBudget);
     }
   }
 

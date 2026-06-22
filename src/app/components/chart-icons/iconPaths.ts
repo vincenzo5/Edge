@@ -30,7 +30,13 @@ export type ChartIconId =
   | "lock-all"
   | "hide-drawings"
   | "trash"
-  | "delete";
+  | "delete"
+  | "pane-move-up"
+  | "pane-move-down"
+  | "pane-collapse"
+  | "pane-restore"
+  | "pane-maximize"
+  | "pane-restore-layout";
 
 /** Inner SVG elements (no outer `<svg>` wrapper). */
 export const CHART_ICON_MARKUP: Record<ChartIconId, string> = {
@@ -149,6 +155,34 @@ export const CHART_ICON_MARKUP: Record<ChartIconId, string> = {
   delete: `
     <line x1="10" y1="10" x2="18" y2="18"/>
     <line x1="18" y1="10" x2="10" y2="18"/>
+  `,
+  "pane-move-up": `
+    <line x1="14" y1="21" x2="14" y2="11"/>
+    <polyline points="10,15 14,9 18,15"/>
+    <circle cx="14" cy="21" r="1.75"/>
+  `,
+  "pane-move-down": `
+    <line x1="14" y1="7" x2="14" y2="17"/>
+    <polyline points="10,13 14,19 18,13"/>
+    <circle cx="14" cy="7" r="1.75"/>
+  `,
+  "pane-collapse": `
+    <polyline points="9,10 14,14 19,10"/>
+    <polyline points="9,18 14,14 19,18"/>
+  `,
+  "pane-restore": `
+    <polyline points="9,8 14,12 19,8"/>
+    <polyline points="9,20 14,16 19,20"/>
+  `,
+  "pane-maximize": `
+    <polyline points="8,11 8,8 11,8"/>
+    <polyline points="17,8 20,8 20,11"/>
+    <polyline points="8,17 8,20 11,20"/>
+    <polyline points="17,20 20,20 20,17"/>
+  `,
+  "pane-restore-layout": `
+    <rect x="6" y="8" width="16" height="5" rx="0.5"/>
+    <rect x="6" y="15" width="16" height="5" rx="0.5"/>
   `,
 };
 

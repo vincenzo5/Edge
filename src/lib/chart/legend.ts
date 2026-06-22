@@ -130,13 +130,6 @@ export function resolvePriceLegend(
       color: isUp ? '#00FF88' : '#f87171',
       tooltip: 'Change from the previous bar close',
     },
-    {
-      kind: 'value',
-      id: 'volume',
-      label: 'V',
-      value: formatVolume(candle.v),
-      tooltip: 'Volume — shares or contracts traded',
-    },
   ];
 }
 

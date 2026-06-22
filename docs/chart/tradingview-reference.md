@@ -262,9 +262,23 @@ Drawing templates for chart patterns, e.g.:
 | **Remove options** | Delete drawings, indicators, or both |
 | **Undo** | Ctrl/Cmd+Z |
 | **Customization** | Colors, line style, visibility, extend, labels |
-| **Selection & edit** | Click to select; drag control points; context menu |
+| **Selection & edit** | Click to select; drag control points; context menu — see [context-menu-reference.md §2](./context-menu-reference.md#2-drawing--overlay-context-menu) |
 | **Alerts on drawings** | Price alerts tied to drawing geometry (incl. Fib levels) |
 | **Drawings on indicators** | Apply to any pane, not just price |
+
+### 6.11 Context menus
+
+TradingView exposes **different right-click menus** by click target (blank plot, drawing, price axis, time axis, indicator legend, series, orders). Full item inventory with shortcuts and Edge status: **[context-menu-reference.md](./context-menu-reference.md)**.
+
+| Menu | Highlights |
+|------|------------|
+| **Blank chart** | Reset view, copy/paste price, alerts/orders, lock cursor, table view, object tree, templates, bulk remove, settings |
+| **Drawing** | Settings, rename, lock, hide, z-order, clone/copy/paste, alerts, remove |
+| **Price scale** | Reset scale, scale-price-only, invert, auto/log/percent/indexed |
+| **Time scale** | Reset bar spacing, go to date |
+| **Indicator legend** | Settings, hide, remove |
+
+---
 
 ### Drawings vs indicators (TradingView distinction)
 
@@ -394,6 +408,7 @@ Use [features.md](./features.md) for live status. High-level overlap:
 | 110+ drawings | 12 toolbar tools implemented | Minimal (V1 set done) |
 | Bar replay | BarReplay + `onDataLoaded` + slice | **Done** |
 | Magnets, keep drawing | Magnet + keep-drawing on toolbar | **Partial** — no drawing sync across cells |
+| Context menus | Blank (partial), drawing (done), axes (partial) | **Partial** — see [context-menu-reference.md](./context-menu-reference.md) |
 | Pine Script | Plugin API only | None |
 | Alerts | — | None |
 | Volume profile / footprint | Out of V1 scope | None |
@@ -403,6 +418,7 @@ Use [features.md](./features.md) for live status. High-level overlap:
 
 ## Related docs
 
+- [Context menu reference](./context-menu-reference.md) — Full TradingView context menu inventory (blank chart, drawing, axes, legend) with Edge status
 - [Edge Chart feature inventory](./features.md) — what Edge implements today; **§14 recommended next work**
 - [V1 scope lock](./prereqs/v1-scope.md) — Edge must-ship list
 - [Gesture bible](./prereqs/gesture-bible.md) — Edge interaction target spec

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Theme } from "@/lib/chartConfig";
+import Tooltip from "./Tooltip";
 import {
   CrosshairIcon,
   DeleteIcon,
@@ -30,6 +32,7 @@ import DrawingToolGroup from "./DrawingToolGroup";
 type Props = {
   compact?: boolean;
   disabled?: boolean;
+  theme: Theme;
   activeTool: string;
   magnet: boolean;
   keepDrawing: boolean;
@@ -57,6 +60,7 @@ function Divider({ compact }: { compact: boolean }) {
 
 function ToolButton({
   title,
+  theme,
   active,
   disabled,
   compact,
@@ -64,6 +68,7 @@ function ToolButton({
   children,
 }: {
   title: string;
+  theme: Theme;
   active?: boolean;
   disabled?: boolean;
   compact: boolean;
@@ -71,22 +76,24 @@ function ToolButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      disabled={disabled}
-      onClick={onClick}
-      className={`${toolbarButtonClass(compact)} ${toolbarButtonStateClass(active)}`}
-    >
-      {children}
-    </button>
+    <Tooltip content={title} theme={theme} side="right" portaled>
+      <button
+        type="button"
+        aria-label={title}
+        disabled={disabled}
+        onClick={onClick}
+        className={`${toolbarButtonClass(compact)} ${toolbarButtonStateClass(active)}`}
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }
 
 export default function DrawingToolbar({
   compact = false,
   disabled = false,
+  theme,
   activeTool,
   magnet,
   keepDrawing,
@@ -128,10 +135,11 @@ export default function DrawingToolbar({
 
   return (
     <div
-      className={`relative z-10 flex shrink-0 flex-col items-center gap-0.5 overflow-visible border-r border-[var(--app-border)] bg-[var(--app-surface)] py-1.5 ${toolbarRailWidthClass(compact)} ${disabled ? "pointer-events-none opacity-40" : ""}`}
+      className={`relative z-10 flex h-full shrink-0 flex-col items-center justify-start gap-0.5 overflow-visible border-r border-[var(--app-border)] bg-[var(--app-surface)] py-1.5 ${toolbarRailWidthClass(compact)} ${disabled ? "pointer-events-none opacity-40" : ""}`}
     >
       <ToolButton
         title="Cursor"
+        theme={theme}
         active={activeTool === "__cursor__"}
         disabled={disabled}
         compact={compact}
@@ -143,6 +151,7 @@ export default function DrawingToolbar({
       {DRAWING_TOOL_GROUPS.map((group) => (
         <DrawingToolGroup
           key={group.id}
+          theme={theme}
           group={group}
           selectedTool={groupSelections[group.id] ?? group.defaultTool}
           activeTool={activeTool}
@@ -171,6 +180,7 @@ export default function DrawingToolbar({
 
       <ToolButton
         title="Zoom in"
+        theme={theme}
         disabled={disabled}
         compact={compact}
         onClick={onZoomIn}
@@ -180,6 +190,7 @@ export default function DrawingToolbar({
 
       <ToolButton
         title="Measure"
+        theme={theme}
         active={activeTool === MEASURE_TOOL}
         disabled={disabled}
         compact={compact}
@@ -192,6 +203,7 @@ export default function DrawingToolbar({
 
       <ToolButton
         title="Magnet mode (snap to OHLC)"
+        theme={theme}
         active={magnet}
         disabled={disabled}
         compact={compact}
@@ -202,6 +214,7 @@ export default function DrawingToolbar({
 
       <ToolButton
         title="Stay in drawing mode"
+        theme={theme}
         active={keepDrawing}
         disabled={disabled}
         compact={compact}
@@ -212,6 +225,7 @@ export default function DrawingToolbar({
 
       <ToolButton
         title={allLocked ? "Unlock all drawings" : "Lock all drawings"}
+        theme={theme}
         active={allLocked}
         disabled={disabled}
         compact={compact}
@@ -222,6 +236,7 @@ export default function DrawingToolbar({
 
       <ToolButton
         title={allHidden ? "Show all drawings" : "Hide all drawings"}
+        theme={theme}
         active={allHidden}
         disabled={disabled}
         compact={compact}
@@ -235,6 +250,7 @@ export default function DrawingToolbar({
       {onDeleteSelected && (
         <ToolButton
           title="Delete selected drawing"
+          theme={theme}
           disabled={disabled}
           compact={compact}
           onClick={onDeleteSelected}
@@ -245,6 +261,7 @@ export default function DrawingToolbar({
 
       <ToolButton
         title="Remove all drawings"
+        theme={theme}
         disabled={disabled}
         compact={compact}
         onClick={onClear}

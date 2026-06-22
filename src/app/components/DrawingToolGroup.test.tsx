@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ComponentProps } from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import DrawingToolGroup from "./DrawingToolGroup";
 import { DRAWING_TOOL_GROUPS } from "./chart-icons/toolGroups";
 
@@ -12,8 +12,10 @@ describe("DrawingToolGroup", () => {
   const onPin = vi.fn();
   const onUnpin = vi.fn();
   const onSelect = vi.fn();
+  const groupButtonName = "Lines — Trend Line";
 
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     Object.defineProperty(window, "matchMedia", {
       writable: true,
@@ -26,9 +28,14 @@ describe("DrawingToolGroup", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   function renderGroup(overrides: Partial<ComponentProps<typeof DrawingToolGroup>> = {}) {
     return render(
       <DrawingToolGroup
+        theme="dark"
         group={linesGroup}
         selectedTool="straightLine"
         activeTool="__cursor__"
@@ -59,13 +66,13 @@ describe("DrawingToolGroup", () => {
     });
 
     renderGroup();
-    fireEvent.click(screen.getByRole("button", { name: "Trend Line" }));
+    fireEvent.click(screen.getByRole("button", { name: groupButtonName }));
     expect(onSelect).toHaveBeenCalledWith("straightLine");
   });
 
   it("pins flyout on tap when pointer is coarse", () => {
     renderGroup();
-    fireEvent.click(screen.getByRole("button", { name: "Trend Line" }));
+    fireEvent.click(screen.getByRole("button", { name: groupButtonName }));
     expect(onPin).toHaveBeenCalled();
     expect(onOpen).toHaveBeenCalled();
     expect(onSelect).not.toHaveBeenCalled();
@@ -75,6 +82,33 @@ describe("DrawingToolGroup", () => {
     renderGroup({ isOpen: true });
     expect(screen.getByRole("menu", { name: "Lines" })).toBeTruthy();
     expect(screen.getAllByRole("menuitemradio").length).toBe(linesGroup.tools.length);
+  });
+
+  it("shows group tooltip when flyout is closed", () => {
+    renderGroup();
+    fireEvent.mouseEnter(screen.getByRole("button", { name: groupButtonName }));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.getByRole("tooltip")).toHaveTextContent(groupButtonName);
+  });
+
+  it("shows group tooltip while flyout is open", () => {
+    renderGroup({ isOpen: true });
+    fireEvent.mouseEnter(screen.getByRole("button", { name: groupButtonName }));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.getByRole("tooltip")).toHaveTextContent(groupButtonName);
+  });
+
+  it("shows tool tooltip on flyout menu item hover", () => {
+    renderGroup({ isOpen: true });
+    fireEvent.mouseEnter(screen.getByRole("menuitemradio", { name: "Horizontal Line" }));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Horizontal Line");
   });
 
   it("selects tool from menu and closes", () => {

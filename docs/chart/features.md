@@ -27,7 +27,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
                                       ├─ ChartCanvas (price pane)
                                       ├─ ChartCanvas (sub-panes, one per sub indicator)
                                       ├─ PaneSeparators (drag-resize between panes)
-                                      ├─ PaneControls (collapse / maximize / reorder on hover)
+                                      ├─ PaneControlBar (move / remove / collapse / maximize on hover)
                                       └─ CrosshairOverlay (unified crosshair)
 ```
 
@@ -54,7 +54,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | `indicators` | `{ id, name, pane, params?, visible? }[]` — UUID instance ids |
 | `drawings` | Serialized overlay array |
 | `paneOrder?` | Visual stacking order (`PRICE_PANE_KEY` + indicator keys) |
-| `collapsedPanes?` | Pane keys collapsed to 24 px header height |
+| `collapsedPanes?` | Pane keys collapsed to 28 px header height |
 | `maximizedPane?` | Single pane expanded; others collapsed |
 | `paneHeights?` | User-resized sub-pane heights (px), keyed by indicator key |
 
@@ -143,7 +143,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Manual Y lock (time-axis drag) | **Done** | `scaleTimeFromInitial()` sets manual |
 | Manual Y pan (body drag, manual only) | **Done** | `panPrice()` when mode is manual |
 | Double-click price axis → reset auto | **Done** | `resetPanePriceScale()` per pane |
-| Reset chart view (context menu) | **Done** | Right-click chart when modified → resets all panes via `resetChartView()` |
+| Reset chart view (context menu) | **Partial** | Always in blank menu; disabled when viewport default; no ⌥R — see [context-menu-reference.md §1.1](./context-menu-reference.md#11-chart-view) |
 | Viewport modified detection | **Done** | `isViewportModified()` compares pan/zoom/scale to defaults |
 | Hover cursors | **Done** | `resolveHoverCursor()` — crosshair, grab/grabbing, ns/ew-resize on axes |
 | Drawing-tool cursor mode | **Done** | Active drawing tool shows crosshair cursor on canvas |
@@ -159,14 +159,14 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Price pane fills cell when no subs | **Done** | `createInitialLayout()` |
 | Sub-pane per sub indicator | **Done** | e.g. MACD gets own `ChartCanvas` |
 | Fixed default sub height (100 px) | **Done** | `SUB_DEFAULT` in `panes.ts` |
-| Collapsed sub height (24 px) | **Done** | When in `collapsedPanes` |
+| Collapsed sub height (28 px) | **Done** | When in `collapsedPanes` |
 | Min price pane height (80 px) | **Done** | Clamps + shrinks subs in short cells |
-| Maximize one pane | **Done** | `PaneControls` + `panes.ts`; persisted `maximizedPane` |
-| Collapse pane | **Done** | Same; 24 px collapsed height |
-| Pane reorder (`paneOrder`) | **Done** | `resolvePaneStackOrder` in `panes.ts`; move up/down in `PaneControls` |
+| Maximize one pane | **Done** | `PaneControlBar` + `panes.ts`; persisted `maximizedPane` |
+| Collapse pane | **Done** | Same; 28 px collapsed height |
+| Pane reorder (`paneOrder`) | **Done** | `resolvePaneStackOrder` in `panes.ts`; move up/down in `PaneControlBar` |
 | Drag-resize pane separator | **Done** | `PaneSeparators` + `applyBoundaryResize()`; persists `paneHeights` on drag end |
 | Separator disabled states | **Done** | Disabled when adjacent pane collapsed or maximized |
-| Pane header controls (hover) | **Done** | `PaneControls.tsx` overlaid on measured pane rects |
+| Pane header controls (hover) | **Done** | `PaneControlBar.tsx` inline per pane; shown only when `stack.length > 1` |
 | 1 px border between sub-panes | **Done** | CSS `borderTop`; accounted in crosshair segment offsets |
 
 ---
@@ -280,7 +280,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Edit control points | **Done** | Magnet applies on CP drag |
 | Delete selected drawing | **Done** | Toolbar ⌫ + `onSelectionChange` sync |
 | Magnet (snap OHLC) | **Done** | 5px strong magnet |
-| Context menu (rename/lock/hide/z) | **Done** | Canvas right-click hit-test → menu |
+| Drawing context menu (rename/lock/hide/z) | **Done** | Canvas right-click hit-test → overlay menu — see [context-menu-reference.md §2](./context-menu-reference.md#2-drawing--overlay-context-menu) |
 | Z-order / duplicate | **Done** | `bringForward`/`sendBackward`/`duplicateOverlay` |
 | Object Tree drawings section | **Done** | Lists tracked overlays; reorder via z-level |
 
@@ -303,8 +303,9 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Object Tree — data window | **Done** | Live OHLCV + visible indicator values at crosshair via `legend.ts` |
 | Indicator picker modal | **Done** | |
 | Bar Replay panel | **Done** | Slider driven by `onDataLoaded`; slice via `visibleCount` without refetch |
-| Chart context menu | **Done** | “Reset chart view” when viewport modified |
-| Overlay context menu | **Done** | Rename, lock, hide, z-order, duplicate (latter two stubbed) |
+| Blank chart context menu | **Partial** | Reset, copy price, object tree, bulk remove wired via `chartContextMenu.ts`; Settings/templates/table still deferred — [context-menu-reference.md §1](./context-menu-reference.md#1-blank-chart-plot-area) |
+| Drawing overlay context menu | **Done** | Rename, lock, hide, z-order, duplicate, remove — [context-menu-reference.md §2.2](./context-menu-reference.md#22-edge-overlay-menu-today) |
+| Price / time axis context menus | **Partial** | Double-click price axis → reset auto scale; no axis right-click menus — [context-menu-reference.md §3–4](./context-menu-reference.md#3-price-scale-y-axis-context-menu) |
 | Old Chart (`Chart.tsx`) | **Legacy removed** | klinecharts wrapper deleted; `ChartCell` uses `EdgeChart` only |
 
 ---
@@ -320,7 +321,7 @@ Imperative API consumed by `ChartCell`, Object Tree, and sync bridge.
 | `serializeDrawings` / `restoreDrawings` | **Done** | |
 | `resize` | **Done** | Reads container `clientWidth/Height` |
 | `onCrosshair` | **Done** | Fires timestamp on move (imperative subscribe) |
-| `onCrosshairMove` (prop) | **Done** | `{ timestamp, dataIndex }` for Object Tree data window |
+| `onCrosshairMove` (prop) | **Done** | `{ timestamp, dataIndex, valueLabel }` for Object Tree + blank menu copy price |
 | `getRawCandleCount` / `getCandles` | **Done** | Full base dataset length and display candles |
 | `setCrosshairFromSync` | **Done** | Applies peer crosshair at timestamp; no re-broadcast |
 | `getTrackedOverlays` | **Done** | |
@@ -368,6 +369,8 @@ Chart engine tests live under `src/lib/chart/` (Vitest). App/layout tests under 
 | Grid layout shell | `ChartGrid.layout.test.tsx` | All 5 `GridMode`s; `min-h-0` / `overflow-hidden` classes |
 | Link propagation | `chartConfig.link.test.ts` | `pickLinkFields`, linked/unlinked patches, `activeCellIndex` persistence |
 | Crosshair sync bus | `ChartSyncContext.test.tsx` | Broadcast when linked; no-op when unlinked |
+| Blank chart context menu | `chartContextMenu.test.ts` | Menu builder items, disabled reset, counts, actions |
+| Context menu UI | `ContextMenu.test.tsx` | Viewport clamping; disabled items |
 | App smoke | `StockApp.test.tsx` | Render, theme hydration |
 
 Run engine tests: `npm test -- --run src/lib/chart/`  
@@ -380,8 +383,9 @@ Run layout/sync tests: `npm test -- --run src/app/components/ChartGrid.layout.te
 | Area | Path |
 |------|------|
 | React chart host | `src/app/components/EdgeChart.tsx` |
-| Pane header controls | `src/app/components/PaneControls.tsx` |
+| Pane header controls | `src/app/components/PaneControlBar.tsx` |
 | Indicator settings modal | `src/app/components/IndicatorSettingsModal.tsx` |
+| Context menu | `src/app/components/chartContextMenu.ts`, `ContextMenu.tsx` |
 | OHLCV legend overlay | `src/app/components/ChartLegendBar.tsx` |
 | Pane drag-resize UI | `src/app/components/PaneSeparators.tsx` |
 | Per-pane canvas | `src/lib/chart/canvas.tsx` |
@@ -425,7 +429,7 @@ V1 chart contract closed June 2025 (Phases 0–4). Remaining work is polish and 
 | **Go to date** | Not implemented |
 | **Replay position persist** | Bar Replay state not saved to `CellConfig` |
 
-**Recently closed (V1 contract):** EMA + VOL plugins; Bar Replay wiring; pane controls (`PaneControls`); edge fetch on pan-left; Object Tree data window; indicator params modal; pinch zoom; klinecharts removal.
+**Recently closed (V1 contract):** EMA + VOL plugins; Bar Replay wiring; pane controls (`PaneControlBar`); edge fetch on pan-left; Object Tree data window; indicator params modal; pinch zoom; klinecharts removal.
 
 ---
 
@@ -437,6 +441,7 @@ Prioritized against [tradingview-reference.md](./tradingview-reference.md). Edge
 
 | Priority | Edge work | Notes |
 |----------|-----------|-------|
+| A0 | **Blank chart context menu — remaining** | Settings modal, ⌥R shortcut — core items done in `chartContextMenu.ts` |
 | A1 | **Batch indicator plugins** — next 5–10 catalog entries | Follow `macd.ts` / `ma.ts` template; enable in picker as shipped |
 | A2 | **Granular layout sync toggles** | Separate symbol / interval / crosshair (not one checkbox) |
 | A3 | **Undo/redo for drawings** | Standard TV drawing workflow |
@@ -462,6 +467,7 @@ Prioritized against [tradingview-reference.md](./tradingview-reference.md). Edge
 
 ## Related docs
 
+- [Context menu reference](./context-menu-reference.md) — TradingView context menus by click target; Edge parity per item
 - [TradingView reference](./tradingview-reference.md) — External benchmark inventory (Supercharts feature set)
 - [V1 scope lock](./prereqs/v1-scope.md) — Original must-ship list
 - [Gesture bible](./prereqs/gesture-bible.md) — Interaction spec (target behavior)

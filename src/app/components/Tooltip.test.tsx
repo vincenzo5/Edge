@@ -38,6 +38,23 @@ describe('Tooltip', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('Opening price for this bar');
   });
 
+  it('renders portaled tooltip in document.body', () => {
+    render(
+      <Tooltip content="Lines — Trend Line" theme="dark" portaled>
+        <button type="button">Lines</button>
+      </Tooltip>,
+    );
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Lines' }));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toHaveTextContent('Lines — Trend Line');
+    expect(tooltip.parentElement).toBe(document.body);
+  });
+
   it('hides tooltip on mouse leave', () => {
     render(
       <Tooltip content="Opening price for this bar" theme="dark">

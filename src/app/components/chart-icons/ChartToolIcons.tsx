@@ -61,6 +61,14 @@ export const HideDrawingsIcon = (p: IconProps) => (
 );
 export const TrashIcon = (p: IconProps) => <ChartIcon {...p} id="trash" />;
 export const DeleteIcon = (p: IconProps) => <ChartIcon {...p} id="delete" />;
+export const PaneMoveUpIcon = (p: IconProps) => <ChartIcon {...p} id="pane-move-up" />;
+export const PaneMoveDownIcon = (p: IconProps) => <ChartIcon {...p} id="pane-move-down" />;
+export const PaneCollapseIcon = (p: IconProps) => <ChartIcon {...p} id="pane-collapse" />;
+export const PaneRestoreIcon = (p: IconProps) => <ChartIcon {...p} id="pane-restore" />;
+export const PaneMaximizeIcon = (p: IconProps) => <ChartIcon {...p} id="pane-maximize" />;
+export const PaneRestoreLayoutIcon = (p: IconProps) => (
+  <ChartIcon {...p} id="pane-restore-layout" />
+);
 
 export const CHART_TOOL_ICONS = {
   __cursor__: CrosshairIcon,

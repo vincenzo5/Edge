@@ -17,13 +17,27 @@ vi.mock('@/lib/chart/series', () => ({
   shouldPrefetchEdge: () => false,
 }));
 
-const config: CellConfig = {
+const baseConfig: CellConfig = {
   symbol: 'AAPL',
   range: '1y',
   interval: '1d',
   chartType: 'candle_solid',
   indicators: [],
   drawings: [],
+};
+
+const persistedDrawing = {
+  id: 'd1',
+  name: 'trend_line',
+  label: 'Trend Line',
+  points: [
+    { timestamp: 1000, value: 100 },
+    { timestamp: 3000, value: 115 },
+  ],
+  visible: true,
+  locked: false,
+  zLevel: 1,
+  paneId: 'price',
 };
 
 describe('EdgeChart drawing handle', () => {
@@ -34,7 +48,7 @@ describe('EdgeChart drawing handle', () => {
   it('exposes selection and magnet APIs on ref', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     render(
-      <EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />
+      <EdgeChart ref={ref} config={baseConfig} theme="dark" chartId="t1" />
     );
     await waitFor(() => expect(ref.current).not.toBeNull());
     expect(ref.current!.getSelectedDrawingId()).toBeNull();
@@ -43,5 +57,59 @@ describe('EdgeChart drawing handle', () => {
     expect(ref.current!.getMagnetEnabled()).toBe(true);
     ref.current!.startDrawing('straightLine');
     expect(ref.current!.serializeDrawings()).toEqual([]);
+  });
+
+  it('hydrates tracked overlays from persisted config after candles load', async () => {
+    const ref = { current: null as import('./EdgeChart').ChartHandle | null };
+    const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
+    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+
+    await waitFor(() => {
+      expect(ref.current?.getTrackedOverlays()).toHaveLength(1);
+    });
+
+    const [overlay] = ref.current!.getTrackedOverlays();
+    expect(overlay.id).toBe('d1');
+    expect(overlay.name).toBe('trend_line');
+  });
+
+  it('disarms toolbar when selecting a drawing while a tool is armed', async () => {
+    const onDrawingDisarmed = vi.fn();
+    const ref = { current: null as import('./EdgeChart').ChartHandle | null };
+    render(
+      <EdgeChart
+        ref={ref}
+        config={baseConfig}
+        theme="dark"
+        chartId="t1"
+        onDrawingDisarmed={onDrawingDisarmed}
+      />
+    );
+    await waitFor(() => expect(ref.current).not.toBeNull());
+
+    ref.current!.startDrawing('straightLine');
+    ref.current!.selectDrawing('d1');
+
+    expect(onDrawingDisarmed).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onDrawingDisarmed once when stopping an armed tool', async () => {
+    const onDrawingDisarmed = vi.fn();
+    const ref = { current: null as import('./EdgeChart').ChartHandle | null };
+    render(
+      <EdgeChart
+        ref={ref}
+        config={baseConfig}
+        theme="dark"
+        chartId="t1"
+        onDrawingDisarmed={onDrawingDisarmed}
+      />
+    );
+    await waitFor(() => expect(ref.current).not.toBeNull());
+
+    ref.current!.startDrawing('straightLine');
+    ref.current!.stopDrawing();
+
+    expect(onDrawingDisarmed).toHaveBeenCalledTimes(1);
   });
 });

@@ -9,6 +9,7 @@ import IndicatorPicker from "./IndicatorPicker";
 import ObjectTree from "./ObjectTree";
 import IndicatorSettingsModal from "./IndicatorSettingsModal";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
+import { buildChartContextMenuItems } from "./chartContextMenu";
 import { useChartSync } from "./ChartSyncContext";
 import type { Candle } from "@/lib/chart/contracts";
 import {
@@ -57,11 +58,13 @@ export default function ChartCell({
   const [crosshairData, setCrosshairData] = useState<{
     dataIndex: number | null;
     timestamp: number | null;
-  }>({ dataIndex: null, timestamp: null });
+    valueLabel: string | null;
+  }>({ dataIndex: null, timestamp: null, valueLabel: null });
   const crosshairRafRef = useRef<number | null>(null);
   const pendingCrosshairRef = useRef<{
     dataIndex: number | null;
     timestamp: number | null;
+    valueLabel: string | null;
   } | null>(null);
   const [settingsIndicatorId, setSettingsIndicatorId] = useState<string | null>(null);
   const [objectTreeVisible, setObjectTreeVisible] = useState(false);
@@ -243,7 +246,11 @@ export default function ChartCell({
   );
 
   const handleCrosshairMove = useCallback(
-    (ev: { timestamp: number | null; dataIndex: number | null }) => {
+    (ev: {
+      timestamp: number | null;
+      dataIndex: number | null;
+      valueLabel: string | null;
+    }) => {
       pendingCrosshairRef.current = ev;
       if (crosshairRafRef.current != null) return;
       crosshairRafRef.current = requestAnimationFrame(() => {
@@ -418,22 +425,49 @@ export default function ChartCell({
     [overlayActions, overlays],
   );
 
-  const handleChartContextMenu = useCallback((pos: { x: number; y: number }) => {
-    const modified = chartRef.current?.isViewportModified() ?? false;
-    const items: ContextMenuItem[] = [];
-    if (modified) {
-      items.push({
-        id: "reset-view",
-        label: "Reset chart view",
-        action: () => {
-          chartRef.current?.resetChartView();
-          setContextMenu(null);
+  const handleChartContextMenu = useCallback(
+    (pos: { x: number; y: number }) => {
+      const modified = chartRef.current?.isViewportModified() ?? false;
+      const items = buildChartContextMenuItems(
+        {
+          viewportModified: modified,
+          drawingCount: overlays.length,
+          indicatorCount: config.indicators.length,
+          priceLabel: crosshairData.valueLabel,
         },
-      });
-    }
-    if (items.length === 0) return;
-    setContextMenu({ position: pos, items });
-  }, []);
+        {
+          resetView: () => {
+            chartRef.current?.resetChartView();
+            setContextMenu(null);
+          },
+          copyPrice: (price) => {
+            void navigator.clipboard.writeText(price);
+            setContextMenu(null);
+          },
+          openObjectTree: () => {
+            setObjectTreeVisible(true);
+            setContextMenu(null);
+          },
+          removeDrawings: () => {
+            handleClearDrawings();
+            setContextMenu(null);
+          },
+          removeIndicators: () => {
+            update({ indicators: [] });
+            setContextMenu(null);
+          },
+        },
+      );
+      setContextMenu({ position: pos, items });
+    },
+    [
+      overlays.length,
+      config.indicators.length,
+      crosshairData.valueLabel,
+      handleClearDrawings,
+      update,
+    ],
+  );
 
   // Delete selected drawing.
   const handleDeleteSelected = useCallback(() => {
@@ -524,9 +558,10 @@ export default function ChartCell({
       </div>
 
       {/* Body: drawing rail + chart + optional tree */}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="relative z-20 shrink-0 overflow-visible">
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <div className="relative z-20 flex h-full shrink-0 self-stretch overflow-visible">
           <DrawingToolbar
+          theme={theme}
           compact={compact}
           disabled={!isActive}
           activeTool={activeTool}

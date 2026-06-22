@@ -2,7 +2,11 @@
 
 import type { Theme } from '@/lib/chart/contracts';
 import type { LegendActionIcon, LegendSection } from '@/lib/chart/legend/types';
+import { PRICE_AXIS_WIDTH } from '@/lib/chart/layout';
 import Tooltip from './Tooltip';
+
+/** Reserve space for always-visible collapsed pane controls on the right. */
+const COLLAPSED_CONTROLS_WIDTH = 112;
 
 type Props = {
   sections: LegendSection[];
@@ -10,6 +14,8 @@ type Props = {
   onAction?: (actionId: string) => void;
   className?: string;
   style?: React.CSSProperties;
+  /** Single-line legend centered in the collapsed pane strip. */
+  compact?: boolean;
 };
 
 function ActionIcon({ icon }: { icon: LegendActionIcon }) {
@@ -71,25 +77,44 @@ function ActionIcon({ icon }: { icon: LegendActionIcon }) {
   }
 }
 
-export default function PaneLegendBar({ sections, theme, onAction, className, style }: Props) {
+export default function PaneLegendBar({
+  sections,
+  theme,
+  onAction,
+  className,
+  style,
+  compact = false,
+}: Props) {
   if (sections.length === 0) return null;
 
   const isDark = theme === 'dark';
   const muted = isDark ? 'text-[#8B8FA3]' : 'text-gray-500';
   const defaultValue = isDark ? 'text-[#E8E9ED]' : 'text-gray-900';
-  const hoverBg = isDark ? 'group-hover/pane-legend:bg-[#1E2030]/90' : 'group-hover/pane-legend:bg-gray-100/90';
+  const hoverBg = compact
+    ? ''
+    : isDark
+      ? 'group-hover/pane-legend:bg-[#1E2030]/90'
+      : 'group-hover/pane-legend:bg-gray-100/90';
   const sectionHover = isDark ? 'hover:bg-white/10' : 'hover:bg-black/5';
 
   return (
     <div
-      className={`group/pane-legend absolute left-2 top-2 z-10 max-w-[calc(100%-1rem)] ${className ?? ''}`}
-      style={style}
+      className={`group/pane-legend absolute left-2 z-10 ${
+        compact ? 'top-0 flex h-full items-center' : 'top-2 max-w-[calc(100%-1rem)]'
+      } ${className ?? ''}`}
+      style={{
+        ...(compact ? { right: PRICE_AXIS_WIDTH + COLLAPSED_CONTROLS_WIDTH } : {}),
+        ...style,
+      }}
       aria-label="Pane legend"
     >
       <div
-        className={`flex max-w-full flex-wrap items-center gap-x-1 gap-y-0.5 rounded px-1 py-0.5 text-[11px] leading-tight transition-colors ${hoverBg}`}
+        className={`flex max-w-full items-center gap-x-1 rounded px-1 text-[11px] leading-tight transition-colors ${
+          compact ? 'min-w-0 flex-nowrap overflow-hidden' : 'flex-wrap gap-y-0.5 py-0.5'
+        } ${hoverBg}`}
       >
         {sections.map((section, i) => {
+          if (compact && section.kind === 'action') return null;
           if (section.kind === 'badge') {
             return (
               <Tooltip key={`badge-${i}`} content={section.tooltip} theme={theme}>

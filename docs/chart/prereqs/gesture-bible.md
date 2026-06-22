@@ -22,15 +22,17 @@
 - Drag to define second point; release to finish.
 - Hit test tolerance: 4px around line/segment for selection.
 - Selected drawing: show control points (small squares), allow drag to edit.
-- Right-click on drawing: open context menu (position near click).
+- Right-click on drawing: open context menu (position near click). Full TV item list: [context-menu-reference.md §2](../context-menu-reference.md#2-drawing--overlay-context-menu).
+- Right-click on blank chart: open chart context menu (always visible in TV). Edge target: [context-menu-reference.md §1](../context-menu-reference.md#1-blank-chart-plot-area).
 - Magnet: when enabled, snap new points to nearest candle OHLC (within 5px vertical).
 
 ## Pane Controls
 - Drag separator between panes: resize height (min 40px, max 400px).
-- Double-click separator or header: collapse (height=0, show 24px hit bar).
-- Maximize button: expand to full height, collapse others.
-- Move up/down arrows: reorder in paneOrder.
-- Controls appear on hover over pane header area (measured rects).
+- Maximize button: expand pane to full chart cell height, collapse others.
+- Collapse button: collapse pane to 24px header height; restore uncollapses.
+- Move up/down buttons: reorder in `paneOrder` (swap with adjacent pane).
+- Remove (trash): sub-panes only, when multiple panes exist — removes indicator.
+- Controls appear on hover over each pane header when **two or more panes** exist (inline top-right icon row, click only).
 
 ## Replay
 - BarReplay scrubber changes visibleCount: slice data to 0..count, re-render instantly.

@@ -24,15 +24,23 @@ describe('createInitialLayout', () => {
 
   it('collapses price pane height when price is in collapsed set', () => {
     const layout = createInitialLayout(['macd'], 400, new Set(['price']), null);
-    expect(layout.pricePane.height).toBe(24);
+    expect(layout.pricePane.height).toBe(28);
     expect(layout.pricePane.isCollapsed).toBe(true);
+    expect(layout.subPanes[0].height).toBe(400 - PANE_SEPARATOR_HEIGHT - 28);
+  });
+
+  it('expands price pane when a sub-pane is collapsed', () => {
+    const layout = createInitialLayout(['macd'], 400, new Set(['macd']), null);
+    expect(layout.subPanes[0].height).toBe(28);
+    expect(layout.subPanes[0].isCollapsed).toBe(true);
+    expect(layout.pricePane.height).toBe(400 - PANE_SEPARATOR_HEIGHT - 28);
   });
 
   it('expands price pane and collapses subs when price is maximized', () => {
     const layout = createInitialLayout(['macd', 'rsi'], 400, new Set(), 'price');
     expect(layout.pricePane.isMaximized).toBe(true);
     expect(layout.pricePane.height).toBeGreaterThan(300);
-    expect(layout.subPanes.every((p) => p.height === 24)).toBe(true);
+    expect(layout.subPanes.every((p) => p.height === 28)).toBe(true);
   });
 
   it('orders stack by paneOrder', () => {
@@ -62,7 +70,7 @@ describe('createInitialLayout', () => {
     expect(layout.pricePane.height + layout.subPanes.reduce((s, p) => s + p.height, 0) + sepSpace).toBeLessThanOrEqual(
       150
     );
-    expect(layout.subPanes.every((p) => p.height >= 24)).toBe(true);
+    expect(layout.subPanes.every((p) => p.height >= 28)).toBe(true);
   });
 
   it('never assigns zero or negative price pane height with multiple sub-panes', () => {

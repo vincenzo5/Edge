@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef } from "react";
+import type { Theme } from "@/lib/chartConfig";
+import Tooltip from "./Tooltip";
 import {
   type DrawingToolName,
   type ToolGroup,
@@ -13,6 +15,7 @@ import {
 import { usePointerCoarse } from "./chart-icons/usePointerCoarse";
 
 type Props = {
+  theme: Theme;
   group: ToolGroup;
   selectedTool: DrawingToolName;
   activeTool: string;
@@ -29,6 +32,7 @@ type Props = {
 };
 
 export default function DrawingToolGroup({
+  theme,
   group,
   selectedTool,
   activeTool,
@@ -55,8 +59,10 @@ export default function DrawingToolGroup({
   const DisplayIcon = getToolIcon(displayTool);
   const activeItem = group.tools.find((t) => t.name === activeTool);
   const selectedItem = group.tools.find((t) => t.name === selectedTool);
+  const defaultItem = group.tools.find((t) => t.name === group.defaultTool);
   const buttonLabel =
-    activeItem?.label ?? selectedItem?.label ?? group.label;
+    activeItem?.label ?? selectedItem?.label ?? defaultItem?.label ?? group.label;
+  const groupTooltip = `${group.label} — ${buttonLabel}`;
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimer.current) {
@@ -160,20 +166,21 @@ export default function DrawingToolGroup({
       onMouseEnter={handleEnter}
       onMouseLeave={scheduleClose}
     >
-      <button
-        type="button"
-        title={buttonLabel}
-        aria-label={buttonLabel}
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        aria-controls={isOpen ? menuId : undefined}
-        disabled={disabled}
-        onClick={handleGroupClick}
-        onKeyDown={handleGroupKeyDown}
-        className={`${toolbarButtonClass(compact)} ${toolbarButtonStateClass(isGroupActive)}`}
-      >
-        <DisplayIcon size={iconSize} />
-      </button>
+      <Tooltip content={groupTooltip} theme={theme} side="right" portaled>
+        <button
+          type="button"
+          aria-label={groupTooltip}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          aria-controls={isOpen ? menuId : undefined}
+          disabled={disabled}
+          onClick={handleGroupClick}
+          onKeyDown={handleGroupKeyDown}
+          className={`${toolbarButtonClass(compact)} ${toolbarButtonStateClass(isGroupActive)}`}
+        >
+          <DisplayIcon size={iconSize} />
+        </button>
+      </Tooltip>
 
       {isOpen && !disabled && (
         <div
@@ -191,23 +198,32 @@ export default function DrawingToolGroup({
             const Icon = getToolIcon(tool.name);
             const isActive = activeTool === tool.name;
             return (
-              <button
+              <Tooltip
                 key={tool.name}
-                type="button"
-                role="menuitemradio"
-                aria-checked={isActive}
-                onClick={() => handleSelect(tool.name)}
-                className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
-                  isActive
-                    ? "bg-[#2a2e39] text-[#d1d4dc]"
-                    : "text-[#d1d4dc] hover:bg-[#1e222d]"
-                }`}
+                content={tool.label}
+                theme={theme}
+                side="right"
+                portaled
+                className="block w-full"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center text-[#787b86]">
-                  <Icon size={22} />
-                </span>
-                <span>{tool.label}</span>
-              </button>
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={isActive}
+                  aria-label={tool.label}
+                  onClick={() => handleSelect(tool.name)}
+                  className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
+                    isActive
+                      ? "bg-[#2a2e39] text-[#d1d4dc]"
+                      : "text-[#d1d4dc] hover:bg-[#1e222d]"
+                  }`}
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center text-[#787b86]">
+                    <Icon size={22} />
+                  </span>
+                  <span>{tool.label}</span>
+                </button>
+              </Tooltip>
             );
           })}
         </div>

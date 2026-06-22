@@ -64,7 +64,7 @@ describe('resolveLegendBar', () => {
 });
 
 describe('resolvePriceLegend', () => {
-  it('includes OHLCV value sections with tooltips', () => {
+  it('includes OHLC value sections with tooltips', () => {
     const sections = resolvePriceLegend({
       symbol: 'AAPL',
       symbolName: 'Apple Inc.',
@@ -79,7 +79,7 @@ describe('resolvePriceLegend', () => {
       .filter((s) => s.kind === 'value')
       .map((s) => (s.kind === 'value' ? s.id : ''));
 
-    expect(valueIds).toEqual(['open', 'high', 'low', 'close', 'change', 'volume']);
+    expect(valueIds).toEqual(['open', 'high', 'low', 'close', 'change']);
 
     const open = sections!.find((s) => s.kind === 'value' && s.id === 'open');
     expect(open?.kind === 'value' && open.value).toBe('11');

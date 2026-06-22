@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import ContextMenu, { clampMenuPosition } from './ContextMenu';
 
 describe('clampMenuPosition', () => {
@@ -69,5 +69,29 @@ describe('ContextMenu', () => {
     expect(top).toBe(172);
 
     rectSpy.mockRestore();
+  });
+
+  it('does not invoke action when item is disabled', () => {
+    const action = vi.fn();
+    const items = [
+      {
+        id: 'reset',
+        label: 'Reset chart view',
+        disabled: true,
+        action,
+      },
+    ];
+
+    render(
+      <ContextMenu
+        open
+        position={{ x: 10, y: 10 }}
+        items={items}
+        onClose={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset chart view' }));
+    expect(action).not.toHaveBeenCalled();
   });
 });

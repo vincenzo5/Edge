@@ -14,6 +14,7 @@ type Props = {
   dataIndex: number | null;
   theme: Theme;
   onAction?: (actionId: string) => void;
+  compact?: boolean;
 };
 
 type SymbolMeta = { name: string; exchange: string };
@@ -27,6 +28,7 @@ export default function ChartLegendBar({
   dataIndex,
   theme,
   onAction,
+  compact = false,
 }: Props) {
   const [fetchedMeta, setFetchedMeta] = useState<SymbolMeta | null>(null);
 
@@ -77,5 +79,7 @@ export default function ChartLegendBar({
 
   if (!sections) return null;
 
-  return <PaneLegendBar sections={sections} theme={theme} onAction={onAction} />;
+  return (
+    <PaneLegendBar sections={sections} theme={theme} onAction={onAction} compact={compact} />
+  );
 }
