@@ -14,7 +14,7 @@ type EdgeChartProps = {
   onMoveIndicatorDown?: (key: string) => void;
   onCollapseIndicator?: (key: string) => void;
   onMaximizeIndicator?: (key: string) => void;
-  onRemoveIndicator?: (name: string, pane: 'main' | 'sub') => void;
+  onRemoveIndicator?: (id: string) => void;
 };
 
 let capturedEdgeChartProps: EdgeChartProps | null = null;
@@ -178,7 +178,7 @@ describe('ChartCell pane actions', () => {
   it('removes indicator via onRemoveIndicator', async () => {
     const { onConfigChange } = renderCell();
     await waitFor(() => expect(capturedEdgeChartProps?.onRemoveIndicator).toBeTypeOf('function'));
-    capturedEdgeChartProps!.onRemoveIndicator!('RSI', 'sub');
+    capturedEdgeChartProps!.onRemoveIndicator!(rsiId);
     expect(onConfigChange).toHaveBeenCalledWith(
       expect.objectContaining({
         indicators: [expect.objectContaining({ id: macdId, name: 'MACD' })],

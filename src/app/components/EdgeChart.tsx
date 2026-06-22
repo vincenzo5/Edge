@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,15 +23,18 @@ import type { ChartPaneHandle, RegisterPane } from '@/lib/chart/paneHandle';
 import { PRICE_PANE_KEY } from '@/lib/chartConfig';
 import ChartCanvas from '@/lib/chart/canvas';
 import CrosshairOverlay from '@/lib/chart/CrosshairOverlay';
+import { mergeChartSettings, type ChartSettings } from '@/lib/chart/chartSettings';
 import ChartLegendBar from './ChartLegendBar';
 import PaneLegendBar from './PaneLegendBar';
-import { resolveIndicatorLegend, appendLegendSettingsAction } from '@/lib/chart/legend';
+import { resolveIndicatorLegend, appendLegendSettingsAction, indicatorHasSettings } from '@/lib/chart/legend';
 import { IndicatorRegistry } from '@/lib/chart/pluginHost';
 import { createInitialLayout, applyBoundaryResize, computePaneBoundaries, PANE_SEPARATOR_HEIGHT, type PaneLayout } from '@/lib/chart/panes';
 import PaneSeparators from './PaneSeparators';
 import PaneControlBar from './PaneControlBar';
-import { fetchYahooCandles, applyVisibleSlice, mergeCandlesPrepend, fetchOlderCandles, shouldPrefetchEdge, transformCandlesForChartType } from '@/lib/chart/series';
-import type { Candle } from '@/lib/chart/contracts';
+import { fetchYahooCandles, applyVisibleSlice, mergeCandlesPrepend, fetchOlderCandles, shouldPrefetchEdge, transformCandlesForChartType, ensureCandlesCover } from '@/lib/chart/series';
+import type { Candle, Range, Interval } from '@/lib/chart/contracts';
+import { buildCandleSessionKey, resolveViewportRevision } from '@/lib/chart/rangePresetTransition';
+import { goToDate, goToRange, type GoToRequest, type GoToResult } from '@/lib/chart/goTo';
 import { hitTestAll, hitTestControlPoint, restoreAll, serializeAll } from '@/lib/chart/pluginHost';
 import { DrawingStore, pointsEqual } from '@/lib/chart/drawingStore';
 import { plotToPoint } from '@/lib/chart/drawingCoords';
@@ -61,6 +65,13 @@ import {
   newDrawingId,
   getPluginForTool,
 } from '@/lib/chart/drawingController';
+import {
+  cloneDrawingPayload,
+  cloneDrawingsForPaste,
+  DUPLICATE_ANCHOR,
+  type DrawingClipboardItem,
+  type PasteAnchor,
+} from '@/lib/chart/drawingClone';
 import {
   mergeWheelBatch,
   normalizeWheelDelta,
@@ -96,6 +107,8 @@ export function legacyParseIndicatorKey(key: IndicatorKey): Pick<IndicatorConfig
   return { name: parts.join('::'), pane };
 }
 
+export type { GoToRequest, GoToResult } from '@/lib/chart/goTo';
+
 export type ChartHandle = {
   startDrawing: (overlayName: string) => void;
   stopDrawing: () => void;
@@ -112,12 +125,15 @@ export type ChartHandle = {
   setOverlayLocked: (id: string, locked: boolean) => void;
   renameOverlay: (id: string, label: string) => void;
   duplicateOverlay: (id: string) => string | null;
+  pasteDrawings: (items: DrawingClipboardItem[], anchor: PasteAnchor) => string[];
   bringForward: (id: string) => void;
   sendBackward: (id: string) => void;
   subscribeOverlayChange: (cb: () => void) => () => void;
   getSubPaneId: (key: IndicatorKey) => string | undefined;
   applyPaneHeights: (heights: Map<IndicatorKey, number | null>) => void;
   resetChartView: () => void;
+  /** Reset price Y scale to auto, restore live-edge right margin; optional settings for scale-type switch. */
+  resetPriceScaleWindow: (settingsOverride?: ChartSettings) => void;
   isViewportModified: () => boolean;
   getSelectedDrawingId: () => string | null;
   selectDrawing: (id: string | null) => void;
@@ -137,6 +153,8 @@ export type ChartHandle = {
   canRedo: () => boolean;
   getRawCandleCount: () => number;
   getCandles: () => Candle[];
+  goTo: (req: GoToRequest) => Promise<GoToResult>;
+  getLastCandleTimestamp: () => number | null;
 };
 
 type Props = {
@@ -147,7 +165,12 @@ type Props = {
   onConfigChange?: (next: CellConfig) => void;
   onOverlayRightClick?: (overlay: TrackedOverlay, pos: { x: number; y: number }) => void;
   onChartContextMenu?: (pos: { x: number; y: number }) => void;
-  onRemoveIndicator?: (name: string, pane: 'main' | 'sub') => void;
+  onPriceScaleContextMenu?: (pos: {
+    clientX: number;
+    clientY: number;
+    priceScaleMode: 'auto' | 'manual';
+  }) => void;
+  onRemoveIndicator?: (id: string) => void;
   onCollapseIndicator?: (key: IndicatorKey) => void;
   onMaximizeIndicator?: (key: IndicatorKey) => void;
   onMoveIndicatorUp?: (key: IndicatorKey) => void;
@@ -172,6 +195,7 @@ type Props = {
   }) => void;
   /** Fired when a legend action button is clicked (e.g. settings-{indicatorId}). */
   onLegendAction?: (actionId: string) => void;
+  compact?: boolean;
 };
 
 const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) {
@@ -182,6 +206,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     onConfigChange,
     onOverlayRightClick,
     onChartContextMenu,
+    onPriceScaleContextMenu,
     collapsedKeys,
     maximizedKey,
     paneOrder,
@@ -197,6 +222,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     onCandlesChange,
     onCrosshairMove,
     onLegendAction,
+    compact = false,
   } = props;
 
   const onDataLoadedRef = useRef(onDataLoaded);
@@ -214,9 +240,37 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const onLegendActionRef = useRef(onLegendAction);
   onLegendActionRef.current = onLegendAction;
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const chartAreaRef = useRef<HTMLDivElement>(null);
   const [baseCandles, setBaseCandles] = useState<Candle[]>([]);
-  const [candles, setCandles] = useState<Candle[]>([]);
+  const displayCandles = useMemo(() => {
+    const transformed = transformCandlesForChartType(baseCandles, config.chartType);
+    return applyVisibleSlice(transformed, visibleCount);
+  }, [baseCandles, config.chartType, visibleCount]);
+
+  /** Config identity — viewport reset on session change, not on history prepend. */
+  const candleSessionKey = useMemo(
+    () => buildCandleSessionKey(config.symbol, config.range, config.interval),
+    [config.symbol, config.range, config.interval],
+  );
+
+  /** Session key for candles currently displayed (matches fetch, not pending config). */
+  const [loadedSessionKey, setLoadedSessionKey] = useState<string | null>(null);
+  const fetchGenerationRef = useRef(0);
+
+  /** Bumps when candle session changes or first load completes; stable across edge prepend and rangePreset changes. */
+  const viewportRevision = useMemo(
+    (): string | undefined =>
+      resolveViewportRevision(
+        baseCandles.length,
+        loadedSessionKey,
+        candleSessionKey,
+        candleSessionKey,
+      ),
+    [candleSessionKey, baseCandles.length, loadedSessionKey],
+  );
+
+  /** Interval matching the candles currently on screen (avoids axis flash during refetch). */
+  const [displayInterval, setDisplayInterval] = useState<Interval>(config.interval);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dims, setDims] = useState<{ width: number; height: number }>({ width: 800, height: 400 });
@@ -234,6 +288,12 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const baseCandlesRef = useRef<Candle[]>([]);
   const fetchStateRef = useRef({ inFlight: false, hasMoreHistory: true, abortController: null as AbortController | null });
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userPannedTimeAxisRef = useRef(false);
+  const goToImplRef = useRef<(req: GoToRequest) => Promise<GoToResult>>(async () => ({
+    ok: false,
+    reason: 'no_data',
+  }));
+  const pendingGoToNavigationRef = useRef<{ startIndex: number; endIndex: number } | null>(null);
   const configRef = useRef(config);
   configRef.current = config;
   const drawingsRef = useRef<SerializedDrawing[]>([]);
@@ -439,7 +499,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     getKeepDrawingMode: () => keepDrawingRef.current,
     zoomIn: () => {
       const priceHandle = paneHandlesRef.current.get('price');
-      const el = containerRef.current;
+      const el = chartAreaRef.current;
       if (!priceHandle || !el) return;
       const anchorX = el.clientWidth / 2;
       const vp = priceHandle.applyWheelAction({ type: 'zoom', factor: 1.25 }, anchorX);
@@ -496,7 +556,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       hydrateDrawings(data);
     },
     resize: () => {
-      const el = containerRef.current;
+      const el = chartAreaRef.current;
       if (el) setDims({ width: el.clientWidth, height: el.clientHeight });
     },
     onCrosshair: (cb) => {
@@ -550,19 +610,29 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     duplicateOverlay: (id) => {
       const src = drawingsRef.current.find((d) => d.id === id);
       if (!src) return null;
-      const clone: SerializedDrawing = {
-        ...src,
-        id: newDrawingId(),
-        label: `${src.label} copy`,
-        points: src.points.map((p) => ({
-          ...p,
-          timestamp: p.timestamp != null ? p.timestamp + 86400000 : p.timestamp,
-          value: p.value != null ? p.value * 1.005 : p.value,
-        })),
-        zLevel: src.zLevel + 1,
-      };
+      const maxZ = drawingsRef.current.reduce((m, d) => Math.max(m, d.zLevel), -1);
+      const clone = cloneDrawingPayload(src, {
+        newId: newDrawingId(),
+        anchor: DUPLICATE_ANCHOR,
+        zLevel: maxZ + 1,
+        labelSuffix: ' copy',
+      });
       addCommittedDrawing(clone);
       return clone.id ?? null;
+    },
+    pasteDrawings: (items, anchor) => {
+      if (items.length === 0) return [];
+      const maxZ = drawingsRef.current.reduce((m, d) => Math.max(m, d.zLevel), -1);
+      const clones = cloneDrawingsForPaste(items, anchor, maxZ + 1, newDrawingId);
+      drawingStoreRef.current.execute({
+        type: 'batch',
+        commands: clones.map((drawing) => ({ type: 'add' as const, drawing })),
+      });
+      for (const d of clones) {
+        if (!d.id) continue;
+        trackedRef.current.set(d.id, restoreAll([d])[0]);
+      }
+      return clones.map((d) => d.id!).filter(Boolean);
     },
     bringForward: (id) => {
       const previousOrder = [...drawingsRef.current]
@@ -605,6 +675,20 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         if (id !== 'price') handle.resetViewport();
       });
     },
+    resetPriceScaleWindow: (settingsOverride?: ChartSettings) => {
+      const priceHandle = paneHandlesRef.current.get('price');
+      if (!priceHandle?.resetPriceScale) return;
+      const merged = settingsOverride ?? mergeChartSettings(config.chartSettings);
+      const vp = priceHandle.resetPriceScale(merged);
+      if (vp) {
+        paneHandlesRef.current.forEach((handle, id) => {
+          if (id !== 'price') handle.syncTimeWindow(vp.startIndex, vp.endIndex, true);
+        });
+      }
+      paneHandlesRef.current.forEach((handle, id) => {
+        if (id !== 'price') handle.resetPriceScale?.(merged);
+      });
+    },
     isViewportModified: () => {
       for (const handle of paneHandlesRef.current.values()) {
         if (handle.isViewportModified()) return true;
@@ -629,23 +713,50 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     canRedo: () => drawingStoreRef.current.canRedo(),
     getRawCandleCount: () => baseCandlesRef.current.length,
     getCandles: () => candlesRef.current,
+    goTo: (req) => goToImplRef.current(req),
+    getLastCandleTimestamp: () => {
+      const base = baseCandlesRef.current;
+      return base.length > 0 ? base[base.length - 1]!.t : null;
+    },
   }), [notifyOverlayChange, applyCrosshairFromSync, syncDrawingState, notifySelectionChange, addCommittedDrawing, hydrateDrawings]);
 
-  // Data fetch — full base dataset; replay slice applied separately
+  useEffect(() => {
+    userPannedTimeAxisRef.current = false;
+    if (prefetchTimerRef.current) {
+      clearTimeout(prefetchTimerRef.current);
+      prefetchTimerRef.current = null;
+    }
+  }, [candleSessionKey]);
+
+  const markUserTimePan = useCallback(() => {
+    userPannedTimeAxisRef.current = true;
+  }, []);
+
+  // Data fetch — range + interval from config; bottom-bar presets set both together.
   useEffect(() => {
     let cancelled = false;
+    const generation = ++fetchGenerationRef.current;
+    const sessionKey = buildCandleSessionKey(config.symbol, config.range, config.interval);
     fetchStateRef.current.hasMoreHistory = true;
     fetchStateRef.current.abortController?.abort();
     fetchStateRef.current.abortController = null;
     fetchStateRef.current.inFlight = false;
-    setLoading(true);
+    if (prefetchTimerRef.current) {
+      clearTimeout(prefetchTimerRef.current);
+      prefetchTimerRef.current = null;
+    }
+    const isInitialLoad = baseCandlesRef.current.length === 0;
+    if (isInitialLoad) setLoading(true);
     setError(null);
     (async () => {
       try {
         const raw = await fetchYahooCandles(config.symbol, config.range, config.interval);
         if (cancelled) return;
+        if (generation !== fetchGenerationRef.current) return;
         baseCandlesRef.current = raw;
         setBaseCandles(raw);
+        setLoadedSessionKey(sessionKey);
+        setDisplayInterval(config.interval);
         onDataLoadedRef.current?.({ count: raw.length });
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load');
@@ -658,18 +769,15 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     };
   }, [config.symbol, config.range, config.interval]);
 
-  // Apply chart type transform + Bar Replay slice without re-fetching
-  useEffect(() => {
-    const transformed = transformCandlesForChartType(baseCandles, config.chartType);
-    const sliced = applyVisibleSlice(transformed, visibleCount);
-    candlesRef.current = sliced;
-    setCandles(sliced);
-    onCandlesChangeRef.current?.(sliced);
-  }, [baseCandles, config.chartType, visibleCount]);
+  // Keep refs in sync with derived display series.
+  useLayoutEffect(() => {
+    candlesRef.current = displayCandles;
+    onCandlesChangeRef.current?.(displayCandles);
+  }, [displayCandles]);
 
   // Resize observer for real dimensions
   useEffect(() => {
-    const el = containerRef.current;
+    const el = chartAreaRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -683,11 +791,11 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
 
   // Restore drawings after data load
   useEffect(() => {
-    if (loading || error || candles.length === 0) return;
+    if (loading || error || displayCandles.length === 0) return;
     if (trackedRef.current.size > 0) return;
     if (!config.drawings?.length) return;
     hydrateDrawings(config.drawings);
-  }, [loading, error, candles.length, config.drawings, hydrateDrawings]);
+  }, [loading, error, displayCandles.length, config.drawings, hydrateDrawings]);
 
   const handleCrosshairMove = useCallback((event: CrosshairMoveEvent | null) => {
     if (!event) {
@@ -736,6 +844,146 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       if (id !== sourcePaneId) handle.syncTimeWindow(startIndex, endIndex);
     });
   }, []);
+
+  useLayoutEffect(() => {
+    const pending = pendingGoToNavigationRef.current;
+    if (!pending || displayCandles.length === 0) return;
+    const priceHandle = paneHandlesRef.current.get('price');
+    if (!priceHandle) return;
+    pendingGoToNavigationRef.current = null;
+    userPannedTimeAxisRef.current = true;
+    const navigated = priceHandle.navigateToViewport(pending.startIndex, pending.endIndex);
+    if (navigated) {
+      syncSiblings(navigated.startIndex, navigated.endIndex, 'price');
+    }
+  }, [displayCandles, syncSiblings]);
+
+  const applyPrependedCandles = useCallback(
+    (merged: Candle[], added: number) => {
+      const priceHandle = paneHandlesRef.current.get('price');
+      const vp = priceHandle?.getViewport();
+      if (vp && added > 0) {
+        const shifted = adjustViewportForPrepend(vp, added);
+        priceHandle?.syncTimeWindow(shifted.startIndex, shifted.endIndex, true);
+        syncSiblings(shifted.startIndex, shifted.endIndex, 'price');
+      }
+      baseCandlesRef.current = merged;
+      setBaseCandles(merged);
+      onDataLoadedRef.current?.({ count: merged.length });
+    },
+    [syncSiblings],
+  );
+
+  goToImplRef.current = async (req: GoToRequest): Promise<GoToResult> => {
+    if (visibleCount != null && visibleCount > 0) {
+      return { ok: false, reason: 'replay_active' };
+    }
+
+    let candles = baseCandlesRef.current;
+    if (candles.length === 0) {
+      return { ok: false, reason: 'no_data' };
+    }
+
+    const priceHandle = paneHandlesRef.current.get('price');
+    const currentVp = priceHandle?.getViewport();
+    if (!priceHandle || !currentVp) {
+      return { ok: false, reason: 'no_data' };
+    }
+
+    const visibleSpan = Math.max(1, currentVp.endIndex - currentVp.startIndex);
+    const minLeadingBars = Math.ceil(visibleSpan);
+
+    const cfg = configRef.current;
+    const fetchOlder = (beforeMs: number) =>
+      fetchOlderCandles(cfg.symbol, cfg.interval, beforeMs);
+    const ensureCover = async (targetMs: number) => {
+      try {
+        return await ensureCandlesCover(candles, targetMs, fetchOlder, 20, minLeadingBars);
+      } catch {
+        return null;
+      }
+    };
+
+    if (req.mode === 'range') {
+      if (!Number.isFinite(req.from) || !Number.isFinite(req.to)) {
+        return { ok: false, reason: 'invalid_date' };
+      }
+      if (req.from > req.to) {
+        return { ok: false, reason: 'invalid_range' };
+      }
+      const cover = await ensureCover(req.from);
+      if (!cover) {
+        return { ok: false, reason: 'out_of_range' };
+      }
+      candles = cover.candles;
+      if (!cover.covered) {
+        return { ok: false, reason: 'out_of_range' };
+      }
+      if (cover.prepended > 0) {
+        baseCandlesRef.current = candles;
+        setBaseCandles(candles);
+        onDataLoadedRef.current?.({ count: candles.length });
+      }
+      const lastTs = candles[candles.length - 1]!.t;
+      if (req.from > lastTs) {
+        return { ok: false, reason: 'out_of_range' };
+      }
+    } else {
+      if (!Number.isFinite(req.at)) {
+        return { ok: false, reason: 'invalid_date' };
+      }
+      const lastTs = candles[candles.length - 1]!.t;
+      const targetMs = Math.min(req.at, lastTs);
+      const cover = await ensureCover(targetMs);
+      if (!cover) {
+        return { ok: false, reason: 'out_of_range' };
+      }
+      candles = cover.candles;
+      if (!cover.covered) {
+        return { ok: false, reason: 'out_of_range' };
+      }
+      if (cover.prepended > 0) {
+        baseCandlesRef.current = candles;
+        setBaseCandles(candles);
+        onDataLoadedRef.current?.({ count: candles.length });
+      }
+    }
+
+    let nextVp;
+    if (req.mode === 'range') {
+      const lastTs = candles[candles.length - 1]!.t;
+      nextVp = goToRange(currentVp, candles, req.from, Math.min(req.to, lastTs));
+    } else {
+      const lastTs = candles[candles.length - 1]!.t;
+      nextVp = goToDate(currentVp, candles, Math.min(req.at, lastTs));
+    }
+
+    if (candles !== baseCandlesRef.current) {
+      baseCandlesRef.current = candles;
+      setBaseCandles(candles);
+      onDataLoadedRef.current?.({ count: candles.length });
+    }
+
+    if (candles.length !== displayCandles.length) {
+      pendingGoToNavigationRef.current = {
+        startIndex: nextVp.startIndex,
+        endIndex: nextVp.endIndex,
+      };
+    } else {
+      const navigated = priceHandle.navigateToViewport(nextVp.startIndex, nextVp.endIndex);
+      if (navigated) {
+        syncSiblings(navigated.startIndex, navigated.endIndex, 'price');
+      }
+    }
+
+    userPannedTimeAxisRef.current = true;
+
+    if (cfg.rangePreset != null) {
+      onConfigChange?.({ ...cfg, rangePreset: null });
+    }
+
+    return { ok: true };
+  };
 
   const runEdgeFetch = useCallback(async () => {
     const base = baseCandlesRef.current;
@@ -792,7 +1040,13 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     if (paneId === 'price') latestVpRef.current = vp;
     syncSiblings(vp.startIndex, vp.endIndex, paneId);
 
-    if (paneId !== 'price' || !shouldPrefetchEdge(vp.startIndex)) return;
+    if (
+      paneId !== 'price' ||
+      !userPannedTimeAxisRef.current ||
+      !shouldPrefetchEdge(vp.startIndex)
+    ) {
+      return;
+    }
     if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
     prefetchTimerRef.current = setTimeout(() => {
       prefetchTimerRef.current = null;
@@ -817,6 +1071,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       const factor = zoomFactorForDelta(batch.deltaY);
       vp = priceHandle.applyWheelAction({ type: 'zoom', factor }, batch.anchorX);
     } else {
+      if (action.type === 'pan') userPannedTimeAxisRef.current = true;
       vp = priceHandle.applyWheelAction(action, batch.anchorX);
     }
 
@@ -825,7 +1080,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
 
   // Single non-passive wheel listener on the chart container — one authority, rAF-batched.
   useEffect(() => {
-    const el = containerRef.current;
+    const el = chartAreaRef.current;
     if (!el) return;
 
     const onWheel = (e: WheelEvent) => {
@@ -878,7 +1133,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   );
 
   useEffect(() => {
-    const el = containerRef.current;
+    const el = chartAreaRef.current;
     if (!el) return;
 
     const handler = createPinchHandler({
@@ -940,7 +1195,11 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         paneId,
         indicators: paneIndicators,
       };
-      const point = plotToPoint(event.plotX, event.plotY, vp, candlesRef.current, plotOpts);
+      let point: ReturnType<typeof plotToPoint> | null = null;
+      const getPoint = () => {
+        point ??= plotToPoint(event.plotX, event.plotY, vp, candlesRef.current, plotOpts);
+        return point;
+      };
       const paneDrawings = drawingsRef.current.filter((d) => (d.paneId ?? 'price') === paneId);
       let state = drawingStateRef.current;
 
@@ -948,7 +1207,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         const drawing = paneDrawings.find((d) => d.id === state.draggingDrawingId);
         const plugin = drawing ? getPluginForTool(drawing.name) : undefined;
         if (drawing && plugin?.updateFromControl && !drawing.locked) {
-          const pt = plotToPoint(event.plotX, event.plotY, vp, candlesRef.current, plotOpts);
+          const pt = getPoint();
           const updated = plugin.updateFromControl(
             drawing,
             state.draggingCpIndex,
@@ -1033,7 +1292,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
 
           let draft = state.placingDraft;
           if (plugin.updatePreview) {
-            draft = plugin.updatePreview(draft, point, vp, candlesRef.current);
+            draft = plugin.updatePreview(draft, getPoint(), vp, candlesRef.current);
           }
           const committed = finishPlacingIfComplete(
             state,
@@ -1065,7 +1324,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         if (state.fsm === 'tool_armed' && state.activeTool) {
           const tool = state.activeTool;
           if (isOnePointTool(tool)) {
-            const draft = createDraftFromPoint(tool, point, vp, candlesRef.current);
+            const draft = createDraftFromPoint(tool, getPoint(), vp, candlesRef.current);
             if (!draft) return;
             const plugin = getPluginForTool(tool);
             const finalized = plugin?.finalize
@@ -1081,7 +1340,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
             return;
           }
           if (isTwoPointTool(tool) || isMultiPointTool(tool)) {
-            const draft = createDraftFromPoint(tool, point, vp, candlesRef.current);
+            const draft = createDraftFromPoint(tool, getPoint(), vp, candlesRef.current);
             if (!draft) return;
             const paneDraft = stampPaneId(draft, paneId);
             state = startPlacing(state, paneDraft);
@@ -1097,7 +1356,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         if (state.fsm === 'placing' && state.placingDraft && state.activeTool) {
           const plugin = getPluginForTool(state.activeTool);
           const updated =
-            plugin?.updatePreview?.(state.placingDraft, point, vp, candlesRef.current) ??
+            plugin?.updatePreview?.(state.placingDraft, getPoint(), vp, candlesRef.current) ??
             state.placingDraft;
           drawingStateRef.current = { ...state, placingDraft: updated };
           setPreviewDrawing(updated);
@@ -1134,7 +1393,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
             if (!plugin) return;
             let draft = state.placingDraft;
             if (plugin.updatePreview) {
-              draft = plugin.updatePreview(draft, point, vp, candlesRef.current);
+              draft = plugin.updatePreview(draft, getPoint(), vp, candlesRef.current);
             }
             const committed = finishPlacingIfComplete(
               state,
@@ -1278,18 +1537,18 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     (ind: IndicatorConfig) => {
       const sections = resolveIndicatorLegend(
         ind,
-        candles,
+        displayCandles,
         crosshair?.dataIndex ?? null,
         theme,
+        config.chartSettings,
       );
       if (!sections) return null;
-      const plugin = IndicatorRegistry.get(ind.name);
-      if (plugin?.paramSchema && Object.keys(plugin.paramSchema).length > 0) {
+      if (indicatorHasSettings(ind.name)) {
         return appendLegendSettingsAction(sections, ind.id);
       }
       return sections;
     },
-    [candles, crosshair?.dataIndex, theme],
+    [displayCandles, crosshair?.dataIndex, theme, config.chartSettings],
   );
 
   const handleLegendAction = useCallback((actionId: string) => {
@@ -1330,6 +1589,11 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const activeTool = activeDrawingTool ?? '__cursor__';
   const drawingMode = drawingModeFromState(drawingFsm);
   const hideCrosshair = shouldHideCrosshair(drawingFsm);
+  const chartSettings = useMemo(
+    () => mergeChartSettings(config.chartSettings),
+    [config.chartSettings],
+  );
+  const showCrosshairOverlay = chartSettings.canvas.showCrosshair && !hideCrosshair;
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -1340,19 +1604,20 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   );
 
   return (
-    <div
-      ref={containerRef}
-      data-edge-chart
-      className="relative flex min-h-0 w-full flex-1 flex-col"
-      style={{ touchAction: 'none' }}
-      onContextMenu={handleContextMenu}
-      onMouseLeave={() => {
-        if (!wheelingRef.current) handleCrosshairMove(null);
-      }}
-    >
-      {(loading || error) && (
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      <div
+        ref={chartAreaRef}
+        data-edge-chart
+        className="relative flex min-h-0 w-full flex-1 flex-col"
+        style={{ touchAction: 'none' }}
+        onContextMenu={handleContextMenu}
+        onMouseLeave={() => {
+          if (!wheelingRef.current) handleCrosshairMove(null);
+        }}
+      >
+      {(error || (loading && displayCandles.length === 0)) && (
         <div className="absolute left-2 top-2 z-10 text-xs text-gray-500">
-          {loading ? 'Loading…' : error}
+          {error ?? 'Loading…'}
         </div>
       )}
 
@@ -1378,7 +1643,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                 }`}
                 style={{ height: pane.height, flexShrink: 0 }}
               >
-                {!loading && !error && (hasMultiplePanes || pane.isCollapsed) && (
+                {!error && (hasMultiplePanes || pane.isCollapsed) && (
                   <PaneControlBar
                     paneKey={PRICE_PANE_KEY}
                     theme={theme}
@@ -1393,16 +1658,17 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                     onMaximize={() => onMaximizeIndicator?.(PRICE_PANE_KEY)}
                   />
                 )}
-                {!loading && !error && candles.length > 0 && (
+                {!error && displayCandles.length > 0 && (
                   <>
                     <ChartLegendBar
                       symbol={config.symbol}
                       symbolName={config.symbolName}
                       exchange={config.exchange}
-                      interval={config.interval}
-                      candles={candles}
+                      interval={displayInterval}
+                      candles={displayCandles}
                       dataIndex={crosshair?.dataIndex ?? null}
                       theme={theme}
+                      chartSettings={chartSettings}
                       compact={pane.isCollapsed}
                     />
                     {!pane.isCollapsed &&
@@ -1425,7 +1691,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                   <ChartCanvas
                     key="price"
                     paneId="price"
-                    candles={candles}
+                    candles={displayCandles}
                     chartType={config.chartType}
                     theme={theme}
                     visibleCount={visibleCount}
@@ -1438,14 +1704,20 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                     indicators={mainIndicators}
                     registerPane={registerPane}
                     wheelingRef={wheelingRef}
-                    interval={config.interval}
+                    interval={displayInterval}
                     showTimeAxis={showTimeAxis}
                     activeTool={activeTool}
                     suppressCrosshair={hideCrosshair}
+                    chartSettings={chartSettings}
                     onDrawingPointer={handleDrawingPointer}
                     onDrawingContextMenu={handleDrawingContextMenu}
+                    onPriceScaleContextMenu={onPriceScaleContextMenu}
                     onCrosshairMove={handleCrosshairMove}
                     onViewportChange={handleViewport}
+                    range={config.range}
+                    rangePreset={config.rangePreset ?? null}
+                    viewportRevision={viewportRevision}
+                    onUserTimePan={markUserTimePan}
                   />
                 )}
               </div>
@@ -1472,7 +1744,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
               }`}
               style={{ height: pane.height, flexShrink: 0 }}
             >
-              {!loading && !error && (hasMultiplePanes || pane.isCollapsed) && (
+              {!error && (hasMultiplePanes || pane.isCollapsed) && (
                 <PaneControlBar
                   paneKey={pane.key}
                   theme={theme}
@@ -1483,12 +1755,12 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                   isPricePane={false}
                   onMoveUp={() => onMoveIndicatorUp?.(pane.key)}
                   onMoveDown={() => onMoveIndicatorDown?.(pane.key)}
-                  onRemove={() => onRemoveIndicator?.(subInd.name, 'sub')}
+                  onRemove={() => onRemoveIndicator?.(subInd.id)}
                   onCollapse={() => onCollapseIndicator?.(pane.key)}
                   onMaximize={() => onMaximizeIndicator?.(pane.key)}
                 />
               )}
-              {!loading && !error && candles.length > 0 && (() => {
+              {!error && displayCandles.length > 0 && (() => {
                 const sections = buildIndicatorLegendSections(subInd);
                 return sections ? (
                   <PaneLegendBar
@@ -1503,7 +1775,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                 <ChartCanvas
                   key={pane.key}
                   paneId={pane.key}
-                  candles={candles}
+                  candles={displayCandles}
                   chartType={config.chartType}
                   theme={theme}
                   visibleCount={visibleCount}
@@ -1514,12 +1786,13 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                   selectedDrawingId={selectedDrawingId}
                   drawingMode={drawingMode}
                   suppressCrosshair={hideCrosshair}
+                  chartSettings={chartSettings}
                   onDrawingPointer={handleDrawingPointer}
                   onDrawingContextMenu={handleDrawingContextMenu}
                   indicators={[subInd]}
                   registerPane={registerPane}
                   wheelingRef={wheelingRef}
-                  interval={config.interval}
+                  interval={displayInterval}
                   showTimeAxis={showTimeAxis}
                   activeTool={activeTool}
                   onCrosshairMove={handleCrosshairMove}
@@ -1535,7 +1808,9 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         width={dims.width}
         height={dims.height}
         theme={theme}
-        crosshair={hideCrosshair ? null : crosshair}
+        crosshair={showCrosshairOverlay ? crosshair : null}
+        crosshairMode={chartSettings.canvas.crosshairMode}
+        canvasSettings={chartSettings.canvas}
       />
 
       {hasMultiplePanes && (
@@ -1547,6 +1822,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
           onResizeEnd={handleSeparatorResizeEnd}
         />
       )}
+      </div>
     </div>
   );
 });

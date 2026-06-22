@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import EdgeChart from './EdgeChart';
 import type { CellConfig } from '@/lib/chartConfig';
+import { fetchOlderCandles } from '@/lib/chart/series';
 
 const { mockCandles } = vi.hoisted(() => ({
   mockCandles: [
@@ -100,5 +101,66 @@ describe('EdgeChart onCandlesChange', () => {
     const sliced = onCandlesChange.mock.calls.at(-1)?.[0];
     expect(sliced?.[0].t).toBe(1000);
     expect(sliced?.[1].t).toBe(2000);
+  });
+
+  it('returns an out-of-range result when GoTo history fetch fails', async () => {
+    vi.mocked(fetchOlderCandles).mockRejectedValueOnce(new Error('history unavailable'));
+    const chartRef = { current: null as import('./EdgeChart').ChartHandle | null };
+
+    render(
+      <EdgeChart
+        ref={chartRef}
+        config={baseConfig}
+        theme="dark"
+        chartId="t1"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(chartRef.current?.getCandles().length).toBeGreaterThan(0);
+    });
+
+    await expect(chartRef.current!.goTo({ mode: 'date', at: 0 })).resolves.toEqual({
+      ok: false,
+      reason: 'out_of_range',
+    });
+  });
+
+  it('loads leading history before GoTo target and keeps horizontal pan working', async () => {
+    const olderCandles = Array.from({ length: 20 }, (_, i) => ({
+      t: -19_000 + i * 1000,
+      o: 90,
+      h: 100,
+      l: 80,
+      c: 95,
+      v: 900,
+    }));
+    vi.mocked(fetchOlderCandles).mockResolvedValueOnce(olderCandles);
+    const chartRef = { current: null as import('./EdgeChart').ChartHandle | null };
+
+    const { container } = render(
+      <EdgeChart
+        ref={chartRef}
+        config={baseConfig}
+        theme="dark"
+        chartId="t1"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(chartRef.current?.getCandles().length).toBeGreaterThan(0);
+    });
+
+    await expect(chartRef.current!.goTo({ mode: 'date', at: 1000 })).resolves.toEqual({ ok: true });
+
+    await waitFor(() => {
+      expect(chartRef.current!.getCandles()[0]!.t).toBeLessThan(1000);
+    });
+
+    const chartArea = container.querySelector('[data-edge-chart]');
+    if (!chartArea) throw new Error('chart area not found');
+    expect(() => {
+      fireEvent.wheel(chartArea, { deltaX: 80, deltaY: 0, deltaMode: 0 });
+    }).not.toThrow();
   });
 });

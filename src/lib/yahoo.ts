@@ -113,8 +113,12 @@ export async function getChartCandlesBefore(
   return getChartCandlesInPeriod(symbol, period1, period2, interval);
 }
 
-export function intervalToMs(interval: Interval): number {
+import type { Interval as ChartInterval } from "./chart/contracts";
+
+export function intervalToMs(interval: ChartInterval): number {
   switch (interval) {
+    case "1m":
+      return 60 * 1000;
     case "5m":
       return 5 * 60 * 1000;
     case "15m":
@@ -123,6 +127,8 @@ export function intervalToMs(interval: Interval): number {
       return 30 * 60 * 1000;
     case "1h":
       return 60 * 60 * 1000;
+    case "2h":
+      return 2 * 60 * 60 * 1000;
     case "1d":
       return 24 * 60 * 60 * 1000;
     case "1wk":
@@ -139,7 +145,7 @@ export function intervalToMs(interval: Interval): number {
 // ---------------------------------------------------------------------------
 
 export type Range = "1d" | "5d" | "1mo" | "3mo" | "6mo" | "1y" | "2y" | "5y" | "ytd" | "max";
-export type Interval = "1d" | "1wk" | "1mo" | "1h" | "5m" | "15m" | "30m";
+export type Interval = "1m" | "1d" | "1wk" | "1mo" | "1h" | "5m" | "15m" | "30m";
 
 const RANGE_DAYS: Record<Range, number | null> = {
   "1d": 1,
