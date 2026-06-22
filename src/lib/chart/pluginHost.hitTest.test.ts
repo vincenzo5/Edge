@@ -3,7 +3,7 @@ import { hitTestAll } from './pluginHost';
 import { createViewport } from './viewport';
 import type { Candle, SerializedDrawing } from './contracts';
 import { trendLine } from './drawings/trend_line';
-import { pointToPlot } from './drawingCoords';
+import { pointToPlot, yForPricePlot } from './drawingCoords';
 
 const candles: Candle[] = [
   { t: 1000, o: 100, h: 110, l: 90, c: 105 },
@@ -67,6 +67,38 @@ describe('hitTestAll', () => {
     const midX = vp.xForIndex(1);
     const midY = vp.yForPrice(108);
     expect(hitTestAll(midX, midY, [hidden], vp, candles)).toBeNull();
+  });
+
+  it('does not hit-test drawings outside the filtered pane set', () => {
+    const vp = makeVp();
+    const priceDrawing: SerializedDrawing = {
+      id: 'price-line',
+      name: 'trend_line',
+      label: 'Price',
+      paneId: 'price',
+      points: [
+        { timestamp: 1000, value: 100, dataIndex: 0 },
+        { timestamp: 3000, value: 115, dataIndex: 2 },
+      ],
+      visible: true,
+      locked: false,
+      zLevel: 0,
+    };
+    const subDrawing: SerializedDrawing = {
+      id: 'rsi-line',
+      name: 'horizontal_line',
+      label: 'RSI H',
+      paneId: 'rsi1',
+      points: [{ timestamp: 2000, value: 50, dataIndex: 1 }],
+      visible: true,
+      locked: false,
+      zLevel: 0,
+    };
+    const subY = yForPricePlot(50, vp, true);
+    const priceOnly = hitTestAll(vp.xForIndex(1), subY, [priceDrawing], vp, candles);
+    expect(priceOnly).toBeNull();
+    const subOnly = hitTestAll(vp.xForIndex(1), subY, [subDrawing], vp, candles);
+    expect(subOnly).toBe('rsi-line');
   });
 
   it('trend_line hitTest respects 4px tolerance', () => {

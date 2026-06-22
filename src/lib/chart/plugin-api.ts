@@ -59,6 +59,8 @@ export interface DrawingPlugin {
   defaultLabel?: string;
   placement: DrawingPlacement;
   maxControlPoints?: number;
+  /** Variable-N tools: signal placement complete (e.g. polylines). */
+  isPlacementComplete?: (draft: SerializedDrawing) => boolean;
   create: (start: DrawingPoint, vp: VisibleRange, candles: Candle[]) => SerializedDrawing;
   updatePreview?: (
     draft: SerializedDrawing,

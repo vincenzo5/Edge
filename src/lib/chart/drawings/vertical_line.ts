@@ -1,13 +1,9 @@
 import type { DrawingPlugin } from '../plugin-api';
 import { plotToPoint, pointToPlot } from '../drawingCoords';
 import { plotHeight } from '../layout';
-import {
-  defaultDrawingStroke,
-  previewDrawingStroke,
-  drawControlPoints,
-  HIT_TOLERANCE_PX,
-} from './primitives';
+import { drawControlPoints, strokeFromStyles, HIT_TOLERANCE_PX } from './primitives';
 import { baseDrawing, plotsForPoints } from './drawingUtils';
+import { resolveDrawingStyles } from '../drawingStyles';
 
 export const verticalLine: DrawingPlugin = {
   name: 'vertical_line',
@@ -21,12 +17,16 @@ export const verticalLine: DrawingPlugin = {
     const showTimeAxis = opts?.showTimeAxis ?? true;
     const ph = plotHeight(vp.height, showTimeAxis);
     const x = pointToPlot(d.points[0], vp, candles, showTimeAxis).x;
-    ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1.5;
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, ph);
     ctx.stroke();
+    ctx.setLineDash([]);
     if (selected && !opts?.preview) {
       drawControlPoints(ctx, [{ x, y: ph / 2 }], theme, true);
     }

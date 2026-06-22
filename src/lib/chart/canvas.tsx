@@ -56,7 +56,7 @@ type Props = {
   onCrosshairMove?: (event: CrosshairMoveEvent | null) => void;
   onViewportChange?: (vp: VisibleRange, paneId: string) => void;
   onDrawingPointer?: (event: DrawingPointerEvent) => void;
-  onDrawingContextMenu?: (event: DrawingPointerEvent & { clientX: number; clientY: number }) => void;
+  onDrawingContextMenu?: (event: DrawingPointerEvent & { clientX: number; clientY: number }) => boolean | void;
   suppressCrosshair?: boolean;
   /** `'__cursor__'` for navigate mode; drawing tool name when placing overlays. */
   activeTool?: string;
@@ -129,7 +129,7 @@ export default function ChartCanvas({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const plot = clampPlot(x, y, width, height, showTimeAxis);
-    return { phase, plotX: plot.x, plotY: plot.y, button: e.button };
+    return { phase, plotX: plot.x, plotY: plot.y, button: e.button, detail: e.detail, paneId };
   };
 
   const isPlotBody = (x: number, y: number) =>
@@ -349,7 +349,6 @@ export default function ChartCanvas({
     dragModeRef.current = resolveDragMode(x, y, width, height, showTimeAxis);
 
     const useDrawing =
-      isPricePane &&
       onDrawingPointerRef.current &&
       isPlotBody(x, y) &&
       drawingModeRef.current !== 'navigate';
@@ -363,7 +362,6 @@ export default function ChartCanvas({
     }
 
     if (
-      isPricePane &&
       onDrawingPointerRef.current &&
       isPlotBody(x, y) &&
       drawingModeRef.current === 'navigate'
@@ -405,7 +403,6 @@ export default function ChartCanvas({
       }
 
       if (
-        isPricePane &&
         onDrawingPointerRef.current &&
         isPlotBody(x, y) &&
         drawingModeRef.current === 'navigate' &&
@@ -458,7 +455,6 @@ export default function ChartCanvas({
       if (suppressCrosshairRef.current) return;
 
       if (
-        isPricePane &&
         onDrawingPointerRef.current &&
         isPlotBody(x, y) &&
         drawingModeRef.current !== 'navigate'
@@ -509,7 +505,7 @@ export default function ChartCanvas({
   const handleMouseUp = (e?: React.MouseEvent) => {
     if (drawingDragRef.current && onDrawingPointerRef.current && e) {
       onDrawingPointerRef.current(toPlotEvent(e, 'up'));
-    } else if (onDrawingPointerRef.current && e && isPricePane) {
+    } else if (onDrawingPointerRef.current && e) {
       const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
@@ -554,7 +550,7 @@ export default function ChartCanvas({
     e.preventDefault();
     const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
     const plot = clampPlot(e.clientX - rect.left, e.clientY - rect.top, width, height, showTimeAxis);
-    onDrawingContextMenu({
+    const consumed = onDrawingContextMenu({
       phase: 'down',
       plotX: plot.x,
       plotY: plot.y,
@@ -562,6 +558,7 @@ export default function ChartCanvas({
       clientX: e.clientX,
       clientY: e.clientY,
     });
+    if (consumed) e.stopPropagation();
   };
 
   useEffect(() => {

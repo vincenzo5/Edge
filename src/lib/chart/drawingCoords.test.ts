@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createViewport } from './viewport';
-import type { Candle } from './contracts';
+import { attachViewportHelpers, createViewport } from './viewport';
+import type { Candle, IndicatorConfig } from './contracts';
+import { IndicatorRegistry } from './pluginHost';
 import {
   clampPlot,
   plotToPoint,
@@ -75,5 +76,64 @@ describe('drawingCoords', () => {
     const plotX = vp.xForIndex(idx);
     const pt = plotToPoint(plotX, highY + 2, vp, candles, { magnet: true, snapXCandle: true });
     expect(pt.value).toBe(candle.h);
+  });
+
+  it('plotToPoint with magnet on sub-pane snaps to indicator value', () => {
+    const baseVp = createViewport(candles, 800, 200, 3, 0);
+    const vp = attachViewportHelpers(
+      { ...baseVp, priceMin: 0, priceMax: 100, priceScaleMode: 'manual' },
+      candles.length
+    );
+    const rsiIndicator: IndicatorConfig = {
+      id: 'rsi1',
+      name: 'RSI',
+      pane: 'sub',
+      params: { period: 2 },
+      visible: true,
+    };
+    const idx = 2;
+    const rsiPlugin = IndicatorRegistry.get('RSI');
+    const indicatorValue = rsiPlugin?.valueAt?.(idx, candles, rsiIndicator.params);
+    expect(indicatorValue).not.toBeNull();
+    const plotX = vp.xForIndex(idx);
+    const plotY = yForPricePlot(indicatorValue!, vp, false) + 2;
+    const pt = plotToPoint(plotX, plotY, vp, candles, {
+      magnet: true,
+      snapXCandle: true,
+      paneId: 'rsi1',
+      indicators: [rsiIndicator],
+      showTimeAxis: false,
+    });
+    expect(pt.value).toBeCloseTo(indicatorValue!, 4);
+  });
+
+  it('plotToPoint and pointToPlot round-trip on sub-pane indicator scale', () => {
+    const baseVp = createViewport(candles, 800, 200, 3, 0);
+    const vp = attachViewportHelpers(
+      { ...baseVp, priceMin: 0, priceMax: 100, priceScaleMode: 'manual' },
+      candles.length
+    );
+    const rsiIndicator: IndicatorConfig = {
+      id: 'rsi1',
+      name: 'RSI',
+      pane: 'sub',
+      params: { period: 14 },
+      visible: true,
+    };
+    const indicatorValue = 55;
+    const idx = 1;
+    const plotX = vp.xForIndex(idx);
+    const plotY = yForPricePlot(indicatorValue, vp, false);
+    const pt = plotToPoint(plotX, plotY, vp, candles, {
+      magnet: false,
+      snapXCandle: true,
+      paneId: 'rsi1',
+      indicators: [rsiIndicator],
+      showTimeAxis: false,
+    });
+    expect(pt.value).toBeCloseTo(indicatorValue, 4);
+    const back = pointToPlot(pt, vp, candles, false);
+    expect(back.x).toBeCloseTo(plotX, 0);
+    expect(back.y).toBeCloseTo(plotY, 0);
   });
 });

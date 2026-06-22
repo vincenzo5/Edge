@@ -1,12 +1,12 @@
 import type { DrawingPlugin } from '../plugin-api';
 import { plotToPoint } from '../drawingCoords';
 import {
-  defaultDrawingStroke,
-  previewDrawingStroke,
   drawControlPoints,
+  strokeFromStyles,
   HIT_TOLERANCE_PX,
 } from './primitives';
 import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUtils';
+import { resolveDrawingStyles } from '../drawingStyles';
 
 export const circle: DrawingPlugin = {
   name: 'circle',
@@ -24,9 +24,11 @@ export const circle: DrawingPlugin = {
     const [center, rim] = plotsForPoints(d, vp, candles, showTimeAxis);
     const rx = Math.abs(rim.x - center.x);
     const ry = Math.abs(rim.y - center.y);
-    ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1.5;
-    if (opts?.preview) ctx.setLineDash([4, 4]);
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.beginPath();
     ctx.ellipse(center.x, center.y, Math.max(rx, 1), Math.max(ry, 1), 0, 0, Math.PI * 2);
     ctx.stroke();
@@ -76,8 +78,10 @@ export const fibRetracement: DrawingPlugin = {
     const pw = vp.width - 50;
     const p0 = d.points[0].value ?? 0;
     const p1 = d.points[1].value ?? 0;
-    ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1;
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
     ctx.font = '10px sans-serif';
     ctx.fillStyle = theme === 'dark' ? '#8B8FA3' : '#64748b';
     for (const ratio of FIB_LEVELS) {
@@ -88,7 +92,7 @@ export const fibRetracement: DrawingPlugin = {
         candles,
         showTimeAxis
       )[0].y;
-      ctx.setLineDash(ratio === 0 || ratio === 1 ? [] : [4, 4]);
+      ctx.setLineDash(ratio === 0 || ratio === 1 ? dash : dash.length ? dash : [4, 4]);
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(pw, y);

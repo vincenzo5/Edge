@@ -2,14 +2,14 @@ import type { DrawingPlugin } from '../plugin-api';
 import type { SerializedDrawing } from '../contracts';
 import {
   distanceToSegment,
-  defaultDrawingStroke,
-  previewDrawingStroke,
   drawControlPoints,
+  strokeFromStyles,
   HIT_TOLERANCE_PX,
 } from './primitives';
 import { plotToPoint } from '../drawingCoords';
 import { plotsForPoints, baseDrawing } from './drawingUtils';
 import { getColors } from '../renderer';
+import { resolveDrawingStyles } from '../drawingStyles';
 
 function formatMeasureLabel(d: SerializedDrawing): string {
   if (d.points.length < 2) return '';
@@ -53,10 +53,11 @@ export const measure: DrawingPlugin = {
     if (d.points.length < 2) return;
     const showTimeAxis = opts?.showTimeAxis ?? true;
     const [a, b] = plotsForPoints(d, vp, candles, showTimeAxis);
-    const stroke = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
     ctx.strokeStyle = stroke;
-    ctx.lineWidth = opts?.preview ? 1 : 1.5;
-    if (opts?.preview) ctx.setLineDash([4, 4]);
+    ctx.lineWidth = lineWidth;
+    if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);

@@ -20,6 +20,10 @@ export type DrawingPointerEvent = {
   plotX: number;
   plotY: number;
   button: number;
+  /** Native click count (2 = second leg of double-click). */
+  detail?: number;
+  shiftKey?: boolean;
+  paneId?: string;
 };
 
 export type DrawingControllerState = {
@@ -27,6 +31,7 @@ export type DrawingControllerState = {
   activeTool: string | null;
   selectedId: string | null;
   placingDraft: SerializedDrawing | null;
+  placingStep: number;
   draggingCpIndex: number;
   draggingDrawingId: string | null;
 };
@@ -37,6 +42,7 @@ export function initialDrawingState(): DrawingControllerState {
     activeTool: null,
     selectedId: null,
     placingDraft: null,
+    placingStep: 0,
     draggingCpIndex: -1,
     draggingDrawingId: null,
   };
@@ -86,6 +92,7 @@ export function cancelPlacing(state: DrawingControllerState): DrawingControllerS
     ...state,
     fsm: state.activeTool ? 'tool_armed' : 'idle',
     placingDraft: null,
+    placingStep: 0,
   };
 }
 
@@ -93,7 +100,7 @@ export function startPlacing(
   state: DrawingControllerState,
   draft: SerializedDrawing
 ): DrawingControllerState {
-  return { ...state, fsm: 'placing', placingDraft: draft };
+  return { ...state, fsm: 'placing', placingDraft: draft, placingStep: 1 };
 }
 
 export function commitDrawing(
@@ -107,6 +114,7 @@ export function commitDrawing(
       ...state,
       fsm: state.activeTool ? 'tool_armed' : 'idle',
       placingDraft: null,
+      placingStep: 0,
       selectedId: null,
     },
     drawing: withZ,
@@ -135,7 +143,62 @@ export function isOnePointTool(toolName: string): boolean {
 
 export function isTwoPointTool(toolName: string): boolean {
   const plugin = getPluginForTool(toolName);
-  return plugin?.placement === 'two-point' || plugin?.placement === 'multi-point';
+  return plugin?.placement === 'two-point';
+}
+
+export function isMultiPointTool(toolName: string): boolean {
+  const plugin = getPluginForTool(toolName);
+  return plugin?.placement === 'multi-point';
+}
+
+export function isDraftComplete(
+  plugin: DrawingPlugin,
+  draft: SerializedDrawing
+): boolean {
+  if (plugin.isPlacementComplete?.(draft)) return true;
+  const max = plugin.maxControlPoints ?? 2;
+  return draft.points.length >= max;
+}
+
+/** Variable-N plugins (e.g. polylines) expose isPlacementComplete for open-ended placement. */
+export function supportsDoubleClickFinish(plugin: DrawingPlugin): boolean {
+  return typeof plugin.isPlacementComplete === 'function';
+}
+
+/** Second mousedown of a double-click — finish without appending another CP. */
+export function isDoubleClickFinish(event: DrawingPointerEvent): boolean {
+  return event.detail === 2;
+}
+
+/**
+ * Commit placing draft when complete (max CPs or isPlacementComplete).
+ * Shared by click-advance and double-click finish stub.
+ */
+export function finishPlacingIfComplete(
+  state: DrawingControllerState,
+  plugin: DrawingPlugin,
+  draft: SerializedDrawing,
+  existing: SerializedDrawing[],
+  ctx?: { vp: import('./contracts').VisibleRange; candles: import('./contracts').Candle[] }
+): { state: DrawingControllerState; drawing: SerializedDrawing } | null {
+  if (state.fsm !== 'placing') return null;
+  if (!isDraftComplete(plugin, draft)) return null;
+  let finalDraft = draft;
+  if (plugin.finalize && ctx) {
+    finalDraft = plugin.finalize(draft, ctx.vp, ctx.candles);
+  }
+  return commitDrawing(state, finalDraft, existing);
+}
+
+export function advancePlacing(
+  state: DrawingControllerState,
+  draft: SerializedDrawing
+): DrawingControllerState {
+  return {
+    ...state,
+    placingDraft: draft,
+    placingStep: state.placingStep + 1,
+  };
 }
 
 export function startDraggingCp(

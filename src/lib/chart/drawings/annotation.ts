@@ -2,12 +2,9 @@ import type { DrawingPlugin } from '../plugin-api';
 import { plotToPoint, pointToPlot } from '../drawingCoords';
 import { plotWidth, PRICE_AXIS_WIDTH } from '../layout';
 import { getColors } from '../renderer';
-import {
-  defaultDrawingStroke,
-  drawControlPoints,
-  HIT_TOLERANCE_PX,
-} from './primitives';
+import { drawControlPoints, strokeFromStyles, HIT_TOLERANCE_PX } from './primitives';
 import { baseDrawing } from './drawingUtils';
+import { resolveDrawingStyles } from '../drawingStyles';
 
 export const priceLine: DrawingPlugin = {
   name: 'price_line',
@@ -22,8 +19,10 @@ export const priceLine: DrawingPlugin = {
     const pw = plotWidth(vp.width);
     const y = pointToPlot(d.points[0], vp, candles, showTimeAxis).y;
     const price = d.points[0].value ?? 0;
-    ctx.strokeStyle = defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1.5;
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(pw, y);
@@ -69,9 +68,11 @@ export const annotation: DrawingPlugin = {
     const pad = 6;
     const w = metrics.width + pad * 2;
     const h = 20;
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth } = strokeFromStyles(styles, theme, selected, opts?.preview);
     ctx.fillStyle = theme === 'dark' ? '#12131A' : '#f3f4f6';
-    ctx.strokeStyle = defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
     ctx.fillRect(x, y - h, w, h);
     ctx.strokeRect(x, y - h, w, h);
     ctx.fillStyle = theme === 'dark' ? '#E8E9ED' : '#111827';

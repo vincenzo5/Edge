@@ -2,13 +2,13 @@ import type { DrawingPlugin } from '../plugin-api';
 import { plotToPoint, pointToPlot } from '../drawingCoords';
 import {
   distanceToSegment,
-  defaultDrawingStroke,
-  previewDrawingStroke,
   drawControlPoints,
+  strokeFromStyles,
   pointInRect,
   HIT_TOLERANCE_PX,
 } from './primitives';
 import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUtils';
+import { resolveDrawingStyles } from '../drawingStyles';
 
 function parallelOffsetLine(
   a: { x: number; y: number },
@@ -37,13 +37,25 @@ export const parallelChannel: DrawingPlugin = {
     return baseDrawing('parallel_channel', 'Parallel Channel', [start, { ...start }]);
   },
   updatePreview(draft, cursor) {
-    if (draft.points.length < 3) return updateTwoPointPreview(draft, cursor);
+    if (draft.points.length < 2) return updateTwoPointPreview(draft, cursor);
     const points = [...draft.points];
-    points[2] = { timestamp: cursor.timestamp, value: cursor.value, dataIndex: cursor.dataIndex };
+    if (points.length === 2) {
+      points.push({
+        timestamp: cursor.timestamp,
+        value: cursor.value,
+        dataIndex: cursor.dataIndex,
+      });
+      return { ...draft, points };
+    }
+    points[2] = {
+      timestamp: cursor.timestamp,
+      value: cursor.value,
+      dataIndex: cursor.dataIndex,
+    };
     return { ...draft, points };
   },
-  finalize(draft, vp, candles) {
-    if (draft.points.length === 2) return draft;
+  finalize(draft) {
+    if (draft.points.length < 3) return draft;
     return draft;
   },
   draw(ctx, d, vp, theme, selected, candles, opts) {
@@ -51,9 +63,11 @@ export const parallelChannel: DrawingPlugin = {
     const showTimeAxis = opts?.showTimeAxis ?? true;
     const plots = plotsForPoints(d, vp, candles, showTimeAxis);
     const [a, b] = plots;
-    ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1.5;
-    if (opts?.preview) ctx.setLineDash([4, 4]);
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
@@ -107,9 +121,13 @@ export const priceChannel: DrawingPlugin = {
     const w = Math.abs(b.x - a.x);
     const top = Math.min(a.y, b.y);
     const h = Math.abs(b.y - a.y);
-    ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1.5;
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.strokeRect(x, top, w, h);
+    ctx.setLineDash([]);
     if (selected && !opts?.preview) drawControlPoints(ctx, [a, b], theme, true);
   },
   hitTest(px, py, d, vp, candles, showTimeAxis = true) {

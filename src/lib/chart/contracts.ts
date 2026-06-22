@@ -21,13 +21,25 @@ export type IndicatorConfig = {
   visible?: boolean;
 };
 
+export type DrawingStyles = {
+  lineColor?: string;
+  lineWidth?: number;
+  lineDash?: number[];
+  fillColor?: string;
+  fillOpacity?: number;
+  extendLeft?: boolean;
+  extendRight?: boolean;
+  text?: string;
+  fontSize?: number;
+};
+
 export type SerializedDrawing = {
   id?: string;
   name: string;
   label: string;
   points: Array<{ dataIndex?: number; timestamp?: number; value?: number }>;
   mode?: string;
-  styles?: unknown;
+  styles?: DrawingStyles;
   visible: boolean;
   locked: boolean;
   zLevel: number;

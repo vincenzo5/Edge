@@ -3,13 +3,13 @@ import { plotToPoint } from '../drawingCoords';
 import { plotWidth } from '../layout';
 import {
   distanceToRay,
-  defaultDrawingStroke,
-  previewDrawingStroke,
   drawControlPoints,
-  extendRayToBounds,
+  extendSegmentEndpoints,
+  strokeFromStyles,
   HIT_TOLERANCE_PX,
 } from './primitives';
 import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUtils';
+import { resolveDrawingStyles } from '../drawingStyles';
 
 export const ray: DrawingPlugin = {
   name: 'ray',
@@ -25,13 +25,25 @@ export const ray: DrawingPlugin = {
     if (d.points.length < 2) return;
     const showTimeAxis = opts?.showTimeAxis ?? true;
     const [a, b] = plotsForPoints(d, vp, candles, showTimeAxis);
-    const end = extendRayToBounds(a.x, a.y, b.x, b.y, vp.width, vp.height, showTimeAxis);
-    ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1.5;
-    if (opts?.preview) ctx.setLineDash([4, 4]);
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    const seg = extendSegmentEndpoints(
+      a.x,
+      a.y,
+      b.x,
+      b.y,
+      vp.width,
+      vp.height,
+      showTimeAxis,
+      styles.extendLeft,
+      styles.extendRight
+    );
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(end.x, end.y);
+    ctx.moveTo(seg.x1, seg.y1);
+    ctx.lineTo(seg.x2, seg.y2);
     ctx.stroke();
     ctx.setLineDash([]);
     if (selected && !opts?.preview) drawControlPoints(ctx, [a, b], theme, true);

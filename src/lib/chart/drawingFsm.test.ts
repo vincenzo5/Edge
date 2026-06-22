@@ -10,6 +10,7 @@ import {
   drawingModeFromState,
   shouldHideCrosshair,
   createDraftFromPoint,
+  advancePlacing,
 } from './drawingController';
 import { createViewport } from './viewport';
 import type { Candle } from './contracts';
@@ -33,15 +34,19 @@ describe('drawingController FSM', () => {
     expect(s.fsm).toBe('idle');
   });
 
-  it('placing then cancel returns to tool_armed', () => {
+  it('placing then cancel returns to tool_armed and clears placingStep', () => {
     const vp = createViewport(candles, 800, 400, 2, 0);
     let s = armTool(initialDrawingState(), 'straightLine');
     const draft = createDraftFromPoint('straightLine', { timestamp: 1000, value: 100, dataIndex: 0 }, vp, candles)!;
     s = startPlacing(s, draft);
     expect(s.fsm).toBe('placing');
+    expect(s.placingStep).toBe(1);
+    s = advancePlacing(s, draft);
+    expect(s.placingStep).toBe(2);
     s = cancelPlacing(s);
     expect(s.fsm).toBe('tool_armed');
     expect(s.placingDraft).toBeNull();
+    expect(s.placingStep).toBe(0);
   });
 
   it('commit stays in tool_armed when tool active', () => {

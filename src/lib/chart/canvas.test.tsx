@@ -98,3 +98,50 @@ describe('ChartCanvas pane handle', () => {
     fireEvent.mouseUp(canvas);
   });
 });
+
+describe('ChartCanvas context menu', () => {
+  function renderWithContextMenu(
+    onDrawingContextMenu: (event: unknown) => boolean | void,
+    onContainerContextMenu = vi.fn(),
+  ) {
+    return render(
+      <div onContextMenu={onContainerContextMenu}>
+        <ChartCanvas
+          candles={candles}
+          chartType="candle_solid"
+          theme="dark"
+          width={800}
+          height={400}
+          paneId="price"
+          onDrawingContextMenu={onDrawingContextMenu}
+        />
+      </div>,
+    );
+  }
+
+  it('stops propagation when drawing context menu handler returns true', () => {
+    const onDrawingContextMenu = vi.fn(() => true);
+    const onContainerContextMenu = vi.fn();
+    const { container } = renderWithContextMenu(onDrawingContextMenu, onContainerContextMenu);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('canvas not found');
+
+    fireEvent.contextMenu(canvas, { clientX: 100, clientY: 200 });
+
+    expect(onDrawingContextMenu).toHaveBeenCalledTimes(1);
+    expect(onContainerContextMenu).not.toHaveBeenCalled();
+  });
+
+  it('allows propagation when drawing context menu handler returns false', () => {
+    const onDrawingContextMenu = vi.fn(() => false);
+    const onContainerContextMenu = vi.fn();
+    const { container } = renderWithContextMenu(onDrawingContextMenu, onContainerContextMenu);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('canvas not found');
+
+    fireEvent.contextMenu(canvas, { clientX: 100, clientY: 200 });
+
+    expect(onDrawingContextMenu).toHaveBeenCalledTimes(1);
+    expect(onContainerContextMenu).toHaveBeenCalledTimes(1);
+  });
+});

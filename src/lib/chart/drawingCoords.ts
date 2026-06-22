@@ -1,5 +1,7 @@
-import type { Candle, VisibleRange } from './contracts';
+import type { Candle, VisibleRange, IndicatorConfig } from './contracts';
 import { plotWidth, plotHeight } from './layout';
+import { IndicatorRegistry } from './pluginHost';
+import { defaultValueAt } from './indicatorCompute';
 
 export type DrawingPoint = {
   timestamp: number;
@@ -95,7 +97,35 @@ export type PlotToPointOptions = {
   magnet?: boolean;
   showTimeAxis?: boolean;
   snapXCandle?: boolean;
+  paneId?: string;
+  indicators?: IndicatorConfig[];
 };
+
+function snapToIndicatorValue(
+  plotY: number,
+  dataIndex: number,
+  vp: VisibleRange,
+  candles: Candle[],
+  indicators: IndicatorConfig[],
+  showTimeAxis: boolean,
+  thresholdPx = MAGNET_THRESHOLD_PX
+): number {
+  const ind = indicators[0];
+  if (!ind || dataIndex < 0 || dataIndex >= candles.length) {
+    return priceForPlotY(plotY, vp, showTimeAxis);
+  }
+  const plugin = IndicatorRegistry.get(ind.name);
+  if (!plugin) return priceForPlotY(plotY, vp, showTimeAxis);
+  const at =
+    plugin.valueAt?.(dataIndex, candles, ind.params) ??
+    defaultValueAt(plugin, dataIndex, candles, ind.params);
+  if (at == null || !Number.isFinite(at)) {
+    return priceForPlotY(plotY, vp, showTimeAxis);
+  }
+  const indicatorY = yForPricePlot(at, vp, showTimeAxis);
+  if (Math.abs(plotY - indicatorY) <= thresholdPx) return at;
+  return priceForPlotY(plotY, vp, showTimeAxis);
+}
 
 export function plotToPoint(
   plotX: number,
@@ -104,7 +134,13 @@ export function plotToPoint(
   candles: Candle[],
   opts: PlotToPointOptions = {}
 ): DrawingPoint {
-  const { magnet = false, showTimeAxis = true, snapXCandle = true } = opts;
+  const {
+    magnet = false,
+    showTimeAxis = true,
+    snapXCandle = true,
+    paneId = 'price',
+    indicators = [],
+  } = opts;
   let x = plotX;
   let dataIndex = vp.indexForX(plotX);
   if (snapXCandle) {
@@ -113,9 +149,16 @@ export function plotToPoint(
     dataIndex = snapped.dataIndex;
   }
   const candle = dataIndex >= 0 && dataIndex < candles.length ? candles[dataIndex] : null;
-  const value = magnet
-    ? snapToOhlc(plotY, dataIndex, candle, vp, showTimeAxis)
-    : priceForPlotY(plotY, vp, showTimeAxis);
+  let value: number;
+  if (paneId !== 'price' && indicators.length > 0) {
+    value = magnet
+      ? snapToIndicatorValue(plotY, dataIndex, vp, candles, indicators, showTimeAxis)
+      : priceForPlotY(plotY, vp, showTimeAxis);
+  } else {
+    value = magnet
+      ? snapToOhlc(plotY, dataIndex, candle, vp, showTimeAxis)
+      : priceForPlotY(plotY, vp, showTimeAxis);
+  }
   const timestamp = candle?.t ?? (dataIndex >= 0 && dataIndex < candles.length ? candles[dataIndex].t : 0);
   return { timestamp, value, dataIndex };
 }

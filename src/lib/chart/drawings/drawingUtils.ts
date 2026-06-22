@@ -40,3 +40,21 @@ export function updateTwoPointPreview(
   }
   return { ...draft, points };
 }
+
+/** Commit cursor as next fixed control point (variable-N click step, e.g. polylines). */
+export function appendPointPreview(
+  draft: SerializedDrawing,
+  point: DrawingPoint
+): SerializedDrawing {
+  return {
+    ...draft,
+    points: [
+      ...draft.points,
+      {
+        timestamp: point.timestamp,
+        value: point.value,
+        dataIndex: point.dataIndex,
+      },
+    ],
+  };
+}

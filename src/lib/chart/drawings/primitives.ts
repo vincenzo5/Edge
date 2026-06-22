@@ -85,6 +85,73 @@ export function pointInRect(
   return px >= minX && px <= maxX && py >= minY && py <= maxY;
 }
 
+function lineBoundaryParameters(
+  x1: number,
+  y1: number,
+  dx: number,
+  dy: number,
+  pw: number,
+  ph: number
+): number[] {
+  const ts: number[] = [];
+  if (dx !== 0) {
+    ts.push((0 - x1) / dx);
+    ts.push((pw - x1) / dx);
+  }
+  if (dy !== 0) {
+    ts.push((0 - y1) / dy);
+    ts.push((ph - y1) / dy);
+  }
+  const eps = 1e-6;
+  return ts.filter((t) => {
+    const x = x1 + t * dx;
+    const y = y1 + t * dy;
+    return x >= -eps && x <= pw + eps && y >= -eps && y <= ph + eps;
+  });
+}
+
+export function extendSegmentEndpoints(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  width: number,
+  height: number,
+  showTimeAxis = true,
+  extendLeft = false,
+  extendRight = false
+): { x1: number; y1: number; x2: number; y2: number } {
+  const pw = plotWidth(width);
+  const ph = plotHeight(height, showTimeAxis);
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  if (dx === 0 && dy === 0) return { x1, y1, x2, y2 };
+
+  const ts = lineBoundaryParameters(x1, y1, dx, dy, pw, ph);
+  let outX1 = x1;
+  let outY1 = y1;
+  let outX2 = x2;
+  let outY2 = y2;
+
+  if (extendLeft) {
+    const leftTs = ts.filter((t) => t <= 0);
+    if (leftTs.length > 0) {
+      const t = Math.min(...leftTs);
+      outX1 = x1 + t * dx;
+      outY1 = y1 + t * dy;
+    }
+  }
+  if (extendRight) {
+    const rightTs = ts.filter((t) => t >= 0);
+    if (rightTs.length > 0) {
+      const t = Math.max(...rightTs);
+      outX2 = x1 + t * dx;
+      outY2 = y1 + t * dy;
+    }
+  }
+  return { x1: outX1, y1: outY1, x2: outX2, y2: outY2 };
+}
+
 export function extendRayToBounds(
   x1: number,
   y1: number,
@@ -119,6 +186,23 @@ export function extendRayToBounds(
 export function defaultDrawingStroke(theme: Theme, selected: boolean): string {
   if (selected) return '#f59e0b';
   return theme === 'dark' ? '#64748b' : '#475569';
+}
+
+export function strokeFromStyles(
+  styles: { lineColor?: string; lineWidth?: number; lineDash?: number[] },
+  theme: Theme,
+  selected: boolean,
+  preview?: boolean
+): { stroke: string; lineWidth: number; dash: number[] } {
+  if (preview) {
+    return { stroke: previewDrawingStroke(), lineWidth: 1, dash: [4, 4] };
+  }
+  const stroke = selected ? '#f59e0b' : styles.lineColor ?? defaultDrawingStroke(theme, false);
+  return {
+    stroke,
+    lineWidth: styles.lineWidth ?? 1.5,
+    dash: styles.lineDash ?? [],
+  };
 }
 
 export function previewDrawingStroke(): string {

@@ -1,12 +1,13 @@
 import type { DrawingPlugin } from '../plugin-api';
 import { plotToPoint } from '../drawingCoords';
 import {
-  defaultDrawingStroke,
   previewDrawingStroke,
   drawControlPoints,
+  strokeFromStyles,
   pointInRect,
 } from './primitives';
 import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUtils';
+import { resolveDrawingStyles } from '../drawingStyles';
 
 export const rectangle: DrawingPlugin = {
   name: 'rectangle',
@@ -26,9 +27,11 @@ export const rectangle: DrawingPlugin = {
     const y = Math.min(a.y, b.y);
     const w = Math.abs(b.x - a.x);
     const h = Math.abs(b.y - a.y);
-    ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1.5;
-    if (opts?.preview) ctx.setLineDash([4, 4]);
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.strokeRect(x, y, w, h);
     ctx.setLineDash([]);
     if (selected && !opts?.preview) {

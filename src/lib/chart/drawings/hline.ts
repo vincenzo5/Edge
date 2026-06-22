@@ -1,13 +1,9 @@
 import type { DrawingPlugin } from '../plugin-api';
 import { plotToPoint, pointToPlot } from '../drawingCoords';
 import { plotWidth } from '../layout';
-import {
-  defaultDrawingStroke,
-  previewDrawingStroke,
-  drawControlPoints,
-  HIT_TOLERANCE_PX,
-} from './primitives';
+import { drawControlPoints, strokeFromStyles, HIT_TOLERANCE_PX } from './primitives';
 import { baseDrawing, plotsForPoints } from './drawingUtils';
+import { resolveDrawingStyles } from '../drawingStyles';
 
 export const horizontalLine: DrawingPlugin = {
   name: 'horizontal_line',
@@ -21,9 +17,11 @@ export const horizontalLine: DrawingPlugin = {
     const showTimeAxis = opts?.showTimeAxis ?? true;
     const pw = plotWidth(vp.width);
     const y = pointToPlot(d.points[0], vp, candles, showTimeAxis).y;
-    ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = 1.5;
-    if (opts?.preview) ctx.setLineDash([4, 4]);
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(pw, y);

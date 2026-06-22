@@ -4,12 +4,13 @@ import type { DrawingPoint } from '../drawingCoords';
 import { pointToPlot, plotToPoint } from '../drawingCoords';
 import {
   distanceToSegment,
-  defaultDrawingStroke,
-  previewDrawingStroke,
   drawControlPoints,
+  extendSegmentEndpoints,
+  strokeFromStyles,
   HIT_TOLERANCE_PX,
 } from './primitives';
 import { plotsForPoints, baseDrawing } from './drawingUtils';
+import { resolveDrawingStyles } from '../drawingStyles';
 
 export const trendLine: DrawingPlugin = {
   name: 'trend_line',
@@ -31,12 +32,25 @@ export const trendLine: DrawingPlugin = {
     if (d.points.length < 2) return;
     const showTimeAxis = opts?.showTimeAxis ?? true;
     const [a, b] = plotsForPoints(d, vp, candles, showTimeAxis);
-    ctx.strokeStyle = opts?.preview ? previewDrawingStroke() : defaultDrawingStroke(theme, selected);
-    ctx.lineWidth = opts?.preview ? 1 : 1.5;
-    if (opts?.preview) ctx.setLineDash([4, 4]);
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    const seg = extendSegmentEndpoints(
+      a.x,
+      a.y,
+      b.x,
+      b.y,
+      vp.width,
+      vp.height,
+      showTimeAxis,
+      styles.extendLeft,
+      styles.extendRight
+    );
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
+    ctx.moveTo(seg.x1, seg.y1);
+    ctx.lineTo(seg.x2, seg.y2);
     ctx.stroke();
     ctx.setLineDash([]);
     if (selected && !opts?.preview) {
