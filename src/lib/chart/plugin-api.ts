@@ -1,18 +1,42 @@
 // src/lib/chart/plugin-api.ts
 // Minimal plugin interfaces for indicators and drawings
 
-import type { Candle, VisibleRange, Theme, SerializedDrawing } from './contracts';
+import type { Candle, VisibleRange, Theme, SerializedDrawing, LineStyleOverride, IndicatorConfig } from './contracts';
 import type { DrawingPoint } from './drawingCoords';
 import type { LegendValueEntry, SeriesOutput } from './legend/types';
+import type { PriceAxisAnnotation } from './priceAxisTypes';
 
 export type IndicatorCategory = 'Trend' | 'Momentum' | 'Volume' | 'Volatility' | 'Other';
 
-export type ParamDef = {
+export type PriceSource = 'close' | 'open' | 'high' | 'low' | 'hlc3' | 'ohlcv';
+export type InputValue = number | string | boolean;
+export type ResolvedInputs = Record<string, InputValue>;
+
+export type ParamDef =
+  | { kind: 'number'; label: string; default: number; min?: number; max?: number; step?: number }
+  | { kind: 'enum'; label: string; default: string; options: { value: string; label: string }[] }
+  | { kind: 'boolean'; label: string; default: boolean }
+  | { kind: 'source'; label: string; default: PriceSource };
+
+/** @deprecated Use discriminated ParamDef with kind: 'number'. */
+export type LegacyParamDef = {
   label: string;
   default: number;
   min?: number;
   max?: number;
   step?: number;
+};
+
+export type ResolvedSeriesStyle = {
+  color: string;
+  lineWidth: number;
+  visible: boolean;
+};
+
+export type IndicatorDrawOptions = {
+  instance: IndicatorConfig;
+  resolvedStyles: Map<string, ResolvedSeriesStyle>;
+  data: Record<string, number[]> | null;
 };
 
 /**
@@ -24,31 +48,37 @@ export interface IndicatorPlugin {
   category: IndicatorCategory;
   description: string;
   pane: 'main' | 'sub';
+  /** @deprecated Prefer defaultInputs. */
   defaultParams?: Record<string, number>;
-  /** Drives future settings UI; keys match defaultParams. */
-  paramSchema?: Record<string, ParamDef>;
+  defaultInputs?: Record<string, InputValue>;
+  inputSchema?: Record<string, ParamDef>;
+  /** @deprecated Prefer inputSchema. */
+  paramSchema?: Record<string, LegacyParamDef>;
+  defaultStyles?: Record<string, LineStyleOverride>;
   /** Single source of truth for all output series data. */
-  compute?: (candles: Candle[], params?: Record<string, number>) => Record<string, number[]>;
+  compute?: (candles: Candle[], inputs: ResolvedInputs) => Record<string, number[]>;
   /** Declarative series metadata — drives default legend when compute is present. */
   outputs?: SeriesOutput[];
-  draw: (
+  /** Custom draw override; omit when outputs + declarative path suffice. */
+  draw?: (
     ctx: CanvasRenderingContext2D,
     candles: Candle[],
     vp: VisibleRange,
     theme: Theme,
-    params?: Record<string, number>
+    inputs: ResolvedInputs,
+    options?: IndicatorDrawOptions,
   ) => void;
-  valueAt?: (index: number, candles: Candle[], params?: Record<string, number>) => number | null;
+  valueAt?: (index: number, candles: Candle[], inputs: ResolvedInputs) => number | null;
   legendAt?: (
     index: number,
     candles: Candle[],
-    params?: Record<string, number>,
+    inputs: ResolvedInputs,
     theme?: Theme,
   ) => LegendValueEntry[] | null;
   valueRangeForViewport?: (
     candles: Candle[],
     vp: VisibleRange,
-    params?: Record<string, number>
+    inputs: ResolvedInputs,
   ) => { min: number; max: number } | null;
 }
 
@@ -101,4 +131,12 @@ export interface DrawingPlugin {
     candles: Candle[],
     showTimeAxis?: boolean
   ) => SerializedDrawing;
+  /** Optional price-axis labels for horizontal / price-level drawings. */
+  axisAnnotations?: (
+    drawing: SerializedDrawing,
+    vp: VisibleRange,
+    candles: Candle[],
+    theme: Theme,
+    showTimeAxis?: boolean,
+  ) => PriceAxisAnnotation[];
 }

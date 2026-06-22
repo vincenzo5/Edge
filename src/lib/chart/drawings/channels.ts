@@ -3,6 +3,7 @@ import { plotToPoint, pointToPlot } from '../drawingCoords';
 import {
   distanceToSegment,
   drawControlPoints,
+  fillFromStyles,
   strokeFromStyles,
   pointInRect,
   HIT_TOLERANCE_PX,
@@ -65,6 +66,18 @@ export const parallelChannel: DrawingPlugin = {
     const [a, b] = plots;
     const styles = resolveDrawingStyles(d, theme, selected);
     const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    const fill = fillFromStyles(styles);
+    if (fill && plots.length >= 3) {
+      const { c, d: d2 } = parallelOffsetLine(a, b, plots[2]);
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineTo(d2.x, d2.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.strokeStyle = stroke;
     ctx.lineWidth = lineWidth;
     if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
@@ -123,6 +136,11 @@ export const priceChannel: DrawingPlugin = {
     const h = Math.abs(b.y - a.y);
     const styles = resolveDrawingStyles(d, theme, selected);
     const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    const fill = fillFromStyles(styles);
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fillRect(x, top, w, h);
+    }
     ctx.strokeStyle = stroke;
     ctx.lineWidth = lineWidth;
     if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);

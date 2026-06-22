@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { migrateCellIndicators, legacyIndicatorKey, DEFAULT_LAYOUT, type CellConfig } from '@/lib/chartConfig';
+import { mergeChartSettings } from '@/lib/chart/chartSettings';
 import { loadLayout, saveLayout } from '@/lib/layoutStorage';
 
 const localStorageMock = (() => {
@@ -31,6 +32,56 @@ describe('loadLayout sidebar prefs', () => {
     });
     const loaded = loadLayout();
     expect(loaded.sidebar?.activePanel).toBe('object-tree');
+  });
+
+  it('round-trips chartSettings priceScaleType and crosshairMode', () => {
+    saveLayout({
+      ...DEFAULT_LAYOUT,
+      cells: [
+        {
+          ...DEFAULT_LAYOUT.cells[0],
+          chartSettings: {
+            scales: { priceScaleType: 'log' },
+            canvas: { crosshairMode: 'dot' },
+          },
+        },
+      ],
+    });
+    const loaded = loadLayout();
+    const merged = mergeChartSettings(loaded.cells[0].chartSettings);
+    expect(merged.scales.priceScaleType).toBe('log');
+    expect(merged.canvas.crosshairMode).toBe('dot');
+  });
+
+  it('migrates legacy flat chartSettings on load', () => {
+    saveLayout({
+      ...DEFAULT_LAYOUT,
+      cells: [
+        {
+          ...DEFAULT_LAYOUT.cells[0],
+          chartSettings: { priceScaleType: 'log', crosshairMode: 'dot' },
+        },
+      ],
+    });
+    const loaded = loadLayout();
+    const merged = mergeChartSettings(loaded.cells[0].chartSettings);
+    expect(merged.scales.priceScaleType).toBe('log');
+    expect(merged.canvas.crosshairMode).toBe('dot');
+  });
+
+  it('round-trips chartSettings timeZone', () => {
+    saveLayout({
+      ...DEFAULT_LAYOUT,
+      cells: [
+        {
+          ...DEFAULT_LAYOUT.cells[0],
+          chartSettings: { timeZone: 'America/Chicago' },
+        },
+      ],
+    });
+    const loaded = loadLayout();
+    const merged = mergeChartSettings(loaded.cells[0].chartSettings);
+    expect(merged.symbol.timeZone).toBe('America/Chicago');
   });
 
   it('rejects invalid sidebar panel ids', () => {
@@ -76,5 +127,27 @@ describe('migrateCellIndicators', () => {
     const id = cell.indicators[0].id;
     expect(cell.paneOrder).toEqual(['price', id]);
     expect(cell.paneHeights?.[id]).toBe(120);
+  });
+
+  it('preserves inputs and styles on migrated indicators', () => {
+    const cell = migrateCellIndicators({
+      symbol: 'AAPL',
+      range: '1y',
+      interval: '1d',
+      chartType: 'candle_solid',
+      indicators: [
+        {
+          id: 'macd-1',
+          name: 'MACD',
+          pane: 'sub',
+          inputs: { fast: 8, slow: 21, signal: 5 },
+          styles: { signal: { color: '#ff00ff', lineWidth: 2 } },
+        },
+      ],
+      drawings: [],
+    } as CellConfig);
+
+    expect(cell.indicators[0].inputs).toEqual({ fast: 8, slow: 21, signal: 5 });
+    expect(cell.indicators[0].styles).toEqual({ signal: { color: '#ff00ff', lineWidth: 2 } });
   });
 });

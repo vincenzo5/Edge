@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import type { CrosshairState, Theme } from './contracts';
+import type { CrosshairMode } from './crosshairMode';
+import type { RequiredChartSettings } from './chartSettings';
 import { drawUnifiedCrosshair } from './renderer';
 
 type Props = {
@@ -9,9 +11,18 @@ type Props = {
   height: number;
   theme: Theme;
   crosshair: CrosshairState | null;
+  crosshairMode?: CrosshairMode;
+  canvasSettings?: RequiredChartSettings['canvas'];
 };
 
-export default function CrosshairOverlay({ width, height, theme, crosshair }: Props) {
+export default function CrosshairOverlay({
+  width,
+  height,
+  theme,
+  crosshair,
+  crosshairMode = 'cross',
+  canvasSettings,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -21,8 +32,8 @@ export default function CrosshairOverlay({ width, height, theme, crosshair }: Pr
     if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
     if (!crosshair) return;
-    drawUnifiedCrosshair(ctx, width, height, theme, crosshair);
-  }, [width, height, theme, crosshair]);
+    drawUnifiedCrosshair(ctx, width, height, theme, crosshair, crosshairMode, canvasSettings);
+  }, [width, height, theme, crosshair, crosshairMode, canvasSettings]);
 
   return (
     <canvas

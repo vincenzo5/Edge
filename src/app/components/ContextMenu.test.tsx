@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ContextMenu, { clampMenuPosition } from './ContextMenu';
+import ContextMenu, { clampMenuPosition, resolveSubmenuPlacement } from './ContextMenu';
 
 describe('clampMenuPosition', () => {
   it('keeps position when the menu fits in the viewport', () => {
@@ -21,6 +21,20 @@ describe('clampMenuPosition', () => {
       x: 8,
       y: 8,
     });
+  });
+});
+
+describe('resolveSubmenuPlacement', () => {
+  it('opens right when there is enough room', () => {
+    expect(resolveSubmenuPlacement({ left: 100, right: 280 }, 200, 800)).toBe('right');
+  });
+
+  it('opens left when opening right would overflow', () => {
+    expect(resolveSubmenuPlacement({ left: 600, right: 780 }, 200, 800)).toBe('left');
+  });
+
+  it('chooses the side with more room when neither side fully fits', () => {
+    expect(resolveSubmenuPlacement({ left: 140, right: 320 }, 300, 400)).toBe('left');
   });
 });
 

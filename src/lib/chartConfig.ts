@@ -1,9 +1,35 @@
-import type { Range, Interval } from "./yahoo";
+import type { Range } from "./yahoo";
+import type { Interval } from "./chart/contracts";
 import type { IndicatorConfig, SerializedDrawing } from "./chart/contracts";
+import type { ChartSettings } from "./chart/chartSettings";
+import { defaultInputsFromSchema } from "./chart/indicatorInputs";
 import { getIndicator } from "./chart/indicators/registry";
 
 export type { Range, Interval };
-export type { IndicatorConfig, SerializedDrawing, DrawingStyles, TrackedOverlay } from "./chart/contracts";
+export type { IndicatorConfig, SerializedDrawing, DrawingStyles, TrackedOverlay, LineStyleOverride } from "./chart/contracts";
+export type {
+  ChartSettings,
+  GroupedChartSettings,
+  RequiredChartSettings,
+  CrosshairMode,
+  PriceScaleType,
+  SymbolPriceLabelMode,
+  IndicatorPriceLabelMode,
+  DrawingPriceLabelMode,
+  PriceScalePlacement,
+  StatusLineTitleMode,
+  ChartLineStyle,
+  GridLineMode,
+  ButtonVisibility,
+  PricePrecision,
+} from "./chart/chartSettings";
+export {
+  DEFAULT_CHART_SETTINGS,
+  mergeChartSettings,
+  migrateChartSettings,
+  patchChartSettings,
+  serializeChartSettings,
+} from "./chart/chartSettings";
 
 export type ChartType =
   | "candle_solid"
@@ -62,6 +88,8 @@ export type CellConfig = {
   exchange?: string;
   range: Range;
   interval: Interval;
+  /** Active bottom-bar preset, or null when deselected (default landing view). */
+  rangePreset?: Range | null;
   chartType: ChartType;
   indicators: IndicatorConfig[];
   drawings: SerializedDrawing[];
@@ -73,6 +101,8 @@ export type CellConfig = {
   maximizedPane?: string | null;
   /** User-resized sub-pane heights keyed by indicator key (price pane height is derived). */
   paneHeights?: Record<string, number>;
+  /** Chart display settings (status line, scales, canvas). */
+  chartSettings?: ChartSettings;
 };
 
 export type ChartLayout = {
@@ -92,7 +122,7 @@ export type ChartLayout = {
 /** Fields propagated to all cells when layout.linked is true. */
 export type LinkFields = Pick<
   CellConfig,
-  "symbol" | "symbolName" | "exchange" | "range" | "interval"
+  "symbol" | "symbolName" | "exchange" | "range" | "interval" | "rangePreset"
 >;
 
 export function pickLinkFields(cell: CellConfig): LinkFields {
@@ -102,13 +132,16 @@ export function pickLinkFields(cell: CellConfig): LinkFields {
     exchange: cell.exchange,
     range: cell.range,
     interval: cell.interval,
+    rangePreset: cell.rangePreset ?? null,
   };
 }
 
+export const DEFAULT_CHART_RANGE = { range: "1y" as Range, interval: "1d" as Interval };
+
 export const DEFAULT_CELL: CellConfig = {
   symbol: "AAPL",
-  range: "1y",
-  interval: "1d",
+  ...DEFAULT_CHART_RANGE,
+  rangePreset: null,
   chartType: "candle_solid",
   indicators: [],
   drawings: [],
@@ -141,10 +174,12 @@ export const RANGES: Array<{ label: string; value: Range }> = [
 ];
 
 export const INTERVALS: Array<{ label: string; value: Interval }> = [
+  { label: "1m", value: "1m" },
   { label: "5m", value: "5m" },
   { label: "15m", value: "15m" },
   { label: "30m", value: "30m" },
   { label: "1h", value: "1h" },
+  { label: "2h", value: "2h" },
   { label: "1D", value: "1d" },
   { label: "1W", value: "1wk" },
   { label: "1M", value: "1mo" },
@@ -197,11 +232,12 @@ export function createIndicatorInstance(
   pane: "main" | "sub",
 ): IndicatorConfig {
   const plugin = getIndicator(name);
+  const inputs = plugin ? defaultInputsFromSchema(plugin) : undefined;
   return {
     id: generateIndicatorId(),
     name,
     pane,
-    params: plugin?.defaultParams ? { ...plugin.defaultParams } : undefined,
+    inputs,
     visible: true,
   };
 }

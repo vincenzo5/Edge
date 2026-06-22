@@ -1,5 +1,5 @@
 import type { Theme } from '../contracts';
-import { getColors } from '../renderer';
+import { getChartColors as getColors } from '../chartTheme';
 import { plotWidth, plotHeight } from '../layout';
 import type { VisibleRange } from '../contracts';
 
@@ -186,6 +186,23 @@ export function extendRayToBounds(
 export function defaultDrawingStroke(theme: Theme, selected: boolean): string {
   if (selected) return '#f59e0b';
   return theme === 'dark' ? '#64748b' : '#475569';
+}
+
+export function fillFromStyles(
+  styles: { fillColor?: string; fillOpacity?: number },
+  fallback = 'rgba(59, 130, 246, 0.15)'
+): string | null {
+  const opacity = styles.fillOpacity ?? 0;
+  if (opacity <= 0) return null;
+  const color = styles.fillColor ?? '#3b82f6';
+  if (color.startsWith('rgba') || color.startsWith('rgb')) return color;
+  const hex = color.replace('#', '');
+  if (hex.length !== 6) return fallback;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return fallback;
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
 export function strokeFromStyles(

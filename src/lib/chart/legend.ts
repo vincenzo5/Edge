@@ -1,11 +1,18 @@
 import type { Candle, IndicatorConfig, Interval, Theme } from './contracts';
+import type { ChartSettings, RequiredChartSettings } from './chartSettings';
+import {
+  mergeChartSettings,
+  resolvePriceDecimals,
+} from './chartSettings';
 import { formatChange, formatPrice, formatVolume } from './format';
 import { INTERVALS } from '../chartConfig';
 import { IndicatorRegistry } from './pluginHost';
 import { legendFromOutputs } from './indicatorCompute';
+import { getInputSchema, resolveIndicatorInputs } from './indicatorInputs';
+import type { InputValue } from './plugin-api';
 import type { LegendSection } from './legend/types';
 
-export type { LegendSection, LegendValueEntry, LegendActionIcon, SeriesOutput, SeriesColor } from './legend/types';
+export type { LegendSection, LegendValueEntry, LegendActionIcon, SeriesOutput, SeriesColor, PlotKind } from './legend/types';
 
 export type LegendBarData = {
   candle: Candle;
@@ -49,12 +56,42 @@ export function resolveLegendBar(
 
 function formatIndicatorTitle(
   name: string,
-  params?: Record<string, number>,
-  defaultParams?: Record<string, number>,
+  inputs: Record<string, InputValue>,
+  showInputs: boolean,
 ): string {
-  const merged = { ...defaultParams, ...params };
-  const paramValues = Object.values(merged);
+  if (!showInputs) return name;
+  const paramValues = Object.values(inputs).filter(
+    (v) => typeof v === 'number' || typeof v === 'string',
+  );
   return paramValues.length > 0 ? `${name} ${paramValues.join(' ')}` : name;
+}
+
+function resolveTitleText(
+  opts: {
+    symbol: string;
+    symbolName?: string;
+    exchange?: string;
+    interval: Interval;
+  },
+  settings: RequiredChartSettings,
+): string {
+  const intervalLabel =
+    INTERVALS.find((i) => i.value === opts.interval)?.label ??
+    opts.interval.toUpperCase();
+
+  switch (settings.statusLine.titleMode) {
+    case 'symbol':
+      return [opts.symbol, intervalLabel].join(' · ');
+    case 'description':
+      return [opts.symbolName ?? opts.symbol, intervalLabel, opts.exchange]
+        .filter(Boolean)
+        .join(' · ');
+    case 'name':
+    default:
+      return [opts.symbolName ?? opts.symbol, intervalLabel, opts.exchange]
+        .filter(Boolean)
+        .join(' · ');
+  }
 }
 
 export function resolvePriceLegend(
@@ -65,72 +102,94 @@ export function resolvePriceLegend(
     interval: Interval;
     candles: Candle[];
     dataIndex: number | null;
+    chartSettings?: ChartSettings;
   },
 ): LegendSection[] | null {
+  const settings = mergeChartSettings(opts.chartSettings);
   const legend = resolveLegendBar(opts.candles, opts.dataIndex);
   if (!legend) return null;
 
   const { candle, change, changePct } = legend;
   const isUp = change >= 0;
   const displayName = opts.symbolName ?? opts.symbol;
-  const intervalLabel =
-    INTERVALS.find((i) => i.value === opts.interval)?.label ??
-    opts.interval.toUpperCase();
-
-  const titleParts = [displayName, intervalLabel];
-  if (opts.exchange) titleParts.push(opts.exchange);
-
+  const decimals = resolvePriceDecimals(settings.symbol.precision);
   const changeValue = formatChange(change, changePct);
 
-  return [
-    {
-      kind: 'badge',
-      letter: (displayName || opts.symbol).charAt(0).toUpperCase(),
-      tooltip: 'Ticker symbol',
-    },
-    {
-      kind: 'text',
-      text: titleParts.join(' · '),
-      muted: true,
-      tooltip: 'Symbol, timeframe, and exchange',
-    },
-    {
-      kind: 'value',
-      id: 'open',
-      label: 'O',
-      value: formatPrice(candle.o),
-      tooltip: 'Open — price at the start of this bar',
-    },
-    {
-      kind: 'value',
-      id: 'high',
-      label: 'H',
-      value: formatPrice(candle.h),
-      tooltip: 'High — highest price in this bar',
-    },
-    {
-      kind: 'value',
-      id: 'low',
-      label: 'L',
-      value: formatPrice(candle.l),
-      tooltip: 'Low — lowest price in this bar',
-    },
-    {
-      kind: 'value',
-      id: 'close',
-      label: 'C',
-      value: formatPrice(candle.c),
-      tooltip: 'Close — price at the end of this bar',
-    },
-    {
+  const sections: LegendSection[] = [];
+
+  if (settings.statusLine.showTitle || settings.statusLine.showLogo) {
+    if (settings.statusLine.showLogo) {
+      sections.push({
+        kind: 'badge',
+        letter: (displayName || opts.symbol).charAt(0).toUpperCase(),
+        tooltip: 'Ticker symbol',
+      });
+    }
+    if (settings.statusLine.showTitle) {
+      sections.push({
+        kind: 'text',
+        text: resolveTitleText(opts, settings),
+        muted: true,
+        tooltip: 'Symbol, timeframe, and exchange',
+      });
+    }
+  }
+
+  if (settings.statusLine.showChartValues) {
+    sections.push(
+      {
+        kind: 'value',
+        id: 'open',
+        label: 'O',
+        value: formatPrice(candle.o, decimals),
+        tooltip: 'Open — price at the start of this bar',
+      },
+      {
+        kind: 'value',
+        id: 'high',
+        label: 'H',
+        value: formatPrice(candle.h, decimals),
+        tooltip: 'High — highest price in this bar',
+      },
+      {
+        kind: 'value',
+        id: 'low',
+        label: 'L',
+        value: formatPrice(candle.l, decimals),
+        tooltip: 'Low — lowest price in this bar',
+      },
+      {
+        kind: 'value',
+        id: 'close',
+        label: 'C',
+        value: formatPrice(candle.c, decimals),
+        tooltip: 'Close — price at the end of this bar',
+      },
+    );
+  }
+
+  if (settings.statusLine.showBarChangeValues) {
+    sections.push({
       kind: 'value',
       id: 'change',
       label: '',
       value: changeValue,
       color: isUp ? '#00FF88' : '#f87171',
       tooltip: 'Change from the previous bar close',
-    },
-  ];
+    });
+  }
+
+  if (settings.statusLine.showVolume && candle.v != null && Number.isFinite(candle.v)) {
+    sections.push({
+      kind: 'value',
+      id: 'volume',
+      label: 'V',
+      value: formatVolume(candle.v),
+      tooltip: 'Volume for this bar',
+    });
+  }
+
+  return sections.length > 0 ? sections : null;
 }
 
 export function resolveIndicatorLegend(
@@ -138,6 +197,7 @@ export function resolveIndicatorLegend(
   candles: Candle[],
   dataIndex: number | null,
   theme: Theme = 'dark',
+  chartSettings?: ChartSettings,
 ): LegendSection[] | null {
   const index = resolveLegendIndex(candles, dataIndex);
   if (index == null) return null;
@@ -145,44 +205,51 @@ export function resolveIndicatorLegend(
   const plugin = IndicatorRegistry.get(indicator.name);
   if (!plugin) return null;
 
-  const sections: LegendSection[] = [
-    {
+  const settings = mergeChartSettings(chartSettings);
+  const inputs = resolveIndicatorInputs(plugin, indicator);
+  const sections: LegendSection[] = [];
+
+  if (settings.statusLine.indicatorShowTitles) {
+    sections.push({
       kind: 'text',
       text: formatIndicatorTitle(
         indicator.name,
-        indicator.params,
-        plugin.defaultParams,
+        inputs,
+        settings.statusLine.indicatorShowInputs,
       ),
       muted: true,
       tooltip: 'Indicator name and settings',
-    },
-  ];
+    });
+  }
 
-  const entries =
-    plugin.legendAt?.(index, candles, indicator.params, theme) ??
-    legendFromOutputs(plugin, index, candles, indicator.params, theme);
-  if (entries) {
-    for (const entry of entries) {
-      sections.push({
-        kind: 'value',
-        id: entry.id,
-        label: entry.label,
-        value:
-          entry.value != null && Number.isFinite(entry.value)
-            ? entry.id === 'vol'
-              ? formatVolume(entry.value)
-              : formatPrice(entry.value, entry.decimals ?? 4)
-            : '—',
-        color: entry.color,
-        tooltip: entry.tooltip,
-      });
+  if (settings.statusLine.indicatorShowValues) {
+    const entries =
+      plugin.legendAt?.(index, candles, inputs, theme) ??
+      legendFromOutputs(plugin, index, candles, indicator, theme);
+    if (entries) {
+      for (const entry of entries) {
+        if (!entry.label) continue;
+        sections.push({
+          kind: 'value',
+          id: entry.id,
+          label: entry.label,
+          value:
+            entry.value != null && Number.isFinite(entry.value)
+              ? entry.id === 'vol'
+                ? formatVolume(entry.value)
+                : formatPrice(entry.value, entry.decimals ?? 4)
+              : '—',
+          color: entry.color,
+          tooltip: entry.tooltip,
+        });
+      }
     }
   }
 
-  return sections;
+  return sections.length > 0 ? sections : null;
 }
 
-/** Append a settings gear action when the indicator plugin exposes paramSchema. */
+/** Append a settings gear action when the indicator plugin exposes inputSchema. */
 export function appendLegendSettingsAction(
   sections: LegendSection[],
   indicatorId: string,
@@ -196,4 +263,11 @@ export function appendLegendSettingsAction(
       tooltip: 'Indicator settings',
     },
   ];
+}
+
+export function indicatorHasSettings(name: string): boolean {
+  const plugin = IndicatorRegistry.get(name);
+  if (!plugin) return false;
+  const schema = getInputSchema(plugin);
+  return Boolean(schema && Object.keys(schema).length > 0) || Boolean(plugin.outputs?.length);
 }

@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useCallback, type RefObject } from 'react';
-import type { Candle, VisibleRange, Theme, SerializedDrawing, IndicatorConfig, Interval, CrosshairMoveEvent } from './contracts';
+import { useEffect, useLayoutEffect, useRef, useCallback, type RefObject } from 'react';
+import type { Candle, VisibleRange, Theme, SerializedDrawing, IndicatorConfig, Interval, CrosshairMoveEvent, Range } from './contracts';
+import type { ChartSettings } from './chartSettings';
+import { mergeChartSettings, resolvePriceScaleSide } from './chartSettings';
 import type { ViewportState } from './viewport';
 import type { RegisterPane } from './paneHandle';
 import type { WheelAction } from './wheel';
@@ -17,24 +19,31 @@ import {
   refreshViewportForDataChange,
   getDefaultViewport,
   isViewportModified as isViewportModifiedFn,
+  withPriceScaleContext,
+  ensureRightMarginBars,
+  applyPriceScaleLayout,
 } from './viewport';
 import { applyPanePriceScale, resetPanePriceScale } from './indicatorScale';
 import {
   resolveDragMode,
   resolveHoverCursor,
-  PRICE_AXIS_WIDTH,
+  isPriceAxisHit,
   plotHeight,
   plotWidth,
+  plotLeftOffset,
   type ChartCursor,
   type DragMode,
+  type PriceScaleSide,
 } from './layout';
-import { drawGrid, drawCandles, drawLastPrice, drawAxes } from './renderer';
+import { drawGrid, drawCandles, drawPlotBackground, drawPriceAxisAnnotations, drawAxes } from './renderer';
 import { formatAxisTime } from './time';
 import { formatCrosshairValue, shouldClearCrosshairOnLeave } from './crosshair';
 import { DrawingRegistry, IndicatorRegistry } from './pluginHost';
+import { drawIndicator } from './indicators/draw';
 import { clampPlot } from './drawingCoords';
 import type { DrawingPointerEvent } from './drawingController';
 import { sortDrawingsByZ } from './drawings/primitives';
+import { getSessionViewport } from './rangePresets';
 
 type Props = {
   candles: Candle[];
@@ -57,9 +66,19 @@ type Props = {
   onViewportChange?: (vp: VisibleRange, paneId: string) => void;
   onDrawingPointer?: (event: DrawingPointerEvent) => void;
   onDrawingContextMenu?: (event: DrawingPointerEvent & { clientX: number; clientY: number }) => boolean | void;
+  onPriceScaleContextMenu?: (pos: { clientX: number; clientY: number; priceScaleMode: 'auto' | 'manual' }) => void;
   suppressCrosshair?: boolean;
   /** `'__cursor__'` for navigate mode; drawing tool name when placing overlays. */
   activeTool?: string;
+  /** Visible window preset; used on price pane to align left/right chart edges. */
+  range?: Range;
+  /** Active bottom-bar preset; null = default landing view (last N bars). */
+  rangePreset?: Range | null;
+  /** Bumps when loaded series identity changes — triggers viewport reset. */
+  viewportRevision?: string;
+  chartSettings?: ChartSettings;
+  /** User panned/zoomed the time axis (enables edge history prefetch in parent). */
+  onUserTimePan?: () => void;
 };
 
 function snapshotViewport(vp: VisibleRange): ViewportState {
@@ -72,6 +91,7 @@ function snapshotViewport(vp: VisibleRange): ViewportState {
     height: vp.height,
     priceScaleMode: vp.priceScaleMode,
     reserveTimeAxis: vp.reserveTimeAxis,
+    priceScaleContext: vp.priceScaleContext,
   };
 }
 
@@ -95,9 +115,17 @@ export default function ChartCanvas({
   onViewportChange,
   onDrawingPointer,
   onDrawingContextMenu,
+  onPriceScaleContextMenu,
   suppressCrosshair = false,
   activeTool = '__cursor__',
+  range,
+  rangePreset = null,
+  viewportRevision,
+  chartSettings: chartSettingsProp,
+  onUserTimePan,
 }: Props) {
+  const chartSettings = mergeChartSettings(chartSettingsProp);
+  const priceScaleSide = resolvePriceScaleSide(chartSettings.scales.priceScalePlacement);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const vpRef = useRef<ReturnType<typeof createViewport> | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -114,6 +142,10 @@ export default function ChartCanvas({
   activeToolRef.current = activeTool;
   const drawRef = useRef<() => void>(() => {});
   const prevDimsRef = useRef({ width: 0, height: 0 });
+  const prevCandleCountRef = useRef(0);
+  const prevViewportRevisionRef = useRef<string | undefined>(undefined);
+  const onUserTimePanRef = useRef(onUserTimePan);
+  onUserTimePanRef.current = onUserTimePan;
   const onCrosshairMoveRef = useRef(onCrosshairMove);
   onCrosshairMoveRef.current = onCrosshairMove;
   const onDrawingPointerRef = useRef(onDrawingPointer);
@@ -132,8 +164,17 @@ export default function ChartCanvas({
     return { phase, plotX: plot.x, plotY: plot.y, button: e.button, detail: e.detail, paneId };
   };
 
+  const layoutViewport = useCallback(
+    (vp: VisibleRange) =>
+      applyPriceScaleLayout(vp, {
+        invert: paneId === 'price' && chartSettings.scales.invertPriceScale,
+        side: paneId === 'price' ? priceScaleSide : 'right',
+      }),
+    [chartSettings.scales.invertPriceScale, paneId, priceScaleSide],
+  );
+
   const isPlotBody = (x: number, y: number) =>
-    resolveDragMode(x, y, width, height, showTimeAxis) === 'body';
+    resolveDragMode(x, y, width, height, showTimeAxis, priceScaleSide) === 'body';
 
   const emitViewport = (vp: VisibleRange) => {
     onViewportChange?.(vp, paneId);
@@ -147,11 +188,12 @@ export default function ChartCanvas({
       activeTool: activeToolRef.current,
       isDragging,
       dragMode: isDragging ? dragModeRef.current : null,
+      priceScaleSide,
     });
     if (appliedCursorRef.current === cursor) return;
     appliedCursorRef.current = cursor;
     canvas.style.cursor = cursor;
-  }, [width, height, showTimeAxis]);
+  }, [width, height, showTimeAxis, priceScaleSide]);
 
   const resetCursor = useCallback(() => {
     const canvas = canvasRef.current;
@@ -163,17 +205,39 @@ export default function ChartCanvas({
   const isPricePane = paneId === 'price';
 
   const fitPriceScale = useCallback(
-    (vp: VisibleRange) => applyPanePriceScale(vp, candles, paneId, indicators),
-    [candles, paneId, indicators]
+    (vp: VisibleRange) =>
+      applyPanePriceScale(vp, candles, paneId, indicators, chartSettings),
+    [candles, paneId, indicators, chartSettings],
   );
 
   const fitPriceScaleIfAuto = useCallback(
-    (vp: VisibleRange) => {
-      if ((vp.priceScaleMode ?? 'auto') === 'manual') return vp;
-      return fitPriceScale(vp);
+    (vp: VisibleRange, settingsOverride?: ChartSettings) => {
+      const settings = settingsOverride ?? chartSettings;
+      let next = vp;
+      if (isPricePane) {
+        next = attachViewportHelpers(
+            ensureRightMarginBars(
+              withPriceScaleContext(next, candles, settings),
+              candles.length,
+              width,
+              chartSettings.canvas.marginRightBars,
+            ),
+          candles.length,
+        );
+      }
+      if ((next.priceScaleMode ?? 'auto') === 'manual') return next;
+      return fitPriceScale(next);
     },
-    [fitPriceScale]
+    [fitPriceScale, isPricePane, candles, chartSettings],
   );
+
+  const buildSessionViewport = useCallback(() => {
+    let vp = isPricePane
+      ? getSessionViewport(candles, width, height, rangePreset ?? null)
+      : getDefaultViewport(candles, width, height);
+    vp = attachViewportHelpers({ ...vp, reserveTimeAxis: showTimeAxis }, candles.length);
+    return fitPriceScaleIfAuto(vp);
+  }, [candles, width, height, rangePreset, isPricePane, showTimeAxis, fitPriceScaleIfAuto]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -182,17 +246,23 @@ export default function ChartCanvas({
     if (!ctx) return;
 
     ctx.clearRect(0, 0, width, height);
-    const vp = vpRef.current;
+    const vp = layoutViewport(vpRef.current);
 
-    drawGrid(ctx, vp, width, height, theme);
+    const effectiveShowTimeAxis = showTimeAxis && chartSettings.scales.showTimeScale;
+
+    drawPlotBackground(ctx, width, height, theme, chartSettings, effectiveShowTimeAxis);
+
+    if (chartSettings.canvas.showGrid) {
+      drawGrid(ctx, vp, width, height, theme, chartSettings, candles, interval);
+    }
     if (isPricePane) {
-      drawCandles(ctx, candles, vp, theme, chartType as any);
+      drawCandles(ctx, candles, vp, theme, chartType as any, chartSettings);
     }
 
     for (const ind of indicators) {
       const plugin = IndicatorRegistry.get(ind.name);
-      if (plugin) {
-        plugin.draw(ctx, candles, vp, theme, ind.params);
+      if (plugin && ind.visible !== false) {
+        drawIndicator(plugin, ind, ctx, candles, vp, theme);
       }
     }
 
@@ -215,46 +285,108 @@ export default function ChartCanvas({
       }
     }
 
-    drawAxes(ctx, vp, width, height, theme, candles, interval, showTimeAxis);
+    const axisSide: PriceScaleSide = isPricePane ? priceScaleSide : 'right';
+    drawAxes(
+      ctx,
+      vp,
+      width,
+      height,
+      theme,
+      chartSettings,
+      candles,
+      interval,
+      effectiveShowTimeAxis,
+      chartSettings.scales.showPriceScale,
+      axisSide,
+    );
 
-    const last = candles[candles.length - 1];
-    const lastClose = last?.c;
-    if (Number.isFinite(lastClose) && paneId === 'price') {
-      drawLastPrice(ctx, lastClose as number, vp, width, theme);
+    if (chartSettings.scales.showPriceScale) {
+      drawPriceAxisAnnotations({
+        ctx,
+        vp,
+        width,
+        height,
+        theme,
+        settings: chartSettings,
+        paneId,
+        candles,
+        indicators,
+        drawings,
+        interval,
+        showTimeAxis: effectiveShowTimeAxis,
+      });
     }
-  }, [candles, chartType, theme, width, height, drawings, previewDrawing, selectedDrawingId, indicators, paneId, interval, isPricePane, showTimeAxis]);
+  }, [candles, chartType, theme, width, height, drawings, previewDrawing, selectedDrawingId, indicators, paneId, interval, isPricePane, showTimeAxis, chartSettings, layoutViewport, priceScaleSide]);
 
-  // Init viewport when data or size changes
+  // Init viewport when loaded series or size changes.
   useEffect(() => {
     if (candles.length === 0) return;
+
+    const revisionChanged =
+      viewportRevision != null &&
+      prevViewportRevisionRef.current !== viewportRevision;
+    if (viewportRevision != null) {
+      prevViewportRevisionRef.current = viewportRevision;
+    }
+
     const prev = prevDimsRef.current;
-    const dimsOnly = vpRef.current && prev.width === width && prev.height === height;
-    if (dimsOnly && vpRef.current) {
+    const dimsChanged = prev.width !== width || prev.height !== height;
+
+    if (isPricePane && revisionChanged) {
+      const vp = buildSessionViewport();
+      vpRef.current = vp;
+      emitViewport(vp);
+      drawRef.current();
+      prevDimsRef.current = { width, height };
+      prevCandleCountRef.current = candles.length;
+      return;
+    }
+
+    if (!vpRef.current) {
+      const vp = buildSessionViewport();
+      vpRef.current = vp;
+      emitViewport(vp);
+      drawRef.current();
+      prevDimsRef.current = { width, height };
+      prevCandleCountRef.current = candles.length;
+      return;
+    }
+
+    if (dimsChanged) {
       let vp = refreshViewportForDataChange(vpRef.current, candles, width, height);
       vp = fitPriceScaleIfAuto(vp);
       vpRef.current = vp;
       emitViewport(vp);
       drawRef.current();
       prevDimsRef.current = { width, height };
+      prevCandleCountRef.current = candles.length;
       return;
     }
-    if (!vpRef.current) {
-      vpRef.current = attachViewportHelpers(
-        { ...getDefaultViewport(candles, width, height), reserveTimeAxis: showTimeAxis },
-        candles.length
-      );
-    } else {
-      vpRef.current = refreshViewportForDataChange(vpRef.current, candles, width, height);
+
+    // History prepend — parent shifts indices; only rebind helpers and refit Y.
+    if (
+      !revisionChanged &&
+      candles.length > prevCandleCountRef.current &&
+      prevCandleCountRef.current > 0
+    ) {
+      let vp = attachViewportHelpers({ ...vpRef.current }, candles.length);
+      vp = fitPriceScaleIfAuto(vp);
+      vpRef.current = vp;
+      drawRef.current();
     }
-    vpRef.current = attachViewportHelpers(
-      { ...vpRef.current!, reserveTimeAxis: showTimeAxis },
-      candles.length
-    );
-    vpRef.current = fitPriceScaleIfAuto(vpRef.current!);
-    emitViewport(vpRef.current!);
-    drawRef.current();
-    prevDimsRef.current = { width, height };
-  }, [candles, width, height, fitPriceScaleIfAuto, showTimeAxis]);
+    prevCandleCountRef.current = candles.length;
+  }, [
+    candles,
+    width,
+    height,
+    fitPriceScaleIfAuto,
+    showTimeAxis,
+    viewportRevision,
+    rangePreset,
+    isPricePane,
+    chartSettings.scales.priceScaleType,
+    buildSessionViewport,
+  ]);
 
   // Re-bind Y helpers when time-axis reservation changes without a size change.
   useEffect(() => {
@@ -269,7 +401,7 @@ export default function ChartCanvas({
   }, [showTimeAxis, candles.length]);
 
   // Imperative pane registration for time sync + centralized wheel (no React state per tick).
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!registerPane) return;
 
     const syncTimeWindow = (startIndex: number, endIndex: number, force = false) => {
@@ -283,12 +415,24 @@ export default function ChartCanvas({
       drawRef.current();
     };
 
+    const navigateToViewport = (startIndex: number, endIndex: number): VisibleRange | null => {
+      if (!vpRef.current || candles.length === 0) return null;
+      let next = { ...vpRef.current, startIndex, endIndex } as VisibleRange;
+      next = attachViewportHelpers(next, candles.length);
+      next = fitPriceScaleIfAuto(next);
+      vpRef.current = next;
+      drawRef.current();
+      emitViewport(next);
+      return next;
+    };
+
     const applyWheelAction = (action: WheelAction, anchorX: number): VisibleRange | null => {
       if (!vpRef.current || candles.length === 0) return null;
       let vp = vpRef.current;
       if (action.type === 'zoom') {
         vp = zoomVp(vp, action.factor, anchorX, candles.length);
       } else if (action.type === 'pan') {
+        onUserTimePanRef.current?.();
         vp = panVp(vp, action.deltaX, candles.length);
       } else {
         return vp;
@@ -304,11 +448,46 @@ export default function ChartCanvas({
       if (candles.length === 0 || !vpRef.current) return null;
       let next: VisibleRange;
       if (paneId === 'price') {
-        next = getDefaultViewport(candles, width, height);
+        next = attachViewportHelpers(
+          {
+            ...getSessionViewport(candles, width, height, rangePreset ?? null),
+            reserveTimeAxis: showTimeAxis,
+          },
+          candles.length,
+        );
       } else {
-        next = resetPanePriceScale(vpRef.current, candles, paneId, indicators);
+        next = resetPanePriceScale(vpRef.current, candles, paneId, indicators, chartSettings);
       }
       next = fitPriceScaleIfAuto(next);
+      vpRef.current = next;
+      emitViewport(next);
+      drawRef.current();
+      return next;
+    };
+
+    const resetPriceScale = (settingsOverride?: ChartSettings): VisibleRange | null => {
+      if (candles.length === 0 || !vpRef.current) return null;
+      let next = vpRef.current;
+      if (isPricePane) {
+        next = attachViewportHelpers(
+          ensureRightMarginBars(
+            { ...next, priceScaleMode: 'auto' },
+            candles.length,
+            width,
+            chartSettings.canvas.marginRightBars,
+          ),
+          candles.length,
+        );
+      } else {
+        next = resetPanePriceScale(
+          { ...next, priceScaleMode: 'auto' } as VisibleRange,
+          candles,
+          paneId,
+          indicators,
+          settingsOverride ? mergeChartSettings(settingsOverride) : chartSettings,
+        );
+      }
+      next = fitPriceScaleIfAuto(next, settingsOverride);
       vpRef.current = next;
       emitViewport(next);
       drawRef.current();
@@ -326,12 +505,14 @@ export default function ChartCanvas({
     return registerPane({
       paneId,
       syncTimeWindow,
+      navigateToViewport,
       applyWheelAction,
       getViewport: () => vpRef.current,
       resetViewport,
+      resetPriceScale,
       isViewportModified,
     });
-  }, [registerPane, paneId, candles, fitPriceScaleIfAuto, width, height, indicators]);
+  }, [registerPane, paneId, candles, fitPriceScaleIfAuto, width, height, indicators, rangePreset, showTimeAxis]);
 
   useEffect(() => {
     drawRef.current = draw;
@@ -346,7 +527,7 @@ export default function ChartCanvas({
     const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    dragModeRef.current = resolveDragMode(x, y, width, height, showTimeAxis);
+    dragModeRef.current = resolveDragMode(x, y, width, height, showTimeAxis, priceScaleSide);
 
     const useDrawing =
       onDrawingPointerRef.current &&
@@ -439,6 +620,7 @@ export default function ChartCanvas({
 
         let vp = vpRef.current;
         if (deltaX !== 0) {
+          onUserTimePanRef.current?.();
           vp = panVp(vp, deltaX, candles.length);
         }
         if ((vp.priceScaleMode ?? 'auto') === 'manual' && deltaY !== 0) {
@@ -463,10 +645,11 @@ export default function ChartCanvas({
         return;
       }
 
-      const vp = vpRef.current;
-      const pw = plotWidth(width);
+      const vp = layoutViewport(vpRef.current);
+      const pw = plotWidth(width, priceScaleSide);
       const ph = plotHeight(height, showTimeAxis);
-      let crosshairX = Math.max(0, Math.min(pw, x));
+      const plotOffset = isPricePane ? plotLeftOffset(priceScaleSide) : 0;
+      let crosshairX = Math.max(0, Math.min(pw, x - plotOffset));
       const plotY = Math.max(0, Math.min(ph, y));
 
       const idx = vp.indexForX(crosshairX);
@@ -518,6 +701,7 @@ export default function ChartCanvas({
     axisDragSnapshotRef.current = null;
     applyCursor(lastLocalRef.current.x, lastLocalRef.current.y, false);
     if (dragModeRef.current === 'body' && Math.abs(momentumRef.current) > 1) {
+      onUserTimePanRef.current?.();
       const loop = () => {
         if (!vpRef.current) return;
         const res = applyMomentum(vpRef.current, momentumRef.current, candles.length);
@@ -538,18 +722,39 @@ export default function ChartCanvas({
     if (!vpRef.current) return;
     const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
-    if (x >= width - PRICE_AXIS_WIDTH) {
-      vpRef.current = resetPanePriceScale(vpRef.current, candles, paneId, indicators);
+    if (isPriceAxisHit(x, width, priceScaleSide)) {
+      vpRef.current = resetPanePriceScale(vpRef.current, candles, paneId, indicators, chartSettings);
+      if (isPricePane && vpRef.current) {
+        vpRef.current = attachViewportHelpers(
+          ensureRightMarginBars(vpRef.current, candles.length, width, chartSettings.canvas.marginRightBars),
+          candles.length,
+        );
+        vpRef.current = fitPriceScaleIfAuto(vpRef.current);
+      }
       emitViewport(vpRef.current);
       drawRef.current();
     }
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (isPricePane && isPriceAxisHit(x, width, priceScaleSide) && onPriceScaleContextMenu) {
+      e.preventDefault();
+      e.stopPropagation();
+      onPriceScaleContextMenu({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        priceScaleMode: vpRef.current?.priceScaleMode ?? 'auto',
+      });
+      return;
+    }
+
     if (!onDrawingContextMenu || !isPricePane) return;
     e.preventDefault();
-    const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
-    const plot = clampPlot(e.clientX - rect.left, e.clientY - rect.top, width, height, showTimeAxis);
+    const plot = clampPlot(x, y, width, height, showTimeAxis);
     const consumed = onDrawingContextMenu({
       phase: 'down',
       plotX: plot.x,

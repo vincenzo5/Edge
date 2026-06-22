@@ -5,8 +5,10 @@ import {
   drawAxes,
   drawCrosshair,
   drawLastPrice,
+  drawPriceAxisAnnotations,
   getColors,
 } from './renderer';
+import { mergeChartSettings } from './chartSettings';
 import type { Candle, VisibleRange, Theme } from './contracts';
 import { PRICE_AXIS_WIDTH, TIME_AXIS_HEIGHT, plotWidth, plotHeight } from './layout';
 
@@ -60,10 +62,12 @@ describe('getColors', () => {
   });
 });
 
+const chartSettings = mergeChartSettings();
+
 describe('drawGrid', () => {
   it('draws vertical and horizontal lines', () => {
     const ctx = createMockContext();
-    drawGrid(ctx, vp, 300, 200, 'dark');
+    drawGrid(ctx, vp, 300, 200, 'dark', chartSettings);
     expect(ctx.beginPath).toHaveBeenCalled();
     expect(ctx.moveTo).toHaveBeenCalled();
     expect(ctx.lineTo).toHaveBeenCalled();
@@ -74,13 +78,13 @@ describe('drawGrid', () => {
 describe('drawCandles', () => {
   it('renders candle bodies for candle_solid type', () => {
     const ctx = createMockContext();
-    drawCandles(ctx, candles, vp, 'dark', 'candle_solid');
+    drawCandles(ctx, candles, vp, 'dark', 'candle_solid', chartSettings);
     expect(ctx.fillRect).toHaveBeenCalled();
   });
 
   it('renders OHLC ticks for ohlc type', () => {
     const ctx = createMockContext();
-    drawCandles(ctx, candles, vp, 'dark', 'ohlc');
+    drawCandles(ctx, candles, vp, 'dark', 'ohlc', chartSettings);
     // open/close ticks use moveTo/lineTo
     expect(ctx.moveTo).toHaveBeenCalled();
     expect(ctx.lineTo).toHaveBeenCalled();
@@ -90,27 +94,36 @@ describe('drawCandles', () => {
 describe('drawAxes', () => {
   it('writes price and time labels', () => {
     const ctx = createMockContext();
-    drawAxes(ctx, vp, 300, 200, 'dark', candles);
+    drawAxes(ctx, vp, 300, 200, 'dark', chartSettings, candles);
     expect(ctx.fillText).toHaveBeenCalled();
   });
 
-  it('formats x-axis labels with real calendar dates', () => {
+  it('formats x-axis labels with month ticks on daily data', () => {
     const ctx = createMockContext();
-    const datedMs = new Date(2024, 5, 15, 12, 0, 0).getTime();
-    const datedCandles: Candle[] = [{ t: datedMs, o: 10, h: 20, l: 5, c: 15 }];
+    const start = new Date(2026, 0, 1, 12, 0, 0).getTime();
+    const datedCandles: Candle[] = Array.from({ length: 180 }, (_, i) => ({
+      t: start + i * 86_400_000,
+      o: 10,
+      h: 20,
+      l: 5,
+      c: 15,
+    }));
     const datedVp: VisibleRange = {
       ...vp,
-      endIndex: 1,
-      xForIndex: () => 50,
+      startIndex: 0,
+      endIndex: datedCandles.length,
+      width: 600,
+      xForIndex: (i) => (i / datedCandles.length) * (600 - PRICE_AXIS_WIDTH),
     };
-    drawAxes(ctx, datedVp, 300, 200, 'dark', datedCandles, '1d');
+    drawAxes(ctx, datedVp, 600, 200, 'dark', chartSettings, datedCandles, '1d');
     const labels = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map((call) => call[0]);
-    expect(labels.some((label: string) => /2024/.test(label))).toBe(true);
+    expect(labels.some((label: string) => label === '2026')).toBe(true);
+    expect(labels.some((label: string) => label === 'Feb')).toBe(true);
   });
 
   it('draws axis strip backgrounds', () => {
     const ctx = createMockContext();
-    drawAxes(ctx, vp, 300, 200, 'dark', candles);
+    drawAxes(ctx, vp, 300, 200, 'dark', chartSettings, candles);
     expect(ctx.fillRect).toHaveBeenCalledWith(250, 0, 50, 200);
     expect(ctx.fillRect).toHaveBeenCalledWith(0, 170, 250, 30);
   });
@@ -122,7 +135,28 @@ describe('drawLastPrice', () => {
     drawLastPrice(ctx, 25, vp, 300, 'dark');
     expect(ctx.beginPath).toHaveBeenCalled();
     expect(ctx.moveTo).toHaveBeenCalledWith(0, expect.any(Number));
-    expect(ctx.lineTo).toHaveBeenCalledWith(300, expect.any(Number));
+    expect(ctx.lineTo).toHaveBeenCalledWith(plotWidth(300), expect.any(Number));
+  });
+});
+
+describe('drawPriceAxisAnnotations', () => {
+  it('draws symbol annotation badges by default', () => {
+    const ctx = createMockContext();
+    drawPriceAxisAnnotations({
+      ctx,
+      vp,
+      width: 300,
+      height: 200,
+      theme: 'dark',
+      settings: mergeChartSettings(),
+      paneId: 'price',
+      candles,
+      indicators: [],
+      drawings: [],
+      interval: '1d',
+    });
+    expect(ctx.fillRect).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalled();
   });
 });
 

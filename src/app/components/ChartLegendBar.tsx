@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Candle, Interval, Theme } from '@/lib/chart/contracts';
+import type { ChartSettings } from '@/lib/chartConfig';
 import { resolvePriceLegend } from '@/lib/chart/legend';
 import PaneLegendBar from './PaneLegendBar';
 
@@ -13,6 +14,7 @@ type Props = {
   candles: Candle[];
   dataIndex: number | null;
   theme: Theme;
+  chartSettings?: ChartSettings;
   onAction?: (actionId: string) => void;
   compact?: boolean;
 };
@@ -27,6 +29,7 @@ export default function ChartLegendBar({
   candles,
   dataIndex,
   theme,
+  chartSettings,
   onAction,
   compact = false,
 }: Props) {
@@ -73,8 +76,9 @@ export default function ChartLegendBar({
         interval,
         candles,
         dataIndex,
+        chartSettings,
       }),
-    [symbol, displayName, displayExchange, interval, candles, dataIndex],
+    [symbol, displayName, displayExchange, interval, candles, dataIndex, chartSettings],
   );
 
   if (!sections) return null;

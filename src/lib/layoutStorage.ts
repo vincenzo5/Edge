@@ -4,6 +4,7 @@ import {
   DEFAULT_CELL,
   DEFAULT_SIDEBAR_PREFS,
   DEFAULT_TOOLBAR_PREFS,
+  mergeChartSettings,
   migrateCellIndicators,
   type SidebarPanelId,
 } from "./chartConfig";
@@ -29,6 +30,7 @@ export function loadLayout(): ChartLayout {
         paneOrder: Array.isArray(c.paneOrder) ? c.paneOrder : undefined,
         collapsedPanes: Array.isArray(c.collapsedPanes) ? c.collapsedPanes : undefined,
         maximizedPane: c.maximizedPane ?? null,
+        chartSettings: mergeChartSettings(c.chartSettings),
       }),
     );
     return {

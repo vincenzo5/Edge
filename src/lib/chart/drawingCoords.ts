@@ -2,6 +2,7 @@ import type { Candle, VisibleRange, IndicatorConfig } from './contracts';
 import { plotWidth, plotHeight } from './layout';
 import { IndicatorRegistry } from './pluginHost';
 import { defaultValueAt } from './indicatorCompute';
+import { resolveIndicatorInputs } from './indicatorInputs';
 
 export type DrawingPoint = {
   timestamp: number;
@@ -32,23 +33,17 @@ export function clampPlot(
 export function yForPricePlot(
   price: number,
   vp: VisibleRange,
-  showTimeAxis = true
+  _showTimeAxis = true
 ): number {
-  const ph = plotHeight(vp.height, showTimeAxis);
-  const range = vp.priceMax - vp.priceMin;
-  if (range <= 0) return 0;
-  return ((vp.priceMax - price) / range) * ph;
+  return vp.yForPrice(price);
 }
 
 export function priceForPlotY(
   plotY: number,
   vp: VisibleRange,
-  showTimeAxis = true
+  _showTimeAxis = true
 ): number {
-  const ph = plotHeight(vp.height, showTimeAxis);
-  if (ph <= 0) return vp.priceMin;
-  const range = vp.priceMax - vp.priceMin;
-  return vp.priceMax - (plotY / ph) * range;
+  return vp.priceForY(plotY);
 }
 
 export function snapPlotXToCandle(
@@ -116,9 +111,10 @@ function snapToIndicatorValue(
   }
   const plugin = IndicatorRegistry.get(ind.name);
   if (!plugin) return priceForPlotY(plotY, vp, showTimeAxis);
+  const inputs = resolveIndicatorInputs(plugin, ind);
   const at =
-    plugin.valueAt?.(dataIndex, candles, ind.params) ??
-    defaultValueAt(plugin, dataIndex, candles, ind.params);
+    plugin.valueAt?.(dataIndex, candles, inputs) ??
+    defaultValueAt(plugin, dataIndex, candles, ind, inputs);
   if (at == null || !Number.isFinite(at)) {
     return priceForPlotY(plotY, vp, showTimeAxis);
   }
@@ -159,7 +155,7 @@ export function plotToPoint(
       ? snapToOhlc(plotY, dataIndex, candle, vp, showTimeAxis)
       : priceForPlotY(plotY, vp, showTimeAxis);
   }
-  const timestamp = candle?.t ?? (dataIndex >= 0 && dataIndex < candles.length ? candles[dataIndex].t : 0);
+  const timestamp = candle?.t ?? 0;
   return { timestamp, value, dataIndex };
 }
 

@@ -1,4 +1,5 @@
 import type { DrawingPlugin } from '../plugin-api';
+import type { PriceAxisAnnotation } from '../priceAxisTypes';
 import { plotToPoint, pointToPlot } from '../drawingCoords';
 import { plotWidth } from '../layout';
 import { drawControlPoints, strokeFromStyles, HIT_TOLERANCE_PX } from './primitives';
@@ -43,5 +44,24 @@ export const horizontalLine: DrawingPlugin = {
   updateFromControl(d, _cpIndex, plotX, plotY, vp, candles, showTimeAxis = true) {
     const pt = plotToPoint(plotX, plotY, vp, candles, { showTimeAxis });
     return { ...d, points: [{ ...d.points[0], value: pt.value }] };
+  },
+  axisAnnotations(d, vp, candles, theme, showTimeAxis = true): PriceAxisAnnotation[] {
+    if (d.points.length < 1 || d.points[0].value == null) return [];
+    const price = d.points[0].value;
+    const styles = resolveDrawingStyles(d, theme, false);
+    const color = styles.lineColor ?? (theme === 'dark' ? '#64748b' : '#475569');
+    return [
+      {
+        id: `drawing:${d.id ?? d.name}:hline`,
+        paneId: d.paneId ?? 'price',
+        source: 'drawing',
+        value: price,
+        label: price.toFixed(2),
+        color,
+        line: 'solid',
+        showLabel: true,
+        priority: 40,
+      },
+    ];
   },
 };

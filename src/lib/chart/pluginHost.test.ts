@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { IndicatorRegistry, DrawingRegistry } from './pluginHost';
+import { getInputSchema } from './indicatorInputs';
 
 describe('IndicatorRegistry', () => {
   it('returns a list of indicators', () => {
@@ -13,12 +14,15 @@ describe('IndicatorRegistry', () => {
     expect(ma).toBeDefined();
   });
 
-  it('registered plugins include catalog metadata and param schema', () => {
+  it('registered plugins include catalog metadata and input schema', () => {
     for (const plugin of IndicatorRegistry.getAll()) {
       expect(plugin.category).toBeTruthy();
       expect(plugin.description).toBeTruthy();
-      expect(plugin.paramSchema).toBeDefined();
+      expect(getInputSchema(plugin)).toBeDefined();
       expect(typeof plugin.compute).toBe('function');
+      const hasDraw = typeof plugin.draw === 'function';
+      const hasDeclarative = (plugin.outputs?.length ?? 0) > 0;
+      expect(hasDraw || hasDeclarative).toBe(true);
     }
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { attachViewportHelpers, createViewport } from './viewport';
 import type { Candle, IndicatorConfig } from './contracts';
 import { IndicatorRegistry } from './pluginHost';
+import { resolveIndicatorInputs } from './indicatorInputs';
 import {
   clampPlot,
   plotToPoint,
@@ -78,6 +79,16 @@ describe('drawingCoords', () => {
     expect(pt.value).toBe(candle.h);
   });
 
+  it('plotToPoint handles virtual margin outside loaded candles', () => {
+    const base = createViewport(candles, 800, 400, 3, 0);
+    const vp = attachViewportHelpers({ ...base, startIndex: -20, endIndex: -10 }, candles.length);
+    const pt = plotToPoint(vp.xForIndex(-15), yForPricePlot(108, vp, true), vp, candles);
+
+    expect(pt.timestamp).toBe(candles[0].t);
+    expect(pt.dataIndex).toBe(0);
+    expect(Number.isFinite(pt.value)).toBe(true);
+  });
+
   it('plotToPoint with magnet on sub-pane snaps to indicator value', () => {
     const baseVp = createViewport(candles, 800, 200, 3, 0);
     const vp = attachViewportHelpers(
@@ -93,7 +104,7 @@ describe('drawingCoords', () => {
     };
     const idx = 2;
     const rsiPlugin = IndicatorRegistry.get('RSI');
-    const indicatorValue = rsiPlugin?.valueAt?.(idx, candles, rsiIndicator.params);
+    const indicatorValue = rsiPlugin?.valueAt?.(idx, candles, resolveIndicatorInputs(rsiPlugin, rsiIndicator));
     expect(indicatorValue).not.toBeNull();
     const plotX = vp.xForIndex(idx);
     const plotY = yForPricePlot(indicatorValue!, vp, false) + 2;

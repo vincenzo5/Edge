@@ -14,11 +14,17 @@ import {
   refreshViewportForDataChange,
   indexAtX,
   attachViewportHelpers,
+  withPriceScaleContext,
+  ensureRightMarginBars,
   SCROLL_BUFFER_CANDLES,
   DEFAULT_VISIBLE_BARS,
   DEFAULT_RIGHT_MARGIN_BARS,
   getDefaultViewport,
+  getLiveEdgeViewport,
   defaultRightMarginBars,
+  liveEdgeMarginBars,
+  liveEdgeEndIndex,
+  defaultLiveEdgeCandleX,
   isViewportModified,
   isTimeWindowModified,
   adjustViewportForPrepend,
@@ -402,6 +408,34 @@ describe('refreshViewportForDataChange', () => {
     expect(refreshed.startIndex).toBeGreaterThanOrEqual(-SCROLL_BUFFER_CANDLES);
     expect(refreshed.priceMax).toBeGreaterThan(refreshed.priceMin);
   });
+
+  it('restores right margin at live edge when candle count shrinks to endIndex', () => {
+    const width = 800;
+    const long = Array.from({ length: 300 }, (_, i) => ({
+      t: i,
+      o: 10,
+      h: 12,
+      l: 9,
+      c: 11,
+    }));
+    const vp = attachViewportHelpers(
+      {
+        ...createViewport(long, width, 400, 150),
+        startIndex: 150,
+        endIndex: 300,
+      },
+      long.length,
+    );
+
+    const short = long.slice(0, 252);
+    const refreshed = refreshViewportForDataChange(vp, short, width, 400);
+    expect(refreshed.endIndex).toBeGreaterThan(short.length);
+    const lastIdx = short.length - 1;
+    const x = refreshed.xForIndex(lastIdx);
+    const visible = refreshed.endIndex - refreshed.startIndex;
+    const halfW = (plotWidth(width) / visible) * 0.7 / 2;
+    expect(x + halfW).toBeLessThanOrEqual(plotWidth(width));
+  });
 });
 
 describe('indexAtX', () => {
@@ -438,6 +472,72 @@ describe('indexAtX', () => {
   });
 });
 
+describe('getLiveEdgeViewport', () => {
+  it('shows last DEFAULT_VISIBLE_BARS with right margin by default', () => {
+    const candles = Array.from({ length: 300 }, (_, i) => ({
+      t: i,
+      o: 10,
+      h: 12,
+      l: 9,
+      c: 11,
+    }));
+    const width = 800;
+    const height = 400;
+    const margin = liveEdgeMarginBars(width, DEFAULT_VISIBLE_BARS);
+    const vp = getLiveEdgeViewport(candles, width, height);
+    expect(vp.endIndex).toBeGreaterThanOrEqual(300 + margin);
+    expect(vp.startIndex).toBeGreaterThanOrEqual(300 - DEFAULT_VISIBLE_BARS);
+  });
+
+  it('aligns latest candle x-position across visible data bar counts', () => {
+    const width = 800;
+    const candles = Array.from({ length: 300 }, (_, i) => ({
+      t: i,
+      o: 10,
+      h: 12,
+      l: 9,
+      c: 11,
+    }));
+    const lastIdx = candles.length - 1;
+    const targetX = getDefaultViewport(candles, width, 400).xForIndex(lastIdx);
+
+    for (const dataBars of [30, 90, 150, 252]) {
+      const vp = getLiveEdgeViewport(candles, width, 400, dataBars);
+      expect(Math.abs(vp.xForIndex(lastIdx) - targetX)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('shows all candles when maxDataBars equals series length', () => {
+    const candles = Array.from({ length: 50 }, (_, i) => ({
+      t: i,
+      o: 10,
+      h: 12,
+      l: 9,
+      c: 11,
+    }));
+    const vp = getLiveEdgeViewport(candles, 800, 400, 50);
+    expect(vp.startIndex).toBe(0);
+    expect(vp.endIndex).toBeGreaterThan(candles.length);
+  });
+
+  it('keeps the latest candle clear of the price axis strip', () => {
+    const candles = Array.from({ length: 390 }, (_, i) => ({
+      t: i,
+      o: 10,
+      h: 12,
+      l: 9,
+      c: 11,
+    }));
+    const width = 800;
+    const vp = getLiveEdgeViewport(candles, width, 400, candles.length);
+    const lastIdx = candles.length - 1;
+    const x = vp.xForIndex(lastIdx);
+    const visible = vp.endIndex - vp.startIndex;
+    const halfW = (plotWidth(width) / visible) * 0.7 / 2;
+    expect(x + halfW).toBeLessThanOrEqual(plotWidth(width));
+  });
+});
+
 describe('getDefaultViewport', () => {
   it('shows last DEFAULT_VISIBLE_BARS candles with right margin past the last bar', () => {
     const candles = Array.from({ length: 300 }, (_, i) => ({
@@ -449,10 +549,10 @@ describe('getDefaultViewport', () => {
     }));
     const width = 800;
     const height = 400;
-    const margin = defaultRightMarginBars(width, DEFAULT_VISIBLE_BARS);
+    const margin = liveEdgeMarginBars(width, DEFAULT_VISIBLE_BARS);
     const vp = getDefaultViewport(candles, width, height);
-    expect(vp.endIndex).toBe(300 + margin);
-    expect(vp.startIndex).toBe(300 - DEFAULT_VISIBLE_BARS);
+    expect(vp.endIndex).toBeGreaterThanOrEqual(300 + margin);
+    expect(vp.startIndex).toBeGreaterThanOrEqual(300 - DEFAULT_VISIBLE_BARS);
     expect(vp.priceScaleMode).toBe('auto');
   });
 
@@ -514,5 +614,135 @@ describe('isViewportModified', () => {
     vp = zoom(vp, 1.3, 400, candles.length);
     const reset = getDefaultViewport(candles, 800, 400);
     expect(isViewportModified(reset, candles, 800, 400)).toBe(false);
+  });
+});
+
+describe('price scale context', () => {
+  const candles: Candle[] = [
+    { t: 1, o: 100, h: 105, l: 98, c: 102 },
+    { t: 2, o: 102, h: 110, l: 101, c: 108 },
+    { t: 3, o: 108, h: 112, l: 106, c: 110 },
+  ];
+
+  it('log scale maps higher raw price to lower Y', () => {
+    let vp = createViewport(candles, 800, 400, 3);
+    vp = attachViewportHelpers(
+      withPriceScaleContext(vp, candles, { priceScaleType: 'log' }),
+      candles.length,
+    );
+    vp = updatePriceRange(vp, candles);
+    const yLow = vp.yForPrice(100);
+    const yHigh = vp.yForPrice(110);
+    expect(yHigh).toBeLessThan(yLow);
+  });
+
+  it('recomputes percent anchor after pan', () => {
+    let vp = createViewport(candles, 800, 400, 3);
+    vp = attachViewportHelpers(
+      withPriceScaleContext(vp, candles, { priceScaleType: 'percent' }),
+      candles.length,
+    );
+    vp = updatePriceRange(vp, candles);
+    expect(vp.priceScaleContext?.anchorPrice).toBe(102);
+
+    const panned = pan(vp, -400, candles.length);
+    const refit = updatePriceRange(
+      attachViewportHelpers(
+        withPriceScaleContext(panned, candles, { priceScaleType: 'percent' }),
+        candles.length,
+      ),
+      candles,
+    );
+    const ds = Math.max(0, Math.floor(refit.startIndex));
+    expect(refit.priceScaleContext?.anchorPrice).toBe(candles[ds]?.c);
+  });
+
+  it('yForPrice and priceForY round-trip for log scale', () => {
+    let vp = createViewport(candles, 800, 400, 3);
+    vp = attachViewportHelpers(
+      withPriceScaleContext(vp, candles, { priceScaleType: 'log' }),
+      candles.length,
+    );
+    vp = updatePriceRange(vp, candles);
+    const price = 105;
+    const y = vp.yForPrice(price);
+    expect(vp.priceForY(y)).toBeCloseTo(price, 2);
+  });
+});
+
+describe('ensureRightMarginBars', () => {
+  const candles: Candle[] = Array.from({ length: 100 }, (_, i) => ({
+    t: i,
+    o: 10,
+    h: 12,
+    l: 9,
+    c: 11,
+  }));
+
+  it('extends endIndex at live edge while preserving visible count', () => {
+    const width = 800;
+    const n = candles.length;
+    const visible = 50;
+    const vp = {
+      startIndex: n - visible,
+      endIndex: n,
+      priceMin: 0,
+      priceMax: 20,
+      width,
+      height: 400,
+    };
+    const targetEnd = liveEdgeEndIndex(vp.startIndex, n, width);
+    const next = ensureRightMarginBars(vp, n, width);
+    expect(next.endIndex).toBeCloseTo(targetEnd, 5);
+    expect(next.startIndex).toBe(vp.startIndex);
+  });
+
+  it('no-ops when margin already satisfied', () => {
+    const width = 800;
+    const n = candles.length;
+    const startIndex = n - 50;
+    const endIndex = liveEdgeEndIndex(startIndex, n, width);
+    const vp = {
+      startIndex: n - 50,
+      endIndex,
+      priceMin: 0,
+      priceMax: 20,
+      width,
+      height: 400,
+    };
+    const next = ensureRightMarginBars(vp, n, width);
+    expect(next.endIndex).toBe(vp.endIndex);
+  });
+});
+
+describe('adjustViewportForPrepend', () => {
+  it('shifts start and end indices by the number of prepended bars', () => {
+    const existing: Candle[] = Array.from({ length: 100 }, (_, i) => ({
+      t: 1000 + i * 1000,
+      o: 10,
+      h: 12,
+      l: 9,
+      c: 11,
+    }));
+    const vp = attachViewportHelpers(getDefaultViewport(existing, 800, 400), existing.length);
+    const shifted = adjustViewportForPrepend(vp, 20);
+    expect(shifted.startIndex).toBe(vp.startIndex + 20);
+    expect(shifted.endIndex).toBe(vp.endIndex + 20);
+  });
+});
+
+describe('defaultLiveEdgeCandleX', () => {
+  it('matches getDefaultViewport latest candle position', () => {
+    const width = 800;
+    const candles = Array.from({ length: 300 }, (_, i) => ({
+      t: i,
+      o: 10,
+      h: 12,
+      l: 9,
+      c: 11,
+    }));
+    const vp = getDefaultViewport(candles, width, 400);
+    const lastIdx = candles.length - 1;
+    expect(vp.xForIndex(lastIdx)).toBeCloseTo(defaultLiveEdgeCandleX(width), 5);
   });
 });

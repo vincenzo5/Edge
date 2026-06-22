@@ -1,6 +1,8 @@
 export const PRICE_AXIS_WIDTH = 50;
 export const TIME_AXIS_HEIGHT = 30;
 
+export type PriceScaleSide = 'left' | 'right';
+
 export type DragMode = 'body' | 'price' | 'timeAxis';
 
 export type ChartCursor =
@@ -21,14 +23,30 @@ export type CursorContext = {
   dragMode: DragMode | null;
 };
 
+export function plotLeftOffset(side: PriceScaleSide = 'right'): number {
+  return side === 'left' ? PRICE_AXIS_WIDTH : 0;
+}
+
+export function axisStripX(width: number, side: PriceScaleSide = 'right'): number {
+  return side === 'left' ? 0 : width - PRICE_AXIS_WIDTH;
+}
+
+export function isPriceAxisHit(x: number, width: number, side: PriceScaleSide = 'right'): boolean {
+  const axisX = axisStripX(width, side);
+  return side === 'left'
+    ? x >= axisX && x < axisX + PRICE_AXIS_WIDTH
+    : x >= axisX;
+}
+
 export function resolveDragMode(
   x: number,
   y: number,
   width: number,
   height: number,
-  reserveTimeAxis = true
+  reserveTimeAxis = true,
+  priceScaleSide: PriceScaleSide = 'right',
 ): DragMode {
-  if (x >= width - PRICE_AXIS_WIDTH) return 'price';
+  if (isPriceAxisHit(x, width, priceScaleSide)) return 'price';
   if (reserveTimeAxis && y >= height - TIME_AXIS_HEIGHT) return 'timeAxis';
   return 'body';
 }
@@ -43,7 +61,7 @@ export function resolveHoverCursor(
   y: number,
   width: number,
   height: number,
-  ctx: CursorContext
+  ctx: CursorContext & { priceScaleSide?: PriceScaleSide },
 ): ChartCursor {
   if (ctx.isDragging) {
     if (ctx.dragMode === 'price') return 'ns-resize';
@@ -51,7 +69,14 @@ export function resolveHoverCursor(
     return 'grabbing';
   }
 
-  const zone = resolveDragMode(x, y, width, height, ctx.showTimeAxis);
+  const zone = resolveDragMode(
+    x,
+    y,
+    width,
+    height,
+    ctx.showTimeAxis,
+    ctx.priceScaleSide ?? 'right',
+  );
   if (zone === 'price') return 'ns-resize';
   if (zone === 'timeAxis') return 'ew-resize';
 
@@ -59,7 +84,8 @@ export function resolveHoverCursor(
   return 'crosshair';
 }
 
-export function plotWidth(width: number) {
+export function plotWidth(width: number, side: PriceScaleSide = 'right') {
+  void side;
   return width - PRICE_AXIS_WIDTH;
 }
 

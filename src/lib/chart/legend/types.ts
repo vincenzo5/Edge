@@ -30,10 +30,18 @@ export type LegendValueEntry = {
 
 export type SeriesColor = string | ((theme: import('../contracts').Theme, value: number | null) => string);
 
+export type PlotKind = 'line' | 'histogram' | 'hline' | 'columns';
+
 export type SeriesOutput = {
   id: string;
   label: string;
   key: string;
+  plot?: PlotKind;
+  hlineAt?: number;
+  lineWidth?: number;
+  fillBetween?: string;
+  /** Fill color when fillBetween is set. */
+  fillColor?: SeriesColor;
   tooltip?: string;
   decimals?: number;
   color?: SeriesColor;

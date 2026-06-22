@@ -3,18 +3,21 @@ import { formatPrice } from './format';
 import { plotHeight } from './layout';
 import { IndicatorRegistry } from './pluginHost';
 import { defaultValueAt } from './indicatorCompute';
+import { resolveIndicatorInputs } from './indicatorInputs';
 import { formatAxisTime } from './time';
+import {
+  formatScaleLabel,
+  linearScaleContext,
+  toScaleCoord,
+} from './priceScaleTransform';
 
-/** Map plot-area Y (0..plotHeight) to price; vp.priceForY uses full canvas height. */
+/** Map plot-area Y (0..plotHeight) to raw price via viewport helpers. */
 export function priceForPlotY(
   plotY: number,
   vp: VisibleRange,
-  showTimeAxis: boolean
+  _showTimeAxis: boolean
 ): number {
-  const ph = plotHeight(vp.height, showTimeAxis);
-  const range = vp.priceMax - vp.priceMin;
-  if (ph <= 0 || range <= 0) return vp.priceMax;
-  return vp.priceMax - (plotY / ph) * range;
+  return vp.priceForY(plotY);
 }
 
 export function formatCrosshairValue(
@@ -27,16 +30,23 @@ export function formatCrosshairValue(
   showTimeAxis = true
 ): string {
   if (paneId === 'price') {
-    return formatPrice(priceForPlotY(plotY, vp, showTimeAxis), 2);
+    const raw = priceForPlotY(plotY, vp, showTimeAxis);
+    const scaleCtx = vp.priceScaleContext ?? linearScaleContext();
+    if (scaleCtx.type === 'linear') {
+      return formatPrice(raw, 2);
+    }
+    const coord = toScaleCoord(raw, scaleCtx);
+    return formatScaleLabel(coord, scaleCtx);
   }
 
   const ind = indicators[0];
   if (ind && dataIndex >= 0 && dataIndex < candles.length) {
     const plugin = IndicatorRegistry.get(ind.name);
     if (plugin) {
+      const inputs = resolveIndicatorInputs(plugin, ind);
       const at =
-        plugin.valueAt?.(dataIndex, candles, ind.params) ??
-        defaultValueAt(plugin, dataIndex, candles, ind.params);
+        plugin.valueAt?.(dataIndex, candles, inputs) ??
+        defaultValueAt(plugin, dataIndex, candles, ind, inputs);
       if (at != null && Number.isFinite(at)) {
         return formatPrice(at, 4);
       }

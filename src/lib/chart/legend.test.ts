@@ -79,7 +79,7 @@ describe('resolvePriceLegend', () => {
       .filter((s) => s.kind === 'value')
       .map((s) => (s.kind === 'value' ? s.id : ''));
 
-    expect(valueIds).toEqual(['open', 'high', 'low', 'close', 'change']);
+    expect(valueIds).toEqual(['open', 'high', 'low', 'close', 'change', 'volume']);
 
     const open = sections!.find((s) => s.kind === 'value' && s.id === 'open');
     expect(open?.kind === 'value' && open.value).toBe('11');
@@ -96,6 +96,22 @@ describe('resolvePriceLegend', () => {
       }),
     ).toBeNull();
   });
+
+  it('respects chartSettings toggles', () => {
+    const sections = resolvePriceLegend({
+      symbol: 'AAPL',
+      interval: '1d',
+      candles,
+      dataIndex: 1,
+      chartSettings: {
+        statusLine: { showTitle: false, showLogo: false, showChartValues: false, showVolume: false },
+      },
+    });
+    const kinds = sections!.map((s) => s.kind);
+    expect(kinds).not.toContain('badge');
+    expect(sections!.some((s) => s.kind === 'value' && s.id === 'open')).toBe(false);
+    expect(sections!.some((s) => s.kind === 'value' && s.id === 'change')).toBe(true);
+  });
 });
 
 import type { IndicatorCategory } from './plugin-api';
@@ -108,6 +124,8 @@ function testIndicator(
 }
 
 describe('resolveIndicatorLegend', () => {
+  const indicatorSettings = { statusLine: { indicatorShowValues: true } };
+
   beforeEach(() => {
     clearComputeCache();
   });
@@ -118,6 +136,7 @@ describe('resolveIndicatorLegend', () => {
       candles,
       2,
       'dark',
+      indicatorSettings,
     );
 
     expect(sections).not.toBeNull();
@@ -127,9 +146,9 @@ describe('resolveIndicatorLegend', () => {
     const values = sections!.filter((s) => s.kind === 'value');
     expect(values).toHaveLength(3);
     expect(values.map((s) => (s.kind === 'value' ? s.id : ''))).toEqual([
+      'histogram',
       'macd',
       'signal',
-      'histogram',
     ]);
   });
 
@@ -145,6 +164,7 @@ describe('resolveIndicatorLegend', () => {
       candles,
       2,
       'dark',
+      indicatorSettings,
     );
     expect(sections).not.toBeNull();
     expect(sections!.filter((s) => s.kind === 'value')).toHaveLength(1);
@@ -169,6 +189,7 @@ describe('resolveIndicatorLegend', () => {
       candles,
       0,
       'dark',
+      indicatorSettings,
     );
     const values = sections!.filter((s) => s.kind === 'value');
     expect(values).toHaveLength(1);

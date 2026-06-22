@@ -1,7 +1,7 @@
 import type { DrawingPlugin } from '../plugin-api';
+import type { PriceAxisAnnotation } from '../priceAxisTypes';
 import { plotToPoint, pointToPlot } from '../drawingCoords';
-import { plotWidth, PRICE_AXIS_WIDTH } from '../layout';
-import { getColors } from '../renderer';
+import { plotWidth } from '../layout';
 import { drawControlPoints, strokeFromStyles, HIT_TOLERANCE_PX } from './primitives';
 import { baseDrawing } from './drawingUtils';
 import { resolveDrawingStyles } from '../drawingStyles';
@@ -18,7 +18,6 @@ export const priceLine: DrawingPlugin = {
     const showTimeAxis = opts?.showTimeAxis ?? true;
     const pw = plotWidth(vp.width);
     const y = pointToPlot(d.points[0], vp, candles, showTimeAxis).y;
-    const price = d.points[0].value ?? 0;
     const styles = resolveDrawingStyles(d, theme, selected);
     const { stroke, lineWidth } = strokeFromStyles(styles, theme, selected, opts?.preview);
     ctx.strokeStyle = stroke;
@@ -27,12 +26,6 @@ export const priceLine: DrawingPlugin = {
     ctx.moveTo(0, y);
     ctx.lineTo(pw, y);
     ctx.stroke();
-    const c = getColors(theme);
-    ctx.fillStyle = c.lastPrice;
-    ctx.fillRect(pw, y - 10, PRICE_AXIS_WIDTH, 20);
-    ctx.fillStyle = '#fff';
-    ctx.font = '10px sans-serif';
-    ctx.fillText(price.toFixed(2), pw + 4, y + 4);
     if (selected && !opts?.preview) drawControlPoints(ctx, [{ x: pw / 2, y }], theme, true);
   },
   hitTest(px, py, d, vp, candles, showTimeAxis = true) {
@@ -46,6 +39,25 @@ export const priceLine: DrawingPlugin = {
   updateFromControl(d, _cpIndex, plotX, plotY, vp, candles, showTimeAxis = true) {
     const pt = plotToPoint(plotX, plotY, vp, candles, { showTimeAxis });
     return { ...d, points: [{ ...d.points[0], value: pt.value }] };
+  },
+  axisAnnotations(d, vp, candles, theme, showTimeAxis = true): PriceAxisAnnotation[] {
+    if (d.points.length < 1 || d.points[0].value == null) return [];
+    const price = d.points[0].value;
+    const styles = resolveDrawingStyles(d, theme, false);
+    const color = styles.lineColor ?? (theme === 'dark' ? '#64748b' : '#475569');
+    return [
+      {
+        id: `drawing:${d.id ?? d.name}:price`,
+        paneId: d.paneId ?? 'price',
+        source: 'drawing',
+        value: price,
+        label: price.toFixed(2),
+        color,
+        line: 'solid',
+        showLabel: true,
+        priority: 40,
+      },
+    ];
   },
 };
 
@@ -62,13 +74,14 @@ export const annotation: DrawingPlugin = {
     if (d.points.length < 1) return;
     const showTimeAxis = opts?.showTimeAxis ?? true;
     const { x, y } = pointToPlot(d.points[0], vp, candles, showTimeAxis);
-    const text = (d.styles as { text?: string })?.text ?? d.label ?? 'Note';
-    ctx.font = '12px sans-serif';
+    const styles = resolveDrawingStyles(d, theme, selected);
+    const text = styles.text ?? d.label ?? 'Note';
+    const fontSize = styles.fontSize ?? 12;
+    ctx.font = `${fontSize}px sans-serif`;
     const metrics = ctx.measureText(text);
     const pad = 6;
     const w = metrics.width + pad * 2;
-    const h = 20;
-    const styles = resolveDrawingStyles(d, theme, selected);
+    const h = fontSize + 12;
     const { stroke, lineWidth } = strokeFromStyles(styles, theme, selected, opts?.preview);
     ctx.fillStyle = theme === 'dark' ? '#12131A' : '#f3f4f6';
     ctx.strokeStyle = stroke;

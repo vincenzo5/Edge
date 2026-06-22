@@ -11,13 +11,22 @@ export type Candle = {
 };
 
 export type Range = '1d' | '5d' | '1mo' | '3mo' | '6mo' | 'ytd' | '1y' | '2y' | '5y' | 'max';
-export type Interval = '5m' | '15m' | '30m' | '1h' | '1d' | '1wk' | '1mo';
+export type Interval = '1m' | '5m' | '15m' | '30m' | '1h' | '2h' | '1d' | '1wk' | '1mo';
+
+export type LineStyleOverride = {
+  color?: string;
+  lineWidth?: number;
+  visible?: boolean;
+};
 
 export type IndicatorConfig = {
   id: string;
   name: string;
   pane: 'main' | 'sub';
+  /** Legacy numeric params — read fallback; prefer `inputs` on write. */
   params?: Record<string, number>;
+  inputs?: Record<string, import('./plugin-api').InputValue>;
+  styles?: Record<string, LineStyleOverride>;
   visible?: boolean;
 };
 
@@ -91,6 +100,8 @@ export type VisibleRange = {
   priceScaleMode?: 'auto' | 'manual';
   /** When true, Y mapping excludes the bottom time-axis strip. */
   reserveTimeAxis?: boolean;
+  /** Scale coordinate mapping for price pane (linear when absent). */
+  priceScaleContext?: import('./priceScaleTransform').PriceScaleContext;
 };
 
 /** Shared horizontal window across panes; price scale stays per-pane. */

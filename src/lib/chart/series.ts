@@ -1,5 +1,6 @@
 import type { Candle, Range, Interval } from './contracts';
 import type { ChartType } from '@/lib/chartConfig';
+import { applyIntervalResample, resolveFetchInterval } from './intervalAdapter';
 
 export type { Candle, Range, Interval };
 
@@ -9,10 +10,11 @@ export async function fetchYahooCandles(
   range: Range,
   interval: Interval
 ): Promise<Candle[]> {
+  const { providerInterval, resampleTo } = resolveFetchInterval(interval);
   const res = await fetch('/api/candles', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ symbol, range, interval }),
+    body: JSON.stringify({ symbol, range, interval: providerInterval }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -20,7 +22,7 @@ export async function fetchYahooCandles(
   }
   const { candles: raw } = (await res.json()) as { candles: unknown[] };
   const normalized = validateCandles(raw);
-  return normalized;
+  return applyIntervalResample(normalized, resampleTo);
 }
 
 // Heikin Ashi transform (pure, matches existing toHeikinAshi behavior)
@@ -74,10 +76,17 @@ export async function fetchOlderCandles(
   barCount = EDGE_FETCH_BAR_COUNT,
   signal?: AbortSignal,
 ): Promise<Candle[]> {
+  const { providerInterval, resampleTo } = resolveFetchInterval(interval);
+  const fetchBarCount = resampleTo === '2h' ? barCount * 2 : barCount;
   const res = await fetch('/api/candles', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ symbol, interval, before: beforeTimestampMs, barCount }),
+    body: JSON.stringify({
+      symbol,
+      interval: providerInterval,
+      before: beforeTimestampMs,
+      barCount: fetchBarCount,
+    }),
     signal,
   });
   if (!res.ok) {
@@ -85,7 +94,60 @@ export async function fetchOlderCandles(
     throw new Error(body.error ?? `Request failed (${res.status})`);
   }
   const { candles: raw } = (await res.json()) as { candles: unknown[] };
-  return validateCandles(raw);
+  const normalized = validateCandles(raw);
+  return applyIntervalResample(normalized, resampleTo);
+}
+
+export type EnsureCandlesCoverResult = {
+  candles: Candle[];
+  prepended: number;
+  covered: boolean;
+};
+
+/** Prepend older bars until `targetMs` is at or after the first loaded bar (or history ends). */
+export async function ensureCandlesCover(
+  candles: Candle[],
+  targetMs: number,
+  fetchOlder: (beforeTimestampMs: number) => Promise<Candle[]>,
+  maxRounds = 20,
+  minLeadingBars = 0,
+): Promise<EnsureCandlesCoverResult> {
+  let current = candles;
+  if (current.length === 0) {
+    return { candles: current, prepended: 0, covered: false };
+  }
+  const hasEnoughLoadedLead = () => {
+    if (targetMs < current[0]!.t) return false;
+    if (minLeadingBars <= 0) return true;
+    const targetIndex = current.findIndex((c) => c.t >= targetMs);
+    return targetIndex < 0 || targetIndex >= minLeadingBars;
+  };
+  if (hasEnoughLoadedLead()) {
+    return { candles: current, prepended: 0, covered: true };
+  }
+
+  let prepended = 0;
+  for (let round = 0; round < maxRounds; round++) {
+    if (hasEnoughLoadedLead()) {
+      return { candles: current, prepended, covered: true };
+    }
+    const older = await fetchOlder(current[0]!.t);
+    if (older.length === 0) {
+      return { candles: current, prepended, covered: targetMs >= current[0]!.t };
+    }
+    const beforeLen = current.length;
+    current = mergeCandlesPrepend(current, older);
+    prepended += current.length - beforeLen;
+    if (current.length === beforeLen) {
+      return { candles: current, prepended, covered: targetMs >= current[0]!.t };
+    }
+  }
+
+  return {
+    candles: current,
+    prepended,
+    covered: targetMs >= current[0]!.t,
+  };
 }
 
 // Simple range filter (future use for edge prefetch)

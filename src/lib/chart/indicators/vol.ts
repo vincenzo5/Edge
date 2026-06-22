@@ -1,14 +1,13 @@
-import type { IndicatorPlugin } from '../plugin-api';
+import type { IndicatorPlugin, ResolvedInputs } from '../plugin-api';
 import { getComputedSeries } from '../indicatorCompute';
 import { rangeInViewport, volumes } from './math';
-import { drawVolumeBars } from './draw';
 
 export const vol: IndicatorPlugin = {
   name: 'VOL',
   category: 'Volume',
   description: 'Volume',
   pane: 'sub',
-  paramSchema: {},
+  inputSchema: {},
   compute(candles) {
     return { vol: volumes(candles) };
   },
@@ -17,20 +16,21 @@ export const vol: IndicatorPlugin = {
       id: 'vol',
       label: 'Vol',
       key: 'vol',
+      plot: 'columns',
       tooltip: 'Bar volume',
       decimals: 0,
     },
   ],
-  valueRangeForViewport(candles, vp, params) {
-    const data = getComputedSeries(vol, candles, params);
+  valueRangeForViewport(candles, vp, inputs) {
+    const data = getComputedSeries(vol, candles, inputs);
     if (!data) return null;
     const range = rangeInViewport(data.vol, vp.startIndex, vp.endIndex);
     if (!range) return null;
     const pad = (range.max - range.min) * 0.05 || range.max * 0.05 || 1;
     return { min: 0, max: range.max + pad };
   },
-  legendAt(index, candles, params, theme) {
-    const data = getComputedSeries(vol, candles, params);
+  legendAt(index, candles, inputs) {
+    const data = getComputedSeries(vol, candles, inputs);
     if (!data || index < 0 || index >= data.vol.length) return null;
     const v = data.vol[index];
     if (!Number.isFinite(v)) return null;
@@ -44,13 +44,10 @@ export const vol: IndicatorPlugin = {
       },
     ];
   },
-  valueAt(index, candles, params) {
-    const data = getComputedSeries(vol, candles, params);
+  valueAt(index, candles, inputs) {
+    const data = getComputedSeries(vol, candles, inputs);
     if (!data || index < 0 || index >= data.vol.length) return null;
     const v = data.vol[index];
     return Number.isFinite(v) ? v : null;
-  },
-  draw(ctx, candles, vp, theme, params) {
-    drawVolumeBars(ctx, candles, vp, theme);
   },
 };

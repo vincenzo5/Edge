@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   PRICE_AXIS_WIDTH,
   TIME_AXIS_HEIGHT,
+  isPriceAxisHit,
   resolveDragMode,
   resolveHoverCursor,
   plotWidth,
@@ -27,12 +28,25 @@ describe('resolveDragMode', () => {
     expect(resolveDragMode(WIDTH - 25, HEIGHT / 2, WIDTH, HEIGHT)).toBe('price');
   });
 
+  it('returns price for left strip when price scale is on the left', () => {
+    expect(resolveDragMode(25, HEIGHT / 2, WIDTH, HEIGHT, true, 'left')).toBe('price');
+  });
+
   it('returns timeAxis for bottom strip (excluding price corner)', () => {
     expect(resolveDragMode(WIDTH / 2, HEIGHT - 10, WIDTH, HEIGHT)).toBe('timeAxis');
   });
 
   it('returns price for bottom-right corner (price strip priority)', () => {
     expect(resolveDragMode(WIDTH - 10, HEIGHT - 10, WIDTH, HEIGHT)).toBe('price');
+  });
+});
+
+describe('isPriceAxisHit', () => {
+  it('matches the configured axis side only', () => {
+    expect(isPriceAxisHit(WIDTH - 10, WIDTH, 'right')).toBe(true);
+    expect(isPriceAxisHit(10, WIDTH, 'right')).toBe(false);
+    expect(isPriceAxisHit(10, WIDTH, 'left')).toBe(true);
+    expect(isPriceAxisHit(WIDTH - 10, WIDTH, 'left')).toBe(false);
   });
 });
 

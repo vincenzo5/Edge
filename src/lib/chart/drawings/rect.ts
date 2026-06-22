@@ -3,6 +3,7 @@ import { plotToPoint } from '../drawingCoords';
 import {
   previewDrawingStroke,
   drawControlPoints,
+  fillFromStyles,
   strokeFromStyles,
   pointInRect,
 } from './primitives';
@@ -29,6 +30,11 @@ export const rectangle: DrawingPlugin = {
     const h = Math.abs(b.y - a.y);
     const styles = resolveDrawingStyles(d, theme, selected);
     const { stroke, lineWidth, dash } = strokeFromStyles(styles, theme, selected, opts?.preview);
+    const fill = fillFromStyles(styles);
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fillRect(x, y, w, h);
+    }
     ctx.strokeStyle = stroke;
     ctx.lineWidth = lineWidth;
     if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);

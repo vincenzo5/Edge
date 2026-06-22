@@ -8,7 +8,7 @@ import {
 } from './primitives';
 import { plotToPoint } from '../drawingCoords';
 import { plotsForPoints, baseDrawing } from './drawingUtils';
-import { getColors } from '../renderer';
+import { getChartColors as getColors } from '../chartTheme';
 import { resolveDrawingStyles } from '../drawingStyles';
 
 function formatMeasureLabel(d: SerializedDrawing): string {

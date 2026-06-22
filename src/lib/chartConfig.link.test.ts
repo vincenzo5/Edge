@@ -57,6 +57,7 @@ describe('pickLinkFields', () => {
       exchange: 'NASDAQ',
       range: '6mo',
       interval: '1h',
+      rangePreset: null,
     });
   });
 });

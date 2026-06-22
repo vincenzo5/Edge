@@ -1,5 +1,17 @@
 import type { Candle, VisibleRange } from './contracts';
-import { plotWidth, plotHeight, PRICE_AXIS_WIDTH } from './layout';
+import type { ChartSettings } from './chartSettings';
+import { mergeChartSettings } from './chartSettings';
+import { plotWidth, plotHeight, PRICE_AXIS_WIDTH, type PriceScaleSide, plotLeftOffset } from './layout';
+import {
+  buildPriceScaleContext,
+  computeScaleRange,
+  fromScaleCoord,
+  linearScaleContext,
+  toScaleCoord,
+  type PriceScaleContext,
+} from './priceScaleTransform';
+
+export type { PriceScaleContext } from './priceScaleTransform';
 
 export type ViewportState = {
   startIndex: number;
@@ -11,6 +23,8 @@ export type ViewportState = {
   priceScaleMode?: 'auto' | 'manual';
   /** When true, Y mapping excludes the bottom time-axis strip (default true). */
   reserveTimeAxis?: boolean;
+  /** Scale coordinate mapping for price pane (linear when absent). */
+  priceScaleContext?: PriceScaleContext;
 };
 
 function plotAreaHeight(vp: ViewportState): number {
@@ -25,7 +39,6 @@ export const DEFAULT_RIGHT_MARGIN_BARS = 2;
 const INDEX_EPS = 1e-6;
 const PRICE_EPS = 1e-8;
 const MAX_CANDLES = 5000;
-const PADDING = 0.05; // 5% price padding
 /** Horizontal time-axis drag: higher = zoom faster per pixel. */
 export const TIME_SCALE_SENSITIVITY = 2.0;
 /** Vertical price-axis drag: higher = scale faster per pixel. */
@@ -41,7 +54,7 @@ function scrollMaxEnd(totalCandles: number) {
   return totalCandles + SCROLL_BUFFER_CANDLES;
 }
 
-function clampTimeWindow(
+export function clampTimeWindow(
   start: number,
   end: number,
   totalCandles: number,
@@ -135,6 +148,10 @@ export function refreshViewportForDataChange(
     -SCROLL_BUFFER_CANDLES,
     Math.min(next.startIndex, next.endIndex - MIN_CANDLES)
   );
+  // Re-apply live-edge margin when candle count changes (e.g. range preset switch).
+  if (next.endIndex >= n - 0.5) {
+    next = ensureRightMarginBars(next, n, width);
+  }
   next = applyAutoPriceScale(next, candles);
   next = updateViewportDimensions(next, width, height);
   return attachViewportHelpers(next, n);
@@ -146,39 +163,25 @@ export function updateViewportDimensions(vp: any, width: number, height: number)
   return vp;
 }
 
-function computePriceRange(candles: Candle[], start: number, end: number) {
-  if (candles.length === 0) {
-    return { priceMin: 0, priceMax: 1 };
-  }
-  const ds = dataSliceStart(start, candles.length);
-  const de = dataSliceEnd(end, candles.length);
-  if (ds >= de) {
-    // View is entirely in virtual margin — fit to nearest real bars
-    if (end <= 0) {
-      return computePriceRange(candles, 0, Math.min(candles.length, MIN_CANDLES));
-    }
-    if (start >= candles.length) {
-      return computePriceRange(
-        candles,
-        Math.max(0, candles.length - MIN_CANDLES),
-        candles.length
-      );
-    }
-    return { priceMin: 0, priceMax: 1 };
-  }
-  let min = Infinity;
-  let max = -Infinity;
-  for (let i = ds; i < de; i++) {
-    const c = candles[i];
-    if (!c) continue;
-    min = Math.min(min, c.l);
-    max = Math.max(max, c.h);
-  }
-  if (min === Infinity || max === -Infinity || max <= min) {
-    return { priceMin: 0, priceMax: 1 };
-  }
-  const pad = (max - min) * PADDING;
-  return { priceMin: min - pad, priceMax: max + pad };
+function computePriceRange(
+  candles: Candle[],
+  start: number,
+  end: number,
+  scaleCtx: PriceScaleContext = linearScaleContext(),
+) {
+  const { min, max } = computeScaleRange(candles, start, end, scaleCtx);
+  return { priceMin: min, priceMax: max };
+}
+
+/** Attach/recompute price scale context from chart settings (price pane only). */
+export function withPriceScaleContext(
+  vp: ViewportState,
+  candles: Candle[],
+  chartSettings?: ChartSettings | null,
+): ViewportState {
+  const settings = mergeChartSettings(chartSettings);
+  const ctx = buildPriceScaleContext(settings.scales.priceScaleType, candles, vp.startIndex);
+  return { ...vp, priceScaleContext: ctx };
 }
 
 export function indexAtX(x: number, vp: ViewportState, candleCount: number): number {
@@ -194,8 +197,9 @@ export function indexAtX(x: number, vp: ViewportState, candleCount: number): num
 export function priceAtY(y: number, vp: ViewportState): number {
   const ph = plotAreaHeight(vp);
   const range = vp.priceMax - vp.priceMin;
-  if (ph <= 0 || range <= 0) return vp.priceMax;
-  return vp.priceMax - (y / ph) * range;
+  if (ph <= 0 || range <= 0) return fromScaleCoord(vp.priceMax, vp.priceScaleContext ?? linearScaleContext());
+  const coord = vp.priceMax - (y / ph) * range;
+  return fromScaleCoord(coord, vp.priceScaleContext ?? linearScaleContext());
 }
 
 export function xForIndex(i: number, vp: ViewportState): number {
@@ -208,7 +212,10 @@ export function yForPrice(p: number, vp: ViewportState): number {
   const ph = plotAreaHeight(vp);
   const range = vp.priceMax - vp.priceMin;
   if (range <= 0 || ph <= 0) return 0;
-  return ((vp.priceMax - p) / range) * ph;
+  const ctx = vp.priceScaleContext ?? linearScaleContext();
+  const coord = toScaleCoord(p, ctx);
+  if (!Number.isFinite(coord)) return 0;
+  return ((vp.priceMax - coord) / range) * ph;
 }
 
 // Core pan (deltaX in pixels, positive = pan right = show older candles)
@@ -298,9 +305,20 @@ export function applyAutoPriceScale(vp: ViewportState, candles: Candle[]): Visib
 
 // Update price range after data or range change
 export function updatePriceRange(vp: ViewportState, candles: Candle[]): VisibleRange {
-  if ((vp as any).priceScaleMode === 'manual') return vp as VisibleRange;
-  const { priceMin, priceMax } = computePriceRange(candles, vp.startIndex, vp.endIndex);
-  return attachViewportHelpers({ ...vp, priceMin, priceMax }, candles.length);
+  if ((vp as any).priceScaleMode === 'manual') return attachViewportHelpers({ ...vp }, candles.length);
+  const ctx =
+    vp.priceScaleContext ??
+    buildPriceScaleContext('linear', candles, vp.startIndex);
+  const { priceMin, priceMax } = computePriceRange(
+    candles,
+    vp.startIndex,
+    vp.endIndex,
+    ctx,
+  );
+  return attachViewportHelpers(
+    { ...vp, priceMin, priceMax, priceScaleContext: ctx },
+    candles.length,
+  );
 }
 
 // Momentum loop helper (call inside rAF)
@@ -320,10 +338,18 @@ export function scalePrice(
 }
 
 export function resetPriceScale(vp: any, candles: Candle[]): VisibleRange {
-  const { priceMin, priceMax } = computePriceRange(candles, vp.startIndex, vp.endIndex);
+  const ctx =
+    vp.priceScaleContext ??
+    buildPriceScaleContext('linear', candles, vp.startIndex);
+  const { priceMin, priceMax } = computePriceRange(
+    candles,
+    vp.startIndex,
+    vp.endIndex,
+    ctx,
+  );
   return attachViewportHelpers(
-    { ...vp, priceMin, priceMax, priceScaleMode: 'auto' },
-    candles.length
+    { ...vp, priceMin, priceMax, priceScaleMode: 'auto', priceScaleContext: ctx },
+    candles.length,
   );
 }
 
@@ -349,15 +375,103 @@ export function defaultRightMarginBars(width: number, visibleCount: number): num
   return Math.max(DEFAULT_RIGHT_MARGIN_BARS, axisBars);
 }
 
+/** Canonical live-edge ratio `(dataBars - 1) / (dataBars + margin)` from the default landing view. */
+export function defaultLiveEdgeCandleRatio(width: number): number {
+  const dataBars = DEFAULT_VISIBLE_BARS;
+  const margin = defaultRightMarginBars(width, dataBars);
+  const denom = dataBars + margin;
+  if (denom <= 0) return 0;
+  return (dataBars - 1) / denom;
+}
+
+/** Latest-candle x-position (plot coords) for the default landing viewport. */
+export function defaultLiveEdgeCandleX(width: number): number {
+  return defaultLiveEdgeCandleRatio(width) * plotWidth(width);
+}
+
+/** End index so the latest candle matches the default live-edge x-position. */
+export function liveEdgeEndIndex(startIndex: number, candleCount: number, width: number): number {
+  const n = candleCount;
+  if (n <= 0) return startIndex + MIN_CANDLES;
+  const last = n - 1;
+  if (last < startIndex) return startIndex + DEFAULT_RIGHT_MARGIN_BARS;
+
+  const targetRatio = defaultLiveEdgeCandleRatio(width);
+  if (targetRatio <= 0 || targetRatio >= 1) {
+    return n + DEFAULT_RIGHT_MARGIN_BARS;
+  }
+
+  const visibleSpan = (last - startIndex) / targetRatio;
+  const endIndex = startIndex + visibleSpan;
+  return Math.min(scrollMaxEnd(n), Math.max(startIndex + MIN_CANDLES, endIndex));
+}
+
+/**
+ * Virtual margin bars after the last candle for a live-edge window with `visibleDataBars` data bars.
+ * Prefer `liveEdgeEndIndex` when startIndex is known.
+ */
+export function liveEdgeMarginBars(width: number, visibleDataBars: number): number {
+  const dataBars = Math.max(1, visibleDataBars);
+  const end = liveEdgeEndIndex(0, dataBars, width);
+  return Math.max(DEFAULT_RIGHT_MARGIN_BARS, end - dataBars);
+}
+
+/**
+ * Extend the time window rightward so the latest bar matches the default live-edge x-position.
+ */
+export function ensureRightMarginBars(
+  vp: ViewportState,
+  candleCount: number,
+  width: number,
+  minMarginBars = 0,
+): ViewportState {
+  const n = candleCount;
+  if (n <= 0) return vp;
+
+  const targetEnd = Math.max(
+    liveEdgeEndIndex(vp.startIndex, n, width),
+    n + Math.max(0, minMarginBars),
+  );
+  if (vp.endIndex >= targetEnd - 1e-6) return vp;
+
+  // Only adjust when the viewport shows the latest bar (live edge).
+  if (vp.endIndex < n - 0.5) return vp;
+
+  let endIndex = targetEnd;
+  if (endIndex > scrollMaxEnd(n)) {
+    endIndex = scrollMaxEnd(n);
+  }
+  return { ...vp, endIndex };
+}
+
+/** Fresh viewport matching initial chart load (last N bars, auto Y). */
+export function getLiveEdgeViewport(
+  candles: Candle[],
+  width: number,
+  height: number,
+  maxDataBars: number = DEFAULT_VISIBLE_BARS,
+): VisibleRange {
+  const n = candles.length;
+  if (n === 0) {
+    return createViewport(candles, width, height, 0, 0);
+  }
+
+  const dataBars = Math.min(n, Math.max(1, maxDataBars));
+  const startIndex = Math.max(0, n - dataBars);
+  const endIndex = liveEdgeEndIndex(startIndex, n, width);
+  const margin = endIndex - n;
+  const base = createViewport(candles, width, height, dataBars, margin);
+  const vp = attachViewportHelpers({ ...base, startIndex, endIndex }, n);
+  return attachViewportHelpers(applyAutoPriceScale(vp, candles), n);
+}
+
 /** Fresh viewport matching initial chart load (last N bars, auto Y). */
 export function getDefaultViewport(
   candles: Candle[],
   width: number,
   height: number
 ): VisibleRange {
-  const initial = Math.min(DEFAULT_VISIBLE_BARS, candles.length);
-  const margin = defaultRightMarginBars(width, initial);
-  return createViewport(candles, width, height, initial, margin);
+  return getLiveEdgeViewport(candles, width, height, DEFAULT_VISIBLE_BARS);
 }
 
 export function isTimeWindowModified(
@@ -401,6 +515,47 @@ export function isViewportModified(
   if (current.priceScaleMode === 'manual') return true;
   const expected = getAutoFit
     ? getAutoFit(current)
-    : computePriceRange(candles, current.startIndex, current.endIndex);
+    : computePriceRange(
+        candles,
+        current.startIndex,
+        current.endIndex,
+        current.priceScaleContext ?? linearScaleContext(),
+      );
   return isPriceRangeModified(current, expected);
+}
+
+/** Flip Y mapping so higher prices render toward the bottom. */
+export function withInvertedPriceScale(vp: VisibleRange): VisibleRange {
+  const ph = plotHeight(vp.height, vp.reserveTimeAxis ?? true);
+  const baseY = vp.yForPrice.bind(vp);
+  const basePrice = vp.priceForY.bind(vp);
+  return {
+    ...vp,
+    yForPrice: (p: number) => ph - baseY(p),
+    priceForY: (y: number) => basePrice(ph - y),
+  };
+}
+
+/** Shift plot X coordinates when the price scale is on the left. */
+export function withPlotHorizontalOffset(vp: VisibleRange, side: PriceScaleSide): VisibleRange {
+  const offset = plotLeftOffset(side);
+  if (offset === 0) return vp;
+  const baseX = vp.xForIndex.bind(vp);
+  const baseIndex = vp.indexForX.bind(vp);
+  return {
+    ...vp,
+    xForIndex: (i: number) => baseX(i) + offset,
+    indexForX: (x: number) => baseIndex(x - offset),
+  };
+}
+
+/** Apply chart scale layout transforms (invert + left-axis offset). */
+export function applyPriceScaleLayout(
+  vp: VisibleRange,
+  options: { invert?: boolean; side?: PriceScaleSide },
+): VisibleRange {
+  let next = vp;
+  if (options.invert) next = withInvertedPriceScale(next);
+  if (options.side === 'left') next = withPlotHorizontalOffset(next, 'left');
+  return next;
 }

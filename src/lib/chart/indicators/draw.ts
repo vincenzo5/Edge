@@ -1,6 +1,10 @@
-import type { Candle, Theme, VisibleRange } from '../contracts';
+import type { Candle, IndicatorConfig, Theme, VisibleRange } from '../contracts';
+import type { IndicatorPlugin, ResolvedSeriesStyle } from '../plugin-api';
+import type { SeriesOutput } from '../legend/types';
+import { getComputedSeries, resolveSeriesStyle, resolveOutputColor } from '../indicatorCompute';
+import { resolveIndicatorInputs } from '../indicatorInputs';
 import { plotWidth } from '../layout';
-import { getColors } from '../renderer';
+import { getChartColors as getColors } from '../chartTheme';
 
 export function drawLineSeries(
   ctx: CanvasRenderingContext2D,
@@ -176,4 +180,117 @@ export function rsiLineColor(theme: Theme): string {
 
 export function guideLineColor(theme: Theme): string {
   return theme === 'dark' ? '#4b5563' : '#9ca3af';
+}
+
+export function drawFromOutputs(
+  ctx: CanvasRenderingContext2D,
+  vp: VisibleRange,
+  theme: Theme,
+  data: Record<string, number[]>,
+  outputs: SeriesOutput[],
+  resolvedStyles: Map<string, ResolvedSeriesStyle>,
+  instance: IndicatorConfig,
+  plugin: IndicatorPlugin,
+  candles?: Candle[],
+): void {
+  const outputById = new Map(outputs.map((o) => [o.id, o]));
+  const drawnFills = new Set<string>();
+
+  for (const out of outputs) {
+    if (!out.fillBetween) continue;
+    const fillKey = `${out.id}:${out.fillBetween}`;
+    if (drawnFills.has(fillKey)) continue;
+
+    const lowerOut = outputById.get(out.fillBetween);
+    if (!lowerOut) continue;
+
+    const upperValues = data[out.key];
+    const lowerValues = data[lowerOut.key];
+    if (!upperValues || !lowerValues) continue;
+
+    const style = resolvedStyles.get(out.id) ?? resolveSeriesStyle(out, instance, plugin, theme, null);
+    if (!style.visible) continue;
+
+    const fillColor =
+      resolveOutputColor(out.fillColor, theme, null) ??
+      (theme === 'dark' ? 'rgba(167, 139, 250, 0.12)' : 'rgba(124, 58, 237, 0.12)');
+
+    drawBand(ctx, upperValues, lowerValues, vp, fillColor);
+    drawnFills.add(fillKey);
+  }
+
+  for (const out of outputs) {
+    const style = resolvedStyles.get(out.id) ?? resolveSeriesStyle(out, instance, plugin, theme, null);
+    if (!style.visible) continue;
+
+    const plot = out.plot ?? 'line';
+    const values = data[out.key];
+    if (!values) continue;
+
+    if (plot === 'hline') {
+      const at = out.hlineAt ?? 0;
+      drawHorizontalGuide(ctx, vp, at, style.color, style.lineWidth);
+      continue;
+    }
+
+    if (plot === 'histogram') {
+      const colorFn =
+        instance.styles?.[out.id]?.color != null
+          ? (_theme: Theme, _value: number | null) => style.color
+          : typeof out.color === 'function'
+            ? out.color
+            : (_theme: Theme, _value: number | null) => style.color;
+      drawHistogramSeries(ctx, values, vp, theme, 0, colorFn);
+      continue;
+    }
+
+    if (plot === 'columns') {
+      if (candles) drawVolumeBars(ctx, candles, vp, theme);
+      continue;
+    }
+
+    drawLineSeries(ctx, values, vp, style.color, style.lineWidth);
+  }
+}
+
+export function drawIndicator(
+  plugin: IndicatorPlugin,
+  instance: IndicatorConfig,
+  ctx: CanvasRenderingContext2D,
+  candles: Candle[],
+  vp: VisibleRange,
+  theme: Theme,
+): void {
+  const inputs = resolveIndicatorInputs(plugin, instance);
+  const data = getComputedSeries(plugin, candles, inputs);
+
+  const midIndex = Math.min(
+    candles.length - 1,
+    Math.max(0, Math.floor((vp.startIndex + vp.endIndex) / 2)),
+  );
+  const resolvedStyles = plugin.outputs?.length
+    ? new Map(
+        plugin.outputs.map((out) => [
+          out.id,
+          resolveSeriesStyle(
+            out,
+            instance,
+            plugin,
+            theme,
+            data?.[out.key]?.[midIndex] ?? null,
+          ),
+        ]),
+      )
+    : new Map<string, ResolvedSeriesStyle>();
+
+  const options = { instance, resolvedStyles, data };
+
+  if (plugin.draw) {
+    plugin.draw(ctx, candles, vp, theme, inputs, options);
+    return;
+  }
+
+  if (plugin.outputs?.length && data) {
+    drawFromOutputs(ctx, vp, theme, data, plugin.outputs, resolvedStyles, instance, plugin, candles);
+  }
 }

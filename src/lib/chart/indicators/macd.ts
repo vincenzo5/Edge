@@ -1,29 +1,20 @@
-import type { IndicatorPlugin } from '../plugin-api';
-import type { Candle } from '../contracts';
+import type { IndicatorPlugin, ResolvedInputs } from '../plugin-api';
 import { getComputedSeries } from '../indicatorCompute';
 import { computeMacd, mergeRanges, rangeInViewport, symmetricRangeAroundZero } from './math';
-import {
-  drawHistogramSeries,
-  drawHorizontalGuide,
-  drawLineSeries,
-  guideLineColor,
-  histogramColor,
-  macdLineColor,
-  signalLineColor,
-} from './draw';
+import { guideLineColor, histogramColor, macdLineColor, signalLineColor } from './draw';
 
-type MacdParams = { fast: number; slow: number; signal: number };
+type MacdInputs = { fast: number; slow: number; signal: number };
 
-function resolveParams(params?: Record<string, number>): MacdParams {
+function resolveMacdInputs(inputs: ResolvedInputs): MacdInputs {
   return {
-    fast: params?.fast ?? 12,
-    slow: params?.slow ?? 26,
-    signal: params?.signal ?? 9,
+    fast: typeof inputs.fast === 'number' ? inputs.fast : 12,
+    slow: typeof inputs.slow === 'number' ? inputs.slow : 26,
+    signal: typeof inputs.signal === 'number' ? inputs.signal : 9,
   };
 }
 
-function computeMacdSeries(candles: Candle[], params?: Record<string, number>) {
-  const { fast, slow, signal } = resolveParams(params);
+function computeMacdSeries(candles: import('../contracts').Candle[], inputs: ResolvedInputs) {
+  const { fast, slow, signal } = resolveMacdInputs(inputs);
   return computeMacd(
     candles.map((c) => c.c),
     fast,
@@ -37,21 +28,40 @@ export const macd: IndicatorPlugin = {
   category: 'Momentum',
   description: 'Moving Average Convergence Divergence',
   pane: 'sub',
-  defaultParams: { fast: 12, slow: 26, signal: 9 },
-  paramSchema: {
-    fast: { label: 'Fast', default: 12, min: 1, max: 100, step: 1 },
-    slow: { label: 'Slow', default: 26, min: 1, max: 200, step: 1 },
-    signal: { label: 'Signal', default: 9, min: 1, max: 100, step: 1 },
+  defaultInputs: { fast: 12, slow: 26, signal: 9 },
+  inputSchema: {
+    fast: { kind: 'number', label: 'Fast', default: 12, min: 1, max: 100, step: 1 },
+    slow: { kind: 'number', label: 'Slow', default: 26, min: 1, max: 200, step: 1 },
+    signal: { kind: 'number', label: 'Signal', default: 9, min: 1, max: 100, step: 1 },
   },
-  compute(candles, params) {
-    const { macd: macdLine, signal, histogram } = computeMacdSeries(candles, params);
+  compute(candles, inputs) {
+    const { macd: macdLine, signal, histogram } = computeMacdSeries(candles, inputs);
     return { macd: macdLine, signal, histogram };
   },
   outputs: [
     {
+      id: 'zero',
+      label: '',
+      key: 'macd',
+      plot: 'hline',
+      hlineAt: 0,
+      color: guideLineColor,
+      lineWidth: 1,
+    },
+    {
+      id: 'histogram',
+      label: 'Hist',
+      key: 'histogram',
+      plot: 'histogram',
+      tooltip: 'Histogram — MACD minus signal',
+      decimals: 4,
+      color: histogramColor,
+    },
+    {
       id: 'macd',
       label: 'MACD',
       key: 'macd',
+      plot: 'line',
       tooltip: 'MACD line — fast EMA minus slow EMA',
       decimals: 4,
       color: macdLineColor,
@@ -60,21 +70,14 @@ export const macd: IndicatorPlugin = {
       id: 'signal',
       label: 'Signal',
       key: 'signal',
+      plot: 'line',
       tooltip: 'Signal line — smoothed MACD line',
       decimals: 4,
       color: signalLineColor,
     },
-    {
-      id: 'histogram',
-      label: 'Hist',
-      key: 'histogram',
-      tooltip: 'Histogram — MACD minus signal',
-      decimals: 4,
-      color: histogramColor,
-    },
   ],
-  valueRangeForViewport(candles, vp, params) {
-    const data = getComputedSeries(macd, candles, params);
+  valueRangeForViewport(candles, vp, inputs) {
+    const data = getComputedSeries(macd, candles, inputs);
     if (!data) return null;
     const range = mergeRanges([
       rangeInViewport(data.macd, vp.startIndex, vp.endIndex),
@@ -83,19 +86,10 @@ export const macd: IndicatorPlugin = {
     ]);
     return symmetricRangeAroundZero(range);
   },
-  valueAt(index, candles, params) {
-    const data = getComputedSeries(macd, candles, params);
+  valueAt(index, candles, inputs) {
+    const data = getComputedSeries(macd, candles, inputs);
     if (!data || index < 0 || index >= data.macd.length) return null;
     const v = data.macd[index];
     return Number.isFinite(v) ? v : null;
-  },
-  draw(ctx, candles, vp, theme, params) {
-    const data = getComputedSeries(macd, candles, params);
-    if (!data) return;
-
-    drawHorizontalGuide(ctx, vp, 0, guideLineColor(theme));
-    drawHistogramSeries(ctx, data.histogram, vp, theme);
-    drawLineSeries(ctx, data.macd, vp, macdLineColor(theme));
-    drawLineSeries(ctx, data.signal, vp, signalLineColor(theme));
   },
 };
