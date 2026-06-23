@@ -53,16 +53,14 @@ export default function ChartIntervalMenu({ theme, value, onChange }: Props) {
         onClose={() => setOpen(false)}
         minWidth={220}
       >
-        <div className="border-b px-3 py-2 text-xs opacity-60">Add custom interval...</div>
+        <div className="border-b border-[var(--tv-border)] px-3 py-2 text-xs text-[var(--tv-text-secondary)]">Add custom interval...</div>
         {INTERVAL_MENU_CATEGORIES.map((category, idx) => {
           const items = grouped[category];
           const isCollapsed = collapsed[category] ?? false;
           return (
             <div key={category}>
               {idx > 0 ? (
-                <div
-                  className={`my-1 border-t ${theme === 'dark' ? 'border-[#363a45]' : 'border-gray-200'}`}
-                />
+                <div className="my-1 border-t border-[var(--tv-border-strong)]" />
               ) : null}
               <ChartMenuSectionHeader
                 theme={theme}

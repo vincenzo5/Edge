@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { DEFAULT_LAYOUT } from '@/lib/chartConfig';
 import StockApp from './StockApp';
 
 const localStorageMock = (() => {
@@ -29,6 +30,7 @@ vi.mock('./ChartCell', () => ({
 describe('StockApp', () => {
   beforeEach(() => {
     localStorageMock.clear();
+    document.documentElement.className = '';
   });
 
   it('renders a single chart header, chart grid, and sidebar rail', async () => {
@@ -45,9 +47,37 @@ describe('StockApp', () => {
   });
 
   it('applies theme class to html element after hydration', async () => {
+    document.documentElement.classList.add('custom-root-class');
     render(<StockApp />);
     await waitFor(() => {
-      expect(document.documentElement.className).toMatch(/dark|light/);
+      expect(document.documentElement.classList.contains('dark')).toBe(true);
+    });
+    expect(document.documentElement.classList.contains('custom-root-class')).toBe(true);
+  });
+
+  it('applies persisted light theme and removes dark class', async () => {
+    document.documentElement.classList.add('dark', 'custom-root-class');
+    localStorageMock.setItem(
+      'tv-ai:layout:v1',
+      JSON.stringify({ ...DEFAULT_LAYOUT, theme: 'light' }),
+    );
+    render(<StockApp />);
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains('light')).toBe(true);
+      expect(document.documentElement.classList.contains('dark')).toBe(false);
+    });
+    expect(document.documentElement.classList.contains('custom-root-class')).toBe(true);
+  });
+
+  it('falls back to dark for invalid persisted theme without adding invalid class', async () => {
+    localStorageMock.setItem(
+      'tv-ai:layout:v1',
+      JSON.stringify({ ...DEFAULT_LAYOUT, theme: 'neon' }),
+    );
+    render(<StockApp />);
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains('dark')).toBe(true);
+      expect(document.documentElement.classList.contains('neon')).toBe(false);
     });
   });
 

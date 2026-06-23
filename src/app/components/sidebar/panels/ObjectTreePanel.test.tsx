@@ -8,6 +8,7 @@ import {
   type ActiveChartSnapshot,
 } from '../../ActiveChartContext';
 import { DEFAULT_CELL, type TrackedOverlay } from '@/lib/chartConfig';
+import { makeDrawingCommandsMock, makeUICommandsMock } from '@/test/activeChartMocks';
 import type { Candle } from '@/lib/chart/contracts';
 
 const candles: Candle[] = [
@@ -57,6 +58,24 @@ function makeSnapshot(): ActiveChartSnapshot {
     onConfigChange: vi.fn(),
     openIndicatorPicker: vi.fn(),
     headerCommands: defaultHeaderCommands,
+    chartCommands: {
+      undo: vi.fn(() => false),
+      redo: vi.fn(() => false),
+      canUndo: vi.fn(() => false),
+      canRedo: vi.fn(() => false),
+      goTo: vi.fn(async () => ({ ok: true as const })),
+      zoomIn: vi.fn(),
+      resetChartView: vi.fn(),
+      getCandles: vi.fn(() => []),
+      selectDrawing: vi.fn(),
+      getSelectedDrawingId: vi.fn(() => null),
+      updateDrawingStyles: vi.fn(),
+      restoreDrawings: vi.fn(),
+      canCaptureSnapshot: vi.fn(() => true),
+      captureSnapshot: vi.fn(async () => new Blob([new Uint8Array(32)], { type: 'image/png' })),
+    },
+    drawingCommands: makeDrawingCommandsMock(),
+    uiCommands: makeUICommandsMock(),
   };
 }
 

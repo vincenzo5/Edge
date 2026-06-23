@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Theme } from '@/lib/chartConfig';
+import { getShortcutLabel } from '@/lib/shortcuts/formatShortcutLabel';
 import ChartHeaderButton from './ChartHeaderButton';
 import { FullscreenIcon } from './ChartHeaderIcons';
 
@@ -41,7 +42,7 @@ export default function ChartFullscreenButton({ theme }: Props) {
       iconOnly
       active={active}
       disabled={!supported}
-      title={supported ? 'Fullscreen mode | ⇧ F' : 'Fullscreen not supported'}
+      title={supported ? `Fullscreen mode | ${getShortcutLabel('fullscreen')}` : 'Fullscreen not supported'}
       onClick={toggle}
       data-testid="fullscreen-trigger"
     >

@@ -13,6 +13,7 @@ export default function AiSessionBridge() {
 
   useEffect(() => {
     if (!ai) return;
+    const aiTools = ai;
 
     let cancelled = false;
 
@@ -34,7 +35,7 @@ export default function AiSessionBridge() {
     }
 
     async function runJob(job: SessionJob) {
-      const result = await ai.execute(job.name, job.input, {
+      const result = await aiTools.execute(job.name, job.input, {
         permissionMode: job.permissionMode,
         confirmed: job.confirmed,
       });

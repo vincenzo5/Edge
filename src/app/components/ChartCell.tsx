@@ -42,6 +42,13 @@ import {
   hasDrawingClipboard,
   readClipboard,
 } from "@/lib/chart/chartClipboard";
+import {
+  SnapshotCaptureError,
+  buildSnapshotFilename,
+  prepareSnapshotTab,
+  runSnapshotAction,
+  type SnapshotAction,
+} from "@/lib/chart/chartSnapshot";
 import TemplatePickerModal from "./TemplatePickerModal";
 import { applyChartTemplate, applyStudyTemplate } from "@/lib/chart/presets/apply";
 import {
@@ -55,12 +62,7 @@ import {
   listPresetsByKind,
   savePreset,
 } from "@/lib/presetStorage";
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
-}
+import { getShortcutLabel } from "@/lib/shortcuts/formatShortcutLabel";
 
 type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
 
@@ -236,46 +238,6 @@ export default function ChartCell({
   }, [crosshairData]);
 
   pasteDrawingsRef.current = handlePasteDrawings;
-
-  // Drawing undo/redo and copy/paste when this cell is active.
-  useEffect(() => {
-    if (!isActive) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      if (isEditableTarget(e.target)) return;
-      const chart = chartRef.current;
-      if (!chart) return;
-
-      const key = e.key.toLowerCase();
-      if (key === "z") {
-        e.preventDefault();
-        if (e.shiftKey) {
-          chart.redo();
-        } else {
-          chart.undo();
-        }
-        return;
-      }
-
-      if (key === "c") {
-        if (!selectedOverlayId) return;
-        const drawings = chart.serializeDrawings();
-        const selected = drawings.filter((d) => d.id === selectedOverlayId);
-        if (selected.length === 0) return;
-        e.preventDefault();
-        copyDrawings(selected);
-        return;
-      }
-
-      if (key === "v") {
-        if (!hasDrawingClipboard()) return;
-        e.preventDefault();
-        pasteDrawingsRef.current();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isActive, selectedOverlayId]);
 
   const allLocked =
     overlays.length > 0 && overlays.every((o) => o.locked);
@@ -581,21 +543,23 @@ export default function ChartCell({
     [applyPriceScaleType, config, onConfigChange],
   );
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!isActive) return;
-      if (e.altKey && e.key.toLowerCase() === "r") {
-        e.preventDefault();
-        chartRef.current?.resetChartView();
+  const runCellSnapshot = useCallback(
+    async (action: SnapshotAction) => {
+      const chart = chartRef.current;
+      if (!chart?.canCaptureSnapshot()) return;
+      const filename = buildSnapshotFilename(config.symbol, config.interval);
+      const targetWindow = action === "open" ? prepareSnapshotTab() : undefined;
+      try {
+        const blob = await chart.captureSnapshot({ includeCrosshair: false });
+        await runSnapshotAction(action, blob, filename, targetWindow);
+      } catch (error) {
+        if (error instanceof SnapshotCaptureError) {
+          console.warn(error.reason);
+        }
       }
-      if (e.altKey && e.key.toLowerCase() === "g") {
-        e.preventDefault();
-        setGoToOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isActive]);
+    },
+    [config.symbol, config.interval],
+  );
 
   const settingsIndicator = useMemo(
     () => config.indicators.find((i) => i.id === settingsIndicatorId) ?? null,
@@ -781,8 +745,82 @@ export default function ChartCell({
       updateDrawingStyles: (id: string, patch: Parameters<NonNullable<typeof chartRef.current>["updateDrawingStyles"]>[1]) =>
         chartRef.current?.updateDrawingStyles(id, patch),
       restoreDrawings: (data: SerializedDrawing[]) => chartRef.current?.restoreDrawings(data),
+      canCaptureSnapshot: () => chartRef.current?.canCaptureSnapshot() ?? false,
+      captureSnapshot: (opts) => {
+        const chart = chartRef.current;
+        if (!chart?.canCaptureSnapshot()) {
+          return Promise.reject(new SnapshotCaptureError("no_data"));
+        }
+        return chart.captureSnapshot(opts);
+      },
     }),
     [],
+  );
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedOverlayId) {
+      chartRef.current?.removeOverlay(selectedOverlayId);
+      setSelectedOverlayId(null);
+      setContextMenu(null);
+    }
+  }, [selectedOverlayId]);
+
+  const handleRenameSelected = useCallback(() => {
+    if (!selectedOverlayId) return;
+    const overlay = overlays.find((o) => o.id === selectedOverlayId);
+    if (!overlay) return;
+    const name = prompt("Rename drawing:", overlay.label);
+    if (name?.trim()) {
+      overlayActions().rename(selectedOverlayId, name.trim());
+    }
+  }, [selectedOverlayId, overlays, overlayActions]);
+
+  const handleDuplicateSelected = useCallback(() => {
+    if (!selectedOverlayId) return;
+    overlayActions().duplicate(selectedOverlayId);
+  }, [selectedOverlayId, overlayActions]);
+
+  const handleToggleLockSelected = useCallback(() => {
+    if (!selectedOverlayId) return;
+    const overlay = overlays.find((o) => o.id === selectedOverlayId);
+    if (!overlay) return;
+    overlayActions().setLocked(selectedOverlayId, !overlay.locked);
+  }, [selectedOverlayId, overlays, overlayActions]);
+
+  const handleCopySelected = useCallback(() => {
+    if (!selectedOverlayId) return;
+    const drawings = chartRef.current?.serializeDrawings() ?? [];
+    const selected = drawings.filter((d) => d.id === selectedOverlayId);
+    if (selected.length > 0) copyDrawings(selected);
+  }, [selectedOverlayId]);
+
+  const drawingCommands = useCallback(
+    () => ({
+      hasSelection: () => selectedOverlayId != null,
+      deleteSelected: handleDeleteSelected,
+      duplicateSelected: handleDuplicateSelected,
+      renameSelected: handleRenameSelected,
+      toggleLockSelected: handleToggleLockSelected,
+      copySelected: handleCopySelected,
+      pasteDrawings: () => pasteDrawingsRef.current(),
+      canPaste: () => hasDrawingClipboard(),
+    }),
+    [
+      selectedOverlayId,
+      handleDeleteSelected,
+      handleDuplicateSelected,
+      handleRenameSelected,
+      handleToggleLockSelected,
+      handleCopySelected,
+    ],
+  );
+
+  const uiCommands = useCallback(
+    () => ({
+      openGoTo: () => setGoToOpen(true),
+      runSnapshot: (action: SnapshotAction) => runCellSnapshot(action),
+    }),
+    [runCellSnapshot],
   );
 
   useEffect(() => {
@@ -852,6 +890,8 @@ export default function ChartCell({
         },
       },
       chartCommands: chartCommands(),
+      drawingCommands: drawingCommands(),
+      uiCommands: uiCommands(),
     });
   }, [
     activeChartBridge,
@@ -869,6 +909,8 @@ export default function ChartCell({
     canRedo,
     addIndicator,
     chartCommands,
+    drawingCommands,
+    uiCommands,
   ]);
 
   const handleOverlayRightClick = useCallback(
@@ -973,15 +1015,6 @@ export default function ChartCell({
     ],
   );
 
-  // Delete selected drawing.
-  const handleDeleteSelected = useCallback(() => {
-    if (selectedOverlayId) {
-      chartRef.current?.removeOverlay(selectedOverlayId);
-      setSelectedOverlayId(null);
-      setContextMenu(null);
-    }
-  }, [selectedOverlayId]);
-
   // Crosshair sync helpers.
   const handleCrosshairFire = useCallback(
     (ts: number | null) => {
@@ -1021,7 +1054,7 @@ export default function ChartCell({
           }
           />
         </div>
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-1" ref={chartOverlayRef}>
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--tv-surface-chart)] p-px" ref={chartOverlayRef}>
           <EdgeChart
             ref={chartRef}
             config={config}
@@ -1241,7 +1274,7 @@ function buildOverlayContextMenuItems(
     {
       id: "rename",
       label: "Rename",
-      shortcut: "F2",
+      shortcut: getShortcutLabel("renameDrawing"),
       action: () => onRenamePrompt(overlay.id),
     },
     {
@@ -1253,7 +1286,7 @@ function buildOverlayContextMenuItems(
     {
       id: "copy",
       label: "Copy",
-      shortcut: "⌘C",
+      shortcut: getShortcutLabel("copyDrawing"),
       action: clipboard.onCopy,
       dividerAfter: !clipboard.canPaste,
     },
@@ -1262,7 +1295,7 @@ function buildOverlayContextMenuItems(
           {
             id: "paste",
             label: "Paste",
-            shortcut: "⌘V",
+            shortcut: getShortcutLabel("pasteDrawing"),
             action: clipboard.onPaste,
             dividerAfter: true,
           } as ContextMenuItem,
@@ -1271,7 +1304,7 @@ function buildOverlayContextMenuItems(
     {
       id: "lock",
       label: overlay.locked ? "Unlock" : "Lock",
-      shortcut: "⌘L",
+      shortcut: getShortcutLabel("lockDrawing"),
       action: () => actions.setLocked(overlay.id, !overlay.locked),
     },
     {
@@ -1294,14 +1327,14 @@ function buildOverlayContextMenuItems(
     {
       id: "duplicate",
       label: "Duplicate",
-      shortcut: "⌘D",
+      shortcut: getShortcutLabel("duplicateDrawing"),
       action: () => actions.duplicate(overlay.id),
       dividerAfter: true,
     },
     {
       id: "remove",
       label: "Remove",
-      shortcut: "⌫",
+      shortcut: getShortcutLabel("deleteDrawing"),
       danger: true,
       action: () => actions.remove(overlay.id),
     },

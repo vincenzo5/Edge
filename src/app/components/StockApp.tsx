@@ -17,6 +17,7 @@ import {
   DEFAULT_LAYOUT,
   DEFAULT_SIDEBAR_PREFS,
   DEFAULT_TOOLBAR_PREFS,
+  applyThemeToRoot,
   cellCountFor,
   pickLinkFields,
   type CellConfig,
@@ -29,21 +30,41 @@ import {
 } from "@/lib/chartConfig";
 import type { Interval } from "@/lib/chart/contracts";
 import { loadLayout, saveLayout } from "@/lib/layoutStorage";
+import { useChartTemplateLibraryRemoteSync } from "@/lib/persistence/sync/useChartTemplateLibraryRemoteSync";
+import { useChartWorkspaceRemoteSync } from "@/lib/persistence/sync/useChartWorkspaceRemoteSync";
+import { useResponsiveLayout } from "@/lib/responsive/useResponsiveLayout";
+import { ShortcutUIProvider } from "./shortcuts/ShortcutUIContext";
+import ShortcutProvider from "./shortcuts/ShortcutProvider";
 
 export default function StockApp() {
   const [layout, setLayout] = useState<ChartLayout>(DEFAULT_LAYOUT);
+  const [hydrated, setHydrated] = useState(false);
   const hydratedRef = useRef(false);
 
   // Hydrate from localStorage on mount.
   useEffect(() => {
     setLayout(loadLayout());
     hydratedRef.current = true;
+    setHydrated(true);
   }, []);
+
+  const handleApplyRemoteLayout = useCallback((remoteLayout: ChartLayout) => {
+    setLayout(remoteLayout);
+    saveLayout(remoteLayout);
+  }, []);
+
+  useChartWorkspaceRemoteSync({
+    layout,
+    hydrated,
+    onApplyRemoteLayout: handleApplyRemoteLayout,
+  });
+
+  useChartTemplateLibraryRemoteSync();
 
   // Apply theme class to <html> when it changes.
   useEffect(() => {
     if (!hydratedRef.current) return;
-    document.documentElement.className = layout.theme;
+    applyThemeToRoot(layout.theme);
   }, [layout.theme]);
 
   // Debounced save on any layout change.
@@ -209,21 +230,29 @@ export default function StockApp() {
     ],
   );
 
+  const responsive = useResponsiveLayout();
+  const activePanel = layout.sidebar?.activePanel ?? null;
+  const handleSidebarClose = useCallback(() => {
+    handleSidebarPanelChange(null);
+  }, [handleSidebarPanelChange]);
+
   return (
     <SidebarProvider
       activePanel={layout.sidebar?.activePanel ?? null}
       onActivePanelChange={handleSidebarPanelChange}
     >
-      <div className="flex h-screen min-h-0 flex-col overflow-hidden">
+      <div className="tv-app-shell flex h-screen min-h-0 flex-col overflow-hidden">
         <ChartActionsProvider
           activeCellSymbol={activeCell.symbol}
           loadSymbolIntoActiveChart={handleSymbolSelect}
         >
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <AppActionsProvider value={appActions}>
             <WatchlistProvider>
               <ActiveChartProvider>
+                <ShortcutUIProvider>
+                  <ShortcutProvider>
                 <AiToolsProvider>
                   <AiSessionBridge />
             <ChartHeaderBar
@@ -241,6 +270,7 @@ export default function StockApp() {
               layoutActions={{
                 onGridModeChange: handleGridModeChange,
                 onLinkedChange: handleLinkedChange,
+                onThemeChange: handleThemeChange,
               }}
               chartActions={{
                 onSymbolSelect: handleSymbolSelect,
@@ -248,7 +278,7 @@ export default function StockApp() {
                 onChartTypeChange: handleChartTypeChange,
               }}
             />
-            <div className="flex min-h-0 flex-1">
+            <div className="relative flex min-h-0 flex-1">
               <ChartGrid
                 gridMode={layout.gridMode}
                 linked={layout.linked}
@@ -260,16 +290,31 @@ export default function StockApp() {
                 onActiveCellChange={handleActiveCellChange}
                 onToolbarPrefsChange={handleToolbarPrefsChange}
               />
-              <RightSidebar activePanel={layout.sidebar?.activePanel ?? null} />
+              {responsive.sidebarMode === "inline" ? (
+                <RightSidebar
+                  activePanel={activePanel}
+                  mode="inline"
+                />
+              ) : null}
             </div>
+            {responsive.sidebarMode === "overlay" ? (
+              <RightSidebar
+                activePanel={activePanel}
+                mode="overlay"
+                onClose={handleSidebarClose}
+              />
+            ) : null}
                 </AiToolsProvider>
+                  </ShortcutProvider>
+                </ShortcutUIProvider>
           </ActiveChartProvider>
             </WatchlistProvider>
           </AppActionsProvider>
         </div>
         <SidebarRail
           theme={layout.theme}
-          activePanel={layout.sidebar?.activePanel ?? null}
+          activePanel={activePanel}
+          railMode={responsive.railMode}
           onTogglePanel={handleSidebarToggle}
         />
       </div>

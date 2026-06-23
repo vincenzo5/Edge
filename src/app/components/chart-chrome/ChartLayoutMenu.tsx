@@ -44,10 +44,10 @@ function ToggleSwitch({
       onClick={() => onChange?.(!checked)}
       className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
         disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
-      } ${checked ? 'bg-[#d1d4dc]' : 'bg-[#434651]'}`}
+      } ${checked ? 'bg-[var(--tv-text-strong)]' : 'bg-[var(--tv-border-strong)]'}`}
     >
       <span
-        className={`absolute top-0.5 h-3 w-3 rounded-full bg-[#131722] transition-transform ${
+        className={`absolute top-0.5 h-3 w-3 rounded-full bg-[var(--tv-background)] transition-transform ${
           checked ? 'translate-x-3.5' : 'translate-x-0.5'
         }`}
       />
@@ -131,7 +131,7 @@ export default function ChartLayoutMenu({
         ref={manageRef}
         type="button"
         onClick={() => setManageOpen((o) => !o)}
-        className="inline-flex shrink-0 flex-col items-start px-1 py-0.5 text-left transition-colors hover:opacity-80"
+        className="tv-focus-ring inline-flex shrink-0 flex-col items-start rounded-[var(--tv-radius-sm)] px-1 py-0.5 text-left transition-colors hover:bg-[var(--tv-surface-hover)]"
         data-testid="layout-manage-trigger"
         aria-label="Manage layouts"
         title="Manage layouts"
@@ -140,7 +140,7 @@ export default function ChartLayoutMenu({
           {layoutName}
           <ChevronDownIcon />
         </span>
-        <span className="text-[10px] text-blue-400">Save</span>
+        <span className="text-[10px] text-[var(--tv-accent-blue)]">Save</span>
       </button>
 
       <ChartAnchoredPopover
@@ -153,9 +153,7 @@ export default function ChartLayoutMenu({
         {GRID_MODES.map((mode, idx) => (
           <div key={mode.value}>
             {idx > 0 ? (
-              <div
-                className={`my-1 border-t ${theme === 'dark' ? 'border-[#363a45]' : 'border-gray-200'}`}
-              />
+              <div className="my-1 border-t border-[var(--tv-border-strong)]" />
             ) : null}
             <div className="flex items-center gap-2 px-3 py-1">
               <span className="w-4 shrink-0 text-xs opacity-60">{mode.label}</span>
@@ -166,14 +164,10 @@ export default function ChartLayoutMenu({
                     onGridModeChange(mode.value);
                     setSetupOpen(false);
                   }}
-                  className={`rounded p-1 transition-colors ${
+                  className={`tv-focus-ring rounded-[var(--tv-radius-sm)] p-1 transition-colors ${
                     gridMode === mode.value
-                      ? theme === 'dark'
-                        ? 'bg-[#2a2e39] text-[#d1d4dc]'
-                        : 'bg-gray-200'
-                      : theme === 'dark'
-                        ? 'hover:bg-[#2a2e39]'
-                        : 'hover:bg-gray-100'
+                      ? 'bg-[var(--tv-surface-active)] text-[var(--tv-text-strong)]'
+                      : 'hover:bg-[var(--tv-surface-hover)]'
                   }`}
                   aria-label={`Layout ${mode.label}`}
                 >
@@ -183,9 +177,7 @@ export default function ChartLayoutMenu({
             </div>
           </div>
         ))}
-        <div
-          className={`my-1 border-t ${theme === 'dark' ? 'border-[#363a45]' : 'border-gray-200'}`}
-        />
+        <div className="my-1 border-t border-[var(--tv-border-strong)]" />
         <ChartMenuSectionHeader theme={theme} label="SYNC IN LAYOUT" collapsed={false} />
         <div className="flex items-center justify-between px-3 py-1.5">
           <span className="text-xs">Symbol</span>
@@ -230,15 +222,11 @@ export default function ChartLayoutMenu({
         <ChartMenuItemRow theme={theme} label="Make a copy..." icon={<CopyIcon size={14} />} disabled disabledReason="Coming soon" />
         <ChartMenuItemRow theme={theme} label="Rename..." icon={<PencilIcon size={14} />} disabled disabledReason="Coming soon" />
         <ChartMenuItemRow theme={theme} label="Download chart data..." icon={<DownloadIcon size={14} />} disabled disabledReason="Coming soon" />
-        <div
-          className={`my-1 border-t ${theme === 'dark' ? 'border-[#363a45]' : 'border-gray-200'}`}
-        />
+        <div className="my-1 border-t border-[var(--tv-border-strong)]" />
         <ChartMenuItemRow theme={theme} label="Create new layout..." icon={<PlusIcon size={14} />} disabled disabledReason="Coming soon" />
         <ChartMenuSectionHeader theme={theme} label="RECENTLY USED" collapsed={false} />
         <ChartMenuItemRow theme={theme} label={layoutName} selected />
-        <div
-          className={`my-1 border-t ${theme === 'dark' ? 'border-[#363a45]' : 'border-gray-200'}`}
-        />
+        <div className="my-1 border-t border-[var(--tv-border-strong)]" />
         <ChartMenuItemRow theme={theme} label="Open layout..." icon={<FolderIcon size={14} />} disabled disabledReason="Coming soon" />
       </ChartAnchoredPopover>
     </>
