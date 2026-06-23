@@ -13,6 +13,57 @@ const VALID_INTERVALS = new Set(["1m", "1d", "1wk", "1mo", "1h", "5m", "15m", "3
 
 type CandlesResponse = { candles: Candle[] } | { error: string };
 
+type CacheEntry = {
+  candles: Candle[];
+  expiresAt: number;
+};
+
+const candleCache = new Map<string, CacheEntry>();
+
+const INTRADAY_INTERVALS = new Set(["1m", "5m", "15m", "30m", "1h"]);
+
+function cacheTtlMs(interval: Interval): number {
+  return INTRADAY_INTERVALS.has(interval) ? 30_000 : 60_000;
+}
+
+function cloneCandles(candles: Candle[]): Candle[] {
+  return candles.map((candle) => ({ ...candle }));
+}
+
+function buildCacheKey(args: {
+  symbol: string;
+  range: string;
+  interval: Interval;
+  before?: number;
+  barCount?: number;
+}): string {
+  const beforePart = args.before != null ? String(args.before) : "";
+  const barCountPart = args.barCount != null ? String(args.barCount) : "";
+  return `${args.symbol}|${args.range}|${args.interval}|${beforePart}|${barCountPart}`;
+}
+
+function readCache(key: string): Candle[] | null {
+  const entry = candleCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    candleCache.delete(key);
+    return null;
+  }
+  return cloneCandles(entry.candles);
+}
+
+function writeCache(key: string, candles: Candle[], ttlMs: number): void {
+  candleCache.set(key, {
+    candles: cloneCandles(candles),
+    expiresAt: Date.now() + ttlMs,
+  });
+}
+
+/** Test-only helper to reset the in-memory response cache. */
+export function clearCandleCacheForTests(): void {
+  candleCache.clear();
+}
+
 export async function POST(request: Request): Promise<Response> {
   let body: {
     symbol?: unknown;
@@ -37,20 +88,44 @@ export async function POST(request: Request): Promise<Response> {
       ? (body.interval as Interval)
       : "1d";
 
+  const ttlMs = cacheTtlMs(interval);
+
   try {
     if (typeof body.before === "number" && Number.isFinite(body.before)) {
       const barCount =
         typeof body.barCount === "number" && body.barCount > 0
           ? Math.min(body.barCount, 500)
           : 200;
+      const cacheKey = buildCacheKey({
+        symbol,
+        range: "",
+        interval,
+        before: body.before,
+        barCount,
+      });
+      const cached = readCache(cacheKey);
+      if (cached) {
+        const payload: CandlesResponse = { candles: cached };
+        return NextResponse.json(payload);
+      }
+
       const candles = await getChartCandlesBefore(symbol, body.before, interval, barCount);
-      const payload: CandlesResponse = { candles };
+      writeCache(cacheKey, candles, ttlMs);
+      const payload: CandlesResponse = { candles: cloneCandles(candles) };
       return NextResponse.json(payload);
     }
 
     const range = typeof body.range === "string" && VALID_RANGES.has(body.range) ? body.range : "1y";
+    const cacheKey = buildCacheKey({ symbol, range, interval });
+    const cached = readCache(cacheKey);
+    if (cached) {
+      const payload: CandlesResponse = { candles: cached };
+      return NextResponse.json(payload);
+    }
+
     const candles = await getChartCandles(symbol, range as never, interval);
-    const payload: CandlesResponse = { candles };
+    writeCache(cacheKey, candles, ttlMs);
+    const payload: CandlesResponse = { candles: cloneCandles(candles) };
     return NextResponse.json(payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch candles";
