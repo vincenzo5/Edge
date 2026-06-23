@@ -34,7 +34,7 @@ export function drawPlotBackground(
   showTimeAxis = true,
 ) {
   const c = getColors(theme);
-  const bg = resolveColorOverride(settings.canvas.backgroundColor, theme === 'dark' ? '#0A0B0E' : '#ffffff');
+  const bg = resolveColorOverride(settings.canvas.backgroundColor, c.axisBg);
   const ph = plotHeight(height, showTimeAxis);
   const pw = plotWidth(width);
   ctx.fillStyle = bg;

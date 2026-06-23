@@ -91,6 +91,11 @@ import {
   findDataIndexForTimestamp,
 } from '@/lib/chart/crosshair';
 import { plotLeftOffset } from '@/lib/chart/layout';
+import {
+  captureChartElement,
+  SnapshotCaptureError,
+  type SnapshotCaptureOptions,
+} from '@/lib/chart/chartSnapshot';
 
 export type DrawingScreenBounds = {
   x: number;
@@ -169,6 +174,8 @@ export type ChartHandle = {
   goTo: (req: GoToRequest) => Promise<GoToResult>;
   getLastCandleTimestamp: () => number | null;
   getDrawingScreenBounds: (id: string) => DrawingScreenBounds | null;
+  canCaptureSnapshot: () => boolean;
+  captureSnapshot: (opts?: SnapshotCaptureOptions) => Promise<Blob>;
 };
 
 type Props = {
@@ -286,6 +293,9 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   /** Interval matching the candles currently on screen (avoids axis flash during refetch). */
   const [displayInterval, setDisplayInterval] = useState<Interval>(config.interval);
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(loading);
+  loadingRef.current = loading;
+  const [snapshotSuppressCrosshair, setSnapshotSuppressCrosshair] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dims, setDims] = useState<{ width: number; height: number }>({ width: 800, height: 400 });
   const [drawTick, setDrawTick] = useState(0);
@@ -847,6 +857,23 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         width: Math.max(maxX - minX, 1),
         height: Math.max(maxY - minY, 1),
       };
+    },
+    canCaptureSnapshot: () =>
+      !!chartAreaRef.current && candlesRef.current.length > 0 && !loadingRef.current,
+    captureSnapshot: async (opts) => {
+      const el = chartAreaRef.current;
+      if (!el || candlesRef.current.length === 0 || loadingRef.current) {
+        throw new SnapshotCaptureError('no_data');
+      }
+      setSnapshotSuppressCrosshair(true);
+      try {
+        return await captureChartElement(el, {
+          ...opts,
+          candleCount: candlesRef.current.length,
+        });
+      } finally {
+        setSnapshotSuppressCrosshair(false);
+      }
     },
   }), [notifyOverlayChange, applyCrosshairFromSync, syncDrawingState, notifySelectionChange, addCommittedDrawing, hydrateDrawings]);
 
@@ -1755,11 +1782,12 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const activeTool = activeDrawingTool ?? '__cursor__';
   const drawingMode = drawingModeFromState(drawingFsm);
   const hideCrosshair = shouldHideCrosshair(drawingFsm);
+  const suppressCrosshair = hideCrosshair || snapshotSuppressCrosshair;
   const chartSettings = useMemo(
     () => mergeChartSettings(config.chartSettings),
     [config.chartSettings],
   );
-  const showCrosshairOverlay = chartSettings.canvas.showCrosshair && !hideCrosshair;
+  const showCrosshairOverlay = chartSettings.canvas.showCrosshair && !suppressCrosshair;
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -1873,7 +1901,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                     interval={displayInterval}
                     showTimeAxis={showTimeAxis}
                     activeTool={activeTool}
-                    suppressCrosshair={hideCrosshair}
+                    suppressCrosshair={suppressCrosshair}
                     chartSettings={chartSettings}
                     onDrawingPointer={handleDrawingPointer}
                     onDrawingContextMenu={handleDrawingContextMenu}
@@ -1951,7 +1979,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
                   previewDrawing={previewForPane(pane.key)}
                   selectedDrawingId={selectedDrawingId}
                   drawingMode={drawingMode}
-                  suppressCrosshair={hideCrosshair}
+                  suppressCrosshair={suppressCrosshair}
                   chartSettings={chartSettings}
                   onDrawingPointer={handleDrawingPointer}
                   onDrawingContextMenu={handleDrawingContextMenu}

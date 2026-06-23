@@ -38,6 +38,7 @@ export default function CrosshairOverlay({
   return (
     <canvas
       ref={canvasRef}
+      data-crosshair-overlay
       width={width}
       height={height}
       className="pointer-events-none absolute inset-0 z-20"

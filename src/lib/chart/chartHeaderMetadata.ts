@@ -1,4 +1,6 @@
 import type { ChartType, Interval } from '@/lib/chartConfig';
+import { getShortcutLabel } from '@/lib/shortcuts/formatShortcutLabel';
+import type { ShortcutId } from '@/lib/shortcuts/shortcutTypes';
 
 export type HeaderMenuCategory =
   | 'ticks'
@@ -47,8 +49,12 @@ export type HeaderActionDescriptor = {
   label: string;
   implemented: boolean;
   disabledReason?: string;
-  shortcut?: string;
+  shortcutId?: ShortcutId;
 };
+
+export function headerActionShortcut(action: HeaderActionDescriptor): string | undefined {
+  return action.shortcutId ? getShortcutLabel(action.shortcutId) : undefined;
+}
 
 const INTERVAL_LABELS: Record<Interval, string> = {
   '1m': '1 minute',
@@ -195,12 +201,17 @@ export const HEADER_ACTIONS: HeaderActionDescriptor[] = [
   { id: 'templates', label: 'Templates', implemented: true },
   { id: 'alert', label: 'Alert', implemented: false, disabledReason: 'Alerts coming soon' },
   { id: 'replay', label: 'Replay', implemented: true },
-  { id: 'undo', label: 'Undo', implemented: true, shortcut: '⌘ Z' },
-  { id: 'redo', label: 'Redo', implemented: true, shortcut: '⌘ ⇧ Z' },
-  { id: 'search', label: 'Quick search', implemented: false, disabledReason: 'Coming soon', shortcut: '⌘ K' },
+  { id: 'undo', label: 'Undo', implemented: true, shortcutId: 'undo' },
+  { id: 'redo', label: 'Redo', implemented: true, shortcutId: 'redo' },
+  { id: 'search', label: 'Quick search', implemented: true, shortcutId: 'quickSearch' },
   { id: 'settings', label: 'Settings', implemented: true },
-  { id: 'fullscreen', label: 'Fullscreen mode', implemented: true, shortcut: '⇧ F' },
-  { id: 'snapshot', label: 'Take a snapshot', implemented: false, disabledReason: 'Coming soon' },
+  { id: 'fullscreen', label: 'Fullscreen mode', implemented: true, shortcutId: 'fullscreen' },
+  {
+    id: 'snapshot',
+    label: 'Take a snapshot',
+    implemented: true,
+    shortcutId: 'snapshotDownload',
+  },
   { id: 'trade', label: 'Trade', implemented: false, disabledReason: 'Trading not available' },
   { id: 'publish', label: 'Publish', implemented: false, disabledReason: 'Publishing not available' },
 ];

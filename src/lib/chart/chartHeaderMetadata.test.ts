@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHART_TYPE_MENU,
+  HEADER_ACTIONS,
   INTERVAL_MENU,
   groupChartTypeMenu,
   groupIntervalMenu,
+  headerActionShortcut,
   intervalShortLabel,
 } from './chartHeaderMetadata';
+import { getShortcutLabel } from '@/lib/shortcuts/formatShortcutLabel';
 
 describe('chartHeaderMetadata', () => {
   it('groups interval menu by category', () => {
@@ -37,5 +40,17 @@ describe('chartHeaderMetadata', () => {
     expect(implemented).toContain('1m');
     expect(implemented).toContain('1d');
     expect(implemented).toContain('1mo');
+  });
+
+  it('marks snapshot as implemented with shortcut', () => {
+    const snapshot = HEADER_ACTIONS.find((a) => a.id === 'snapshot');
+    expect(snapshot?.implemented).toBe(true);
+    expect(headerActionShortcut(snapshot!)).toBe(getShortcutLabel('snapshotDownload'));
+  });
+
+  it('marks quick search as implemented with shortcut', () => {
+    const search = HEADER_ACTIONS.find((a) => a.id === 'search');
+    expect(search?.implemented).toBe(true);
+    expect(headerActionShortcut(search!)).toBe(getShortcutLabel('quickSearch'));
   });
 });

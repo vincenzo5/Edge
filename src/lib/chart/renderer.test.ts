@@ -57,8 +57,8 @@ const candles: Candle[] = [
 describe('getColors', () => {
   it('returns dark palette for dark theme', () => {
     const c = getColors('dark');
-    expect(c.up).toBe('#22c55e');
-    expect(c.grid).toBe('#374151');
+    expect(c.up).toBe('#22ab94');
+    expect(c.grid).toBe('#151820');
   });
 });
 

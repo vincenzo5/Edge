@@ -12,6 +12,7 @@ import {
 import type { CellConfig, Theme, TrackedOverlay, SerializedDrawing } from "@/lib/chartConfig";
 import type { Candle, DrawingStyles } from "@/lib/chart/contracts";
 import type { GoToRequest, GoToResult } from "@/lib/chart/goTo";
+import type { SnapshotAction, SnapshotCaptureOptions } from "@/lib/chart/chartSnapshot";
 import type { DataWindowProps } from "./ObjectTree";
 
 export type ActiveChartCommands = {
@@ -27,6 +28,8 @@ export type ActiveChartCommands = {
   getSelectedDrawingId: () => string | null;
   updateDrawingStyles: (id: string, patch: Partial<DrawingStyles>) => void;
   restoreDrawings: (data: SerializedDrawing[]) => void;
+  canCaptureSnapshot: () => boolean;
+  captureSnapshot: (opts?: SnapshotCaptureOptions) => Promise<Blob>;
 };
 
 export type ActiveChartOverlayActions = {
@@ -53,6 +56,22 @@ export type ActiveChartHeaderCommands = {
   addFavoriteIndicator: (name: string) => void;
 };
 
+export type ActiveChartDrawingCommands = {
+  hasSelection: () => boolean;
+  deleteSelected: () => void;
+  duplicateSelected: () => void;
+  renameSelected: () => void;
+  toggleLockSelected: () => void;
+  copySelected: () => void;
+  pasteDrawings: () => void;
+  canPaste: () => boolean;
+};
+
+export type ActiveChartUICommands = {
+  openGoTo: () => void;
+  runSnapshot: (action: SnapshotAction) => void | Promise<void>;
+};
+
 export type ActiveChartSnapshot = {
   chartId: string;
   config: CellConfig;
@@ -64,6 +83,8 @@ export type ActiveChartSnapshot = {
   openIndicatorPicker: () => void;
   headerCommands: ActiveChartHeaderCommands;
   chartCommands: ActiveChartCommands;
+  drawingCommands: ActiveChartDrawingCommands;
+  uiCommands: ActiveChartUICommands;
 };
 
 type ActiveChartContextValue = {

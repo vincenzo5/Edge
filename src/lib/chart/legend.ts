@@ -174,7 +174,7 @@ export function resolvePriceLegend(
       id: 'change',
       label: '',
       value: changeValue,
-      color: isUp ? '#00FF88' : '#f87171',
+      color: isUp ? 'var(--tv-positive)' : 'var(--tv-negative)',
       tooltip: 'Change from the previous bar close',
     });
   }

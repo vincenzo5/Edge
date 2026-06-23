@@ -8,6 +8,7 @@ import {
   type ActiveChartSnapshot,
 } from './ActiveChartContext';
 import { DEFAULT_CELL } from '@/lib/chartConfig';
+import { makeDrawingCommandsMock, makeUICommandsMock } from '@/test/activeChartMocks';
 
 const overlayActions = {
   remove: vi.fn(),
@@ -62,7 +63,11 @@ function makeSnapshot(chartId: string): ActiveChartSnapshot {
       getSelectedDrawingId: vi.fn(() => null),
       updateDrawingStyles: vi.fn(),
       restoreDrawings: vi.fn(),
+      canCaptureSnapshot: vi.fn(() => true),
+      captureSnapshot: vi.fn(async () => new Blob([new Uint8Array(32)], { type: 'image/png' })),
     },
+    drawingCommands: makeDrawingCommandsMock(),
+    uiCommands: makeUICommandsMock(),
   };
 }
 
