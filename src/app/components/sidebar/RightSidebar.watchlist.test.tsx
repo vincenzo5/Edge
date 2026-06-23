@@ -1,0 +1,17 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import RightSidebar from './RightSidebar';
+import { WatchlistProvider } from '../watchlist/WatchlistContext';
+
+describe('RightSidebar watchlist panel', () => {
+  it('renders watchlist panel without ActiveChartProvider', () => {
+    render(
+      <WatchlistProvider>
+        <RightSidebar activePanel="watchlist" />
+      </WatchlistProvider>,
+    );
+
+    expect(screen.getByTestId('sidebar-panel-watchlist')).toBeInTheDocument();
+    expect(screen.getByTestId('watchlist-panel')).toBeInTheDocument();
+  });
+});
