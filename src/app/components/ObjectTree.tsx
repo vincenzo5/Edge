@@ -12,6 +12,7 @@ import { getCatalogEntry } from "@/lib/chart/indicators/registry";
 import { resolveIndicatorLegend, resolvePriceLegend } from "@/lib/chart/legend";
 import { formatObjectTreeLabel } from "@/lib/chart/annotationMetadata";
 import { IndicatorRegistry } from "@/lib/chart/pluginHost";
+import { resolvePaneLabel } from "@/lib/chart/paneLabels";
 
 export type DataWindowProps = {
   dataIndex: number | null;

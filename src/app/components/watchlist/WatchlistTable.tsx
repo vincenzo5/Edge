@@ -28,7 +28,7 @@ export default function WatchlistTable({
 
   if (items.length === 0) {
     return (
-      <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="px-3 py-4 text-xs text-[var(--tv-text-secondary)]">
         No symbols yet. Use + to add tickers.
       </div>
     );
@@ -37,16 +37,16 @@ export default function WatchlistTable({
   return (
     <div data-testid="watchlist-table">
       {quotesError && (
-        <div className="px-2 py-1 text-[10px] text-red-500" role="alert">
+        <div className="px-2 py-1 text-[10px] text-[var(--tv-negative)]" role="alert">
           {quotesError}
         </div>
       )}
       {quotesLoading && items.length > 0 && (
-        <div className="px-2 py-1 text-[10px] text-gray-400">Updating quotes…</div>
+        <div className="px-2 py-1 text-[10px] text-[var(--tv-text-secondary)]">Updating quotes…</div>
       )}
       <table className="w-full">
         <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-gray-400">
+          <tr className="text-[10px] uppercase tracking-wide text-[var(--tv-text-secondary)]">
             <th className="px-2 py-1 text-left">Symbol</th>
             <th className="px-2 py-1 text-right">Last</th>
             <th className="px-2 py-1 text-right">Chg%</th>

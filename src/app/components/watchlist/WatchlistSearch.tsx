@@ -101,26 +101,26 @@ export default function WatchlistSearch({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/45 px-5 pt-[9vh]"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/55 px-5 pt-[9vh]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
       data-testid="watchlist-add-symbol-modal"
     >
       <div
-        className="w-full max-w-[840px] overflow-hidden rounded-md border border-[#3a3d45] bg-[#1f1f1f] text-[#d1d4dc] shadow-2xl"
+        className="tv-popover w-full max-w-[840px] overflow-hidden rounded-[var(--tv-radius-md)] border"
         role="dialog"
         aria-label={`Add symbol to ${activeListName}`}
       >
         <div className="flex items-center justify-between px-5 py-4">
           <div>
             <h2 className="text-xl font-semibold tracking-[-0.01em]">Add symbol</h2>
-            <p className="mt-0.5 text-xs text-[#8b8fa3]">Add to {activeListName}</p>
+            <p className="mt-0.5 text-xs text-[var(--tv-text-secondary)]">Add to {activeListName}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-2xl leading-none text-[#c7c9d1] hover:bg-[#2a2e39]"
+            className="tv-icon-button tv-focus-ring rounded p-1 text-2xl leading-none"
             aria-label="Close add symbol"
           >
             ×
@@ -128,7 +128,7 @@ export default function WatchlistSearch({
         </div>
 
         <div className="px-5">
-          <div className="flex h-10 items-center gap-2 rounded-md border border-[#4b4f58] bg-[#222] px-3">
+          <div className="flex h-10 items-center gap-2 rounded-[var(--tv-radius-md)] border border-[var(--tv-border-strong)] bg-[var(--tv-surface-panel)] px-3">
             <svg width={18} height={18} viewBox="0 0 18 18" fill="none" aria-hidden className="opacity-65">
               <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.4" />
               <path d="M12 12l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -150,7 +150,7 @@ export default function WatchlistSearch({
                 }
               }}
               placeholder="Symbol, ISIN, or CUSIP"
-              className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-[#6f7380]"
+              className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-[var(--tv-text-muted)]"
               aria-label="Search symbols to add"
               data-testid="watchlist-add-symbol-input"
             />
@@ -161,7 +161,7 @@ export default function WatchlistSearch({
                   setQuery("");
                   inputRef.current?.focus();
                 }}
-                className="rounded-full bg-[#4b4f58] px-1.5 py-0.5 text-sm text-[#d1d4dc]"
+                className="rounded-full bg-[var(--tv-surface-active)] px-1.5 py-0.5 text-sm text-[var(--tv-text-primary)]"
                 aria-label="Clear symbol search"
               >
                 ×
@@ -177,8 +177,8 @@ export default function WatchlistSearch({
               type="button"
               className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${
                 index === 0
-                  ? "bg-[#f1f3f6] text-[#111]"
-                  : "bg-[#2b2b2b] text-[#cfd2dc]"
+                  ? "bg-[var(--tv-text-strong)] text-[var(--tv-background)]"
+                  : "bg-[var(--tv-surface-active)] text-[var(--tv-text-primary)]"
               }`}
             >
               {filter}
@@ -203,18 +203,18 @@ export default function WatchlistSearch({
                 role="option"
                 onClick={() => handleSelect(result)}
                 onMouseEnter={() => setActiveIndex(index)}
-                className={`grid w-full grid-cols-[minmax(120px,220px)_1fr_auto_auto_auto] items-center gap-3 border-t border-[#303030] px-5 py-2.5 text-left text-sm ${
-                  activeIndex === index ? "bg-[#292929] outline outline-2 outline-white" : ""
+                className={`tv-focus-ring grid w-full grid-cols-[minmax(120px,220px)_1fr_auto_auto_auto] items-center gap-3 border-t border-[var(--tv-border)] px-5 py-2.5 text-left text-sm ${
+                  activeIndex === index ? "bg-[var(--tv-surface-active)]" : ""
                 }`}
               >
                 <span className="flex min-w-0 items-center gap-3">
                   <span
-                    className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[#4b4f58] bg-[#111] text-[10px] font-semibold text-[#ff9f43]"
+                    className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[var(--tv-border-strong)] bg-[var(--tv-surface-chart)] text-[10px] font-semibold text-[var(--tv-warning)]"
                     aria-hidden
                   >
                     ◆
                   </span>
-                  <span className="truncate text-base font-medium text-[#2962ff]">{result.symbol}</span>
+                  <span className="truncate text-base font-medium text-[var(--tv-accent-blue)]">{result.symbol}</span>
                 </span>
                 <span className="truncate">{result.name}</span>
                 <span className="text-xs lowercase opacity-50">stock</span>

@@ -72,6 +72,7 @@ export default function PaneControlBar({
   return (
     <div
       data-testid="pane-control-header"
+      data-snapshot-exclude
       className="pointer-events-none absolute left-0 top-0 z-20"
       style={{ right: PRICE_AXIS_WIDTH, height: headerHeight }}
     >

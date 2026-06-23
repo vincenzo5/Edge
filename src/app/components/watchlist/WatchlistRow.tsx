@@ -2,6 +2,7 @@
 
 import type { QuoteSnapshot } from "@/lib/watchlist/types";
 import type { WatchlistItem } from "@/lib/watchlist/types";
+import { toneTextClass } from "@/lib/design-system/tradingView";
 
 function formatPrice(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -33,37 +34,36 @@ export default function WatchlistRow({
   const isPositive = changePct != null && changePct > 0;
   const isNegative = changePct != null && changePct < 0;
   const rowClassName = selected
-    ? "bg-blue-50/80 dark:bg-blue-950/40"
-    : "hover:bg-gray-50 dark:hover:bg-gray-900";
+    ? "bg-[var(--tv-surface-active)]"
+    : "hover:bg-[var(--tv-surface-hover)]";
   const drawerClassName = selected
-    ? "bg-blue-50/95 dark:bg-blue-950/95"
-    : "bg-gray-50/95 dark:bg-gray-900/95";
+    ? "bg-[var(--tv-surface-active)]"
+    : "bg-[var(--tv-surface-panel)]";
+  const changeClassName = isPositive
+    ? toneTextClass("positive")
+    : isNegative
+      ? toneTextClass("negative")
+      : toneTextClass("neutral");
 
   return (
     <tr
       data-testid={`watchlist-row-${item.symbol}`}
       data-selected={selected ? "true" : "false"}
-      className={`group cursor-pointer border-b border-gray-100 text-xs dark:border-gray-800 ${rowClassName}`}
+      className={`group cursor-pointer border-b border-[var(--tv-border-subtle)] text-xs ${rowClassName}`}
       onClick={onActivate}
     >
       <td className="px-2 py-1.5">
         <div className="flex items-center">
-          <span className="font-semibold text-gray-900 dark:text-gray-100">
+          <span className="font-semibold text-[var(--tv-text-strong)]">
             {item.symbol}
           </span>
         </div>
       </td>
-      <td className="px-2 py-1.5 text-right tabular-nums text-gray-700 dark:text-gray-300">
+      <td className="px-2 py-1.5 text-right tabular-nums text-[var(--tv-text-primary)]">
         {formatPrice(quote?.regularMarketPrice)}
       </td>
       <td
-        className={`relative overflow-hidden px-2 py-1.5 text-right tabular-nums ${
-          isPositive
-            ? "text-green-600 dark:text-green-400"
-            : isNegative
-              ? "text-red-600 dark:text-red-400"
-              : "text-gray-500"
-        }`}
+        className={`relative overflow-hidden px-2 py-1.5 text-right tabular-nums ${changeClassName}`}
       >
         {formatChangePercent(changePct)}
         <div
@@ -72,7 +72,7 @@ export default function WatchlistRow({
           <button
             type="button"
             aria-label={`Remove ${item.symbol} from watchlist`}
-            className="grid h-6 w-6 place-items-center rounded text-gray-400 hover:bg-red-500/10 hover:text-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/50"
+            className="tv-focus-ring grid h-6 w-6 place-items-center rounded-[var(--tv-radius-sm)] text-[var(--tv-text-secondary)] hover:bg-[color-mix(in_srgb,var(--tv-negative)_12%,transparent)] hover:text-[var(--tv-negative)]"
             onClick={(e) => {
               e.stopPropagation();
               onRemove();

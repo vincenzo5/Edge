@@ -1,6 +1,7 @@
 "use client";
 
 import type { TrackedOverlay } from "@/lib/chartConfig";
+import { getShortcutLabel } from "@/lib/shortcuts/formatShortcutLabel";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 
 type Props = {
@@ -38,13 +39,13 @@ export default function OverlayContextMenu({
     {
       id: "rename",
       label: "Rename",
-      shortcut: "F2",
+      shortcut: getShortcutLabel("renameDrawing"),
       action: () => onRename(overlay.id),
     },
     {
       id: "lock",
       label: overlay.locked ? "Unlock" : "Lock",
-      shortcut: "⌘L",
+      shortcut: getShortcutLabel("lockDrawing"),
       action: () => onLock(overlay.id, !overlay.locked),
     },
     {
@@ -67,14 +68,14 @@ export default function OverlayContextMenu({
     {
       id: "duplicate",
       label: "Duplicate",
-      shortcut: "⌘D",
+      shortcut: getShortcutLabel("duplicateDrawing"),
       action: () => onDuplicate(overlay.id),
       dividerAfter: true,
     },
     {
       id: "remove",
       label: "Remove",
-      shortcut: "⌫",
+      shortcut: getShortcutLabel("deleteDrawing"),
       danger: true,
       action: () => onRemove(overlay.id),
     },

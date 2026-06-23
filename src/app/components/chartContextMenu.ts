@@ -7,6 +7,7 @@ import type {
   RequiredChartSettings,
   SymbolPriceLabelMode,
 } from "@/lib/chart/chartSettings";
+import { getShortcutLabel } from "@/lib/shortcuts/formatShortcutLabel";
 
 export type ChartContextMenuState = {
   viewportModified: boolean;
@@ -48,7 +49,7 @@ export function buildChartContextMenuItems(
     {
       id: "go-to-date",
       label: "Go to date…",
-      shortcut: "⌥G",
+      shortcut: getShortcutLabel("goToDate"),
       action: actions.openGoTo,
       dividerAfter: true,
     },
@@ -74,7 +75,7 @@ export function buildChartContextMenuItems(
     items.push({
       id: "paste-drawings",
       label: "Paste",
-      shortcut: "⌘V",
+      shortcut: getShortcutLabel("pasteDrawing"),
       action: actions.pasteDrawings,
       dividerAfter: state.drawingCount > 0 || state.indicatorCount > 0,
     });
@@ -244,7 +245,7 @@ export function buildPriceScaleContextMenuItems(
     {
       id: "invert-scale",
       label: `${checked(scales.invertPriceScale)}Invert scale`,
-      shortcut: "⌥I",
+      shortcut: getShortcutLabel("invertScale"),
       action: () =>
         actions.patchSettings({ scales: { invertPriceScale: !scales.invertPriceScale } }),
       dividerAfter: true,

@@ -3,19 +3,64 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --app-bg: #ffffff;
-  --app-text: #1a1a1a;
-  --app-border: #e5e7eb;
-  --app-surface: #f9fafb;
-  --app-muted: #6b7280;
+  --tv-background: #f8f9fd;
+  --tv-surface-chart: #ffffff;
+  --tv-surface-toolbar: #ffffff;
+  --tv-surface-panel: #ffffff;
+  --tv-surface-popover: #ffffff;
+  --tv-surface-hover: #f0f3fa;
+  --tv-surface-active: #e0e3eb;
+  --tv-border: #e0e3eb;
+  --tv-border-subtle: #eff2f5;
+  --tv-border-strong: #c9ced8;
+  --tv-text-primary: #131722;
+  --tv-text-strong: #000000;
+  --tv-text-secondary: #787b86;
+  --tv-text-muted: #a3a6af;
+  --tv-accent-blue: #2962ff;
+  --tv-accent-blue-hover: #1e53e5;
+  --tv-positive: #089981;
+  --tv-negative: #f23645;
+  --tv-warning: #ff9800;
+  --tv-focus: #2962ff;
+  --tv-radius-xs: 2px;
+  --tv-radius-sm: 4px;
+  --tv-radius-md: 6px;
+  --tv-shadow-popover: 0 8px 24px rgb(19 23 34 / 12%);
+  --app-bg: var(--tv-background);
+  --app-text: var(--tv-text-primary);
+  --app-border: var(--tv-border);
+  --app-surface: var(--tv-surface-panel);
+  --app-muted: var(--tv-text-secondary);
 }
 
 .dark {
-  --app-bg: #0e1116;
-  --app-text: #e8e9ed;
-  --app-border: #1e222d;
-  --app-surface: #131722;
-  --app-muted: #9598a1;
+  --tv-background: #000000;
+  --tv-surface-chart: #000000;
+  --tv-surface-toolbar: #0b0d12;
+  --tv-surface-panel: #111217;
+  --tv-surface-popover: #171a22;
+  --tv-surface-hover: #1f232d;
+  --tv-surface-active: #2a2e39;
+  --tv-border: #1e222d;
+  --tv-border-subtle: #151820;
+  --tv-border-strong: #363a45;
+  --tv-text-primary: #d1d4dc;
+  --tv-text-strong: #f0f3fa;
+  --tv-text-secondary: #787b86;
+  --tv-text-muted: #5d606b;
+  --tv-accent-blue: #2962ff;
+  --tv-accent-blue-hover: #1e53e5;
+  --tv-positive: #22ab94;
+  --tv-negative: #f23645;
+  --tv-warning: #ff9800;
+  --tv-focus: #2962ff;
+  --tv-shadow-popover: 0 8px 28px rgb(0 0 0 / 42%);
+  --app-bg: var(--tv-background);
+  --app-text: var(--tv-text-primary);
+  --app-border: var(--tv-border);
+  --app-surface: var(--tv-surface-panel);
+  --app-muted: var(--tv-text-secondary);
 }
 
 html,
@@ -24,6 +69,72 @@ body {
   overflow: hidden;
   background-color: var(--app-bg);
   color: var(--app-text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+* {
+  scrollbar-color: var(--tv-border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--tv-border-strong);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  .tv-app-shell {
+    background: var(--tv-background);
+    color: var(--tv-text-primary);
+  }
+
+  .tv-panel {
+    border-color: var(--tv-border);
+    background: var(--tv-surface-panel);
+    color: var(--tv-text-primary);
+  }
+
+  .tv-popover {
+    border-color: var(--tv-border-strong);
+    background: var(--tv-surface-popover);
+    color: var(--tv-text-primary);
+    box-shadow: var(--tv-shadow-popover);
+  }
+
+  .tv-icon-button {
+    border-radius: var(--tv-radius-sm);
+    color: var(--tv-text-secondary);
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+
+  .tv-icon-button:hover {
+    background: var(--tv-surface-hover);
+    color: var(--tv-text-primary);
+  }
+
+  .tv-icon-button[data-active="true"],
+  .tv-icon-button[aria-pressed="true"] {
+    background: var(--tv-surface-active);
+    color: var(--tv-text-strong);
+  }
+
+  .tv-focus-ring {
+    outline: none;
+  }
+
+  .tv-focus-ring:focus-visible {
+    box-shadow: 0 0 0 1px var(--tv-focus);
+  }
 }
 
 @utility chart-grid-rows-1 {
@@ -36,4 +147,8 @@ body {
 
 @utility chart-grid-rows-3 {
   grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+@utility chart-grid-rows-4 {
+  grid-template-rows: repeat(4, minmax(0, 1fr));
 }

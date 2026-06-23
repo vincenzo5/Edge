@@ -5,19 +5,6 @@ import type { Theme } from '@/lib/chartConfig';
 import type { PaneBoundary } from '@/lib/chart/panes';
 import { PANE_SEPARATOR_HEIGHT, PANE_SEPARATOR_HIT } from '@/lib/chart/panes';
 
-const SEPARATOR_COLORS = {
-  light: {
-    line: '#9CA3AF',
-    hover: '#6B7280',
-    active: '#3B82F6',
-  },
-  dark: {
-    line: '#4B5563',
-    hover: '#9CA3AF',
-    active: '#60A5FA',
-  },
-} as const;
-
 type Props = {
   boundaries: PaneBoundary[];
   width: number;
@@ -33,7 +20,7 @@ export default function PaneSeparators({
   onResize,
   onResizeEnd,
 }: Props) {
-  const colors = SEPARATOR_COLORS[theme];
+  void theme;
   const dragRef = useRef<{ boundaryIndex: number; startY: number } | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -90,10 +77,10 @@ export default function PaneSeparators({
         const isActive = activeIndex === boundary.index;
         const isHover = hoverIndex === boundary.index;
         const lineColor = isActive
-          ? colors.active
+          ? 'var(--tv-focus)'
           : isHover
-            ? colors.hover
-            : colors.line;
+            ? 'var(--tv-text-secondary)'
+            : 'var(--tv-border-strong)';
 
         const lineTop = (PANE_SEPARATOR_HIT - PANE_SEPARATOR_HEIGHT) / 2;
 

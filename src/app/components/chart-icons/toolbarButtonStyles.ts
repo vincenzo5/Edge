@@ -1,8 +1,8 @@
 /** Shared hit-target dimensions for the drawing toolbar rail. */
 export function toolbarButtonClass(compact: boolean): string {
   return compact
-    ? "flex h-10 w-10 shrink-0 items-center justify-center rounded transition-colors"
-    : "flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded transition-colors";
+    ? "tv-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--tv-radius-sm)] transition-colors"
+    : "tv-focus-ring flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[var(--tv-radius-sm)] transition-colors";
 }
 
 export function toolbarRailWidthClass(compact: boolean): string {
@@ -15,6 +15,6 @@ export function toolbarIconSize(compact: boolean): number {
 
 export function toolbarButtonStateClass(active?: boolean): string {
   return active
-    ? "bg-[#2a2e39] text-[#d1d4dc] dark:bg-[#2a2e39] dark:text-[#d1d4dc]"
-    : "text-[#787b86] hover:bg-[#1e222d] hover:text-[#d1d4dc] dark:text-[#787b86] dark:hover:bg-[#1e222d] dark:hover:text-[#d1d4dc]";
+    ? "bg-[var(--tv-surface-active)] text-[var(--tv-text-strong)]"
+    : "text-[var(--tv-text-secondary)] hover:bg-[var(--tv-surface-hover)] hover:text-[var(--tv-text-primary)]";
 }

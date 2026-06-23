@@ -120,10 +120,8 @@ export default function Tooltip({
     return <>{children}</>;
   }
 
-  const isDark = theme === 'dark';
-  const panelClass = isDark
-    ? 'border border-[#1E2030] bg-[#12131A] text-[#E8E9ED]'
-    : 'border border-gray-200 bg-white text-gray-900';
+  void theme;
+  const panelClass = 'tv-popover border';
 
   const panelInner = (
     <span

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PresetEnvelope, PresetKind } from "@/lib/chart/presets/types";
 import { deletePreset, listPresetsByKind, loadPresets } from "@/lib/presetStorage";
+import { PRESETS_UPDATED_EVENT } from "@/lib/persistence/sync/presetEvents";
 
 type Props = {
   open: boolean;
@@ -42,6 +43,12 @@ export default function TemplatePickerModal({
       refresh();
     }
   }, [open, initialTab, refresh]);
+
+  useEffect(() => {
+    const onPresetsUpdated = () => refresh();
+    window.addEventListener(PRESETS_UPDATED_EVENT, onPresetsUpdated);
+    return () => window.removeEventListener(PRESETS_UPDATED_EVENT, onPresetsUpdated);
+  }, [refresh]);
 
   const filtered = presets.filter((p) => p.kind === tab);
 

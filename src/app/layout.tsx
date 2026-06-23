@@ -18,9 +18,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html:
               "try{var raw=localStorage.getItem('tv-ai:layout:v1');" +
-              "var t='light';" +
-              "if(raw){var p=JSON.parse(raw);if(p&&p.theme){t=p.theme;}}" +
-              "document.documentElement.className=t;}catch(e){document.documentElement.className='light';}",
+              "var t='dark';" +
+              "if(raw){var p=JSON.parse(raw);if(p&&(p.theme==='light'||p.theme==='dark'))t=p.theme;}" +
+              "var el=document.documentElement;el.classList.remove('light','dark');el.classList.add(t);}" +
+              "catch(e){var el=document.documentElement;el.classList.remove('light','dark');el.classList.add('dark');}",
           }}
         />
       </head>

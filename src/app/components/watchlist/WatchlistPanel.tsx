@@ -186,7 +186,7 @@ export function WatchlistPanel() {
 
   return (
     <div data-testid="watchlist-panel" className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-gray-100 dark:border-gray-800">
+      <div className="shrink-0 border-b border-[var(--tv-border)]">
         <div className="flex items-center justify-between px-2 py-1.5">
           <WatchlistListMenu
             watchlists={state.watchlists}
@@ -204,7 +204,7 @@ export function WatchlistPanel() {
             data-testid="watchlist-add-symbol-trigger"
             aria-label={`Add symbol to ${activeList.name}`}
             onClick={() => setAddSymbolOpen(true)}
-            className="grid h-7 w-7 place-items-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+            className="tv-icon-button tv-focus-ring grid h-7 w-7 place-items-center"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
@@ -219,7 +219,7 @@ export function WatchlistPanel() {
         />
       </div>
 
-      <div className="min-h-0 shrink-0 overflow-auto max-h-[45%] border-b border-gray-100 dark:border-gray-800">
+      <div className="min-h-0 max-h-[45%] shrink-0 overflow-auto border-b border-[var(--tv-border)]">
         <WatchlistTable
           items={activeList.items}
           quotes={quotes}

@@ -87,15 +87,13 @@ export default function PaneLegendBar({
 }: Props) {
   if (sections.length === 0) return null;
 
-  const isDark = theme === 'dark';
-  const muted = isDark ? 'text-[#8B8FA3]' : 'text-gray-500';
-  const defaultValue = isDark ? 'text-[#E8E9ED]' : 'text-gray-900';
+  void theme;
+  const muted = 'text-[var(--tv-text-secondary)]';
+  const defaultValue = 'text-[var(--tv-text-strong)]';
   const hoverBg = compact
     ? ''
-    : isDark
-      ? 'group-hover/pane-legend:bg-[#1E2030]/90'
-      : 'group-hover/pane-legend:bg-gray-100/90';
-  const sectionHover = isDark ? 'hover:bg-white/10' : 'hover:bg-black/5';
+    : 'group-hover/pane-legend:bg-[var(--tv-surface-panel)]/90';
+  const sectionHover = 'hover:bg-[var(--tv-surface-hover)]';
 
   return (
     <div
@@ -120,9 +118,7 @@ export default function PaneLegendBar({
               <Tooltip key={`badge-${i}`} content={section.tooltip} theme={theme}>
                 <span
                   tabIndex={0}
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-medium outline-none focus-visible:ring-1 focus-visible:ring-[#00FF88]/60 ${sectionHover} ${
-                    isDark ? 'bg-[#1E2030] text-[#E8E9ED]' : 'bg-gray-200 text-gray-700'
-                  }`}
+                  className={`tv-focus-ring flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--tv-surface-active)] text-[10px] font-medium text-[var(--tv-text-strong)] ${sectionHover}`}
                 >
                   {section.letter}
                 </span>
@@ -135,7 +131,7 @@ export default function PaneLegendBar({
               <Tooltip key={`text-${i}`} content={section.tooltip} theme={theme}>
                 <span
                   tabIndex={0}
-                  className={`shrink-0 rounded px-0.5 font-medium outline-none focus-visible:ring-1 focus-visible:ring-[#00FF88]/60 ${sectionHover} ${
+                  className={`tv-focus-ring shrink-0 rounded px-0.5 font-medium ${sectionHover} ${
                     section.muted ? muted : defaultValue
                   }`}
                 >
@@ -152,7 +148,7 @@ export default function PaneLegendBar({
                 <span
                   tabIndex={0}
                   style={colorStyle}
-                  className={`shrink-0 rounded px-0.5 font-mono tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-[#00FF88]/60 ${sectionHover} ${
+                  className={`tv-focus-ring shrink-0 rounded px-0.5 font-mono tabular-nums ${sectionHover} ${
                     section.color ? '' : defaultValue
                   }`}
                 >
@@ -170,9 +166,7 @@ export default function PaneLegendBar({
                   type="button"
                   disabled={section.disabled}
                   onClick={() => onAction(section.id)}
-                  className={`shrink-0 rounded p-0.5 outline-none focus-visible:ring-1 focus-visible:ring-[#00FF88]/60 disabled:opacity-40 ${sectionHover} ${
-                    isDark ? 'text-[#8B8FA3] hover:text-[#E8E9ED]' : 'text-gray-500 hover:text-gray-800'
-                  }`}
+                  className={`tv-focus-ring shrink-0 rounded p-0.5 text-[var(--tv-text-secondary)] hover:text-[var(--tv-text-strong)] disabled:opacity-40 ${sectionHover}`}
                   aria-label={section.tooltip}
                 >
                   <ActionIcon icon={section.icon} />

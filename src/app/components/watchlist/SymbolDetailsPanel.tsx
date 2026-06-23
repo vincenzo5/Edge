@@ -1,6 +1,7 @@
 "use client";
 
 import type { FundamentalsSnapshot } from "@/lib/watchlist/types";
+import { toneTextClass } from "@/lib/design-system/tradingView";
 
 function formatLargeNumber(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -27,7 +28,7 @@ type Props = {
 export default function SymbolDetailsPanel({ symbol, data, loading, error }: Props) {
   if (!symbol) {
     return (
-      <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="px-3 py-4 text-xs text-[var(--tv-text-secondary)]">
         Select a symbol to view details.
       </div>
     );
@@ -37,7 +38,7 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
     return (
       <div
         data-testid="symbol-details-loading"
-        className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400"
+        className="px-3 py-4 text-xs text-[var(--tv-text-secondary)]"
       >
         Loading {symbol}…
       </div>
@@ -48,7 +49,7 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
     return (
       <div
         data-testid="symbol-details-error"
-        className="px-3 py-4 text-xs text-red-500"
+        className="px-3 py-4 text-xs text-[var(--tv-negative)]"
         role="alert"
       >
         {error}
@@ -58,7 +59,7 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
 
   if (!data) {
     return (
-      <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="px-3 py-4 text-xs text-[var(--tv-text-secondary)]">
         No details available for {symbol}.
       </div>
     );
@@ -67,15 +68,20 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
   const changePct = data.regularMarketChangePercent;
   const isPositive = changePct != null && changePct > 0;
   const isNegative = changePct != null && changePct < 0;
+  const changeClassName = isPositive
+    ? toneTextClass("positive")
+    : isNegative
+      ? toneTextClass("negative")
+      : toneTextClass("neutral");
 
   return (
     <div data-testid="symbol-details-panel" className="px-3 py-3 text-xs">
       <div className="mb-2">
-        <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        <div className="text-sm font-semibold text-[var(--tv-text-strong)]">
           {data.longName ?? data.shortName ?? data.symbol}
         </div>
         {data.exchange && (
-          <div className="text-[10px] text-gray-500 dark:text-gray-400">
+          <div className="text-[10px] text-[var(--tv-text-secondary)]">
             {data.exchange}
             {data.sector && data.industry
               ? ` · ${data.sector} · ${data.industry}`
@@ -85,18 +91,12 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
       </div>
 
       <div className="mb-3">
-        <div className="text-lg font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+        <div className="text-lg font-semibold tabular-nums text-[var(--tv-text-strong)]">
           {formatPrice(data.regularMarketPrice, data.currency)}
         </div>
         {changePct != null && (
           <div
-            className={`tabular-nums ${
-              isPositive
-                ? "text-green-600 dark:text-green-400"
-                : isNegative
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-gray-500"
-            }`}
+            className={`tabular-nums ${changeClassName}`}
           >
             {data.regularMarketChange != null
               ? `${data.regularMarketChange > 0 ? "+" : ""}${data.regularMarketChange.toFixed(2)} `
@@ -107,28 +107,28 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
         )}
       </div>
 
-      <dl className="space-y-1.5 text-gray-600 dark:text-gray-300">
+      <dl className="space-y-1.5 text-[var(--tv-text-primary)]">
         <div className="flex justify-between gap-2">
-          <dt className="text-gray-500 dark:text-gray-400">Market cap</dt>
+          <dt className="text-[var(--tv-text-secondary)]">Market cap</dt>
           <dd className="tabular-nums">{formatLargeNumber(data.marketCap)}</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-gray-500 dark:text-gray-400">Volume</dt>
+          <dt className="text-[var(--tv-text-secondary)]">Volume</dt>
           <dd className="tabular-nums">{formatLargeNumber(data.volume)}</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-gray-500 dark:text-gray-400">Avg volume (30D)</dt>
+          <dt className="text-[var(--tv-text-secondary)]">Avg volume (30D)</dt>
           <dd className="tabular-nums">{formatLargeNumber(data.averageVolume)}</dd>
         </div>
         {data.website && (
           <div className="flex justify-between gap-2">
-            <dt className="text-gray-500 dark:text-gray-400">Website</dt>
+            <dt className="text-[var(--tv-text-secondary)]">Website</dt>
             <dd>
               <a
                 href={data.website.startsWith("http") ? data.website : `https://${data.website}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline dark:text-blue-400"
+                className="text-[var(--tv-accent-blue)] hover:underline"
               >
                 {data.website.replace(/^https?:\/\//, "")}
               </a>
@@ -138,7 +138,7 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
       </dl>
 
       {data.description && (
-        <p className="mt-3 line-clamp-4 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
+        <p className="mt-3 line-clamp-4 text-[11px] leading-relaxed text-[var(--tv-text-secondary)]">
           {data.description}
         </p>
       )}

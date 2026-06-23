@@ -16,6 +16,7 @@ import {
   loadWatchlistState,
   saveWatchlistState,
 } from "@/lib/watchlist/storage";
+import { useWatchlistLibraryRemoteSync } from "@/lib/persistence/sync/useWatchlistLibraryRemoteSync";
 
 export type WatchlistContextValue = WatchlistActions & {
   state: WatchlistState;
@@ -25,11 +26,24 @@ const WatchlistContext = createContext<WatchlistContextValue | null>(null);
 
 export function WatchlistProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WatchlistState>(() => loadWatchlistState());
+  const [hydrated, setHydrated] = useState(false);
   const hydratedRef = useRef(false);
 
   useEffect(() => {
     hydratedRef.current = true;
+    setHydrated(true);
   }, []);
+
+  const handleApplyRemoteState = useCallback((remoteState: WatchlistState) => {
+    setState(remoteState);
+    saveWatchlistState(remoteState);
+  }, []);
+
+  useWatchlistLibraryRemoteSync({
+    state,
+    hydrated,
+    onApplyRemoteState: handleApplyRemoteState,
+  });
 
   useEffect(() => {
     if (!hydratedRef.current) return;
