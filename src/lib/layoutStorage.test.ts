@@ -142,6 +142,44 @@ describe('loadLayout sidebar prefs', () => {
   });
 });
 
+describe('loadLayout theme validation', () => {
+  beforeEach(() => {
+    localStorageMock.clear();
+  });
+
+  it('round-trips a valid light theme', () => {
+    saveLayout({ ...DEFAULT_LAYOUT, theme: 'light' });
+    expect(loadLayout().theme).toBe('light');
+  });
+
+  it('round-trips a valid dark theme', () => {
+    saveLayout({ ...DEFAULT_LAYOUT, theme: 'dark' });
+    expect(loadLayout().theme).toBe('dark');
+  });
+
+  it('defaults to dark when theme is missing', () => {
+    localStorageMock.setItem(
+      'tv-ai:layout:v1',
+      JSON.stringify({
+        ...DEFAULT_LAYOUT,
+        theme: undefined,
+      }),
+    );
+    expect(loadLayout().theme).toBe('dark');
+  });
+
+  it('coerces invalid theme values to dark', () => {
+    localStorageMock.setItem(
+      'tv-ai:layout:v1',
+      JSON.stringify({
+        ...DEFAULT_LAYOUT,
+        theme: 'neon',
+      }),
+    );
+    expect(loadLayout().theme).toBe('dark');
+  });
+});
+
 describe('migrateCellIndicators', () => {
   it('assigns ids to indicators missing them', () => {
     const cell = migrateCellIndicators({

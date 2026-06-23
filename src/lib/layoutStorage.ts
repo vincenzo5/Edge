@@ -4,6 +4,7 @@ import {
   DEFAULT_CELL,
   DEFAULT_SIDEBAR_PREFS,
   DEFAULT_TOOLBAR_PREFS,
+  coerceTheme,
   mergeChartSettings,
   migrateCellIndicators,
   type SidebarPanelId,
@@ -36,6 +37,7 @@ export function loadLayout(): ChartLayout {
     return {
       ...DEFAULT_LAYOUT,
       ...parsed,
+      theme: coerceTheme(parsed.theme),
       activeCellIndex:
         typeof parsed.activeCellIndex === "number" && parsed.activeCellIndex >= 0
           ? parsed.activeCellIndex

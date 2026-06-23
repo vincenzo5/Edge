@@ -4,6 +4,7 @@ import type {
   StudyTemplatePayload,
 } from './chart/presets/types';
 import { createPresetId } from './chart/presets/types';
+import { notifyPresetsUpdated } from './persistence/sync/presetEvents';
 
 const STORAGE_KEY = 'tv-ai:presets:v1';
 export const MAX_PRESETS = 50;
@@ -34,10 +35,13 @@ function isPresetEnvelope(value: unknown): value is PresetEnvelope {
   );
 }
 
-export function savePresets(presets: PresetEnvelope[]): void {
+export function savePresets(presets: PresetEnvelope[], options?: { notify?: boolean }): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(presets.slice(0, MAX_PRESETS)));
+    if (options?.notify !== false) {
+      notifyPresetsUpdated();
+    }
   } catch {
     // ignore quota errors
   }

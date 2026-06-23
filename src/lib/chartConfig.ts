@@ -40,6 +40,12 @@ export type ChartType =
 
 export type Theme = "light" | "dark";
 
+export const THEMES = ["light", "dark"] as const satisfies readonly Theme[];
+
+export function isTheme(value: unknown): value is Theme {
+  return value === "light" || value === "dark";
+}
+
 export type GridMode = "1x1" | "2x1" | "2x2" | "3x1" | "1x2";
 
 /** @deprecated Use IndicatorConfig from chart/contracts */
@@ -156,10 +162,24 @@ export const DEFAULT_LAYOUT: ChartLayout = {
   gridMode: "1x1",
   linked: false,
   activeCellIndex: 0,
-  theme: "light",
+  theme: "dark",
   sidebar: DEFAULT_SIDEBAR_PREFS,
   cells: [DEFAULT_CELL],
 };
+
+export function coerceTheme(
+  value: unknown,
+  fallback: Theme = DEFAULT_LAYOUT.theme,
+): Theme {
+  return isTheme(value) ? value : fallback;
+}
+
+/** Toggle light/dark on `<html>` without clobbering unrelated root classes. */
+export function applyThemeToRoot(theme: Theme): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.remove("light", "dark");
+  document.documentElement.classList.add(theme);
+}
 
 export const RANGES: Array<{ label: string; value: Range }> = [
   { label: "1D", value: "1d" },
