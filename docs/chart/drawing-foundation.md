@@ -2,7 +2,7 @@
 
 Architecture and UX foundation status for Edge Chart's drawing stack. Use this when deciding whether to add individual tools or invest in platform-layer work first.
 
-**Related:** [drawing-engine-design.md](./drawing-engine-design.md) (target design), [drawing-toolbar-design.md](./drawing-toolbar-design.md) (rail UX), [features.md §8](./features.md) (shipped tool list), [tradingview-reference.md §6](./tradingview-reference.md) (TV benchmark), [indicator-foundation-plan.md](./indicator-foundation-plan.md) (parallel indicator platform upgrade; shared `LineStyleOverride` pattern).
+**Related:** [drawing-engine-design.md](./drawing-engine-design.md) (target design), [rich-annotations-vision.md](./rich-annotations-vision.md) (co-pilot annotation product direction), [drawing-toolbar-design.md](./drawing-toolbar-design.md) (rail UX), [features.md §8](./features.md) (shipped tool list), [tradingview-reference.md §6](./tradingview-reference.md) (TV benchmark), [indicator-foundation-plan.md](./indicator-foundation-plan.md) (parallel indicator platform upgrade; shared `LineStyleOverride` pattern).
 
 ---
 

@@ -253,6 +253,8 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 
 **Design:** [drawing-engine-design.md](./drawing-engine-design.md) — V1 drawing engine architecture, FSM, coordinate model, phased plan, and test oracles.
 
+**Product vision:** [rich-annotations-vision.md](./rich-annotations-vision.md) — co-pilot annotation layer (semantic kinds, live payloads, chart↔chat linkage, phased roadmap).
+
 **Foundation assessment:** [drawing-foundation.md](./drawing-foundation.md) — architecture readiness for scaling to the full TV toolset; UX shell alignment; platform gaps (multi-point loop, styles, undo, pane routing).
 
 **Implementation plan:** [drawing-platform-plan.md](./drawing-platform-plan.md) — phased workstreams for multi-point FSM, typed styles, undo/redo, and pane routing.
