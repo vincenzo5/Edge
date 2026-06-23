@@ -5,6 +5,7 @@ import type { Range, Theme } from '@/lib/chart/contracts';
 import type { ChartTimeZone } from '@/lib/chart/timeZone';
 import { formatClockLabel } from '@/lib/chart/timeZone';
 import { BOTTOM_RANGE_PRESETS, rangePresetLabel } from '@/lib/chart/rangePresets';
+import { useElementSize } from '@/lib/responsive/useElementSize';
 import ChartTimeZoneMenu from './ChartTimeZoneMenu';
 
 type Props = {
@@ -64,27 +65,30 @@ export default function ChartRangeBar({
   onGoToClick,
   onTimeZoneChange,
 }: Props) {
-  const isDark = theme === 'dark';
+  void theme;
   const now = useNow();
   const clockRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [barRef, barSize] = useElementSize<HTMLDivElement>();
+  const compactClock = barSize.width > 0 && barSize.width < 420;
   const clockLabel = now
     ? formatClockLabel(timeZone, exchange, now)
     : CLOCK_PLACEHOLDER;
+  const displayClockLabel = compactClock && clockLabel.length > 8
+    ? clockLabel.slice(-8)
+    : clockLabel;
 
   return (
     <>
       <div
-        className={`flex shrink-0 items-center gap-0.5 border-t px-2 ${
+        ref={barRef}
+        className={`flex min-w-0 shrink-0 items-center gap-0.5 overflow-x-auto border-t px-2 ${
           compact ? 'h-6 text-[10px]' : 'h-7 text-xs'
-        } ${
-          isDark
-            ? 'border-[#1E2030] bg-[#12131A] text-[#8B8FA3]'
-            : 'border-gray-200 bg-gray-100 text-gray-600'
-        }`}
+        } border-[var(--tv-border)] bg-[var(--tv-surface-toolbar)] text-[var(--tv-text-secondary)]`}
         role="toolbar"
         aria-label="Chart range"
       >
+        <div className="flex min-w-max items-center gap-0.5">
         {BOTTOM_RANGE_PRESETS.map((preset) => {
           const active = preset === selectedPreset;
           return (
@@ -94,12 +98,8 @@ export default function ChartRangeBar({
               onClick={() => onRangeSelect(preset)}
               className={`rounded px-1.5 py-0.5 font-medium transition-colors ${
                 active
-                  ? isDark
-                    ? 'bg-[#1E2030] text-[#E8E9ED]'
-                    : 'bg-white text-gray-900 shadow-sm'
-                  : isDark
-                    ? 'hover:bg-[#1E2030]/60 hover:text-[#E8E9ED]'
-                    : 'hover:bg-white/80 hover:text-gray-900'
+                  ? 'bg-[var(--tv-surface-active)] text-[var(--tv-text-strong)]'
+                  : 'hover:bg-[var(--tv-surface-hover)] hover:text-[var(--tv-text-primary)]'
               }`}
               aria-pressed={active}
             >
@@ -111,17 +111,13 @@ export default function ChartRangeBar({
         {onGoToClick && (
           <>
             <span
-              className={`mx-1 h-4 w-px shrink-0 ${isDark ? 'bg-[#1E2030]' : 'bg-gray-300'}`}
+              className="mx-1 h-4 w-px shrink-0 bg-[var(--tv-border)]"
               aria-hidden
             />
             <button
               type="button"
               onClick={onGoToClick}
-              className={`rounded p-1 transition-colors ${
-                isDark
-                  ? 'hover:bg-[#1E2030]/60 hover:text-[#E8E9ED]'
-                  : 'hover:bg-white/80 hover:text-gray-900'
-              }`}
+              className="rounded p-1 transition-colors hover:bg-[var(--tv-surface-hover)] hover:text-[var(--tv-text-primary)]"
               aria-label="Go to date"
               title="Go to date"
             >
@@ -129,22 +125,21 @@ export default function ChartRangeBar({
             </button>
           </>
         )}
+        </div>
 
         <button
           ref={clockRef}
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          className={`ml-auto rounded px-1.5 py-0.5 font-mono tabular-nums transition-colors ${
-            isDark
-              ? 'hover:bg-[#1E2030]/60 hover:text-[#E8E9ED]'
-              : 'hover:bg-white/80 hover:text-gray-900'
-          } ${menuOpen ? (isDark ? 'bg-[#1E2030] text-[#E8E9ED]' : 'bg-white text-gray-900 shadow-sm') : ''}`}
+          className={`ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono tabular-nums transition-colors ${
+            'hover:bg-[var(--tv-surface-hover)] hover:text-[var(--tv-text-primary)]'
+          } ${menuOpen ? 'bg-[var(--tv-surface-active)] text-[var(--tv-text-strong)]' : ''}`}
           aria-label={`Chart timezone: ${clockLabel}. Click to change.`}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           title="Change timezone"
         >
-          {clockLabel}
+          {displayClockLabel}
         </button>
       </div>
 

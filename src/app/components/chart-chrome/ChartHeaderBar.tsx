@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ChartType, GridMode, Theme } from '@/lib/chartConfig';
 import type { Interval } from '@/lib/chart/contracts';
 import { loadIndicatorFavorites } from '@/lib/chart/indicatorFavorites';
+import { resolveHeaderDensity, type HeaderDensity } from '@/lib/responsive/responsiveLayout';
+import { useElementSize } from '@/lib/responsive/useElementSize';
+import { getShortcutLabel } from '@/lib/shortcuts/formatShortcutLabel';
 import { useActiveChart } from '../ActiveChartContext';
+import { useShortcutUI } from '../shortcuts/ShortcutUIContext';
 import SearchBar from '../SearchBar';
 import ChartHeaderDivider from './ChartHeaderDivider';
 import ChartHeaderButton from './ChartHeaderButton';
@@ -16,14 +20,17 @@ import ChartLayoutMenu from './ChartLayoutMenu';
 import ChartQuickSearchModal from './ChartQuickSearchModal';
 import ChartSnapshotMenu from './ChartSnapshotMenu';
 import ChartFullscreenButton from './ChartFullscreenButton';
+import ChartHeaderMoreMenu from './ChartHeaderMoreMenu';
 import { headerBarClass } from './headerStyles';
 import {
   AlertIcon,
   IndicatorsIcon,
+  MoonIcon,
   QuickSearchIcon,
   RedoIcon,
   ReplayIcon,
   SettingsIcon,
+  SunIcon,
   UndoIcon,
 } from './ChartHeaderIcons';
 
@@ -50,6 +57,7 @@ export type ChartHeaderChartState = {
 export type ChartHeaderLayoutActions = {
   onGridModeChange: (mode: GridMode) => void;
   onLinkedChange: (linked: boolean) => void;
+  onThemeChange: (theme: Theme) => void;
 };
 
 export type ChartHeaderChartActions = {
@@ -63,19 +71,42 @@ type Props = {
   chart: ChartHeaderChartState;
   layoutActions: ChartHeaderLayoutActions;
   chartActions: ChartHeaderChartActions;
+  /** Optional density override for tests. */
+  density?: HeaderDensity;
 };
+
+function showInline(density: HeaderDensity, tier: 'primary' | 'secondary' | 'tertiary'): boolean {
+  if (tier === 'primary') return density !== 'minimal';
+  if (tier === 'secondary') return density === 'full';
+  return density === 'full';
+}
 
 export default function ChartHeaderBar({
   layout,
   chart,
   layoutActions,
   chartActions,
+  density: densityOverride,
 }: Props) {
   const { theme, gridMode, linked, layoutName } = layout;
   const { symbol, interval, chartType, indicatorFavorites } = chart;
   const activeChart = useActiveChart();
   const commands = activeChart?.headerCommands;
+  const { registerQuickSearch } = useShortcutUI();
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
+  const [headerRef, headerSize] = useElementSize<HTMLDivElement>();
+  const density =
+    densityOverride ??
+    resolveHeaderDensity(headerSize.width > 0 ? headerSize.width : 1440);
+
+  useEffect(() => {
+    registerQuickSearch({
+      open: () => setQuickSearchOpen(true),
+      close: () => setQuickSearchOpen(false),
+      isOpen: () => quickSearchOpen,
+    });
+    return () => registerQuickSearch(null);
+  }, [registerQuickSearch, quickSearchOpen]);
 
   const [favorites, setFavorites] = useState<string[]>(
     indicatorFavorites && indicatorFavorites.length > 0 ? indicatorFavorites : [],
@@ -89,10 +120,98 @@ export default function ChartHeaderBar({
     setFavorites(loadIndicatorFavorites());
   }, [indicatorFavorites]);
 
+  const moreItems = useMemo(() => {
+    const items = [];
+
+    if (!showInline(density, 'primary')) {
+      items.push({
+        id: 'indicators',
+        label: 'Indicators',
+        disabled: !activeChart,
+        onClick: () => activeChart?.openIndicatorPicker(),
+      });
+    }
+
+    if (!showInline(density, 'secondary')) {
+      items.push(
+        {
+          id: 'theme',
+          label: theme === 'dark' ? 'Light mode' : 'Dark mode',
+          onClick: () => layoutActions.onThemeChange(theme === 'dark' ? 'light' : 'dark'),
+        },
+        {
+          id: 'quick-search',
+          label: `Quick search (${getShortcutLabel('quickSearch')})`,
+          onClick: () => setQuickSearchOpen(true),
+        },
+        {
+          id: 'settings',
+          label: 'Chart settings',
+          disabled: !commands,
+          onClick: () => commands?.openSettings(),
+        },
+      );
+    }
+
+    if (!showInline(density, 'tertiary')) {
+      items.push(
+        {
+          id: 'alert',
+          label: 'Alert',
+          disabled: true,
+          title: 'Alerts coming soon',
+        },
+        {
+          id: 'replay',
+          label: 'Replay',
+          disabled: !commands,
+          active: commands?.replayActive,
+          onClick: () => commands?.toggleReplay(),
+        },
+        {
+          id: 'undo',
+          label: commands?.canUndo
+            ? `Undo (${getShortcutLabel('undo')})`
+            : 'Undo',
+          disabled: !commands?.canUndo,
+          onClick: () => commands?.undo(),
+        },
+        {
+          id: 'redo',
+          label: commands?.canRedo
+            ? `Redo (${getShortcutLabel('redo')})`
+            : 'Redo',
+          disabled: !commands?.canRedo,
+          onClick: () => commands?.redo(),
+        },
+        {
+          id: 'trade',
+          label: 'Trade',
+          disabled: true,
+          title: 'Trading not available',
+        },
+        {
+          id: 'publish',
+          label: 'Publish',
+          disabled: true,
+          title: 'Publishing not available',
+        },
+      );
+    }
+
+    return items;
+  }, [activeChart, commands, density, layoutActions, theme]);
+
   return (
     <>
-      <div className={headerBarClass(theme)} role="toolbar" aria-label="Chart header">
-        <div className="flex min-w-0 items-center gap-0.5">
+      <div
+        ref={headerRef}
+        data-header-density={density}
+        className={`${headerBarClass(theme)} min-w-0 overflow-hidden`}
+        role="toolbar"
+        aria-label="Chart header"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden">
           <SearchBar
             onSelect={chartActions.onSymbolSelect}
             initial={symbol}
@@ -106,65 +225,79 @@ export default function ChartHeaderBar({
             onChange={chartActions.onIntervalChange}
           />
           <ChartHeaderDivider theme={theme} />
-          <ChartTypeMenu theme={theme} value={chartType} onChange={chartActions.onChartTypeChange} />
-          <ChartHeaderDivider theme={theme} />
-          <ChartHeaderButton
+          <ChartTypeMenu
             theme={theme}
-            label="Indicators"
-            onClick={() => activeChart?.openIndicatorPicker()}
-            disabled={!activeChart}
-            data-testid="indicators-trigger"
-          >
-            <IndicatorsIcon />
-          </ChartHeaderButton>
-          <ChartIndicatorFavoritesMenu
-            theme={theme}
-            favorites={favorites}
-            onSelect={(name) => commands?.addFavoriteIndicator(name)}
+            value={chartType}
+            onChange={chartActions.onChartTypeChange}
           />
-          <ChartTemplateMenu
-            theme={theme}
-            onSaveStudyTemplate={() => commands?.openStudyTemplate()}
-            onOpenTemplate={() => commands?.openChartTemplate()}
-          />
-          <ChartHeaderDivider theme={theme} />
-          <ChartHeaderButton theme={theme} label="Alert" disabled title="Alerts coming soon">
-            <AlertIcon />
-          </ChartHeaderButton>
-          <ChartHeaderButton
-            theme={theme}
-            label="Replay"
-            active={commands?.replayActive}
-            onClick={() => commands?.toggleReplay()}
-            disabled={!commands}
-            data-testid="replay-trigger"
-          >
-            <ReplayIcon />
-          </ChartHeaderButton>
-          <ChartHeaderDivider theme={theme} />
-          <ChartHeaderButton
-            theme={theme}
-            iconOnly
-            disabled={!commands?.canUndo}
-            title={commands?.canUndo ? 'Undo (⌘ Z)' : 'Nothing to undo'}
-            onClick={() => commands?.undo()}
-            data-testid="undo-trigger"
-          >
-            <UndoIcon />
-          </ChartHeaderButton>
-          <ChartHeaderButton
-            theme={theme}
-            iconOnly
-            disabled={!commands?.canRedo}
-            title={commands?.canRedo ? 'Redo (⌘ ⇧ Z)' : 'Nothing to redo'}
-            onClick={() => commands?.redo()}
-            data-testid="redo-trigger"
-          >
-            <RedoIcon />
-          </ChartHeaderButton>
+
+          {showInline(density, 'primary') ? (
+            <>
+              <ChartHeaderDivider theme={theme} />
+              <ChartHeaderButton
+                theme={theme}
+                label="Indicators"
+                onClick={() => activeChart?.openIndicatorPicker()}
+                disabled={!activeChart}
+                data-testid="indicators-trigger"
+              >
+                <IndicatorsIcon />
+              </ChartHeaderButton>
+              <ChartIndicatorFavoritesMenu
+                theme={theme}
+                favorites={favorites}
+                onSelect={(name) => commands?.addFavoriteIndicator(name)}
+              />
+              <ChartTemplateMenu
+                theme={theme}
+                onSaveStudyTemplate={() => commands?.openStudyTemplate()}
+                onOpenTemplate={() => commands?.openChartTemplate()}
+              />
+            </>
+          ) : null}
+
+          {showInline(density, 'tertiary') ? (
+            <>
+              <ChartHeaderDivider theme={theme} />
+              <ChartHeaderButton theme={theme} label="Alert" disabled title="Alerts coming soon">
+                <AlertIcon />
+              </ChartHeaderButton>
+              <ChartHeaderButton
+                theme={theme}
+                label="Replay"
+                active={commands?.replayActive}
+                onClick={() => commands?.toggleReplay()}
+                disabled={!commands}
+                data-testid="replay-trigger"
+              >
+                <ReplayIcon />
+              </ChartHeaderButton>
+              <ChartHeaderDivider theme={theme} />
+              <ChartHeaderButton
+                theme={theme}
+                iconOnly
+                disabled={!commands?.canUndo}
+                title={commands?.canUndo ? `Undo (${getShortcutLabel('undo')})` : 'Nothing to undo'}
+                onClick={() => commands?.undo()}
+                data-testid="undo-trigger"
+              >
+                <UndoIcon />
+              </ChartHeaderButton>
+              <ChartHeaderButton
+                theme={theme}
+                iconOnly
+                disabled={!commands?.canRedo}
+                title={commands?.canRedo ? `Redo (${getShortcutLabel('redo')})` : 'Nothing to redo'}
+                onClick={() => commands?.redo()}
+                data-testid="redo-trigger"
+              >
+                <RedoIcon />
+              </ChartHeaderButton>
+            </>
+          ) : null}
         </div>
 
-        <div className="ml-auto flex items-center gap-0.5">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
           <ChartLayoutMenu
             theme={theme}
             layoutName={layoutName}
@@ -173,35 +306,56 @@ export default function ChartHeaderBar({
             onGridModeChange={layoutActions.onGridModeChange}
             onLinkedChange={layoutActions.onLinkedChange}
           />
-          <ChartHeaderButton
-            theme={theme}
-            iconOnly
-            title="Quick search | ⌘ K"
-            onClick={() => setQuickSearchOpen(true)}
-            data-testid="quick-search-trigger"
-          >
-            <QuickSearchIcon />
-          </ChartHeaderButton>
-          <ChartHeaderButton
-            theme={theme}
-            iconOnly
-            title="Chart settings"
-            onClick={() => commands?.openSettings()}
-            disabled={!commands}
-            data-testid="settings-trigger"
-          >
-            <SettingsIcon />
-          </ChartHeaderButton>
-          <ChartFullscreenButton theme={theme} />
-          <ChartSnapshotMenu theme={theme} />
-          <ChartHeaderDivider theme={theme} />
-          <ChartHeaderButton theme={theme} label="Trade" disabled title="Trading not available" />
-          <ChartHeaderButton
-            theme={theme}
-            label="Publish"
-            disabled
-            title="Publishing not available"
-          />
+
+          {showInline(density, 'secondary') ? (
+            <>
+              <ChartHeaderButton
+                theme={theme}
+                label={theme === 'dark' ? 'Light' : 'Dark'}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                onClick={() => layoutActions.onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+                data-testid="theme-toggle-trigger"
+              >
+                {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+              </ChartHeaderButton>
+              <ChartHeaderButton
+                theme={theme}
+                iconOnly
+                title={`Quick search | ${getShortcutLabel('quickSearch')}`}
+                onClick={() => setQuickSearchOpen(true)}
+                data-testid="quick-search-trigger"
+              >
+                <QuickSearchIcon />
+              </ChartHeaderButton>
+              <ChartHeaderButton
+                theme={theme}
+                iconOnly
+                title="Chart settings"
+                onClick={() => commands?.openSettings()}
+                disabled={!commands}
+                data-testid="settings-trigger"
+              >
+                <SettingsIcon />
+              </ChartHeaderButton>
+              <ChartFullscreenButton theme={theme} />
+              <ChartSnapshotMenu theme={theme} />
+            </>
+          ) : null}
+
+          {showInline(density, 'tertiary') ? (
+            <>
+              <ChartHeaderDivider theme={theme} />
+              <ChartHeaderButton theme={theme} label="Trade" disabled title="Trading not available" />
+              <ChartHeaderButton
+                theme={theme}
+                label="Publish"
+                disabled
+                title="Publishing not available"
+              />
+            </>
+          ) : null}
+
+          {density !== 'full' ? <ChartHeaderMoreMenu theme={theme} items={moreItems} /> : null}
         </div>
       </div>
 

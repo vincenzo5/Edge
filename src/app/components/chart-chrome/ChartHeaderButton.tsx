@@ -15,6 +15,8 @@ type Props = {
   onClick?: () => void;
   children?: ReactNode;
   'data-testid'?: string;
+  'aria-haspopup'?: boolean | 'menu' | 'dialog' | 'listbox' | 'tree' | 'grid';
+  'aria-expanded'?: boolean;
 };
 
 const ChartHeaderButton = forwardRef<HTMLButtonElement, Props>(function ChartHeaderButton(
@@ -28,6 +30,8 @@ const ChartHeaderButton = forwardRef<HTMLButtonElement, Props>(function ChartHea
     onClick,
     children,
     'data-testid': testId,
+    'aria-haspopup': ariaHasPopup,
+    'aria-expanded': ariaExpanded,
   },
   ref,
 ) {
@@ -44,6 +48,8 @@ const ChartHeaderButton = forwardRef<HTMLButtonElement, Props>(function ChartHea
       onClick={onClick}
       className={cls}
       aria-label={title ?? label}
+      aria-haspopup={ariaHasPopup}
+      aria-expanded={ariaExpanded}
     >
       {children}
       {label && !iconOnly ? <span>{label}</span> : null}

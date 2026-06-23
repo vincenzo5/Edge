@@ -4,15 +4,16 @@ import RightSidebar from './RightSidebar';
 
 describe('RightSidebar', () => {
   it('renders nothing when no panel is active', () => {
-    const { container } = render(<RightSidebar activePanel={null} />);
+    const { container } = render(<RightSidebar activePanel={null} mode="inline" />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it('shows panel shell when a panel is active', () => {
-    render(<RightSidebar activePanel="object-tree" />);
+    render(<RightSidebar activePanel="object-tree" mode="inline" />);
 
-    expect(screen.getByTestId('sidebar-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-panel')).toHaveAttribute('data-sidebar-mode', 'inline');
+    expect(screen.getByTestId('sidebar-panel-object-tree')).toBeInTheDocument();
     expect(screen.getByTestId('sidebar-panel-object-tree')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,9 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { SidebarPanelId, Theme } from "@/lib/chartConfig";
+import type { RailMode } from "@/lib/responsive/responsiveLayout";
+import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
 import Tooltip from "../Tooltip";
 import {
   toolbarButtonClass,
@@ -12,18 +15,33 @@ import { SIDEBAR_PANELS } from "./registry";
 type Props = {
   theme: Theme;
   activePanel: SidebarPanelId | null;
+  railMode?: RailMode;
   onTogglePanel: (id: SidebarPanelId) => void;
 };
 
 export default function SidebarRail({
   theme,
   activePanel,
+  railMode = "full",
   onTogglePanel,
 }: Props) {
+  const compact = railMode === "compact";
+  const railWidth =
+    railMode === "compact"
+      ? LAYOUT_DIMENSIONS.compactSidebarRailWidth
+      : LAYOUT_DIMENSIONS.sidebarRailWidth;
+
   return (
     <div
       data-testid="sidebar-rail"
-      className={`flex h-full shrink-0 flex-col items-center justify-start gap-1 self-stretch border-l border-gray-200 bg-white py-2 dark:border-gray-800 dark:bg-gray-950 ${toolbarRailWidthClass(false)}`}
+      data-rail-mode={railMode}
+      style={
+        {
+          "--sidebar-rail-width": `${railWidth}px`,
+          width: railWidth,
+        } as CSSProperties
+      }
+      className={`relative z-50 flex h-full shrink-0 flex-col items-center justify-start gap-1 self-stretch border-l border-[var(--tv-border)] bg-[var(--tv-surface-toolbar)] py-2 ${toolbarRailWidthClass(compact)}`}
     >
       {SIDEBAR_PANELS.map((panel) => {
         const active = activePanel === panel.id;
@@ -36,6 +54,7 @@ export default function SidebarRail({
               aria-label={panel.label}
               aria-pressed={active}
               onClick={() => onTogglePanel(panel.id)}
+              data-active={active ? "true" : "false"}
               className={`${toolbarButtonClass(false)} ${toolbarButtonStateClass(active)}`}
             >
               <Icon className="h-5 w-5" />

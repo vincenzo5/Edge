@@ -169,9 +169,9 @@ export default function IndicatorPicker({ open, active, theme = "dark", onAdd, o
           />
         </div>
 
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           <aside
-            className={`w-48 shrink-0 overflow-y-auto border-r p-2 dark:border-[#363a45] ${
+            className={`flex shrink-0 flex-row gap-1 overflow-x-auto border-b p-2 sm:w-48 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r dark:border-[#363a45] ${
               isDark ? "bg-[#131722]" : "bg-gray-50"
             }`}
           >

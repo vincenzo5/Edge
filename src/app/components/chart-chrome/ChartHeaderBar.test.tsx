@@ -9,6 +9,8 @@ import {
   type ActiveChartSnapshot,
 } from '../ActiveChartContext';
 import { DEFAULT_CELL } from '@/lib/chartConfig';
+import { makeDrawingCommandsMock, makeUICommandsMock } from '@/test/activeChartMocks';
+import { ShortcutUIProvider } from '../shortcuts/ShortcutUIContext';
 
 vi.mock('../SearchBar', () => ({
   default: ({ initial }: { initial: string }) => (
@@ -102,6 +104,24 @@ function makeSnapshot(overrides?: Partial<ActiveChartSnapshot>): ActiveChartSnap
       redo: vi.fn(),
       addFavoriteIndicator: vi.fn(),
     },
+    chartCommands: {
+      undo: vi.fn(() => false),
+      redo: vi.fn(() => false),
+      canUndo: vi.fn(() => false),
+      canRedo: vi.fn(() => false),
+      goTo: vi.fn(async () => ({ ok: true as const })),
+      zoomIn: vi.fn(),
+      resetChartView: vi.fn(),
+      getCandles: vi.fn(() => []),
+      selectDrawing: vi.fn(),
+      getSelectedDrawingId: vi.fn(() => null),
+      updateDrawingStyles: vi.fn(),
+      restoreDrawings: vi.fn(),
+      canCaptureSnapshot: vi.fn(() => true),
+      captureSnapshot: vi.fn(async () => new Blob([new Uint8Array(32)], { type: 'image/png' })),
+    },
+    drawingCommands: makeDrawingCommandsMock(),
+    uiCommands: makeUICommandsMock(),
     ...overrides,
   };
 }
@@ -119,6 +139,7 @@ function RegisterActiveChart({ snapshot }: { snapshot: ActiveChartSnapshot }) {
 const layoutActions = {
   onGridModeChange: vi.fn(),
   onLinkedChange: vi.fn(),
+  onThemeChange: vi.fn(),
 };
 
 const chartActions = {
@@ -144,13 +165,15 @@ const baseProps = {
   chartActions,
 };
 
-function renderHeader(snapshot?: ActiveChartSnapshot) {
+function renderHeader(snapshot?: ActiveChartSnapshot, density?: 'full' | 'compact' | 'minimal') {
   const snap = snapshot ?? makeSnapshot();
   return render(
-    <ActiveChartProvider>
-      <RegisterActiveChart snapshot={snap} />
-      <ChartHeaderBar {...baseProps} />
-    </ActiveChartProvider>,
+    <ShortcutUIProvider>
+      <ActiveChartProvider>
+        <RegisterActiveChart snapshot={snap} />
+        <ChartHeaderBar {...baseProps} density={density} />
+      </ActiveChartProvider>
+    </ShortcutUIProvider>,
   );
 }
 
@@ -168,6 +191,7 @@ describe('ChartHeaderBar', () => {
     expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('AAPL');
     expect(screen.getByTestId('indicators-trigger')).toBeTruthy();
     expect(screen.getByTestId('settings-trigger')).toBeTruthy();
+    expect(screen.getByTestId('theme-toggle-trigger')).toBeTruthy();
     expect(screen.getByTestId('quick-search-trigger')).toBeTruthy();
     expect(screen.getByTestId('fullscreen-trigger')).toBeTruthy();
     expect(screen.getByTestId('snapshot-trigger')).toBeTruthy();
@@ -176,6 +200,9 @@ describe('ChartHeaderBar', () => {
     expect(screen.getByTestId('redo-trigger')).toBeTruthy();
 
     expect(screen.getByTestId('layout-manage-trigger').nextElementSibling).toContainElement(
+      screen.getByTestId('theme-toggle-trigger'),
+    );
+    expect(screen.getByTestId('theme-toggle-trigger').parentElement?.nextElementSibling).toContainElement(
       screen.getByTestId('quick-search-trigger'),
     );
   });
@@ -190,6 +217,13 @@ describe('ChartHeaderBar', () => {
     expect(chartActions.onChartTypeChange).toHaveBeenCalledWith('area');
   });
 
+  it('toggles the layout theme from the top bar', () => {
+    renderHeader();
+
+    fireEvent.click(screen.getByTestId('theme-toggle-trigger'));
+    expect(layoutActions.onThemeChange).toHaveBeenCalledWith('light');
+  });
+
   it('opens quick search modal', () => {
     renderHeader();
 
@@ -200,9 +234,11 @@ describe('ChartHeaderBar', () => {
 
   it('disables chart commands when no active chart is registered', () => {
     render(
-      <ActiveChartProvider>
-        <ChartHeaderBar {...baseProps} />
-      </ActiveChartProvider>,
+      <ShortcutUIProvider>
+        <ActiveChartProvider>
+          <ChartHeaderBar {...baseProps} />
+        </ActiveChartProvider>
+      </ShortcutUIProvider>,
     );
 
     expect(screen.getByTestId('indicators-trigger')).toBeDisabled();
@@ -225,5 +261,23 @@ describe('ChartHeaderBar', () => {
 
     fireEvent.click(screen.getByTestId('undo-trigger'));
     expect(snapshot.headerCommands.undo).toHaveBeenCalled();
+  });
+
+  it('shows More menu and hides tertiary controls in compact density', () => {
+    renderHeader(makeSnapshot(), 'compact');
+
+    expect(screen.getByTestId('header-more-trigger')).toBeTruthy();
+    expect(screen.queryByTestId('replay-trigger')).toBeNull();
+    expect(screen.queryByTestId('undo-trigger')).toBeNull();
+    expect(screen.getByTestId('indicators-trigger')).toBeTruthy();
+  });
+
+  it('shows More menu and hides primary inline controls in minimal density', () => {
+    renderHeader(makeSnapshot(), 'minimal');
+
+    expect(screen.getByTestId('header-more-trigger')).toBeTruthy();
+    expect(screen.queryByTestId('indicators-trigger')).toBeNull();
+    expect(screen.queryByTestId('theme-toggle-trigger')).toBeNull();
+    expect(screen.getByTestId('layout-setup-trigger')).toBeTruthy();
   });
 });

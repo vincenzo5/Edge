@@ -8,6 +8,7 @@ import {
   type ActiveChartSnapshot,
 } from '../ActiveChartContext';
 import { DEFAULT_CELL } from '@/lib/chartConfig';
+import { makeDrawingCommandsMock, makeUICommandsMock } from '@/test/activeChartMocks';
 import type { Candle } from '@/lib/chart/contracts';
 
 const candles: Candle[] = [
@@ -56,6 +57,24 @@ function SeedActiveChart() {
         redo: vi.fn(),
         addFavoriteIndicator: vi.fn(),
       },
+      chartCommands: {
+        undo: vi.fn(() => false),
+        redo: vi.fn(() => false),
+        canUndo: vi.fn(() => false),
+        canRedo: vi.fn(() => false),
+        goTo: vi.fn(async () => ({ ok: true as const })),
+        zoomIn: vi.fn(),
+        resetChartView: vi.fn(),
+        getCandles: vi.fn(() => []),
+        selectDrawing: vi.fn(),
+        getSelectedDrawingId: vi.fn(() => null),
+        updateDrawingStyles: vi.fn(),
+        restoreDrawings: vi.fn(),
+        canCaptureSnapshot: vi.fn(() => true),
+        captureSnapshot: vi.fn(async () => new Blob([new Uint8Array(32)], { type: 'image/png' })),
+      },
+      drawingCommands: makeDrawingCommandsMock(),
+      uiCommands: makeUICommandsMock(),
     };
     bridge.register('cell-0', snapshot);
     return () => bridge.unregister('cell-0');
@@ -69,7 +88,7 @@ describe('RightSidebar active chart integration', () => {
     render(
       <ActiveChartProvider>
         <SeedActiveChart />
-        <RightSidebar activePanel="object-tree" />
+        <RightSidebar activePanel="object-tree" mode="inline" />
       </ActiveChartProvider>,
     );
 

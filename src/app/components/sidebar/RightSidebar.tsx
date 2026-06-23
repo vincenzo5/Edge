@@ -1,14 +1,17 @@
 "use client";
 
 import type { SidebarPanelId } from "@/lib/chartConfig";
+import type { SidebarMode } from "@/lib/responsive/responsiveLayout";
 import SidebarPanelShell from "./SidebarPanelShell";
 import { SIDEBAR_PANEL_MAP } from "./registry";
 
 type Props = {
   activePanel: SidebarPanelId | null;
+  mode: SidebarMode;
+  onClose?: () => void;
 };
 
-export default function RightSidebar({ activePanel }: Props) {
+export default function RightSidebar({ activePanel, mode, onClose }: Props) {
   const panelDef = activePanel ? SIDEBAR_PANEL_MAP[activePanel] : null;
   const PanelComponent = panelDef?.Panel;
 
@@ -17,7 +20,7 @@ export default function RightSidebar({ activePanel }: Props) {
   }
 
   return (
-    <SidebarPanelShell panelId={panelDef.id}>
+    <SidebarPanelShell panelId={panelDef.id} mode={mode} onClose={onClose}>
       <PanelComponent />
     </SidebarPanelShell>
   );

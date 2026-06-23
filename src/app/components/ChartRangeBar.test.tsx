@@ -109,4 +109,20 @@ describe('ChartRangeBar range presets', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Go to date' }));
     expect(onGoToClick).toHaveBeenCalled();
   });
+
+  it('supports horizontal overflow for preset controls', () => {
+    render(
+      <ChartRangeBar
+        selectedPreset={null}
+        theme="dark"
+        timeZone="UTC"
+        onRangeSelect={vi.fn()}
+        onTimeZoneChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('toolbar', { name: 'Chart range' }).className).toMatch(
+      /overflow-x-auto/,
+    );
+  });
 });

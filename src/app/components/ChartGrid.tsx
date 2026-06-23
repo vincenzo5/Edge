@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import ChartCell from "./ChartCell";
 import type { CellConfig, GridMode, Theme, ToolbarPrefs } from "@/lib/chartConfig";
 import { cellCountFor } from "@/lib/chartConfig";
+import { resolveGridContainerClass } from "@/lib/responsive/responsiveLayout";
+import { useElementSize } from "@/lib/responsive/useElementSize";
 import { ChartSyncProvider } from "./ChartSyncContext";
 
 type Props = {
@@ -30,19 +32,34 @@ export default function ChartGrid({
   onToolbarPrefsChange,
 }: Props) {
   const count = cellCountFor(gridMode);
+  const [gridRef, gridSize] = useElementSize<HTMLDivElement>();
 
   const visibleCells = useMemo(
     () => cells.slice(0, count),
     [cells, count],
   );
 
-  const gridClass = useMemo(() => gridContainerClass(gridMode), [gridMode]);
+  const gridClass = useMemo(
+    () =>
+      resolveGridContainerClass(
+        gridMode,
+        gridSize.width > 0 ? gridSize.width : 1440,
+      ),
+    [gridMode, gridSize.width],
+  );
 
   return (
     <ChartSyncProvider linked={linked}>
       <div
+        ref={gridRef}
         data-testid="chart-grid"
-        className={`grid min-h-0 min-w-0 flex-1 gap-1 overflow-hidden ${gridClass}`}
+        data-grid-stacked={
+          gridClass.includes("grid-cols-1") &&
+          (gridMode === "1x2" || gridMode === "2x2")
+            ? "true"
+            : "false"
+        }
+        className={`grid min-h-0 min-w-0 flex-1 gap-px overflow-hidden bg-[var(--tv-border)] ${gridClass}`}
       >
         {visibleCells.map((cell, i) => (
           <div key={i} className="flex min-h-0 min-w-0 flex-col overflow-hidden">
@@ -62,19 +79,4 @@ export default function ChartGrid({
       </div>
     </ChartSyncProvider>
   );
-}
-
-function gridContainerClass(mode: GridMode): string {
-  switch (mode) {
-    case "1x1":
-      return "grid-cols-1 chart-grid-rows-1";
-    case "2x1":
-      return "grid-cols-1 chart-grid-rows-2";
-    case "1x2":
-      return "grid-cols-2 chart-grid-rows-1";
-    case "3x1":
-      return "grid-cols-1 chart-grid-rows-3";
-    case "2x2":
-      return "grid-cols-2 chart-grid-rows-2";
-  }
 }

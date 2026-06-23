@@ -53,7 +53,7 @@ type Props = {
 function Divider({ compact }: { compact: boolean }) {
   return (
     <div
-      className={`my-1 h-px bg-[var(--app-border)] ${compact ? "w-10" : "w-12"}`}
+      className={`my-1 h-px bg-[var(--tv-border)] ${compact ? "w-10" : "w-12"}`}
     />
   );
 }
@@ -135,7 +135,8 @@ export default function DrawingToolbar({
 
   return (
     <div
-      className={`relative z-10 flex h-full shrink-0 flex-col items-center justify-start gap-0.5 overflow-visible border-r border-[var(--app-border)] bg-[var(--app-surface)] py-1.5 ${toolbarRailWidthClass(compact)} ${disabled ? "pointer-events-none opacity-40" : ""}`}
+      data-testid="drawing-toolbar"
+      className={`relative z-10 flex h-full min-h-0 shrink-0 flex-col items-center justify-start gap-0.5 overflow-y-auto overflow-x-visible border-r border-[var(--tv-border)] bg-[var(--tv-surface-toolbar)] py-1.5 ${toolbarRailWidthClass(compact)} ${disabled ? "pointer-events-none opacity-40" : ""}`}
     >
       <ToolButton
         title="Cursor"

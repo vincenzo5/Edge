@@ -355,8 +355,8 @@ export default function ChartSettingsModal({
           </button>
         </div>
 
-        <div className="flex min-h-[380px] flex-1 overflow-hidden">
-          <nav className="flex w-44 shrink-0 flex-col border-r border-gray-200 bg-gray-50 py-2 dark:border-gray-700 dark:bg-gray-950">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:min-h-[380px] sm:flex-row">
+          <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-gray-200 bg-gray-50 px-2 py-2 dark:border-gray-700 dark:bg-gray-950 sm:w-44 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r sm:px-0">
             {SECTIONS.map((s) => (
               <button
                 key={s.id}
