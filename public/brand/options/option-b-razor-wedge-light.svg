@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" width="220" height="56" role="img" aria-label="Edge  Razor Wedge (light)">
+  <defs>
+    <linearGradient id="b-ga" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00CC6A"/>
+      <stop offset="100%" stop-color="#00FF88"/>
+    </linearGradient>
+  </defs>
+  <path d="M8 48 L8 8 L44 8 L44 14 L16 14 L16 26 L40 26 L40 32 L16 32 L16 42 L46 42 L46 48 Z" fill="#0A0B0E"/>
+  <path d="M44 8 L52 28 L44 48 L38 48 L44 30 Z" fill="url(#b-ga)"/>
+  <text x="68" y="38" fill="#0A0B0E" font-family="Space Grotesk, system-ui, sans-serif" font-size="28" font-weight="700" letter-spacing="-0.02em">Edge</text>
+</svg>

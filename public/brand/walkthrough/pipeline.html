@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edge Logo Pipeline (No QuiverAI)</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "DM Sans", system-ui, sans-serif; background: #0A0B0E; color: #E8E9ED; line-height: 1.6; }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-family: "Space Grotesk", sans-serif; font-size: 2rem; margin-bottom: 8px; }
+    .lede { color: #8B8FA3; margin-bottom: 32px; }
+    h2 { font-family: "Space Grotesk", sans-serif; font-size: 1.1rem; margin: 28px 0 10px; color: #E8E9ED; }
+    p, li { color: #8B8FA3; margin-bottom: 8px; }
+    ul { padding-left: 20px; margin-bottom: 16px; }
+    code { color: #00FF88; font-size: 0.9em; }
+    .step { background: #12131A; border: 1px solid #1E2030; border-radius: 14px; padding: 20px 22px; margin-bottom: 14px; }
+    .step-num { color: #00FF88; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+    .step h3 { font-family: "Space Grotesk", sans-serif; font-size: 1rem; margin-bottom: 8px; }
+    .paths { display: grid; gap: 12px; margin: 20px 0; }
+    .path { border: 1px solid #1E2030; border-radius: 12px; padding: 16px 18px; background: #12131A; }
+    .path strong { color: #E8E9ED; display: block; margin-bottom: 4px; }
+    .links { margin-top: 24px; display: flex; flex-wrap: gap; gap: 12px; }
+    .links a { color: #00FF88; text-decoration: none; padding: 10px 16px; border: 1px solid #1E2030; border-radius: 10px; background: #12131A; font-size: 0.9rem; }
+    .links a:hover { border-color: #00FF88; }
+    .preview { margin-top: 24px; background: #12131A; border: 1px solid #1E2030; border-radius: 14px; padding: 28px; text-align: center; }
+    .preview svg { height: 48px; width: auto; max-width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Edge Logo Pipeline</h1>
+    <p class="lede">Full brand kit workflow using <strong style="color:#E8E9ED">LogoLoom + Cursor</strong> only. No QuiverAI subscription required.</p>
+
+    <div class="paths">
+      <div class="path">
+        <strong>Path A — SVG marks (recommended)</strong>
+        Design icon marks as clean SVG in Cursor, pick from <code>options-v2.html</code>, combine with LogoLoom wordmark.
+      </div>
+      <div class="path">
+        <strong>Path B — Raster explore → redraw</strong>
+        Use GenerateImage / Recraft / Midjourney for mood boards, then redraw the winner as minimal SVG (best quality).
+      </div>
+      <div class="path">
+        <strong>Path C — Raster → vector trace</strong>
+        Run <code>vtracer</code> locally on a flat PNG, then recolor and simplify in LogoLoom <code>optimize_svg</code>.
+      </div>
+    </div>
+
+    <h2>Steps</h2>
+
+    <div class="step">
+      <div class="step-num">Step 1</div>
+      <h3>Pick or design the icon mark</h3>
+      <p>Icon only — no wordmark in the same file. Use brand tokens: accent <code>#00FF88</code>, strokes <code>#E8E9ED</code>, background <code>#0A0B0E</code>.</p>
+      <p>Six ready-made marks: <code>phase1-marks-v2/</code> · Compare at <a href="options-v2.html" style="color:#00FF88">options-v2.html</a></p>
+    </div>
+
+    <div class="step">
+      <div class="step-num">Step 2</div>
+      <h3>Convert wordmark to paths (LogoLoom)</h3>
+      <p><code>text_to_path</code> with Space Grotesk Bold → font-independent "Edge" outlines.</p>
+      <p>Output: <code>phase2-wordmark/edge-wordmark-light.svg</code></p>
+    </div>
+
+    <div class="step">
+      <div class="step-num">Step 3</div>
+      <h3>Combine mark + wordmark</h3>
+      <p>Lock up icon (left) and wordmark (right) in one SVG. Test at 32px favicon and ~200px header width.</p>
+      <p>Example: <code>phase3-combined/logo-breakout-wedge-light.svg</code></p>
+    </div>
+
+    <div class="step">
+      <div class="step-num">Step 4</div>
+      <h3>Optimize and export (LogoLoom)</h3>
+      <p><code>optimize_svg</code> then <code>export_brand_kit</code> → favicon, PNG sizes, OG image, mono variants, BRAND.md.</p>
+      <p>Output: <code>phase4-brand-kit/</code> (24 files)</p>
+    </div>
+
+    <div class="preview">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 48" aria-label="Edge logo example">
+        <path fill="none" stroke="#E8E9ED" stroke-width="2" stroke-linecap="round" d="M8 32h20"/>
+        <path fill="none" stroke="#E8E9ED" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M8 32 28 12 40 12"/>
+        <circle cx="28" cy="12" r="3.5" fill="#00FF88"/>
+        <g transform="translate(58,6) scale(0.95)">
+          <path fill="#E8E9ED" transform="translate(0,30)" d="M18.47 0L3.10 0L3.10-25.20L18.32-25.20L18.32-23.11L5.40-23.11L5.40-13.68L17.32-13.68L17.32-11.59L5.40-11.59L5.40-2.09L18.47-2.09L18.47 0Z M31.12 0.50Q28.78 0.50 26.87-0.59Q24.96-1.69 23.83-3.73Q22.70-5.76 22.70-8.53L22.70-8.96Q22.70-11.74 23.81-13.77Q24.93-15.80 26.85-16.90Q28.78-18.00 31.12-18.00Q33.06-18.00 34.40-17.48Q35.73-16.96 36.57-16.15Q37.42-15.34 37.89-14.44L38.32-14.44L38.32-25.20L40.48-25.20L40.48 0L38.39 0L38.39-3.20L37.96-3.20Q37.20-1.76 35.60-0.63Q34 0.50 31.12 0.50ZM31.62-1.44Q34.61-1.44 36.47-3.35Q38.32-5.26 38.32-8.60L38.32-8.89Q38.32-12.24 36.47-14.15Q34.61-16.06 31.62-16.06Q28.67-16.06 26.80-14.15Q24.93-12.24 24.93-8.89L24.93-8.60Q24.93-5.26 26.80-3.35Q28.67-1.44 31.62-1.44Z M45.93-8.68L45.93-9.11Q45.93-11.88 47.07-13.86Q48.20-15.84 50.11-16.92Q52.02-18.00 54.36-18.00Q57.24-18.00 58.84-16.87Q60.44-15.73 61.20-14.29L61.63-14.29L61.63-17.50L63.64-17.50L63.64 4.46Q63.64 5.76 62.96 6.48Q62.28 7.20 60.87 7.20L48.92 7.20L48.92 5.26L60.44 5.26Q61.56 5.26 61.56 4.18L61.56-3.35L61.12-3.35Q60.66-2.48 59.81-1.66Q58.96-0.83 57.63-0.31Q56.30 0.22 54.36 0.22Q52.02 0.22 50.09-0.86Q48.16-1.94 47.05-3.94Q45.93-5.94 45.93-8.68ZM54.86-1.73Q57.85-1.73 59.70-3.60Q61.56-5.47 61.56-8.75L61.56-9.04Q61.56-12.35 59.70-14.20Q57.85-16.06 54.86-16.06Q51.91-16.06 50.04-14.20Q48.16-12.35 48.16-9.04L48.16-8.75Q48.16-5.47 50.04-3.60Q51.91-1.73 54.86-1.73Z M78.02 0.50Q75.32 0.50 73.33-0.63Q71.33-1.76 70.21-3.82Q69.10-5.87 69.10-8.53L69.10-8.96Q69.10-11.66 70.21-13.70Q71.33-15.73 73.29-16.87Q75.25-18.00 77.77-18.00Q80.22-18.00 82.11-16.97Q84-15.95 85.08-14.02Q86.16-12.10 86.16-9.43L86.16-8.28L71.26-8.28Q71.36-5.00 73.25-3.22Q75.14-1.44 78.02-1.44Q80.47-1.44 81.82-2.56Q83.17-3.67 83.89-5.29L85.84-4.43Q85.30-3.24 84.34-2.11Q83.39-0.97 81.88-0.23Q80.36 0.50 78.02 0.50ZM71.29-10.15L83.96-10.15Q83.82-13.00 82.13-14.53Q80.44-16.06 77.77-16.06Q75.14-16.06 73.42-14.53Q71.69-13.00 71.29-10.15Z"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="links">
+      <a href="options-v2.html">Compare 6 marks</a>
+      <a href="phase4-brand-kit/preview.html">Brand kit preview</a>
+      <a href="index.html">Earlier walkthrough</a>
+    </div>
+  </div>
+</body>
+</html>

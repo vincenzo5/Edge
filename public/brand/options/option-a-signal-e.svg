@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" width="220" height="56" role="img" aria-label="Edge  Signal E">
+  <defs>
+    <linearGradient id="a-ga" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FF88"/>
+      <stop offset="100%" stop-color="#00CC6A"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon -->
+  <path d="M4 4 L4 52 L44 52 L44 45 L12 45 L12 31 L38 31 L38 25 L12 25 L12 11 L44 11 L44 4 Z" fill="url(#a-ga)"/>
+  <rect x="48" y="11" width="6" height="2.5" rx="1" fill="#00FF88" opacity="0.6"/>
+  <rect x="48" y="6" width="4" height="2.5" rx="1" fill="#00FF88" opacity="0.4"/>
+  <rect x="48" y="1" width="2" height="2.5" rx="1" fill="#00FF88" opacity="0.2"/>
+  <g transform="translate(18, 3) scale(1.12)">
+    <path d="M50 20 L50 50 L56 50 L56 43 Q58 46 62 46 Q68 46 71 41.5 Q74 37 74 30 Q74 23 71 18.5 Q68 14 62 14 Q58 14 56 17 L56 20 Z M61 19 Q65 19 67 22 Q69 25 69 30 Q69 35 67 38 Q65 41 61 41 Q57 41 55.5 38 Q54 35 54 30 Q54 25 55.5 22 Q57 19 61 19 Z" fill="#E8E9ED"/>
+    <path d="M92 14 Q86 14 83 18.5 Q80 23 80 30 Q80 37 83 41.5 Q86 46 92 46 Q95 46 97 43 L97 43 Q97 48 95.5 50.5 Q94 53 90 53 Q88 53 86.5 52 Q85 51 85 49 L79 49 Q80 53 82.5 55 Q85 57 90 57 Q96 57 99 53 Q102 49 102 43 L102 14 L96 14 L96 17 Q94 14 92 14 Z M93 19 Q97 19 98.5 22 Q100 25 100 30 Q100 35 98.5 38 Q97 41 93 41 Q89 41 87.5 38 Q86 35 86 30 Q86 25 87.5 22 Q89 19 93 19 Z" fill="#E8E9ED"/>
+    <path d="M118 14 Q112 14 109 18.5 Q106 23 106 30 Q106 37 109 41.5 Q112 46 118 46 Q122 46 125 43.5 Q128 41 129 37 L124 37 Q123 39 121.5 40 Q120 41 118 41 Q114 41 112.5 38 Q111 35 111 31 L129 31 L129 29 Q129 22 126 18 Q123 14 118 14 Z M118 19 Q121 19 122.5 21.5 Q124 24 124 27 L111 27 Q111.5 24 112.5 21.5 Q113.5 19 118 19 Z" fill="#E8E9ED"/>
+  </g>
+</svg>

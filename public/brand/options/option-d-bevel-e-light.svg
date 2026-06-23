@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" width="220" height="56" role="img" aria-label="Edge  Bevel E (light)">
+  <defs>
+    <linearGradient id="d-ga" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00FF88"/>
+      <stop offset="100%" stop-color="#00CC6A"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="52" height="52" rx="12" fill="#FFFFFF" stroke="#D8DAE3" stroke-width="1.5"/>
+  <path d="M14 14 L14 46 L38 46 L38 39 L21 39 L21 31 L36 31 L36 24 L21 24 L21 14 Z" fill="#0A0B0E"/>
+  <path d="M21 24 L36 24 L36 31 L21 31 Z" fill="url(#d-ga)"/>
+  <path d="M38 14 L46 14 L42 46 L34 46 Z" fill="#E8E9ED"/>
+  <text x="68" y="38" fill="#0A0B0E" font-family="Space Grotesk, system-ui, sans-serif" font-size="28" font-weight="700" letter-spacing="-0.02em">Edge</text>
+</svg>

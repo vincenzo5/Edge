@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-label="Edge terminal badge mark">
+  <rect x="4" y="4" width="40" height="40" rx="10" fill="none" stroke="#1E2030" stroke-width="2"/>
+  <path fill="#E8E9ED" d="M14 14v20h16v-5H19V27h9v-4H19V19h11v-5H14z"/>
+  <rect x="19" y="23" width="9" height="4" fill="#00FF88"/>
+</svg>

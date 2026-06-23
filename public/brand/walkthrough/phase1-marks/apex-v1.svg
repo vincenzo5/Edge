@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144.9 87">
+<!-- SVG created with Arrow, by QuiverAI (https://quiver.ai) -->
+  <style type="text/css">.cls-0 {fill:#FFFFFF;}
+.cls-1 {fill:#EDEDED;}
+.cls-2 {fill:none;stroke:#F6F6F5;stroke-width:2.6021;stroke-miterlimit:10;}
+.cls-3 {fill:#15C441;}</style>
+  <rect class="cls-1" x="19.2" y="-13.5" width="3.9" height="3.9"/>
+  <rect class="cls-1" x="36.1" y="16.8" width="3.9" height="3.9"/>
+  <rect class="cls-1" x="39.9" y="16.8" width="3.9" height="3.9"/>
+  <rect class="cls-1" x="92.3" y="16.8" width="3.9" height="3.9"/>
+  <polyline class="cls-2" points="32.9 66.9 63.6 35.6 79.7 51.2 112.2 17.3"/>
+  <polyline class="cls-1" points="96.1 37.8 96.1 43.9 100 43.9 100 39.2"/>
+  <path class="cls-3" d="m72.5 38.1c1.5-0.1 2.8 1.2 2.9 2.7 0.1 1.7-1 3.1-2.6 3.3s-3.1-0.8-3.3-2.8c-0.3-1.7 1-3.3 3-3.2z"/>
+</svg>
