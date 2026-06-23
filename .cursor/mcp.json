@@ -6,6 +6,18 @@
     },
     "quiverai": {
       "url": "https://app.quiver.ai/mcp"
+    },
+    "edge": {
+      "type": "stdio",
+      "command": "/bin/bash",
+      "args": [
+        "-c",
+        "cd '/Users/vincentn/TV AI' && exec /Users/vincentn/local/node/bin/npx --yes tsx scripts/edge-mcp-server.mts"
+      ],
+      "env": {
+        "EDGE_APP_URL": "http://localhost:3003",
+        "EDGE_PERMISSION_MODE": "write"
+      }
     }
   }
 }
