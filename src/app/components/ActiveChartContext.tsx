@@ -9,8 +9,25 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { CellConfig, Theme, TrackedOverlay } from "@/lib/chartConfig";
+import type { CellConfig, Theme, TrackedOverlay, SerializedDrawing } from "@/lib/chartConfig";
+import type { Candle, DrawingStyles } from "@/lib/chart/contracts";
+import type { GoToRequest, GoToResult } from "@/lib/chart/goTo";
 import type { DataWindowProps } from "./ObjectTree";
+
+export type ActiveChartCommands = {
+  undo: () => boolean;
+  redo: () => boolean;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  goTo: (req: GoToRequest) => Promise<GoToResult>;
+  zoomIn: () => void;
+  resetChartView: () => void;
+  getCandles: () => Candle[];
+  selectDrawing: (id: string | null) => void;
+  getSelectedDrawingId: () => string | null;
+  updateDrawingStyles: (id: string, patch: Partial<DrawingStyles>) => void;
+  restoreDrawings: (data: SerializedDrawing[]) => void;
+};
 
 export type ActiveChartOverlayActions = {
   remove: (id: string) => void;
@@ -23,6 +40,19 @@ export type ActiveChartOverlayActions = {
   subscribe: (cb: () => void) => () => void;
 };
 
+export type ActiveChartHeaderCommands = {
+  replayActive: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  openSettings: () => void;
+  openStudyTemplate: () => void;
+  openChartTemplate: () => void;
+  toggleReplay: () => void;
+  undo: () => void;
+  redo: () => void;
+  addFavoriteIndicator: (name: string) => void;
+};
+
 export type ActiveChartSnapshot = {
   chartId: string;
   config: CellConfig;
@@ -32,6 +62,8 @@ export type ActiveChartSnapshot = {
   overlayActions: ActiveChartOverlayActions;
   onConfigChange: (next: CellConfig) => void;
   openIndicatorPicker: () => void;
+  headerCommands: ActiveChartHeaderCommands;
+  chartCommands: ActiveChartCommands;
 };
 
 type ActiveChartContextValue = {

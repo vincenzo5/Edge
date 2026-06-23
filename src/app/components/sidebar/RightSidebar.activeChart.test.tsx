@@ -44,6 +44,18 @@ function SeedActiveChart() {
       },
       onConfigChange: vi.fn(),
       openIndicatorPicker: vi.fn(),
+      headerCommands: {
+        replayActive: false,
+        canUndo: false,
+        canRedo: false,
+        openSettings: vi.fn(),
+        openStudyTemplate: vi.fn(),
+        openChartTemplate: vi.fn(),
+        toggleReplay: vi.fn(),
+        undo: vi.fn(),
+        redo: vi.fn(),
+        addFavoriteIndicator: vi.fn(),
+      },
     };
     bridge.register('cell-0', snapshot);
     return () => bridge.unregister('cell-0');
@@ -57,12 +69,7 @@ describe('RightSidebar active chart integration', () => {
     render(
       <ActiveChartProvider>
         <SeedActiveChart />
-        <RightSidebar
-          theme="dark"
-          activePanel="object-tree"
-          onTogglePanel={vi.fn()}
-          onClosePanel={vi.fn()}
-        />
+        <RightSidebar activePanel="object-tree" />
       </ActiveChartProvider>,
     );
 

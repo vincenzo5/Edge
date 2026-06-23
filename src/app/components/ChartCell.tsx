@@ -7,16 +7,17 @@ import BarReplay from "./BarReplay";
 import IndicatorPicker from "./IndicatorPicker";
 import IndicatorSettingsModal from "./IndicatorSettingsModal";
 import DrawingSettingsModal from "./DrawingSettingsModal";
+import DrawingSelectionToolbar from "./DrawingSelectionToolbar";
 import ChartSettingsModal from "./ChartSettingsModal";
 import ChartGoToModal from "./ChartGoToModal";
 import ChartRangeBar from "./ChartRangeBar";
-import ChartTopBar from "./chart-chrome/ChartTopBar";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { buildChartContextMenuItems, buildPriceScaleContextMenuItems } from "./chartContextMenu";
 import { useChartSync } from "./ChartSyncContext";
 import { useActiveChartBridge } from "./ActiveChartContext";
 import { useSidebarOptional } from "./SidebarContext";
 import type { Candle, DrawingStyles } from "@/lib/chart/contracts";
+import type { GoToRequest } from "@/lib/chart/goTo";
 import {
   PRICE_PANE_KEY,
   createIndicatorInstance,
@@ -29,11 +30,11 @@ import {
   type IndicatorConfig,
   type ToolbarPrefs,
   type TrackedOverlay,
+  type SerializedDrawing,
 } from "@/lib/chartConfig";
 import type { Range } from "@/lib/chart/contracts";
 import type { ChartTimeZone } from "@/lib/chart/timeZone";
 import { applyRangePresetSelect } from "@/lib/chart/rangePresetTransition";
-import { loadIndicatorFavorites } from "@/lib/chart/indicatorFavorites";
 import { getCatalogMeta } from "@/lib/chart/indicators/catalog";
 import type { DrawingToolName } from "./chart-icons/toolGroups";
 import {
@@ -92,7 +93,9 @@ export default function ChartCell({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState<number | null>(null);
   const [candleCount, setCandleCount] = useState(0);
-  const [displayCandles, setDisplayCandles] = useState<Candle[]>([]);
+  const displayCandlesRef = useRef<Candle[]>([]);
+  const [candlesRevision, setCandlesRevision] = useState(0);
+  const [lastCandleTimestamp, setLastCandleTimestamp] = useState<number | null>(null);
   const [crosshairData, setCrosshairData] = useState<{
     dataIndex: number | null;
     timestamp: number | null;
@@ -121,9 +124,14 @@ export default function ChartCell({
     header?: string;
   } | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [toolbarDragOffset, setToolbarDragOffset] = useState({ x: 0, y: 0 });
+  const [drawingToolbarBounds, setDrawingToolbarBounds] = useState<{
+    width: number;
+    height: number;
+  }>({ width: 800, height: 400 });
+  const chartOverlayRef = useRef<HTMLDivElement>(null);
   const [activeTool, setActiveTool] = useState("__cursor__");
   const [replayActive, setReplayActive] = useState(false);
-  const [indicatorFavorites, setIndicatorFavorites] = useState<string[]>([]);
   const [historyRevision, setHistoryRevision] = useState(0);
   const overlaysDirtyRef = useRef(false);
   const sync = useChartSync();
@@ -204,13 +212,14 @@ export default function ChartCell({
     const chart = chartRef.current;
     if (!chart) return;
 
+    const candles = chartRef.current?.getCandles() ?? [];
     const idx =
       crosshairData.dataIndex != null && crosshairData.dataIndex >= 0
         ? crosshairData.dataIndex
-        : displayCandles.length - 1;
-    const candle = idx >= 0 && idx < displayCandles.length ? displayCandles[idx] : null;
+        : candles.length - 1;
+    const candle = idx >= 0 && idx < candles.length ? candles[idx] : null;
     const timestamp =
-      crosshairData.timestamp ?? candle?.t ?? displayCandles[displayCandles.length - 1]?.t ?? 0;
+      crosshairData.timestamp ?? candle?.t ?? candles.at(-1)?.t ?? 0;
     const value = candle?.c ?? 0;
 
     chart.stopDrawing();
@@ -224,7 +233,7 @@ export default function ChartCell({
       setSelectedOverlayId(ids[ids.length - 1]);
     }
     setContextMenu(null);
-  }, [crosshairData, displayCandles]);
+  }, [crosshairData]);
 
   pasteDrawingsRef.current = handlePasteDrawings;
 
@@ -280,30 +289,6 @@ export default function ChartCell({
     [config, onConfigChange],
   );
 
-  const handleSymbolSelect = useCallback(
-    (result: { symbol: string; name: string; exchange: string }) =>
-      update({
-        symbol: result.symbol,
-        symbolName: result.name,
-        exchange: result.exchange,
-      }),
-    [update],
-  );
-
-  const handleIntervalChange = useCallback(
-    (interval: CellConfig["interval"]) =>
-      update({
-        interval,
-        rangePreset: null,
-      }),
-    [update],
-  );
-
-  const handleChartTypeChange = useCallback(
-    (chartType: CellConfig["chartType"]) => update({ chartType }),
-    [update],
-  );
-
   const handleRangeSelect = useCallback(
     (range: Range) => {
       onConfigChange(applyRangePresetSelect(config, range));
@@ -328,10 +313,6 @@ export default function ChartCell({
       setVisibleCount(null);
     }
   }, [replayActive]);
-
-  useEffect(() => {
-    setIndicatorFavorites(loadIndicatorFavorites());
-  }, [pickerOpen, templatePickerOpen]);
 
   const chartSettingsMerged = useMemo(
     () => mergeChartSettings(config.chartSettings),
@@ -424,6 +405,12 @@ export default function ChartCell({
     },
     [onCandleCount],
   );
+
+  const handleCandlesChange = useCallback((candles: Candle[]) => {
+    displayCandlesRef.current = candles;
+    setLastCandleTimestamp(candles.at(-1)?.t ?? null);
+    setCandlesRevision((revision) => revision + 1);
+  }, []);
 
   const handleCrosshairMove = useCallback(
     (ev: {
@@ -621,6 +608,37 @@ export default function ChartCell({
     return drawings.find((d) => d.id === settingsOverlayId) ?? null;
   }, [settingsOverlayId, overlays]);
 
+  const selectedDrawing = useMemo(() => {
+    if (!selectedOverlayId) return null;
+    const drawings = chartRef.current?.serializeDrawings() ?? [];
+    return drawings.find((d) => d.id === selectedOverlayId) ?? null;
+  }, [selectedOverlayId, overlays]);
+
+  useEffect(() => {
+    setToolbarDragOffset({ x: 0, y: 0 });
+  }, [selectedOverlayId]);
+
+  useEffect(() => {
+    const el = chartOverlayRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setDrawingToolbarBounds({
+          width: Math.max(100, width),
+          height: Math.max(100, height),
+        });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const selectedDrawingBounds = useMemo(() => {
+    if (!selectedOverlayId) return null;
+    return chartRef.current?.getDrawingScreenBounds(selectedOverlayId) ?? null;
+  }, [selectedOverlayId, overlays, drawingToolbarBounds]);
+
   const handleDrawingStylesSave = useCallback((id: string, patch: Partial<DrawingStyles>) => {
     chartRef.current?.updateDrawingStyles(id, patch);
     overlaysDirtyRef.current = true;
@@ -738,6 +756,35 @@ export default function ChartCell({
     [selectedOverlayId],
   );
 
+  const chartCommands = useCallback(
+    () => ({
+      undo: () => {
+        const did = chartRef.current?.undo() ?? false;
+        if (did) setHistoryRevision((r) => r + 1);
+        return did;
+      },
+      redo: () => {
+        const did = chartRef.current?.redo() ?? false;
+        if (did) setHistoryRevision((r) => r + 1);
+        return did;
+      },
+      canUndo: () => chartRef.current?.canUndo() ?? false,
+      canRedo: () => chartRef.current?.canRedo() ?? false,
+      goTo: (req: GoToRequest) =>
+        chartRef.current?.goTo(req) ??
+        Promise.resolve({ ok: false as const, reason: "no_chart" as const }),
+      zoomIn: () => chartRef.current?.zoomIn(),
+      resetChartView: () => chartRef.current?.resetChartView(),
+      getCandles: () => chartRef.current?.getCandles() ?? [],
+      selectDrawing: (id: string | null) => chartRef.current?.selectDrawing(id),
+      getSelectedDrawingId: () => chartRef.current?.getSelectedDrawingId() ?? null,
+      updateDrawingStyles: (id: string, patch: Parameters<NonNullable<typeof chartRef.current>["updateDrawingStyles"]>[1]) =>
+        chartRef.current?.updateDrawingStyles(id, patch),
+      restoreDrawings: (data: SerializedDrawing[]) => chartRef.current?.restoreDrawings(data),
+    }),
+    [],
+  );
+
   useEffect(() => {
     if (!activeChartBridge) return;
 
@@ -761,7 +808,7 @@ export default function ChartCell({
       overlays,
       dataWindow: {
         dataIndex: crosshairData.dataIndex,
-        candles: displayCandles,
+        candles: displayCandlesRef.current,
         indicators: config.indicators.filter((i) => i.visible !== false),
         symbol: config.symbol,
         symbolName: config.symbolName,
@@ -772,6 +819,39 @@ export default function ChartCell({
       overlayActions: overlayActions(),
       onConfigChange,
       openIndicatorPicker: () => setPickerOpen(true),
+      headerCommands: {
+        replayActive,
+        canUndo: Boolean(canUndo),
+        canRedo: Boolean(canRedo),
+        openSettings: () => {
+          setChartSettingsSection("status");
+          setChartSettingsOpen(true);
+        },
+        openStudyTemplate: () => {
+          setTemplatePickerTab("study");
+          setTemplatePickerOpen(true);
+        },
+        openChartTemplate: () => {
+          setTemplatePickerTab("chart");
+          setTemplatePickerOpen(true);
+        },
+        toggleReplay: () => setReplayActive((a) => !a),
+        undo: () => {
+          chartRef.current?.undo();
+          setHistoryRevision((r) => r + 1);
+        },
+        redo: () => {
+          chartRef.current?.redo();
+          setHistoryRevision((r) => r + 1);
+        },
+        addFavoriteIndicator: (name) => {
+          const meta = getCatalogMeta(name);
+          if (meta) {
+            addIndicator({ name, pane: meta.defaultPane });
+          }
+        },
+      },
+      chartCommands: chartCommands(),
     });
   }, [
     activeChartBridge,
@@ -781,9 +861,14 @@ export default function ChartCell({
     theme,
     overlays,
     crosshairData.dataIndex,
-    displayCandles,
+    candlesRevision,
     overlayActions,
     onConfigChange,
+    replayActive,
+    canUndo,
+    canRedo,
+    addIndicator,
+    chartCommands,
   ]);
 
   const handleOverlayRightClick = useCallback(
@@ -910,52 +995,6 @@ export default function ChartCell({
       className="flex h-full min-h-0 flex-col overflow-hidden"
       onPointerDown={() => onFocus?.()}
     >
-      {/* TradingView-style chart header */}
-      <ChartTopBar
-        theme={theme}
-        compact={compact}
-        symbol={config.symbol}
-        interval={config.interval}
-        chartType={config.chartType}
-        indicatorFavorites={indicatorFavorites.length > 0 ? indicatorFavorites : loadIndicatorFavorites()}
-        replayActive={replayActive}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        actions={{
-          onSymbolSelect: handleSymbolSelect,
-          onIntervalChange: handleIntervalChange,
-          onChartTypeChange: handleChartTypeChange,
-          onOpenIndicators: () => setPickerOpen(true),
-          onAddFavoriteIndicator: (name) => {
-            const meta = getCatalogMeta(name);
-            if (meta) {
-              addIndicator({ name, pane: meta.defaultPane });
-            }
-          },
-          onSaveStudyTemplate: () => {
-            setTemplatePickerTab("study");
-            setTemplatePickerOpen(true);
-          },
-          onOpenTemplate: () => {
-            setTemplatePickerTab("chart");
-            setTemplatePickerOpen(true);
-          },
-          onOpenSettings: () => {
-            setChartSettingsSection("status");
-            setChartSettingsOpen(true);
-          },
-          onToggleReplay: () => setReplayActive((a) => !a),
-          onUndo: () => {
-            chartRef.current?.undo();
-            setHistoryRevision((r) => r + 1);
-          },
-          onRedo: () => {
-            chartRef.current?.redo();
-            setHistoryRevision((r) => r + 1);
-          },
-        }}
-      />
-
       {/* Body: drawing rail + chart */}
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="relative z-20 flex h-full shrink-0 self-stretch overflow-visible">
@@ -982,7 +1021,7 @@ export default function ChartCell({
           }
           />
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-1" ref={chartOverlayRef}>
           <EdgeChart
             ref={chartRef}
             config={config}
@@ -1005,11 +1044,54 @@ export default function ChartCell({
             onMoveIndicatorDown={handleMovePaneDown}
             onPaneHeightsChange={handlePaneHeightsChange}
             onDataLoaded={handleDataLoaded}
-            onCandlesChange={setDisplayCandles}
+            onCandlesChange={handleCandlesChange}
             collapsedKeys={collapsedKeys}
             maximizedKey={maximizedKey}
             paneOrder={paneOrder}
           />
+          {isActive && selectedDrawing && selectedOverlayId && (
+            <DrawingSelectionToolbar
+              theme={theme}
+              drawing={selectedDrawing}
+              bounds={selectedDrawingBounds}
+              containerWidth={drawingToolbarBounds.width}
+              containerHeight={drawingToolbarBounds.height}
+              dragOffset={toolbarDragOffset}
+              onDragOffsetChange={setToolbarDragOffset}
+              onStyleChange={(patch) => {
+                chartRef.current?.updateDrawingStyles(selectedOverlayId, patch);
+                overlaysDirtyRef.current = true;
+              }}
+              onMetadataChange={(patch) => {
+                chartRef.current?.updateDrawingMetadata(selectedOverlayId, patch);
+                overlaysDirtyRef.current = true;
+              }}
+              onAcceptProposal={() => {
+                chartRef.current?.updateDrawingMetadata(selectedOverlayId, {
+                  status: "active",
+                  source: selectedDrawing.metadata?.source ?? "ai",
+                });
+                overlaysDirtyRef.current = true;
+              }}
+              onDismissProposal={() => {
+                chartRef.current?.updateDrawingMetadata(selectedOverlayId, {
+                  status: "invalidated",
+                });
+                overlaysDirtyRef.current = true;
+              }}
+              onOpenSettings={() => setSettingsOverlayId(selectedOverlayId)}
+              onToggleLock={() => {
+                chartRef.current?.setOverlayLocked(selectedOverlayId, !selectedDrawing.locked);
+              }}
+              onDelete={handleDeleteSelected}
+              onMore={(clientX, clientY) => {
+                const overlay = overlays.find((o) => o.id === selectedOverlayId);
+                if (overlay) {
+                  handleOverlayRightClick(overlay, { x: clientX, y: clientY });
+                }
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -1082,7 +1164,7 @@ export default function ChartCell({
         interval={config.interval}
         defaultTimestampMs={
           crosshairData.timestamp ??
-          displayCandles[displayCandles.length - 1]?.t ??
+          lastCandleTimestamp ??
           null
         }
         onClose={() => setGoToOpen(false)}

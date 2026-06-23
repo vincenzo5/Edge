@@ -1,0 +1,229 @@
+/** @vitest-environment jsdom */
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { useEffect } from 'react';
+import ChartHeaderBar from './ChartHeaderBar';
+import {
+  ActiveChartProvider,
+  useActiveChartBridge,
+  type ActiveChartSnapshot,
+} from '../ActiveChartContext';
+import { DEFAULT_CELL } from '@/lib/chartConfig';
+
+vi.mock('../SearchBar', () => ({
+  default: ({ initial }: { initial: string }) => (
+    <div data-testid="symbol-search-input">{initial}</div>
+  ),
+}));
+
+vi.mock('./ChartIntervalMenu', () => ({
+  default: ({ onChange }: { onChange: (v: string) => void }) => (
+    <button type="button" data-testid="chart-interval-trigger" onClick={() => onChange('5m')}>
+      D
+    </button>
+  ),
+}));
+
+vi.mock('./ChartTypeMenu', () => ({
+  default: ({ onChange }: { onChange: (v: string) => void }) => (
+    <button type="button" data-testid="chart-type-trigger" onClick={() => onChange('area')}>
+      type
+    </button>
+  ),
+}));
+
+vi.mock('./ChartIndicatorFavoritesMenu', () => ({
+  default: () => <button type="button" data-testid="indicator-favorites-trigger" />,
+}));
+
+vi.mock('./ChartTemplateMenu', () => ({
+  default: () => <button type="button" data-testid="template-menu-trigger" />,
+}));
+
+vi.mock('./ChartLayoutMenu', () => ({
+  default: () => (
+    <>
+      <button type="button" data-testid="layout-setup-trigger" />
+      <button type="button" data-testid="layout-manage-trigger" />
+    </>
+  ),
+}));
+
+vi.mock('./ChartSnapshotMenu', () => ({
+  default: () => <button type="button" data-testid="snapshot-trigger" />,
+}));
+
+vi.mock('./ChartFullscreenButton', () => ({
+  default: () => <button type="button" data-testid="fullscreen-trigger" />,
+}));
+
+vi.mock('./ChartQuickSearchModal', () => ({
+  default: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="quick-search-modal" /> : null,
+}));
+
+const overlayActions = {
+  remove: vi.fn(),
+  setVisible: vi.fn(),
+  setLocked: vi.fn(),
+  rename: vi.fn(),
+  bringForward: vi.fn(),
+  sendBackward: vi.fn(),
+  duplicate: vi.fn(),
+  subscribe: () => () => {},
+};
+
+function makeSnapshot(overrides?: Partial<ActiveChartSnapshot>): ActiveChartSnapshot {
+  return {
+    chartId: 'cell-0',
+    config: DEFAULT_CELL,
+    theme: 'dark',
+    overlays: [],
+    dataWindow: {
+      dataIndex: null,
+      candles: [],
+      indicators: [],
+      symbol: 'AAPL',
+      interval: '1d',
+      theme: 'dark',
+    },
+    overlayActions,
+    onConfigChange: vi.fn(),
+    openIndicatorPicker: vi.fn(),
+    headerCommands: {
+      replayActive: false,
+      canUndo: true,
+      canRedo: false,
+      openSettings: vi.fn(),
+      openStudyTemplate: vi.fn(),
+      openChartTemplate: vi.fn(),
+      toggleReplay: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      addFavoriteIndicator: vi.fn(),
+    },
+    ...overrides,
+  };
+}
+
+function RegisterActiveChart({ snapshot }: { snapshot: ActiveChartSnapshot }) {
+  const bridge = useActiveChartBridge();
+  useEffect(() => {
+    if (!bridge) return;
+    bridge.register(snapshot.chartId, snapshot);
+    return () => bridge.unregister(snapshot.chartId);
+  }, [bridge, snapshot]);
+  return null;
+}
+
+const layoutActions = {
+  onGridModeChange: vi.fn(),
+  onLinkedChange: vi.fn(),
+};
+
+const chartActions = {
+  onSymbolSelect: vi.fn(),
+  onIntervalChange: vi.fn(),
+  onChartTypeChange: vi.fn(),
+};
+
+const baseProps = {
+  layout: {
+    layoutName: 'Default',
+    gridMode: '1x1' as const,
+    linked: false,
+    theme: 'dark' as const,
+  },
+  chart: {
+    symbol: 'AAPL',
+    interval: '1d' as const,
+    chartType: 'candle_solid' as const,
+    indicatorFavorites: [],
+  },
+  layoutActions,
+  chartActions,
+};
+
+function renderHeader(snapshot?: ActiveChartSnapshot) {
+  const snap = snapshot ?? makeSnapshot();
+  return render(
+    <ActiveChartProvider>
+      <RegisterActiveChart snapshot={snap} />
+      <ChartHeaderBar {...baseProps} />
+    </ActiveChartProvider>,
+  );
+}
+
+describe('ChartHeaderBar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders a single chart header toolbar with layout and action controls', () => {
+    renderHeader();
+
+    expect(screen.getByRole('toolbar', { name: 'Chart header' })).toBeTruthy();
+    expect(screen.getByTestId('layout-setup-trigger')).toBeTruthy();
+    expect(screen.getByTestId('layout-manage-trigger')).toBeTruthy();
+    expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('AAPL');
+    expect(screen.getByTestId('indicators-trigger')).toBeTruthy();
+    expect(screen.getByTestId('settings-trigger')).toBeTruthy();
+    expect(screen.getByTestId('quick-search-trigger')).toBeTruthy();
+    expect(screen.getByTestId('fullscreen-trigger')).toBeTruthy();
+    expect(screen.getByTestId('snapshot-trigger')).toBeTruthy();
+    expect(screen.getByTestId('replay-trigger')).toBeTruthy();
+    expect(screen.getByTestId('undo-trigger')).toBeTruthy();
+    expect(screen.getByTestId('redo-trigger')).toBeTruthy();
+
+    expect(screen.getByTestId('layout-manage-trigger').nextElementSibling).toContainElement(
+      screen.getByTestId('quick-search-trigger'),
+    );
+  });
+
+  it('wires interval and chart type changes', () => {
+    renderHeader();
+
+    fireEvent.click(screen.getByTestId('chart-interval-trigger'));
+    expect(chartActions.onIntervalChange).toHaveBeenCalledWith('5m');
+
+    fireEvent.click(screen.getByTestId('chart-type-trigger'));
+    expect(chartActions.onChartTypeChange).toHaveBeenCalledWith('area');
+  });
+
+  it('opens quick search modal', () => {
+    renderHeader();
+
+    expect(screen.queryByTestId('quick-search-modal')).toBeNull();
+    fireEvent.click(screen.getByTestId('quick-search-trigger'));
+    expect(screen.getByTestId('quick-search-modal')).toBeTruthy();
+  });
+
+  it('disables chart commands when no active chart is registered', () => {
+    render(
+      <ActiveChartProvider>
+        <ChartHeaderBar {...baseProps} />
+      </ActiveChartProvider>,
+    );
+
+    expect(screen.getByTestId('indicators-trigger')).toBeDisabled();
+    expect(screen.getByTestId('settings-trigger')).toBeDisabled();
+    expect(screen.getByTestId('replay-trigger')).toBeDisabled();
+  });
+
+  it('calls active chart header commands', () => {
+    const snapshot = makeSnapshot();
+    renderHeader(snapshot);
+
+    fireEvent.click(screen.getByTestId('indicators-trigger'));
+    expect(snapshot.openIndicatorPicker).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('settings-trigger'));
+    expect(snapshot.headerCommands.openSettings).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('replay-trigger'));
+    expect(snapshot.headerCommands.toggleReplay).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('undo-trigger'));
+    expect(snapshot.headerCommands.undo).toHaveBeenCalled();
+  });
+});

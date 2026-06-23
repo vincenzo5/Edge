@@ -7,6 +7,11 @@ describe('sidebar registry', () => {
     expect(SIDEBAR_PANEL_MAP['object-tree'].scope).toBe('active-chart');
   });
 
+  it('includes watchlist panel as app-scoped', () => {
+    expect(SIDEBAR_PANEL_MAP['watchlist']).toBeDefined();
+    expect(SIDEBAR_PANEL_MAP['watchlist'].scope).toBe('app');
+  });
+
   it('uses unique panel ids', () => {
     const ids = SIDEBAR_PANELS.map((panel) => panel.id);
     expect(new Set(ids).size).toBe(ids.length);

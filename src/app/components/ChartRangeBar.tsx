@@ -18,9 +18,12 @@ type Props = {
   onTimeZoneChange: (timeZone: ChartTimeZone) => void;
 };
 
-function useNow(intervalMs = 1000): Date {
-  const [now, setNow] = useState(() => new Date());
+const CLOCK_PLACEHOLDER = '--:--:-- UTC';
+
+function useNow(intervalMs = 1000): Date | null {
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
+    setNow(new Date());
     const id = window.setInterval(() => setNow(new Date()), intervalMs);
     return () => window.clearInterval(id);
   }, [intervalMs]);
@@ -65,7 +68,9 @@ export default function ChartRangeBar({
   const now = useNow();
   const clockRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const clockLabel = formatClockLabel(timeZone, exchange, now);
+  const clockLabel = now
+    ? formatClockLabel(timeZone, exchange, now)
+    : CLOCK_PLACEHOLDER;
 
   return (
     <>

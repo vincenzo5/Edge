@@ -1,11 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Toolbar from "./Toolbar";
 import ChartGrid from "./ChartGrid";
 import RightSidebar from "./sidebar/RightSidebar";
+import SidebarRail from "./sidebar/SidebarRail";
+import ChartHeaderBar from "./chart-chrome/ChartHeaderBar";
 import { SidebarProvider } from "./SidebarContext";
 import { ActiveChartProvider } from "./ActiveChartContext";
+import { ChartActionsProvider } from "./ChartActionsContext";
+import { AppActionsProvider, buildAppActions } from "./AppActionsContext";
+import { WatchlistProvider } from "./watchlist/WatchlistContext";
+import { AiToolsProvider } from "./AiToolsProvider";
+import AiSessionBridge from "./AiSessionBridge";
 import {
   DEFAULT_CELL,
   DEFAULT_LAYOUT,
@@ -15,11 +21,13 @@ import {
   pickLinkFields,
   type CellConfig,
   type ChartLayout,
+  type ChartType,
   type GridMode,
   type SidebarPanelId,
   type Theme,
   type ToolbarPrefs,
 } from "@/lib/chartConfig";
+import type { Interval } from "@/lib/chart/contracts";
 import { loadLayout, saveLayout } from "@/lib/layoutStorage";
 
 export default function StockApp() {
@@ -101,10 +109,6 @@ export default function StockApp() {
     setLayout((prev) => ({ ...prev, gridMode: mode }));
   }, []);
 
-  const handleThemeChange = useCallback((theme: Theme) => {
-    setLayout((prev) => ({ ...prev, theme }));
-  }, []);
-
   const handleLinkedChange = useCallback((linked: boolean) => {
     setLayout((prev) => ({ ...prev, linked }));
   }, []);
@@ -136,15 +140,73 @@ export default function StockApp() {
     });
   }, []);
 
-  const handleReset = useCallback(() => {
-    if (!confirm("Reset layout to defaults? This clears saved drawings.")) return;
-    setLayout({ ...DEFAULT_LAYOUT });
-    saveLayout(DEFAULT_LAYOUT);
-  }, []);
-
   const cells = useMemo(
     () => layout.cells.slice(0, cellCountFor(layout.gridMode)),
     [layout.cells, layout.gridMode],
+  );
+
+  const activeCellIndex = layout.activeCellIndex ?? 0;
+  const activeCell = cells[activeCellIndex] ?? DEFAULT_CELL;
+
+  const patchActiveCell = useCallback(
+    (patch: Partial<CellConfig>) => {
+      applyCellUpdate(activeCellIndex, { ...activeCell, ...patch });
+    },
+    [activeCellIndex, activeCell, applyCellUpdate],
+  );
+
+  const handleSymbolSelect = useCallback(
+    (result: { symbol: string; name: string; exchange: string }) => {
+      patchActiveCell({
+        symbol: result.symbol,
+        symbolName: result.name,
+        exchange: result.exchange,
+      });
+    },
+    [patchActiveCell],
+  );
+
+  const handleIntervalChange = useCallback(
+    (interval: Interval) => {
+      patchActiveCell({ interval, rangePreset: null });
+    },
+    [patchActiveCell],
+  );
+
+  const handleChartTypeChange = useCallback(
+    (chartType: ChartType) => {
+      patchActiveCell({ chartType });
+    },
+    [patchActiveCell],
+  );
+
+  const handleThemeChange = useCallback((theme: Theme) => {
+    setLayout((prev) => ({ ...prev, theme }));
+  }, []);
+
+  const appActions = useMemo(
+    () =>
+      buildAppActions({
+        layout,
+        hydrated: hydratedRef.current,
+        applyCellUpdate,
+        patchActiveCell,
+        setActiveCellIndex: handleActiveCellChange,
+        setGridMode: handleGridModeChange,
+        setLinked: handleLinkedChange,
+        setTheme: handleThemeChange,
+        setSidebarPanel: handleSidebarPanelChange,
+      }),
+    [
+      layout,
+      applyCellUpdate,
+      patchActiveCell,
+      handleActiveCellChange,
+      handleGridModeChange,
+      handleLinkedChange,
+      handleThemeChange,
+      handleSidebarPanelChange,
+    ],
   );
 
   return (
@@ -153,37 +215,65 @@ export default function StockApp() {
       onActivePanelChange={handleSidebarPanelChange}
     >
       <div className="flex h-screen min-h-0 flex-col overflow-hidden">
-        <Toolbar
-          gridMode={layout.gridMode}
+        <ChartActionsProvider
+          activeCellSymbol={activeCell.symbol}
+          loadSymbolIntoActiveChart={handleSymbolSelect}
+        >
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <AppActionsProvider value={appActions}>
+            <WatchlistProvider>
+              <ActiveChartProvider>
+                <AiToolsProvider>
+                  <AiSessionBridge />
+            <ChartHeaderBar
+              layout={{
+                layoutName: "Default",
+                gridMode: layout.gridMode,
+                linked: layout.linked,
+                theme: layout.theme,
+              }}
+              chart={{
+                symbol: activeCell.symbol,
+                interval: activeCell.interval,
+                chartType: activeCell.chartType,
+              }}
+              layoutActions={{
+                onGridModeChange: handleGridModeChange,
+                onLinkedChange: handleLinkedChange,
+              }}
+              chartActions={{
+                onSymbolSelect: handleSymbolSelect,
+                onIntervalChange: handleIntervalChange,
+                onChartTypeChange: handleChartTypeChange,
+              }}
+            />
+            <div className="flex min-h-0 flex-1">
+              <ChartGrid
+                gridMode={layout.gridMode}
+                linked={layout.linked}
+                theme={layout.theme}
+                cells={cells}
+                activeCellIndex={activeCellIndex}
+                toolbarPrefs={layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
+                onCellChange={applyCellUpdate}
+                onActiveCellChange={handleActiveCellChange}
+                onToolbarPrefsChange={handleToolbarPrefsChange}
+              />
+              <RightSidebar activePanel={layout.sidebar?.activePanel ?? null} />
+            </div>
+                </AiToolsProvider>
+          </ActiveChartProvider>
+            </WatchlistProvider>
+          </AppActionsProvider>
+        </div>
+        <SidebarRail
           theme={layout.theme}
-          linked={layout.linked}
-          activeCellIndex={layout.activeCellIndex}
-          onGridModeChange={handleGridModeChange}
-          onThemeChange={handleThemeChange}
-          onLinkedChange={handleLinkedChange}
-          onReset={handleReset}
+          activePanel={layout.sidebar?.activePanel ?? null}
+          onTogglePanel={handleSidebarToggle}
         />
-        <ActiveChartProvider>
-          <div className="flex min-h-0 flex-1">
-            <ChartGrid
-              gridMode={layout.gridMode}
-              linked={layout.linked}
-              theme={layout.theme}
-              cells={cells}
-              activeCellIndex={layout.activeCellIndex}
-              toolbarPrefs={layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
-              onCellChange={applyCellUpdate}
-              onActiveCellChange={handleActiveCellChange}
-              onToolbarPrefsChange={handleToolbarPrefsChange}
-            />
-            <RightSidebar
-              theme={layout.theme}
-              activePanel={layout.sidebar?.activePanel ?? null}
-              onTogglePanel={handleSidebarToggle}
-              onClosePanel={() => handleSidebarPanelChange(null)}
-            />
-          </div>
-        </ActiveChartProvider>
+      </div>
+        </ChartActionsProvider>
       </div>
     </SidebarProvider>
   );

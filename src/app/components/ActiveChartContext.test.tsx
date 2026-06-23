@@ -37,6 +37,32 @@ function makeSnapshot(chartId: string): ActiveChartSnapshot {
     overlayActions,
     onConfigChange: vi.fn(),
     openIndicatorPicker: vi.fn(),
+    headerCommands: {
+      replayActive: false,
+      canUndo: false,
+      canRedo: false,
+      openSettings: vi.fn(),
+      openStudyTemplate: vi.fn(),
+      openChartTemplate: vi.fn(),
+      toggleReplay: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      addFavoriteIndicator: vi.fn(),
+    },
+    chartCommands: {
+      undo: vi.fn(() => false),
+      redo: vi.fn(() => false),
+      canUndo: vi.fn(() => false),
+      canRedo: vi.fn(() => false),
+      goTo: vi.fn(async () => ({ ok: true as const })),
+      zoomIn: vi.fn(),
+      resetChartView: vi.fn(),
+      getCandles: vi.fn(() => []),
+      selectDrawing: vi.fn(),
+      getSelectedDrawingId: vi.fn(() => null),
+      updateDrawingStyles: vi.fn(),
+      restoreDrawings: vi.fn(),
+    },
   };
 }
 
@@ -125,6 +151,20 @@ describe('ActiveChartContext', () => {
 
     const latest = onSnapshot.mock.calls.at(-1)?.[0];
     expect(latest?.chartId).toBe('cell-1');
+  });
+
+  it('exposes header commands on snapshot', () => {
+    const onSnapshot = vi.fn();
+    render(
+      <ActiveChartProvider>
+        <RegisterProbe chartId="cell-0" active />
+        <SnapshotProbe onSnapshot={onSnapshot} />
+      </ActiveChartProvider>,
+    );
+
+    const latest = onSnapshot.mock.calls.at(-1)?.[0];
+    expect(latest?.headerCommands).toBeDefined();
+    expect(typeof latest?.headerCommands.undo).toBe('function');
   });
 
   it('updates snapshot when register is called again', () => {

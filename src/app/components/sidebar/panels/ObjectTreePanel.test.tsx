@@ -26,6 +26,19 @@ const overlayActions = {
   subscribe: () => () => {},
 };
 
+const defaultHeaderCommands = {
+  replayActive: false,
+  canUndo: false,
+  canRedo: false,
+  openSettings: vi.fn(),
+  openStudyTemplate: vi.fn(),
+  openChartTemplate: vi.fn(),
+  toggleReplay: vi.fn(),
+  undo: vi.fn(),
+  redo: vi.fn(),
+  addFavoriteIndicator: vi.fn(),
+};
+
 function makeSnapshot(): ActiveChartSnapshot {
   return {
     chartId: 'cell-0',
@@ -43,6 +56,7 @@ function makeSnapshot(): ActiveChartSnapshot {
     overlayActions,
     onConfigChange: vi.fn(),
     openIndicatorPicker: vi.fn(),
+    headerCommands: defaultHeaderCommands,
   };
 }
 

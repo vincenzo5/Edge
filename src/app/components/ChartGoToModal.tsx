@@ -46,6 +46,8 @@ function resultMessage(result: GoToResult): string | null {
       return 'Enter a valid date and time.';
     case 'no_data':
       return 'No chart data loaded yet.';
+    case 'no_chart':
+      return 'No active chart is available.';
     default:
       return 'Could not navigate to that date.';
   }

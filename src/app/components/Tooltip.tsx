@@ -15,7 +15,7 @@ import type { Theme } from '@/lib/chart/contracts';
 
 const SHOW_DELAY_MS = 400;
 
-type Side = 'bottom' | 'right';
+type Side = 'bottom' | 'left' | 'right';
 
 type Props = {
   content?: string;
@@ -29,10 +29,20 @@ type Props = {
 
 const PANEL_POSITION: Record<Side, string> = {
   bottom: 'left-1/2 top-full z-[100] mt-1 -translate-x-1/2',
+  left: 'right-full top-1/2 z-[100] mr-1 -translate-y-1/2',
   right: 'left-full top-1/2 z-[100] ml-1 -translate-y-1/2',
 };
 
 function panelStyle(rect: DOMRect, side: Side): CSSProperties {
+  if (side === 'left') {
+    return {
+      position: 'fixed',
+      top: rect.top + rect.height / 2,
+      left: rect.left - 4,
+      transform: 'translate(-100%, -50%)',
+      zIndex: 10_000,
+    };
+  }
   if (side === 'right') {
     return {
       position: 'fixed',

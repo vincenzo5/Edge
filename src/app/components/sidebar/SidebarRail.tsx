@@ -23,7 +23,7 @@ export default function SidebarRail({
   return (
     <div
       data-testid="sidebar-rail"
-      className={`flex shrink-0 flex-col items-center gap-1 border-l border-gray-200 bg-white py-2 dark:border-gray-800 dark:bg-gray-950 ${toolbarRailWidthClass(false)}`}
+      className={`flex h-full shrink-0 flex-col items-center justify-start gap-1 self-stretch border-l border-gray-200 bg-white py-2 dark:border-gray-800 dark:bg-gray-950 ${toolbarRailWidthClass(false)}`}
     >
       {SIDEBAR_PANELS.map((panel) => {
         const active = activePanel === panel.id;
