@@ -7,6 +7,7 @@ import {
   clampPlot,
   plotToPoint,
   pointToPlot,
+  translateDrawingPoints,
   priceForPlotY,
   yForPricePlot,
   snapToOhlc,
@@ -49,6 +50,42 @@ describe('drawingCoords', () => {
     const back = pointToPlot(pt, vp, candles, true);
     expect(back.x).toBeCloseTo(plotX, 0);
     expect(back.y).toBeCloseTo(plotY, 0);
+  });
+
+  it('pointToPlot uses timestamp before stale dataIndex for anchored drawings', () => {
+    const vp = makeVp();
+    const back = pointToPlot(
+      { timestamp: candles[2].t, value: 108, dataIndex: 0 },
+      vp,
+      candles,
+      true
+    );
+
+    expect(back.x).toBeCloseTo(vp.xForIndex(2), 0);
+  });
+
+  it('translateDrawingPoints moves every anchor by the same plot delta', () => {
+    const vp = makeVp();
+    const points = [
+      { timestamp: candles[0].t, value: 100, dataIndex: 0 },
+      { timestamp: candles[1].t, value: 110, dataIndex: 1 },
+    ];
+
+    const moved = translateDrawingPoints(
+      points,
+      { x: vp.xForIndex(0), y: yForPricePlot(100, vp, true) },
+      { x: vp.xForIndex(1), y: yForPricePlot(105, vp, true) },
+      vp,
+      candles,
+      { showTimeAxis: true }
+    );
+
+    expect(moved[0].timestamp).toBe(candles[1].t);
+    expect(moved[0].dataIndex).toBe(1);
+    expect(moved[0].value).toBeCloseTo(105, 4);
+    expect(moved[1].timestamp).toBe(candles[2].t);
+    expect(moved[1].dataIndex).toBe(2);
+    expect(moved[1].value).toBeCloseTo(115, 4);
   });
 
   it('magnet snaps to nearest OHLC within threshold', () => {

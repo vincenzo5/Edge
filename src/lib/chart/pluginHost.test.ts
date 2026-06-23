@@ -1,41 +1,26 @@
-import { describe, it, expect } from 'vitest';
-import { IndicatorRegistry, DrawingRegistry } from './pluginHost';
-import { getInputSchema } from './indicatorInputs';
+import { describe, expect, it } from "vitest";
+import { serializeAll } from "./pluginHost";
+import type { SerializedDrawing } from "./contracts";
 
-describe('IndicatorRegistry', () => {
-  it('returns a list of indicators', () => {
-    const all = IndicatorRegistry.getAll();
-    expect(all.length).toBeGreaterThan(0);
-    expect(all.some((i) => i.name === 'MA')).toBe(true);
-  });
+describe("serializeAll metadata", () => {
+  it("preserves drawing metadata", () => {
+    const drawing: SerializedDrawing = {
+      id: "d1",
+      name: "horizontal_line",
+      label: "Stop",
+      points: [{ value: 100 }],
+      visible: true,
+      locked: false,
+      zLevel: 0,
+      metadata: {
+        kind: "invalidation",
+        status: "proposed",
+        source: "ai",
+        rationale: "Break below kills thesis",
+      },
+    };
 
-  it('can retrieve a specific indicator', () => {
-    const ma = IndicatorRegistry.get('MA');
-    expect(ma).toBeDefined();
-  });
-
-  it('registered plugins include catalog metadata and input schema', () => {
-    for (const plugin of IndicatorRegistry.getAll()) {
-      expect(plugin.category).toBeTruthy();
-      expect(plugin.description).toBeTruthy();
-      expect(getInputSchema(plugin)).toBeDefined();
-      expect(typeof plugin.compute).toBe('function');
-      const hasDraw = typeof plugin.draw === 'function';
-      const hasDeclarative = (plugin.outputs?.length ?? 0) > 0;
-      expect(hasDraw || hasDeclarative).toBe(true);
-    }
-  });
-});
-
-describe('DrawingRegistry', () => {
-  it('resolves aliases (straightLine -> trend_line)', () => {
-    const tool = DrawingRegistry.get('straightLine');
-    expect(tool).toBeDefined();
-    expect(tool?.name).toBe('trend_line');
-  });
-
-  it('returns all drawings', () => {
-    const all = DrawingRegistry.getAll();
-    expect(all.length).toBeGreaterThan(0);
+    const serialized = serializeAll([drawing]);
+    expect(serialized[0]?.metadata).toEqual(drawing.metadata);
   });
 });

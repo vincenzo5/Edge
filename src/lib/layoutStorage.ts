@@ -67,7 +67,7 @@ export function saveLayout(layout: ChartLayout): void {
   }
 }
 
-const VALID_SIDEBAR_PANELS = new Set<SidebarPanelId>(["object-tree"]);
+const VALID_SIDEBAR_PANELS = new Set<SidebarPanelId>(["object-tree", "watchlist"]);
 
 function isSidebarPanelId(value: unknown): value is SidebarPanelId {
   return typeof value === "string" && VALID_SIDEBAR_PANELS.has(value as SidebarPanelId);

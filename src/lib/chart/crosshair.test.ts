@@ -7,6 +7,7 @@ import {
   shouldClearCrosshairOnLeave,
   findDataIndexForTimestamp,
   clampIndexToViewport,
+  crosshairStatesEqual,
 } from './crosshair';
 import { registerIndicator } from './indicators/registry';
 import { clearComputeCache } from './indicatorCompute';
@@ -135,5 +136,33 @@ describe('clampIndexToViewport', () => {
     const vp = createViewport(sample, 800, 400, 3);
     expect(clampIndexToViewport(-5, vp)).toBe(vp.startIndex);
     expect(clampIndexToViewport(999, vp)).toBe(vp.endIndex);
+  });
+});
+
+describe('crosshairStatesEqual', () => {
+  const base = {
+    plotX: 100,
+    globalY: 200,
+    activePaneId: 'price',
+    paneTop: 0,
+    paneHeight: 400,
+    paneReserveTimeAxis: true,
+    timestamp: 1000,
+    dataIndex: 1,
+    valueLabel: '105.00',
+    timeLabel: 'Jan 1',
+  };
+
+  it('returns true for equivalent states', () => {
+    expect(crosshairStatesEqual(base, { ...base })).toBe(true);
+  });
+
+  it('returns false when data index changes', () => {
+    expect(crosshairStatesEqual(base, { ...base, dataIndex: 2 })).toBe(false);
+  });
+
+  it('handles null states', () => {
+    expect(crosshairStatesEqual(null, null)).toBe(true);
+    expect(crosshairStatesEqual(base, null)).toBe(false);
   });
 });

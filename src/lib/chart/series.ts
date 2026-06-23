@@ -8,13 +8,15 @@ export type { Candle, Range, Interval };
 export async function fetchYahooCandles(
   symbol: string,
   range: Range,
-  interval: Interval
+  interval: Interval,
+  signal?: AbortSignal,
 ): Promise<Candle[]> {
   const { providerInterval, resampleTo } = resolveFetchInterval(interval);
   const res = await fetch('/api/candles', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ symbol, range, interval: providerInterval }),
+    signal,
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

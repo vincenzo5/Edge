@@ -59,8 +59,8 @@ describe('resolveHoverCursor', () => {
     expect(resolveHoverCursor(WIDTH - 10, HEIGHT / 2, WIDTH, HEIGHT, navigateCtx)).toBe('ns-resize');
   });
 
-  it('returns ew-resize on time axis', () => {
-    expect(resolveHoverCursor(WIDTH / 2, HEIGHT - 10, WIDTH, HEIGHT, navigateCtx)).toBe('ew-resize');
+  it('returns crosshair on time axis (scrolls like plot)', () => {
+    expect(resolveHoverCursor(WIDTH / 2, HEIGHT - 10, WIDTH, HEIGHT, navigateCtx)).toBe('crosshair');
   });
 
   it('returns crosshair on plot when a drawing tool is active', () => {
@@ -101,14 +101,14 @@ describe('resolveHoverCursor', () => {
     ).toBe('ns-resize');
   });
 
-  it('returns ew-resize while dragging the time axis', () => {
+  it('returns grabbing while dragging from the time axis strip', () => {
     expect(
       resolveHoverCursor(WIDTH / 2, HEIGHT - 10, WIDTH, HEIGHT, {
         ...navigateCtx,
         isDragging: true,
-        dragMode: 'timeAxis',
+        dragMode: 'body',
       })
-    ).toBe('ew-resize');
+    ).toBe('grabbing');
   });
 });
 

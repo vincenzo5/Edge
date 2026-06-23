@@ -1,6 +1,6 @@
-import type { Candle, VisibleRange, IndicatorConfig } from './contracts';
+import type { Candle, VisibleRange, IndicatorConfig, SerializedDrawing } from './contracts';
 import { plotWidth, plotHeight } from './layout';
-import { IndicatorRegistry } from './pluginHost';
+import { getIndicator } from './indicators/registry';
 import { defaultValueAt } from './indicatorCompute';
 import { resolveIndicatorInputs } from './indicatorInputs';
 
@@ -109,7 +109,7 @@ function snapToIndicatorValue(
   if (!ind || dataIndex < 0 || dataIndex >= candles.length) {
     return priceForPlotY(plotY, vp, showTimeAxis);
   }
-  const plugin = IndicatorRegistry.get(ind.name);
+  const plugin = getIndicator(ind.name);
   if (!plugin) return priceForPlotY(plotY, vp, showTimeAxis);
   const inputs = resolveIndicatorInputs(plugin, ind);
   const at =
@@ -165,8 +165,8 @@ export function pointToPlot(
   candles: Candle[],
   showTimeAxis = true
 ): PlotCoords {
-  let dataIndex = point.dataIndex;
-  if (dataIndex == null && point.timestamp != null) {
+  let dataIndex: number | undefined;
+  if (point.timestamp != null && point.timestamp !== 0) {
     dataIndex = candles.findIndex((c) => c.t === point.timestamp);
     if (dataIndex < 0) {
       for (let i = 0; i < candles.length; i++) {
@@ -176,12 +176,46 @@ export function pointToPlot(
         }
       }
     }
-    if (dataIndex == null || dataIndex < 0) dataIndex = 0;
+    if (dataIndex == null || dataIndex < 0) dataIndex = Math.max(0, candles.length - 1);
   }
+  if (dataIndex == null) dataIndex = point.dataIndex;
   if (dataIndex == null) dataIndex = 0;
   const x = vp.xForIndex(dataIndex);
   const y = yForPricePlot(point.value ?? 0, vp, showTimeAxis);
   return { x, y };
+}
+
+export function translateDrawingPoints(
+  points: SerializedDrawing['points'],
+  startPlot: PlotCoords,
+  currentPlot: PlotCoords,
+  vp: VisibleRange,
+  candles: Candle[],
+  opts: PlotToPointOptions = {}
+): SerializedDrawing['points'] {
+  const deltaX = currentPlot.x - startPlot.x;
+  const deltaY = currentPlot.y - startPlot.y;
+  const showTimeAxis = opts.showTimeAxis ?? true;
+
+  return points.map((p) => {
+    const origin = pointToPlot(p, vp, candles, showTimeAxis);
+    const translated = plotToPoint(
+      origin.x + deltaX,
+      origin.y + deltaY,
+      vp,
+      candles,
+      {
+        ...opts,
+        magnet: false,
+      }
+    );
+    return {
+      ...p,
+      timestamp: translated.timestamp,
+      value: translated.value,
+      dataIndex: translated.dataIndex,
+    };
+  });
 }
 
 export function canvasToPlot(

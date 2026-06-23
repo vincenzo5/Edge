@@ -1,4 +1,4 @@
-import type { Candle, IndicatorConfig, VisibleRange } from './contracts';
+import type { Candle, CrosshairState, IndicatorConfig, VisibleRange } from './contracts';
 import { formatPrice } from './format';
 import { plotHeight } from './layout';
 import { IndicatorRegistry } from './pluginHost';
@@ -54,6 +54,24 @@ export function formatCrosshairValue(
   }
 
   return formatPrice(priceForPlotY(plotY, vp, showTimeAxis), 4);
+}
+
+/** True when two crosshair snapshots would produce identical overlay and legend output. */
+export function crosshairStatesEqual(a: CrosshairState | null, b: CrosshairState | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.plotX === b.plotX &&
+    a.globalY === b.globalY &&
+    a.activePaneId === b.activePaneId &&
+    a.paneTop === b.paneTop &&
+    a.paneHeight === b.paneHeight &&
+    a.paneReserveTimeAxis === b.paneReserveTimeAxis &&
+    a.timestamp === b.timestamp &&
+    a.dataIndex === b.dataIndex &&
+    a.valueLabel === b.valueLabel &&
+    a.timeLabel === b.timeLabel
+  );
 }
 
 /** Clear crosshair on canvas leave unless pointer entered another pane in the same chart. */

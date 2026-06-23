@@ -12,7 +12,16 @@ export type GoToRequest =
 
 export type GoToResult =
   | { ok: true }
-  | { ok: false; reason: 'out_of_range' | 'no_data' | 'replay_active' | 'invalid_range' | 'invalid_date' };
+  | {
+      ok: false;
+      reason:
+        | 'out_of_range'
+        | 'no_data'
+        | 'no_chart'
+        | 'replay_active'
+        | 'invalid_range'
+        | 'invalid_date';
+    };
 
 /** First bar with timestamp >= ms (or candles.length if all bars are older). */
 export function findIndexAtOrAfter(candles: Candle[], ms: number): number {

@@ -3,6 +3,7 @@ import { render, fireEvent } from '@testing-library/react';
 import ChartCanvas from './canvas';
 import type { ChartPaneHandle } from './paneHandle';
 import type { Candle } from './contracts';
+import { PRICE_AXIS_WIDTH, TIME_AXIS_HEIGHT } from './layout';
 
 const candles: Candle[] = Array.from({ length: 200 }, (_, i) => ({
   t: i,
@@ -143,5 +144,94 @@ describe('ChartCanvas context menu', () => {
 
     expect(onDrawingContextMenu).toHaveBeenCalledTimes(1);
     expect(onContainerContextMenu).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ChartCanvas axis drag', () => {
+  function priceAxisClientX(width: number) {
+    return width - PRICE_AXIS_WIDTH / 2;
+  }
+
+  function plotBodyClientX(width: number) {
+    return (width - PRICE_AXIS_WIDTH) / 2;
+  }
+
+  it('transitions from price-axis scale drag to body pan when cursor enters plot', () => {
+    const width = 800;
+    const height = 400;
+    const { container, getHandle } = renderChartCanvas(width, height);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('canvas not found');
+
+    const axisX = priceAxisClientX(width);
+    const bodyX = plotBodyClientX(width);
+    const y = height / 2;
+
+    fireEvent.mouseDown(canvas, { clientX: axisX, clientY: y });
+    fireEvent.mouseMove(canvas, { clientX: axisX, clientY: y + 40 });
+
+    const afterScale = getHandle().getViewport()!;
+    expect(afterScale.priceScaleMode).toBe('manual');
+    const rangeAfterScale = afterScale.priceMax - afterScale.priceMin;
+    const startAfterScale = afterScale.startIndex;
+
+    fireEvent.mouseMove(canvas, { clientX: bodyX, clientY: y + 40 });
+    fireEvent.mouseMove(canvas, { clientX: bodyX - 60, clientY: y + 40 });
+
+    const afterPan = getHandle().getViewport()!;
+    expect(afterPan.startIndex).not.toBe(startAfterScale);
+    expect(afterPan.priceMax - afterPan.priceMin).toBeCloseTo(rangeAfterScale, 4);
+
+    fireEvent.mouseUp(canvas);
+  });
+
+  it('pans price vertically on price axis when scale is already manual', () => {
+    const width = 800;
+    const height = 400;
+    const { container, getHandle } = renderChartCanvas(width, height);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('canvas not found');
+
+    const axisX = priceAxisClientX(width);
+    const y = height / 2;
+
+    fireEvent.mouseDown(canvas, { clientX: axisX, clientY: y });
+    fireEvent.mouseMove(canvas, { clientX: axisX, clientY: y + 30 });
+    fireEvent.mouseUp(canvas);
+
+    const manual = getHandle().getViewport()!;
+    expect(manual.priceScaleMode).toBe('manual');
+    const rangeBefore = manual.priceMax - manual.priceMin;
+    const midBefore = (manual.priceMin + manual.priceMax) / 2;
+
+    fireEvent.mouseDown(canvas, { clientX: axisX, clientY: y + 30 });
+    fireEvent.mouseMove(canvas, { clientX: axisX, clientY: y + 70 });
+    fireEvent.mouseUp(canvas);
+
+    const panned = getHandle().getViewport()!;
+    expect(panned.priceMax - panned.priceMin).toBeCloseTo(rangeBefore, 4);
+    const midAfter = (panned.priceMin + panned.priceMax) / 2;
+    expect(midAfter).not.toBeCloseTo(midBefore, 4);
+  });
+
+  it('pans time when dragging from the time axis strip', () => {
+    const width = 800;
+    const height = 400;
+    const { container, getHandle } = renderChartCanvas(width, height);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('canvas not found');
+
+    const timeAxisY = height - TIME_AXIS_HEIGHT / 2;
+    const bodyX = plotBodyClientX(width);
+    const before = getHandle().getViewport()!;
+    const visibleBefore = before.endIndex - before.startIndex;
+
+    fireEvent.mouseDown(canvas, { clientX: bodyX, clientY: timeAxisY });
+    fireEvent.mouseMove(canvas, { clientX: bodyX - 60, clientY: timeAxisY });
+    fireEvent.mouseUp(canvas);
+
+    const after = getHandle().getViewport()!;
+    expect(after.endIndex - after.startIndex).toBe(visibleBefore);
+    expect(after.startIndex).not.toBe(before.startIndex);
   });
 });

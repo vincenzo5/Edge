@@ -29,6 +29,18 @@ describe('trend_line', () => {
     const cps = trendLine.getControlPoints!(d, vp(), candles);
     expect(cps).toHaveLength(2);
   });
+
+  it('updatePreview moves second anchor to cursor', () => {
+    const start = { timestamp: 1000, value: 100, dataIndex: 0 };
+    let d = trendLine.create(start, vp(), candles);
+    d = trendLine.updatePreview!(
+      d,
+      { timestamp: 3000, value: 115, dataIndex: 2 },
+      vp(),
+      candles,
+    );
+    expect(d.points[1]).toMatchObject({ timestamp: 3000, value: 115, dataIndex: 2 });
+  });
 });
 
 describe('horizontal_line', () => {
@@ -45,5 +57,13 @@ describe('rectangle', () => {
     let d = rectangle.create(start, vp(), candles);
     d = rectangle.updatePreview!(d, { timestamp: 3000, value: 115, dataIndex: 2 }, vp(), candles);
     expect(d.points[1].value).toBe(115);
+  });
+
+  it('getControlPoints returns four corners', () => {
+    const start = { timestamp: 1000, value: 100, dataIndex: 0 };
+    let d = rectangle.create(start, vp(), candles);
+    d = rectangle.updatePreview!(d, { timestamp: 3000, value: 115, dataIndex: 2 }, vp(), candles);
+    const cps = rectangle.getControlPoints!(d, vp(), candles);
+    expect(cps).toHaveLength(4);
   });
 });

@@ -10,7 +10,7 @@ import type { CellConfig, TrackedOverlay } from "@/lib/chartConfig";
 import type { Candle, IndicatorConfig, Theme } from "@/lib/chart/contracts";
 import { getCatalogEntry } from "@/lib/chart/indicators/registry";
 import { resolveIndicatorLegend, resolvePriceLegend } from "@/lib/chart/legend";
-import { resolvePaneLabel } from "@/lib/chart/paneLabels";
+import { formatObjectTreeLabel } from "@/lib/chart/annotationMetadata";
 import { IndicatorRegistry } from "@/lib/chart/pluginHost";
 
 export type DataWindowProps = {
@@ -92,9 +92,16 @@ export default function ObjectTree({
   onAddIndicator,
   embedded = false,
 }: Props) {
-  const [collapsed, setCollapsed] = useState<Record<Section, boolean>>(() =>
-    loadSectionState(chartId),
-  );
+  const [collapsed, setCollapsed] = useState<Record<Section, boolean>>(() => ({
+    symbol: true,
+    indicators: true,
+    drawings: true,
+    data: false,
+  }));
+
+  useEffect(() => {
+    setCollapsed(loadSectionState(chartId));
+  }, [chartId]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -281,7 +288,10 @@ export default function ObjectTree({
                 (none)
               </div>
             ) : (
-              sortedOverlays.map((o) => (
+              sortedOverlays.map((o) => {
+                const drawingMeta = config.drawings.find((d) => d.id === o.id)?.metadata;
+                const displayLabel = formatObjectTreeLabel(o.label || o.name, drawingMeta);
+                return (
                 <div
                   key={o.id}
                   className={`flex items-center gap-1 px-1 py-0.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-900 ${
@@ -361,7 +371,7 @@ export default function ObjectTree({
                         }
                         title="Double-click to rename"
                       >
-                        {o.label || o.name}
+                        {displayLabel}
                       </span>
                     </>
                   )}
@@ -378,7 +388,8 @@ export default function ObjectTree({
                     ×
                   </button>
                 </div>
-              ))
+              );
+              })
             )}
           </div>
         )}

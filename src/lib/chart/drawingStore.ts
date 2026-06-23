@@ -1,4 +1,8 @@
-import type { DrawingStyles, SerializedDrawing } from './contracts';
+import type { DrawingMetadata, DrawingStyles, SerializedDrawing } from './contracts';
+
+export type DrawingMetaPatch = Partial<
+  Pick<SerializedDrawing, 'styles' | 'label' | 'visible' | 'locked' | 'metadata'>
+>;
 
 export type DrawingCommand =
   | { type: 'add'; drawing: SerializedDrawing }
@@ -7,19 +11,30 @@ export type DrawingCommand =
   | {
       type: 'updateMeta';
       id: string;
-      before: Partial<Pick<SerializedDrawing, 'styles' | 'label' | 'visible' | 'locked'>>;
-      after: Partial<Pick<SerializedDrawing, 'styles' | 'label' | 'visible' | 'locked'>>;
+      before: DrawingMetaPatch;
+      after: DrawingMetaPatch;
     }
   | { type: 'reorderZ'; order: string[]; previousOrder: string[] }
   | { type: 'batch'; commands: DrawingCommand[] };
 
 const MAX_HISTORY = 50;
 
+function cloneMetadata(metadata?: DrawingMetadata): DrawingMetadata | undefined {
+  if (!metadata) return undefined;
+  return {
+    ...metadata,
+    fields: metadata.fields ? { ...metadata.fields } : undefined,
+    computed: metadata.computed ? { ...metadata.computed } : undefined,
+    links: metadata.links ? metadata.links.map((l) => ({ ...l })) : undefined,
+  };
+}
+
 function cloneDrawing(d: SerializedDrawing): SerializedDrawing {
   return {
     ...d,
     points: d.points.map((p) => ({ ...p })),
     styles: d.styles ? { ...d.styles } : undefined,
+    metadata: cloneMetadata(d.metadata),
   };
 }
 

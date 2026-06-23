@@ -84,7 +84,7 @@ describe('loadLayout sidebar prefs', () => {
     expect(merged.symbol.timeZone).toBe('America/Chicago');
   });
 
-  it('rejects invalid sidebar panel ids', () => {
+  it('accepts watchlist sidebar panel id', () => {
     localStorageMock.setItem(
       'tv-ai:layout:v1',
       JSON.stringify({
@@ -93,7 +93,52 @@ describe('loadLayout sidebar prefs', () => {
       }),
     );
     const loaded = loadLayout();
+    expect(loaded.sidebar?.activePanel).toBe('watchlist');
+  });
+
+  it('rejects invalid sidebar panel ids', () => {
+    localStorageMock.setItem(
+      'tv-ai:layout:v1',
+      JSON.stringify({
+        ...DEFAULT_LAYOUT,
+        sidebar: { activePanel: 'unknown-panel' },
+      }),
+    );
+    const loaded = loadLayout();
     expect(loaded.sidebar?.activePanel).toBeNull();
+  });
+
+  it('preserves drawing metadata through loadLayout', () => {
+    localStorageMock.setItem(
+      'tv-ai:layout:v1',
+      JSON.stringify({
+        ...DEFAULT_LAYOUT,
+        cells: [
+          {
+            ...DEFAULT_LAYOUT.cells[0],
+            drawings: [
+              {
+                id: 'd1',
+                name: 'horizontal_line',
+                label: 'Stop',
+                points: [{ value: 170 }],
+                visible: true,
+                locked: false,
+                zLevel: 0,
+                metadata: {
+                  kind: 'invalidation',
+                  status: 'active',
+                  source: 'user',
+                  rationale: 'Daily close below',
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const loaded = loadLayout();
+    expect(loaded.cells[0]?.drawings[0]?.metadata?.kind).toBe('invalidation');
   });
 });
 

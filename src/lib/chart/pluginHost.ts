@@ -1,5 +1,6 @@
 import { getAllIndicators, getIndicator } from './indicators/registry';
 import { getAllDrawings, getDrawing } from './drawings/registry';
+import { CONTROL_POINT_HIT_RADIUS } from './drawings/primitives';
 import type { SerializedDrawing, TrackedOverlay, Candle, VisibleRange } from './contracts';
 
 export const IndicatorRegistry = {
@@ -43,6 +44,7 @@ export function serializeAll(drawings: SerializedDrawing[]): SerializedDrawing[]
       })),
       mode: d.mode,
       styles: d.styles,
+      metadata: d.metadata ? { ...d.metadata } : undefined,
       visible: d.visible,
       locked: d.locked,
       zLevel: d.zLevel,
@@ -90,7 +92,7 @@ export function hitTestControlPoint(
   vp: VisibleRange,
   candles: Candle[],
   showTimeAxis = true,
-  tolerance = 8
+  tolerance = CONTROL_POINT_HIT_RADIUS
 ): number {
   const plugin = getDrawing(drawing.name);
   if (!plugin?.getControlPoints) return -1;

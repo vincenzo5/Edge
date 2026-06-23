@@ -8,7 +8,7 @@ import {
   pointInRect,
   HIT_TOLERANCE_PX,
 } from './primitives';
-import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUtils';
+import { baseDrawing, plotsForPoints, updateTwoPointPreview, rectCornerPlots, updateRectFromCorner } from './drawingUtils';
 import { resolveDrawingStyles } from '../drawingStyles';
 
 function parallelOffsetLine(
@@ -146,7 +146,9 @@ export const priceChannel: DrawingPlugin = {
     if (opts?.preview || dash.length > 0) ctx.setLineDash(opts?.preview ? [4, 4] : dash);
     ctx.strokeRect(x, top, w, h);
     ctx.setLineDash([]);
-    if (selected && !opts?.preview) drawControlPoints(ctx, [a, b], theme, true);
+    if (selected && !opts?.preview) {
+      drawControlPoints(ctx, rectCornerPlots(a, b), theme, true);
+    }
   },
   hitTest(px, py, d, vp, candles, showTimeAxis = true) {
     if (d.points.length < 2) return false;
@@ -154,13 +156,12 @@ export const priceChannel: DrawingPlugin = {
     return pointInRect(px, py, a.x, a.y, b.x, b.y, true);
   },
   getControlPoints(d, vp, candles, showTimeAxis = true) {
-    return plotsForPoints(d, vp, candles, showTimeAxis);
+    if (d.points.length < 2) return plotsForPoints(d, vp, candles, showTimeAxis);
+    const [a, b] = plotsForPoints(d, vp, candles, showTimeAxis);
+    return rectCornerPlots(a, b);
   },
   updateFromControl(d, cpIndex, plotX, plotY, vp, candles, showTimeAxis = true) {
     const pt = plotToPoint(plotX, plotY, vp, candles, { showTimeAxis });
-    const points = d.points.map((p, i) =>
-      i === cpIndex ? { timestamp: pt.timestamp, value: pt.value, dataIndex: pt.dataIndex } : p
-    );
-    return { ...d, points };
+    return updateRectFromCorner(d, cpIndex, pt);
   },
 };

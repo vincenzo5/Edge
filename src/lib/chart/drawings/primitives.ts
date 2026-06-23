@@ -1,10 +1,13 @@
 import type { Theme } from '../contracts';
-import { getChartColors as getColors } from '../chartTheme';
 import { plotWidth, plotHeight } from '../layout';
 import type { VisibleRange } from '../contracts';
 
 export const HIT_TOLERANCE_PX = 4;
 export const CONTROL_POINT_SIZE = 6;
+/** Visual radius for TradingView-style circular handles. */
+export const CONTROL_POINT_RADIUS = 4;
+/** Hit-test radius for control-point drag (slightly larger than visual). */
+export const CONTROL_POINT_HIT_RADIUS = 8;
 
 export function distanceToSegment(
   px: number,
@@ -233,14 +236,23 @@ export function drawControlPoints(
   selected: boolean
 ) {
   if (!selected || points.length === 0) return;
-  const c = getColors(theme);
-  ctx.fillStyle = '#f59e0b';
-  ctx.strokeStyle = c.text;
-  ctx.lineWidth = 1;
-  const half = CONTROL_POINT_SIZE / 2;
+  const fill = theme === 'dark' ? '#131722' : '#ffffff';
+  const stroke = '#2962FF';
+  const outerRing = theme === 'dark' ? 'rgba(41, 98, 255, 0.35)' : 'rgba(41, 98, 255, 0.25)';
+
   for (const p of points) {
-    ctx.fillRect(p.x - half, p.y - half, CONTROL_POINT_SIZE, CONTROL_POINT_SIZE);
-    ctx.strokeRect(p.x - half, p.y - half, CONTROL_POINT_SIZE, CONTROL_POINT_SIZE);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, CONTROL_POINT_RADIUS + 1.5, 0, Math.PI * 2);
+    ctx.fillStyle = outerRing;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, CONTROL_POINT_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   }
 }
 

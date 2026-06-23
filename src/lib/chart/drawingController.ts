@@ -9,7 +9,8 @@ export type DrawingFsmState =
   | 'tool_armed'
   | 'placing'
   | 'selected'
-  | 'dragging_cp';
+  | 'dragging_cp'
+  | 'dragging_drawing';
 
 export type DrawingMode = 'navigate' | 'create' | 'edit';
 
@@ -50,16 +51,26 @@ export function initialDrawingState(): DrawingControllerState {
 
 export function drawingModeFromState(state: DrawingControllerState): DrawingMode {
   if (state.fsm === 'idle' || state.fsm === 'selected') return 'navigate';
-  if (state.fsm === 'dragging_cp') return 'edit';
+  if (state.fsm === 'dragging_cp' || state.fsm === 'dragging_drawing') return 'edit';
   return 'create';
 }
 
 export function shouldHideCrosshair(state: DrawingControllerState): boolean {
-  return state.fsm === 'tool_armed' || state.fsm === 'placing' || state.fsm === 'dragging_cp';
+  return (
+    state.fsm === 'tool_armed' ||
+    state.fsm === 'placing' ||
+    state.fsm === 'dragging_cp' ||
+    state.fsm === 'dragging_drawing'
+  );
 }
 
 export function shouldSuppressPan(state: DrawingControllerState): boolean {
-  return state.fsm === 'tool_armed' || state.fsm === 'placing' || state.fsm === 'dragging_cp';
+  return (
+    state.fsm === 'tool_armed' ||
+    state.fsm === 'placing' ||
+    state.fsm === 'dragging_cp' ||
+    state.fsm === 'dragging_drawing'
+  );
 }
 
 export function armTool(state: DrawingControllerState, toolName: string): DrawingControllerState {
@@ -221,6 +232,30 @@ export function stopDraggingCp(state: DrawingControllerState): DrawingController
     fsm: 'selected',
     draggingCpIndex: -1,
     draggingDrawingId: null,
+  };
+}
+
+export function startDraggingDrawing(
+  state: DrawingControllerState,
+  drawingId: string
+): DrawingControllerState {
+  return {
+    ...state,
+    fsm: 'dragging_drawing',
+    draggingDrawingId: drawingId,
+    draggingCpIndex: -1,
+    selectedId: drawingId,
+    activeTool: null,
+    placingDraft: null,
+  };
+}
+
+export function stopDraggingDrawing(state: DrawingControllerState): DrawingControllerState {
+  return {
+    ...state,
+    fsm: 'selected',
+    draggingDrawingId: null,
+    draggingCpIndex: -1,
   };
 }
 

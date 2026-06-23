@@ -7,7 +7,7 @@ import {
   strokeFromStyles,
   pointInRect,
 } from './primitives';
-import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUtils';
+import { baseDrawing, plotsForPoints, updateTwoPointPreview, rectCornerPlots, updateRectFromCorner } from './drawingUtils';
 import { resolveDrawingStyles } from '../drawingStyles';
 
 export const rectangle: DrawingPlugin = {
@@ -41,7 +41,7 @@ export const rectangle: DrawingPlugin = {
     ctx.strokeRect(x, y, w, h);
     ctx.setLineDash([]);
     if (selected && !opts?.preview) {
-      drawControlPoints(ctx, [a, b], theme, true);
+      drawControlPoints(ctx, rectCornerPlots(a, b), theme, true);
     }
   },
   hitTest(px, py, d, vp, candles, showTimeAxis = true) {
@@ -50,15 +50,12 @@ export const rectangle: DrawingPlugin = {
     return pointInRect(px, py, a.x, a.y, b.x, b.y, true);
   },
   getControlPoints(d, vp, candles, showTimeAxis = true) {
-    return plotsForPoints(d, vp, candles, showTimeAxis);
+    if (d.points.length < 2) return plotsForPoints(d, vp, candles, showTimeAxis);
+    const [a, b] = plotsForPoints(d, vp, candles, showTimeAxis);
+    return rectCornerPlots(a, b);
   },
   updateFromControl(d, cpIndex, plotX, plotY, vp, candles, showTimeAxis = true) {
     const pt = plotToPoint(plotX, plotY, vp, candles, { showTimeAxis });
-    const points = d.points.map((p, i) =>
-      i === cpIndex
-        ? { timestamp: pt.timestamp, value: pt.value, dataIndex: pt.dataIndex }
-        : p
-    );
-    return { ...d, points };
+    return updateRectFromCorner(d, cpIndex, pt);
   },
 };

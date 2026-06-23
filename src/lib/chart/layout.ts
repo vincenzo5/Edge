@@ -78,7 +78,7 @@ export function resolveHoverCursor(
     ctx.priceScaleSide ?? 'right',
   );
   if (zone === 'price') return 'ns-resize';
-  if (zone === 'timeAxis') return 'ew-resize';
+  if (zone === 'timeAxis') return 'crosshair';
 
   if (isDrawingToolActive(ctx.activeTool)) return 'crosshair';
   return 'crosshair';

@@ -72,7 +72,7 @@ export const DEFAULT_TOOLBAR_PREFS: ToolbarPrefs = {
 };
 
 /** Right sidebar panel identifiers — extend as new panels ship. */
-export type SidebarPanelId = "object-tree";
+export type SidebarPanelId = "object-tree" | "watchlist";
 
 export type SidebarPrefs = {
   activePanel: SidebarPanelId | null;

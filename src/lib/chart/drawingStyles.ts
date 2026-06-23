@@ -1,4 +1,5 @@
 import type { DrawingStyles, SerializedDrawing, Theme } from './contracts';
+import { defaultColorForKind } from './annotationMetadata';
 
 export type { DrawingStyles };
 
@@ -33,6 +34,9 @@ export function resolveDrawingStyles(
     lineColor: theme === 'dark' ? DARK_LINE : LIGHT_LINE,
   };
   const merged = drawing.styles ? mergeStyles(defaults, drawing.styles) : defaults;
+  if (drawing.metadata?.kind && drawing.styles?.lineColor == null) {
+    merged.lineColor = defaultColorForKind(drawing.metadata.kind, theme);
+  }
   if (selected) {
     return { ...merged, lineColor: '#f59e0b' };
   }

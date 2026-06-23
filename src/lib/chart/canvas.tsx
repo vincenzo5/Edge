@@ -13,7 +13,6 @@ import {
   zoom as zoomVp,
   applyMomentum,
   scalePriceFromInitial,
-  scaleTimeFromInitial,
   panPrice,
   attachViewportHelpers,
   refreshViewportForDataChange,
@@ -38,11 +37,12 @@ import {
 import { drawGrid, drawCandles, drawPlotBackground, drawPriceAxisAnnotations, drawAxes } from './renderer';
 import { formatAxisTime } from './time';
 import { formatCrosshairValue, shouldClearCrosshairOnLeave } from './crosshair';
-import { DrawingRegistry, IndicatorRegistry } from './pluginHost';
+import { DrawingRegistry, IndicatorRegistry, hitTestAll } from './pluginHost';
 import { drawIndicator } from './indicators/draw';
-import { clampPlot } from './drawingCoords';
+import { clampPlot, pointToPlot } from './drawingCoords';
+import { drawAnnotationBadge } from './drawings/annotationBadge';
 import type { DrawingPointerEvent } from './drawingController';
-import { sortDrawingsByZ } from './drawings/primitives';
+import { drawControlPoints, sortDrawingsByZ } from './drawings/primitives';
 import { getSessionViewport } from './rangePresets';
 
 type Props = {
@@ -64,7 +64,7 @@ type Props = {
   wheelingRef?: RefObject<boolean>;
   onCrosshairMove?: (event: CrosshairMoveEvent | null) => void;
   onViewportChange?: (vp: VisibleRange, paneId: string) => void;
-  onDrawingPointer?: (event: DrawingPointerEvent) => void;
+  onDrawingPointer?: (event: DrawingPointerEvent) => boolean | void;
   onDrawingContextMenu?: (event: DrawingPointerEvent & { clientX: number; clientY: number }) => boolean | void;
   onPriceScaleContextMenu?: (pos: { clientX: number; clientY: number; priceScaleMode: 'auto' | 'manual' }) => void;
   suppressCrosshair?: boolean;
@@ -155,6 +155,7 @@ export default function ChartCanvas({
   const suppressCrosshairRef = useRef(suppressCrosshair);
   suppressCrosshairRef.current = suppressCrosshair;
   const drawingDragRef = useRef(false);
+  const hoveredDrawingIdRef = useRef<string | null>(null);
 
   const toPlotEvent = (e: React.MouseEvent, phase: DrawingPointerEvent['phase']): DrawingPointerEvent => {
     const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
@@ -212,20 +213,15 @@ export default function ChartCanvas({
 
   const fitPriceScaleIfAuto = useCallback(
     (vp: VisibleRange, settingsOverride?: ChartSettings) => {
+      if ((vp.priceScaleMode ?? 'auto') === 'manual') return vp;
       const settings = settingsOverride ?? chartSettings;
       let next = vp;
       if (isPricePane) {
         next = attachViewportHelpers(
-            ensureRightMarginBars(
-              withPriceScaleContext(next, candles, settings),
-              candles.length,
-              width,
-              chartSettings.canvas.marginRightBars,
-            ),
+          withPriceScaleContext(next, candles, settings),
           candles.length,
         );
       }
-      if ((next.priceScaleMode ?? 'auto') === 'manual') return next;
       return fitPriceScale(next);
     },
     [fitPriceScale, isPricePane, candles, chartSettings],
@@ -272,6 +268,21 @@ export default function ChartCanvas({
       if (plugin) {
         const selected = d.id === selectedDrawingId;
         plugin.draw(ctx, d, vp, theme, selected, candles, { showTimeAxis });
+        if (d.metadata?.kind && d.points.length > 0) {
+          const anchor = pointToPlot(d.points[0]!, vp, candles, showTimeAxis);
+          drawAnnotationBadge(ctx, d, anchor, theme);
+        }
+      }
+    }
+
+    const hoveredDrawing = drawings.find(
+      (d) => d.id && d.id === hoveredDrawingIdRef.current && d.id !== selectedDrawingId
+    );
+    if (hoveredDrawing?.visible) {
+      const plugin = DrawingRegistry.get(hoveredDrawing.name);
+      const points = plugin?.getControlPoints?.(hoveredDrawing, vp, candles, showTimeAxis);
+      if (points?.length) {
+        drawControlPoints(ctx, points, theme, true);
       }
     }
 
@@ -282,6 +293,10 @@ export default function ChartCanvas({
           preview: true,
           showTimeAxis,
         });
+        const points = plugin.getControlPoints?.(previewDrawing, vp, candles, showTimeAxis);
+        if (points?.length) {
+          drawControlPoints(ctx, points, theme, true);
+        }
       }
     }
 
@@ -528,6 +543,10 @@ export default function ChartCanvas({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     dragModeRef.current = resolveDragMode(x, y, width, height, showTimeAxis, priceScaleSide);
+    // Time-axis strip scrolls (pans) like the plot; only the price axis scales Y.
+    if (dragModeRef.current === 'timeAxis') {
+      dragModeRef.current = 'body';
+    }
 
     const useDrawing =
       onDrawingPointerRef.current &&
@@ -547,19 +566,28 @@ export default function ChartCanvas({
       isPlotBody(x, y) &&
       drawingModeRef.current === 'navigate'
     ) {
-      onDrawingPointerRef.current(toPlotEvent(e, 'down'));
+      const consumed = onDrawingPointerRef.current(toPlotEvent(e, 'down'));
+      if (consumed) {
+        drawingDragRef.current = true;
+        isDraggingRef.current = true;
+        applyCursor(x, y, true);
+        return;
+      }
     }
 
     isDraggingRef.current = true;
     lastXRef.current = e.clientX;
     lastYRef.current = e.clientY;
     momentumRef.current = 0;
-    if (
-      vpRef.current &&
-      (dragModeRef.current === 'price' || dragModeRef.current === 'timeAxis')
-    ) {
-      axisDragSnapshotRef.current = snapshotViewport(vpRef.current);
-      axisDragStartRef.current = { clientX: e.clientX, clientY: e.clientY };
+    if (vpRef.current && dragModeRef.current === 'price') {
+      const manualPrice =
+        (vpRef.current.priceScaleMode ?? 'auto') === 'manual';
+      if (manualPrice) {
+        axisDragSnapshotRef.current = null;
+      } else {
+        axisDragSnapshotRef.current = snapshotViewport(vpRef.current);
+        axisDragStartRef.current = { clientX: e.clientX, clientY: e.clientY };
+      }
     } else {
       axisDragSnapshotRef.current = null;
     }
@@ -586,10 +614,30 @@ export default function ChartCanvas({
       if (
         onDrawingPointerRef.current &&
         isPlotBody(x, y) &&
+        drawingModeRef.current === 'edit' &&
+        dragModeRef.current === 'body'
+      ) {
+        onDrawingPointerRef.current(toPlotEvent(e, 'move'));
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => drawRef.current());
+        return;
+      }
+
+      if (
+        onDrawingPointerRef.current &&
+        isPlotBody(x, y) &&
         drawingModeRef.current === 'navigate' &&
         dragModeRef.current === 'body'
       ) {
         onDrawingPointerRef.current(toPlotEvent(e, 'move'));
+      }
+
+      const hoverZone = resolveDragMode(x, y, width, height, showTimeAxis, priceScaleSide);
+      if (dragModeRef.current === 'price' && hoverZone === 'body') {
+        dragModeRef.current = 'body';
+        axisDragSnapshotRef.current = null;
+        lastXRef.current = e.clientX;
+        lastYRef.current = e.clientY;
       }
 
       if (dragModeRef.current === 'price') {
@@ -603,13 +651,13 @@ export default function ChartCanvas({
             showTimeAxis
           );
           emitViewport(vpRef.current);
-        }
-      } else if (dragModeRef.current === 'timeAxis') {
-        const snapshot = axisDragSnapshotRef.current;
-        if (snapshot) {
-          const totalDeltaX = e.clientX - axisDragStartRef.current.clientX;
-          vpRef.current = scaleTimeFromInitial(snapshot, totalDeltaX, candles.length);
-          emitViewport(vpRef.current);
+        } else if ((vpRef.current.priceScaleMode ?? 'auto') === 'manual') {
+          const deltaY = e.clientY - lastYRef.current;
+          lastYRef.current = e.clientY;
+          if (deltaY !== 0) {
+            vpRef.current = panPrice(vpRef.current, deltaY, candles.length);
+            emitViewport(vpRef.current);
+          }
         }
       } else if (dragModeRef.current === 'body' && drawingModeRef.current === 'navigate') {
         const deltaX = e.clientX - lastXRef.current;
@@ -634,7 +682,16 @@ export default function ChartCanvas({
       rafRef.current = requestAnimationFrame(() => drawRef.current());
     } else {
       applyCursor(x, y, false);
-      if (suppressCrosshairRef.current) return;
+
+      const nextHoveredDrawingId =
+        drawingModeRef.current === 'navigate' && isPlotBody(x, y)
+          ? hitTestAll(x, y, drawings, layoutViewport(vpRef.current), candles, showTimeAxis)
+          : null;
+      if (hoveredDrawingIdRef.current !== nextHoveredDrawingId) {
+        hoveredDrawingIdRef.current = nextHoveredDrawingId;
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => drawRef.current());
+      }
 
       if (
         onDrawingPointerRef.current &&
@@ -642,8 +699,12 @@ export default function ChartCanvas({
         drawingModeRef.current !== 'navigate'
       ) {
         onDrawingPointerRef.current(toPlotEvent(e, 'move'));
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => drawRef.current());
         return;
       }
+
+      if (suppressCrosshairRef.current) return;
 
       const vp = layoutViewport(vpRef.current);
       const pw = plotWidth(width, priceScaleSide);
@@ -783,6 +844,10 @@ export default function ChartCanvas({
       onMouseUp={(e) => handleMouseUp(e)}
       onMouseLeave={(e) => {
         handleMouseUp(e);
+        if (hoveredDrawingIdRef.current) {
+          hoveredDrawingIdRef.current = null;
+          drawRef.current();
+        }
         resetCursor();
         if (wheelingRef?.current) return;
         const container = (e.currentTarget as HTMLElement).closest('[data-edge-chart]');

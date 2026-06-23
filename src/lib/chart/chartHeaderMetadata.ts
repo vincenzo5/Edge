@@ -189,6 +189,7 @@ export function groupChartTypeMenu(): Record<ChartTypeMenuItem['section'], Chart
 }
 
 export const HEADER_ACTIONS: HeaderActionDescriptor[] = [
+  { id: 'layout', label: 'Layout setup', implemented: true },
   { id: 'indicators', label: 'Indicators', implemented: true },
   { id: 'indicatorFavorites', label: 'Favorite indicators', implemented: true },
   { id: 'templates', label: 'Templates', implemented: true },
@@ -196,7 +197,10 @@ export const HEADER_ACTIONS: HeaderActionDescriptor[] = [
   { id: 'replay', label: 'Replay', implemented: true },
   { id: 'undo', label: 'Undo', implemented: true, shortcut: '⌘ Z' },
   { id: 'redo', label: 'Redo', implemented: true, shortcut: '⌘ ⇧ Z' },
+  { id: 'search', label: 'Quick search', implemented: false, disabledReason: 'Coming soon', shortcut: '⌘ K' },
   { id: 'settings', label: 'Settings', implemented: true },
+  { id: 'fullscreen', label: 'Fullscreen mode', implemented: true, shortcut: '⇧ F' },
+  { id: 'snapshot', label: 'Take a snapshot', implemented: false, disabledReason: 'Coming soon' },
   { id: 'trade', label: 'Trade', implemented: false, disabledReason: 'Trading not available' },
   { id: 'publish', label: 'Publish', implemented: false, disabledReason: 'Publishing not available' },
 ];

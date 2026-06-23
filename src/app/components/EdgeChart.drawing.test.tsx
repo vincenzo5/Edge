@@ -162,6 +162,32 @@ describe('EdgeChart drawing handle', () => {
     expect(ref.current!.serializeDrawings()[0].styles?.lineColor).toBeUndefined();
   });
 
+  it('updateDrawingMetadata patches serialized metadata and undo reverts', async () => {
+    const ref = { current: null as import('./EdgeChart').ChartHandle | null };
+    const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
+    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(1));
+
+    act(() => {
+      ref.current!.updateDrawingMetadata('d1', {
+        kind: 'invalidation',
+        source: 'ai',
+        status: 'proposed',
+        rationale: 'Break below support',
+      });
+    });
+    expect(ref.current!.serializeDrawings()[0].metadata).toMatchObject({
+      kind: 'invalidation',
+      status: 'proposed',
+      rationale: 'Break below support',
+    });
+
+    act(() => {
+      expect(ref.current!.undo()).toBe(true);
+    });
+    expect(ref.current!.serializeDrawings()[0].metadata).toBeUndefined();
+  });
+
   it('undo reverts lockAllDrawings and redo restores it', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
@@ -212,5 +238,32 @@ describe('EdgeChart drawing handle', () => {
     const afterUndo = ref.current!.serializeDrawings().sort((a, b) => a.zLevel - b.zLevel);
     expect(afterUndo[0].id).toBe('d2');
     expect(afterUndo[1].id).toBe('d1');
+  });
+
+  it('getDrawingScreenBounds returns bounds for persisted drawing', async () => {
+    const ref = { current: null as import('./EdgeChart').ChartHandle | null };
+    const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
+    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(1));
+
+    await waitFor(() => {
+      const bounds = ref.current!.getDrawingScreenBounds('d1');
+      expect(bounds).not.toBeNull();
+      expect(bounds!.width).toBeGreaterThan(0);
+      expect(bounds!.height).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  it('selectDrawing exposes selected id via onSelectionChange', async () => {
+    const ref = { current: null as import('./EdgeChart').ChartHandle | null };
+    const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
+    const onSelection = vi.fn();
+    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    await waitFor(() => expect(ref.current).not.toBeNull());
+
+    ref.current!.onSelectionChange(onSelection);
+    ref.current!.selectDrawing('d1');
+    expect(onSelection).toHaveBeenCalledWith('d1');
+    expect(ref.current!.getSelectedDrawingId()).toBe('d1');
   });
 });

@@ -1,6 +1,10 @@
 // src/lib/chart/contracts.ts
 // Core data contracts for Edge Custom Chart V1 (minimal, self-contained)
 
+import type { DrawingMetadata } from "./annotationMetadata";
+
+export type { DrawingMetadata } from "./annotationMetadata";
+
 export type Candle = {
   t: number;
   o: number;
@@ -49,6 +53,7 @@ export type SerializedDrawing = {
   points: Array<{ dataIndex?: number; timestamp?: number; value?: number }>;
   mode?: string;
   styles?: DrawingStyles;
+  metadata?: DrawingMetadata;
   visible: boolean;
   locked: boolean;
   zLevel: number;
