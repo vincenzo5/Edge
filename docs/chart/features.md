@@ -36,7 +36,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 - **Input**: Wheel + pinch on `[data-edge-chart]`, rAF-batched (`wheel.ts`, `pinch.ts`); pan momentum in `canvas.tsx`.
 - **Plugins**: Indicators and drawings register through `pluginHost.ts` / registries; toolbar names are aliased to registry keys.
 - **Multi-pane sync**: Imperative `ChartPaneHandle` registration (`paneHandle.ts`); time window synced across panes without React state on every wheel tick.
-- **Multi-chart sync**: `ChartSyncProvider` in `ChartGrid`; source chart fires `onCrosshairTimestamp` → `broadcast`; peers receive via `ChartSyncBridge` → `setCrosshairFromSync`. Gated on `ChartLayout.linked`.
+- **Multi-chart sync**: `ChartSyncProvider` in `ChartGrid`; source chart fires `onCrosshairTimestamp` → `broadcast`; peers receive via `ChartSyncBridge` → `setCrosshairFromSync`. Crosshair broadcast gated on `ChartLayout.linkCrosshair`; symbol/range/interval propagation gated on `linkSymbol` / `linkInterval`.
 - **Persistence**: `ChartLayout` + per-cell `CellConfig` in `localStorage` via `layoutStorage.ts` (debounced 500 ms).
 
 ---
@@ -66,7 +66,9 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 |-------|---------|
 | `version` | Schema version (`1`) |
 | `gridMode` | `1x1`, `2x1`, `1x2`, `3x1`, `2x2` |
-| `linked` | When checked: atomic symbol/range/interval propagation **and** multi-chart crosshair sync |
+| `linkSymbol` | When on: symbol / symbolName / exchange propagate to peer cells on active-cell update |
+| `linkInterval` | When on: range / interval / rangePreset propagate to peer cells |
+| `linkCrosshair` | When on: crosshair timestamp broadcast across visible cells |
 | `activeCellIndex` | Focused cell (0…N−1); drawing tools apply here; persisted |
 | `theme` | `light` \| `dark` (applied to `<html>` class) |
 | `cells` | Array of `CellConfig` (length matches grid mode) |
@@ -89,6 +91,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Heikin Ashi transform | **Done** | Applied when `chartType === 'heikin_ashi'` |
 | Bar Replay data slice | **Done** | `onDataLoaded` → `candleCount`; `baseCandles` + `applyVisibleSlice` (no refetch on scrub) |
 | Infinite scroll / edge fetch | **Done** | Pan-left (`startIndex < 30`, 150 ms throttle) prepends via `POST /api/candles` `{ before }`; `adjustViewportForPrepend` keeps window stable |
+| Event badge overlays | **Done** | Corporate, filing, macro, news, and options expiration events render in a reserved bottom event rail as grouped badges (count glyph when overlapping); click opens grouped detail card; full-height guides on hover/selection only. Chart settings default to earnings/dividends/splits/filings plus macro for benchmark symbols; news and options expirations are opt-in. |
 | Loading / error states | **Done** | Overlay text in `EdgeChart` while fetching or on failure |
 
 ---
@@ -103,7 +106,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Area chart | **Done** | `area` |
 | Heikin Ashi display | **Done** | Data transformed before render |
 | Price grid | **Done** | Horizontal + vertical grid lines |
-| Price / time axes | **Done** | Right price strip (50 px), bottom time strip (30 px) on bottom pane only; time labels abstracted by visible span (month/year on daily zoom-out) |
+| Price / time axes | **Done** | Right price strip (50 px), bottom time strip (30 px) on bottom pane only; price labels and horizontal grid use screen-space-aware anchored "nice" increments; time labels abstracted by visible span (month/year on daily zoom-out) |
 | Last price line | **Done** | Blue horizontal line + label on price pane |
 | Light / dark theme | **Done** | `Theme` tokens in `renderer.ts`; `StockApp` toggles `<html>` class |
 | Last-price / axis guards | **Done** | Finite checks before draw (no `toFixed` on NaN) |
@@ -145,7 +148,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Manual Y lock (time-axis drag) | **Done** | `scaleTimeFromInitial()` sets manual |
 | Manual Y pan (body drag, manual only) | **Done** | `panPrice()` when mode is manual |
 | Double-click price axis → reset auto | **Done** | `resetPanePriceScale()` per pane |
-| Reset chart view (context menu) | **Partial** | Always in blank menu; disabled when viewport default; no ⌥R — see [context-menu-reference.md §1.1](./context-menu-reference.md#11-chart-view) |
+| Reset chart view (context menu) | **Done** | Blank menu + ⌥R shortcut; disabled when viewport default — [context-menu-reference.md §1.1](./context-menu-reference.md#11-chart-view) |
 | Viewport modified detection | **Done** | `isViewportModified()` compares pan/zoom/scale to defaults |
 | Hover cursors | **Done** | `resolveHoverCursor()` — crosshair, grab/grabbing, ns/ew-resize on axes |
 | Drawing-tool cursor mode | **Done** | Active drawing tool shows crosshair cursor on canvas |
@@ -180,7 +183,8 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Unified crosshair overlay | **Done** | Single `CrosshairOverlay` spans all panes |
 | Vertical line (all panes) | **Done** | `drawUnifiedCrosshair()` |
 | Horizontal line (active pane) | **Done** | Clamped to active pane plot area |
-| Candle snap (10 px) | **Done** | Snaps vertical line to nearest candle center |
+| Free crosshair X default | **Done** | Vertical line follows cursor X freely between bars by default |
+| Lock vertical cursor line | **Done** | Blank-menu toggle freezes the vertical line at the captured plot X until unlocked; menu hover suppresses crosshair updates |
 | Price badge (Y-axis) | **Done** | `formatCrosshairValue()` + `priceForPlotY()` |
 | Time badge (X-axis) | **Done** | Bottom pane only; `formatAxisTime()` |
 | Indicator value at cursor | **Partial** | `valueAt` on MACD; other indicators lack it |
@@ -188,7 +192,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | No clear during wheel | **Done** | `wheelingRef` suppresses flicker |
 | Clear when leaving chart (not sibling pane) | **Done** | `shouldClearCrosshairOnLeave()` |
 | Hide crosshair while drawing | **Done** | `shouldHideCrosshair()` suppresses overlay + price pane crosshair during draw |
-| Multi-chart crosshair sync | **Done** | `onCrosshairTimestamp` on source chart → `ChartSyncContext.broadcast` (when `linked`) → peer `setCrosshairFromSync(ts)` via `findDataIndexForTimestamp` + `buildSyncedCrosshairState`; feedback loop guarded by `syncingCrosshairRef` |
+| Multi-chart crosshair sync | **Done** | `onCrosshairTimestamp` on source chart → `ChartSyncContext.broadcast` (when `linkCrosshair`) → peer `setCrosshairFromSync(ts)` via `findDataIndexForTimestamp` + `buildSyncedCrosshairState`; feedback loop guarded by `syncingCrosshairRef` |
 
 ---
 
@@ -200,21 +204,30 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 
 **Architecture:** Unified catalog in `src/lib/chart/indicators/catalog.ts` + plugin registry in `registry.ts`. Picker reads `getCatalog()` — only `implemented: true` entries are clickable. MACD is the reference plugin pattern: `compute` → `outputs` → `draw`, with shared helpers in `indicators/math.ts` and `indicators/draw.ts`.
 
-**Picker UI:** 27 catalog names across Trend (7), Momentum (16), and Volume (4) categories. Volatility and Other categories exist in the type system but have no entries yet.
+**Picker UI:** 30 catalog names across Trend (8), Momentum (16), Volume (5), and Volatility (1). Other categories exist in the type system but have no entries yet.
 
-**Engine registry** (`indicators/registry.ts`): **6 implemented** V1 plugins (MA, EMA, BOLL, MACD, RSI, VOL); 21 catalog entries remain picker-disabled.
+**Engine registry** (`indicators/registry.ts`): **15 implemented** plugins (MA, EMA, BOLL, MACD, RSI, VOL, VWAP, ATR, KDJ, CCI, OBV, DMI, WR, ROC, Supertrend); 15 catalog entries remain picker-disabled.
 
 | Indicator | Pane | Status | Notes |
 |-----------|------|--------|-------|
 | MA | main | **Done** | `compute` + `sma`; paramSchema for period |
 | EMA | main | **Done** | Exponential MA; settings modal |
 | BOLL | main | **Done** | Upper/middle/lower bands via `computeBollinger` |
+| VWAP | main | **Done** | Cumulative volume-weighted average price |
 | MACD | sub | **Done** | Reference plugin: `compute` + `outputs`; shared draw helpers |
 | RSI | sub | **Done** | Wilder RSI; fixed 0–100 Y-scale; 30/70 guides |
 | VOL | sub | **Done** | Volume bars colored by candle direction |
+| ATR | sub | **Done** | Wilder-smoothed true range |
+| KDJ | sub | **Done** | Stochastic %K/%D + KDJ %J; 20/80 guides |
+| CCI | sub | **Done** | Commodity Channel Index; ±100 guides |
+| OBV | sub | **Done** | Cumulative on-balance volume line |
+| DMI | sub | **Done** | +DI, -DI, ADX; Wilder method; 25 ADX guide |
+| WR | sub | **Done** | Williams %R; -20/-80 guides |
+| ROC | sub | **Done** | Rate of change (%); zero-centered Y-scale |
+| Supertrend | main | **Done** | ATR-based trend line overlay; configurable period/multiplier |
 | SMA, BBI, SAR, AVP | main | **Planned** | In catalog; picker disabled |
-| KDJ, CCI, BIAS, … (momentum) | sub | **Planned** | In catalog; picker disabled |
-| OBV, VR, PVT | sub | **Planned** | In catalog; picker disabled |
+| BIAS, BRAR, … (momentum) | sub | **Planned** | In catalog; picker disabled (DMI, WR, ROC now **Done**) |
+| VR, PVT | sub | **Planned** | In catalog; picker disabled |
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -293,7 +306,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Draw on chart | **Done** | Price + sub-panes; z-sorted render per pane |
 | Sub-pane drawing routing (platform 4.1) | **Done** | Pane-scoped input, coords, render; trend/hline on RSI |
 | Full sub-pane tool parity (platform 4.2) | **Done** | All 13 tools; pane-scoped hit-test + selection |
-| Object Tree pane labels (platform 4.2) | **Done** | Badge per drawing (`Price` vs indicator name) |
+| Object Tree pane labels (platform 4.2) | **Done** | Data window section headers; object tree uses flat labels |
 | Serialize to `CellConfig.drawings` | **Done** | `timestamp`+`value` points; debounced 500 ms |
 | Hit test / select | **Done** | 4px tolerance; topmost z-order |
 | Edit control points | **Done** | Magnet applies on CP drag |
@@ -301,7 +314,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Magnet (snap OHLC) | **Done** | 5px strong magnet |
 | Drawing context menu (rename/lock/hide/z) | **Done** | Canvas right-click hit-test → overlay menu — see [context-menu-reference.md §2](./context-menu-reference.md#2-drawing--overlay-context-menu) |
 | Z-order / duplicate | **Done** | `bringForward`/`sendBackward`/`duplicateOverlay` |
-| Object Tree drawings section | **Done** | Lists tracked overlays; pane badge; reorder via z-level |
+| Object Tree drawings section | **Done** | Flat tracked overlay list; reorder via z-level drag |
 
 ---
 
@@ -318,15 +331,16 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
 | Drawing toolbar rail | **Done** | Left column in `ChartCell` |
 | Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.ts` for future panels (watchlist, alerts, chat) |
-| Object Tree panel | **Done** | Right sidebar panel (`object-tree`); follows active chart via `ActiveChartContext`; section collapse persisted per `chartId` |
-| Object Tree — symbol section | **Done** | Shows symbol, range, interval |
-| Object Tree — data window | **Done** | Live OHLCV + visible indicator values at crosshair via `legend.ts`; candles from active cell `EdgeChart.onCandlesChange` (display slice, not fetch callback); expanded by default in sidebar |
+| Object Tree panel | **Done** | Right sidebar panel (`object-tree`); follows active chart via `ActiveChartContext`; Object tree / Data window tabs persisted per `chartId` |
+| Object Tree — symbol row | **Done** | Flat list: symbol · exchange · interval |
+| Object Tree — data window tab | **Done** | Crosshair date, collapsible price/indicator sections with hover eye toggles; indicator sections always show their value rows in the panel; Volume appears only for added `VOL`; price eye syncs `mainSeriesVisible` and hides the on-chart price legend |
+| Object Tree — drawing rows | **Done** | z-sorted flat list; select, hover eye/lock/trash, rename, drag reorder |
 | Indicator picker modal | **Done** | |
 | Bar Replay panel | **Done** | Slider driven by `onDataLoaded`; slice via `visibleCount` without refetch |
-| Blank chart context menu | **Partial** | Reset, copy price, paste drawings, object tree, chart templates, bulk remove, settings — [context-menu-reference.md §1](./context-menu-reference.md#1-blank-chart-plot-area) |
+| Blank chart context menu | **Done** | Reset, copy price, paste, object tree, crosshair lock toggle, templates, bulk remove (incl. combined), settings — [context-menu-reference.md §1](./context-menu-reference.md#1-blank-chart-plot-area) |
 | Drawing overlay context menu | **Done** | Rename, settings, copy, paste, lock, hide, z-order, duplicate, remove — [context-menu-reference.md §2.2](./context-menu-reference.md#22-edge-overlay-menu-today) |
 | Chart / study templates | **Done** | `presetStorage.ts` (`tv-ai:presets:v1`); save chart from blank menu; apply via `TemplatePickerModal`; save study from indicator settings |
-| Price / time axis context menus | **Partial** | Price axis right-click → scale type menu + reset; double-click reset; time axis menu deferred — [context-menu-reference.md §3–4](./context-menu-reference.md#3-price-scale-y-axis-context-menu) |
+| Price / time axis context menus | **Partial** | Price axis right-click → scale type, invert, scale-price-only, labels/lines submenus, more settings; double-click reset; time axis dedicated menu deferred — [context-menu-reference.md §3–4](./context-menu-reference.md#3-price-scale-y-axis-context-menu) |
 | Old Chart (`Chart.tsx`) | **Legacy removed** | klinecharts wrapper deleted; `ChartCell` uses `EdgeChart` only |
 
 ---
@@ -342,7 +356,7 @@ Imperative API consumed by `ChartCell`, Object Tree, and sync bridge.
 | `serializeDrawings` / `restoreDrawings` | **Done** | |
 | `resize` | **Done** | Reads container `clientWidth/Height` |
 | `onCrosshair` | **Done** | Fires timestamp on move (imperative subscribe) |
-| `onCrosshairMove` (prop) | **Done** | `{ timestamp, dataIndex, valueLabel }` for Object Tree + blank menu copy price |
+| `onCrosshairMove` (prop) | **Done** | `{ timestamp, dataIndex, valueLabel, plotX }` for Object Tree, blank menu copy price, and crosshair lock capture |
 | `getRawCandleCount` / `getCandles` | **Done** | Full base dataset length and display candles |
 | `setCrosshairFromSync` | **Done** | Applies peer crosshair at timestamp; no re-broadcast |
 | `getTrackedOverlays` | **Done** | |
@@ -389,8 +403,8 @@ Chart engine tests live under `src/lib/chart/` (Vitest). App/layout tests under 
 | Drawing plugins | `drawings/trend_line.test.ts`, `drawings/fib_retracement.test.ts`, `drawings/primitives.test.ts` | hitTest, fib levels |
 | EdgeChart drawing | `EdgeChart.drawing.test.tsx` | Handle API smoke |
 | Grid layout shell | `ChartGrid.layout.test.tsx` | All 5 `GridMode`s; `min-h-0` / `overflow-hidden` classes |
-| Link propagation | `chartConfig.link.test.ts` | `pickLinkFields`, linked/unlinked patches, `activeCellIndex` persistence |
-| Crosshair sync bus | `ChartSyncContext.test.tsx` | Broadcast when linked; no-op when unlinked |
+| Link propagation | `chartConfig.link.test.ts` | `pickLinkSymbolFields`, `pickLinkIntervalFields`, per-flag propagation, legacy `linked` migration, `activeCellIndex` persistence |
+| Crosshair sync bus | `ChartSyncContext.test.tsx` | Broadcast when `linkCrosshair`; no-op when off |
 | Blank chart context menu | `chartContextMenu.test.ts` | Menu builder items, disabled reset, counts, actions |
 | Context menu UI | `ContextMenu.test.tsx` | Viewport clamping; disabled items |
 | App smoke | `StockApp.test.tsx` | Render, theme hydration |
@@ -445,15 +459,15 @@ V1 chart contract closed June 2025 (Phases 0–4). Remaining work is polish and 
 | Area | Notes |
 |------|-------|
 | **Indicator platform (Tier 1 + 2)** | [indicator-foundation-plan.md](./indicator-foundation-plan.md) — id lifecycle, typed inputs, styles, declarative draw; blocks catalog batch |
-| **Catalog indicators** | 21 of 27 catalog entries still picker-disabled; batch using MACD/MA plugin template after foundation Tier 1 |
+| **Catalog indicators** | 15 of 30 catalog entries implemented (batches 1–2); further batches deferred |
 | **`valueAt` on all plugins** | MACD + defaults cover crosshair; explicit overrides optional for remaining plugins |
 | **Legend eye/delete actions** | Settings gear done; per-legend visibility/delete still deferred |
-| **Granular layout sync** | Single `linked` checkbox; separate symbol/interval/crosshair toggles deferred |
-| **Drawing sync across cells** | Drawings per-cell only |
+| **Granular layout sync** | **Done** | Independent `linkSymbol`, `linkInterval`, `linkCrosshair`, `linkDrawings` toggles in layout setup menu; legacy `linked` migrated on load |
+| **Drawing sync across cells** | **Done** | `linkDrawings` propagates drawings via layout state + runtime sync bus |
 | **Named drawing templates** | Copy/paste only; no “Save as template” on drawings |
 | **Drawing visibility intervals** | Deferred — show drawing only on selected timeframes |
 | **Template export/import** | localStorage only; no JSON download |
-| **Undo/redo drawings** | Not implemented |
+| **Undo/redo drawings** | **Done** — `DrawingStore` + keyboard shortcuts; kept here as recently closed context |
 | **Log / percent / indexed scale modes** | **Done** | `priceScaleType` in `chartSettings`; price-axis context menu + Settings modal |
 | **Go to date** | **Done** | Range-bar calendar icon + chart context menu (⌥G); centers single date or fits custom range; fetches older bars when needed |
 | **Replay position persist** | Bar Replay state not saved to `CellConfig` |
@@ -470,16 +484,16 @@ Prioritized against [tradingview-reference.md](./tradingview-reference.md). Edge
 
 | Priority | Edge work | Notes |
 |----------|-----------|-------|
-| A0 | ~~**Blank chart context menu — remaining**~~ | **Done** — `ChartSettingsModal`, blank-menu **Settings…**, cell toolbar gear, ⌥R reset |
-| A1 | **Batch indicator plugins** — next 5–10 catalog entries | Follow `macd.ts` / `ma.ts` template; enable in picker as shipped |
-| A2 | **Granular layout sync toggles** | Separate symbol / interval / crosshair (not one checkbox) |
+| A0 | ~~**Blank chart context menu — remaining**~~ | **Done** — `ChartSettingsModal`, blank-menu **Settings…**, ⌥R reset, crosshair lock toggle, combined bulk remove |
+| A1 | ~~**Batch indicator plugins** — next 5–10 catalog entries~~ | **Deferred** — batches 1–2 shipped (15 studies); further expansion not near-term |
+| A2 | ~~**Granular layout sync toggles**~~ | **Done** — separate symbol / interval / crosshair / drawings toggles in `ChartLayoutMenu` |
 | A3 | ~~**Undo/redo for drawings**~~ | **Done** — `DrawingStore` + ⌘Z / ⌘⇧Z in active cell |
 
 ### Tier B — TV parity (lower urgency)
 
 | Priority | Edge work | Notes |
 |----------|-----------|-------|
-| B1 | **Drawing sync across layout cells** | Stable drawing IDs + link rules |
+| B1 | ~~**Drawing sync across layout cells**~~ | **Done** — `linkDrawings` + stable IDs + layout/runtime propagation |
 | B2 | ~~**Log / percent / indexed-to-100** price scale modes~~ | **Done** — `priceScaleTransform` + axis menu + settings |
 | B3 | ~~**Go to date** / jump viewport~~ | **Done** — `ChartGoToModal`, `goTo.ts`, range-bar icon |
 | B4 | **Persist Bar Replay position** | Optional `CellConfig` field |

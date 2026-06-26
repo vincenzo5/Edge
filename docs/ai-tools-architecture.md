@@ -161,7 +161,7 @@ Add to `.cursor/mcp.json`:
 
 ## Linked Layout Caveat
 
-When `layout.linked` is true, symbol/range/interval changes on the active cell propagate to all visible cells via `pickLinkFields`. Tools that mutate these fields document this behavior in their descriptions.
+When `layout.linkSymbol` or `layout.linkInterval` is on, symbol or range/interval changes on the active cell propagate to peer cells via `applyLinkPropagation`. Crosshair sync is gated on `layout.linkCrosshair`. Tools that mutate these fields document propagation in their descriptions.
 
 ## Rich Annotations (product direction)
 

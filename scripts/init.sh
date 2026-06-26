@@ -1,18 +1,30 @@
 #!/usr/bin/env bash
-# init.sh — Initialize the TV AI stock chart prototype.
-# Idempotent: safe to re-run. Verifies Node, cleans installs, smoke-tests the build.
+# init.sh — Initialize Edge (TV AI) for a fresh agent or developer session.
+# Idempotent: safe to re-run. Preserves package-lock.json for reproducible installs.
 set -euo pipefail
 
-# Resolve the project root (directory containing this script's parent).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
+
+FULL_CHECK=false
+for arg in "$@"; do
+  case "$arg" in
+    --full) FULL_CHECK=true ;;
+    -h|--help)
+      echo "Usage: scripts/init.sh [--full]"
+      echo "  Default: npm ci + startup readiness check"
+      echo "  --full:  npm ci + full check (lint:instructions, all tests, build)"
+      exit 0
+      ;;
+  esac
+done
 
 log() { printf '\n\033[1;34m[init]\033[0m %s\n' "$1"; }
 err() { printf '\n\033[1;31m[error]\033[0m %s\n' "$1" >&2; }
 
 # ---------------------------------------------------------------------------
-# 1. Verify Node version (>= 20 required by Next 15 / yahoo-finance2 v3).
+# 1. Verify Node version (>= 20 required by Next / yahoo-finance2 v3).
 # ---------------------------------------------------------------------------
 log "Checking Node version..."
 if ! command -v node >/dev/null 2>&1; then
@@ -34,27 +46,30 @@ fi
 echo "  npm v$(npm -v) OK"
 
 # ---------------------------------------------------------------------------
-# 2. Clean install for reproducibility.
+# 2. Clean build artifacts only (preserve lockfile).
 # ---------------------------------------------------------------------------
-log "Cleaning previous install (node_modules, lockfile, .next)..."
-rm -rf node_modules package-lock.json .next
-echo "  cleaned"
+log "Cleaning build artifacts (.next)..."
+rm -rf .next
+echo "  cleaned .next"
 
 # ---------------------------------------------------------------------------
-# 3. Install dependencies.
+# 3. Install dependencies from lockfile when available.
 # ---------------------------------------------------------------------------
-log "Installing dependencies (this may take a minute)..."
-npm install --no-audit --no-fund
+log "Installing dependencies..."
+if [ -f package-lock.json ]; then
+  npm ci --no-audit --no-fund
+else
+  npm install --no-audit --no-fund
+fi
 
 # ---------------------------------------------------------------------------
-# 4. Create .env.local placeholder if absent (no API key needed for Yahoo,
-#    but reserved for future config). .gitignore already excludes .env.local.
+# 4. Create .env.local placeholder if absent.
 # ---------------------------------------------------------------------------
 if [ ! -f .env.local ]; then
   log "Creating .env.local placeholder..."
   cat > .env.local <<'EOF'
 # Yahoo Finance (yahoo-finance2) requires no API key.
-# Add any future secrets here. This file is gitignored.
+# Copy vars from .env.example when using Postgres persistence.
 EOF
   echo "  created .env.local"
 else
@@ -62,14 +77,14 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Smoke test: confirm the production build compiles.
+# 5. Startup readiness verification.
 # ---------------------------------------------------------------------------
-log "Running production build smoke test..."
-if npm run build; then
-  log "Build succeeded."
+if [ "$FULL_CHECK" = true ]; then
+  log "Running full check..."
+  npm run check
 else
-  err "Build failed. See output above."
-  exit 1
+  log "Running startup readiness check..."
+  npm run check:startup
 fi
 
 # ---------------------------------------------------------------------------
@@ -77,3 +92,4 @@ fi
 # ---------------------------------------------------------------------------
 log "Initialization complete."
 echo "  Run \`npm run dev\` and open http://localhost:3003"
+echo "  See docs/PROJECT-STATUS.md for active work and next priorities"

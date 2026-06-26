@@ -1,0 +1,25 @@
+---
+description: Make every plan aware of the project harness and ensure docs/PROJECT-STATUS.md stays current
+alwaysApply: true
+---
+
+# Plan Mode — Harness Awareness
+
+When generating any plan (especially in Plan mode):
+
+1. **Read the harness first**  
+   Before writing the plan, review the current state in `docs/PROJECT-STATUS.md` (particularly "Current Verified State", "Active Work", "Session Log", and any open Task Contract). Also reference `AGENTS.md` for the overall harness contract.
+
+2. **Every plan must keep the harness current**  
+   The plan MUST explicitly include steps to:
+   - Update or add a row in the **Active Work** table (one item only may be **Active** at a time).
+   - Record: Feature name, Behavior, State, Completion evidence / latest result, and Files.
+   - Append a **Session Log** entry if this is long-running or cross-session work.
+   - Create or update a **Task Contract** when the work is long-running or crosses multiple components.
+   - Respect WIP=1 and Definition of Done (completion evidence must pass before marking **Passing**).
+
+3. **Plan output requirement**  
+   In addition to the normal plan content, every plan must contain a short "Harness Update" section that states exactly what rows/sections in `docs/PROJECT-STATUS.md` will be modified and what the new state will be after execution.
+
+4. **Execution discipline**  
+   When the plan is later executed, the harness state must be updated as the final step so the next agent or developer can see the current verified state without verbal context.

@@ -121,7 +121,7 @@ Single source of truth for SVG markup:
 | Active | `#2A2E39` | `#D1D4DC` |
 | Flyout panel | `#131722` | border `#1E222D` |
 
-**Display sizes:** default rail icons 36 px; compact grid 32 px. Button hit targets: 52×52 px default, 40×40 px when `compact={true}`.
+**Display sizes:** default rail icons 18 px; compact 16 px. Button hit targets: 36×36 px default (`h-9 w-9`), 32×32 px when `compact={true}` (`h-8 w-8`). Rail width: 44 px default, 40 px compact — shared with the right sidebar icon rail.
 
 Run export: `node --experimental-strip-types scripts/export-chart-icons.ts`
 

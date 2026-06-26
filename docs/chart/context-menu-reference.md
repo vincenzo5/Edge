@@ -24,7 +24,7 @@ TradingView exposes different menus depending on hit target. The charting librar
 | Candle / price series | Copy price, alert, order shortcuts (when trading enabled) |
 | Order / position on chart | Modify, close, bracket edit (broker-connected) |
 
-Edge today implements **drawing overlay menus** and a **minimal blank-chart menu** only.
+Edge today implements **blank chart**, **drawing overlay**, and **price-axis** context menus.
 
 ---
 
@@ -36,7 +36,7 @@ Right-click on empty canvas (not on a drawing, legend, or axis). TradingView **a
 
 | Item | Shortcut | Description | Edge status | Edge notes |
 |------|----------|-------------|-------------|------------|
-| **Reset chart view** | ⌥ R (Alt+R) | Reset pan, zoom, and scales to default fit | **Partial** | Always in blank menu via `buildChartContextMenuItems()`; disabled when not modified; no ⌥R shortcut |
+| **Reset chart view** | ⌥ R (Alt+R) | Reset pan, zoom, and scales to default fit | **Done** | Blank menu + global ⌥R shortcut via `buildShortcutCommands`; disabled when viewport default |
 | **Reset scale** | — | Reset price/time scales (subset of full reset) | **Partial** | Double-click price axis → auto scale per pane; not in blank menu |
 | **Clear chart cache** | — | Fix display glitches without changing layout | **None** | N/A for custom canvas engine |
 
@@ -62,7 +62,7 @@ Shown when a broker is connected and/or alerts are enabled. Labels include symbo
 
 | Item | Shortcut | Description | Edge status | Edge notes |
 |------|----------|-------------|-------------|------------|
-| **Lock vertical cursor line by time** | — | Toggle: crosshair X snaps to bar times vs free float | **Partial** | Always snaps within 10px of candle center ([gesture-bible](./prereqs/gesture-bible.md)); no user toggle |
+| **Lock vertical cursor line by time** | — | Toggle: freeze the vertical crosshair line at its current X position vs free cursor follow | **Done** | Blank menu toggle → `chartSettings.canvas.lockCrosshairToTime`; default off; locked X stored in `lockedCrosshairPlotX`; menu hover suppresses crosshair updates |
 
 ### 1.5 View & organization
 
@@ -89,7 +89,7 @@ Dynamic labels reflect counts on the chart.
 |------|----------|-------------|-------------|------------|
 | **Remove {N} drawings** | — | Delete all drawings on chart | **Done** | Blank menu → `clearDrawings()` when count > 0 |
 | **Remove {N} indicators** | — | Remove all indicators | **Done** | Blank menu → `update({ indicators: [] })` when count > 0 |
-| **Remove drawings and indicators** | — | Clear both | **None** | — |
+| **Remove drawings and indicators** | — | Clear both | **Done** | Blank menu when both counts > 0 |
 
 ### 1.7 Settings
 
@@ -162,14 +162,14 @@ Right-click the price axis strip.
 | Item | Shortcut | Description | Edge status | Edge notes |
 |------|----------|-------------|-------------|------------|
 | **Reset price scale** | Double-click axis | Return to auto-fit for pane | **Done** | Double-click price axis → `resetPanePriceScale()` |
-| **Scale price chart only** | — | Indicators don’t affect Y range | **None** | TV option when indicator compresses candles |
-| **Invert scale** | ⌥ I | Flip price axis | **None** | — |
+| **Scale price chart only** | — | Indicators don’t affect Y range | **Done** | Price axis context menu toggle → `scales.scalePriceChartOnly` |
+| **Invert scale** | ⌥ I | Flip price axis | **Done** | Price axis menu toggle; shortcut label shown (global binding deferred) |
 | **Auto** | — | Linear auto scale | **Done** | Default `priceScaleType: 'linear'` |
 | **Logarithmic** | — | Log scale | **Done** | Price axis menu + Settings → Scales |
 | **Percent** | — | % from first visible bar | **Done** | Price axis menu + Settings → Scales |
 | **Indexed to 100** | — | Rebase to 100 | **Done** | Price axis menu + Settings → Scales |
 | **Merge all scales to left** / **to right** | — | Multi-pane scale alignment | **None** | — |
-| **More settings…** | — | Opens chart settings → Scales | **None** | — |
+| **More settings…** | — | Opens chart settings → Scales | **Done** | Price axis menu → `ChartSettingsModal` Scales section |
 
 ---
 
@@ -254,8 +254,8 @@ Prioritized to close parity with TradingView’s blank-chart panel without platf
 | ~~P1~~ | ~~Object tree~~ | **Done** |
 | ~~P1~~ | ~~Remove *N* drawings / Remove *N* indicators~~ | **Done** |
 | ~~P2~~ | ~~Settings… (minimal chart settings modal)~~ | **Done** |
-| P2 | Reset chart view shortcut ⌥R | Small |
-| P2 | Lock vertical cursor by time (toggle) | Medium |
+| ~~P2~~ | ~~Reset chart view shortcut ⌥R~~ | **Done** |
+| ~~P2~~ | ~~Lock vertical cursor by time (toggle)~~ | **Done** |
 | ~~P3~~ | ~~Paste / Copy drawings~~ | **Done** |
 | ~~P3~~ | ~~Chart template save/apply~~ | **Done** — study templates via indicator settings |
 | P3 | Table view | Large |

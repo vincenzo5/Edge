@@ -56,7 +56,7 @@ CellConfig (from localStorage) → EdgeChart (via props) → L0 series fetch →
 
 onConfigChange called on drawings change (debounced), indicator toggle, paneOrder change.
 
-Crosshair sync: source chart `onCrosshairTimestamp` → `ChartSyncContext.broadcast` (when `layout.linked`) → peer `setCrosshairFromSync`. Requires **Link symbols** checked in toolbar.
+Crosshair sync: source chart `onCrosshairTimestamp` → `ChartSyncContext.broadcast` (when `layout.linkCrosshair`) → peer `setCrosshairFromSync`. Symbol propagation uses **Link symbols** (`linkSymbol`) in layout setup menu.
 
 ## File Changes (current)
 - **Engine**: `src/lib/chart/*` (series, viewport, renderer, panes, pinch, indicators/*, drawings/*, pluginHost)
