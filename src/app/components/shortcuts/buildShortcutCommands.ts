@@ -157,7 +157,19 @@ export function buildShortcutCommands(deps: ShortcutCommandDeps): ShortcutComman
         scope: "app",
         keys: bindings("toggleLinkedLayout"),
         enabled: () => !drawing?.hasSelection(),
-        run: () => appActions.setLinked(!layout.linked),
+        run: () => {
+          const anyOn =
+            layout.linkSymbol ||
+            layout.linkInterval ||
+            layout.linkCrosshair ||
+            layout.linkDrawings;
+          appActions.setLayoutSync({
+            linkSymbol: !anyOn,
+            linkInterval: !anyOn,
+            linkCrosshair: !anyOn,
+            linkDrawings: !anyOn,
+          });
+        },
       },
       {
         id: "activateCell1",

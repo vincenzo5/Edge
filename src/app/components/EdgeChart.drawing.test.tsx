@@ -2,20 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, waitFor } from '@testing-library/react';
 import EdgeChart from './EdgeChart';
 import type { CellConfig } from '@/lib/chartConfig';
+import { createTestChartDataFeed } from '@/test/chartDataFeedTestUtils';
 
-vi.mock('@/lib/chart/series', () => ({
-  fetchYahooCandles: vi.fn().mockResolvedValue([
-    { t: 1000, o: 100, h: 110, l: 90, c: 105 },
-    { t: 2000, o: 105, h: 115, l: 95, c: 110 },
-    { t: 3000, o: 110, h: 120, l: 100, c: 115 },
-  ]),
-  toHeikinAshi: (x: unknown[]) => x,
-  applyVisibleSlice: (x: unknown[]) => x,
-  transformCandlesForChartType: (candles: unknown[]) => candles,
-  mergeCandlesPrepend: (base: unknown[], older: unknown[]) => [...older, ...base],
-  fetchOlderCandles: vi.fn().mockResolvedValue([]),
-  shouldPrefetchEdge: () => false,
-}));
+const testFeed = createTestChartDataFeed();
+
+vi.mock('@/lib/chart/series', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/chart/series')>();
+  return {
+    ...actual,
+    shouldPrefetchEdge: () => false,
+  };
+});
 
 const baseConfig: CellConfig = {
   symbol: 'AAPL',
@@ -48,7 +45,7 @@ describe('EdgeChart drawing handle', () => {
   it('exposes selection and magnet APIs on ref', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     render(
-      <EdgeChart ref={ref} config={baseConfig} theme="dark" chartId="t1" />
+      <EdgeChart ref={ref} config={baseConfig} theme="dark" feed={testFeed} chartId="t1" />
     );
     await waitFor(() => expect(ref.current).not.toBeNull());
     expect(ref.current!.getSelectedDrawingId()).toBeNull();
@@ -62,7 +59,7 @@ describe('EdgeChart drawing handle', () => {
   it('hydrates tracked overlays from persisted config after candles load', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
-    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    render(<EdgeChart ref={ref} config={config} theme="dark" feed={testFeed} chartId="t1" />);
 
     await waitFor(() => {
       expect(ref.current?.getTrackedOverlays()).toHaveLength(1);
@@ -80,7 +77,7 @@ describe('EdgeChart drawing handle', () => {
       <EdgeChart
         ref={ref}
         config={baseConfig}
-        theme="dark"
+        theme="dark" feed={testFeed}
         chartId="t1"
         onDrawingDisarmed={onDrawingDisarmed}
       />
@@ -100,7 +97,7 @@ describe('EdgeChart drawing handle', () => {
       <EdgeChart
         ref={ref}
         config={baseConfig}
-        theme="dark"
+        theme="dark" feed={testFeed}
         chartId="t1"
         onDrawingDisarmed={onDrawingDisarmed}
       />
@@ -116,7 +113,7 @@ describe('EdgeChart drawing handle', () => {
   it('updateDrawingStyles patches serialized styles', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
-    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    render(<EdgeChart ref={ref} config={config} theme="dark" feed={testFeed} chartId="t1" />);
     await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(1));
 
     ref.current!.updateDrawingStyles('d1', { lineColor: '#00FF88' });
@@ -127,7 +124,7 @@ describe('EdgeChart drawing handle', () => {
   it('undo removes added drawing', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
-    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    render(<EdgeChart ref={ref} config={config} theme="dark" feed={testFeed} chartId="t1" />);
     await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(1));
 
     // hydrate (via config load) clears undo history; duplicate uses execute/add
@@ -148,7 +145,7 @@ describe('EdgeChart drawing handle', () => {
   it('undo reverts updateDrawingStyles', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
-    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    render(<EdgeChart ref={ref} config={config} theme="dark" feed={testFeed} chartId="t1" />);
     await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(1));
 
     act(() => {
@@ -165,7 +162,7 @@ describe('EdgeChart drawing handle', () => {
   it('updateDrawingMetadata patches serialized metadata and undo reverts', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
-    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    render(<EdgeChart ref={ref} config={config} theme="dark" feed={testFeed} chartId="t1" />);
     await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(1));
 
     act(() => {
@@ -191,7 +188,7 @@ describe('EdgeChart drawing handle', () => {
   it('undo reverts lockAllDrawings and redo restores it', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
-    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    render(<EdgeChart ref={ref} config={config} theme="dark" feed={testFeed} chartId="t1" />);
     await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(1));
 
     act(() => {
@@ -222,7 +219,7 @@ describe('EdgeChart drawing handle', () => {
     };
     const d1 = { ...persistedDrawing, zLevel: 1 };
     const config: CellConfig = { ...baseConfig, drawings: [d2, d1] };
-    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    render(<EdgeChart ref={ref} config={config} theme="dark" feed={testFeed} chartId="t1" />);
     await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(2));
 
     act(() => {
@@ -243,7 +240,7 @@ describe('EdgeChart drawing handle', () => {
   it('getDrawingScreenBounds returns bounds for persisted drawing', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
-    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    render(<EdgeChart ref={ref} config={config} theme="dark" feed={testFeed} chartId="t1" />);
     await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(1));
 
     await waitFor(() => {
@@ -258,7 +255,7 @@ describe('EdgeChart drawing handle', () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
     const onSelection = vi.fn();
-    render(<EdgeChart ref={ref} config={config} theme="dark" chartId="t1" />);
+    render(<EdgeChart ref={ref} config={config} theme="dark" feed={testFeed} chartId="t1" />);
     await waitFor(() => expect(ref.current).not.toBeNull());
 
     ref.current!.onSelectionChange(onSelection);

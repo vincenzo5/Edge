@@ -50,7 +50,7 @@ export default function ChartTypeMenu({ theme, value, onChange }: Props) {
           return (
             <div key={section}>
               {sectionIdx > 0 ? (
-                <div className="my-1 border-t border-[var(--tv-border-strong)]" />
+                <div className="my-1 border-t border-[var(--edge-border-strong)]" />
               ) : null}
               {items.map((item) => (
                 <ChartMenuItemRow

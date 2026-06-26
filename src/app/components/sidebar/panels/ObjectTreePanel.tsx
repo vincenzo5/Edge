@@ -8,7 +8,7 @@ export function ObjectTreePanel() {
 
   if (!snapshot) {
     return (
-      <div className="px-3 py-2 text-xs italic text-gray-400 dark:text-gray-500">
+      <div className="px-3 py-2 text-xs italic text-[var(--edge-text-muted)]">
         Focus a chart to inspect objects and data.
       </div>
     );
@@ -20,6 +20,11 @@ export function ObjectTreePanel() {
       config={snapshot.config}
       overlays={snapshot.overlays}
       dataWindow={snapshot.dataWindow}
+      dataWindowActions={snapshot.dataWindowActions}
+      chartCommands={{
+        selectDrawing: snapshot.chartCommands.selectDrawing,
+        getSelectedDrawingId: snapshot.chartCommands.getSelectedDrawingId,
+      }}
       onConfigChange={snapshot.onConfigChange}
       onOverlayAction={snapshot.overlayActions}
       onAddIndicator={snapshot.openIndicatorPicker}

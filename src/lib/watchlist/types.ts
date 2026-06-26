@@ -4,6 +4,32 @@ export type WatchlistItem = {
   exchange?: string;
   addedAt: number;
   color?: string;
+  pinned?: boolean;
+  tags?: string[];
+  note?: string;
+};
+
+export type WatchlistColumnId =
+  | "symbol"
+  | "last"
+  | "changePct"
+  | "volume"
+  | "marketCap";
+
+export type WatchlistGroupMode = "none" | "tags" | "sector";
+
+export type WatchlistSortDirection = "asc" | "desc";
+
+export type WatchlistSortSpec = {
+  column: WatchlistColumnId;
+  direction: WatchlistSortDirection;
+};
+
+export type WatchlistViewPrefs = {
+  visibleColumns: WatchlistColumnId[];
+  sort: WatchlistSortSpec;
+  groupMode: WatchlistGroupMode;
+  filterTags: string[];
 };
 
 export type Watchlist = {
@@ -12,6 +38,7 @@ export type Watchlist = {
   items: WatchlistItem[];
   createdAt: number;
   updatedAt: number;
+  viewPrefs?: WatchlistViewPrefs;
 };
 
 export type WatchlistState = {
@@ -57,4 +84,19 @@ export type SymbolSelectResult = {
   symbol: string;
   name: string;
   exchange: string;
+};
+
+export const DEFAULT_WATCHLIST_VIEW_PREFS: WatchlistViewPrefs = {
+  visibleColumns: ["symbol", "last", "changePct"],
+  sort: { column: "symbol", direction: "asc" },
+  groupMode: "none",
+  filterTags: [],
+};
+
+export const WATCHLIST_COLUMN_LABELS: Record<WatchlistColumnId, string> = {
+  symbol: "Symbol",
+  last: "Last",
+  changePct: "Chg%",
+  volume: "Volume",
+  marketCap: "Mkt cap",
 };

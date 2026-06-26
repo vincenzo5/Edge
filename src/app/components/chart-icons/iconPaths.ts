@@ -24,10 +24,14 @@ export type ChartIconId =
   | "price-line"
   | "text-annotation"
   | "measure"
+  | "risk-ruler"
   | "zoom-in"
   | "magnet"
   | "keep-drawing"
   | "lock-all"
+  | "lock"
+  | "eye"
+  | "eye-off"
   | "hide-drawings"
   | "trash"
   | "delete"
@@ -114,6 +118,14 @@ export const CHART_ICON_MARKUP: Record<ChartIconId, string> = {
     <line x1="14.5" y1="13.5" x2="16" y2="12"/>
     <line x1="17" y1="11" x2="18.5" y2="9.5"/>
   `,
+  "risk-ruler": `
+    <line x1="6" y1="22" x2="22" y2="6"/>
+    <line x1="8" y1="20" x2="10" y2="18"/>
+    <line x1="11" y1="17" x2="13" y2="15"/>
+    <line x1="14" y1="14" x2="16" y2="12"/>
+    <line x1="17" y1="11" x2="19" y2="9"/>
+    <text x="14" y="24" font-size="6" fill="currentColor" stroke="none" text-anchor="middle">R</text>
+  `,
   "zoom-in": `
     <circle cx="12" cy="12" r="5.5"/>
     <line x1="16" y1="16" x2="20" y2="20"/>
@@ -138,6 +150,19 @@ export const CHART_ICON_MARKUP: Record<ChartIconId, string> = {
     <rect x="10" y="13" width="8" height="7" rx="1"/>
     <path d="M11.5 13v-2a2.5 2.5 0 0 1 5 0v2"/>
     <line x1="10" y1="13" x2="18" y2="13"/>
+  `,
+  lock: `
+    <rect x="10" y="13" width="8" height="7" rx="1"/>
+    <path d="M11.5 13v-2a2.5 2.5 0 0 1 5 0v2"/>
+  `,
+  eye: `
+    <path d="M6 14s3.5-4 8-4 8 4 8 4-3.5 4-8 4-8-4-8-4z"/>
+    <circle cx="14" cy="14" r="2"/>
+  `,
+  "eye-off": `
+    <path d="M6 14s3.5-4 8-4 8 4 8 4-3.5 4-8 4-8-4-8-4z"/>
+    <circle cx="14" cy="14" r="2"/>
+    <line x1="8" y1="20" x2="20" y2="8"/>
   `,
   "hide-drawings": `
     <path d="M6 14s3.5-4 8-4 8 4 8 4-3.5 4-8 4-8-4-8-4z"/>

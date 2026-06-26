@@ -34,7 +34,7 @@ function MenuItem({
       data-testid={testId}
       disabled={disabled}
       onClick={onClick}
-      className="tv-focus-ring flex w-full items-center px-3 py-1.5 text-left text-xs text-[var(--tv-text-primary)] hover:bg-[var(--tv-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+      className="edge-focus-ring flex w-full items-center px-3 py-1.5 text-left text-xs text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
     >
       {label}
     </button>
@@ -42,7 +42,7 @@ function MenuItem({
 }
 
 function MenuDivider() {
-  return <div className="my-1 border-t border-[var(--tv-border)]" />;
+  return <div className="my-1 border-t border-[var(--edge-border)]" />;
 }
 
 export default function WatchlistListMenu({
@@ -118,7 +118,7 @@ export default function WatchlistListMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((prev) => !prev)}
-        className="tv-focus-ring flex min-w-0 items-center gap-1 rounded-[var(--tv-radius-sm)] px-1.5 py-1 text-left text-xs font-medium text-[var(--tv-text-primary)] hover:bg-[var(--tv-surface-hover)] hover:text-[var(--tv-text-strong)]"
+        className="edge-focus-ring flex min-w-0 items-center gap-1 rounded-[var(--edge-radius-sm)] px-1.5 py-1 text-left text-xs font-medium text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]"
       >
         <span data-testid="watchlist-active-name" className="truncate">
           {activeListName}
@@ -132,7 +132,7 @@ export default function WatchlistListMenu({
         <div
           data-testid="watchlist-list-menu"
           role="menu"
-          className="tv-popover absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-[var(--tv-radius-sm)] border py-1"
+          className="edge-popover absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-[var(--edge-radius-sm)] border py-1"
         >
           <MenuItem
             testId="watchlist-rename-list"
@@ -181,7 +181,7 @@ export default function WatchlistListMenu({
           {showOpenList && (
             <div
               data-testid="watchlist-open-list-panel"
-              className="max-h-40 overflow-auto border-t border-[var(--tv-border)]"
+              className="max-h-40 overflow-auto border-t border-[var(--edge-border)]"
             >
               {watchlists.map((list) => (
                 <button
@@ -194,10 +194,10 @@ export default function WatchlistListMenu({
                     onSwitch(list.id);
                     close();
                   }}
-                  className={`tv-focus-ring flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-[var(--tv-surface-hover)] ${
+                  className={`edge-focus-ring flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-[var(--edge-surface-hover)] ${
                     list.id === activeWatchlistId
-                      ? "font-medium text-[var(--tv-accent-blue)]"
-                      : "text-[var(--tv-text-primary)]"
+                      ? "font-medium text-[var(--edge-accent-blue)]"
+                      : "text-[var(--edge-text-primary)]"
                   }`}
                 >
                   {list.id === activeWatchlistId && (

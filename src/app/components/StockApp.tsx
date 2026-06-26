@@ -10,6 +10,7 @@ import { ActiveChartProvider } from "./ActiveChartContext";
 import { ChartActionsProvider } from "./ChartActionsContext";
 import { AppActionsProvider, buildAppActions } from "./AppActionsContext";
 import { WatchlistProvider } from "./watchlist/WatchlistContext";
+import { MarketDataProvider } from "./MarketDataProvider";
 import { AiToolsProvider } from "./AiToolsProvider";
 import AiSessionBridge from "./AiSessionBridge";
 import {
@@ -17,12 +18,13 @@ import {
   DEFAULT_LAYOUT,
   DEFAULT_SIDEBAR_PREFS,
   DEFAULT_TOOLBAR_PREFS,
+  applyLinkPropagation,
   applyThemeToRoot,
   cellCountFor,
-  pickLinkFields,
   type CellConfig,
   type ChartLayout,
   type ChartType,
+  type LayoutSyncPrefs,
   type GridMode,
   type SidebarPanelId,
   type Theme,
@@ -30,11 +32,13 @@ import {
 } from "@/lib/chartConfig";
 import type { Interval } from "@/lib/chart/contracts";
 import { loadLayout, saveLayout } from "@/lib/layoutStorage";
+import { resolveSidebarPanelWidth } from "@/lib/responsive/sidebarWidth";
 import { useChartTemplateLibraryRemoteSync } from "@/lib/persistence/sync/useChartTemplateLibraryRemoteSync";
 import { useChartWorkspaceRemoteSync } from "@/lib/persistence/sync/useChartWorkspaceRemoteSync";
 import { useResponsiveLayout } from "@/lib/responsive/useResponsiveLayout";
 import { ShortcutUIProvider } from "./shortcuts/ShortcutUIContext";
 import ShortcutProvider from "./shortcuts/ShortcutProvider";
+import MarketDataTelemetryPanel from "./dev/MarketDataTelemetryPanel";
 
 export default function StockApp() {
   const [layout, setLayout] = useState<ChartLayout>(DEFAULT_LAYOUT);
@@ -101,20 +105,7 @@ export default function StockApp() {
   }, [layout.gridMode]);
 
   const applyCellUpdate = useCallback((index: number, next: CellConfig) => {
-    setLayout((prev) => {
-      const count = cellCountFor(prev.gridMode);
-      const cells = [...prev.cells];
-      cells[index] = next;
-      if (prev.linked) {
-        const linkFields = pickLinkFields(next);
-        for (let i = 0; i < count; i++) {
-          if (i !== index) {
-            cells[i] = { ...cells[i], ...linkFields };
-          }
-        }
-      }
-      return { ...prev, cells };
-    });
+    setLayout((prev) => applyLinkPropagation(prev, index, next));
   }, []);
 
   const handleActiveCellChange = useCallback((index: number) => {
@@ -130,8 +121,8 @@ export default function StockApp() {
     setLayout((prev) => ({ ...prev, gridMode: mode }));
   }, []);
 
-  const handleLinkedChange = useCallback((linked: boolean) => {
-    setLayout((prev) => ({ ...prev, linked }));
+  const handleLayoutSyncChange = useCallback((patch: Partial<LayoutSyncPrefs>) => {
+    setLayout((prev) => ({ ...prev, ...patch }));
   }, []);
 
   const handleToolbarPrefsChange = useCallback((next: ToolbarPrefs) => {
@@ -160,6 +151,26 @@ export default function StockApp() {
       };
     });
   }, []);
+
+  const handleSidebarWidthChange = useCallback(
+    (width: number) => {
+      setLayout((prev) => {
+        const activePanel = prev.sidebar?.activePanel;
+        if (!activePanel) return prev;
+        return {
+          ...prev,
+          sidebar: {
+            ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
+            panelWidths: {
+              ...(prev.sidebar?.panelWidths ?? {}),
+              [activePanel]: width,
+            },
+          },
+        };
+      });
+    },
+    [],
+  );
 
   const cells = useMemo(
     () => layout.cells.slice(0, cellCountFor(layout.gridMode)),
@@ -214,7 +225,7 @@ export default function StockApp() {
         patchActiveCell,
         setActiveCellIndex: handleActiveCellChange,
         setGridMode: handleGridModeChange,
-        setLinked: handleLinkedChange,
+        setLayoutSync: handleLayoutSyncChange,
         setTheme: handleThemeChange,
         setSidebarPanel: handleSidebarPanelChange,
       }),
@@ -224,7 +235,7 @@ export default function StockApp() {
       patchActiveCell,
       handleActiveCellChange,
       handleGridModeChange,
-      handleLinkedChange,
+      handleLayoutSyncChange,
       handleThemeChange,
       handleSidebarPanelChange,
     ],
@@ -232,6 +243,10 @@ export default function StockApp() {
 
   const responsive = useResponsiveLayout();
   const activePanel = layout.sidebar?.activePanel ?? null;
+  const sidebarPanelWidth = resolveSidebarPanelWidth(
+    activePanel,
+    layout.sidebar?.panelWidths,
+  );
   const handleSidebarClose = useCallback(() => {
     handleSidebarPanelChange(null);
   }, [handleSidebarPanelChange]);
@@ -241,7 +256,7 @@ export default function StockApp() {
       activePanel={layout.sidebar?.activePanel ?? null}
       onActivePanelChange={handleSidebarPanelChange}
     >
-      <div className="tv-app-shell flex h-screen min-h-0 flex-col overflow-hidden">
+      <div className="edge-app-shell flex h-screen min-h-0 flex-col overflow-hidden">
         <ChartActionsProvider
           activeCellSymbol={activeCell.symbol}
           loadSymbolIntoActiveChart={handleSymbolSelect}
@@ -250,6 +265,7 @@ export default function StockApp() {
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <AppActionsProvider value={appActions}>
             <WatchlistProvider>
+              <MarketDataProvider layout={layout}>
               <ActiveChartProvider>
                 <ShortcutUIProvider>
                   <ShortcutProvider>
@@ -259,7 +275,10 @@ export default function StockApp() {
               layout={{
                 layoutName: "Default",
                 gridMode: layout.gridMode,
-                linked: layout.linked,
+                linkSymbol: layout.linkSymbol,
+                linkInterval: layout.linkInterval,
+                linkCrosshair: layout.linkCrosshair,
+                linkDrawings: layout.linkDrawings,
                 theme: layout.theme,
               }}
               chart={{
@@ -269,7 +288,7 @@ export default function StockApp() {
               }}
               layoutActions={{
                 onGridModeChange: handleGridModeChange,
-                onLinkedChange: handleLinkedChange,
+                onLayoutSyncChange: handleLayoutSyncChange,
                 onThemeChange: handleThemeChange,
               }}
               chartActions={{
@@ -281,7 +300,8 @@ export default function StockApp() {
             <div className="relative flex min-h-0 flex-1">
               <ChartGrid
                 gridMode={layout.gridMode}
-                linked={layout.linked}
+                linkCrosshair={layout.linkCrosshair}
+                linkDrawings={layout.linkDrawings}
                 theme={layout.theme}
                 cells={cells}
                 activeCellIndex={activeCellIndex}
@@ -294,6 +314,8 @@ export default function StockApp() {
                 <RightSidebar
                   activePanel={activePanel}
                   mode="inline"
+                  width={sidebarPanelWidth}
+                  onWidthChange={handleSidebarWidthChange}
                 />
               ) : null}
             </div>
@@ -301,6 +323,8 @@ export default function StockApp() {
               <RightSidebar
                 activePanel={activePanel}
                 mode="overlay"
+                width={sidebarPanelWidth}
+                onWidthChange={handleSidebarWidthChange}
                 onClose={handleSidebarClose}
               />
             ) : null}
@@ -308,6 +332,7 @@ export default function StockApp() {
                   </ShortcutProvider>
                 </ShortcutUIProvider>
           </ActiveChartProvider>
+              </MarketDataProvider>
             </WatchlistProvider>
           </AppActionsProvider>
         </div>
@@ -320,6 +345,7 @@ export default function StockApp() {
       </div>
         </ChartActionsProvider>
       </div>
+      <MarketDataTelemetryPanel />
     </SidebarProvider>
   );
 }

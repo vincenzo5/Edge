@@ -2,24 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor, fireEvent } from '@testing-library/react';
 import EdgeChart from './EdgeChart';
 import type { CellConfig } from '@/lib/chartConfig';
-import { hitTestAll } from '@/lib/chart/pluginHost';
+import { hitTestAll } from '@edge/chart-core';
+import { createTestChartDataFeed } from '@/test/chartDataFeedTestUtils';
 
-vi.mock('@/lib/chart/series', () => ({
-  fetchYahooCandles: vi.fn().mockResolvedValue([
-    { t: 1000, o: 100, h: 110, l: 90, c: 105 },
-    { t: 2000, o: 105, h: 115, l: 95, c: 110 },
-    { t: 3000, o: 110, h: 120, l: 100, c: 115 },
-  ]),
-  toHeikinAshi: (x: unknown[]) => x,
-  applyVisibleSlice: (x: unknown[]) => x,
-  transformCandlesForChartType: (candles: unknown[]) => candles,
-  mergeCandlesPrepend: (base: unknown[], older: unknown[]) => [...older, ...base],
-  fetchOlderCandles: vi.fn().mockResolvedValue([]),
-  shouldPrefetchEdge: () => false,
-}));
+const testFeed = createTestChartDataFeed();
 
-vi.mock('@/lib/chart/pluginHost', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/chart/pluginHost')>();
+vi.mock('@edge/chart-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@edge/chart-core')>();
   return {
     ...actual,
     hitTestAll: vi.fn(),
@@ -65,7 +54,7 @@ describe('EdgeChart context menu routing', () => {
       <EdgeChart
         ref={chartRef}
         config={baseConfig}
-        theme="dark"
+        theme="dark" feed={testFeed}
         chartId="t1"
         onOverlayRightClick={onOverlayRightClick}
         onChartContextMenu={onChartContextMenu}
@@ -97,7 +86,7 @@ describe('EdgeChart context menu routing', () => {
       <EdgeChart
         ref={chartRef}
         config={baseConfig}
-        theme="dark"
+        theme="dark" feed={testFeed}
         chartId="t1"
         onOverlayRightClick={onOverlayRightClick}
         onChartContextMenu={onChartContextMenu}

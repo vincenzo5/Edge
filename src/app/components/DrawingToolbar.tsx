@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { Theme } from "@/lib/chartConfig";
+import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
 import Tooltip from "./Tooltip";
 import {
   CrosshairIcon,
@@ -11,21 +12,23 @@ import {
   LockAllIcon,
   MagnetIcon,
   MeasureIcon,
+  RiskRulerIcon,
   TrashIcon,
   ZoomInIcon,
 } from "./chart-icons/ChartToolIcons";
 import {
   DRAWING_TOOL_GROUPS,
   MEASURE_TOOL,
+  RISK_RULER_TOOL,
   findGroupForTool,
   initialGroupSelections,
   type DrawingToolName,
 } from "./chart-icons/toolGroups";
 import {
-  toolbarButtonClass,
+  iconRailButtonClass,
+  iconRailIconSize,
+  iconRailWidthClass,
   toolbarButtonStateClass,
-  toolbarIconSize,
-  toolbarRailWidthClass,
 } from "./chart-icons/toolbarButtonStyles";
 import DrawingToolGroup from "./DrawingToolGroup";
 
@@ -53,7 +56,7 @@ type Props = {
 function Divider({ compact }: { compact: boolean }) {
   return (
     <div
-      className={`my-1 h-px bg-[var(--tv-border)] ${compact ? "w-10" : "w-12"}`}
+      className={`mx-auto my-0.5 h-px bg-[var(--edge-border)] ${compact ? "w-7" : "w-8"}`}
     />
   );
 }
@@ -82,7 +85,7 @@ function ToolButton({
         aria-label={title}
         disabled={disabled}
         onClick={onClick}
-        className={`${toolbarButtonClass(compact)} ${toolbarButtonStateClass(active)}`}
+        className={`${iconRailButtonClass(compact)} ${toolbarButtonStateClass(active)}`}
       >
         {children}
       </button>
@@ -110,7 +113,10 @@ export default function DrawingToolbar({
   onZoomIn,
   onDeleteSelected,
 }: Props) {
-  const iconSize = toolbarIconSize(compact);
+  const iconSize = iconRailIconSize(compact);
+  const railWidth = compact
+    ? LAYOUT_DIMENSIONS.compactSidebarRailWidth
+    : LAYOUT_DIMENSIONS.sidebarRailWidth;
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const [pinnedGroupId, setPinnedGroupId] = useState<string | null>(null);
 
@@ -136,7 +142,9 @@ export default function DrawingToolbar({
   return (
     <div
       data-testid="drawing-toolbar"
-      className={`relative z-10 flex h-full min-h-0 shrink-0 flex-col items-center justify-start gap-0.5 overflow-y-auto overflow-x-visible border-r border-[var(--tv-border)] bg-[var(--tv-surface-toolbar)] py-1.5 ${toolbarRailWidthClass(compact)} ${disabled ? "pointer-events-none opacity-40" : ""}`}
+      data-rail-mode={compact ? "compact" : "full"}
+      style={{ width: railWidth } as CSSProperties}
+      className={`relative z-10 flex h-full min-h-0 shrink-0 flex-col items-stretch justify-start gap-0.5 overflow-y-auto overflow-x-visible border-r border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-0.5 py-1.5 ${iconRailWidthClass(compact)} ${disabled ? "pointer-events-none opacity-40" : ""}`}
     >
       <ToolButton
         title="Cursor"
@@ -198,6 +206,17 @@ export default function DrawingToolbar({
         onClick={() => selectTool(MEASURE_TOOL)}
       >
         <MeasureIcon size={iconSize} />
+      </ToolButton>
+
+      <ToolButton
+        title="Risk ruler"
+        theme={theme}
+        active={activeTool === RISK_RULER_TOOL}
+        disabled={disabled}
+        compact={compact}
+        onClick={() => selectTool(RISK_RULER_TOOL)}
+      >
+        <RiskRulerIcon size={iconSize} />
       </ToolButton>
 
       <Divider compact={compact} />

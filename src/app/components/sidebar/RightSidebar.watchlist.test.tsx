@@ -7,7 +7,7 @@ describe('RightSidebar watchlist panel', () => {
   it('renders watchlist panel without ActiveChartProvider', () => {
     render(
       <WatchlistProvider>
-        <RightSidebar activePanel="watchlist" mode="inline" />
+        <RightSidebar activePanel="watchlist" mode="inline" width={300} />
       </WatchlistProvider>,
     );
 

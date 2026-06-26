@@ -1,12 +1,8 @@
 "use client";
 
 import {
-  CHART_TYPES,
   GRID_MODES,
-  INTERVALS,
-  RANGES,
   cellCountFor,
-  type CellConfig,
   type GridMode,
   type Theme,
 } from "@/lib/chartConfig";
@@ -14,22 +10,22 @@ import {
 type Props = {
   gridMode: GridMode;
   theme: Theme;
-  linked: boolean;
+  linkSymbol: boolean;
   activeCellIndex: number;
   onGridModeChange: (mode: GridMode) => void;
   onThemeChange: (theme: Theme) => void;
-  onLinkedChange: (linked: boolean) => void;
+  onLinkSymbolChange: (linkSymbol: boolean) => void;
   onReset: () => void;
 };
 
 export default function Toolbar({
   gridMode,
   theme,
-  linked,
+  linkSymbol,
   activeCellIndex,
   onGridModeChange,
   onThemeChange,
-  onLinkedChange,
+  onLinkSymbolChange,
   onReset,
 }: Props) {
   return (
@@ -54,8 +50,8 @@ export default function Toolbar({
       <label className="flex items-center gap-1 text-xs">
         <input
           type="checkbox"
-          checked={linked}
-          onChange={(e) => onLinkedChange(e.target.checked)}
+          checked={linkSymbol}
+          onChange={(e) => onLinkSymbolChange(e.target.checked)}
         />
         Link symbols
       </label>

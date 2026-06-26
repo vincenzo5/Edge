@@ -60,11 +60,11 @@ describe('responsiveLayout', () => {
 
   describe('chartAreaWidthForViewport', () => {
     it('subtracts inline sidebar and full rail on desktop', () => {
-      expect(chartAreaWidthForViewport(1440, 'inline', 'full')).toBe(1080);
+      expect(chartAreaWidthForViewport(1440, 'inline', 'full')).toBe(1096);
     });
 
     it('does not subtract sidebar width in overlay mode', () => {
-      expect(chartAreaWidthForViewport(768, 'overlay', 'full')).toBe(708);
+      expect(chartAreaWidthForViewport(768, 'overlay', 'full')).toBe(724);
     });
   });
 });

@@ -3,7 +3,7 @@ import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/re
 import { WatchlistPanel } from './WatchlistPanel';
 import { ChartActionsProvider } from '../ChartActionsContext';
 import { WatchlistProvider } from './WatchlistContext';
-import { clearWatchlistStorage, loadWatchlistState } from '@/lib/watchlist/storage';
+import { clearWatchlistStorage, loadWatchlistState, saveWatchlistState } from '@/lib/watchlist/storage';
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -54,7 +54,7 @@ describe('WatchlistPanel', () => {
     localStorageMock.clear();
     clearWatchlistStorage();
     loadSymbolIntoActiveChart.mockClear();
-    vi.stubGlobal('prompt', vi.fn(() => null));
+    vi.stubEnv('NEXT_PUBLIC_WATCHLIST_STREAM', '0');
     vi.stubGlobal('confirm', vi.fn(() => false));
     vi.stubGlobal(
       'fetch',
@@ -97,12 +97,13 @@ describe('WatchlistPanel', () => {
           } as Response;
         }
         if (url.includes('/api/fundamentals')) {
+          const symbol = new URL(String(input), 'http://localhost').searchParams.get('symbol') ?? 'MSFT';
           return {
             ok: true,
             json: async () => ({
-              symbol: 'MSFT',
-              shortName: 'Microsoft',
-              longName: 'Microsoft Corporation',
+              symbol,
+              shortName: symbol,
+              longName: `${symbol} Corporation`,
               exchange: 'NASDAQ',
               currency: 'USD',
               regularMarketPrice: 400,
@@ -111,10 +112,10 @@ describe('WatchlistPanel', () => {
               marketCap: 3e12,
               volume: 2e7,
               averageVolume: 1.5e7,
-              sector: 'Technology',
+              sector: symbol === 'XOM' ? 'Energy' : 'Technology',
               industry: 'Software',
-              website: 'microsoft.com',
-              description: 'Microsoft builds software.',
+              website: `${symbol.toLowerCase()}.com`,
+              description: `${symbol} builds software.`,
               updatedAt: Date.now(),
             }),
           } as Response;
@@ -136,6 +137,37 @@ describe('WatchlistPanel', () => {
       </WatchlistProvider>,
     );
     expect(screen.getByTestId('watchlist-panel')).toBeInTheDocument();
+  });
+
+  it('hydrates saved watchlists after mount', async () => {
+    saveWatchlistState({
+      version: 1,
+      activeWatchlistId: 'trinity',
+      selectedSymbol: 'IBM',
+      watchlists: [
+        {
+          id: 'trinity',
+          name: 'Trinity Trading Partners',
+          items: [
+            {
+              symbol: 'IBM',
+              addedAt: 1782263705255,
+            },
+          ],
+          createdAt: 1782263558025,
+          updatedAt: 1782263705255,
+        },
+      ],
+    });
+
+    renderPanel();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('watchlist-active-name')).toHaveTextContent(
+        'Trinity Trading Partners',
+      );
+    });
+    expect(screen.getByTestId('watchlist-row-IBM')).toHaveAttribute('data-selected', 'true');
   });
 
   it('adds symbol from search and selects it', async () => {
@@ -197,7 +229,7 @@ describe('WatchlistPanel', () => {
     await waitFor(() => {
       expect(screen.getByTestId('symbol-details-panel')).toBeInTheDocument();
     });
-    expect(screen.getByText('Microsoft Corporation')).toBeInTheDocument();
+    expect(screen.getByText('MSFT Corporation')).toBeInTheDocument();
   });
 
   it('shows empty state when watchlist has no symbols', () => {
@@ -297,5 +329,50 @@ describe('WatchlistPanel', () => {
     await waitFor(() => {
       expect(screen.getByTestId('watchlist-active-name')).toHaveTextContent('Watchlist');
     });
+  });
+
+  it('renders organization controls and pins a symbol', async () => {
+    renderPanel();
+    await addSymbolFromSearch('MSFT');
+
+    expect(screen.getByTestId('watchlist-controls')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Pin MSFT'));
+    await waitFor(() => {
+      expect(screen.getByTestId('watchlist-row-MSFT')).toHaveAttribute('data-pinned', 'true');
+    });
+  });
+
+  it('adds tags from the row action and filters by tag', async () => {
+    vi.stubGlobal('prompt', vi.fn(() => 'Tech, AI'));
+    renderPanel();
+    await addSymbolFromSearch('MSFT');
+
+    fireEvent.click(screen.getByLabelText('Edit tags for MSFT'));
+    await waitFor(() => {
+      expect(screen.getByTestId('watchlist-filter-Tech')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('watchlist-filter-Tech'));
+    expect(screen.getByTestId('watchlist-row-MSFT')).toBeInTheDocument();
+  });
+
+  it('edits a symbol note in the details panel', async () => {
+    renderPanel();
+    await addSymbolFromSearch('MSFT');
+
+    const note = screen.getByTestId('watchlist-symbol-note');
+    fireEvent.change(note, { target: { value: 'Watch breakout above 420' } });
+    expect(note).toHaveValue('Watch breakout above 420');
+  });
+
+  it('sorts from table header clicks', async () => {
+    renderPanel();
+    await addSymbolFromSearch('MSFT');
+
+    expect(screen.queryByText(/^Sort$/)).not.toBeInTheDocument();
+    const changeHeader = screen.getByTestId('watchlist-sort-changePct');
+    fireEvent.click(changeHeader);
+    expect(changeHeader).toHaveAttribute('aria-pressed', 'true');
+    expect(changeHeader).toHaveTextContent('↓');
   });
 });

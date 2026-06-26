@@ -7,8 +7,10 @@ import {
   coerceTheme,
   mergeChartSettings,
   migrateCellIndicators,
+  migrateLayoutSync,
   type SidebarPanelId,
 } from "./chartConfig";
+import { clampSidebarPanelWidth } from "./responsive/sidebarWidth";
 
 const STORAGE_KEY = "tv-ai:layout:v1";
 
@@ -34,9 +36,11 @@ export function loadLayout(): ChartLayout {
         chartSettings: mergeChartSettings(c.chartSettings),
       }),
     );
+    const sync = migrateLayoutSync(parsed);
     return {
       ...DEFAULT_LAYOUT,
       ...parsed,
+      ...sync,
       theme: coerceTheme(parsed.theme),
       activeCellIndex:
         typeof parsed.activeCellIndex === "number" && parsed.activeCellIndex >= 0
@@ -52,6 +56,7 @@ export function loadLayout(): ChartLayout {
         activePanel: isSidebarPanelId(parsed.sidebar?.activePanel)
           ? parsed.sidebar!.activePanel
           : DEFAULT_SIDEBAR_PREFS.activePanel,
+        panelWidths: normalizeSidebarPanelWidths(parsed.sidebar?.panelWidths),
       },
       cells,
     } as ChartLayout;
@@ -69,10 +74,25 @@ export function saveLayout(layout: ChartLayout): void {
   }
 }
 
-const VALID_SIDEBAR_PANELS = new Set<SidebarPanelId>(["object-tree", "watchlist"]);
+const VALID_SIDEBAR_PANELS = new Set<SidebarPanelId>(["object-tree", "watchlist", "options"]);
 
 function isSidebarPanelId(value: unknown): value is SidebarPanelId {
   return typeof value === "string" && VALID_SIDEBAR_PANELS.has(value as SidebarPanelId);
+}
+
+function normalizeSidebarPanelWidths(
+  value: unknown,
+): Partial<Record<SidebarPanelId, number>> {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  const out: Partial<Record<SidebarPanelId, number>> = {};
+  for (const panelId of VALID_SIDEBAR_PANELS) {
+    const width = record[panelId];
+    if (typeof width === "number" && Number.isFinite(width)) {
+      out[panelId] = clampSidebarPanelWidth(width);
+    }
+  }
+  return out;
 }
 
 export function clearLayout(): void {

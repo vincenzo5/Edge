@@ -9,7 +9,7 @@ import {
   type ActiveChartSnapshot,
 } from '../ActiveChartContext';
 import { DEFAULT_CELL } from '@/lib/chartConfig';
-import { makeDrawingCommandsMock, makeUICommandsMock } from '@/test/activeChartMocks';
+import { makeDrawingCommandsMock, makeDataWindowActionsMock, makeUICommandsMock, toActiveChartRegistration } from '@/test/activeChartMocks';
 import { ShortcutUIProvider } from '../shortcuts/ShortcutUIContext';
 
 vi.mock('../SearchBar', () => ({
@@ -104,6 +104,11 @@ function makeSnapshot(overrides?: Partial<ActiveChartSnapshot>): ActiveChartSnap
       redo: vi.fn(),
       addFavoriteIndicator: vi.fn(),
     },
+    headerState: {
+      replayActive: false,
+      canUndo: true,
+      canRedo: false,
+    },
     chartCommands: {
       undo: vi.fn(() => false),
       redo: vi.fn(() => false),
@@ -122,6 +127,7 @@ function makeSnapshot(overrides?: Partial<ActiveChartSnapshot>): ActiveChartSnap
     },
     drawingCommands: makeDrawingCommandsMock(),
     uiCommands: makeUICommandsMock(),
+    dataWindowActions: makeDataWindowActionsMock(),
     ...overrides,
   };
 }
@@ -130,7 +136,7 @@ function RegisterActiveChart({ snapshot }: { snapshot: ActiveChartSnapshot }) {
   const bridge = useActiveChartBridge();
   useEffect(() => {
     if (!bridge) return;
-    bridge.register(snapshot.chartId, snapshot);
+    bridge.register(snapshot.chartId, toActiveChartRegistration(snapshot));
     return () => bridge.unregister(snapshot.chartId);
   }, [bridge, snapshot]);
   return null;
@@ -138,7 +144,7 @@ function RegisterActiveChart({ snapshot }: { snapshot: ActiveChartSnapshot }) {
 
 const layoutActions = {
   onGridModeChange: vi.fn(),
-  onLinkedChange: vi.fn(),
+  onLayoutSyncChange: vi.fn(),
   onThemeChange: vi.fn(),
 };
 
@@ -152,7 +158,10 @@ const baseProps = {
   layout: {
     layoutName: 'Default',
     gridMode: '1x1' as const,
-    linked: false,
+    linkSymbol: false,
+    linkInterval: false,
+    linkCrosshair: false,
+    linkDrawings: false,
     theme: 'dark' as const,
   },
   chart: {

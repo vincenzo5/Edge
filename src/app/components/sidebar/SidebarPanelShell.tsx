@@ -2,11 +2,13 @@
 
 import { useEffect, type ReactNode } from "react";
 import type { SidebarMode } from "@/lib/responsive/responsiveLayout";
-import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
+import SidebarResizeHandle from "./SidebarResizeHandle";
 
 type Props = {
   panelId: string;
   mode: SidebarMode;
+  width: number;
+  onWidthChange?: (width: number) => void;
   onClose?: () => void;
   children: ReactNode;
 };
@@ -14,6 +16,8 @@ type Props = {
 export default function SidebarPanelShell({
   panelId,
   mode,
+  width,
+  onWidthChange,
   onClose,
   children,
 }: Props) {
@@ -33,13 +37,16 @@ export default function SidebarPanelShell({
       data-testid="sidebar-panel"
       data-panel-id={panelId}
       data-sidebar-mode={mode}
-      style={{ width: LAYOUT_DIMENSIONS.sidebarPanelWidth }}
-      className={`tv-panel flex shrink-0 flex-col overflow-hidden border-l ${
+      style={{ width }}
+      className={`edge-panel relative flex shrink-0 flex-col overflow-hidden border-l ${
         mode === "overlay"
-          ? "fixed right-[var(--sidebar-rail-width,60px)] top-0 z-40 h-full shadow-xl"
+          ? "fixed right-[var(--sidebar-rail-width,44px)] top-0 z-40 h-full shadow-xl"
           : "relative h-full"
       }`}
     >
+      {onWidthChange ? (
+        <SidebarResizeHandle width={width} onWidthChange={onWidthChange} />
+      ) : null}
       <div
         data-testid={`sidebar-panel-${panelId}`}
         className="min-h-0 flex-1 overflow-auto"

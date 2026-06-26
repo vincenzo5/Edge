@@ -121,7 +121,7 @@ export default function Tooltip({
   }
 
   void theme;
-  const panelClass = 'tv-popover border';
+  const panelClass = 'edge-popover border';
 
   const panelInner = (
     <span

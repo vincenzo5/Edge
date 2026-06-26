@@ -3,20 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import EdgeChart, { type ChartHandle, indicatorKey } from "./EdgeChart";
 import DrawingToolbar, { resolveGroupSelections } from "./DrawingToolbar";
-import BarReplay from "./BarReplay";
-import IndicatorPicker from "./IndicatorPicker";
-import IndicatorSettingsModal from "./IndicatorSettingsModal";
-import DrawingSettingsModal from "./DrawingSettingsModal";
 import DrawingSelectionToolbar from "./DrawingSelectionToolbar";
-import ChartSettingsModal from "./ChartSettingsModal";
-import ChartGoToModal from "./ChartGoToModal";
 import ChartRangeBar from "./ChartRangeBar";
+import ChartCellDialogs from "./chart-cell/ChartCellDialogs";
+import { useDrawingLayoutSync } from "./chart-cell/useDrawingLayoutSync";
+import { useRegisterActiveChart } from "./chart-cell/useRegisterActiveChart";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { buildChartContextMenuItems, buildPriceScaleContextMenuItems } from "./chartContextMenu";
+import { buildChartCopyItems } from "./chartCopyMenu";
 import { useChartSync } from "./ChartSyncContext";
 import { useActiveChartBridge } from "./ActiveChartContext";
 import { useSidebarOptional } from "./SidebarContext";
 import type { Candle, DrawingStyles } from "@/lib/chart/contracts";
+import type { ChartDataMeta } from "@edge/chart-core";
 import type { GoToRequest } from "@/lib/chart/goTo";
 import {
   PRICE_PANE_KEY,
@@ -35,7 +34,6 @@ import {
 import type { Range } from "@/lib/chart/contracts";
 import type { ChartTimeZone } from "@/lib/chart/timeZone";
 import { applyRangePresetSelect } from "@/lib/chart/rangePresetTransition";
-import { getCatalogMeta } from "@/lib/chart/indicators/catalog";
 import type { DrawingToolName } from "./chart-icons/toolGroups";
 import {
   copyDrawings,
@@ -48,8 +46,8 @@ import {
   prepareSnapshotTab,
   runSnapshotAction,
   type SnapshotAction,
+  type SnapshotCaptureOptions,
 } from "@/lib/chart/chartSnapshot";
-import TemplatePickerModal from "./TemplatePickerModal";
 import { applyChartTemplate, applyStudyTemplate } from "@/lib/chart/presets/apply";
 import {
   chartTemplateFromCell,
@@ -102,12 +100,15 @@ export default function ChartCell({
     dataIndex: number | null;
     timestamp: number | null;
     valueLabel: string | null;
-  }>({ dataIndex: null, timestamp: null, valueLabel: null });
+    plotX: number | null;
+  }>({ dataIndex: null, timestamp: null, valueLabel: null, plotX: null });
   const crosshairRafRef = useRef<number | null>(null);
+  const latestCrosshairPlotXRef = useRef<number | null>(null);
   const pendingCrosshairRef = useRef<{
     dataIndex: number | null;
     timestamp: number | null;
     valueLabel: string | null;
+    plotX: number | null;
   } | null>(null);
   const [settingsIndicatorId, setSettingsIndicatorId] = useState<string | null>(null);
   const [settingsOverlayId, setSettingsOverlayId] = useState<string | null>(null);
@@ -116,10 +117,10 @@ export default function ChartCell({
     "symbol" | "status" | "scales" | "canvas" | "trading"
   >("status");
   const [goToOpen, setGoToOpen] = useState(false);
+  const [renameOverlayId, setRenameOverlayId] = useState<string | null>(null);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [templatePickerTab, setTemplatePickerTab] = useState<"chart" | "study">("chart");
   const [templateRevision, setTemplateRevision] = useState(0);
-  const [overlays, setOverlays] = useState<TrackedOverlay[]>([]);
   const [contextMenu, setContextMenu] = useState<{
     position: { x: number; y: number };
     items: ContextMenuItem[];
@@ -135,7 +136,7 @@ export default function ChartCell({
   const [activeTool, setActiveTool] = useState("__cursor__");
   const [replayActive, setReplayActive] = useState(false);
   const [historyRevision, setHistoryRevision] = useState(0);
-  const overlaysDirtyRef = useRef(false);
+  const [dataMeta, setDataMeta] = useState<ChartDataMeta | null>(null);
   const sync = useChartSync();
   const activeChartBridge = useActiveChartBridge();
   const sidebar = useSidebarOptional();
@@ -159,38 +160,21 @@ export default function ChartCell({
   const maximizedKey = config.maximizedPane ?? null;
   const paneOrder = config.paneOrder ?? [];
 
-  // Subscribe to overlay changes from the Chart ref.
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-    const unsub = chart.subscribeOverlayChange(() => {
-      setOverlays(chart.getTrackedOverlays());
-      overlaysDirtyRef.current = true;
-      setHistoryRevision((r) => r + 1);
-    });
-    const unsubSel = chart.onSelectionChange?.((id) => {
-      setSelectedOverlayId(id);
-    });
-    setOverlays(chart.getTrackedOverlays());
-    return () => {
-      unsub();
-      unsubSel?.();
-    };
-  }, []);
-
-  // Persist drawings to config when overlays change.
-  useEffect(() => {
-    if (!overlaysDirtyRef.current) return;
-    overlaysDirtyRef.current = false;
-    const timer = setTimeout(() => {
-      const drawings = chartRef.current?.serializeDrawings();
-      if (drawings) {
-        onConfigChange({ ...config, drawings: drawings ?? [] });
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlays]);
+  const {
+    overlays,
+    overlaysDirtyRef,
+    suppressDrawingPersistRef,
+    lastAppliedDrawingsRef,
+  } = useDrawingLayoutSync({
+    chartRef,
+    config,
+    onConfigChange,
+    chartId,
+    isActive,
+    sync,
+    setSelectedOverlayId,
+    setHistoryRevision,
+  });
 
   // Apply layout toolbar prefs to the chart when active or prefs change.
   useEffect(() => {
@@ -360,6 +344,10 @@ export default function ChartCell({
     chartRef.current?.zoomIn();
   }, []);
 
+  const handleDataMetaChange = useCallback((meta: ChartDataMeta | null) => {
+    setDataMeta(meta);
+  }, []);
+
   const handleDataLoaded = useCallback(
     (info: { count: number }) => {
       setCandleCount(info.count);
@@ -379,8 +367,11 @@ export default function ChartCell({
       timestamp: number | null;
       dataIndex: number | null;
       valueLabel: string | null;
+      plotX?: number | null;
     }) => {
-      pendingCrosshairRef.current = ev;
+      const next = { ...ev, plotX: ev.plotX ?? null };
+      latestCrosshairPlotXRef.current = next.plotX;
+      pendingCrosshairRef.current = next;
       if (crosshairRafRef.current != null) return;
       crosshairRafRef.current = requestAnimationFrame(() => {
         crosshairRafRef.current = null;
@@ -746,7 +737,7 @@ export default function ChartCell({
         chartRef.current?.updateDrawingStyles(id, patch),
       restoreDrawings: (data: SerializedDrawing[]) => chartRef.current?.restoreDrawings(data),
       canCaptureSnapshot: () => chartRef.current?.canCaptureSnapshot() ?? false,
-      captureSnapshot: (opts) => {
+      captureSnapshot: (opts?: SnapshotCaptureOptions) => {
         const chart = chartRef.current;
         if (!chart?.canCaptureSnapshot()) {
           return Promise.reject(new SnapshotCaptureError("no_data"));
@@ -755,6 +746,20 @@ export default function ChartCell({
       },
     }),
     [],
+  );
+
+  const openRenameOverlay = useCallback((id: string) => {
+    setRenameOverlayId(id);
+    setContextMenu(null);
+  }, []);
+
+  const handleRenameOverlaySave = useCallback(
+    (label: string) => {
+      if (!renameOverlayId) return;
+      chartRef.current?.renameOverlay(renameOverlayId, label);
+      setRenameOverlayId(null);
+    },
+    [renameOverlayId],
   );
 
   const handleDeleteSelected = useCallback(() => {
@@ -767,13 +772,8 @@ export default function ChartCell({
 
   const handleRenameSelected = useCallback(() => {
     if (!selectedOverlayId) return;
-    const overlay = overlays.find((o) => o.id === selectedOverlayId);
-    if (!overlay) return;
-    const name = prompt("Rename drawing:", overlay.label);
-    if (name?.trim()) {
-      overlayActions().rename(selectedOverlayId, name.trim());
-    }
-  }, [selectedOverlayId, overlays, overlayActions]);
+    openRenameOverlay(selectedOverlayId);
+  }, [selectedOverlayId, openRenameOverlay]);
 
   const handleDuplicateSelected = useCallback(() => {
     if (!selectedOverlayId) return;
@@ -823,95 +823,82 @@ export default function ChartCell({
     [runCellSnapshot],
   );
 
-  useEffect(() => {
-    if (!activeChartBridge) return;
-
-    if (!isActive) {
-      activeChartBridge.unregister(chartId);
-      return;
-    }
-
-    return () => {
-      activeChartBridge.unregister(chartId);
-    };
-  }, [activeChartBridge, isActive, chartId]);
-
-  useEffect(() => {
-    if (!activeChartBridge || !isActive) return;
-
-    activeChartBridge.register(chartId, {
-      chartId,
-      config,
-      theme,
-      overlays,
-      dataWindow: {
-        dataIndex: crosshairData.dataIndex,
-        candles: displayCandlesRef.current,
-        indicators: config.indicators.filter((i) => i.visible !== false),
-        symbol: config.symbol,
-        symbolName: config.symbolName,
-        exchange: config.exchange,
-        interval: config.interval,
-        theme,
+  const dataWindowActions = useCallback(
+    () => ({
+      setPriceVisible: (visible: boolean) => {
+        onConfigChange({ ...config, mainSeriesVisible: visible });
       },
-      overlayActions: overlayActions(),
-      onConfigChange,
-      openIndicatorPicker: () => setPickerOpen(true),
-      headerCommands: {
-        replayActive,
-        canUndo: Boolean(canUndo),
-        canRedo: Boolean(canRedo),
-        openSettings: () => {
-          setChartSettingsSection("status");
-          setChartSettingsOpen(true);
-        },
-        openStudyTemplate: () => {
-          setTemplatePickerTab("study");
-          setTemplatePickerOpen(true);
-        },
-        openChartTemplate: () => {
-          setTemplatePickerTab("chart");
-          setTemplatePickerOpen(true);
-        },
-        toggleReplay: () => setReplayActive((a) => !a),
-        undo: () => {
-          chartRef.current?.undo();
-          setHistoryRevision((r) => r + 1);
-        },
-        redo: () => {
-          chartRef.current?.redo();
-          setHistoryRevision((r) => r + 1);
-        },
-        addFavoriteIndicator: (name) => {
-          const meta = getCatalogMeta(name);
-          if (meta) {
-            addIndicator({ name, pane: meta.defaultPane });
-          }
-        },
+      setOhlcVisible: (visible: boolean) => {
+        onConfigChange({
+          ...config,
+          chartSettings: patchChartSettings(config.chartSettings, {
+            statusLine: {
+              showChartValues: visible,
+              showBarChangeValues: visible,
+            },
+          }),
+        });
       },
-      chartCommands: chartCommands(),
-      drawingCommands: drawingCommands(),
-      uiCommands: uiCommands(),
-    });
-  }, [
+      setVolumeVisible: (visible: boolean) => {
+        const volInd = config.indicators.find((i) => i.name === "VOL");
+        if (volInd) {
+          onConfigChange({
+            ...config,
+            indicators: config.indicators.map((i) =>
+              i.id === volInd.id ? { ...i, visible } : i,
+            ),
+          });
+        } else {
+          onConfigChange({
+            ...config,
+            chartSettings: patchChartSettings(config.chartSettings, {
+              statusLine: { showVolume: visible },
+            }),
+          });
+        }
+      },
+      setIndicatorVisible: (id: string, visible: boolean) => {
+        onConfigChange({
+          ...config,
+          indicators: config.indicators.map((i) =>
+            i.id === id ? { ...i, visible } : i,
+          ),
+        });
+      },
+    }),
+    [config, onConfigChange],
+  );
+
+  useRegisterActiveChart({
     activeChartBridge,
     isActive,
     chartId,
+    chartRef,
     config,
     theme,
     overlays,
-    crosshairData.dataIndex,
+    dataMeta,
+    crosshairDataIndex: crosshairData.dataIndex,
+    displayCandlesRef,
     candlesRevision,
     overlayActions,
+    dataWindowActions,
     onConfigChange,
+    setPickerOpen,
     replayActive,
     canUndo,
     canRedo,
+    setChartSettingsSection,
+    setChartSettingsOpen,
+    setTemplatePickerTab,
+    setTemplatePickerOpen,
+    setReplayActive,
+    setHistoryRevision,
     addIndicator,
     chartCommands,
     drawingCommands,
     uiCommands,
-  ]);
+  });
 
   const handleOverlayRightClick = useCallback(
     (overlay: TrackedOverlay, pos: { x: number; y: number }) => {
@@ -923,14 +910,7 @@ export default function ChartCell({
         items: buildOverlayContextMenuItems(
           overlay,
           actions,
-          (id) => {
-            const o = overlays.find((ov) => ov.id === id);
-            if (o) {
-              const name = prompt("Rename drawing:", o.label);
-              if (name?.trim()) actions.rename(id, name.trim());
-            }
-            setContextMenu(null);
-          },
+          openRenameOverlay,
           (id) => {
             setSettingsOverlayId(id);
             setContextMenu(null);
@@ -948,27 +928,45 @@ export default function ChartCell({
         ),
       });
     },
-    [overlayActions, overlays, handlePasteDrawings],
+    [overlayActions, overlays, handlePasteDrawings, openRenameOverlay],
   );
 
   const handleChartContextMenu = useCallback(
     (pos: { x: number; y: number }) => {
       const modified = chartRef.current?.isViewportModified() ?? false;
+      const candles =
+        displayCandlesRef.current.length > 0
+          ? displayCandlesRef.current
+          : (chartRef.current?.getCandles() ?? []);
+      const copyItems = buildChartCopyItems({
+        valueLabel: crosshairData.valueLabel,
+        timestamp: crosshairData.timestamp,
+        dataIndex: crosshairData.dataIndex,
+        candles,
+        symbol: config.symbol,
+        exchange: config.exchange,
+        interval: config.interval,
+        range: config.range,
+        rangePreset: config.rangePreset,
+        chartType: config.chartType,
+        timeZone: chartSettingsMerged.symbol.timeZone,
+      });
       const items = buildChartContextMenuItems(
         {
           viewportModified: modified,
           drawingCount: overlays.length,
           indicatorCount: config.indicators.length,
-          priceLabel: crosshairData.valueLabel,
+          copyItems,
           canPasteDrawings: hasDrawingClipboard(),
+          lockCrosshairToTime: chartSettingsMerged.canvas.lockCrosshairToTime,
         },
         {
           resetView: () => {
             chartRef.current?.resetChartView();
             setContextMenu(null);
           },
-          copyPrice: (price) => {
-            void navigator.clipboard.writeText(price);
+          copyText: (text) => {
+            void navigator.clipboard.writeText(text);
             setContextMenu(null);
           },
           openObjectTree: () => {
@@ -990,6 +988,23 @@ export default function ChartCell({
             update({ indicators: [] });
             setContextMenu(null);
           },
+          removeAll: () => {
+            handleClearDrawings();
+            update({ indicators: [] });
+            setContextMenu(null);
+          },
+          toggleLockCrosshairToTime: () => {
+            const nextLock = !chartSettingsMerged.canvas.lockCrosshairToTime;
+            update({
+              chartSettings: patchChartSettings(config.chartSettings, {
+                canvas: {
+                  lockCrosshairToTime: nextLock,
+                  lockedCrosshairPlotX: nextLock ? latestCrosshairPlotXRef.current : null,
+                },
+              }),
+            });
+            setContextMenu(null);
+          },
           openSettings: () => {
             setChartSettingsSection("status");
             setChartSettingsOpen(true);
@@ -1005,8 +1020,12 @@ export default function ChartCell({
     },
     [
       overlays.length,
-      config.indicators.length,
+      config,
       crosshairData.valueLabel,
+      crosshairData.timestamp,
+      crosshairData.dataIndex,
+      chartSettingsMerged.symbol.timeZone,
+      chartSettingsMerged.canvas.lockCrosshairToTime,
       handleClearDrawings,
       handlePasteDrawings,
       handleSaveChartTemplate,
@@ -1014,6 +1033,10 @@ export default function ChartCell({
       sidebar,
     ],
   );
+
+  const renameOverlay = renameOverlayId
+    ? overlays.find((overlay) => overlay.id === renameOverlayId) ?? null
+    : null;
 
   // Crosshair sync helpers.
   const handleCrosshairFire = useCallback(
@@ -1054,7 +1077,7 @@ export default function ChartCell({
           }
           />
         </div>
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--tv-surface-chart)] p-px" ref={chartOverlayRef}>
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--edge-surface-chart)] p-px" ref={chartOverlayRef}>
           <EdgeChart
             ref={chartRef}
             config={config}
@@ -1064,6 +1087,7 @@ export default function ChartCell({
             chartId={chartId}
             onCrosshairTimestamp={handleCrosshairFire}
             onCrosshairMove={handleCrosshairMove}
+            suppressCrosshair={contextMenu != null}
             onLegendAction={handleLegendAction}
             onDrawingDisarmed={handleDrawingDisarmed}
             onConfigChange={onConfigChange}
@@ -1077,6 +1101,7 @@ export default function ChartCell({
             onMoveIndicatorDown={handleMovePaneDown}
             onPaneHeightsChange={handlePaneHeightsChange}
             onDataLoaded={handleDataLoaded}
+            onDataMetaChange={handleDataMetaChange}
             onCandlesChange={handleCandlesChange}
             collapsedKeys={collapsedKeys}
             maximizedKey={maximizedKey}
@@ -1140,75 +1165,52 @@ export default function ChartCell({
         />
       )}
 
-      {!compact && replayActive && (
-        <BarReplay
-          total={candleCount}
-          onVisibleChange={setVisibleCount}
-          disabled={false}
-        />
-      )}
-
-      <IndicatorPicker
-        open={pickerOpen}
-        active={config.indicators}
+      <ChartCellDialogs
+        compact={compact}
         theme={theme}
-        onAdd={addIndicator}
-        onClose={() => setPickerOpen(false)}
-      />
-
-      <IndicatorSettingsModal
-        open={settingsIndicatorId != null}
-        indicator={settingsIndicator}
-        theme={theme}
-        onClose={() => setSettingsIndicatorId(null)}
-        onSave={handleIndicatorParamsSave}
-        onSaveAsTemplate={
+        config={config}
+        chartRef={chartRef}
+        pickerOpen={pickerOpen}
+        onPickerClose={() => setPickerOpen(false)}
+        onAddIndicator={addIndicator}
+        settingsIndicator={settingsIndicator}
+        settingsIndicatorId={settingsIndicatorId}
+        onSettingsIndicatorClose={() => setSettingsIndicatorId(null)}
+        onIndicatorParamsSave={handleIndicatorParamsSave}
+        onSaveStudyTemplate={
           settingsIndicator
             ? () => handleSaveStudyTemplate(settingsIndicator)
             : undefined
         }
-      />
-
-      <DrawingSettingsModal
-        open={settingsOverlayId != null}
-        drawing={settingsDrawing}
-        theme={theme}
-        onClose={() => setSettingsOverlayId(null)}
-        onSave={handleDrawingStylesSave}
-      />
-
-      <ChartSettingsModal
-        open={chartSettingsOpen}
-        settings={config.chartSettings}
-        initialSection={chartSettingsSection}
-        onClose={() => setChartSettingsOpen(false)}
-        onSave={handleChartSettingsSave}
+        settingsDrawing={settingsDrawing}
+        settingsOverlayId={settingsOverlayId}
+        onSettingsOverlayClose={() => setSettingsOverlayId(null)}
+        onDrawingStylesSave={handleDrawingStylesSave}
+        chartSettingsOpen={chartSettingsOpen}
+        chartSettingsSection={chartSettingsSection}
+        onChartSettingsClose={() => setChartSettingsOpen(false)}
+        onChartSettingsSave={handleChartSettingsSave}
         chartTemplates={chartTemplates}
-        onSaveTemplate={handleSaveChartTemplate}
-        onApplyTemplate={(preset) => {
-          handleApplyTemplate(preset);
-          setChartSettingsOpen(false);
-        }}
-      />
-
-      <ChartGoToModal
-        open={goToOpen}
-        theme={theme}
-        interval={config.interval}
-        defaultTimestampMs={
-          crosshairData.timestamp ??
-          lastCandleTimestamp ??
-          null
+        onSaveChartTemplate={handleSaveChartTemplate}
+        onApplyTemplate={handleApplyTemplate}
+        goToOpen={goToOpen}
+        onGoToClose={() => setGoToOpen(false)}
+        crosshairTimestamp={crosshairData.timestamp}
+        lastCandleTimestamp={lastCandleTimestamp}
+        onGoTo={(req) =>
+          chartRef.current?.goTo(req) ??
+          Promise.resolve({ ok: false, reason: "no_data" })
         }
-        onClose={() => setGoToOpen(false)}
-        onGoTo={(req) => chartRef.current?.goTo(req) ?? Promise.resolve({ ok: false, reason: 'no_data' })}
-      />
-
-      <TemplatePickerModal
-        open={templatePickerOpen}
-        initialTab={templatePickerTab}
-        onClose={() => setTemplatePickerOpen(false)}
-        onApply={handleApplyTemplate}
+        renameOverlayId={renameOverlayId}
+        renameOverlayLabel={renameOverlay?.label ?? ""}
+        onRenameOverlayClose={() => setRenameOverlayId(null)}
+        onRenameOverlaySave={handleRenameOverlaySave}
+        templatePickerOpen={templatePickerOpen}
+        templatePickerTab={templatePickerTab}
+        onTemplatePickerClose={() => setTemplatePickerOpen(false)}
+        replayActive={replayActive}
+        candleCount={candleCount}
+        onReplayVisibleChange={setVisibleCount}
       />
 
       <ContextMenu
@@ -1219,8 +1221,13 @@ export default function ChartCell({
         onClose={() => setContextMenu(null)}
       />
 
-      {/* Crosshair sync wiring */}
-      <ChartSyncBridge chartRef={chartRef} chartId={chartId} />
+      {/* Crosshair + drawing sync wiring */}
+      <ChartSyncBridge
+        chartRef={chartRef}
+        chartId={chartId}
+        suppressDrawingPersistRef={suppressDrawingPersistRef}
+        lastAppliedDrawingsRef={lastAppliedDrawingsRef}
+      />
     </div>
   );
 }
@@ -1231,9 +1238,13 @@ export default function ChartCell({
 function ChartSyncBridge({
   chartRef,
   chartId,
+  suppressDrawingPersistRef,
+  lastAppliedDrawingsRef,
 }: {
   chartRef: React.RefObject<ChartHandle | null>;
   chartId: string;
+  suppressDrawingPersistRef: React.MutableRefObject<boolean>;
+  lastAppliedDrawingsRef: React.MutableRefObject<string>;
 }) {
   const sync = useChartSync();
 
@@ -1243,6 +1254,17 @@ function ChartSyncBridge({
       chartRef.current?.setCrosshairFromSync(ts);
     });
   }, [sync, chartId, chartRef]);
+
+  useEffect(() => {
+    if (!sync) return;
+    return sync.subscribeDrawings(chartId, (drawings) => {
+      const serialized = JSON.stringify(drawings);
+      if (serialized === lastAppliedDrawingsRef.current) return;
+      lastAppliedDrawingsRef.current = serialized;
+      suppressDrawingPersistRef.current = true;
+      chartRef.current?.restoreDrawings(drawings);
+    });
+  }, [sync, chartId, chartRef, suppressDrawingPersistRef, lastAppliedDrawingsRef]);
 
   return null;
 }

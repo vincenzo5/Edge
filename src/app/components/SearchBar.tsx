@@ -113,9 +113,9 @@ export default function SearchBar({
     setModalOpen(true);
   };
 
-  const symbolInputClass = `tv-focus-ring w-full rounded-[var(--tv-radius-sm)] border border-[var(--tv-border-strong)] px-2 py-1 font-medium text-[var(--tv-text-primary)] outline-none placeholder:text-[var(--tv-text-muted)] ${
+  const symbolInputClass = `edge-focus-ring w-full rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] px-2.5 py-1 font-semibold text-[var(--edge-text-strong)] outline-none placeholder:text-[var(--edge-text-muted)] ${
     compact
-      ? "bg-[var(--tv-surface-active)] text-xs"
+      ? "min-w-[88px] bg-[var(--edge-surface-panel)] text-xs hover:bg-[var(--edge-surface-hover)]"
       : "bg-transparent text-sm"
   }`;
 
@@ -145,18 +145,18 @@ export default function SearchBar({
         data-testid="symbol-search-input"
       />
       {!compact && loading && (
-        <div className="absolute right-2 top-1.5 text-xs text-[var(--tv-text-secondary)]">…</div>
+        <div className="absolute right-2 top-1.5 text-xs text-[var(--edge-text-secondary)]">…</div>
       )}
       {open && results.length > 0 && (
         <ul
-          className="tv-popover absolute z-20 mt-1 max-h-72 min-w-full overflow-auto rounded-[var(--tv-radius-sm)] border py-1"
+          className="edge-popover absolute z-20 mt-1 max-h-72 min-w-full overflow-auto rounded-[var(--edge-radius-sm)] border py-1"
         >
           {results.map((r) => (
             <li key={r.symbol}>
               <button
                 type="button"
                 onMouseDown={() => handleSelect(r)}
-                className="tv-focus-ring flex w-full items-center justify-between px-2 py-1.5 text-left text-sm hover:bg-[var(--tv-surface-hover)]"
+                className="edge-focus-ring flex w-full items-center justify-between px-2 py-1.5 text-left text-sm hover:bg-[var(--edge-surface-hover)]"
               >
                 <span className="font-medium">{r.symbol}</span>
                 <span className="ml-2 truncate opacity-60">
@@ -180,7 +180,7 @@ export default function SearchBar({
           data-testid="symbol-search-modal"
         >
           <div
-            className="tv-popover w-full max-w-[840px] overflow-hidden rounded-[var(--tv-radius-md)] border"
+            className="edge-popover w-full max-w-[840px] overflow-hidden rounded-[var(--edge-radius-md)] border"
             role="dialog"
             aria-label="Symbol search"
           >
@@ -189,7 +189,7 @@ export default function SearchBar({
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="tv-icon-button tv-focus-ring rounded p-1 text-2xl leading-none"
+                className="edge-icon-button edge-focus-ring rounded p-1 text-2xl leading-none"
                 aria-label="Close symbol search"
               >
                 ×
@@ -198,7 +198,7 @@ export default function SearchBar({
 
             <div className="px-5">
               <div
-                className="flex h-10 items-center gap-2 rounded-[var(--tv-radius-md)] border border-[var(--tv-border-strong)] bg-[var(--tv-surface-panel)] px-3"
+                className="flex h-10 items-center gap-2 rounded-[var(--edge-radius-md)] border border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)] px-3"
               >
                 <svg width={18} height={18} viewBox="0 0 18 18" fill="none" aria-hidden className="opacity-65">
                   <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.4" />
@@ -230,7 +230,7 @@ export default function SearchBar({
                       setQuery("");
                       modalInputRef.current?.focus();
                     }}
-                    className="rounded-full bg-[var(--tv-surface-active)] px-1.5 py-0.5 text-sm text-[var(--tv-text-primary)]"
+                    className="rounded-full bg-[var(--edge-surface-active)] px-1.5 py-0.5 text-sm text-[var(--edge-text-primary)]"
                     aria-label="Clear symbol search"
                   >
                     ×
@@ -246,8 +246,8 @@ export default function SearchBar({
                   type="button"
                   className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${
                     index === 0
-                      ? "bg-[var(--tv-text-strong)] text-[var(--tv-background)]"
-                      : "bg-[var(--tv-surface-active)] text-[var(--tv-text-primary)]"
+                      ? "bg-[var(--edge-text-strong)] text-[var(--edge-background)]"
+                      : "bg-[var(--edge-surface-active)] text-[var(--edge-text-primary)]"
                   }`}
                 >
                   {filter}
@@ -271,20 +271,20 @@ export default function SearchBar({
                     type="button"
                     onClick={() => handleSelect(result)}
                     onMouseEnter={() => setActiveIndex(index)}
-                    className={`tv-focus-ring grid w-full grid-cols-[minmax(120px,220px)_1fr_auto_auto] items-center gap-3 border-t border-[var(--tv-border)] px-5 py-2.5 text-left text-sm ${
+                    className={`edge-focus-ring grid w-full grid-cols-[minmax(120px,220px)_1fr_auto_auto] items-center gap-3 border-t border-[var(--edge-border)] px-5 py-2.5 text-left text-sm ${
                       activeIndex === index
-                        ? "bg-[var(--tv-surface-active)]"
+                        ? "bg-[var(--edge-surface-active)]"
                         : ""
                     }`}
                   >
                     <span className="flex min-w-0 items-center gap-3">
                       <span
-                        className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[var(--tv-border-strong)] bg-[var(--tv-surface-chart)] text-[10px] font-semibold text-[var(--tv-warning)]"
+                        className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[var(--edge-border-strong)] bg-[var(--edge-surface-chart)] text-[10px] font-semibold text-[var(--edge-warning)]"
                         aria-hidden
                       >
                         ◆
                       </span>
-                      <span className="truncate text-base font-medium text-[var(--tv-accent-blue)]">{result.symbol}</span>
+                      <span className="truncate text-base font-medium text-[var(--edge-accent-blue)]">{result.symbol}</span>
                     </span>
                     <span className="truncate">{result.name}</span>
                     <span className="text-xs lowercase opacity-50">stock</span>

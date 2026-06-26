@@ -24,7 +24,7 @@ import {
 import { getChartColors } from "@/lib/chart/chartTheme";
 import { buildTimeZoneMenuOptions } from "@/lib/chart/timeZone";
 
-type Section = "symbol" | "status" | "scales" | "canvas" | "trading";
+type Section = "symbol" | "status" | "scales" | "canvas" | "events" | "trading";
 type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
 
 type Props = {
@@ -43,15 +43,12 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: "status", label: "Status line" },
   { id: "scales", label: "Scales and lines" },
   { id: "canvas", label: "Canvas" },
+  { id: "events", label: "Events" },
   { id: "trading", label: "Trading" },
 ];
 
 function SectionHeader({ title }: { title: string }) {
-  return (
-    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-      {title}
-    </p>
-  );
+  return <p className="edge-section-header">{title}</p>;
 }
 
 function ToggleRow({
@@ -65,7 +62,7 @@ function ToggleRow({
 }) {
   return (
     <label className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-gray-600 dark:text-gray-400">{label}</span>
+      <span className="text-[var(--edge-text-secondary)] ">{label}</span>
       <input
         type="checkbox"
         checked={checked}
@@ -89,11 +86,11 @@ function SelectRow<T extends string>({
 }) {
   return (
     <label className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-gray-600 dark:text-gray-400">{label}</span>
+      <span className="text-[var(--edge-text-secondary)] ">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="max-w-[180px] rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-800"
+        className="max-w-[180px] rounded border border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)] px-2 py-1 text-sm border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)]"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -122,7 +119,7 @@ function NumberRow({
 }) {
   return (
     <label className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-gray-600 dark:text-gray-400">{label}</span>
+      <span className="text-[var(--edge-text-secondary)] ">{label}</span>
       <span className="flex items-center gap-1">
         <input
           type="number"
@@ -133,9 +130,9 @@ function NumberRow({
             const parsed = Number(e.target.value);
             if (Number.isFinite(parsed)) onChange(parsed);
           }}
-          className="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-800"
+          className="w-16 rounded border border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)] px-2 py-1 text-sm border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)]"
         />
-        {unit && <span className="text-xs text-gray-500">{unit}</span>}
+        {unit && <span className="text-xs text-[var(--edge-text-secondary)]">{unit}</span>}
       </span>
     </label>
   );
@@ -160,20 +157,20 @@ function ColorPairRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-gray-600 dark:text-gray-400">{label}</span>
+      <span className="text-[var(--edge-text-secondary)] ">{label}</span>
       <span className="flex items-center gap-2">
         <input
           type="color"
           value={upColor ?? upFallback}
           onChange={(e) => onUpChange(e.target.value)}
-          className="h-7 w-8 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
+          className="h-7 w-8 cursor-pointer rounded border border-[var(--edge-border-strong)] border-[var(--edge-border-strong)]"
           title="Up color"
         />
         <input
           type="color"
           value={downColor ?? downFallback}
           onChange={(e) => onDownChange(e.target.value)}
-          className="h-7 w-8 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
+          className="h-7 w-8 cursor-pointer rounded border border-[var(--edge-border-strong)] border-[var(--edge-border-strong)]"
           title="Down color"
         />
       </span>
@@ -197,7 +194,7 @@ function RadioRow({
   return (
     <label className="flex items-center gap-2 text-sm">
       <input type="radio" name={name} value={value} checked={checked} onChange={onChange} />
-      <span className="text-gray-600 dark:text-gray-400">{label}</span>
+      <span className="text-[var(--edge-text-secondary)] ">{label}</span>
     </label>
   );
 }
@@ -306,6 +303,13 @@ export default function ChartSettingsModal({
     [],
   );
 
+  const setEvents = useCallback(
+    (patch: Partial<RequiredChartSettings["events"]>) => {
+      setValues((prev) => ({ ...prev, events: { ...prev.events, ...patch } }));
+    },
+    [],
+  );
+
   const handleSave = useCallback(() => {
     onSave(values);
     onClose();
@@ -337,35 +341,35 @@ export default function ChartSettingsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center edge-modal-backdrop"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900"
+        className="edge-modal-shell flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[var(--edge-radius-md)] border"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-          <h3 className="text-base font-semibold">Settings</h3>
+        <div className="flex items-center justify-between border-b border-[var(--edge-border)] px-4 py-3">
+          <h3 className="text-base font-semibold text-[var(--edge-text-primary)]">Settings</h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            className="edge-icon-button edge-focus-ring text-sm text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-strong)]"
           >
             ✕
           </button>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:min-h-[380px] sm:flex-row">
-          <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-gray-200 bg-gray-50 px-2 py-2 dark:border-gray-700 dark:bg-gray-950 sm:w-44 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r sm:px-0">
+          <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-2 py-2 sm:w-44 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r sm:px-0">
             {SECTIONS.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => setSection(s.id)}
-                className={`px-3 py-2 text-left text-sm ${
+                className={`edge-focus-ring px-3 py-2 text-left text-sm transition-colors ${
                   section === s.id
-                    ? "bg-white font-medium text-blue-600 dark:bg-gray-900 dark:text-blue-400"
-                    : "text-gray-600 hover:bg-white/80 dark:text-gray-400 dark:hover:bg-gray-900/50"
+                    ? "bg-[var(--edge-surface-active)] font-medium text-[var(--edge-accent-blue)]"
+                    : "text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)]"
                 }`}
               >
                 {s.label}
@@ -425,7 +429,7 @@ export default function ChartSettingsModal({
                   onDownChange={(v) => setSymbol({ wickDownColor: v })}
                 />
 
-                <div className="space-y-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+                <div className="space-y-3 border-t border-[var(--edge-border)] pt-3 ">
                   <SectionHeader title="Data modification" />
                   <SelectRow
                     label="Precision"
@@ -495,7 +499,7 @@ export default function ChartSettingsModal({
                   onChange={(v) => setStatusLine({ showLastDayChange: v })}
                 />
 
-                <div className="space-y-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+                <div className="space-y-3 border-t border-[var(--edge-border)] pt-3 ">
                   <SectionHeader title="Indicators" />
                   <ToggleRow
                     label="Titles"
@@ -557,7 +561,7 @@ export default function ChartSettingsModal({
                   onChange={(v) => setScales({ scalePriceChartOnly: v })}
                 />
 
-                <div className="space-y-2 border-t border-gray-200 pt-3 dark:border-gray-700">
+                <div className="space-y-2 border-t border-[var(--edge-border)] pt-3 ">
                   <SectionHeader title="Price scale type" />
                   {PRICE_SCALE_OPTIONS.map((opt) => (
                     <RadioRow
@@ -571,7 +575,7 @@ export default function ChartSettingsModal({
                   ))}
                 </div>
 
-                <div className="space-y-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+                <div className="space-y-3 border-t border-[var(--edge-border)] pt-3 ">
                   <SectionHeader title="Price labels & lines" />
                   <ToggleRow
                     label="No overlapping labels"
@@ -620,7 +624,7 @@ export default function ChartSettingsModal({
                   />
                 </div>
 
-                <div className="space-y-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+                <div className="space-y-3 border-t border-[var(--edge-border)] pt-3 ">
                   <SectionHeader title="Scales appearance" />
                   <NumberRow
                     label="Text size"
@@ -637,12 +641,12 @@ export default function ChartSettingsModal({
               <>
                 <SectionHeader title="Chart basic styles" />
                 <label className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Background</span>
+                  <span className="text-[var(--edge-text-secondary)] ">Background</span>
                   <input
                     type="color"
                     value={values.canvas.backgroundColor ?? "#0A0B0E"}
                     onChange={(e) => setCanvas({ backgroundColor: e.target.value })}
-                    className="h-8 w-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
+                    className="h-8 w-10 cursor-pointer rounded border border-[var(--edge-border-strong)] border-[var(--edge-border-strong)]"
                   />
                 </label>
                 <ToggleRow
@@ -687,7 +691,7 @@ export default function ChartSettingsModal({
                   onChange={(v) => setCanvas({ watermarkVisible: v })}
                 />
 
-                <div className="space-y-2 border-t border-gray-200 pt-3 dark:border-gray-700">
+                <div className="space-y-2 border-t border-[var(--edge-border)] pt-3 ">
                   <SectionHeader title="Crosshair mode" />
                   {CROSSHAIR_OPTIONS.map((opt) => (
                     <RadioRow
@@ -701,7 +705,7 @@ export default function ChartSettingsModal({
                   ))}
                 </div>
 
-                <div className="space-y-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+                <div className="space-y-3 border-t border-[var(--edge-border)] pt-3 ">
                   <SectionHeader title="Buttons" />
                   <SelectRow
                     label="Navigation"
@@ -717,7 +721,7 @@ export default function ChartSettingsModal({
                   />
                 </div>
 
-                <div className="space-y-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+                <div className="space-y-3 border-t border-[var(--edge-border)] pt-3 ">
                   <SectionHeader title="Margins" />
                   <NumberRow
                     label="Top"
@@ -747,9 +751,53 @@ export default function ChartSettingsModal({
               </>
             )}
 
+            {section === "events" && (
+              <>
+                <SectionHeader title="Event badges" />
+                <p className="text-xs text-[var(--edge-text-secondary)] ">
+                  Choose which events appear as compact bottom-axis badges.
+                </p>
+                <ToggleRow
+                  label="Earnings"
+                  checked={values.events.showEarnings}
+                  onChange={(v) => setEvents({ showEarnings: v })}
+                />
+                <ToggleRow
+                  label="Dividends"
+                  checked={values.events.showDividend}
+                  onChange={(v) => setEvents({ showDividend: v })}
+                />
+                <ToggleRow
+                  label="Splits"
+                  checked={values.events.showSplit}
+                  onChange={(v) => setEvents({ showSplit: v })}
+                />
+                <ToggleRow
+                  label="SEC filings"
+                  checked={values.events.showFiling}
+                  onChange={(v) => setEvents({ showFiling: v })}
+                />
+                <ToggleRow
+                  label="Macro events"
+                  checked={values.events.showMacro}
+                  onChange={(v) => setEvents({ showMacro: v })}
+                />
+                <ToggleRow
+                  label="News"
+                  checked={values.events.showNews}
+                  onChange={(v) => setEvents({ showNews: v })}
+                />
+                <ToggleRow
+                  label="Options expirations (can be dense)"
+                  checked={values.events.showOptionsExpiration}
+                  onChange={(v) => setEvents({ showOptionsExpiration: v })}
+                />
+              </>
+            )}
+
             {section === "trading" && (
               <>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-[var(--edge-text-secondary)] ">
                   Display preferences for future trading overlays. No broker integration in this
                   release.
                 </p>
@@ -784,12 +832,12 @@ export default function ChartSettingsModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+        <div className="flex items-center justify-between border-t border-[var(--edge-border)] px-4 py-3 ">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleReset}
-              className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              className="text-sm text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-primary)] hover:text-[var(--edge-text-strong)]"
             >
               Reset to defaults
             </button>
@@ -798,7 +846,7 @@ export default function ChartSettingsModal({
                 <button
                   type="button"
                   onClick={() => setTemplateMenuOpen((prev) => !prev)}
-                  className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                  className="rounded border border-[var(--edge-border-strong)] px-3 py-1.5 text-sm text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-toolbar)] border-[var(--edge-border-strong)]  dark:hover:bg-gray-800"
                   aria-haspopup="menu"
                   aria-expanded={templateMenuOpen}
                 >
@@ -807,14 +855,14 @@ export default function ChartSettingsModal({
                 {templateMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute bottom-full left-0 z-10 mb-2 w-56 overflow-hidden rounded border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                    className="absolute bottom-full left-0 z-10 mb-2 w-56 overflow-hidden rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] py-1 shadow-lg  "
                   >
                     {onSaveTemplate && (
                       <button
                         type="button"
                         role="menuitem"
                         onClick={handleSaveTemplate}
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                        className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--edge-surface-toolbar)] dark:hover:bg-gray-800"
                       >
                         Save current as template…
                       </button>
@@ -826,15 +874,15 @@ export default function ChartSettingsModal({
                         handleReset();
                         setTemplateMenuOpen(false);
                       }}
-                      className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--edge-surface-toolbar)] dark:hover:bg-gray-800"
                     >
                       Apply defaults
                     </button>
                     {onApplyTemplate && (
                       <>
-                        <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                        <div className="my-1 border-t border-[var(--edge-border)] " />
                         {chartTemplates.length === 0 ? (
-                          <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                          <div className="px-3 py-2 text-sm text-[var(--edge-text-secondary)] ">
                             No saved templates
                           </div>
                         ) : (
@@ -844,7 +892,7 @@ export default function ChartSettingsModal({
                               type="button"
                               role="menuitem"
                               onClick={() => handleApplyTemplate(preset)}
-                              className="block w-full truncate px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                              className="block w-full truncate px-3 py-2 text-left text-sm hover:bg-[var(--edge-surface-toolbar)] dark:hover:bg-gray-800"
                             >
                               {preset.name}
                             </button>
@@ -861,7 +909,7 @@ export default function ChartSettingsModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              className="rounded px-3 py-1.5 text-sm text-[var(--edge-text-secondary)] hover:bg-gray-100  dark:hover:bg-gray-800"
             >
               Cancel
             </button>

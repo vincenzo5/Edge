@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { ChartType, GridMode, Theme } from '@/lib/chartConfig';
+import type { ChartType, GridMode, Theme, LayoutSyncPrefs } from '@/lib/chartConfig';
 import type { Interval } from '@/lib/chart/contracts';
 import { loadIndicatorFavorites } from '@/lib/chart/indicatorFavorites';
 import { resolveHeaderDensity, type HeaderDensity } from '@/lib/responsive/responsiveLayout';
@@ -43,8 +43,17 @@ type SymbolResult = {
 export type ChartHeaderLayoutState = {
   layoutName: string;
   gridMode: GridMode;
-  linked: boolean;
+  linkSymbol: boolean;
+  linkInterval: boolean;
+  linkCrosshair: boolean;
+  linkDrawings: boolean;
   theme: Theme;
+};
+
+export type ChartHeaderLayoutActions = {
+  onGridModeChange: (mode: GridMode) => void;
+  onLayoutSyncChange: (patch: Partial<LayoutSyncPrefs>) => void;
+  onThemeChange: (theme: Theme) => void;
 };
 
 export type ChartHeaderChartState = {
@@ -52,12 +61,6 @@ export type ChartHeaderChartState = {
   interval: Interval;
   chartType: ChartType;
   indicatorFavorites?: string[];
-};
-
-export type ChartHeaderLayoutActions = {
-  onGridModeChange: (mode: GridMode) => void;
-  onLinkedChange: (linked: boolean) => void;
-  onThemeChange: (theme: Theme) => void;
 };
 
 export type ChartHeaderChartActions = {
@@ -88,7 +91,7 @@ export default function ChartHeaderBar({
   chartActions,
   density: densityOverride,
 }: Props) {
-  const { theme, gridMode, linked, layoutName } = layout;
+  const { theme, gridMode, linkSymbol, linkInterval, linkCrosshair, linkDrawings, layoutName } = layout;
   const { symbol, interval, chartType, indicatorFavorites } = chart;
   const activeChart = useActiveChart();
   const commands = activeChart?.headerCommands;
@@ -211,13 +214,30 @@ export default function ChartHeaderBar({
         role="toolbar"
         aria-label="Chart header"
       >
-        <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
           <SearchBar
             onSelect={chartActions.onSymbolSelect}
             initial={symbol}
             compact
             theme={theme}
           />
+          {activeChart?.dataMeta?.source ? (
+            <span
+              className="ml-1 shrink-0 rounded-[var(--edge-radius-xs)] bg-[var(--edge-surface-panel)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--edge-text-muted)]"
+              title={
+                activeChart.dataMeta.streamError
+                  ? activeChart.dataMeta.streamError
+                  : activeChart.dataMeta.warnings?.length
+                    ? activeChart.dataMeta.warnings.join('; ')
+                    : `Data source: ${activeChart.dataMeta.source}${activeChart.dataMeta.streaming ? ' (live)' : ''}`
+              }
+              data-testid="chart-data-source-badge"
+            >
+              {activeChart.dataMeta.source}
+              {activeChart.dataMeta.streaming ? ' · live' : ''}
+              {activeChart.dataMeta.stale ? ' · stale' : ''}
+            </span>
+          ) : null}
           <ChartHeaderDivider theme={theme} />
           <ChartIntervalMenu
             theme={theme}
@@ -302,9 +322,12 @@ export default function ChartHeaderBar({
             theme={theme}
             layoutName={layoutName}
             gridMode={gridMode}
-            linked={linked}
+            linkSymbol={linkSymbol}
+            linkInterval={linkInterval}
+            linkCrosshair={linkCrosshair}
+            linkDrawings={linkDrawings}
             onGridModeChange={layoutActions.onGridModeChange}
-            onLinkedChange={layoutActions.onLinkedChange}
+            onLayoutSyncChange={layoutActions.onLayoutSyncChange}
           />
 
           {showInline(density, 'secondary') ? (

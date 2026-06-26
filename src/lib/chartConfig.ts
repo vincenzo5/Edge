@@ -78,14 +78,17 @@ export const DEFAULT_TOOLBAR_PREFS: ToolbarPrefs = {
 };
 
 /** Right sidebar panel identifiers — extend as new panels ship. */
-export type SidebarPanelId = "object-tree" | "watchlist";
+export type SidebarPanelId = "object-tree" | "watchlist" | "options";
 
 export type SidebarPrefs = {
   activePanel: SidebarPanelId | null;
+  /** Per-panel user-resized widths in pixels. */
+  panelWidths?: Partial<Record<SidebarPanelId, number>>;
 };
 
 export const DEFAULT_SIDEBAR_PREFS: SidebarPrefs = {
   activePanel: null,
+  panelWidths: {},
 };
 
 export type CellConfig = {
@@ -109,12 +112,30 @@ export type CellConfig = {
   paneHeights?: Record<string, number>;
   /** Chart display settings (status line, scales, canvas). */
   chartSettings?: ChartSettings;
+  /** When false, main candle series is hidden on the price pane. Default visible. */
+  mainSeriesVisible?: boolean;
+};
+
+export type LayoutSyncPrefs = {
+  /** Propagate symbol / symbolName / exchange to peer cells. */
+  linkSymbol: boolean;
+  /** Propagate range / interval / rangePreset to peer cells. */
+  linkInterval: boolean;
+  /** Broadcast crosshair position across visible cells. */
+  linkCrosshair: boolean;
+  /** Propagate drawings across linked layout cells with shared IDs. */
+  linkDrawings: boolean;
 };
 
 export type ChartLayout = {
   version: 1;
   gridMode: GridMode;
-  linked: boolean;
+  /** @deprecated Use linkSymbol / linkInterval / linkCrosshair. Kept for migration only. */
+  linked?: boolean;
+  linkSymbol: boolean;
+  linkInterval: boolean;
+  linkCrosshair: boolean;
+  linkDrawings: boolean;
   /** Index of the chart cell that receives drawing tools and focus ring. */
   activeCellIndex: number;
   theme: Theme;
@@ -125,21 +146,114 @@ export type ChartLayout = {
   cells: CellConfig[];
 };
 
-/** Fields propagated to all cells when layout.linked is true. */
-export type LinkFields = Pick<
+/** Symbol fields propagated when linkSymbol is enabled. */
+export type LinkSymbolFields = Pick<
   CellConfig,
-  "symbol" | "symbolName" | "exchange" | "range" | "interval" | "rangePreset"
+  "symbol" | "symbolName" | "exchange"
 >;
 
-export function pickLinkFields(cell: CellConfig): LinkFields {
+/** Range/interval fields propagated when linkInterval is enabled. */
+export type LinkIntervalFields = Pick<
+  CellConfig,
+  "range" | "interval" | "rangePreset"
+>;
+
+/** Drawings propagated when linkDrawings is enabled. */
+export type LinkDrawingFields = Pick<CellConfig, "drawings">;
+
+/** @deprecated Use pickLinkSymbolFields + pickLinkIntervalFields. */
+export type LinkFields = LinkSymbolFields & LinkIntervalFields;
+
+export function pickLinkSymbolFields(cell: CellConfig): LinkSymbolFields {
   return {
     symbol: cell.symbol,
     symbolName: cell.symbolName,
     exchange: cell.exchange,
+  };
+}
+
+export function pickLinkIntervalFields(cell: CellConfig): LinkIntervalFields {
+  return {
     range: cell.range,
     interval: cell.interval,
     rangePreset: cell.rangePreset ?? null,
   };
+}
+
+export function pickLinkDrawingFields(cell: CellConfig): LinkDrawingFields {
+  return {
+    drawings: structuredClone(cell.drawings),
+  };
+}
+
+/** @deprecated Use pickLinkSymbolFields + pickLinkIntervalFields. */
+export function pickLinkFields(cell: CellConfig): LinkFields {
+  return {
+    ...pickLinkSymbolFields(cell),
+    ...pickLinkIntervalFields(cell),
+  };
+}
+
+export const DEFAULT_LAYOUT_SYNC: LayoutSyncPrefs = {
+  linkSymbol: false,
+  linkInterval: false,
+  linkCrosshair: false,
+  linkDrawings: false,
+};
+
+export function migrateLayoutSync(
+  layout: Partial<ChartLayout> & Pick<ChartLayout, "version" | "gridMode" | "cells">,
+): LayoutSyncPrefs {
+  if (
+    typeof layout.linkSymbol === "boolean" ||
+    typeof layout.linkInterval === "boolean" ||
+    typeof layout.linkCrosshair === "boolean" ||
+    typeof layout.linkDrawings === "boolean"
+  ) {
+    return {
+      linkSymbol: layout.linkSymbol ?? false,
+      linkInterval: layout.linkInterval ?? false,
+      linkCrosshair: layout.linkCrosshair ?? false,
+      linkDrawings: layout.linkDrawings ?? false,
+    };
+  }
+  const legacyLinked = layout.linked ?? false;
+  return {
+    linkSymbol: legacyLinked,
+    linkInterval: legacyLinked,
+    linkCrosshair: legacyLinked,
+    linkDrawings: false,
+  };
+}
+
+export function applyLinkPropagation(
+  layout: ChartLayout,
+  index: number,
+  next: CellConfig,
+): ChartLayout {
+  const count = cellCountFor(layout.gridMode);
+  const cells = [...layout.cells];
+  cells[index] = next;
+
+  const symbolFields = layout.linkSymbol ? pickLinkSymbolFields(next) : null;
+  const intervalFields = layout.linkInterval ? pickLinkIntervalFields(next) : null;
+  const drawingFields = layout.linkDrawings ? pickLinkDrawingFields(next) : null;
+
+  if (!symbolFields && !intervalFields && !drawingFields) {
+    return { ...layout, cells };
+  }
+
+  for (let i = 0; i < count; i++) {
+    if (i === index) continue;
+    cells[i] = {
+      ...cells[i],
+      ...(symbolFields ?? {}),
+      ...(intervalFields ?? {}),
+      ...(drawingFields ?? {}),
+    };
+  }
+
+  return { ...layout, cells };
 }
 
 export const DEFAULT_CHART_RANGE = { range: "1y" as Range, interval: "1d" as Interval };
@@ -160,7 +274,7 @@ export const DEFAULT_CELL: CellConfig = {
 export const DEFAULT_LAYOUT: ChartLayout = {
   version: 1,
   gridMode: "1x1",
-  linked: false,
+  ...DEFAULT_LAYOUT_SYNC,
   activeCellIndex: 0,
   theme: "dark",
   sidebar: DEFAULT_SIDEBAR_PREFS,

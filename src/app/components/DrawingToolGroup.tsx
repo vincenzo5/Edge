@@ -9,7 +9,7 @@ import {
   getToolIcon,
 } from "./chart-icons/toolGroups";
 import {
-  toolbarButtonClass,
+  iconRailButtonClass,
   toolbarButtonStateClass,
 } from "./chart-icons/toolbarButtonStyles";
 import { usePointerCoarse } from "./chart-icons/usePointerCoarse";
@@ -176,7 +176,7 @@ export default function DrawingToolGroup({
           disabled={disabled}
           onClick={handleGroupClick}
           onKeyDown={handleGroupKeyDown}
-          className={`${toolbarButtonClass(compact)} ${toolbarButtonStateClass(isGroupActive)}`}
+          className={`${iconRailButtonClass(compact)} ${toolbarButtonStateClass(isGroupActive)}`}
         >
           <DisplayIcon size={iconSize} />
         </button>

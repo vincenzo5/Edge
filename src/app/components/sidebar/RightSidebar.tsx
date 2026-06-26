@@ -8,10 +8,18 @@ import { SIDEBAR_PANEL_MAP } from "./registry";
 type Props = {
   activePanel: SidebarPanelId | null;
   mode: SidebarMode;
+  width: number;
+  onWidthChange?: (width: number) => void;
   onClose?: () => void;
 };
 
-export default function RightSidebar({ activePanel, mode, onClose }: Props) {
+export default function RightSidebar({
+  activePanel,
+  mode,
+  width,
+  onWidthChange,
+  onClose,
+}: Props) {
   const panelDef = activePanel ? SIDEBAR_PANEL_MAP[activePanel] : null;
   const PanelComponent = panelDef?.Panel;
 
@@ -20,7 +28,13 @@ export default function RightSidebar({ activePanel, mode, onClose }: Props) {
   }
 
   return (
-    <SidebarPanelShell panelId={panelDef.id} mode={mode} onClose={onClose}>
+    <SidebarPanelShell
+      panelId={panelDef.id}
+      mode={mode}
+      width={width}
+      onWidthChange={onWidthChange}
+      onClose={onClose}
+    >
       <PanelComponent />
     </SidebarPanelShell>
   );

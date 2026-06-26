@@ -32,7 +32,7 @@ describe("ShortcutProvider", () => {
           patchActiveCell: vi.fn(),
           setActiveCellIndex: vi.fn(),
           setGridMode: vi.fn(),
-          setLinked: vi.fn(),
+          setLayoutSync: vi.fn(),
           setTheme: vi.fn(),
           setSidebarPanel: vi.fn(),
         })}

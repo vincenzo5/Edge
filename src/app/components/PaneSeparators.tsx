@@ -77,10 +77,10 @@ export default function PaneSeparators({
         const isActive = activeIndex === boundary.index;
         const isHover = hoverIndex === boundary.index;
         const lineColor = isActive
-          ? 'var(--tv-focus)'
+          ? 'var(--edge-focus)'
           : isHover
-            ? 'var(--tv-text-secondary)'
-            : 'var(--tv-border-strong)';
+            ? 'var(--edge-text-secondary)'
+            : 'var(--edge-border-strong)';
 
         const lineTop = (PANE_SEPARATOR_HIT - PANE_SEPARATOR_HEIGHT) / 2;
 

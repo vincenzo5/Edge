@@ -1,4 +1,5 @@
-import type { Watchlist, WatchlistItem, WatchlistState } from "./types";
+import type { Watchlist, WatchlistItem, WatchlistState, WatchlistViewPrefs } from "./types";
+import { DEFAULT_WATCHLIST_VIEW_PREFS } from "./types";
 
 const STORAGE_KEY = "tv-ai:watchlists:v1";
 export const MAX_WATCHLIST_ITEMS = 100;
@@ -11,26 +12,20 @@ function createWatchlistId(): string {
   return `wl-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function createDefaultWatchlist(): Watchlist {
-  const now = Date.now();
-  return {
-    id: createWatchlistId(),
-    name: "Watchlist",
-    items: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-export const DEFAULT_WATCHLIST_STATE: WatchlistState = (() => {
-  const list = createDefaultWatchlist();
-  return {
-    version: 1,
-    activeWatchlistId: list.id,
-    selectedSymbol: null,
-    watchlists: [list],
-  };
-})();
+export const DEFAULT_WATCHLIST_STATE: WatchlistState = {
+  version: 1,
+  activeWatchlistId: "default-watchlist",
+  selectedSymbol: null,
+  watchlists: [
+    {
+      id: "default-watchlist",
+      name: "Watchlist",
+      items: [],
+      createdAt: 0,
+      updatedAt: 0,
+    },
+  ],
+};
 
 function isWatchlistItem(value: unknown): value is WatchlistItem {
   if (!value || typeof value !== "object") return false;
@@ -50,6 +45,53 @@ function isWatchlist(value: unknown): value is Watchlist {
   );
 }
 
+function normalizeTags(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const tags = raw
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  return tags.length > 0 ? Array.from(new Set(tags)) : undefined;
+}
+
+function normalizeNote(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed ? trimmed.slice(0, 280) : undefined;
+}
+
+function normalizeViewPrefs(raw: unknown): WatchlistViewPrefs {
+  if (!raw || typeof raw !== "object") return DEFAULT_WATCHLIST_VIEW_PREFS;
+  const prefs = raw as WatchlistViewPrefs;
+  const visibleColumns =
+    Array.isArray(prefs.visibleColumns) && prefs.visibleColumns.length > 0
+      ? prefs.visibleColumns.filter((column): column is WatchlistViewPrefs["visibleColumns"][number] =>
+          ["symbol", "last", "changePct", "volume", "marketCap"].includes(column),
+        )
+      : DEFAULT_WATCHLIST_VIEW_PREFS.visibleColumns;
+  const groupMode =
+    prefs.groupMode === "tags" || prefs.groupMode === "sector" || prefs.groupMode === "none"
+      ? prefs.groupMode
+      : DEFAULT_WATCHLIST_VIEW_PREFS.groupMode;
+  const sortColumn =
+    prefs.sort?.column &&
+    ["symbol", "last", "changePct", "volume", "marketCap"].includes(prefs.sort.column)
+      ? prefs.sort.column
+      : DEFAULT_WATCHLIST_VIEW_PREFS.sort.column;
+  const sortDirection =
+    prefs.sort?.direction === "desc" ? "desc" : "asc";
+  const filterTags = Array.isArray(prefs.filterTags)
+    ? prefs.filterTags.filter((tag): tag is string => typeof tag === "string" && tag.trim() !== "")
+    : [];
+  return {
+    visibleColumns,
+    sort: { column: sortColumn, direction: sortDirection },
+    groupMode,
+    filterTags,
+  };
+}
+
 function normalizeItem(raw: WatchlistItem): WatchlistItem | null {
   const symbol = raw.symbol.trim().toUpperCase();
   if (!symbol) return null;
@@ -59,6 +101,9 @@ function normalizeItem(raw: WatchlistItem): WatchlistItem | null {
     exchange: typeof raw.exchange === "string" ? raw.exchange : undefined,
     addedAt: typeof raw.addedAt === "number" ? raw.addedAt : Date.now(),
     color: typeof raw.color === "string" ? raw.color : undefined,
+    pinned: raw.pinned === true ? true : undefined,
+    tags: normalizeTags(raw.tags),
+    note: normalizeNote(raw.note),
   };
 }
 
@@ -84,6 +129,7 @@ function normalizeWatchlist(raw: Watchlist): Watchlist {
     items: dedupeItems(raw.items),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt ?? now,
+    viewPrefs: normalizeViewPrefs(raw.viewPrefs),
   };
 }
 
@@ -302,6 +348,7 @@ export function duplicateWatchlist(
     items: source.items.map((item) => ({ ...item })),
     createdAt: now,
     updatedAt: now,
+    viewPrefs: source.viewPrefs ? { ...source.viewPrefs } : undefined,
   };
   return {
     ...state,
@@ -355,4 +402,88 @@ export function clearWatchlistStorage(): void {
   } catch {
     // ignore
   }
+}
+
+function updateActiveWatchlistItems(
+  state: WatchlistState,
+  updater: (items: WatchlistItem[]) => WatchlistItem[],
+): WatchlistState {
+  const active = getActiveWatchlist(state);
+  const now = Date.now();
+  const watchlists = state.watchlists.map((list) =>
+    list.id === active.id
+      ? {
+          ...list,
+          items: updater(list.items),
+          updatedAt: now,
+        }
+      : list,
+  );
+  return { ...state, watchlists };
+}
+
+function updateActiveWatchlistItem(
+  state: WatchlistState,
+  symbol: string,
+  updater: (item: WatchlistItem) => WatchlistItem,
+): WatchlistState {
+  const sym = symbol.trim().toUpperCase();
+  return updateActiveWatchlistItems(state, (items) =>
+    items.map((item) => (item.symbol === sym ? updater(item) : item)),
+  );
+}
+
+export function toggleWatchlistItemPin(
+  state: WatchlistState,
+  symbol: string,
+): WatchlistState {
+  return updateActiveWatchlistItem(state, symbol, (item) => ({
+    ...item,
+    pinned: !item.pinned,
+  }));
+}
+
+export function setWatchlistItemTags(
+  state: WatchlistState,
+  symbol: string,
+  tags: string[],
+): WatchlistState {
+  const normalized = normalizeTags(tags) ?? [];
+  return updateActiveWatchlistItem(state, symbol, (item) => ({
+    ...item,
+    tags: normalized.length > 0 ? normalized : undefined,
+  }));
+}
+
+export function setWatchlistItemNote(
+  state: WatchlistState,
+  symbol: string,
+  note: string,
+): WatchlistState {
+  const normalized = normalizeNote(note);
+  return updateActiveWatchlistItem(state, symbol, (item) => ({
+    ...item,
+    note: normalized,
+  }));
+}
+
+export function setWatchlistViewPrefs(
+  state: WatchlistState,
+  watchlistId: string,
+  patch: Partial<WatchlistViewPrefs>,
+): WatchlistState {
+  if (!state.watchlists.some((list) => list.id === watchlistId)) return state;
+  const now = Date.now();
+  return {
+    ...state,
+    watchlists: state.watchlists.map((list) => {
+      if (list.id !== watchlistId) return list;
+      const current = normalizeViewPrefs(list.viewPrefs);
+      return {
+        ...list,
+        viewPrefs: normalizeViewPrefs({ ...current, ...patch }),
+        updatedAt: now,
+      };
+    }),
+  };
 }

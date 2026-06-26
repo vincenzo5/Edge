@@ -7,8 +7,11 @@ export const RESPONSIVE_BREAKPOINTS = {
 
 export const LAYOUT_DIMENSIONS = {
   sidebarPanelWidth: 300,
-  sidebarRailWidth: 60,
-  compactSidebarRailWidth: 48,
+  sidebarPanelWidthMin: 260,
+  sidebarPanelWidthMax: 560,
+  /** TradingView-style slim icon rails (left drawing toolbar + right sidebar). */
+  sidebarRailWidth: 44,
+  compactSidebarRailWidth: 40,
   /** Minimum width for a single chart cell container to remain usable. */
   minUsableChartWidth: 320,
   /** Minimum height for a single chart cell container to remain usable. */

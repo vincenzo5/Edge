@@ -10,7 +10,8 @@ import { ChartSyncProvider } from "./ChartSyncContext";
 
 type Props = {
   gridMode: GridMode;
-  linked: boolean;
+  linkCrosshair: boolean;
+  linkDrawings: boolean;
   theme: Theme;
   cells: CellConfig[];
   activeCellIndex: number;
@@ -22,7 +23,8 @@ type Props = {
 
 export default function ChartGrid({
   gridMode,
-  linked,
+  linkCrosshair,
+  linkDrawings,
   theme,
   cells,
   activeCellIndex,
@@ -49,7 +51,7 @@ export default function ChartGrid({
   );
 
   return (
-    <ChartSyncProvider linked={linked}>
+    <ChartSyncProvider linkCrosshair={linkCrosshair} linkDrawings={linkDrawings}>
       <div
         ref={gridRef}
         data-testid="chart-grid"
@@ -59,7 +61,7 @@ export default function ChartGrid({
             ? "true"
             : "false"
         }
-        className={`grid min-h-0 min-w-0 flex-1 gap-px overflow-hidden bg-[var(--tv-border)] ${gridClass}`}
+        className={`grid min-h-0 min-w-0 flex-1 gap-px overflow-hidden bg-[var(--edge-border)] ${gridClass}`}
       >
         {visibleCells.map((cell, i) => (
           <div key={i} className="flex min-h-0 min-w-0 flex-col overflow-hidden">

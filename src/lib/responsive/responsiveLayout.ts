@@ -71,12 +71,12 @@ export function chartAreaWidthForViewport(
   viewportWidth: number,
   sidebarMode: SidebarMode,
   railMode: RailMode,
+  sidebarPanelWidth: number = LAYOUT_DIMENSIONS.sidebarPanelWidth,
 ): number {
   const railWidth =
     railMode === 'compact'
       ? LAYOUT_DIMENSIONS.compactSidebarRailWidth
       : LAYOUT_DIMENSIONS.sidebarRailWidth;
-  const sidebarWidth =
-    sidebarMode === 'inline' ? LAYOUT_DIMENSIONS.sidebarPanelWidth : 0;
+  const sidebarWidth = sidebarMode === 'inline' ? sidebarPanelWidth : 0;
   return Math.max(0, viewportWidth - railWidth - sidebarWidth);
 }

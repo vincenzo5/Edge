@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import EdgeMenuItem from "./design-system/EdgeMenuItem";
+import { popoverPanelClass } from "./design-system/styles";
 
 export type ContextMenuItem = {
   id: string;
@@ -50,6 +52,8 @@ export function resolveSubmenuPlacement(
   if (leftSpace >= submenuWidth) return "left";
   return leftSpace > rightSpace ? "left" : "right";
 }
+
+const menuShellClass = `${popoverPanelClass("dark")} fixed z-50 min-w-[220px] py-1`;
 
 export default function ContextMenu({
   open,
@@ -112,13 +116,17 @@ export default function ContextMenu({
     <div
       ref={menuRef}
       style={{ left: displayPos.x, top: displayPos.y }}
-      className="fixed z-50 min-w-[180px] rounded border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+      className={menuShellClass}
+      onPointerDown={(event) => event.stopPropagation()}
+      onPointerMove={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onMouseMove={(event) => event.stopPropagation()}
     >
-      {header && (
-        <div className="border-b border-gray-100 px-3 py-1.5 text-xs font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
+      {header ? (
+        <div className="border-b border-[var(--edge-border)] px-3 py-1.5 text-xs font-medium text-[var(--edge-text-secondary)]">
           {header}
         </div>
-      )}
+      ) : null}
       {items.map((item) => (
         <div key={item.id}>
           <MenuItemRow
@@ -138,9 +146,7 @@ export default function ContextMenu({
               ) : null
             }
           />
-          {item.dividerAfter && (
-            <div className="my-1 border-t border-gray-100 dark:border-gray-800" />
-          )}
+          {item.dividerAfter ? <div className="edge-menu-divider" /> : null}
         </div>
       ))}
     </div>
@@ -174,7 +180,7 @@ function SubMenu({
   return (
     <div
       ref={submenuRef}
-      className="absolute top-0 z-50 min-w-[200px] rounded border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+      className={`${menuShellClass} absolute top-0 min-w-[200px]`}
       style={
         placement === "left"
           ? { right: "100%", marginRight: 2 }
@@ -183,7 +189,7 @@ function SubMenu({
     >
       {items.map((item) => (
         <div key={item.id}>
-          <MenuItemRow
+          <EdgeMenuItem
             label={item.label}
             shortcut={item.shortcut}
             danger={item.danger}
@@ -226,24 +232,14 @@ function MenuItemRow({
       onMouseEnter={() => hasSubmenu && setOpen(true)}
       onMouseLeave={() => hasSubmenu && setOpen(false)}
     >
-      <button
-        type="button"
-        onClick={onClick}
+      <EdgeMenuItem
+        label={label}
+        shortcut={shortcut}
+        danger={danger}
         disabled={disabled}
-        className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors ${
-          disabled
-            ? "cursor-not-allowed text-gray-300 dark:text-gray-600"
-            : danger
-              ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-              : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-        }`}
-      >
-        <span>{label}</span>
-        <span className="ml-4 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-          {shortcut && <span>{shortcut}</span>}
-          {hasSubmenu && <span>›</span>}
-        </span>
-      </button>
+        hasSubmenu={hasSubmenu}
+        onClick={onClick}
+      />
       {open && submenu}
     </div>
   );

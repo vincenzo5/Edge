@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import type { GridMode, Theme } from '@/lib/chartConfig';
+import type { GridMode, Theme, LayoutSyncPrefs } from '@/lib/chartConfig';
 import { GRID_MODES } from '@/lib/chartConfig';
 import ChartAnchoredPopover from './ChartAnchoredPopover';
 import ChartHeaderButton from './ChartHeaderButton';
@@ -21,9 +21,12 @@ type Props = {
   theme: Theme;
   layoutName?: string;
   gridMode: GridMode;
-  linked: boolean;
+  linkSymbol: boolean;
+  linkInterval: boolean;
+  linkCrosshair: boolean;
+  linkDrawings: boolean;
   onGridModeChange: (mode: GridMode) => void;
-  onLinkedChange: (linked: boolean) => void;
+  onLayoutSyncChange: (patch: Partial<LayoutSyncPrefs>) => void;
 };
 
 function ToggleSwitch({
@@ -44,10 +47,10 @@ function ToggleSwitch({
       onClick={() => onChange?.(!checked)}
       className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
         disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
-      } ${checked ? 'bg-[var(--tv-text-strong)]' : 'bg-[var(--tv-border-strong)]'}`}
+      } ${checked ? 'bg-[var(--edge-text-strong)]' : 'bg-[var(--edge-border-strong)]'}`}
     >
       <span
-        className={`absolute top-0.5 h-3 w-3 rounded-full bg-[var(--tv-background)] transition-transform ${
+        className={`absolute top-0.5 h-3 w-3 rounded-full bg-[var(--edge-background)] transition-transform ${
           checked ? 'translate-x-3.5' : 'translate-x-0.5'
         }`}
       />
@@ -104,9 +107,12 @@ export default function ChartLayoutMenu({
   theme,
   layoutName = 'Default',
   gridMode,
-  linked,
+  linkSymbol,
+  linkInterval,
+  linkCrosshair,
+  linkDrawings,
   onGridModeChange,
-  onLinkedChange,
+  onLayoutSyncChange,
 }: Props) {
   const setupRef = useRef<HTMLButtonElement>(null);
   const manageRef = useRef<HTMLButtonElement>(null);
@@ -131,7 +137,7 @@ export default function ChartLayoutMenu({
         ref={manageRef}
         type="button"
         onClick={() => setManageOpen((o) => !o)}
-        className="tv-focus-ring inline-flex shrink-0 flex-col items-start rounded-[var(--tv-radius-sm)] px-1 py-0.5 text-left transition-colors hover:bg-[var(--tv-surface-hover)]"
+        className="edge-focus-ring inline-flex shrink-0 flex-col items-start rounded-[var(--edge-radius-sm)] px-1 py-0.5 text-left transition-colors hover:bg-[var(--edge-surface-hover)]"
         data-testid="layout-manage-trigger"
         aria-label="Manage layouts"
         title="Manage layouts"
@@ -140,7 +146,7 @@ export default function ChartLayoutMenu({
           {layoutName}
           <ChevronDownIcon />
         </span>
-        <span className="text-[10px] text-[var(--tv-accent-blue)]">Save</span>
+        <span className="text-[10px] text-[var(--edge-accent-blue)]">Save</span>
       </button>
 
       <ChartAnchoredPopover
@@ -153,7 +159,7 @@ export default function ChartLayoutMenu({
         {GRID_MODES.map((mode, idx) => (
           <div key={mode.value}>
             {idx > 0 ? (
-              <div className="my-1 border-t border-[var(--tv-border-strong)]" />
+              <div className="my-1 border-t border-[var(--edge-border-strong)]" />
             ) : null}
             <div className="flex items-center gap-2 px-3 py-1">
               <span className="w-4 shrink-0 text-xs opacity-60">{mode.label}</span>
@@ -164,10 +170,10 @@ export default function ChartLayoutMenu({
                     onGridModeChange(mode.value);
                     setSetupOpen(false);
                   }}
-                  className={`tv-focus-ring rounded-[var(--tv-radius-sm)] p-1 transition-colors ${
+                  className={`edge-focus-ring rounded-[var(--edge-radius-sm)] p-1 transition-colors ${
                     gridMode === mode.value
-                      ? 'bg-[var(--tv-surface-active)] text-[var(--tv-text-strong)]'
-                      : 'hover:bg-[var(--tv-surface-hover)]'
+                      ? 'bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]'
+                      : 'hover:bg-[var(--edge-surface-hover)]'
                   }`}
                   aria-label={`Layout ${mode.label}`}
                 >
@@ -177,19 +183,35 @@ export default function ChartLayoutMenu({
             </div>
           </div>
         ))}
-        <div className="my-1 border-t border-[var(--tv-border-strong)]" />
+        <div className="my-1 border-t border-[var(--edge-border-strong)]" />
         <ChartMenuSectionHeader theme={theme} label="SYNC IN LAYOUT" collapsed={false} />
         <div className="flex items-center justify-between px-3 py-1.5">
           <span className="text-xs">Symbol</span>
-          <ToggleSwitch checked={linked} onChange={onLinkedChange} />
+          <ToggleSwitch
+            checked={linkSymbol}
+            onChange={(v) => onLayoutSyncChange({ linkSymbol: v })}
+          />
         </div>
         <div className="flex items-center justify-between px-3 py-1.5">
           <span className="text-xs">Interval</span>
-          <ToggleSwitch checked={linked} onChange={onLinkedChange} />
+          <ToggleSwitch
+            checked={linkInterval}
+            onChange={(v) => onLayoutSyncChange({ linkInterval: v })}
+          />
         </div>
-        <div className="flex items-center justify-between px-3 py-1.5 opacity-40">
+        <div className="flex items-center justify-between px-3 py-1.5">
           <span className="text-xs">Crosshair</span>
-          <ToggleSwitch checked={false} disabled />
+          <ToggleSwitch
+            checked={linkCrosshair}
+            onChange={(v) => onLayoutSyncChange({ linkCrosshair: v })}
+          />
+        </div>
+        <div className="flex items-center justify-between px-3 py-1.5">
+          <span className="text-xs">Drawings</span>
+          <ToggleSwitch
+            checked={linkDrawings}
+            onChange={(v) => onLayoutSyncChange({ linkDrawings: v })}
+          />
         </div>
         <div className="flex items-center justify-between px-3 py-1.5 opacity-40">
           <span className="text-xs">Time</span>
@@ -222,11 +244,11 @@ export default function ChartLayoutMenu({
         <ChartMenuItemRow theme={theme} label="Make a copy..." icon={<CopyIcon size={14} />} disabled disabledReason="Coming soon" />
         <ChartMenuItemRow theme={theme} label="Rename..." icon={<PencilIcon size={14} />} disabled disabledReason="Coming soon" />
         <ChartMenuItemRow theme={theme} label="Download chart data..." icon={<DownloadIcon size={14} />} disabled disabledReason="Coming soon" />
-        <div className="my-1 border-t border-[var(--tv-border-strong)]" />
+        <div className="my-1 border-t border-[var(--edge-border-strong)]" />
         <ChartMenuItemRow theme={theme} label="Create new layout..." icon={<PlusIcon size={14} />} disabled disabledReason="Coming soon" />
         <ChartMenuSectionHeader theme={theme} label="RECENTLY USED" collapsed={false} />
         <ChartMenuItemRow theme={theme} label={layoutName} selected />
-        <div className="my-1 border-t border-[var(--tv-border-strong)]" />
+        <div className="my-1 border-t border-[var(--edge-border-strong)]" />
         <ChartMenuItemRow theme={theme} label="Open layout..." icon={<FolderIcon size={14} />} disabled disabledReason="Coming soon" />
       </ChartAnchoredPopover>
     </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addWatchlistItem,
   clearWatchlist,
@@ -11,27 +11,27 @@ import {
   removeWatchlistItem,
   renameWatchlist,
   selectWatchlistSymbol,
+  setWatchlistItemNote,
+  setWatchlistItemTags,
+  setWatchlistViewPrefs,
   switchWatchlist,
+  toggleWatchlistItemPin,
 } from "@/lib/watchlist/storage";
-import type { FundamentalsSnapshot, QuoteSnapshot } from "@/lib/watchlist/types";
+import type { FundamentalsSnapshot, WatchlistSortSpec, WatchlistViewPrefs } from "@/lib/watchlist/types";
 import { fetchFundamentals } from "@/lib/watchlist/fundamentalsClient";
-import { fetchQuotes } from "@/lib/watchlist/quoteClient";
+import { buildWatchlistDisplayModel, normalizeTagInput } from "@/lib/watchlist/viewModel";
 import { useChartActions } from "../ChartActionsContext";
 import { useWatchlistActions } from "./WatchlistContext";
 import WatchlistListMenu from "./WatchlistListMenu";
 import WatchlistSearch from "./WatchlistSearch";
 import WatchlistTable from "./WatchlistTable";
 import SymbolDetailsPanel from "./SymbolDetailsPanel";
-
-const QUOTE_POLL_MS = 30_000;
+import { useWatchlistQuoteStream } from "./useWatchlistQuoteStream";
+import { useWatchlistFundamentalsCache } from "./useWatchlistFundamentalsCache";
 
 export function WatchlistPanel() {
   const chartActions = useChartActions();
   const watchlistCtx = useWatchlistActions();
-
-  const [quotes, setQuotes] = useState<QuoteSnapshot[]>([]);
-  const [quotesLoading, setQuotesLoading] = useState(false);
-  const [quotesError, setQuotesError] = useState<string | null>(null);
 
   const [fundamentals, setFundamentals] = useState<FundamentalsSnapshot | null>(null);
   const [fundamentalsLoading, setFundamentalsLoading] = useState(false);
@@ -45,32 +45,24 @@ export function WatchlistPanel() {
   const symbolKey = activeList?.items.map((i) => i.symbol).join("\0") ?? "";
   const symbols = symbolKey ? symbolKey.split("\0") : [];
 
-  const refreshQuotes = useCallback(async () => {
-    if (symbols.length === 0) {
-      setQuotes([]);
-      setQuotesError(null);
-      return;
-    }
-    setQuotesLoading(true);
-    try {
-      const next = await fetchQuotes(symbols);
-      setQuotes(next);
-      setQuotesError(null);
-    } catch (err) {
-      setQuotesError(err instanceof Error ? err.message : "Failed to load quotes");
-    } finally {
-      setQuotesLoading(false);
-    }
-  }, [symbolKey, symbols.length]);
+  const {
+    quotes,
+    loading: quotesLoading,
+    error: quotesError,
+  } = useWatchlistQuoteStream(symbols);
+  const fundamentalsCache = useWatchlistFundamentalsCache(symbols);
 
-  useEffect(() => {
-    if (!state) return;
-    refreshQuotes();
-    if (symbols.length === 0) return;
-
-    const interval = setInterval(refreshQuotes, QUOTE_POLL_MS);
-    return () => clearInterval(interval);
-  }, [refreshQuotes, symbolKey, state, symbols.length]);
+  const displayModel = useMemo(() => {
+    if (!activeList) {
+      return buildWatchlistDisplayModel([], [], {}, undefined);
+    }
+    return buildWatchlistDisplayModel(
+      activeList.items,
+      quotes,
+      fundamentalsCache,
+      activeList.viewPrefs,
+    );
+  }, [activeList, quotes, fundamentalsCache]);
 
   useEffect(() => {
     if (!state) return;
@@ -79,6 +71,14 @@ export function WatchlistPanel() {
       setFundamentals(null);
       setFundamentalsError(null);
       setFundamentalsLoading(false);
+      return;
+    }
+
+    const cached = fundamentalsCache[symbol];
+    if (cached) {
+      setFundamentals(cached);
+      setFundamentalsLoading(false);
+      setFundamentalsError(null);
       return;
     }
 
@@ -106,7 +106,7 @@ export function WatchlistPanel() {
     return () => {
       cancelled = true;
     };
-  }, [state?.selectedSymbol, state]);
+  }, [state?.selectedSymbol, state, fundamentalsCache]);
 
   const handleAdd = useCallback(
     (result: { symbol: string; name: string; exchange: string }) => {
@@ -133,6 +133,55 @@ export function WatchlistPanel() {
       setState?.((prev) => removeWatchlistItem(prev, symbol));
     },
     [setState],
+  );
+
+  const handleTogglePin = useCallback(
+    (symbol: string) => {
+      setState?.((prev) => toggleWatchlistItemPin(prev, symbol));
+    },
+    [setState],
+  );
+
+  const handleEditTags = useCallback(
+    (symbol: string) => {
+      if (!state) return;
+      const active = getActiveWatchlist(state);
+      const item = active.items.find((entry) => entry.symbol === symbol);
+      const current = (item?.tags ?? []).join(", ");
+      const next = window.prompt(`Tags for ${symbol} (comma-separated):`, current);
+      if (next === null) return;
+      const tags = next
+        .split(",")
+        .map((tag) => normalizeTagInput(tag))
+        .filter((tag): tag is string => tag !== null);
+      setState?.((prev) => setWatchlistItemTags(prev, symbol, tags));
+    },
+    [setState, state],
+  );
+
+  const handleNoteChange = useCallback(
+    (note: string) => {
+      if (!state?.selectedSymbol) return;
+      setState?.((prev) => setWatchlistItemNote(prev, state.selectedSymbol!, note));
+    },
+    [setState, state?.selectedSymbol],
+  );
+
+  const handleViewPrefsChange = useCallback(
+    (patch: Partial<WatchlistViewPrefs>) => {
+      if (!state) return;
+      setState?.((prev) =>
+        setWatchlistViewPrefs(prev, prev.activeWatchlistId, patch),
+      );
+    },
+    [setState, state],
+  );
+
+  const handleSortChange = useCallback(
+    (sort: WatchlistSortSpec) => {
+      handleViewPrefsChange({ sort });
+    },
+    [handleViewPrefsChange],
   );
 
   const handleLoadChart = useCallback(
@@ -180,14 +229,18 @@ export function WatchlistPanel() {
     setState?.((prev) => deleteWatchlist(prev, prev.activeWatchlistId));
   }, [setState]);
 
+  const selectedItem = activeList?.items.find(
+    (item) => item.symbol === state?.selectedSymbol,
+  );
+
   if (!state || !setState || !activeList) {
     return null;
   }
 
   return (
     <div data-testid="watchlist-panel" className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-[var(--tv-border)]">
-        <div className="flex items-center justify-between px-2 py-1.5">
+      <div className="shrink-0 border-b border-[var(--edge-border)]">
+        <div className="flex items-center justify-between px-1.5 py-1">
           <WatchlistListMenu
             watchlists={state.watchlists}
             activeWatchlistId={state.activeWatchlistId}
@@ -204,7 +257,7 @@ export function WatchlistPanel() {
             data-testid="watchlist-add-symbol-trigger"
             aria-label={`Add symbol to ${activeList.name}`}
             onClick={() => setAddSymbolOpen(true)}
-            className="tv-icon-button tv-focus-ring grid h-7 w-7 place-items-center"
+            className="edge-icon-button edge-focus-ring grid h-6 w-6 place-items-center"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
@@ -219,16 +272,21 @@ export function WatchlistPanel() {
         />
       </div>
 
-      <div className="min-h-0 max-h-[45%] shrink-0 overflow-auto border-b border-[var(--tv-border)]">
+      <div className="min-h-0 max-h-[55%] shrink-0 overflow-auto border-b border-[var(--edge-border)]">
         <WatchlistTable
-          items={activeList.items}
+          displayModel={displayModel}
+          itemCount={activeList.items.length}
           quotes={quotes}
           selectedSymbol={state.selectedSymbol}
           quotesError={quotesError}
-          quotesLoading={quotesLoading}
+          quotesLoading={quotesLoading && quotes.length === 0}
           onSelect={handleSelect}
           onLoadChart={handleLoadChart}
           onRemove={handleRemove}
+          onTogglePin={handleTogglePin}
+          onEditTags={handleEditTags}
+          onViewPrefsChange={handleViewPrefsChange}
+          onSortChange={handleSortChange}
         />
       </div>
 
@@ -236,8 +294,10 @@ export function WatchlistPanel() {
         <SymbolDetailsPanel
           symbol={state.selectedSymbol}
           data={fundamentals}
+          note={selectedItem?.note}
           loading={fundamentalsLoading}
           error={fundamentalsError}
+          onNoteChange={handleNoteChange}
         />
       </div>
     </div>

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildShortcutCommands } from "./buildShortcutCommands";
 import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
 import type { ActiveChartSnapshot } from "@/app/components/ActiveChartContext";
-import { makeDrawingCommandsMock, makeUICommandsMock } from "@/test/activeChartMocks";
+import { makeDrawingCommandsMock, makeDataWindowActionsMock, makeUICommandsMock } from "@/test/activeChartMocks";
 
 function makeAppActions() {
   const layout = { ...DEFAULT_LAYOUT, sidebar: { activePanel: null as const } };
@@ -13,7 +13,7 @@ function makeAppActions() {
     patchActiveCell: vi.fn(),
     setActiveCellIndex: vi.fn(),
     setGridMode: vi.fn(),
-    setLinked: vi.fn(),
+    setLayoutSync: vi.fn(),
     setTheme: vi.fn(),
     setSidebarPanel: vi.fn(),
   };
@@ -59,6 +59,11 @@ function makeActiveChart(
       redo: vi.fn(),
       addFavoriteIndicator: vi.fn(),
     },
+    headerState: {
+      replayActive: false,
+      canUndo: true,
+      canRedo: false,
+    },
     chartCommands: {
       undo: vi.fn(() => true),
       redo: vi.fn(() => false),
@@ -80,6 +85,7 @@ function makeActiveChart(
       canPaste: vi.fn(() => true),
     }),
     uiCommands: makeUICommandsMock(),
+    dataWindowActions: makeDataWindowActionsMock(),
     ...overrides,
   };
 }

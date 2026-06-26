@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { useEffect } from 'react';
 import RightSidebar from './RightSidebar';
 import {
@@ -8,7 +8,7 @@ import {
   type ActiveChartSnapshot,
 } from '../ActiveChartContext';
 import { DEFAULT_CELL } from '@/lib/chartConfig';
-import { makeDrawingCommandsMock, makeUICommandsMock } from '@/test/activeChartMocks';
+import { makeDrawingCommandsMock, makeDataWindowActionsMock, makeUICommandsMock, toActiveChartRegistration } from '@/test/activeChartMocks';
 import type { Candle } from '@/lib/chart/contracts';
 
 const candles: Candle[] = [
@@ -57,6 +57,11 @@ function SeedActiveChart() {
         redo: vi.fn(),
         addFavoriteIndicator: vi.fn(),
       },
+      headerState: {
+        replayActive: false,
+        canUndo: false,
+        canRedo: false,
+      },
       chartCommands: {
         undo: vi.fn(() => false),
         redo: vi.fn(() => false),
@@ -75,8 +80,9 @@ function SeedActiveChart() {
       },
       drawingCommands: makeDrawingCommandsMock(),
       uiCommands: makeUICommandsMock(),
+      dataWindowActions: makeDataWindowActionsMock(),
     };
-    bridge.register('cell-0', snapshot);
+    bridge.register('cell-0', toActiveChartRegistration(snapshot));
     return () => bridge.unregister('cell-0');
   }, [bridge]);
 
@@ -88,11 +94,12 @@ describe('RightSidebar active chart integration', () => {
     render(
       <ActiveChartProvider>
         <SeedActiveChart />
-        <RightSidebar activePanel="object-tree" mode="inline" />
+        <RightSidebar activePanel="object-tree" mode="inline" width={300} />
       </ActiveChartProvider>,
     );
 
-    expect(screen.getByText('OHLCV')).toBeInTheDocument();
+    expect(screen.getByText('AAPL · 1d')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Data window' }));
     expect(screen.getByText('11')).toBeInTheDocument();
   });
 });

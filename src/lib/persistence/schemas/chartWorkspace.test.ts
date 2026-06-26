@@ -35,4 +35,15 @@ describe("chartWorkspace schemas", () => {
     });
     expect(parsed.success).toBe(false);
   });
+
+  it("accepts sidebar panel width prefs", () => {
+    const parsed = chartLayoutSnapshotSchema.safeParse({
+      ...DEFAULT_LAYOUT,
+      sidebar: {
+        activePanel: "watchlist",
+        panelWidths: { watchlist: 360, options: 420 },
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
 });

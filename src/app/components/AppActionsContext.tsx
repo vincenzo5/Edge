@@ -13,6 +13,7 @@ import type {
   GridMode,
   SidebarPanelId,
   Theme,
+  LayoutSyncPrefs,
 } from "@/lib/chartConfig";
 import type { AppActions } from "@/lib/ai/context";
 
@@ -46,7 +47,7 @@ export type AppActionsDeps = {
   patchActiveCell: (patch: Partial<CellConfig>) => void;
   setActiveCellIndex: (index: number) => void;
   setGridMode: (mode: GridMode) => void;
-  setLinked: (linked: boolean) => void;
+  setLayoutSync: (patch: Partial<LayoutSyncPrefs>) => void;
   setTheme: (theme: Theme) => void;
   setSidebarPanel: (panel: SidebarPanelId | null) => void;
 };
@@ -59,7 +60,7 @@ export function buildAppActions(deps: AppActionsDeps): AppActions {
     patchActiveCell: deps.patchActiveCell,
     setActiveCellIndex: deps.setActiveCellIndex,
     setGridMode: deps.setGridMode,
-    setLinked: deps.setLinked,
+    setLayoutSync: deps.setLayoutSync,
     setTheme: (theme: Theme) => deps.setTheme(theme),
     setSidebarPanel: deps.setSidebarPanel,
   };

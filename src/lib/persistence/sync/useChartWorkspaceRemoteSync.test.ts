@@ -79,7 +79,9 @@ describe("useChartWorkspaceRemoteSync", () => {
     rerender({
       layout: {
         ...DEFAULT_LAYOUT,
-        linked: true,
+        linkSymbol: true,
+        linkInterval: true,
+        linkCrosshair: true,
       },
     });
 

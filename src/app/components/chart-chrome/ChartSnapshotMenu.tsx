@@ -40,7 +40,7 @@ export default function ChartSnapshotMenu({ theme }: Props) {
   const handleAction = useCallback(
     async (action: SnapshotAction) => {
       const commands = activeChart?.chartCommands;
-      if (!commands?.canCaptureSnapshot()) return;
+      if (!activeChart || !commands?.canCaptureSnapshot()) return;
 
       const config = activeChart.config;
       const filename = buildSnapshotFilename(config.symbol, config.interval);
@@ -142,7 +142,7 @@ export default function ChartSnapshotMenu({ theme }: Props) {
         {error ? (
           <div
             role="alert"
-            className="border-t border-[var(--tv-border-strong)] px-3 py-2 text-xs text-red-400"
+            className="border-t border-[var(--edge-border-strong)] px-3 py-2 text-xs text-red-400"
           >
             {error}
           </div>

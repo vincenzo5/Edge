@@ -22,7 +22,7 @@ describe('loadLayout sidebar prefs', () => {
   it('defaults sidebar when missing from saved layout', () => {
     saveLayout({ ...DEFAULT_LAYOUT, sidebar: undefined });
     const loaded = loadLayout();
-    expect(loaded.sidebar).toEqual({ activePanel: null });
+    expect(loaded.sidebar).toEqual({ activePanel: null, panelWidths: {} });
   });
 
   it('round-trips sidebar.activePanel', () => {
@@ -106,6 +106,18 @@ describe('loadLayout sidebar prefs', () => {
     );
     const loaded = loadLayout();
     expect(loaded.sidebar?.activePanel).toBeNull();
+  });
+
+  it('round-trips sidebar panel widths', () => {
+    saveLayout({
+      ...DEFAULT_LAYOUT,
+      sidebar: {
+        activePanel: 'options',
+        panelWidths: { options: 420, watchlist: 700 },
+      },
+    });
+    const loaded = loadLayout();
+    expect(loaded.sidebar?.panelWidths).toEqual({ options: 420, watchlist: 560 });
   });
 
   it('preserves drawing metadata through loadLayout', () => {

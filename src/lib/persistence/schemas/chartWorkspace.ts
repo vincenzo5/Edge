@@ -1,12 +1,6 @@
 import { z } from "zod";
 
-import {
-  CHART_TYPES,
-  GRID_MODES,
-  RANGES,
-  type ChartLayout,
-} from "@/lib/chartConfig";
-import { INTERVALS } from "@/lib/chartConfig";
+import { migrateLayoutSync, INTERVALS, RANGES, CHART_TYPES, GRID_MODES } from "@/lib/chartConfig";
 import { writeRequestBaseSchema } from "@/lib/persistence/common";
 
 const rangeValues = RANGES.map((r) => r.value) as [string, ...string[]];
@@ -61,10 +55,27 @@ const cellConfigSchema = z.object({
   chartSettings: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const chartLayoutSnapshotSchema = z.object({
+export const chartLayoutSnapshotSchema = z.preprocess((value) => {
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  const sync = migrateLayoutSync({
+    version: 1,
+    gridMode: (record.gridMode as ChartLayout["gridMode"]) ?? "1x1",
+    cells: Array.isArray(record.cells) ? (record.cells as ChartLayout["cells"]) : [],
+    linked: record.linked as boolean | undefined,
+    linkSymbol: record.linkSymbol as boolean | undefined,
+    linkInterval: record.linkInterval as boolean | undefined,
+    linkCrosshair: record.linkCrosshair as boolean | undefined,
+    linkDrawings: record.linkDrawings as boolean | undefined,
+  });
+  return { ...record, ...sync };
+}, z.object({
   version: z.literal(1),
   gridMode: z.enum(gridModeValues),
-  linked: z.boolean(),
+  linkSymbol: z.boolean(),
+  linkInterval: z.boolean(),
+  linkCrosshair: z.boolean(),
+  linkDrawings: z.boolean(),
   activeCellIndex: z.number().int().nonnegative(),
   theme: z.enum(["light", "dark"]),
   toolbarPrefs: z
@@ -76,11 +87,18 @@ export const chartLayoutSnapshotSchema = z.object({
     .optional(),
   sidebar: z
     .object({
-      activePanel: z.enum(["object-tree", "watchlist"]).nullable(),
+      activePanel: z.enum(["object-tree", "watchlist", "options"]).nullable(),
+      panelWidths: z
+        .object({
+          "object-tree": z.number().finite().optional(),
+          watchlist: z.number().finite().optional(),
+          options: z.number().finite().optional(),
+        })
+        .optional(),
     })
     .optional(),
   cells: z.array(cellConfigSchema).min(1).max(4),
-});
+}));
 
 export type ChartLayoutSnapshot = z.infer<typeof chartLayoutSnapshotSchema>;
 

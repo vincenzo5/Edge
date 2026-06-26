@@ -1,4 +1,5 @@
 import type { ContextMenuItem } from "./ContextMenu";
+import type { ChartCopyItem } from "./chartCopyMenu";
 import type {
   ChartSettings,
   IndicatorPriceLabelMode,
@@ -13,13 +14,14 @@ export type ChartContextMenuState = {
   viewportModified: boolean;
   drawingCount: number;
   indicatorCount: number;
-  priceLabel: string | null;
+  copyItems: ChartCopyItem[];
   canPasteDrawings: boolean;
+  lockCrosshairToTime: boolean;
 };
 
 export type ChartContextMenuActions = {
   resetView: () => void;
-  copyPrice: (price: string) => void;
+  copyText: (text: string) => void;
   openObjectTree: () => void;
   openSettings: () => void;
   openGoTo: () => void;
@@ -28,7 +30,13 @@ export type ChartContextMenuActions = {
   applyChartTemplate: () => void;
   removeDrawings: () => void;
   removeIndicators: () => void;
+  removeAll: () => void;
+  toggleLockCrosshairToTime: () => void;
 };
+
+function checked(active: boolean): string {
+  return active ? "✓ " : "";
+}
 
 function countLabel(count: number, singular: string, plural: string): string {
   return count === 1 ? `Remove 1 ${singular}` : `Remove ${count} ${plural}`;
@@ -42,6 +50,7 @@ export function buildChartContextMenuItems(
     {
       id: "reset-view",
       label: "Reset chart view",
+      shortcut: getShortcutLabel("resetChartView"),
       disabled: !state.viewportModified,
       action: actions.resetView,
       dividerAfter: true,
@@ -55,11 +64,17 @@ export function buildChartContextMenuItems(
     },
   ];
 
-  if (state.priceLabel) {
+  if (state.copyItems.length > 0) {
     items.push({
-      id: "copy-price",
-      label: `Copy price ${state.priceLabel}`,
-      action: () => actions.copyPrice(state.priceLabel!),
+      id: "copy-submenu",
+      label: "Copy",
+      action: () => {},
+      children: state.copyItems.map((item, index, arr) => ({
+        id: `copy-${item.id}`,
+        label: item.label,
+        action: () => actions.copyText(item.value),
+        dividerAfter: index === arr.length - 1,
+      })),
       dividerAfter: true,
     });
   }
@@ -68,6 +83,13 @@ export function buildChartContextMenuItems(
     id: "object-tree",
     label: "Object tree",
     action: actions.openObjectTree,
+    dividerAfter: true,
+  });
+
+  items.push({
+    id: "lock-crosshair-to-time",
+    label: `${checked(state.lockCrosshairToTime)}Lock vertical cursor line by time`,
+    action: actions.toggleLockCrosshairToTime,
     dividerAfter: true,
   });
 
@@ -99,8 +121,21 @@ export function buildChartContextMenuItems(
       label: countLabel(state.indicatorCount, "indicator", "indicators"),
       danger: true,
       action: actions.removeIndicators,
+      dividerAfter: state.drawingCount > 0,
+    });
+  }
+
+  if (state.drawingCount > 0 && state.indicatorCount > 0) {
+    items.push({
+      id: "remove-all",
+      label: "Remove drawings and indicators",
+      danger: true,
+      action: actions.removeAll,
       dividerAfter: true,
     });
+  } else if (state.indicatorCount > 0) {
+    const last = items[items.length - 1];
+    if (last) last.dividerAfter = true;
   }
 
   items.push({
@@ -156,10 +191,6 @@ const INDICATOR_LABEL_OPTIONS: { value: IndicatorPriceLabelMode; label: string }
   { value: "nameValue", label: "Name and value" },
   { value: "valueOnly", label: "Value only" },
 ];
-
-function checked(active: boolean): string {
-  return active ? "✓ " : "";
-}
 
 function buildSymbolLabelItems(
   settings: RequiredChartSettings,

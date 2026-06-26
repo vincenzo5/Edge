@@ -24,6 +24,7 @@ describe("ChartSettingsModal", () => {
     expect(screen.getByText("Status line")).toBeTruthy();
     expect(screen.getByText("Scales and lines")).toBeTruthy();
     expect(screen.getByText("Canvas")).toBeTruthy();
+    expect(screen.getByText("Events")).toBeTruthy();
     expect(screen.getByText("Trading")).toBeTruthy();
     expect(screen.queryByText("Template")).toBeNull();
 
@@ -32,6 +33,32 @@ describe("ChartSettingsModal", () => {
     expect(onSave.mock.calls[0][0].canvas.showGrid).toBe(false);
     expect(onSave.mock.calls[0][0].scales.priceScaleType).toBe("linear");
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("saves event badge settings", () => {
+    const onSave = vi.fn();
+    render(
+      <ChartSettingsModal
+        open
+        settings={{ events: { showNews: false, showOptionsExpiration: false } }}
+        initialSection="events"
+        onClose={vi.fn()}
+        onSave={onSave}
+      />,
+    );
+
+    expect(screen.getByText("Event badges")).toBeTruthy();
+    expect(screen.getByLabelText("Earnings")).toBeChecked();
+    expect(screen.getByLabelText("News")).not.toBeChecked();
+    expect(screen.getByLabelText("Options expirations (can be dense)")).not.toBeChecked();
+
+    fireEvent.click(screen.getByLabelText("Options expirations (can be dense)"));
+    fireEvent.click(screen.getByRole("button", { name: "Ok" }));
+
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave.mock.calls[0][0].events.showEarnings).toBe(true);
+    expect(onSave.mock.calls[0][0].events.showNews).toBe(false);
+    expect(onSave.mock.calls[0][0].events.showOptionsExpiration).toBe(true);
   });
 
   it("resets to defaults", () => {

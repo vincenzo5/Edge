@@ -6,12 +6,13 @@ import SidebarPanelShell from './SidebarPanelShell';
 describe('SidebarPanelShell', () => {
   it('renders inline panel without backdrop', () => {
     render(
-      <SidebarPanelShell panelId="watchlist" mode="inline">
+      <SidebarPanelShell panelId="watchlist" mode="inline" width={320}>
         <div>Panel content</div>
       </SidebarPanelShell>,
     );
 
     expect(screen.getByTestId('sidebar-panel')).toHaveAttribute('data-sidebar-mode', 'inline');
+    expect(screen.getByTestId('sidebar-panel')).toHaveStyle({ width: '320px' });
     expect(screen.queryByTestId('sidebar-overlay-backdrop')).toBeNull();
     expect(screen.getByText('Panel content')).toBeInTheDocument();
   });
@@ -19,7 +20,7 @@ describe('SidebarPanelShell', () => {
   it('renders overlay panel with backdrop and closes on Escape', () => {
     const onClose = vi.fn();
     render(
-      <SidebarPanelShell panelId="watchlist" mode="overlay" onClose={onClose}>
+      <SidebarPanelShell panelId="watchlist" mode="overlay" width={320} onClose={onClose}>
         <div>Panel content</div>
       </SidebarPanelShell>,
     );
@@ -32,5 +33,24 @@ describe('SidebarPanelShell', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders resize handle and calls onWidthChange from keyboard', () => {
+    const onWidthChange = vi.fn();
+    render(
+      <SidebarPanelShell
+        panelId="watchlist"
+        mode="inline"
+        width={300}
+        onWidthChange={onWidthChange}
+      >
+        <div>Panel content</div>
+      </SidebarPanelShell>,
+    );
+
+    const handle = screen.getByTestId('sidebar-resize-handle');
+    expect(handle).toBeInTheDocument();
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(onWidthChange).toHaveBeenCalledWith(316);
   });
 });

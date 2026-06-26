@@ -88,12 +88,12 @@ export default function PaneLegendBar({
   if (sections.length === 0) return null;
 
   void theme;
-  const muted = 'text-[var(--tv-text-secondary)]';
-  const defaultValue = 'text-[var(--tv-text-strong)]';
+  const muted = 'text-[var(--edge-text-secondary)]';
+  const defaultValue = 'text-[var(--edge-text-strong)]';
   const hoverBg = compact
     ? ''
-    : 'group-hover/pane-legend:bg-[var(--tv-surface-panel)]/90';
-  const sectionHover = 'hover:bg-[var(--tv-surface-hover)]';
+    : 'group-hover/pane-legend:bg-[var(--edge-surface-panel)]/90';
+  const sectionHover = 'hover:bg-[var(--edge-surface-hover)]';
 
   return (
     <div
@@ -118,7 +118,7 @@ export default function PaneLegendBar({
               <Tooltip key={`badge-${i}`} content={section.tooltip} theme={theme}>
                 <span
                   tabIndex={0}
-                  className={`tv-focus-ring flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--tv-surface-active)] text-[10px] font-medium text-[var(--tv-text-strong)] ${sectionHover}`}
+                  className={`edge-focus-ring flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--edge-surface-active)] text-[10px] font-medium text-[var(--edge-text-strong)] ${sectionHover}`}
                 >
                   {section.letter}
                 </span>
@@ -131,7 +131,7 @@ export default function PaneLegendBar({
               <Tooltip key={`text-${i}`} content={section.tooltip} theme={theme}>
                 <span
                   tabIndex={0}
-                  className={`tv-focus-ring shrink-0 rounded px-0.5 font-medium ${sectionHover} ${
+                  className={`edge-focus-ring shrink-0 rounded px-0.5 font-medium ${sectionHover} ${
                     section.muted ? muted : defaultValue
                   }`}
                 >
@@ -148,7 +148,7 @@ export default function PaneLegendBar({
                 <span
                   tabIndex={0}
                   style={colorStyle}
-                  className={`tv-focus-ring shrink-0 rounded px-0.5 font-mono tabular-nums ${sectionHover} ${
+                  className={`edge-focus-ring shrink-0 rounded px-0.5 font-mono tabular-nums ${sectionHover} ${
                     section.color ? '' : defaultValue
                   }`}
                 >
@@ -166,7 +166,7 @@ export default function PaneLegendBar({
                   type="button"
                   disabled={section.disabled}
                   onClick={() => onAction(section.id)}
-                  className={`tv-focus-ring shrink-0 rounded p-0.5 text-[var(--tv-text-secondary)] hover:text-[var(--tv-text-strong)] disabled:opacity-40 ${sectionHover}`}
+                  className={`edge-focus-ring shrink-0 rounded p-0.5 text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-strong)] disabled:opacity-40 ${sectionHover}`}
                   aria-label={section.tooltip}
                 >
                   <ActionIcon icon={section.icon} />

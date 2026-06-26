@@ -16,6 +16,10 @@ import {
   selectWatchlistSymbol,
   switchWatchlist,
   MAX_WATCHLIST_ITEMS,
+  toggleWatchlistItemPin,
+  setWatchlistItemTags,
+  setWatchlistItemNote,
+  setWatchlistViewPrefs,
 } from './storage';
 
 const localStorageMock = (() => {
@@ -229,5 +233,41 @@ describe('watchlist storage', () => {
     expect(state.watchlists.length).toBe(MAX_WATCHLISTS);
     const capped = createWatchlist(state, 'One Too Many');
     expect(capped.watchlists.length).toBe(MAX_WATCHLISTS);
+  });
+
+  it('round-trips organization metadata and view prefs', () => {
+    let state = addWatchlistItem(DEFAULT_WATCHLIST_STATE, {
+      symbol: 'AAPL',
+      name: 'Apple',
+      exchange: 'NASDAQ',
+      pinned: true,
+      tags: ['Tech', 'Mega'],
+      note: 'Watch 200 reclaim',
+    });
+    state = setWatchlistViewPrefs(state, state.activeWatchlistId, {
+      groupMode: 'tags',
+      visibleColumns: ['symbol', 'last', 'changePct', 'volume'],
+    });
+    saveWatchlistState(state);
+    const loaded = loadWatchlistState();
+    const item = loaded.watchlists[0].items[0];
+    expect(item.pinned).toBe(true);
+    expect(item.tags).toEqual(['Tech', 'Mega']);
+    expect(item.note).toBe('Watch 200 reclaim');
+    expect(loaded.watchlists[0].viewPrefs?.groupMode).toBe('tags');
+  });
+
+  it('updates pin, tags, and note helpers', () => {
+    let state = addWatchlistItem(DEFAULT_WATCHLIST_STATE, {
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      exchange: 'NASDAQ',
+    });
+    state = toggleWatchlistItemPin(state, 'NVDA');
+    expect(getActiveWatchlist(state).items[0].pinned).toBe(true);
+    state = setWatchlistItemTags(state, 'NVDA', ['AI', 'Semis']);
+    expect(getActiveWatchlist(state).items[0].tags).toEqual(['AI', 'Semis']);
+    state = setWatchlistItemNote(state, 'NVDA', 'Leader');
+    expect(getActiveWatchlist(state).items[0].note).toBe('Leader');
   });
 });

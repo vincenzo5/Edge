@@ -1,7 +1,7 @@
 "use client";
 
 import type { FundamentalsSnapshot } from "@/lib/watchlist/types";
-import { toneTextClass } from "@/lib/design-system/tradingView";
+import { toneTextClass } from "@/lib/design-system/edge";
 
 function formatLargeNumber(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -14,21 +14,29 @@ function formatLargeNumber(value: number | null): string {
 
 function formatPrice(value: number | null, currency?: string | null): string {
   if (value == null || !Number.isFinite(value)) return "—";
-  const cur = currency ?? "USD";
-  return `${value.toFixed(2)} ${cur}`;
+  return value.toFixed(2);
 }
 
 type Props = {
   symbol: string | null;
   data: FundamentalsSnapshot | null;
+  note?: string;
   loading: boolean;
   error: string | null;
+  onNoteChange?: (note: string) => void;
 };
 
-export default function SymbolDetailsPanel({ symbol, data, loading, error }: Props) {
+export default function SymbolDetailsPanel({
+  symbol,
+  data,
+  note,
+  loading,
+  error,
+  onNoteChange,
+}: Props) {
   if (!symbol) {
     return (
-      <div className="px-3 py-4 text-xs text-[var(--tv-text-secondary)]">
+      <div className="px-2 py-3 text-xs text-[var(--edge-text-secondary)]">
         Select a symbol to view details.
       </div>
     );
@@ -38,7 +46,7 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
     return (
       <div
         data-testid="symbol-details-loading"
-        className="px-3 py-4 text-xs text-[var(--tv-text-secondary)]"
+        className="px-2 py-3 text-xs text-[var(--edge-text-secondary)]"
       >
         Loading {symbol}…
       </div>
@@ -49,7 +57,7 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
     return (
       <div
         data-testid="symbol-details-error"
-        className="px-3 py-4 text-xs text-[var(--tv-negative)]"
+        className="px-2 py-3 text-xs text-[var(--edge-negative)]"
         role="alert"
       >
         {error}
@@ -59,7 +67,7 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
 
   if (!data) {
     return (
-      <div className="px-3 py-4 text-xs text-[var(--tv-text-secondary)]">
+      <div className="px-2 py-3 text-xs text-[var(--edge-text-secondary)]">
         No details available for {symbol}.
       </div>
     );
@@ -74,14 +82,16 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
       ? toneTextClass("negative")
       : toneTextClass("neutral");
 
+  const currency = data.currency ?? "USD";
+
   return (
-    <div data-testid="symbol-details-panel" className="px-3 py-3 text-xs">
-      <div className="mb-2">
-        <div className="text-sm font-semibold text-[var(--tv-text-strong)]">
+    <div data-testid="symbol-details-panel" className="px-2 py-2 text-xs">
+      <div className="mb-1.5">
+        <div className="text-sm font-semibold leading-tight text-[var(--edge-text-strong)]">
           {data.longName ?? data.shortName ?? data.symbol}
         </div>
         {data.exchange && (
-          <div className="text-[10px] text-[var(--tv-text-secondary)]">
+          <div className="text-[10px] leading-tight text-[var(--edge-text-muted)]">
             {data.exchange}
             {data.sector && data.industry
               ? ` · ${data.sector} · ${data.industry}`
@@ -90,45 +100,52 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
         )}
       </div>
 
-      <div className="mb-3">
-        <div className="text-lg font-semibold tabular-nums text-[var(--tv-text-strong)]">
-          {formatPrice(data.regularMarketPrice, data.currency)}
+      <div className="mb-2">
+        <div className="flex items-baseline gap-2">
+          <span className="text-lg font-semibold tabular-nums text-[var(--edge-text-strong)]">
+            {formatPrice(data.regularMarketPrice)}
+          </span>
+          {changePct != null && (
+            <span className={`text-xs tabular-nums ${changeClassName}`}>
+              {data.regularMarketChange != null
+                ? `${data.regularMarketChange > 0 ? "+" : ""}${data.regularMarketChange.toFixed(2)} `
+                : ""}
+              {changePct > 0 ? "+" : ""}
+              {changePct.toFixed(2)}%
+            </span>
+          )}
+          <span className="text-[10px] text-[var(--edge-text-muted)]">{currency}</span>
         </div>
-        {changePct != null && (
-          <div
-            className={`tabular-nums ${changeClassName}`}
-          >
-            {data.regularMarketChange != null
-              ? `${data.regularMarketChange > 0 ? "+" : ""}${data.regularMarketChange.toFixed(2)} `
-              : ""}
-            {changePct > 0 ? "+" : ""}
-            {changePct.toFixed(2)}%
-          </div>
-        )}
       </div>
 
-      <dl className="space-y-1.5 text-[var(--tv-text-primary)]">
+      <dl className="space-y-1 text-[var(--edge-text-primary)]">
         <div className="flex justify-between gap-2">
-          <dt className="text-[var(--tv-text-secondary)]">Market cap</dt>
-          <dd className="tabular-nums">{formatLargeNumber(data.marketCap)}</dd>
+          <dt className="text-[var(--edge-text-muted)]">Market cap</dt>
+          <dd className="tabular-nums text-[var(--edge-text-primary)]">
+            {formatLargeNumber(data.marketCap)}
+          </dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-[var(--tv-text-secondary)]">Volume</dt>
-          <dd className="tabular-nums">{formatLargeNumber(data.volume)}</dd>
+          <dt className="text-[var(--edge-text-muted)]">Volume</dt>
+          <dd className="tabular-nums text-[var(--edge-text-primary)]">
+            {formatLargeNumber(data.volume)}
+          </dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-[var(--tv-text-secondary)]">Avg volume (30D)</dt>
-          <dd className="tabular-nums">{formatLargeNumber(data.averageVolume)}</dd>
+          <dt className="text-[var(--edge-text-muted)]">Avg volume (30D)</dt>
+          <dd className="tabular-nums text-[var(--edge-text-primary)]">
+            {formatLargeNumber(data.averageVolume)}
+          </dd>
         </div>
         {data.website && (
           <div className="flex justify-between gap-2">
-            <dt className="text-[var(--tv-text-secondary)]">Website</dt>
+            <dt className="text-[var(--edge-text-muted)]">Website</dt>
             <dd>
               <a
                 href={data.website.startsWith("http") ? data.website : `https://${data.website}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[var(--tv-accent-blue)] hover:underline"
+                className="text-[var(--edge-accent-blue)] hover:underline"
               >
                 {data.website.replace(/^https?:\/\//, "")}
               </a>
@@ -138,10 +155,30 @@ export default function SymbolDetailsPanel({ symbol, data, loading, error }: Pro
       </dl>
 
       {data.description && (
-        <p className="mt-3 line-clamp-4 text-[11px] leading-relaxed text-[var(--tv-text-secondary)]">
+        <p className="mt-2 line-clamp-4 text-[10px] leading-relaxed text-[var(--edge-text-muted)]">
           {data.description}
         </p>
       )}
+
+      {onNoteChange ? (
+        <div className="mt-3 border-t border-[var(--edge-border-subtle)] pt-2">
+          <label
+            htmlFor="watchlist-symbol-note"
+            className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]"
+          >
+            Note
+          </label>
+          <textarea
+            id="watchlist-symbol-note"
+            data-testid="watchlist-symbol-note"
+            value={note ?? ""}
+            rows={3}
+            onChange={(event) => onNoteChange(event.target.value)}
+            placeholder="Thesis, levels, catalysts…"
+            className="w-full resize-none rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-[11px] text-[var(--edge-text-primary)]"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

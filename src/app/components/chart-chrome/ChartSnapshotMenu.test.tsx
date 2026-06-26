@@ -9,7 +9,7 @@ import {
   type ActiveChartSnapshot,
 } from '../ActiveChartContext';
 import { DEFAULT_CELL } from '@/lib/chartConfig';
-import { makeDrawingCommandsMock, makeUICommandsMock } from '@/test/activeChartMocks';
+import { makeDrawingCommandsMock, makeDataWindowActionsMock, makeUICommandsMock, toActiveChartRegistration } from '@/test/activeChartMocks';
 
 const mockRunSnapshotAction = vi.fn();
 const mockPrepareSnapshotTab = vi.fn();
@@ -70,6 +70,11 @@ function makeSnapshot(
       redo: vi.fn(),
       addFavoriteIndicator: vi.fn(),
     },
+    headerState: {
+      replayActive: false,
+      canUndo: false,
+      canRedo: false,
+    },
     chartCommands: {
       undo: vi.fn(() => false),
       redo: vi.fn(() => false),
@@ -88,6 +93,7 @@ function makeSnapshot(
     },
     drawingCommands: makeDrawingCommandsMock(),
     uiCommands: makeUICommandsMock(),
+    dataWindowActions: makeDataWindowActionsMock(),
   };
 }
 
@@ -95,7 +101,7 @@ function RegisterSnapshot({ snapshot }: { snapshot: ActiveChartSnapshot }) {
   const bridge = useActiveChartBridge();
   useEffect(() => {
     if (!bridge) return;
-    bridge.register(snapshot.chartId, snapshot);
+    bridge.register(snapshot.chartId, toActiveChartRegistration(snapshot));
     return () => bridge.unregister(snapshot.chartId);
   }, [bridge, snapshot]);
   return null;

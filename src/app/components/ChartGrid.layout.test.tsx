@@ -34,7 +34,8 @@ describe('ChartGrid layout shell', () => {
       render(
         <ChartGrid
           gridMode={gridMode}
-          linked={false}
+          linkCrosshair={false}
+          linkDrawings={false}
           theme="light"
           cells={cells}
           activeCellIndex={0}
@@ -59,7 +60,8 @@ describe('ChartGrid layout shell', () => {
     render(
       <ChartGrid
         gridMode="2x2"
-        linked={false}
+        linkCrosshair={false}
+        linkDrawings={false}
         theme="light"
         cells={cells}
         activeCellIndex={0}

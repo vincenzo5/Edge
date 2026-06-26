@@ -13,8 +13,12 @@ describe('SidebarRail', () => {
     );
 
     expect(screen.getByTestId('sidebar-rail')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-rail')).toHaveStyle({ width: '44px' });
     expect(screen.getByTestId('sidebar-rail-object-tree')).toBeInTheDocument();
     expect(screen.getByTestId('sidebar-rail-watchlist')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-rail-watchlist').compareDocumentPosition(
+      screen.getByTestId('sidebar-rail-object-tree'),
+    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it('opens the object tree panel when rail icon is clicked', () => {

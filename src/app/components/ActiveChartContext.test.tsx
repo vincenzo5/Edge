@@ -5,10 +5,17 @@ import {
   ActiveChartProvider,
   useActiveChart,
   useActiveChartBridge,
+  type ActiveChartRegistration,
   type ActiveChartSnapshot,
 } from './ActiveChartContext';
 import { DEFAULT_CELL } from '@/lib/chartConfig';
-import { makeDrawingCommandsMock, makeUICommandsMock } from '@/test/activeChartMocks';
+import {
+  makeDrawingCommandsMock,
+  makeDataWindowActionsMock,
+  makeHeaderActionsMock,
+  makeUICommandsMock,
+  toActiveChartRegistration,
+} from '@/test/activeChartMocks';
 
 const overlayActions = {
   remove: vi.fn(),
@@ -21,12 +28,18 @@ const overlayActions = {
   subscribe: () => () => {},
 };
 
-function makeSnapshot(chartId: string): ActiveChartSnapshot {
+function makeSnapshot(chartId: string, overrides?: Partial<ActiveChartSnapshot>): ActiveChartSnapshot {
+  const headerCommands = makeHeaderActionsMock();
   return {
     chartId,
     config: DEFAULT_CELL,
     theme: 'dark',
     overlays: [],
+    headerState: {
+      replayActive: headerCommands.replayActive,
+      canUndo: headerCommands.canUndo,
+      canRedo: headerCommands.canRedo,
+    },
     dataWindow: {
       dataIndex: null,
       candles: [],
@@ -38,18 +51,7 @@ function makeSnapshot(chartId: string): ActiveChartSnapshot {
     overlayActions,
     onConfigChange: vi.fn(),
     openIndicatorPicker: vi.fn(),
-    headerCommands: {
-      replayActive: false,
-      canUndo: false,
-      canRedo: false,
-      openSettings: vi.fn(),
-      openStudyTemplate: vi.fn(),
-      openChartTemplate: vi.fn(),
-      toggleReplay: vi.fn(),
-      undo: vi.fn(),
-      redo: vi.fn(),
-      addFavoriteIndicator: vi.fn(),
-    },
+    headerCommands,
     chartCommands: {
       undo: vi.fn(() => false),
       redo: vi.fn(() => false),
@@ -68,7 +70,16 @@ function makeSnapshot(chartId: string): ActiveChartSnapshot {
     },
     drawingCommands: makeDrawingCommandsMock(),
     uiCommands: makeUICommandsMock(),
+    dataWindowActions: makeDataWindowActionsMock(),
+    ...overrides,
   };
+}
+
+function makeRegistration(
+  chartId: string,
+  overrides?: Partial<ActiveChartSnapshot>,
+): ActiveChartRegistration {
+  return toActiveChartRegistration(makeSnapshot(chartId, overrides));
 }
 
 function RegisterProbe({ chartId, active }: { chartId: string; active: boolean }) {
@@ -76,7 +87,7 @@ function RegisterProbe({ chartId, active }: { chartId: string; active: boolean }
 
   useEffect(() => {
     if (!bridge || !active) return;
-    bridge.register(chartId, makeSnapshot(chartId));
+    bridge.register(chartId, makeRegistration(chartId));
     return () => {
       bridge.unregister(chartId);
     };
@@ -172,7 +183,7 @@ describe('ActiveChartContext', () => {
     expect(typeof latest?.headerCommands.undo).toBe('function');
   });
 
-  it('updates snapshot when register is called again', () => {
+  it('updates snapshot when config read state changes', () => {
     const bridgeRef: { current: ReturnType<typeof useActiveChartBridge> } = { current: null };
     const onSnapshot = vi.fn();
 
@@ -188,17 +199,162 @@ describe('ActiveChartContext', () => {
       </ActiveChartProvider>,
     );
 
+    const callsBefore = onSnapshot.mock.calls.length;
+
     act(() => {
-      bridgeRef.current?.register('cell-0', makeSnapshot('cell-0'));
+      bridgeRef.current?.register('cell-0', makeRegistration('cell-0'));
     });
 
     act(() => {
-      const snap = makeSnapshot('cell-0');
-      snap.config = { ...DEFAULT_CELL, symbol: 'MSFT' };
-      bridgeRef.current?.register('cell-0', snap);
+      const reg = makeRegistration('cell-0');
+      reg.readState.config = { ...DEFAULT_CELL, symbol: 'MSFT' };
+      bridgeRef.current?.register('cell-0', reg);
     });
 
     const latest = onSnapshot.mock.calls.at(-1)?.[0];
     expect(latest?.config.symbol).toBe('MSFT');
+    expect(onSnapshot.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('does not notify subscribers when only dataWindow read state changes', () => {
+    const bridgeRef: { current: ReturnType<typeof useActiveChartBridge> } = { current: null };
+    const onSnapshot = vi.fn();
+    const registration = makeRegistration('cell-0');
+
+    function BridgeCapture() {
+      bridgeRef.current = useActiveChartBridge();
+      return null;
+    }
+
+    render(
+      <ActiveChartProvider>
+        <BridgeCapture />
+        <SnapshotProbe onSnapshot={onSnapshot} />
+      </ActiveChartProvider>,
+    );
+
+    act(() => {
+      bridgeRef.current?.register('cell-0', registration);
+    });
+
+    const callsAfterInitial = onSnapshot.mock.calls.length;
+
+    act(() => {
+      const reg = makeRegistration('cell-0');
+      reg.chartCommands = registration.chartCommands;
+      reg.drawingCommands = registration.drawingCommands;
+      reg.overlayActions = registration.overlayActions;
+      reg.dataWindowActions = registration.dataWindowActions;
+      reg.uiCommands = registration.uiCommands;
+      reg.headerActions = registration.headerActions;
+      reg.onConfigChange = registration.onConfigChange;
+      reg.openIndicatorPicker = registration.openIndicatorPicker;
+      reg.readState = {
+        ...registration.readState,
+        dataWindow: {
+          ...registration.readState.dataWindow,
+          dataIndex: 42,
+        },
+      };
+      bridgeRef.current?.register('cell-0', reg);
+    });
+
+    expect(onSnapshot.mock.calls.length).toBe(callsAfterInitial);
+
+    act(() => {
+      const reg = makeRegistration('cell-0');
+      reg.chartCommands = registration.chartCommands;
+      reg.drawingCommands = registration.drawingCommands;
+      reg.overlayActions = registration.overlayActions;
+      reg.dataWindowActions = registration.dataWindowActions;
+      reg.uiCommands = registration.uiCommands;
+      reg.headerActions = registration.headerActions;
+      reg.onConfigChange = registration.onConfigChange;
+      reg.openIndicatorPicker = registration.openIndicatorPicker;
+      reg.readState = {
+        ...registration.readState,
+        dataWindow: {
+          ...registration.readState.dataWindow,
+          dataIndex: 99,
+        },
+      };
+      bridgeRef.current?.register('cell-0', reg);
+    });
+
+    expect(onSnapshot.mock.calls.length).toBe(callsAfterInitial);
+
+    const viaGetSnapshot = bridgeRef.current?.getSnapshot();
+    expect(viaGetSnapshot?.dataWindow.dataIndex).toBe(99);
+  });
+
+  it('does not notify when register payload is unchanged', () => {
+    const bridgeRef: { current: ReturnType<typeof useActiveChartBridge> } = { current: null };
+    const onSnapshot = vi.fn();
+    const registration = makeRegistration('cell-0');
+
+    function BridgeCapture() {
+      bridgeRef.current = useActiveChartBridge();
+      return null;
+    }
+
+    render(
+      <ActiveChartProvider>
+        <BridgeCapture />
+        <SnapshotProbe onSnapshot={onSnapshot} />
+      </ActiveChartProvider>,
+    );
+
+    act(() => {
+      bridgeRef.current?.register('cell-0', registration);
+    });
+
+    const callsAfterInitial = onSnapshot.mock.calls.length;
+
+    act(() => {
+      bridgeRef.current?.register('cell-0', registration);
+    });
+
+    expect(onSnapshot.mock.calls.length).toBe(callsAfterInitial);
+  });
+
+  it('notifies when overlay read state changes with stable command refs', () => {
+    const bridgeRef: { current: ReturnType<typeof useActiveChartBridge> } = { current: null };
+    const onSnapshot = vi.fn();
+    const registration = makeRegistration('cell-0');
+
+    function BridgeCapture() {
+      bridgeRef.current = useActiveChartBridge();
+      return null;
+    }
+
+    render(
+      <ActiveChartProvider>
+        <BridgeCapture />
+        <SnapshotProbe onSnapshot={onSnapshot} />
+      </ActiveChartProvider>,
+    );
+
+    act(() => {
+      bridgeRef.current?.register('cell-0', registration);
+    });
+
+    const callsAfterInitial = onSnapshot.mock.calls.length;
+
+    act(() => {
+      const reg = makeRegistration('cell-0');
+      reg.chartCommands = registration.chartCommands;
+      reg.drawingCommands = registration.drawingCommands;
+      reg.overlayActions = registration.overlayActions;
+      reg.dataWindowActions = registration.dataWindowActions;
+      reg.uiCommands = registration.uiCommands;
+      reg.headerActions = registration.headerActions;
+      reg.onConfigChange = registration.onConfigChange;
+      reg.openIndicatorPicker = registration.openIndicatorPicker;
+      reg.readState.overlays = [{ id: 'o1', name: 'trend_line', label: 'TL', zLevel: 1, visible: true, locked: false }];
+      bridgeRef.current?.register('cell-0', reg);
+    });
+
+    expect(onSnapshot.mock.calls.length).toBeGreaterThan(callsAfterInitial);
+    expect(onSnapshot.mock.calls.at(-1)?.[0]?.overlays).toHaveLength(1);
   });
 });

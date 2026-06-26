@@ -83,8 +83,8 @@ export default function ChartRangeBar({
       <div
         ref={barRef}
         className={`flex min-w-0 shrink-0 items-center gap-0.5 overflow-x-auto border-t px-2 ${
-          compact ? 'h-6 text-[10px]' : 'h-7 text-xs'
-        } border-[var(--tv-border)] bg-[var(--tv-surface-toolbar)] text-[var(--tv-text-secondary)]`}
+          compact ? 'h-6 text-[10px]' : 'h-7 text-[11px]'
+        } border-[var(--edge-border-subtle)] bg-[var(--edge-surface-toolbar)] text-[var(--edge-text-secondary)]`}
         role="toolbar"
         aria-label="Chart range"
       >
@@ -96,10 +96,10 @@ export default function ChartRangeBar({
               key={preset}
               type="button"
               onClick={() => onRangeSelect(preset)}
-              className={`rounded px-1.5 py-0.5 font-medium transition-colors ${
+              className={`rounded-[var(--edge-radius-xs)] px-1.5 py-0.5 font-medium transition-colors ${
                 active
-                  ? 'bg-[var(--tv-surface-active)] text-[var(--tv-text-strong)]'
-                  : 'hover:bg-[var(--tv-surface-hover)] hover:text-[var(--tv-text-primary)]'
+                  ? 'bg-[var(--edge-surface-active)] font-semibold text-[var(--edge-text-strong)]'
+                  : 'hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]'
               }`}
               aria-pressed={active}
             >
@@ -111,13 +111,13 @@ export default function ChartRangeBar({
         {onGoToClick && (
           <>
             <span
-              className="mx-1 h-4 w-px shrink-0 bg-[var(--tv-border)]"
+              className="mx-1 h-4 w-px shrink-0 bg-[var(--edge-border)]"
               aria-hidden
             />
             <button
               type="button"
               onClick={onGoToClick}
-              className="rounded p-1 transition-colors hover:bg-[var(--tv-surface-hover)] hover:text-[var(--tv-text-primary)]"
+              className="rounded p-1 transition-colors hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]"
               aria-label="Go to date"
               title="Go to date"
             >
@@ -132,8 +132,8 @@ export default function ChartRangeBar({
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
           className={`ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono tabular-nums transition-colors ${
-            'hover:bg-[var(--tv-surface-hover)] hover:text-[var(--tv-text-primary)]'
-          } ${menuOpen ? 'bg-[var(--tv-surface-active)] text-[var(--tv-text-strong)]' : ''}`}
+            'hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]'
+          } ${menuOpen ? 'bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]' : ''}`}
           aria-label={`Chart timezone: ${clockLabel}. Click to change.`}
           aria-haspopup="menu"
           aria-expanded={menuOpen}

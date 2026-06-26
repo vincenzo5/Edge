@@ -24,7 +24,8 @@ describe('ChartGrid responsive layout', () => {
     render(
       <ChartGrid
         gridMode="1x2"
-        linked={false}
+        linkCrosshair={false}
+        linkDrawings={false}
         theme="light"
         cells={cells}
         activeCellIndex={0}

@@ -46,5 +46,7 @@ describe('DrawingToolbar responsive overflow', () => {
 
     const toolbar = screen.getByTestId('drawing-toolbar');
     expect(toolbar.className).toMatch(/overflow-y-auto/);
+    expect(toolbar).toHaveStyle({ width: '44px' });
+    expect(toolbar).toHaveAttribute('data-rail-mode', 'full');
   });
 });

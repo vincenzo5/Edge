@@ -48,8 +48,9 @@ export const DRAWING_TOOL_GROUPS: ToolGroup[] = [
   },
 ];
 
-/** Standalone utility tool (TV §6.9) — not in a flyout group. */
+/** Standalone utility tools (TV §6.9) — not in a flyout group. */
 export const MEASURE_TOOL: DrawingToolName = "measure";
+export const RISK_RULER_TOOL: DrawingToolName = "riskRuler";
 
 const ALL_GROUPED = new Set(
   DRAWING_TOOL_GROUPS.flatMap((g) => g.tools.map((t) => t.name)),

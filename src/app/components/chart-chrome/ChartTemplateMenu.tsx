@@ -49,7 +49,7 @@ export default function ChartTemplateMenu({
             setOpen(false);
           }}
         />
-        <div className="my-1 border-t border-[var(--tv-border-strong)]" />
+        <div className="my-1 border-t border-[var(--edge-border-strong)]" />
         <ChartMenuItemRow
           theme={theme}
           label="Open template..."

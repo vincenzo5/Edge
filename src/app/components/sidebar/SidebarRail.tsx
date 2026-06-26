@@ -6,9 +6,10 @@ import type { RailMode } from "@/lib/responsive/responsiveLayout";
 import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
 import Tooltip from "../Tooltip";
 import {
-  toolbarButtonClass,
+  iconRailButtonClass,
+  iconRailIconClass,
+  iconRailWidthClass,
   toolbarButtonStateClass,
-  toolbarRailWidthClass,
 } from "../chart-icons/toolbarButtonStyles";
 import { SIDEBAR_PANELS } from "./registry";
 
@@ -41,7 +42,7 @@ export default function SidebarRail({
           width: railWidth,
         } as CSSProperties
       }
-      className={`relative z-50 flex h-full shrink-0 flex-col items-center justify-start gap-1 self-stretch border-l border-[var(--tv-border)] bg-[var(--tv-surface-toolbar)] py-2 ${toolbarRailWidthClass(compact)}`}
+      className={`relative z-50 flex h-full shrink-0 flex-col items-stretch justify-start gap-0.5 self-stretch border-l border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-0.5 py-1.5 ${iconRailWidthClass(compact)}`}
     >
       {SIDEBAR_PANELS.map((panel) => {
         const active = activePanel === panel.id;
@@ -55,9 +56,9 @@ export default function SidebarRail({
               aria-pressed={active}
               onClick={() => onTogglePanel(panel.id)}
               data-active={active ? "true" : "false"}
-              className={`${toolbarButtonClass(false)} ${toolbarButtonStateClass(active)}`}
+              className={`${iconRailButtonClass(compact)} ${toolbarButtonStateClass(active)}`}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className={iconRailIconClass(compact)} />
             </button>
           </Tooltip>
         );

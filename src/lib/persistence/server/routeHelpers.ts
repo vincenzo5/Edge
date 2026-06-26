@@ -5,6 +5,17 @@ import { AuthSecretMissingError } from "@/lib/persistence/auth/devSessionCookie"
 import { getCurrentUser } from "@/lib/persistence/auth/getCurrentUser";
 import { persistenceError } from "@/lib/persistence/common";
 
+function hasDatabaseUnavailableCause(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const errorWithCode = error as Error & { code?: string; cause?: unknown; errors?: unknown[] };
+  if (errorWithCode.code === "ECONNREFUSED") return true;
+  if (error.message.includes("ECONNREFUSED")) return true;
+  if (errorWithCode.cause && hasDatabaseUnavailableCause(errorWithCode.cause)) return true;
+  return Array.isArray(errorWithCode.errors)
+    ? errorWithCode.errors.some(hasDatabaseUnavailableCause)
+    : false;
+}
+
 export async function withPersistenceAuth<T>(
   handler: (userId: string) => Promise<T>,
 ): Promise<Response | T> {
@@ -27,6 +38,13 @@ export async function withPersistenceAuth<T>(
         "Persistence auth is not configured. Set EDGE_AUTH_SECRET to enable cloud sync.",
       );
     }
+    if (hasDatabaseUnavailableCause(error)) {
+      return persistenceError(
+        503,
+        "database_unavailable",
+        "Persistence database is unavailable. Local storage fallback remains active.",
+      );
+    }
     throw error;
   }
 
@@ -34,7 +52,18 @@ export async function withPersistenceAuth<T>(
     return persistenceError(401, "unauthorized", "Unable to resolve current user.");
   }
 
-  return handler(user.id);
+  try {
+    return await handler(user.id);
+  } catch (error) {
+    if (hasDatabaseUnavailableCause(error)) {
+      return persistenceError(
+        503,
+        "database_unavailable",
+        "Persistence database is unavailable. Local storage fallback remains active.",
+      );
+    }
+    throw error;
+  }
 }
 
 export function conflictResponse(

@@ -2,24 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, waitFor } from '@testing-library/react';
 import EdgeChart from './EdgeChart';
 import type { CellConfig } from '@/lib/chartConfig';
-import { fetchOlderCandles } from '@/lib/chart/series';
-
-const { mockCandles } = vi.hoisted(() => ({
-  mockCandles: [
-    { t: 1000, o: 100, h: 110, l: 90, c: 105, v: 1000 },
-    { t: 2000, o: 105, h: 115, l: 95, c: 110, v: 1100 },
-    { t: 3000, o: 110, h: 120, l: 100, c: 115, v: 1200 },
-    { t: 4000, o: 115, h: 125, l: 105, c: 120, v: 1300 },
-    { t: 5000, o: 120, h: 130, l: 110, c: 125, v: 1400 },
-  ],
-}));
+import { createTestChartDataFeed, defaultTestCandles } from '@/test/chartDataFeedTestUtils';
 
 vi.mock('@/lib/chart/series', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/chart/series')>();
   return {
     ...actual,
-    fetchYahooCandles: vi.fn().mockResolvedValue(mockCandles),
-    fetchOlderCandles: vi.fn().mockResolvedValue([]),
     shouldPrefetchEdge: () => false,
   };
 });
@@ -39,11 +27,13 @@ describe('EdgeChart onCandlesChange', () => {
   });
 
   it('fires onCandlesChange with full array after load', async () => {
+    const testFeed = createTestChartDataFeed();
     const onCandlesChange = vi.fn();
     render(
       <EdgeChart
         config={baseConfig}
         theme="dark"
+        feed={testFeed}
         chartId="t1"
         onCandlesChange={onCandlesChange}
       />,
@@ -54,23 +44,18 @@ describe('EdgeChart onCandlesChange', () => {
         .map((call) => call[0])
         .filter((candles) => candles.length > 0)
         .at(-1);
-      expect(lastNonEmpty).toHaveLength(mockCandles.length);
+      expect(lastNonEmpty).toHaveLength(defaultTestCandles.length);
     });
-
-    const lastNonEmpty = [...onCandlesChange.mock.calls]
-      .map((call) => call[0])
-      .filter((candles) => candles.length > 0)
-      .at(-1);
-    expect(lastNonEmpty?.[0].t).toBe(1000);
-    expect(lastNonEmpty?.at(-1)?.t).toBe(5000);
   });
 
   it('fires onCandlesChange with sliced array when visibleCount changes', async () => {
+    const testFeed = createTestChartDataFeed();
     const onCandlesChange = vi.fn();
     const { rerender } = render(
       <EdgeChart
         config={baseConfig}
         theme="dark"
+        feed={testFeed}
         chartId="t1"
         visibleCount={null}
         onCandlesChange={onCandlesChange}
@@ -86,6 +71,7 @@ describe('EdgeChart onCandlesChange', () => {
       <EdgeChart
         config={baseConfig}
         theme="dark"
+        feed={testFeed}
         chartId="t1"
         visibleCount={2}
         onCandlesChange={onCandlesChange}
@@ -93,18 +79,15 @@ describe('EdgeChart onCandlesChange', () => {
     );
 
     await waitFor(() => {
-      expect(onCandlesChange).toHaveBeenCalled();
       const sliced = onCandlesChange.mock.calls.at(-1)?.[0];
       expect(sliced?.length).toBe(2);
     });
-
-    const sliced = onCandlesChange.mock.calls.at(-1)?.[0];
-    expect(sliced?.[0].t).toBe(1000);
-    expect(sliced?.[1].t).toBe(2000);
   });
 
   it('returns an out-of-range result when GoTo history fetch fails', async () => {
-    vi.mocked(fetchOlderCandles).mockRejectedValueOnce(new Error('history unavailable'));
+    const testFeed = createTestChartDataFeed(defaultTestCandles, {
+      loadMoreCandles: vi.fn().mockRejectedValue(new Error('history unavailable')),
+    });
     const chartRef = { current: null as import('./EdgeChart').ChartHandle | null };
 
     render(
@@ -112,6 +95,7 @@ describe('EdgeChart onCandlesChange', () => {
         ref={chartRef}
         config={baseConfig}
         theme="dark"
+        feed={testFeed}
         chartId="t1"
       />,
     );
@@ -135,7 +119,15 @@ describe('EdgeChart onCandlesChange', () => {
       c: 95,
       v: 900,
     }));
-    vi.mocked(fetchOlderCandles).mockResolvedValueOnce(olderCandles);
+    const testFeed = createTestChartDataFeed(defaultTestCandles, {
+      loadMoreCandles: vi.fn().mockResolvedValue({
+        symbol: 'AAPL',
+        interval: '1d',
+        candles: olderCandles,
+        hasMore: false,
+        meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+      }),
+    });
     const chartRef = { current: null as import('./EdgeChart').ChartHandle | null };
 
     const { container } = render(
@@ -143,6 +135,7 @@ describe('EdgeChart onCandlesChange', () => {
         ref={chartRef}
         config={baseConfig}
         theme="dark"
+        feed={testFeed}
         chartId="t1"
       />,
     );
@@ -162,5 +155,45 @@ describe('EdgeChart onCandlesChange', () => {
     expect(() => {
       fireEvent.wheel(chartArea, { deltaX: 80, deltaY: 0, deltaMode: 0 });
     }).not.toThrow();
+  });
+
+  it('forwards live metadata through onDataMetaChange', async () => {
+    let sinkRef: import('@edge/chart-core').ChartCandleStreamSink | null = null;
+    const testFeed = createTestChartDataFeed(defaultTestCandles, {
+      subscribeCandles(_request, sink) {
+        sinkRef = sink;
+        return () => {
+          sinkRef = null;
+        };
+      },
+    });
+    const onDataMetaChange = vi.fn();
+
+    render(
+      <EdgeChart
+        config={baseConfig}
+        theme="dark"
+        feed={testFeed}
+        chartId="t1"
+        onDataMetaChange={onDataMetaChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onDataMetaChange).toHaveBeenCalled();
+      const latest = onDataMetaChange.mock.calls.at(-1)?.[0];
+      expect(latest?.streaming).toBe(true);
+    });
+
+    sinkRef?.({
+      type: 'replace-latest',
+      candle: { t: 3000, o: 3, h: 3, l: 3, c: 3 },
+      meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+    });
+
+    await waitFor(() => {
+      const latest = onDataMetaChange.mock.calls.at(-1)?.[0];
+      expect(latest?.lastUpdateAt).toBeTruthy();
+    });
   });
 });

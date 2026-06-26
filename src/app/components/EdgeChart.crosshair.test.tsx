@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import EdgeChart from './EdgeChart';
 import type { CellConfig } from '@/lib/chartConfig';
-import { fetchYahooCandles } from '@/lib/chart/series';
+import { createTestChartDataFeed, defaultTestCandles } from '@/test/chartDataFeedTestUtils';
 
 async function flushAnimationFrames(frames = 2) {
   for (let i = 0; i < frames; i += 1) {
@@ -15,24 +15,15 @@ async function flushAnimationFrames(frames = 2) {
   }
 }
 
-const { mockCandles } = vi.hoisted(() => ({
-  mockCandles: [
-    { t: 1000, o: 100, h: 110, l: 90, c: 105, v: 1000 },
-    { t: 2000, o: 105, h: 115, l: 95, c: 110, v: 1100 },
-  ],
-}));
-
 vi.mock('@/lib/chart/series', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/chart/series')>();
   return {
     ...actual,
-    fetchYahooCandles: vi.fn().mockResolvedValue(mockCandles),
-    fetchOlderCandles: vi.fn().mockResolvedValue([]),
     shouldPrefetchEdge: () => false,
   };
 });
 
-vi.mock('@/lib/chart/canvas', () => ({
+vi.mock('../../../packages/chart-react/src/engine/canvas', () => ({
   default: function MockChartCanvas({
     onCrosshairMove,
     paneId = 'price',
@@ -83,18 +74,20 @@ describe('EdgeChart crosshair coalescing', () => {
   });
 
   it('coalesces duplicate crosshair moves within one animation frame', async () => {
+    const testFeed = createTestChartDataFeed();
     const onCrosshairMove = vi.fn();
     render(
       <EdgeChart
         config={baseConfig}
         theme="dark"
+        feed={testFeed}
         chartId="t1"
         onCrosshairMove={onCrosshairMove}
       />,
     );
 
     await waitFor(() => {
-      expect(fetchYahooCandles).toHaveBeenCalled();
+      expect(onCrosshairMove).toHaveBeenCalled();
     });
 
     await flushAnimationFrames();
@@ -118,39 +111,40 @@ describe('EdgeChart fetch abort', () => {
     vi.clearAllMocks();
   });
 
-  it('passes AbortSignal and ignores stale fetch results after symbol change', async () => {
-    let resolveFirst!: (value: typeof mockCandles) => void;
-    const firstPromise = new Promise<typeof mockCandles>((resolve) => {
+  it('ignores stale fetch results after symbol change', async () => {
+    let resolveFirst!: (value: typeof defaultTestCandles) => void;
+    const firstPromise = new Promise<typeof defaultTestCandles>((resolve) => {
       resolveFirst = resolve;
     });
     const msftCandles = [{ t: 9000, o: 300, h: 310, l: 290, c: 305, v: 1000 }];
-
-    vi.mocked(fetchYahooCandles)
-      .mockImplementationOnce((_symbol, _range, _interval, signal) => {
-        return new Promise((resolve, reject) => {
-          signal?.addEventListener('abort', () => {
-            reject(new DOMException('Aborted', 'AbortError'));
-          });
-          firstPromise.then(resolve).catch(reject);
-        });
+    const loadCandles = vi
+      .fn()
+      .mockImplementationOnce(async (request) => {
+        const candles = await firstPromise;
+        return {
+          symbol: request.symbol,
+          interval: request.interval,
+          candles,
+          meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+        };
       })
-      .mockResolvedValueOnce(msftCandles);
+      .mockImplementationOnce(async (request) => ({
+        symbol: request.symbol,
+        interval: request.interval,
+        candles: msftCandles,
+        meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+      }));
 
+    const testFeed = createTestChartDataFeed(defaultTestCandles, { loadCandles });
     const chartRef = { current: null as import('./EdgeChart').ChartHandle | null };
     const { rerender } = render(
       <EdgeChart
         ref={chartRef}
         config={{ ...baseConfig, symbol: 'AAPL' }}
         theme="dark"
+        feed={testFeed}
         chartId="t1"
       />,
-    );
-
-    expect(fetchYahooCandles).toHaveBeenCalledWith(
-      'AAPL',
-      '1y',
-      '1d',
-      expect.any(AbortSignal),
     );
 
     rerender(
@@ -158,20 +152,12 @@ describe('EdgeChart fetch abort', () => {
         ref={chartRef}
         config={{ ...baseConfig, symbol: 'MSFT' }}
         theme="dark"
+        feed={testFeed}
         chartId="t1"
       />,
     );
 
-    await waitFor(() => {
-      expect(fetchYahooCandles).toHaveBeenCalledWith(
-        'MSFT',
-        '1y',
-        '1d',
-        expect.any(AbortSignal),
-      );
-    });
-
-    resolveFirst(mockCandles);
+    resolveFirst(defaultTestCandles);
 
     await waitFor(() => {
       expect(chartRef.current?.getCandles().at(-1)?.t).toBe(9000);

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { useEffect } from 'react';
 import { ObjectTreePanel } from './ObjectTreePanel';
 import {
@@ -8,7 +8,12 @@ import {
   type ActiveChartSnapshot,
 } from '../../ActiveChartContext';
 import { DEFAULT_CELL, type TrackedOverlay } from '@/lib/chartConfig';
-import { makeDrawingCommandsMock, makeUICommandsMock } from '@/test/activeChartMocks';
+import {
+  makeDrawingCommandsMock,
+  makeDataWindowActionsMock,
+  makeUICommandsMock,
+  toActiveChartRegistration,
+} from '@/test/activeChartMocks';
 import type { Candle } from '@/lib/chart/contracts';
 
 const candles: Candle[] = [
@@ -40,7 +45,7 @@ const defaultHeaderCommands = {
   addFavoriteIndicator: vi.fn(),
 };
 
-function makeSnapshot(): ActiveChartSnapshot {
+function makeSnapshot(overrides?: Partial<ActiveChartSnapshot>): ActiveChartSnapshot {
   return {
     chartId: 'cell-0',
     config: DEFAULT_CELL,
@@ -53,11 +58,19 @@ function makeSnapshot(): ActiveChartSnapshot {
       symbol: 'AAPL',
       interval: '1d',
       theme: 'dark',
+      chartSettings: DEFAULT_CELL.chartSettings,
+      mainSeriesVisible: true,
     },
     overlayActions,
+    dataWindowActions: makeDataWindowActionsMock(),
     onConfigChange: vi.fn(),
     openIndicatorPicker: vi.fn(),
     headerCommands: defaultHeaderCommands,
+    headerState: {
+      replayActive: false,
+      canUndo: false,
+      canRedo: false,
+    },
     chartCommands: {
       undo: vi.fn(() => false),
       redo: vi.fn(() => false),
@@ -76,6 +89,7 @@ function makeSnapshot(): ActiveChartSnapshot {
     },
     drawingCommands: makeDrawingCommandsMock(),
     uiCommands: makeUICommandsMock(),
+    ...overrides,
   };
 }
 
@@ -84,7 +98,7 @@ function SeedSnapshot({ snapshot }: { snapshot: ActiveChartSnapshot }) {
 
   useEffect(() => {
     if (!bridge) return;
-    bridge.register(snapshot.chartId, snapshot);
+    bridge.register(snapshot.chartId, toActiveChartRegistration(snapshot));
     return () => {
       bridge.unregister(snapshot.chartId);
     };
@@ -95,8 +109,10 @@ function SeedSnapshot({ snapshot }: { snapshot: ActiveChartSnapshot }) {
 
 describe('ObjectTreePanel', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     window.localStorage.clear();
   });
+
   it('shows placeholder when no active chart', () => {
     render(
       <ActiveChartProvider>
@@ -109,7 +125,7 @@ describe('ObjectTreePanel', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders OHLCV values from active chart snapshot', () => {
+  it('renders OHLC values on the Data window tab', () => {
     render(
       <ActiveChartProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
@@ -117,16 +133,98 @@ describe('ObjectTreePanel', () => {
       </ActiveChartProvider>,
     );
 
-    expect(screen.getByText('OHLCV')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Data window' }));
     expect(screen.getByText('12')).toBeInTheDocument();
-    expect(screen.getByText('Data Window')).toBeInTheDocument();
+    expect(screen.getByText('AAPL · 1d')).toBeInTheDocument();
   });
 
-  it('shows pane labels on drawing rows', () => {
-    window.localStorage.setItem(
-      'tv-ai:object-tree-section:cell-0',
-      JSON.stringify({ symbol: true, indicators: true, drawings: false, data: true }),
+  it('does not render a Volume section until VOL is added to the chart', () => {
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <ObjectTreePanel />
+      </ActiveChartProvider>,
     );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Data window' }));
+    expect(screen.queryByText('Volume')).not.toBeInTheDocument();
+  });
+
+  it('renders all value rows for an added indicator on the Data window tab', () => {
+    const snapshot = makeSnapshot({
+      dataWindow: {
+        ...makeSnapshot().dataWindow,
+        indicators: [
+          {
+            id: 'boll1',
+            name: 'BOLL',
+            pane: 'main',
+            params: { period: 2, std: 1 },
+            visible: true,
+          },
+        ],
+      },
+    });
+
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={snapshot} />
+        <ObjectTreePanel />
+      </ActiveChartProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Data window' }));
+    expect(screen.getByText('Upper')).toBeInTheDocument();
+    expect(screen.getByText('Middle')).toBeInTheDocument();
+    expect(screen.getByText('Lower')).toBeInTheDocument();
+    expect(screen.getByText('11.5')).toBeInTheDocument();
+  });
+
+  it('keeps an added Volume section collapsed when VOL is hidden', () => {
+    const snapshot = makeSnapshot({
+      dataWindow: {
+        ...makeSnapshot().dataWindow,
+        indicators: [
+          {
+            id: 'vol1',
+            name: 'VOL',
+            pane: 'sub',
+            params: {},
+            visible: false,
+          },
+        ],
+      },
+    });
+
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={snapshot} />
+        <ObjectTreePanel />
+      </ActiveChartProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Data window' }));
+    expect(screen.getByText('Volume')).toBeInTheDocument();
+    expect(screen.getByTitle('Show volume')).toBeInTheDocument();
+  });
+
+  it('switches tabs and persists active tab in localStorage', () => {
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <ObjectTreePanel />
+      </ActiveChartProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Data window' }));
+    expect(window.localStorage.getItem('tv-ai:object-panel-tab:cell-0')).toBe('data-window');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Object tree' }));
+    expect(screen.getByText('AAPL · 1d')).toBeInTheDocument();
+    expect(window.localStorage.getItem('tv-ai:object-panel-tab:cell-0')).toBe('object-tree');
+  });
+
+  it('shows drawing rows on the Object tree tab', () => {
     const overlays: TrackedOverlay[] = [
       {
         id: 'd-price',
@@ -147,20 +245,21 @@ describe('ObjectTreePanel', () => {
         paneId: 'rsi1',
       },
     ];
-    const snapshot = makeSnapshot();
-    snapshot.overlays = overlays;
-    snapshot.config = {
-      ...DEFAULT_CELL,
-      indicators: [
-        {
-          id: 'rsi1',
-          name: 'RSI',
-          pane: 'sub',
-          params: { period: 14 },
-          visible: true,
-        },
-      ],
-    };
+    const snapshot = makeSnapshot({
+      overlays,
+      config: {
+        ...DEFAULT_CELL,
+        indicators: [
+          {
+            id: 'rsi1',
+            name: 'RSI',
+            pane: 'sub',
+            params: { period: 14 },
+            visible: true,
+          },
+        ],
+      },
+    });
 
     render(
       <ActiveChartProvider>
@@ -169,9 +268,88 @@ describe('ObjectTreePanel', () => {
       </ActiveChartProvider>,
     );
 
-    expect(screen.getByText('Price')).toBeInTheDocument();
-    expect(screen.getByText('RSI')).toBeInTheDocument();
     expect(screen.getByText('Trend')).toBeInTheDocument();
     expect(screen.getByText('H-Line')).toBeInTheDocument();
+    expect(screen.getByText('RSI')).toBeInTheDocument();
+  });
+
+  it('drawing row actions call overlay actions', () => {
+    const overlays: TrackedOverlay[] = [
+      {
+        id: 'd1',
+        name: 'trend_line',
+        label: 'My trend',
+        visible: true,
+        locked: false,
+        zLevel: 0,
+        paneId: 'price',
+      },
+    ];
+    const snapshot = makeSnapshot({ overlays });
+
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={snapshot} />
+        <ObjectTreePanel />
+      </ActiveChartProvider>,
+    );
+
+    fireEvent.click(screen.getByTitle('Hide drawing'));
+    expect(overlayActions.setVisible).toHaveBeenCalledWith('d1', false);
+
+    fireEvent.click(screen.getByTitle('Lock drawing'));
+    expect(overlayActions.setLocked).toHaveBeenCalledWith('d1', true);
+
+    fireEvent.click(screen.getByTitle('Remove drawing'));
+    expect(overlayActions.remove).toHaveBeenCalledWith('d1');
+  });
+
+  it('indicator eye toggles onConfigChange', () => {
+    const onConfigChange = vi.fn();
+    const snapshot = makeSnapshot({
+      onConfigChange,
+      config: {
+        ...DEFAULT_CELL,
+        indicators: [
+          {
+            id: 'ma1',
+            name: 'MA',
+            pane: 'main',
+            params: { period: 20 },
+            visible: true,
+          },
+        ],
+      },
+    });
+
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={snapshot} />
+        <ObjectTreePanel />
+      </ActiveChartProvider>,
+    );
+
+    fireEvent.click(screen.getByTitle('Hide indicator'));
+    expect(onConfigChange).toHaveBeenCalled();
+    const next = onConfigChange.mock.calls[0][0];
+    expect(next.indicators[0].visible).toBe(false);
+  });
+
+  it('data window section eye calls dataWindowActions', () => {
+    const setPriceVisible = vi.fn();
+    const snapshot = makeSnapshot({
+      dataWindowActions: makeDataWindowActionsMock({ setPriceVisible }),
+    });
+
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={snapshot} />
+        <ObjectTreePanel />
+      </ActiveChartProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Data window' }));
+    fireEvent.click(screen.getByTitle('Hide price series'));
+    expect(setPriceVisible).toHaveBeenCalledWith(false);
   });
 });

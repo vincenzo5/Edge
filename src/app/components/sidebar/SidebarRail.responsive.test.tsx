@@ -15,5 +15,6 @@ describe('SidebarRail responsive modes', () => {
     );
 
     expect(screen.getByTestId('sidebar-rail')).toHaveAttribute('data-rail-mode', 'compact');
+    expect(screen.getByTestId('sidebar-rail')).toHaveStyle({ width: '40px' });
   });
 });

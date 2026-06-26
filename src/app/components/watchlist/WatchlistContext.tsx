@@ -13,6 +13,7 @@ import {
 import type { WatchlistState } from "@/lib/watchlist/types";
 import type { WatchlistActions } from "@/lib/ai/context";
 import {
+  DEFAULT_WATCHLIST_STATE,
   loadWatchlistState,
   saveWatchlistState,
 } from "@/lib/watchlist/storage";
@@ -25,11 +26,12 @@ export type WatchlistContextValue = WatchlistActions & {
 const WatchlistContext = createContext<WatchlistContextValue | null>(null);
 
 export function WatchlistProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<WatchlistState>(() => loadWatchlistState());
+  const [state, setState] = useState<WatchlistState>(DEFAULT_WATCHLIST_STATE);
   const [hydrated, setHydrated] = useState(false);
   const hydratedRef = useRef(false);
 
   useEffect(() => {
+    setState(loadWatchlistState());
     hydratedRef.current = true;
     setHydrated(true);
   }, []);
