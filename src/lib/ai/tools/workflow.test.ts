@@ -8,7 +8,10 @@ describe("summarizeChartTool annotations", () => {
     const layout = {
       version: 1,
       gridMode: "1x1",
-      linked: false,
+      linkSymbol: false,
+      linkInterval: false,
+      linkCrosshair: false,
+      linkDrawings: false,
       theme: "dark",
       activeCellIndex: 0,
       cells: [
@@ -47,7 +50,7 @@ describe("summarizeChartTool annotations", () => {
         getLayout: () => layout,
         applyCellUpdate: () => {},
         setGridMode: () => {},
-        setLinked: () => {},
+        setLayoutSync: () => {},
         setTheme: () => {},
         setActiveCell: () => {},
       },
@@ -64,6 +67,12 @@ describe("summarizeChartTool annotations", () => {
         getCandles: async () => [],
         getQuotes: async () => [],
         getFundamentals: async () => ({ symbol: "AAPL", updatedAt: Date.now() }),
+        getOptionExpirations: async () => [],
+        getOptionsChain: async () => ({
+          underlying: "AAPL",
+          expiration: "2025-06-20",
+          contracts: [],
+        }),
       },
     };
 

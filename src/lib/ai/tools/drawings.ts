@@ -11,7 +11,6 @@ import {
   drawingStylePatchSchema,
   metadataFilterSchema,
 } from "../schemas";
-import { cellCountFor } from "@/lib/chartConfig";
 import { baseDrawing } from "@/lib/chart/drawings/drawingUtils";
 import type { DrawingStyles } from "@/lib/chart/contracts";
 import {
@@ -20,27 +19,7 @@ import {
   normalizeMetadata,
   summarizeAnnotations,
 } from "@/lib/chart/annotationMetadata";
-
-function getCell(context: ToolContext, cellIndex?: number) {
-  if (!context.app) throw new Error("App actions unavailable");
-  const layout = context.app.getLayout();
-  const index = cellIndex ?? layout.activeCellIndex ?? 0;
-  const max = cellCountFor(layout.gridMode) - 1;
-  const resolved = Math.max(0, Math.min(index, max));
-  return { layout, index, cell: layout.cells[resolved] };
-}
-
-function requireActiveChart(context: ToolContext, cellIndex?: number) {
-  const { layout, index } = getCell(context, cellIndex);
-  if ((layout.activeCellIndex ?? 0) !== index) {
-    throw new Error("Drawing commands require the target cell to be active");
-  }
-  const chart = context.chart?.getActiveChart();
-  if (!chart?.chartCommands) {
-    throw new Error("Active chart commands unavailable");
-  }
-  return chart;
-}
+import { getCell, requireActiveChart, requireApp } from "./_helpers";
 
 function mapStylePatch(
   styles: z.infer<typeof drawingStylePatchSchema>,
@@ -110,7 +89,7 @@ export const addDrawingTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    if (!context.app) throw new Error("App actions unavailable");
+    requireApp(context);
     const chart = requireActiveChart(context, input.cellIndex);
     const { index, cell } = getCell(context, input.cellIndex);
 
@@ -159,7 +138,7 @@ export const updateDrawingTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    if (!context.app) throw new Error("App actions unavailable");
+    requireApp(context);
     const chart = requireActiveChart(context, input.cellIndex);
     const { index, cell } = getCell(context, input.cellIndex);
 
@@ -213,7 +192,7 @@ export const deleteDrawingTool = defineTool({
   requiresConfirmation: true,
   requiresClientSession: true,
   async execute(input, context) {
-    if (!context.app) throw new Error("App actions unavailable");
+    requireApp(context);
     const chart = requireActiveChart(context, input.cellIndex);
     const { index, cell } = getCell(context, input.cellIndex);
 

@@ -8,19 +8,10 @@ import {
 } from "../schemas";
 import {
   createIndicatorInstance,
-  cellCountFor,
   type IndicatorConfig,
 } from "@/lib/chartConfig";
 import { getCatalogMeta } from "@/lib/chart/indicators/registry";
-
-function getCell(context: ToolContext, cellIndex?: number) {
-  if (!context.app) throw new Error("App actions unavailable");
-  const layout = context.app.getLayout();
-  const index = cellIndex ?? layout.activeCellIndex ?? 0;
-  const max = cellCountFor(layout.gridMode) - 1;
-  const resolved = Math.max(0, Math.min(index, max));
-  return { layout, index, cell: layout.cells[resolved] };
-}
+import { getCell, requireApp } from "./_helpers";
 
 export const listIndicatorsTool = defineTool({
   name: "list_indicators",
@@ -56,7 +47,7 @@ export const addIndicatorTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    if (!context.app) throw new Error("App actions unavailable");
+    requireApp(context);
     const { index, cell } = getCell(context, input.cellIndex);
     const meta = getCatalogMeta(input.name);
     const pane = input.pane ?? meta?.defaultPane ?? "main";
@@ -80,7 +71,7 @@ export const removeIndicatorTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    if (!context.app) throw new Error("App actions unavailable");
+    requireApp(context);
     const { index, cell } = getCell(context, input.cellIndex);
     const next = cell.indicators.filter((i) => i.id !== input.indicatorId);
     if (next.length === cell.indicators.length) {
@@ -118,7 +109,7 @@ export const updateIndicatorTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    if (!context.app) throw new Error("App actions unavailable");
+    requireApp(context);
     const { index, cell } = getCell(context, input.cellIndex);
     let found = false;
     const indicators = cell.indicators.map((ind) => {

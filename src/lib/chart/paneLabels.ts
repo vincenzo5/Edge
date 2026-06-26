@@ -1,13 +1,2 @@
-import type { IndicatorConfig } from './contracts';
-import { PRICE_PANE_KEY } from '../chartConfig';
-
-/** Human-readable pane label for Object Tree and UI chrome. */
-export function resolvePaneLabel(
-  paneId: string,
-  indicators: IndicatorConfig[],
-): string {
-  if (paneId === PRICE_PANE_KEY || paneId === 'price') return 'Price';
-  const ind = indicators.find((i) => i.id === paneId);
-  if (ind) return ind.name;
-  return paneId;
-}
+/** @deprecated implementation moved to @edge/chart-core */
+export * from '@edge/chart-core/paneLabels';

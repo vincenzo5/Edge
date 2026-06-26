@@ -2,16 +2,34 @@ import { describe, it, expect } from 'vitest';
 import { getCatalog, INDICATOR_CATALOG } from './registry';
 
 describe('indicator catalog', () => {
-  it('lists 27 catalog entries', () => {
-    expect(INDICATOR_CATALOG).toHaveLength(27);
-    expect(getCatalog()).toHaveLength(27);
+  it('lists 30 catalog entries', () => {
+    expect(INDICATOR_CATALOG).toHaveLength(30);
+    expect(getCatalog()).toHaveLength(30);
   });
 
-  it('marks MA, BOLL, MACD, RSI, EMA, and VOL as implemented', () => {
+  it('marks declarative indicator batches as implemented', () => {
     const catalog = getCatalog();
     const implemented = catalog.filter((e) => e.implemented).map((e) => e.name);
-    expect(implemented).toEqual(expect.arrayContaining(['MA', 'BOLL', 'MACD', 'RSI', 'EMA', 'VOL']));
-    expect(implemented).toHaveLength(6);
+    expect(implemented).toEqual(
+      expect.arrayContaining([
+        'MA',
+        'BOLL',
+        'MACD',
+        'RSI',
+        'EMA',
+        'VOL',
+        'VWAP',
+        'ATR',
+        'KDJ',
+        'CCI',
+        'OBV',
+        'DMI',
+        'WR',
+        'ROC',
+        'Supertrend',
+      ]),
+    );
+    expect(implemented).toHaveLength(15);
   });
 
   it('marks unimplemented catalog entries as not implemented', () => {

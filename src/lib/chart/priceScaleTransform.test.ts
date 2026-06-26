@@ -6,6 +6,7 @@ import {
   formatScaleLabel,
   fromScaleCoord,
   resolveAnchorPrice,
+  scaleAxisTicks,
   toScaleCoord,
 } from './priceScaleTransform';
 
@@ -56,5 +57,24 @@ describe('priceScaleTransform', () => {
     const ctx = buildPriceScaleContext('percent', candles, 0);
     expect(formatScaleLabel(2.5, ctx)).toBe('+2.5%');
     expect(formatScaleLabel(-1.05, ctx)).toBe('-1.05%');
+  });
+
+  it('uses whole-number linear axis ticks for common stock ranges', () => {
+    const ctx = buildPriceScaleContext('linear', candles, 0);
+    expect(scaleAxisTicks(101.13, 106.87, ctx)).toEqual([102, 103, 104, 105, 106]);
+  });
+
+  it('uses smaller clean steps for mid-priced stock ranges', () => {
+    const ctx = buildPriceScaleContext('linear', candles, 0);
+    expect(scaleAxisTicks(222, 378, ctx)).toEqual([240, 260, 280, 300, 320, 340, 360]);
+  });
+
+  it('keeps tick spacing anchored while vertically panning', () => {
+    const ctx = buildPriceScaleContext('linear', candles, 0);
+    const ticks = scaleAxisTicks(249.2, 252.1, ctx);
+    const pannedTicks = scaleAxisTicks(249.55, 252.45, ctx);
+
+    expect(ticks).toEqual([249.5, 250, 250.5, 251, 251.5, 252]);
+    expect(pannedTicks).toEqual([250, 250.5, 251, 251.5, 252]);
   });
 });

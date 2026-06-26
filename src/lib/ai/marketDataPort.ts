@@ -1,6 +1,11 @@
 import type { Interval as ChartInterval } from "@/lib/chart/contracts";
 import type { Candle, Range, Interval as YahooInterval } from "@/lib/yahoo";
 import type { FundamentalsSnapshot, QuoteSnapshot } from "@/lib/watchlist/types";
+import type { MarketDataService } from "@/lib/marketData/service/marketDataService";
+import type {
+  OptionExpiration,
+  OptionsChainResponse,
+} from "@/lib/marketData/contracts/options";
 
 export type StockSearchResult = {
   symbol: string;
@@ -19,9 +24,58 @@ export type MarketDataPort = {
   }) => Promise<Candle[]>;
   getQuotes: (symbols: string[]) => Promise<QuoteSnapshot[]>;
   getFundamentals: (symbol: string) => Promise<FundamentalsSnapshot>;
+  getOptionExpirations: (underlying: string) => Promise<OptionExpiration[]>;
+  getOptionsChain: (
+    underlying: string,
+    expiration: string,
+  ) => Promise<OptionsChainResponse>;
 };
 
-/** Server-side port backed by yahoo.ts (used in API routes and MCP). */
+/** Server-side port backed by MarketDataService. */
+export function createServiceMarketDataPort(service: MarketDataService): MarketDataPort {
+  return {
+    async searchSymbols(query, limit = 8) {
+      const result = await service.searchInstruments(query, limit);
+      return result.data.map((row) => ({
+        symbol: row.symbol,
+        name: row.name,
+        exchange: row.exchange ?? "",
+      }));
+    },
+    async getCandles({ symbol, range, interval, before, barCount }) {
+      const result = await service.getLegacyCandles({
+        symbol,
+        range,
+        interval,
+        beforeTimestamp: before,
+        barCount,
+      });
+      return result.data as Candle[];
+    },
+    async getQuotes(symbols) {
+      const result = await service.getWatchlistQuotes(symbols);
+      return result.data;
+    },
+    async getFundamentals(symbol) {
+      const result = await service.getWatchlistFundamentals(symbol);
+      return result.data;
+    },
+    async getOptionExpirations(underlying) {
+      const result = await service.getOptionExpirations(underlying);
+      return result.data;
+    },
+    async getOptionsChain(underlying, expiration) {
+      const result = await service.getOptionsChain({
+        underlying,
+        expiration,
+        strikeWindow: { mode: "full" },
+      });
+      return result.data;
+    },
+  };
+}
+
+/** Server-side port backed by yahoo.ts (legacy direct wiring). */
 export function createYahooMarketDataPort(
   yahoo: {
     searchSymbols: (q: string, limit?: number) => Promise<StockSearchResult[]>;
@@ -51,6 +105,12 @@ export function createYahooMarketDataPort(
     },
     getQuotes: (symbols) => yahoo.getQuoteSnapshots(symbols),
     getFundamentals: (symbol) => yahoo.getFundamentalsSnapshot(symbol),
+    getOptionExpirations: async () => [],
+    getOptionsChain: async () => ({
+      underlying: "",
+      expiration: "",
+      contracts: [],
+    }),
   };
 }
 
@@ -94,8 +154,21 @@ export function createFetchMarketDataPort(
         `${baseUrl}/api/fundamentals?symbol=${encodeURIComponent(symbol)}`,
       );
       if (!res.ok) throw new Error("Fundamentals fetch failed");
-      const json = (await res.json()) as { data: FundamentalsSnapshot };
-      return json.data;
+      return (await res.json()) as FundamentalsSnapshot;
+    },
+    async getOptionExpirations(underlying) {
+      const params = new URLSearchParams({ underlying });
+      const res = await fetch(`${baseUrl}/api/options/expirations?${params.toString()}`);
+      if (!res.ok) throw new Error("Options expirations fetch failed");
+      const json = (await res.json()) as { expirations: OptionExpiration[] };
+      return json.expirations;
+    },
+    async getOptionsChain(underlying, expiration) {
+      const params = new URLSearchParams({ underlying, expiration });
+      const res = await fetch(`${baseUrl}/api/options/chain?${params.toString()}`);
+      if (!res.ok) throw new Error("Options chain fetch failed");
+      const json = (await res.json()) as { chain: OptionsChainResponse };
+      return json.chain;
     },
   };
 }

@@ -11,7 +11,10 @@ function mockLayout(drawings: ChartLayout["cells"][0]["drawings"]): ChartLayout 
   return {
     version: 1,
     gridMode: "1x1",
-    linked: false,
+    linkSymbol: false,
+    linkInterval: false,
+    linkCrosshair: false,
+    linkDrawings: false,
     theme: "dark",
     activeCellIndex: 0,
     cells: [
@@ -39,7 +42,7 @@ function mockContext(layout: ChartLayout): ToolContext {
         layout.cells[index] = cell;
       }),
       setGridMode: vi.fn(),
-      setLinked: vi.fn(),
+      setLayoutSync: vi.fn(),
       setTheme: vi.fn(),
       setActiveCell: vi.fn(),
     },
@@ -60,6 +63,8 @@ function mockContext(layout: ChartLayout): ToolContext {
       getCandles: vi.fn(),
       getQuotes: vi.fn(),
       getFundamentals: vi.fn(),
+      getOptionExpirations: vi.fn(),
+      getOptionsChain: vi.fn(),
     },
   };
 }

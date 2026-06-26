@@ -1,47 +1,12 @@
-import type { AiTool, ToolDefinition } from "./types";
-import { toToolDefinition } from "./validation";
+import type { ToolContext } from "./context";
+import {
+  ToolRegistry,
+  createToolRegistry as createCoreToolRegistry,
+} from "@edge/ai-tools-core";
+import type { AiTool } from "./types";
 
-export class ToolRegistry {
-  private tools = new Map<string, AiTool>();
+export { ToolRegistry };
 
-  register(tool: AiTool): void {
-    if (this.tools.has(tool.name)) {
-      throw new Error(`Tool already registered: ${tool.name}`);
-    }
-    this.tools.set(tool.name, tool);
-  }
-
-  registerAll(tools: AiTool[]): void {
-    for (const tool of tools) {
-      this.register(tool);
-    }
-  }
-
-  get(name: string): AiTool | undefined {
-    return this.tools.get(name);
-  }
-
-  has(name: string): boolean {
-    return this.tools.has(name);
-  }
-
-  list(): AiTool[] {
-    return Array.from(this.tools.values());
-  }
-
-  listDefinitions(): ToolDefinition[] {
-    return this.list().map((tool) => toToolDefinition(tool));
-  }
-
-  listDefinitionsForSession(clientSession: boolean): ToolDefinition[] {
-    return this.listDefinitions().filter(
-      (def) => !def.requiresClientSession || clientSession,
-    );
-  }
-}
-
-export function createToolRegistry(tools: AiTool[]): ToolRegistry {
-  const registry = new ToolRegistry();
-  registry.registerAll(tools);
-  return registry;
+export function createToolRegistry(tools: AiTool[]): ToolRegistry<ToolContext> {
+  return createCoreToolRegistry<ToolContext>(tools);
 }

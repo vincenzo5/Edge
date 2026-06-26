@@ -1,16 +1,19 @@
+import type { BaseToolContext } from "@edge/ai-tools-core";
 import type {
   CellConfig,
   ChartLayout,
-  ChartType,
   GridMode,
+  LayoutSyncPrefs,
   SidebarPanelId,
   Theme,
 } from "@/lib/chartConfig";
-import type { Interval } from "@/lib/chart/contracts";
+import type { Interval } from "@edge/chart-core";
 import type { Range } from "@/lib/yahoo";
 import type { SymbolSelectResult, WatchlistState } from "@/lib/watchlist/types";
 import type { ActiveChartSnapshot } from "@/app/components/ActiveChartContext";
 import type { MarketDataPort } from "./marketDataPort";
+
+export type { BaseToolContext };
 
 export type AppActions = {
   getLayout: () => ChartLayout;
@@ -19,7 +22,7 @@ export type AppActions = {
   patchActiveCell: (patch: Partial<CellConfig>) => void;
   setActiveCellIndex: (index: number) => void;
   setGridMode: (mode: GridMode) => void;
-  setLinked: (linked: boolean) => void;
+  setLayoutSync: (patch: Partial<LayoutSyncPrefs>) => void;
   setTheme: (theme: Theme) => void;
   setSidebarPanel: (panel: SidebarPanelId | null) => void;
 };
@@ -35,9 +38,7 @@ export type ChartBridgeActions = {
 };
 
 /** Snapshot passed to tool executors at call time. */
-export type ToolContext = {
-  /** When false, client-state tools should no-op or return an error. */
-  clientSession: boolean;
+export type ToolContext = BaseToolContext & {
   app: AppActions | null;
   chart: ChartBridgeActions | null;
   watchlist: WatchlistActions | null;

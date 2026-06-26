@@ -1,0 +1,19 @@
+{
+  "name": "@edge/example-chart-react-basic",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "start": "npx tsx src/index.tsx",
+    "build:browser": "vite build",
+    "dev": "vite",
+    "test": "vitest run --config vitest.config.ts",
+    "check": "npm run build && npm run start && npm run build:browser && npm run test"
+  },
+  "dependencies": {
+    "@edge/chart-core": "*",
+    "@edge/chart-react": "*",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  }
+}

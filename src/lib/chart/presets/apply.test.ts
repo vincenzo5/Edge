@@ -61,12 +61,12 @@ describe('presets apply', () => {
     const payload: ChartTemplatePayload = {
       chartType: 'candle_solid',
       indicators: [
-        { templateKey: 'x', name: 'KDJ', pane: 'sub', visible: true },
+        { templateKey: 'x', name: 'SMA', pane: 'main', visible: true },
         { templateKey: 'y', name: 'RSI', pane: 'sub', visible: true },
       ],
     };
     const { cell, skipped } = applyChartTemplate(baseCell, payload);
-    expect(skipped).toEqual(['KDJ']);
+    expect(skipped).toEqual(['SMA']);
     expect(cell.indicators).toHaveLength(1);
     expect(cell.indicators[0].name).toBe('RSI');
   });

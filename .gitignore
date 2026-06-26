@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+node_modules/
 /.pnp
 .pnp.js
 .yarn/install-state.gz
@@ -13,10 +14,12 @@
 
 # production
 /build
+/packages/*/dist
 
 # misc
 .DS_Store
 *.pem
+.tools/
 
 # debug
 npm-debug.log*

@@ -11,35 +11,13 @@ import {
   cellIndexSchema,
   symbolSchema,
 } from "../schemas";
-import { cellCountFor } from "@/lib/chartConfig";
-
-function requireApp(context: ToolContext) {
-  if (!context.app) {
-    throw new Error("App actions unavailable");
-  }
-  return context.app;
-}
+import { getCell, requireApp } from "./_helpers";
 
 function requireChart(context: ToolContext) {
   if (!context.chart) {
     throw new Error("Chart actions unavailable");
   }
   return context.chart;
-}
-
-function resolveCellIndex(context: ToolContext, cellIndex?: number): number {
-  const app = requireApp(context);
-  const layout = app.getLayout();
-  const index = cellIndex ?? layout.activeCellIndex ?? 0;
-  const max = cellCountFor(layout.gridMode) - 1;
-  return Math.max(0, Math.min(index, max));
-}
-
-function getCellConfig(context: ToolContext, cellIndex?: number) {
-  const app = requireApp(context);
-  const layout = app.getLayout();
-  const index = resolveCellIndex(context, cellIndex);
-  return { layout, index, cell: layout.cells[index] };
 }
 
 export const getAppStateTool = defineTool({
@@ -59,7 +37,9 @@ export const getAppStateTool = defineTool({
       data: {
         hydrated: app.isHydrated(),
         gridMode: layout.gridMode,
-        linked: layout.linked,
+        linkSymbol: layout.linkSymbol,
+        linkInterval: layout.linkInterval,
+        linkCrosshair: layout.linkCrosshair,
         theme: layout.theme,
         activeCellIndex: layout.activeCellIndex ?? 0,
         sidebarPanel: layout.sidebar?.activePanel ?? null,
@@ -88,7 +68,7 @@ export const getChartStateTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    const { index, cell, layout } = getCellConfig(context, input.cellIndex);
+    const { index, cell, layout } = getCell(context, input.cellIndex);
     const chart = context.chart?.getActiveChart();
     const isActive =
       chart != null && (layout.activeCellIndex ?? 0) === index;
@@ -118,7 +98,7 @@ export const getVisibleCandlesTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    const { index, cell, layout } = getCellConfig(context, input.cellIndex);
+    const { index, cell, layout } = getCell(context, input.cellIndex);
     const limit = input.limit ?? 100;
     const chart = context.chart?.getActiveChart();
     const isActive = (layout.activeCellIndex ?? 0) === index;
@@ -182,14 +162,57 @@ export const setGridModeTool = defineTool({
 export const setLinkedModeTool = defineTool({
   name: "set_linked_mode",
   description:
-    "Enable or disable linked mode. When linked, symbol/range/interval changes propagate to all visible cells.",
-  inputSchema: z.object({ linked: z.boolean() }),
+    "Configure layout sync toggles. Pass linked=true/false to set all sync flags together, or set linkSymbol, linkInterval, linkCrosshair, and linkDrawings independently. When linkSymbol is on, symbol changes propagate; linkInterval propagates range/interval; linkCrosshair syncs crosshair across cells; linkDrawings syncs drawings across cells.",
+  inputSchema: z.object({
+    linked: z.boolean().optional(),
+    linkSymbol: z.boolean().optional(),
+    linkInterval: z.boolean().optional(),
+    linkCrosshair: z.boolean().optional(),
+    linkDrawings: z.boolean().optional(),
+  }),
   permission: "write",
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    requireApp(context).setLinked(input.linked);
-    return { ok: true, data: { linked: input.linked } };
+    const app = requireApp(context);
+    if (typeof input.linked === "boolean") {
+      app.setLayoutSync({
+        linkSymbol: input.linked,
+        linkInterval: input.linked,
+        linkCrosshair: input.linked,
+        linkDrawings: input.linked,
+      });
+      return {
+        ok: true,
+        data: {
+          linked: input.linked,
+          linkSymbol: input.linked,
+          linkInterval: input.linked,
+          linkCrosshair: input.linked,
+          linkDrawings: input.linked,
+        },
+      };
+    }
+    const patch = {
+      ...(input.linkSymbol !== undefined && { linkSymbol: input.linkSymbol }),
+      ...(input.linkInterval !== undefined && { linkInterval: input.linkInterval }),
+      ...(input.linkCrosshair !== undefined && { linkCrosshair: input.linkCrosshair }),
+      ...(input.linkDrawings !== undefined && { linkDrawings: input.linkDrawings }),
+    };
+    if (Object.keys(patch).length === 0) {
+      throw new Error("Provide linked or at least one layout sync flag");
+    }
+    app.setLayoutSync(patch);
+    const layout = app.getLayout();
+    return {
+      ok: true,
+      data: {
+        linkSymbol: layout.linkSymbol,
+        linkInterval: layout.linkInterval,
+        linkCrosshair: layout.linkCrosshair,
+        linkDrawings: layout.linkDrawings,
+      },
+    };
   },
 });
 
@@ -222,7 +245,7 @@ export const setSymbolTool = defineTool({
   async execute(input, context) {
     const app = requireApp(context);
     const layout = app.getLayout();
-    const index = resolveCellIndex(context, input.cellIndex);
+    const index = getCell(context, input.cellIndex).index;
     const patch = {
       symbol: input.symbol,
       symbolName: input.name ?? input.symbol,
@@ -257,7 +280,7 @@ export const setChartRangeTool = defineTool({
   requiresClientSession: true,
   async execute(input, context) {
     const app = requireApp(context);
-    const { index, cell } = getCellConfig(context, input.cellIndex);
+    const { index, cell } = getCell(context, input.cellIndex);
     app.applyCellUpdate(index, {
       ...cell,
       range: input.range,
@@ -283,7 +306,7 @@ export const setChartTypeTool = defineTool({
   requiresClientSession: true,
   async execute(input, context) {
     const app = requireApp(context);
-    const { index, cell } = getCellConfig(context, input.cellIndex);
+    const { index, cell } = getCell(context, input.cellIndex);
     app.applyCellUpdate(index, { ...cell, chartType: input.chartType });
     return {
       ok: true,
@@ -304,7 +327,7 @@ export const goToDateTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    const { index, layout } = getCellConfig(context, input.cellIndex);
+    const { index, layout } = getCell(context, input.cellIndex);
     if ((layout.activeCellIndex ?? 0) !== index) {
       return {
         ok: false,

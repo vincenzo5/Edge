@@ -25,6 +25,24 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@edge/chart-core": [
+        "./packages/chart-core/src/index.ts"
+      ],
+      "@edge/chart-core/*": [
+        "./packages/chart-core/src/*"
+      ],
+      "@edge/chart-react": [
+        "./packages/chart-react/src/index.ts"
+      ],
+      "@edge/chart-react/*": [
+        "./packages/chart-react/src/*"
+      ],
+      "@edge/ai-tools-core": [
+        "./packages/ai-tools-core/src/index.ts"
+      ],
+      "@edge/ai-tools-core/*": [
+        "./packages/ai-tools-core/src/*"
       ]
     }
   },

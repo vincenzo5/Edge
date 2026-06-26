@@ -2,13 +2,14 @@ import { z } from "zod";
 import { defineTool } from "../types";
 import type { AiTool } from "../types";
 import { IMPLEMENTED_INDICATORS, symbolSchema } from "../schemas";
-import { cellCountFor, createIndicatorInstance } from "@/lib/chartConfig";
+import { createIndicatorInstance, cellCountFor } from "@/lib/chartConfig";
 import { getActiveWatchlist } from "@/lib/watchlist/storage";
 import {
   buildThesisSummary,
   summarizeAnnotations,
 } from "@/lib/chart/annotationMetadata";
 import type { SerializedDrawing } from "@/lib/chart/contracts";
+import { getCell, requireApp } from "./_helpers";
 
 const ANNOTATION_ITEM_CAP = 20;
 
@@ -38,12 +39,11 @@ export const summarizeChartTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(_input, context) {
-    if (!context.app || !context.chart) {
-      throw new Error("App/chart context unavailable");
+    requireApp(context);
+    if (!context.chart) {
+      throw new Error("Chart context unavailable");
     }
-    const layout = context.app.getLayout();
-    const index = layout.activeCellIndex ?? 0;
-    const cell = layout.cells[index];
+    const { index, cell } = getCell(context);
     const active = context.chart.getActiveChart();
     const candles = active?.chartCommands?.getCandles() ?? [];
     const recent = candles.slice(-5);
@@ -107,20 +107,25 @@ export const compareSymbolsTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    if (!context.app) throw new Error("App actions unavailable");
+    const app = requireApp(context);
     const gridModes = ["2x1", "1x2", "3x1", "2x2"] as const;
     const gridMode = gridModes[input.symbols.length - 2] ?? "2x1";
     const range = input.range ?? "1y";
     const interval = input.interval ?? "1d";
 
-    context.app.setGridMode(gridMode);
-    context.app.setLinked(false);
+    app.setGridMode(gridMode);
+    app.setLayoutSync({
+      linkSymbol: false,
+      linkInterval: false,
+      linkCrosshair: false,
+      linkDrawings: false,
+    });
 
-    const layout = context.app.getLayout();
+    const layout = app.getLayout();
     const count = cellCountFor(gridMode);
     for (let i = 0; i < count && i < input.symbols.length; i++) {
       const cell = layout.cells[i];
-      context.app.applyCellUpdate(i, {
+      app.applyCellUpdate(i, {
         ...cell,
         symbol: input.symbols[i],
         symbolName: input.symbols[i],
@@ -150,8 +155,9 @@ export const prepareChartForAnalysisTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    if (!context.app || !context.chart) {
-      throw new Error("App/chart context unavailable");
+    const app = requireApp(context);
+    if (!context.chart) {
+      throw new Error("Chart context unavailable");
     }
 
     context.chart.loadSymbolIntoActiveChart({
@@ -160,9 +166,7 @@ export const prepareChartForAnalysisTool = defineTool({
       exchange: input.exchange ?? "",
     });
 
-    const layout = context.app.getLayout();
-    const index = layout.activeCellIndex ?? 0;
-    const cell = layout.cells[index];
+    const { index, cell } = getCell(context);
 
     const stack: Array<(typeof IMPLEMENTED_INDICATORS)[number]> = [
       "MA",
@@ -175,7 +179,7 @@ export const prepareChartForAnalysisTool = defineTool({
       return createIndicatorInstance(name, pane);
     });
 
-    context.app.applyCellUpdate(index, {
+    app.applyCellUpdate(index, {
       ...cell,
       symbol: input.symbol,
       symbolName: input.name ?? input.symbol,

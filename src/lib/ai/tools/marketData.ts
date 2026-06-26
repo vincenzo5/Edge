@@ -66,9 +66,57 @@ export const getFundamentalsTool = defineTool({
   },
 });
 
+const optionExpirationSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "expiration must be YYYY-MM-DD");
+
+export const getOptionsExpirationsTool = defineTool({
+  name: "get_options_expirations",
+  description: "Fetch available option expiration dates for an underlying symbol.",
+  inputSchema: z.object({ underlying: symbolSchema }),
+  permission: "read",
+  requiresConfirmation: false,
+  async execute(input, context) {
+    const expirations = await context.marketData.getOptionExpirations(input.underlying);
+    return {
+      ok: true,
+      data: { underlying: input.underlying, expirations },
+    };
+  },
+});
+
+export const getOptionsChainTool = defineTool({
+  name: "get_options_chain",
+  description: "Fetch the options chain for an underlying symbol and expiration date.",
+  inputSchema: z.object({
+    underlying: symbolSchema,
+    expiration: optionExpirationSchema,
+  }),
+  permission: "read",
+  requiresConfirmation: false,
+  async execute(input, context) {
+    const chain = await context.marketData.getOptionsChain(
+      input.underlying,
+      input.expiration,
+    );
+    return {
+      ok: true,
+      data: {
+        underlying: input.underlying,
+        expiration: input.expiration,
+        contractCount: chain.contracts.length,
+        chain,
+      },
+    };
+  },
+});
+
 export const marketDataTools: AiTool[] = [
   searchSymbolsTool,
   getCandlesTool,
   getQuotesTool,
   getFundamentalsTool,
+  getOptionsExpirationsTool,
+  getOptionsChainTool,
 ];

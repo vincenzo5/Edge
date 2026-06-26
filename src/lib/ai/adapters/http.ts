@@ -1,12 +1,6 @@
 import type { ToolContext } from "../context";
-import { createYahooMarketDataPort } from "../marketDataPort";
-import {
-  getChartCandles,
-  getChartCandlesBefore,
-  getFundamentalsSnapshot,
-  getQuoteSnapshots,
-  searchSymbols,
-} from "@/lib/yahooFinance";
+import { createServiceMarketDataPort } from "../marketDataPort";
+import { getServerMarketDataService } from "@/lib/marketData/service/server";
 
 /** Build a server-side ToolContext for market-data tools (no browser session). */
 export function createServerToolContext(): ToolContext {
@@ -15,12 +9,6 @@ export function createServerToolContext(): ToolContext {
     app: null,
     chart: null,
     watchlist: null,
-    marketData: createYahooMarketDataPort({
-      searchSymbols,
-      getChartCandles,
-      getChartCandlesBefore,
-      getQuoteSnapshots,
-      getFundamentalsSnapshot,
-    }),
+    marketData: createServiceMarketDataPort(getServerMarketDataService()),
   };
 }

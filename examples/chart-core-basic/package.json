@@ -1,0 +1,13 @@
+{
+  "name": "@edge/example-chart-core-basic",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npx tsx src/index.ts",
+    "check": "npm run build && npm run start"
+  },
+  "dependencies": {
+    "@edge/chart-core": "*"
+  }
+}

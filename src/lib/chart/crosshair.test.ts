@@ -9,6 +9,7 @@ import {
   clampIndexToViewport,
   crosshairStatesEqual,
 } from './crosshair';
+import { snapPlotXToCandle } from './drawingCoords';
 import { registerIndicator } from './indicators/registry';
 import { clearComputeCache } from './indicatorCompute';
 import type { Candle } from './contracts';
@@ -19,6 +20,14 @@ const sample: Candle[] = [
   { t: 2, o: 11, h: 13, l: 10, c: 12 },
   { t: 3, o: 12, h: 14, l: 11, c: 13 },
 ];
+
+const longSample: Candle[] = Array.from({ length: 200 }, (_, i) => ({
+  t: i,
+  o: 10 + i * 0.1,
+  h: 12 + i * 0.1,
+  l: 9 + i * 0.1,
+  c: 11 + i * 0.1,
+}));
 
 describe('priceForPlotY', () => {
   it('maps top of plot area to priceMax', () => {
@@ -136,6 +145,40 @@ describe('clampIndexToViewport', () => {
     const vp = createViewport(sample, 800, 400, 3);
     expect(clampIndexToViewport(-5, vp)).toBe(vp.startIndex);
     expect(clampIndexToViewport(999, vp)).toBe(vp.endIndex);
+  });
+});
+
+describe('snapPlotXToCandle', () => {
+  it('snaps to the nearest candle center within the threshold', () => {
+    const vp = attachViewportHelpers(
+      {
+        ...createViewport(longSample, 800, 400, 30),
+        startIndex: 100,
+        endIndex: 130,
+      },
+      longSample.length,
+    );
+    const targetX = vp.xForIndex(120);
+
+    const snapped = snapPlotXToCandle(targetX - 5, vp, longSample);
+
+    expect(snapped).toEqual({ plotX: targetX, dataIndex: 120 });
+  });
+
+  it('keeps the original plot X when outside the snap threshold', () => {
+    const vp = attachViewportHelpers(
+      {
+        ...createViewport(longSample, 800, 400, 30),
+        startIndex: 100,
+        endIndex: 130,
+      },
+      longSample.length,
+    );
+    const freeX = vp.xForIndex(120) - 12;
+
+    const snapped = snapPlotXToCandle(freeX, vp, longSample);
+
+    expect(snapped.plotX).toBe(freeX);
   });
 });
 

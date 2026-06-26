@@ -14,6 +14,12 @@ function mockContext(overrides: Partial<ToolContext> = {}): ToolContext {
       getCandles: vi.fn().mockResolvedValue([]),
       getQuotes: vi.fn().mockResolvedValue([]),
       getFundamentals: vi.fn().mockResolvedValue({ symbol: "AAPL", updatedAt: Date.now() }),
+      getOptionExpirations: vi.fn().mockResolvedValue([]),
+      getOptionsChain: vi.fn().mockResolvedValue({
+        underlying: "AAPL",
+        expiration: "2025-06-20",
+        contracts: [],
+      }),
     },
     ...overrides,
   };

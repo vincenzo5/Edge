@@ -1,6 +1,6 @@
 import type { Theme } from './contracts';
-import { tradingViewChartColors } from '@/lib/design-system/tradingView';
+import { edgeChartColors } from '@/lib/design-system/edge';
 
 export function getChartColors(theme: Theme) {
-  return tradingViewChartColors[theme];
+  return edgeChartColors[theme];
 }

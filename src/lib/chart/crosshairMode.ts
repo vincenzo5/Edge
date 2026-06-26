@@ -1,1 +1,2 @@
-export type CrosshairMode = 'cross' | 'dot' | 'arrow';
+/** @deprecated implementation moved to @edge/chart-core */
+export * from '@edge/chart-core/crosshairMode';

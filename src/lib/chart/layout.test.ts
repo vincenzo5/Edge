@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   PRICE_AXIS_WIDTH,
   TIME_AXIS_HEIGHT,
+  EVENT_RAIL_HEIGHT,
   isPriceAxisHit,
   resolveDragMode,
   resolveHoverCursor,
@@ -116,5 +117,11 @@ describe('plot dimensions', () => {
   it('subtracts axis strip sizes from full dimensions', () => {
     expect(plotWidth(WIDTH)).toBe(WIDTH - PRICE_AXIS_WIDTH);
     expect(plotHeight(HEIGHT)).toBe(HEIGHT - TIME_AXIS_HEIGHT);
+  });
+
+  it('subtracts event rail height when reserved', () => {
+    expect(plotHeight(HEIGHT, true, true)).toBe(
+      HEIGHT - TIME_AXIS_HEIGHT - EVENT_RAIL_HEIGHT,
+    );
   });
 });

@@ -13,6 +13,7 @@ export type { ToolContext, AppActions, WatchlistActions, ChartBridgeActions } fr
 
 export {
   createYahooMarketDataPort,
+  createServiceMarketDataPort,
   createFetchMarketDataPort,
   type MarketDataPort,
   type StockSearchResult,
@@ -25,3 +26,11 @@ export { edgeToolRegistry, ALL_AI_TOOLS } from "./tools";
 
 export { createServerToolContext } from "./adapters/http";
 export { buildMcpToolHandlers } from "./adapters/mcp";
+
+export {
+  ToolRegistry as CoreToolRegistry,
+  createToolRegistry as createCoreToolRegistry,
+  defineTool as defineCoreTool,
+  executeTool as executeCoreTool,
+  type BaseToolContext,
+} from "@edge/ai-tools-core";

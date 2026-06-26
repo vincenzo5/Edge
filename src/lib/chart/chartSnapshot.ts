@@ -134,6 +134,7 @@ export async function captureChartElement(
       filter: (node) => !shouldExcludeFromSnapshot(node),
     });
 
+    if (!blob) throw new SnapshotCaptureError('capture_failed');
     const blobError = validateBlob(blob);
     if (blobError) throw new SnapshotCaptureError(blobError);
     return blob;
