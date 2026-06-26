@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { POST, clearCandleCacheForTests } from './route';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { POST, clearCandleCacheForTests } from "./route";
 
 const { getChartCandles, getChartCandlesBefore } = vi.hoisted(() => ({
   getChartCandles: vi.fn(async () => [
@@ -10,20 +10,50 @@ const { getChartCandles, getChartCandlesBefore } = vi.hoisted(() => ({
   ]),
 }));
 
-vi.mock('@/lib/yahoo', () => ({
-  getChartCandles,
-  getChartCandlesBefore,
-}));
+vi.mock("@/lib/marketData/service/server", async () => {
+  const { createMarketDataService, clearMarketDataCacheForTests } =
+    await import("@/lib/marketData/service/marketDataService");
+  const service = createMarketDataService({
+    yahoo: {
+      searchSymbols: vi.fn(async () => []),
+      getChartCandles,
+      getChartCandlesBefore,
+      getQuoteSnapshots: vi.fn(async () => []),
+      getFundamentalsSnapshot: vi.fn(async () => ({
+        symbol: "AAPL",
+        shortName: null,
+        longName: null,
+        exchange: null,
+        currency: null,
+        regularMarketPrice: null,
+        regularMarketChange: null,
+        regularMarketChangePercent: null,
+        marketCap: null,
+        volume: null,
+        averageVolume: null,
+        sector: null,
+        industry: null,
+        website: null,
+        description: null,
+        updatedAt: Date.now(),
+      })),
+    },
+  });
+  return {
+    getServerMarketDataService: () => service,
+    clearMarketDataCacheForTests,
+  };
+});
 
 function makeRequest(body: Record<string, unknown>) {
-  return new Request('http://localhost/api/candles', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  return new Request("http://localhost/api/candles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
-describe('/api/candles POST', () => {
+describe("/api/candles POST", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearCandleCacheForTests();
@@ -33,49 +63,50 @@ describe('/api/candles POST', () => {
     vi.useRealTimers();
   });
 
-  it('returns candles for valid symbol', async () => {
-    const req = makeRequest({ symbol: 'AAPL', range: '1y', interval: '1d' });
+  it("returns candles for valid symbol", async () => {
+    const req = makeRequest({ symbol: "AAPL", range: "1y", interval: "1d" });
     const res = await POST(req);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.candles).toHaveLength(1);
+    expect(json.meta).toMatchObject({ source: "yahoo", stale: false, warnings: [] });
   });
 
-  it('rejects missing symbol with 400', async () => {
-    const req = makeRequest({ range: '1y' });
+  it("rejects missing symbol with 400", async () => {
+    const req = makeRequest({ range: "1y" });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
-  it('rejects invalid range', async () => {
-    const req = makeRequest({ symbol: 'AAPL', range: 'bad' });
+  it("rejects invalid range", async () => {
+    const req = makeRequest({ symbol: "AAPL", range: "bad" });
     const res = await POST(req);
-    expect([200, 400]).toContain(res.status);
+    expect(res.status).toBe(400);
   });
 
-  it('caches identical range requests', async () => {
-    const body = { symbol: 'AAPL', range: '1y', interval: '1d' };
+  it("caches identical range requests", async () => {
+    const body = { symbol: "AAPL", range: "1y", interval: "1d" };
     await POST(makeRequest(body));
     await POST(makeRequest(body));
     expect(getChartCandles).toHaveBeenCalledTimes(1);
   });
 
-  it('uses distinct cache keys for before requests', async () => {
+  it("uses distinct cache keys for before requests", async () => {
     await POST(
-      makeRequest({ symbol: 'AAPL', interval: '1d', before: 1_700_000_000_000, barCount: 200 }),
+      makeRequest({ symbol: "AAPL", interval: "1d", before: 1_700_000_000_000, barCount: 200 }),
     );
     await POST(
-      makeRequest({ symbol: 'AAPL', interval: '1d', before: 1_600_000_000_000, barCount: 200 }),
+      makeRequest({ symbol: "AAPL", interval: "1d", before: 1_600_000_000_000, barCount: 200 }),
     );
     expect(getChartCandlesBefore).toHaveBeenCalledTimes(2);
   });
 
-  it('does not cache failed provider responses', async () => {
-    vi.mocked(getChartCandles)
-      .mockRejectedValueOnce(new Error('provider down'))
+  it("does not cache failed provider responses", async () => {
+    getChartCandles
+      .mockRejectedValueOnce(new Error("provider down"))
       .mockResolvedValueOnce([{ timestamp: 2, open: 11, high: 13, low: 10, close: 12 }]);
 
-    const body = { symbol: 'AAPL', range: '1y', interval: '1d' };
+    const body = { symbol: "AAPL", range: "1y", interval: "1d" };
     const first = await POST(makeRequest(body));
     expect(first.status).toBe(500);
 
@@ -84,9 +115,9 @@ describe('/api/candles POST', () => {
     expect(getChartCandles).toHaveBeenCalledTimes(2);
   });
 
-  it('expires cache entries after ttl', async () => {
+  it("expires cache entries after ttl", async () => {
     vi.useFakeTimers();
-    const body = { symbol: 'AAPL', range: '1y', interval: '1d' };
+    const body = { symbol: "AAPL", range: "1y", interval: "1d" };
     await POST(makeRequest(body));
     await POST(makeRequest(body));
     expect(getChartCandles).toHaveBeenCalledTimes(1);

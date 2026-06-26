@@ -1,0 +1,89 @@
+# Chart Data Feed — Live Streaming Architecture
+
+App-owned adapter between Next.js market-data routes and `@edge/chart-core` `ChartDataFeed`.
+
+## Layers
+
+```
+Chart engine (useChartDataFeed)
+  → ChartDataFeed (createApiChartDataFeed)
+      → StreamTransport (polling | server-proxied SSE)
+          → REST /api/candles + /api/quotes  (initial load + polling)
+          → SSE /api/stream/candles + /api/stream/quotes  (server-proxied)
+              → MarketDataService (IBKR-first, Yahoo fallback)
+```
+
+## StreamTransport
+
+Pluggable transport behind `subscribeCandles` / `subscribeQuotes`. Both implementations emit the same typed events from `@edge/chart-core`:
+
+| Event | Meaning |
+|-------|---------|
+| `snapshot` | Full candle page reset |
+| `append` | New bar closed |
+| `replace-latest` | In-progress bar updated |
+| `update` | Quote batch refresh |
+| `stale` | Data no longer trustworthy |
+| `error` | Recoverable or fatal stream error |
+| `reconnect` | Reserved for future push reconnects |
+
+### Polling (default)
+
+- Client polls REST endpoints on interval-aware cadence (`pollStreamAdapter.ts`).
+- Diffing via shared `streamDiff.ts`.
+- No server connection beyond normal REST.
+
+### Server-proxied SSE (opt-in)
+
+- Browser opens `EventSource` to `/api/stream/candles` or `/api/stream/quotes`.
+- Server runs `createCandleStreamSession` / `createQuoteStreamSession`.
+- **Quote sessions:** when TWS is configured, `createTwsQuoteStreamSession` subscribes to the sidecar SSE stream and falls back to throttled HTTP snapshots on disconnect. When IBKR is configured (and TWS is not), `createIbkrSmdQuoteStreamSession` subscribes to IBKR WebSocket `smd` for live ticks and falls back to throttled batch HTTP snapshots on disconnect. Otherwise the session polls `MarketDataService` internally.
+- Credentials, provider routing, and cache policy stay server-side.
+
+Enable chart transport with:
+
+```bash
+NEXT_PUBLIC_STREAM_TRANSPORT=server-proxied
+```
+
+Enable watchlist live quotes (independent of chart transport):
+
+```bash
+NEXT_PUBLIC_WATCHLIST_STREAM=1
+```
+
+Or pass explicitly:
+
+```ts
+createApiChartDataFeed({
+  streamTransport: createServerProxiedStreamTransport,
+});
+```
+
+## Fallback Rules
+
+1. **Transport mode**: `polling` unless `NEXT_PUBLIC_STREAM_TRANSPORT=server-proxied` or options override.
+2. **Provider routing** (unchanged): IBKR when enabled → Yahoo/Tradier fallback; warnings in `meta`.
+3. **SSE unavailable** (SSR/tests): server-proxied transport emits non-recoverable error; chart keeps last REST snapshot.
+4. **Stream failures**: After 3 consecutive poll failures, emit `stale` (client polling and server SSE sessions).
+
+## Key Files
+
+| File | Role |
+|------|------|
+| `streamTransport.ts` | Transport interface + mode resolution |
+| `pollingStreamTransport.ts` | Default client polling |
+| `serverProxiedStreamTransport.ts` | EventSource client |
+| `streamDiff.ts` | Shared candle diff → stream events |
+| `apiChartDataFeed.ts` | ChartDataFeed wiring |
+| `src/lib/marketData/stream/` | Server SSE sessions + IBKR smd quote adapter |
+| `src/app/components/watchlist/useWatchlistQuoteStream.ts` | Watchlist SSE client (`/api/stream/quotes`) |
+| `src/app/api/stream/*/route.ts` | SSE endpoints |
+
+## Verification
+
+```bash
+npm test -- --run src/lib/chartDataFeed/
+npm test -- --run src/lib/marketData/stream/
+npm test -- --run src/app/api/stream/
+```

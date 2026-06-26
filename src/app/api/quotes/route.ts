@@ -1,70 +1,77 @@
 import { NextResponse } from "next/server";
-import { getQuoteSnapshots, normalizeSymbolList } from "@/lib/yahoo";
+import {
+  parseMarketRequest,
+  quotesRequestSchema,
+} from "@/lib/marketData/schemas";
+import { dataResultToResponseMeta } from "@/lib/marketData/contracts/result";
+import {
+  clearMarketDataCacheForTests,
+  getServerMarketDataService,
+} from "@/lib/marketData/service/server";
+import {
+  createRoutePerfContext,
+  readMarketDataTraceFromRequest,
+} from "@/lib/marketData/telemetry";
+import { isMarketDataPerfEnabled } from "@/lib/marketData/telemetry/isPerfEnabled";
 
 export const runtime = "nodejs";
 
-const QUOTES_TTL_MS = 30_000;
-
-type CacheEntry = {
-  quotes: Awaited<ReturnType<typeof getQuoteSnapshots>>;
-  expiresAt: number;
-};
-
-const quoteCache = new Map<string, CacheEntry>();
-
-function buildCacheKey(symbols: string[]): string {
-  return symbols.join(",");
-}
-
-function readCache(key: string): Awaited<ReturnType<typeof getQuoteSnapshots>> | null {
-  const entry = quoteCache.get(key);
-  if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
-    quoteCache.delete(key);
-    return null;
-  }
-  return entry.quotes.map((q) => ({ ...q }));
-}
-
-function writeCache(
-  key: string,
-  quotes: Awaited<ReturnType<typeof getQuoteSnapshots>>,
-): void {
-  quoteCache.set(key, {
-    quotes: quotes.map((q) => ({ ...q })),
-    expiresAt: Date.now() + QUOTES_TTL_MS,
-  });
-}
-
-/** Test-only helper to reset the in-memory response cache. */
-export function clearQuoteCacheForTests(): void {
-  quoteCache.clear();
-}
+export { clearMarketDataCacheForTests as clearQuoteCacheForTests };
 
 export async function POST(request: Request): Promise<Response> {
-  let body: { symbols?: unknown };
+  const routeStartedAt = Date.now();
+  const { traceId, scenario } = readMarketDataTraceFromRequest(request);
+  const perfContext = createRoutePerfContext(traceId, scenario);
+
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const symbols = normalizeSymbolList(body.symbols);
-  if (symbols.length === 0) {
-    return NextResponse.json({ error: "symbols must be a non-empty array" }, { status: 400 });
-  }
-
-  const cacheKey = buildCacheKey(symbols);
-  const cached = readCache(cacheKey);
-  if (cached) {
-    return NextResponse.json({ quotes: cached });
+  const validateStartedAt = Date.now();
+  const parsed = parseMarketRequest(body, quotesRequestSchema);
+  perfContext.collector.record("api.validate", validateStartedAt, parsed.ok, "api");
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.error, details: parsed.details },
+      { status: 400 },
+    );
   }
 
   try {
-    const quotes = await getQuoteSnapshots(symbols);
-    writeCache(cacheKey, quotes);
-    return NextResponse.json({ quotes: quotes.map((q) => ({ ...q })) });
+    const service = getServerMarketDataService();
+    const serviceStartedAt = Date.now();
+    const result = await service.getWatchlistQuotes(parsed.data.symbols, { traceId });
+    perfContext.collector.record("api.service.getWatchlistQuotes", serviceStartedAt, true, "api", {
+      source: result.source,
+      cacheTier: result.cacheTier,
+      quoteCount: result.data.length,
+    });
+    perfContext.collector.record("api.total", routeStartedAt, true, "api");
+
+    const meta = {
+      ...dataResultToResponseMeta(result),
+      ...(isMarketDataPerfEnabled()
+        ? {
+            traceId,
+            phases: [
+              ...perfContext.collector.toArray(),
+              ...(result.phases ?? []),
+            ],
+          }
+        : {}),
+    };
+
+    return NextResponse.json({
+      quotes: result.data,
+      meta,
+    });
   } catch (error) {
+    perfContext.collector.record("api.total", routeStartedAt, false, "api", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     const message = error instanceof Error ? error.message : "Failed to fetch quotes";
     return NextResponse.json({ error: message }, { status: 500 });
   }

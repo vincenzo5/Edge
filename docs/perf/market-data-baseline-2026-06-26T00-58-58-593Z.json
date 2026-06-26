@@ -1,0 +1,355 @@
+{
+  "generatedAt": "2026-06-26T00:58:58.593Z",
+  "git": {
+    "commit": "f21a666",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "twsEnabled": true,
+    "ibkrEnabled": true,
+    "twsGatewayConnected": false,
+    "ibkrAuthenticated": false
+  },
+  "scenarios": [
+    {
+      "scenario": "cold-chart-candles:AAPL:1d:1y",
+      "traceId": "cold-chart-candles-AAPL-1d-1y:1782435530073",
+      "ok": true,
+      "totalMs": 3512,
+      "serverMs": 3512,
+      "source": "yahoo",
+      "cacheTier": "cold",
+      "provider": "yahoo",
+      "counts": {
+        "bars": 251
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 0,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": false,
+            "fresh": false,
+            "servable": false
+          }
+        },
+        {
+          "name": "provider.tws.candles",
+          "ms": 3007,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "error": "candles request timed out: The operation was aborted due to timeout"
+          }
+        },
+        {
+          "name": "provider.ibkr.candles",
+          "ms": 249,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "error": "IBKR request failed (401) /iserver/secdef/search: unauthorized"
+          }
+        },
+        {
+          "name": "provider.yahoo.candles",
+          "ms": 256,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "source": "yahoo",
+            "barCount": 251,
+            "stale": false
+          }
+        },
+        {
+          "name": "service.fetchCandlesFresh",
+          "ms": 3512,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "source": "yahoo",
+            "cacheTier": "cold",
+            "barCount": 251
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "warm-chart-revisit:AAPL:1d:1y",
+      "traceId": "warm-chart-revisit-AAPL-1d-1y:1782435533585",
+      "ok": true,
+      "totalMs": 264,
+      "serverMs": 264,
+      "source": "yahoo",
+      "cacheTier": "cold",
+      "provider": "yahoo",
+      "counts": {
+        "bars": 251
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 1,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": true,
+            "fresh": true,
+            "servable": true,
+            "source": "yahoo"
+          }
+        },
+        {
+          "name": "provider.tws.skipped",
+          "ms": 0,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "reason": "TWS temporarily skipped (request_timeout); retry in ~30s"
+          }
+        },
+        {
+          "name": "provider.ibkr.candles",
+          "ms": 263,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "error": "IBKR request failed (401) /iserver/secdef/search: unauthorized"
+          }
+        },
+        {
+          "name": "provider.yahoo.candles",
+          "ms": 0,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "source": "yahoo",
+            "barCount": 251,
+            "stale": false
+          }
+        },
+        {
+          "name": "service.fetchCandlesFresh",
+          "ms": 263,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "source": "yahoo",
+            "cacheTier": "cold",
+            "barCount": 251
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "watchlist-quotes:10-symbols",
+      "traceId": "watchlist-quotes-10-symbols:1782435533849",
+      "ok": true,
+      "totalMs": 1037,
+      "serverMs": 1037,
+      "source": "yahoo",
+      "cacheTier": "cold",
+      "provider": "yahoo",
+      "counts": {
+        "quotes": 10,
+        "symbols": 10
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 0,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": false,
+            "hits": 0,
+            "requested": 10,
+            "allServable": false
+          }
+        },
+        {
+          "name": "provider.tws.skipped",
+          "ms": 0,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "reason": "TWS temporarily skipped (request_timeout); retry in ~30s"
+          }
+        },
+        {
+          "name": "provider.ibkr.quotes",
+          "ms": 503,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "error": "IBKR request failed (401) /iserver/secdef/search: unauthorized"
+          }
+        },
+        {
+          "name": "provider.yahoo.quotes",
+          "ms": 533,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "quoteCount": 10,
+            "fill": true
+          }
+        },
+        {
+          "name": "service.fetchQuotesFresh",
+          "ms": 1036,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "source": "yahoo",
+            "quoteCount": 10
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "warmup:layout-core",
+      "traceId": "warmup-layout-core:1782435534886",
+      "ok": true,
+      "totalMs": 1892,
+      "serverMs": 1892,
+      "phases": [
+        {
+          "name": "tws.warmup",
+          "ms": 5,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL,MSFT,GOOGL,AMZN,NVDA"
+          }
+        },
+        {
+          "name": "candles",
+          "ms": 362,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL|1d|1y",
+            "source": "yahoo",
+            "cacheTier": "cold"
+          }
+        },
+        {
+          "name": "candles",
+          "ms": 402,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "MSFT|1d|1y",
+            "source": "yahoo",
+            "cacheTier": "cold"
+          }
+        },
+        {
+          "name": "quotes",
+          "ms": 650,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL,MSFT,GOOGL,AMZN,NVDA",
+            "source": "yahoo",
+            "cacheTier": "cold"
+          }
+        },
+        {
+          "name": "options",
+          "ms": 473,
+          "ok": false,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL",
+            "error": "IBKR request failed (401) /iserver/secdef/search: unauthorized"
+          }
+        }
+      ],
+      "counts": {
+        "symbols": 5,
+        "candles": 2
+      }
+    },
+    {
+      "scenario": "options-expirations:AAPL",
+      "traceId": "options-expirations-AAPL:1782435536778",
+      "ok": false,
+      "totalMs": 0,
+      "error": "IBKR request failed (401) /iserver/secdef/search: unauthorized"
+    },
+    {
+      "scenario": "tws-unavailable-fallback:AAPL:1d:1y",
+      "traceId": "tws-unavailable-fallback-AAPL-1d-1y:1782435538177",
+      "ok": true,
+      "totalMs": 416,
+      "serverMs": 416,
+      "source": "yahoo",
+      "cacheTier": "cold",
+      "provider": "yahoo",
+      "counts": {
+        "bars": 21
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 0,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": false,
+            "fresh": false,
+            "servable": false
+          }
+        },
+        {
+          "name": "provider.tws.skipped",
+          "ms": 0,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "reason": "TWS temporarily skipped (request_timeout); retry in ~25s"
+          }
+        },
+        {
+          "name": "provider.ibkr.candles",
+          "ms": 280,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "error": "IBKR request failed (401) /iserver/secdef/search: unauthorized"
+          }
+        },
+        {
+          "name": "provider.yahoo.candles",
+          "ms": 136,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "source": "yahoo",
+            "barCount": 21,
+            "stale": false
+          }
+        },
+        {
+          "name": "service.fetchCandlesFresh",
+          "ms": 416,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "source": "yahoo",
+            "cacheTier": "cold",
+            "barCount": 21
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { POST, clearQuoteCacheForTests } from './route';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { POST, clearQuoteCacheForTests } from "./route";
 
-const { getQuoteSnapshots, normalizeSymbolList } = vi.hoisted(() => ({
+const { getQuoteSnapshots } = vi.hoisted(() => ({
   getQuoteSnapshots: vi.fn(async () => [
     {
-      symbol: 'AAPL',
+      symbol: "AAPL",
       regularMarketPrice: 150,
       regularMarketChange: 1,
       regularMarketChangePercent: 0.5,
@@ -12,29 +12,52 @@ const { getQuoteSnapshots, normalizeSymbolList } = vi.hoisted(() => ({
       updatedAt: Date.now(),
     },
   ]),
-  normalizeSymbolList: vi.fn((symbols: unknown) => {
-    if (!Array.isArray(symbols)) return [];
-    return symbols
-      .filter((s): s is string => typeof s === 'string')
-      .map((s) => s.trim().toUpperCase())
-      .filter(Boolean);
-  }),
 }));
 
-vi.mock('@/lib/yahoo', () => ({
-  getQuoteSnapshots,
-  normalizeSymbolList,
-}));
+vi.mock("@/lib/marketData/service/server", async () => {
+  const { createMarketDataService, clearMarketDataCacheForTests } =
+    await import("@/lib/marketData/service/marketDataService");
+  const service = createMarketDataService({
+    yahoo: {
+      searchSymbols: vi.fn(async () => []),
+      getChartCandles: vi.fn(async () => []),
+      getChartCandlesBefore: vi.fn(async () => []),
+      getQuoteSnapshots,
+      getFundamentalsSnapshot: vi.fn(async () => ({
+        symbol: "AAPL",
+        shortName: null,
+        longName: null,
+        exchange: null,
+        currency: null,
+        regularMarketPrice: null,
+        regularMarketChange: null,
+        regularMarketChangePercent: null,
+        marketCap: null,
+        volume: null,
+        averageVolume: null,
+        sector: null,
+        industry: null,
+        website: null,
+        description: null,
+        updatedAt: Date.now(),
+      })),
+    },
+  });
+  return {
+    getServerMarketDataService: () => service,
+    clearMarketDataCacheForTests,
+  };
+});
 
 function makeRequest(body: Record<string, unknown>) {
-  return new Request('http://localhost/api/quotes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  return new Request("http://localhost/api/quotes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
-describe('/api/quotes POST', () => {
+describe("/api/quotes POST", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearQuoteCacheForTests();
@@ -44,47 +67,48 @@ describe('/api/quotes POST', () => {
     vi.useRealTimers();
   });
 
-  it('returns quotes for valid symbols', async () => {
-    const res = await POST(makeRequest({ symbols: ['AAPL'] }));
+  it("returns quotes for valid symbols", async () => {
+    const res = await POST(makeRequest({ symbols: ["AAPL"] }));
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.quotes).toHaveLength(1);
-    expect(json.quotes[0].symbol).toBe('AAPL');
+    expect(json.quotes[0].symbol).toBe("AAPL");
+    expect(json.meta).toMatchObject({ source: "yahoo", stale: false, warnings: [] });
   });
 
-  it('rejects missing symbols with 400', async () => {
+  it("rejects missing symbols with 400", async () => {
     const res = await POST(makeRequest({}));
     expect(res.status).toBe(400);
   });
 
-  it('rejects empty symbols array with 400', async () => {
+  it("rejects empty symbols array with 400", async () => {
     const res = await POST(makeRequest({ symbols: [] }));
     expect(res.status).toBe(400);
   });
 
-  it('rejects invalid JSON with 400', async () => {
-    const req = new Request('http://localhost/api/quotes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{',
+  it("rejects invalid JSON with 400", async () => {
+    const req = new Request("http://localhost/api/quotes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{",
     });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
 
-  it('caches identical requests', async () => {
-    const body = { symbols: ['AAPL', 'MSFT'] };
+  it("caches identical requests", async () => {
+    const body = { symbols: ["AAPL", "MSFT"] };
     await POST(makeRequest(body));
     await POST(makeRequest(body));
     expect(getQuoteSnapshots).toHaveBeenCalledTimes(1);
   });
 
-  it('does not cache provider errors', async () => {
-    vi.mocked(getQuoteSnapshots)
-      .mockRejectedValueOnce(new Error('provider down'))
+  it("does not cache provider errors", async () => {
+    getQuoteSnapshots
+      .mockRejectedValueOnce(new Error("provider down"))
       .mockResolvedValueOnce([
         {
-          symbol: 'AAPL',
+          symbol: "AAPL",
           regularMarketPrice: 151,
           regularMarketChange: 2,
           regularMarketChangePercent: 1,
@@ -93,7 +117,7 @@ describe('/api/quotes POST', () => {
         },
       ]);
 
-    const body = { symbols: ['AAPL'] };
+    const body = { symbols: ["AAPL"] };
     const first = await POST(makeRequest(body));
     expect(first.status).toBe(500);
 
@@ -102,9 +126,9 @@ describe('/api/quotes POST', () => {
     expect(getQuoteSnapshots).toHaveBeenCalledTimes(2);
   });
 
-  it('expires cache after ttl', async () => {
+  it("expires cache after ttl", async () => {
     vi.useFakeTimers();
-    const body = { symbols: ['AAPL'] };
+    const body = { symbols: ["AAPL"] };
     await POST(makeRequest(body));
     await POST(makeRequest(body));
     expect(getQuoteSnapshots).toHaveBeenCalledTimes(1);

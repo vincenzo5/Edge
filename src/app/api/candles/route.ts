@@ -1,133 +1,88 @@
 import { NextResponse } from "next/server";
 import {
-  getChartCandles,
-  getChartCandlesBefore,
-  type Candle,
-  type Interval,
-} from "@/lib/yahoo";
+  candlesRequestSchema,
+  parseMarketRequest,
+} from "@/lib/marketData/schemas";
+import { dataResultToResponseMeta } from "@/lib/marketData/contracts/result";
+import {
+  clearMarketDataCacheForTests,
+  getServerMarketDataService,
+} from "@/lib/marketData/service/server";
+import {
+  createRoutePerfContext,
+  readMarketDataTraceFromRequest,
+} from "@/lib/marketData/telemetry";
+import { isMarketDataPerfEnabled } from "@/lib/marketData/telemetry/isPerfEnabled";
 
 export const runtime = "nodejs";
 
-const VALID_RANGES = new Set(["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "ytd", "max"]);
-const VALID_INTERVALS = new Set(["1m", "1d", "1wk", "1mo", "1h", "5m", "15m", "30m"]);
-
-type CandlesResponse = { candles: Candle[] } | { error: string };
-
-type CacheEntry = {
-  candles: Candle[];
-  expiresAt: number;
-};
-
-const candleCache = new Map<string, CacheEntry>();
-
-const INTRADAY_INTERVALS = new Set(["1m", "5m", "15m", "30m", "1h"]);
-
-function cacheTtlMs(interval: Interval): number {
-  return INTRADAY_INTERVALS.has(interval) ? 30_000 : 60_000;
-}
-
-function cloneCandles(candles: Candle[]): Candle[] {
-  return candles.map((candle) => ({ ...candle }));
-}
-
-function buildCacheKey(args: {
-  symbol: string;
-  range: string;
-  interval: Interval;
-  before?: number;
-  barCount?: number;
-}): string {
-  const beforePart = args.before != null ? String(args.before) : "";
-  const barCountPart = args.barCount != null ? String(args.barCount) : "";
-  return `${args.symbol}|${args.range}|${args.interval}|${beforePart}|${barCountPart}`;
-}
-
-function readCache(key: string): Candle[] | null {
-  const entry = candleCache.get(key);
-  if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
-    candleCache.delete(key);
-    return null;
-  }
-  return cloneCandles(entry.candles);
-}
-
-function writeCache(key: string, candles: Candle[], ttlMs: number): void {
-  candleCache.set(key, {
-    candles: cloneCandles(candles),
-    expiresAt: Date.now() + ttlMs,
-  });
-}
-
-/** Test-only helper to reset the in-memory response cache. */
-export function clearCandleCacheForTests(): void {
-  candleCache.clear();
-}
+export { clearMarketDataCacheForTests as clearCandleCacheForTests };
 
 export async function POST(request: Request): Promise<Response> {
-  let body: {
-    symbol?: unknown;
-    range?: unknown;
-    interval?: unknown;
-    before?: unknown;
-    barCount?: unknown;
-  };
+  const routeStartedAt = Date.now();
+  const { traceId, scenario } = readMarketDataTraceFromRequest(request);
+  const perfContext = createRoutePerfContext(traceId, scenario);
+
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const symbol = typeof body.symbol === "string" ? body.symbol.trim() : "";
-  if (!symbol) {
-    return NextResponse.json({ error: "symbol is required" }, { status: 400 });
+  const validateStartedAt = Date.now();
+  const parsed = parseMarketRequest(body, candlesRequestSchema);
+  perfContext.collector.record("api.validate", validateStartedAt, parsed.ok, "api");
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.error, details: parsed.details },
+      { status: 400 },
+    );
   }
 
-  const interval =
-    typeof body.interval === "string" && VALID_INTERVALS.has(body.interval)
-      ? (body.interval as Interval)
-      : "1d";
-
-  const ttlMs = cacheTtlMs(interval);
+  const input = parsed.data;
+  const service = getServerMarketDataService();
 
   try {
-    if (typeof body.before === "number" && Number.isFinite(body.before)) {
-      const barCount =
-        typeof body.barCount === "number" && body.barCount > 0
-          ? Math.min(body.barCount, 500)
-          : 200;
-      const cacheKey = buildCacheKey({
-        symbol,
-        range: "",
-        interval,
-        before: body.before,
-        barCount,
-      });
-      const cached = readCache(cacheKey);
-      if (cached) {
-        const payload: CandlesResponse = { candles: cached };
-        return NextResponse.json(payload);
-      }
+    const serviceStartedAt = Date.now();
+    const result = await service.getLegacyCandles(
+      {
+        symbol: input.symbol,
+        range: input.before == null ? (input.range ?? "1y") : undefined,
+        interval: input.interval,
+        beforeTimestamp: input.before,
+        barCount: input.barCount,
+      },
+      { traceId },
+    );
+    perfContext.collector.record("api.service.getLegacyCandles", serviceStartedAt, true, "api", {
+      source: result.source,
+      cacheTier: result.cacheTier,
+      barCount: result.data.length,
+    });
+    perfContext.collector.record("api.total", routeStartedAt, true, "api");
 
-      const candles = await getChartCandlesBefore(symbol, body.before, interval, barCount);
-      writeCache(cacheKey, candles, ttlMs);
-      const payload: CandlesResponse = { candles: cloneCandles(candles) };
-      return NextResponse.json(payload);
-    }
+    const meta = {
+      ...dataResultToResponseMeta(result),
+      ...(isMarketDataPerfEnabled()
+        ? {
+            traceId,
+            phases: [
+              ...perfContext.collector.toArray(),
+              ...(result.phases ?? []),
+            ],
+          }
+        : {}),
+    };
 
-    const range = typeof body.range === "string" && VALID_RANGES.has(body.range) ? body.range : "1y";
-    const cacheKey = buildCacheKey({ symbol, range, interval });
-    const cached = readCache(cacheKey);
-    if (cached) {
-      const payload: CandlesResponse = { candles: cached };
-      return NextResponse.json(payload);
-    }
-
-    const candles = await getChartCandles(symbol, range as never, interval);
-    writeCache(cacheKey, candles, ttlMs);
-    const payload: CandlesResponse = { candles: cloneCandles(candles) };
-    return NextResponse.json(payload);
+    return NextResponse.json({
+      candles: result.data,
+      meta,
+    });
   } catch (error) {
+    perfContext.collector.record("api.total", routeStartedAt, false, "api", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     const message = error instanceof Error ? error.message : "Failed to fetch candles";
     return NextResponse.json({ error: message }, { status: 500 });
   }

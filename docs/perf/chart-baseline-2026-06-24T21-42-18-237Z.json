@@ -1,0 +1,144 @@
+{
+  "generatedAt": "2026-06-24T21:42:18.237Z",
+  "git": {
+    "commit": "f21a666",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.7827.55 Safari/537.36"
+  },
+  "scenarios": [
+    {
+      "scenario": "generate-candles-10k",
+      "layer": "micro",
+      "candleCount": 10000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 1.03
+      },
+      "notes": "Deterministic candle generation only."
+    },
+    {
+      "scenario": "generate-candles-100k",
+      "layer": "micro",
+      "candleCount": 100000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 7.04
+      },
+      "notes": "Deterministic candle generation only."
+    },
+    {
+      "scenario": "generate-candles-1m",
+      "layer": "micro",
+      "candleCount": 1000000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 249.91
+      },
+      "notes": "Deterministic candle generation only."
+    },
+    {
+      "scenario": "indicators-compute-cold-100k-core-six",
+      "layer": "micro",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 260.9,
+        "iterations": 6
+      },
+      "notes": "Cold compute cache; all implemented core indicators."
+    },
+    {
+      "scenario": "indicators-compute-warm-100k-core-six",
+      "layer": "micro",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 242.98,
+        "iterations": 6
+      },
+      "notes": "Warm compute cache hit path."
+    },
+    {
+      "scenario": "indicator-cache-key-100k-core-six",
+      "layer": "micro",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 242.62,
+        "iterations": 6
+      },
+      "notes": "Cache-key fingerprint cost before compute short-circuit."
+    },
+    {
+      "scenario": "initial-render-10k",
+      "layer": "browser",
+      "candleCount": 10000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 672.6
+      },
+      "notes": "Initial mount through four animation frames."
+    },
+    {
+      "scenario": "initial-render-100k",
+      "layer": "browser",
+      "candleCount": 100000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 48.3
+      },
+      "notes": "Initial mount through four animation frames."
+    },
+    {
+      "scenario": "indicators-100k-core-six",
+      "layer": "browser",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 1770
+      },
+      "notes": "Initial mount through four animation frames."
+    },
+    {
+      "scenario": "interaction-100k-pan-zoom-sample",
+      "layer": "browser",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 1150.7,
+        "averageFrameMs": 572.4,
+        "p50FrameMs": 773.7,
+        "p95FrameMs": 893.7,
+        "maxFrameMs": 893.7,
+        "droppedFramePercent": 80,
+        "frameSamples": 5
+      },
+      "notes": "Initial mount plus 2s pan/zoom frame sampling."
+    }
+  ]
+}

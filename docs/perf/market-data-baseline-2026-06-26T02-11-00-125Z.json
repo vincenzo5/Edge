@@ -1,0 +1,251 @@
+{
+  "generatedAt": "2026-06-26T02:11:00.125Z",
+  "git": {
+    "commit": "f21a666",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "twsEnabled": true,
+    "ibkrEnabled": true,
+    "twsGatewayConnected": true,
+    "ibkrAuthenticated": false
+  },
+  "scenarios": [
+    {
+      "scenario": "cold-chart-candles:AAPL:1d:1y",
+      "traceId": "cold-chart-candles-AAPL-1d-1y:1782439851201",
+      "ok": true,
+      "totalMs": 199,
+      "serverMs": 199,
+      "source": "tws",
+      "cacheTier": "cold",
+      "provider": "tws",
+      "counts": {
+        "bars": 251
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 0,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": false,
+            "fresh": false,
+            "servable": false
+          }
+        },
+        {
+          "name": "provider.tws.candles",
+          "ms": 193,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "source": "tws",
+            "barCount": 251
+          }
+        },
+        {
+          "name": "service.fetchCandlesFresh",
+          "ms": 198,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "source": "tws",
+            "cacheTier": "cold",
+            "barCount": 251
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "warm-chart-revisit:AAPL:1d:1y",
+      "traceId": "warm-chart-revisit-AAPL-1d-1y:1782439851400",
+      "ok": true,
+      "totalMs": 0,
+      "serverMs": 0,
+      "source": "tws",
+      "cacheTier": "hot-fresh",
+      "provider": "tws",
+      "counts": {
+        "bars": 251
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 0,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": true,
+            "fresh": true,
+            "servable": true,
+            "source": "tws"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "watchlist-quotes:10-symbols",
+      "traceId": "watchlist-quotes-10-symbols:1782439851400",
+      "ok": true,
+      "totalMs": 3381,
+      "serverMs": 3381,
+      "source": "mixed",
+      "cacheTier": "cold",
+      "provider": "mixed",
+      "counts": {
+        "quotes": 10,
+        "symbols": 10
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 0,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": false,
+            "hits": 0,
+            "requested": 10,
+            "allServable": false
+          }
+        },
+        {
+          "name": "provider.tws.quotes",
+          "ms": 112,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "quoteCount": 9,
+            "missing": 1
+          }
+        },
+        {
+          "name": "provider.ibkr.quotes",
+          "ms": 530,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "error": "IBKR request failed (401) /iserver/secdef/search: unauthorized"
+          }
+        },
+        {
+          "name": "provider.yahoo.quotes",
+          "ms": 2737,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "quoteCount": 1,
+            "fill": true
+          }
+        },
+        {
+          "name": "service.fetchQuotesFresh",
+          "ms": 3380,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "source": "mixed",
+            "quoteCount": 10
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "warmup:layout-core",
+      "traceId": "warmup-layout-core:1782439854781",
+      "ok": true,
+      "totalMs": 278,
+      "serverMs": 278,
+      "phases": [
+        {
+          "name": "tws.warmup",
+          "ms": 15,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL,MSFT,GOOGL,AMZN,NVDA"
+          }
+        },
+        {
+          "name": "candles",
+          "ms": 0,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL|1d|1y",
+            "source": "tws",
+            "cacheTier": "hot-fresh"
+          }
+        },
+        {
+          "name": "candles",
+          "ms": 189,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "MSFT|1d|1y",
+            "source": "tws",
+            "cacheTier": "cold"
+          }
+        },
+        {
+          "name": "quotes",
+          "ms": 0,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL,MSFT,GOOGL,AMZN,NVDA",
+            "source": "mixed",
+            "cacheTier": "hot-fresh"
+          }
+        },
+        {
+          "name": "options.expirations",
+          "ms": 74,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL",
+            "source": "tws",
+            "cacheTier": "cold"
+          }
+        }
+      ],
+      "counts": {
+        "symbols": 5,
+        "candles": 2
+      }
+    },
+    {
+      "scenario": "options-expirations:AAPL",
+      "traceId": "options-expirations-AAPL:1782439855059",
+      "ok": true,
+      "totalMs": 0,
+      "serverMs": 0,
+      "source": "tws",
+      "cacheTier": "hot-fresh",
+      "provider": "tws",
+      "counts": {
+        "contracts": 25
+      }
+    },
+    {
+      "scenario": "options-chain:AAPL:2026-06-26",
+      "traceId": "options-chain-AAPL-2026-06-26:1782439855059",
+      "ok": true,
+      "totalMs": 5066,
+      "serverMs": 5066,
+      "source": "tws",
+      "cacheTier": "cold",
+      "provider": "tws",
+      "counts": {
+        "contracts": 40
+      }
+    }
+  ]
+}

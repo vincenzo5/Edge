@@ -1,0 +1,217 @@
+import type { ChartQuoteStreamEvent, MarketQuote } from "@edge/chart-core";
+import type { MarketDataService } from "../service/marketDataService";
+import type { EquityQuote } from "../contracts/equities";
+import { dataResultToResponseMeta } from "../contracts/result";
+import { equityQuoteToWatchlistQuote } from "../validation/mappers";
+import { getTwsStreamUrl } from "../providers/tws/client";
+import type { QuoteStreamQueryInput } from "./streamQuerySchemas";
+import type { StreamSession } from "./createStreamSession";
+import {
+  MAX_POLL_FAILURES_BEFORE_STALE,
+  QUOTE_POLL_INTERVAL_MS,
+} from "@/lib/chartDataFeed/pollStreamAdapter";
+
+function normalizeChartMeta(
+  partial: ReturnType<typeof dataResultToResponseMeta>,
+): NonNullable<ChartQuoteStreamEvent extends { meta?: infer M } ? M : never> {
+  return {
+    source: partial.source,
+    asOf: partial.asOf ?? Date.now(),
+    stale: partial.stale,
+    warnings: partial.warnings,
+    streaming: true,
+  };
+}
+
+function parseSsePayload(raw: string): ChartQuoteStreamEvent | null {
+  try {
+    return JSON.parse(raw) as ChartQuoteStreamEvent;
+  } catch {
+    return null;
+  }
+}
+
+/** TWS sidecar SSE quote stream with HTTP poll fallback. */
+export function createTwsQuoteStreamSession(
+  service: MarketDataService,
+  query: QuoteStreamQueryInput,
+): StreamSession {
+  let stopped = false;
+  let failureCount = 0;
+  let pollTimer: ReturnType<typeof setInterval> | undefined;
+  let abortController: AbortController | undefined;
+  let primed = false;
+  let fillInFlight = false;
+
+  const emitQuotes = (
+    onEvent: (payload: string) => void,
+    quotes: MarketQuote[],
+    eventType: "snapshot" | "update",
+  ) => {
+    onEvent(
+      JSON.stringify({
+        type: eventType,
+        quotes,
+        meta: {
+          source: "tws",
+          asOf: Date.now(),
+          stale: false,
+          streaming: true,
+          warnings: [],
+        },
+      } satisfies ChartQuoteStreamEvent),
+    );
+  };
+
+  const fillMissingQuotes = async (
+    onEvent: (payload: string) => void,
+    received: MarketQuote[],
+  ) => {
+    if (fillInFlight || stopped) return;
+    const receivedSymbols = new Set(received.map((quote) => quote.symbol));
+    const missing = query.symbols.filter((symbol) => !receivedSymbols.has(symbol));
+    if (missing.length === 0) return;
+    fillInFlight = true;
+    try {
+      const result = await service.getWatchlistQuotes(missing);
+      if (stopped || result.data.length === 0) return;
+      const merged = new Map<string, MarketQuote>();
+      for (const quote of received) {
+        merged.set(quote.symbol, quote);
+      }
+      for (const quote of result.data) {
+        merged.set(quote.symbol, quote);
+      }
+      emitQuotes(onEvent, [...merged.values()], "update");
+    } catch {
+      // Best-effort fill-in; stream ticks or poll fallback may recover later.
+    } finally {
+      fillInFlight = false;
+    }
+  };
+
+  const pollFallback = async (onEvent: (payload: string) => void, primed: boolean) => {
+    if (stopped) return;
+    try {
+      const result = await service.getWatchlistQuotes(query.symbols);
+      if (stopped) return;
+      failureCount = 0;
+      const meta = normalizeChartMeta(dataResultToResponseMeta(result));
+      const quotes = result.data as MarketQuote[];
+      onEvent(
+        JSON.stringify(
+          (primed
+            ? { type: "update", quotes, meta }
+            : { type: "snapshot", quotes, meta }) satisfies ChartQuoteStreamEvent,
+        ),
+      );
+    } catch (error) {
+      if (stopped) return;
+      failureCount += 1;
+      const message = error instanceof Error ? error.message : "Quote stream poll failed";
+      onEvent(
+        JSON.stringify({
+          type: "error",
+          message,
+          recoverable: true,
+        } satisfies ChartQuoteStreamEvent),
+      );
+      if (failureCount >= MAX_POLL_FAILURES_BEFORE_STALE) {
+        onEvent(
+          JSON.stringify({
+            type: "stale",
+            reason: message,
+            meta: {
+              source: "mixed",
+              asOf: Date.now(),
+              stale: true,
+              warnings: [message],
+              streaming: true,
+            },
+          } satisfies ChartQuoteStreamEvent),
+        );
+      }
+    }
+  };
+
+  return {
+    start(onEvent) {
+      const provider = service.getTwsProvider();
+      const client = provider?.getClient?.() ?? null;
+      if (!client) {
+        void pollFallback(onEvent, false);
+        pollTimer = setInterval(() => void pollFallback(onEvent, true), QUOTE_POLL_INTERVAL_MS);
+        return;
+      }
+
+      void (async () => {
+        try {
+          const config = client.getConfig();
+          const url = getTwsStreamUrl(config.baseUrl, query.symbols);
+          abortController = new AbortController();
+          const res = await fetch(url, {
+            headers: { Accept: "text/event-stream" },
+            signal: abortController.signal,
+          });
+          if (!res.ok || !res.body) {
+            throw new Error(`TWS stream failed (${res.status})`);
+          }
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (!stopped) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const chunks = buffer.split("\n\n");
+            buffer = chunks.pop() ?? "";
+            for (const chunk of chunks) {
+              const line = chunk
+                .split("\n")
+                .find((row) => row.startsWith("data: "));
+              if (!line) continue;
+              const event = parseSsePayload(line.slice(6));
+              if (!event) continue;
+              if (event.type === "snapshot" || event.type === "update") {
+                const quotes = (event.quotes ?? []).map((q) => {
+                  const row = q as MarketQuote & EquityQuote;
+                  if ("regularMarketPrice" in row) return row as MarketQuote;
+                  return equityQuoteToWatchlistQuote({
+                    symbol: row.symbol,
+                    shortName: row.shortName,
+                    exchange: row.exchange,
+                    price: row.price ?? null,
+                    change: row.change ?? null,
+                    changePercent: row.changePercent ?? null,
+                    volume: row.volume ?? null,
+                    updatedAt: row.updatedAt ?? Date.now(),
+                  }) as MarketQuote;
+                });
+                const eventType = !primed ? "snapshot" : "update";
+                primed = true;
+                emitQuotes(onEvent, quotes, eventType);
+                if (eventType === "snapshot" && quotes.length < query.symbols.length) {
+                  void fillMissingQuotes(onEvent, quotes);
+                }
+              } else {
+                onEvent(JSON.stringify(event));
+              }
+            }
+          }
+        } catch {
+          if (stopped) return;
+          await pollFallback(onEvent, false);
+          pollTimer = setInterval(() => void pollFallback(onEvent, true), QUOTE_POLL_INTERVAL_MS);
+        }
+      })();
+    },
+
+    stop() {
+      stopped = true;
+      abortController?.abort();
+      if (pollTimer) clearInterval(pollTimer);
+    },
+  };
+}

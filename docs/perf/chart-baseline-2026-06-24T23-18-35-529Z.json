@@ -1,0 +1,261 @@
+{
+  "generatedAt": "2026-06-24T23:18:35.529Z",
+  "git": {
+    "commit": "f21a666",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.7827.55 Safari/537.36"
+  },
+  "scenarios": [
+    {
+      "scenario": "generate-candles-10k",
+      "layer": "micro",
+      "candleCount": 10000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 1.39
+      },
+      "notes": "Deterministic candle generation only."
+    },
+    {
+      "scenario": "generate-candles-100k",
+      "layer": "micro",
+      "candleCount": 100000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 9.16
+      },
+      "notes": "Deterministic candle generation only."
+    },
+    {
+      "scenario": "generate-candles-1m",
+      "layer": "micro",
+      "candleCount": 1000000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 295.88
+      },
+      "notes": "Deterministic candle generation only."
+    },
+    {
+      "scenario": "indicators-compute-cold-100k-core-six",
+      "layer": "micro",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 247.6,
+        "iterations": 6
+      },
+      "notes": "Cold compute cache; all implemented core indicators."
+    },
+    {
+      "scenario": "indicators-compute-warm-100k-core-six",
+      "layer": "micro",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 229.72,
+        "iterations": 6
+      },
+      "notes": "Warm compute cache hit path."
+    },
+    {
+      "scenario": "indicator-cache-key-100k-core-six",
+      "layer": "micro",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 233.3,
+        "iterations": 6
+      },
+      "notes": "Cache-key fingerprint cost before compute short-circuit."
+    },
+    {
+      "scenario": "initial-render-10k",
+      "layer": "browser",
+      "candleCount": 10000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 32.5,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 0,
+          "candlesMs": 0.1,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 0,
+          "totalMs": 0.7
+        }
+      },
+      "notes": "Initial mount through four animation frames."
+    },
+    {
+      "scenario": "initial-render-100k",
+      "layer": "browser",
+      "candleCount": 100000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 48,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 0,
+          "candlesMs": 0,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 0.1,
+          "totalMs": 1.1
+        }
+      },
+      "notes": "Initial mount through four animation frames."
+    },
+    {
+      "scenario": "indicators-100k-core-six",
+      "layer": "browser",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 2676,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 0,
+          "candlesMs": 0.1,
+          "indicatorsMs": 168.1,
+          "drawingsMs": 0,
+          "axesMs": 168.3,
+          "totalMs": 336.6
+        }
+      },
+      "notes": "Initial mount through four animation frames."
+    },
+    {
+      "scenario": "interaction-100k-pan-only",
+      "layer": "browser",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 1462.5,
+        "averageFrameMs": 489.36,
+        "p50FrameMs": 387.4,
+        "p95FrameMs": 880.3,
+        "maxFrameMs": 880.3,
+        "droppedFramePercent": 80,
+        "frameSamples": 5,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 4.5,
+          "candlesMs": 0.1,
+          "indicatorsMs": 101.9,
+          "drawingsMs": 0,
+          "axesMs": 99.9,
+          "totalMs": 214.7
+        }
+      },
+      "notes": "Initial mount plus 2s pan-only frame sampling."
+    },
+    {
+      "scenario": "interaction-100k-zoom-only",
+      "layer": "browser",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 1493.5,
+        "averageFrameMs": 280.04,
+        "p50FrameMs": 334,
+        "p95FrameMs": 533.5,
+        "maxFrameMs": 533.5,
+        "droppedFramePercent": 62.5,
+        "frameSamples": 8,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 5.7,
+          "candlesMs": 0,
+          "indicatorsMs": 87,
+          "drawingsMs": 0,
+          "axesMs": 88,
+          "totalMs": 184.1
+        }
+      },
+      "notes": "Initial mount plus 2s zoom-only frame sampling."
+    },
+    {
+      "scenario": "interaction-100k-crosshair-only",
+      "layer": "browser",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 1507.2,
+        "averageFrameMs": 226.2,
+        "p50FrameMs": 13.4,
+        "p95FrameMs": 573,
+        "maxFrameMs": 573,
+        "droppedFramePercent": 44.44,
+        "frameSamples": 9,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 10.5,
+          "candlesMs": 0,
+          "indicatorsMs": 99.9,
+          "drawingsMs": 0,
+          "axesMs": 101.5,
+          "totalMs": 218.1
+        }
+      },
+      "notes": "Initial mount plus 2s crosshair sync frame sampling."
+    },
+    {
+      "scenario": "interaction-100k-pan-zoom-sample",
+      "layer": "browser",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 1520.4,
+        "averageFrameMs": 547.88,
+        "p50FrameMs": 680.2,
+        "p95FrameMs": 853.7,
+        "maxFrameMs": 853.7,
+        "droppedFramePercent": 80,
+        "frameSamples": 5,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 3,
+          "candlesMs": 0.1,
+          "indicatorsMs": 93.4,
+          "drawingsMs": 0,
+          "axesMs": 92.2,
+          "totalMs": 195.8
+        }
+      },
+      "notes": "Initial mount plus 2s pan/zoom mixed frame sampling."
+    }
+  ]
+}
