@@ -89,7 +89,7 @@ export const addDrawingTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    requireApp(context);
+    const app = requireApp(context);
     const chart = requireActiveChart(context, input.cellIndex);
     const { index, cell } = getCell(context, input.cellIndex);
 
@@ -114,7 +114,7 @@ export const addDrawingTool = defineTool({
     draft.id = crypto.randomUUID?.() ?? `draw-${Date.now()}`;
 
     const nextDrawings = [...cell.drawings, draft];
-    context.app.applyCellUpdate(index, { ...cell, drawings: nextDrawings });
+    app.applyCellUpdate(index, { ...cell, drawings: nextDrawings });
     chart.chartCommands!.restoreDrawings(nextDrawings);
 
     return { ok: true, data: { cellIndex: index, drawing: draft } };
@@ -138,7 +138,7 @@ export const updateDrawingTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    requireApp(context);
+    const app = requireApp(context);
     const chart = requireActiveChart(context, input.cellIndex);
     const { index, cell } = getCell(context, input.cellIndex);
 
@@ -167,7 +167,7 @@ export const updateDrawingTool = defineTool({
       };
     }
 
-    context.app.applyCellUpdate(index, { ...cell, drawings });
+    app.applyCellUpdate(index, { ...cell, drawings });
     chart.chartCommands!.restoreDrawings(drawings);
 
     if (input.styles) {
@@ -192,7 +192,7 @@ export const deleteDrawingTool = defineTool({
   requiresConfirmation: true,
   requiresClientSession: true,
   async execute(input, context) {
-    requireApp(context);
+    const app = requireApp(context);
     const chart = requireActiveChart(context, input.cellIndex);
     const { index, cell } = getCell(context, input.cellIndex);
 
@@ -205,7 +205,7 @@ export const deleteDrawingTool = defineTool({
       };
     }
 
-    context.app.applyCellUpdate(index, { ...cell, drawings: next });
+    app.applyCellUpdate(index, { ...cell, drawings: next });
     chart.chartCommands!.restoreDrawings(next);
     chart.chartCommands!.selectDrawing(null);
 

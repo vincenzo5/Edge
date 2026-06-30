@@ -62,6 +62,7 @@ describe("summarizeChartTool annotations", () => {
         loadSymbolIntoActiveChart: () => {},
       },
       watchlist: null,
+      screener: null,
       marketData: {
         searchSymbols: async () => [],
         getCandles: async () => [],

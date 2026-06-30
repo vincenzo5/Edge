@@ -9,6 +9,7 @@ function mockContext(overrides: Partial<ToolContext> = {}): ToolContext {
     app: null,
     chart: null,
     watchlist: null,
+    screener: null,
     marketData: {
       searchSymbols: vi.fn().mockResolvedValue([{ symbol: "AAPL", name: "Apple", exchange: "NASDAQ" }]),
       getCandles: vi.fn().mockResolvedValue([]),
@@ -105,6 +106,7 @@ describe("edgeToolRegistry", () => {
     expect(names).toContain("add_drawing");
     expect(names).toContain("get_watchlists");
     expect(names).toContain("summarize_chart");
+    expect(names).toContain("summarize_screen");
     expect(names.length).toBeGreaterThanOrEqual(30);
   });
 });

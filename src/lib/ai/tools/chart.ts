@@ -12,6 +12,7 @@ import {
   symbolSchema,
 } from "../schemas";
 import { getCell, requireApp } from "./_helpers";
+import { cellCountFor } from "@/lib/chartConfig";
 
 function requireChart(context: ToolContext) {
   if (!context.chart) {

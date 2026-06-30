@@ -47,12 +47,12 @@ export const addIndicatorTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    requireApp(context);
+    const app = requireApp(context);
     const { index, cell } = getCell(context, input.cellIndex);
     const meta = getCatalogMeta(input.name);
     const pane = input.pane ?? meta?.defaultPane ?? "main";
     const instance = createIndicatorInstance(input.name, pane);
-    context.app.applyCellUpdate(index, {
+    app.applyCellUpdate(index, {
       ...cell,
       indicators: [...cell.indicators, instance],
     });
@@ -71,7 +71,7 @@ export const removeIndicatorTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    requireApp(context);
+    const app = requireApp(context);
     const { index, cell } = getCell(context, input.cellIndex);
     const next = cell.indicators.filter((i) => i.id !== input.indicatorId);
     if (next.length === cell.indicators.length) {
@@ -81,7 +81,7 @@ export const removeIndicatorTool = defineTool({
         code: "execution",
       };
     }
-    context.app.applyCellUpdate(index, { ...cell, indicators: next });
+    app.applyCellUpdate(index, { ...cell, indicators: next });
     return { ok: true, data: { cellIndex: index, removedId: input.indicatorId } };
   },
 });
@@ -109,7 +109,7 @@ export const updateIndicatorTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    requireApp(context);
+    const app = requireApp(context);
     const { index, cell } = getCell(context, input.cellIndex);
     let found = false;
     const indicators = cell.indicators.map((ind) => {
@@ -133,7 +133,7 @@ export const updateIndicatorTool = defineTool({
         code: "execution",
       };
     }
-    context.app.applyCellUpdate(index, { ...cell, indicators });
+    app.applyCellUpdate(index, { ...cell, indicators });
     return { ok: true, data: { cellIndex: index, indicatorId: input.indicatorId } };
   },
 });

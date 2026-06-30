@@ -66,6 +66,7 @@ AI Agent
 | **Workflow** | `summarize_chart` | read | — |
 | **Workflow** | `compare_symbols` | write | no |
 | **Workflow** | `prepare_chart_for_analysis` | write | no |
+| **Screener** | `summarize_screen` | read | — |
 
 ### Supported Indicators (implemented only)
 

@@ -58,6 +58,7 @@ function mockContext(layout: ChartLayout): ToolContext {
       loadSymbolIntoActiveChart: vi.fn(),
     },
     watchlist: null,
+    screener: null,
     marketData: {
       searchSymbols: vi.fn(),
       getCandles: vi.fn(),

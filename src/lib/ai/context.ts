@@ -37,11 +37,19 @@ export type ChartBridgeActions = {
   loadSymbolIntoActiveChart: (result: SymbolSelectResult) => void;
 };
 
+import type { ScreenerLastRun, ScreenerState } from "@/lib/screener/types";
+
+export type ScreenerActions = {
+  getState: () => ScreenerState;
+  getLastRun: () => ScreenerLastRun | null;
+};
+
 /** Snapshot passed to tool executors at call time. */
 export type ToolContext = BaseToolContext & {
   app: AppActions | null;
   chart: ChartBridgeActions | null;
   watchlist: WatchlistActions | null;
+  screener: ScreenerActions | null;
   marketData: MarketDataPort;
 };
 
