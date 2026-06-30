@@ -1,3 +1,9 @@
+# Communication
+
+Answer as simply as possible. Prefer one sentence over two, a bullet list over a paragraph, and a direct answer over preamble. Expand only when asked.
+
+---
+
 # Edge — Agent Entry Point
 
 Edge is a custom financial charting app built on a Canvas 2D engine (`EdgeChart`), with AI tool integration via a shared registry and optional Postgres persistence.

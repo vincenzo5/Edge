@@ -2,7 +2,7 @@
 
 Single roadmap for where Edge is going and how current work fits together.
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-06-27
 
 ## Product Direction
 
@@ -135,6 +135,7 @@ Later market data work:
   - **News workflows**: Symbol-scoped or watchlist-wide News Feed panel with headlines, publish times, and detail view; direct actions to create drawing annotations from a headline or trigger AI sentiment/thesis analysis tied to current chart state; high-impact items automatically surface as chart event pins via the existing overlay mappers.
   - **Fundamentals workflows**: Expanded SymbolDetailsPanel (tabbed: profile, financial statements with trend charts, estimates, executives, ownership, valuation metrics) beyond the current snapshot; watchlist enrichment via hover cards or columns (e.g., "EPS growth +12% YoY"); multi-symbol comparison mode (table or radar); deeper AI tool integration so `summarize_chart` and analysis tools pull live fundamentals context.
   - **Macro & Economic Calendar workflows**: Global or layout-aware Macro Calendar view (FMP Premium + FRED) showing releases with expected/actual values and impact flags; ability to add macro series as secondary panes, comparison overlays, or priced reference lines; watchlist-aware filtering ("releases affecting my holdings"); AI workflows such as "list macro events this week relevant to tech names in my watchlist".
+  - **Stock Screener workflows**: Header-bar modal screener that filters the full US-listed universe (equities + ETFs) by technical, fundamental, and descriptive criteria using FMP as primary and Yahoo / IBKR / TWS as fallbacks. Both fixed presets and a composable query-builder. Results load directly into the chart or feed watchlists (single ticker or full result group). Named saved screens persisted via localStorage with optional Postgres sync. Full scope, phasing, and touch points in [Screener Roadmap](./screener-roadmap.md).
 - Add entitlement-aware warnings for broker data delays or missing market subscriptions.
 - Consider streaming quotes/candles only after REST provider routing is reliable.
 
@@ -222,4 +223,5 @@ These are intentionally not near-term roadmap items:
 - [Market Data Architecture](../src/lib/marketData/ARCHITECTURE.md) - provider-neutral data layer and verification commands.
 - [AI Tools Architecture](./ai-tools-architecture.md) - registry, adapters, permissions, and rollout phases.
 - [Rich Annotations Vision](./chart/rich-annotations-vision.md) - semantic annotation product direction.
+- [Screener Roadmap](./screener-roadmap.md) - stock screener scope, phasing, and touch points.
 - [Chart Performance Baseline](./perf/chart-baseline-latest.json) - latest harness output from `npm run perf:chart`.

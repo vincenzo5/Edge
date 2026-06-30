@@ -12,7 +12,19 @@ import { join, relative } from "node:path";
 const ROOT = join(import.meta.dirname, "..");
 const AGENTS_PATH = join(ROOT, "AGENTS.md");
 const PROJECT_STATUS_PATH = join(ROOT, "docs", "PROJECT-STATUS.md");
+const CHECKLISTS_DIR = join(ROOT, "docs", "checklists");
+const PLAN_HARNESS_RULE_PATH = join(ROOT, ".cursor", "rules", "plan-harness-awareness.mdc");
 const RULES_DIR = join(ROOT, ".cursor", "rules");
+
+const REQUIRED_PLANNING_CHECKLISTS = [
+  "planning-router.md",
+  "architecture-review-checklist.md",
+  "feature-planning-checklist.md",
+  "refactor-planning-checklist.md",
+  "bugfix-planning-checklist.md",
+  "testing-verification-checklist.md",
+  "harness-status-checklist.md",
+];
 const MAX_AGENTS_LINES = 150;
 
 /** Rules allowed to use alwaysApply: true (empty = none allowed). */
@@ -145,6 +157,46 @@ function sectionBetween(content: string, heading: string, nextHeadingLevel = 2):
   return next === -1 ? rest : rest.slice(0, next);
 }
 
+function validatePlanningChecklists(issues: Issue[]): void {
+  for (const file of REQUIRED_PLANNING_CHECKLISTS) {
+    const path = join(CHECKLISTS_DIR, file);
+    if (!existsSync(path)) {
+      issues.push({
+        file: relative(ROOT, path),
+        message: "required planning checklist file missing",
+      });
+    }
+  }
+
+  if (!existsSync(PLAN_HARNESS_RULE_PATH)) {
+    issues.push({
+      file: relative(ROOT, PLAN_HARNESS_RULE_PATH),
+      message: "plan-harness-awareness rule missing",
+    });
+    return;
+  }
+
+  const ruleContent = readText(PLAN_HARNESS_RULE_PATH);
+  if (!ruleContent.includes("docs/checklists/planning-router.md")) {
+    issues.push({
+      file: relative(ROOT, PLAN_HARNESS_RULE_PATH),
+      message: "must reference docs/checklists/planning-router.md",
+    });
+  }
+  if (!ruleContent.includes("docs/checklists/architecture-review-checklist.md")) {
+    issues.push({
+      file: relative(ROOT, PLAN_HARNESS_RULE_PATH),
+      message: "must reference docs/checklists/architecture-review-checklist.md",
+    });
+  }
+  if (!/Checklist Review/i.test(ruleContent)) {
+    issues.push({
+      file: relative(ROOT, PLAN_HARNESS_RULE_PATH),
+      message: 'must require a "Checklist Review" section in plans',
+    });
+  }
+}
+
 function validateProjectStatus(issues: Issue[]): void {
   const rel = "docs/PROJECT-STATUS.md";
   const content = readText(PROJECT_STATUS_PATH);
@@ -243,6 +295,7 @@ function main(): void {
   validateAgentsMd(issues);
   validateCursorRules(issues);
   validateInstructionFiles(issues);
+  validatePlanningChecklists(issues);
   validateProjectStatus(issues);
 
   if (issues.length > 0) {

@@ -2,14 +2,91 @@
 
 Single source for current progress. For row-by-row feature detail, see [chart/features.md](./chart/features.md).
 
-**Last updated:** 2026-06-26
+**Last updated:** 2026-06-29
 
 ## Current Verified State
 
-- **Current task:** None active — event overlay data + bottom rail shipped.
-- **State:** **Passing** — corporate events filter by symbol/date at ingest; badges render in a reserved bottom event rail grouped by calendar day and screen proximity; click opens grouped detail card.
-- **Latest verification:** **Focused:** 57 event/market-data/chart badge tests passed; **Build:** `npm run build:packages` passed; **Fast:** `npm run check:startup` passed (26 tests).
-- **Evidence:** `src/lib/marketData/providers/fmp/adapter.ts`, `src/lib/chartDataFeed/apiChartDataFeed.ts`, `packages/chart-core/src/layout.ts`, `packages/chart-react/src/engine/eventBadges.ts`, `packages/chart-react/src/components/EventDetailCard.tsx`.
+- **Current task:** Screener sort by leading rule + column picker — results auto-sort by primary leading rule on run; cog dropdown adds/removes columns; sort override persists per saved screen; indicator columns surface for technical screens.
+- **State:** **Passing** — focused screener tests + build + startup passed; app-level browser walkthrough pending.
+- **Latest verification:** **Focused:** 96 screener-related tests passed (`lib/screener`, `components/screener`, `persistence/schemas/screenerLibrary`); **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **Architecture review:** self-review Passed.
+- **Evidence:** `src/lib/screener/{types,screenStorage,deriveDefaultSort,indicatorColumns,exportResults}.ts`, `src/lib/persistence/schemas/screenerLibrary.ts`, `src/app/components/screener/{ScreenerProvider,ScreenerDialog,ResultsTable,ColumnPicker}.tsx`, `docs/screener-roadmap.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on `localhost:3003` (marketCap rule → Mkt Cap desc sort + auto column; cog picker toggle; save/load sort; RSI technical → indicator column + sort).
+
+## Previous Verified State (screener dialog layout overhaul)
+- **Current task:** Screener technical rule builder (v1) — registry-driven custom technical rules in QueryBuilder with validation.
+- **State:** **Passing** — focused screener tests + build + startup gate passed; app-level browser walkthrough pending.
+- **Latest verification:** **Focused:** 71 tests passed (`lib/screener`, `components/screener`, `api/screener/run`); **Build:** `npm run build:packages` + `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **Architecture review:** self-review Passed.
+- **Evidence:** `src/lib/screener/{compileQuery.ts,validateIndicatorRule.ts}`, `src/app/components/screener/{QueryBuilder.tsx,ScreenerDialog.tsx}`, `src/app/api/screener/run/route.ts`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level browser walkthrough on `localhost:3003` (add technical rule, edit MACD preset, save/load screen); v2 follow-up: multiple technical rules per screen.
+
+## Previous Verified State (market calendar + screener warning cleanup)
+- **Current task:** Market calendar + screener warning cleanup — pre-close Massive 403 fix and typed skip UX.
+- **State:** **Passing** — focused tests + build + app-level API smoke passed.
+- **Latest verification:** **Focused:** 51 tests passed; **Build:** `npm run build` passed; **App-level:** MACD bullish API smoke — 9 rows, no 403, 11 skippedSymbols.
+- **Evidence:** `src/lib/marketData/marketCalendar.ts`, `src/lib/marketData/screenerUniverse/universeDailyStore.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/screener/technicalFilter.ts`, `src/app/components/screener/ResultsTable.tsx`.
+- **Current blocker:** none.
+
+## Previous Verified State (screener observability + baseline)
+- **Current task:** Market context breadcrumb relocation to legend (Option B) — sector/industry breadcrumb moved from header into second line under OHLCV legend.
+- **State:** **Passing** — focused tests + `build:packages` + `check:startup` passed; superseded by inline ETF crumbs UX.
+- **Latest verification:** **Focused:** 20 tests passed (`ChartHeaderBar`, `MarketContextBreadcrumb`, `ChartCell.legendSlot`, `ChartCell.activeChart`, `ChartCell.focus`); **Build:** `npm run build:packages` passed; **Startup:** `npm run check:startup` passed (26 tests).
+- **Evidence:** `packages/chart-react/src/components/ChartLegendBar.tsx`, `packages/chart-react/src/EdgeChart.tsx`, `src/app/components/EdgeChart.tsx`, `src/app/components/ChartGrid.tsx`, `src/app/components/ChartCell.tsx`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/StockApp.tsx`, `src/app/components/ChartCell.legendSlot.test.tsx`.
+
+## Previous Verified State (stock screener MVP)
+- **State:** **Pending** — focused screener tests passing; `npm run build:packages` passed; `npm run check:startup` passed (26 tests); app-level walkthrough on `localhost:3003` pending; full `npm run build` blocked by pre-existing TypeScript errors in `src/lib/chartDataFeed/apiChartDataFeed.ts` (unrelated to screener).
+- **Latest verification:** **Focused:** 48 tests passed (`marketData/providers/fmp`, `marketData/service/marketDataService.fmp`, `api/screener`, `lib/screener`, `chartDataFeed/apiScreenerFeed`, `components/screener`, `chart-chrome/ChartHeaderBar`); **Build:** `npm run build:packages` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual screener modal walkthrough on `localhost:3003`.
+- **Evidence:** `src/app/api/screener/run/route.ts`, `src/lib/marketData/providers/fmp/{adapter,mappers,screenerParams}.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/screener/`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/StockApp.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md`.
+- **Current blocker:** none for screener feature code; full app build has unrelated TS debt outside screener paths.
+- **Next best step:** App-level verify screener on `localhost:3003` (preset run, custom query, save/load screen, load chart, add to watchlist); then clear pre-existing build TS errors or mark screener **Passing** after app-level check.
+
+## Previous Verified State (market context taxonomy split)
+
+- **Current task:** Market context taxonomy split — non-clickable Sector › Industry classification path plus Related ▾ popover grouping tradable wrappers by membership flavor; expanded curated membership tables; browser-style per-cell back/forward symbol history retained.
+- **State:** **Passing** — three-axis taxonomy split implemented; focused tests passing; app-level browser check recommended but not blocking screener handoff.
+- **Latest verification:** **Focused:** 43 tests passed (`marketData/context`, `chart-chrome/`, context API route); **Startup:** `npm run check:startup` passed (26 tests).
+
+## Previous Verified State (options chain dialog UX + cold-chain latency)
+
+- **Current task:** Options chain dialog UX + cold-chain latency — dialog scrolls with prominent loading, risk presets at top, right-sidebar Options removed, TWS chain uses client spot and cached secdef.
+- **State:** **Passing** — focused UI/layout/market-data tests pass; startup gate pass; live AAPL secdef-cache revisit ~524–796 ms after first cold chain (~10 s with 40 contracts).
+- **Latest verification:** **Focused:** 107 tests passed (options dialog, sidebar, layout, chartWorkspace, sidebarWidth, TWS/service/schemas); **Startup:** `npm run check:startup` passed (26 tests); **Live timing:** first cold AAPL chain 10040 ms; subsequent expirations 524 ms / 557 ms / 796 ms after sidecar restart with secdef cache.
+
+## Previous Verified State (right sidebar resize consistency)
+
+## Previous Verified State (TWS extended-hours price alignment)
+
+- **Current task:** TWS extended-hours price alignment — chart live quote matches watchlist; TWS `sessionMode` for extended candles; pre/post-market chart labeling.
+- **State:** **Pending** — implementation + focused tests passing; app-level TWS quote/marker alignment check not yet recorded.
+- **Latest verification:** **Focused:** 36 tests passed + 9 telemetry tests passed; **Build:** `npm run build:packages` passed; **Fast:** `npm run check:startup` passed (26 tests); **App-level:** telemetry console warning cleared on reload; TWS alignment pending.
+
+## Previous Verified State (TWS sidecar in-app recovery)
+
+- **Current task:** TWS sidecar in-app recovery — follow-ups implemented; app-level verify pending.
+- **State:** **Pending** — focused tests passing; manual recovery check on `localhost:3003` not yet recorded.
+- **Latest verification:** **Focused:** 35 tests passed (recover, health, data-health UI, chart feed reload); **Fast:** `npm run check:startup` passed (26 tests); **App-level:** pending.
+
+## Previous Verified State (data health center)
+
+- **Current task:** None active — data health center shipped.
+- **State:** **Passing** — top-bar Data Health dropdown shows active chart/watchlist/options source, cache/freshness, provider status, and fallback warnings.
+- **Latest verification:** **Focused:** `npm test -- --run src/lib/marketData src/app/api/market-data src/app/components/chart-chrome src/app/components/data-health` passed (169 tests); **Fast:** `npm run check:startup` passed (26 tests).
+- **Evidence:** `src/lib/marketData/health.ts`, `src/app/api/market-data/health/route.ts`, `src/app/components/data-health/`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/lib/marketData/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Corporate events / news / fundamentals / macro workflow panels (Phase 2) per [ROADMAP.md](./ROADMAP.md).
+
+## Previous Verified State (data health center)
+
+- **State:** **Passing** — header Data Health button opens dropdown with dataset rows, provider probes, fallback warnings, and copy-JSON diagnostics; watchlist quote meta and options panel meta feed client snapshot.
+- **Latest verification:** **Focused:** 169 tests passed across market-data health, API route, chart chrome, and data-health UI; **Fast:** `npm run check:startup` passed (26 tests).
+
+## Previous Verified State (sidebar resize chart stability)
+
+- **Current task:** None active — sidebar resize chart stability fix shipped.
+- **State:** **Passing** — right sidebar drags coalesce width writes per animation frame, flush the final width on release, and chart canvas resize redraws before paint so candles do not disappear while resizing.
+- **Latest verification:** **Focused:** `npm test -- --run src/app/components/sidebar/SidebarPanelShell.test.tsx packages/chart-react/src/engine/canvas.test.tsx` passed (13 tests); **Fast:** `npm run check:startup` passed (26 tests); **App-level:** live `localhost:3003` sidebar drag instrumentation kept chart canvas opaque/no loading state through resize.
+- **Evidence:** `src/app/components/sidebar/useSidebarResize.ts`, `src/app/components/sidebar/SidebarPanelShell.test.tsx`, `packages/chart-react/src/engine/canvas.tsx`.
 - **Current blocker:** none.
 - **Next best step:** Corporate events / news / fundamentals / macro workflow panels (Phase 2) per [ROADMAP.md](./ROADMAP.md).
 
@@ -83,6 +160,7 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
 | Project status harness | Fresh agents can identify current work from one authoritative status block, and stale status placeholders fail instruction validation | **Passing** | **Focused:** `npm run check:startup` passed (3 files, 22 tests) after validator updates | `docs/PROJECT-STATUS.md`, `scripts/validate-agent-instructions.mts` |
+| Planning checklist router | Plans classify intent, decide architecture review applicability (N/A or Required), apply routed checklist docs, and preserve harness updates | **Passing** | **Fast:** `npm run lint:instructions` passed; **Startup:** `npm run check:startup` passed (3 files, 26 tests) | `docs/checklists/architecture-review-checklist.md`, `docs/checklists/planning-router.md`, `docs/checklists/feature-planning-checklist.md`, `docs/checklists/refactor-planning-checklist.md`, `docs/checklists/bugfix-planning-checklist.md`, `docs/checklists/testing-verification-checklist.md`, `.cursor/rules/plan-harness-awareness.mdc`, `scripts/validate-agent-instructions.mts` |
 | Internal package boundaries | Package workspaces and examples validate reusable chart/AI boundaries without driving a public release effort | **Passing** | **Full:** `npm run check` passed (776 tests, `check:examples`, package boundaries, `typecheck:packages`, build) | `packages/`, `examples/`, `scripts/validate-package-boundaries.mts`, `src/test/package-api-snapshot.test.ts` |
 | Chart copy menu | User can copy chart and drawing data from the context menu without breaking existing menu behavior | **Passing** | **Focused:** included in `npm run check:startup`; rerun `npm test -- --run src/app/components/chartCopyMenu.test.ts src/app/components/chartContextMenu.test.ts` if changed | `chartCopyMenu.ts`, `chartContextMenu.ts`, `ChartCell.tsx` |
 | Watchlist hydration / MCP-created lists | Saved watchlists created through AI/MCP hydrate after mount without reading browser storage during SSR hydration, and row clicks fetch and render fresh chart/indicator data | **Passing** | **Focused:** `npm test -- --run packages/chart-core/src/indicatorCompute.test.ts packages/chart-react/src/EdgeChart.test.tsx src/app/components/watchlist/WatchlistPanel.test.tsx src/lib/watchlist/storage.test.ts`; **App-level:** Trinity list row clicks updated active chart data from `UNH` to `TSLA` to `IBM` | `WatchlistContext.tsx`, `WatchlistPanel.test.tsx`, `watchlist/storage.ts`, `packages/chart-react/src/EdgeChart.tsx`, `packages/chart-core/src/indicatorCompute.ts` |
@@ -111,8 +189,165 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Chart architecture cleanup | Package chart runtime is canonical; legacy `src/lib/chart` engine paths are compatibility re-exports; oversized `EdgeChart` / `ChartCell` split through behavior-preserving controllers and hooks | **Passing** | **Focused:** 123 tests passed (package engine + EdgeChart + ChartCell + ActiveChart + AI); **Build:** `npm run build:packages` passed; **Fast:** `npm run check:startup` passed (26 tests) | `packages/chart-react/src/drawing/useDrawingController.ts`, `packages/chart-react/src/createEdgeChartHandle.ts`, `packages/chart-react/src/engine/`, `src/lib/chart/`, `src/app/components/chart-cell/`, `ActiveChartContext.tsx`, `src/lib/ai/tools/_helpers.ts` |
 | App console/build overlay cleanup | App loads without the range-preset export build overlay; optional persistence and unavailable options providers no longer emit server-error stacks during local fallback flows | **Passing** | **Focused:** 19 tests passed (range preset + options route + persistence route smoke); **App-level:** refreshed dev app and confirmed `Stock Charts` loads | `packages/chart-react/src/engine/rangePresetTransition.ts`, `src/app/api/options/expirations/route.ts`, `src/lib/persistence/server/routeHelpers.ts` |
 | Event badge overlay strategy | Corporate, filing, macro, news, and options expiration overlays render as grouped bottom-axis badges; hover/selected badges may show guides; dense news/options feeds are disabled by default and opt in through chart settings | **Passing** | **Focused:** 22 event/settings/feed tests passed; **Build:** `npm run build:packages` passed; **Fast:** `npm run check:startup` passed (26 tests); **App-level:** compact badges, badge detail card, and Settings → Events defaults/toggle verified in browser | `packages/chart-react/src/engine/eventBadges.ts`, `packages/chart-react/src/engine/renderer.ts`, `src/app/components/EdgeChart.tsx`, `src/app/components/ChartSettingsModal.tsx`, `src/lib/chartDataFeed/` |
-| Watchlist organization + resizable side panels | Watchlist rows support pin/tag/note organization with filter chips, column picker, sorting, and tag/sector grouping; Watchlist/Object Tree/Options panels share a draggable left-edge resize handle with per-panel persisted widths | **Passing** | **Focused:** 68 tests passed (watchlist storage/viewModel/panel, sidebar shell, layout storage, chart workspace schema, sidebar width); **Fast:** `npm run check:startup` passed (26 tests) | `src/lib/watchlist/`, `src/app/components/watchlist/`, `src/app/components/sidebar/SidebarPanelShell.tsx`, `src/lib/chartConfig.ts`, `src/lib/layoutStorage.ts`, `src/lib/responsive/sidebarWidth.ts` |
+| Watchlist organization + resizable side panels | Watchlist rows support pin/tag/note organization with filter chips, column picker, sorting, and tag/sector grouping; Watchlist/Object Tree/Options panels share a draggable left-edge resize handle with one shared persisted sidebar width (legacy `panelWidths` migrated on load) | **Passing** | **Focused:** 68+ sidebar/layout tests passed; **Fast:** `npm run check:startup` passed (26 tests) | `src/lib/watchlist/`, `src/app/components/watchlist/`, `src/app/components/sidebar/`, `src/lib/chartConfig.ts`, `src/lib/layoutStorage.ts`, `src/lib/responsive/sidebarWidth.ts` |
 | Event overlay data + bottom rail | Corporate events fetch/filter correctly; event badges render in a reserved bottom rail grouped by date with expandable detail list instead of stacking through candles | **Passing** | **Focused:** 57 tests passed (FMP adapter/mappers, apiChartDataFeed, eventBadges, marketDataService.events, /api/events); **Build:** `npm run build:packages` passed; **Fast:** `npm run check:startup` passed (26 tests) | `src/lib/marketData/providers/fmp/adapter.ts`, `src/lib/chartDataFeed/apiChartDataFeed.ts`, `packages/chart-core/src/layout.ts`, `packages/chart-react/src/engine/eventBadges.ts`, `packages/chart-react/src/engine/renderer.ts`, `packages/chart-react/src/components/EventDetailCard.tsx` |
+| Sidebar resize chart stability | Right sidebar drag stays smooth and does not blank the active chart while the canvas dimensions change | **Passing** | **Focused:** `SidebarPanelShell.test.tsx` + package `canvas.test.tsx` passed (13 tests); **Fast:** `npm run check:startup` passed (26 tests); **App-level:** live drag instrumentation kept canvas painted through min/max panel resize | `src/app/components/sidebar/useSidebarResize.ts`, `src/app/components/sidebar/SidebarPanelShell.test.tsx`, `packages/chart-react/src/engine/canvas.tsx` |
+| Data health center | Top-bar Data Health dropdown shows active chart/watchlist/options source, cache/freshness, provider status, and fallback warnings | **Passing** | **Focused:** 169 tests passed (`src/lib/marketData`, `src/app/api/market-data`, chart chrome, data-health UI); **Fast:** `npm run check:startup` passed (26 tests) | `src/lib/marketData/health.ts`, `src/app/api/market-data/health/route.ts`, `src/app/components/data-health/`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/lib/marketData/ARCHITECTURE.md` |
+| TWS sidecar in-app recovery | Data Health can recover IB Gateway sidecar, clear TWS skip state, re-prime visible chart/watchlist data, reload client feeds; Client Portal IBKR excluded from health panel | **Pending** | **Focused:** 35 tests passed (recover, health, data-health UI, chart feed reload); **Fast:** `npm run check:startup` passed (26 tests); **App-level:** pending manual recovery check with `TWS_ENABLED=true` | `services/tws-sidecar/main.py`, `src/lib/marketData/providers/tws/recover.ts`, `src/app/api/market-data/tws/recover/route.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/app/components/data-health/`, `src/app/components/MarketDataProvider.tsx`, `src/lib/chartDataFeed/useChartDataFeed.ts`, `src/lib/marketData/health.ts`, `src/lib/marketData/ARCHITECTURE.md` |
+| Right sidebar resize consistency | Right sidebar drag tracks pointer smoothly (local draft preview, commit on release); Object Tree, Options, and Watchlist share one persisted `sidebar.width`; legacy `panelWidths` migrates on load | **Passing** | **Focused:** 67 tests passed (sidebar components, `sidebarWidth`, `layoutStorage`, `chartWorkspace`); **Fast:** `npm run check:startup` passed (26 tests); **App-level:** drag preview/commit + cross-panel width covered by component tests; canvas stability retained from prior sidebar resize row | `src/lib/chartConfig.ts`, `src/lib/responsive/sidebarWidth.ts`, `src/lib/layoutStorage.ts`, `src/lib/persistence/schemas/chartWorkspace.ts`, `src/app/components/sidebar/`, `src/app/components/StockApp.tsx` |
+| TWS extended-hours price alignment | Chart current-price marker aligns with watchlist live quote; TWS candles opt into extended hours via `sessionMode`; chart labels pre/regular/post-market state | **Pending** | **Focused:** 36 tests passed; telemetry fix: 9 tests passed (`collector`, `MarketDataTelemetryPanel`); **Build:** `npm run build:packages` passed; **Fast:** `npm run check:startup` passed (26 tests); **App-level:** telemetry console warning cleared on reload; TWS quote/candle alignment check pending | `packages/chart-core/src/marketSession.ts`, `packages/chart-react/src/engine/`, `services/tws-sidecar/main.py`, `src/lib/marketData/`, `src/lib/chartDataFeed/`, `src/app/components/ChartCell.tsx`, `src/app/components/ChartSettingsModal.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/app/components/dev/MarketDataTelemetryPanel.tsx`, `src/lib/marketData/telemetry/collector.ts`, `src/lib/marketData/ARCHITECTURE.md` |
+| Data Health latency diagnostics | Data Health dropdown includes collapsible dev-only market-data latency diagnostics and replaces the fixed bottom-right telemetry overlay | **Passing** | **Focused:** 17 tests passed (data-health UI, telemetry panel, telemetry collector); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual Data Health expand/collapse check on `localhost:3003` | `src/app/components/data-health/DataHealthLatencySection.tsx`, `src/app/components/data-health/MarketDataLatencyDiagnosticsView.tsx`, `src/app/components/data-health/DataHealthMenu.tsx`, `src/app/components/dev/MarketDataTelemetryPanel.tsx`, `src/app/components/StockApp.tsx`, `src/lib/marketData/telemetry/` |
+| Options chain floating dialog | User opens options chain from chart header or sidebar launcher in a draggable overlay; sidebar no longer shows chain table; expiration tabs reload chain for selected date with pin and risk-ruler presets in popup | **Passing** | **Focused:** 10 tests passed (`OptionsChainDialog`, `OptionsPanel`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual expiration switch check on `localhost:3003` | `src/app/components/options/`, `src/app/components/sidebar/panels/OptionsPanel.tsx`, `src/app/components/StockApp.tsx`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `docs/PROJECT-STATUS.md` |
+| Options chain dialog UX + cold-chain latency | Dialog scrolls with prominent loading; quick risk ruler presets at top as clickable buttons; right-sidebar Options rail removed; cold TWS chain avoids redundant spot/secdef work | **Passing** | **Focused:** 107 tests passed; **Startup:** `npm run check:startup` passed (26 tests); **Live timing:** first cold AAPL chain 10040 ms; secdef-cache expirations 524–796 ms | `src/app/components/options/OptionsChainView.tsx`, `src/app/components/sidebar/registry.tsx`, `src/lib/layoutStorage.ts`, `services/tws-sidecar/main.py`, `src/lib/marketData/ARCHITECTURE.md` |
+| Market context breadcrumb navigation | Three-axis market context taxonomy — clickable Sector › Industry classification path opens Related popover grouping tradable wrappers by membership flavor; symbol back/forward arrows relocated to the chart legend top line; breadcrumb renders in chart legend second line (Option B); provider-misclassified sectors (e.g. Semiconductors → SMH) still resolve an ETF | **Passing** | **Focused:** 17 tests passed (`relationshipMaps`, `MarketContextBreadcrumb`, `ChartCell.legendSlot`) + 36 chart-chrome/package legend tests passed; **Build:** `npm run build:packages` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** recommended manual Related ▾ + back/forward check on `localhost:3003` | `src/lib/marketData/contracts/marketContext.ts`, `src/lib/marketData/context/relationshipMaps.ts`, `src/lib/marketData/context/buildMarketContext.ts`, `src/app/components/chart-chrome/MarketContextBreadcrumb.tsx`, `src/app/components/chart-chrome/SymbolNavArrows.tsx`, `src/app/components/ChartCell.tsx`, `packages/chart-react/src/components/PaneLegendBar.tsx`, `packages/chart-react/src/components/ChartLegendBar.tsx`, `packages/chart-react/src/EdgeChart.tsx`, `packages/chart-react/src/types.ts`, `src/app/components/EdgeChart.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/PROJECT-STATUS.md` |
+| Market context breadcrumb inline ETF crumbs + header symbol navigation | Sector/industry labels render as clickable related-ETF crumbs with controlled, viewport-aware tooltips; industry crumbs fall back to the sector ETF when no distinct industry ETF exists; Related dropdown popover removed; breadcrumb positioned closer below OHLCV ticker without overlap; symbol back/forward buttons sit immediately after ticker search in the header | **Passing** | **Focused:** 26 tests passed (`Tooltip`, `MarketContextBreadcrumb`, `ChartHeaderBar`, `ChartCell.legendSlot`) after viewport-aware tooltip, industry ETF fallback, header-arrow, and spacing tweaks; earlier `build:packages` passed; **App-level:** pending manual inline-crumb hover/click + overlap + header-arrow placement check on `localhost:3003` | `src/app/components/Tooltip.tsx`, `src/app/components/Tooltip.test.tsx`, `src/app/components/chart-chrome/MarketContextBreadcrumb.tsx`, `src/app/components/chart-chrome/MarketContextBreadcrumb.test.tsx`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/chart-chrome/SymbolNavArrows.tsx`, `src/app/components/ChartCell.tsx`, `src/app/components/StockApp.tsx`, `packages/chart-react/src/components/ChartLegendBar.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/PROJECT-STATUS.md` |
+| Market context breadcrumb relocation (Option B) | Sector › Industry breadcrumb moved into a second line under the OHLCV legend in `ChartCell`; symbol nav arrows moved up into the OHLCV legend top line; header bar horizontal space freed | **Passing** | **Focused:** 17 tests passed (`MarketContextBreadcrumb`, `ChartCell.legendSlot`, `relationshipMaps`) + 36 chart-chrome/package legend tests; **Build:** `npm run build:packages` passed; **Startup:** `npm run check:startup` passed (26 tests); superseded by inline ETF crumbs UX | `packages/chart-react/src/components/ChartLegendBar.tsx`, `packages/chart-react/src/components/PaneLegendBar.tsx`, `packages/chart-react/src/EdgeChart.tsx`, `src/app/components/EdgeChart.tsx`, `src/app/components/ChartCell.tsx`, `src/app/components/chart-chrome/MarketContextBreadcrumb.tsx`, `src/app/components/chart-chrome/SymbolNavArrows.tsx`, `src/app/components/ChartCell.legendSlot.test.tsx` |
+| Screener observability + baseline | Perf phases on screener route/service/technical filter; dev Screener tab in latency panel; `screener.fetch` client telemetry; before-optimization baseline in `docs/perf/screener-baseline-latest.json` | **Passing** | **Focused:** 48 tests passed; **Build:** `npm run build` passed; **Baseline:** `npm run perf:market-data` captured cold technical presets (~29–51s, candle p50 ~930–1617ms); **App-level:** pending screener modal + Screener latency filter on `localhost:3003`; **Architecture review:** self-review Passed | `src/app/api/screener/run/route.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/screener/technicalFilter.ts`, `src/lib/marketData/telemetry/screenerPerf.ts`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/data-health/MarketDataLatencyDiagnosticsView.tsx`, `scripts/run-market-data-perf.mts`, `docs/perf/screener-baseline-latest.json` |
+| Massive universe screener (full-universe technical scan) | Screener scans full US universe locally via Massive Daily Market Summary store; market calendar prevents pre-close 403; typed skip UX | **Passing** | **Focused:** 51 tests passed; **Build:** `npm run build` passed; **App-level:** MACD bullish API smoke — no 403, 9 rows, 11 skippedSymbols; **Collection:** perf diff captured 2026-06-29 (1.41×–6.2×); **Architecture review:** self-review Passed | `src/lib/marketData/marketCalendar.ts`, `src/lib/marketData/providers/massive/`, `src/lib/marketData/screenerUniverse/universeDailyStore.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/screener/technicalFilter.ts`, `src/app/components/screener/ResultsTable.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/perf/market-data-performance.md` |
+| Screener sort by leading rule + column picker | Results auto-sort by primary leading rule field on each run; cog dropdown adds/removes columns; sort override persists per saved screen; indicator columns surface for technical screens | **Passing** | **Focused:** 96 screener-related tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending walkthrough on `localhost:3003`; **Architecture review:** self-review Passed | `src/lib/screener/{types,screenStorage,deriveDefaultSort,indicatorColumns,exportResults}.ts`, `src/lib/persistence/schemas/screenerLibrary.ts`, `src/app/components/screener/{ScreenerProvider,ScreenerDialog,ResultsTable,ColumnPicker}.tsx`, `docs/screener-roadmap.md` |
+| Screener dialog layout overhaul | Run action relocated to top-right of Custom Query panel as primary button with `⌘↵` shortcut; rule rows collapse to one-line summaries with expand-all/collapse-all; rules panel scrolls inside `max-h-[40vh]`; Save controls in modal header; Limit in modal footer | **Passing** | **Focused:** 37 screener + 9 design-system/lib-screener tests passed; **Build:** `npm run build` passed; **App-level:** pending manual walkthrough on `localhost:3003`; **Architecture review:** self-review Passed | `src/app/components/design-system/{EdgeButton,EdgeModalShell,styles}.ts`, `src/app/components/screener/{ScreenerDialog,QueryBuilder}.tsx`, `src/lib/screener/compileQuery.ts`, `docs/screener-roadmap.md` |
+| Screener technical rule builder (v1) | User constructs/edits custom technical screener rules in QueryBuilder using any implemented `@edge/chart-core` indicator; registry-aware `validateIndicatorRule` rejects invalid rules client- and server-side; presets and saved screens round-trip `query.technical`; named kinds read-only in UI | **Passing** | **Focused:** 71 tests passed (`compileQuery`, `validateIndicatorRule`, `QueryBuilder`, `ScreenerDialog`, `api/screener/run`); **Build:** `npm run build:packages` + `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual technical rule + save/load walkthrough on `localhost:3003`; **Architecture review:** self-review Passed | `src/lib/screener/{compileQuery.ts,validateIndicatorRule.ts}`, `src/app/components/screener/{QueryBuilder.tsx,ScreenerDialog.tsx}`, `src/app/api/screener/run/route.ts`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
+| Stock screener Phase 3 (custom indicators + comparison + summarize_screen) | Indicator-plugin screener rules via presets (MACD hist, BOLL %B, RSI); candle-fingerprint technical cache; `meta.indicatorValues` sidecar; multi-select comparison table; read-only `summarize_screen` AI tool | **Passing** | **Focused:** 49 screener/AI tests passed; **Build:** `npm run build:packages` + `npm run build` passed; **App-level:** pending indicator presets + compare + summarize_screen walkthrough on `localhost:3003`; **Architecture review:** self-review Passed | `packages/chart-core/src/indicatorCompute.ts`, `src/lib/screener/{technicalMath,technicalFilter,presets,summarizeScreen}.ts`, `src/lib/marketData/schemas/request.ts`, `src/app/components/screener/{ComparisonView,ComparisonDialog}.tsx`, `src/lib/ai/tools/screener.ts`, `docs/screener-roadmap.md` |
+| Stock screener Phase 2 (composition + persistence + live results) | Postgres screener library sync (localStorage fallback), group watchlist actions, live quote overlay on visible rows, AND/OR query groups, CSV + clipboard export | **Passing** | **Focused:** 63 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** Gainers preset, group actions, OR group, save screen verified on `localhost:3003` | `src/db/schema.ts`, `src/lib/persistence/schemas/screenerLibrary.ts`, `src/lib/persistence/repositories/screenerLibraryRepository.ts`, `src/app/api/me/screener-library/`, `src/lib/persistence/sync/useScreenerLibraryRemoteSync.ts`, `src/app/components/screener/ScreenerProvider.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/lib/screener/{compileQuery,exportResults}.ts`, `src/lib/watchlist/storage.ts`, `docs/screener-roadmap.md` |
+| Stock screener Phase 1.5 (technical presets) | Four technical presets (RSI oversold/overbought, golden cross, near 52-week high) via server-side two-step pipeline: FMP prefilter → Yahoo daily candles + chart-core indicator math; bounded concurrency; two-phase loading label + phase summary in modal | **Passing** | **Focused:** 52 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** preset rail visible in screener modal on `localhost:3003`; **Architecture review:** self-review Passed | `src/lib/screener/{technicalMath,technicalFilter,presets,types}.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/marketData/schemas/request.ts`, `src/lib/marketData/cache/ttlPolicy.ts`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
+| Stock screener MVP (Lean) | Header-bar icon opens modal screener filtering US equities/ETFs via FMP `/company-screener`; presets + flat query-builder; sortable paginated results; per-row load-into-chart and add-to-watchlist; named screens persist in localStorage | **Passing** | **Focused:** 48 tests passed (Phase 1 baseline); **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** screener modal walkthrough on `localhost:3003` (preset run, row actions, save/load) | `src/app/api/screener/run/route.ts`, `src/lib/marketData/providers/fmp/`, `src/lib/screener/`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/StockApp.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
+
+## Task Contract — Screener sort by leading rule + column picker
+
+- **Status:** Complete — row marked **Passing** 2026-06-29.
+- **Goal:** Sort screener results by the primary leading rule on run; configurable columns via cog dropdown; per-saved-screen sort persistence; indicator metric columns for technical screens.
+- **Delivered:** `deriveDefaultSort.ts` + `indicatorColumns.ts`; `ColumnPicker` (ChartAnchoredPopover + checkboxes); `ResultsTable` sort arrows + indicator columns; `PersistedScreenerSortSpec` vs ephemeral indicator sort; `country`/`change` columns; Zod + localStorage sort round-trip.
+- **Verification:** **Focused:** 96 screener-related tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending walkthrough on `localhost:3003`; **Architecture review:** self-review Passed.
+- **Blockers:** none.
+
+## Task Contract — Screener dialog layout overhaul
+
+- **Status:** Complete — row marked **Passing** 2026-06-29.
+- **Scope:** Run discoverability, collapsible rules, bounded scroll, Save/Limit/Run reorganization.
+- **Out of scope:** presets sidebar, results table, comparison dialog, query compile/validation, API.
+- **Delivered:** `EdgeButton variant="primary"`; `EdgeModalShell headerActions`; Run in Custom Query header + `Cmd/Ctrl+Enter`; Save in modal header; Limit in footer; collapsible rule rows + expand/collapse all + scroll container; `formatQueryRuleSummary`.
+- **Verification:** **Focused:** 37 screener + 9 design-system/lib-screener tests passed; **Build:** `npm run build` passed; **App-level:** pending walkthrough on `localhost:3003`; **Architecture review:** self-review Passed.
+
+## Task Contract — Screener technical rule builder (v1)
+
+- **Status:** Complete — row marked **Passing** 2026-06-29.
+- **Goal:** Wire chart-core indicator registry into screener QueryBuilder; registry-aware validation client + API; round-trip `query.technical`; named kinds preserved read-only.
+- **Delivered:** `TechnicalQueryRule` in `compileQuery.ts`; `validateIndicatorRule.ts` + API route gate; `TechnicalRuleEditor` in `QueryBuilder.tsx`; client validation in `ScreenerDialog`; tests for compile, validation, UI, API.
+- **Verification:** focused 71 tests passed; `npm run build:packages` + `npm run build` passed; `npm run check:startup` passed (26 tests); app-level walkthrough pending.
+- **Blockers:** none. **Follow-up:** v2 multiple technical rules per screen; v5 migrate named kinds to indicator rules.
+
+## Task Contract — Screener observability + baseline
+
+- **Status:** Complete — row marked **Passing** 2026-06-29.
+- **Goal:** Instrument screener perf path and capture before-optimization baseline for technical presets.
+- **Delivered:** `PerfPhaseCollector` on `/api/screener/run` + `getScreenerResults` + `runTechnicalFilter`; `screener.fetch` client telemetry; Screener filter in `MarketDataLatencyDiagnosticsView`; `deriveScreenerPerfFromPhases`; screener scenarios in `npm run perf:market-data`; `docs/perf/screener-baseline-latest.json`.
+- **Verification:** focused 48 tests passed; `npm run build` passed; baseline captured (TWS connected, IBKR unauthenticated); app-level screener latency panel check pending.
+- **Blockers:** none.
+
+## Task Contract — Massive universe screener (full-universe technical scan)
+
+- **Status:** Complete — row marked **Passing** 2026-06-29.
+- **Goal:** Sub-2s cold full-universe technical screener via Massive Daily Market Summary store; remove 200-candidate cap; no pre-close Massive 403; clean screener warning UX.
+- **Delivered:** Massive provider; `universeDailyStore`; `marketCalendar.ts`; sanitized Massive 403 notices; `meta.skippedSymbols` + ResultsTable UX; perf diff captured (1.41×–6.2× cold speedups).
+- **Verification:** focused 51 tests passed; `npm run build` passed; MACD bullish API smoke on `localhost:3003` (no 403, typed skips); `npm run check` 7 pre-existing unrelated failures.
+- **Blockers:** none. **Deferred risk:** US market holidays not in calendar yet.
+
+## Task Contract — Stock screener Phase 3 (custom indicators + comparison + summarize_screen)
+
+- **Status:** Complete — row marked **Passing** 2026-06-28.
+- **Goal:** Phase 3 per `docs/screener-roadmap.md` — custom-indicator rules via chart-core `IndicatorPlugin`, comparison table, `summarize_screen` AI tool; scheduled re-runs/alerts deferred.
+- **Delivered:** `kind: "indicator"` technical rule schema + evaluator; candle-fingerprint `screener_technical` cache; three indicator presets; `meta.indicatorValues` sidecar; `ComparisonView` + multi-select compare; `summarize_screen` tool + `ToolContext.screener` facet.
+- **Verification:** focused screener + AI tests passed; `npm run build:packages` + `npm run build` passed; app-level walkthrough pending.
+- **Blockers:** none.
+
+## Task Contract — Stock screener Phase 2 (composition + persistence + live results)
+
+- **Status:** Complete — row marked **Passing** 2026-06-28.
+- **Goal:** Phase 2 per `docs/screener-roadmap.md` — Postgres screener library sync, group watchlist actions, live quote overlay, AND/OR groups, export; `screen_runs` deferred to Phase 3.
+- **Delivered:** `user_screener_library` table + `/api/me/screener-library` + `useScreenerLibraryRemoteSync` + `ScreenerProvider`; bulk watchlist reducers; `MarketDataProvider` screener symbol coalescing; `exportResults`; nested `RuleGroup` query-builder; incremental `db-migrate`.
+- **Verification:** focused 63 tests passed; `npm run build` passed; `npm run check:startup` passed (26 tests); app-level screener walkthrough on `localhost:3003` (Gainers preset, group actions, OR group, save screen).
+- **Blockers:** none.
+
+## Task Contract — Stock screener Phase 1.5 (technical presets)
+
+- **Status:** Pending — implementation complete 2026-06-28; focused tests + build:packages + startup gate pass; app-level walkthrough pending.
+- **Goal:** Phase 1.5 per `docs/screener-roadmap.md` — RSI/golden-cross/52-week technical presets via FMP prefilter + Yahoo candles + `@edge/chart-core/indicators/math`; presets only (no query-builder extension); two-phase progress UI.
+- **Delivered:** `ScreenQuery.technical` schema; `technicalMath.ts` + `technicalFilter.ts` (bounded concurrency, 200-cap, `screener_technical` cache); extended `MarketDataService.getScreenerResults()` with two-step pipeline + `meta.phases`; four presets in `presets.ts`; phase summary + loading label in `ScreenerDialog` / `ResultsTable`; architecture + roadmap doc updates.
+- **Verification:** focused 52 tests passed; `npm run build:packages` passed; `npm run check:startup` passed (26 tests); app-level technical preset walkthrough pending on `localhost:3003`.
+- **Blockers:** none for Phase 1.5 code; full app build still blocked by pre-existing TS debt outside screener paths.
+
+## Task Contract — Stock screener MVP (Lean)
+
+- **Status:** Pending — implementation complete 2026-06-27; focused tests + startup gate pass; app-level walkthrough and full app build pending.
+- **Goal:** Lean Phase 1 screener per plan — FMP `/company-screener`, mover presets, query-builder, results table, localStorage saved screens, header-bar modal entry.
+- **Delivered:** `POST /api/screener/run` + `MarketDataService.getScreenerResults()`; FMP `runStockScreener()` + `screenQueryToFmpParams()`; `src/lib/screener/` (types, presets, screenStorage, compileQuery); `apiScreenerFeed`; `ScreenerDialog` + `QueryBuilder` + `ResultsTable` + header wiring in `ChartHeaderBar` / `StockApp`.
+- **Verification:** focused 48 tests passed; `npm run build:packages` passed; `npm run check:startup` passed (26 tests); app-level screener walkthrough pending on `localhost:3003`.
+- **Blockers:** full `npm run build` fails on pre-existing TypeScript errors outside screener paths (`apiChartDataFeed.ts` meta/phases typing).
+
+## Task Contract — Market context breadcrumb navigation
+
+- **Status:** Complete — row marked **Passing** 2026-06-27 (app-level check recommended, not blocking).
+- **Goal:** Show market context in chart header using a three-axis taxonomy: non-clickable Sector › Industry classification path (Axis 1) plus Related ▾ popover grouping tradable wrappers by membership flavor (Axis 2/3); retain browser-style per-cell symbol back/forward navigation.
+- **Delivered:** `TradableFlavor` / `TradableGroup` / `tradableGroups` on `MarketContext`; expanded curated tables (`INDEX_MEMBERSHIP`, `BENCHMARK_MEMBERSHIP`, `STYLE_MEMBERSHIP`, `STRATEGY_MEMBERSHIP`); `buildTradableGroups()` + classification-only `buildBreadcrumbChain()`; `MarketContextBreadcrumb` split UI (classification labels + Related ▾ grouped popover + legacy fallback for stale cache); architecture doc three-axis subsection.
+- **Verification:** focused market-context + chart-chrome tests + `npm run check:startup` + app-level `IBM`/`AAPL` Related ▾ flow and back/forward after ETF jump on `localhost:3003`.
+- **Blockers:** none.
+
+## Task Contract — Options chain dialog UX + cold-chain latency
+
+- **Status:** Complete — row marked **Passing** 2026-06-27.
+- **Goal:** Fix dialog scroll/loading UX, move risk ruler presets to top, remove right-sidebar Options entry, and reduce avoidable cold TWS chain latency.
+- **Delivered:** Scrollable dialog body with `options-chain-dialog-scroll`; prominent `ChainLoadingState` with spinner/skeleton; top quick risk ruler preset buttons with “Click to add to chart”; Options removed from sidebar rail/registry; legacy `activePanel: "options"` migrates to null with width preserved; TWS sidecar uses client `strikeWindow.spot` and caches secdef per underlying (524–796 ms subsequent expirations vs ~5–10 s baseline per expiration).
+- **Verification:** focused UI/layout/market-data tests (107 passed) + `npm run check:startup` (26 passed) + live AAPL timing probe after sidecar restart.
+- **Blockers:** none; app-level manual dialog check still recommended.
+
+## Task Contract — Options chain floating dialog
+
+- **Status:** Complete — follow-up sidebar/expiration fix marked **Passing** 2026-06-27.
+- **Goal:** Popup-first options chain UX: remove sidebar chain table; ensure expiration tab changes reload the selected expiration's chain.
+- **Delivered:** Compact `OptionsPanel` launcher (no `useOptionsChainModel` in sidebar); `OptionsChainDialogContent` mounts hook only when open; `selectExpiration` clears chain state and resets `chainMode` to `atm` before refetch; regression tests for launcher-only sidebar and expiration switching in dialog.
+- **Verification:** focused options tests (10 passed) + `npm run check:startup` (26 passed); app-level expiration switch check pending on `localhost:3003`.
+- **Blockers:** none.
+
+## Task Contract — Data Health latency diagnostics
+
+- **Status:** Complete — row marked **Passing** 2026-06-27.
+- **Goal:** Combine the fixed bottom-right Market Data Telemetry panel into the top-left Data Health dropdown with a collapsible dev-only Latency Diagnostics section.
+- **Delivered:** `MarketDataLatencyDiagnosticsView` extracted for reuse; `DataHealthLatencySection` subscribes via external store only when telemetry enabled and menu section is mounted; collapsed by default with summary hint; Log/Copy latency JSON in expanded body; fixed overlay removed from `StockApp`; deprecated `MarketDataTelemetryPanel` wrapper retained for tests.
+- **Verification:** focused data-health/telemetry tests (17 passed) + `npm run check:startup` (26 passed); app-level Data Health expand/collapse check pending on `localhost:3003`.
+
+## Task Contract — Right sidebar resize consistency
+
+- **Status:** Complete — row marked **Passing** 2026-06-27.
+- **Goal:** Fix jumpy first-drag resize and inconsistent width when switching Object Tree, Options, and Watchlist by using one shared sidebar width and local draft preview during pointer drag.
+- **Delivered:** `SidebarPrefs.width` replaces `panelWidths`; `resolveSidebarPanelWidth(width)` + `migrateSidebarWidth()`; layout storage + workspace schema legacy migration; `useSidebarResize` pointer preview/commit; `SidebarPanelShell` local `draftWidth`; `StockApp` shared width setter.
+- **Verification:** focused sidebar/layout/persistence tests (67 passed) + `npm run check:startup` (26 passed); cross-panel width + drag semantics encoded in `SidebarPanelShell.test.tsx` and `RightSidebar.test.tsx`.
+
+## Task Contract — TWS extended-hours price alignment
+
+- **Status:** Pending — paused for sidebar resize fix; app-level verification not yet recorded.
+- **Goal:** Align watchlist `LAST` with chart current-price marker using the same live quote; support TWS extended-hours intraday candles; make pre/regular/post-market state explicit in chart UI.
+- **Delivered:** `marketSession` helpers; `livePrice`/`liveMarketSession` chart props; `sessionMode` on candle requests + TWS sidecar `useRTH`; Settings → Extended hours toggle; session status badge on legend; pre/post background bands when extended mode enabled; telemetry panel uses external-store subscription with cached snapshot; SSE quote first-paint telemetry moved out of React state updater.
+- **Verification:** focused marketSession/renderer/chart-feed/market-data tests + telemetry tests + `npm run build:packages` + app-level TWS alignment check + app-level console clean on reload.
+
+## Task Contract — TWS sidecar in-app recovery
+
+- **Status:** Pending — focused tests passing; app-level verification not yet recorded.
+- **Goal:** After IB Gateway is manually restored, let the user recover TWS from the Data Health panel without restarting the Next.js app, and reload visible chart/watchlist data from IB without a page refresh.
+- **Delivered:** Sidecar `POST /control/reconnect`; guarded `POST /api/market-data/tws/recover` with candle/options warmup context; `recoverTwsSidecar` helper with optional sidecar spawn; `MarketDataService.resetTwsRecoveryState()` + hot/cache invalidation + `primeMarketData()` on recover; client `reloadMarketData()` / `reloadToken` for chart feed and watchlist refresh; IBKR Client Portal hidden from health when `IBKR_ENABLED=false`; Data Health recover button with loading/outcome messaging; architecture + env docs.
+- **Security:** Available when `TWS_ENABLED=true`; spawns only static `npm run tws:sidecar`; no user-controlled shell input.
+- **Verification:** focused recover/health/chart-feed tests (35 passed) + `npm run check:startup` (26 passed) + app-level recovery check on `localhost:3003`.
+
+## Task Contract — Data health center
+
+- **Status:** Complete — row marked **Passing** 2026-06-26.
+- **Delivered:** Health snapshot contracts + severity derivation; `/api/market-data/health` provider summary route; `DataHealthProvider` + header dropdown UI; watchlist quote meta propagation; options panel meta registration; architecture doc update.
+- **Verification:** focused market-data/chart-header/data-health tests (169 passed) + `npm run check:startup` (26 passed).
+
+## Task Contract — Sidebar resize chart stability
+
+- **Status:** Complete — row marked **Passing** 2026-06-26.
+- **Delivered:** Sidebar drag width updates are animation-frame coalesced with final mouseup flush; chart canvas size/data refresh now runs in layout effect to avoid the transparent backing-store frame when `width`/`height` attributes change.
+- **Verification:** focused sidebar/canvas tests + `npm run check:startup` + live app drag instrumentation passed.
 
 ## Task Contract — Event overlay data + bottom rail
 
@@ -123,7 +358,7 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 ## Task Contract — Watchlist organization + resizable side panels
 
 - **Status:** Complete — row marked **Passing** 2026-06-26.
-- **Delivered:** Extended watchlist item metadata (`pinned`, `tags`, `note`) and per-list view prefs; added derived view model for grouping/filtering/sorting; watchlist controls UI; symbol note editor in details panel; shared sidebar resize handle with keyboard support; persisted `sidebar.panelWidths` in chart layout.
+- **Delivered:** Extended watchlist item metadata (`pinned`, `tags`, `note`) and per-list view prefs; added derived view model for grouping/filtering/sorting; watchlist controls UI; symbol note editor in details panel; shared sidebar resize handle with keyboard support; persisted sidebar width in chart layout (later unified to shared `sidebar.width` — see Right sidebar resize consistency).
 - **Verification:** focused watchlist/sidebar/layout tests + `npm run check:startup` passed.
 
 ## Task Contract — Event badge overlay strategy
@@ -153,6 +388,211 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Keep the current state above short and authoritative; keep historical detail here.
+
+### 2026-06-29 — Screener sort by leading rule + column picker
+
+- **Goal:** Sort results by primary leading rule on run; cog column picker; per-saved-screen sort persistence; indicator columns for technical screens.
+- **Completed:** `deriveDefaultSortFromRoot`; `ColumnPicker` dropdown; `ResultsTable` sort arrows + indicator columns; `PersistedScreenerSortSpec`; `country`/`change` columns; provider/dialog sort wiring.
+- **Verification run:** **Focused:** 96 screener-related tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests).
+- **Next best step:** App-level walkthrough on `localhost:3003`.
+- **Known blockers:** none.
+
+### 2026-06-29 — Screener dialog layout overhaul
+
+- **Goal:** Run discoverability, collapsible rules, bounded scroll, Save/Limit/Run reorganization in screener modal.
+- **Completed:** Primary Run button in Custom Query header with `⌘↵`; Save in modal header; Limit in footer; collapsible rule summaries with expand-all/collapse-all; `max-h-[40vh]` rules scroll; `formatQueryRuleSummary`; design-system `EdgeButton` primary variant + `EdgeModalShell headerActions`.
+- **Verification run:** **Focused:** 37 screener + 9 design-system/lib-screener tests passed; **Build:** `npm run build` passed.
+- **Next best step:** App-level walkthrough on `localhost:3003`.
+- **Known blockers:** none.
+
+### 2026-06-29 — Screener technical rule builder (v1)
+
+- **Goal:** Registry-driven custom technical rules in screener QueryBuilder with client + API validation; round-trip presets/saved screens; named kinds read-only.
+- **Completed:** `TechnicalQueryRule` compile round-trip; `validateIndicatorRule`; `TechnicalRuleEditor`; API 400 on invalid indicator rules; docs + harness updates.
+- **Verification run:** **Focused:** 71 tests passed; **Build:** `npm run build:packages` + `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests).
+- **Next best step:** App-level walkthrough on `localhost:3003`; v2 multiple technical rules.
+- **Known blockers:** none.
+
+### 2026-06-29 — Market calendar + screener warning cleanup
+
+- **Goal:** Fix pre-close Massive 403 (Sunday UTC rollover / weekday before 4pm ET); sanitize provider warning text; split typed `skippedSymbols` from provider notices in screener UI.
+- **Completed:** `marketCalendar.ts` + regression tests; rewired universe store + Massive aggregate `to` dates; sanitized Massive 403 message; `ScreenerMeta.skippedSymbols` threaded service → API → feed → UI.
+- **Verification run:** **Focused:** 51 tests passed; **Build:** `npm run build` passed; **App-level:** MACD bullish API — 9 rows, no 403 in warnings, 11 skippedSymbols typed separately.
+- **Next best step:** Complete verification; then app-level full screener walkthrough for Massive universe task.
+- **Known blockers:** none. US market holidays deferred.
+
+### 2026-06-29 — Massive universe screener (design + implementation)
+
+- **Goal:** Massive adapter + full-universe screener architecture — Daily Market Summary cache + local indicator scan; remove 200-candidate cap; target ~1–2s cold.
+- **Completed:** Research + provider selection (Massive); implementation of provider, universe store, service wiring, technicalFilter enhancements (concurrency, early-exit, range tailoring), docs + harness updates.
+- **Verification run:** **Focused:** 39 tests passed; **Build:** `npm run build` passed; **Collection:** `npm run perf:market-data` ran but used fallback path (no `MASSIVE_API_KEY` in `.env.local` — still 200 candidates, TWS/Yahoo); after snapshot pending Massive key.
+- **Next best step:** Run `npm run build` + `npm run perf:market-data` with `MASSIVE_API_KEY`; diff against `docs/perf/screener-baseline-latest.json`; app-level screener modal on `localhost:3003`.
+- **Known blockers:** Massive paid tier recommended for universe backfill; FMP pagination uses offset loop (verify live FMP supports offset).
+
+### 2026-06-29 — Screener observability + baseline
+
+- **Completed:** Perf phases on screener route/service/technical filter; Screener tab in dev latency panel; `screener.fetch` telemetry; baseline script + `docs/perf/screener-baseline-latest.json`.
+- **Verification run:** **Focused:** 48 tests passed; **Build:** `npm run build` passed; **Baseline:** cold technical presets ~29–51s (technical pass dominates; FMP prefilter ~300–400ms).
+- **Next best step:** FMP-prefilter fast path for built-in presets; re-run baseline and diff.
+
+### 2026-06-28 — Stock screener Phase 3 (custom indicators + comparison + summarize_screen)
+
+- **Completed:** `kind: "indicator"` technical rules via chart-core plugins; candle-fingerprint cache; MACD/BOLL %B/RSI indicator presets; `meta.indicatorValues` sidecar; comparison table + multi-select; `summarize_screen` AI tool with `ToolContext.screener` facet.
+- **Verification run:** **Focused:** 49 screener/AI tests passed; **Build:** `npm run build:packages` + `npm run build` passed; **App-level:** pending indicator preset + compare + summarize_screen walkthrough on `localhost:3003`.
+- **Next best step:** App-level verify Phase 3; scheduled re-runs/alerts remain deferred until alerts infra.
+
+### 2026-06-28 — Stock screener Phase 2 (composition + persistence + live results)
+
+- **Completed:** Postgres screener library sync mirroring watchlist pattern; `ScreenerProvider` with local + remote sync; group watchlist actions; live quote overlay via `MarketDataProvider`; AND/OR query groups; CSV + clipboard export; `screen_runs` deferred to Phase 3.
+- **Verification run:** **Focused:** 63 tests passed; **Build:** `npm run build` passed (cleared IBKR/TWS/stream TS debt); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** Gainers preset, group actions, OR group, save screen on `localhost:3003`.
+- **Next best step:** Phase 3 (`screen_runs` snapshots, scheduled refresh) per `docs/screener-roadmap.md`.
+
+### 2026-06-28 — Stock screener Phase 1.5 (technical presets)
+
+- **Goal:** Ship Phase 1.5 technical presets — RSI oversold/overbought, golden cross, near 52-week high — via server-side two-step pipeline (FMP prefilter + Yahoo candles + chart-core indicator math).
+- **Completed:** `ScreenQuery.technical` schema; `technicalMath.ts` + `technicalFilter.ts`; extended `MarketDataService.getScreenerResults()`; four presets; two-phase loading label + phase summary UI; `screener_technical` cache namespace; architecture + roadmap updates.
+- **Verification run:** **Focused:** 52 tests passed; **Build:** `npm run build:packages` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending technical preset walkthrough on `localhost:3003`.
+- **Next best step:** App-level verify four technical presets + phase summary; then Phase 2 (Postgres persistence, group actions, live streaming) per `docs/screener-roadmap.md`.
+
+### 2026-06-28 — Market context breadcrumb inline ETF crumbs + overlap fix
+
+- **Goal:** Replace Related dropdown popover with inline clickable ETF crumbs (sector, industry, all tradables); hover tooltips on native `title`; direct click navigation; fix breadcrumb/OHLCV ticker overlap.
+- **Completed:** Rewrote `MarketContextBreadcrumb` (removed popover/chevron; inline navigable crumbs with dedupe by symbol; muted labels when no ETF mapping); shifted `ChartLegendBar` context slot to `top-[44px]` with flex-wrap; updated tests and architecture doc.
+- **Verification run:** **Focused:** 8 tests passed (`MarketContextBreadcrumb`, `ChartCell.legendSlot`); **Build:** `npm run build:packages` passed; **App-level:** pending manual inline-crumb hover/click + overlap check on `localhost:3003`.
+- **Next best step:** App-level verify OUST/AAPL inline crumbs and no ticker overlap; resume screener app-level walkthrough.
+
+### 2026-06-28 — Market context breadcrumb relocation (Option B)
+
+- **Goal:** Move sector/industry breadcrumb and symbol nav arrows from `ChartHeaderBar` into a second line under the OHLCV legend to free header horizontal space.
+- **Completed:** Added `contextSlot` to package `ChartLegendBar` and `legendContextSlot` to `EdgeChart`; wired `symbolNav` through `ChartGrid` → active `ChartCell`; render `MarketContextBreadcrumb` in legend slot; removed breadcrumb from header; added `ChartCell.legendSlot.test.tsx`.
+- **Verification run:** **Focused:** 20 tests passed; **Build:** `npm run build:packages` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual legend breadcrumb + nav check on `localhost:3003`.
+- **Next best step:** App-level verify breadcrumb placement, Related ▾ popover, and back/forward nav; resume screener app-level walkthrough.
+
+### 2026-06-27 — Stock screener MVP (Lean)
+
+- **Goal:** Ship lean Phase 1 screener — FMP `/company-screener`, presets, query-builder, results table, localStorage saved screens, header modal entry.
+- **Completed:** Backend route + service + FMP adapter/mapper; `src/lib/screener/` storage/presets/compileQuery; `apiScreenerFeed`; `ScreenerDialog` UI with presets rail, saved screens, query builder, sortable paginated table, chart/watchlist row actions; header `ScreenerButton` wired through `StockApp`; architecture + roadmap doc updates.
+- **Verification run:** **Focused:** 48 tests passed; **Build:** `npm run build:packages` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual walkthrough on `localhost:3003`; **Full build:** blocked by pre-existing TS errors in `apiChartDataFeed.ts`.
+- **Next best step:** App-level verify screener modal on `localhost:3003`; then Phase 1.5 technical presets per `docs/screener-roadmap.md`.
+
+### 2026-06-27 — Market context taxonomy split (v2)
+
+- **Goal:** Refine Sector › Industry › Indexes workflow into three-axis taxonomy: classification path (You are here) + Related ▾ popover (tradable wrappers grouped by membership flavor).
+- **Completed:** Added `tradableGroups` contract; split `INDEX_MEMBERSHIP` (broad) from `BENCHMARK_MEMBERSHIP` / `STYLE_MEMBERSHIP` / `STRATEGY_MEMBERSHIP`; `buildTradableGroups()`; classification-only `buildBreadcrumbChain()`; refactored `MarketContextBreadcrumb` (non-clickable sector/industry + Related ▾ grouped popover + legacy cache fallback); updated architecture doc.
+- **Verification run:** **Focused:** 43 tests passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual Related ▾ check on `localhost:3003`.
+- **Next best step:** Run focused tests, then app-level verify `IBM` classification + Related groups and `AAPL` broad/benchmark navigation.
+
+### 2026-06-27 — Options chain dialog UX + cold-chain latency
+
+- **Goal:** Scrollable dialog with obvious loading, top risk-ruler buttons, remove right-sidebar Options rail, reduce avoidable TWS chain latency.
+- **Completed:** Scrollable dialog body + prominent loading state; quick risk ruler moved to top with clearer button styling; Options removed from sidebar rail with legacy layout migration; TWS sidecar uses client spot for ATM selection and caches secdef per underlying.
+- **Verification run:** **Focused:** 107 tests passed; **Startup:** `npm run check:startup` passed (26 tests); **Live timing:** first cold AAPL chain 10040 ms; secdef-cache expirations 524 ms / 557 ms / 796 ms after sidecar restart.
+- **Next best step:** App-level manual dialog check on `localhost:3003`; resume TWS extended-hours alignment check.
+
+### 2026-06-27 — Options chain sidebar + expiration fix
+
+- **Goal:** Remove full options chain from right sidebar; fix popup expiration selection so each tab loads that expiration's chain.
+- **Completed:** Replaced sidebar `OptionsPanel` with compact launcher (no chain table, no background fetch); split `OptionsChainDialog` so `useOptionsChainModel` mounts only when open; added `selectExpiration` to clear stale chain state and reset strike mode; added regression tests for launcher-only sidebar and dialog expiration switching.
+- **Verification run:** **Focused:** 10 tests passed (`OptionsChainDialog.test.tsx`, `OptionsPanel.test.tsx`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual expiration switch check on `localhost:3003`.
+- **Next best step:** App-level verify popup expiration switch; resume TWS extended-hours alignment check.
+
+### 2026-06-27 — Browser-style symbol back/forward
+
+- **Goal:** Fix back/forward arrows to behave like a browser — return to the starting/restored symbol, support forward after back, track linked-cell symbol sync per cell.
+- **Completed:** Rewrote `useSymbolNavigationHistory` as a cells-observing auto-tracker (seeds on hydration, navigation-safe cursor moves, per-cell linked sync); removed explicit `push` from `StockApp.handleSymbolSelect`; expanded tests (7 cases).
+- **Verification run:** **Focused:** 31 tests passed (`src/app/components/chart-chrome/`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual back/forward check on `localhost:3003`.
+- **Next best step:** App-level verify `XLV → AAPL → MSFT → back → back → XLV → forward` and linked-symbol back on a synced cell.
+
+### 2026-06-27 — Breadcrumb condensation (labels as links, indexes popover)
+
+- **Goal:** Condense header breadcrumb — sector/industry labels navigate to representative ETFs; remove standalone ETF/index ticker chips; collapse index memberships into Indexes popover.
+- **Completed:** Extended `MarketContextRelationship` with optional `members`; rewrote `buildBreadcrumbChain` to hoist ETF symbols and group indexes; updated `MarketContextBreadcrumb` full + compact rendering; updated tests and architecture doc.
+- **Verification run:** **Focused:** 21 tests passed (`src/lib/marketData/context/`, breadcrumb UI, ChartHeaderBar); **Startup:** `npm run check:startup` passed (26 tests); **Runtime:** `buildMarketContext` AAPL chain verified; **App-level:** pending browser check after dev server refresh (cached market-context may serve pre-condensation shape until TTL).
+- **Next best step:** Restart dev server and app-level verify `Technology → XLK`, `Indexes → SPY`, back/forward on `localhost:3003`.
+
+### 2026-06-27 — Market context breadcrumb navigation
+
+- **Goal:** Header breadcrumb for sector/industry/representative ETF/index relationships with browser-style symbol back/forward per chart cell.
+- **Completed:** Added `MarketContext` contract, IBKR/TWS-first resolver, curated ETF/index maps, `/api/market-data/context`, TWS `/contracts/details`, `MarketContextBreadcrumb`, and `useSymbolNavigationHistory` in `StockApp`.
+- **Verification run:** **Focused:** 26 tests passed (`src/lib/marketData/context`, context API route, breadcrumb UI, symbol history, ChartHeaderBar); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending breadcrumb/history check on `localhost:3003`.
+- **Next best step:** Run `npm run check:startup`, then app-level verify `AAPL → XLK → QQQ → back → forward`.
+
+### 2026-06-27 — Options chain floating dialog
+
+- **Goal:** Move options chain out of cramped sidebar into a TradingView-style floating draggable dialog opened from chart header; preserve pin expiration and risk-ruler presets.
+- **Completed:** Extracted `useOptionsChainModel` and `OptionsChainView` (dialog + sidebar variants); added draggable/resizable `OptionsChainDialog` over chart area; wired Options button in `ChartHeaderBar` and `StockApp`; refactored `OptionsPanel` with “Open full chain”; updated focused tests.
+- **Verification run:** **Focused:** 24 tests passed (`OptionsChainDialog.test.tsx`, `OptionsPanel.test.tsx`, `ChartHeaderBar.test.tsx`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual overlay check on `localhost:3003`.
+- **Next best step:** App-level verify floating chain (open, drag, switch expirations, pin, risk ruler); resume TWS extended-hours alignment check.
+
+### 2026-06-27 — Data Health latency diagnostics
+
+- **Goal:** Combine the fixed bottom-right Market Data Telemetry panel into the Data Health dropdown with a collapsible dev-only Latency Diagnostics section.
+- **Completed:** Extracted `MarketDataLatencyDiagnosticsView`; added `DataHealthLatencySection` (collapsed by default, external-store subscription, summary hint); wired into `DataHealthMenu`; removed fixed overlay from `StockApp`; updated focused tests.
+- **Verification run:** **Focused:** 17 tests passed (`src/app/components/data-health`, `MarketDataTelemetryPanel.test.tsx`, `src/lib/marketData/telemetry`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** pending manual Data Health expand/collapse check on `localhost:3003`.
+- **Next best step:** Resume TWS extended-hours app-level verification (watchlist LAST vs chart marker; extended-hours bars when enabled).
+
+### 2026-06-27 — Right sidebar resize consistency
+
+- **Goal:** Fix jumpy sidebar drag and width changes when switching Object Tree, Options, and Watchlist.
+- **Completed:** Replaced per-panel `sidebar.panelWidths` with shared `sidebar.width`; added legacy migration in layout storage and workspace schema; rewrote resize hook for pointer preview + single commit; local `draftWidth` in shell for immediate visual feedback; updated StockApp wiring and focused tests.
+- **Verification run:** **Focused:** 67 tests passed (`src/app/components/sidebar`, `sidebarWidth`, `layoutStorage`, `chartWorkspace`); **Fast:** `npm run check:startup` passed (26 tests); **App-level:** drag preview/commit and cross-panel width consistency covered by component tests; chart canvas stability retained from prior sidebar resize row.
+- **Next best step:** Resume TWS extended-hours app-level verification (watchlist LAST vs chart marker; extended-hours bars when enabled).
+
+### 2026-06-27 — Telemetry console warning fix
+
+- **Goal:** Remove React dev console warning caused by telemetry panel updates during `MarketDataProvider` quote state handling.
+- **Completed:** Moved SSE `quotes.firstPaint` telemetry out of `setQuotesBySymbol` updater; converted `MarketDataTelemetryPanel` to `useSyncExternalStore`; cached telemetry snapshot for stable external-store reads; added focused tests.
+- **Verification run:** **Focused:** 9 tests passed (`collector.test.ts`, `MarketDataTelemetryPanel.test.tsx`); **Fast:** `npm run check:startup` passed (26 tests); **App-level:** `localhost:3003` reload with telemetry panel — no `Cannot update a component (MarketDataTelemetryPanel)` warning.
+- **Next best step:** Resume TWS app-level verification (watchlist LAST vs chart marker; extended-hours bars when enabled).
+
+### 2026-06-27 — Architecture review checklist
+
+- **Goal:** Add a cross-cutting architecture review checklist so every plan explicitly decides whether architect review is required without creating a parallel planning workflow.
+- **Completed:** Added `docs/checklists/architecture-review-checklist.md` (intake, design, implementation, exit phases); updated planning router, intent checklists, plan harness rule, and instruction validator to require architecture review status in Checklist Review.
+- **Verification run:** **Fast:** `npm run lint:instructions` passed; **Startup:** `npm run check:startup` passed (3 files, 26 tests).
+- **Next best step:** Resume TWS extended-hours app-level verification (watchlist LAST vs chart marker; extended-hours bars when enabled).
+
+### 2026-06-27 — Planning checklist router
+
+- **Goal:** Route planning requests to intent-specific checklists through the existing harness rule without splitting planning enforcement across multiple Cursor rules.
+- **Completed:** Added `docs/checklists/` (router, feature, refactor, bugfix, testing verification, harness status); updated `plan-harness-awareness.mdc` to require intent classification, checklist review, verification plan, and harness update sections; extended instruction validator to check checklist files and rule reference.
+- **Verification run:** **Fast:** `npm run lint:instructions` passed.
+- **Next best step:** Resume TWS extended-hours app-level verification (watchlist LAST vs chart marker; extended-hours bars when enabled).
+
+### 2026-06-27 — TWS extended-hours price alignment
+
+- **Goal:** Align chart current-price marker with watchlist live quote; add TWS extended-hours candle mode; surface pre/regular/post-market state in chart UI.
+- **Completed:** `marketSession` helpers in `@edge/chart-core`; `livePrice`/`liveMarketSession` chart props and price-axis badge; `sessionMode` on candle API/TWS sidecar (`useRTH` mapping); Settings → Extended hours toggle; session status badge + extended-hours background bands; architecture doc update.
+- **Verification run:** **Focused:** 36 tests passed; **Build:** `npm run build:packages` passed; **Fast:** `npm run check:startup` passed (26 tests); **App-level:** pending TWS check (watchlist LAST vs chart marker; extended-hours bars when enabled).
+- **Next best step:** With `TWS_ENABLED=true`, confirm OUST/similar symbol: watchlist LAST matches chart marker during post-market; toggle Extended hours in Settings and confirm pre/post shading on intraday charts.
+
+### 2026-06-26 — TWS recovery follow-ups (health UX + data reload)
+
+- **Goal:** Remove misleading Client Portal IBKR health from TWS-only workflow; make Recover TWS reload chart/watchlist data from IB after sidecar reconnect.
+- **Completed:** Gated IBKR health probe/row on `IBKR_ENABLED`; renamed TWS provider label to IB Gateway; added `resetTwsRecoveryState()` + hot/cache invalidation + `primeMarketData()` on recover route; client `reloadMarketData()` / chart `reloadKey` refetch path.
+- **Verification run:** **Focused:** 35 tests passed; **Fast:** `npm run check:startup` passed (26 tests); **App-level:** pending manual recovery check.
+- **Next best step:** Gateway down → login → Recover TWS → confirm Active Chart source becomes `TWS` without page refresh.
+
+### 2026-06-26 — TWS sidecar in-app recovery
+
+- **Goal:** Add in-app recovery for the local TWS sidecar after IB Gateway is manually restored.
+- **Completed:** Added sidecar reconnect control endpoint; Node recover helper + API route; Data Health recover button; TWS gate reset and symbol warmup; architecture/env documentation.
+- **Verification run:** **Focused:** 16 tests passed; **Fast:** `npm run check:startup` passed (26 tests); **App-level:** pending manual recovery check.
+- **Next best step:** Run focused tests, then verify recover flow in browser with Gateway down → login → Recover TWS.
+
+### 2026-06-26 — Data health center
+
+- **Goal:** Add a top-bar Data Health dropdown showing where chart/watchlist/options data is served from, including fallback and provider status.
+- **Completed:** Added `health.ts` snapshot/severity layer; `/api/market-data/health` route with TWS/IBKR probes and circuit-breaker snapshots; extended `MarketDataProvider` with quote meta/transport; built `DataHealthProvider`, button, and menu; wired into `ChartHeaderBar` and `OptionsPanel`; updated market-data architecture doc.
+- **Verification run:** **Focused:** `npm test -- --run src/lib/marketData src/app/api/market-data src/app/components/chart-chrome src/app/components/data-health` passed (169 tests); **Fast:** `npm run check:startup` passed (26 tests).
+- **Next best step:** App-level browser check on `localhost:3003` when convenient — open Data Health menu after chart load and confirm provider rows match local TWS/IBKR availability.
+
+### 2026-06-26 — Sidebar resize chart stability
+
+- **Goal:** Stop active chart candles from disappearing and reduce jank while dragging the right sidebar resize handle.
+- **Completed:** Reproduced a transparent canvas frame during panel drag; coalesced sidebar width writes through `requestAnimationFrame`; flushed pending drag width on mouseup; moved chart resize redraw into `useLayoutEffect` so canvas attribute changes repaint before users see a blank chart.
+- **Verification run:** **Focused:** `npm test -- --run src/app/components/sidebar/SidebarPanelShell.test.tsx packages/chart-react/src/engine/canvas.test.tsx` passed (13 tests); **Fast:** `npm run check:startup` passed (26 tests); **App-level:** live `localhost:3003` drag instrumentation kept the first chart canvas non-transparent/no loading state while resizing from max to min panel width.
+- **Next best step:** Continue Phase 2 workflow panels (corporate events, news, fundamentals, macro).
 
 ### 2026-06-26 — Event overlay data + bottom rail
 
