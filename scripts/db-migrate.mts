@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,14 +15,25 @@ if (!databaseUrl) {
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const migrationPath = join(__dirname, "../src/db/migrations/0000_init.sql");
-const sql = readFileSync(migrationPath, "utf8");
+const migrationsDir = join(__dirname, "../src/db/migrations");
+const migrationFiles = readdirSync(migrationsDir)
+  .filter((file) => file.endsWith(".sql"))
+  .sort();
+
+if (migrationFiles.length === 0) {
+  console.error("No migration files found in", migrationsDir);
+  process.exit(1);
+}
 
 const pool = new Pool({ connectionString: databaseUrl });
 
 try {
-  await pool.query(sql);
-  console.log("Applied migration:", migrationPath);
+  for (const file of migrationFiles) {
+    const migrationPath = join(migrationsDir, file);
+    const sql = readFileSync(migrationPath, "utf8");
+    await pool.query(sql);
+    console.log("Applied migration:", migrationPath);
+  }
 } finally {
   await pool.end();
 }

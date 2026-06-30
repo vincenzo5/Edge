@@ -16,10 +16,15 @@ import {
 } from "../src/lib/marketData/service/marketDataService.ts";
 import { clearHotStoreForTests } from "../src/lib/marketData/hotStore.ts";
 import { createMarketDataTraceId } from "../src/lib/marketData/telemetry/trace.ts";
+import { PerfPhaseCollector } from "../src/lib/marketData/telemetry/perfPhases.ts";
+import { deriveScreenerPresetResult } from "../src/lib/marketData/telemetry/screenerPerf.ts";
 import type {
   MarketDataPerfBaseline,
   MarketDataPerfScenarioResult,
 } from "../src/lib/marketData/telemetry/types.ts";
+import type { ScreenerPerfPresetResult } from "../src/lib/marketData/telemetry/screenerPerf.ts";
+import { SCREENER_PRESETS } from "../src/lib/screener/presets.ts";
+import type { ScreenQuery } from "../src/lib/marketData/schemas/request.ts";
 import { createTwsProvider } from "../src/lib/marketData/providers/tws/adapter.ts";
 import { createIbkrProvider } from "../src/lib/marketData/providers/ibkr/adapter.ts";
 
@@ -142,6 +147,52 @@ async function runScenario(
       totalMs: 0,
       error: error instanceof Error ? error.message : String(error),
     };
+  }
+}
+
+const TECHNICAL_SCREENER_PRESET_IDS = [
+  "rsi-oversold",
+  "rsi-overbought",
+  "golden-cross",
+  "near-52wk-high",
+  "macd-bullish",
+  "boll-pctb-overbought",
+  "rsi-indicator",
+] as const;
+
+async function runScreenerPresetScenario(
+  service: ReturnType<typeof createService>,
+  presetId: string,
+  query: ScreenQuery,
+  variant: "cold" | "warm",
+): Promise<ScreenerPerfPresetResult> {
+  const traceId = createMarketDataTraceId(`screener:${presetId}:${variant}`);
+  const perf = new PerfPhaseCollector();
+  const startedAt = Date.now();
+  try {
+    const result = await service.getScreenerResults(query, { perf, traceId });
+    const totalMs = Date.now() - startedAt;
+    const phases = [...perf.toArray(), ...(result.phases ?? [])];
+    return deriveScreenerPresetResult(
+      presetId,
+      variant,
+      phases,
+      totalMs,
+      result.data.length,
+      traceId,
+      true,
+    );
+  } catch (error) {
+    return deriveScreenerPresetResult(
+      presetId,
+      variant,
+      perf.toArray(),
+      Date.now() - startedAt,
+      0,
+      traceId,
+      false,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -305,6 +356,30 @@ async function main(): Promise<void> {
     );
   }
 
+  const screenerResults: ScreenerPerfPresetResult[] = [];
+  const technicalPresets = SCREENER_PRESETS.filter(
+    (preset): preset is Extract<(typeof SCREENER_PRESETS)[number], { kind: "screener" }> =>
+      preset.kind === "screener" &&
+      TECHNICAL_SCREENER_PRESET_IDS.includes(
+        preset.id as (typeof TECHNICAL_SCREENER_PRESET_IDS)[number],
+      ),
+  );
+
+  if (process.env.FMP_API_KEY) {
+    for (const preset of technicalPresets) {
+      clearMarketDataCacheForTests();
+      clearHotStoreForTests();
+      screenerResults.push(
+        await runScreenerPresetScenario(service, preset.id, preset.query, "cold"),
+      );
+      screenerResults.push(
+        await runScreenerPresetScenario(service, preset.id, preset.query, "warm"),
+      );
+    }
+  } else {
+    console.warn("Skipping screener baseline scenarios: FMP_API_KEY is not configured");
+  }
+
   const baseline: MarketDataPerfBaseline = {
     generatedAt: new Date().toISOString(),
     git: gitMeta(),
@@ -315,6 +390,7 @@ async function main(): Promise<void> {
       ...providerEnv,
     },
     scenarios,
+    screener: screenerResults.length > 0 ? screenerResults : undefined,
   };
 
   mkdirSync(perfDir, { recursive: true });
@@ -326,6 +402,19 @@ async function main(): Promise<void> {
   const payload = `${JSON.stringify(baseline, null, 2)}\n`;
   writeFileSync(latestPath, payload);
   writeFileSync(stampedPath, payload);
+
+  if (screenerResults.length > 0) {
+    const screenerBaseline = {
+      generatedAt: baseline.generatedAt,
+      git: baseline.git,
+      environment: baseline.environment,
+      presets: screenerResults,
+    };
+    const screenerLatestPath = path.join(perfDir, "screener-baseline-latest.json");
+    const screenerPayload = `${JSON.stringify(screenerBaseline, null, 2)}\n`;
+    writeFileSync(screenerLatestPath, screenerPayload);
+    console.log(`\nScreener baseline saved:\n- ${screenerLatestPath}`);
+  }
 
   console.log("\nScenario summary:");
   for (const scenario of baseline.scenarios) {
@@ -339,6 +428,20 @@ async function main(): Promise<void> {
   }
 
   console.log(`\nSaved baseline:\n- ${latestPath}\n- ${stampedPath}`);
+
+  if (screenerResults.length > 0) {
+    console.log("\nScreener preset summary:");
+    for (const preset of screenerResults) {
+      const parts = [
+        `${preset.presetId}:${preset.variant}`,
+        `${preset.totalMs}ms`,
+        preset.technicalMs != null ? `technical ${preset.technicalMs}ms` : "—",
+        preset.matched != null ? `${preset.matched} matched` : "—",
+        preset.candleCacheHitPct != null ? `candle-cache ${preset.candleCacheHitPct}%` : "—",
+      ];
+      console.log(`- ${parts.join(" | ")}`);
+    }
+  }
 }
 
 main().catch((error) => {
