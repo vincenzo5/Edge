@@ -8,6 +8,7 @@
  * - Product command palettes and branded workflows
  */
 
+import type { ReactNode } from 'react';
 import type {
   Candle,
   CrosshairMoveEvent,
@@ -120,6 +121,16 @@ export type EdgeChartProps = {
   symbol?: string;
   symbolName?: string;
   exchange?: string;
+  /** Optional live quote used for the symbol last-price line/label. */
+  livePrice?: number | null;
+  /** Current market session for live quote labeling. */
+  liveMarketSession?: import('@edge/chart-core').MarketSessionKind | null;
+  /** Session status label for legend chrome. */
+  marketSessionLabel?: string | null;
+  /** Optional second-line legend content (e.g. market context breadcrumb). */
+  legendContextSlot?: ReactNode;
+  /** Optional content rendered before the OHLCV sections on the top legend line (e.g. symbol nav arrows). */
+  legendLeadingSlot?: ReactNode;
   interval?: Interval;
   range?: Range;
   rangePreset?: Range | null;

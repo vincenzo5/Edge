@@ -1,4 +1,5 @@
 import type { Candle, VisibleRange, Theme, Interval, IndicatorConfig, SerializedDrawing } from '@edge/chart-core';
+import { classifyUsEquitySession } from '@edge/chart-core';
 import type { ChartAnnotationChannelMarker, ChartEventMarker, ChartReferenceLine } from '@edge/chart-core';
 import type { RequiredChartSettings } from './chartSettings';
 import {
@@ -51,6 +52,50 @@ export function drawPlotBackground(
     ctx.fillText(label, pw / 2, ph / 2);
     ctx.restore();
   }
+}
+
+/** Shade pre/post-market bar regions when extended-hours candles are enabled. */
+export function drawSessionRegions(
+  ctx: CanvasRenderingContext2D,
+  vp: VisibleRange,
+  candles: Candle[],
+  width: number,
+  height: number,
+  theme: Theme,
+  settings: RequiredChartSettings,
+  showTimeAxis = true,
+) {
+  if (settings.symbol.sessionMode !== 'extended') return;
+  if (candles.length === 0 || !vp.xForIndex) return;
+
+  const ph = plotHeight(height, showTimeAxis);
+  const start = Math.max(0, Math.floor(vp.startIndex));
+  const end = Math.min(candles.length - 1, Math.ceil(vp.endIndex));
+
+  ctx.save();
+  for (let i = start; i <= end; i++) {
+    const candle = candles[i];
+    if (!candle) continue;
+    const session = classifyUsEquitySession(candle.t);
+    if (session !== 'preMarket' && session !== 'postMarket') continue;
+
+    const x0 = vp.xForIndex(i);
+    const x1 = vp.xForIndex(i + 1);
+    if (!Number.isFinite(x0) || !Number.isFinite(x1)) continue;
+    const left = Math.min(x0, x1);
+    const w = Math.max(1, Math.abs(x1 - x0));
+
+    ctx.fillStyle =
+      session === 'preMarket'
+        ? theme === 'dark'
+          ? 'rgba(88, 166, 255, 0.06)'
+          : 'rgba(37, 99, 235, 0.06)'
+        : theme === 'dark'
+          ? 'rgba(255, 171, 64, 0.06)'
+          : 'rgba(234, 88, 12, 0.06)';
+    ctx.fillRect(left, 0, w, ph);
+  }
+  ctx.restore();
 }
 
 export function drawGrid(
@@ -450,6 +495,8 @@ export type DrawPriceAxisAnnotationsInput = {
   interval?: Interval;
   showTimeAxis?: boolean;
   nowMs?: number;
+  livePrice?: number | null;
+  liveMarketSession?: import('@edge/chart-core').MarketSessionKind | null;
 };
 
 export function drawPriceAxisAnnotations(input: DrawPriceAxisAnnotationsInput): void {
@@ -467,6 +514,8 @@ export function drawPriceAxisAnnotations(input: DrawPriceAxisAnnotationsInput): 
     interval,
     showTimeAxis = true,
     nowMs,
+    livePrice,
+    liveMarketSession,
   } = input;
 
   const side = resolvePriceScaleSide(settings.scales.priceScalePlacement);
@@ -484,6 +533,8 @@ export function drawPriceAxisAnnotations(input: DrawPriceAxisAnnotationsInput): 
     interval,
     showTimeAxis,
     nowMs,
+    livePrice,
+    liveMarketSession,
   });
   const laidOut = filterVisibleAnnotations(
     layoutPriceAxisAnnotations(raw, vp, settings, ph),

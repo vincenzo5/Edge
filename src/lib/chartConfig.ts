@@ -78,17 +78,19 @@ export const DEFAULT_TOOLBAR_PREFS: ToolbarPrefs = {
 };
 
 /** Right sidebar panel identifiers — extend as new panels ship. */
-export type SidebarPanelId = "object-tree" | "watchlist" | "options";
+export type SidebarPanelId = "object-tree" | "watchlist";
+
+/** Legacy persisted panel id removed from the rail; migrate to null on load. */
+export type LegacySidebarPanelId = SidebarPanelId | "options";
 
 export type SidebarPrefs = {
   activePanel: SidebarPanelId | null;
-  /** Per-panel user-resized widths in pixels. */
-  panelWidths?: Partial<Record<SidebarPanelId, number>>;
+  /** User-resized sidebar width in pixels (shared across all panels). */
+  width?: number;
 };
 
 export const DEFAULT_SIDEBAR_PREFS: SidebarPrefs = {
   activePanel: null,
-  panelWidths: {},
 };
 
 export type CellConfig = {

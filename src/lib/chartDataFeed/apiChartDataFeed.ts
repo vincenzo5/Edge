@@ -30,15 +30,17 @@ import {
 } from '@/lib/marketData/telemetry';
 import type { MarketDataPerfPhase } from '@/lib/marketData/telemetry';
 
+type ApiMetaPayload = Partial<ChartDataMeta> & {
+  source?: string;
+  latencyMs?: number;
+  cacheTier?: string;
+  traceId?: string;
+  phases?: MarketDataPerfPhase[];
+};
+
 type ApiCandlesResponse = {
   candles: unknown[];
-  meta?: Partial<ChartDataMeta> & {
-    source?: string;
-    latencyMs?: number;
-    cacheTier?: string;
-    traceId?: string;
-    phases?: MarketDataPerfPhase[];
-  };
+  meta?: ApiMetaPayload;
 };
 
 type ApiQuotesResponse = {
@@ -53,7 +55,7 @@ type ApiQuotesResponse = {
     shortName?: string;
     updatedAt?: number;
   }>;
-  meta?: Partial<ChartDataMeta> & { source?: string };
+  meta?: ApiMetaPayload;
 };
 
 type ApiMarketEvent = {
@@ -71,7 +73,7 @@ type ApiMarketEvent = {
 
 type ApiEventsResponse = {
   events: ApiMarketEvent[];
-  meta?: Partial<ChartDataMeta> & { source?: string };
+  meta?: ApiMetaPayload;
 };
 
 type ApiNewsItem = {
@@ -83,12 +85,12 @@ type ApiNewsItem = {
 
 type ApiNewsResponse = {
   news: ApiNewsItem[];
-  meta?: Partial<ChartDataMeta> & { source?: string };
+  meta?: ApiMetaPayload;
 };
 
 type ApiOptionsExpirationsResponse = {
   expirations: string[];
-  meta?: Partial<ChartDataMeta> & { source?: string };
+  meta?: ApiMetaPayload;
 };
 
 function chartKindFromApiEvent(event: ApiMarketEvent): ChartEventKind {
@@ -140,7 +142,7 @@ function dateParamFromTimestamp(ts: number): string {
   return new Date(ts).toISOString().slice(0, 10);
 }
 
-function normalizeMeta(partial: ApiCandlesResponse['meta']): ChartDataMeta {
+function normalizeMeta(partial: ApiMetaPayload | undefined): ChartDataMeta {
   return {
     source: (partial?.source as ChartDataMeta['source']) ?? 'yahoo',
     asOf: partial?.asOf ?? Date.now(),
@@ -315,6 +317,7 @@ export function createApiChartDataFeed(
         symbol: request.symbol,
         range: request.range ?? '1y',
         interval: providerInterval,
+        sessionMode: request.sessionMode ?? 'regular',
       });
       return normalizeCandlePage(
         request.symbol,
@@ -334,6 +337,7 @@ export function createApiChartDataFeed(
         interval: providerInterval,
         before: request.beforeTimestamp,
         barCount: fetchBarCount,
+        sessionMode: request.sessionMode ?? 'regular',
       });
       return normalizeCandlePage(
         request.symbol,

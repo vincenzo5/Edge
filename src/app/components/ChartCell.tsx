@@ -13,9 +13,12 @@ import { buildChartContextMenuItems, buildPriceScaleContextMenuItems } from "./c
 import { buildChartCopyItems } from "./chartCopyMenu";
 import { useChartSync } from "./ChartSyncContext";
 import { useActiveChartBridge } from "./ActiveChartContext";
+import { useMarketDataQuotes } from "./MarketDataProvider";
 import { useSidebarOptional } from "./SidebarContext";
 import type { Candle, DrawingStyles } from "@/lib/chart/contracts";
 import type { ChartDataMeta } from "@edge/chart-core";
+import type { MarketSessionKind } from "@edge/chart-core";
+import { resolveMarketSession, sessionStatusLabel } from "@edge/chart-core";
 import type { GoToRequest } from "@/lib/chart/goTo";
 import {
   PRICE_PANE_KEY,
@@ -61,6 +64,9 @@ import {
   savePreset,
 } from "@/lib/presetStorage";
 import { getShortcutLabel } from "@/lib/shortcuts/formatShortcutLabel";
+import MarketContextBreadcrumb from "./chart-chrome/MarketContextBreadcrumb";
+import type { ChartSymbolNav } from "./ChartGrid";
+import type { SymbolSelectResult } from "@/lib/watchlist/types";
 
 type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
 
@@ -71,6 +77,7 @@ type Props = {
   compact?: boolean;
   isActive?: boolean;
   toolbarPrefs: ToolbarPrefs;
+  symbolNav?: ChartSymbolNav;
   onFocus?: () => void;
   onConfigChange: (next: CellConfig) => void;
   onToolbarPrefsChange: (next: ToolbarPrefs) => void;
@@ -84,6 +91,7 @@ export default function ChartCell({
   compact = false,
   isActive = true,
   toolbarPrefs,
+  symbolNav,
   onFocus,
   onConfigChange,
   onToolbarPrefsChange,
@@ -139,6 +147,7 @@ export default function ChartCell({
   const [dataMeta, setDataMeta] = useState<ChartDataMeta | null>(null);
   const sync = useChartSync();
   const activeChartBridge = useActiveChartBridge();
+  const marketData = useMarketDataQuotes();
   const sidebar = useSidebarOptional();
 
   const magnet = toolbarPrefs.magnet ?? false;
@@ -1046,6 +1055,47 @@ export default function ChartCell({
     [sync, chartId],
   );
 
+  const liveQuote =
+    marketData?.quotesBySymbol.get(config.symbol.trim().toUpperCase()) ?? null;
+  const liveQuotePrice = liveQuote?.regularMarketPrice ?? null;
+  const liveMarketSession: MarketSessionKind | null = liveQuote
+    ? resolveMarketSession({
+        atMs: liveQuote.updatedAt,
+        marketState: liveQuote.marketState,
+      })
+    : null;
+  const sessionMode = config.chartSettings?.symbol?.sessionMode ?? 'regular';
+  const marketSessionLabel =
+    liveMarketSession != null
+      ? sessionStatusLabel(liveMarketSession, sessionMode)
+      : null;
+
+  const handleContextSymbolSelect = useCallback(
+    (result: SymbolSelectResult) => {
+      if (symbolNav?.onSymbolSelect) {
+        symbolNav.onSymbolSelect(result);
+        return;
+      }
+      onConfigChange({
+        ...config,
+        symbol: result.symbol,
+        symbolName: result.name,
+        exchange: result.exchange,
+      });
+    },
+    [symbolNav, config, onConfigChange],
+  );
+
+  const legendContextSlot =
+    config.symbol.trim().length > 0 ? (
+      <MarketContextBreadcrumb
+        symbol={config.symbol}
+        theme={theme}
+        density={compact ? "compact" : "full"}
+        onSymbolSelect={handleContextSymbolSelect}
+      />
+    ) : null;
+
   return (
     <div
       className="flex h-full min-h-0 flex-col overflow-hidden"
@@ -1085,6 +1135,11 @@ export default function ChartCell({
             compact={compact}
             visibleCount={visibleCount}
             chartId={chartId}
+            reloadKey={marketData?.reloadToken ?? 0}
+            livePrice={liveQuotePrice}
+            liveMarketSession={liveMarketSession}
+            marketSessionLabel={marketSessionLabel}
+            legendContextSlot={legendContextSlot}
             onCrosshairTimestamp={handleCrosshairFire}
             onCrosshairMove={handleCrosshairMove}
             suppressCrosshair={contextMenu != null}

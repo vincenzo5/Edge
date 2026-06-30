@@ -7,6 +7,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  type ReactNode,
 } from 'react';
 import PackageEdgeChart, {
   type DrawingScreenBounds,
@@ -80,7 +81,16 @@ type Props = {
   onLegendAction?: (actionId: string) => void;
   compact?: boolean;
   suppressCrosshair?: boolean;
+  livePrice?: number | null;
+  liveMarketSession?: import('@edge/chart-core').MarketSessionKind | null;
+  marketSessionLabel?: string | null;
   feed?: UseChartDataFeedOptions['feed'];
+  /** Bump to refetch candles without changing symbol/range/interval. */
+  reloadKey?: number;
+  /** Optional second-line legend content (e.g. market context breadcrumb). */
+  legendContextSlot?: ReactNode;
+  /** Optional content rendered before the OHLCV sections on the top legend line (e.g. symbol nav arrows). */
+  legendLeadingSlot?: ReactNode;
 };
 
 const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) {
@@ -97,8 +107,14 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     maximizedKey,
     paneOrder,
     feed = defaultApiChartDataFeed,
+    reloadKey = 0,
+    livePrice = null,
+    liveMarketSession = null,
+    marketSessionLabel = null,
     ...rest
   } = props;
+
+  const sessionMode = config.chartSettings?.symbol?.sessionMode ?? 'regular';
 
   const innerRef = useRef<EdgeChartHandle>(null);
   const chartAreaRef = useRef<HTMLDivElement>(null);
@@ -111,6 +127,8 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     exchange: config.exchange,
     interval: config.interval,
     range: config.range,
+    sessionMode,
+    reloadKey,
   });
 
   const localAnnotations = useMemo(
@@ -261,6 +279,9 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         symbol={config.symbol}
         symbolName={config.symbolName}
         exchange={config.exchange}
+        livePrice={livePrice}
+        liveMarketSession={liveMarketSession}
+        marketSessionLabel={marketSessionLabel}
         interval={config.interval}
         range={config.range}
         rangePreset={config.rangePreset ?? null}

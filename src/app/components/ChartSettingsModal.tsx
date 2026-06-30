@@ -450,6 +450,17 @@ export default function ChartSettingsModal({
                     options={timeZoneOptions}
                     onChange={(v) => setSymbol({ timeZone: v })}
                   />
+                  <SelectRow
+                    label="Extended hours"
+                    value={values.symbol.sessionMode}
+                    options={[
+                      { value: "regular", label: "Regular hours only" },
+                      { value: "extended", label: "Include pre/post-market" },
+                    ]}
+                    onChange={(v) =>
+                      setSymbol({ sessionMode: v as "regular" | "extended" })
+                    }
+                  />
                 </div>
               </>
             )}

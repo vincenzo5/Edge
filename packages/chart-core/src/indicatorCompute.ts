@@ -16,7 +16,7 @@ function updateHash(hash: number, value: number | undefined): number {
   return next;
 }
 
-function candleValueFingerprint(candles: Candle[]): string {
+export function candleValueFingerprint(candles: Candle[]): string {
   let hash = 2166136261;
   for (const candle of candles) {
     hash = updateHash(hash, candle.t);

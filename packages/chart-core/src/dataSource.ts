@@ -6,6 +6,7 @@
  */
 
 import type { Candle, Interval, Range } from './contracts';
+import type { MarketSessionMode } from './marketSession';
 
 /** Documented unit for `Candle.t` — Unix epoch milliseconds (UTC). */
 export const CANDLE_TIMESTAMP_UNIT = 'milliseconds' as const;
@@ -40,6 +41,8 @@ export type CandleRequest = {
   from?: number;
   /** Explicit window end (ms, inclusive). */
   to?: number;
+  /** Regular-hours only vs include pre/post-market bars (intraday). Default regular. */
+  sessionMode?: MarketSessionMode;
 };
 
 export type CandleResponse = {
@@ -163,6 +166,7 @@ export type ChartHistoryRequest = {
   beforeTimestamp: number;
   barCount?: number;
   exchange?: string;
+  sessionMode?: MarketSessionMode;
 };
 
 export type ChartQuoteRequest = QuoteRequest;

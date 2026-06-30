@@ -125,4 +125,62 @@ describe('useChartDataFeed', () => {
     rerender({ symbol: 'MSFT' });
     await waitFor(() => expect(subscribe).toHaveBeenCalledTimes(2));
   });
+
+  it('resubscribes when reloadKey bumps for the same symbol', async () => {
+    const loadCandles = vi.fn(async (request) => ({
+      symbol: request.symbol,
+      interval: request.interval,
+      candles: baseCandles,
+      hasMore: true,
+      meta: { source: 'tws', asOf: Date.now(), stale: false, warnings: [] },
+    }));
+    const feed = createStreamingFeed({ loadCandles });
+    const { result, rerender } = renderHook(
+      (props: { reloadKey: number }) =>
+        useChartDataFeed({
+          feed,
+          symbol: 'AAPL',
+          interval: '1d',
+          range: '1mo',
+          reloadKey: props.reloadKey,
+        }),
+      { initialProps: { reloadKey: 0 } },
+    );
+
+    await waitFor(() => expect(result.current.candles).toHaveLength(2));
+    expect(loadCandles).toHaveBeenCalledTimes(1);
+
+    rerender({ reloadKey: 1 });
+    await waitFor(() => expect(loadCandles).toHaveBeenCalledTimes(2));
+    expect(result.current.meta?.source).toBe('tws');
+  });
+
+  it('reloads when sessionMode changes', async () => {
+    const loadCandles = vi.fn(async (request) => ({
+      symbol: request.symbol,
+      interval: request.interval,
+      candles: baseCandles,
+      hasMore: true,
+      meta: { source: 'tws', asOf: Date.now(), stale: false, warnings: [] },
+    }));
+    const feed = createStreamingFeed({ loadCandles });
+    const { rerender } = renderHook(
+      (props: { sessionMode: 'regular' | 'extended' }) =>
+        useChartDataFeed({
+          feed,
+          symbol: 'AAPL',
+          interval: '5m',
+          range: '1d',
+          sessionMode: props.sessionMode,
+        }),
+      { initialProps: { sessionMode: 'regular' as const } },
+    );
+
+    await waitFor(() => expect(loadCandles).toHaveBeenCalledTimes(1));
+    expect(loadCandles.mock.calls[0]?.[0]?.sessionMode).toBe('regular');
+
+    rerender({ sessionMode: 'extended' });
+    await waitFor(() => expect(loadCandles).toHaveBeenCalledTimes(2));
+    expect(loadCandles.mock.calls[1]?.[0]?.sessionMode).toBe('extended');
+  });
 });

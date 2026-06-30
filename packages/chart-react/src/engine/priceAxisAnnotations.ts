@@ -1,4 +1,6 @@
-import type { Candle, IndicatorConfig, SerializedDrawing, Theme, VisibleRange, Interval } from '@edge/chart-core';
+import type { Candle, VisibleRange, Theme, Interval, IndicatorConfig, SerializedDrawing } from '@edge/chart-core';
+import type { MarketSessionKind } from '@edge/chart-core';
+import { sessionPriceLabelPrefix } from '@edge/chart-core';
 import type { RequiredChartSettings } from './chartSettings';
 import { formatPrice } from '@edge/chart-core/format';
 import {
@@ -64,14 +66,22 @@ export function collectSymbolAnnotations(
   theme: Theme,
   interval?: Interval,
   nowMs = Date.now(),
+  livePrice?: number | null,
+  liveMarketSession?: MarketSessionKind | null,
 ): PriceAxisAnnotation[] {
   const last = candles[candles.length - 1];
-  const price = last?.c;
+  const usingLiveQuote =
+    livePrice != null && Number.isFinite(livePrice);
+  const price = usingLiveQuote ? livePrice : last?.c;
   if (price == null || !Number.isFinite(price)) return [];
 
   const colors = getChartColors(theme);
   const scaleCtx = vp.priceScaleContext ?? linearScaleContext();
-  const label = formatAnnotationPrice(price, scaleCtx);
+  const priceText = formatAnnotationPrice(price, scaleCtx);
+  const sessionPrefix = usingLiveQuote
+    ? sessionPriceLabelPrefix(liveMarketSession ?? 'regular')
+    : null;
+  const label = sessionPrefix ? `${sessionPrefix} ${priceText}` : priceText;
   const showLabel = symbolShowsLabel(settings);
   const line = symbolLineMode(settings);
   if (!showLabel && line === 'hidden') return [];
@@ -210,6 +220,8 @@ export function collectPriceAxisAnnotations(input: {
   interval?: Interval;
   showTimeAxis?: boolean;
   nowMs?: number;
+  livePrice?: number | null;
+  liveMarketSession?: MarketSessionKind | null;
 }): PriceAxisAnnotation[] {
   const {
     paneId,
@@ -222,11 +234,22 @@ export function collectPriceAxisAnnotations(input: {
     interval,
     showTimeAxis = true,
     nowMs = Date.now(),
+    livePrice,
+    liveMarketSession,
   } = input;
 
   if (paneId === 'price') {
     return [
-      ...collectSymbolAnnotations(candles, vp, settings, theme, interval, nowMs),
+      ...collectSymbolAnnotations(
+        candles,
+        vp,
+        settings,
+        theme,
+        interval,
+        nowMs,
+        livePrice,
+        liveMarketSession,
+      ),
       ...collectIndicatorAnnotations(indicators, candles, vp, settings, theme, paneId),
       ...collectDrawingAnnotations(drawings, vp, candles, settings, theme, paneId, showTimeAxis),
     ];

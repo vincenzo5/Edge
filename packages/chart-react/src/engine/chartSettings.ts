@@ -1,6 +1,7 @@
 /** Per-cell chart display settings (TradingView Settings dialog subset). */
 
 import type { Theme } from '@edge/chart-core';
+import type { MarketSessionMode } from '@edge/chart-core';
 import type { CrosshairMode } from '@edge/chart-core/crosshairMode';
 import type { PriceScaleType } from '@edge/chart-core/priceScaleTransform';
 import { getChartColors } from './chartTheme';
@@ -41,6 +42,8 @@ export type SymbolStyleSettings = {
   colorBarsByPreviousClose?: boolean;
   precision?: PricePrecision;
   timeZone?: ChartTimeZone;
+  /** Regular-hours candles only vs include pre/post-market intraday bars. */
+  sessionMode?: MarketSessionMode;
 };
 
 export type StatusLineSettings = {
@@ -187,13 +190,14 @@ const DEFAULT_SYMBOL: RequiredSymbolStyleSettings = {
   colorBarsByPreviousClose: false,
   precision: 'default',
   timeZone: DEFAULT_CHART_TIMEZONE,
+  sessionMode: 'regular',
 };
 
 const DEFAULT_STATUS_LINE: RequiredStatusLineSettings = {
   showLogo: true,
   showTitle: true,
   titleMode: 'name',
-  showMarketStatus: false,
+  showMarketStatus: true,
   showChartValues: true,
   showBarChangeValues: true,
   showVolume: true,

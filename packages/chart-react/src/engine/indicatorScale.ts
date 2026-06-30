@@ -12,6 +12,7 @@ export function applyPanePriceScale(
   paneId: string,
   indicators: IndicatorConfig[],
   chartSettings?: RequiredChartSettings | null,
+  livePrice?: number | null,
 ): VisibleRange {
   if ((vp as { priceScaleMode?: string }).priceScaleMode === 'manual') {
     return vp;
@@ -64,11 +65,19 @@ export function applyPanePriceScale(
       if (min !== Infinity && max > min) {
         const candleRange = updatePriceRange(vp, candles);
         const pad = (max - min) * PADDING;
+        const liveMin =
+          paneId === 'price' && livePrice != null && Number.isFinite(livePrice)
+            ? livePrice
+            : Infinity;
+        const liveMax =
+          paneId === 'price' && livePrice != null && Number.isFinite(livePrice)
+            ? livePrice
+            : -Infinity;
         return attachViewportHelpers(
           {
             ...vp,
-            priceMin: Math.min(candleRange.priceMin, min - pad),
-            priceMax: Math.max(candleRange.priceMax, max + pad),
+            priceMin: Math.min(candleRange.priceMin, min - pad, liveMin),
+            priceMax: Math.max(candleRange.priceMax, max + pad, liveMax),
           },
           candles.length,
         );
@@ -76,7 +85,21 @@ export function applyPanePriceScale(
     }
   }
 
-  return updatePriceRange(vp, candles);
+  const next = updatePriceRange(vp, candles);
+  if (paneId !== 'price' || livePrice == null || !Number.isFinite(livePrice)) {
+    return next;
+  }
+  if (livePrice >= next.priceMin && livePrice <= next.priceMax) {
+    return next;
+  }
+  return attachViewportHelpers(
+    {
+      ...next,
+      priceMin: Math.min(next.priceMin, livePrice),
+      priceMax: Math.max(next.priceMax, livePrice),
+    },
+    candles.length,
+  );
 }
 
 /** Reset Y scale to auto-fit (price pane or indicator sub-pane). */

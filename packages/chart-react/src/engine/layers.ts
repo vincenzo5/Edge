@@ -26,6 +26,7 @@ import {
   drawPlotBackground,
   drawPriceAxisAnnotations,
   drawReferenceLines,
+  drawSessionRegions,
 } from './renderer';
 import type { EventBadgeGroup } from './eventBadges';
 import type { DrawInvalidationReason, DrawPhaseTimings } from './renderScheduler';
@@ -74,6 +75,8 @@ export type LayerDrawState = {
   eventMarkers: ChartEventMarker[];
   referenceLines: ChartReferenceLine[];
   annotationMarkers: ChartAnnotationChannelMarker[];
+  livePrice?: number | null;
+  liveMarketSession?: import('@edge/chart-core').MarketSessionKind | null;
   hoveredEventBadgeId?: string | null;
   selectedEventBadgeId?: string | null;
   onEventBadgeGroupsDrawn?: (groups: EventBadgeGroup[]) => void;
@@ -153,6 +156,19 @@ function drawCandleOhlc(state: LayerDrawState): void {
     candleWebGL,
     candlesUseWebGL,
   } = state;
+
+  if (state.isPricePane && chartSettings.symbol.sessionMode === 'extended') {
+    drawSessionRegions(
+      ctx,
+      vp,
+      candles,
+      width,
+      height,
+      theme,
+      chartSettings,
+      effectiveShowTimeAxis,
+    );
+  }
 
   const usedWebGL =
     candlesUseWebGL &&
@@ -369,6 +385,7 @@ function drawAxesLabelsLayer(state: LayerDrawState): void {
     isPricePane,
     effectiveShowTimeAxis,
     priceScaleSide,
+    livePrice,
   } = state;
 
   const axisSide: PriceScaleSide = isPricePane ? priceScaleSide : 'right';
@@ -400,6 +417,8 @@ function drawAxesLabelsLayer(state: LayerDrawState): void {
       drawings,
       interval,
       showTimeAxis: effectiveShowTimeAxis,
+      livePrice,
+      liveMarketSession: state.liveMarketSession,
     });
   }
 }

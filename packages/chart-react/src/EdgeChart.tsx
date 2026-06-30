@@ -74,6 +74,11 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     symbol = '',
     symbolName,
     exchange,
+    livePrice = null,
+    liveMarketSession = null,
+    marketSessionLabel = null,
+    legendContextSlot,
+    legendLeadingSlot,
     interval = '1d',
     range = '1y',
     rangePreset = null,
@@ -981,7 +986,10 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                         dataIndex={crosshair?.dataIndex ?? null}
                         theme={theme}
                         chartSettings={chartSettings}
+                        marketSessionLabel={marketSessionLabel}
                         compact={pane.isCollapsed}
+                        contextSlot={pane.isCollapsed ? undefined : legendContextSlot}
+                        leadingSlot={pane.isCollapsed ? undefined : legendLeadingSlot}
                       />
                     )}
                     {!pane.isCollapsed &&
@@ -1035,6 +1043,8 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                     eventMarkers={eventMarkers}
                     referenceLines={referenceLines}
                     annotationMarkers={annotationMarkers}
+                    livePrice={livePrice}
+                    liveMarketSession={liveMarketSession}
                     selectedEventBadgeId={effectiveSelectedEventBadgeId}
                     onEventBadgeClick={handleEventBadgeClick}
                     onEventBadgeHover={handleEventBadgeHover}

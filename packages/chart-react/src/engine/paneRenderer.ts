@@ -51,6 +51,8 @@ export type PaneRendererContext = {
   eventMarkers: ChartEventMarker[];
   referenceLines: ChartReferenceLine[];
   annotationMarkers: ChartAnnotationChannelMarker[];
+  livePrice?: number | null;
+  liveMarketSession?: import('@edge/chart-core').MarketSessionKind | null;
   hoveredEventBadgeId: string | null;
   selectedEventBadgeId: string | null;
   onEventBadgeGroupsDrawn: (groups: EventBadgeGroup[]) => void;
@@ -102,6 +104,8 @@ export function drawPaneLayers(ctx: PaneRendererContext): DrawPhaseTimings {
     eventMarkers: ctx.eventMarkers,
     referenceLines: ctx.referenceLines,
     annotationMarkers: ctx.annotationMarkers,
+    livePrice: ctx.livePrice,
+    liveMarketSession: ctx.liveMarketSession,
     hoveredEventBadgeId: ctx.hoveredEventBadgeId,
     selectedEventBadgeId: ctx.selectedEventBadgeId,
     onEventBadgeGroupsDrawn: ctx.onEventBadgeGroupsDrawn,

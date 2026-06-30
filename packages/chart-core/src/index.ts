@@ -176,3 +176,13 @@ export {
   ANNOTATION_KIND_FULL_LABELS,
 } from './annotationMetadata';
 export type { AnnotationKind, AnnotationStatus, AnnotationSource } from './annotationMetadata';
+
+export type { MarketSessionKind, MarketSessionMode } from './marketSession';
+export {
+  classifyUsEquitySession,
+  isExtendedSessionBar,
+  parseProviderMarketState,
+  resolveMarketSession,
+  sessionPriceLabelPrefix,
+  sessionStatusLabel,
+} from './marketSession';

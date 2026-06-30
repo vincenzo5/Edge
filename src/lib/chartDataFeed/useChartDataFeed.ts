@@ -7,11 +7,12 @@ import type {
   ChartDataFeed,
   ChartDataMeta,
   Interval,
+  MarketSessionMode,
   Range,
 } from '@edge/chart-core';
 import { applyCandleStreamEvent } from '@edge/chart-core';
 import { mergeCandlesPrepend } from '@/lib/chart/series';
-import { recordMarketDataTelemetry } from '@/lib/marketData/telemetry';
+import { recordMarketDataTelemetry, type MarketDataPerfPhase } from '@/lib/marketData/telemetry';
 
 export type UseChartDataFeedOptions = {
   feed: ChartDataFeed;
@@ -19,8 +20,11 @@ export type UseChartDataFeedOptions = {
   exchange?: string;
   interval: Interval;
   range: Range;
+  sessionMode?: MarketSessionMode;
   /** Enable live candle subscription when the feed supports it. Default true. */
   live?: boolean;
+  /** Bump to refetch candles for the same symbol/range/interval (e.g. after TWS recovery). */
+  reloadKey?: number;
 };
 
 export type ChartDataFeedState = {
@@ -63,7 +67,16 @@ function buildMeta(
 }
 
 export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFeedState {
-  const { feed, symbol, exchange, interval, range, live = true } = options;
+  const {
+    feed,
+    symbol,
+    exchange,
+    interval,
+    range,
+    sessionMode = 'regular',
+    live = true,
+    reloadKey = 0,
+  } = options;
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +90,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
   const candlesRef = useRef<Candle[]>([]);
   const fetchGenerationRef = useRef(0);
   const requestKeyRef = useRef('');
+  const reloadKeyRef = useRef(reloadKey);
   const feedRef = useRef(feed);
   feedRef.current = feed;
 
@@ -102,10 +116,12 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     const generation = ++fetchGenerationRef.current;
-    const requestKey = `${symbol}|${exchange ?? ''}|${interval}|${range ?? ''}`;
+    const requestKey = `${symbol}|${exchange ?? ''}|${interval}|${range ?? ''}|${sessionMode}`;
     const keyChanged = requestKeyRef.current !== requestKey;
+    const reloadTriggered = reloadKeyRef.current !== reloadKey;
     requestKeyRef.current = requestKey;
-    if (keyChanged) {
+    reloadKeyRef.current = reloadKey;
+    if (keyChanged || reloadTriggered) {
       candlesRef.current = [];
       setCandles([]);
       setLoading(true);
@@ -182,6 +198,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
           exchange,
           interval,
           range,
+          sessionMode,
         });
         if (cancelled || generation !== fetchGenerationRef.current) return;
         candlesRef.current = result.candles;
@@ -203,7 +220,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
           provider: result.meta?.source,
           source: result.meta?.source,
           serverMs: result.meta?.latencyMs,
-          serverPhases: result.meta?.phases,
+          serverPhases: result.meta?.phases as MarketDataPerfPhase[] | undefined,
         });
         streamStateRef.current.lastUpdateAt = loadedAt;
         setLastUpdateAt(loadedAt);
@@ -220,7 +237,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
 
         if (live && feedRef.current.subscribeCandles) {
           unsubscribe = feedRef.current.subscribeCandles(
-            { symbol, exchange, interval, range },
+            { symbol, exchange, interval, range, sessionMode },
             handleStreamEvent,
           );
           applyStreamState({ streaming: true, streamError: null });
@@ -241,7 +258,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
       unsubscribe?.();
       applyStreamState({ streaming: false });
     };
-  }, [symbol, exchange, interval, range, live, applyStreamState]);
+  }, [symbol, exchange, interval, range, sessionMode, live, reloadKey, applyStreamState]);
 
   const loadMore = useCallback(async (beforeTimestampMs: number): Promise<Candle[]> => {
     const loader = feedRef.current.loadMoreCandles;
@@ -251,6 +268,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
       exchange,
       interval,
       beforeTimestamp: beforeTimestampMs,
+      sessionMode,
     });
     if (result.candles.length === 0) {
       setHasMore(false);
@@ -264,7 +282,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
     );
     setHasMore(result.hasMore ?? true);
     return result.candles;
-  }, [symbol, exchange, interval, meta]);
+  }, [symbol, exchange, interval, sessionMode, meta]);
 
   return {
     candles,

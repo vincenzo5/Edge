@@ -135,6 +135,7 @@ function buildSnapshot(
     chartId,
     ...readState,
     ...commands,
+    headerActions,
     headerCommands: {
       ...readState.headerState,
       ...headerActions,

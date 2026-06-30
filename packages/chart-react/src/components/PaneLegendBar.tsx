@@ -19,6 +19,8 @@ type Props = {
   style?: React.CSSProperties;
   /** Single-line legend centered in the collapsed pane strip. */
   compact?: boolean;
+  /** Optional content rendered before the first legend section (e.g. symbol nav arrows). */
+  leading?: ReactNode;
 };
 
 function ActionIcon({ icon }: { icon: LegendActionIcon }) {
@@ -87,8 +89,9 @@ export default function PaneLegendBar({
   className,
   style,
   compact = false,
+  leading,
 }: Props) {
-  if (sections.length === 0) return null;
+  if (sections.length === 0 && !leading) return null;
 
   void theme;
   const muted = 'text-[var(--edge-text-secondary)]';
@@ -114,6 +117,7 @@ export default function PaneLegendBar({
           compact ? 'min-w-0 flex-nowrap overflow-hidden' : 'flex-wrap gap-y-0.5 py-0.5'
         } ${hoverBg}`}
       >
+        {leading ? <div className="flex shrink-0 items-center">{leading}</div> : null}
         {sections.map((section, i) => {
           if (compact && section.kind === 'action') return null;
           if (section.kind === 'badge') {

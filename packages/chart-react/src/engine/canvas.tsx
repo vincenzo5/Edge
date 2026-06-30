@@ -100,6 +100,8 @@ type Props = {
   eventMarkers?: ChartEventMarker[];
   referenceLines?: ChartReferenceLine[];
   annotationMarkers?: ChartAnnotationChannelMarker[];
+  livePrice?: number | null;
+  liveMarketSession?: import('@edge/chart-core').MarketSessionKind | null;
   selectedEventBadgeId?: string | null;
   onEventBadgeClick?: (
     group: EventBadgeGroup,
@@ -140,6 +142,8 @@ export default function ChartCanvas({
   eventMarkers = [],
   referenceLines = [],
   annotationMarkers = [],
+  livePrice = null,
+  liveMarketSession = null,
   selectedEventBadgeId = null,
   onEventBadgeClick,
   onEventBadgeHover,
@@ -303,8 +307,8 @@ export default function ChartCanvas({
 
   const fitPriceScale = useCallback(
     (vp: VisibleRange) =>
-      applyPanePriceScale(vp, candles, paneId, indicators, chartSettings),
-    [candles, paneId, indicators, chartSettings],
+      applyPanePriceScale(vp, candles, paneId, indicators, chartSettings, livePrice),
+    [candles, paneId, indicators, chartSettings, livePrice],
   );
 
   const fitPriceScaleIfAuto = useCallback(
@@ -371,6 +375,8 @@ export default function ChartCanvas({
         eventMarkers,
         referenceLines,
         annotationMarkers,
+        livePrice,
+        liveMarketSession,
         hoveredEventBadgeId: hoveredEventBadgeIdRef.current,
         selectedEventBadgeId: selectedEventBadgeIdRef.current,
         onEventBadgeGroupsDrawn: (groups) => {
@@ -406,6 +412,8 @@ export default function ChartCanvas({
       eventMarkers,
       referenceLines,
       annotationMarkers,
+      livePrice,
+      liveMarketSession,
       selectedEventBadgeId,
     ],
   );
@@ -429,8 +437,9 @@ export default function ChartCanvas({
     drawNow(reason);
   };
 
-  // Init viewport when loaded series or size changes.
-  useEffect(() => {
+  // Canvas width/height attribute changes clear pixels immediately, so resize redraws must
+  // run before paint or users see a blank chart while panels are dragged.
+  useLayoutEffect(() => {
     if (candles.length === 0) return;
 
     const revisionChanged =

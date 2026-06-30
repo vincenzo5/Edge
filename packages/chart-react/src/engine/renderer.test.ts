@@ -158,6 +158,30 @@ describe('drawPriceAxisAnnotations', () => {
     expect(ctx.fillRect).toHaveBeenCalled();
     expect(ctx.fillText).toHaveBeenCalled();
   });
+
+  it('prefers live quote price for symbol annotation badges', () => {
+    const ctx = createMockContext();
+    drawPriceAxisAnnotations({
+      ctx,
+      vp,
+      width: 300,
+      height: 200,
+      theme: 'dark',
+      settings: mergeChartSettings(),
+      paneId: 'price',
+      candles,
+      indicators: [],
+      drawings: [],
+      interval: '1d',
+      livePrice: 42.5,
+      liveMarketSession: 'postMarket',
+    });
+    const labels = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls.map(
+      (call) => call[0] as string,
+    );
+    expect(labels).toContain('Post 42.5');
+    expect(labels).not.toContain('25.00');
+  });
 });
 
 describe('drawCrosshair', () => {

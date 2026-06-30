@@ -7,6 +7,15 @@ import { cellCountFor } from "@/lib/chartConfig";
 import { resolveGridContainerClass } from "@/lib/responsive/responsiveLayout";
 import { useElementSize } from "@/lib/responsive/useElementSize";
 import { ChartSyncProvider } from "./ChartSyncContext";
+import type { SymbolSelectResult } from "@/lib/watchlist/types";
+
+export type ChartSymbolNav = {
+  canBack: boolean;
+  canForward: boolean;
+  onBack: () => void;
+  onForward: () => void;
+  onSymbolSelect: (result: SymbolSelectResult) => void;
+};
 
 type Props = {
   gridMode: GridMode;
@@ -16,6 +25,7 @@ type Props = {
   cells: CellConfig[];
   activeCellIndex: number;
   toolbarPrefs: ToolbarPrefs;
+  symbolNav?: ChartSymbolNav;
   onCellChange: (index: number, next: CellConfig) => void;
   onActiveCellChange: (index: number) => void;
   onToolbarPrefsChange: (next: ToolbarPrefs) => void;
@@ -29,6 +39,7 @@ export default function ChartGrid({
   cells,
   activeCellIndex,
   toolbarPrefs,
+  symbolNav,
   onCellChange,
   onActiveCellChange,
   onToolbarPrefsChange,
@@ -72,6 +83,7 @@ export default function ChartGrid({
               compact={count > 1}
               isActive={i === activeCellIndex}
               toolbarPrefs={toolbarPrefs}
+              symbolNav={i === activeCellIndex ? symbolNav : undefined}
               onFocus={() => onActiveCellChange(i)}
               onConfigChange={(next) => onCellChange(i, next)}
               onToolbarPrefsChange={onToolbarPrefsChange}
