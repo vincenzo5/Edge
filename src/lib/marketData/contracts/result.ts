@@ -4,13 +4,14 @@ export type DataProviderId =
   | "sec"
   | "fred"
   | "fmp"
+  | "massive"
   | "alphaVantage"
   | "tradier"
   | "alpaca"
   | "ibkr"
   | "tws";
 
-export type DataCacheTier = "hot-fresh" | "hot-stale" | "cold";
+export type DataCacheTier = "hot-fresh" | "hot-stale" | "cold" | "universe";
 
 export type MarketDataPerfPhase = {
   name: string;
@@ -45,6 +46,8 @@ export type DataResult<T> = {
   cacheTier?: DataCacheTier;
   traceId?: string;
   phases?: MarketDataPerfPhase[];
+  indicatorValues?: Record<string, Record<string, number>>;
+  skippedSymbols?: string[];
 };
 
 export type DataResultOptions = {
@@ -56,6 +59,8 @@ export type DataResultOptions = {
   cacheTier?: DataCacheTier;
   traceId?: string;
   phases?: MarketDataPerfPhase[];
+  indicatorValues?: Record<string, Record<string, number>>;
+  skippedSymbols?: string[];
 };
 
 export function createDataResult<T>(
@@ -75,6 +80,8 @@ export function createDataResult<T>(
     cacheTier: options?.cacheTier,
     traceId: options?.traceId,
     phases: options?.phases,
+    indicatorValues: options?.indicatorValues,
+    skippedSymbols: options?.skippedSymbols,
   };
 }
 
@@ -88,6 +95,8 @@ export type DataResponseMeta = {
   cacheTier?: DataCacheTier;
   traceId?: string;
   phases?: MarketDataPerfPhase[];
+  indicatorValues?: Record<string, Record<string, number>>;
+  skippedSymbols?: string[];
 };
 
 export function dataResultToResponseMeta<T>(result: DataResult<T>): DataResponseMeta {
@@ -100,5 +109,7 @@ export function dataResultToResponseMeta<T>(result: DataResult<T>): DataResponse
     cacheTier: result.cacheTier,
     traceId: result.traceId,
     phases: result.phases,
+    indicatorValues: result.indicatorValues,
+    skippedSymbols: result.skippedSymbols,
   };
 }

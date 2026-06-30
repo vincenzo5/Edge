@@ -1,5 +1,10 @@
 import type { Interval, Range } from "@/lib/chart/contracts";
 import type { CandleRequest, CandleResponse, EquityQuote } from "../../contracts/equities";
+import type {
+  OptionExpiration,
+  OptionsChainRequest,
+  OptionsChainResponse,
+} from "../../contracts/options";
 import { asFiniteNumber, asNonEmptyString } from "../../validation/parseRequest";
 import {
   createIbkrClient,
@@ -13,7 +18,7 @@ import {
 import { createContractResolver } from "./contractResolver";
 import { mapIbkrBar, mapIbkrPeriod } from "./intervals";
 import { createIbkrOptionsProvider, type IbkrOptionsProvider } from "./optionsProvider";
-import type { OptionExpiration, OptionsChainRequest, OptionsChainResponse } from "../../contracts/options";
+import type { IbkrContractClassification } from "../../contracts/marketContext";
 
 export type IbkrStatusProbe = {
   configured: boolean;
@@ -197,6 +202,13 @@ export function createIbkrProvider(client?: IbkrClient) {
         exchange: record.exchange,
         companyName: record.companyName,
       };
+    },
+
+    async getContractClassification(
+      symbol: string,
+    ): Promise<IbkrContractClassification | null> {
+      if (!contractResolver) return null;
+      return contractResolver.resolveContractClassification(symbol);
     },
 
     async getQuote(symbol: string): Promise<EquityQuote | null> {

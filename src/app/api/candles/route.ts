@@ -52,6 +52,7 @@ export async function POST(request: Request): Promise<Response> {
         interval: input.interval,
         beforeTimestamp: input.before,
         barCount: input.barCount,
+        sessionMode: input.sessionMode,
       },
       { traceId },
     );

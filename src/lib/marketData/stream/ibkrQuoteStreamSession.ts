@@ -2,7 +2,7 @@ import type { ChartQuoteStreamEvent, MarketQuote } from "@edge/chart-core";
 import type { MarketDataService } from "../service/marketDataService";
 import type { EquityQuote } from "../contracts/equities";
 import { dataResultToResponseMeta } from "../contracts/result";
-import { equityQuoteToWatchlistQuote } from "../validation/mappers";
+import { equityQuoteToMarketQuote } from "../validation/mappers";
 import {
   getSharedIbkrSmdSession,
   smdUpdatesToQuotes,
@@ -41,11 +41,11 @@ export function createIbkrSmdQuoteStreamSession(
   const pollFallback = async (onEvent: (payload: string) => void, primed: boolean) => {
     if (stopped) return;
     try {
-      const result = await service.getWatchlistQuotes(query.symbols);
+      const result = await service.getQuotes(query.symbols);
       if (stopped) return;
       failureCount = 0;
       const meta = normalizeChartMeta(dataResultToResponseMeta(result));
-      const quotes = result.data as MarketQuote[];
+      const quotes = result.data.map(equityQuoteToMarketQuote);
       onEvent(
         JSON.stringify(
           (primed
@@ -120,7 +120,7 @@ export function createIbkrSmdQuoteStreamSession(
           const snapshotQuotes = query.symbols
             .map((sym) => quoteState.get(sym))
             .filter((q): q is NonNullable<typeof q> => q != null)
-            .map((q) => equityQuoteToWatchlistQuote(q) as MarketQuote);
+            .map((q) => equityQuoteToMarketQuote(q));
 
           onEvent(
             JSON.stringify({
@@ -145,7 +145,7 @@ export function createIbkrSmdQuoteStreamSession(
             const quotes = query.symbols
               .map((sym) => quoteState.get(sym))
               .filter((q): q is NonNullable<typeof q> => q != null)
-              .map((q) => equityQuoteToWatchlistQuote(q) as MarketQuote);
+              .map((q) => equityQuoteToMarketQuote(q));
             onEvent(
               JSON.stringify({
                 type: "update",

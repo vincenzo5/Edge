@@ -13,8 +13,14 @@ let sessionStartedAt = Date.now();
 let nextId = 0;
 let events: MarketDataTelemetryEvent[] = [];
 const listeners = new Set<() => void>();
+let cachedSnapshot: MarketDataTelemetrySnapshot | null = null;
+
+function invalidateSnapshot(): void {
+  cachedSnapshot = null;
+}
 
 function notify(): void {
+  invalidateSnapshot();
   for (const listener of listeners) {
     listener();
   }
@@ -170,7 +176,10 @@ export function recordMarketDataTelemetry(
 }
 
 export function getMarketDataTelemetrySnapshot(): MarketDataTelemetrySnapshot {
-  return {
+  if (cachedSnapshot) {
+    return cachedSnapshot;
+  }
+  cachedSnapshot = {
     sessionStartedAt,
     events: [...events],
     summary: buildKindSummary(events),
@@ -187,6 +196,7 @@ export function getMarketDataTelemetrySnapshot(): MarketDataTelemetrySnapshot {
     ),
     slowestEvents: buildSlowestEvents(events),
   };
+  return cachedSnapshot;
 }
 
 export async function measureMarketDataTelemetry<T>(

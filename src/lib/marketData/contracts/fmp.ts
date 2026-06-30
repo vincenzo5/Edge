@@ -143,6 +143,22 @@ export type FmpMarketMover = {
   volume: number | null;
 };
 
+export type FmpScreenerRow = {
+  symbol: string;
+  name: string | null;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
+  exchange: string | null;
+  volume: number | null;
+  sector: string | null;
+  industry: string | null;
+  country: string | null;
+  beta: number | null;
+  marketCap: number | null;
+  dividendYield: number | null;
+};
+
 export type FmpSecFiling = {
   symbol: string;
   cik: string | null;

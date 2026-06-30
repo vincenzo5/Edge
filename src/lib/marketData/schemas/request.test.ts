@@ -19,6 +19,17 @@ describe("market data request schemas", () => {
     }
   });
 
+  it("accepts extended sessionMode on candle requests", () => {
+    const parsed = parseMarketRequest(
+      { symbol: "AAPL", range: "1d", interval: "5m", sessionMode: "extended" },
+      candlesRequestSchema,
+    );
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.data.sessionMode).toBe("extended");
+    }
+  });
+
   it("rejects empty symbol", () => {
     const parsed = parseMarketRequest({ symbol: "", range: "1y" }, candlesRequestSchema);
     expect(parsed.ok).toBe(false);

@@ -4,6 +4,7 @@ import {
   getMarketDataTelemetrySnapshot,
   recordMarketDataTelemetry,
   resetMarketDataTelemetry,
+  subscribeMarketDataTelemetry,
 } from "./collector";
 
 describe("marketDataTelemetry collector", () => {
@@ -63,5 +64,31 @@ describe("marketDataTelemetry collector", () => {
     const event = recordMarketDataTelemetry("quotes.first");
     expect(event).toBeNull();
     expect(getMarketDataTelemetrySnapshot().events).toHaveLength(0);
+  });
+
+  it("notifies subscribers when events are recorded or reset", () => {
+    const listener = vi.fn();
+    const unsub = subscribeMarketDataTelemetry(listener);
+
+    recordMarketDataTelemetry("candles.fetch", { clientMs: 1 });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    resetMarketDataTelemetry();
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsub();
+    recordMarketDataTelemetry("candles.fetch", { clientMs: 2 });
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns a stable snapshot reference until telemetry changes", () => {
+    recordMarketDataTelemetry("candles.fetch", { clientMs: 1 });
+    const first = getMarketDataTelemetrySnapshot();
+    const second = getMarketDataTelemetrySnapshot();
+    expect(first).toBe(second);
+
+    recordMarketDataTelemetry("warmup.response", { clientMs: 2 });
+    const third = getMarketDataTelemetrySnapshot();
+    expect(third).not.toBe(first);
   });
 });

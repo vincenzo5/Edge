@@ -11,7 +11,7 @@ import { ibkrHealthGate } from "../providers/ibkr/healthGate";
 import { TwsRequestError } from "../providers/tws/client";
 import type { IbkrProvider } from "../providers/ibkr/adapter";
 import type { TwsProvider } from "../providers/tws/adapter";
-import { globalHotStore, hotCandlesKey, hotQuoteKey, writeHotQuote } from "../hotStore";
+import { globalHotStore, hotCandlesKey, hotQuoteKey, writeHotCandles, writeHotQuote } from "../hotStore";
 
 const tradierGetExpirations = vi.fn(async () => [
   { underlying: "AAPL", expiration: "2025-07-18" },
@@ -406,6 +406,40 @@ describe("MarketDataService", () => {
       expect(second.source).toBe("ibkr");
       expect(tws.getCandles).toHaveBeenCalledTimes(1);
       expect(second.warnings.some((w) => w.includes("TWS temporarily skipped"))).toBe(true);
+    });
+  });
+
+  describe("TWS recovery state reset", () => {
+    it("clears TWS circuit and stale hot Yahoo entries so TWS is retried", async () => {
+      twsHealthGate.recordFailure("gateway_disconnected");
+      const candleRequest = { symbol: "AAPL", range: "1mo" as const, interval: "1d" as const };
+      writeHotQuote(
+        { symbol: "AAPL", price: 100, change: 1, changePercent: 1, volume: 1000, updatedAt: Date.now() },
+        "yahoo",
+      );
+      writeHotCandles(
+        candleRequest,
+        { symbol: "AAPL", interval: "1d", candles: [{ t: 1, o: 1, h: 2, l: 0.5, c: 1.5 }] },
+        "yahoo",
+      );
+
+      const tws = createMockTws();
+      const service = createService({ ibkr: createMockIbkr(), tws });
+
+      const beforeReset = await service.getCandles(candleRequest);
+      expect(beforeReset.source).toBe("ibkr");
+      expect(tws.getCandles).not.toHaveBeenCalled();
+
+      service.resetTwsRecoveryState({
+        symbols: ["AAPL"],
+        candleRequests: [candleRequest],
+      });
+      expect(globalHotStore.read(hotQuoteKey("AAPL")).hit).toBe(false);
+      expect(globalHotStore.read(hotCandlesKey(candleRequest)).hit).toBe(false);
+
+      const afterReset = await service.getCandles(candleRequest);
+      expect(afterReset.source).toBe("tws");
+      expect(tws.getCandles).toHaveBeenCalledOnce();
     });
   });
 

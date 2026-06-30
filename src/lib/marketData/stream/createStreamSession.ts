@@ -7,6 +7,7 @@ import type {
 } from '@edge/chart-core';
 import type { MarketDataService } from '../service/marketDataService';
 import { dataResultToResponseMeta } from '../contracts/result';
+import { equityQuoteToMarketQuote } from '../validation/mappers';
 import { diffCandlesToStreamEvents } from '@/lib/chartDataFeed/streamDiff';
 import {
   candlePollIntervalMs,
@@ -45,7 +46,7 @@ export function createCandleStreamSession(
   const poll = async (onEvent: (payload: string) => void) => {
     if (stopped) return;
     try {
-      const result = await service.getLegacyCandles({
+      const result = await service.getCandles({
         symbol: query.symbol,
         range: query.range,
         interval: query.interval,
@@ -54,7 +55,7 @@ export function createCandleStreamSession(
       failureCount = 0;
 
       const meta = normalizeChartMeta(dataResultToResponseMeta(result));
-      const candles = result.data;
+      const candles = result.data.candles;
 
       if (candles.length === 0) return;
 
@@ -157,12 +158,12 @@ function createPollQuoteStreamSession(
   const poll = async (onEvent: (payload: string) => void) => {
     if (stopped) return;
     try {
-      const result = await service.getWatchlistQuotes(query.symbols);
+      const result = await service.getQuotes(query.symbols);
       if (stopped) return;
       failureCount = 0;
 
       const meta = normalizeChartMeta(dataResultToResponseMeta(result));
-      const quotes = result.data as MarketQuote[];
+      const quotes = result.data.map(equityQuoteToMarketQuote);
 
       if (!primed) {
         primed = true;

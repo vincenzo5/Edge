@@ -27,5 +27,9 @@ export {
   fmpFinancialsBundleSchema,
   fmpExecutiveSchema,
   fmpMarketMoverSchema,
+  screenerResultRowSchema,
   fmpSecFilingSchema,
+  marketContextSchema,
+  marketContextRelationshipSchema,
+  marketContextClassificationSchema,
 } from "./response";

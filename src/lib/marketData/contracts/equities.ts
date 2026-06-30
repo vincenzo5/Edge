@@ -1,4 +1,5 @@
 import type { Interval, Range } from "@/lib/chart/contracts";
+import type { MarketSessionMode } from "@edge/chart-core";
 
 /** Chart-boundary candle: Unix epoch milliseconds (UTC). */
 export type EquityCandle = {
@@ -16,6 +17,7 @@ export type CandleRequest = {
   interval: Interval;
   beforeTimestamp?: number;
   barCount?: number;
+  sessionMode?: MarketSessionMode;
 };
 
 export type CandleResponse = {

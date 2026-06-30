@@ -10,6 +10,7 @@ import type {
   FmpIncomeStatement,
   FmpKeyMetrics,
   FmpMarketMover,
+  FmpScreenerRow,
   FmpSecFiling,
   FmpStatementPeriod,
 } from "../../contracts/fmp";
@@ -26,6 +27,7 @@ import {
   fmpIncomeStatementSchema,
   fmpKeyMetricsSchema,
   fmpMarketMoverSchema,
+  screenerResultRowSchema,
   fmpSecFilingSchema,
 } from "../../schemas/response";
 import { fiscalYearFromRow, num, periodFromRow, str } from "./client";
@@ -236,6 +238,30 @@ export function mapFmpMarketMover(row: Record<string, unknown>): FmpMarketMover 
     volume: num(row.volume),
   };
   return validate(fmpMarketMoverSchema, mapped);
+}
+
+export function mapFmpScreenerRow(row: Record<string, unknown>): FmpScreenerRow | null {
+  const symbol = str(row.symbol);
+  if (!symbol) return null;
+  const mapped: FmpScreenerRow = {
+    symbol: symbol.toUpperCase(),
+    name: str(row.name) ?? str(row.companyName),
+    price: num(row.price),
+    change: num(row.change),
+    changePercent: num(row.changesPercentage) ?? num(row.changePercent),
+    exchange: str(row.exchange),
+    volume: num(row.volume),
+    sector: str(row.sector),
+    industry: str(row.industry),
+    country: str(row.country),
+    beta: num(row.beta),
+    marketCap: num(row.marketCap) ?? num(row.mktCap),
+    dividendYield:
+      num(row.dividendYield) ??
+      num(row.lastAnnualDividend) ??
+      num(row.dividend),
+  };
+  return validate(screenerResultRowSchema, mapped);
 }
 
 export function mapFmpSecFiling(

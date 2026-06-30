@@ -137,6 +137,41 @@ export const marketEventSchema = z.object({
   type: z.enum(["earnings", "dividend", "split", "filing", "economic", "other"]).optional(),
 });
 
+export const marketContextClassificationSchema = z.object({
+  label: z.string(),
+  source: z.enum(["tws", "ibkr", "fmp", "yahoo", "curated"]),
+  confidence: z.enum(["provider", "curated", "fallback"]),
+});
+
+export const marketContextRelationshipSchema = z.object({
+  kind: z.enum([
+    "company",
+    "sector",
+    "industry",
+    "exchange",
+    "sector_etf",
+    "industry_etf",
+    "broad_index",
+    "index_member",
+  ]),
+  label: z.string(),
+  symbol: z.string().optional(),
+  source: z.enum(["tws", "ibkr", "fmp", "yahoo", "curated"]),
+  confidence: z.enum(["provider", "curated", "fallback"]),
+  reason: z.string().optional(),
+});
+
+export const marketContextSchema = z.object({
+  symbol: z.string(),
+  name: z.string().nullable(),
+  assetClass: z.enum(["equity", "etf", "index", "option", "future", "crypto", "other"]),
+  exchange: z.string().nullable(),
+  sector: marketContextClassificationSchema.nullable(),
+  industry: marketContextClassificationSchema.nullable(),
+  relationships: z.array(marketContextRelationshipSchema),
+  updatedAt: z.number().finite(),
+});
+
 export const fmpCompanyProfileSchema = z.object({
   symbol: z.string(),
   name: z.string().nullable(),
@@ -274,6 +309,22 @@ export const fmpMarketMoverSchema = z.object({
   changePercent: finiteOrNull,
   exchange: z.string().nullable(),
   volume: finiteOrNull,
+});
+
+export const screenerResultRowSchema = z.object({
+  symbol: z.string(),
+  name: z.string().nullable(),
+  price: finiteOrNull,
+  change: finiteOrNull,
+  changePercent: finiteOrNull,
+  exchange: z.string().nullable(),
+  volume: finiteOrNull,
+  sector: z.string().nullable(),
+  industry: z.string().nullable(),
+  country: z.string().nullable(),
+  beta: finiteOrNull,
+  marketCap: finiteOrNull,
+  dividendYield: finiteOrNull,
 });
 
 export const fmpSecFilingSchema = z.object({

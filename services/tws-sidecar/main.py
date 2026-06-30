@@ -60,6 +60,9 @@ _lock = threading.Lock()
 _ib: IB | None = None
 _last_connect_error: str | None = None
 _contract_cache: dict[str, Any] = {}
+_secdef_cache: dict[str, tuple[float, list[Any]]] = {}
+_secdef_cache_lock = threading.Lock()
+SECDEF_CACHE_TTL_SEC = 300.0
 _ib_jobs: queue.PriorityQueue[tuple[int, int, str, Any]] = queue.PriorityQueue()
 _ib_job_seq = 0
 _ib_job_seq_lock = threading.Lock()
@@ -195,6 +198,31 @@ def _get_ib() -> IB:
         raise RuntimeError("Unable to connect to IB Gateway")
 
 
+def _reset_ib_connection() -> None:
+    """Drop stale IB socket and quote subscriptions so the next connect is fresh."""
+    global _ib
+    with _lock:
+        if _ib is not None:
+            try:
+                if _ib.isConnected():
+                    _ib.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+            _ib = None
+    with _quote_sub_lock:
+        _quote_subscriptions.clear()
+
+
+def _reconnect_ib() -> dict[str, Any]:
+    _reset_ib_connection()
+    try:
+        _get_ib()
+    except Exception as exc:  # noqa: BLE001
+        global _last_connect_error
+        _last_connect_error = str(exc)
+    return _status_payload()
+
+
 def _status_payload() -> dict[str, Any]:
     connected = _ib is not None and _ib.isConnected()
     warnings: list[str] = []
@@ -232,6 +260,26 @@ def _resolve_stock(symbol: str):
     resolved = qualified[0]
     _contract_cache[sym] = resolved
     return resolved
+
+
+def _get_secdef_chains(sym: str, stock) -> list[Any]:
+    with _secdef_cache_lock:
+        cached = _secdef_cache.get(sym)
+        if cached and (time.time() - cached[0]) < SECDEF_CACHE_TTL_SEC:
+            return cached[1]
+    ib = _get_ib()
+    chains = ib.reqSecDefOptParams(stock.symbol, "", stock.secType, stock.conId) or []
+    with _secdef_cache_lock:
+        _secdef_cache[sym] = (time.time(), chains)
+    return chains
+
+
+def _resolve_spot_for_chain(ib: IB, stock, strike_window: dict[str, Any] | None) -> float | None:
+    if strike_window and strike_window.get("spot") is not None:
+        spot = _safe_float(strike_window.get("spot"))
+        if spot is not None and spot > 0:
+            return spot
+    return _spot_from_stock(ib, stock)
 
 
 def _map_bar(bar) -> dict[str, Any]:
@@ -366,7 +414,7 @@ def _fetch_option_chain(
     warnings: list[str] = []
     stock = _resolve_stock(sym)
     ib = _get_ib()
-    chains = ib.reqSecDefOptParams(stock.symbol, "", stock.secType, stock.conId)
+    chains = _get_secdef_chains(sym, stock)
     strikes: set[float] = set()
     trading_class = None
     exchange = "SMART"
@@ -384,7 +432,7 @@ def _fetch_option_chain(
             "warnings": ["TWS returned no strikes for expiration"],
         }
 
-    spot = _spot_from_stock(ib, stock)
+    spot = _resolve_spot_for_chain(ib, stock, strike_window)
     selected = _select_strikes(sorted(strikes), strike_window, spot)
     option_specs = [
         Option(
@@ -500,6 +548,14 @@ def status() -> dict[str, Any]:
     return _status_payload()
 
 
+@app.post("/control/reconnect")
+def control_reconnect() -> dict[str, Any]:
+    def work():
+        return _reconnect_ib()
+
+    return run_on_ib_thread(work, PRIORITY_HIGH)
+
+
 @app.post("/warmup")
 def warmup(body: WarmupRequest) -> dict[str, Any]:
     symbols = sorted({s.strip().upper() for s in body.symbols if s.strip()})
@@ -534,6 +590,23 @@ def warmup(body: WarmupRequest) -> dict[str, Any]:
     return run_on_ib_thread(work, PRIORITY_HIGH)
 
 
+def _map_contract_details(symbol: str, resolved, details) -> dict[str, Any]:
+    contract = getattr(details, "contract", resolved)
+    return {
+        "symbol": symbol.strip().upper(),
+        "conid": getattr(contract, "conId", None) or getattr(resolved, "conId", None),
+        "secType": getattr(contract, "secType", None),
+        "exchange": getattr(contract, "exchange", None),
+        "primaryExchange": getattr(contract, "primaryExchange", None)
+        or getattr(resolved, "primaryExchange", None),
+        "companyName": getattr(details, "longName", None)
+        or getattr(contract, "symbol", None),
+        "industry": getattr(details, "industry", None),
+        "category": getattr(details, "category", None),
+        "subcategory": getattr(details, "subcategory", None),
+    }
+
+
 @app.get("/contract")
 def contract(symbol: str = Query(min_length=1)) -> dict[str, Any]:
     def work():
@@ -555,6 +628,26 @@ def contract(symbol: str = Query(min_length=1)) -> dict[str, Any]:
     return run_on_ib_thread(work)
 
 
+@app.get("/contracts/details")
+def contract_details(symbol: str = Query(min_length=1)) -> dict[str, Any]:
+    def work():
+        sym = symbol.strip().upper()
+        try:
+            ib = _get_ib()
+            stock = Stock(sym, "SMART", "USD")
+            details_list = ib.reqContractDetails(stock) or []
+            if not details_list:
+                resolved = _resolve_stock(sym)
+                return _map_contract_details(sym, resolved, resolved)
+            return _map_contract_details(sym, stock, details_list[0])
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return run_on_ib_thread(work, PRIORITY_HIGH)
+
+
 @app.get("/candles")
 def candles(
     symbol: str = Query(min_length=1),
@@ -562,7 +655,10 @@ def candles(
     range: str = Query(default="1mo", alias="range"),
     before: int | None = None,
     barCount: int | None = None,
+    sessionMode: str = Query(default="regular"),
 ) -> dict[str, Any]:
+    use_rth = sessionMode.strip().lower() != "extended"
+
     def work():
         sym = symbol.strip().upper()
         bar_size = INTERVAL_TO_BAR.get(interval, "1 day")
@@ -583,7 +679,7 @@ def candles(
                 durationStr=duration,
                 barSizeSetting=bar_size,
                 whatToShow="TRADES",
-                useRTH=True,
+                useRTH=use_rth,
                 formatDate=1,
             )
             mapped = [_map_bar(bar) for bar in bars if _map_bar(bar)["c"] is not None]
@@ -592,6 +688,7 @@ def candles(
                 "interval": interval,
                 "candles": mapped,
                 "hasMore": len(mapped) > 0,
+                "sessionMode": "extended" if not use_rth else "regular",
             }
         except HTTPException:
             raise
@@ -621,10 +718,9 @@ def option_expirations(underlying: str = Query(min_length=1)) -> dict[str, Any]:
         warnings: list[str] = []
         try:
             stock = _resolve_stock(sym)
-            ib = _get_ib()
-            chains = ib.reqSecDefOptParams(stock.symbol, "", stock.secType, stock.conId)
+            chains = _get_secdef_chains(sym, stock)
             expirations: set[str] = set()
-            for chain in chains or []:
+            for chain in chains:
                 for raw in chain.expirations or []:
                     if len(raw) == 8 and raw.isdigit():
                         expirations.add(_expiration_from_yyyymmdd(raw))

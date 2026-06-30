@@ -16,7 +16,12 @@ export type CacheNamespace =
   | "fmp_financials"
   | "fmp_executives"
   | "fmp_filings"
-  | "fmp_movers";
+  | "fmp_movers"
+  | "screener"
+  | "screener_technical"
+  | "screener_universe"
+  | "universe_daily"
+  | "market_context";
 
 const INTRADAY_INTERVALS = new Set<Interval>(["1m", "5m", "15m", "30m", "1h", "2h"]);
 
@@ -40,6 +45,11 @@ export const CACHE_TTL_MS: Record<Exclude<CacheNamespace, "candles">, number> = 
   fmp_executives: 24 * 60 * 60 * 1000,
   fmp_filings: 6 * 60 * 60 * 1000,
   fmp_movers: 60_000,
+  screener: 60_000,
+  screener_technical: 15 * 60 * 1000,
+  screener_universe: 24 * 60 * 60 * 1000,
+  universe_daily: 24 * 60 * 60 * 1000,
+  market_context: 6 * 60 * 60 * 1000,
 };
 
 export function cacheTtlMs(namespace: CacheNamespace, interval?: Interval): number {

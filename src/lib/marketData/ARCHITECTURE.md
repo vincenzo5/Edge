@@ -47,7 +47,7 @@ When `TWS_ENABLED=true`, `MarketDataService` attempts **TWS first** via the loca
 
 **TWS performance:** Chart-critical candle/quote requests use short sidecar timeouts (`TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS`, default 3s). A process-local health gate (`providers/tws/healthGate.ts`) opens a short cooldown after sidecar/Gateway/timeout failures so fresh charts skip repeated slow TWS attempts and fall back immediately. A cached Gateway status probe can open the circuit before the first candle/quote attempt when IB Gateway is disconnected. A parallel IBKR auth health gate (`providers/ibkr/healthGate.ts`) skips repeated Client Portal 401/auth failures during quote and candle waterfalls. The sidecar uses priority job queues (candles/status/warmup before options) and persistent `reqMktData` quote subscriptions. Overlay enrichment (events/news/options expirations) loads after candle paint and requests options expirations after faster event sources.
 
-**Hot data (stale-while-revalidate):** UI-critical reads (quotes, candles, options expirations/chains) pass through an in-process `HotStore` in `hotStore.ts`. `MarketDataService` returns fresh or stale snapshots immediately and revalidates in the background. Partial hot quote batches are served immediately — missing symbols are fetched without waiting for the full watchlist batch. `StockApp` mounts `MarketDataProvider`, which keeps one quote SSE stream alive, calls `/api/market-data/warmup` for visible chart cells + watchlist symbols, and prefetches active-symbol **option expirations only** (chain loads on demand from the Options panel or API). Sidecar `/warmup` retains quote subscriptions for warmed symbols.
+**Hot data (stale-while-revalidate):** UI-critical reads (quotes, candles, options expirations/chains) pass through an in-process `HotStore` in `hotStore.ts`. `MarketDataService` returns fresh or stale snapshots immediately and revalidates in the background. Partial hot quote batches are served immediately — missing symbols are fetched without waiting for the full watchlist batch. `StockApp` mounts `MarketDataProvider`, which keeps one quote SSE stream alive, calls `/api/market-data/warmup` for visible chart cells + watchlist symbols, and prefetches active-symbol **option expirations only** (chain loads on demand from the chart-header options dialog or API). Sidecar `/warmup` retains quote subscriptions for warmed symbols. Options chain requests pass `strikeWindow.spot` from the active chart when available; the TWS sidecar uses that spot for ATM strike selection instead of re-fetching equity spot, and caches secdef option parameters per underlying for reuse across expirations.
 
 Cache keys are namespaced per provider (`ibkr` vs `yahoo` / `tradier`) so a fallback cached while the Gateway is logged out does not block a later IBKR fetch after login.
 
@@ -60,14 +60,31 @@ API routes return optional `meta: { source, warnings, stale, asOf }` alongside l
 | Yahoo | none (dev) | candles, quotes, search, fundamentals |
 | SEC EDGAR | `SEC_USER_AGENT` | company facts, recent filings |
 | FRED | `FRED_API_KEY` | macro series, economic releases |
-| FMP | `FMP_API_KEY` | gap-fill fundamentals/context: profile, estimates, financials, executives, calendars (earnings/dividends/splits), economic calendar (macro event cards), SEC filing search, market movers, news (Premium) |
+| FMP | `FMP_API_KEY` | gap-fill fundamentals/context: profile, estimates, financials, executives, calendars (earnings/dividends/splits), economic calendar (macro event cards), SEC filing search, market movers, **company screener** (`/company-screener`), news (Premium) |
+| Massive | `MASSIVE_API_KEY` or `POLYGON_API_KEY` | **Daily Market Summary** grouped US equities (full-universe screener store), Custom Bars per-symbol fallback, Universal Snapshot; API host `https://api.massive.com` |
 | Tradier | `TRADIER_ACCESS_TOKEN` | (no longer used for options; IBKR is required) |
 | IBKR | `IBKR_ENABLED`, Client Portal Gateway login | candles, quotes, options (required when configured) |
 | TWS | `TWS_ENABLED`, IB Gateway paper + sidecar | candles, quotes, options (preferred when configured) |
 
+### Market calendar
+
+`src/lib/marketData/marketCalendar.ts` is the single source of truth for **latest completed US trading day** (YYYY-MM-DD). Daily-bar consumers — universe store warm/backfill, Massive aggregate `to` dates — must use `latestCompletedTradingDate()` or `recentTradingDays()` instead of rolling their own weekday logic.
+
+- **US market close:** 20:00 UTC (4pm ET during standard time). Before close on a weekday, "today" is excluded so Massive grouped-daily requests do not 403 on restricted plans.
+- **Weekends:** Saturday/Sunday walk back to the prior Friday.
+- **Deferred:** US market holidays (NYSE closed weekdays) are not yet modeled; holiday requests may return empty bars without a 403.
+
+Screener warning UX: provider notices stay in `meta.warnings`; per-symbol candle-fetch skips are typed as `meta.skippedSymbols` and rendered separately in the screener results table.
+
 **IBKR note:** This app uses the **Client Portal Web API** (`clientportal.gw` on HTTPS, port 5001 by default). That is **not** the same as **IB Gateway 10.x** (TWS socket API on 4001/7497). If you only run IB Gateway, our Client Portal probes will not work until Client Portal Gateway is installed and running (`npm run ibkr:setup` / `npm run ibkr:gateway`).
 
-**TWS note:** When `TWS_ENABLED=true`, Edge prefers the **IB Gateway socket API** via a local Python sidecar (`services/tws-sidecar/`). Start IB Gateway paper (default port `4002`), run `npm run tws:sidecar-setup` once, then `npm run tws:sidecar`. Routing becomes `tws → ibkr → yahoo` for candles/quotes and `tws → ibkr` for options. Optional fast-fail timeouts: `TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS` (default 3000). Sidecar `/warmup` pre-resolves contracts without blocking chart loads.
+**TWS note:** When `TWS_ENABLED=true`, Edge prefers the **IB Gateway socket API** via a local Python sidecar (`services/tws-sidecar/`). Start IB Gateway paper (default port `4002`), run `npm run tws:sidecar-setup` once, then `npm run tws:sidecar`. Routing becomes `tws → ibkr → yahoo` for candles/quotes and `tws → ibkr` for options. Optional fast-fail timeouts: `TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS` (default 3000). Sidecar `/warmup` pre-resolves contracts without blocking chart loads. Historical candles accept `sessionMode`: `regular` (default, `useRTH=true`) or `extended` (`useRTH=false` for intraday pre/post-market bars).
+
+### Live quote vs candle close
+
+- **Watchlist `LAST`** and the chart **current-price marker** use the same live quote stream (`QuoteSnapshot.regularMarketPrice` / TWS `reqMktData` last).
+- **Candle OHLC** remains historical bar data; the last bar close can differ from the live quote after hours or between bar updates.
+- Chart settings **`symbol.sessionMode`**: `regular` (RTH candles only) or `extended` (include pre/post-market intraday bars from TWS). Session classification and badges live in `@edge/chart-core/marketSession`.
 
 ### IBKR client optimizations
 
@@ -103,6 +120,7 @@ Optional providers degrade gracefully when keys are missing — the service retu
 | `/api/market-data/fmp/executives` | GET | `fmpExecutivesQuerySchema` |
 | `/api/market-data/fmp/filings` | GET | `fmpSecFilingsQuerySchema` |
 | `/api/market-data/fmp/movers` | GET | `fmpMoversQuerySchema` |
+| `/api/screener/run` | POST | `screenQuerySchema` |
 | `/api/market-data/ibkr/status` | GET | none (probe) |
 | `/api/market-data/ibkr/contracts` | GET | `ibkrSymbolQuerySchema` |
 | `/api/market-data/ibkr/quote` | GET | `ibkrSymbolQuerySchema` |
@@ -111,7 +129,60 @@ Optional providers degrade gracefully when keys are missing — the service retu
 | `/api/market-data/tws/contracts` | GET | `twsSymbolQuerySchema` |
 | `/api/market-data/tws/quote` | GET | `twsSymbolQuerySchema` |
 | `/api/market-data/tws/candles` | GET | `twsCandlesQuerySchema` |
+| `/api/market-data/tws/recover` | POST | `twsRecoverRequestSchema` (requires `TWS_ENABLED=true`) |
 | `/api/market-data/warmup` | POST | `warmupRequestSchema` |
+| `/api/market-data/health` | GET | none (provider status summary) |
+| `/api/market-data/context` | GET | `marketContextQuerySchema` |
+
+## Stock screener
+
+The lean Phase 1 screener filters US equities and ETFs through FMP `/company-screener` server-side, with mover presets reusing existing `getFmpMarketMovers`. **Phase 1.5** adds a two-step pipeline when `ScreenQuery.technical` is set: FMP prefilter → per-candidate Yahoo daily candles → `@edge/chart-core/indicators/math` rule evaluation. **Phase 4 (Massive full-universe)** when `MASSIVE_API_KEY` is configured and `ScreenQuery.technical` is set: Massive Daily Market Summary universe store + FMP paginated descriptors (~8k) → local descriptive filter → local indicator scan (removes 200-candidate cap).
+
+| Layer | Path | Notes |
+|-------|------|-------|
+| API route | `src/app/api/screener/run/route.ts` | POST body validated with `screenQuerySchema` (optional `technical`, `maxResults`); **registry-aware** semantic validation via `validateScreenQueryTechnical()` for `kind: "indicator"` rules before service call; returns `{ results, meta }` via `fmpJsonResponse` |
+| Service | `MarketDataService.getScreenerResults()` | Cache namespace `screener` (60s TTL); **Massive path** when `technical` + Massive configured: `ensureScreenerUniverseWarm` → `fetchUniverseDescriptors` → `applyDescriptiveFilters` → `runTechnicalFilter` with universe-backed candles; **fallback path** FMP prefilter (max 200 candidates) + per-symbol candles (range tailored via `rangeForTechnicalRule`); perf phases include `screener.universe.warm`, `screener.universe.descriptors`, `screener.technical.*`, `screener.total` |
+| Universe store | `src/lib/marketData/screenerUniverse/universeDailyStore.ts` | Rolling 252-day grouped daily bars in cache namespace `universe_daily` (24h TTL); lazy warm on first screen + background backfill; FMP descriptor pagination in `screener_universe` (24h TTL) |
+| Massive adapter | `providers/massive/adapter.ts` | `getDailyMarketSummary(date)`, `getAggregates`, `getSnapshotAllTickers`; grouped daily uses `adjusted=true` |
+| Technical pass | `src/lib/screener/technicalFilter.ts`, `technicalMath.ts` | Universe path: unbounded candidates, concurrency 16; fallback path: max 200 candidates, concurrency 6 (TWS-bound) or 20 (Massive Custom Bars fallback); optional `maxResults` early-exit; per-symbol cache namespace `screener_technical` (15 min TTL) |
+| FMP adapter | `providers/fmp/adapter.ts` → `runStockScreener()` | Translates `ScreenQuery` to FMP flat params via `screenerParams.ts` (ignores `technical`) |
+| Client feed | `src/lib/chartDataFeed/apiScreenerFeed.ts` | `fetchScreenerResults()` + `fetchMarketMoverResults()`; parses `meta.phases` into screener phase summary |
+| Persistence | `src/lib/persistence/schemas/screenerLibrary.ts`, `/api/me/screener-library` | Whole `ScreenerState` JSONB per user; optimistic sync via `useScreenerLibraryRemoteSync`; localStorage fallback |
+| UI | `src/app/components/screener/` | `ScreenerProvider` + `ScreenerDialog`; nested AND/OR `QueryBuilder` with **registry-driven technical rule editor** (`TechnicalQueryRule` round-trip via `compileQuery.ts`); implemented indicators from `@edge/chart-core` registry with typed `inputSchema`/`outputs`; named kinds (`rsi`, `goldenCross`, `fiftyTwoWeekProximity`) render read-only; group watchlist actions; CSV + clipboard export; live quote overlay on first 32 visible rows via `MarketDataProvider` |
+| Query compile | `src/lib/screener/compileQuery.ts`, `validateIndicatorRule.ts` | `groupFromScreenQuery` / `compileScreenQueryFromGroup` round-trip `query.technical`; `validateIndicatorRule()` checks indicator exists, series in plugin outputs, inputs match `ParamDef`; client + API gate before run/save |
+
+**Phase 2** (shipped): Postgres screener library sync, group watchlist actions, live quote overlay coalesced into `MarketDataProvider` SSE (32-symbol stream cap), AND/OR query groups with FMP comma-separated text filters, export utilities. `screen_runs` snapshots deferred.
+
+**Phase 3** (shipped): Custom-indicator rules via chart-core `IndicatorPlugin` (`ScreenQuery.technical.kind === "indicator"`) delivered through presets; Bollinger `%B` derived in screener evaluator; comparison table for multi-selected rows; `summarize_screen` read-only AI tool. **Technical rule builder (v1)** (shipped): registry-driven `QueryBuilder` technical editor + `validateIndicatorRule` semantic gate; one technical rule per screen; named kinds preserved for backward compat. Scheduled re-runs/alerts deferred — see [docs/screener-roadmap.md](../../../docs/screener-roadmap.md).
+
+## Data health center
+
+The app exposes a user-facing **Data Health** dropdown in the chart header (`src/app/components/data-health/`). It combines:
+
+- **Client-observed dataset metadata** from active chart `ChartDataMeta`, watchlist quote `meta`, and optional options panel meta.
+- **Server provider probes** from `/api/market-data/health`, which summarizes IB Gateway (TWS sidecar) status plus process-local circuit-breaker snapshots. **IBKR Client Portal is not shown** in Data Health — use IB Gateway + sidecar only for live market data status. Optional-provider configured flags (`FMP`, `FRED`, `SEC`) are booleans only — no secrets are returned.
+
+Severity (`healthy` / `degraded` / `offline` / `unknown`) is derived in `src/lib/marketData/health.ts` from dataset source, stale/cache tier, warnings, and provider availability. Yahoo remains the documented fallback path when TWS/IBKR are skipped or unavailable.
+
+### TWS-only mental model
+
+When `TWS_ENABLED=true` and `IBKR_ENABLED=false` (default in `.env.example`):
+
+- **Primary live data path:** IB Gateway socket API → local Python sidecar → `MarketDataService` routing (`tws → yahoo`).
+- **Data Health provider row:** **IB Gateway** (TWS sidecar + Gateway connection).
+- **IBKR Client Portal** is not surfaced in Data Health. Adapter code may remain for optional routing fallback elsewhere; diagnostics use `/api/market-data/ibkr/*` probe routes.
+
+### TWS sidecar recovery
+
+When IB Gateway is manually restored after a disconnect, the Data Health dropdown can run recovery when `TWS_ENABLED=true`:
+
+1. `POST /api/market-data/tws/recover` with visible symbols, chart candle requests, and active options symbol.
+2. If the sidecar is unreachable, Edge spawns the static local command `npm run tws:sidecar`.
+3. The sidecar `POST /control/reconnect` drops stale IB socket state and reconnects to IB Gateway.
+4. Node resets the process-local `twsHealthGate` circuit breaker, clears stale Yahoo hot/cache entries for recovered symbols, and calls `MarketDataService.primeMarketData()` for visible chart/watchlist/options data.
+5. The client bumps `MarketDataProvider.reloadToken` so active charts refetch candles and watchlist quotes refresh without a page reload.
+
+This is read-only with respect to brokerage operations — no orders or account mutations.
 
 ## Verification
 
@@ -160,5 +231,27 @@ Normalized market events live in `src/lib/marketData/events/`:
 `MarketDataService.getMarketEvents()` aggregates providers, dedupes, caches, and returns `DataResult<MarketEvent[]>`. When `includeMacro=true`, FMP `/stable/economic-calendar` is primary for US macro cards; FRED releases remain fallback/enrichment. `/api/events` exposes normalized events with legacy `type` for chart pins. Chart feed requests `families=corporate,filing` by default; benchmark/index symbols also request `macro` with `includeMacro=true`.
 
 Economic-calendar providers plug in via adapter + registry mapping only — chart and API consumers stay unchanged.
+
+## Market context (three-axis taxonomy)
+
+Normalized market context for the active chart symbol lives in `src/lib/marketData/contracts/marketContext.ts` and is built by `MarketDataService.getMarketContext()`.
+
+### Three axes
+
+1. **Classification (Axis 1)** — GICS-style sector/industry labels describing what the company is. Rendered inline in the chart legend second line (`Sector › Industry`) as clickable crumbs when a mapped ETF exists; otherwise as muted non-interactive text.
+2. **Membership (Axis 2)** — Which index baskets include the symbol, grouped by flavor: broad market, benchmark, style, strategy. Stored in curated tables in `relationshipMaps.ts` with explicit `confidence: "curated"` — not inferred from exchange listing.
+3. **Wrappers (Axis 3)** — Tradable ETFs that track those baskets or sectors. Exposed as `tradableGroups` on `MarketContext` and rendered inline in the breadcrumb alongside classification labels.
+
+### Resolution order
+
+1. **TWS contract details** (`/contracts/details` sidecar endpoint → `reqContractDetails`) when `TWS_ENABLED=true`
+2. **IBKR Client Portal contract info** (`/iserver/contract/{conid}/info`) when configured
+3. **FMP company profile** fallback for sector/industry
+4. **Yahoo fundamentals** fallback when FMP is unavailable
+5. **Curated relationship maps** in `src/lib/marketData/context/relationshipMaps.ts` for sector/industry ETF mappings and seed index/style/strategy membership
+
+`buildBreadcrumbChain()` projects classification-only crumbs (sector + industry labels, no hoisted ETF symbols). `buildTradableGroups()` builds the canonical navigation payload grouped by flavor (`sector_etf`, `industry_etf`, `broad_market`, `benchmark`, `style`, `strategy`). Provider classifications occasionally surface an industry as the sector (e.g. `Semiconductors`); `SECTOR_ETF_MAP` includes direct entries for the common ones and `buildTradableGroups()`/`buildCuratedRelationships()` fall back to `mapIndustryToEtf()` for unmapped sector labels so a Related ETF still resolves.
+
+The app consumes `GET /api/market-data/context?symbol=AAPL` from the chart legend (`src/app/components/chart-chrome/MarketContextBreadcrumb.tsx`, rendered in the `ChartCell` legend second line via `legendContextSlot`). Sector › Industry labels plus every tradable in `tradableGroups` render as inline clickable breadcrumb crumbs; each navigable crumb shows a native hover tooltip (`title`) with the ETF name and symbol, and clicking a crumb loads that ETF via `onSymbolSelect`. Full density shows sector, industry, and all related tradables; compact density shows the sector crumb only. Non-navigable labels (no mapped ETF) render as muted text. Symbol back/forward history arrows render in the OHLCV legend top line via `legendLeadingSlot` (`SymbolNavArrows`), one per active chart cell via `useSymbolNavigationHistory`. Legacy cached contexts without `tradableGroups` fall back to navigable `relationships` rows rendered inline when present.
 
 Reusable `@edge/chart-core` data-feed contracts live in `packages/chart-core/src/dataSource.ts` (`ChartDataFeed`, overlay channels, stream event types). Vendor routing, caching, credentials, and entitlements stay in this app-owned market-data module and `src/lib/chartDataFeed/`.

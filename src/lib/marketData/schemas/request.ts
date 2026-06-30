@@ -32,6 +32,8 @@ export const marketIntervalSchema = z.enum(intervalValues);
 
 export const marketRangeSchema = z.enum(MARKET_RANGES);
 
+export const marketSessionModeSchema = z.enum(["regular", "extended"]);
+
 export const candlesRequestSchema = z
   .object({
     symbol: marketSymbolSchema,
@@ -39,6 +41,7 @@ export const candlesRequestSchema = z
     interval: marketIntervalSchema.default("1d"),
     before: z.number().finite().optional(),
     barCount: z.number().int().min(1).max(500).optional(),
+    sessionMode: marketSessionModeSchema.optional().default("regular"),
   })
   .superRefine((val, ctx) => {
     if (val.before == null && val.range == null) {
@@ -184,6 +187,10 @@ export const twsCandlesQuerySchema = ibkrCandlesQuerySchema;
 
 export const fmpStatementPeriodSchema = z.enum(["annual", "quarter"]);
 
+export const marketContextQuerySchema = z.object({
+  symbol: marketSymbolSchema,
+});
+
 export const fmpSymbolQuerySchema = z.object({
   symbol: marketSymbolSchema,
 });
@@ -207,6 +214,80 @@ export const fmpExecutivesQuerySchema = z.object({
 export const fmpMoversQuerySchema = z.object({
   kind: z.enum(["gainers", "losers", "actives"]).default("gainers"),
   limit: z.number().int().min(1).max(50).default(10),
+});
+
+const numericRangeSchema = z
+  .object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+  })
+  .optional();
+
+export const rsiTechnicalRuleSchema = z.object({
+  kind: z.literal("rsi"),
+  period: z.number().int().min(2).max(100).default(14),
+  min: z.number().optional(),
+  max: z.number().optional(),
+});
+
+export const goldenCrossTechnicalRuleSchema = z.object({
+  kind: z.literal("goldenCross"),
+  fast: z.number().int().min(2).max(500).default(50),
+  slow: z.number().int().min(2).max(500).default(200),
+});
+
+export const fiftyTwoWeekProximityTechnicalRuleSchema = z.object({
+  kind: z.literal("fiftyTwoWeekProximity"),
+  withinPct: z.number().min(0).max(1).default(0.05),
+});
+
+export const indicatorRuleTransformSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("bollPctB") }),
+]);
+
+export const indicatorTechnicalRuleSchema = z.object({
+  kind: z.literal("indicator"),
+  indicator: z.string().min(1),
+  inputs: z
+    .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+    .optional(),
+  series: z.string().min(1),
+  bar: z.enum(["last", "first"]).default("last"),
+  op: z.enum([">", ">=", "<", "<=", "=="]),
+  threshold: z.number(),
+  transform: indicatorRuleTransformSchema.optional(),
+});
+
+export const technicalRuleSchema = z.discriminatedUnion("kind", [
+  rsiTechnicalRuleSchema,
+  goldenCrossTechnicalRuleSchema,
+  fiftyTwoWeekProximityTechnicalRuleSchema,
+  indicatorTechnicalRuleSchema,
+]);
+
+const screenerTextFilterSchema = z
+  .union([
+    z.string().trim().min(1),
+    z.array(z.string().trim().min(1)).min(1).max(10),
+  ])
+  .optional();
+
+export const screenQuerySchema = z.object({
+  sector: screenerTextFilterSchema,
+  industry: screenerTextFilterSchema,
+  country: screenerTextFilterSchema,
+  exchange: screenerTextFilterSchema,
+  isEtf: z.boolean().optional(),
+  isActivelyTrading: z.boolean().optional(),
+  marketCap: numericRangeSchema,
+  price: numericRangeSchema,
+  beta: numericRangeSchema,
+  volume: numericRangeSchema,
+  dividend: numericRangeSchema,
+  technical: technicalRuleSchema.optional(),
+  limit: z.number().int().min(1).max(1000).default(200),
+  offset: z.number().int().min(0).max(20_000).optional(),
+  maxResults: z.number().int().min(1).max(1000).optional(),
 });
 
 export const fmpSecFilingsQuerySchema = z.object({
@@ -236,9 +317,20 @@ export const warmupRequestSchema = z.object({
   optionsSymbol: marketSymbolSchema.optional(),
 });
 
+export const twsRecoverRequestSchema = z.object({
+  symbols: z.array(marketSymbolSchema).max(50).optional().default([]),
+  candleRequests: z.array(warmupCandleRequestSchema).max(10).optional().default([]),
+  optionsSymbol: marketSymbolSchema.optional(),
+});
+
 export type CandlesRequest = z.infer<typeof candlesRequestSchema>;
 export type SearchRequest = z.infer<typeof searchRequestSchema>;
 export type QuotesRequest = z.infer<typeof quotesRequestSchema>;
 export type FundamentalsQuery = z.infer<typeof fundamentalsQuerySchema>;
+export type MarketContextQuery = z.infer<typeof marketContextQuerySchema>;
+export type TechnicalRule = z.infer<typeof technicalRuleSchema>;
+export type IndicatorTechnicalRule = z.infer<typeof indicatorTechnicalRuleSchema>;
+export type IndicatorRuleTransform = z.infer<typeof indicatorRuleTransformSchema>;
+export type ScreenQuery = z.infer<typeof screenQuerySchema>;
 export type OptionsExpirationsQuery = z.infer<typeof optionsExpirationsQuerySchema>;
 export type OptionsChainQuery = z.infer<typeof optionsChainQuerySchema>;

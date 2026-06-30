@@ -11,6 +11,23 @@ import {
 import { DEFAULT_CELL } from '@/lib/chartConfig';
 import { makeDrawingCommandsMock, makeDataWindowActionsMock, makeUICommandsMock, toActiveChartRegistration } from '@/test/activeChartMocks';
 import { ShortcutUIProvider } from '../shortcuts/ShortcutUIContext';
+import { DataHealthProvider } from '../data-health';
+
+vi.mock('../MarketDataProvider', () => ({
+  useMarketDataQuotes: () => ({
+    quotesBySymbol: new Map(),
+    quotesLoading: false,
+    quoteError: null,
+    quotesMeta: null,
+    quotesTransport: 'rest',
+    watchlistSymbolCount: 0,
+    recoverySymbols: [],
+    recoveryCandleRequests: [],
+    recoveryOptionsSymbol: null,
+    reloadToken: 0,
+    reloadMarketData: vi.fn(),
+  }),
+}));
 
 vi.mock('../SearchBar', () => ({
   default: ({ initial }: { initial: string }) => (
@@ -152,6 +169,8 @@ const chartActions = {
   onSymbolSelect: vi.fn(),
   onIntervalChange: vi.fn(),
   onChartTypeChange: vi.fn(),
+  onOpenOptionsChain: vi.fn(),
+  onOpenScreener: vi.fn(),
 };
 
 const baseProps = {
@@ -174,13 +193,24 @@ const baseProps = {
   chartActions,
 };
 
-function renderHeader(snapshot?: ActiveChartSnapshot, density?: 'full' | 'compact' | 'minimal') {
+function renderHeader(
+  snapshot?: ActiveChartSnapshot,
+  density?: 'full' | 'compact' | 'minimal',
+  symbolNav?: {
+    canBack: boolean;
+    canForward: boolean;
+    onBack: () => void;
+    onForward: () => void;
+  },
+) {
   const snap = snapshot ?? makeSnapshot();
   return render(
     <ShortcutUIProvider>
       <ActiveChartProvider>
-        <RegisterActiveChart snapshot={snap} />
-        <ChartHeaderBar {...baseProps} density={density} />
+        <DataHealthProvider>
+          <RegisterActiveChart snapshot={snap} />
+          <ChartHeaderBar {...baseProps} density={density} symbolNav={symbolNav} />
+        </DataHealthProvider>
       </ActiveChartProvider>
     </ShortcutUIProvider>,
   );
@@ -198,6 +228,7 @@ describe('ChartHeaderBar', () => {
     expect(screen.getByTestId('layout-setup-trigger')).toBeTruthy();
     expect(screen.getByTestId('layout-manage-trigger')).toBeTruthy();
     expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('AAPL');
+    expect(screen.getByTestId('options-chain-trigger')).toBeTruthy();
     expect(screen.getByTestId('indicators-trigger')).toBeTruthy();
     expect(screen.getByTestId('settings-trigger')).toBeTruthy();
     expect(screen.getByTestId('theme-toggle-trigger')).toBeTruthy();
@@ -226,6 +257,27 @@ describe('ChartHeaderBar', () => {
     expect(chartActions.onChartTypeChange).toHaveBeenCalledWith('area');
   });
 
+  it('renders symbol history arrows immediately after ticker search', () => {
+    const onBack = vi.fn();
+    const onForward = vi.fn();
+    renderHeader(makeSnapshot(), 'full', {
+      canBack: true,
+      canForward: false,
+      onBack,
+      onForward,
+    });
+
+    const search = screen.getByTestId('symbol-search-input');
+    const arrows = screen.getByTestId('symbol-nav-arrows');
+    expect(search.nextElementSibling).toBe(arrows);
+    expect(screen.getByTestId('symbol-nav-back')).not.toBeDisabled();
+    expect(screen.getByTestId('symbol-nav-forward')).toBeDisabled();
+
+    fireEvent.click(screen.getByTestId('symbol-nav-back'));
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(onForward).not.toHaveBeenCalled();
+  });
+
   it('toggles the layout theme from the top bar', () => {
     renderHeader();
 
@@ -241,16 +293,33 @@ describe('ChartHeaderBar', () => {
     expect(screen.getByTestId('quick-search-modal')).toBeTruthy();
   });
 
-  it('disables chart commands when no active chart is registered', () => {
+  it('opens options chain from header button', () => {
+    renderHeader();
+
+    fireEvent.click(screen.getByTestId('options-chain-trigger'));
+    expect(chartActions.onOpenOptionsChain).toHaveBeenCalled();
+  });
+
+  it('opens screener from header button', () => {
+    renderHeader();
+
+    fireEvent.click(screen.getByTestId('screener-trigger'));
+    expect(chartActions.onOpenScreener).toHaveBeenCalled();
+  });
+
+  it('disables options chain button when no active chart is registered', () => {
     render(
       <ShortcutUIProvider>
         <ActiveChartProvider>
-          <ChartHeaderBar {...baseProps} />
+          <DataHealthProvider>
+            <ChartHeaderBar {...baseProps} />
+          </DataHealthProvider>
         </ActiveChartProvider>
       </ShortcutUIProvider>,
     );
 
     expect(screen.getByTestId('indicators-trigger')).toBeDisabled();
+    expect(screen.getByTestId('options-chain-trigger')).toBeDisabled();
     expect(screen.getByTestId('settings-trigger')).toBeDisabled();
     expect(screen.getByTestId('replay-trigger')).toBeDisabled();
   });

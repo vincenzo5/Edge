@@ -1,5 +1,6 @@
 import type { Interval, Range } from "@/lib/chart/contracts";
 import type { CandleRequest, CandleResponse, EquityQuote } from "../../contracts/equities";
+import type { TwsContractDetails } from "../../contracts/marketContext";
 import type {
   OptionExpiration,
   OptionsChainRequest,
@@ -100,6 +101,23 @@ export function createTwsProvider(client?: TwsClient) {
       return tws.resolveContract(symbol);
     },
 
+    async getContractDetails(symbol: string): Promise<TwsContractDetails | null> {
+      if (!tws) return null;
+      const raw = await tws.getContractDetails(symbol);
+      if (!raw) return null;
+      return {
+        symbol: raw.symbol,
+        conid: raw.conid,
+        secType: raw.secType ?? null,
+        exchange: raw.exchange ?? null,
+        primaryExchange: raw.primaryExchange ?? null,
+        companyName: raw.companyName ?? null,
+        industry: raw.industry ?? null,
+        category: raw.category ?? null,
+        subcategory: raw.subcategory ?? null,
+      };
+    },
+
     async warmup(symbols: string[]): Promise<void> {
       if (!tws) return;
       await tws.warmup(symbols);
@@ -137,6 +155,7 @@ export function createTwsProvider(client?: TwsClient) {
         range,
         before: request.beforeTimestamp,
         barCount: request.barCount,
+        sessionMode: request.sessionMode,
       });
       if (!data) return null;
       const candles = mapHistoryBars(data.candles ?? []);

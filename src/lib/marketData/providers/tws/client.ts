@@ -30,6 +30,18 @@ export type TwsContractProbe = {
   companyName?: string;
 };
 
+export type TwsContractDetailsProbe = {
+  symbol: string;
+  conid: number;
+  secType?: string | null;
+  exchange?: string | null;
+  primaryExchange?: string | null;
+  companyName?: string | null;
+  industry?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
+};
+
 export type TwsHistoryBar = {
   t?: number;
   o?: number;
@@ -277,6 +289,22 @@ export function createTwsClient(config?: TwsClientConfig) {
       }
     },
 
+    async getContractDetails(symbol: string): Promise<TwsContractDetailsProbe | null> {
+      const sym = symbol.trim().toUpperCase();
+      const params = new URLSearchParams({ symbol: sym });
+      try {
+        return await request<TwsContractDetailsProbe>(
+          `/contracts/details?${params.toString()}`,
+          {
+            kind: "warmup",
+            allowNullOn404: true,
+          },
+        );
+      } catch {
+        return null;
+      }
+    },
+
     async warmup(symbols: string[]): Promise<void> {
       const normalized = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
       if (normalized.length === 0) return;
@@ -297,6 +325,7 @@ export function createTwsClient(config?: TwsClientConfig) {
       range: string;
       before?: number;
       barCount?: number;
+      sessionMode?: 'regular' | 'extended';
     }): Promise<TwsCandlesResponse | null> {
       const params = new URLSearchParams({
         symbol: args.symbol.trim().toUpperCase(),
@@ -305,6 +334,7 @@ export function createTwsClient(config?: TwsClientConfig) {
       });
       if (args.before != null) params.set("before", String(args.before));
       if (args.barCount != null) params.set("barCount", String(args.barCount));
+      if (args.sessionMode === "extended") params.set("sessionMode", "extended");
       try {
         return await request<TwsCandlesResponse>(`/candles?${params.toString()}`, {
           kind: "candles",

@@ -36,3 +36,9 @@ export {
   createRoutePerfContext,
   stripPerfMeta,
 } from "./routePerf";
+export type { ScreenerPerfPresetResult, ScreenerPerfSummary } from "./screenerPerf";
+export {
+  deriveScreenerPerfFromPhases,
+  deriveScreenerPerfSummaries,
+  deriveScreenerPresetResult,
+} from "./screenerPerf";

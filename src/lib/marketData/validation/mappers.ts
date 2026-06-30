@@ -1,4 +1,5 @@
 import type { Interval } from "@/lib/chart/contracts";
+import type { MarketQuote } from "@edge/chart-core";
 import type { EquityCandle, EquityQuote } from "../contracts/equities";
 import type { FundamentalsSnapshot } from "../contracts/fundamentals";
 import type { QuoteSnapshot, FundamentalsSnapshot as WatchlistFundamentals } from "@/lib/watchlist/types";
@@ -33,6 +34,34 @@ export function equityQuoteToWatchlistQuote(quote: EquityQuote): QuoteSnapshot {
     regularMarketChangePercent: quote.changePercent,
     regularMarketVolume: quote.volume,
     marketState: quote.marketState,
+    updatedAt: quote.updatedAt,
+  };
+}
+
+export function equityQuoteToMarketQuote(quote: EquityQuote): MarketQuote {
+  return {
+    symbol: quote.symbol,
+    price: quote.price,
+    change: quote.change,
+    changePercent: quote.changePercent,
+    volume: quote.volume,
+    currency: quote.currency,
+    exchange: quote.exchange,
+    shortName: quote.shortName,
+    updatedAt: quote.updatedAt,
+  };
+}
+
+export function quoteSnapshotToMarketQuote(quote: QuoteSnapshot): MarketQuote {
+  return {
+    symbol: quote.symbol,
+    price: quote.regularMarketPrice,
+    change: quote.regularMarketChange,
+    changePercent: quote.regularMarketChangePercent,
+    volume: quote.regularMarketVolume,
+    currency: quote.currency,
+    exchange: quote.exchange,
+    shortName: quote.shortName,
     updatedAt: quote.updatedAt,
   };
 }

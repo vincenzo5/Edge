@@ -12,10 +12,10 @@ describe('createCandleStreamSession', () => {
   });
 
   it('emits replace-latest after priming poll', async () => {
-    const getLegacyCandles = vi
+    const getCandles = vi
       .fn()
       .mockResolvedValueOnce({
-        data: [{ t: 1000, o: 1, h: 2, l: 0.5, c: 1.5 }],
+        data: { symbol: 'AAPL', candles: [{ t: 1000, o: 1, h: 2, l: 0.5, c: 1.5 }] },
         source: 'ibkr',
         requestedAt: 1,
         receivedAt: 2,
@@ -23,7 +23,7 @@ describe('createCandleStreamSession', () => {
         warnings: [],
       })
       .mockResolvedValueOnce({
-        data: [{ t: 1000, o: 2, h: 3, l: 1, c: 2.5 }],
+        data: { symbol: 'AAPL', candles: [{ t: 1000, o: 2, h: 3, l: 1, c: 2.5 }] },
         source: 'ibkr',
         requestedAt: 3,
         receivedAt: 4,
@@ -31,7 +31,7 @@ describe('createCandleStreamSession', () => {
         warnings: [],
       });
 
-    const service = { getLegacyCandles } as unknown as MarketDataService;
+    const service = { getCandles } as unknown as MarketDataService;
     const events: string[] = [];
     const session = createCandleStreamSession(service, {
       symbol: 'AAPL',

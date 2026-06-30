@@ -21,11 +21,15 @@ import ChartQuickSearchModal from './ChartQuickSearchModal';
 import ChartSnapshotMenu from './ChartSnapshotMenu';
 import ChartFullscreenButton from './ChartFullscreenButton';
 import ChartHeaderMoreMenu from './ChartHeaderMoreMenu';
+import SymbolNavArrows from './SymbolNavArrows';
+import { DataHealthButton } from '../data-health';
+import { ScreenerButton } from '../screener';
 import { headerBarClass } from './headerStyles';
 import {
   AlertIcon,
   IndicatorsIcon,
   MoonIcon,
+  OptionsIcon,
   QuickSearchIcon,
   RedoIcon,
   ReplayIcon,
@@ -67,6 +71,15 @@ export type ChartHeaderChartActions = {
   onSymbolSelect: (result: SymbolResult) => void;
   onIntervalChange: (interval: Interval) => void;
   onChartTypeChange: (chartType: ChartType) => void;
+  onOpenOptionsChain?: () => void;
+  onOpenScreener?: () => void;
+};
+
+export type ChartHeaderSymbolNav = {
+  canBack: boolean;
+  canForward: boolean;
+  onBack: () => void;
+  onForward: () => void;
 };
 
 type Props = {
@@ -74,6 +87,7 @@ type Props = {
   chart: ChartHeaderChartState;
   layoutActions: ChartHeaderLayoutActions;
   chartActions: ChartHeaderChartActions;
+  symbolNav?: ChartHeaderSymbolNav;
   /** Optional density override for tests. */
   density?: HeaderDensity;
 };
@@ -89,6 +103,7 @@ export default function ChartHeaderBar({
   chart,
   layoutActions,
   chartActions,
+  symbolNav,
   density: densityOverride,
 }: Props) {
   const { theme, gridMode, linkSymbol, linkInterval, linkCrosshair, linkDrawings, layoutName } = layout;
@@ -127,6 +142,17 @@ export default function ChartHeaderBar({
     const items = [];
 
     if (!showInline(density, 'primary')) {
+      items.push({
+        id: 'screener',
+        label: 'Stock screener',
+        onClick: () => chartActions.onOpenScreener?.(),
+      });
+      items.push({
+        id: 'options',
+        label: 'Options chain',
+        disabled: !activeChart || !chart.symbol,
+        onClick: () => chartActions.onOpenOptionsChain?.(),
+      });
       items.push({
         id: 'indicators',
         label: 'Indicators',
@@ -221,24 +247,32 @@ export default function ChartHeaderBar({
             compact
             theme={theme}
           />
-          {activeChart?.dataMeta?.source ? (
-            <span
-              className="ml-1 shrink-0 rounded-[var(--edge-radius-xs)] bg-[var(--edge-surface-panel)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--edge-text-muted)]"
-              title={
-                activeChart.dataMeta.streamError
-                  ? activeChart.dataMeta.streamError
-                  : activeChart.dataMeta.warnings?.length
-                    ? activeChart.dataMeta.warnings.join('; ')
-                    : `Data source: ${activeChart.dataMeta.source}${activeChart.dataMeta.streaming ? ' (live)' : ''}`
-              }
-              data-testid="chart-data-source-badge"
-            >
-              {activeChart.dataMeta.source}
-              {activeChart.dataMeta.streaming ? ' · live' : ''}
-              {activeChart.dataMeta.stale ? ' · stale' : ''}
-            </span>
+          {symbolNav ? (
+            <SymbolNavArrows
+              theme={theme}
+              canBack={symbolNav.canBack}
+              canForward={symbolNav.canForward}
+              onBack={symbolNav.onBack}
+              onForward={symbolNav.onForward}
+            />
           ) : null}
+          <DataHealthButton theme={theme} />
+          <ScreenerButton theme={theme} onOpen={() => chartActions.onOpenScreener?.()} />
           <ChartHeaderDivider theme={theme} />
+          {showInline(density, 'primary') ? (
+            <>
+              <ChartHeaderButton
+                theme={theme}
+                label="Options"
+                onClick={() => chartActions.onOpenOptionsChain?.()}
+                disabled={!activeChart || !chart.symbol}
+                data-testid="options-chain-trigger"
+              >
+                <OptionsIcon />
+              </ChartHeaderButton>
+              <ChartHeaderDivider theme={theme} />
+            </>
+          ) : null}
           <ChartIntervalMenu
             theme={theme}
             value={interval}

@@ -16,11 +16,24 @@ import type {
   FmpFinancialsBundle,
   FmpMarketMover,
   FmpMarketMoverKind,
+  FmpScreenerRow,
   FmpSecFiling,
   FmpStatementPeriod,
 } from "../contracts/fmp";
+import type { ScreenQuery } from "../schemas/request";
+import { runTechnicalFilter, TECHNICAL_FILTER_CONCURRENCY, TECHNICAL_FILTER_MASSIVE_FALLBACK_CONCURRENCY, TECHNICAL_FILTER_MAX_CANDIDATES, TECHNICAL_FILTER_UNIVERSE_CONCURRENCY } from "@/lib/screener/technicalFilter";
+import { minCandlesForTechnicalRule, rangeForTechnicalRule } from "@/lib/screener/technicalMath";
+import {
+  applyDescriptiveFilters,
+  ensureScreenerUniverseWarm,
+  fetchUniverseDescriptors,
+  getCandlesFromUniverseStore,
+} from "../screenerUniverse/universeDailyStore";
 import type { DerivedMetric, DerivedMetricKind } from "../contracts/derived";
-import { createDataResult, type DataCacheTier, type DataResult } from "../contracts/result";
+import type { MarketContext } from "../contracts/marketContext";
+import { buildMarketContext } from "../context/buildMarketContext";
+import { latestCompletedTradingDate } from "../marketCalendar";
+import { createDataResult, type DataCacheTier, type DataResult, type MarketDataPerfPhase } from "../contracts/result";
 import type { WarmupPhaseReport, WarmupReport } from "../telemetry/types";
 import { isMarketDataPerfEnabled } from "../telemetry/isPerfEnabled";
 import { PerfPhaseCollector } from "../telemetry/perfPhases";
@@ -37,6 +50,7 @@ import {
   hotOptionExpirationsKey,
   hotOptionsChainKey,
   hotQuoteKey,
+  invalidateHotRecoveryKeys,
   writeHotCandles,
   writeHotOptionExpirations,
   writeHotOptionsChain,
@@ -46,6 +60,7 @@ import { createYahooProvider, type YahooFinanceClient } from "../providers/yahoo
 import { createSecProvider } from "../providers/sec/adapter";
 import { createFredProvider } from "../providers/fred/adapter";
 import { createFmpProvider } from "../providers/fmp/adapter";
+import { createMassiveProvider } from "../providers/massive/adapter";
 import { createTradierOptionsProvider } from "../providers/tradier/adapter";
 import {
   createIbkrProvider,
@@ -106,8 +121,15 @@ function hotCacheTier(fresh: boolean): DataCacheTier {
   return fresh ? "hot-fresh" : "hot-stale";
 }
 
+function recentIsoDate(offsetDays: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return d.toISOString().slice(0, 10);
+}
+
 type MarketDataReadOptions = {
   traceId?: string;
+  perf?: PerfPhaseCollector | null;
 };
 
 function attachPerfMeta<T extends DataResult<unknown>>(
@@ -128,6 +150,7 @@ export class MarketDataService {
   private sec;
   private fred;
   private fmp;
+  private massive;
   private tradier;
   private ibkr;
   private tws;
@@ -145,6 +168,7 @@ export class MarketDataService {
     this.sec = createSecProvider();
     this.fred = createFredProvider();
     this.fmp = createFmpProvider();
+    this.massive = createMassiveProvider();
     this.tradier = createTradierOptionsProvider();
     this.ibkr = deps.ibkr ?? createIbkrProvider();
     this.tws = deps.tws ?? createTwsProvider();
@@ -159,6 +183,7 @@ export class MarketDataService {
       request.interval,
       request.beforeTimestamp ?? "",
       request.barCount ?? "",
+      request.sessionMode ?? "regular",
     ]);
   }
 
@@ -1080,6 +1105,114 @@ export class MarketDataService {
     });
   }
 
+  async getMarketContext(symbol: string): Promise<DataResult<MarketContext>> {
+    const requestedAt = Date.now();
+    const sym = symbol.trim().toUpperCase();
+    const cacheKey = buildCacheKey(["market-context", sym]);
+    const cached = globalDataCache.read<MarketContext>("market_context", cacheKey);
+    if (cached.hit && cached.value) {
+      return createDataResult(cached.value, "mixed", {
+        requestedAt,
+        asOf: cached.asOf,
+      });
+    }
+
+    const warnings: string[] = [];
+    let source: DataResult<MarketContext>["source"] = "mixed";
+    let twsDetails = null as Awaited<ReturnType<TwsProvider["getContractDetails"]>>;
+    let ibkrInfo = null as Awaited<ReturnType<IbkrProvider["getContractClassification"]>>;
+
+    if (this.tws.isConfigured()) {
+      const twsDecision = this.twsRoutingDecision("quotes");
+      if (twsDecision.shouldTry) {
+        try {
+          twsDetails = await this.tws.getContractDetails(sym);
+          if (twsDetails) {
+            source = "tws";
+            this.recordTwsSuccess();
+          }
+        } catch (error) {
+          this.recordTwsFailure(error);
+          warnings.push(
+            error instanceof Error ? error.message : "TWS contract details unavailable",
+          );
+        }
+      } else if (twsDecision.warning) {
+        warnings.push(twsDecision.warning);
+      }
+    }
+
+    if (!twsDetails?.category && !twsDetails?.industry && this.ibkr.isConfigured()) {
+      const ibkrDecision = this.ibkrRoutingDecision("quotes");
+      if (ibkrDecision.shouldTry) {
+        try {
+          ibkrInfo = await this.ibkr.getContractClassification(sym);
+          if (ibkrInfo) {
+            source = source === "tws" ? "mixed" : "ibkr";
+            this.recordIbkrSuccess();
+          }
+        } catch (error) {
+          this.recordIbkrFailure(error);
+          warnings.push(
+            error instanceof Error ? error.message : "IBKR contract classification unavailable",
+          );
+        }
+      } else if (ibkrDecision.warning) {
+        warnings.push(ibkrDecision.warning);
+      }
+    }
+
+    const needsFallback =
+      !twsDetails?.category &&
+      !twsDetails?.industry &&
+      !twsDetails?.subcategory &&
+      !ibkrInfo?.category &&
+      !ibkrInfo?.industry &&
+      !ibkrInfo?.subcategory;
+
+    let fmpProfile = null as FmpCompanyProfile | null;
+    let fundamentals = null as FundamentalsSnapshot | null;
+
+    if (needsFallback) {
+      const fmpResult = await this.getFmpCompanyProfile(sym);
+      fmpProfile = fmpResult.data;
+      warnings.push(...(fmpResult.warnings ?? []));
+      if (fmpProfile?.sector || fmpProfile?.industry) {
+        source = source === "mixed" ? "fmp" : "mixed";
+      }
+
+      if (!fmpProfile?.sector && !fmpProfile?.industry) {
+        const yahooResult = await this.getFundamentals(sym);
+        fundamentals = yahooResult.data;
+        if (fundamentals.sector || fundamentals.industry) {
+          source = source === "mixed" ? "yahoo" : "mixed";
+        }
+      }
+    }
+
+    const context = buildMarketContext({
+      symbol: sym,
+      twsDetails,
+      ibkrInfo,
+      fmpProfile,
+      fundamentals,
+      warnings,
+    });
+
+    globalDataCache.write(
+      "market_context",
+      cacheKey,
+      context,
+      cacheTtlMs("market_context"),
+      Date.now(),
+    );
+
+    return createDataResult(context, source, {
+      requestedAt,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    });
+  }
+
   async getSecCompanyFacts(symbol: string): Promise<DataResult<SecCompanyFacts | null>> {
     const requestedAt = Date.now();
     if (!this.sec.isConfigured()) {
@@ -1564,6 +1697,234 @@ export class MarketDataService {
       requestedAt,
       warnings: result.warnings,
     });
+  }
+
+  async getScreenerResults(
+    query: ScreenQuery,
+    options: MarketDataReadOptions = {},
+  ): Promise<DataResult<FmpScreenerRow[]>> {
+    const requestedAt = Date.now();
+    const totalStart = Date.now();
+    const { traceId, perf = null } = options;
+    if (!this.fmp.isConfigured()) {
+      return createDataResult([], "fmp", {
+        requestedAt,
+        warnings: ["FMP_API_KEY is not configured"],
+      });
+    }
+    const cacheKey = buildCacheKey(["screener", JSON.stringify(query)]);
+    type ScreenerCachePayload = {
+      rows: FmpScreenerRow[];
+      indicatorValues?: Record<string, Record<string, number>>;
+    };
+    const cached = globalDataCache.read<ScreenerCachePayload>("screener", cacheKey);
+    if (cached.hit && cached.value) {
+      const cachedResult = createDataResult(cached.value.rows, "fmp", {
+        requestedAt,
+        asOf: cached.asOf,
+        indicatorValues: cached.value.indicatorValues,
+        traceId,
+      });
+      perf?.record("screener.total", totalStart, true, "service", {
+        rows: cached.value.rows.length,
+        hadTechnical: query.technical != null,
+        cacheHit: true,
+        traceId,
+      });
+      return attachPerfMeta(cachedResult, traceId, perf);
+    }
+
+    let rows: FmpScreenerRow[];
+    let warnings: string[] = [];
+    let phases: MarketDataPerfPhase[] | undefined;
+    let indicatorValues: Record<string, Record<string, number>> | undefined;
+    let skippedSymbols: string[] = [];
+    let prefilterMs = 0;
+    let prefilterCount = 0;
+
+    if (query.technical && this.massive.isConfigured()) {
+      const warmStart = Date.now();
+      const { store, warnings: warmWarnings } = await ensureScreenerUniverseWarm({
+        massive: this.massive,
+        perf,
+        traceId,
+      });
+      warnings.push(...warmWarnings);
+
+      const descriptorStart = Date.now();
+      const descriptorResult = await fetchUniverseDescriptors(this.fmp);
+      warnings.push(...descriptorResult.warnings);
+      prefilterCount = descriptorResult.rows.length;
+      prefilterMs = Date.now() - descriptorStart;
+      perf?.record("screener.universe.descriptors", descriptorStart, true, "provider", {
+        descriptors: descriptorResult.rows.length,
+        traceId,
+      });
+
+      const filtered = applyDescriptiveFilters(descriptorResult.rows, query);
+      prefilterCount = filtered.length;
+
+      const minBars = minCandlesForTechnicalRule(query.technical);
+      const technical = await runTechnicalFilter(
+        filtered,
+        query.technical,
+        async (symbol) => {
+          const fromStore = getCandlesFromUniverseStore(symbol, minBars, store);
+          if (fromStore.found && fromStore.candles.length >= minBars) {
+            return {
+              candles: fromStore.candles,
+              source: "massive-universe",
+              cacheTier: "universe" as const,
+            };
+          }
+          if (fromStore.found && fromStore.candles.length > 0) {
+            return {
+              candles: fromStore.candles,
+              source: "massive-universe",
+              cacheTier: "universe" as const,
+            };
+          }
+          const range = rangeForTechnicalRule(query.technical!);
+          const agg = await this.massive.getAggregates({
+            ticker: symbol,
+            multiplier: 1,
+            timespan: "day",
+            from: range === "1y" ? recentIsoDate(-400) : recentIsoDate(-120),
+            to: latestCompletedTradingDate(),
+            adjusted: true,
+          });
+          if (agg.candles.length > 0) {
+            return {
+              candles: agg.candles,
+              source: "massive",
+              cacheTier: "cold" as const,
+            };
+          }
+          const candleResult = await this.getCandles(
+            { symbol, interval: "1d", range },
+            { traceId },
+          );
+          return {
+            candles: candleResult.data.candles,
+            source: candleResult.source,
+            cacheTier: candleResult.cacheTier,
+          };
+        },
+        {
+          perf,
+          traceId,
+          prefilterCount,
+          prefilterMs,
+          maxCandidates: Number.POSITIVE_INFINITY,
+          concurrency: TECHNICAL_FILTER_UNIVERSE_CONCURRENCY,
+          maxResults: query.maxResults,
+        },
+      );
+      rows = technical.rows;
+      warnings = [...warnings, ...technical.warnings];
+      if (!perf) {
+        phases = technical.phaseMeta.phases;
+      }
+      indicatorValues = technical.indicatorValues;
+      skippedSymbols = [...skippedSymbols, ...technical.skippedSymbols];
+      perf?.record("screener.universe.warm", warmStart, true, "service", {
+        path: "full-universe",
+        traceId,
+      });
+    } else {
+      const prefilterStart = Date.now();
+      const result = await this.fmp.runStockScreener(query);
+      perf?.record("screener.prefilter", prefilterStart, true, "provider", {
+        candidates: result.rows.length,
+        limit: query.limit ?? 200,
+        traceId,
+      });
+      rows = result.rows;
+      warnings = [...result.warnings];
+      prefilterMs = Date.now() - prefilterStart;
+      prefilterCount = result.rows.length;
+
+      if (query.technical) {
+        const range = rangeForTechnicalRule(query.technical);
+        const fallbackConcurrency = this.massive.isConfigured()
+          ? TECHNICAL_FILTER_MASSIVE_FALLBACK_CONCURRENCY
+          : TECHNICAL_FILTER_CONCURRENCY;
+        const technical = await runTechnicalFilter(
+          rows,
+          query.technical,
+          async (symbol) => {
+            if (this.massive.isConfigured()) {
+              const agg = await this.massive.getAggregates({
+                ticker: symbol,
+                multiplier: 1,
+                timespan: "day",
+                from: range === "1y" ? recentIsoDate(-400) : recentIsoDate(-120),
+                to: latestCompletedTradingDate(),
+                adjusted: true,
+              });
+              if (agg.candles.length > 0) {
+                return {
+                  candles: agg.candles,
+                  source: "massive",
+                  cacheTier: "cold" as const,
+                };
+              }
+            }
+            const candleResult = await this.getCandles(
+              {
+                symbol,
+                interval: "1d",
+                range,
+              },
+              { traceId },
+            );
+            return {
+              candles: candleResult.data.candles,
+              source: candleResult.source,
+              cacheTier: candleResult.cacheTier,
+            };
+          },
+          {
+            perf,
+            traceId,
+            prefilterCount: result.rows.length,
+            prefilterMs,
+            maxCandidates: TECHNICAL_FILTER_MAX_CANDIDATES,
+            concurrency: fallbackConcurrency,
+            maxResults: query.maxResults,
+          },
+        );
+        rows = technical.rows;
+        warnings = [...warnings, ...technical.warnings];
+        if (!perf) {
+          phases = technical.phaseMeta.phases;
+        }
+        indicatorValues = technical.indicatorValues;
+        skippedSymbols = [...skippedSymbols, ...technical.skippedSymbols];
+      }
+    }
+
+    globalDataCache.write(
+      "screener",
+      cacheKey,
+      { rows, indicatorValues },
+      cacheTtlMs("screener"),
+      Date.now(),
+    );
+    perf?.record("screener.total", totalStart, true, "service", {
+      rows: rows.length,
+      hadTechnical: query.technical != null,
+      traceId,
+    });
+    const dataResult = createDataResult(rows, "fmp", {
+      requestedAt,
+      warnings,
+      phases,
+      indicatorValues,
+      skippedSymbols: skippedSymbols.length > 0 ? skippedSymbols : undefined,
+      traceId,
+    });
+    return attachPerfMeta(dataResult, traceId, perf);
   }
 
   async getOptionExpirations(
@@ -2104,6 +2465,38 @@ export class MarketDataService {
 
   getTwsProvider(): TwsProvider {
     return this.tws;
+  }
+
+  /** Clear TWS skip state and stale Yahoo hot/cache entries after sidecar reconnect. */
+  resetTwsRecoveryState(args: {
+    symbols?: string[];
+    candleRequests?: CandleRequest[];
+  } = {}): void {
+    twsHealthGate.reset();
+    this.twsGatewayProbeAt = 0;
+    this.twsGatewayConnected = true;
+    this.candlesRevalidateKeys.clear();
+    this.quotesRevalidateKey = null;
+    this.optionExpRevalidateKeys.clear();
+    this.optionsChainRevalidateKeys.clear();
+
+    const symbols = [
+      ...new Set((args.symbols ?? []).map((s) => s.trim().toUpperCase()).filter(Boolean)),
+    ];
+    const candleRequests = args.candleRequests ?? [];
+
+    invalidateHotRecoveryKeys({ symbols, candleRequests });
+
+    if (symbols.length > 0) {
+      globalDataCache.delete("quotes", this.quotesCacheKey("yahoo", symbols));
+      globalDataCache.delete("quotes", this.quotesCacheKey("tws", symbols));
+      globalDataCache.delete("quotes", this.quotesCacheKey("ibkr", symbols));
+    }
+    for (const request of candleRequests) {
+      globalDataCache.delete("candles", this.candlesCacheKey("yahoo", request));
+      globalDataCache.delete("candles", this.candlesCacheKey("tws", request));
+      globalDataCache.delete("candles", this.candlesCacheKey("ibkr", request));
+    }
   }
 
   /** Best-effort warmup for watchlist/chart/options symbols. */

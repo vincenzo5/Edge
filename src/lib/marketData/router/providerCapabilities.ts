@@ -22,6 +22,8 @@ export const DEFAULT_PROVIDER_CAPABILITIES: ProviderCapabilityMap = {
   tradier: ["options_chain"],
   alpaca: [],
   ibkr: ["equity_candles", "equity_quotes", "options_chain"],
+  tws: ["equity_candles", "equity_quotes", "options_chain"],
+  massive: ["equity_candles"],
 };
 
 export function providerSupports(

@@ -81,6 +81,15 @@ export function IndicatorsIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+export function OptionsIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M2 5h12M2 8h12M2 11h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="12.5" cy="11" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function TemplateGridIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -291,6 +300,19 @@ export function InfoIcon({ size = 14 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden>
       <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.1" />
       <path d="M7 6.5V10M7 4.5v.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function ScreenerIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M2 3h12l-4.5 5v4L6.5 12V8L2 3z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

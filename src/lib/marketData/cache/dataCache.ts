@@ -63,6 +63,10 @@ export class DataCache {
     }
     this.stores.clear();
   }
+
+  delete(namespace: CacheNamespace, key: string): void {
+    this.store(namespace).delete(key);
+  }
 }
 
 /** Process-local singleton used by MarketDataService. */

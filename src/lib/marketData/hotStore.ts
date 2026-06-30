@@ -53,6 +53,7 @@ export function hotCandlesKey(request: CandleRequest): string {
     request.interval,
     request.beforeTimestamp ?? "",
     request.barCount ?? "",
+    request.sessionMode ?? "regular",
   ]);
 }
 
@@ -129,6 +130,12 @@ export class HotStore {
   clear(): void {
     this.entries.clear();
   }
+
+  invalidate(keys: string[]): void {
+    for (const key of keys) {
+      this.entries.delete(key);
+    }
+  }
 }
 
 /** Process-local hot store for UI-critical market data reads. */
@@ -136,6 +143,22 @@ export const globalHotStore = new HotStore();
 
 export function clearHotStoreForTests(): void {
   globalHotStore.clear();
+}
+
+export function invalidateHotRecoveryKeys(args: {
+  symbols: string[];
+  candleRequests: CandleRequest[];
+}): void {
+  const keys: string[] = [];
+  for (const sym of args.symbols) {
+    keys.push(hotQuoteKey(sym));
+  }
+  for (const request of args.candleRequests) {
+    keys.push(hotCandlesKey(request));
+  }
+  if (keys.length > 0) {
+    globalHotStore.invalidate(keys);
+  }
 }
 
 export function writeHotQuote(

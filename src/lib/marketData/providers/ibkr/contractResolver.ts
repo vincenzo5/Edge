@@ -4,6 +4,7 @@ import { getSharedContractCache } from "./contractCache";
 import type { IbkrClient, IbkrSecdefSearchRow } from "./client";
 import type { StockContractRecord } from "./contractCache";
 import { extractOptionMonthsFromSecdef, findOptionsSecdefRow } from "./secdefUtils";
+import { parseIbkrContractClassification } from "./contractClassification";
 
 const US_PRIMARY_EXCHANGES = new Set(["NASDAQ", "NYSE", "ARCA", "AMEX", "BATS", "ISLAND"]);
 
@@ -79,6 +80,9 @@ export function createContractResolver(
     let conid: number | null = null;
     let exchange: string | undefined;
     let companyName: string | undefined;
+    let industry: string | undefined;
+    let category: string | undefined;
+    let subcategory: string | undefined;
 
     const secdefRows = await loadSecdefRows(sym);
     const secdefRow = pickSecdefStockRow(secdefRows);
@@ -107,6 +111,10 @@ export function createContractResolver(
       if (infoExchange) exchange = infoExchange;
       if (infoName) companyName = infoName;
 
+      industry = asNonEmptyString(info.industry) ?? undefined;
+      category = asNonEmptyString(info.category) ?? undefined;
+      subcategory = asNonEmptyString(info.subcategory) ?? undefined;
+
       if (
         infoCurrency &&
         !["USD", "US"].includes(infoCurrency.toUpperCase()) &&
@@ -132,6 +140,9 @@ export function createContractResolver(
       conid,
       exchange,
       companyName,
+      industry: industry ?? undefined,
+      category: category ?? undefined,
+      subcategory: subcategory ?? undefined,
     };
     cache.setStock(record);
     return record;
@@ -213,8 +224,21 @@ export function createContractResolver(
     return rows;
   }
 
+  async function resolveContractClassification(symbol: string) {
+    const record = await resolveStockContract(symbol);
+    if (!record) return null;
+    return parseIbkrContractClassification(record.symbol, record.conid, {
+      exchange: record.exchange,
+      companyName: record.companyName,
+      industry: record.industry,
+      category: record.category,
+      subcategory: record.subcategory,
+    });
+  }
+
   return {
     resolveStockContract,
+    resolveContractClassification,
     resolveOptionsUnderlying,
     getCachedOptionStrikes,
     getCachedOptionContractInfo,

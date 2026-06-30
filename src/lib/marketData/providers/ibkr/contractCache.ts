@@ -8,6 +8,9 @@ export type StockContractRecord = {
   exchange?: string;
   currency?: string;
   companyName?: string;
+  industry?: string;
+  category?: string;
+  subcategory?: string;
 };
 
 export type OptionMonthsRecord = {

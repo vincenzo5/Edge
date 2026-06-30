@@ -2,7 +2,7 @@ import type { ChartQuoteStreamEvent, MarketQuote } from "@edge/chart-core";
 import type { MarketDataService } from "../service/marketDataService";
 import type { EquityQuote } from "../contracts/equities";
 import { dataResultToResponseMeta } from "../contracts/result";
-import { equityQuoteToWatchlistQuote } from "../validation/mappers";
+import { equityQuoteToMarketQuote, quoteSnapshotToMarketQuote } from "../validation/mappers";
 import { getTwsStreamUrl } from "../providers/tws/client";
 import type { QuoteStreamQueryInput } from "./streamQuerySchemas";
 import type { StreamSession } from "./createStreamSession";
@@ -80,7 +80,7 @@ export function createTwsQuoteStreamSession(
         merged.set(quote.symbol, quote);
       }
       for (const quote of result.data) {
-        merged.set(quote.symbol, quote);
+        merged.set(quote.symbol, quoteSnapshotToMarketQuote(quote));
       }
       emitQuotes(onEvent, [...merged.values()], "update");
     } catch {
@@ -93,11 +93,11 @@ export function createTwsQuoteStreamSession(
   const pollFallback = async (onEvent: (payload: string) => void, primed: boolean) => {
     if (stopped) return;
     try {
-      const result = await service.getWatchlistQuotes(query.symbols);
+      const result = await service.getQuotes(query.symbols);
       if (stopped) return;
       failureCount = 0;
       const meta = normalizeChartMeta(dataResultToResponseMeta(result));
-      const quotes = result.data as MarketQuote[];
+      const quotes = result.data.map(equityQuoteToMarketQuote);
       onEvent(
         JSON.stringify(
           (primed
@@ -177,17 +177,19 @@ export function createTwsQuoteStreamSession(
               if (event.type === "snapshot" || event.type === "update") {
                 const quotes = (event.quotes ?? []).map((q) => {
                   const row = q as MarketQuote & EquityQuote;
-                  if ("regularMarketPrice" in row) return row as MarketQuote;
-                  return equityQuoteToWatchlistQuote({
-                    symbol: row.symbol,
-                    shortName: row.shortName,
-                    exchange: row.exchange,
-                    price: row.price ?? null,
-                    change: row.change ?? null,
-                    changePercent: row.changePercent ?? null,
-                    volume: row.volume ?? null,
-                    updatedAt: row.updatedAt ?? Date.now(),
-                  }) as MarketQuote;
+                  if ("price" in row && typeof row.price !== "undefined") {
+                    return equityQuoteToMarketQuote({
+                      symbol: row.symbol,
+                      shortName: row.shortName,
+                      exchange: row.exchange,
+                      price: row.price ?? null,
+                      change: row.change ?? null,
+                      changePercent: row.changePercent ?? null,
+                      volume: row.volume ?? null,
+                      updatedAt: row.updatedAt ?? Date.now(),
+                    });
+                  }
+                  return row as MarketQuote;
                 });
                 const eventType = !primed ? "snapshot" : "update";
                 primed = true;

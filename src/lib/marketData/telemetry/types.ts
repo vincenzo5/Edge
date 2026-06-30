@@ -1,6 +1,6 @@
 import type { MarketDataPerfLayer, MarketDataPerfPhase } from "./perfPhases";
 
-export type DataCacheTier = "hot-fresh" | "hot-stale" | "cold";
+export type DataCacheTier = "hot-fresh" | "hot-stale" | "cold" | "universe";
 
 export type MarketDataTelemetryEventDetail = {
   traceId?: string;
@@ -121,4 +121,5 @@ export type MarketDataPerfBaseline = {
     ibkrAuthenticated?: boolean;
   };
   scenarios: MarketDataPerfScenarioResult[];
+  screener?: import("./screenerPerf").ScreenerPerfPresetResult[];
 };

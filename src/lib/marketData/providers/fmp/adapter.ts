@@ -7,10 +7,12 @@ import type {
   FmpEconomicCalendarEvent,
   FmpMarketMover,
   FmpMarketMoverKind,
+  FmpScreenerRow,
   FmpSecFiling,
   FmpStatementPeriod,
 } from "../../contracts/fmp";
 import type { NewsItem } from "../../contracts/news";
+import type { ScreenQuery } from "../../schemas/request";
 import { asFiniteNumber, asNonEmptyString } from "../../validation/parseRequest";
 import { fmpApiKey, fmpGet, defaultFmpSecFilingDateWindow } from "./client";
 import {
@@ -25,12 +27,14 @@ import {
   mapFmpIncomeStatement,
   mapFmpKeyMetrics,
   mapFmpMarketMover,
+  mapFmpScreenerRow,
   mapFmpSecFiling,
   fmpRowMatchesSymbol,
   mapFmpSplitEvent,
   mapFmpEconomicCalendarEvent,
   mapRows,
 } from "./mappers";
+import { screenQueryToFmpParams } from "./screenerParams";
 
 const MOVER_PATHS: Record<FmpMarketMoverKind, string> = {
   gainers: "/biggest-gainers",
@@ -240,6 +244,25 @@ export function createFmpProvider() {
       const limit = args.limit ?? 10;
       return {
         movers: movers.slice(0, limit),
+        warnings: result.warnings,
+      };
+    },
+
+    async runStockScreener(query: ScreenQuery): Promise<{
+      rows: FmpScreenerRow[];
+      warnings: string[];
+    }> {
+      if (!this.isConfigured()) {
+        return { rows: [], warnings: ["FMP_API_KEY is not configured"] };
+      }
+      const params = screenQueryToFmpParams(query);
+      const result = await fmpGet<Array<Record<string, unknown>>>(
+        "/company-screener",
+        params,
+        { allowPlanErrors: true },
+      );
+      return {
+        rows: mapRows(result.data, mapFmpScreenerRow),
         warnings: result.warnings,
       };
     },

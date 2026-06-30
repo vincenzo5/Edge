@@ -80,6 +80,19 @@ describe("createTwsProvider", () => {
     expect(result?.candles[0]?.c).toBe(2.5);
   });
 
+  it("forwards sessionMode to TWS client", async () => {
+    const provider = createTwsProvider(client);
+    await provider.getCandles({
+      symbol: "AAPL",
+      interval: "5m",
+      range: "1d",
+      sessionMode: "extended",
+    });
+    expect(client.getCandles).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionMode: "extended" }),
+    );
+  });
+
   it("maps batch quotes", async () => {
     const provider = createTwsProvider(client);
     const batch = await provider.getQuotesBatch(["AAPL", "MSFT"]);
