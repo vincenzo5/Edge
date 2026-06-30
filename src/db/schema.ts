@@ -52,6 +52,17 @@ export const userWatchlistLibrary = pgTable("user_watchlist_library", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const userScreenerLibrary = pgTable("user_screener_library", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  schemaVersion: integer("schema_version").notNull().default(1),
+  screenerSnapshot: jsonb("screener_snapshot").notNull(),
+  syncRevision: integer("sync_revision").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const chartTemplateLibrary = pgTable("chart_template_library", {
   userId: uuid("user_id")
     .primaryKey()
@@ -84,5 +95,6 @@ export const marketResearchNotes = pgTable("market_research_notes", {
 export type AppUser = typeof appUsers.$inferSelect;
 export type ChartWorkspace = typeof chartWorkspaces.$inferSelect;
 export type UserWatchlistLibrary = typeof userWatchlistLibrary.$inferSelect;
+export type UserScreenerLibrary = typeof userScreenerLibrary.$inferSelect;
 export type ChartTemplateLibrary = typeof chartTemplateLibrary.$inferSelect;
 export type MarketResearchNote = typeof marketResearchNotes.$inferSelect;
