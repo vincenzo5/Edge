@@ -8,6 +8,7 @@ describe('Tooltip', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -53,6 +54,37 @@ describe('Tooltip', () => {
     const tooltip = screen.getByRole('tooltip');
     expect(tooltip).toHaveTextContent('Lines — Trend Line');
     expect(tooltip.parentElement).toBe(document.body);
+  });
+
+  it('clamps portaled tooltip inside the left viewport edge', () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 320,
+    });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 8,
+      y: 20,
+      width: 32,
+      height: 20,
+      top: 20,
+      right: 40,
+      bottom: 40,
+      left: 8,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <Tooltip content="Opens related ETF SMH — Semiconductors sector" theme="dark" portaled>
+        <button type="button">Semiconductors</button>
+      </Tooltip>,
+    );
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Semiconductors' }));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(screen.getByRole('tooltip')).toHaveStyle({ left: '120px' });
   });
 
   it('hides tooltip on mouse leave', () => {

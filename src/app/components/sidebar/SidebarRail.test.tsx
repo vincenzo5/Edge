@@ -21,6 +21,18 @@ describe('SidebarRail', () => {
     )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
+  it('does not render removed options rail entry', () => {
+    render(
+      <SidebarRail
+        theme="dark"
+        activePanel={null}
+        onTogglePanel={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('sidebar-rail-options')).toBeNull();
+  });
+
   it('opens the object tree panel when rail icon is clicked', () => {
     const onTogglePanel = vi.fn();
 

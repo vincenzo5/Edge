@@ -19,6 +19,7 @@ import { useAppActions } from "./AppActionsContext";
 import { useActiveChartBridge } from "./ActiveChartContext";
 import { useChartActions } from "./ChartActionsContext";
 import { useWatchlistActions } from "./watchlist/WatchlistContext";
+import { useScreenerStateOptional } from "./screener/ScreenerProvider";
 import type { ExecuteToolOptions, ToolResult } from "@/lib/ai/types";
 
 export type AiToolsContextValue = InAppAiTools & {
@@ -32,6 +33,7 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
   const chartBridge = useActiveChartBridge();
   const chartActions = useChartActions();
   const watchlist = useWatchlistActions();
+  const screener = useScreenerStateOptional();
   const marketDataRef = useRef(createFetchMarketDataPort());
 
   const getContext = useCallback((): ToolContext => {
@@ -50,9 +52,15 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
             setState: watchlist.setState,
           }
         : null,
+      screener: screener
+        ? {
+            getState: () => screener.state,
+            getLastRun: () => screener.lastRun,
+          }
+        : null,
       marketData: marketDataRef.current,
     };
-  }, [app, chartBridge, chartActions, watchlist]);
+  }, [app, chartBridge, chartActions, watchlist, screener]);
 
   const tools = useMemo(
     () => createInAppAiTools(edgeToolRegistry, getContext),

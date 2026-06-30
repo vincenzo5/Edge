@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { SidebarMode } from "@/lib/responsive/responsiveLayout";
 import SidebarResizeHandle from "./SidebarResizeHandle";
 
@@ -21,6 +21,25 @@ export default function SidebarPanelShell({
   onClose,
   children,
 }: Props) {
+  const [draftWidth, setDraftWidth] = useState<number | null>(null);
+  const displayWidth = draftWidth ?? width;
+
+  useEffect(() => {
+    setDraftWidth(null);
+  }, [width]);
+
+  const handleWidthPreview = useCallback((nextWidth: number) => {
+    setDraftWidth(nextWidth);
+  }, []);
+
+  const handleWidthCommit = useCallback(
+    (nextWidth: number) => {
+      setDraftWidth(null);
+      onWidthChange?.(nextWidth);
+    },
+    [onWidthChange],
+  );
+
   useEffect(() => {
     if (mode !== "overlay" || !onClose) return;
 
@@ -37,7 +56,7 @@ export default function SidebarPanelShell({
       data-testid="sidebar-panel"
       data-panel-id={panelId}
       data-sidebar-mode={mode}
-      style={{ width }}
+      style={{ width: displayWidth }}
       className={`edge-panel relative flex shrink-0 flex-col overflow-hidden border-l ${
         mode === "overlay"
           ? "fixed right-[var(--sidebar-rail-width,44px)] top-0 z-40 h-full shadow-xl"
@@ -45,7 +64,11 @@ export default function SidebarPanelShell({
       }`}
     >
       {onWidthChange ? (
-        <SidebarResizeHandle width={width} onWidthChange={onWidthChange} />
+        <SidebarResizeHandle
+          width={displayWidth}
+          onWidthPreview={handleWidthPreview}
+          onWidthCommit={handleWidthCommit}
+        />
       ) : null}
       <div
         data-testid={`sidebar-panel-${panelId}`}

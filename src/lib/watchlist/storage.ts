@@ -224,6 +224,17 @@ export function addWatchlistItem(
   };
 }
 
+export function addWatchlistItems(
+  state: WatchlistState,
+  items: Array<Omit<WatchlistItem, "addedAt"> & { addedAt?: number }>,
+): WatchlistState {
+  let next = state;
+  for (const item of items) {
+    next = addWatchlistItem(next, item);
+  }
+  return next;
+}
+
 export function removeWatchlistItem(state: WatchlistState, symbol: string): WatchlistState {
   const sym = symbol.trim().toUpperCase();
   const active = getActiveWatchlist(state);

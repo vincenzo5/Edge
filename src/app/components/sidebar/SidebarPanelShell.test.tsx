@@ -53,4 +53,33 @@ describe('SidebarPanelShell', () => {
     fireEvent.keyDown(handle, { key: 'ArrowLeft' });
     expect(onWidthChange).toHaveBeenCalledWith(316);
   });
+
+  it('previews width immediately during pointer drag and commits once on pointerup', () => {
+    const onWidthChange = vi.fn();
+
+    render(
+      <SidebarPanelShell
+        panelId="watchlist"
+        mode="inline"
+        width={300}
+        onWidthChange={onWidthChange}
+      >
+        <div>Panel content</div>
+      </SidebarPanelShell>,
+    );
+
+    const handle = screen.getByTestId('sidebar-resize-handle');
+    const panel = screen.getByTestId('sidebar-panel');
+
+    fireEvent.pointerDown(handle, { button: 0, clientX: 300, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 280, pointerId: 1 });
+
+    expect(panel).toHaveStyle({ width: '320px' });
+    expect(onWidthChange).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(handle, { clientX: 280, pointerId: 1 });
+
+    expect(onWidthChange).toHaveBeenCalledTimes(1);
+    expect(onWidthChange).toHaveBeenCalledWith(320);
+  });
 });

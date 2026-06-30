@@ -14,6 +14,9 @@ import { createPortal } from 'react-dom';
 import type { Theme } from '@/lib/chart/contracts';
 
 const SHOW_DELAY_MS = 400;
+const VIEWPORT_PADDING_PX = 8;
+const MAX_TOOLTIP_WIDTH_PX = 224; // Tailwind max-w-56.
+const ESTIMATED_TOOLTIP_HEIGHT_PX = 48;
 
 type Side = 'bottom' | 'left' | 'right';
 
@@ -34,29 +37,52 @@ const PANEL_POSITION: Record<Side, string> = {
 };
 
 function panelStyle(rect: DOMRect, side: Side): CSSProperties {
+  const viewportWidth =
+    typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerWidth;
+  const viewportHeight =
+    typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerHeight;
+  const horizontalCenter = Math.min(
+    Math.max(
+      rect.left + rect.width / 2,
+      VIEWPORT_PADDING_PX + MAX_TOOLTIP_WIDTH_PX / 2,
+    ),
+    Math.max(
+      VIEWPORT_PADDING_PX + MAX_TOOLTIP_WIDTH_PX / 2,
+      viewportWidth - VIEWPORT_PADDING_PX - MAX_TOOLTIP_WIDTH_PX / 2,
+    ),
+  );
+  const verticalCenter = Math.min(
+    Math.max(rect.top + rect.height / 2, VIEWPORT_PADDING_PX),
+    Math.max(VIEWPORT_PADDING_PX, viewportHeight - VIEWPORT_PADDING_PX),
+  );
+
   if (side === 'left') {
+    const hasRoomLeft = rect.left - MAX_TOOLTIP_WIDTH_PX - 4 >= VIEWPORT_PADDING_PX;
     return {
       position: 'fixed',
-      top: rect.top + rect.height / 2,
-      left: rect.left - 4,
-      transform: 'translate(-100%, -50%)',
+      top: verticalCenter,
+      left: hasRoomLeft ? rect.left - 4 : rect.right + 4,
+      transform: hasRoomLeft ? 'translate(-100%, -50%)' : 'translateY(-50%)',
       zIndex: 10_000,
     };
   }
   if (side === 'right') {
+    const hasRoomRight = rect.right + MAX_TOOLTIP_WIDTH_PX + 4 <= viewportWidth - VIEWPORT_PADDING_PX;
     return {
       position: 'fixed',
-      top: rect.top + rect.height / 2,
-      left: rect.right + 4,
-      transform: 'translateY(-50%)',
+      top: verticalCenter,
+      left: hasRoomRight ? rect.right + 4 : rect.left - 4,
+      transform: hasRoomRight ? 'translateY(-50%)' : 'translate(-100%, -50%)',
       zIndex: 10_000,
     };
   }
+  const hasRoomBelow =
+    rect.bottom + 4 + ESTIMATED_TOOLTIP_HEIGHT_PX <= viewportHeight - VIEWPORT_PADDING_PX;
   return {
     position: 'fixed',
-    top: rect.bottom + 4,
-    left: rect.left + rect.width / 2,
-    transform: 'translateX(-50%)',
+    top: hasRoomBelow ? rect.bottom + 4 : rect.top - 4,
+    left: horizontalCenter,
+    transform: hasRoomBelow ? 'translateX(-50%)' : 'translate(-50%, -100%)',
     zIndex: 10_000,
   };
 }

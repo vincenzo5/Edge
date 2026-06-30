@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   DEFAULT_WATCHLIST_STATE,
   addWatchlistItem,
+  addWatchlistItems,
   clearWatchlist,
   clearWatchlistStorage,
   createWatchlist,
@@ -269,5 +270,15 @@ describe('watchlist storage', () => {
     expect(getActiveWatchlist(state).items[0].tags).toEqual(['AI', 'Semis']);
     state = setWatchlistItemNote(state, 'NVDA', 'Leader');
     expect(getActiveWatchlist(state).items[0].note).toBe('Leader');
+  });
+
+  it('addWatchlistItems bulk-adds with dedupe and cap', () => {
+    const state = addWatchlistItems(DEFAULT_WATCHLIST_STATE, [
+      { symbol: 'AAPL', name: 'Apple', exchange: 'NASDAQ' },
+      { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' },
+      { symbol: 'AAPL', name: 'Apple duplicate', exchange: 'NASDAQ' },
+    ]);
+    const active = getActiveWatchlist(state);
+    expect(active.items.map((item) => item.symbol)).toEqual(['AAPL', 'MSFT']);
   });
 });

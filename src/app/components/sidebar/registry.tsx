@@ -4,7 +4,6 @@ import type { ComponentType } from "react";
 import type { SidebarPanelId } from "@/lib/chartConfig";
 import { ObjectTreePanel } from "./panels/ObjectTreePanel";
 import { WatchlistSidebarPanel } from "./panels/WatchlistPanel";
-import { OptionsPanel } from "./panels/OptionsPanel";
 
 export type SidebarPanelScope = "active-chart" | "app";
 
@@ -47,22 +46,6 @@ function WatchlistIcon({ className }: { className?: string }) {
   );
 }
 
-function OptionsIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      aria-hidden
-    >
-      <path d="M4 7h16M4 12h16M4 17h10" />
-      <circle cx="18" cy="17" r="2" />
-    </svg>
-  );
-}
-
 export const SIDEBAR_PANELS: SidebarPanelDef[] = [
   {
     id: "watchlist",
@@ -77,13 +60,6 @@ export const SIDEBAR_PANELS: SidebarPanelDef[] = [
     scope: "active-chart",
     Icon: ObjectTreeIcon,
     Panel: ObjectTreePanel,
-  },
-  {
-    id: "options",
-    label: "Options",
-    scope: "active-chart",
-    Icon: OptionsIcon,
-    Panel: OptionsPanel,
   },
 ];
 

@@ -36,7 +36,18 @@ describe("chartWorkspace schemas", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("accepts sidebar panel width prefs", () => {
+  it("accepts shared sidebar width prefs", () => {
+    const parsed = chartLayoutSnapshotSchema.safeParse({
+      ...DEFAULT_LAYOUT,
+      sidebar: {
+        activePanel: "watchlist",
+        width: 360,
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("migrates legacy per-panel sidebar widths to shared width", () => {
     const parsed = chartLayoutSnapshotSchema.safeParse({
       ...DEFAULT_LAYOUT,
       sidebar: {
@@ -45,5 +56,24 @@ describe("chartWorkspace schemas", () => {
       },
     });
     expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.sidebar?.width).toBe(360);
+      expect(parsed.data.sidebar?.activePanel).toBe("watchlist");
+    }
+  });
+
+  it("migrates legacy options active panel to null", () => {
+    const parsed = chartLayoutSnapshotSchema.safeParse({
+      ...DEFAULT_LAYOUT,
+      sidebar: {
+        activePanel: "options",
+        width: 420,
+      },
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.sidebar?.activePanel).toBeNull();
+      expect(parsed.data.sidebar?.width).toBe(420);
+    }
   });
 });

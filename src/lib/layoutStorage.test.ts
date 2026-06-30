@@ -22,7 +22,7 @@ describe('loadLayout sidebar prefs', () => {
   it('defaults sidebar when missing from saved layout', () => {
     saveLayout({ ...DEFAULT_LAYOUT, sidebar: undefined });
     const loaded = loadLayout();
-    expect(loaded.sidebar).toEqual({ activePanel: null, panelWidths: {} });
+    expect(loaded.sidebar).toEqual({ activePanel: null });
   });
 
   it('round-trips sidebar.activePanel', () => {
@@ -108,16 +108,45 @@ describe('loadLayout sidebar prefs', () => {
     expect(loaded.sidebar?.activePanel).toBeNull();
   });
 
-  it('round-trips sidebar panel widths', () => {
+  it('round-trips shared sidebar width', () => {
+    saveLayout({
+      ...DEFAULT_LAYOUT,
+      sidebar: {
+        activePanel: 'watchlist',
+        width: 420,
+      },
+    });
+    const loaded = loadLayout();
+    expect(loaded.sidebar?.width).toBe(420);
+  });
+
+  it('migrates legacy options active panel to null on load', () => {
     saveLayout({
       ...DEFAULT_LAYOUT,
       sidebar: {
         activePanel: 'options',
-        panelWidths: { options: 420, watchlist: 700 },
+        width: 420,
       },
     });
     const loaded = loadLayout();
-    expect(loaded.sidebar?.panelWidths).toEqual({ options: 420, watchlist: 560 });
+    expect(loaded.sidebar?.activePanel).toBeNull();
+    expect(loaded.sidebar?.width).toBe(420);
+  });
+
+  it('migrates legacy per-panel widths to shared width on load', () => {
+    localStorageMock.setItem(
+      'tv-ai:layout:v1',
+      JSON.stringify({
+        ...DEFAULT_LAYOUT,
+        sidebar: {
+          activePanel: 'options',
+          panelWidths: { options: 420, watchlist: 700 },
+        },
+      }),
+    );
+    const loaded = loadLayout();
+    expect(loaded.sidebar?.width).toBe(420);
+    expect(loaded.sidebar?.activePanel).toBeNull();
   });
 
   it('preserves drawing metadata through loadLayout', () => {

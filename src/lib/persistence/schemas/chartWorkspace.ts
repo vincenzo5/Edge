@@ -1,6 +1,16 @@
 import { z } from "zod";
 
-import { migrateLayoutSync, INTERVALS, RANGES, CHART_TYPES, GRID_MODES } from "@/lib/chartConfig";
+import {
+  migrateLayoutSync,
+  INTERVALS,
+  RANGES,
+  CHART_TYPES,
+  GRID_MODES,
+  type ChartLayout,
+  type LegacySidebarPanelId,
+  type SidebarPanelId,
+} from "@/lib/chartConfig";
+import { migrateSidebarWidth } from "@/lib/responsive/sidebarWidth";
 import { writeRequestBaseSchema } from "@/lib/persistence/common";
 
 const rangeValues = RANGES.map((r) => r.value) as [string, ...string[]];
@@ -55,6 +65,29 @@ const cellConfigSchema = z.object({
   chartSettings: z.record(z.string(), z.unknown()).optional(),
 });
 
+function migrateSidebarSnapshot(sidebar: unknown): ChartLayout["sidebar"] | undefined {
+  if (!sidebar || typeof sidebar !== "object") return undefined;
+  const record = sidebar as Record<string, unknown>;
+  const rawActive = record.activePanel as LegacySidebarPanelId | null | undefined;
+  const activePanel: SidebarPanelId | null =
+    rawActive === "options" || rawActive == null
+      ? null
+      : rawActive === "object-tree" || rawActive === "watchlist"
+        ? rawActive
+        : null;
+  const width = migrateSidebarWidth({
+    activePanel: rawActive ?? null,
+    width: record.width as number | undefined,
+    panelWidths: record.panelWidths as
+      | Partial<Record<LegacySidebarPanelId, number>>
+      | undefined,
+  });
+  return {
+    activePanel,
+    ...(width != null ? { width } : {}),
+  };
+}
+
 export const chartLayoutSnapshotSchema = z.preprocess((value) => {
   if (!value || typeof value !== "object") return value;
   const record = value as Record<string, unknown>;
@@ -68,7 +101,12 @@ export const chartLayoutSnapshotSchema = z.preprocess((value) => {
     linkCrosshair: record.linkCrosshair as boolean | undefined,
     linkDrawings: record.linkDrawings as boolean | undefined,
   });
-  return { ...record, ...sync };
+  const sidebar = migrateSidebarSnapshot(record.sidebar);
+  return {
+    ...record,
+    ...sync,
+    ...(sidebar ? { sidebar } : {}),
+  };
 }, z.object({
   version: z.literal(1),
   gridMode: z.enum(gridModeValues),
@@ -87,14 +125,8 @@ export const chartLayoutSnapshotSchema = z.preprocess((value) => {
     .optional(),
   sidebar: z
     .object({
-      activePanel: z.enum(["object-tree", "watchlist", "options"]).nullable(),
-      panelWidths: z
-        .object({
-          "object-tree": z.number().finite().optional(),
-          watchlist: z.number().finite().optional(),
-          options: z.number().finite().optional(),
-        })
-        .optional(),
+      activePanel: z.enum(["object-tree", "watchlist"]).nullable(),
+      width: z.number().finite().optional(),
     })
     .optional(),
   cells: z.array(cellConfigSchema).min(1).max(4),

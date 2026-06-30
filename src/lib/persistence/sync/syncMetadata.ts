@@ -8,6 +8,7 @@ const KEYS = {
   chartWorkspace: "tv-ai:sync:chart-workspace:v1",
   watchlistLibrary: "tv-ai:sync:watchlist-library:v1",
   chartTemplateLibrary: "tv-ai:sync:chart-template-library:v1",
+  screenerLibrary: "tv-ai:sync:screener-library:v1",
 } as const;
 
 function readMetadata(key: string): SyncMetadata | null {
@@ -56,6 +57,14 @@ export function getChartTemplateLibrarySyncMetadata(): SyncMetadata | null {
 
 export function setChartTemplateLibrarySyncMetadata(metadata: SyncMetadata): void {
   writeMetadata(KEYS.chartTemplateLibrary, metadata);
+}
+
+export function getScreenerLibrarySyncMetadata(): SyncMetadata | null {
+  return readMetadata(KEYS.screenerLibrary);
+}
+
+export function setScreenerLibrarySyncMetadata(metadata: SyncMetadata): void {
+  writeMetadata(KEYS.screenerLibrary, metadata);
 }
 
 export function isRemoteNewer(

@@ -10,7 +10,9 @@ import { ActiveChartProvider } from "./ActiveChartContext";
 import { ChartActionsProvider } from "./ChartActionsContext";
 import { AppActionsProvider, buildAppActions } from "./AppActionsContext";
 import { WatchlistProvider } from "./watchlist/WatchlistContext";
+import { ScreenerProvider } from "./screener/ScreenerProvider";
 import { MarketDataProvider } from "./MarketDataProvider";
+import { DataHealthProvider } from "./data-health";
 import { AiToolsProvider } from "./AiToolsProvider";
 import AiSessionBridge from "./AiSessionBridge";
 import {
@@ -38,11 +40,15 @@ import { useChartWorkspaceRemoteSync } from "@/lib/persistence/sync/useChartWork
 import { useResponsiveLayout } from "@/lib/responsive/useResponsiveLayout";
 import { ShortcutUIProvider } from "./shortcuts/ShortcutUIContext";
 import ShortcutProvider from "./shortcuts/ShortcutProvider";
-import MarketDataTelemetryPanel from "./dev/MarketDataTelemetryPanel";
+import { OptionsChainDialog } from "./options/OptionsChainDialog";
+import { ScreenerDialog } from "./screener";
+import { useSymbolNavigationHistory } from "./chart-chrome/useSymbolNavigationHistory";
 
 export default function StockApp() {
   const [layout, setLayout] = useState<ChartLayout>(DEFAULT_LAYOUT);
   const [hydrated, setHydrated] = useState(false);
+  const [optionsChainOpen, setOptionsChainOpen] = useState(false);
+  const [screenerOpen, setScreenerOpen] = useState(false);
   const hydratedRef = useRef(false);
 
   // Hydrate from localStorage on mount.
@@ -152,25 +158,15 @@ export default function StockApp() {
     });
   }, []);
 
-  const handleSidebarWidthChange = useCallback(
-    (width: number) => {
-      setLayout((prev) => {
-        const activePanel = prev.sidebar?.activePanel;
-        if (!activePanel) return prev;
-        return {
-          ...prev,
-          sidebar: {
-            ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
-            panelWidths: {
-              ...(prev.sidebar?.panelWidths ?? {}),
-              [activePanel]: width,
-            },
-          },
-        };
-      });
-    },
-    [],
-  );
+  const handleSidebarWidthChange = useCallback((width: number) => {
+    setLayout((prev) => ({
+      ...prev,
+      sidebar: {
+        ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
+        width,
+      },
+    }));
+  }, []);
 
   const cells = useMemo(
     () => layout.cells.slice(0, cellCountFor(layout.gridMode)),
@@ -179,6 +175,12 @@ export default function StockApp() {
 
   const activeCellIndex = layout.activeCellIndex ?? 0;
   const activeCell = cells[activeCellIndex] ?? DEFAULT_CELL;
+
+  const symbolHistory = useSymbolNavigationHistory({
+    cells,
+    activeCellIndex,
+    hydrated,
+  });
 
   const patchActiveCell = useCallback(
     (patch: Partial<CellConfig>) => {
@@ -197,6 +199,26 @@ export default function StockApp() {
     },
     [patchActiveCell],
   );
+
+  const handleSymbolBack = useCallback(() => {
+    const previous = symbolHistory.navigate(activeCellIndex, "back");
+    if (!previous) return;
+    patchActiveCell({
+      symbol: previous.symbol,
+      symbolName: previous.name,
+      exchange: previous.exchange,
+    });
+  }, [activeCellIndex, patchActiveCell, symbolHistory]);
+
+  const handleSymbolForward = useCallback(() => {
+    const next = symbolHistory.navigate(activeCellIndex, "forward");
+    if (!next) return;
+    patchActiveCell({
+      symbol: next.symbol,
+      symbolName: next.name,
+      exchange: next.exchange,
+    });
+  }, [activeCellIndex, patchActiveCell, symbolHistory]);
 
   const handleIntervalChange = useCallback(
     (interval: Interval) => {
@@ -243,13 +265,26 @@ export default function StockApp() {
 
   const responsive = useResponsiveLayout();
   const activePanel = layout.sidebar?.activePanel ?? null;
-  const sidebarPanelWidth = resolveSidebarPanelWidth(
-    activePanel,
-    layout.sidebar?.panelWidths,
-  );
+  const sidebarPanelWidth = resolveSidebarPanelWidth(layout.sidebar?.width);
   const handleSidebarClose = useCallback(() => {
     handleSidebarPanelChange(null);
   }, [handleSidebarPanelChange]);
+
+  const handleOpenOptionsChain = useCallback(() => {
+    setOptionsChainOpen(true);
+  }, []);
+
+  const handleCloseOptionsChain = useCallback(() => {
+    setOptionsChainOpen(false);
+  }, []);
+
+  const handleOpenScreener = useCallback(() => {
+    setScreenerOpen(true);
+  }, []);
+
+  const handleCloseScreener = useCallback(() => {
+    setScreenerOpen(false);
+  }, []);
 
   return (
     <SidebarProvider
@@ -265,8 +300,10 @@ export default function StockApp() {
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <AppActionsProvider value={appActions}>
             <WatchlistProvider>
+              <ScreenerProvider>
               <MarketDataProvider layout={layout}>
               <ActiveChartProvider>
+                <DataHealthProvider>
                 <ShortcutUIProvider>
                   <ShortcutProvider>
                 <AiToolsProvider>
@@ -295,6 +332,14 @@ export default function StockApp() {
                 onSymbolSelect: handleSymbolSelect,
                 onIntervalChange: handleIntervalChange,
                 onChartTypeChange: handleChartTypeChange,
+                onOpenOptionsChain: handleOpenOptionsChain,
+                onOpenScreener: handleOpenScreener,
+              }}
+              symbolNav={{
+                canBack: symbolHistory.canBack,
+                canForward: symbolHistory.canForward,
+                onBack: handleSymbolBack,
+                onForward: handleSymbolForward,
               }}
             />
             <div className="relative flex min-h-0 flex-1">
@@ -306,10 +351,19 @@ export default function StockApp() {
                 cells={cells}
                 activeCellIndex={activeCellIndex}
                 toolbarPrefs={layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
+                symbolNav={{
+                  canBack: symbolHistory.canBack,
+                  canForward: symbolHistory.canForward,
+                  onBack: handleSymbolBack,
+                  onForward: handleSymbolForward,
+                  onSymbolSelect: handleSymbolSelect,
+                }}
                 onCellChange={applyCellUpdate}
                 onActiveCellChange={handleActiveCellChange}
                 onToolbarPrefsChange={handleToolbarPrefsChange}
               />
+              <OptionsChainDialog open={optionsChainOpen} onClose={handleCloseOptionsChain} />
+              <ScreenerDialog open={screenerOpen} onClose={handleCloseScreener} />
               {responsive.sidebarMode === "inline" ? (
                 <RightSidebar
                   activePanel={activePanel}
@@ -331,8 +385,10 @@ export default function StockApp() {
                 </AiToolsProvider>
                   </ShortcutProvider>
                 </ShortcutUIProvider>
-          </ActiveChartProvider>
+                </DataHealthProvider>
+              </ActiveChartProvider>
               </MarketDataProvider>
+              </ScreenerProvider>
             </WatchlistProvider>
           </AppActionsProvider>
         </div>
@@ -345,7 +401,6 @@ export default function StockApp() {
       </div>
         </ChartActionsProvider>
       </div>
-      <MarketDataTelemetryPanel />
     </SidebarProvider>
   );
 }

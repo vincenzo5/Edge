@@ -14,6 +14,16 @@ describe('RightSidebar', () => {
 
     expect(screen.getByTestId('sidebar-panel')).toHaveAttribute('data-sidebar-mode', 'inline');
     expect(screen.getByTestId('sidebar-panel-object-tree')).toBeInTheDocument();
-    expect(screen.getByTestId('sidebar-panel-object-tree')).toBeInTheDocument();
+  });
+
+  it('uses the same shared width regardless of active panel', () => {
+    const { rerender } = render(
+      <RightSidebar activePanel="object-tree" mode="inline" width={360} />,
+    );
+
+    expect(screen.getByTestId('sidebar-panel')).toHaveStyle({ width: '360px' });
+
+    rerender(<RightSidebar activePanel="watchlist" mode="inline" width={360} />);
+    expect(screen.getByTestId('sidebar-panel')).toHaveStyle({ width: '360px' });
   });
 });

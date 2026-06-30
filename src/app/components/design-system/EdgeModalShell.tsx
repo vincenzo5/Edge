@@ -10,6 +10,7 @@ type Props = {
   onClose: () => void;
   maxWidth?: "sm" | "md" | "lg" | "full";
   children: ReactNode;
+  headerActions?: ReactNode;
   footer?: ReactNode;
   testId?: string;
   align?: "center" | "top";
@@ -29,6 +30,7 @@ export default function EdgeModalShell({
   onClose,
   maxWidth = "md",
   children,
+  headerActions,
   footer,
   testId,
   align = "top",
@@ -63,17 +65,22 @@ export default function EdgeModalShell({
         className={`${modalShellClass()} w-full ${maxWidthClass[maxWidth]}`}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-[var(--edge-border)] px-5 py-4">
-          <div>
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--edge-border)] px-5 py-4">
+          <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold tracking-[-0.01em]">{title}</h2>
             {subtitle ? (
               <p className="mt-0.5 text-xs text-[var(--edge-text-secondary)]">{subtitle}</p>
             ) : null}
           </div>
+          {headerActions ? (
+            <div className="flex shrink-0 items-center gap-2" data-testid="edge-modal-header-actions">
+              {headerActions}
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={onClose}
-            className="edge-icon-button edge-focus-ring rounded p-1 text-2xl leading-none"
+            className="edge-icon-button edge-focus-ring shrink-0 rounded p-1 text-2xl leading-none"
             aria-label="Close"
           >
             ×

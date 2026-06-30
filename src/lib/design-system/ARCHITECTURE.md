@@ -61,9 +61,9 @@ Import from `src/app/components/design-system/index.ts`:
 
 | Primitive | Use for |
 |-----------|---------|
-| `EdgeButton` / `EdgeIconButton` | Toolbar and header actions |
+| `EdgeButton` / `EdgeIconButton` | Toolbar and header actions; `EdgeButton` supports `variant="primary"` for filled accent CTAs |
 | `EdgeMenuItem` / `EdgeMenuSectionHeader` | Context menus and dropdown lists |
-| `EdgeModalShell` | Dialog shells (settings, search, confirmations) |
+| `EdgeModalShell` | Dialog shells (settings, search, confirmations); optional `headerActions` beside title, `footer` for bottom controls |
 | `EdgeSearchInput` | Modal search fields |
 | `EdgeSegmentedTabs` | 2–4 way panel tabs (Object tree / Data window) |
 | `EdgePanelHeader` | Sidebar panel title row |

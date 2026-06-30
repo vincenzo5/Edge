@@ -1,0 +1,377 @@
+/** @vitest-environment jsdom */
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
+import { OptionsChainDialog } from "./OptionsChainDialog";
+import {
+  ActiveChartProvider,
+  useActiveChartBridge,
+  type ActiveChartSnapshot,
+} from "../ActiveChartContext";
+import { DEFAULT_CELL } from "@/lib/chartConfig";
+import {
+  makeDataWindowActionsMock,
+  makeDrawingCommandsMock,
+  makeUICommandsMock,
+  toActiveChartRegistration,
+} from "@/test/activeChartMocks";
+
+vi.mock("../MarketDataProvider", () => ({
+  useMarketDataQuotesForSymbols: () => ({ quotes: [] }),
+}));
+
+vi.mock("../data-health", () => ({
+  useRegisterOptionsHealthMeta: vi.fn(),
+}));
+
+function makeSnapshot(): ActiveChartSnapshot {
+  return {
+    chartId: "cell-0",
+    config: { ...DEFAULT_CELL, symbol: "AAPL", drawings: [] },
+    theme: "dark",
+    overlays: [],
+    dataWindow: {
+      dataIndex: 0,
+      candles: [{ t: 1, o: 10, h: 12, l: 9, c: 150, v: 1000 }],
+      indicators: [],
+      symbol: "AAPL",
+      interval: "1d",
+      theme: "dark",
+    },
+    overlayActions: {
+      remove: vi.fn(),
+      setVisible: vi.fn(),
+      setLocked: vi.fn(),
+      rename: vi.fn(),
+      bringForward: vi.fn(),
+      sendBackward: vi.fn(),
+      duplicate: vi.fn(),
+      subscribe: () => () => {},
+    },
+    dataWindowActions: makeDataWindowActionsMock(),
+    onConfigChange: vi.fn(),
+    openIndicatorPicker: vi.fn(),
+    headerCommands: {
+      replayActive: false,
+      canUndo: false,
+      canRedo: false,
+      openSettings: vi.fn(),
+      openStudyTemplate: vi.fn(),
+      openChartTemplate: vi.fn(),
+      toggleReplay: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      addFavoriteIndicator: vi.fn(),
+    },
+    headerState: {
+      replayActive: false,
+      canUndo: false,
+      canRedo: false,
+    },
+    chartCommands: {
+      undo: vi.fn(() => false),
+      redo: vi.fn(() => false),
+      canUndo: vi.fn(() => false),
+      canRedo: vi.fn(() => false),
+      goTo: vi.fn(async () => ({ ok: true as const })),
+      zoomIn: vi.fn(),
+      resetChartView: vi.fn(),
+      getCandles: vi.fn(() => []),
+      selectDrawing: vi.fn(),
+      getSelectedDrawingId: vi.fn(() => null),
+      updateDrawingStyles: vi.fn(),
+      restoreDrawings: vi.fn(),
+      canCaptureSnapshot: vi.fn(() => true),
+      captureSnapshot: vi.fn(async () => new Blob([new Uint8Array(32)], { type: "image/png" })),
+    },
+    drawingCommands: makeDrawingCommandsMock(),
+    uiCommands: makeUICommandsMock(),
+  };
+}
+
+function SeedSnapshot({ snapshot }: { snapshot: ActiveChartSnapshot }) {
+  const bridge = useActiveChartBridge();
+  useEffect(() => {
+    if (!bridge) return;
+    bridge.register(snapshot.chartId, toActiveChartRegistration(snapshot));
+    return () => bridge.unregister(snapshot.chartId);
+  }, [bridge, snapshot]);
+  return null;
+}
+
+describe("OptionsChainDialog", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(global, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/options/expirations")) {
+        return new Response(
+          JSON.stringify({
+            expirations: [{ underlying: "AAPL", expiration: "2025-06-20" }],
+            meta: { source: "ibkr" },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/options/chain")) {
+        return new Response(
+          JSON.stringify({
+            chain: {
+              underlying: "AAPL",
+              expiration: "2025-06-20",
+              contracts: [
+                {
+                  contractSymbol: "AAPL250620C00150000",
+                  underlying: "AAPL",
+                  type: "call",
+                  expiration: "2025-06-20",
+                  strike: 150,
+                  bid: 1,
+                  ask: 1.2,
+                  volume: 100,
+                  openInterest: 500,
+                  updatedAt: Date.now(),
+                },
+              ],
+            },
+            meta: { source: "ibkr" },
+          }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+  });
+
+  it("does not render when closed", () => {
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open={false} onClose={vi.fn()} />
+      </ActiveChartProvider>,
+    );
+    expect(screen.queryByTestId("options-chain-dialog")).toBeNull();
+  });
+
+  it("renders dialog with chain table when open", async () => {
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open onClose={vi.fn()} />
+      </ActiveChartProvider>,
+    );
+
+    expect(screen.getByTestId("options-chain-dialog")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /AAPL options chain/i })).toBeInTheDocument();
+    expect(await screen.findByTestId("options-chain-table")).toBeInTheDocument();
+  });
+
+  it("calls onClose when close button clicked", () => {
+    const onClose = vi.fn();
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open onClose={onClose} />
+      </ActiveChartProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("options-chain-dialog-close"));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("calls onClose on Escape", () => {
+    const onClose = vi.fn();
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open onClose={onClose} />
+      </ActiveChartProvider>,
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("does not fetch options when closed", () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockImplementation(async () => {
+      throw new Error("fetch should not run when dialog is closed");
+    });
+
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open={false} onClose={vi.fn()} />
+      </ActiveChartProvider>,
+    );
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("loads chain for a different expiration when expiration tab is selected", async () => {
+    const chainRequests: string[] = [];
+    vi.spyOn(global, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/options/expirations")) {
+        return new Response(
+          JSON.stringify({
+            expirations: [
+              { underlying: "AAPL", expiration: "2025-06-20" },
+              { underlying: "AAPL", expiration: "2025-07-18" },
+            ],
+            meta: { source: "ibkr" },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/options/chain")) {
+        chainRequests.push(url);
+        const expiration = new URL(url, "http://localhost").searchParams.get("expiration");
+        const strike = expiration === "2025-07-18" ? 160 : 150;
+        return new Response(
+          JSON.stringify({
+            chain: {
+              underlying: "AAPL",
+              expiration: expiration ?? "2025-06-20",
+              contracts: [
+                {
+                  contractSymbol: `AAPL${expiration?.replace(/-/g, "").slice(2)}C00${strike}000`,
+                  underlying: "AAPL",
+                  type: "call",
+                  expiration: expiration ?? "2025-06-20",
+                  strike,
+                  bid: 1,
+                  ask: 1.2,
+                  volume: 100,
+                  openInterest: 500,
+                  updatedAt: Date.now(),
+                },
+              ],
+            },
+            meta: { source: "ibkr" },
+          }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open onClose={vi.fn()} />
+      </ActiveChartProvider>,
+    );
+
+    expect(await screen.findByTestId("options-chain-row-150")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("options-exp-2025-07-18"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("options-chain-row-160")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("options-chain-row-150")).toBeNull();
+    expect(chainRequests.some((url) => url.includes("expiration=2025-07-18"))).toBe(true);
+  });
+
+  it("renders scrollable dialog body and top risk ruler presets", async () => {
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open onClose={vi.fn()} />
+      </ActiveChartProvider>,
+    );
+
+    expect(await screen.findByTestId("options-chain-dialog-scroll")).toBeInTheDocument();
+    const presets = screen.getByTestId("options-risk-ruler-presets");
+    const scroll = screen.getByTestId("options-chain-dialog-scroll");
+    expect(scroll.contains(presets)).toBe(true);
+    const table = await screen.findByTestId("options-chain-table");
+    expect(presets.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("Click to add to chart")).toBeInTheDocument();
+  });
+
+  it("shows prominent loading state while chain fetch is in flight", async () => {
+    let resolveChain: ((value: Response) => void) | undefined;
+    vi.spyOn(global, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/options/expirations")) {
+        return new Response(
+          JSON.stringify({
+            expirations: [{ underlying: "AAPL", expiration: "2025-06-20" }],
+            meta: { source: "ibkr" },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/options/chain")) {
+        return new Promise<Response>((resolve) => {
+          resolveChain = resolve;
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open onClose={vi.fn()} />
+      </ActiveChartProvider>,
+    );
+
+    const loading = await screen.findByTestId("options-chain-loading");
+    expect(loading).toHaveAttribute("role", "status");
+    expect(loading).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByTestId("options-chain-loading-spinner")).toBeInTheDocument();
+    expect(loading).toHaveTextContent(/Loading AAPL 2025-06-20 options chain/i);
+
+    resolveChain?.(
+      new Response(
+        JSON.stringify({
+          chain: {
+            underlying: "AAPL",
+            expiration: "2025-06-20",
+            contracts: [
+              {
+                contractSymbol: "AAPL250620C00150000",
+                underlying: "AAPL",
+                type: "call",
+                expiration: "2025-06-20",
+                strike: 150,
+                bid: 1,
+                ask: 1.2,
+                volume: 100,
+                openInterest: 500,
+                updatedAt: Date.now(),
+              },
+            ],
+          },
+          meta: { source: "ibkr" },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    expect(await screen.findByTestId("options-chain-table")).toBeInTheDocument();
+  });
+
+  it("updates position when header is dragged", () => {
+    render(
+      <div style={{ position: "relative", width: 1200, height: 800 }}>
+        <ActiveChartProvider>
+          <SeedSnapshot snapshot={makeSnapshot()} />
+          <OptionsChainDialog open onClose={vi.fn()} />
+        </ActiveChartProvider>
+      </div>,
+    );
+
+    const dialog = screen.getByTestId("options-chain-dialog");
+    const header = screen.getByTestId("options-chain-dialog-header");
+    const initialLeft = dialog.style.left;
+
+    fireEvent.pointerDown(header, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(header, { clientX: 160, clientY: 130, pointerId: 1 });
+    fireEvent.pointerUp(header, { pointerId: 1 });
+
+    expect(dialog.style.left).not.toBe(initialLeft);
+  });
+});

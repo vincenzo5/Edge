@@ -8,9 +8,11 @@ import {
   mergeChartSettings,
   migrateCellIndicators,
   migrateLayoutSync,
+  type LegacySidebarPanelId,
   type SidebarPanelId,
+  type SidebarPrefs,
 } from "./chartConfig";
-import { clampSidebarPanelWidth } from "./responsive/sidebarWidth";
+import { migrateSidebarWidth } from "./responsive/sidebarWidth";
 
 const STORAGE_KEY = "tv-ai:layout:v1";
 
@@ -36,7 +38,7 @@ export function loadLayout(): ChartLayout {
         chartSettings: mergeChartSettings(c.chartSettings),
       }),
     );
-    const sync = migrateLayoutSync(parsed);
+    const sync = migrateLayoutSync(parsed as ChartLayout);
     return {
       ...DEFAULT_LAYOUT,
       ...parsed,
@@ -51,13 +53,7 @@ export function loadLayout(): ChartLayout {
         ...parsed.toolbarPrefs,
         groupSelections: parsed.toolbarPrefs?.groupSelections,
       },
-      sidebar: {
-        ...DEFAULT_SIDEBAR_PREFS,
-        activePanel: isSidebarPanelId(parsed.sidebar?.activePanel)
-          ? parsed.sidebar!.activePanel
-          : DEFAULT_SIDEBAR_PREFS.activePanel,
-        panelWidths: normalizeSidebarPanelWidths(parsed.sidebar?.panelWidths),
-      },
+      sidebar: normalizeSidebarPrefs(parsed.sidebar),
       cells,
     } as ChartLayout;
   } catch {
@@ -74,25 +70,29 @@ export function saveLayout(layout: ChartLayout): void {
   }
 }
 
-const VALID_SIDEBAR_PANELS = new Set<SidebarPanelId>(["object-tree", "watchlist", "options"]);
+const VALID_SIDEBAR_PANELS = new Set<SidebarPanelId>(["object-tree", "watchlist"]);
 
 function isSidebarPanelId(value: unknown): value is SidebarPanelId {
   return typeof value === "string" && VALID_SIDEBAR_PANELS.has(value as SidebarPanelId);
 }
 
-function normalizeSidebarPanelWidths(
-  value: unknown,
-): Partial<Record<SidebarPanelId, number>> {
-  if (!value || typeof value !== "object") return {};
-  const record = value as Record<string, unknown>;
-  const out: Partial<Record<SidebarPanelId, number>> = {};
-  for (const panelId of VALID_SIDEBAR_PANELS) {
-    const width = record[panelId];
-    if (typeof width === "number" && Number.isFinite(width)) {
-      out[panelId] = clampSidebarPanelWidth(width);
-    }
-  }
-  return out;
+type ParsedSidebarPrefs = SidebarPrefs & {
+  panelWidths?: Partial<Record<LegacySidebarPanelId, number>>;
+};
+
+function normalizeSidebarPrefs(sidebar: ParsedSidebarPrefs | undefined): SidebarPrefs {
+  const rawActive = sidebar?.activePanel as LegacySidebarPanelId | null | undefined;
+  const activePanel =
+    rawActive === "options"
+      ? null
+      : isSidebarPanelId(rawActive)
+        ? rawActive
+        : DEFAULT_SIDEBAR_PREFS.activePanel;
+  const width = migrateSidebarWidth(sidebar);
+  return {
+    activePanel,
+    ...(width != null ? { width } : {}),
+  };
 }
 
 export function clearLayout(): void {

@@ -21,9 +21,8 @@ export default function RightSidebar({
   onClose,
 }: Props) {
   const panelDef = activePanel ? SIDEBAR_PANEL_MAP[activePanel] : null;
-  const PanelComponent = panelDef?.Panel;
 
-  if (!panelDef || !PanelComponent) {
+  if (!panelDef) {
     return null;
   }
 
@@ -35,7 +34,7 @@ export default function RightSidebar({
       onWidthChange={onWidthChange}
       onClose={onClose}
     >
-      <PanelComponent />
+      <panelDef.Panel />
     </SidebarPanelShell>
   );
 }

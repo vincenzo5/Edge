@@ -99,7 +99,7 @@ describe('RightSidebar active chart integration', () => {
     );
 
     expect(screen.getByText('AAPL · 1d')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Data window' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Data window' }));
     expect(screen.getByText('11')).toBeInTheDocument();
   });
 });

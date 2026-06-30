@@ -20,6 +20,16 @@ export function headerButtonClass(theme: Theme, active?: boolean, disabled?: boo
   return `${base} text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]`;
 }
 
+export function primaryButtonClass(theme: Theme, disabled?: boolean): string {
+  void theme;
+  const base =
+    "edge-focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-[var(--edge-radius-sm)] px-3 py-1.5 text-xs font-semibold transition-colors";
+  if (disabled) {
+    return `${base} cursor-not-allowed bg-[var(--edge-accent-blue)] opacity-40 text-[var(--edge-text-strong)]`;
+  }
+  return `${base} bg-[var(--edge-accent-blue)] text-[var(--edge-text-strong)] hover:brightness-110`;
+}
+
 export function headerIconButtonClass(theme: Theme, active?: boolean, disabled?: boolean): string {
   void theme;
   const base =

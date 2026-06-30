@@ -4,7 +4,7 @@ Optional Postgres-backed persistence with localStorage fallback. App works witho
 
 ## Responsibility
 
-Sync chart workspaces, watchlist libraries, chart templates, and market research notes between client and server with optimistic concurrency.
+Sync chart workspaces, watchlist libraries, screener libraries, chart templates, and market research notes between client and server with optimistic concurrency.
 
 ## Layer Structure
 
@@ -12,6 +12,7 @@ Sync chart workspaces, watchlist libraries, chart templates, and market research
 Client (React hooks)
   ├── useChartWorkspaceRemoteSync
   ├── useWatchlistLibraryRemoteSync
+  ├── useScreenerLibraryRemoteSync
   └── useChartTemplateLibraryRemoteSync
         ↓
 Client API (persistence/client/*.ts)
@@ -42,6 +43,7 @@ Drizzle ORM + Postgres
 |----------|-----------|--------|
 | Chart workspace | `/api/me/chart-workspaces/default` | `chartWorkspace.ts` |
 | Watchlist library | `/api/me/watchlist-library` | `watchlistLibrary.ts` |
+| Screener library | `/api/me/screener-library` | `screenerLibrary.ts` |
 | Chart templates | `/api/me/chart-template-library` | `chartTemplateLibrary.ts` |
 | Research notes | `/api/me/market-research-notes` | `marketResearchNote.ts` |
 
