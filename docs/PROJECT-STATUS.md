@@ -6,6 +6,15 @@ Single source for current progress. For row-by-row feature detail, see [chart/fe
 
 ## Current Verified State
 
+- **Current task:** IB account tracking — live positions/PnL/summary in Account sidebar panel + chart avg-cost overlay when `showPositions` enabled; read-only w.r.t. brokerage mutations.
+- **State:** **Pending** — focused + live sidecar/API probes passed; app-level Account panel walkthrough and what-if/order snapshot flows (require `TWS_READONLY=false`) not yet recorded.
+- **Latest verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 19 passed (19)` (`brokerageClient`, brokerage routes, `AccountPanel`, `MarketDataProvider`, health); **Live:** sidecar `/health` returned `capabilities.brokerage: true`; sidecar `/account/status` returned `enabled: true`, `connected: true`, account `U25026894` in 4574ms; `/api/brokerage/snapshot` returned connected account `U25026894` + 1 position in 515ms.
+- **Evidence:** `services/tws-sidecar/main.py`, `src/lib/brokerage/`, `src/lib/marketData/contracts/brokerage.ts`, `src/app/api/brokerage/`, `src/app/components/AccountProvider.tsx`, `src/app/components/sidebar/panels/AccountPanel.tsx`, `src/lib/brokerage/positionOverlays.ts`, `src/app/components/EdgeChart.tsx`, `.env.example`, `src/lib/marketData/ARCHITECTURE.md`.
+- **Current blocker:** App-level Account panel walkthrough not recorded; what-if preview and open-order snapshot require `TWS_READONLY=false`.
+- **Next best step:** Refresh browser on `localhost:3003`, verify Account panel + position reference line with IB Gateway connected; flip `TWS_READONLY=false` only when validating what-if/order flows.
+
+## Previous Verified State (Local docs update hook MVP)
+
 - **Current task:** Local docs update hook MVP — pre-push runs local Cursor SDK docs updater; blocks push when docs change; fails open without `CURSOR_API_KEY`.
 - **State:** **Passing** — hook plumbing + script + tests shipped; live SDK agent smoke not run (no API key).
 - **Latest verification:** **Focused:** 10 tests passed (`scripts/update-docs-for-diff.test.ts`); **Startup:** `npm run check:startup` passed (26 tests); **SDK smoke:** blocked — `CURSOR_API_KEY is not set`.

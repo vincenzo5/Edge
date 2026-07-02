@@ -330,7 +330,9 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Theme persistence | **Done** | Part of `ChartLayout`; live switch via toolbar |
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
 | Drawing toolbar rail | **Done** | Left column in `ChartCell` |
-| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.ts` for future panels (watchlist, alerts, chat) |
+| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.ts` for watchlist, account, and object-tree panels |
+| Account sidebar panel | **Partial** | App-level `account` panel via `AccountProvider` + `/api/brokerage/*`; live positions/PnL/summary when TWS sidecar + IB Gateway connected; orders/fills/what-if require `TWS_READONLY=false` |
+| Chart position overlay (`showPositions`) | **Partial** | Settings → Trading → Positions toggles avg-cost reference line on the active symbol from held position (`positionOverlays.ts`); buy/sell buttons, orders, executions, and PnL chart overlays not yet wired |
 | Object Tree panel | **Done** | Right sidebar panel (`object-tree`); follows active chart via `ActiveChartContext`; Object tree / Data window tabs persisted per `chartId` |
 | Object Tree — symbol row | **Done** | Flat list: symbol · exchange · interval |
 | Object Tree — data window tab | **Done** | Crosshair date, collapsible price/indicator sections with hover eye toggles; indicator sections always show their value rows in the panel; Volume appears only for added `VOL`; price eye syncs `mainSeriesVisible` and hides the on-chart price legend |
