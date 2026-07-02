@@ -5,7 +5,8 @@ import { useAccount } from "../../AccountProvider";
 import { useChartActions } from "../../ChartActionsContext";
 import { parseSummaryTagNumber } from "@/lib/marketData/contracts/brokerage";
 import type { AccountPosition } from "@/lib/marketData/contracts/brokerage";
-import EdgeButton from "../../design-system/EdgeButton";
+import EdgeIconButton from "../../design-system/EdgeIconButton";
+import Tooltip from "../../Tooltip";
 
 function formatMoney(value: number | null | undefined, currency = "USD"): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -17,11 +18,6 @@ function formatMoney(value: number | null | undefined, currency = "USD"): string
   });
 }
 
-function formatPct(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return "—";
-  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
-}
-
 function relativeUpdatedAt(ts: number | null | undefined): string {
   if (!ts) return "—";
   const mins = Math.max(0, Math.floor((Date.now() - ts) / 60_000));
@@ -29,8 +25,40 @@ function relativeUpdatedAt(ts: number | null | undefined): string {
   return `${mins}m ago`;
 }
 
+function pnlColorClass(value: number | null | undefined): string {
+  if (value == null || value === 0) return "";
+  return value > 0 ? "text-[var(--edge-positive)]" : "text-[var(--edge-negative)]";
+}
+
+const METRIC_HELP: Record<string, string> = {
+  "Net liquidation":
+    "Total portfolio value if all positions were liquidated at current market prices.",
+  "Buying power": "Cash available to spend on new positions without depositing more funds.",
+  "Available funds":
+    "Funds available to withdraw or trade without exceeding margin requirements.",
+  "Excess liquidity":
+    "Equity in excess of maintenance margin; a buffer before margin call.",
+  "Init margin": "Initial margin requirement — what opening new positions would cost.",
+  "Maint margin": "Maintenance margin requirement to keep current positions open.",
+  Leverage: "Initial margin divided by net liquidation.",
+  "Day trades": "Pattern day trader day trades remaining before restrictions apply.",
+};
+
 type PositionFilter = "all" | "long" | "short";
-type PositionSort = "marketValue" | "unrealizedPnL";
+type OrdersTab = "orders" | "fills";
+
+function HelpIcon({ help }: { help: string }) {
+  return (
+    <Tooltip content={help} theme="dark" side="right" portaled>
+      <span
+        className="inline-flex h-3 w-3 cursor-help items-center justify-center rounded-full border border-[var(--edge-border)] text-[8px] leading-none"
+        aria-label="Help"
+      >
+        ?
+      </span>
+    </Tooltip>
+  );
+}
 
 function PositionRow({
   row,
@@ -42,8 +70,7 @@ function PositionRow({
   const symbol = row.contract.symbol ?? "—";
   const qty = row.position ?? 0;
   const pnl = row.unrealizedPNL;
-  const pnlClass =
-    pnl == null ? "" : pnl >= 0 ? "text-[var(--edge-accent-green)]" : "text-[var(--edge-accent-red)]";
+  const pnlClass = pnlColorClass(pnl);
 
   return (
     <button
@@ -52,7 +79,7 @@ function PositionRow({
       onClick={() => onSelect(symbol)}
     >
       <span className="truncate font-medium text-[var(--edge-text-strong)]">{symbol}</span>
-      <span className={qty < 0 ? "text-[var(--edge-accent-red)]" : ""}>{qty}</span>
+      <span className={qty < 0 ? "text-[var(--edge-negative)]" : ""}>{qty}</span>
       <span>{formatMoney(row.avgCost)}</span>
       <span>{formatMoney(row.marketPrice)}</span>
       <span className={pnlClass}>{formatMoney(pnl)}</span>
@@ -60,130 +87,17 @@ function PositionRow({
   );
 }
 
-function WhatIfPreview() {
-  const [symbol, setSymbol] = useState("AAPL");
-  const [action, setAction] = useState<"BUY" | "SELL">("BUY");
-  const [quantity, setQuantity] = useState(10);
-  const [orderType, setOrderType] = useState<"LMT" | "MKT">("LMT");
-  const [limitPrice, setLimitPrice] = useState(150);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<Record<string, unknown> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const preview = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/brokerage/whatif", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          symbol,
-          action,
-          quantity,
-          orderType,
-          limitPrice: orderType === "LMT" ? limitPrice : undefined,
-        }),
-      });
-      const payload = (await res.json()) as { result?: Record<string, unknown>; error?: string };
-      if (!res.ok) throw new Error(payload.error ?? "Preview failed");
-      setResult(payload.result ?? null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Preview failed");
-      setResult(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <section className="border-t border-[var(--edge-border)] px-3 py-3">
-      <h3 className="mb-2 text-xs font-semibold text-[var(--edge-text-strong)]">
-        What-if preview
-      </h3>
-      <p className="mb-2 text-[10px] text-[var(--edge-text-secondary)]">
-        Preview only — no order is sent.
-      </p>
-      <div className="grid grid-cols-2 gap-2 text-[11px]">
-        <label className="flex flex-col gap-1">
-          Symbol
-          <input
-            className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1"
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          Action
-          <select
-            className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1"
-            value={action}
-            onChange={(e) => setAction(e.target.value as "BUY" | "SELL")}
-          >
-            <option value="BUY">BUY</option>
-            <option value="SELL">SELL</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          Qty
-          <input
-            type="number"
-            min={1}
-            className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1"
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          Type
-          <select
-            className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1"
-            value={orderType}
-            onChange={(e) => setOrderType(e.target.value as "LMT" | "MKT")}
-          >
-            <option value="LMT">Limit</option>
-            <option value="MKT">Market</option>
-          </select>
-        </label>
-        {orderType === "LMT" ? (
-          <label className="col-span-2 flex flex-col gap-1">
-            Limit price
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1"
-              value={limitPrice}
-              onChange={(e) => setLimitPrice(Number(e.target.value))}
-            />
-          </label>
-        ) : null}
-      </div>
-      <div className="mt-2">
-        <EdgeButton variant="primary" disabled={loading} onClick={() => void preview()}>
-          {loading ? "Previewing…" : "Preview order"}
-        </EdgeButton>
-      </div>
-      {error ? <p className="mt-2 text-[11px] text-[var(--edge-accent-red)]">{error}</p> : null}
-      {result ? (
-        <div className="mt-2 space-y-1 text-[11px] text-[var(--edge-text-primary)]">
-          <div>Init margin Δ: {formatMoney(result.initMarginChange as number | null)}</div>
-          <div>Maint margin Δ: {formatMoney(result.maintMarginChange as number | null)}</div>
-          <div>Commission: {formatMoney(result.commission as number | null)}</div>
-          {typeof result.warningText === "string" && result.warningText ? (
-            <div className="text-[var(--edge-text-secondary)]">{result.warningText}</div>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  );
+function toggleButtonClass(active: boolean): string {
+  return active
+    ? "rounded bg-[var(--edge-surface-active)] px-1.5 py-0.5"
+    : "rounded px-1.5 py-0.5 hover:bg-[var(--edge-surface-hover)]";
 }
 
 export function AccountPanel() {
   const account = useAccount();
   const chartActions = useChartActions();
   const [positionFilter, setPositionFilter] = useState<PositionFilter>("all");
-  const [positionSort, setPositionSort] = useState<PositionSort>("marketValue");
+  const [ordersTab, setOrdersTab] = useState<OrdersTab>("orders");
 
   const tags = account.summary?.tags ?? {};
   const netLiq = parseSummaryTagNumber(tags, "NetLiquidation");
@@ -192,27 +106,18 @@ export function AccountPanel() {
   const excessLiquidity = parseSummaryTagNumber(tags, "ExcessLiquidity");
   const initMargin = parseSummaryTagNumber(tags, "InitMarginReq");
   const maintMargin = parseSummaryTagNumber(tags, "MaintMarginReq");
-  const leverage = parseSummaryTagNumber(tags, "Leverage");
   const dayTrades = parseSummaryTagNumber(tags, "DayTradesRemaining");
   const dailyPnl = account.pnl?.dailyPnL ?? null;
+  const leverage =
+    initMargin != null && netLiq != null && netLiq !== 0 ? initMargin / netLiq : null;
 
   const filteredPositions = useMemo(() => {
     let rows = [...account.positions];
     if (positionFilter === "long") rows = rows.filter((r) => (r.position ?? 0) > 0);
     if (positionFilter === "short") rows = rows.filter((r) => (r.position ?? 0) < 0);
-    rows.sort((a, b) => {
-      const av =
-        positionSort === "marketValue"
-          ? Math.abs(a.marketValue ?? 0)
-          : Math.abs(a.unrealizedPNL ?? 0);
-      const bv =
-        positionSort === "marketValue"
-          ? Math.abs(b.marketValue ?? 0)
-          : Math.abs(b.unrealizedPNL ?? 0);
-      return bv - av;
-    });
+    rows.sort((a, b) => Math.abs(b.marketValue ?? 0) - Math.abs(a.marketValue ?? 0));
     return rows;
-  }, [account.positions, positionFilter, positionSort]);
+  }, [account.positions, positionFilter]);
 
   const handleSelectSymbol = (symbol: string) => {
     chartActions?.loadSymbolIntoActiveChart({
@@ -245,33 +150,52 @@ export function AccountPanel() {
               updated {relativeUpdatedAt(account.summary?.updatedAt)}
             </div>
           </div>
-          <button
-            type="button"
-            className="text-[10px] text-[var(--edge-accent-blue)] hover:underline"
+          <EdgeIconButton
+            theme="dark"
+            aria-label="Refresh account"
             onClick={() => void account.refresh()}
           >
-            Refresh
-          </button>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <path
+                d="M2 8a6 6 0 1 0 1.5-3.97"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 2v3h3"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </EdgeIconButton>
         </div>
         {account.error ? (
-          <p className="mt-1 text-[10px] text-[var(--edge-accent-red)]">{account.error}</p>
+          <p className="mt-1 text-[10px] text-[var(--edge-negative)]">{account.error}</p>
         ) : null}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <section className="grid grid-cols-2 gap-2 px-3 py-3">
           <div className="col-span-2 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] p-2">
-            <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
-              Net liquidation
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-1 text-[10px] uppercase text-[var(--edge-text-secondary)]">
+                <span>Net liquidation</span>
+                <HelpIcon help={METRIC_HELP["Net liquidation"]} />
+              </div>
+              <div className="text-right">
+                <div className="flex items-center justify-end gap-1 text-[9px] uppercase text-[var(--edge-text-secondary)]">
+                  <span>Day trades</span>
+                  <HelpIcon help={METRIC_HELP["Day trades"]} />
+                </div>
+                <div className="text-[11px] font-medium">{dayTrades?.toString() ?? "—"}</div>
+              </div>
             </div>
             <div className="text-lg font-semibold">{formatMoney(netLiq)}</div>
-            <div
-              className={
-                dailyPnl != null && dailyPnl >= 0
-                  ? "text-[11px] text-[var(--edge-accent-green)]"
-                  : "text-[11px] text-[var(--edge-accent-red)]"
-              }
-            >
+            <div className={`text-[11px] ${pnlColorClass(dailyPnl)}`}>
               Daily PnL {formatMoney(dailyPnl)}
             </div>
           </div>
@@ -280,8 +204,10 @@ export function AccountPanel() {
           <MetricTile label="Excess liquidity" value={formatMoney(excessLiquidity)} />
           <MetricTile label="Init margin" value={formatMoney(initMargin)} />
           <MetricTile label="Maint margin" value={formatMoney(maintMargin)} />
-          <MetricTile label="Leverage" value={leverage?.toFixed(2) ?? "—"} />
-          <MetricTile label="Day trades left" value={dayTrades?.toString() ?? "—"} />
+          <MetricTile
+            label="Leverage"
+            value={leverage != null ? leverage.toFixed(2) : "—"}
+          />
         </section>
 
         <section className="border-t border-[var(--edge-border)] px-3 py-2">
@@ -292,24 +218,12 @@ export function AccountPanel() {
                 <button
                   key={filter}
                   type="button"
-                  className={
-                    positionFilter === filter
-                      ? "rounded bg-[var(--edge-surface-active)] px-1.5 py-0.5"
-                      : "rounded px-1.5 py-0.5 hover:bg-[var(--edge-surface-hover)]"
-                  }
+                  className={toggleButtonClass(positionFilter === filter)}
                   onClick={() => setPositionFilter(filter)}
                 >
                   {filter}
                 </button>
               ))}
-              <select
-                className="rounded border border-[var(--edge-border)] bg-transparent px-1"
-                value={positionSort}
-                onChange={(e) => setPositionSort(e.target.value as PositionSort)}
-              >
-                <option value="marketValue">Mkt value</option>
-                <option value="unrealizedPnL">Unrealized PnL</option>
-              </select>
             </div>
           </div>
           {filteredPositions.length === 0 ? (
@@ -335,36 +249,40 @@ export function AccountPanel() {
         </section>
 
         <section className="border-t border-[var(--edge-border)] px-3 py-2">
-          <h3 className="mb-2 text-xs font-semibold text-[var(--edge-text-strong)]">
-            Open orders
-          </h3>
-          {account.orders.length === 0 ? (
-            <p className="text-[11px] text-[var(--edge-text-secondary)]">No open orders.</p>
-          ) : (
-            <div className="space-y-1 text-[11px]">
-              {account.orders.map((order) => (
-                <div
-                  key={order.orderId ?? order.permId ?? `${order.symbol}-${order.updatedAt}`}
-                  className="rounded border border-[var(--edge-border)] px-2 py-1"
-                >
-                  <div className="font-medium">
-                    {order.symbol} · {order.action} {order.totalQuantity} · {order.orderType}
+          <div className="mb-2 flex gap-2 text-[10px]">
+            {(["orders", "fills"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={toggleButtonClass(ordersTab === tab)}
+                onClick={() => setOrdersTab(tab)}
+              >
+                {tab === "orders" ? "Open orders" : "Today's fills"}
+              </button>
+            ))}
+          </div>
+          {ordersTab === "orders" ? (
+            account.orders.length === 0 ? (
+              <p className="text-[11px] text-[var(--edge-text-secondary)]">No open orders.</p>
+            ) : (
+              <div className="space-y-1 text-[11px]">
+                {account.orders.map((order) => (
+                  <div
+                    key={order.orderId ?? order.permId ?? `${order.symbol}-${order.updatedAt}`}
+                    className="rounded border border-[var(--edge-border)] px-2 py-1"
+                  >
+                    <div className="font-medium">
+                      {order.symbol} · {order.action} {order.totalQuantity} · {order.orderType}
+                    </div>
+                    <div className="text-[var(--edge-text-secondary)]">
+                      {order.status} · filled {order.filled ?? 0}/{order.totalQuantity ?? 0}
+                      {order.lmtPrice != null ? ` · lmt ${order.lmtPrice}` : ""}
+                    </div>
                   </div>
-                  <div className="text-[var(--edge-text-secondary)]">
-                    {order.status} · filled {order.filled ?? 0}/{order.totalQuantity ?? 0}
-                    {order.lmtPrice != null ? ` · lmt ${order.lmtPrice}` : ""}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="border-t border-[var(--edge-border)] px-3 py-2">
-          <h3 className="mb-2 text-xs font-semibold text-[var(--edge-text-strong)]">
-            Today&apos;s fills
-          </h3>
-          {account.executions.length === 0 ? (
+                ))}
+              </div>
+            )
+          ) : account.executions.length === 0 ? (
             <p className="text-[11px] text-[var(--edge-text-secondary)]">No fills yet.</p>
           ) : (
             <div className="space-y-1 text-[11px]">
@@ -385,17 +303,19 @@ export function AccountPanel() {
             </div>
           )}
         </section>
-
-        <WhatIfPreview />
       </div>
     </div>
   );
 }
 
 function MetricTile({ label, value }: { label: string; value: string }) {
+  const help = METRIC_HELP[label];
   return (
     <div className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] p-2">
-      <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">{label}</div>
+      <div className="flex items-center gap-1 text-[10px] uppercase text-[var(--edge-text-secondary)]">
+        <span>{label}</span>
+        {help ? <HelpIcon help={help} /> : null}
+      </div>
       <div className="text-xs font-medium">{value}</div>
     </div>
   );

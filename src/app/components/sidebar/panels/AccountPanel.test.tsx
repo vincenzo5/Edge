@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { AccountPanel } from "./AccountPanel";
 import { ChartActionsProvider } from "../../ChartActionsContext";
 
@@ -21,6 +21,49 @@ function renderPanel() {
       <AccountPanel />
     </ChartActionsProvider>,
   );
+}
+
+function connectedAccount(overrides: Partial<ReturnType<typeof useAccount>> = {}) {
+  return {
+    connectionState: "connected" as const,
+    status: {
+      enabled: true,
+      connected: true,
+      accountId: "DU123",
+      managedAccounts: ["DU123"],
+      timestamp: Date.now(),
+    },
+    summary: {
+      tags: {
+        NetLiquidation: { tag: "NetLiquidation", value: "100000" },
+        BuyingPower: { tag: "BuyingPower", value: "50000" },
+        AvailableFunds: { tag: "AvailableFunds", value: "40000" },
+        ExcessLiquidity: { tag: "ExcessLiquidity", value: "30000" },
+        InitMarginReq: { tag: "InitMarginReq", value: "50000" },
+        MaintMarginReq: { tag: "MaintMarginReq", value: "45000" },
+        DayTradesRemaining: { tag: "DayTradesRemaining", value: "3" },
+      },
+      updatedAt: Date.now(),
+    },
+    positions: [
+      {
+        contract: { symbol: "AAPL", conId: 1 },
+        position: 10,
+        avgCost: 150,
+        marketPrice: 155,
+        marketValue: 1550,
+        unrealizedPNL: 50,
+      },
+    ],
+    pnl: { dailyPnL: 120 },
+    orders: [],
+    executions: [],
+    error: null,
+    disabled: false,
+    refresh: vi.fn(),
+    positionForSymbol: () => null,
+    ...overrides,
+  };
 }
 
 describe("AccountPanel", () => {
@@ -48,43 +91,127 @@ describe("AccountPanel", () => {
   });
 
   it("renders summary and positions when connected", () => {
-    mockUseAccount.mockReturnValue({
-      connectionState: "connected",
-      status: {
-        enabled: true,
-        connected: true,
-        accountId: "DU123",
-        managedAccounts: ["DU123"],
-        timestamp: Date.now(),
-      },
-      summary: {
-        tags: {
-          NetLiquidation: { tag: "NetLiquidation", value: "100000" },
-          BuyingPower: { tag: "BuyingPower", value: "50000" },
-        },
-        updatedAt: Date.now(),
-      },
-      positions: [
-        {
-          contract: { symbol: "AAPL", conId: 1 },
-          position: 10,
-          avgCost: 150,
-          marketPrice: 155,
-          unrealizedPNL: 50,
-        },
-      ],
-      pnl: { dailyPnL: 120 },
-      orders: [],
-      executions: [],
-      error: null,
-      disabled: false,
-      refresh: vi.fn(),
-      positionForSymbol: () => null,
-    });
+    mockUseAccount.mockReturnValue(connectedAccount());
 
     renderPanel();
     expect(screen.getByText("DU123")).toBeInTheDocument();
     expect(screen.getByText("AAPL")).toBeInTheDocument();
-    expect(screen.getByText(/Preview only/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Preview only/i)).not.toBeInTheDocument();
+  });
+
+  it("renders refresh icon button with accessible label", () => {
+    mockUseAccount.mockReturnValue(connectedAccount());
+    renderPanel();
+    expect(screen.getByRole("button", { name: "Refresh account" })).toBeInTheDocument();
+  });
+
+  it("renders help icons for metric tiles", () => {
+    mockUseAccount.mockReturnValue(connectedAccount());
+    renderPanel();
+    const helpIcons = screen.getAllByLabelText("Help");
+    expect(helpIcons.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("shows day trades in net liquidation card", () => {
+    mockUseAccount.mockReturnValue(connectedAccount());
+    renderPanel();
+    expect(screen.getByText("Day trades")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("computes leverage from init margin and net liquidation", () => {
+    mockUseAccount.mockReturnValue(connectedAccount());
+    renderPanel();
+    expect(screen.getByText("0.50")).toBeInTheDocument();
+  });
+
+  it("color-codes positive position PnL", () => {
+    mockUseAccount.mockReturnValue(connectedAccount());
+    renderPanel();
+    const pnlCell = screen.getByText("$50.00");
+    expect(pnlCell.className).toContain("--edge-positive");
+  });
+
+  it("color-codes negative position PnL", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        positions: [
+          {
+            contract: { symbol: "TSLA", conId: 2 },
+            position: -5,
+            avgCost: 200,
+            marketPrice: 210,
+            marketValue: -1050,
+            unrealizedPNL: -50,
+          },
+        ],
+      }),
+    );
+    renderPanel();
+    const pnlCell = screen.getByText("-$50.00");
+    expect(pnlCell.className).toContain("--edge-negative");
+  });
+
+  it("leaves flat position PnL uncolored", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        positions: [
+          {
+            contract: { symbol: "MSFT", conId: 3 },
+            position: 1,
+            avgCost: 100,
+            marketPrice: 100,
+            marketValue: 100,
+            unrealizedPNL: 0,
+          },
+        ],
+      }),
+    );
+    renderPanel();
+    const pnlCell = screen.getByText("$0.00");
+    expect(pnlCell.className).not.toContain("--edge-positive");
+    expect(pnlCell.className).not.toContain("--edge-negative");
+  });
+
+  it("switches between open orders and today's fills tabs", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        orders: [
+          {
+            orderId: 1,
+            symbol: "AAPL",
+            action: "BUY",
+            totalQuantity: 10,
+            orderType: "LMT",
+            status: "Submitted",
+            filled: 0,
+          },
+        ],
+        executions: [
+          {
+            execId: "e1",
+            symbol: "AAPL",
+            side: "BOT",
+            shares: 5,
+            price: 150,
+            time: "09:30:00",
+          },
+        ],
+      }),
+    );
+    renderPanel();
+
+    expect(screen.getByText(/AAPL · BUY 10 · LMT/)).toBeInTheDocument();
+    expect(screen.queryByText(/AAPL · BOT 5 @ 150/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Today's fills" }));
+    expect(screen.getByText(/AAPL · BOT 5 @ 150/)).toBeInTheDocument();
+    expect(screen.queryByText(/AAPL · BUY 10 · LMT/)).not.toBeInTheDocument();
+  });
+
+  it("does not render sort dropdown for positions", () => {
+    mockUseAccount.mockReturnValue(connectedAccount());
+    renderPanel();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 });

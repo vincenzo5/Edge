@@ -30,7 +30,7 @@ export function buildPositionReferenceLines(
       id: `position-avg-cost-${position.contract.conId ?? position.contract.symbol ?? "unknown"}`,
       price: avgCost,
       label: `${side} ${Math.abs(qty)} @ ${formatMoney(avgCost)}${pnlText ? ` (${pnlText})` : ""}`,
-      color: qty >= 0 ? "var(--edge-accent-green)" : "var(--edge-accent-red)",
+      color: qty >= 0 ? "var(--edge-positive)" : "var(--edge-negative)",
       lineWidth: 1,
       lineDash: [4, 4],
     },

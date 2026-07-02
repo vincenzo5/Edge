@@ -15,6 +15,7 @@ describe("buildPositionReferenceLines", () => {
     expect(lines[0]?.price).toBe(150.25);
     expect(lines[0]?.label).toContain("Long 100");
     expect(lines[0]?.label).toContain("+250.50");
+    expect(lines[0]?.color).toBe("var(--edge-positive)");
   });
 
   it("returns empty array when no avg cost", () => {
