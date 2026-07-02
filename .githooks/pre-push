@@ -1,0 +1,12 @@
+#!/bin/sh
+# Local docs updater — runs before push. Opt out: EDGE_SKIP_DOCS_HOOK=1 git push
+# Install: npm run hooks:install
+
+if [ "$EDGE_SKIP_DOCS_HOOK" = "1" ]; then
+  exit 0
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT" || exit 1
+
+exec npx tsx scripts/update-docs-for-diff.mts --pre-push

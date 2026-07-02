@@ -45,6 +45,7 @@ Pick one **primary** intent and optional **secondary** intent(s).
 - If the request says "refactor" but changes behavior → treat as **Feature** or **Bugfix**; note the mismatch.
 - If the request is primarily about verification or test gaps → **Testing** (plus the relevant primary intent checklist).
 - Long-running or cross-component work → always also apply **Harness** checklist.
+- If a **Bugfix** touches any [Area Ownership](#area-ownership-quick-reference) path beyond a single leaf file, use the **full plan** (not the lightweight stub).
 
 ### Ambiguity
 
@@ -102,6 +103,18 @@ State exactly what will change in `docs/PROJECT-STATUS.md`:
 - Task Contract (create/update/clear)
 - Session Log entry (yes/no)
 - Current Verified State block after completion
+
+### Lightweight plan (contained bugfix only)
+
+When the change is a **single-function bugfix** with no cross-package impact, a 3-line stub may replace the full sections above:
+
+```md
+- Intent: Bugfix
+- Architecture review: N/A (contained — <one file/one function>)
+- Verification: Focused — npm test -- --run <path>
+```
+
+Use only when **none** of these apply: shared state, API contract, persistence schema, chart runtime, cross-package path, or multiple Area Ownership paths. Otherwise use the full plan.
 
 ## Area Ownership Quick Reference
 

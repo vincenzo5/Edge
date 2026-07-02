@@ -4,10 +4,16 @@
  * - AGENTS.md stays within line budget and routes to topic docs
  * - Cursor rules are not globally injected without allowlist
  * - Instruction files avoid duplicate-doc suffix patterns
+ * - PROJECT-STATUS.md harness state is honest and complete
  */
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
+import {
+  validateProjectStatusContent,
+  validateSessionExitContent,
+  type Issue,
+} from "./validate-project-status.mts";
 
 const ROOT = join(import.meta.dirname, "..");
 const AGENTS_PATH = join(ROOT, "AGENTS.md");
@@ -24,6 +30,7 @@ const REQUIRED_PLANNING_CHECKLISTS = [
   "bugfix-planning-checklist.md",
   "testing-verification-checklist.md",
   "harness-status-checklist.md",
+  "session-exit-checklist.md",
 ];
 const MAX_AGENTS_LINES = 150;
 
@@ -40,8 +47,6 @@ const REQUIRED_AGENTS_LINKS = [
 ];
 
 const DUPLICATE_DOC_PATTERN = /[_-](fixed|new|clean)\.(md|mdc)/i;
-
-type Issue = { file: string; message: string };
 
 function fail(issues: Issue[]): never {
   console.error("Instruction architecture validation failed:\n");
@@ -147,16 +152,6 @@ function validateInstructionFiles(issues: Issue[]): void {
   }
 }
 
-function sectionBetween(content: string, heading: string, nextHeadingLevel = 2): string {
-  const start = content.indexOf(heading);
-  if (start === -1) return "";
-
-  const rest = content.slice(start + heading.length);
-  const nextHeading = new RegExp(`\\n#{${nextHeadingLevel}}\\s+`);
-  const next = rest.search(nextHeading);
-  return next === -1 ? rest : rest.slice(0, next);
-}
-
 function validatePlanningChecklists(issues: Issue[]): void {
   for (const file of REQUIRED_PLANNING_CHECKLISTS) {
     const path = join(CHECKLISTS_DIR, file);
@@ -200,93 +195,8 @@ function validatePlanningChecklists(issues: Issue[]): void {
 function validateProjectStatus(issues: Issue[]): void {
   const rel = "docs/PROJECT-STATUS.md";
   const content = readText(PROJECT_STATUS_PATH);
-
-  if (!/\*\*Last updated:\*\* \d{4}-\d{2}-\d{2}/.test(content)) {
-    issues.push({
-      file: rel,
-      message: 'Last updated must use exact YYYY-MM-DD format',
-    });
-  }
-
-  const currentState = sectionBetween(content, "## Current Verified State");
-  if (!currentState) {
-    issues.push({
-      file: rel,
-      message: "missing Current Verified State section",
-    });
-  }
-
-  const requiredCurrentFields = [
-    "Current task",
-    "State",
-    "Latest verification",
-    "Evidence",
-    "Current blocker",
-    "Next best step",
-  ];
-  for (const field of requiredCurrentFields) {
-    if (!currentState.includes(`**${field}:**`)) {
-      issues.push({
-        file: rel,
-        message: `Current Verified State missing ${field}`,
-      });
-    }
-  }
-
-  if (/latest result not recorded yet/i.test(content)) {
-    issues.push({
-      file: rel,
-      message: 'contains stale placeholder "latest result not recorded yet"',
-    });
-  }
-
-  const activeWork = sectionBetween(content, "## Active Work");
-  const activeRows = activeWork
-    .split("\n")
-    .filter((line) => line.startsWith("|") && /\|\s*\*\*Active\*\*\s*\|/.test(line));
-
-  if (activeRows.length > 1) {
-    issues.push({
-      file: rel,
-      message: `Active Work has ${activeRows.length} active rows; keep at most one`,
-    });
-  }
-
-  const currentStateValue = currentState.match(/\*\*State:\*\*\s+\*\*(Pending|Active|Blocked|Passing)\*\*/);
-  if (!currentStateValue) {
-    issues.push({
-      file: rel,
-      message: "Current Verified State has missing or invalid State value",
-    });
-  }
-
-  if (
-    currentStateValue?.[1] === "Passing" &&
-    /\*\*Latest verification:\*\*\s+Pending/i.test(currentState)
-  ) {
-    issues.push({
-      file: rel,
-      message: "Current Verified State cannot be Passing while latest verification is Pending",
-    });
-  }
-
-  const sessionLog = sectionBetween(content, "## Session Log");
-  if (!sessionLog) {
-    issues.push({
-      file: rel,
-      message: "missing Session Log section",
-    });
-  }
-
-  if (
-    currentStateValue?.[1] === "Passing" &&
-    /\*\*Verification run:\*\*\s+Pending/i.test(sessionLog)
-  ) {
-    issues.push({
-      file: rel,
-      message: "Session Log cannot leave verification pending when current state is Passing",
-    });
-  }
+  issues.push(...validateProjectStatusContent(content, rel));
+  issues.push(...validateSessionExitContent(content, rel));
 }
 
 function main(): void {

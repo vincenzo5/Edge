@@ -57,6 +57,8 @@ Entry must include:
 
 ## Session Exit (before handoff)
 
+See [session-exit-checklist.md](./session-exit-checklist.md) for the full exit gate. Minimum:
+
 - [ ] Active Work state and latest result updated
 - [ ] Task Contract updated or cleared
 - [ ] Known blockers recorded

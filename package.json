@@ -39,9 +39,12 @@
     "fmp:gap-probe": "npx tsx scripts/fmp-gap-probe.mts",
     "events:coverage-probe": "npx tsx scripts/events-coverage-probe.mts",
     "perf:chart": "npx tsx scripts/run-chart-perf.mts",
-    "perf:market-data": "npx tsx scripts/run-market-data-perf.mts"
+    "perf:market-data": "npx tsx scripts/run-market-data-perf.mts",
+    "docs:auto-update": "npx tsx scripts/update-docs-for-diff.mts",
+    "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.22",
     "@edge/ai-tools-chart": "*",
     "@edge/ai-tools-core": "*",
     "@edge/chart-core": "*",

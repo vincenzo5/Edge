@@ -34,5 +34,7 @@ When generating any plan (especially in Plan mode):
    - **Verification Plan** — focused/build/app-level/full tiers per `docs/checklists/testing-verification-checklist.md`
    - **Harness Update** — exact rows/sections in `docs/PROJECT-STATUS.md` and resulting state
 
+   Completion evidence in harness updates must quote **actual command output** (test count line, build exit, or app-level measurement with numbers/ms/`meta.source:`), not a paraphrase like "tests pass."
+
 5. **Execution discipline**  
    When the plan is later executed, the harness state must be updated as the final step so the next agent or developer can see the current verified state without verbal context.
