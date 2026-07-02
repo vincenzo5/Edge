@@ -136,11 +136,19 @@ export function createCandleStreamSession(
 export function createQuoteStreamSession(
   service: MarketDataService,
   query: QuoteStreamQueryInput,
-): StreamSession {
-  if (service.getTwsProvider().isConfigured()) {
+): Promise<StreamSession> {
+  return resolveQuoteStreamSession(service, query);
+}
+
+export async function resolveQuoteStreamSession(
+  service: MarketDataService,
+  query: QuoteStreamQueryInput,
+): Promise<StreamSession> {
+  const transport = await service.resolveQuoteStreamTransport();
+  if (transport === "tws") {
     return createTwsQuoteStreamSession(service, query);
   }
-  if (service.getIbkrProvider().isConfigured()) {
+  if (transport === "ibkr") {
     return createIbkrSmdQuoteStreamSession(service, query);
   }
   return createPollQuoteStreamSession(service, query);

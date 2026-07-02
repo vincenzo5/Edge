@@ -72,7 +72,7 @@ function migrateSidebarSnapshot(sidebar: unknown): ChartLayout["sidebar"] | unde
   const activePanel: SidebarPanelId | null =
     rawActive === "options" || rawActive == null
       ? null
-      : rawActive === "object-tree" || rawActive === "watchlist"
+      : rawActive === "object-tree" || rawActive === "watchlist" || rawActive === "account"
         ? rawActive
         : null;
   const width = migrateSidebarWidth({
@@ -125,7 +125,7 @@ export const chartLayoutSnapshotSchema = z.preprocess((value) => {
     .optional(),
   sidebar: z
     .object({
-      activePanel: z.enum(["object-tree", "watchlist"]).nullable(),
+      activePanel: z.enum(["object-tree", "watchlist", "account"]).nullable(),
       width: z.number().finite().optional(),
     })
     .optional(),

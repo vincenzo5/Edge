@@ -9,19 +9,19 @@ export const SSE_HEADERS = {
 } as const;
 
 export function createSseResponse(
-  createSession: (send: (payload: string) => void) => StreamSession,
+  createSession: (send: (payload: string) => void) => StreamSession | Promise<StreamSession>,
   signal: AbortSignal,
 ): Response {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       const send = (payload: string) => {
         if (signal.aborted) return;
         controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
       };
 
-      const session = createSession(send);
+      const session = await createSession(send);
       session.start(send);
 
       const heartbeat = setInterval(() => {

@@ -76,6 +76,79 @@ function mapStreamQuote(raw: Record<string, unknown>): QuoteSnapshot | null {
   };
 }
 
+type RestQuotesResponse = {
+  quotes?: QuoteSnapshot[];
+  meta?: {
+    latencyMs?: number;
+    cacheTier?: string;
+    source?: string;
+    traceId?: string;
+    phases?: unknown[];
+    asOf?: number;
+    stale?: boolean;
+    warnings?: string[];
+  };
+};
+
+async function fetchRestWatchlistQuotes(
+  symbols: string[],
+  scenario: string,
+  traceId: string,
+): Promise<RestQuotesResponse> {
+  const res = await fetch("/api/quotes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...marketDataTraceHeaders(traceId, scenario),
+    },
+    body: JSON.stringify({ symbols }),
+  });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(
+      (payload as { error?: string }).error ?? `Request failed (${res.status})`,
+    );
+  }
+  return (await res.json()) as RestQuotesResponse;
+}
+
+function applyRestQuotesPayload(
+  payload: RestQuotesResponse,
+  options: {
+    traceId: string;
+    scenario: string;
+    transport: WatchlistQuotesTransport | "rest-fallback";
+    startedAt: number | null;
+  },
+): { next: Map<string, QuoteSnapshot>; firstPaint: boolean } {
+  const next = new Map<string, QuoteSnapshot>();
+  for (const quote of payload.quotes ?? []) {
+    next.set(quote.symbol, quote);
+  }
+  const firstPaint = next.size > 0;
+  if (firstPaint) {
+    recordMarketDataTelemetry("quotes.firstPaint", {
+      traceId: payload.meta?.traceId ?? options.traceId,
+      scenario: options.scenario,
+      layer: "client",
+      ok: true,
+      clientMs: options.startedAt != null ? Date.now() - options.startedAt : undefined,
+      durationMs: options.startedAt != null ? Date.now() - options.startedAt : undefined,
+      serverMs: payload.meta?.latencyMs,
+      cacheTier: payload.meta?.cacheTier as ChartDataMeta["cacheTier"],
+      provider: payload.meta?.source,
+      source: payload.meta?.source,
+      transport: options.transport,
+      counts: { quotes: next.size },
+      count: next.size,
+      serverPhases: payload.meta?.phases as
+        | import("@/lib/marketData/telemetry/perfPhases").MarketDataPerfPhase[]
+        | undefined,
+    });
+  }
+  return { next, firstPaint };
+}
+
 function buildSymbolUniverse(
   layout: ChartLayout,
   watchlistSymbols: string[],
@@ -94,6 +167,7 @@ function buildSymbolUniverse(
 }
 
 const STREAM_SYMBOL_CAP = 32;
+const SSE_FIRST_PAINT_DEADLINE_MS = 8_000;
 
 function prioritizeStreamSymbols(
   layout: ChartLayout,
@@ -282,40 +356,14 @@ export function MarketDataProvider({
       quotesFetchStartedRef.current = Date.now();
       const quoteScenario = `watchlist-quotes:${streamSymbols.length}-symbols`;
       const quoteTraceId = createMarketDataTraceId(quoteScenario);
-      void fetch("/api/quotes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...marketDataTraceHeaders(quoteTraceId, quoteScenario),
-        },
-        body: JSON.stringify({ symbols: streamSymbols }),
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            const payload = await res.json().catch(() => ({}));
-            throw new Error(
-              (payload as { error?: string }).error ?? `Request failed (${res.status})`,
-            );
-          }
-          return (await res.json()) as {
-            quotes?: QuoteSnapshot[];
-            meta?: {
-              latencyMs?: number;
-              cacheTier?: string;
-              source?: string;
-              traceId?: string;
-              phases?: unknown[];
-              asOf?: number;
-              stale?: boolean;
-              warnings?: string[];
-            };
-          };
-        })
+      void fetchRestWatchlistQuotes(streamSymbols, quoteScenario, quoteTraceId)
         .then((payload) => {
-          const next = new Map<string, QuoteSnapshot>();
-          for (const quote of payload.quotes ?? []) {
-            next.set(quote.symbol, quote);
-          }
+          const { next, firstPaint } = applyRestQuotesPayload(payload, {
+            traceId: quoteTraceId,
+            scenario: quoteScenario,
+            transport: "rest",
+            startedAt: quotesFetchStartedRef.current,
+          });
           setQuotesBySymbol(next);
           setQuoteError(null);
           if (payload.meta) {
@@ -329,29 +377,8 @@ export function MarketDataProvider({
               traceId: payload.meta.traceId,
             });
           }
-          if (!quotesFirstPaintRef.current && next.size > 0) {
+          if (firstPaint) {
             quotesFirstPaintRef.current = true;
-            recordMarketDataTelemetry("quotes.firstPaint", {
-              traceId: payload.meta?.traceId ?? quoteTraceId,
-              scenario: quoteScenario,
-              layer: "client",
-              ok: true,
-              clientMs:
-                quotesFetchStartedRef.current != null
-                  ? Date.now() - quotesFetchStartedRef.current
-                  : undefined,
-              durationMs:
-                quotesFetchStartedRef.current != null
-                  ? Date.now() - quotesFetchStartedRef.current
-                  : undefined,
-              serverMs: payload.meta?.latencyMs,
-              cacheTier: payload.meta?.cacheTier as ChartDataMeta["cacheTier"],
-              provider: payload.meta?.source,
-              source: payload.meta?.source,
-              counts: { quotes: next.size },
-              count: next.size,
-              serverPhases: payload.meta?.phases as import("@/lib/marketData/telemetry/perfPhases").MarketDataPerfPhase[] | undefined,
-            });
           }
         })
         .catch((err) => {
@@ -378,6 +405,64 @@ export function MarketDataProvider({
 
     const params = new URLSearchParams({ symbols: streamSymbols.join(",") });
     const source = new EventSource(`/api/stream/quotes?${params.toString()}`);
+    let cancelled = false;
+    let restFallbackStarted = false;
+
+    const runRestFallback = (reason: string) => {
+      if (cancelled || restFallbackStarted) return;
+      restFallbackStarted = true;
+      source.close();
+      setQuotesTransport("rest");
+      setQuoteError(null);
+      const fallbackScenario = `watchlist-quotes-rest-fallback:${streamSymbols.length}-symbols`;
+      const fallbackTraceId = createMarketDataTraceId(fallbackScenario);
+      void fetchRestWatchlistQuotes(streamSymbols, fallbackScenario, fallbackTraceId)
+        .then((payload) => {
+          if (cancelled) return;
+          const { next, firstPaint } = applyRestQuotesPayload(payload, {
+            traceId: fallbackTraceId,
+            scenario: fallbackScenario,
+            transport: "rest-fallback",
+            startedAt: quotesFetchStartedRef.current,
+          });
+          setQuotesBySymbol(next);
+          if (payload.meta) {
+            setQuotesMeta((prev) => ({
+              ...prev,
+              source: payload.meta?.source as ChartDataMeta["source"],
+              asOf: payload.meta?.asOf ?? Date.now(),
+              stale: payload.meta?.stale ?? prev?.stale,
+              warnings: [...(payload.meta?.warnings ?? []), reason],
+              latencyMs: payload.meta?.latencyMs,
+              cacheTier: payload.meta?.cacheTier as ChartDataMeta["cacheTier"],
+              traceId: payload.meta?.traceId,
+              streaming: false,
+            }));
+          } else {
+            setQuotesMeta((prev) => ({
+              ...prev,
+              warnings: [...(prev?.warnings ?? []), reason],
+              streaming: false,
+            }));
+          }
+          if (firstPaint) {
+            quotesFirstPaintRef.current = true;
+          }
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setQuoteError(err instanceof Error ? err.message : reason);
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setQuotesLoading(false);
+          }
+        });
+    };
+
+    const firstPaintTimer = window.setTimeout(() => {
+      runRestFallback("Quote stream first snapshot timeout");
+    }, SSE_FIRST_PAINT_DEADLINE_MS);
 
     source.onmessage = (message) => {
       try {
@@ -385,9 +470,20 @@ export function MarketDataProvider({
           type?: string;
           quotes?: Record<string, unknown>[];
           message?: string;
+          meta?: {
+            source?: string;
+            stale?: boolean;
+            warnings?: string[];
+            cacheTier?: string;
+            asOf?: number;
+          };
         };
         if (event.type === "error") {
+          const recoverable = (event as { recoverable?: boolean }).recoverable;
           setQuoteError(event.message ?? "Quote stream error");
+          if (recoverable === false) {
+            runRestFallback(event.message ?? "Quote stream error");
+          }
           return;
         }
         if (event.type === "snapshot" || event.type === "update") {
@@ -396,6 +492,7 @@ export function MarketDataProvider({
               ?.map((row) => mapStreamQuote(row))
               .filter((row): row is QuoteSnapshot => row != null) ?? [];
           if (rows.length === 0) return;
+          window.clearTimeout(firstPaintTimer);
           const next = new Map(quotesRef.current);
           for (const row of rows) {
             next.set(row.symbol, row);
@@ -417,6 +514,8 @@ export function MarketDataProvider({
                   ? Date.now() - quotesFetchStartedRef.current
                   : undefined,
               transport: "sse",
+              provider: event.meta?.source,
+              source: event.meta?.source,
               counts: { quotes: next.size },
               count: next.size,
             });
@@ -425,8 +524,14 @@ export function MarketDataProvider({
           setQuoteError(null);
           setQuotesMeta((prev) => ({
             ...prev,
+            ...(event.meta?.source
+              ? { source: event.meta.source as ChartDataMeta["source"] }
+              : {}),
+            stale: event.meta?.stale ?? prev?.stale,
+            warnings: event.meta?.warnings ?? prev?.warnings,
+            cacheTier: (event.meta?.cacheTier as ChartDataMeta["cacheTier"]) ?? prev?.cacheTier,
             streaming: true,
-            asOf: Date.now(),
+            asOf: event.meta?.asOf ?? Date.now(),
           }));
         }
       } catch {
@@ -435,15 +540,12 @@ export function MarketDataProvider({
     };
 
     source.onerror = () => {
-      setQuoteError("Quote stream disconnected");
-      setQuotesLoading(false);
-      setQuotesMeta((prev) => ({
-        ...prev,
-        streamError: "Quote stream disconnected",
-      }));
+      runRestFallback("Quote stream disconnected");
     };
 
     return () => {
+      cancelled = true;
+      window.clearTimeout(firstPaintTimer);
       source.close();
     };
   }, [streamKey, streamSymbols, reloadToken]);

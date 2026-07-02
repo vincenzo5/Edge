@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { createCandleStreamSession } from './createStreamSession';
+import { createCandleStreamSession, resolveQuoteStreamSession } from './createStreamSession';
 import type { MarketDataService } from '../service/marketDataService';
 
 describe('createCandleStreamSession', () => {
@@ -46,6 +46,43 @@ describe('createCandleStreamSession', () => {
     await vi.advanceTimersByTimeAsync(120_000);
     const parsed = events.map((payload) => JSON.parse(payload) as { type: string });
     expect(parsed.some((event) => event.type === 'replace-latest')).toBe(true);
+    session.stop();
+  });
+});
+
+describe("resolveQuoteStreamSession", () => {
+  it("uses poll session when TWS quote stream transport is unavailable", async () => {
+    const getQuotes = vi.fn(async () => ({
+      data: [
+        {
+          symbol: "AAPL",
+          price: 100,
+          change: 1,
+          changePercent: 1,
+          volume: 1000,
+          updatedAt: Date.now(),
+        },
+      ],
+      source: "yahoo" as const,
+      requestedAt: Date.now(),
+      receivedAt: Date.now(),
+      stale: false,
+      warnings: [],
+    }));
+
+    const service = {
+      resolveQuoteStreamTransport: vi.fn(async () => "poll" as const),
+      getIbkrProvider: () => ({ isConfigured: () => false }),
+      getQuotes,
+    } as unknown as MarketDataService;
+
+    const session = await resolveQuoteStreamSession(service, { symbols: ["AAPL"] });
+    const events: string[] = [];
+    session.start((payload) => events.push(payload));
+    await Promise.resolve();
+
+    expect(getQuotes).toHaveBeenCalled();
+    expect(events.length).toBeGreaterThan(0);
     session.stop();
   });
 });

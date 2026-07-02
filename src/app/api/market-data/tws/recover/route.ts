@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { parseMarketRequest, twsRecoverRequestSchema } from "@/lib/marketData/schemas";
 import { isTwsConfigured } from "@/lib/marketData/providers/tws/client";
 import { recoverTwsSidecar } from "@/lib/marketData/providers/tws/recover";
+import { finalizeTwsRecoveryIfNeeded } from "@/lib/marketData/providers/tws/finalizeTwsRecovery";
+import { startTwsRecoverySession } from "@/lib/marketData/providers/tws/recoverySession";
 import { getServerMarketDataService } from "@/lib/marketData/service/server";
 
 export const runtime = "nodejs";
@@ -29,34 +31,38 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const candleRequests = parsed.data.candleRequests.map((row) => ({
+    symbol: row.symbol,
+    interval: row.interval,
+    range: row.range,
+  }));
+
+  startTwsRecoverySession({
+    symbols: parsed.data.symbols,
+    candleRequests,
+    optionsSymbol: parsed.data.optionsSymbol,
+  });
+
   try {
     const result = await recoverTwsSidecar(parsed.data.symbols);
     let warmup = null;
 
-    if (result.ok && result.status.gatewayConnected) {
+    if (result.ok && result.commandState === "confirmed" && result.status.gatewayConnected) {
       const service = getServerMarketDataService();
-      const candleRequests = parsed.data.candleRequests.map((row) => ({
-        symbol: row.symbol,
-        interval: row.interval,
-        range: row.range,
-      }));
-
-      service.resetTwsRecoveryState({
-        symbols: parsed.data.symbols,
-        candleRequests,
-      });
-
-      warmup = await service.primeMarketData({
+      const finalized = await finalizeTwsRecoveryIfNeeded(service, {
         symbols: parsed.data.symbols,
         candleRequests,
         optionsSymbol: parsed.data.optionsSymbol,
       });
+      warmup = finalized.warmup;
     }
 
     return NextResponse.json({
       ok: result.ok,
+      commandState: result.commandState,
       action: result.action,
       message: result.message,
+      recoveryPhase: result.recoveryPhase,
       status: result.status,
       warmup,
     });

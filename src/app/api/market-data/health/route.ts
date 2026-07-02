@@ -5,14 +5,18 @@ import {
   type ServerHealthPayload,
 } from "@/lib/marketData/health";
 import { twsHealthGate } from "@/lib/marketData/providers/tws/healthGate";
+import { getTwsRecoverySession } from "@/lib/marketData/providers/tws/recoverySession";
 import { getServerMarketDataService } from "@/lib/marketData/service/server";
 
 export const runtime = "nodejs";
 
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   try {
     const service = getServerMarketDataService();
-    const twsResult = await service.getTwsStatusProbe();
+    const recoveryActive = getTwsRecoverySession() != null;
+    const url = new URL(request.url);
+    const forceRecovery = url.searchParams.get("recovery") === "1" || recoveryActive;
+    const twsResult = await service.getTwsStatusProbe({ bypassCircuit: forceRecovery });
 
     const providers = buildProviderRows({
       tws: twsResult.data,

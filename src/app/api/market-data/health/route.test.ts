@@ -38,6 +38,10 @@ vi.mock("@/lib/marketData/service/server", () => ({
   }),
 }));
 
+vi.mock("@/lib/marketData/providers/tws/recoverySession", () => ({
+  getTwsRecoverySession: vi.fn(() => null),
+}));
+
 describe("/api/market-data/health GET", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -47,7 +51,7 @@ describe("/api/market-data/health GET", () => {
   });
 
   it("returns provider health without secrets and never probes Client Portal IBKR", async () => {
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/market-data/health"));
     expect(res.status).toBe(200);
     const json = (await res.json()) as {
       ok: boolean;
@@ -63,5 +67,10 @@ describe("/api/market-data/health GET", () => {
     expect(JSON.stringify(json)).not.toMatch(/FMP_API_KEY|FRED_API_KEY|SEC_USER_AGENT/);
     expect(json.health.recentWarnings.some((w) => w.includes("authenticated"))).toBe(false);
     expect(getIbkrStatusProbe).not.toHaveBeenCalled();
+  });
+
+  it("bypasses TWS circuit when recovery query param is set", async () => {
+    await GET(new Request("http://localhost/api/market-data/health?recovery=1"));
+    expect(getTwsStatusProbe).toHaveBeenCalledWith({ bypassCircuit: true });
   });
 });

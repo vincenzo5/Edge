@@ -6,25 +6,37 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { ChartDataMeta } from "@edge/chart-core";
 import {
+  isTwsGatewayHealthy,
   mergeHealthSnapshot,
   type DataHealthSnapshot,
   type ServerHealthPayload,
 } from "@/lib/marketData/health";
 import { useActiveChart } from "../ActiveChartContext";
 import { useMarketDataQuotes } from "../MarketDataProvider";
+import { useAccountOptional } from "../AccountProvider";
 
 type OptionsHealthMeta = Partial<ChartDataMeta> | null;
+
+const RECOVERY_POLL_INTERVAL_MS = 3_000;
+const RECOVERY_POLL_DEADLINE_MS = 60_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 type DataHealthContextValue = {
   snapshot: DataHealthSnapshot;
   menuOpen: boolean;
   setMenuOpen: (open: boolean) => void;
-  refreshServerHealth: () => Promise<void>;
+  serverHealthLoading: boolean;
+  serverHealthLoaded: boolean;
+  refreshServerHealth: () => Promise<ServerHealthPayload | null>;
   registerOptionsMeta: (meta: OptionsHealthMeta, detail?: string) => void;
   recoveringTws: boolean;
   recoverMessage: string | null;
@@ -36,25 +48,41 @@ const DataHealthContext = createContext<DataHealthContextValue | null>(null);
 export function DataHealthProvider({ children }: { children: ReactNode }) {
   const activeChart = useActiveChart();
   const marketData = useMarketDataQuotes();
+  const account = useAccountOptional();
   const [menuOpen, setMenuOpen] = useState(false);
   const [serverHealth, setServerHealth] = useState<ServerHealthPayload | null>(null);
   const [optionsMeta, setOptionsMeta] = useState<OptionsHealthMeta>(null);
   const [optionsDetail, setOptionsDetail] = useState<string | undefined>();
   const [recoveringTws, setRecoveringTws] = useState(false);
   const [recoverMessage, setRecoverMessage] = useState<string | null>(null);
+  const [serverHealthLoading, setServerHealthLoading] = useState(false);
+  const recoveryRunRef = useRef(0);
 
-  const refreshServerHealth = useCallback(async () => {
+  const refreshServerHealth = useCallback(async (): Promise<ServerHealthPayload | null> => {
+    setServerHealthLoading(true);
     try {
-      const res = await fetch("/api/market-data/health");
-      if (!res.ok) return;
+      const res = await fetch("/api/market-data/health", { priority: "high" });
+      if (!res.ok) return null;
       const payload = (await res.json()) as { health?: ServerHealthPayload };
       if (payload.health) {
         setServerHealth(payload.health);
+        return payload.health;
       }
     } catch {
       // Keep last known server health.
+    } finally {
+      setServerHealthLoading(false);
     }
+    return null;
   }, []);
+
+  useEffect(() => {
+    void refreshServerHealth();
+    const timer = window.setInterval(() => {
+      void refreshServerHealth();
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [refreshServerHealth]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -70,7 +98,61 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     setOptionsDetail(detail);
   }, []);
 
+  const reloadFeedsAfterRecovery = useCallback(async () => {
+    marketData?.reloadMarketData();
+    if (account && !account.disabled) {
+      await account.refresh();
+    }
+  }, [account, marketData]);
+
+  const waitForRecoveryConfirmation = useCallback(async (): Promise<boolean> => {
+    const deadline = Date.now() + RECOVERY_POLL_DEADLINE_MS;
+    while (Date.now() < deadline) {
+      try {
+        const res = await fetch("/api/market-data/tws/recover/status", { priority: "high" });
+        if (res.ok) {
+          const payload = (await res.json()) as {
+            ok?: boolean;
+            message?: string;
+            finalized?: boolean;
+            recoveryPhase?: string;
+          };
+          if (payload.message) {
+            setRecoverMessage(payload.message);
+          }
+          if (payload.ok && payload.finalized) {
+            return true;
+          }
+          if (payload.ok && payload.recoveryPhase === "confirmed") {
+            return true;
+          }
+        }
+      } catch {
+        // Keep polling until deadline.
+      }
+      await sleep(RECOVERY_POLL_INTERVAL_MS);
+    }
+    return false;
+  }, []);
+
+  const waitForGatewayHealth = useCallback(async (): Promise<boolean> => {
+    const confirmed = await waitForRecoveryConfirmation();
+    if (confirmed) return true;
+
+    const deadline = Date.now() + RECOVERY_POLL_DEADLINE_MS;
+    while (Date.now() < deadline) {
+      const health = await refreshServerHealth();
+      const twsProvider = health?.providers.find((provider) => provider.id === "tws");
+      if (isTwsGatewayHealthy(twsProvider)) {
+        return true;
+      }
+      await sleep(RECOVERY_POLL_INTERVAL_MS);
+    }
+    return false;
+  }, [refreshServerHealth, waitForRecoveryConfirmation]);
+
   const recoverTws = useCallback(async () => {
+    const runId = ++recoveryRunRef.current;
     setRecoveringTws(true);
     setRecoverMessage(null);
     try {
@@ -93,27 +175,58 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
       });
       const payload = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
+        commandState?: "accepted" | "timed_out" | "failed" | "confirmed";
         message?: string;
+        recoveryPhase?: string;
         error?: string;
       };
       if (!res.ok) {
         setRecoverMessage(payload.error ?? "TWS recovery failed");
         return;
       }
-      setRecoverMessage(payload.message ?? (payload.ok ? "TWS recovered" : "Recovery incomplete"));
-      if (payload.ok) {
-        marketData?.reloadMarketData();
+
+      if (payload.message) {
+        setRecoverMessage(payload.message);
       }
+
+      const commandState = payload.commandState;
+      if (payload.ok && commandState === "confirmed") {
+        await reloadFeedsAfterRecovery();
+        await refreshServerHealth();
+        return;
+      }
+
+      if (commandState === "timed_out" || commandState === "accepted") {
+        const connected = await waitForGatewayHealth();
+        if (runId !== recoveryRunRef.current) return;
+        if (connected) {
+          setRecoverMessage("Gateway connected. Reloading market data…");
+          await reloadFeedsAfterRecovery();
+          setRecoverMessage("Gateway connected. Market data reloaded.");
+        } else {
+          setRecoverMessage(
+            "Reconnect still in progress. Confirm IB Gateway is logged in, then check Data Health.",
+          );
+        }
+        await refreshServerHealth();
+        return;
+      }
+
+      setRecoverMessage(payload.message ?? "Recovery incomplete");
       await refreshServerHealth();
     } catch {
       setRecoverMessage("TWS recovery request failed");
     } finally {
-      setRecoveringTws(false);
+      if (runId === recoveryRunRef.current) {
+        setRecoveringTws(false);
+      }
     }
   }, [
     activeChart?.config.symbol,
     marketData,
     refreshServerHealth,
+    reloadFeedsAfterRecovery,
+    waitForGatewayHealth,
   ]);
 
   const snapshot = useMemo(() => {
@@ -136,6 +249,12 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
         optionsMeta,
         optionsDetail,
         chartStreamTransport: process.env.NEXT_PUBLIC_STREAM_TRANSPORT ?? "polling",
+        accountDisabled: account?.disabled,
+        accountConnectionState: account?.connectionState,
+        accountDetail: account?.status?.accountId
+          ? `${account.status.accountId} · ${account.positions.length} positions`
+          : account?.connectionState,
+        accountError: account?.error,
       },
       serverHealth,
     );
@@ -151,6 +270,11 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     marketData?.watchlistSymbolCount,
     optionsDetail,
     optionsMeta,
+    account?.connectionState,
+    account?.disabled,
+    account?.error,
+    account?.positions.length,
+    account?.status?.accountId,
     serverHealth,
   ]);
 
@@ -159,6 +283,8 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
       snapshot,
       menuOpen,
       setMenuOpen,
+      serverHealthLoading,
+      serverHealthLoaded: serverHealth != null,
       refreshServerHealth,
       registerOptionsMeta,
       recoveringTws,
@@ -168,6 +294,8 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     [
       snapshot,
       menuOpen,
+      serverHealth,
+      serverHealthLoading,
       refreshServerHealth,
       registerOptionsMeta,
       recoveringTws,

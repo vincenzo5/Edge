@@ -12,6 +12,7 @@ import { AppActionsProvider, buildAppActions } from "./AppActionsContext";
 import { WatchlistProvider } from "./watchlist/WatchlistContext";
 import { ScreenerProvider } from "./screener/ScreenerProvider";
 import { MarketDataProvider } from "./MarketDataProvider";
+import { AccountProvider } from "./AccountProvider";
 import { DataHealthProvider } from "./data-health";
 import { AiToolsProvider } from "./AiToolsProvider";
 import AiSessionBridge from "./AiSessionBridge";
@@ -302,6 +303,7 @@ export default function StockApp() {
             <WatchlistProvider>
               <ScreenerProvider>
               <MarketDataProvider layout={layout}>
+              <AccountProvider>
               <ActiveChartProvider>
                 <DataHealthProvider>
                 <ShortcutUIProvider>
@@ -387,6 +389,7 @@ export default function StockApp() {
                 </ShortcutUIProvider>
                 </DataHealthProvider>
               </ActiveChartProvider>
+              </AccountProvider>
               </MarketDataProvider>
               </ScreenerProvider>
             </WatchlistProvider>

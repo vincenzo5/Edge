@@ -44,8 +44,16 @@ type Props = {
 };
 
 export default function DataHealthMenu({ theme, anchorRef }: Props) {
-  const { snapshot, menuOpen, setMenuOpen, recoveringTws, recoverMessage, recoverTws } =
-    useDataHealth();
+  const {
+    snapshot,
+    menuOpen,
+    setMenuOpen,
+    serverHealthLoading,
+    serverHealthLoaded,
+    recoveringTws,
+    recoverMessage,
+    recoverTws,
+  } = useDataHealth();
   const twsProvider = snapshot.providers.find((provider) => provider.id === "tws");
   const showTwsRecovery = shouldShowTwsRecovery(twsProvider);
 
@@ -92,6 +100,14 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
 
       <div className={menuSectionHeaderClass(theme)}>Provider Status</div>
       <div className="mb-3 space-y-1.5">
+        {serverHealthLoading && !serverHealthLoaded && snapshot.providers.length === 0 ? (
+          <div
+            className="text-[10px] text-[var(--edge-text-secondary)]"
+            data-testid="data-health-providers-loading"
+          >
+            Loading provider status…
+          </div>
+        ) : null}
         {snapshot.providers.map((provider) => (
           <div
             key={provider.id}

@@ -74,6 +74,7 @@ import {
   type TwsProvider,
 } from "../providers/tws/adapter";
 import type { TwsStatusProbe } from "../providers/tws/client";
+import { isStaleTwsSidecarHealth } from "../providers/tws/client";
 import {
   classifyIbkrError,
   ibkrHealthGate,
@@ -89,6 +90,7 @@ import {
 
 const TWS_GATEWAY_PROBE_TTL_MS = 15_000;
 const IBKR_AUTH_PROBE_TTL_MS = 15_000;
+const TWS_WARMUP_BUDGET_MS = 5_000;
 import { defaultFmpSecFilingDateWindow } from "../providers/fmp/client";
 import {
   dedupeMarketEvents,
@@ -144,6 +146,8 @@ function attachPerfMeta<T extends DataResult<unknown>>(
     phases: [...(collector.toArray()), ...(result.phases ?? [])],
   };
 }
+
+export type QuoteStreamTransport = "tws" | "ibkr" | "poll";
 
 export class MarketDataService {
   private yahoo;
@@ -242,9 +246,12 @@ export class MarketDataService {
     ibkrHealthGate.recordFailure(classifyIbkrError(error));
   }
 
-  /** Proactively open the TWS circuit when Gateway is known disconnected. */
+  /** Proactively open the TWS circuit when Gateway is known disconnected or sidecar wedged. */
   private async ensureTwsGatewayProbe(): Promise<void> {
     if (!this.tws.isConfigured()) return;
+    if (!twsHealthGate.shouldTryTws("status")) {
+      return;
+    }
     const now = Date.now();
     if (now - this.twsGatewayProbeAt < TWS_GATEWAY_PROBE_TTL_MS) {
       if (!this.twsGatewayConnected) {
@@ -252,17 +259,21 @@ export class MarketDataService {
       }
       return;
     }
-    try {
-      const status = await this.tws.getStatusProbe();
-      this.twsGatewayProbeAt = now;
-      this.twsGatewayConnected = status.gatewayConnected;
-      if (status.sidecarReachable && !status.gatewayConnected) {
-        twsHealthGate.recordFailure("gateway_disconnected");
-      }
-    } catch {
-      this.twsGatewayProbeAt = now;
+    const status = await this.tws.probeStatus?.(2_000);
+    this.twsGatewayProbeAt = now;
+    if (!status?.sidecarReachable) {
       this.twsGatewayConnected = false;
       twsHealthGate.recordFailure("sidecar_unreachable");
+      return;
+    }
+    if (status.restartRequired || status.diagnostics?.workerWedged) {
+      this.twsGatewayConnected = false;
+      twsHealthGate.recordFailure("provider_error");
+      return;
+    }
+    this.twsGatewayConnected = status.gatewayConnected;
+    if (!status.gatewayConnected) {
+      twsHealthGate.recordFailure("gateway_disconnected");
     }
   }
 
@@ -2386,7 +2397,7 @@ export class MarketDataService {
     return this.ibkr;
   }
 
-  async getTwsStatusProbe(): Promise<DataResult<TwsStatusProbe>> {
+  async getTwsStatusProbe(options: { bypassCircuit?: boolean } = {}): Promise<DataResult<TwsStatusProbe>> {
     const requestedAt = Date.now();
     if (!this.tws.isConfigured()) {
       return createDataResult(
@@ -2400,27 +2411,40 @@ export class MarketDataService {
         { requestedAt, warnings: ["TWS_ENABLED is not true"] },
       );
     }
-    try {
-      const data = await this.tws.getStatusProbe();
-      return createDataResult(data, "tws", {
-        requestedAt,
-        warnings: data.warnings,
-      });
-    } catch (error) {
+    const bypassCircuit = options.bypassCircuit === true;
+    if (!bypassCircuit && !twsHealthGate.shouldTryTws("status")) {
+      const gate = twsHealthGate.snapshot();
+      const lastFailure = gate.lastFailure ?? "provider_error";
+      const sidecarReachable = lastFailure !== "sidecar_unreachable";
+      const skipReason = twsHealthGate.getSkipReason() ?? "TWS circuit open";
+      return createDataResult(
+        {
+          configured: true,
+          sidecarReachable,
+          gatewayConnected: false,
+          warnings: [skipReason],
+        },
+        "tws",
+        { requestedAt, warnings: [skipReason] },
+      );
+    }
+    const status = await this.tws.probeStatus?.(2_000);
+    if (!status?.sidecarReachable) {
       return createDataResult(
         {
           configured: true,
           sidecarReachable: false,
           gatewayConnected: false,
-          warnings: [error instanceof Error ? error.message : "TWS status probe failed"],
+          warnings: ["Sidecar unreachable"],
         },
         "tws",
-        {
-          requestedAt,
-          warnings: [error instanceof Error ? error.message : "TWS status probe failed"],
-        },
+        { requestedAt, warnings: ["Sidecar unreachable"] },
       );
     }
+    return createDataResult(status, "tws", {
+      requestedAt,
+      warnings: status.warnings,
+    });
   }
 
   async getTwsContractProbe(symbol: string): Promise<DataResult<TwsContractProbe | null>> {
@@ -2465,6 +2489,43 @@ export class MarketDataService {
 
   getTwsProvider(): TwsProvider {
     return this.tws;
+  }
+
+  /** Select quote stream transport using the same TWS health gate as REST quotes. */
+  async resolveQuoteStreamTransport(): Promise<QuoteStreamTransport> {
+    if (this.tws.isConfigured() && (await this.shouldUseTwsQuoteStream())) {
+      return "tws";
+    }
+    if (this.ibkr.isConfigured()) {
+      return "ibkr";
+    }
+    return "poll";
+  }
+
+  private async shouldUseTwsQuoteStream(): Promise<boolean> {
+    await this.ensureTwsGatewayProbe();
+    const decision = this.twsRoutingDecision("quotes");
+    if (!decision.shouldTry) {
+      return false;
+    }
+    const status = await this.tws.probeStatus?.(2_000);
+    if (!status?.sidecarReachable) {
+      twsHealthGate.recordFailure("sidecar_unreachable");
+      return false;
+    }
+    if (status.restartRequired || status.diagnostics?.workerWedged) {
+      twsHealthGate.recordFailure("provider_error");
+      return false;
+    }
+    const client = this.tws.getClient?.();
+    if (client && "probeHealth" in client && typeof client.probeHealth === "function") {
+      const health = await client.probeHealth(2_000);
+      if (isStaleTwsSidecarHealth(health)) {
+        twsHealthGate.recordFailure("provider_error");
+        return false;
+      }
+    }
+    return true;
   }
 
   /** Clear TWS skip state and stale Yahoo hot/cache entries after sidecar reconnect. */
@@ -2514,10 +2575,21 @@ export class MarketDataService {
       ...new Set((args.symbols ?? []).map((s) => s.trim().toUpperCase()).filter(Boolean)),
     ];
 
-    if (symbols.length > 0 && this.tws.isConfigured()) {
+    await this.ensureTwsGatewayProbe();
+    const twsDecision = this.twsRoutingDecision("quotes");
+
+    if (symbols.length > 0 && this.tws.isConfigured() && twsDecision.shouldTry) {
       const phaseStart = Date.now();
       try {
-        await this.tws.warmup?.(symbols);
+        await Promise.race([
+          this.tws.warmup?.(symbols) ?? Promise.resolve(),
+          new Promise<never>((_, reject) => {
+            setTimeout(
+              () => reject(new Error(`TWS warmup timed out after ${TWS_WARMUP_BUDGET_MS}ms`)),
+              TWS_WARMUP_BUDGET_MS,
+            );
+          }),
+        ]);
         phases.push({
           name: "tws.warmup",
           ms: Date.now() - phaseStart,
@@ -2525,6 +2597,7 @@ export class MarketDataService {
           key: symbols.join(","),
         });
       } catch (error) {
+        this.recordTwsFailure(error);
         phases.push({
           name: "tws.warmup",
           ms: Date.now() - phaseStart,
@@ -2533,9 +2606,17 @@ export class MarketDataService {
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    } else if (symbols.length > 0 && this.tws.isConfigured() && !twsDecision.shouldTry) {
+      phases.push({
+        name: "tws.warmup",
+        ms: 0,
+        ok: false,
+        key: symbols.join(","),
+        error: twsDecision.warning ?? "TWS warmup skipped",
+      });
     }
 
-    for (const request of args.candleRequests ?? []) {
+    const candleTasks = (args.candleRequests ?? []).map(async (request) => {
       const phaseStart = Date.now();
       const key = `${request.symbol}|${request.interval}|${request.range ?? "1y"}`;
       try {
@@ -2557,52 +2638,71 @@ export class MarketDataService {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-    }
+    });
 
-    if (symbols.length > 0) {
-      const phaseStart = Date.now();
-      try {
-        const result = await this.getQuotes(symbols, readOptions);
-        phases.push({
-          name: "quotes",
-          key: symbols.join(","),
-          ms: Date.now() - phaseStart,
-          ok: true,
-          source: result.source,
-          cacheTier: result.cacheTier,
-        });
-      } catch (error) {
-        phases.push({
-          name: "quotes",
-          key: symbols.join(","),
-          ms: Date.now() - phaseStart,
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
+    const quoteTask =
+      symbols.length > 0
+        ? (async () => {
+            const phaseStart = Date.now();
+            try {
+              const result = await this.getQuotes(symbols, readOptions);
+              phases.push({
+                name: "quotes",
+                key: symbols.join(","),
+                ms: Date.now() - phaseStart,
+                ok: true,
+                source: result.source,
+                cacheTier: result.cacheTier,
+              });
+            } catch (error) {
+              phases.push({
+                name: "quotes",
+                key: symbols.join(","),
+                ms: Date.now() - phaseStart,
+                ok: false,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          })()
+        : Promise.resolve();
+
+    await Promise.all([...candleTasks, quoteTask]);
 
     const optionsSymbol = args.optionsSymbol?.trim().toUpperCase();
     if (optionsSymbol) {
-      const phaseStart = Date.now();
-      try {
-        const expResult = await this.getOptionExpirations(optionsSymbol);
+      const canTryTwsOptions =
+        this.tws.isConfigured() && twsHealthGate.shouldTryTws("options");
+      const canTryIbkrOptions =
+        this.ibkr.isConfigured() && ibkrHealthGate.shouldTryIbkr("options");
+      if (!canTryTwsOptions && !canTryIbkrOptions) {
         phases.push({
           name: "options.expirations",
           key: optionsSymbol,
-          ms: Date.now() - phaseStart,
-          ok: true,
-          source: expResult.source,
-          cacheTier: expResult.cacheTier,
-        });
-      } catch (error) {
-        phases.push({
-          name: "options",
-          key: optionsSymbol,
-          ms: Date.now() - phaseStart,
+          ms: 0,
           ok: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: "Options warmup deferred — TWS/IBKR unavailable",
         });
+      } else {
+        const phaseStart = Date.now();
+        try {
+          const expResult = await this.getOptionExpirations(optionsSymbol);
+          phases.push({
+            name: "options.expirations",
+            key: optionsSymbol,
+            ms: Date.now() - phaseStart,
+            ok: true,
+            source: expResult.source,
+            cacheTier: expResult.cacheTier,
+          });
+        } catch (error) {
+          phases.push({
+            name: "options",
+            key: optionsSymbol,
+            ms: Date.now() - phaseStart,
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     }
 

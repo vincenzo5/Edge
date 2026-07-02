@@ -78,7 +78,7 @@ export const DEFAULT_TOOLBAR_PREFS: ToolbarPrefs = {
 };
 
 /** Right sidebar panel identifiers — extend as new panels ship. */
-export type SidebarPanelId = "object-tree" | "watchlist";
+export type SidebarPanelId = "object-tree" | "watchlist" | "account";
 
 /** Legacy persisted panel id removed from the rail; migrate to null on load. */
 export type LegacySidebarPanelId = SidebarPanelId | "options";

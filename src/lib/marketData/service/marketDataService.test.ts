@@ -165,6 +165,13 @@ function createMockIbkr(overrides: Partial<IbkrProvider> = {}): IbkrProvider {
 function createMockTws(overrides: Partial<TwsProvider> = {}): TwsProvider {
   return {
     isConfigured: () => true,
+    probeLiveness: vi.fn(async () => true),
+    probeStatus: vi.fn(async () => ({
+      configured: true,
+      sidecarReachable: true,
+      gatewayConnected: true,
+      warnings: [],
+    })),
     getStatusProbe: vi.fn(async () => ({
       configured: true,
       sidecarReachable: true,
@@ -377,6 +384,7 @@ describe("MarketDataService", () => {
         interval: "1d",
       });
       expect(result.source).toBe("ibkr");
+      expect(tws.probeLiveness).not.toHaveBeenCalled();
       expect(tws.getCandles).not.toHaveBeenCalled();
       expect(result.warnings.some((w) => w.includes("TWS temporarily skipped"))).toBe(true);
     });
@@ -732,7 +740,7 @@ describe("MarketDataService", () => {
   describe("TWS gateway status probe routing", () => {
     it("skips TWS candle attempts when status probe reports Gateway disconnected", async () => {
       const tws = createMockTws({
-        getStatusProbe: vi.fn(async () => ({
+        probeStatus: vi.fn(async () => ({
           configured: true,
           sidecarReachable: true,
           gatewayConnected: false,
@@ -756,7 +764,7 @@ describe("MarketDataService", () => {
 
     it("skips TWS quote attempts when status probe reports Gateway disconnected", async () => {
       const tws = createMockTws({
-        getStatusProbe: vi.fn(async () => ({
+        probeStatus: vi.fn(async () => ({
           configured: true,
           sidecarReachable: true,
           gatewayConnected: false,
@@ -771,6 +779,134 @@ describe("MarketDataService", () => {
       expect(result.warnings.some((warning) => warning.includes("TWS temporarily skipped"))).toBe(
         true,
       );
+    });
+  });
+
+  describe("TWS status probe", () => {
+    it("fast-fails when sidecar status probe returns null", async () => {
+      const tws = createMockTws({
+        probeStatus: vi.fn(async () => null),
+        getStatusProbe: vi.fn(async () => ({
+          configured: true,
+          sidecarReachable: true,
+          gatewayConnected: true,
+          warnings: [],
+        })),
+      });
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      const result = await service.getTwsStatusProbe();
+
+      expect(result.data.sidecarReachable).toBe(false);
+      expect(tws.probeStatus).toHaveBeenCalledOnce();
+      expect(tws.getStatusProbe).not.toHaveBeenCalled();
+      expect(result.warnings.some((warning) => warning.includes("Sidecar unreachable"))).toBe(true);
+    });
+
+    it("uses a single short status probe when sidecar answers", async () => {
+      const tws = createMockTws();
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      const result = await service.getTwsStatusProbe();
+
+      expect(result.data.gatewayConnected).toBe(true);
+      expect(tws.probeStatus).toHaveBeenCalledOnce();
+      expect(tws.getStatusProbe).not.toHaveBeenCalled();
+    });
+
+    it("skips sidecar network I/O while the TWS circuit is open", async () => {
+      twsHealthGate.recordFailure("sidecar_unreachable");
+      const tws = createMockTws();
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      const result = await service.getTwsStatusProbe();
+
+      expect(result.data.sidecarReachable).toBe(false);
+      expect(tws.probeStatus).not.toHaveBeenCalled();
+      expect(result.warnings.some((warning) => warning.includes("TWS temporarily skipped"))).toBe(
+        true,
+      );
+    });
+
+    it("bypasses the circuit when recovery requests fresh sidecar status", async () => {
+      twsHealthGate.recordFailure("sidecar_unreachable");
+      const tws = createMockTws();
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      const result = await service.getTwsStatusProbe({ bypassCircuit: true });
+
+      expect(result.data.gatewayConnected).toBe(true);
+      expect(tws.probeStatus).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("quote stream transport", () => {
+    it("skips TWS stream when circuit is open", async () => {
+      twsHealthGate.recordFailure("sidecar_unreachable");
+      const tws = createMockTws();
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      await expect(service.resolveQuoteStreamTransport()).resolves.toBe("ibkr");
+      expect(tws.probeStatus).not.toHaveBeenCalled();
+    });
+
+    it("skips TWS stream when sidecar worker is wedged", async () => {
+      const tws = createMockTws({
+        probeStatus: vi.fn(async () => ({
+          configured: true,
+          sidecarReachable: true,
+          gatewayConnected: true,
+          restartRequired: true,
+          diagnostics: { workerWedged: true },
+          warnings: [],
+        })),
+      });
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      await expect(service.resolveQuoteStreamTransport()).resolves.toBe("ibkr");
+    });
+  });
+
+  describe("primeMarketData warmup bounds", () => {
+    it("skips TWS warmup when circuit is open", async () => {
+      twsHealthGate.recordFailure("sidecar_unreachable");
+      const tws = createMockTws({
+        warmup: vi.fn(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 60_000));
+        }),
+      });
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      const report = await service.primeMarketData({ symbols: ["AAPL"] });
+      const warmupPhase = report.phases.find((phase) => phase.name === "tws.warmup");
+      expect(warmupPhase?.ok).toBe(false);
+      expect(tws.warmup).not.toHaveBeenCalled();
+    });
+
+    it("records timeout when TWS warmup hangs", async () => {
+      vi.useFakeTimers();
+      const tws = createMockTws({
+        warmup: vi.fn(
+          () =>
+            new Promise<void>(() => {
+              /* never resolves */
+            }),
+        ),
+      });
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      const reportPromise = service.primeMarketData({ symbols: ["AAPL"] });
+      await vi.advanceTimersByTimeAsync(6_000);
+      const report = await reportPromise;
+      const warmupPhase = report.phases.find((phase) => phase.name === "tws.warmup");
+      expect(warmupPhase?.ok).toBe(false);
+      expect(warmupPhase?.error).toMatch(/timed out/i);
+      vi.useRealTimers();
+    });
+
+    it("defers options warmup when TWS and IBKR gates are open", async () => {
+      twsHealthGate.recordFailure("sidecar_unreachable");
+      ibkrHealthGate.recordFailure("gateway_unreachable");
+      const tws = createMockTws();
+      const ibkr = createMockIbkr();
+      const service = createService({ tws, ibkr });
+      const report = await service.primeMarketData({ optionsSymbol: "AAPL" });
+      const optionsPhase = report.phases.find((phase) => phase.name === "options.expirations");
+      expect(optionsPhase?.ok).toBe(false);
+      expect(optionsPhase?.error).toMatch(/deferred/i);
+      expect(ibkr.getOptionExpirations).not.toHaveBeenCalled();
     });
   });
 });

@@ -4,7 +4,7 @@ import type { TwsStatusProbe } from "./providers/tws/client";
 
 export type DataHealthSeverity = "healthy" | "degraded" | "offline" | "unknown";
 
-export type DataHealthDatasetKind = "chart" | "watchlist" | "options";
+export type DataHealthDatasetKind = "chart" | "watchlist" | "options" | "account";
 
 export type DataHealthDatasetStatus = "loaded" | "loading" | "unavailable" | "not_loaded";
 
@@ -57,6 +57,10 @@ export type ClientHealthInputs = {
   optionsMeta?: Partial<ChartDataMeta> | null;
   optionsDetail?: string;
   chartStreamTransport?: string;
+  accountDisabled?: boolean;
+  accountConnectionState?: string;
+  accountDetail?: string;
+  accountError?: string | null;
 };
 
 export type DataHealthSnapshot = {
@@ -193,6 +197,59 @@ export function buildOptionsDatasetRow(
   };
 }
 
+export function buildAccountDatasetRow(args: {
+  disabled?: boolean;
+  connectionState?: string;
+  detail?: string;
+  error?: string | null;
+}): DataHealthDatasetRow {
+  if (args.disabled) {
+    return {
+      kind: "account",
+      label: "Account feed",
+      detail: "Unavailable",
+      status: "not_loaded",
+      warnings: [],
+    };
+  }
+  if (args.error && args.connectionState === "error") {
+    return {
+      kind: "account",
+      label: "Account feed",
+      detail: args.detail,
+      status: "unavailable",
+      warnings: [args.error],
+    };
+  }
+  if (args.connectionState === "connecting") {
+    return {
+      kind: "account",
+      label: "Account feed",
+      detail: args.detail,
+      status: "loading",
+      warnings: [],
+    };
+  }
+  if (args.connectionState === "connected") {
+    return {
+      kind: "account",
+      label: "Account feed",
+      detail: args.detail,
+      source: "tws",
+      streaming: true,
+      status: "loaded",
+      warnings: [],
+    };
+  }
+  return {
+    kind: "account",
+    label: "Account feed",
+    detail: args.detail ?? "Disconnected",
+    status: "unavailable",
+    warnings: args.error ? [args.error] : [],
+  };
+}
+
 export function buildProviderRows(args: {
   tws: TwsStatusProbe;
   twsGate: HealthGateSnapshot;
@@ -207,21 +264,34 @@ export function buildProviderRows(args: {
     ? "disabled"
     : twsCircuitOpen
       ? "degraded"
-      : args.tws.sidecarReachable && args.tws.gatewayConnected
-        ? "healthy"
-        : args.tws.sidecarReachable
+      : !args.tws.sidecarReachable
+        ? "offline"
+        : args.tws.restartRequired || args.tws.diagnostics?.workerWedged
           ? "degraded"
-          : "offline";
+          : args.tws.connectionState === "client_id_stuck"
+            ? "degraded"
+            : args.tws.sidecarReachable && args.tws.gatewayConnected
+              ? "healthy"
+              : "degraded";
 
   const twsDetail = !args.tws.configured
     ? "Not configured"
     : twsCircuitOpen
       ? (args.twsGate.lastFailure ?? "circuit open")
-      : args.tws.sidecarReachable && args.tws.gatewayConnected
-        ? "Sidecar ok · Gateway connected"
-        : args.tws.sidecarReachable
-          ? "Sidecar ok · Gateway disconnected"
-          : "Sidecar unreachable";
+      : !args.tws.sidecarReachable
+        ? "Sidecar unreachable"
+        : args.tws.connectionState === "client_id_stuck" || args.tws.restartRequired
+          ? "API client ID stuck"
+          : args.tws.diagnostics?.workerWedged
+            ? `Worker wedged${args.tws.diagnostics.activeJob ? ` · ${args.tws.diagnostics.activeJob}` : ""}`
+            : args.tws.subscriptionsLost
+              ? "Market data resubscribing"
+              : args.tws.reconnectInProgress ||
+                  args.tws.diagnostics?.recovery?.phase === "reconnecting"
+                ? `Reconnecting${args.tws.host && args.tws.port ? ` · ${args.tws.host}:${args.tws.port}` : ""}`
+                : args.tws.sidecarReachable && args.tws.gatewayConnected
+                  ? "Sidecar ok · Gateway connected"
+                  : "Sidecar ok · Gateway disconnected";
 
   return [
     {
@@ -341,18 +411,75 @@ export function severityLabel(severity: DataHealthSeverity): string {
 
 export function buildHealthSummary(
   chartRow: DataHealthDatasetRow | undefined,
+  watchlistRow: DataHealthDatasetRow | undefined,
   severity: DataHealthSeverity,
 ): string {
-  const source = chartRow?.source ? upperSource(chartRow.source) : null;
-  if (!source) return "Data";
+  const chartSource = chartRow?.source ? upperSource(chartRow.source) : null;
+  const watchlistSource =
+    watchlistRow?.status === "loaded" && watchlistRow.source
+      ? upperSource(watchlistRow.source)
+      : null;
 
-  const parts = [`Data: ${source}`];
-  if (chartRow?.streaming) parts.push("live");
-  else if (chartRow?.stale) parts.push("stale");
-  else if (severity === "degraded" && FALLBACK_SOURCES.has(chartRow?.source ?? "")) {
+  if (!chartSource && !watchlistSource) return "Data";
+
+  if (chartSource && watchlistSource && chartSource !== watchlistSource) {
+    const parts = [`Chart: ${chartSource}`, `Quotes: ${watchlistSource}`];
+    if (watchlistRow?.streaming || chartRow?.streaming) parts.push("live");
+    else if (severity === "degraded") parts.push("mixed");
+    return parts.join(" · ");
+  }
+
+  const source = chartSource ?? watchlistSource!;
+  const primaryRow = chartSource ? chartRow : watchlistRow;
+  const label = chartSource ? "Chart" : "Quotes";
+  const parts = [`${label}: ${source}`];
+  if (primaryRow?.streaming) parts.push("live");
+  else if (primaryRow?.stale) parts.push("stale");
+  else if (severity === "degraded" && FALLBACK_SOURCES.has(primaryRow?.source ?? "")) {
     parts.push("fallback");
   }
   return parts.join(" · ");
+}
+
+/** True when IB Gateway provider row reports sidecar reachable and gateway connected. */
+export function isTwsGatewayHealthy(provider: ProviderHealthRow | undefined): boolean {
+  if (!provider?.configured) return false;
+  return (
+    provider.status === "healthy" &&
+    provider.detail.toLowerCase().includes("gateway connected")
+  );
+}
+
+/** When server health has not loaded yet, infer TWS state from client dataset warnings. */
+export function buildProvisionalProviderRows(
+  datasets: DataHealthDatasetRow[],
+): ProviderHealthRow[] | null {
+  const warnings = datasets.flatMap((row) => row.warnings).filter(Boolean);
+  const twsSkip = warnings.find((warning) => /TWS temporarily skipped/i.test(warning));
+  if (!twsSkip) return null;
+
+  const reasonMatch = twsSkip.match(/skipped \(([^)]+)\)/i);
+  const reason = reasonMatch?.[1] ?? "unknown";
+  const sidecarUnreachable = reason === "sidecar_unreachable";
+
+  return [
+    {
+      id: "tws",
+      label: "IB Gateway",
+      configured: true,
+      status: sidecarUnreachable ? "offline" : "degraded",
+      detail: reason,
+      circuitOpen: true,
+      circuitReason: reason,
+    },
+    {
+      id: "yahoo",
+      label: "Yahoo",
+      configured: true,
+      status: "healthy",
+      detail: "Fallback available",
+    },
+  ];
 }
 
 export function mergeHealthSnapshot(
@@ -368,9 +495,20 @@ export function mergeHealthSnapshot(
     client.watchlistTransport,
   );
   const options = buildOptionsDatasetRow(client.optionsMeta, client.optionsDetail);
+  const account = buildAccountDatasetRow({
+    disabled: client.accountDisabled,
+    connectionState: client.accountConnectionState,
+    detail: client.accountDetail,
+    error: client.accountError,
+  });
 
-  const datasets = [chart, watchlist, options];
-  const providers = server?.providers ?? [];
+  const datasets = [chart, watchlist, options, account];
+  const provisionalProviders = server?.providers?.length
+    ? null
+    : buildProvisionalProviderRows(datasets);
+  const providers = server?.providers?.length
+    ? server.providers
+    : (provisionalProviders ?? []);
   const recentWarnings = collectRecentWarnings(
     datasets,
     providers,
@@ -381,7 +519,7 @@ export function mergeHealthSnapshot(
   return {
     severity,
     severityLabel: severityLabel(severity),
-    summary: buildHealthSummary(chart, severity),
+    summary: buildHealthSummary(chart, watchlist, severity),
     datasets,
     providers,
     recentWarnings,
@@ -414,6 +552,12 @@ export function twsRecoveryButtonLabel(provider: ProviderHealthRow | undefined):
   if (!provider?.configured) return "Recover TWS";
   if (provider.detail.toLowerCase().includes("unreachable")) {
     return "Start TWS sidecar";
+  }
+  if (provider.detail.toLowerCase().includes("client id stuck")) {
+    return "Restart sidecar";
+  }
+  if (provider.detail.toLowerCase().includes("worker wedged")) {
+    return "Restart sidecar";
   }
   if (
     provider.circuitOpen ||

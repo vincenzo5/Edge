@@ -1,6 +1,31 @@
 import { asFiniteNumber } from "../../validation/parseRequest";
 import { TwsRequestError, classifyTwsError } from "./healthGate";
 
+export type TwsSidecarCapabilities = {
+  controlRecovery?: boolean;
+  controlReconnect?: boolean;
+  streamQuotes?: boolean;
+  brokerage?: boolean;
+};
+
+export type TwsHealthProbe = {
+  ok: boolean;
+  timestamp?: number;
+  startedAt?: number;
+  version?: string;
+  host?: string;
+  port?: number;
+  clientId?: number;
+  sidecarPort?: number;
+  capabilities?: TwsSidecarCapabilities;
+};
+
+/** True when sidecar responds but lacks current-source route capabilities. */
+export function isStaleTwsSidecarHealth(health: TwsHealthProbe | null | undefined): boolean {
+  if (!health?.ok) return true;
+  return health.capabilities?.controlRecovery !== true;
+}
+
 export type TwsClientConfig = {
   baseUrl: string;
   timeoutMs: number;
@@ -11,16 +36,66 @@ export type TwsClientConfig = {
 
 export type TwsRequestKind = "candles" | "quotes" | "options" | "status" | "warmup" | "default";
 
+export type TwsRecoveryPhase =
+  | "idle"
+  | "reconnecting"
+  | "connected"
+  | "failed"
+  | "api_connecting"
+  | "gateway_disconnected"
+  | "client_id_stuck"
+  | "restart_required";
+
+export type TwsConnectionState =
+  | "idle"
+  | "api_connecting"
+  | "connected"
+  | "gateway_disconnected"
+  | "client_id_stuck"
+  | "reconnecting"
+  | "wedged"
+  | "restart_required"
+  | "failed";
+
+export type TwsWorkerDiagnostics = {
+  queueDepth?: number;
+  activeJob?: string | null;
+  activeJobAgeMs?: number | null;
+  workerWedged?: boolean;
+  lastCompletedJob?: string | null;
+  lastCompletedAt?: number | null;
+  lastWorkerError?: string | null;
+  recovery?: {
+    phase?: TwsRecoveryPhase;
+    startedAt?: number | null;
+    updatedAt?: number | null;
+    message?: string | null;
+    pausedStreams?: boolean;
+  };
+};
+
 export type TwsStatusProbe = {
   configured: boolean;
   sidecarReachable: boolean;
   gatewayConnected: boolean;
+  apiSessionConnected?: boolean;
+  gatewaySocketOpen?: boolean;
+  connectionState?: TwsConnectionState;
+  activeClientId?: number;
+  lastIbErrorCode?: number;
+  lastIbErrorMessage?: string;
+  subscriptionsLost?: boolean;
+  restartRequired?: boolean;
   host?: string;
   port?: number;
   clientId?: number;
   readOnly?: boolean;
   message?: string;
   warnings: string[];
+  diagnostics?: TwsWorkerDiagnostics;
+  /** Sidecar reconnect HTTP accepted but IB work may still be running. */
+  reconnectInProgress?: boolean;
+  reconnectTimedOut?: boolean;
 };
 
 export type TwsContractProbe = {
@@ -159,6 +234,38 @@ export function getTwsStreamUrl(baseUrl?: string, symbols?: string[]): string {
   return `${resolved.replace(/\/$/, "")}/stream/quotes?${params.toString()}`;
 }
 
+function parseStatusPayload(status: Record<string, unknown>): TwsStatusProbe {
+  const diagnostics = status.diagnostics as TwsWorkerDiagnostics | undefined;
+  return {
+    configured: true,
+    sidecarReachable: true,
+    gatewayConnected: Boolean(status.gatewayConnected),
+    apiSessionConnected: Boolean(status.apiSessionConnected ?? status.gatewayConnected),
+    gatewaySocketOpen: Boolean(status.gatewaySocketOpen ?? status.gatewayConnected),
+    connectionState:
+      typeof status.connectionState === "string"
+        ? (status.connectionState as TwsConnectionState)
+        : undefined,
+    activeClientId: asFiniteNumber(status.activeClientId) ?? undefined,
+    lastIbErrorCode: asFiniteNumber(status.lastIbErrorCode) ?? undefined,
+    lastIbErrorMessage:
+      typeof status.lastIbErrorMessage === "string" ? status.lastIbErrorMessage : undefined,
+    subscriptionsLost: Boolean(status.subscriptionsLost),
+    restartRequired: Boolean(status.restartRequired),
+    host: typeof status.host === "string" ? status.host : undefined,
+    port: asFiniteNumber(status.port) ?? undefined,
+    clientId: asFiniteNumber(status.clientId) ?? undefined,
+    readOnly: typeof status.readOnly === "boolean" ? status.readOnly : undefined,
+    message: typeof status.message === "string" ? status.message : undefined,
+    warnings: Array.isArray(status.warnings)
+      ? status.warnings.filter((row): row is string => typeof row === "string")
+      : [],
+    diagnostics,
+    reconnectInProgress: Boolean(status.inProgress),
+    reconnectTimedOut: Boolean(status.timedOut),
+  };
+}
+
 function toRequestError(error: unknown, kind: TwsRequestKind): TwsRequestError {
   if (error instanceof TwsRequestError) {
     return error;
@@ -235,33 +342,80 @@ export function createTwsClient(config?: TwsClientConfig) {
       return result ?? { ok: false };
     },
 
+    /**
+     * Fast control-plane liveness via /health (never queues on IB worker).
+     */
+    async probeHealth(timeoutMs = 2_000): Promise<TwsHealthProbe | null> {
+      const url = `${resolved.baseUrl}/health`;
+      try {
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        if (!res.ok) return null;
+        const json = (await res.json()) as Record<string, unknown>;
+        const caps = json.capabilities as Record<string, unknown> | undefined;
+        return {
+          ok: json.ok === true,
+          timestamp: asFiniteNumber(json.timestamp) ?? undefined,
+          startedAt: asFiniteNumber(json.startedAt) ?? undefined,
+          version: typeof json.version === "string" ? json.version : undefined,
+          host: typeof json.host === "string" ? json.host : undefined,
+          port: asFiniteNumber(json.port) ?? undefined,
+          clientId: asFiniteNumber(json.clientId) ?? undefined,
+          sidecarPort: asFiniteNumber(json.sidecarPort) ?? undefined,
+          capabilities: caps
+            ? {
+                controlRecovery: caps.controlRecovery === true,
+                controlReconnect: caps.controlReconnect === true,
+                streamQuotes: caps.streamQuotes === true,
+                brokerage: caps.brokerage === true,
+              }
+            : undefined,
+        };
+      } catch {
+        return null;
+      }
+    },
+
+    /**
+     * Fast sidecar liveness probe with a short timeout. Returns true when the
+     * sidecar answers /health. Used to gate status probes so chart-data
+     * requests do not block for the full TWS_SIDECAR_TIMEOUT_MS.
+     */
+    async probeLiveness(timeoutMs = 2_000): Promise<boolean> {
+      const health = await this.probeHealth(timeoutMs);
+      return health?.ok === true;
+    },
+
+    /**
+     * Single short-timeout /status fetch for health probes. Avoids a second
+     * full-timeout status call after liveness already proved the sidecar answers.
+     */
+    async probeStatus(timeoutMs = 2_000): Promise<TwsStatusProbe | null> {
+      const url = `${resolved.baseUrl}/status`;
+      try {
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        if (!res.ok) return null;
+        const status = (await res.json()) as Record<string, unknown>;
+        return parseStatusPayload(status);
+      } catch {
+        return null;
+      }
+    },
+
     async getStatus(): Promise<TwsStatusProbe> {
       try {
-        const status = await request<{
-          configured?: boolean;
-          sidecarReachable?: boolean;
-          gatewayConnected?: boolean;
-          host?: string;
-          port?: number;
-          clientId?: number;
-          readOnly?: boolean;
-          message?: string;
-          warnings?: string[];
-        }>("/status", { kind: "status" });
+        const status = await request<Record<string, unknown>>("/status", { kind: "status" });
         if (!status) {
           throw new TwsRequestError("sidecar_unreachable", "TWS sidecar status unavailable");
         }
-        return {
-          configured: true,
-          sidecarReachable: true,
-          gatewayConnected: Boolean(status.gatewayConnected),
-          host: status.host,
-          port: asFiniteNumber(status.port) ?? undefined,
-          clientId: asFiniteNumber(status.clientId) ?? undefined,
-          readOnly: status.readOnly,
-          message: status.message,
-          warnings: status.warnings ?? [],
-        };
+        return parseStatusPayload(status);
       } catch (error) {
         const twsError = toRequestError(error, "status");
         return {

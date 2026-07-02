@@ -11,6 +11,9 @@ import {
   QUOTE_POLL_INTERVAL_MS,
 } from "@/lib/chartDataFeed/pollStreamAdapter";
 
+const TWS_STREAM_CONNECT_TIMEOUT_MS = 3_000;
+const TWS_STREAM_FIRST_FRAME_TIMEOUT_MS = 5_000;
+
 function normalizeChartMeta(
   partial: ReturnType<typeof dataResultToResponseMeta>,
 ): NonNullable<ChartQuoteStreamEvent extends { meta?: infer M } ? M : never> {
@@ -31,6 +34,10 @@ function parseSsePayload(raw: string): ChartQuoteStreamEvent | null {
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** TWS sidecar SSE quote stream with HTTP poll fallback. */
 export function createTwsQuoteStreamSession(
   service: MarketDataService,
@@ -42,17 +49,19 @@ export function createTwsQuoteStreamSession(
   let abortController: AbortController | undefined;
   let primed = false;
   let fillInFlight = false;
+  let pollFallbackActive = false;
 
   const emitQuotes = (
     onEvent: (payload: string) => void,
     quotes: MarketQuote[],
     eventType: "snapshot" | "update",
+    meta?: ReturnType<typeof normalizeChartMeta>,
   ) => {
     onEvent(
       JSON.stringify({
         type: eventType,
         quotes,
-        meta: {
+        meta: meta ?? {
           source: "tws",
           asOf: Date.now(),
           stale: false,
@@ -82,7 +91,8 @@ export function createTwsQuoteStreamSession(
       for (const quote of result.data) {
         merged.set(quote.symbol, quoteSnapshotToMarketQuote(quote));
       }
-      emitQuotes(onEvent, [...merged.values()], "update");
+      const fillMeta = normalizeChartMeta(dataResultToResponseMeta(result));
+      emitQuotes(onEvent, [...merged.values()], "update", fillMeta);
     } catch {
       // Best-effort fill-in; stream ticks or poll fallback may recover later.
     } finally {
@@ -90,7 +100,7 @@ export function createTwsQuoteStreamSession(
     }
   };
 
-  const pollFallback = async (onEvent: (payload: string) => void, primed: boolean) => {
+  const pollFallback = async (onEvent: (payload: string) => void, alreadyPrimed: boolean) => {
     if (stopped) return;
     try {
       const result = await service.getQuotes(query.symbols);
@@ -100,11 +110,12 @@ export function createTwsQuoteStreamSession(
       const quotes = result.data.map(equityQuoteToMarketQuote);
       onEvent(
         JSON.stringify(
-          (primed
+          (alreadyPrimed
             ? { type: "update", quotes, meta }
             : { type: "snapshot", quotes, meta }) satisfies ChartQuoteStreamEvent,
         ),
       );
+      primed = true;
     } catch (error) {
       if (stopped) return;
       failureCount += 1;
@@ -134,13 +145,20 @@ export function createTwsQuoteStreamSession(
     }
   };
 
+  const startPollFallback = (onEvent: (payload: string) => void) => {
+    if (pollFallbackActive || stopped) return;
+    pollFallbackActive = true;
+    abortController?.abort();
+    void pollFallback(onEvent, primed);
+    pollTimer = setInterval(() => void pollFallback(onEvent, true), QUOTE_POLL_INTERVAL_MS);
+  };
+
   return {
     start(onEvent) {
       const provider = service.getTwsProvider();
       const client = provider?.getClient?.() ?? null;
       if (!client) {
-        void pollFallback(onEvent, false);
-        pollTimer = setInterval(() => void pollFallback(onEvent, true), QUOTE_POLL_INTERVAL_MS);
+        startPollFallback(onEvent);
         return;
       }
 
@@ -149,10 +167,12 @@ export function createTwsQuoteStreamSession(
           const config = client.getConfig();
           const url = getTwsStreamUrl(config.baseUrl, query.symbols);
           abortController = new AbortController();
+          const connectTimer = setTimeout(() => abortController?.abort(), TWS_STREAM_CONNECT_TIMEOUT_MS);
           const res = await fetch(url, {
             headers: { Accept: "text/event-stream" },
             signal: abortController.signal,
           });
+          clearTimeout(connectTimer);
           if (!res.ok || !res.body) {
             throw new Error(`TWS stream failed (${res.status})`);
           }
@@ -160,15 +180,34 @@ export function createTwsQuoteStreamSession(
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
           let buffer = "";
+          const firstFrameDeadline = Date.now() + TWS_STREAM_FIRST_FRAME_TIMEOUT_MS;
 
           while (!stopped) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
+            if (!primed && Date.now() > firstFrameDeadline) {
+              throw new Error("TWS stream first frame timeout");
+            }
+
+            const readPromise = reader.read();
+            const remainingMs = Math.max(1, firstFrameDeadline - Date.now());
+            const chunk = primed
+              ? await readPromise
+              : await Promise.race([
+                  readPromise,
+                  sleep(remainingMs).then(() => ({ done: true as const, value: undefined })),
+                ]);
+
+            if (chunk.done) {
+              if (!primed) {
+                throw new Error("TWS stream closed before first snapshot");
+              }
+              break;
+            }
+
+            buffer += decoder.decode(chunk.value, { stream: true });
             const chunks = buffer.split("\n\n");
             buffer = chunks.pop() ?? "";
-            for (const chunk of chunks) {
-              const line = chunk
+            for (const rawChunk of chunks) {
+              const line = rawChunk
                 .split("\n")
                 .find((row) => row.startsWith("data: "));
               if (!line) continue;
@@ -197,6 +236,17 @@ export function createTwsQuoteStreamSession(
                 if (eventType === "snapshot" && quotes.length < query.symbols.length) {
                   void fillMissingQuotes(onEvent, quotes);
                 }
+              } else if (event.type === "error") {
+                const recoverable =
+                  event.recoverable !== false &&
+                  (event.message?.toLowerCase().includes("reconnect") ||
+                    (event as { code?: string }).code === "reconnecting");
+                onEvent(
+                  JSON.stringify({
+                    ...event,
+                    recoverable,
+                  } satisfies ChartQuoteStreamEvent),
+                );
               } else {
                 onEvent(JSON.stringify(event));
               }
@@ -204,8 +254,7 @@ export function createTwsQuoteStreamSession(
           }
         } catch {
           if (stopped) return;
-          await pollFallback(onEvent, false);
-          pollTimer = setInterval(() => void pollFallback(onEvent, true), QUOTE_POLL_INTERVAL_MS);
+          startPollFallback(onEvent);
         }
       })();
     },

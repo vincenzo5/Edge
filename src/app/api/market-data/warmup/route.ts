@@ -33,16 +33,38 @@ export async function POST(request: Request): Promise<Response> {
 
   const service = getServerMarketDataService();
   const serviceStartedAt = Date.now();
-  const warmup = await service.primeMarketData({
-    symbols: parsed.data.symbols,
-    candleRequests: parsed.data.candleRequests.map((row) => ({
-      symbol: row.symbol,
-      interval: row.interval,
-      range: row.range,
-    })),
-    optionsSymbol: parsed.data.optionsSymbol,
-    traceId,
-  });
+  const WARMUP_ROUTE_BUDGET_MS = 25_000;
+  const warmup = await Promise.race([
+    service.primeMarketData({
+      symbols: parsed.data.symbols,
+      candleRequests: parsed.data.candleRequests.map((row) => ({
+        symbol: row.symbol,
+        interval: row.interval,
+        range: row.range,
+      })),
+      optionsSymbol: parsed.data.optionsSymbol,
+      traceId,
+    }),
+    new Promise<Awaited<ReturnType<typeof service.primeMarketData>>>((resolve) => {
+      setTimeout(
+        () =>
+          resolve({
+            startedAt: routeStartedAt,
+            totalMs: Date.now() - routeStartedAt,
+            phases: [
+              {
+                name: "warmup.route",
+                ms: WARMUP_ROUTE_BUDGET_MS,
+                ok: false,
+                error: "Warmup route budget exceeded",
+              },
+            ],
+            traceId,
+          }),
+        WARMUP_ROUTE_BUDGET_MS,
+      );
+    }),
+  ]);
   perfContext.collector.record("api.service.primeMarketData", serviceStartedAt, true, "api", {
     phases: warmup.phases.length,
     totalMs: warmup.totalMs,

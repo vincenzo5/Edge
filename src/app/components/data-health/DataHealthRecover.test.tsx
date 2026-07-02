@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ActiveChartProvider } from "../ActiveChartContext";
@@ -66,6 +66,7 @@ describe("DataHealth recover TWS", () => {
             ok: true,
             json: async () => ({
               ok: true,
+              commandState: "confirmed",
               action: "reconnected",
               message: "TWS reconnected to IB Gateway.",
             }),
@@ -124,5 +125,80 @@ describe("DataHealth recover TWS", () => {
       }),
     );
     expect(reloadMarketData).toHaveBeenCalledOnce();
+  });
+
+  it("reloads market data after reconnect timeout once recovery status confirms", async () => {
+    let recoverRequested = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/market-data/tws/recover/status")) {
+          return {
+            ok: true,
+            json: async () => ({
+              ok: recoverRequested,
+              finalized: recoverRequested,
+              message: recoverRequested
+                ? "Gateway connected."
+                : "Reconnecting to IB Gateway at 127.0.0.1:4001…",
+              recoveryPhase: recoverRequested ? "confirmed" : "reconnect_in_progress",
+            }),
+          } as Response;
+        }
+        if (url.includes("/api/market-data/tws/recover")) {
+          recoverRequested = true;
+          return {
+            ok: true,
+            json: async () => ({
+              ok: false,
+              commandState: "timed_out",
+              action: "reconnected",
+              message: "Reconnecting to IB Gateway at 127.0.0.1:4001…",
+              recoveryPhase: "reconnect_in_progress",
+            }),
+          } as Response;
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            health: {
+              generatedAt: Date.now(),
+              providers: [
+                {
+                  id: "tws",
+                  label: "TWS",
+                  configured: true,
+                  status: recoverRequested ? "healthy" : "degraded",
+                  detail: recoverRequested
+                    ? "Sidecar ok · Gateway connected"
+                    : "Reconnecting · 127.0.0.1:4001",
+                  circuitOpen: !recoverRequested,
+                  circuitReason: recoverRequested ? undefined : "gateway_disconnected",
+                },
+              ],
+              recentWarnings: [],
+            },
+          }),
+        } as Response;
+      }) as unknown as typeof fetch,
+    );
+
+    renderWithProviders(<DataHealthButton theme="dark" />);
+    fireEvent.click(screen.getByTestId("chart-data-source-badge"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("data-health-recover-tws")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId("data-health-recover-tws"));
+
+    await waitFor(() => {
+      expect(reloadMarketData).toHaveBeenCalledOnce();
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 });

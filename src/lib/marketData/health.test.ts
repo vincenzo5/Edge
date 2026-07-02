@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildChartDatasetRow,
   buildHealthSummary,
+  buildProvisionalProviderRows,
   buildProviderRows,
   buildWatchlistDatasetRow,
   deriveOverallSeverity,
+  isTwsGatewayHealthy,
   mergeHealthSnapshot,
   severityLabel,
   shouldShowTwsRecovery,
@@ -101,7 +103,7 @@ describe("marketData health", () => {
 
     expect(snapshot.severityLabel).toBe(severityLabel(snapshot.severity));
     expect(snapshot.summary).toContain("TWS");
-    expect(snapshot.datasets).toHaveLength(3);
+    expect(snapshot.datasets).toHaveLength(4);
     expect(snapshot.providers.length).toBeGreaterThan(0);
   });
 
@@ -114,7 +116,61 @@ describe("marketData health", () => {
       },
       "AAPL · 1D",
     );
-    expect(buildHealthSummary(chart, "degraded")).toContain("fallback");
+    const watchlist = buildWatchlistDatasetRow(null, "0 symbols", false, null, "rest");
+    expect(buildHealthSummary(chart, watchlist, "degraded")).toContain("fallback");
+  });
+
+  it("shows separate chart and watchlist sources when they differ", () => {
+    const chart = buildChartDatasetRow(
+      { source: "yahoo", asOf: Date.now(), streaming: false },
+      "AAPL · 1D",
+    );
+    const watchlist = buildWatchlistDatasetRow(
+      { source: "tws", asOf: Date.now(), streaming: true },
+      "4/4 symbols",
+      false,
+      null,
+      "sse",
+    );
+    const summary = buildHealthSummary(chart, watchlist, "degraded");
+    expect(summary).toContain("Chart: YAHOO");
+    expect(summary).toContain("Quotes: TWS");
+  });
+
+  it("builds provisional TWS provider rows from client skip warnings", () => {
+    const chart = buildChartDatasetRow(
+      {
+        source: "yahoo",
+        asOf: Date.now(),
+        warnings: ["TWS temporarily skipped (sidecar_unreachable); retry in ~60s"],
+      },
+      "TSM · 1D",
+    );
+    const rows = buildProvisionalProviderRows([chart]);
+    expect(rows?.find((row) => row.id === "tws")?.status).toBe("offline");
+    expect(rows?.find((row) => row.id === "tws")?.detail).toBe("sidecar_unreachable");
+    expect(shouldShowTwsRecovery(rows?.find((row) => row.id === "tws"))).toBe(true);
+  });
+
+  it("detects healthy IB Gateway from provider row detail", () => {
+    expect(
+      isTwsGatewayHealthy({
+        id: "tws",
+        label: "IB Gateway",
+        configured: true,
+        status: "healthy",
+        detail: "Sidecar ok · Gateway connected",
+      }),
+    ).toBe(true);
+    expect(
+      isTwsGatewayHealthy({
+        id: "tws",
+        label: "IB Gateway",
+        configured: true,
+        status: "degraded",
+        detail: "Sidecar ok · Gateway disconnected",
+      }),
+    ).toBe(false);
   });
 
   it("derives TWS recovery affordances from provider rows", () => {
@@ -137,6 +193,44 @@ describe("marketData health", () => {
     };
     expect(twsRecoveryButtonLabel(degraded)).toBe("Reconnect TWS");
     expect(shouldShowTwsRecovery({ ...degraded, status: "healthy" })).toBe(false);
+  });
+
+  it("shows worker wedged and reconnecting diagnostics in TWS provider detail", () => {
+    const wedged = buildProviderRows({
+      tws: {
+        configured: true,
+        sidecarReachable: true,
+        gatewayConnected: false,
+        warnings: [],
+        diagnostics: { workerWedged: true, activeJob: "stream_quotes" },
+      },
+      twsGate: {
+        skipUntil: 0,
+        lastFailure: null,
+        failureCount: 0,
+        lastSuccessAt: Date.now(),
+      },
+    });
+    expect(wedged.find((row) => row.id === "tws")?.detail).toMatch(/Worker wedged/i);
+
+    const reconnecting = buildProviderRows({
+      tws: {
+        configured: true,
+        sidecarReachable: true,
+        gatewayConnected: false,
+        reconnectInProgress: true,
+        host: "127.0.0.1",
+        port: 4001,
+        warnings: [],
+      },
+      twsGate: {
+        skipUntil: 0,
+        lastFailure: null,
+        failureCount: 0,
+        lastSuccessAt: Date.now(),
+      },
+    });
+    expect(reconnecting.find((row) => row.id === "tws")?.detail).toMatch(/Reconnecting/i);
   });
 
   it("never includes IBKR Client Portal in provider rows", () => {

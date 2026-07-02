@@ -4,6 +4,7 @@ import type { ComponentType } from "react";
 import type { SidebarPanelId } from "@/lib/chartConfig";
 import { ObjectTreePanel } from "./panels/ObjectTreePanel";
 import { WatchlistSidebarPanel } from "./panels/WatchlistPanel";
+import { AccountSidebarPanel } from "./panels/AccountSidebarPanel";
 
 export type SidebarPanelScope = "active-chart" | "app";
 
@@ -46,6 +47,22 @@ function WatchlistIcon({ className }: { className?: string }) {
   );
 }
 
+function AccountIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+    >
+      <path d="M4 19V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14" />
+      <path d="M8 9h8M8 13h5M8 17h3" />
+    </svg>
+  );
+}
+
 export const SIDEBAR_PANELS: SidebarPanelDef[] = [
   {
     id: "watchlist",
@@ -53,6 +70,13 @@ export const SIDEBAR_PANELS: SidebarPanelDef[] = [
     scope: "app",
     Icon: WatchlistIcon,
     Panel: WatchlistSidebarPanel,
+  },
+  {
+    id: "account",
+    label: "Account",
+    scope: "app",
+    Icon: AccountIcon,
+    Panel: AccountSidebarPanel,
   },
   {
     id: "object-tree",

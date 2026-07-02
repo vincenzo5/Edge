@@ -96,6 +96,21 @@ export function createTwsProvider(client?: TwsClient) {
       return tws.getStatus();
     },
 
+    /**
+     * Fast sidecar liveness probe (short timeout). Used to gate the full
+     * status probe so chart-data requests do not block for the full sidecar
+     * timeout when the sidecar is up but unresponsive.
+     */
+    async probeLiveness(timeoutMs = 2_000): Promise<boolean> {
+      if (!tws) return false;
+      return tws.probeLiveness(timeoutMs);
+    },
+
+    async probeStatus(timeoutMs = 2_000): Promise<TwsStatusProbe | null> {
+      if (!tws) return null;
+      return tws.probeStatus(timeoutMs);
+    },
+
     async resolveContract(symbol: string): Promise<TwsContractProbe | null> {
       if (!tws) return null;
       return tws.resolveContract(symbol);

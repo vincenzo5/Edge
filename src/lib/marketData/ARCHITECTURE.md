@@ -45,7 +45,9 @@ When `IBKR_ENABLED=true`, `MarketDataService` attempts IBKR first for candles, w
 
 When `TWS_ENABLED=true`, `MarketDataService` attempts **TWS first** via the local sidecar, then falls back to Client Portal IBKR, then Yahoo for candles/quotes. Options route `tws → ibkr` with explicit warnings when falling back.
 
-**TWS performance:** Chart-critical candle/quote requests use short sidecar timeouts (`TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS`, default 3s). A process-local health gate (`providers/tws/healthGate.ts`) opens a short cooldown after sidecar/Gateway/timeout failures so fresh charts skip repeated slow TWS attempts and fall back immediately. A cached Gateway status probe can open the circuit before the first candle/quote attempt when IB Gateway is disconnected. A parallel IBKR auth health gate (`providers/ibkr/healthGate.ts`) skips repeated Client Portal 401/auth failures during quote and candle waterfalls. The sidecar uses priority job queues (candles/status/warmup before options) and persistent `reqMktData` quote subscriptions. Overlay enrichment (events/news/options expirations) loads after candle paint and requests options expirations after faster event sources.
+**TWS performance:** Chart-critical candle/quote requests use short sidecar timeouts (`TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS`, default 3s). A process-local health gate (`providers/tws/healthGate.ts`) opens a short cooldown after sidecar/Gateway/timeout failures so fresh charts skip repeated slow TWS attempts and fall back immediately. **Quote SSE** (`/api/stream/quotes`) uses the same TWS health gate as REST quotes — when the circuit is open, the sidecar is unreachable/wedged, or `/health` lacks current route capabilities, the stream route falls back to REST poll (Yahoo/IBKR) with connect/first-frame timeouts. A cached Gateway status probe can open the circuit before the first candle/quote attempt when IB Gateway is disconnected. A parallel IBKR auth health gate (`providers/ibkr/healthGate.ts`) skips repeated Client Portal 401/auth failures during quote and candle waterfalls. The sidecar uses priority job queues (candles/status/warmup before options) and persistent `reqMktData` quote subscriptions. Overlay enrichment (events/news/options expirations) loads after candle paint and requests options expirations after faster event sources.
+
+**Warmup:** `/api/market-data/warmup` is best-effort and bounded. TWS warmup is skipped when the health gate is open; hung sidecar warmup races against a short budget; candle/quote phases run in parallel; options expirations defer when TWS/IBKR are unavailable (options have no Yahoo fallback).
 
 **Hot data (stale-while-revalidate):** UI-critical reads (quotes, candles, options expirations/chains) pass through an in-process `HotStore` in `hotStore.ts`. `MarketDataService` returns fresh or stale snapshots immediately and revalidates in the background. Partial hot quote batches are served immediately — missing symbols are fetched without waiting for the full watchlist batch. `StockApp` mounts `MarketDataProvider`, which keeps one quote SSE stream alive, calls `/api/market-data/warmup` for visible chart cells + watchlist symbols, and prefetches active-symbol **option expirations only** (chain loads on demand from the chart-header options dialog or API). Sidecar `/warmup` retains quote subscriptions for warmed symbols. Options chain requests pass `strikeWindow.spot` from the active chart when available; the TWS sidecar uses that spot for ATM strike selection instead of re-fetching equity spot, and caches secdef option parameters per underlying for reuse across expirations.
 
@@ -78,7 +80,7 @@ Screener warning UX: provider notices stay in `meta.warnings`; per-symbol candle
 
 **IBKR note:** This app uses the **Client Portal Web API** (`clientportal.gw` on HTTPS, port 5001 by default). That is **not** the same as **IB Gateway 10.x** (TWS socket API on 4001/7497). If you only run IB Gateway, our Client Portal probes will not work until Client Portal Gateway is installed and running (`npm run ibkr:setup` / `npm run ibkr:gateway`).
 
-**TWS note:** When `TWS_ENABLED=true`, Edge prefers the **IB Gateway socket API** via a local Python sidecar (`services/tws-sidecar/`). Start IB Gateway paper (default port `4002`), run `npm run tws:sidecar-setup` once, then `npm run tws:sidecar`. Routing becomes `tws → ibkr → yahoo` for candles/quotes and `tws → ibkr` for options. Optional fast-fail timeouts: `TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS` (default 3000). Sidecar `/warmup` pre-resolves contracts without blocking chart loads. Historical candles accept `sessionMode`: `regular` (default, `useRTH=true`) or `extended` (`useRTH=false` for intraday pre/post-market bars).
+**TWS note:** When `TWS_ENABLED=true`, Edge prefers the **IB Gateway socket API** via a local Python sidecar (`services/tws-sidecar/`). Start IB Gateway paper (default port `4002`; live Gateway uses `4001`), run `npm run tws:sidecar-setup` once, then `npm run tws:sidecar`. Routing becomes `tws → ibkr → yahoo` for candles/quotes and `tws → ibkr` for options. Sidecar `/health` exposes `startedAt`, version, effective host/port, and route capabilities for stale-process detection. Optional fast-fail timeouts: `TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS` (default 3000). Sidecar `/warmup` pre-resolves contracts without blocking chart loads. Historical candles accept `sessionMode`: `regular` (default, `useRTH=true`) or `extended` (`useRTH=false` for intraday pre/post-market bars).
 
 ### Live quote vs candle close
 
@@ -178,11 +180,26 @@ When IB Gateway is manually restored after a disconnect, the Data Health dropdow
 
 1. `POST /api/market-data/tws/recover` with visible symbols, chart candle requests, and active options symbol.
 2. If the sidecar is unreachable, Edge spawns the static local command `npm run tws:sidecar`.
-3. The sidecar `POST /control/reconnect` drops stale IB socket state and reconnects to IB Gateway.
-4. Node resets the process-local `twsHealthGate` circuit breaker, clears stale Yahoo hot/cache entries for recovered symbols, and calls `MarketDataService.primeMarketData()` for visible chart/watchlist/options data.
-5. The client bumps `MarketDataProvider.reloadToken` so active charts refetch candles and watchlist quotes refresh without a page reload.
+3. The sidecar `POST /control/reconnect` drops stale IB socket state and reconnects to IB Gateway. Sidecar `/health` and `/status` are **control-plane only** (non-blocking; no IB worker queue). `/status` exposes worker diagnostics (`queueDepth`, `activeJob`, `workerWedged`, recovery phase) plus connection supervisor fields (`connectionState`, `activeClientId`, `lastIbErrorCode`, `subscriptionsLost`, `restartRequired`).
+4. When the IB worker is wedged or the API client ID is stuck, Edge restarts the managed sidecar process (`npm run tws:sidecar`) before retrying reconnect. Stale `clientId` after restart surfaces a manual action: restart IB Gateway or change `TWS_CLIENT_ID`.
+5. The sidecar supervisor handles IB error codes: `1100` → disconnected, `1101` → connected but subscriptions lost (resubscribe quotes/account), `1102` → connected with subscriptions maintained. Wedged-worker reconnect bypasses the IB worker queue via async reconnect thread.
+6. The recover response includes `commandState`: `accepted`, `timed_out`, `failed`, or `confirmed`, plus `recoveryPhase`. A reconnect HTTP timeout (`timed_out`) or async accept (`accepted`) is **not** a final failure — the UI polls `GET /api/market-data/tws/recover/status` for phase messages and late Gateway confirmation.
+7. `finalizeTwsRecoveryIfNeeded()` resets TWS/brokerage gates, clears stale cache keys, and runs `primeMarketData()` once per recovery session when Gateway health is confirmed (sync or via status poll). Recovery session context (`symbols`, `candleRequests`, `optionsSymbol`) is started by the recover route and preserved through status-poll finalization.
+8. During active recovery, `/api/market-data/health?recovery=1` bypasses the TWS circuit breaker for fresh sidecar truth.
+9. The client bumps `MarketDataProvider.reloadToken` (and refreshes account state when brokerage is enabled) after confirmed recovery or after status poll finalization. Data Health shows precise phase messages (sidecar restart, client ID stuck, resubscribing, Gateway not logged in).
+
+**Source labels:** The top-left Data Health badge summarizes chart candle source and watchlist quote source separately (e.g. `Chart: YAHOO · Quotes: TWS`). Account feed state remains its own Data Health dataset row via `AccountProvider`.
 
 This is read-only with respect to brokerage operations — no orders or account mutations.
+
+### Brokerage / account tracking
+
+Live IB account data (positions, PnL, summary, orders, executions) is a **separate vertical** in `src/lib/brokerage/` and is always attempted through the local TWS sidecar when the app is running.
+
+- **Sidecar endpoints** (`services/tws-sidecar/main.py`): `/account/*` REST + `/stream/account` SSE via `ib_insync`. Live account updates use non-blocking `ib.client.reqAccountUpdates(True, account)` plus `reqPnL`, summaries, positions, and executions. When `TWS_READONLY=true`, open-order snapshot requests are skipped and what-if preview returns 403; verify order/what-if behavior only with `TWS_READONLY=false`.
+- **App routes**: `/api/brokerage/*` proxy the sidecar with Zod-validated contracts in `src/lib/marketData/contracts/brokerage.ts`.
+- **UI**: `AccountProvider` + Account sidebar panel; chart position overlays when `chartSettings.trading.showPositions` is enabled.
+- **Read-only posture preserved**: no `placeOrder`; what-if preview returns margin/commission impact without transmitting orders, but IB requires a non-read-only API session for that preview call.
 
 ## Verification
 

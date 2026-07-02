@@ -21,6 +21,7 @@ import PackageEdgeChart, {
 } from '@edge/chart-react';
 import type { Candle, ChartDataMeta } from '@edge/chart-core';
 import type { CellConfig, Theme, TrackedOverlay, SerializedDrawing } from '@/lib/chartConfig';
+import { mergeChartSettings } from '@/lib/chartConfig';
 import { buildCandleSessionKey } from '@/lib/chart/rangePresetTransition';
 import { cellConfigToChartState } from '@/lib/chart/stateMapping';
 import {
@@ -36,6 +37,8 @@ import {
 } from '@/lib/chartDataFeed';
 import { eventKindsFromChartSettings } from '@/lib/chartDataFeed/eventOverlaySettings';
 import { drawingsToAnnotationMarkers } from '@/lib/chartDataFeed/overlayMappers';
+import { useAccountOptional } from './AccountProvider';
+import { buildPositionReferenceLines } from '@/lib/brokerage/positionOverlays';
 
 export { indicatorKey, parseIndicatorKey, legacyParseIndicatorKey };
 export type { GoToRequest, GoToResult, DrawingScreenBounds, IndicatorKey };
@@ -147,6 +150,22 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     localAnnotations,
     eventKinds,
   });
+
+  const account = useAccountOptional();
+  const chartSettingsMerged = useMemo(
+    () => mergeChartSettings(config.chartSettings),
+    [config.chartSettings],
+  );
+  const positionReferenceLines = useMemo(() => {
+    if (!chartSettingsMerged.trading.showPositions || !account) return [];
+    const position = account.positionForSymbol(config.symbol);
+    return buildPositionReferenceLines(position);
+  }, [account, chartSettingsMerged.trading.showPositions, config.symbol]);
+
+  const mergedReferenceLines = useMemo(
+    () => [...overlayState.referenceLines, ...positionReferenceLines],
+    [overlayState.referenceLines, positionReferenceLines],
+  );
 
   const baseCandlesRef = useRef<Candle[]>([]);
   baseCandlesRef.current = candles;
@@ -293,7 +312,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         onRangePresetClear={handleRangePresetClear}
         onCandlesChange={handleCandlesChange}
         eventMarkers={overlayState.events}
-        referenceLines={overlayState.referenceLines}
+        referenceLines={mergedReferenceLines}
         annotationMarkers={overlayState.annotations}
         {...rest}
       />
