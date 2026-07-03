@@ -6,12 +6,30 @@ Single source for current progress. For row-by-row feature detail, see [chart/fe
 
 ## Current Verified State
 
+- **Current task:** Icon rail TradingView parity — darker rail surface, larger icons, TradingView-style active state on left/right icon rails.
+- **State:** **Passing** — focused tests and build passed; app-level computed-style check confirms rail bg `#131722`, 22px icons (~61% of 36px buttons), active `#2a2e39`.
+- **Latest verification:** **Focused:** `Test Files 4 passed (4)`, `Tests 9 passed (9)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **App-level:** drawing toolbar + sidebar rail `backgroundColor: rgb(19, 23, 34)`, icon 22px / button 36px (ratio 0.61), active cursor `#2a2e39`; **Architecture review:** self-review — Passed.
+- **Evidence:** `src/app/globals.css`, `src/lib/design-system/edge.ts`, `src/app/components/chart-icons/toolbarButtonStyles.ts`, `src/app/components/chart-icons/ChartToolIcons.tsx`, `src/app/components/DrawingToolbar.tsx`, `src/app/components/sidebar/SidebarRail.tsx`, `docs/chart/drawing-toolbar-design.md`, `src/lib/design-system/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** None — resume deferred Risk panel app-level walkthrough when picking up risk settings polish.
+
+## Previous Verified State (TWS sidecar lifecycle hardening)
+
+- **Current task:** TWS sidecar lifecycle hardening — `TWS_MANAGED` local/external modes, ownership verification, graceful sidecar shutdown, selective brokerage readiness gating, lifecycle API field.
+- **State:** **Passing** — focused tests, sidecar unit tests, build, startup gate, and app-level lifecycle scenarios A–F passed.
+- **Latest verification:** **Focused:** `Test Files 8 passed (8)`, `Tests 40 passed (40)`; **Sidecar:** `Ran 4 tests in 0.000s` `OK`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.4s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** A local boot → `/health` `managedBy: edge-local` at 3s; B dev SIGTERM → sidecar HTTP 000; C external restart → sidecar PID unchanged; D external dev SIGTERM → sidecar `ok: true`; E `/api/brokerage/snapshot` HTTP 200; F sidecar SIGTERM → HTTP 000; **Architecture review:** self-review — Passed.
+- **Evidence:** `instrumentation.ts`, `src/lib/marketData/providers/tws/{managedMode,startup,recover,lifecycle,sidecarOwnership,client}.ts`, `services/tws-sidecar/main.py`, `scripts/tws-sidecar.sh`, `src/lib/brokerage/brokerageService.ts`, `src/app/api/market-data/health/route.ts`, `src/lib/marketData/ARCHITECTURE.md`, `.env.example`.
+- **Current blocker:** none.
+- **Next best step:** None — lifecycle hardening verified. Resume deferred Risk panel app-level walkthrough when picking up risk settings polish.
+
+## Previous Verified State (Risk Settings Source of Truth)
+
 - **Current task:** Risk Settings Source of Truth — user-configurable risk sizing propagated app-wide via `RiskSettingsProvider`.
-- **State:** **Passing** — domain module, provider, Risk sidebar panel, options calculator + risk ruler migration shipped; focused tests and build passed; app-level risk panel walkthrough deferred.
-- **Latest verification:** **Focused:** `Test Files 8 passed (8)`, `Tests 115 passed (115)` (`riskSettings.test.ts`, `RiskSettingsProvider.test.tsx`, `RiskSettingsPanel.test.tsx`, `OptionsRiskCalculator.test.tsx`, `OptionsChainDialog.test.tsx`, `riskRulerPreset.test.ts`, `registry.test.ts`); **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Full:** `npm run check` — 6 failures pre-existing unrelated to risk settings (1588 passed); **Architecture review:** Required — self-review — Passed.
-- **Evidence:** `src/lib/risk/riskSettings.ts`, `src/app/components/RiskSettingsProvider.tsx`, `src/app/components/sidebar/panels/RiskSettingsPanel.tsx`, `src/app/components/options/{OptionsChainDialog,OptionsRiskCalculator}.tsx`, `src/lib/risk/createRiskRulerPreset.ts`, `src/app/components/options/useOptionsChainModel.ts`, `src/lib/marketData/ARCHITECTURE.md`.
-- **Current blocker:** none — app-level Risk panel → options calculator max-risk propagation walkthrough on `localhost:3003` not recorded.
-- **Next best step:** Manual verify: open Risk sidebar panel, change `riskPercent`, open options calculator, confirm max-risk input updates; disconnect account and confirm stale badge.
+- **State:** **Passing** — domain module, provider, Risk sidebar panel, options calculator live max-risk sync + user-override protection, and risk ruler migration shipped; focused tests and build passed; app-level risk panel walkthrough deferred.
+- **Latest verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 37 passed (37)` (`OptionsRiskCalculator.test.tsx`, `RiskSettingsProvider.test.tsx`, `riskSettings.test.ts`); **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** Required — self-review — Passed.
+- **Evidence:** `src/lib/risk/riskSettings.ts`, `src/app/components/RiskSettingsProvider.tsx`, `src/app/components/sidebar/panels/RiskSettingsPanel.tsx`, `src/app/components/options/{OptionsChainDialog,OptionsRiskCalculator}.tsx`, `src/app/components/options/OptionsRiskCalculator.test.tsx`, `src/lib/risk/createRiskRulerPreset.ts`, `src/app/components/options/useOptionsChainModel.ts`, `src/lib/marketData/ARCHITECTURE.md`.
+- **Current blocker:** none — app-level Risk panel → options calculator max-risk live sync walkthrough on `localhost:3003` not recorded.
+- **Next best step:** Manual verify: open Risk sidebar panel, set 2% risk, open options calculator, confirm max-risk prefills; change risk % with calculator open and confirm sync; edit max risk manually and confirm Risk panel changes do not clobber.
 
 ## Previous Verified State (TWS sidecar startup coupling)
 
@@ -257,8 +275,10 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
-| Risk Settings Source of Truth | User sets risk sizing once (percent of account or absolute $) in Risk sidebar panel; value propagates via `RiskSettingsProvider` to options calculator max-risk input and risk ruler preset `TradeSetup.account`; falls back to manual capital with stale badge when account disconnected | **Passing** | **Focused:** `Test Files 8 passed (8)`, `Tests 115 passed (115)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Full:** `npm run check` — 6 failures pre-existing unrelated (1588 passed); **Architecture review:** self-review Passed; app-level Risk panel walkthrough deferred | `src/lib/risk/riskSettings.ts`, `src/app/components/RiskSettingsProvider.tsx`, `src/app/components/sidebar/panels/RiskSettingsPanel.tsx`, `src/app/components/options/{OptionsChainDialog,OptionsRiskCalculator}.tsx`, `src/lib/risk/createRiskRulerPreset.ts`, `src/app/components/options/useOptionsChainModel.ts`, `src/lib/marketData/ARCHITECTURE.md` |
-| TWS sidecar startup coupling | Restarting the web server with `TWS_ENABLED=true` auto-spawns the sidecar, primes IB Gateway via `/control/reconnect`, and resets the circuit breaker; SIGTERM/SIGINT/beforeExit kills the managed sidecar process | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 18 passed (18)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** sidecar stopped → dev restart → `/health` ok at 1s; `POST /api/candles` → `meta.source: tws`; dev SIGTERM → sidecar stopped | `instrumentation.ts`, `src/lib/marketData/providers/tws/startup.ts`, `src/lib/marketData/providers/tws/startup.test.ts`, `src/lib/marketData/providers/tws/recover.ts`, `src/lib/marketData/ARCHITECTURE.md` |
+| Icon rail TV parity | Left/right icon rails use `--edge-surface-rail` (`#131722` dark); icons 22/20px (~61% of 36/32px buttons); active state `#2a2e39` without ring | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 9 passed (9)`; **Build:** `✓ Compiled successfully in 2.5s`; **App-level:** rail bg `rgb(19, 23, 34)`, icon 22px / button 36px (ratio 0.61) | `toolbarButtonStyles.ts`, `globals.css`, `edge.ts`, `DrawingToolbar.tsx`, `SidebarRail.tsx`, `ChartToolIcons.tsx`, docs |
+| TWS sidecar lifecycle hardening | `TWS_MANAGED=local` (Next spawns/kills via shell script + ownership env) vs `external` (manual sidecar only); FastAPI lifespan IB disconnect; brokerage routes await bounded startup; `/api/market-data/health` exposes `lifecycle`; PID/port lock in `tws-sidecar.sh` | **Passing** | **Focused:** `Test Files 8 passed (8)`, `Tests 40 passed (40)`; **Sidecar:** `Ran 4 tests` `OK`; **Build:** `✓ Compiled successfully in 2.4s`; **Startup:** 26 tests; **App-level:** A edge-local spawn 3s; B/C/D/F lifecycle curl passed | `instrumentation.ts`, `src/lib/marketData/providers/tws/{managedMode,startup,recover,lifecycle,sidecarOwnership}.ts`, `services/tws-sidecar/main.py`, `scripts/tws-sidecar.sh`, `src/lib/brokerage/brokerageService.ts`, `src/app/api/market-data/health/route.ts`, `src/lib/marketData/ARCHITECTURE.md` |
+| Risk Settings Source of Truth | User sets risk sizing once (percent of account or absolute $) in Risk sidebar panel; value propagates via `RiskSettingsProvider` to options calculator max-risk input (live sync while untouched, preserves manual edits) and risk ruler preset `TradeSetup.account`; falls back to manual capital with stale badge when account disconnected | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 37 passed (37)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level Risk panel live sync walkthrough deferred | `src/lib/risk/riskSettings.ts`, `src/app/components/RiskSettingsProvider.tsx`, `src/app/components/sidebar/panels/RiskSettingsPanel.tsx`, `src/app/components/options/{OptionsChainDialog,OptionsRiskCalculator}.tsx`, `src/app/components/options/OptionsRiskCalculator.test.tsx`, `src/lib/risk/createRiskRulerPreset.ts`, `src/app/components/options/useOptionsChainModel.ts`, `src/lib/marketData/ARCHITECTURE.md` |
+| TWS sidecar startup coupling | Superseded by lifecycle hardening row — prior boot spawn + SIGTERM kill behavior retained under `TWS_MANAGED=local` | **Passing** | Prior evidence retained; see lifecycle hardening row | `instrumentation.ts`, `src/lib/marketData/providers/tws/startup.ts`, `src/lib/marketData/providers/tws/recover.ts` |
 | Shift+Click Time/Price Ruler Tool | ⇧+click-drag on price pane (or toolbar Ruler) places shaded two-point ruler with interval-aware Δtime on x-axis and Δprice/Δ% on y-axis; second click/release commits as drawing; ⇧+click on existing drawings respects selection | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 38 passed (38)`; **Build:** `npm run build:packages` + `npm run build` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Startup:** `npm run check:startup` passed (26 tests); app-level ⇧+click walkthrough deferred | `packages/chart-core/src/drawings/ruler.ts`, `packages/chart-core/src/time.ts`, `packages/chart-react/src/drawing/useDrawingController.ts`, `packages/chart-react/src/engine/{canvas.tsx,layers.ts}`, `src/app/components/DrawingToolbar.tsx`, `docs/chart/features.md` |
 | Options Risk Calculator v2.1 — chain-native legs | Risk Calculator legs use chain strike dropdown and nearest-ATM default; max-risk auto contract count shown in UI; Add leg gated until chain loads | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.2s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/options/chain?underlying=LLY&expiration=2026-07-10` → 40 contracts (`meta.source: massive`); browser UI walkthrough deferred | `src/lib/risk/optionsStrategyRisk.ts`, `src/lib/risk/optionsStrategyRisk.test.ts`, `src/app/components/options/OptionsRiskCalculator.tsx`, `src/app/components/options/OptionsRiskCalculator.test.tsx` |
 | Options Risk Calculator v2 | Options popup Risk Calculator builds multi-leg strategies, sizes from max expiration loss when defined, models pre-expiration/expiration payoff grid from chain IV/quotes, and seeds from chain Analyze actions | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 28 passed (28)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/options/expirations?underlying=LLY` → 18 expirations (`meta.source: massive`); `GET /api/options/chain?underlying=LLY&expiration=2026-07-10` → 40 contracts (`meta.source: massive`); superseded by v2.1 | `src/lib/risk/optionsStrategyRisk.ts`, `src/lib/risk/optionsStrategyRisk.test.ts`, `src/app/components/options/OptionsRiskCalculator.tsx`, `src/app/components/options/OptionsRiskCalculator.test.tsx`, `src/app/components/options/OptionsChainDialog.tsx`, `src/app/components/options/OptionsChainView.tsx`, `src/app/components/options/useOptionsChainModel.ts` |
@@ -591,6 +611,30 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Keep the current state above short and authoritative; keep historical detail here.
+
+### 2026-07-03 — Icon rail TradingView parity
+
+- **Goal:** Match TradingView icon-to-rail density and darker rail contrast on left drawing toolbar and right sidebar rail.
+- **Completed:** Added `--edge-surface-rail` token; bumped rail icons to 22/20px; active state uses `#2a2e39` without ring; both rails use new surface token; docs updated.
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 9 passed (9)`; **Build:** `✓ Compiled successfully in 2.5s`; **App-level:** computed styles — rail bg `rgb(19, 23, 34)`, icon 22px / button 36px (ratio 0.61).
+- **Known blockers:** none.
+- **Next best step:** None — resume deferred Risk panel walkthrough when needed.
+
+### 2026-07-03 — TWS sidecar lifecycle hardening
+
+- **Goal:** Harden sidecar ownership with `TWS_MANAGED` local/external modes, graceful Python shutdown, selective brokerage readiness gating, lifecycle health field; no Docker Compose.
+- **Completed:** `managedMode.ts`, ownership checks, bash-script spawn with `edge-local` env, FastAPI lifespan, `awaitSidecarForBrokerage`, `lifecycle` on health API, macOS-compatible lock in `tws-sidecar.sh`, 44 new/updated tests.
+- **Verification run:** **Focused:** 40 Vitest + 4 Python tests; **Build/Startup:** passed; **App-level:** scenarios A–F (local spawn, local kill, external no-spawn/kill, brokerage snapshot, graceful sidecar exit).
+- **Known blockers:** none.
+- **Next best step:** None for lifecycle work.
+
+### 2026-07-03 — Options Risk Calculator max-risk live sync
+
+- **Goal:** Wire Risk Settings → Options Risk Calculator max-risk default with live sync while untouched, late account arrival fill, and manual edit preservation.
+- **Completed:** Replaced one-shot `initializedDefaults` in `OptionsRiskCalculator` with `userTouchedMaxRiskRef` + `dollarRisk` sync effect; added 3 regression tests (late arrival, live sync, override protection).
+- **Verification run:** **Focused:** `Test Files 3 passed (3)`, `Tests 37 passed (37)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none.
+- **Next best step:** App-level walkthrough — change risk % in Risk panel with calculator open, confirm sync while untouched and no clobber after manual edit.
 
 ### 2026-07-03 — Risk Settings Source of Truth
 
