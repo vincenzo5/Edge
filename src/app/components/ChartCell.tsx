@@ -1101,7 +1101,7 @@ export default function ChartCell({
       className="flex h-full min-h-0 flex-col overflow-hidden"
       onPointerDown={() => onFocus?.()}
     >
-      {/* Body: drawing rail + chart */}
+      {/* Body: drawing rail + chart column (chart + range bar) */}
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="relative z-20 flex h-full shrink-0 self-stretch overflow-visible">
           <DrawingToolbar
@@ -1127,6 +1127,7 @@ export default function ChartCell({
           }
           />
         </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--edge-surface-chart)] p-px" ref={chartOverlayRef}>
           <EdgeChart
             ref={chartRef}
@@ -1206,19 +1207,20 @@ export default function ChartCell({
             />
           )}
         </div>
-      </div>
 
-      {!compact && candleCount > 0 && (
-        <ChartRangeBar
-          selectedPreset={config.rangePreset ?? null}
-          theme={theme}
-          timeZone={chartSettingsMerged.symbol.timeZone}
-          exchange={config.exchange}
-          onRangeSelect={handleRangeSelect}
-          onGoToClick={() => setGoToOpen(true)}
-          onTimeZoneChange={handleTimeZoneChange}
-        />
-      )}
+        {!compact && candleCount > 0 && (
+          <ChartRangeBar
+            selectedPreset={config.rangePreset ?? null}
+            theme={theme}
+            timeZone={chartSettingsMerged.symbol.timeZone}
+            exchange={config.exchange}
+            onRangeSelect={handleRangeSelect}
+            onGoToClick={() => setGoToOpen(true)}
+            onTimeZoneChange={handleTimeZoneChange}
+          />
+        )}
+        </div>
+      </div>
 
       <ChartCellDialogs
         compact={compact}

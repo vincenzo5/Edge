@@ -45,6 +45,7 @@ If you change chart background, grid, or axis colors, update `edgeChartColors` /
 | `surface-chart` | Chart cell plot background |
 | `surface-toolbar` | Top header bar, bottom range bar, segmented tab rail |
 | `surface-rail` | Left drawing toolbar and right sidebar icon rails (dark: same as chart bg) |
+| `text-rail` / `text-rail-active` | Icon rail idle vs hover/active icon colors (shared left/right rails) |
 | `surface-panel` | Right sidebar panels, legend hover backdrop |
 | `surface-popover` | Context menus, dropdowns, modals |
 | `surface-hover` / `surface-active` | Row/button hover and selected states |
@@ -71,7 +72,7 @@ Import from `src/app/components/design-system/index.ts`:
 | `EdgeEmptyState` | Placeholder when no data |
 | `EdgeToggle` | Boolean settings rows |
 
-Shared rail styling for left drawing toolbar and right sidebar: `src/app/components/chart-icons/toolbarButtonStyles.ts`.
+Shared rail styling for left drawing toolbar and right sidebar: `src/app/components/chart-icons/toolbarButtonStyles.ts` (icons 22/20 px via `edgeLayoutTokens.iconRailIconSize`; active state uses `surface-hover` without ring).
 
 ## Surface recipes (canonical examples)
 
