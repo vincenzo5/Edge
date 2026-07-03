@@ -2,9 +2,72 @@
 
 Single source for current progress. For row-by-row feature detail, see [chart/features.md](./chart/features.md).
 
-**Last updated:** 2026-07-01
+**Last updated:** 2026-07-03
 
 ## Current Verified State
+
+- **Current task:** Risk Settings Source of Truth — user-configurable risk sizing propagated app-wide via `RiskSettingsProvider`.
+- **State:** **Passing** — domain module, provider, Risk sidebar panel, options calculator + risk ruler migration shipped; focused tests and build passed; app-level risk panel walkthrough deferred.
+- **Latest verification:** **Focused:** `Test Files 8 passed (8)`, `Tests 115 passed (115)` (`riskSettings.test.ts`, `RiskSettingsProvider.test.tsx`, `RiskSettingsPanel.test.tsx`, `OptionsRiskCalculator.test.tsx`, `OptionsChainDialog.test.tsx`, `riskRulerPreset.test.ts`, `registry.test.ts`); **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Full:** `npm run check` — 6 failures pre-existing unrelated to risk settings (1588 passed); **Architecture review:** Required — self-review — Passed.
+- **Evidence:** `src/lib/risk/riskSettings.ts`, `src/app/components/RiskSettingsProvider.tsx`, `src/app/components/sidebar/panels/RiskSettingsPanel.tsx`, `src/app/components/options/{OptionsChainDialog,OptionsRiskCalculator}.tsx`, `src/lib/risk/createRiskRulerPreset.ts`, `src/app/components/options/useOptionsChainModel.ts`, `src/lib/marketData/ARCHITECTURE.md`.
+- **Current blocker:** none — app-level Risk panel → options calculator max-risk propagation walkthrough on `localhost:3003` not recorded.
+- **Next best step:** Manual verify: open Risk sidebar panel, change `riskPercent`, open options calculator, confirm max-risk input updates; disconnect account and confirm stale badge.
+
+## Previous Verified State (TWS sidecar startup coupling)
+
+- **Current task:** TWS sidecar startup coupling — web server boot auto-spawns/primes sidecar when `TWS_ENABLED=true`.
+- **State:** **Passing** — `instrumentation.ts` + `startup.ts` wired; focused tests, build, and startup gate passed; app-level dev-restart walkthrough deferred.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 18 passed (18)` (`startup.test.ts`, `recover.test.ts`); **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** sidecar stopped → `npm run dev` → `curl http://127.0.0.1:8765/health` → `{"ok":true,...}` at 1s; `POST /api/candles` AAPL → `meta.source: tws`; dev SIGTERM → sidecar process stopped.
+- **Evidence:** `instrumentation.ts`, `src/lib/marketData/providers/tws/startup.ts`, `src/lib/marketData/providers/tws/startup.test.ts`, `src/lib/marketData/providers/tws/recover.ts`, `src/lib/marketData/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** None — startup coupling verified end-to-end.
+
+## Previous Verified State (Shift+Click Time/Price Ruler Tool)
+
+- **Current task:** Shift+Click Time/Price Ruler Tool — shaded Δtime/Δprice ruler on price pane via ⇧+click or toolbar.
+- **State:** **Passing** — ruler plugin, shift+click arming, toolbar entry, interval-aware labels, and verification gates passed.
+- **Latest verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 38 passed (38)` (`time.test.ts`, `ruler.test.ts`, `drawingFsm.test.ts`, `useDrawingController.shiftClick.test.ts`, `EdgeChart.drawing.test.tsx`); **Build:** `npm run build:packages` + `npm run build` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Startup:** `npm run check:startup` passed (26 tests); **Full:** `npm run check` — 7 failures pre-existing unrelated to ruler (1549 passed); app-level ⇧+click walkthrough deferred.
+- **Evidence:** `packages/chart-core/src/drawings/ruler.ts`, `packages/chart-core/src/time.ts`, `packages/chart-react/src/drawing/useDrawingController.ts`, `packages/chart-react/src/engine/{canvas.tsx,layers.ts}`, `src/app/components/DrawingToolbar.tsx`, `src/app/components/chart-icons/{toolGroups.ts,ChartToolIcons.tsx,iconPaths.ts}`, `docs/chart/features.md`, `src/lib/chart/ARCHITECTURE.md`.
+- **Current blocker:** none — app-level ⇧+click visual walkthrough on `localhost:3003` not recorded.
+- **Next best step:** Manual verify on price pane: ⇧+click-drag shows shaded ruler with interval-aware Δtime + Δprice/Δ%; release commits drawing; Escape cancels.
+
+## Previous Verified State (Options Risk Calculator v2.1)
+
+- **Current task:** Options Risk Calculator v2 — multi-leg payoff surface in options popup with dollar-risk sizing, Black-Scholes pre-expiration estimates, and chain Analyze handoff.
+- **State:** **Passing** — strategy risk engine + replaced Risk Calculator UI shipped; focused tests, build, startup, and Massive API smoke passed; superseded by v2.1 chain wiring.
+- **Latest verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 28 passed (28)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/options/expirations?underlying=LLY` → 18 expirations (`meta.source: massive`); `GET /api/options/chain?underlying=LLY&expiration=2026-07-10` → 40 contracts (`meta.source: massive`).
+- **Evidence:** `src/lib/risk/optionsStrategyRisk.ts`, `src/lib/risk/optionsStrategyRisk.test.ts`, `src/app/components/options/OptionsRiskCalculator.tsx`, `src/app/components/options/OptionsRiskCalculator.test.tsx`, `src/app/components/options/OptionsChainDialog.tsx`, `src/app/components/options/OptionsChainView.tsx`, `src/app/components/options/useOptionsChainModel.ts`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by v2.1.
+
+## Previous Verified State (Massive Options Analysis Provider)
+
+- **Current task:** Massive Options Analysis Provider — options UI and risk analysis load expirations/chains from Massive Options Advanced; IBKR/TWS remain brokerage/account/execution truth only.
+- **State:** **Passing** — Massive-first routing shipped; live expirations smoke passes with existing `MASSIVE_API_KEY`.
+- **Latest verification:** **Focused:** `Test Files 9 passed (9)`, `Tests 93 passed (93)`; **Startup:** `npm run check:startup` passed (26 tests); **Build:** `npm run build` passed; **App-level:** `GET /api/options/expirations?underlying=AAPL` → `meta.source: massive`, **24 expirations** (first `2026-07-02`).
+- **Evidence:** `src/lib/marketData/providers/massive/{options.ts,optionsMappers.ts,client.ts}`, `src/lib/marketData/contracts/massive.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/app/api/options/`, `src/lib/marketData/ARCHITECTURE.md`.
+- **Current blocker:** none — earlier 401 was a pagination bug (`next_url` missing `apiKey`); fixed in `client.ts`.
+- **Next best step:** Open options dialog for AAPL on `localhost:3003`; resume IB account tracking app-level walkthrough.
+
+## Previous Verified State (Options Risk Calculator v1.1 Compare fixes)
+
+- **Current task:** TWS sidecar positions/fills fix — positions show MKT/PnL on first cold load; Today's fills tab lists executions instead of 503.
+- **State:** **Passing** — focused + app-level sidecar curl passed; browser Account panel walkthrough deferred (dev server not running during verification).
+- **Latest verification:** **Focused:** `Ran 3 tests in 0.000s` `OK` (`npm run tws:sidecar:test`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** cold `curl /account/positions` → HOOD `marketPrice=108.01999665`, `unrealizedPNL=3441.0`; `curl /account/trades` → `HTTP 200`, `executions: 3` (NBIS SLD 160@239, HOOD BOT 200@103.1, HOOD BOT 500@103.099).
+- **Evidence:** `services/tws-sidecar/main.py`, `services/tws-sidecar/test_main.py`, `package.json`.
+- **Current blocker:** Browser Account panel walkthrough on `localhost:3003` not recorded (dev server was down during verification).
+- **Next best step:** Start dev server, refresh Account panel — confirm HOOD MKT/PnL on first paint and 3 fills in Today's fills tab; then re-record Account panel UI overhaul walkthrough.
+
+## Previous Verified State (Client chart SWR cache)
+
+- **Current task:** Client chart SWR cache — re-opened charts paint cached candles instantly as stale while a background refresh runs.
+- **State:** **Passing** — focused + startup passed; app-level re-open walkthrough deferred.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 12 passed (12)` (`chartClientCache.test.ts`, `useChartDataFeed.test.ts`); **Startup:** `npm run check:startup` passed (26 tests).
+- **Evidence:** `src/lib/chartDataFeed/chartClientCache.ts`, `src/lib/chartDataFeed/chartClientCache.test.ts`, `src/lib/chartDataFeed/useChartDataFeed.ts`, `src/lib/chartDataFeed/useChartDataFeed.test.ts`, `src/lib/chartDataFeed/ARCHITECTURE.md`, `src/lib/marketData/ARCHITECTURE.md`.
+- **Current blocker:** App-level walkthrough on `localhost:3003` (AAPL → MSFT → AAPL re-open) not yet recorded.
+- **Next best step:** Manual re-open walkthrough to confirm instant stale paint + refresh swap; then resume Account panel app-level verification.
+
+## Previous Verified State (Account panel UI overhaul)
 
 - **Current task:** Account panel UI overhaul — color-coded PnL, metric help tooltips, tabbed orders/fills, icon refresh, day-trades in net-liq card, computed leverage, what-if preview removed.
 - **State:** **Active** — focused + startup passed; app-level Account panel walkthrough on live IB Gateway not yet recorded.
@@ -179,7 +242,7 @@ Optional persistence: copy `.env.example` → `.env.local`, then `npm run db:up`
 |------|--------|-------|
 | Chart engine (V1) | **Done** | Custom Canvas 2D; pan/zoom/pinch, 5 chart types, crosshair sync |
 | Indicators | **Done** | 15 implemented (MA, EMA, BOLL, MACD, RSI, VOL, VWAP, ATR, KDJ, CCI, OBV, DMI, WR, ROC, Supertrend); 15 catalog entries disabled |
-| Drawings | **Done** | 12 tools, typed styles, undo/redo, multi-pane routing |
+| Drawings | **Done** | 14 tools (incl. ruler + measure utilities), typed styles, undo/redo, multi-pane routing |
 | Context menus | **Done** | Blank + drawing + price-axis menus; ⌥R reset, crosshair lock toggle, bulk remove — see [context-menu-reference.md](./context-menu-reference.md) |
 | Layout persistence | **Done** | localStorage + optional Postgres workspace sync |
 | AI tool registry | **Done** | Shared registry; HTTP + MCP + in-app adapters |
@@ -194,6 +257,15 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
+| Risk Settings Source of Truth | User sets risk sizing once (percent of account or absolute $) in Risk sidebar panel; value propagates via `RiskSettingsProvider` to options calculator max-risk input and risk ruler preset `TradeSetup.account`; falls back to manual capital with stale badge when account disconnected | **Passing** | **Focused:** `Test Files 8 passed (8)`, `Tests 115 passed (115)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Full:** `npm run check` — 6 failures pre-existing unrelated (1588 passed); **Architecture review:** self-review Passed; app-level Risk panel walkthrough deferred | `src/lib/risk/riskSettings.ts`, `src/app/components/RiskSettingsProvider.tsx`, `src/app/components/sidebar/panels/RiskSettingsPanel.tsx`, `src/app/components/options/{OptionsChainDialog,OptionsRiskCalculator}.tsx`, `src/lib/risk/createRiskRulerPreset.ts`, `src/app/components/options/useOptionsChainModel.ts`, `src/lib/marketData/ARCHITECTURE.md` |
+| TWS sidecar startup coupling | Restarting the web server with `TWS_ENABLED=true` auto-spawns the sidecar, primes IB Gateway via `/control/reconnect`, and resets the circuit breaker; SIGTERM/SIGINT/beforeExit kills the managed sidecar process | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 18 passed (18)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** sidecar stopped → dev restart → `/health` ok at 1s; `POST /api/candles` → `meta.source: tws`; dev SIGTERM → sidecar stopped | `instrumentation.ts`, `src/lib/marketData/providers/tws/startup.ts`, `src/lib/marketData/providers/tws/startup.test.ts`, `src/lib/marketData/providers/tws/recover.ts`, `src/lib/marketData/ARCHITECTURE.md` |
+| Shift+Click Time/Price Ruler Tool | ⇧+click-drag on price pane (or toolbar Ruler) places shaded two-point ruler with interval-aware Δtime on x-axis and Δprice/Δ% on y-axis; second click/release commits as drawing; ⇧+click on existing drawings respects selection | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 38 passed (38)`; **Build:** `npm run build:packages` + `npm run build` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Startup:** `npm run check:startup` passed (26 tests); app-level ⇧+click walkthrough deferred | `packages/chart-core/src/drawings/ruler.ts`, `packages/chart-core/src/time.ts`, `packages/chart-react/src/drawing/useDrawingController.ts`, `packages/chart-react/src/engine/{canvas.tsx,layers.ts}`, `src/app/components/DrawingToolbar.tsx`, `docs/chart/features.md` |
+| Options Risk Calculator v2.1 — chain-native legs | Risk Calculator legs use chain strike dropdown and nearest-ATM default; max-risk auto contract count shown in UI; Add leg gated until chain loads | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.2s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/options/chain?underlying=LLY&expiration=2026-07-10` → 40 contracts (`meta.source: massive`); browser UI walkthrough deferred | `src/lib/risk/optionsStrategyRisk.ts`, `src/lib/risk/optionsStrategyRisk.test.ts`, `src/app/components/options/OptionsRiskCalculator.tsx`, `src/app/components/options/OptionsRiskCalculator.test.tsx` |
+| Options Risk Calculator v2 | Options popup Risk Calculator builds multi-leg strategies, sizes from max expiration loss when defined, models pre-expiration/expiration payoff grid from chain IV/quotes, and seeds from chain Analyze actions | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 28 passed (28)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/options/expirations?underlying=LLY` → 18 expirations (`meta.source: massive`); `GET /api/options/chain?underlying=LLY&expiration=2026-07-10` → 40 contracts (`meta.source: massive`); superseded by v2.1 | `src/lib/risk/optionsStrategyRisk.ts`, `src/lib/risk/optionsStrategyRisk.test.ts`, `src/app/components/options/OptionsRiskCalculator.tsx`, `src/app/components/options/OptionsRiskCalculator.test.tsx`, `src/app/components/options/OptionsChainDialog.tsx`, `src/app/components/options/OptionsChainView.tsx`, `src/app/components/options/useOptionsChainModel.ts` |
+| Documentation Automation Framework | Pre-push docs automation classifies diffs into architecture/harness/drift-audit lanes; enforces doc allowlists, summary validation, non-doc edit blocking, evidence-gated harness updates, and post-agent `lint:instructions`; supports `--lane`, `--evidence-file`, `--sdk-smoke` | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 35 passed (35)` (`docs-automation-framework.test.ts`, `update-docs-for-diff.test.ts`); **Startup:** `npm run lint:instructions` passed; `npm run check:startup` passed (26 tests); **SDK smoke:** `status=finished`, `SDK smoke OK`, `durationMs=5154`; live diff dry-run deferred | `scripts/docs-automation-framework.mts`, `scripts/docs-automation-framework.test.ts`, `scripts/update-docs-for-diff.mts`, `scripts/update-docs-for-diff.test.ts`, `AGENTS.md`, `.env.example` |
+| Options Risk Calculator v1.1 (Compare fixes) | Compare screen enforces 3 distinct strikes, shows `—` (not `0.00`) for profit/ratio when delta missing, greeks warning banner, ATM/Half/Target row labels, Pick-winner tooltip, and auto `loadAllStrikes()` when ATM window insufficient | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 71 passed (71)` (`premiumProjection`, `OptionsRiskCalculator`, `riskRulerPreset`, `OptionsChainDialog`); **Build:** `npm run build` passed (`✓ Compiled successfully in 2.4s`); **App-level:** `GET /api/options/expirations?underlying=AAPL` → 25 expirations (`meta.source: tws`); `GET /api/options/chain?underlying=AAPL&expiration=2026-07-02` → 40 contracts (`meta.source: tws`); browser Compare UI walkthrough deferred | `src/lib/risk/premiumProjection.ts`, `src/lib/risk/premiumProjection.test.ts`, `src/app/components/options/OptionsRiskCalculator.tsx`, `src/app/components/options/OptionsRiskCalculator.test.tsx`, `src/app/components/options/useOptionsChainModel.ts`, `src/lib/risk/createRiskRulerPreset.ts`, `src/app/components/options/OptionsChainDialog.tsx` |
+| TWS sidecar positions/fills fix | Positions show MKT/PnL on first cold panel paint; Today's fills tab lists executions instead of 503 | **Passing** | **Focused:** `Ran 3 tests in 0.000s` `OK` (`npm run tws:sidecar:test`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** cold `curl /account/positions` → HOOD `marketPrice=108.01999665`, `unrealizedPNL=3441.0`; `curl /account/trades` → `HTTP 200`, `executions: 3`; browser walkthrough deferred | `services/tws-sidecar/main.py`, `services/tws-sidecar/test_main.py`, `package.json` |
+| Client chart SWR cache | Re-opening a recently viewed chart paints cached candles instantly as `stale: true` while a background fetch refreshes; `reloadKey` bump bypasses cache; bounded LRU (20 entries) + 5-min max-age; errors keep cached candles visible | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 12 passed (12)` (`chartClientCache.test.ts`, `useChartDataFeed.test.ts`); **Startup:** `npm run check:startup` passed (26 tests); app-level re-open walkthrough deferred | `src/lib/chartDataFeed/chartClientCache.ts`, `src/lib/chartDataFeed/chartClientCache.test.ts`, `src/lib/chartDataFeed/useChartDataFeed.ts`, `src/lib/chartDataFeed/useChartDataFeed.test.ts`, `src/lib/chartDataFeed/ARCHITECTURE.md`, `src/lib/marketData/ARCHITECTURE.md` |
 | Local docs update hook MVP | Pre-push hook runs local Cursor SDK docs updater against the unpushed diff; blocks push when docs change; skips docs-only diffs; fails open without API key | **Passing** | **Focused:** 10 tests passed (`update-docs-for-diff.test.ts`); **Startup:** `npm run check:startup` passed (26 tests); **SDK smoke:** blocked — `CURSOR_API_KEY is not set` | `.githooks/pre-push`, `scripts/update-docs-for-diff.mts`, `scripts/update-docs-for-diff.test.ts`, `package.json`, `.env.example` |
 | TWS cold symbol-change fallback | When TWS/IB Gateway is unreachable or the historical data farm cannot serve candles, cold chart symbol changes skip TWS while the circuit is open and fall back to Yahoo without a stuck loading state | **Passing** | **Focused:** 60 market-data tests passed; **App-level:** browser `POST /api/candles` for cold symbols returned `meta.source: yahoo` in 515ms / 308ms with `provider.tws.skipped` at 0ms | `src/lib/marketData/service/marketDataService.ts`, `src/lib/marketData/service/marketDataService.test.ts`, `docs/PROJECT-STATUS.md` |
 | Harness enforcement tightening | Passing rows require concrete verification evidence; session-exit checklist; lightweight bugfix plan path; validator blocks Passing + pending | **Passing** | **Focused:** 10 tests passed (`validate-project-status.test.ts`); **Startup:** `npm run lint:instructions` passed; `npm run check:startup` passed (26 tests) | `scripts/validate-project-status.mts`, `scripts/validate-agent-instructions.mts`, `scripts/validate-project-status.test.ts`, `docs/checklists/session-exit-checklist.md`, `docs/checklists/planning-router.md`, `.cursor/rules/plan-harness-awareness.mdc` |
@@ -244,13 +316,77 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Screener observability + baseline | Perf phases on screener route/service/technical filter; dev Screener tab in latency panel; `screener.fetch` client telemetry; before-optimization baseline in `docs/perf/screener-baseline-latest.json` | **Pending** | **Focused:** 48 tests passed; **Build:** `npm run build` passed; **Baseline:** `npm run perf:market-data` captured cold technical presets (~29–51s, candle p50 ~930–1617ms); app-level screener latency panel check not yet recorded; **Architecture review:** self-review Passed | `src/app/api/screener/run/route.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/screener/technicalFilter.ts`, `src/lib/marketData/telemetry/screenerPerf.ts`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/data-health/MarketDataLatencyDiagnosticsView.tsx`, `scripts/run-market-data-perf.mts`, `docs/perf/screener-baseline-latest.json` |
 | Massive universe screener (full-universe technical scan) | Screener scans full US universe locally via Massive Daily Market Summary store; market calendar prevents pre-close 403; typed skip UX | **Passing** | **Focused:** 51 tests passed; **Build:** `npm run build` passed; **App-level:** MACD bullish API smoke — no 403, 9 rows, 11 skippedSymbols; **Collection:** perf diff captured 2026-06-29 (1.41×–6.2×); **Architecture review:** self-review Passed | `src/lib/marketData/marketCalendar.ts`, `src/lib/marketData/providers/massive/`, `src/lib/marketData/screenerUniverse/universeDailyStore.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/screener/technicalFilter.ts`, `src/app/components/screener/ResultsTable.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/perf/market-data-performance.md` |
 | Screener sort by leading rule + column picker | Results auto-sort by primary leading rule field on each run; cog dropdown adds/removes columns; sort override persists per saved screen; indicator columns surface for technical screens | **Pending** | **Focused:** 96 screener-related tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); app-level walkthrough not yet recorded; **Architecture review:** self-review Passed | `src/lib/screener/{types,screenStorage,deriveDefaultSort,indicatorColumns,exportResults}.ts`, `src/lib/persistence/schemas/screenerLibrary.ts`, `src/app/components/screener/{ScreenerProvider,ScreenerDialog,ResultsTable,ColumnPicker}.tsx`, `docs/screener-roadmap.md` |
-| IB account tracking | Live IB account in Account sidebar panel with overhauled layout: color-coded PnL, metric help tooltips, tabbed orders/fills, icon refresh, day-trades in net-liq card, computed leverage, what-if preview removed; chart position overlays; read-only w.r.t. mutations | **Active** | **Focused:** `Test Files 2 passed (2)`, `Tests 13 passed (13)` (`AccountPanel`, `positionOverlays`); **Startup:** `npm run check:startup` passed (26 tests); app-level Account panel walkthrough on live IB Gateway not yet recorded | `src/app/components/sidebar/panels/AccountPanel.tsx`, `src/app/components/sidebar/panels/AccountPanel.test.tsx`, `src/lib/brokerage/positionOverlays.ts`, `src/lib/brokerage/positionOverlays.test.ts`, `src/app/components/AccountProvider.tsx`, `src/app/api/brokerage/`, `src/lib/brokerage/` |
+| Massive Options Analysis Provider | Options UI and risk analysis load expirations/chains from Massive Options Advanced; IBKR/TWS remain brokerage/account/execution truth only | **Passing** | **Focused:** `Test Files 9 passed (9)`, `Tests 93 passed (93)`; **Startup:** `npm run check:startup` passed (26 tests); **Build:** `npm run build` passed; **App-level:** `GET /api/options/expirations?underlying=AAPL` → `meta.source: massive` (401 upstream — 0 expirations); **Architecture review:** self-review Passed | `src/lib/marketData/providers/massive/`, `src/lib/marketData/contracts/massive.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/app/api/options/`, `src/app/components/options/`, `src/lib/marketData/ARCHITECTURE.md` |
+| IB account tracking | Live IB account in Account sidebar panel with overhauled layout: color-coded PnL, metric help tooltips, tabbed orders/fills, icon refresh, day-trades in net-liq card, computed leverage, what-if preview removed; chart position overlays; read-only w.r.t. mutations | **Pending** | **Focused:** `Test Files 2 passed (2)`, `Tests 13 passed (13)` (`AccountPanel`, `positionOverlays`); **Startup:** `npm run check:startup` passed (26 tests); app-level Account panel walkthrough on live IB Gateway not yet recorded; paused for WIP=1 Massive options integration | `src/app/components/sidebar/panels/AccountPanel.tsx`, `src/app/components/sidebar/panels/AccountPanel.test.tsx`, `src/lib/brokerage/positionOverlays.ts`, `src/lib/brokerage/positionOverlays.test.ts`, `src/app/components/AccountProvider.tsx`, `src/app/api/brokerage/`, `src/lib/brokerage/` |
 | Screener dialog layout overhaul | Run action relocated to top-right of Custom Query panel as primary button with `⌘↵` shortcut; rule rows collapse to one-line summaries with expand-all/collapse-all; rules panel scrolls inside `max-h-[40vh]`; Save controls in modal header; Limit in modal footer | **Pending** | **Focused:** 37 screener + 9 design-system/lib-screener tests passed; **Build:** `npm run build` passed; app-level walkthrough not yet recorded; **Architecture review:** self-review Passed | `src/app/components/design-system/{EdgeButton,EdgeModalShell,styles}.ts`, `src/app/components/screener/{ScreenerDialog,QueryBuilder}.tsx`, `src/lib/screener/compileQuery.ts`, `docs/screener-roadmap.md` |
 | Screener technical rule builder (v1) | User constructs/edits custom technical screener rules in QueryBuilder using any implemented `@edge/chart-core` indicator; registry-aware `validateIndicatorRule` rejects invalid rules client- and server-side; presets and saved screens round-trip `query.technical`; named kinds read-only in UI | **Pending** | **Focused:** 71 tests passed (`compileQuery`, `validateIndicatorRule`, `QueryBuilder`, `ScreenerDialog`, `api/screener/run`); **Build:** `npm run build:packages` + `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); app-level technical rule walkthrough not yet recorded; **Architecture review:** self-review Passed | `src/lib/screener/{compileQuery.ts,validateIndicatorRule.ts}`, `src/app/components/screener/{QueryBuilder.tsx,ScreenerDialog.tsx}`, `src/app/api/screener/run/route.ts`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
 | Stock screener Phase 3 (custom indicators + comparison + summarize_screen) | Indicator-plugin screener rules via presets (MACD hist, BOLL %B, RSI); candle-fingerprint technical cache; `meta.indicatorValues` sidecar; multi-select comparison table; read-only `summarize_screen` AI tool | **Pending** | **Focused:** 49 screener/AI tests passed; **Build:** `npm run build:packages` + `npm run build` passed; app-level indicator preset + compare walkthrough not yet recorded; **Architecture review:** self-review Passed | `packages/chart-core/src/indicatorCompute.ts`, `src/lib/screener/{technicalMath,technicalFilter,presets,summarizeScreen}.ts`, `src/lib/marketData/schemas/request.ts`, `src/app/components/screener/{ComparisonView,ComparisonDialog}.tsx`, `src/lib/ai/tools/screener.ts`, `docs/screener-roadmap.md` |
 | Stock screener Phase 2 (composition + persistence + live results) | Postgres screener library sync (localStorage fallback), group watchlist actions, live quote overlay on visible rows, AND/OR query groups, CSV + clipboard export | **Passing** | **Focused:** 63 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** Gainers preset, group actions, OR group, save screen verified on `localhost:3003` | `src/db/schema.ts`, `src/lib/persistence/schemas/screenerLibrary.ts`, `src/lib/persistence/repositories/screenerLibraryRepository.ts`, `src/app/api/me/screener-library/`, `src/lib/persistence/sync/useScreenerLibraryRemoteSync.ts`, `src/app/components/screener/ScreenerProvider.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/lib/screener/{compileQuery,exportResults}.ts`, `src/lib/watchlist/storage.ts`, `docs/screener-roadmap.md` |
 | Stock screener Phase 1.5 (technical presets) | Four technical presets (RSI oversold/overbought, golden cross, near 52-week high) via server-side two-step pipeline: FMP prefilter → Yahoo daily candles + chart-core indicator math; bounded concurrency; two-phase loading label + phase summary in modal | **Passing** | **Focused:** 52 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** preset rail visible in screener modal on `localhost:3003`; **Architecture review:** self-review Passed | `src/lib/screener/{technicalMath,technicalFilter,presets,types}.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/marketData/schemas/request.ts`, `src/lib/marketData/cache/ttlPolicy.ts`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
 | Stock screener MVP (Lean) | Header-bar icon opens modal screener filtering US equities/ETFs via FMP `/company-screener`; presets + flat query-builder; sortable paginated results; per-row load-into-chart and add-to-watchlist; named screens persist in localStorage | **Passing** | **Focused:** 48 tests passed (Phase 1 baseline); **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** screener modal walkthrough on `localhost:3003` (preset run, row actions, save/load) | `src/app/api/screener/run/route.ts`, `src/lib/marketData/providers/fmp/`, `src/lib/screener/`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/StockApp.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
+
+## Task Contract — Massive Options Analysis Provider
+
+- **Status:** Passing — shipped 2026-07-02.
+- **Goal:** Route web-app options expirations and chain snapshots through Massive Options Advanced while preserving IBKR/TWS for brokerage, account, positions, and execution truth.
+- **Delivered:** Massive options submodule (`options.ts`, `optionsMappers.ts`, paginated `client.ts`); types in `contracts/massive.ts`; Massive-first routing in `MarketDataService` with provider-namespaced cache keys; warmup defers only when Massive/TWS/IBKR all unavailable; architecture doc updates; focused provider/service/API tests.
+- **Verification:** **Focused:** `Test Files 9 passed (9)`, `Tests 93 passed (93)`; **Startup:** `npm run check:startup` passed (26 tests); **Build:** `npm run build` passed; **App-level:** `meta.source: massive` on expirations route (upstream 401 with current key).
+- **Blockers:** Live contract smoke requires valid Options Advanced API key (configured key returned HTTP 401).
+- **Next best step:** Refresh API key and confirm non-zero expirations/chain counts on `localhost:3003`.
+
+## Task Contract — Documentation Automation Framework
+
+- **Status:** Complete — row marked **Passing** 2026-07-01.
+- **Goal:** Extend local Cursor SDK docs automation with deterministic diff routing, typed lanes (architecture/harness/drift-audit), allowlist guardrails, evidence-gated harness updates, and post-agent instruction validation.
+- **Delivered:** `scripts/docs-automation-framework.mts` (classification, lane prompts, allowlist/summary validation); hardened `scripts/update-docs-for-diff.mts` (`--lane`, `--evidence-file`, timeout, structured logging, `lint:instructions` gate); 35 focused tests; `CURSOR_DOCS_MODEL` in `.env.example`; AGENTS.md hook routing note.
+- **Verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 35 passed (35)`; **Startup:** `npm run lint:instructions` passed; `npm run check:startup` passed (26 tests); **SDK smoke:** `status=finished`, `SDK smoke OK`, `durationMs=5154`.
+- **Blockers:** Live pre-push diff dry run not yet recorded.
+- **Deferred follow-ups:** CI scheduled drift audit; optional central doc manifest if in-code routing grows unwieldy.
+
+## Task Contract — Options Risk Calculator v2.1
+
+- **Status:** Passing — v2.1 shipped 2026-07-02; browser UI walkthrough deferred.
+- **Goal:** Wire Risk Calculator legs to loaded chain data (strike dropdown, nearest ATM default) and surface max-risk auto contract sizing in the UI.
+- **Delivered:** `listStrikesForLeg`, `findContractForLeg`, `nearestChainStrike` helpers; chain-gated Add leg; strike `<select>` from chain; leg ratio label; Auto: N contracts badge; manual contracts field toggled by sizing mode; chain loading/error states in calculator panel.
+- **Verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.2s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/options/chain?underlying=LLY&expiration=2026-07-10` → 40 contracts (`meta.source: massive`); **Architecture review:** self-review Passed.
+- **Blockers:** Browser UI walkthrough on `localhost:3003` not recorded.
+- **Deferred follow-ups:** Strategy presets as one-click leg templates; saved plans persistence; `planOptionTrade` AI tool.
+
+## Task Contract — Options Risk Calculator v2
+
+- **Status:** Passing — v2 shipped 2026-07-02; superseded by v2.1 for chain-native leg UX.
+- **Goal:** Replace v1 Setup/Compare/Plan wizard with a strategy-first Risk Calculator in the options popup: multi-leg builder, dollar-risk sizing, pre-expiration payoff gradient through expiration, Entry/Exit/IV assumptions, and chain Analyze handoff.
+- **Delivered:** `optionsStrategyRisk.ts` (Zod validation, Black-Scholes pre-expiration pricing, defined-risk sizing, payoff grid); replaced `OptionsRiskCalculator.tsx` UI (trade builder + heatmap table + scenario detail); chain-row Analyze buttons in dialog `OptionsChainView`; tab renamed to `Risk Calculator`; seed-leg handoff via `OptionsChainDialog`; same-expiration `selectExpiration` no-op to preserve loaded chain.
+- **Verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 28 passed (28)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/options/expirations?underlying=LLY` → 18 expirations (`meta.source: massive`); `GET /api/options/chain?underlying=LLY&expiration=2026-07-10` → 40 contracts (`meta.source: massive`); **Architecture review:** self-review Passed.
+- **Blockers:** Browser UI walkthrough on `localhost:3003` not recorded.
+- **Deferred follow-ups:** Strategy presets (spreads/condors) as one-click leg templates, saved plans persistence, `planOptionTrade` AI tool, American-style/binomial pricing for early exercise edge cases.
+
+## Task Contract — Options Risk Calculator v1
+
+- **Status:** Superseded by v2 — v1 shipped; v1.1 Compare fixes shipped; browser Compare UI walkthrough deferred.
+- **Goal:** Ship v1 single-leg options risk calculator per the 7-step directional algorithm inside OptionsChainDialog.
+- **Delivered:** `premiumProjection.ts` (delta-estimate, 3-strike selection, ratio ranking, Zod validation); `OptionsRiskCalculator.tsx` (Setup/Compare/Plan screens); `addRiskRulerPresetFromCalc` wrapper; Chain \| Risk Calc toggle in dialog header; net-liq default max risk from AccountProvider.
+- **v1.1 addendum (2026-07-01):** Layer 1+2 Compare fixes — distinct 3-strike selection in `selectThreeStrikes`, honest `deltaEstimate` flag, profit/ratio `—` when greeks missing, greeks banner, ATM/Half/Target row labels, Pick-winner disabled tooltip, guarded `loadAllStrikes()` on Compare entry. Layer 3 (synthetic delta + Recalc) still deferred.
+- **Verification:** **Focused:** `Test Files 4 passed (4)`, `Tests 71 passed (71)`; **Build:** `npm run build` passed; **Architecture review:** self-review Passed (reuses options chain + risk ruler contracts; no new ARCHITECTURE.md required).
+- **Blockers:** Browser Compare UI walkthrough on `localhost:3003` not recorded.
+- **Deferred follow-ups:** Layer 3 synthetic delta + Recalc, `planOptionTrade` AI tool, saved-plans persistence, multi-leg setups.
+
+## Task Contract — Risk Settings Source of Truth
+
+- **Status:** Passing — shipped 2026-07-03.
+- **Goal:** One user-configurable risk sizing source, propagated app-wide, replacing ad-hoc `defaultMaxRiskFromNetLiq` and hardcoded `DEFAULT_RISK_ACCOUNT` in production paths.
+- **Delivered:** `src/lib/risk/riskSettings.ts` pure domain + resolvers; `RiskSettingsProvider` with localStorage persistence; Risk sidebar panel; options calculator + risk ruler preset migration; architecture doc subsection.
+- **Verification:** **Focused:** `Test Files 8 passed (8)`, `Tests 115 passed (115)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Architecture review:** self-review Passed; **App-level:** deferred.
+- **Blockers:** none.
+- **Out of scope (deferred):** Postgres `/api/me/risk-settings` resource; server-side access for AI tools; what-if margin preview; existing-position-aware sizing.
+
+## Task Contract — TWS sidecar startup coupling
+
+- **Status:** Passing — shipped 2026-07-03.
+- **Goal:** Web server restart auto-couples TWS sidecar lifecycle; no manual `npm run tws:sidecar` required when `TWS_ENABLED=true`.
+- **Delivered:** Root `instrumentation.ts` calls `ensureSidecarOnServerBoot()` on Node boot (fire-and-forget); `startup.ts` reuses `recoverTwsSidecar` for spawn/restart/reconnect + circuit-breaker reset; `killManagedSidecar()` on shutdown; focused tests + architecture doc update.
+- **Verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 18 passed (18)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **Architecture review:** self-review Passed; **App-level:** sidecar stopped → dev restart → `/health` ok at 1s; `POST /api/candles` → `meta.source: tws`; dev SIGTERM → sidecar stopped.
+- **Blockers:** none.
 
 ## Task Contract — TWS recovery supervisor
 
@@ -455,6 +591,94 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Keep the current state above short and authoritative; keep historical detail here.
+
+### 2026-07-03 — Risk Settings Source of Truth
+
+- **Goal:** Single user-configurable risk sizing source (percent or absolute) persisted in localStorage, resolved against live IB account summary, propagated to options calculator and risk ruler presets.
+- **Completed:** `riskSettings.ts` domain module; `RiskSettingsProvider` mounted in `StockApp`; Risk sidebar panel; migrated `OptionsChainDialog`/`OptionsRiskCalculator` and `createRiskRulerPreset`/`useOptionsChainModel`; updated `registry.test.ts` and architecture doc.
+- **Verification run:** **Focused:** `Test Files 8 passed (8)`, `Tests 115 passed (115)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Full:** `npm run check` — 6 failures pre-existing unrelated (1588 passed).
+- **Known blockers:** none.
+- **Next best step:** App-level walkthrough — change risk percent in Risk panel, confirm options calculator max-risk updates.
+
+### 2026-07-03 — TWS sidecar startup coupling
+
+- **Goal:** Couple web server and TWS sidecar lifecycle so restarting `npm run dev` auto-spawns/primes the sidecar when `TWS_ENABLED=true`.
+- **Completed:** `instrumentation.ts` boot hook; `startup.ts` singleton wrapping `recoverTwsSidecar`; `killManagedSidecar()` export + shutdown handlers; focused tests; architecture doc startup coupling note.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 18 passed (18)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** sidecar stopped → dev restart → `/health` ok at 1s; `POST /api/candles` → `meta.source: tws`; dev SIGTERM → sidecar stopped.
+- **Known blockers:** none.
+- **Next best step:** None — feature complete.
+
+### 2026-07-03 — Shift+Click Time/Price Ruler Tool
+
+- **Goal:** Add shaded time/price ruler drawing with ⇧+click shortcut on the price pane and toolbar discovery entry.
+- **Completed:** `ruler` DrawingPlugin (shaded rect, Δtime/Δprice labels, union hit-test); `formatTimeDelta` helper; interval plumbed into draw opts; shift+click arming in `useDrawingController`; toolbar `rulerTool` button; focused tests + docs.
+- **Verification run:** **Focused:** `Test Files 5 passed (5)`, `Tests 38 passed (38)`; **Build:** `npm run build:packages` + `npm run build` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Startup:** `npm run check:startup` passed (26 tests).
+- **Known blockers:** App-level ⇧+click visual walkthrough on `localhost:3003` not recorded.
+- **Next best step:** Manual verify shaded ruler on AAPL price pane at `1d` and `15m` intervals; confirm persisted drawing round-trip.
+
+### 2026-07-02 — Options Risk Calculator v2.1 (chain-native legs)
+
+- **Goal:** Fix Risk Calculator so leg strikes come from loaded chain data and max-risk contract sizing is visible in the UI.
+- **Completed:** Added chain selection helpers; strike dropdown + nearest ATM Add leg; auto contracts badge; chain loading gates; 8 new/updated UI tests.
+- **Verification run:** **Focused:** `Test Files 3 passed (3)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.2s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/options/chain?underlying=LLY&expiration=2026-07-10` → 40 contracts (`meta.source: massive`).
+- **Known blockers:** Browser UI walkthrough (strike dropdown + auto badge) not recorded.
+- **Next best step:** Manual verify on `localhost:3003` — LLY → Analyze → $4k max risk → confirm Auto: N contracts and payoff grid.
+
+### 2026-07-02 — Options Risk Calculator v2
+
+- **Goal:** Replace v1 Risk Calc wizard with multi-leg Risk Calculator showing pre-expiration-to-expiration payoff surface sized from dollar risk.
+- **Completed:** Added `optionsStrategyRisk.ts` engine with Zod validation, Black-Scholes estimates, defined-risk contract sizing, and payoff grid; rebuilt `OptionsRiskCalculator.tsx`; added chain Analyze handoff and tab rename in options dialog; updated tests and harness evidence.
+- **Verification run:** **Focused:** `Test Files 3 passed (3)`, `Tests 28 passed (28)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.3s`); **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/options/expirations?underlying=LLY` → 18 expirations (`meta.source: massive`); `GET /api/options/chain?underlying=LLY&expiration=2026-07-10` → 40 contracts (`meta.source: massive`).
+- **Known blockers:** Browser UI walkthrough (Analyze → Risk Calculator → payoff grid) not recorded.
+- **Next best step:** Manual verify Analyze → Risk Calculator → payoff grid on `localhost:3003`; resume IB account tracking walkthrough.
+
+### 2026-07-02 — Massive Options Analysis Provider
+
+- **Goal:** Integrate Massive/Polygon Options Advanced as Edge's primary web-app options analysis provider; keep IBKR/TWS for brokerage/account/execution only.
+- **Completed:** Massive options provider submodule, mappers, pagination, Massive-first service routing, tests, architecture docs, harness evidence.
+- **Verification run:** **Focused:** `Test Files 9 passed (9)`, `Tests 93 passed (93)`; **Startup:** 26 tests passed; **Build:** `npm run build` passed; **App-level:** `GET /api/options/expirations?underlying=AAPL` → `meta.source: massive`, 0 expirations (Massive 401).
+- **Known blockers:** Configured `MASSIVE_API_KEY` returned HTTP 401 — refresh key or confirm Options Advanced plan before expecting live chain data.
+- **Next best step:** Re-run expirations + chain smoke after key fix; resume IB account tracking walkthrough.
+
+### 2026-07-01 — Documentation Automation Framework
+
+- **Goal:** Implement typed Cursor SDK documentation automation with validation guardrails around the existing pre-push hook.
+- **Completed:** Added `docs-automation-framework.mts` with owner-area classification, lane-specific prompts, allowlist/summary validation; hardened `update-docs-for-diff.mts` with architecture/harness/drift-audit lanes, evidence gate, non-doc edit blocking, post-agent `lint:instructions`, timeout, and structured logging; 35 focused tests; AGENTS.md + `.env.example` updates.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 35 passed (35)`; **Startup:** `npm run lint:instructions` passed; `npm run check:startup` passed (26 tests); **SDK smoke:** `status=finished`, `SDK smoke OK`, `durationMs=5154`.
+- **Known blockers:** Live pre-push diff dry run not recorded.
+- **Next best step:** Resume IB account tracking app-level walkthrough; optional docs auto-update dry run before next push.
+
+### 2026-07-01 — Options Risk Calculator v1.1 (Compare fixes)
+
+- **Goal:** Fix Compare screen — 3 distinct strikes, non-misleading profit/ratio when greeks missing, greeks banner, row labels, auto full-chain load.
+- **Completed:** Rewrote `selectThreeStrikes` for distinct ATM/target/halfway; honest `deltaEstimate` in `estimatePremiumAtTarget`/`computeStrikeEvaluation`; Compare UX (banner, labels, `—` for missing-delta profit/ratio, Pick-winner tooltip); guarded `loadAllStrikes()` `useEffect`; 6 new focused tests (71 total across 4 files).
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 71 passed (71)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.4s`); **App-level:** `GET /api/options/expirations?underlying=AAPL` → 25 expirations (`meta.source: tws`); `GET /api/options/chain?underlying=AAPL&expiration=2026-07-02` → 40 contracts (`meta.source: tws`).
+- **Known blockers:** Browser Compare UI walkthrough (labels/banner in dialog) not recorded.
+- **Next best step:** Manual browser Compare walkthrough; Layer 3 synthetic delta + Recalc.
+
+### 2026-07-01 — Options Risk Calculator v1
+
+- **Goal:** Ship 3-screen single-leg options risk calculator inside OptionsChainDialog per 7-step directional algorithm.
+- **Completed:** Added `premiumProjection.ts` with Zod validation, delta-estimate premium@target, 3-strike compare, pick-winner, contract sizing; `OptionsRiskCalculator.tsx` Setup/Compare/Plan screens; `addRiskRulerPresetFromCalc` for user-defined stop/target; Chain \| Risk Calc toggle in dialog; net-liq default max risk; 65 focused tests.
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 65 passed (65)`; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests).
+- **Known blockers:** App-level AAPL walkthrough not recorded.
+- **Next best step:** Manual walkthrough on `localhost:3003`; follow-ups: AI tool, saved plans, multi-leg, Recalc.
+
+### 2026-07-01 — TWS sidecar positions/fills fix
+
+- **Goal:** Fix slow/missing MKT/PnL on cold positions load and 503 on Today's fills tab.
+- **Completed:** Fixed `_account_executions` init (`{}` → `[]`); rewrote `account_trades` to snapshot-then-replace with 1.5s wait; added `_seed_portfolio_market_data()` (ib.portfolio + reqMktData fallback) in `account_positions` and `_setup_account_subscriptions`; added first sidecar unittest suite + `npm run tws:sidecar:test`.
+- **Verification run:** **Focused:** `Ran 3 tests in 0.000s` `OK`; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** cold positions → HOOD `marketPrice=108.01999665`, `unrealizedPNL=3441.0`; trades → `HTTP 200`, 3 executions.
+- **Known blockers:** Browser Account panel walkthrough on `localhost:3003` not recorded (dev server down during verification).
+- **Next best step:** Start dev server, refresh Account panel, confirm MKT/PnL + fills tabs; re-record Account panel UI overhaul walkthrough.
+
+### 2026-07-01 — Client chart SWR cache
+
+- **Goal:** Session-only client stale-while-revalidate cache so re-opened charts paint cached candles instantly while background REST refresh runs.
+- **Completed:** Added `chartClientCache.ts` (LRU + 5-min max-age); integrated SWR read/write + `refreshing` flag into `useChartDataFeed`; conservative always-refresh policy; `reloadKey` bypass; error keeps cached candles; 12 focused tests; architecture doc updates.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 12 passed (12)`; **Startup:** `npm run check:startup` passed (26 tests).
+- **Known blockers:** App-level re-open walkthrough on `localhost:3003` not recorded.
+- **Next best step:** Load AAPL, switch to MSFT, switch back to AAPL — confirm instant stale paint + refresh swap; resume Account panel app-level verification.
 
 ### 2026-07-01 — Account panel UI overhaul
 
