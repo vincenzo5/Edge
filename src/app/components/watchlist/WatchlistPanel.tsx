@@ -233,6 +233,17 @@ export function WatchlistPanel() {
     (item) => item.symbol === state?.selectedSymbol,
   );
 
+  if (!watchlistCtx) {
+    return (
+      <div
+        data-testid="watchlist-panel-missing-context"
+        className="flex min-h-0 flex-1 items-center justify-center px-3 py-6 text-xs text-[var(--edge-text-muted)]"
+      >
+        Watchlist unavailable
+      </div>
+    );
+  }
+
   if (!state || !setState || !activeList) {
     return null;
   }

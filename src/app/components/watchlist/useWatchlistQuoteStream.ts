@@ -5,6 +5,8 @@ import type { QuoteSnapshot } from "@/lib/watchlist/types";
 import { fetchQuotes } from "@/lib/watchlist/quoteClient";
 import { useMarketDataQuotes, useMarketDataQuotesForSymbols } from "../MarketDataProvider";
 
+const SSE_FIRST_PAINT_DEADLINE_MS = 8_000;
+
 function watchlistStreamEnabled(): boolean {
   if (typeof window === "undefined") return false;
   if (process.env.NEXT_PUBLIC_WATCHLIST_STREAM === "1") return true;
@@ -83,6 +85,31 @@ function useLegacyWatchlistQuoteStream(symbols: string[]): {
 
     const params = new URLSearchParams({ symbols: symbols.join(",") });
     const source = new EventSource(`/api/stream/quotes?${params.toString()}`);
+    let restFallbackStarted = false;
+
+    const runRestFallback = (reason: string) => {
+      if (cancelled || restFallbackStarted) return;
+      restFallbackStarted = true;
+      source.close();
+      setError(null);
+      void fetchQuotes(symbols)
+        .then((next) => {
+          if (cancelled) return;
+          setQuotes(next);
+          setError(null);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setError(err instanceof Error ? err.message : reason);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+
+    const firstPaintTimer = window.setTimeout(() => {
+      runRestFallback("Quote stream first snapshot timeout");
+    }, SSE_FIRST_PAINT_DEADLINE_MS);
 
     source.onmessage = (message) => {
       if (cancelled) return;
@@ -91,9 +118,14 @@ function useLegacyWatchlistQuoteStream(symbols: string[]): {
           type?: string;
           quotes?: Record<string, unknown>[];
           message?: string;
+          recoverable?: boolean;
         };
         if (event.type === "error") {
-          setError(event.message ?? "Quote stream error");
+          if (event.recoverable === false) {
+            runRestFallback(event.message ?? "Quote stream error");
+          } else {
+            setError(event.message ?? "Quote stream error");
+          }
           return;
         }
         if (event.type === "snapshot" || event.type === "update") {
@@ -101,9 +133,12 @@ function useLegacyWatchlistQuoteStream(symbols: string[]): {
             event.quotes
               ?.map((row) => mapStreamQuote(row))
               .filter((row): row is QuoteSnapshot => row != null) ?? [];
-          if (next.length > 0) setQuotes(next);
-          setLoading(false);
-          setError(null);
+          if (next.length > 0) {
+            window.clearTimeout(firstPaintTimer);
+            setQuotes(next);
+            setLoading(false);
+            setError(null);
+          }
         }
       } catch {
         // Ignore malformed frames.
@@ -112,12 +147,12 @@ function useLegacyWatchlistQuoteStream(symbols: string[]): {
 
     source.onerror = () => {
       if (cancelled) return;
-      setError("Quote stream disconnected");
-      setLoading(false);
+      runRestFallback("Quote stream disconnected");
     };
 
     return () => {
       cancelled = true;
+      window.clearTimeout(firstPaintTimer);
       source.close();
     };
   }, [symbolKey]);

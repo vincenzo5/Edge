@@ -45,6 +45,7 @@ import ShortcutProvider from "./shortcuts/ShortcutProvider";
 import { OptionsChainDialog } from "./options/OptionsChainDialog";
 import { ScreenerDialog } from "./screener";
 import { useSymbolNavigationHistory } from "./chart-chrome/useSymbolNavigationHistory";
+import AppHydrationShell from "./chart-cell/AppHydrationShell";
 
 export default function StockApp() {
   const [layout, setLayout] = useState<ChartLayout>(DEFAULT_LAYOUT);
@@ -287,6 +288,10 @@ export default function StockApp() {
   const handleCloseScreener = useCallback(() => {
     setScreenerOpen(false);
   }, []);
+
+  if (!hydrated) {
+    return <AppHydrationShell />;
+  }
 
   return (
     <SidebarProvider

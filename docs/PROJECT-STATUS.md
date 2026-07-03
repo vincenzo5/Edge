@@ -6,14 +6,14 @@ Single source for current progress. For row-by-row feature detail, see [chart/fe
 
 ## Current Verified State
 
-- **Current task:** Data trust domain model — explicit dataset usage policy, provenance/readiness evaluation, trading-safety gate contract, API/Data Health metadata.
-- **State:** **Passing** — focused tests, build, and startup gate passed; app-level Data Health walkthrough deferred.
-- **Latest verification:** **Focused:** 84 tests passed (`Test Files 6 passed (6)`); **Build:** `npm run build` passed (`✓ Compiled successfully in 2.4s`); **Startup:** `npm run check:startup` passed (26 tests); **Architecture review:** self-review — Passed; app-level Data Health walkthrough deferred.
-- **Evidence:** `src/lib/marketData/trust/dataTrust.ts`, `src/lib/marketData/trust/enrichResponseMeta.ts`, `src/lib/tradingSafety/tradingReadiness.ts`, `src/lib/marketData/health.ts`, `src/app/api/candles/route.ts`, `src/app/api/quotes/route.ts`, `src/lib/marketData/ARCHITECTURE.md`.
-- **Current blocker:** none — app-level Data Health `display-only` / readiness walkthrough on `localhost:3003` not recorded.
-- **Next best step:** Manual verify Data Health shows `display-only` on chart/watchlist fallback rows and connected account row omits it on `localhost:3003`.
+- **Current task:** UI layer hardening — per-chart error boundary, chart feed status badge, layout hydration gate, watchlist legacy SSE→REST fallback, failure-path tests.
+- **State:** **Passing** — focused tests and build passed; app-level error-boundary/stale-badge walkthrough deferred.
+- **Latest verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 42 passed (42)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review — Passed; app-level chart error retry + stale badge walkthrough deferred.
+- **Evidence:** `src/app/components/chart-cell/{ChartErrorBoundary,ChartFeedStatusBadge,AppHydrationShell}.tsx`, `src/app/components/{ChartCell,EdgeChart,StockApp}.tsx`, `src/app/components/watchlist/{WatchlistPanel,useWatchlistQuoteStream}.tsx`, related tests.
+- **Current blocker:** none — app-level chart error boundary retry and stale badge visibility on `localhost:3003` not recorded.
+- **Next best step:** Manual verify Data Health `display-only` walkthrough on `localhost:3003` (prior deferred item).
 
-## Previous Verified State (Icon rail TradingView parity)
+## Previous Verified State (Data trust domain model)
 
 - **Current task:** Icon rail TradingView parity — darker rail surface, larger icons, TradingView-style active state on left/right icon rails.
 - **State:** **Passing** — focused tests and build passed; app-level computed-style check confirms rail bg `#131722`, 22px icons (~61% of 36px buttons), active `#2a2e39`.
@@ -284,6 +284,7 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
+| UI layer hardening | Per-chart `ChartErrorBoundary` with retry; `ChartFeedStatusBadge` for stale/stream/error; `AppHydrationShell` gates layout hydration; legacy watchlist SSE→REST fallback; failure-path component tests | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 42 passed (42)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level error boundary/stale badge walkthrough deferred | `src/app/components/chart-cell/{ChartErrorBoundary,ChartFeedStatusBadge,AppHydrationShell}.tsx`, `src/app/components/{ChartCell,EdgeChart,StockApp}.tsx`, `src/app/components/watchlist/{WatchlistPanel,useWatchlistQuoteStream}.tsx`, tests |
 | Data trust domain model | Dataset usage policy (`display` / `analysis` / `brokerage_truth` / `trading_decision`); provenance + readiness on candles/quotes API meta; Data Health `display-only` label; pure `evaluateTradingReadiness` gate for future orders | **Passing** | **Focused:** 84 tests passed; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.4s`); **Startup:** `npm run check:startup` passed (26 tests); app-level Data Health walkthrough deferred | `src/lib/marketData/trust/`, `src/lib/tradingSafety/`, `src/lib/marketData/health.ts`, `src/app/api/candles/route.ts`, `src/app/api/quotes/route.ts`, `src/lib/marketData/ARCHITECTURE.md` |
 | Icon rail TV parity | Left/right icon rails use `--edge-surface-rail` (`#131722` dark); icons 22/20px (~61% of 36/32px buttons); active state `#2a2e39` without ring | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 9 passed (9)`; **Build:** `✓ Compiled successfully in 2.5s`; **App-level:** rail bg `rgb(19, 23, 34)`, icon 22px / button 36px (ratio 0.61) | `toolbarButtonStyles.ts`, `globals.css`, `edge.ts`, `DrawingToolbar.tsx`, `SidebarRail.tsx`, `ChartToolIcons.tsx`, docs |
 | TWS sidecar lifecycle hardening | `TWS_MANAGED=local` (Next spawns/kills via shell script + ownership env) vs `external` (manual sidecar only); FastAPI lifespan IB disconnect; brokerage routes await bounded startup; `/api/market-data/health` exposes `lifecycle`; PID/port lock in `tws-sidecar.sh` | **Passing** | **Focused:** `Test Files 8 passed (8)`, `Tests 40 passed (40)`; **Sidecar:** `Ran 4 tests` `OK`; **Build:** `✓ Compiled successfully in 2.4s`; **Startup:** 26 tests; **App-level:** A edge-local spawn 3s; B/C/D/F lifecycle curl passed | `instrumentation.ts`, `src/lib/marketData/providers/tws/{managedMode,startup,recover,lifecycle,sidecarOwnership}.ts`, `services/tws-sidecar/main.py`, `scripts/tws-sidecar.sh`, `src/lib/brokerage/brokerageService.ts`, `src/app/api/market-data/health/route.ts`, `src/lib/marketData/ARCHITECTURE.md` |
@@ -630,6 +631,14 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Keep the current state above short and authoritative; keep historical detail here.
+
+### 2026-07-03 — UI layer hardening
+
+- **Goal:** Harden React UI layer with chart-scoped crash isolation, visible stale/stream/error states, layout hydration gate, legacy watchlist quote fallback parity, and failure-path tests.
+- **Completed:** `ChartErrorBoundary` + retry/reloadKey wiring in `ChartCell`; `ChartFeedStatusBadge` overlay in app `EdgeChart`; `AppHydrationShell` gates `StockApp` until layout hydrates; watchlist missing-context message; legacy `useWatchlistQuoteStream` SSE→REST fallback; focused component tests.
+- **Verification run:** **Focused:** `Test Files 7 passed (7)`, `Tests 42 passed (42)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); app-level error boundary retry + stale badge walkthrough deferred.
+- **Known blockers:** none.
+- **Next best step:** App-level verify chart error boundary retry and stale badge on `localhost:3003`; then resume deferred Data Health `display-only` walkthrough.
 
 ### 2026-07-03 — Data trust domain model
 

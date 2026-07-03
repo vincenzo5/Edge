@@ -39,6 +39,7 @@ import { eventKindsFromChartSettings } from '@/lib/chartDataFeed/eventOverlaySet
 import { drawingsToAnnotationMarkers } from '@/lib/chartDataFeed/overlayMappers';
 import { useAccountOptional } from './AccountProvider';
 import { buildPositionReferenceLines } from '@/lib/brokerage/positionOverlays';
+import ChartFeedStatusBadge from './chart-cell/ChartFeedStatusBadge';
 
 export { indicatorKey, parseIndicatorKey, legacyParseIndicatorKey };
 export type { GoToRequest, GoToResult, DrawingScreenBounds, IndicatorKey };
@@ -90,6 +91,8 @@ type Props = {
   feed?: UseChartDataFeedOptions['feed'];
   /** Bump to refetch candles without changing symbol/range/interval. */
   reloadKey?: number;
+  /** Bump feed reload (e.g. after chart error boundary or status badge retry). */
+  onRetry?: () => void;
   /** Optional second-line legend content (e.g. market context breadcrumb). */
   legendContextSlot?: ReactNode;
   /** Optional content rendered before the OHLCV sections on the top legend line (e.g. symbol nav arrows). */
@@ -111,6 +114,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     paneOrder,
     feed = defaultApiChartDataFeed,
     reloadKey = 0,
+    onRetry,
     livePrice = null,
     liveMarketSession = null,
     marketSessionLabel = null,
@@ -124,7 +128,16 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const configRef = useRef(config);
   configRef.current = config;
 
-  const { candles, loading, error, meta, loadMore } = useChartDataFeed({
+  const {
+    candles,
+    loading,
+    error,
+    meta,
+    loadMore,
+    refreshing,
+    stale,
+    streamError,
+  } = useChartDataFeed({
     feed,
     symbol: config.symbol,
     exchange: config.exchange,
@@ -285,7 +298,16 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   );
 
   return (
-    <div ref={chartAreaRef} className="flex min-h-0 w-full flex-1 flex-col">
+    <div ref={chartAreaRef} className="relative flex min-h-0 w-full flex-1 flex-col">
+      <ChartFeedStatusBadge
+        error={error}
+        streamError={streamError}
+        stale={stale}
+        refreshing={refreshing}
+        source={meta?.source}
+        onRetry={onRetry}
+        showRetry={!!error && candles.length === 0}
+      />
       <PackageEdgeChart
         ref={innerRef}
         chartId={chartId}

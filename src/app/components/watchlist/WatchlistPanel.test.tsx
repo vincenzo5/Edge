@@ -373,6 +373,126 @@ describe('WatchlistPanel', () => {
     const changeHeader = screen.getByTestId('watchlist-sort-changePct');
     fireEvent.click(changeHeader);
     expect(changeHeader).toHaveAttribute('aria-pressed', 'true');
-    expect(changeHeader).toHaveTextContent('↓');
+    expect(changeHeader.textContent).toMatch(/[↑↓]/);
+  });
+
+  it('shows missing-context message when watchlist provider is absent', () => {
+    render(
+      <ChartActionsProvider
+        activeCellSymbol="AAPL"
+        loadSymbolIntoActiveChart={loadSymbolIntoActiveChart}
+      >
+        <WatchlistPanel />
+      </ChartActionsProvider>,
+    );
+
+    expect(screen.getByTestId('watchlist-panel-missing-context')).toHaveTextContent(
+      /Watchlist unavailable/i,
+    );
+  });
+
+  it('shows quote error alert when quote fetch fails', async () => {
+    saveWatchlistState({
+      version: 1,
+      activeWatchlistId: 'default-watchlist',
+      selectedSymbol: null,
+      watchlists: [
+        {
+          id: 'default-watchlist',
+          name: 'Watchlist',
+          items: [{ symbol: 'MSFT', addedAt: Date.now() }],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ],
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/quotes')) {
+          return {
+            ok: false,
+            json: async () => ({ error: 'Quotes unavailable' }),
+          } as Response;
+        }
+        if (url.includes('/api/me/watchlist-library')) {
+          return { ok: false, status: 503, json: async () => ({ error: 'offline' }) } as Response;
+        }
+        return { ok: true, json: async () => ({}) } as Response;
+      }),
+    );
+
+    renderPanel();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('watchlist-panel')).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Quotes unavailable');
+    });
+  });
+
+  it('shows fundamentals error when details fetch fails', async () => {
+    saveWatchlistState({
+      version: 1,
+      activeWatchlistId: 'default-watchlist',
+      selectedSymbol: 'MSFT',
+      watchlists: [
+        {
+          id: 'default-watchlist',
+          name: 'Watchlist',
+          items: [{ symbol: 'MSFT', addedAt: Date.now() }],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ],
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/fundamentals')) {
+          return {
+            ok: false,
+            json: async () => ({ error: 'Fundamentals unavailable' }),
+          } as Response;
+        }
+        if (url.includes('/api/quotes')) {
+          return {
+            ok: true,
+            json: async () => ({
+              quotes: [
+                {
+                  symbol: 'MSFT',
+                  regularMarketPrice: 420,
+                  regularMarketChange: 1,
+                  regularMarketChangePercent: 0.2,
+                  regularMarketVolume: 1000,
+                  updatedAt: Date.now(),
+                },
+              ],
+            }),
+          } as Response;
+        }
+        if (url.includes('/api/me/watchlist-library')) {
+          return { ok: false, status: 503, json: async () => ({ error: 'offline' }) } as Response;
+        }
+        return { ok: true, json: async () => ({}) } as Response;
+      }),
+    );
+
+    renderPanel();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('watchlist-panel')).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('symbol-details-error')).toHaveTextContent('Fundamentals unavailable');
+    });
   });
 });

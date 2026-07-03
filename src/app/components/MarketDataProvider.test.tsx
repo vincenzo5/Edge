@@ -1,16 +1,24 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
-import { MarketDataProvider } from "./MarketDataProvider";
+import { MarketDataProvider, useMarketDataQuotes } from "./MarketDataProvider";
 import type { ChartLayout } from "@/lib/chartConfig";
 
-vi.mock("./watchlist/WatchlistContext", () => ({
-  useWatchlistActions: () => ({
-    state: {
-      watchlists: [{ id: "default", name: "Default", items: [{ symbol: "AAPL" }] }],
-      activeWatchlistId: "default",
-    },
-  }),
-}));
+class MockEventSource {
+  static instances: MockEventSource[] = [];
+  url: string;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: (() => void) | null = null;
+  closed = false;
+
+  constructor(url: string) {
+    this.url = url;
+    MockEventSource.instances.push(this);
+  }
+
+  close() {
+    this.closed = true;
+  }
+}
 
 vi.mock("./screener/ScreenerProvider", () => ({
   useScreenerStateOptional: () => null,
@@ -20,6 +28,17 @@ vi.mock("@/lib/marketData/telemetry", () => ({
   createMarketDataTraceId: () => "trace-test",
   marketDataTraceHeaders: () => ({}),
   recordMarketDataTelemetry: vi.fn(),
+}));
+
+const mockWatchlistState = {
+  watchlists: [{ id: "default", name: "Default", items: [{ symbol: "AAPL" }] }],
+  activeWatchlistId: "default",
+};
+
+vi.mock("./watchlist/WatchlistContext", () => ({
+  useWatchlistActions: () => ({
+    state: mockWatchlistState,
+  }),
 }));
 
 const layout: ChartLayout = {
@@ -34,9 +53,21 @@ const layout: ChartLayout = {
   linkDrawings: false,
 };
 
+function QuoteStatusProbe() {
+  const marketData = useMarketDataQuotes();
+  return (
+    <div>
+      <span data-testid="quote-transport">{marketData?.quotesTransport ?? "none"}</span>
+      <span data-testid="quote-error">{marketData?.quoteError ?? ""}</span>
+      <span data-testid="quote-count">{marketData?.quotesBySymbol.size ?? 0}</span>
+    </div>
+  );
+}
+
 describe("MarketDataProvider quotes", () => {
   beforeEach(() => {
-    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "0");
+    MockEventSource.instances = [];
+    vi.stubGlobal("EventSource", MockEventSource);
   });
 
   afterEach(() => {
@@ -45,6 +76,7 @@ describe("MarketDataProvider quotes", () => {
   });
 
   it("loads watchlist quotes via REST when SSE is disabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "0");
     const fetchMock = vi.fn(async (input: RequestInfo) => {
       const url = typeof input === "string" ? input : input.url;
       if (url.includes("/api/quotes")) {
@@ -82,6 +114,84 @@ describe("MarketDataProvider quotes", () => {
 
     await waitFor(() => {
       expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/quotes"))).toBe(true);
+    });
+  });
+
+  it("falls back to REST when SSE disconnects", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "1");
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/quotes")) {
+        return new Response(
+          JSON.stringify({
+            quotes: [
+              {
+                symbol: "AAPL",
+                regularMarketPrice: 150,
+                regularMarketChange: 2,
+                regularMarketChangePercent: 1.5,
+                regularMarketVolume: 2000,
+                updatedAt: Date.now(),
+              },
+            ],
+            meta: { source: "yahoo" },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/market-data/warmup")) {
+        return new Response(JSON.stringify({ ok: true, warmup: { phases: [] } }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MarketDataProvider layout={layout}>
+        <QuoteStatusProbe />
+      </MarketDataProvider>,
+    );
+
+    await waitFor(() => {
+      expect(MockEventSource.instances.length).toBeGreaterThan(0);
+    });
+
+    MockEventSource.instances[0]?.onerror?.();
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="quote-transport"]')?.textContent).toBe("rest");
+      expect(document.querySelector('[data-testid="quote-count"]')?.textContent).toBe("1");
+    });
+  });
+
+  it("sets quoteError when REST fallback fails", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "0");
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/quotes")) {
+        return new Response(JSON.stringify({ error: "Quotes unavailable" }), { status: 500 });
+      }
+      if (url.includes("/api/market-data/warmup")) {
+        return new Response(JSON.stringify({ ok: true, warmup: { phases: [] } }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MarketDataProvider layout={layout}>
+        <QuoteStatusProbe />
+      </MarketDataProvider>,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="quote-error"]')?.textContent).toMatch(
+        /Quotes unavailable|Failed to load quotes|500/i,
+      );
     });
   });
 });

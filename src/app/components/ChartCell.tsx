@@ -6,6 +6,7 @@ import DrawingToolbar, { resolveGroupSelections } from "./DrawingToolbar";
 import DrawingSelectionToolbar from "./DrawingSelectionToolbar";
 import ChartRangeBar from "./ChartRangeBar";
 import ChartCellDialogs from "./chart-cell/ChartCellDialogs";
+import ChartErrorBoundary from "./chart-cell/ChartErrorBoundary";
 import { useDrawingLayoutSync } from "./chart-cell/useDrawingLayoutSync";
 import { useRegisterActiveChart } from "./chart-cell/useRegisterActiveChart";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
@@ -99,6 +100,7 @@ export default function ChartCell({
 }: Props) {
   const chartRef = useRef<ChartHandle>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [chartRetryKey, setChartRetryKey] = useState(0);
   const [visibleCount, setVisibleCount] = useState<number | null>(null);
   const [candleCount, setCandleCount] = useState(0);
   const displayCandlesRef = useRef<Candle[]>([]);
@@ -1096,6 +1098,12 @@ export default function ChartCell({
       />
     ) : null;
 
+  const handleChartRetry = useCallback(() => {
+    setChartRetryKey((key) => key + 1);
+  }, []);
+
+  const chartReloadKey = (marketData?.reloadToken ?? 0) + chartRetryKey;
+
   return (
     <div
       className="flex h-full min-h-0 flex-col overflow-hidden"
@@ -1129,40 +1137,44 @@ export default function ChartCell({
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--edge-surface-chart)] p-px" ref={chartOverlayRef}>
-          <EdgeChart
-            ref={chartRef}
-            config={config}
-            theme={theme}
-            compact={compact}
-            visibleCount={visibleCount}
-            chartId={chartId}
-            reloadKey={marketData?.reloadToken ?? 0}
-            livePrice={liveQuotePrice}
-            liveMarketSession={liveMarketSession}
-            marketSessionLabel={marketSessionLabel}
-            legendContextSlot={legendContextSlot}
-            onCrosshairTimestamp={handleCrosshairFire}
-            onCrosshairMove={handleCrosshairMove}
-            suppressCrosshair={contextMenu != null}
-            onLegendAction={handleLegendAction}
-            onDrawingDisarmed={handleDrawingDisarmed}
-            onConfigChange={onConfigChange}
-            onOverlayRightClick={handleOverlayRightClick}
-            onChartContextMenu={handleChartContextMenu}
-            onPriceScaleContextMenu={handlePriceScaleContextMenu}
-            onRemoveIndicator={removeIndicator}
-            onCollapseIndicator={handleCollapsePane}
-            onMaximizeIndicator={handleMaximizePane}
-            onMoveIndicatorUp={handleMovePaneUp}
-            onMoveIndicatorDown={handleMovePaneDown}
-            onPaneHeightsChange={handlePaneHeightsChange}
-            onDataLoaded={handleDataLoaded}
-            onDataMetaChange={handleDataMetaChange}
-            onCandlesChange={handleCandlesChange}
-            collapsedKeys={collapsedKeys}
-            maximizedKey={maximizedKey}
-            paneOrder={paneOrder}
-          />
+          <ChartErrorBoundary resetKey={chartRetryKey} onRetry={handleChartRetry}>
+            <EdgeChart
+              key={chartRetryKey}
+              ref={chartRef}
+              config={config}
+              theme={theme}
+              compact={compact}
+              visibleCount={visibleCount}
+              chartId={chartId}
+              reloadKey={chartReloadKey}
+              onRetry={handleChartRetry}
+              livePrice={liveQuotePrice}
+              liveMarketSession={liveMarketSession}
+              marketSessionLabel={marketSessionLabel}
+              legendContextSlot={legendContextSlot}
+              onCrosshairTimestamp={handleCrosshairFire}
+              onCrosshairMove={handleCrosshairMove}
+              suppressCrosshair={contextMenu != null}
+              onLegendAction={handleLegendAction}
+              onDrawingDisarmed={handleDrawingDisarmed}
+              onConfigChange={onConfigChange}
+              onOverlayRightClick={handleOverlayRightClick}
+              onChartContextMenu={handleChartContextMenu}
+              onPriceScaleContextMenu={handlePriceScaleContextMenu}
+              onRemoveIndicator={removeIndicator}
+              onCollapseIndicator={handleCollapsePane}
+              onMaximizeIndicator={handleMaximizePane}
+              onMoveIndicatorUp={handleMovePaneUp}
+              onMoveIndicatorDown={handleMovePaneDown}
+              onPaneHeightsChange={handlePaneHeightsChange}
+              onDataLoaded={handleDataLoaded}
+              onDataMetaChange={handleDataMetaChange}
+              onCandlesChange={handleCandlesChange}
+              collapsedKeys={collapsedKeys}
+              maximizedKey={maximizedKey}
+              paneOrder={paneOrder}
+            />
+          </ChartErrorBoundary>
           {isActive && selectedDrawing && selectedOverlayId && (
             <DrawingSelectionToolbar
               theme={theme}

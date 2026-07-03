@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DEFAULT_LAYOUT } from '@/lib/chartConfig';
 import StockApp from './StockApp';
+import AppHydrationShell from './chart-cell/AppHydrationShell';
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -31,6 +32,19 @@ describe('StockApp', () => {
   beforeEach(() => {
     localStorageMock.clear();
     document.documentElement.className = '';
+  });
+
+  it('shows hydration shell before layout is loaded', () => {
+    render(<AppHydrationShell />);
+    expect(screen.getByTestId('app-hydration-shell')).toBeInTheDocument();
+  });
+
+  it('hides hydration shell after layout hydration completes', async () => {
+    render(<StockApp />);
+    await waitFor(() => {
+      expect(screen.queryByTestId('app-hydration-shell')).toBeNull();
+    });
+    expect(screen.getByTestId('chart-cell-0')).toBeInTheDocument();
   });
 
   it('renders a single chart header, chart grid, and sidebar rail', async () => {
