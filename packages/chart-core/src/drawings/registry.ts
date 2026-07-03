@@ -9,6 +9,7 @@ import { circle, fibRetracement } from './fib_retracement';
 import { priceLine, annotation } from './annotation';
 import { measure } from './measure';
 import { riskRuler } from './risk_ruler';
+import { ruler } from './ruler';
 
 const reg = new Map<string, DrawingPlugin>();
 
@@ -37,3 +38,4 @@ registerDrawing(priceLine);
 registerDrawing(annotation);
 registerDrawing(measure);
 registerDrawing(riskRuler);
+registerDrawing(ruler);

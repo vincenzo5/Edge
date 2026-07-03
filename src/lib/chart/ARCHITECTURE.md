@@ -48,7 +48,7 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 ## Plugin System
 
 - **Indicators**: register in `indicators/registry.ts`; implement compute + draw via `plugin-api.ts`.
-- **Drawings**: register in `drawings/registry.ts`; toolbar names aliased in `pluginHost.ts`.
+- **Drawings**: register in `drawings/registry.ts`; toolbar names aliased in `pluginHost.ts`. Utility tools include `measure` (bar/price line) and `ruler` (shaded Δtime/Δprice band; ⇧+click shortcut on price pane).
 - New plugins MUST follow existing patterns (`ma.ts`, `trend_line.ts`).
 
 ## Invariants

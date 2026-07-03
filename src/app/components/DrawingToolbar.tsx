@@ -12,6 +12,7 @@ import {
   LockAllIcon,
   MagnetIcon,
   MeasureIcon,
+  RulerIcon,
   RiskRulerIcon,
   TrashIcon,
   ZoomInIcon,
@@ -19,6 +20,7 @@ import {
 import {
   DRAWING_TOOL_GROUPS,
   MEASURE_TOOL,
+  RULER_TOOL,
   RISK_RULER_TOOL,
   findGroupForTool,
   initialGroupSelections,
@@ -206,6 +208,17 @@ export default function DrawingToolbar({
         onClick={() => selectTool(MEASURE_TOOL)}
       >
         <MeasureIcon size={iconSize} />
+      </ToolButton>
+
+      <ToolButton
+        title="Ruler (⇧+Click on chart)"
+        theme={theme}
+        active={activeTool === RULER_TOOL}
+        disabled={disabled}
+        compact={compact}
+        onClick={() => selectTool(RULER_TOOL)}
+      >
+        <RulerIcon size={iconSize} />
       </ToolButton>
 
       <ToolButton

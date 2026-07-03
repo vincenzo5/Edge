@@ -328,6 +328,7 @@ function drawDrawingsLayer(state: LayerDrawState): void {
     selectedDrawingId,
     hoveredDrawingId,
     showTimeAxis,
+    interval,
   } = state;
 
   for (const d of sortDrawingsByZ(drawings)) {
@@ -335,7 +336,7 @@ function drawDrawingsLayer(state: LayerDrawState): void {
     const plugin = DrawingRegistry.get(d.name);
     if (plugin) {
       const selected = d.id === selectedDrawingId;
-      plugin.draw(ctx, d, vp, theme, selected, candles, { showTimeAxis });
+      plugin.draw(ctx, d, vp, theme, selected, candles, { showTimeAxis, interval });
       if (d.metadata?.kind && d.points.length > 0) {
         const anchor = pointToPlot(d.points[0]!, vp, candles, showTimeAxis);
         drawAnnotationBadge(ctx, d, anchor, theme);
@@ -360,6 +361,7 @@ function drawDrawingsLayer(state: LayerDrawState): void {
       plugin.draw(ctx, previewDrawing, vp, theme, false, candles, {
         preview: true,
         showTimeAxis,
+        interval,
       });
       const points = plugin.getControlPoints?.(previewDrawing, vp, candles, showTimeAxis);
       if (points?.length) {

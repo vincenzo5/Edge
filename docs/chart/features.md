@@ -274,7 +274,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 
 **Toolbar design:** [drawing-toolbar-design.md](./drawing-toolbar-design.md) — grouped flyouts, utilities rail, icon system, persistence, phased TV parity.
 
-**Toolbar layout:** Left rail in `ChartCell` — cursor + 3 grouped flyouts (Lines, Channels & Shapes, Annotation) + utilities (zoom, measure, magnet, keep-drawing, lock-all, hide-all, delete, clear).
+**Toolbar layout:** Left rail in `ChartCell` — cursor + 3 grouped flyouts (Lines, Channels & Shapes, Annotation) + utilities (zoom, measure, ruler, magnet, keep-drawing, lock-all, hide-all, delete, clear).
 
 **Registry aliases** (`pluginHost.ts`): 13 drawing tool names mapped to registry keys (12 grouped + measure utility).
 
@@ -294,11 +294,12 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Price Line | `price_line` | **Done** |
 | Annotation | `annotation` | **Done** |
 | Measure (utility §6.9) | `measure` | **Done** (persisted; ephemeral in Phase 2) |
+| Ruler (utility §6.9) | `ruler` | **Done** — shaded Δtime/Δprice band; bar count + cumulative volume; ⇧+click on price pane or toolbar |
 
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Grouped toolbar flyouts | **Done** | Lines, Channels & Shapes, Annotation; hover (desktop) / pin (touch) |
-| Toolbar utilities rail | **Done** | Zoom, measure, magnet, keep-drawing, lock-all, hide-all, delete, clear |
+| Toolbar utilities rail | **Done** | Zoom, measure, ruler, magnet, keep-drawing, lock-all, hide-all, delete, clear |
 | Toolbar prefs persistence | **Done** | `ChartLayout.toolbarPrefs` — group selections, magnet, keep-drawing |
 | Start/stop drawing tool | **Done** | FSM: return to cursor after create unless keep-drawing ON |
 | Two-point create + preview | **Done** | Click-click or drag-release; dashed ghost |

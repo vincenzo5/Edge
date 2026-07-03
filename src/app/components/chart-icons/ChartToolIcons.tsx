@@ -50,6 +50,7 @@ export const TextAnnotationIcon = (p: IconProps) => (
   <ChartIcon {...p} id="text-annotation" />
 );
 export const MeasureIcon = (p: IconProps) => <ChartIcon {...p} id="measure" />;
+export const RulerIcon = (p: IconProps) => <ChartIcon {...p} id="ruler" />;
 export const RiskRulerIcon = (p: IconProps) => <ChartIcon {...p} id="risk-ruler" />;
 export const ZoomInIcon = (p: IconProps) => <ChartIcon {...p} id="zoom-in" />;
 export const MagnetIcon = (p: IconProps) => <ChartIcon {...p} id="magnet" />;
@@ -88,5 +89,6 @@ export const CHART_TOOL_ICONS = {
   priceLine: PriceLineIcon,
   simpleAnnotation: TextAnnotationIcon,
   measure: MeasureIcon,
+  rulerTool: RulerIcon,
   riskRuler: RiskRulerIcon,
 } as const;

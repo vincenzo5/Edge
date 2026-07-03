@@ -263,4 +263,13 @@ describe('EdgeChart drawing handle', () => {
     expect(onSelection).toHaveBeenCalledWith('d1');
     expect(ref.current!.getSelectedDrawingId()).toBe('d1');
   });
+
+  it('startDrawing rulerTool arms the ruler drawing plugin', async () => {
+    const ref = { current: null as import('./EdgeChart').ChartHandle | null };
+    render(<EdgeChart ref={ref} config={baseConfig} theme="dark" feed={testFeed} chartId="t1" />);
+    await waitFor(() => expect(ref.current).not.toBeNull());
+
+    ref.current!.startDrawing('rulerTool');
+    expect(ref.current!.serializeDrawings()).toEqual([]);
+  });
 });

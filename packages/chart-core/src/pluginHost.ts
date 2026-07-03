@@ -23,6 +23,7 @@ export const drawingAliases: Record<string, string> = {
   simpleAnnotation: 'annotation',
   measure: 'measure',
   riskRuler: 'risk_ruler',
+  rulerTool: 'ruler',
 };
 
 export const DrawingRegistry = {

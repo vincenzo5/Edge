@@ -202,7 +202,15 @@ export default function ChartCanvas({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const plot = clampPlot(x, y, width, height, showTimeAxis);
-    return { phase, plotX: plot.x, plotY: plot.y, button: e.button, detail: e.detail, paneId };
+    return {
+      phase,
+      plotX: plot.x,
+      plotY: plot.y,
+      button: e.button,
+      detail: e.detail,
+      shiftKey: e.shiftKey,
+      paneId,
+    };
   };
 
   const layoutViewport = useCallback(
@@ -232,7 +240,7 @@ export default function ChartCanvas({
     onViewportChange?.(vp, paneId);
   };
 
-  const applyCursor = useCallback((x: number, y: number, isDragging = isDraggingRef.current) => {
+  const applyCursor = useCallback((x: number, y: number, isDragging = isDraggingRef.current, shiftHeld = false) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const cursor = resolveHoverCursor(x, y, width, height, {
@@ -241,6 +249,7 @@ export default function ChartCanvas({
       isDragging,
       dragMode: isDragging ? dragModeRef.current : null,
       priceScaleSide,
+      shiftHeld,
     });
     if (appliedCursorRef.current === cursor) return;
     appliedCursorRef.current = cursor;
@@ -675,7 +684,7 @@ export default function ChartCanvas({
           plotX,
           plotY,
         });
-        applyCursor(x, y, false);
+        applyCursor(x, y, false, e.shiftKey);
         return;
       }
     }
@@ -689,7 +698,7 @@ export default function ChartCanvas({
       drawingDragRef.current = true;
       isDraggingRef.current = true;
       onDrawingPointerRef.current!(toPlotEvent(e, 'down'));
-      applyCursor(x, y, true);
+      applyCursor(x, y, true, e.shiftKey);
       return;
     }
 
@@ -702,7 +711,7 @@ export default function ChartCanvas({
       if (consumed) {
         drawingDragRef.current = true;
         isDraggingRef.current = true;
-        applyCursor(x, y, true);
+        applyCursor(x, y, true, e.shiftKey);
         return;
       }
     }
@@ -728,7 +737,7 @@ export default function ChartCanvas({
         activeGestureRef.current = { type: 'bodyPan' };
       }
     }
-    applyCursor(x, y, true);
+    applyCursor(x, y, true, e.shiftKey);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -739,7 +748,7 @@ export default function ChartCanvas({
     lastLocalRef.current = { x, y };
 
     if (isDraggingRef.current) {
-      applyCursor(x, y, true);
+      applyCursor(x, y, true, e.shiftKey);
 
       if (drawingDragRef.current && onDrawingPointerRef.current) {
         onDrawingPointerRef.current(toPlotEvent(e, 'move'));
@@ -822,7 +831,7 @@ export default function ChartCanvas({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => requestDraw('viewport'));
     } else {
-      applyCursor(x, y, false);
+      applyCursor(x, y, false, e.shiftKey);
 
       if (isPricePane && eventBadgeGroupsRef.current.length > 0) {
         const badge = hitTestEventBadgeAt(x, y);
@@ -925,7 +934,7 @@ export default function ChartCanvas({
     drawingDragRef.current = false;
     isDraggingRef.current = false;
     activeGestureRef.current = null;
-    applyCursor(lastLocalRef.current.x, lastLocalRef.current.y, false);
+    applyCursor(lastLocalRef.current.x, lastLocalRef.current.y, false, e?.shiftKey ?? false);
     if (dragModeRef.current === 'body' && Math.abs(momentumRef.current) > 1) {
       onUserTimePanRef.current?.();
       const loop = () => {

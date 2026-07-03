@@ -356,6 +356,46 @@ export function useDrawingController(deps: DrawingControllerDeps) {
       }
 
       if (event.phase === 'down') {
+        if (event.shiftKey && event.button === 0 && paneId === 'price') {
+          const fsm = state.fsm;
+          if (fsm === 'idle' || fsm === 'selected' || fsm === 'tool_armed') {
+            const shiftHitId = hitTestAll(
+              event.plotX,
+              event.plotY,
+              paneDrawings,
+              vp,
+              candlesRef.current,
+              showTimeAxis,
+            );
+            const selectedDrawing = state.selectedId
+              ? paneDrawings.find((d) => d.id === state.selectedId)
+              : null;
+            const selectedCpIdx =
+              selectedDrawing && !selectedDrawing.locked
+                ? hitTestControlPoint(
+                    event.plotX,
+                    event.plotY,
+                    selectedDrawing,
+                    vp,
+                    candlesRef.current,
+                    showTimeAxis,
+                  )
+                : -1;
+            if (!shiftHitId && selectedCpIdx < 0) {
+              const tool = 'ruler';
+              const draft = createDraftFromPoint(tool, getPoint(), vp, candlesRef.current);
+              if (draft) {
+                const paneDraft = stampPaneId(draft, paneId);
+                state = startPlacing(armTool(state, tool), paneDraft);
+                syncDrawingState(state);
+                setPreviewDrawing(paneDraft);
+                placingAnchorRef.current = { plotX: event.plotX, plotY: event.plotY };
+                return true;
+              }
+            }
+          }
+        }
+
         if (state.fsm === 'selected' && state.selectedId) {
           const drawing = paneDrawings.find((d) => d.id === state.selectedId);
           if (drawing && !drawing.locked) {

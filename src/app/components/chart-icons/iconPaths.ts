@@ -24,6 +24,7 @@ export type ChartIconId =
   | "price-line"
   | "text-annotation"
   | "measure"
+  | "ruler"
   | "risk-ruler"
   | "zoom-in"
   | "magnet"
@@ -117,6 +118,15 @@ export const CHART_ICON_MARKUP: Record<ChartIconId, string> = {
     <line x1="12" y1="16" x2="13.5" y2="14.5"/>
     <line x1="14.5" y1="13.5" x2="16" y2="12"/>
     <line x1="17" y1="11" x2="18.5" y2="9.5"/>
+  `,
+  ruler: `
+    <rect x="7" y="9" width="14" height="10" rx="1"/>
+    <line x1="7" y1="14" x2="21" y2="14"/>
+    <line x1="14" y1="9" x2="14" y2="19"/>
+    <line x1="7" y1="9" x2="5" y2="7"/>
+    <line x1="21" y1="9" x2="23" y2="7"/>
+    <line x1="21" y1="19" x2="23" y2="21"/>
+    <line x1="7" y1="19" x2="5" y2="21"/>
   `,
   "risk-ruler": `
     <line x1="6" y1="22" x2="22" y2="6"/>

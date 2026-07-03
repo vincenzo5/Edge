@@ -71,4 +71,23 @@ describe('drawingController FSM', () => {
     expect(drawingModeFromState(armed)).toBe('create');
     expect(shouldHideCrosshair(armed)).toBe(true);
   });
+
+  it('shift+click ruler path uses armTool + startPlacing', () => {
+    const vp = createViewport(candles, 800, 400, 2, 0);
+    let s = initialDrawingState();
+    s = startPlacing(armTool(s, 'ruler'), {
+      name: 'ruler',
+      label: 'Ruler',
+      points: [
+        { timestamp: 1000, value: 100, dataIndex: 0 },
+        { timestamp: 1000, value: 100, dataIndex: 0 },
+      ],
+      visible: true,
+      locked: false,
+      zLevel: 0,
+    });
+    expect(s.fsm).toBe('placing');
+    expect(s.activeTool).toBe('ruler');
+    expect(s.placingDraft?.name).toBe('ruler');
+  });
 });

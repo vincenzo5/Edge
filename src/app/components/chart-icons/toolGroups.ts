@@ -50,6 +50,7 @@ export const DRAWING_TOOL_GROUPS: ToolGroup[] = [
 
 /** Standalone utility tools (TV §6.9) — not in a flyout group. */
 export const MEASURE_TOOL: DrawingToolName = "measure";
+export const RULER_TOOL: DrawingToolName = "rulerTool";
 export const RISK_RULER_TOOL: DrawingToolName = "riskRuler";
 
 const ALL_GROUPED = new Set(

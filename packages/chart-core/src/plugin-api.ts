@@ -1,7 +1,7 @@
 // src/lib/chart/plugin-api.ts
 // Minimal plugin interfaces for indicators and drawings
 
-import type { Candle, VisibleRange, Theme, SerializedDrawing, LineStyleOverride, IndicatorConfig } from './contracts';
+import type { Candle, VisibleRange, Theme, SerializedDrawing, LineStyleOverride, IndicatorConfig, Interval } from './contracts';
 import type { DrawingPoint } from './drawingCoords';
 import type { LegendValueEntry, SeriesOutput } from './legend/types';
 import type { PriceAxisAnnotation } from './priceAxisTypes';
@@ -84,6 +84,12 @@ export interface IndicatorPlugin {
 
 export type DrawingPlacement = 'one-point' | 'two-point' | 'multi-point';
 
+export type DrawingDrawOptions = {
+  preview?: boolean;
+  showTimeAxis?: boolean;
+  interval?: Interval;
+};
+
 export interface DrawingPlugin {
   name: string;
   defaultLabel?: string;
@@ -106,7 +112,7 @@ export interface DrawingPlugin {
     theme: Theme,
     selected: boolean,
     candles: Candle[],
-    opts?: { preview?: boolean; showTimeAxis?: boolean }
+    opts?: DrawingDrawOptions
   ) => void;
   hitTest: (
     plotX: number,

@@ -23,6 +23,8 @@ export type CursorContext = {
   activeTool: string;
   isDragging: boolean;
   dragMode: DragMode | null;
+  /** Shift held on price pane — hints ruler shortcut. */
+  shiftHeld?: boolean;
 };
 
 export function plotLeftOffset(side: PriceScaleSide = 'right'): number {
@@ -81,6 +83,8 @@ export function resolveHoverCursor(
   );
   if (zone === 'price') return 'ns-resize';
   if (zone === 'timeAxis') return 'crosshair';
+
+  if (ctx.shiftHeld && zone === 'body') return 'crosshair';
 
   if (isDrawingToolActive(ctx.activeTool)) return 'crosshair';
   return 'crosshair';
