@@ -196,6 +196,12 @@ export default function ChartCanvas({
   onEventBadgeHoverRef.current = onEventBadgeHover;
   const selectedEventBadgeIdRef = useRef(selectedEventBadgeId);
   selectedEventBadgeIdRef.current = selectedEventBadgeId;
+  type DragCrosshairAnchor = {
+    dataIndex: number;
+    timestamp: number | null;
+    price: number;
+  };
+  const dragCrosshairAnchorRef = useRef<DragCrosshairAnchor | null>(null);
 
   const toPlotEvent = (e: React.MouseEvent, phase: DrawingPointerEvent['phase']): DrawingPointerEvent => {
     const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
@@ -659,6 +665,121 @@ export default function ChartCanvas({
     drawNow('data');
   }, [drawWithReasons, drawNow]);
 
+  const emitCrosshairMove = useCallback(
+    (localX: number, localY: number, anchor: DragCrosshairAnchor | null) => {
+      if (suppressCrosshairRef.current || !vpRef.current) return;
+
+      const vp = layoutViewport(vpRef.current);
+      const pw = plotWidth(width, priceScaleSide);
+      const ph = plotHeight(
+        height,
+        showTimeAxis,
+        isPricePane && eventMarkers.length > 0 && showTimeAxis,
+      );
+      const plotOffset = isPricePane ? plotLeftOffset(priceScaleSide) : 0;
+      const lockedPlotX = chartSettingsRef.current.canvas.lockCrosshairToTime
+        ? chartSettingsRef.current.canvas.lockedCrosshairPlotX
+        : null;
+      const useLockedPlotX =
+        typeof lockedPlotX === 'number' && Number.isFinite(lockedPlotX);
+
+      let crosshairX: number;
+      let plotY: number;
+      let idx: number;
+
+      if (anchor && !useLockedPlotX) {
+        idx = anchor.dataIndex;
+        crosshairX = vp.xForIndex(idx);
+        plotY = Math.max(0, Math.min(ph, vp.yForPrice(anchor.price)));
+      } else {
+        const pointerCrosshairX = Math.max(0, Math.min(pw, localX - plotOffset));
+        crosshairX = useLockedPlotX
+          ? Math.max(0, Math.min(pw, lockedPlotX))
+          : pointerCrosshairX;
+        plotY = Math.max(0, Math.min(ph, localY));
+        idx = vp.indexForX(crosshairX);
+      }
+
+      const candle = idx >= 0 && idx < candles.length ? candles[idx] : null;
+      const timeLabel = candle ? formatAxisTime(candle.t, interval) : '';
+      const valueLabel = formatCrosshairValue(
+        paneId,
+        plotY,
+        vp,
+        candles,
+        idx,
+        indicators,
+        showTimeAxis,
+      );
+
+      onCrosshairMoveRef.current?.({
+        paneId,
+        plotX: crosshairX,
+        plotY,
+        localY: anchor && !useLockedPlotX ? plotY : localY,
+        timestamp: anchor && !useLockedPlotX ? anchor.timestamp : candle?.t ?? null,
+        dataIndex: idx,
+        valueLabel,
+        timeLabel,
+      });
+    },
+    [
+      candles,
+      eventMarkers.length,
+      height,
+      indicators,
+      interval,
+      isPricePane,
+      layoutViewport,
+      paneId,
+      priceScaleSide,
+      showTimeAxis,
+      width,
+    ],
+  );
+
+  const captureDragCrosshairAnchor = useCallback(
+    (localX: number, localY: number): DragCrosshairAnchor | null => {
+      if (!vpRef.current) return null;
+
+      const vp = layoutViewport(vpRef.current);
+      const pw = plotWidth(width, priceScaleSide);
+      const ph = plotHeight(
+        height,
+        showTimeAxis,
+        isPricePane && eventMarkers.length > 0 && showTimeAxis,
+      );
+      const plotOffset = isPricePane ? plotLeftOffset(priceScaleSide) : 0;
+      const pointerCrosshairX = Math.max(0, Math.min(pw, localX - plotOffset));
+      const lockedPlotX = chartSettingsRef.current.canvas.lockCrosshairToTime
+        ? chartSettingsRef.current.canvas.lockedCrosshairPlotX
+        : null;
+      const crosshairX =
+        typeof lockedPlotX === 'number' && Number.isFinite(lockedPlotX)
+          ? Math.max(0, Math.min(pw, lockedPlotX))
+          : pointerCrosshairX;
+      const plotY = Math.max(0, Math.min(ph, localY));
+      const idx = vp.indexForX(crosshairX);
+      const candle = idx >= 0 && idx < candles.length ? candles[idx] : null;
+
+      return {
+        dataIndex: idx,
+        timestamp: candle?.t ?? null,
+        price: vp.priceForY(plotY),
+      };
+    },
+    [
+      candles,
+      eventMarkers.length,
+      height,
+      isPricePane,
+      layoutViewport,
+      priceScaleSide,
+      showTimeAxis,
+      width,
+    ],
+  );
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
@@ -695,6 +816,7 @@ export default function ChartCanvas({
       drawingModeRef.current !== 'navigate';
 
     if (useDrawing) {
+      dragCrosshairAnchorRef.current = null;
       drawingDragRef.current = true;
       isDraggingRef.current = true;
       onDrawingPointerRef.current!(toPlotEvent(e, 'down'));
@@ -709,6 +831,7 @@ export default function ChartCanvas({
     ) {
       const consumed = onDrawingPointerRef.current(toPlotEvent(e, 'down'));
       if (consumed) {
+        dragCrosshairAnchorRef.current = null;
         drawingDragRef.current = true;
         isDraggingRef.current = true;
         applyCursor(x, y, true, e.shiftKey);
@@ -720,6 +843,10 @@ export default function ChartCanvas({
     lastXRef.current = e.clientX;
     lastYRef.current = e.clientY;
     momentumRef.current = 0;
+    dragCrosshairAnchorRef.current =
+      isPlotBody(x, y) && drawingModeRef.current === 'navigate'
+        ? captureDragCrosshairAnchor(x, y)
+        : null;
     if (vpRef.current) {
       if (dragModeRef.current === 'price') {
         activeGestureRef.current = {
@@ -828,6 +955,16 @@ export default function ChartCanvas({
         vpRef.current = vp;
         emitViewport(vp);
       }
+      if (!suppressCrosshairRef.current) {
+        const locked = chartSettingsRef.current.canvas.lockCrosshairToTime;
+        if (locked || dragCrosshairAnchorRef.current) {
+          emitCrosshairMove(
+            x,
+            y,
+            locked ? null : dragCrosshairAnchorRef.current,
+          );
+        }
+      }
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => requestDraw('viewport'));
     } else {
@@ -875,48 +1012,7 @@ export default function ChartCanvas({
 
       if (suppressCrosshairRef.current) return;
 
-      const vp = layoutViewport(vpRef.current);
-      const pw = plotWidth(width, priceScaleSide);
-      const ph = plotHeight(
-        height,
-        showTimeAxis,
-        isPricePane && eventMarkers.length > 0 && showTimeAxis,
-      );
-      const plotOffset = isPricePane ? plotLeftOffset(priceScaleSide) : 0;
-      const pointerCrosshairX = Math.max(0, Math.min(pw, x - plotOffset));
-      const lockedPlotX = chartSettingsRef.current.canvas.lockCrosshairToTime
-        ? chartSettingsRef.current.canvas.lockedCrosshairPlotX
-        : null;
-      const crosshairX =
-        typeof lockedPlotX === 'number' && Number.isFinite(lockedPlotX)
-          ? Math.max(0, Math.min(pw, lockedPlotX))
-          : pointerCrosshairX;
-      const plotY = Math.max(0, Math.min(ph, y));
-
-      let idx = vp.indexForX(crosshairX);
-
-      const candle = idx >= 0 && idx < candles.length ? candles[idx] : null;
-      const timeLabel = candle ? formatAxisTime(candle.t, interval) : '';
-      const valueLabel = formatCrosshairValue(
-        paneId,
-        plotY,
-        vp,
-        candles,
-        idx,
-        indicators,
-        showTimeAxis
-      );
-
-      onCrosshairMoveRef.current?.({
-        paneId,
-        plotX: crosshairX,
-        plotY,
-        localY: y,
-        timestamp: candle?.t ?? null,
-        dataIndex: idx,
-        valueLabel,
-        timeLabel,
-      });
+      emitCrosshairMove(x, y, null);
     }
   };
 
@@ -933,6 +1029,7 @@ export default function ChartCanvas({
     }
     drawingDragRef.current = false;
     isDraggingRef.current = false;
+    dragCrosshairAnchorRef.current = null;
     activeGestureRef.current = null;
     applyCursor(lastLocalRef.current.x, lastLocalRef.current.y, false, e?.shiftKey ?? false);
     if (dragModeRef.current === 'body' && Math.abs(momentumRef.current) > 1) {

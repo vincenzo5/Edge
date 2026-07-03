@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import type React from 'react';
 import { render, fireEvent } from '@testing-library/react';
 import ChartCanvas from './canvas';
 import type { ChartPaneHandle } from './paneHandle';
@@ -13,7 +14,11 @@ const candles: Candle[] = Array.from({ length: 200 }, (_, i) => ({
   c: 11 + i * 0.1,
 }));
 
-function renderChartCanvas(width = 800, height = 400) {
+function renderChartCanvas(
+  width = 800,
+  height = 400,
+  extraProps: Partial<React.ComponentProps<typeof ChartCanvas>> = {},
+) {
   const onViewportChange = vi.fn();
   const handleRef = { current: null as ChartPaneHandle | null };
   const registerPane = (handle: ChartPaneHandle) => {
@@ -32,6 +37,7 @@ function renderChartCanvas(width = 800, height = 400) {
       height={height}
       registerPane={registerPane}
       onViewportChange={onViewportChange}
+      {...extraProps}
     />,
   );
 
@@ -273,5 +279,75 @@ describe('ChartCanvas axis drag', () => {
 
     const afterTimeScale = getHandle().getViewport()!;
     expect(afterTimeScale.endIndex - afterTimeScale.startIndex).toBeLessThan(visibleAfterPan);
+  });
+});
+
+describe('ChartCanvas crosshair during pan', () => {
+  function plotBodyClientX(width: number) {
+    return (width - PRICE_AXIS_WIDTH) / 2;
+  }
+
+  it('keeps crosshair anchored to the clicked chart position while panning', () => {
+    const width = 800;
+    const height = 400;
+    const onCrosshairMove = vi.fn();
+    const { container, getHandle } = renderChartCanvas(width, height, { onCrosshairMove });
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('canvas not found');
+
+    const bodyX = plotBodyClientX(width);
+    const y = height / 2;
+
+    fireEvent.mouseMove(canvas, { clientX: bodyX, clientY: y });
+    const hoverEvent = onCrosshairMove.mock.calls.at(-1)?.[0];
+    expect(hoverEvent).toBeDefined();
+
+    onCrosshairMove.mockClear();
+    fireEvent.mouseDown(canvas, { clientX: bodyX, clientY: y });
+    fireEvent.mouseMove(canvas, { clientX: bodyX - 80, clientY: y });
+
+    const panEvent = onCrosshairMove.mock.calls.at(-1)?.[0];
+    expect(panEvent).toBeDefined();
+    expect(panEvent.dataIndex).toBe(hoverEvent.dataIndex);
+    expect(panEvent.plotX).not.toBe(hoverEvent.plotX);
+
+    const vp = getHandle().getViewport()!;
+    expect(panEvent.plotX).toBeCloseTo(vp.xForIndex(hoverEvent.dataIndex), 1);
+    expect(panEvent.localY).toBe(panEvent.plotY);
+
+    fireEvent.mouseUp(canvas);
+  });
+
+  it('keeps horizontal crosshair at the anchored price while panning', () => {
+    const width = 800;
+    const height = 400;
+    const onCrosshairMove = vi.fn();
+    const { container, getHandle } = renderChartCanvas(width, height, { onCrosshairMove });
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('canvas not found');
+
+    const bodyX = plotBodyClientX(width);
+    const y = height / 2;
+
+    fireEvent.mouseMove(canvas, { clientX: bodyX, clientY: y });
+    const hoverEvent = onCrosshairMove.mock.calls.at(-1)?.[0];
+    expect(hoverEvent).toBeDefined();
+
+    const vpBefore = getHandle().getViewport()!;
+    const anchoredPrice = vpBefore.priceForY(hoverEvent.plotY);
+
+    onCrosshairMove.mockClear();
+    fireEvent.mouseDown(canvas, { clientX: bodyX, clientY: y });
+    fireEvent.mouseMove(canvas, { clientX: bodyX - 80, clientY: y + 25 });
+
+    const panEvent = onCrosshairMove.mock.calls.at(-1)?.[0];
+    expect(panEvent).toBeDefined();
+    expect(panEvent.localY).toBe(panEvent.plotY);
+
+    const vpAfter = getHandle().getViewport()!;
+    expect(vpAfter.priceForY(panEvent.plotY)).toBeCloseTo(anchoredPrice, 4);
+    expect(panEvent.plotY).toBeCloseTo(vpAfter.yForPrice(anchoredPrice), 1);
+
+    fireEvent.mouseUp(canvas);
   });
 });
