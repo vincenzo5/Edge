@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  getDocsStatusLines,
+  buildDocsPrompt,
+  getPathsChangedSince,
   hookExitCodeForDocsChange,
+  isEditableDocPath,
+  parseArgs,
   parsePrePushInput,
   parsePrePushLine,
+  runDocsUpdate,
   shouldSkipDiff,
 } from "./update-docs-for-diff.mts";
 
@@ -57,6 +61,7 @@ describe("shouldSkipDiff", () => {
       shouldSkipDiff([
         ".githooks/pre-push",
         "scripts/update-docs-for-diff.mts",
+        "scripts/docs-automation-framework.mts",
         "package.json",
       ]),
     ).toBe(true);
@@ -70,20 +75,47 @@ describe("shouldSkipDiff", () => {
   });
 });
 
-describe("getDocsStatusLines", () => {
-  it("filters porcelain output to docs paths", () => {
-    const lines = [
-      " M docs/PROJECT-STATUS.md",
-      " M src/lib/marketData/health.ts",
-      "?? AGENTS.md",
-      " M .cursor/rules/plan-harness-awareness.mdc",
-    ];
+describe("parseArgs", () => {
+  it("parses sdk-smoke mode", () => {
+    expect(parseArgs(["--sdk-smoke"]).mode).toBe("sdk-smoke");
+  });
 
-    expect(getDocsStatusLines(lines)).toEqual([
-      " M docs/PROJECT-STATUS.md",
-      "?? AGENTS.md",
-      " M .cursor/rules/plan-harness-awareness.mdc",
-    ]);
+  it("parses lane and evidence flags", () => {
+    expect(parseArgs(["--lane", "drift-audit", "--evidence-file", "evidence.txt"])).toMatchObject({
+      mode: "manual",
+      lane: "drift-audit",
+      evidenceFile: "evidence.txt",
+    });
+  });
+});
+
+describe("buildDocsPrompt", () => {
+  it("includes architecture routing and excludes harness without evidence", () => {
+    const prompt = buildDocsPrompt(
+      [{ base: "abc", head: "def" }],
+      ["src/lib/marketData/health.ts"],
+    );
+    expect(prompt).toContain("Lane: architecture");
+    expect(prompt).toContain("src/lib/marketData/ARCHITECTURE.md");
+    expect(prompt).toContain("Do NOT edit docs/PROJECT-STATUS.md");
+  });
+});
+
+describe("getPathsChangedSince", () => {
+  it("detects newly modified paths", () => {
+    const before = [" M src/lib/marketData/health.ts"];
+    const after = [
+      " M src/lib/marketData/health.ts",
+      " M src/lib/marketData/ARCHITECTURE.md",
+    ];
+    expect(getPathsChangedSince(before, after)).toEqual(["src/lib/marketData/ARCHITECTURE.md"]);
+  });
+});
+
+describe("isEditableDocPath", () => {
+  it("recognizes architecture docs as editable doc paths", () => {
+    expect(isEditableDocPath("src/lib/marketData/ARCHITECTURE.md")).toBe(true);
+    expect(isEditableDocPath("src/lib/marketData/health.ts")).toBe(false);
   });
 });
 
@@ -94,5 +126,111 @@ describe("hookExitCodeForDocsChange", () => {
 
   it("blocks push when docs changed", () => {
     expect(hookExitCodeForDocsChange([" M docs/PROJECT-STATUS.md"])).toBe(2);
+  });
+});
+
+describe("runDocsUpdate guardrails", () => {
+  it("blocks harness lane without evidence", async () => {
+    vi.stubEnv("CURSOR_API_KEY", "cursor_test_key");
+
+    const exitCode = await runDocsUpdate({
+      ranges: [{ base: "abc", head: "def" }],
+      lane: "harness",
+      changedFiles: ["src/lib/marketData/health.ts"],
+      runAgent: vi.fn(),
+    });
+
+    vi.unstubAllEnvs();
+    expect(exitCode).toBe(2);
+  });
+
+  it("blocks when agent edits non-doc paths", async () => {
+    vi.stubEnv("CURSOR_API_KEY", "cursor_test_key");
+
+    let porcelainCall = 0;
+    const getFullPorcelainFn = () => {
+      porcelainCall += 1;
+      return porcelainCall === 1 ? [] : [" M src/lib/marketData/health.ts"];
+    };
+
+    const exitCode = await runDocsUpdate({
+      ranges: [{ base: "abc", head: "def" }],
+      changedFiles: ["src/lib/marketData/health.ts"],
+      runAgent: async () => ({
+        status: "finished",
+        result: "updated: src/lib/marketData/ARCHITECTURE.md",
+        durationMs: 1,
+      }),
+      validateInstructions: () => ({ ok: true, output: "ok" }),
+      getFullPorcelainFn,
+      getDocsPorcelainFn: () => [],
+    });
+
+    vi.unstubAllEnvs();
+    expect(exitCode).toBe(2);
+  });
+
+  it("blocks allowlist violations for doc edits", async () => {
+    vi.stubEnv("CURSOR_API_KEY", "cursor_test_key");
+
+    let porcelainCall = 0;
+    const getFullPorcelainFn = () => {
+      porcelainCall += 1;
+      return porcelainCall === 1 ? [] : [" M docs/screener-roadmap.md"];
+    };
+
+    const exitCode = await runDocsUpdate({
+      ranges: [{ base: "abc", head: "def" }],
+      changedFiles: ["src/lib/marketData/health.ts"],
+      runAgent: async () => ({
+        status: "finished",
+        result: "updated: docs/screener-roadmap.md",
+        durationMs: 1,
+      }),
+      validateInstructions: () => ({ ok: true, output: "ok" }),
+      getFullPorcelainFn,
+      getDocsPorcelainFn: () => [" M docs/screener-roadmap.md"],
+    });
+
+    vi.unstubAllEnvs();
+    expect(exitCode).toBe(2);
+  });
+
+  it("runs lint:instructions when harness doc changes", async () => {
+    vi.stubEnv("CURSOR_API_KEY", "cursor_test_key");
+    const validateInstructions = vi.fn(() => ({ ok: true, output: "passed" }));
+    const runAgent = vi.fn(async () => ({
+      status: "finished",
+      result: "updated: docs/PROJECT-STATUS.md",
+      durationMs: 5,
+    }));
+
+    let fullPorcelainCall = 0;
+    const getFullPorcelainFn = () => {
+      fullPorcelainCall += 1;
+      return fullPorcelainCall === 1 ? [] : [" M docs/PROJECT-STATUS.md"];
+    };
+
+    let docsPorcelainCall = 0;
+    const getDocsPorcelainFn = () => {
+      docsPorcelainCall += 1;
+      return docsPorcelainCall === 1 ? [] : [" M docs/PROJECT-STATUS.md"];
+    };
+
+    const exitCode = await runDocsUpdate({
+      ranges: [{ base: "abc", head: "def" }],
+      changedFiles: ["src/lib/marketData/health.ts"],
+      evidenceText: "Tests 42 passed",
+      runAgent,
+      validateInstructions,
+      getFullPorcelainFn,
+      getDocsPorcelainFn,
+    });
+
+    vi.unstubAllEnvs();
+
+    expect(exitCode).toBe(2);
+    expect(runAgent.mock.calls[0]?.[0]).toContain("Lane: harness");
+    expect(validateInstructions).toHaveBeenCalled();
   });
 });

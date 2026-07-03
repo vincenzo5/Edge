@@ -9,10 +9,21 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { Agent, CursorAgentError } from "@cursor/sdk";
+import {
+  buildCombinedDocsPrompt,
+  buildDocImpactMap,
+  parseAgentSummary,
+  pathsFromPorcelain,
+  requiresInstructionValidation,
+  validateAllowlist,
+  validateSummaryAgainstChanges,
+  type AutomationLane,
+  type DiffRange,
+} from "./docs-automation-framework";
 
 config({ path: ".env.local" });
 
-export type DiffRange = { base: string; head: string; remoteRef?: string };
+export type { DiffRange } from "./docs-automation-framework";
 
 export type PrePushLine = {
   localRef: string;
@@ -29,9 +40,12 @@ const SKIP_DIFF_PATTERNS: RegExp[] = [
   /^\.cursor\/rules\//,
   /^\.githooks\//,
   /^scripts\/update-docs-for-diff\.(mts|test\.ts)$/,
+  /^scripts\/docs-automation-framework\.(mts|test\.ts)$/,
   /^package\.json$/,
   /^package-lock\.json$/,
 ];
+
+const DEFAULT_AGENT_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Parse one pre-push stdin line: `<local ref> <local sha> <remote ref> <remote sha>`. */
 export function parsePrePushLine(line: string): PrePushLine | null {
@@ -124,34 +138,34 @@ export function getDocsPorcelain(cwd = process.cwd()): string[] {
     .filter(Boolean);
 }
 
-export function buildDocsPrompt(ranges: DiffRange[]): string {
-  const rangeText = ranges
-    .map((range) => `- base: ${range.base}, head: ${range.head}`)
-    .join("\n");
+export function getFullPorcelain(cwd = process.cwd()): string[] {
+  const output = execGit(["status", "--porcelain"], cwd);
+  return output
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter(Boolean);
+}
 
-  return `You are updating documentation for a local git push in the Edge charting repo.
+/** Paths with new or modified porcelain lines since a prior snapshot. */
+export function getPathsChangedSince(before: string[], after: string[]): string[] {
+  const beforeSet = new Set(before.map((line) => line.trim()));
+  const newLines = after.filter((line) => !beforeSet.has(line.trim()));
+  return pathsFromPorcelain(newLines);
+}
 
-Inspect the diff for these commit ranges:
-${rangeText}
+export function isEditableDocPath(path: string): boolean {
+  return (
+    path.startsWith("docs/") ||
+    path === "AGENTS.md" ||
+    path.startsWith(".cursor/rules/") ||
+    path.endsWith("/ARCHITECTURE.md")
+  );
+}
 
-Use git to inspect changes, for example:
-git diff --stat <base>...<head>
-git log --oneline <base>..<head>
-
-Update existing documentation only when the code change clearly requires it. Follow this routing:
-- docs/PROJECT-STATUS.md for active work, verification, and handoff state
-- nearest ARCHITECTURE.md for durable architecture or API changes
-- docs/chart/features.md for chart feature status
-- docs/ai-tools-architecture.md for AI tool behavior
-- other existing docs only when directly relevant
-
-Rules:
-- Do not create new documentation files unless absolutely necessary.
-- Do not edit source code, tests, or config outside docs/.
-- Leave all changes unstaged.
-- If docs are already current, make no edits.
-
-When finished, reply with a one-line summary: either "no docs update needed" or "updated: <paths>".`;
+/** @deprecated Use buildCombinedDocsPrompt via runDocsUpdate. Kept for backward-compatible tests. */
+export function buildDocsPrompt(ranges: DiffRange[], changedFiles: string[] = []): string {
+  const impact = buildDocImpactMap({ changedFiles, evidenceProvided: false });
+  return buildCombinedDocsPrompt(ranges, impact);
 }
 
 export function buildSdkSmokePrompt(): string {
@@ -163,10 +177,25 @@ export function parseArgs(argv: string[]): {
   base?: string;
   head?: string;
   prePushInput?: string;
+  lane?: AutomationLane;
+  evidenceFile?: string;
 } {
   if (argv.includes("--sdk-smoke")) {
     return { mode: "sdk-smoke" };
   }
+
+  const laneIndex = argv.indexOf("--lane");
+  const laneRaw = laneIndex !== -1 ? argv[laneIndex + 1] : undefined;
+  const lane =
+    laneRaw === "architecture" || laneRaw === "harness" || laneRaw === "drift-audit"
+      ? laneRaw
+      : undefined;
+
+  const evidenceIndex = argv.indexOf("--evidence-file");
+  const evidenceFile =
+    evidenceIndex !== -1 && argv[evidenceIndex + 1] && !argv[evidenceIndex + 1]!.startsWith("-")
+      ? argv[evidenceIndex + 1]
+      : undefined;
 
   if (argv.includes("--pre-push")) {
     const prePushIndex = argv.indexOf("--pre-push");
@@ -174,6 +203,8 @@ export function parseArgs(argv: string[]): {
     return {
       mode: "pre-push",
       prePushInput: prePushInput && !prePushInput.startsWith("-") ? prePushInput : undefined,
+      lane,
+      evidenceFile,
     };
   }
 
@@ -184,25 +215,78 @@ export function parseArgs(argv: string[]): {
       mode: "manual",
       base: argv[baseIndex + 1],
       head: argv[headIndex + 1],
+      lane,
+      evidenceFile,
     };
   }
 
-  return { mode: "manual" };
+  return { mode: "manual", lane, evidenceFile };
 }
 
-async function runLocalAgent(prompt: string, cwd: string): Promise<{ status: string; result?: string }> {
+export function runInstructionValidation(cwd = process.cwd()): { ok: boolean; output: string } {
+  try {
+    const output = execFileSync("npm", ["run", "lint:instructions"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return { ok: true, output };
+  } catch (error) {
+    const err = error as { stdout?: string; stderr?: string; message?: string };
+    const output = [err.stdout, err.stderr, err.message].filter(Boolean).join("\n");
+    return { ok: false, output };
+  }
+}
+
+async function runLocalAgent(
+  prompt: string,
+  cwd: string,
+  timeoutMs = DEFAULT_AGENT_TIMEOUT_MS,
+): Promise<{ status: string; result?: string; durationMs: number }> {
   const apiKey = process.env.CURSOR_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("CURSOR_API_KEY is not set");
   }
 
-  const result = await Agent.prompt(prompt, {
+  const model = process.env.CURSOR_DOCS_MODEL ?? "auto";
+  const started = Date.now();
+
+  const agentPromise = Agent.prompt(prompt, {
     apiKey,
-    model: { id: process.env.CURSOR_DOCS_MODEL ?? "auto" },
-    local: { cwd, settingSources: [] },
+    model: { id: model },
+    local: { cwd, settingSources: ["project"] },
   });
 
-  return { status: result.status, result: result.result };
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`Agent timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([agentPromise, timeoutPromise]);
+    return {
+      status: result.status,
+      result: result.result,
+      durationMs: Date.now() - started,
+    };
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
+}
+
+function readEvidenceFile(path: string | undefined, cwd: string): string | undefined {
+  if (!path) return undefined;
+  const fullPath = path.startsWith("/") ? path : `${cwd}/${path}`;
+  return readFileSync(fullPath, "utf8");
+}
+
+function logRunMeta(meta: Record<string, string | number | boolean | undefined>): void {
+  const parts = Object.entries(meta)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${key}=${value}`);
+  console.log(`docs:auto-update ${parts.join(" ")}`);
 }
 
 export async function runDocsUpdate(options: {
@@ -210,8 +294,20 @@ export async function runDocsUpdate(options: {
   cwd?: string;
   hookMode?: boolean;
   sdkSmoke?: boolean;
+  lane?: AutomationLane;
+  evidenceFile?: string;
+  evidenceText?: string;
+  changedFiles?: string[];
+  runAgent?: (prompt: string, cwd: string) => Promise<{ status: string; result?: string; durationMs: number }>;
+  validateInstructions?: (cwd: string) => { ok: boolean; output: string };
+  getFullPorcelainFn?: (cwd: string) => string[];
+  getDocsPorcelainFn?: (cwd: string) => string[];
 }): Promise<number> {
   const cwd = options.cwd ?? process.cwd();
+  const runAgent = options.runAgent ?? runLocalAgent;
+  const validateInstructions = options.validateInstructions ?? runInstructionValidation;
+  const readFullPorcelain = options.getFullPorcelainFn ?? getFullPorcelain;
+  const readDocsPorcelain = options.getDocsPorcelainFn ?? getDocsPorcelain;
 
   if (options.sdkSmoke) {
     const apiKey = process.env.CURSOR_API_KEY?.trim();
@@ -220,8 +316,8 @@ export async function runDocsUpdate(options: {
       return 1;
     }
     try {
-      const result = await runLocalAgent(buildSdkSmokePrompt(), cwd);
-      console.log(`docs:auto-update SDK smoke status=${result.status}`);
+      const result = await runAgent(buildSdkSmokePrompt(), cwd);
+      logRunMeta({ mode: "sdk-smoke", status: result.status, durationMs: result.durationMs });
       if (result.result) console.log(result.result.trim());
       return result.status === "finished" ? 0 : 2;
     } catch (error) {
@@ -229,9 +325,9 @@ export async function runDocsUpdate(options: {
     }
   }
 
-  const changedFiles = options.ranges.flatMap((range) =>
-    getChangedFilesInRange(range.base, range.head, cwd),
-  );
+  const changedFiles =
+    options.changedFiles ??
+    options.ranges.flatMap((range) => getChangedFilesInRange(range.base, range.head, cwd));
   const uniqueChanged = [...new Set(changedFiles)];
 
   if (shouldSkipDiff(uniqueChanged)) {
@@ -247,22 +343,105 @@ export async function runDocsUpdate(options: {
     return 0;
   }
 
-  const beforeDocs = getDocsPorcelain(cwd);
-  const prompt = buildDocsPrompt(options.ranges);
+  const evidenceText =
+    options.evidenceText ?? readEvidenceFile(options.evidenceFile, cwd);
+  const evidenceProvided = Boolean(evidenceText?.trim());
 
+  if (options.lane === "harness" && !evidenceProvided) {
+    console.error("docs:auto-update blocked — harness lane requires --evidence-file or evidenceText");
+    return 2;
+  }
+
+  const impact = buildDocImpactMap({
+    changedFiles: uniqueChanged,
+    lane: options.lane,
+    evidenceProvided,
+  });
+
+  if (impact.lanes.length === 0) {
+    console.log("docs:auto-update skip — no applicable automation lanes for diff");
+    return 0;
+  }
+
+  if (impact.lanes.includes("harness") && !evidenceProvided) {
+    console.error("docs:auto-update blocked — harness lane requires --evidence-file or evidenceText");
+    return 2;
+  }
+
+  const beforeFull = readFullPorcelain(cwd);
+  const beforeDocs = readDocsPorcelain(cwd);
+  const prompt = buildCombinedDocsPrompt(options.ranges, impact, evidenceText);
+
+  logRunMeta({
+    mode: options.hookMode ? "pre-push" : "manual",
+    lanes: impact.lanes.join("+"),
+    areas: impact.ownerAreas.join(","),
+    allowed: impact.allowedDocPaths.join(","),
+    model: process.env.CURSOR_DOCS_MODEL ?? "auto",
+  });
+
+  let agentResult: { status: string; result?: string; durationMs: number };
   try {
-    const result = await runLocalAgent(prompt, cwd);
-    console.log(`docs:auto-update agent status=${result.status}`);
-    if (result.result) console.log(result.result.trim());
+    agentResult = await runAgent(prompt, cwd);
+    logRunMeta({ status: agentResult.status, durationMs: agentResult.durationMs });
+    if (agentResult.result) console.log(agentResult.result.trim());
 
-    if (result.status !== "finished") {
+    if (agentResult.status !== "finished") {
       return 2;
     }
   } catch (error) {
     return handleAgentError(error);
   }
 
-  const afterDocs = getDocsPorcelain(cwd);
+  if (impact.lanes.includes("drift-audit") && impact.lanes.length === 1) {
+    const summary = parseAgentSummary(agentResult.result);
+    console.log(`docs:auto-update drift-audit complete summary=${summary.kind}`);
+    return 0;
+  }
+
+  const afterFull = readFullPorcelain(cwd);
+  const changedPaths = getPathsChangedSince(beforeFull, afterFull);
+  const changedDocPaths = changedPaths.filter(isEditableDocPath);
+  const changedNonDocPaths = changedPaths.filter((path) => !isEditableDocPath(path));
+
+  if (changedNonDocPaths.length > 0) {
+    console.error("docs:auto-update blocked — agent edited non-doc paths:");
+    for (const path of changedNonDocPaths) {
+      console.error(`  ${path}`);
+    }
+    return 2;
+  }
+
+  const allowlistIssues = validateAllowlist(changedDocPaths, impact.allowedDocPaths);
+  if (allowlistIssues.length > 0) {
+    console.error("docs:auto-update blocked — allowlist violations:");
+    for (const issue of allowlistIssues) {
+      console.error(`  ${issue.message}`);
+    }
+    return 2;
+  }
+
+  const summary = parseAgentSummary(agentResult.result);
+  const summaryIssues = validateSummaryAgainstChanges(summary, changedDocPaths);
+  if (summaryIssues.length > 0) {
+    console.error("docs:auto-update blocked — agent summary mismatch:");
+    for (const issue of summaryIssues) {
+      console.error(`  ${issue.message}`);
+    }
+    return 2;
+  }
+
+  if (requiresInstructionValidation(changedDocPaths)) {
+    const validation = validateInstructions(cwd);
+    if (!validation.ok) {
+      console.error("docs:auto-update blocked — lint:instructions failed after doc edits:");
+      console.error(validation.output.trim());
+      return 2;
+    }
+    console.log("docs:auto-update lint:instructions passed");
+  }
+
+  const afterDocs = readDocsPorcelain(cwd);
   if (afterDocs.join("\n") !== beforeDocs.join("\n")) {
     console.error("docs:auto-update blocked push — documentation changed locally:");
     for (const line of afterDocs) {
@@ -316,6 +495,8 @@ async function main(): Promise<void> {
   const exitCode = await runDocsUpdate({
     ranges,
     hookMode: parsed.mode === "pre-push",
+    lane: parsed.lane,
+    evidenceFile: parsed.evidenceFile,
   });
   process.exit(exitCode);
 }

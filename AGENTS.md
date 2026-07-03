@@ -138,3 +138,5 @@ When a change touches chart architecture, AI tool contracts, persistence schemas
 - Persistence → `src/lib/persistence/ARCHITECTURE.md`
 - Design system → `src/lib/design-system/ARCHITECTURE.md`
 - Current status → `docs/PROJECT-STATUS.md`
+
+Optional pre-push automation: `npm run hooks:install` then set `CURSOR_API_KEY` in `.env.local`. The hook runs `npm run docs:auto-update` against unpushed diffs; harness updates require `--evidence-file`.
