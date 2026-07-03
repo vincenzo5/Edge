@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { OptionContractSnapshot } from "@/lib/marketData/contracts/options";
 import {
   buildContractMap,
@@ -158,13 +158,17 @@ export function OptionsRiskCalculator({
   const [manualContracts, setManualContracts] = useState("");
   const [legs, setLegs] = useState<StrategyLegInput[]>(() => legsFromSeed(seedLeg));
   const [selectedCell, setSelectedCell] = useState<PayoffCell | null>(null);
-  const [initializedDefaults, setInitializedDefaults] = useState(false);
+  const userTouchedMaxRiskRef = useRef(false);
 
   useEffect(() => {
-    if (initializedDefaults) return;
-    if (dollarRisk != null) setMaxRisk(String(dollarRisk));
-    setInitializedDefaults(true);
-  }, [initializedDefaults, dollarRisk]);
+    if (userTouchedMaxRiskRef.current) return;
+    setMaxRisk(dollarRisk == null ? "" : String(dollarRisk));
+  }, [dollarRisk]);
+
+  const handleMaxRiskChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    userTouchedMaxRiskRef.current = true;
+    setMaxRisk(event.target.value);
+  }, []);
 
   useLayoutEffect(() => {
     if (!seedLeg) return;
@@ -357,7 +361,7 @@ export function OptionsRiskCalculator({
                 type="number"
                 min={1}
                 value={maxRisk}
-                onChange={(event) => setMaxRisk(event.target.value)}
+                onChange={handleMaxRiskChange}
                 className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
                 data-testid="options-calc-max-risk"
               />

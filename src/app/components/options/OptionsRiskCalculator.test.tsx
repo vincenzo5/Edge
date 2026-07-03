@@ -81,6 +81,45 @@ describe("OptionsRiskCalculator", () => {
     expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(1000);
   });
 
+  it("fills max risk when dollarRisk arrives after mount", () => {
+    const { rerender } = render(
+      <OptionsRiskCalculator model={makeModel()} dollarRisk={null} basisStale={false} />,
+    );
+
+    expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(null);
+
+    rerender(
+      <OptionsRiskCalculator model={makeModel()} dollarRisk={1000} basisStale={false} />,
+    );
+    expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(1000);
+  });
+
+  it("updates max risk when dollarRisk changes before user edits", () => {
+    const { rerender } = render(
+      <OptionsRiskCalculator model={makeModel()} dollarRisk={1000} basisStale={false} />,
+    );
+
+    rerender(
+      <OptionsRiskCalculator model={makeModel()} dollarRisk={2000} basisStale={false} />,
+    );
+    expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(2000);
+  });
+
+  it("does not overwrite max risk after the user edits it", () => {
+    const { rerender } = render(
+      <OptionsRiskCalculator model={makeModel()} dollarRisk={1000} basisStale={false} />,
+    );
+
+    fireEvent.change(screen.getByTestId("options-calc-max-risk"), {
+      target: { value: "750" },
+    });
+
+    rerender(
+      <OptionsRiskCalculator model={makeModel()} dollarRisk={2000} basisStale={false} />,
+    );
+    expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(750);
+  });
+
   it("shows hint when dollarRisk is unavailable", () => {
     render(
       <OptionsRiskCalculator model={makeModel()} dollarRisk={null} basisStale={false} />,
