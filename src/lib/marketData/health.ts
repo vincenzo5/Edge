@@ -44,6 +44,7 @@ export type ServerHealthPayload = {
   generatedAt: number;
   providers: ProviderHealthRow[];
   recentWarnings: string[];
+  lifecycle?: string;
 };
 
 export type ClientHealthInputs = {

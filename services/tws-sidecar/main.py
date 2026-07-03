@@ -10,6 +10,7 @@ import threading
 import time
 import uuid
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -58,8 +59,18 @@ RANGE_TO_DURATION = {
 
 SIDECAR_VERSION = "0.2.0"
 SIDECAR_STARTED_AT_MS = int(time.time() * 1000)
+SIDECAR_INSTANCE_ID = os.environ.get("EDGE_INSTANCE_ID", "").strip() or str(uuid.uuid4())
+TWS_MANAGED_BY = os.environ.get("TWS_MANAGED_BY", "standalone").strip() or "standalone"
 
-app = FastAPI(title="Edge TWS Sidecar", version=SIDECAR_VERSION)
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    yield
+    _set_connection_state("shutdown")
+    _reset_ib_connection()
+
+
+app = FastAPI(title="Edge TWS Sidecar", version=SIDECAR_VERSION, lifespan=_lifespan)
 _lock = threading.Lock()
 _ib: IB | None = None
 _last_connect_error: str | None = None
@@ -1237,6 +1248,9 @@ def health() -> dict[str, Any]:
         "timestamp": _now_ms(),
         "startedAt": SIDECAR_STARTED_AT_MS,
         "version": SIDECAR_VERSION,
+        "pid": os.getpid(),
+        "instanceId": SIDECAR_INSTANCE_ID,
+        "managedBy": TWS_MANAGED_BY,
         "host": TWS_HOST,
         "port": TWS_PORT,
         "clientId": TWS_CLIENT_ID,

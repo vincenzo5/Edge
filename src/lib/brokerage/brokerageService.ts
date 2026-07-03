@@ -14,6 +14,7 @@ import {
   isBrokerageConfigured,
   probeSidecarLiveness,
 } from "./brokerageClient";
+import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
 
 export type BrokerageSnapshot = {
   status: AccountStatus | null;
@@ -47,6 +48,8 @@ export class BrokerageService {
   async getSnapshot(): Promise<BrokerageSnapshot> {
     const client = getBrokerageClient();
     if (!client) return EMPTY_SNAPSHOT;
+
+    await awaitSidecarForBrokerage();
 
     // Fast-fail when the sidecar process is up but unresponsive. Without this,
     // each sub-request below waits the full TWS_SIDECAR_TIMEOUT_MS (often 60-120s)
@@ -115,6 +118,7 @@ export class BrokerageService {
         "Brokerage tracking unavailable.",
       );
     }
+    await awaitSidecarForBrokerage();
     return client.whatIfOrder(request);
   }
 }

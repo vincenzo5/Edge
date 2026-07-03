@@ -5,7 +5,9 @@ import {
   type ServerHealthPayload,
 } from "@/lib/marketData/health";
 import { twsHealthGate } from "@/lib/marketData/providers/tws/healthGate";
+import { deriveTwsSystemLifecycle } from "@/lib/marketData/providers/tws/lifecycle";
 import { getTwsRecoverySession } from "@/lib/marketData/providers/tws/recoverySession";
+import { createTwsClient } from "@/lib/marketData/providers/tws/client";
 import { getServerMarketDataService } from "@/lib/marketData/service/server";
 
 export const runtime = "nodejs";
@@ -31,10 +33,18 @@ export async function GET(request: Request): Promise<Response> {
       ...twsResult.data.warnings,
     ]);
 
+    const client = createTwsClient();
+    const healthProbe = await client.probeHealth(2_000);
+
     const payload: ServerHealthPayload = {
       generatedAt: Date.now(),
       providers,
       recentWarnings,
+      lifecycle: deriveTwsSystemLifecycle({
+        health: healthProbe,
+        status: twsResult.data,
+        recoveryActive,
+      }),
     };
 
     return NextResponse.json({ ok: true, health: payload });

@@ -5,12 +5,15 @@ import {
 } from "@/lib/brokerage/brokerageClient";
 import { brokerageDisabledResponse, brokerageErrorResponse } from "@/lib/brokerage/routeHelpers";
 import { isBrokerageConfigured } from "@/lib/brokerage/brokerageService";
+import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
 
 export const runtime = "nodejs";
 
 /** Proxy TWS sidecar account SSE stream to the browser. */
 export async function GET(request: Request): Promise<Response> {
   if (!isBrokerageConfigured()) return brokerageDisabledResponse();
+
+  await awaitSidecarForBrokerage();
 
   // Fast-fail when the sidecar is unresponsive. Without this, the proxy holds
   // a route handler + socket open for the full sidecar timeout (often minutes)

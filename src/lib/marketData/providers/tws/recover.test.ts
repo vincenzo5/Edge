@@ -31,6 +31,7 @@ describe("isTwsSidecarControlAllowed", () => {
 describe("recoverTwsSidecar", () => {
   beforeEach(() => {
     process.env.TWS_ENABLED = "true";
+    process.env.TWS_MANAGED = "local";
     twsHealthGate.reset();
     resetManagedSidecarProcessForTests();
     resetTwsRecoverySessionForTests();
@@ -38,6 +39,7 @@ describe("recoverTwsSidecar", () => {
 
   afterEach(() => {
     delete process.env.TWS_ENABLED;
+    delete process.env.TWS_MANAGED;
   });
 
   it("reconnects reachable sidecar and resets gate when gateway is connected", async () => {
@@ -78,6 +80,58 @@ describe("recoverTwsSidecar", () => {
     expect(reconnect).toHaveBeenCalledOnce();
     expect(warmup).not.toHaveBeenCalled();
     expect(resetGate).toHaveBeenCalledOnce();
+  });
+
+  it("returns failed when external mode and sidecar unreachable", async () => {
+    process.env.TWS_MANAGED = "external";
+
+    const result = await recoverTwsSidecar([], {
+      isControlAllowed: () => true,
+      isConfigured: () => true,
+      getConfig: () => ({
+        baseUrl: "http://127.0.0.1:8765",
+        timeoutMs: 1000,
+        candlesTimeoutMs: 1000,
+        quotesTimeoutMs: 1000,
+        optionsTimeoutMs: 1000,
+      }),
+      probeHealth: async () => false,
+      probeStatus: async () => null,
+      reconnect: vi.fn(),
+      warmup: vi.fn(),
+      resetGate: vi.fn(),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/Start manually/i);
+  });
+
+  it("returns failed when foreign edge-local sidecar owns the port", async () => {
+    const result = await recoverTwsSidecar([], {
+      isControlAllowed: () => true,
+      isConfigured: () => true,
+      getConfig: () => ({
+        baseUrl: "http://127.0.0.1:8765",
+        timeoutMs: 1000,
+        candlesTimeoutMs: 1000,
+        quotesTimeoutMs: 1000,
+        optionsTimeoutMs: 1000,
+      }),
+      probeHealth: async () => false,
+      fetchHealth: async () => ({
+        ok: true,
+        managedBy: "edge-local",
+        instanceId: "foreign-instance",
+        capabilities: { controlRecovery: true },
+      }),
+      probeStatus: async () => null,
+      reconnect: vi.fn(),
+      warmup: vi.fn(),
+      resetGate: vi.fn(),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/another Edge dev instance/i);
   });
 
   it("starts sidecar when unreachable then reconnects", async () => {

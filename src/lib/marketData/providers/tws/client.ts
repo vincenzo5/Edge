@@ -17,6 +17,9 @@ export type TwsHealthProbe = {
   port?: number;
   clientId?: number;
   sidecarPort?: number;
+  pid?: number;
+  instanceId?: string;
+  managedBy?: string;
   capabilities?: TwsSidecarCapabilities;
 };
 
@@ -55,7 +58,8 @@ export type TwsConnectionState =
   | "reconnecting"
   | "wedged"
   | "restart_required"
-  | "failed";
+  | "failed"
+  | "shutdown";
 
 export type TwsWorkerDiagnostics = {
   queueDepth?: number;
@@ -365,6 +369,9 @@ export function createTwsClient(config?: TwsClientConfig) {
           port: asFiniteNumber(json.port) ?? undefined,
           clientId: asFiniteNumber(json.clientId) ?? undefined,
           sidecarPort: asFiniteNumber(json.sidecarPort) ?? undefined,
+          pid: asFiniteNumber(json.pid) ?? undefined,
+          instanceId: typeof json.instanceId === "string" ? json.instanceId : undefined,
+          managedBy: typeof json.managedBy === "string" ? json.managedBy : undefined,
           capabilities: caps
             ? {
                 controlRecovery: caps.controlRecovery === true,

@@ -1,14 +1,19 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { twsHealthGate } from "./healthGate";
 import {
   createTwsClient,
   getTwsClientConfig,
   isTwsConfigured,
   type TwsConnectionState,
+  type TwsHealthProbe,
   type TwsStatusProbe,
   type TwsWorkerDiagnostics,
 } from "./client";
+import { canNextSpawnSidecar } from "./managedMode";
+import { checkSidecarOwnership } from "./sidecarOwnership";
 import { updateTwsRecoveryPhase } from "./recoverySession";
 
 export type TwsRecoverAction = "reconnected" | "started" | "restarted" | "failed";
@@ -34,6 +39,7 @@ export type TwsRecoverDeps = {
   isConfigured?: () => boolean;
   getConfig?: () => ReturnType<typeof getTwsClientConfig>;
   probeHealth?: (baseUrl: string) => Promise<boolean>;
+  fetchHealth?: (baseUrl: string) => Promise<TwsHealthProbe | null>;
   probeStatus?: (baseUrl: string) => Promise<TwsStatusProbe | null>;
   reconnect?: (baseUrl: string) => Promise<TwsStatusProbe>;
   warmup?: (baseUrl: string, symbols: string[]) => Promise<void>;
@@ -45,6 +51,15 @@ export type TwsRecoverDeps = {
 };
 
 let managedSidecarProcess: ChildProcess | null = null;
+let managedSidecarInstanceId: string | null = null;
+
+function getSidecarStartScriptPath(): string {
+  return path.join(path.resolve(process.cwd()), "scripts", "tws-sidecar.sh");
+}
+
+function getSidecarLogPath(): string {
+  return path.join(path.resolve(process.cwd()), ".tools", "tws-sidecar.log");
+}
 
 function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -57,13 +72,25 @@ export function isTwsSidecarControlAllowed(): boolean {
 
 export function resetManagedSidecarProcessForTests(): void {
   managedSidecarProcess = null;
+  managedSidecarInstanceId = null;
 }
 
 export function setManagedSidecarProcessForTests(child: ChildProcess | null): void {
   managedSidecarProcess = child;
 }
 
+export function setManagedSidecarInstanceIdForTests(instanceId: string | null): void {
+  managedSidecarInstanceId = instanceId;
+}
+
+export function getManagedSidecarInstanceIdForTests(): string | null {
+  return managedSidecarInstanceId;
+}
+
 export function killManagedSidecar(): void {
+  if (!canNextSpawnSidecar()) {
+    return;
+  }
   if (managedSidecarProcess && !managedSidecarProcess.killed) {
     try {
       managedSidecarProcess.kill("SIGTERM");
@@ -72,6 +99,7 @@ export function killManagedSidecar(): void {
     }
   }
   managedSidecarProcess = null;
+  managedSidecarInstanceId = null;
 }
 
 function parseReconnectPayload(json: Record<string, unknown>): TwsStatusProbe {
@@ -107,23 +135,17 @@ function parseReconnectPayload(json: Record<string, unknown>): TwsStatusProbe {
 }
 
 async function defaultProbeHealth(baseUrl: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/health`, {
-      signal: AbortSignal.timeout(2_000),
-    });
-    if (!res.ok) return false;
-    const json = (await res.json()) as {
-      ok?: boolean;
-      capabilities?: { controlRecovery?: boolean };
-    };
-    if (json.ok !== true) return false;
-    if (json.capabilities?.controlRecovery !== true) {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
+  const result = await defaultFetchHealth(baseUrl);
+  if (!result?.ok) return false;
+  if (result.capabilities?.controlRecovery !== true) return false;
+  const ownership = checkSidecarOwnership(result, managedSidecarInstanceId);
+  return !ownership.foreign;
+}
+
+async function defaultFetchHealth(baseUrl: string): Promise<TwsHealthProbe | null> {
+  const config = getTwsClientConfig();
+  const client = createTwsClient(config ?? undefined);
+  return client.probeHealth(2_000);
 }
 
 async function defaultProbeStatus(baseUrl: string): Promise<TwsStatusProbe | null> {
@@ -173,19 +195,37 @@ async function defaultWarmup(baseUrl: string, symbols: string[]): Promise<void> 
 }
 
 async function defaultStartSidecar(): Promise<boolean> {
+  if (!canNextSpawnSidecar()) {
+    return false;
+  }
+
   if (managedSidecarProcess && managedSidecarProcess.exitCode == null && !managedSidecarProcess.killed) {
     return true;
   }
 
   const repoRoot = path.resolve(process.cwd());
-  const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
-  const child = spawn(npmCmd, ["run", "tws:sidecar"], {
+  const scriptPath = getSidecarStartScriptPath();
+  const logPath = getSidecarLogPath();
+
+  fs.mkdirSync(path.dirname(logPath), { recursive: true });
+  const logFd = fs.openSync(logPath, "a");
+
+  const instanceId = randomUUID();
+  managedSidecarInstanceId = instanceId;
+
+  const bashCmd = process.platform === "win32" ? "bash" : "bash";
+  const child = spawn(bashCmd, [scriptPath], {
     cwd: repoRoot,
     detached: true,
-    stdio: "ignore",
-    env: process.env,
+    stdio: ["ignore", logFd, logFd],
+    env: {
+      ...process.env,
+      TWS_MANAGED_BY: "edge-local",
+      EDGE_INSTANCE_ID: instanceId,
+    },
   });
   child.unref();
+  fs.closeSync(logFd);
   managedSidecarProcess = child;
   return true;
 }
@@ -197,6 +237,10 @@ async function defaultRestartSidecar(
   sleep: (ms: number) => Promise<void>,
   waitForHealth: (url: string) => Promise<boolean>,
 ): Promise<boolean> {
+  if (!canNextSpawnSidecar()) {
+    return false;
+  }
+
   if (managedSidecarProcess && !managedSidecarProcess.killed) {
     try {
       managedSidecarProcess.kill("SIGTERM");
@@ -204,6 +248,7 @@ async function defaultRestartSidecar(
       // Best-effort — stale process may already be gone.
     }
     managedSidecarProcess = null;
+    managedSidecarInstanceId = null;
     await sleep(750);
   }
 
@@ -215,10 +260,18 @@ async function defaultWaitForHealth(
   baseUrl: string,
   probeHealth: (url: string) => Promise<boolean>,
   sleep: (ms: number) => Promise<void>,
+  fetchHealth?: (url: string) => Promise<TwsHealthProbe | null>,
 ): Promise<boolean> {
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
     if (await probeHealth(baseUrl)) {
+      if (managedSidecarInstanceId && fetchHealth) {
+        const health = await fetchHealth(baseUrl);
+        if (health?.instanceId && health.instanceId !== managedSidecarInstanceId) {
+          await sleep(500);
+          continue;
+        }
+      }
       return true;
     }
     await sleep(500);
@@ -334,6 +387,7 @@ export async function recoverTwsSidecar(
   const isConfigured = deps.isConfigured ?? isTwsConfigured;
   const getConfig = deps.getConfig ?? getTwsClientConfig;
   const probeHealth = deps.probeHealth ?? defaultProbeHealth;
+  const fetchHealth = deps.fetchHealth ?? defaultFetchHealth;
   const probeStatus = deps.probeStatus ?? defaultProbeStatus;
   const reconnect = deps.reconnect ?? defaultReconnect;
   const startSidecar = deps.startSidecar ?? defaultStartSidecar;
@@ -341,7 +395,7 @@ export async function recoverTwsSidecar(
   const sleep = deps.sleep ?? defaultSleep;
   const waitForHealth =
     deps.waitForHealth ??
-    ((url: string) => defaultWaitForHealth(url, probeHealth, sleep));
+    ((url: string) => defaultWaitForHealth(url, probeHealth, sleep, fetchHealth));
   const restartSidecar =
     deps.restartSidecar ??
     ((url: string) =>
@@ -363,9 +417,59 @@ export async function recoverTwsSidecar(
   let sidecarWasReachable = await probeHealth(baseUrl);
 
   if (!sidecarWasReachable) {
+    const health = await fetchHealth(baseUrl);
+    const ownership = checkSidecarOwnership(health, managedSidecarInstanceId);
+    if (ownership.foreign) {
+      return buildResult(
+        false,
+        "failed",
+        "failed",
+        ownership.reason ??
+          "Another process owns the TWS sidecar port. Stop it or set TWS_MANAGED=external.",
+        {
+          configured: true,
+          sidecarReachable: true,
+          gatewayConnected: false,
+          warnings: [ownership.reason ?? "Foreign sidecar on port"],
+        },
+        "sidecar_unresponsive",
+      );
+    }
+
+    if (!canNextSpawnSidecar()) {
+      return buildResult(
+        false,
+        "failed",
+        "failed",
+        "Sidecar unreachable. Start manually: npm run tws:sidecar",
+        {
+          configured: true,
+          sidecarReachable: false,
+          gatewayConnected: false,
+          warnings: ["Sidecar unreachable in TWS_MANAGED=external mode"],
+        },
+        "sidecar_unresponsive",
+      );
+    }
+
     action = "started";
     updateTwsRecoveryPhase("sidecar_unresponsive");
-    await startSidecar();
+    const started = await startSidecar();
+    if (!started) {
+      return buildResult(
+        false,
+        "failed",
+        "failed",
+        "Unable to start managed sidecar.",
+        {
+          configured: true,
+          sidecarReachable: false,
+          gatewayConnected: false,
+          warnings: ["Sidecar start failed"],
+        },
+        "sidecar_unresponsive",
+      );
+    }
     sidecarWasReachable = await waitForHealth(baseUrl);
     if (!sidecarWasReachable) {
       return buildResult(
@@ -386,6 +490,23 @@ export async function recoverTwsSidecar(
 
   let preStatus = await probeStatus(baseUrl);
   if (needsSidecarRestart(preStatus)) {
+    if (!canNextSpawnSidecar()) {
+      return buildResult(
+        false,
+        "failed",
+        "failed",
+        "Sidecar wedged or stale. Restart manually: npm run tws:sidecar",
+        {
+          configured: true,
+          sidecarReachable: preStatus?.sidecarReachable ?? true,
+          gatewayConnected: false,
+          restartRequired: true,
+          warnings: ["Sidecar restart required in TWS_MANAGED=external mode"],
+        },
+        preStatus?.diagnostics?.workerWedged ? "worker_wedged" : "client_id_stuck",
+      );
+    }
+
     updateTwsRecoveryPhase(
       preStatus?.connectionState === "client_id_stuck" ? "client_id_stuck" : "worker_wedged",
     );
@@ -477,6 +598,16 @@ export async function recoverTwsSidecar(
   }
 
   if (needsSidecarRestart(status) && action !== "restarted") {
+    if (!canNextSpawnSidecar()) {
+      return buildResult(
+        false,
+        "failed",
+        action,
+        "Sidecar wedged. Restart manually: npm run tws:sidecar",
+        status,
+        "worker_wedged",
+      );
+    }
     updateTwsRecoveryPhase("worker_wedged");
     action = "restarted";
     const restarted = await restartSidecar(baseUrl);

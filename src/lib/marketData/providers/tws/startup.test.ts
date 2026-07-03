@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   ensureSidecarOnServerBoot,
   awaitSidecarStartup,
+  awaitSidecarForBrokerage,
   resetSidecarStartupForTests,
 } from "./startup";
 import {
@@ -24,6 +25,7 @@ vi.mock("./recover", async (importOriginal) => {
 describe("ensureSidecarOnServerBoot", () => {
   beforeEach(() => {
     process.env.TWS_ENABLED = "true";
+    process.env.TWS_MANAGED = "local";
     recoverTwsSidecar.mockReset();
     resetSidecarStartupForTests();
     resetManagedSidecarProcessForTests();
@@ -31,12 +33,19 @@ describe("ensureSidecarOnServerBoot", () => {
 
   afterEach(() => {
     delete process.env.TWS_ENABLED;
+    delete process.env.TWS_MANAGED;
     resetSidecarStartupForTests();
     resetManagedSidecarProcessForTests();
   });
 
   it("returns immediately when TWS is not configured", async () => {
     process.env.TWS_ENABLED = "false";
+    await ensureSidecarOnServerBoot();
+    expect(recoverTwsSidecar).not.toHaveBeenCalled();
+  });
+
+  it("returns immediately when TWS_MANAGED=external", async () => {
+    process.env.TWS_MANAGED = "external";
     await ensureSidecarOnServerBoot();
     expect(recoverTwsSidecar).not.toHaveBeenCalled();
   });
@@ -106,10 +115,40 @@ describe("ensureSidecarOnServerBoot", () => {
   it("awaitSidecarStartup resolves immediately when ensure was never started", async () => {
     await expect(awaitSidecarStartup()).resolves.toBeUndefined();
   });
+
+  it("awaitSidecarForBrokerage resolves after ensure completes", async () => {
+    recoverTwsSidecar.mockResolvedValue({
+      ok: true,
+      commandState: "confirmed",
+      action: "reconnected",
+      message: "ok",
+      status: { configured: true, sidecarReachable: true, gatewayConnected: true, warnings: [] },
+    });
+
+    const ensure = ensureSidecarOnServerBoot();
+    await awaitSidecarForBrokerage();
+    await ensure;
+  });
+
+  it("awaitSidecarForBrokerage resolves on timeout without throwing", async () => {
+    recoverTwsSidecar.mockImplementation(
+      () => new Promise(() => {}),
+    );
+
+    ensureSidecarOnServerBoot();
+    await expect(awaitSidecarForBrokerage(50)).resolves.toBeUndefined();
+  });
 });
 
 describe("killManagedSidecar", () => {
+  beforeEach(() => {
+    process.env.TWS_ENABLED = "true";
+    process.env.TWS_MANAGED = "local";
+  });
+
   afterEach(() => {
+    delete process.env.TWS_ENABLED;
+    delete process.env.TWS_MANAGED;
     resetManagedSidecarProcessForTests();
   });
 

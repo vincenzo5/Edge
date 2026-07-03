@@ -68,5 +68,15 @@ class AccountCacheTests(unittest.TestCase):
         self.assertIsNone(rows[0]["unrealizedPNL"])
 
 
+class HealthEndpointTests(unittest.TestCase):
+    def test_health_includes_ownership_fields(self) -> None:
+        body = main.health()
+        self.assertTrue(body.get("ok"))
+        self.assertIn("pid", body)
+        self.assertIn("instanceId", body)
+        self.assertIn("managedBy", body)
+        self.assertEqual(body["managedBy"], main.TWS_MANAGED_BY)
+
+
 if __name__ == "__main__":
     unittest.main()

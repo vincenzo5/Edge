@@ -192,7 +192,22 @@ When IB Gateway is manually restored after a disconnect, the Data Health dropdow
 8. During active recovery, `/api/market-data/health?recovery=1` bypasses the TWS circuit breaker for fresh sidecar truth.
 9. The client bumps `MarketDataProvider.reloadToken` (and refreshes account state when brokerage is enabled) after confirmed recovery or after status poll finalization. Data Health shows precise phase messages (sidecar restart, client ID stuck, resubscribing, Gateway not logged in).
 
-**Startup coupling:** When `TWS_ENABLED=true`, root `instrumentation.ts` calls `ensureSidecarOnServerBoot()` on Node runtime boot (fire-and-forget). That reuses `recoverTwsSidecar` to spawn the sidecar if unreachable, restart if wedged/stuck, call `POST /control/reconnect` to prime IB Gateway, and reset the TWS circuit breaker on confirmed success. `SIGTERM`/`SIGINT`/`beforeExit` handlers call `killManagedSidecar()` so repeated `next dev` restarts do not leave orphaned Python sidecar processes. Route handlers may `await awaitSidecarStartup()` before first TWS request if they need a warmed sidecar.
+**Startup coupling:** When `TWS_ENABLED=true` and `TWS_MANAGED=local` (default), root `instrumentation.ts` calls `ensureSidecarOnServerBoot()` on Node runtime boot (fire-and-forget). That reuses `recoverTwsSidecar` to spawn the sidecar via `scripts/tws-sidecar.sh` if unreachable, restart if wedged/stuck, call `POST /control/reconnect` to prime IB Gateway, and reset the TWS circuit breaker on confirmed success. Spawned sidecars set `TWS_MANAGED_BY=edge-local` and `EDGE_INSTANCE_ID` for ownership verification via `/health`. `SIGTERM`/`SIGINT`/`beforeExit` handlers call `killManagedSidecar()` (local mode only) so repeated `next dev` restarts do not leave orphaned sidecar processes.
+
+**Management modes (`TWS_MANAGED`):**
+
+| Mode | Next spawn/kill | Boot ensure | Use when |
+|------|-----------------|-------------|----------|
+| `local` | Yes | Yes | Default dev — Next owns one sidecar |
+| `external` | No | No | Manual `npm run tws:sidecar`, systemd, or launchd |
+
+Docker Compose is **not** used for the sidecar. External mode means run `npm run tws:sidecar` yourself (or a host supervisor).
+
+**Brokerage readiness:** `awaitSidecarForBrokerage()` gates `/api/brokerage/*` and `BrokerageService` only — chart/quote routes keep fast Yahoo fallback.
+
+**Lifecycle API:** `GET /api/market-data/health` includes `health.lifecycle` (`ready`, `gateway_disconnected`, `recovering`, `wedged`, etc.) derived from sidecar `/health` + `/status`.
+
+**Sidecar shutdown:** FastAPI `lifespan` disconnects IB on exit; `scripts/tws-sidecar.sh` uses PID file + port check + single-instance lock (flock on Linux, mkdir on macOS).
 
 **Source labels:** The top-left Data Health badge summarizes chart candle source and watchlist quote source separately (e.g. `Chart: YAHOO · Quotes: TWS`). Account feed state remains its own Data Health dataset row via `AccountProvider`.
 

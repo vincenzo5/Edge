@@ -2,16 +2,9 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.TWS_ENABLED !== "true") return;
 
-  const { ensureSidecarOnServerBoot, killManagedSidecar } = await import(
-    "./src/lib/marketData/providers/tws/startup"
+  // Node-only sidecar hooks live in a dynamic import so Turbopack does not
+  // statically analyze process.on for Edge route bundles.
+  await import("./src/lib/marketData/providers/tws/registerNodeSidecar").then((m) =>
+    m.registerNodeSidecar(),
   );
-
-  ensureSidecarOnServerBoot().catch((err) =>
-    console.warn("[tws] startup ensure failed:", err),
-  );
-
-  for (const sig of ["SIGTERM", "SIGINT"] as const) {
-    process.on(sig, () => killManagedSidecar());
-  }
-  process.on("beforeExit", () => killManagedSidecar());
 }
