@@ -55,6 +55,7 @@ export const DRAWING_TYPES = [
   "price_line",
   "annotation",
   "measure",
+  "ruler",
 ] as const;
 
 export const drawingPointSchema = z.object({

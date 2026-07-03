@@ -1,5 +1,6 @@
 import type { SerializedDrawing } from "@/lib/chartConfig";
 import type { OptionContractSnapshot } from "@/lib/marketData/contracts/options";
+import type { RiskAccount } from "@edge/chart-core";
 import {
   computeRiskMetrics,
   DEFAULT_RISK_ACCOUNT,
@@ -26,6 +27,7 @@ export type RiskRulerPresetInput = {
   expiration?: string;
   contracts?: OptionContractSnapshot[];
   pricingWarnings?: string[];
+  account?: RiskAccount;
 };
 
 export const OPTION_SETUP_LABELS: Record<OptionSetupType, string> = {
@@ -171,6 +173,7 @@ function buildSetupFromLegs(
   symbol: string,
   spot: number,
   legs: OptionLeg[],
+  account: RiskAccount = DEFAULT_RISK_ACCOUNT,
 ): TradeSetup | null {
   const entry = spot;
 
@@ -187,7 +190,7 @@ function buildSetupFromLegs(
       }));
       return {
         direction,
-        account: DEFAULT_RISK_ACCOUNT,
+        account,
         entries: [{ price: entry, label: "Entry" }],
         stops: [{ price: stop, type: "initial", label: "Max loss zone" }],
         targets,
@@ -210,7 +213,7 @@ function buildSetupFromLegs(
       const maxProfit = roundPrice(shortCall.strike - longCall.strike - debit);
       return {
         direction: "long",
-        account: DEFAULT_RISK_ACCOUNT,
+        account,
         entries: [{ price: entry, label: "Entry" }],
         stops: [{ price: stop, type: "initial", label: "Max loss" }],
         targets: [
@@ -236,7 +239,7 @@ function buildSetupFromLegs(
       const maxProfit = roundPrice(longPut.strike - shortPut.strike - debit);
       return {
         direction: "short",
-        account: DEFAULT_RISK_ACCOUNT,
+        account,
         entries: [{ price: entry, label: "Entry" }],
         stops: [{ price: stop, type: "initial", label: "Max loss" }],
         targets: [
@@ -266,7 +269,7 @@ function buildSetupFromLegs(
       const stop = longPut.strike;
       return {
         direction: "long",
-        account: DEFAULT_RISK_ACCOUNT,
+        account,
         entries: [{ price: entry, label: "Entry" }],
         stops: [{ price: stop, type: "initial", label: "Max loss wing" }],
         targets: [
@@ -309,6 +312,7 @@ export function buildOptionTradeSetupFromContracts(
     symbol,
     roundPrice(spotPrice),
     selection.legs,
+    input.account,
   );
   if (!setup) return null;
 
@@ -324,7 +328,7 @@ function buildOptionTradeSetupFromSpot(input: RiskRulerPresetInput): TradeSetup 
 
   const spot = roundPrice(spotPrice);
   const legs = buildLegs(setupType, spot, expiration);
-  return buildSetupFromLegs(setupType, symbol, spot, legs);
+  return buildSetupFromLegs(setupType, symbol, spot, legs, input.account);
 }
 
 export function buildOptionTradeSetup(input: RiskRulerPresetInput): TradeSetup | null {
@@ -414,6 +418,185 @@ export function addRiskRulerPreset(
   input: RiskRulerPresetInput,
 ): SerializedDrawing[] {
   const drawing = buildRiskRulerPreset(input);
+  if (!drawing) return drawings;
+
+  const withoutExisting = drawings.filter((item) => item.id !== drawing.id);
+  return [...withoutExisting, drawing];
+}
+
+export type RiskRulerCalcInput = {
+  direction: "bullish" | "bearish";
+  spotPrice: number;
+  symbol: string;
+  strike: number;
+  premium: number;
+  stop: number;
+  target: number;
+  expiration: string;
+  timestamp?: number;
+  dataIndex?: number;
+  pricingWarnings?: string[];
+  account?: RiskAccount;
+};
+
+export function riskRulerCalcDrawingId(symbol: string, strike: number): string {
+  return `risk-ruler-${symbol}-calc-${strike}`;
+}
+
+function buildCalculatorTradeSetup(input: RiskRulerCalcInput): TradeSetup | null {
+  const {
+    direction,
+    spotPrice,
+    symbol,
+    strike,
+    premium,
+    stop,
+    target,
+    expiration,
+  } = input;
+
+  if (
+    !Number.isFinite(spotPrice) ||
+    spotPrice <= 0 ||
+    !Number.isFinite(strike) ||
+    !Number.isFinite(premium) ||
+    premium <= 0 ||
+    !Number.isFinite(stop) ||
+    !Number.isFinite(target)
+  ) {
+    return null;
+  }
+
+  const entry = roundPrice(spotPrice);
+  const stopPrice = roundPrice(stop);
+  const targetPrice = roundPrice(target);
+  const debit = roundPrice(premium);
+  const account = input.account ?? DEFAULT_RISK_ACCOUNT;
+
+  if (direction === "bullish") {
+    const leg: OptionLeg = {
+      type: "call",
+      action: "buy",
+      strike: roundPrice(strike),
+      premium: debit,
+      expiration,
+      label: "Long call",
+    };
+    return {
+      direction: "long",
+      account,
+      entries: [{ price: entry, label: "Entry" }],
+      stops: [{ price: stopPrice, type: "initial", label: "Hard stop" }],
+      targets: [
+        {
+          price: targetPrice,
+          rMultiple: rMultipleFor(entry, stopPrice, targetPrice),
+          label: "Price target",
+        },
+      ],
+      instrument: "option",
+      setupType: "long_call",
+      legs: [leg],
+      symbol,
+      maxLoss: debit,
+      maxProfit: undefined,
+      breakevens: [roundPrice(strike + debit)],
+    };
+  }
+
+  const leg: OptionLeg = {
+    type: "put",
+    action: "buy",
+    strike: roundPrice(strike),
+    premium: debit,
+    expiration,
+    label: "Long put",
+  };
+  return {
+    direction: "short",
+    account,
+    entries: [{ price: entry, label: "Entry" }],
+    stops: [{ price: stopPrice, type: "initial", label: "Hard stop" }],
+    targets: [
+      {
+        price: targetPrice,
+        rMultiple: rMultipleFor(entry, stopPrice, targetPrice),
+        label: "Price target",
+      },
+    ],
+    instrument: "option",
+    legs: [leg],
+    symbol,
+    maxLoss: debit,
+    maxProfit: undefined,
+    breakevens: [roundPrice(strike - debit)],
+  };
+}
+
+export function buildRiskRulerFromCalc(input: RiskRulerCalcInput): SerializedDrawing | null {
+  const setup = buildCalculatorTradeSetup(input);
+  if (!setup) return null;
+
+  let validated: TradeSetup;
+  try {
+    validated = validateTradeSetup(setup);
+  } catch {
+    return null;
+  }
+
+  const metrics = computeRiskMetrics(validated);
+  const timestamp = input.timestamp ?? Date.now();
+  const dataIndex = input.dataIndex ?? 0;
+  const entry = validated.entries[0]!.price;
+  const stop = validated.stops[0]!.price;
+  const pricingWarnings = input.pricingWarnings ?? [];
+
+  const points = [
+    { timestamp, value: entry, dataIndex },
+    { timestamp, value: stop, dataIndex },
+    ...validated.targets.map((targetPoint) => ({
+      timestamp,
+      value: targetPoint.price,
+      dataIndex,
+    })),
+  ];
+
+  const setupLabel =
+    input.direction === "bullish" ? "Long Call (calc)" : "Long Put (calc)";
+
+  return {
+    id: riskRulerCalcDrawingId(input.symbol, input.strike),
+    name: "risk_ruler",
+    label: `${setupLabel} · ${input.symbol}`,
+    points,
+    visible: true,
+    locked: false,
+    zLevel: 0,
+    paneId: "price",
+    metadata: {
+      kind: "thesis",
+      source: "user",
+      fields: {
+        riskSetup: validated,
+        optionExplanation: formatOptionSetupExplanation(validated),
+        ...(pricingWarnings.length > 0 ? { pricingWarnings } : {}),
+      },
+      computed: {
+        ...riskComputedPayload(metrics),
+        instrument: "option",
+        ...(validated.setupType ? { setupType: validated.setupType } : {}),
+        chainDerived: true,
+        calculatorDerived: true,
+      },
+    },
+  };
+}
+
+export function addRiskRulerPresetFromCalc(
+  drawings: SerializedDrawing[],
+  input: RiskRulerCalcInput,
+): SerializedDrawing[] {
+  const drawing = buildRiskRulerFromCalc(input);
   if (!drawing) return drawings;
 
   const withoutExisting = drawings.filter((item) => item.id !== drawing.id);

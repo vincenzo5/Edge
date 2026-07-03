@@ -8,9 +8,12 @@ import {
 } from "@/lib/risk/optionPresetChain";
 import {
   addRiskRulerPreset,
+  addRiskRulerPresetFromCalc,
   buildOptionTradeSetup,
   buildOptionTradeSetupFromContracts,
+  buildRiskRulerFromCalc,
   buildRiskRulerPreset,
+  riskRulerCalcDrawingId,
   riskRulerPresetDrawingId,
   OPTION_SETUP_LABELS,
 } from "@/lib/risk/createRiskRulerPreset";
@@ -274,6 +277,60 @@ describe("createRiskRulerPreset", () => {
     const warnings = drawing?.metadata?.fields?.pricingWarnings as string[] | undefined;
     expect(warnings?.length).toBeGreaterThan(0);
   });
+
+  it("builds calculator-derived long call risk ruler with user stop and target", () => {
+    const drawing = buildRiskRulerFromCalc({
+      direction: "bullish",
+      spotPrice: 100,
+      symbol: "AAPL",
+      strike: 105,
+      premium: 2.3,
+      stop: 95,
+      target: 110,
+      expiration: EXPIRATION,
+    });
+    expect(drawing).not.toBeNull();
+    expect(drawing?.id).toBe(riskRulerCalcDrawingId("AAPL", 105));
+    expect(drawing?.points.map((point) => point.value)).toEqual([100, 95, 110]);
+    expect(drawing?.metadata?.computed?.calculatorDerived).toBe(true);
+  });
+
+  it("builds calculator-derived long put risk ruler", () => {
+    const drawing = buildRiskRulerFromCalc({
+      direction: "bearish",
+      spotPrice: 100,
+      symbol: "AAPL",
+      strike: 95,
+      premium: 2.1,
+      stop: 105,
+      target: 90,
+      expiration: EXPIRATION,
+    });
+    expect(drawing).not.toBeNull();
+    expect(drawing?.metadata?.fields?.riskSetup).toMatchObject({
+      direction: "short",
+    });
+    expect(drawing?.points.map((point) => point.value)).toEqual([100, 105, 90]);
+  });
+
+  it("adds calculator risk ruler without disturbing unrelated drawings", () => {
+    const existing = buildRiskRulerPreset({
+      setupType: "long_call",
+      spotPrice: 100,
+      symbol: "AAPL",
+    });
+    const merged = addRiskRulerPresetFromCalc(existing ? [existing] : [], {
+      direction: "bullish",
+      spotPrice: 100,
+      symbol: "AAPL",
+      strike: 105,
+      premium: 2.3,
+      stop: 95,
+      target: 110,
+      expiration: EXPIRATION,
+    });
+    expect(merged).toHaveLength(2);
+  });
 });
 
 describe("OPTION_SETUP_LABELS", () => {
@@ -321,4 +378,18 @@ describe("all quick risk ruler presets", () => {
       }
     },
   );
+
+  it("uses explicit account capital when provided to buildRiskRulerPreset", () => {
+    const drawing = buildRiskRulerPreset({
+      setupType: "long_call",
+      spotPrice: SPOT,
+      symbol: "AAPL",
+      contracts: makeChain(),
+      account: { capital: 200_000, riskPercent: 2 },
+    });
+    const setup = drawing?.metadata?.fields?.riskSetup as
+      | { account?: { capital: number } }
+      | undefined;
+    expect(setup?.account?.capital).toBe(200_000);
+  });
 });

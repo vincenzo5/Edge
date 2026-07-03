@@ -12,9 +12,14 @@ describe('sidebar registry', () => {
     expect(SIDEBAR_PANEL_MAP['watchlist'].scope).toBe('app');
   });
 
-  it('includes options panel as active-chart scoped', () => {
-    expect(SIDEBAR_PANEL_MAP['options']).toBeDefined();
-    expect(SIDEBAR_PANEL_MAP['options'].scope).toBe('active-chart');
+  it('includes account panel as app-scoped', () => {
+    expect(SIDEBAR_PANEL_MAP['account']).toBeDefined();
+    expect(SIDEBAR_PANEL_MAP['account'].scope).toBe('app');
+  });
+
+  it('includes risk panel as app-scoped', () => {
+    expect(SIDEBAR_PANEL_MAP['risk']).toBeDefined();
+    expect(SIDEBAR_PANEL_MAP['risk'].scope).toBe('app');
   });
 
   it('uses unique panel ids', () => {

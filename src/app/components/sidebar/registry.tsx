@@ -5,6 +5,7 @@ import type { SidebarPanelId } from "@/lib/chartConfig";
 import { ObjectTreePanel } from "./panels/ObjectTreePanel";
 import { WatchlistSidebarPanel } from "./panels/WatchlistPanel";
 import { AccountSidebarPanel } from "./panels/AccountSidebarPanel";
+import { RiskSettingsSidebarPanel } from "./panels/RiskSettingsSidebarPanel";
 
 export type SidebarPanelScope = "active-chart" | "app";
 
@@ -63,6 +64,22 @@ function AccountIcon({ className }: { className?: string }) {
   );
 }
 
+function RiskIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+    >
+      <path d="M12 3v18M4 12h16" />
+      <circle cx="12" cy="12" r="8" />
+    </svg>
+  );
+}
+
 export const SIDEBAR_PANELS: SidebarPanelDef[] = [
   {
     id: "watchlist",
@@ -77,6 +94,13 @@ export const SIDEBAR_PANELS: SidebarPanelDef[] = [
     scope: "app",
     Icon: AccountIcon,
     Panel: AccountSidebarPanel,
+  },
+  {
+    id: "risk",
+    label: "Risk",
+    scope: "app",
+    Icon: RiskIcon,
+    Panel: RiskSettingsSidebarPanel,
   },
   {
     id: "object-tree",
