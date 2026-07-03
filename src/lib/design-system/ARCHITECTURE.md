@@ -44,6 +44,7 @@ If you change chart background, grid, or axis colors, update `edgeChartColors` /
 |-------|-------------|
 | `surface-chart` | Chart cell plot background |
 | `surface-toolbar` | Top header bar, bottom range bar, segmented tab rail |
+| `surface-rail` | Left drawing toolbar and right sidebar icon rails (dark: same as chart bg) |
 | `surface-panel` | Right sidebar panels, legend hover backdrop |
 | `surface-popover` | Context menus, dropdowns, modals |
 | `surface-hover` / `surface-active` | Row/button hover and selected states |

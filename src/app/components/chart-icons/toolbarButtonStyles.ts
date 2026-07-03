@@ -10,15 +10,15 @@ export function iconRailWidthClass(compact: boolean): string {
 }
 
 export function iconRailIconClass(compact: boolean): string {
-  return compact ? "h-4 w-4" : "h-[18px] w-[18px]";
+  return compact ? "h-5 w-5" : "h-[22px] w-[22px]";
 }
 
 export function iconRailIconSize(compact: boolean): number {
-  return compact ? 16 : 18;
+  return compact ? 20 : 22;
 }
 
 export function toolbarButtonStateClass(active?: boolean): string {
   return active
-    ? "bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)] ring-1 ring-[var(--edge-border-strong)]"
-    : "text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]";
+    ? "bg-[var(--edge-surface-hover)] text-[var(--edge-text-rail-active)]"
+    : "text-[var(--edge-text-rail)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-rail-active)]";
 }

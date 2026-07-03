@@ -116,12 +116,13 @@ Single source of truth for SVG markup:
 
 | State | Background | Foreground |
 |-------|------------|------------|
-| Idle | transparent | `#787B86` |
-| Hover | `#1E222D` | `#D1D4DC` |
-| Active | `#2A2E39` | `#D1D4DC` |
+| Rail | `#131722` (`--edge-surface-rail`) | — |
+| Idle | transparent | `#BBBDC2` (`--edge-text-rail`) |
+| Hover | `#2A2E39` | `#E8EAEE` (`--edge-text-rail-active`) |
+| Active | `#2A2E39` | `#E8EAEE` (`--edge-text-rail-active`) |
 | Flyout panel | `#131722` | border `#1E222D` |
 
-**Display sizes:** default rail icons 18 px; compact 16 px. Button hit targets: 36×36 px default (`h-9 w-9`), 32×32 px when `compact={true}` (`h-8 w-8`). Rail width: 44 px default, 40 px compact — shared with the right sidebar icon rail.
+**Display sizes:** default rail icons 22 px; compact 20 px. Button hit targets: 36×36 px default (`h-9 w-9`), 32×32 px when `compact={true}` (`h-8 w-8`). Rail width: 44 px default, 40 px compact — shared with the right sidebar icon rail.
 
 Run export: `node --experimental-strip-types scripts/export-chart-icons.ts`
 

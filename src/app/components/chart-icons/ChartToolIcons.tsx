@@ -10,7 +10,7 @@ type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
 function ChartIcon({
   id,
-  size = 18,
+  size = 22,
   ...props
 }: Omit<IconProps, 'id'> & { id: ChartIconId }) {
   return (

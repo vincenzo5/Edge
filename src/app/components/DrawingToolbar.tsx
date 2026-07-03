@@ -146,7 +146,7 @@ export default function DrawingToolbar({
       data-testid="drawing-toolbar"
       data-rail-mode={compact ? "compact" : "full"}
       style={{ width: railWidth } as CSSProperties}
-      className={`relative z-10 flex h-full min-h-0 shrink-0 flex-col items-stretch justify-start gap-0.5 overflow-y-auto overflow-x-visible border-r border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-0.5 py-1.5 ${iconRailWidthClass(compact)} ${disabled ? "pointer-events-none opacity-40" : ""}`}
+      className={`relative z-10 flex h-full min-h-0 shrink-0 flex-col items-stretch justify-start gap-0.5 overflow-y-auto overflow-x-visible border-r border-[var(--edge-border)] bg-[var(--edge-surface-rail)] px-0.5 py-1.5 ${iconRailWidthClass(compact)} ${disabled ? "pointer-events-none opacity-40" : ""}`}
     >
       <ToolButton
         title="Cursor"

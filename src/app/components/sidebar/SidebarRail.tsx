@@ -42,7 +42,7 @@ export default function SidebarRail({
           width: railWidth,
         } as CSSProperties
       }
-      className={`relative z-50 flex h-full shrink-0 flex-col items-stretch justify-start gap-0.5 self-stretch border-l border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-0.5 py-1.5 ${iconRailWidthClass(compact)}`}
+      className={`relative z-50 flex h-full shrink-0 flex-col items-stretch justify-start gap-0.5 self-stretch border-l border-[var(--edge-border)] bg-[var(--edge-surface-rail)] px-0.5 py-1.5 ${iconRailWidthClass(compact)}`}
     >
       {SIDEBAR_PANELS.map((panel) => {
         const active = activePanel === panel.id;

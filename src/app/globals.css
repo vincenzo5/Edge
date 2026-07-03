@@ -6,6 +6,7 @@
   --edge-background: #f8f9fd;
   --edge-surface-chart: #ffffff;
   --edge-surface-toolbar: #ffffff;
+  --edge-surface-rail: #ffffff;
   --edge-surface-panel: #ffffff;
   --edge-surface-popover: #ffffff;
   --edge-surface-hover: #f0f3fa;
@@ -16,6 +17,8 @@
   --edge-text-primary: #131722;
   --edge-text-strong: #000000;
   --edge-text-secondary: #787b86;
+  --edge-text-rail: #bbbdc2;
+  --edge-text-rail-active: #898b90;
   --edge-text-muted: #a3a6af;
   --edge-accent-blue: #2962ff;
   --edge-accent-blue-hover: #1e53e5;
@@ -38,6 +41,7 @@
   --edge-background: #131722;
   --edge-surface-chart: #131722;
   --edge-surface-toolbar: #1e222d;
+  --edge-surface-rail: #131722;
   --edge-surface-panel: #1e222d;
   --edge-surface-popover: #242733;
   --edge-surface-hover: #2a2e39;
@@ -48,6 +52,8 @@
   --edge-text-primary: #d1d4dc;
   --edge-text-strong: #f0f3fa;
   --edge-text-secondary: #787b86;
+  --edge-text-rail: #bbbdc2;
+  --edge-text-rail-active: #e8eaee;
   --edge-text-muted: #5d606b;
   --edge-accent-blue: #2962ff;
   --edge-accent-blue-hover: #1e53e5;
