@@ -15,7 +15,33 @@ src/lib/marketData/
   events/        Canonical registry, normalizers, dedupe, filters
   router/        Provider capability registry and preferences
   service/       MarketDataService + server singleton
+  trust/         Data usage policy, provenance, readiness evaluation
 ```
+
+## Data trust model
+
+Market data responses carry shape metadata (`DataResult`) plus **usage policy** so display/analysis data cannot silently authorize future trades.
+
+```
+DataResult / ChartDataMeta
+  -> DataProvenance (source, stale, warnings, isFallback)
+  -> DatasetPolicy (DATASET_POLICIES in trust/dataTrust.ts)
+  -> DataReadiness (ok | blocked + reasons)
+```
+
+| Dataset | Allowed usage | Fallback | Trading decision |
+|---------|---------------|----------|------------------|
+| Chart candles | display, analysis | yes (Yahoo) | no |
+| Watchlist quotes | display, analysis | yes | no |
+| Options chain | analysis | no | no |
+| Account / positions | brokerage_truth | no | yes (TWS only) |
+| Pre-trade quote | trading_decision | no | yes (TWS/IBKR, max 5s age) |
+
+- **API:** `/api/candles` and `/api/quotes` attach `meta.usage` and `meta.readiness` via `trust/enrichResponseMeta.ts`.
+- **Data Health:** dataset rows include `usage`, `allowedForTradingDecision`, and `display-only` in `formatDatasetLine` when not trading-safe.
+- **Future trading:** `src/lib/tradingSafety/tradingReadiness.ts` evaluates brokerage connection, account freshness, approved quote source, and resolved risk settings before any order path is enabled.
+
+Brokerage truth remains in `src/lib/brokerage/` (TWS sidecar only, no fallback).
 
 ## Data flow
 
@@ -70,7 +96,7 @@ API routes return optional `meta: { source, warnings, stale, asOf }` alongside l
 | Massive | `MASSIVE_API_KEY` or `POLYGON_API_KEY` | **Options Advanced** expirations + chain snapshots (`/v3/reference/options/contracts`, `/v3/snapshot/options/{underlying}`); Daily Market Summary grouped US equities (full-universe screener store), Custom Bars per-symbol fallback, Universal Snapshot; API host `https://api.massive.com` |
 | Tradier | `TRADIER_ACCESS_TOKEN` | (legacy; not used for options analysis) |
 | IBKR | `IBKR_ENABLED`, Client Portal Gateway login | candles, quotes, options diagnostics/fallback when Massive unavailable |
-| TWS | `TWS_ENABLED`, IB Gateway paper + sidecar | candles, quotes, options diagnostics/fallback when Massive unavailable |
+| TWS | `TWS_ENABLED`, `TWS_MANAGED` (`local` \| `external`), IB Gateway paper + sidecar | candles, quotes, options diagnostics/fallback when Massive unavailable |
 
 ### Market calendar
 
@@ -229,7 +255,7 @@ User-configurable risk sizing is a separate app concern in `src/lib/risk/riskSet
 - **Persistence**: localStorage key `edge.riskSettings.v1` (no Postgres resource in v1). Settings include sizing mode (`percent` | `absolute`), `riskPercent`, `absoluteRisk`, `accountBasis` (`NetLiquidation` | `AvailableFunds` | `EquityWithLoanValue` | `Manual`), and `manualCapital` fallback.
 - **Resolution**: `resolveDollarRisk(settings, accountSummary)` is pure — percent mode uses `parseSummaryTagNumber` on the chosen IB summary tag; absolute mode returns `absoluteRisk`. `toRiskAccount()` bridges to `@edge/chart-core`'s `RiskAccount` for risk ruler presets.
 - **Propagation**: `RiskSettingsProvider` mounts inside `AccountProvider` in `StockApp.tsx`. It reads `useAccountOptional()` and exposes `dollarRisk`, `riskAccount`, and `basisStale` via `useRiskSettings()`. When the account disconnects, percent sizing sets `basisStale: true` and keeps the last resolved `dollarRisk` visible; `riskAccount.capital` falls back to `manualCapital`.
-- **Consumers**: Risk sidebar panel (`sidebar/panels/RiskSettingsPanel.tsx`), options risk calculator max-risk input, and options chain risk ruler presets (`useOptionsChainModel` passes `riskAccount` into `createRiskRulerPreset.ts`).
+- **Consumers**: Risk sidebar panel (`sidebar/panels/RiskSettingsPanel.tsx`), options risk calculator max-risk input (prefills from `dollarRisk` and stays in sync until the user edits the field), and options chain risk ruler presets (`useOptionsChainModel` passes `riskAccount` into `createRiskRulerPreset.ts`).
 - **Deferred**: Postgres `/api/me/risk-settings` resource, server-side access for AI tools, what-if margin preview tied to risk settings.
 
 ## Verification

@@ -3,7 +3,7 @@ import {
   parseMarketRequest,
   quotesRequestSchema,
 } from "@/lib/marketData/schemas";
-import { dataResultToResponseMeta } from "@/lib/marketData/contracts/result";
+import { enrichResponseMetaWithTrust } from "@/lib/marketData/trust/enrichResponseMeta";
 import {
   clearMarketDataCacheForTests,
   getServerMarketDataService,
@@ -52,7 +52,7 @@ export async function POST(request: Request): Promise<Response> {
     perfContext.collector.record("api.total", routeStartedAt, true, "api");
 
     const meta = {
-      ...dataResultToResponseMeta(result),
+      ...enrichResponseMetaWithTrust(result, "watchlist_quotes", "display"),
       ...(isMarketDataPerfEnabled()
         ? {
             traceId,

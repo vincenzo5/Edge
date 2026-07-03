@@ -73,7 +73,16 @@ describe("/api/quotes POST", () => {
     const json = await res.json();
     expect(json.quotes).toHaveLength(1);
     expect(json.quotes[0].symbol).toBe("AAPL");
-    expect(json.meta).toMatchObject({ source: "yahoo", stale: false, warnings: [] });
+    expect(json.meta).toMatchObject({
+      source: "yahoo",
+      stale: false,
+      warnings: [],
+      usage: "display",
+      readiness: {
+        status: "ok",
+        allowedForTradingDecision: false,
+      },
+    });
   });
 
   it("rejects missing symbols with 400", async () => {
@@ -97,7 +106,7 @@ describe("/api/quotes POST", () => {
   });
 
   it("caches identical requests", async () => {
-    const body = { symbols: ["AAPL", "MSFT"] };
+    const body = { symbols: ["AAPL"] };
     await POST(makeRequest(body));
     await POST(makeRequest(body));
     expect(getQuoteSnapshots).toHaveBeenCalledTimes(1);

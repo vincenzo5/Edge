@@ -6,6 +6,7 @@ import {
   buildProviderRows,
   buildWatchlistDatasetRow,
   deriveOverallSeverity,
+  formatDatasetLine,
   isTwsGatewayHealthy,
   mergeHealthSnapshot,
   severityLabel,
@@ -30,6 +31,22 @@ describe("marketData health", () => {
     expect(row.status).toBe("loaded");
     expect(row.source).toBe("tws");
     expect(row.streaming).toBe(true);
+    expect(row.usage).toBe("display");
+    expect(row.allowedForTradingDecision).toBe(false);
+  });
+
+  it("marks yahoo chart row as display-only in format line", () => {
+    const row = buildChartDatasetRow(
+      {
+        source: "yahoo",
+        asOf: Date.now(),
+        stale: true,
+        warnings: ["TWS temporarily skipped (gateway_disconnected)"],
+      },
+      "AAPL · 1D",
+    );
+    expect(formatDatasetLine(row)).toContain("display-only");
+    expect(row.allowedForTradingDecision).toBe(false);
   });
 
   it("marks degraded severity when chart is stale or fallback", () => {

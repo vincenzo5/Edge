@@ -97,6 +97,14 @@ export type DataResponseMeta = {
   phases?: MarketDataPerfPhase[];
   indicatorValues?: Record<string, Record<string, number>>;
   skippedSymbols?: string[];
+  /** Intended consumer usage for this payload. */
+  usage?: string;
+  /** Policy evaluation for trading-safety boundaries. */
+  readiness?: {
+    status: "ok" | "blocked";
+    reasons: string[];
+    allowedForTradingDecision: boolean;
+  };
 };
 
 export function dataResultToResponseMeta<T>(result: DataResult<T>): DataResponseMeta {

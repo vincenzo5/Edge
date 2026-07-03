@@ -1,6 +1,13 @@
 import type { ChartDataMeta } from "@edge/chart-core";
 import type { DataCacheTier } from "./contracts/result";
 import type { TwsStatusProbe } from "./providers/tws/client";
+import type { DataUsage } from "./trust/dataTrust";
+import {
+  buildTrustMeta,
+  datasetKindFromHealthKind,
+  defaultUsageForDataset,
+  provenanceFromMeta,
+} from "./trust/dataTrust";
 
 export type DataHealthSeverity = "healthy" | "degraded" | "offline" | "unknown";
 
@@ -19,6 +26,9 @@ export type DataHealthDatasetRow = {
   latencyMs?: number;
   status: DataHealthDatasetStatus;
   warnings: string[];
+  usage?: DataUsage;
+  allowedForTradingDecision?: boolean;
+  readinessReasons?: string[];
 };
 
 export type ProviderHealthStatus = "healthy" | "degraded" | "offline" | "disabled";
@@ -76,6 +86,33 @@ export type DataHealthSnapshot = {
 
 const FALLBACK_SOURCES = new Set(["yahoo", "mixed"]);
 
+function attachTrustFields(
+  kind: DataHealthDatasetKind,
+  row: DataHealthDatasetRow,
+): DataHealthDatasetRow {
+  if (row.status !== "loaded" || !row.source) return row;
+  const dataset = datasetKindFromHealthKind(kind);
+  const usage = defaultUsageForDataset(dataset);
+  const trust = buildTrustMeta(
+    dataset,
+    usage,
+    provenanceFromMeta({
+      source: row.source,
+      stale: row.stale,
+      warnings: row.warnings,
+      cacheTier: row.cacheTier,
+      asOf: undefined,
+    }),
+  );
+  return {
+    ...row,
+    usage: trust.usage,
+    allowedForTradingDecision: trust.readiness.allowedForTradingDecision,
+    readinessReasons:
+      trust.readiness.status === "blocked" ? trust.readiness.reasons : undefined,
+  };
+}
+
 function upperSource(source: string | undefined): string {
   return (source ?? "unknown").toUpperCase();
 }
@@ -108,7 +145,7 @@ export function buildChartDatasetRow(
       warnings: [],
     };
   }
-  return {
+  return attachTrustFields("chart", {
     kind: "chart",
     label: "Active Chart",
     detail,
@@ -122,7 +159,7 @@ export function buildChartDatasetRow(
       ...(meta.warnings ?? []),
       ...(meta.streamError ? [meta.streamError] : []),
     ],
-  };
+  });
 }
 
 export function buildWatchlistDatasetRow(
@@ -159,7 +196,7 @@ export function buildWatchlistDatasetRow(
       warnings: [],
     };
   }
-  return {
+  return attachTrustFields("watchlist", {
     kind: "watchlist",
     label: "Watchlist Quotes",
     detail: transport ? `${detail ?? ""} · ${transport}`.trim() : detail,
@@ -170,7 +207,7 @@ export function buildWatchlistDatasetRow(
     latencyMs: meta.latencyMs,
     status: "loaded",
     warnings: meta.warnings ?? [],
-  };
+  });
 }
 
 export function buildOptionsDatasetRow(
@@ -186,7 +223,7 @@ export function buildOptionsDatasetRow(
       warnings: [],
     };
   }
-  return {
+  return attachTrustFields("options", {
     kind: "options",
     label: "Options",
     detail,
@@ -195,7 +232,7 @@ export function buildOptionsDatasetRow(
     stale: meta.stale,
     status: meta.warnings?.length ? "unavailable" : "loaded",
     warnings: meta.warnings ?? [],
-  };
+  });
 }
 
 export function buildAccountDatasetRow(args: {
@@ -232,7 +269,7 @@ export function buildAccountDatasetRow(args: {
     };
   }
   if (args.connectionState === "connected") {
-    return {
+    return attachTrustFields("account", {
       kind: "account",
       label: "Account feed",
       detail: args.detail,
@@ -240,7 +277,7 @@ export function buildAccountDatasetRow(args: {
       streaming: true,
       status: "loaded",
       warnings: [],
-    };
+    });
   }
   return {
     kind: "account",
@@ -537,6 +574,9 @@ export function formatDatasetLine(row: DataHealthDatasetRow): string {
   const cache = formatCacheTier(row.cacheTier);
   if (cache) parts.push(cache);
   if (row.latencyMs != null) parts.push(`${Math.round(row.latencyMs)}ms`);
+  if (row.allowedForTradingDecision === false && row.status === "loaded") {
+    parts.push("display-only");
+  }
   return parts.join(" · ");
 }
 
