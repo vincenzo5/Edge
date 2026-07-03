@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { OptionContractSnapshot } from "@/lib/marketData/contracts/options";
 import {
   formatOptionGreek,
   formatOptionIv,
@@ -152,6 +153,7 @@ type ChainTableProps = {
   symbol: string;
   primaryExpiration: string | null;
   onLoadAllStrikes: () => void;
+  onAnalyzeContract?: (contract: OptionContractSnapshot) => void;
 };
 
 function ChainTable({
@@ -164,12 +166,10 @@ function ChainTable({
   symbol,
   primaryExpiration,
   onLoadAllStrikes,
+  onAnalyzeContract,
 }: ChainTableProps) {
   const maxVolume = useMemoMax(contracts, (r) =>
     Math.max(r.call?.volume ?? 0, r.put?.volume ?? 0),
-  );
-  const maxOi = useMemoMax(contracts, (r) =>
-    Math.max(r.call?.openInterest ?? 0, r.put?.openInterest ?? 0),
   );
 
   if (chainLoading) {
@@ -218,7 +218,7 @@ function ChainTable({
             <tr className="text-[var(--edge-text-secondary)]">
               {isDialog ? (
                 <>
-                  <th className="px-1 py-1 text-left font-medium">Call OI</th>
+                  <th className="px-1 py-1 text-left font-medium">Call</th>
                   <th className="px-1 py-1 text-left font-medium">Vol</th>
                   <th className="px-1 py-1 text-left font-medium">Bid</th>
                   <th className="px-1 py-1 text-left font-medium">Ask</th>
@@ -226,7 +226,7 @@ function ChainTable({
                   <th className="px-1 py-1 text-left font-medium">Bid</th>
                   <th className="px-1 py-1 text-left font-medium">Ask</th>
                   <th className="px-1 py-1 text-left font-medium">Vol</th>
-                  <th className="px-1 py-1 text-left font-medium">Put OI</th>
+                  <th className="px-1 py-1 text-left font-medium">Put</th>
                 </>
               ) : (
                 <>
@@ -256,9 +256,20 @@ function ChainTable({
               >
                 {isDialog ? (
                   <>
-                    <HeatCell value={row.call?.openInterest} max={maxOi}>
-                      {formatVolume(row.call?.openInterest)}
-                    </HeatCell>
+                    <td className="px-1 py-0.5">
+                      {row.call && onAnalyzeContract ? (
+                        <button
+                          type="button"
+                          data-testid={`options-analyze-call-${row.strike}`}
+                          onClick={() => onAnalyzeContract(row.call!)}
+                          className="rounded bg-[var(--edge-bg-secondary)] px-1.5 py-0.5 text-[9px] text-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10"
+                        >
+                          Analyze
+                        </button>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <HeatCell value={row.call?.volume} max={maxVolume}>
                       {formatVolume(row.call?.volume)}
                     </HeatCell>
@@ -272,9 +283,20 @@ function ChainTable({
                     <HeatCell value={row.put?.volume} max={maxVolume} align="right">
                       {formatVolume(row.put?.volume)}
                     </HeatCell>
-                    <HeatCell value={row.put?.openInterest} max={maxOi} align="right">
-                      {formatVolume(row.put?.openInterest)}
-                    </HeatCell>
+                    <td className="px-1 py-0.5 text-right">
+                      {row.put && onAnalyzeContract ? (
+                        <button
+                          type="button"
+                          data-testid={`options-analyze-put-${row.strike}`}
+                          onClick={() => onAnalyzeContract(row.put!)}
+                          className="rounded bg-[var(--edge-bg-secondary)] px-1.5 py-0.5 text-[9px] text-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10"
+                        >
+                          Analyze
+                        </button>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                   </>
                 ) : (
                   <>
@@ -486,9 +508,15 @@ export type OptionsChainViewProps = {
   model: OptionsChainModel;
   variant: "dialog" | "sidebar";
   onOpenFullChain?: () => void;
+  onAnalyzeContract?: (contract: OptionContractSnapshot) => void;
 };
 
-export function OptionsChainView({ model, variant, onOpenFullChain }: OptionsChainViewProps) {
+export function OptionsChainView({
+  model,
+  variant,
+  onOpenFullChain,
+  onAnalyzeContract,
+}: OptionsChainViewProps) {
   const {
     snapshot,
     symbol,
@@ -652,6 +680,7 @@ export function OptionsChainView({ model, variant, onOpenFullChain }: OptionsCha
             symbol={symbol}
             primaryExpiration={primaryExpiration}
             onLoadAllStrikes={loadAllStrikes}
+            onAnalyzeContract={onAnalyzeContract}
           />
         </div>
       </div>

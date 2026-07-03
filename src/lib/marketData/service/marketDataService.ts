@@ -60,7 +60,7 @@ import { createYahooProvider, type YahooFinanceClient } from "../providers/yahoo
 import { createSecProvider } from "../providers/sec/adapter";
 import { createFredProvider } from "../providers/fred/adapter";
 import { createFmpProvider } from "../providers/fmp/adapter";
-import { createMassiveProvider } from "../providers/massive/adapter";
+import { createMassiveProvider, type MassiveProvider } from "../providers/massive/adapter";
 import { createTradierOptionsProvider } from "../providers/tradier/adapter";
 import {
   createIbkrProvider,
@@ -117,6 +117,8 @@ export type MarketDataServiceDeps = {
   ibkr?: IbkrProvider;
   /** Optional override for unit tests; defaults to env-driven TWS provider. */
   tws?: TwsProvider;
+  /** Optional override for unit tests; defaults to env-driven Massive provider. */
+  massive?: MassiveProvider;
 };
 
 function hotCacheTier(fresh: boolean): DataCacheTier {
@@ -172,7 +174,7 @@ export class MarketDataService {
     this.sec = createSecProvider();
     this.fred = createFredProvider();
     this.fmp = createFmpProvider();
-    this.massive = createMassiveProvider();
+    this.massive = deps.massive ?? createMassiveProvider();
     this.tradier = createTradierOptionsProvider();
     this.ibkr = deps.ibkr ?? createIbkrProvider();
     this.tws = deps.tws ?? createTwsProvider();
@@ -1974,10 +1976,79 @@ export class MarketDataService {
       });
   }
 
+  private async fetchMassiveOptionExpirationsFresh(
+    sym: string,
+    requestedAt: number,
+  ): Promise<DataResult<OptionExpiration[]> | null> {
+    if (!this.massive.isConfigured()) return null;
+
+    const cacheKey = this.optionExpirationsCacheKey("massive", sym);
+    const cached = globalDataCache.read<OptionExpiration[]>("options_expirations", cacheKey);
+    if (cached.hit && cached.value) {
+      return createDataResult(cached.value, "massive", {
+        requestedAt,
+        asOf: cached.asOf,
+      });
+    }
+
+    const massiveResult = await this.massive.getOptionExpirationsWithWarnings(sym);
+    globalDataCache.write(
+      "options_expirations",
+      cacheKey,
+      massiveResult.expirations,
+      cacheTtlMs("options_expirations"),
+      Date.now(),
+    );
+    return createDataResult(massiveResult.expirations, "massive", {
+      requestedAt,
+      warnings: massiveResult.warnings,
+    });
+  }
+
+  private async fetchMassiveOptionsChainFresh(
+    request: OptionsChainRequest,
+    requestedAt: number,
+  ): Promise<DataResult<OptionsChainResponse> | null> {
+    if (!this.massive.isConfigured()) return null;
+
+    const underlying = request.underlying.trim().toUpperCase();
+    const expiration = request.expiration ?? "";
+    const strikeWindow = request.strikeWindow ?? { mode: "atm" as const, count: 20 };
+
+    const cacheKey = this.optionsChainCacheKey("massive", underlying, expiration, strikeWindow);
+    const cached = globalDataCache.read<OptionsChainResponse>("options_chain", cacheKey);
+    if (cached.hit && cached.value) {
+      return createDataResult(cached.value, "massive", {
+        requestedAt,
+        asOf: cached.asOf,
+      });
+    }
+
+    const massiveResult = await this.massive.getOptionsChainWithWarnings({
+      underlying,
+      expiration,
+      strikeWindow,
+    });
+    globalDataCache.write(
+      "options_chain",
+      cacheKey,
+      massiveResult.chain,
+      cacheTtlMs("options_chain"),
+      Date.now(),
+    );
+    return createDataResult(massiveResult.chain, "massive", {
+      requestedAt,
+      warnings: massiveResult.warnings,
+    });
+  }
+
   private async fetchOptionExpirationsFresh(
     sym: string,
   ): Promise<DataResult<OptionExpiration[]>> {
     const requestedAt = Date.now();
+    const massiveResult = await this.fetchMassiveOptionExpirationsFresh(sym, requestedAt);
+    if (massiveResult) return massiveResult;
+
     const warnings: string[] = [];
 
     if (this.tws.isConfigured()) {
@@ -2135,6 +2206,13 @@ export class MarketDataService {
     const underlying = request.underlying.trim().toUpperCase();
     const expiration = request.expiration ?? "";
     const strikeWindow = request.strikeWindow ?? { mode: "atm" as const, count: 20 };
+
+    const massiveResult = await this.fetchMassiveOptionsChainFresh(
+      { underlying, expiration, strikeWindow },
+      requestedAt,
+    );
+    if (massiveResult) return massiveResult;
+
     const warnings: string[] = [];
 
     if (this.tws.isConfigured()) {
@@ -2670,17 +2748,22 @@ export class MarketDataService {
 
     const optionsSymbol = args.optionsSymbol?.trim().toUpperCase();
     if (optionsSymbol) {
+      const canTryMassiveOptions = this.massive.isConfigured();
       const canTryTwsOptions =
-        this.tws.isConfigured() && twsHealthGate.shouldTryTws("options");
+        !canTryMassiveOptions &&
+        this.tws.isConfigured() &&
+        twsHealthGate.shouldTryTws("options");
       const canTryIbkrOptions =
-        this.ibkr.isConfigured() && ibkrHealthGate.shouldTryIbkr("options");
-      if (!canTryTwsOptions && !canTryIbkrOptions) {
+        !canTryMassiveOptions &&
+        this.ibkr.isConfigured() &&
+        ibkrHealthGate.shouldTryIbkr("options");
+      if (!canTryMassiveOptions && !canTryTwsOptions && !canTryIbkrOptions) {
         phases.push({
           name: "options.expirations",
           key: optionsSymbol,
           ms: 0,
           ok: false,
-          error: "Options warmup deferred — TWS/IBKR unavailable",
+          error: "Options warmup deferred — Massive/TWS/IBKR unavailable",
         });
       } else {
         const phaseStart = Date.now();

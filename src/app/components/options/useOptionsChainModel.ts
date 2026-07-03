@@ -18,10 +18,13 @@ import {
 import type { OptionContractSnapshot } from "@/lib/marketData/contracts/options";
 import {
   addRiskRulerPreset,
+  addRiskRulerPresetFromCalc,
   getOptionPresetSelectionStatus,
+  type RiskRulerCalcInput,
   type RiskRulerPresetInput,
 } from "@/lib/risk/createRiskRulerPreset";
-import { OPTION_SETUP_TYPES, type OptionSetupType } from "@edge/chart-core";
+import { OPTION_SETUP_TYPES, DEFAULT_RISK_ACCOUNT, type OptionSetupType } from "@edge/chart-core";
+import { useRiskSettingsOptional } from "../RiskSettingsProvider";
 
 export type OptionsChainModel = {
   snapshot: ReturnType<typeof useActiveChart>;
@@ -47,11 +50,14 @@ export type OptionsChainModel = {
   loadAllStrikes: () => void;
   pinExpiration: (expiration: string) => void;
   addRiskRulerPreset: (setupType: OptionSetupType) => void;
+  addRiskRulerFromCalc: (input: Omit<RiskRulerCalcInput, "timestamp" | "dataIndex">) => void;
   isExpirationPinned: (expiration: string) => boolean;
 };
 
 export function useOptionsChainModel(): OptionsChainModel {
   const snapshot = useActiveChart();
+  const riskSettings = useRiskSettingsOptional();
+  const riskAccount = riskSettings?.riskAccount ?? DEFAULT_RISK_ACCOUNT;
   const symbol = snapshot?.config.symbol ?? null;
   const marketQuotes = useMarketDataQuotesForSymbols(symbol ? [symbol] : []);
 
@@ -228,6 +234,7 @@ export function useOptionsChainModel(): OptionsChainModel {
         timestamp: spotAnchor?.timestamp,
         dataIndex: spotAnchor?.dataIndex,
         contracts: chainContracts.length > 0 ? chainContracts : undefined,
+        account: riskAccount,
       };
       const nextDrawings = addRiskRulerPreset(snapshot.config.drawings ?? [], input);
       snapshot.onConfigChange({ ...snapshot.config, drawings: nextDrawings });
@@ -241,7 +248,24 @@ export function useOptionsChainModel(): OptionsChainModel {
       spotAnchor,
       chainContracts,
       presetStatuses,
+      riskAccount,
     ],
+  );
+
+  const handleRiskRulerFromCalc = useCallback(
+    (input: Omit<RiskRulerCalcInput, "timestamp" | "dataIndex">) => {
+      if (!snapshot || !symbol || spotPrice == null) return;
+      const nextDrawings = addRiskRulerPresetFromCalc(snapshot.config.drawings ?? [], {
+        ...input,
+        symbol,
+        timestamp: spotAnchor?.timestamp,
+        dataIndex: spotAnchor?.dataIndex,
+        account: riskAccount,
+      });
+      snapshot.onConfigChange({ ...snapshot.config, drawings: nextDrawings });
+      snapshot.chartCommands.restoreDrawings(nextDrawings);
+    },
+    [snapshot, symbol, spotPrice, spotAnchor, riskAccount],
   );
 
   const loadAllStrikes = useCallback(() => {
@@ -249,12 +273,15 @@ export function useOptionsChainModel(): OptionsChainModel {
   }, []);
 
   const selectExpiration = useCallback((expiration: string) => {
-    setContracts([]);
-    setChainContracts([]);
-    setChainMeta(undefined);
-    setChainError(null);
-    setChainMode("atm");
-    setPrimaryExpiration(expiration);
+    setPrimaryExpiration((current) => {
+      if (current === expiration) return current;
+      setContracts([]);
+      setChainContracts([]);
+      setChainMeta(undefined);
+      setChainError(null);
+      setChainMode("atm");
+      return expiration;
+    });
   }, []);
 
   return {
@@ -278,6 +305,7 @@ export function useOptionsChainModel(): OptionsChainModel {
     loadAllStrikes,
     pinExpiration: handlePinExpiration,
     addRiskRulerPreset: handleRiskRulerPreset,
+    addRiskRulerFromCalc: handleRiskRulerFromCalc,
     isExpirationPinned: checkExpirationPinned,
   };
 }

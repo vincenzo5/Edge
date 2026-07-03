@@ -41,17 +41,21 @@ See [chartDataFeed/ARCHITECTURE.md](../chartDataFeed/ARCHITECTURE.md) for transp
 
 ## Provider routing (candles, quotes & options)
 
-When `IBKR_ENABLED=true`, `MarketDataService` attempts IBKR first for candles, watchlist quotes, option expirations, and options chains. **Options remain IBKR-only** (no Tradier/Yahoo fallback). **Watchlist quotes** use batched IBKR snapshots and return partial results — symbols that fail IBKR resolution are filled per-symbol from Yahoo with `meta.source: "mixed"`.
+When `MASSIVE_API_KEY` or `POLYGON_API_KEY` is configured, `MarketDataService` routes **options expirations and chains** through Massive Options Advanced first (`meta.source: "massive"`). TWS/IBKR option paths remain available for diagnostics and probe routes only — normal UI analysis does not silently fall back to broker login when Massive is configured.
 
-When `TWS_ENABLED=true`, `MarketDataService` attempts **TWS first** via the local sidecar, then falls back to Client Portal IBKR, then Yahoo for candles/quotes. Options route `tws → ibkr` with explicit warnings when falling back.
+When Massive is not configured, options route `tws → ibkr` with explicit warnings when falling back. **Options have no Yahoo/Tradier fallback.**
+
+When `IBKR_ENABLED=true`, `MarketDataService` attempts IBKR first for candles and watchlist quotes. **Watchlist quotes** use batched IBKR snapshots and return partial results — symbols that fail IBKR resolution are filled per-symbol from Yahoo with `meta.source: "mixed"`.
+
+When `TWS_ENABLED=true`, `MarketDataService` attempts **TWS first** via the local sidecar, then falls back to Client Portal IBKR, then Yahoo for candles/quotes.
 
 **TWS performance:** Chart-critical candle/quote requests use short sidecar timeouts (`TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS`, default 3s). A process-local health gate (`providers/tws/healthGate.ts`) opens a short cooldown after sidecar/Gateway/timeout failures so fresh charts skip repeated slow TWS attempts and fall back immediately. **Quote SSE** (`/api/stream/quotes`) uses the same TWS health gate as REST quotes — when the circuit is open, the sidecar is unreachable/wedged, or `/health` lacks current route capabilities, the stream route falls back to REST poll (Yahoo/IBKR) with connect/first-frame timeouts. A cached Gateway status probe can open the circuit before the first candle/quote attempt when IB Gateway is disconnected. A parallel IBKR auth health gate (`providers/ibkr/healthGate.ts`) skips repeated Client Portal 401/auth failures during quote and candle waterfalls. The sidecar uses priority job queues (candles/status/warmup before options) and persistent `reqMktData` quote subscriptions. Overlay enrichment (events/news/options expirations) loads after candle paint and requests options expirations after faster event sources.
 
-**Warmup:** `/api/market-data/warmup` is best-effort and bounded. TWS warmup is skipped when the health gate is open; hung sidecar warmup races against a short budget; candle/quote phases run in parallel; options expirations defer when TWS/IBKR are unavailable (options have no Yahoo fallback).
+**Warmup:** `/api/market-data/warmup` is best-effort and bounded. TWS warmup is skipped when the health gate is open; hung sidecar warmup races against a short budget; candle/quote phases run in parallel; options expirations defer when Massive/TWS/IBKR are unavailable (options have no Yahoo fallback). When Massive is configured, options warmup uses Massive and does not require broker login.
 
-**Hot data (stale-while-revalidate):** UI-critical reads (quotes, candles, options expirations/chains) pass through an in-process `HotStore` in `hotStore.ts`. `MarketDataService` returns fresh or stale snapshots immediately and revalidates in the background. Partial hot quote batches are served immediately — missing symbols are fetched without waiting for the full watchlist batch. `StockApp` mounts `MarketDataProvider`, which keeps one quote SSE stream alive, calls `/api/market-data/warmup` for visible chart cells + watchlist symbols, and prefetches active-symbol **option expirations only** (chain loads on demand from the chart-header options dialog or API). Sidecar `/warmup` retains quote subscriptions for warmed symbols. Options chain requests pass `strikeWindow.spot` from the active chart when available; the TWS sidecar uses that spot for ATM strike selection instead of re-fetching equity spot, and caches secdef option parameters per underlying for reuse across expirations.
+**Hot data (stale-while-revalidate):** UI-critical reads (quotes, candles, options expirations/chains) pass through an in-process `HotStore` in `hotStore.ts`. `MarketDataService` returns fresh or stale snapshots immediately and revalidates in the background. On the client, `useChartDataFeed` mirrors the same SWR shape via `chartClientCache.ts` so re-opened charts paint cached candles instantly (`stale: true`, `refreshing: true`) while the server HotStore serves the background refresh. Partial hot quote batches are served immediately — missing symbols are fetched without waiting for the full watchlist batch. `StockApp` mounts `MarketDataProvider`, which keeps one quote SSE stream alive, calls `/api/market-data/warmup` for visible chart cells + watchlist symbols, and prefetches active-symbol **option expirations only** (chain loads on demand from the chart-header options dialog or API). Sidecar `/warmup` retains quote subscriptions for warmed symbols. Options chain requests pass `strikeWindow.spot` from the active chart when available; the TWS sidecar uses that spot for ATM strike selection instead of re-fetching equity spot, and caches secdef option parameters per underlying for reuse across expirations.
 
-Cache keys are namespaced per provider (`ibkr` vs `yahoo` / `tradier`) so a fallback cached while the Gateway is logged out does not block a later IBKR fetch after login.
+Cache keys are namespaced per provider (`massive`, `ibkr`, `tws`, `yahoo` / `tradier`) so a fallback cached while the Gateway is logged out does not block a later provider fetch after credentials recover.
 
 API routes return optional `meta: { source, warnings, stale, asOf }` alongside legacy `{ candles }` / `{ quotes }` payloads. Probe routes under `/api/market-data/ibkr/*` remain available for diagnostics.
 
@@ -63,10 +67,10 @@ API routes return optional `meta: { source, warnings, stale, asOf }` alongside l
 | SEC EDGAR | `SEC_USER_AGENT` | company facts, recent filings |
 | FRED | `FRED_API_KEY` | macro series, economic releases |
 | FMP | `FMP_API_KEY` | gap-fill fundamentals/context: profile, estimates, financials, executives, calendars (earnings/dividends/splits), economic calendar (macro event cards), SEC filing search, market movers, **company screener** (`/company-screener`), news (Premium) |
-| Massive | `MASSIVE_API_KEY` or `POLYGON_API_KEY` | **Daily Market Summary** grouped US equities (full-universe screener store), Custom Bars per-symbol fallback, Universal Snapshot; API host `https://api.massive.com` |
-| Tradier | `TRADIER_ACCESS_TOKEN` | (no longer used for options; IBKR is required) |
-| IBKR | `IBKR_ENABLED`, Client Portal Gateway login | candles, quotes, options (required when configured) |
-| TWS | `TWS_ENABLED`, IB Gateway paper + sidecar | candles, quotes, options (preferred when configured) |
+| Massive | `MASSIVE_API_KEY` or `POLYGON_API_KEY` | **Options Advanced** expirations + chain snapshots (`/v3/reference/options/contracts`, `/v3/snapshot/options/{underlying}`); Daily Market Summary grouped US equities (full-universe screener store), Custom Bars per-symbol fallback, Universal Snapshot; API host `https://api.massive.com` |
+| Tradier | `TRADIER_ACCESS_TOKEN` | (legacy; not used for options analysis) |
+| IBKR | `IBKR_ENABLED`, Client Portal Gateway login | candles, quotes, options diagnostics/fallback when Massive unavailable |
+| TWS | `TWS_ENABLED`, IB Gateway paper + sidecar | candles, quotes, options diagnostics/fallback when Massive unavailable |
 
 ### Market calendar
 
@@ -145,7 +149,7 @@ The lean Phase 1 screener filters US equities and ETFs through FMP `/company-scr
 | API route | `src/app/api/screener/run/route.ts` | POST body validated with `screenQuerySchema` (optional `technical`, `maxResults`); **registry-aware** semantic validation via `validateScreenQueryTechnical()` for `kind: "indicator"` rules before service call; returns `{ results, meta }` via `fmpJsonResponse` |
 | Service | `MarketDataService.getScreenerResults()` | Cache namespace `screener` (60s TTL); **Massive path** when `technical` + Massive configured: `ensureScreenerUniverseWarm` → `fetchUniverseDescriptors` → `applyDescriptiveFilters` → `runTechnicalFilter` with universe-backed candles; **fallback path** FMP prefilter (max 200 candidates) + per-symbol candles (range tailored via `rangeForTechnicalRule`); perf phases include `screener.universe.warm`, `screener.universe.descriptors`, `screener.technical.*`, `screener.total` |
 | Universe store | `src/lib/marketData/screenerUniverse/universeDailyStore.ts` | Rolling 252-day grouped daily bars in cache namespace `universe_daily` (24h TTL); lazy warm on first screen + background backfill; FMP descriptor pagination in `screener_universe` (24h TTL) |
-| Massive adapter | `providers/massive/adapter.ts` | `getDailyMarketSummary(date)`, `getAggregates`, `getSnapshotAllTickers`; grouped daily uses `adjusted=true` |
+| Massive adapter | `providers/massive/adapter.ts` | `getDailyMarketSummary(date)`, `getAggregates`, `getSnapshotAllTickers`, `getOptionExpirationsWithWarnings`, `getOptionsChainWithWarnings`; options submodule in `providers/massive/options.ts` with paginated reference/snapshot fetch |
 | Technical pass | `src/lib/screener/technicalFilter.ts`, `technicalMath.ts` | Universe path: unbounded candidates, concurrency 16; fallback path: max 200 candidates, concurrency 6 (TWS-bound) or 20 (Massive Custom Bars fallback); optional `maxResults` early-exit; per-symbol cache namespace `screener_technical` (15 min TTL) |
 | FMP adapter | `providers/fmp/adapter.ts` → `runStockScreener()` | Translates `ScreenQuery` to FMP flat params via `screenerParams.ts` (ignores `technical`) |
 | Client feed | `src/lib/chartDataFeed/apiScreenerFeed.ts` | `fetchScreenerResults()` + `fetchMarketMoverResults()`; parses `meta.phases` into screener phase summary |
@@ -188,6 +192,8 @@ When IB Gateway is manually restored after a disconnect, the Data Health dropdow
 8. During active recovery, `/api/market-data/health?recovery=1` bypasses the TWS circuit breaker for fresh sidecar truth.
 9. The client bumps `MarketDataProvider.reloadToken` (and refreshes account state when brokerage is enabled) after confirmed recovery or after status poll finalization. Data Health shows precise phase messages (sidecar restart, client ID stuck, resubscribing, Gateway not logged in).
 
+**Startup coupling:** When `TWS_ENABLED=true`, root `instrumentation.ts` calls `ensureSidecarOnServerBoot()` on Node runtime boot (fire-and-forget). That reuses `recoverTwsSidecar` to spawn the sidecar if unreachable, restart if wedged/stuck, call `POST /control/reconnect` to prime IB Gateway, and reset the TWS circuit breaker on confirmed success. `SIGTERM`/`SIGINT`/`beforeExit` handlers call `killManagedSidecar()` so repeated `next dev` restarts do not leave orphaned Python sidecar processes. Route handlers may `await awaitSidecarStartup()` before first TWS request if they need a warmed sidecar.
+
 **Source labels:** The top-left Data Health badge summarizes chart candle source and watchlist quote source separately (e.g. `Chart: YAHOO · Quotes: TWS`). Account feed state remains its own Data Health dataset row via `AccountProvider`.
 
 This is read-only with respect to brokerage operations — no orders or account mutations.
@@ -196,10 +202,20 @@ This is read-only with respect to brokerage operations — no orders or account 
 
 Live IB account data (positions, PnL, summary, orders, executions) is a **separate vertical** in `src/lib/brokerage/` and is always attempted through the local TWS sidecar when the app is running.
 
-- **Sidecar endpoints** (`services/tws-sidecar/main.py`): `/account/*` REST + `/stream/account` SSE via `ib_insync`. Live account updates use non-blocking `ib.client.reqAccountUpdates(True, account)` plus `reqPnL`, summaries, positions, and executions. When `TWS_READONLY=true`, open-order snapshot requests are skipped and what-if preview returns 403; verify order/what-if behavior only with `TWS_READONLY=false`.
+- **Sidecar endpoints** (`services/tws-sidecar/main.py`): `/account/*` REST + `/stream/account` SSE via `ib_insync`. Live account updates use non-blocking `ib.client.reqAccountUpdates(True, account)` plus `reqPnL`, summaries, positions, and executions. Cold positions load synchronously seeds `_account_portfolio` from `ib.portfolio()` with a one-shot `reqMktData` fallback for missing MKT/PnL; executions cache is list-backed and `/account/trades` snapshots `ib.fills()` atomically. When `TWS_READONLY=true`, open-order snapshot requests are skipped and what-if preview returns 403; verify order/what-if behavior only with `TWS_READONLY=false`.
 - **App routes**: `/api/brokerage/*` proxy the sidecar with Zod-validated contracts in `src/lib/marketData/contracts/brokerage.ts`.
 - **UI**: `AccountProvider` + Account sidebar panel; chart position overlays when `chartSettings.trading.showPositions` is enabled.
 - **Read-only posture preserved**: no `placeOrder`; what-if preview returns margin/commission impact without transmitting orders, but IB requires a non-read-only API session for that preview call.
+
+### Risk settings (app-wide sizing source)
+
+User-configurable risk sizing is a separate app concern in `src/lib/risk/riskSettings.ts` + `src/app/components/RiskSettingsProvider.tsx`:
+
+- **Persistence**: localStorage key `edge.riskSettings.v1` (no Postgres resource in v1). Settings include sizing mode (`percent` | `absolute`), `riskPercent`, `absoluteRisk`, `accountBasis` (`NetLiquidation` | `AvailableFunds` | `EquityWithLoanValue` | `Manual`), and `manualCapital` fallback.
+- **Resolution**: `resolveDollarRisk(settings, accountSummary)` is pure — percent mode uses `parseSummaryTagNumber` on the chosen IB summary tag; absolute mode returns `absoluteRisk`. `toRiskAccount()` bridges to `@edge/chart-core`'s `RiskAccount` for risk ruler presets.
+- **Propagation**: `RiskSettingsProvider` mounts inside `AccountProvider` in `StockApp.tsx`. It reads `useAccountOptional()` and exposes `dollarRisk`, `riskAccount`, and `basisStale` via `useRiskSettings()`. When the account disconnects, percent sizing sets `basisStale: true` and keeps the last resolved `dollarRisk` visible; `riskAccount.capital` falls back to `manualCapital`.
+- **Consumers**: Risk sidebar panel (`sidebar/panels/RiskSettingsPanel.tsx`), options risk calculator max-risk input, and options chain risk ruler presets (`useOptionsChainModel` passes `riskAccount` into `createRiskRulerPreset.ts`).
+- **Deferred**: Postgres `/api/me/risk-settings` resource, server-side access for AI tools, what-if margin preview tied to risk settings.
 
 ## Verification
 

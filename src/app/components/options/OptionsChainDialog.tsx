@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OptionsChainView } from "./OptionsChainView";
+import {
+  OptionsRiskCalculator,
+  type RiskCalculatorSeedLeg,
+} from "./OptionsRiskCalculator";
 import { useOptionsChainModel } from "./useOptionsChainModel";
+import { useRiskSettings } from "../RiskSettingsProvider";
+import EdgeSegmentedTabs from "../design-system/EdgeSegmentedTabs";
 
 type Props = {
   open: boolean;
@@ -18,12 +24,17 @@ type DialogContentProps = {
   onClose: () => void;
 };
 
+type DialogMode = "chain" | "calculator";
+
 function OptionsChainDialogContent({ onClose }: DialogContentProps) {
   const model = useOptionsChainModel();
+  const { dollarRisk, basisStale } = useRiskSettings();
   const dialogRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [position, setPosition] = useState({ x: 48, y: 48 });
   const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
+  const [mode, setMode] = useState<DialogMode>("chain");
+  const [seedLeg, setSeedLeg] = useState<RiskCalculatorSeedLeg | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -122,6 +133,16 @@ function OptionsChainDialogContent({ onClose }: DialogContentProps) {
           <span className="text-xs font-semibold text-[var(--edge-text-strong)]">
             {symbol} — Options Chain
           </span>
+          <div data-no-drag className="ml-2">
+            <EdgeSegmentedTabs
+              segments={[
+                { id: "chain", label: "Chain" },
+                { id: "calculator", label: "Risk Calculator" },
+              ]}
+              value={mode}
+              onChange={(value) => setMode(value as DialogMode)}
+            />
+          </div>
         </div>
         <button
           type="button"
@@ -135,7 +156,25 @@ function OptionsChainDialogContent({ onClose }: DialogContentProps) {
         </button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <OptionsChainView model={model} variant="dialog" />
+        {mode === "chain" ? (
+          <OptionsChainView
+            model={model}
+            variant="dialog"
+            onAnalyzeContract={(contract) => {
+              setSeedLeg({ contract, action: "buy", quantity: 1 });
+              setMode("calculator");
+            }}
+          />
+        ) : (
+          <OptionsRiskCalculator
+            model={model}
+            dollarRisk={dollarRisk}
+            basisStale={basisStale}
+            seedLeg={seedLeg}
+            onSeedConsumed={() => setSeedLeg(null)}
+            onDone={() => setMode("chain")}
+          />
+        )}
       </div>
       <div
         data-testid="options-chain-dialog-resize"

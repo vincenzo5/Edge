@@ -44,6 +44,29 @@ describe("/api/options/chain GET", () => {
     expect(json.meta.source).toBe("ibkr");
   });
 
+  it("returns massive source when service routes to Massive", async () => {
+    getOptionsChain.mockResolvedValueOnce({
+      data: {
+        underlying: "AAPL",
+        expiration: "2025-06-20",
+        contracts: [],
+      },
+      source: "massive",
+      requestedAt: Date.now(),
+      receivedAt: Date.now(),
+      stale: false,
+      warnings: ["Greeks unavailable for some contracts"],
+    });
+    const res = await GET(
+      new Request(
+        "http://localhost/api/options/chain?underlying=AAPL&expiration=2025-06-20",
+      ),
+    );
+    const json = await res.json();
+    expect(json.meta.source).toBe("massive");
+    expect(json.meta.warnings[0]).toMatch(/Greeks/i);
+  });
+
   it("rejects invalid expiration format", async () => {
     const res = await GET(
       new Request(

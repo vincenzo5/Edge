@@ -44,6 +44,32 @@ describe("createMassiveProvider", () => {
     expect(url).toContain("adjusted=true");
   });
 
+  it("delegates options expirations to Massive options submodule", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            status: "OK",
+            results: [
+              {
+                ticker: "O:AAPL250620C00150000",
+                underlying_ticker: "AAPL",
+                expiration_date: "2025-06-20",
+                contract_type: "call",
+                strike_price: 150,
+              },
+            ],
+          }),
+      })),
+    );
+    const provider = createMassiveProvider();
+    const result = await provider.getOptionExpirationsWithWarnings("AAPL");
+    expect(result.expirations).toEqual([{ underlying: "AAPL", expiration: "2025-06-20" }]);
+  });
+
   it("handles plan errors gracefully", async () => {
     vi.stubGlobal(
       "fetch",

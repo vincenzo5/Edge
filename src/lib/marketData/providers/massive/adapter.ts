@@ -5,7 +5,9 @@ import type {
 } from "../../contracts/massive";
 import type { EquityCandle } from "../../contracts/equities";
 import type { FmpScreenerRow } from "../../contracts/fmp";
+import type { OptionsChainRequest } from "../../contracts/options";
 import { massiveApiKey, massiveGet } from "./client";
+import { createMassiveOptionsProvider } from "./options";
 import {
   indexGroupedDailyBars,
   mapMassiveGroupedBarToEquityCandle,
@@ -14,6 +16,8 @@ import {
 } from "./mappers";
 
 export function createMassiveProvider() {
+  const options = createMassiveOptionsProvider();
+
   return {
     isConfigured(): boolean {
       return massiveApiKey() != null;
@@ -92,6 +96,14 @@ export function createMassiveProvider() {
 
     /** UTC ms for a trading date string — test helper surface. */
     tradingDateToUtcMs,
+
+    getOptionExpirationsWithWarnings(underlying: string) {
+      return options.getOptionExpirationsWithWarnings(underlying);
+    },
+
+    getOptionsChainWithWarnings(request: OptionsChainRequest) {
+      return options.getOptionsChainWithWarnings(request);
+    },
   };
 }
 

@@ -5,12 +5,14 @@ import {
   clearMarketDataCacheForTests,
   resetTwsHealthGateForTests,
   resetIbkrHealthGateForTests,
+  type MarketDataServiceDeps,
 } from "../service/marketDataService";
 import { twsHealthGate } from "../providers/tws/healthGate";
 import { ibkrHealthGate } from "../providers/ibkr/healthGate";
 import { TwsRequestError } from "../providers/tws/client";
 import type { IbkrProvider } from "../providers/ibkr/adapter";
 import type { TwsProvider } from "../providers/tws/adapter";
+import type { MassiveProvider } from "../providers/massive/adapter";
 import { globalHotStore, hotCandlesKey, hotQuoteKey, writeHotCandles, writeHotQuote } from "../hotStore";
 
 const tradierGetExpirations = vi.fn(async () => [
@@ -241,11 +243,50 @@ function createUnconfiguredIbkr(): IbkrProvider {
   return createMockIbkr({ isConfigured: () => false });
 }
 
+function createMockMassive(overrides: Partial<MassiveProvider> = {}): MassiveProvider {
+  return {
+    isConfigured: () => true,
+    getDailyMarketSummary: vi.fn(async () => ({ bySymbol: new Map(), warnings: [] })),
+    getAggregates: vi.fn(async () => ({ candles: [], warnings: [] })),
+    getSnapshotAllTickers: vi.fn(async () => ({ rows: [], warnings: [] })),
+    tradingDateToUtcMs: vi.fn(() => 0),
+    getOptionExpirationsWithWarnings: vi.fn(async () => ({
+      expirations: [{ underlying: "AAPL", expiration: "2025-07-18" }],
+      warnings: [],
+    })),
+    getOptionsChainWithWarnings: vi.fn(async () => ({
+      chain: {
+        underlying: "AAPL",
+        expiration: "2025-07-18",
+        contracts: [
+          {
+            contractSymbol: "AAPL250718C00150000",
+            underlying: "AAPL",
+            type: "call" as const,
+            expiration: "2025-07-18",
+            strike: 150,
+            bid: 2,
+            ask: 2.1,
+            updatedAt: Date.now(),
+          },
+        ],
+      },
+      warnings: [],
+    })),
+    ...overrides,
+  } as MassiveProvider;
+}
+
+function createUnconfiguredMassive(): MassiveProvider {
+  return createMockMassive({ isConfigured: () => false });
+}
+
 function createService(overrides: Partial<MarketDataServiceDeps> = {}) {
   return createMarketDataService({
     yahoo,
     tws: createUnconfiguredTws(),
     ibkr: createUnconfiguredIbkr(),
+    massive: createUnconfiguredMassive(),
     ...overrides,
   });
 }
@@ -333,6 +374,50 @@ describe("MarketDataService", () => {
       const service = createService({ ibkr: createMockIbkr(), tws });
       const result = await service.getQuotes(["AAPL"]);
       expect(result.source).toBe("tws");
+    });
+  });
+
+  describe("Massive-first options routing", () => {
+    it("returns Massive option expirations without calling TWS or IBKR", async () => {
+      const massive = createMockMassive();
+      const tws = createMockTws();
+      const ibkr = createMockIbkr();
+      const service = createService({ massive, tws, ibkr });
+      const result = await service.getOptionExpirations("AAPL");
+      expect(result.source).toBe("massive");
+      expect(result.data[0]?.expiration).toBe("2025-07-18");
+      expect(tws.getOptionExpirationsWithWarnings).not.toHaveBeenCalled();
+      expect(ibkr.getOptionExpirationsWithWarnings).not.toHaveBeenCalled();
+    });
+
+    it("returns Massive options chain without calling TWS or IBKR", async () => {
+      const massive = createMockMassive();
+      const tws = createMockTws();
+      const ibkr = createMockIbkr();
+      const service = createService({ massive, tws, ibkr });
+      const result = await service.getOptionsChain({
+        underlying: "AAPL",
+        expiration: "2025-07-18",
+      });
+      expect(result.source).toBe("massive");
+      expect(result.data.contracts[0]?.strike).toBe(150);
+      expect(tws.getOptionsChainWithWarnings).not.toHaveBeenCalled();
+      expect(ibkr.getOptionsChainWithWarnings).not.toHaveBeenCalled();
+    });
+
+    it("warms up options expirations via Massive when broker gates are open", async () => {
+      twsHealthGate.recordFailure("sidecar_unreachable");
+      ibkrHealthGate.recordFailure("gateway_unreachable");
+      const massive = createMockMassive();
+      const service = createService({
+        massive,
+        tws: createMockTws(),
+        ibkr: createMockIbkr(),
+      });
+      const report = await service.primeMarketData({ optionsSymbol: "AAPL" });
+      const optionsPhase = report.phases.find((phase) => phase.name === "options.expirations");
+      expect(optionsPhase?.ok).toBe(true);
+      expect(optionsPhase?.source).toBe("massive");
     });
   });
 
@@ -906,7 +991,6 @@ describe("MarketDataService", () => {
       const optionsPhase = report.phases.find((phase) => phase.name === "options.expirations");
       expect(optionsPhase?.ok).toBe(false);
       expect(optionsPhase?.error).toMatch(/deferred/i);
-      expect(ibkr.getOptionExpirations).not.toHaveBeenCalled();
     });
   });
 });

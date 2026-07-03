@@ -24,6 +24,41 @@ vi.mock("../data-health", () => ({
   useRegisterOptionsHealthMeta: vi.fn(),
 }));
 
+vi.mock("../RiskSettingsProvider", () => ({
+  useRiskSettings: () => ({
+    settings: {
+      sizingMode: "percent",
+      riskPercent: 1,
+      absoluteRisk: 1000,
+      accountBasis: "NetLiquidation",
+      manualCapital: 50_000,
+    },
+    dollarRisk: 1000,
+    lastDollarRisk: 1000,
+    accountBasisValue: 100_000,
+    basisStale: false,
+    riskAccount: { capital: 100_000, riskPercent: 1 },
+    updateSettings: vi.fn(),
+    resetSettings: vi.fn(),
+  }),
+  useRiskSettingsOptional: () => ({
+    settings: {
+      sizingMode: "percent",
+      riskPercent: 1,
+      absoluteRisk: 1000,
+      accountBasis: "NetLiquidation",
+      manualCapital: 50_000,
+    },
+    dollarRisk: 1000,
+    lastDollarRisk: 1000,
+    accountBasisValue: 100_000,
+    basisStale: false,
+    riskAccount: { capital: 100_000, riskPercent: 1 },
+    updateSettings: vi.fn(),
+    resetSettings: vi.fn(),
+  }),
+}));
+
 function makeSnapshot(): ActiveChartSnapshot {
   return {
     chartId: "cell-0",
@@ -107,7 +142,7 @@ describe("OptionsChainDialog", () => {
       if (url.includes("/api/options/expirations")) {
         return new Response(
           JSON.stringify({
-            expirations: [{ underlying: "AAPL", expiration: "2025-06-20" }],
+            expirations: [{ underlying: "AAPL", expiration: "2026-07-11" }],
             meta: { source: "ibkr" },
           }),
           { status: 200 },
@@ -118,16 +153,17 @@ describe("OptionsChainDialog", () => {
           JSON.stringify({
             chain: {
               underlying: "AAPL",
-              expiration: "2025-06-20",
+              expiration: "2026-07-11",
               contracts: [
                 {
-                  contractSymbol: "AAPL250620C00150000",
+                  contractSymbol: "AAPL260711C00150000",
                   underlying: "AAPL",
                   type: "call",
-                  expiration: "2025-06-20",
+                  expiration: "2026-07-11",
                   strike: 150,
                   bid: 1,
                   ask: 1.2,
+                  impliedVolatility: 0.35,
                   volume: 100,
                   openInterest: 500,
                   updatedAt: Date.now(),
@@ -273,23 +309,6 @@ describe("OptionsChainDialog", () => {
     expect(chainRequests.some((url) => url.includes("expiration=2025-07-18"))).toBe(true);
   });
 
-  it("renders scrollable dialog body and top risk ruler presets", async () => {
-    render(
-      <ActiveChartProvider>
-        <SeedSnapshot snapshot={makeSnapshot()} />
-        <OptionsChainDialog open onClose={vi.fn()} />
-      </ActiveChartProvider>,
-    );
-
-    expect(await screen.findByTestId("options-chain-dialog-scroll")).toBeInTheDocument();
-    const presets = screen.getByTestId("options-risk-ruler-presets");
-    const scroll = screen.getByTestId("options-chain-dialog-scroll");
-    expect(scroll.contains(presets)).toBe(true);
-    const table = await screen.findByTestId("options-chain-table");
-    expect(presets.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("Click to add to chart")).toBeInTheDocument();
-  });
-
   it("shows prominent loading state while chain fetch is in flight", async () => {
     let resolveChain: ((value: Response) => void) | undefined;
     vi.spyOn(global, "fetch").mockImplementation(async (input) => {
@@ -297,7 +316,7 @@ describe("OptionsChainDialog", () => {
       if (url.includes("/api/options/expirations")) {
         return new Response(
           JSON.stringify({
-            expirations: [{ underlying: "AAPL", expiration: "2025-06-20" }],
+            expirations: [{ underlying: "AAPL", expiration: "2026-07-11" }],
             meta: { source: "ibkr" },
           }),
           { status: 200 },
@@ -322,7 +341,7 @@ describe("OptionsChainDialog", () => {
     expect(loading).toHaveAttribute("role", "status");
     expect(loading).toHaveAttribute("aria-busy", "true");
     expect(screen.getByTestId("options-chain-loading-spinner")).toBeInTheDocument();
-    expect(loading).toHaveTextContent(/Loading AAPL 2025-06-20 options chain/i);
+    expect(loading).toHaveTextContent(/Loading AAPL 2026-07-11 options chain/i);
 
     resolveChain?.(
       new Response(
@@ -335,7 +354,7 @@ describe("OptionsChainDialog", () => {
                 contractSymbol: "AAPL250620C00150000",
                 underlying: "AAPL",
                 type: "call",
-                expiration: "2025-06-20",
+                expiration: "2026-07-11",
                 strike: 150,
                 bid: 1,
                 ask: 1.2,
@@ -352,6 +371,22 @@ describe("OptionsChainDialog", () => {
     );
 
     expect(await screen.findByTestId("options-chain-table")).toBeInTheDocument();
+  });
+
+  it("shows analyze buttons and switches to risk calculator", async () => {
+    render(
+      <ActiveChartProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open onClose={vi.fn()} />
+      </ActiveChartProvider>,
+    );
+
+    expect(await screen.findByTestId("options-analyze-call-150")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("options-analyze-call-150"));
+    expect(screen.getByTestId("options-risk-calculator")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("options-calc-payoff-grid")).toBeInTheDocument();
+    });
   });
 
   it("updates position when header is dragged", () => {
