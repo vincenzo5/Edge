@@ -22,7 +22,6 @@ import ChartSnapshotMenu from './ChartSnapshotMenu';
 import ChartFullscreenButton from './ChartFullscreenButton';
 import ChartHeaderMoreMenu from './ChartHeaderMoreMenu';
 import SymbolNavArrows from './SymbolNavArrows';
-import { DataHealthButton } from '../data-health';
 import { ScreenerButton } from '../screener';
 import { headerBarClass } from './headerStyles';
 import {
@@ -256,7 +255,6 @@ export default function ChartHeaderBar({
               onForward={symbolNav.onForward}
             />
           ) : null}
-          <DataHealthButton theme={theme} />
           <ScreenerButton theme={theme} onOpen={() => chartActions.onOpenScreener?.()} />
           <ChartHeaderDivider theme={theme} />
           {showInline(density, 'primary') ? (

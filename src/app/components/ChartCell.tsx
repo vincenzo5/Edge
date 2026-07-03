@@ -1152,6 +1152,7 @@ export default function ChartCell({
               liveMarketSession={liveMarketSession}
               marketSessionLabel={marketSessionLabel}
               legendContextSlot={legendContextSlot}
+              showDataHealthBadge={isActive}
               onCrosshairTimestamp={handleCrosshairFire}
               onCrosshairMove={handleCrosshairMove}
               suppressCrosshair={contextMenu != null}

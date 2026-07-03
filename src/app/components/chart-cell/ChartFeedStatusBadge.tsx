@@ -10,6 +10,8 @@ export type ChartFeedStatusBadgeProps = {
   source?: ChartDataMeta["source"];
   onRetry?: () => void;
   showRetry?: boolean;
+  /** When true, skip the absolute overlay wrapper (parent stack positions this). */
+  embedded?: boolean;
 };
 
 type ResolvedStatus = {
@@ -67,11 +69,8 @@ export default function ChartFeedStatusBadge(props: ChartFeedStatusBadgeProps) {
   const status = resolveStatus(props);
   if (!status) return null;
 
-  return (
-    <div
-      className="pointer-events-none absolute right-2 top-2 z-20 flex max-w-[14rem] items-center gap-2"
-      data-testid="chart-feed-status-badge"
-    >
+  const content = (
+    <>
       <span
         data-testid={status.testId}
         className={`rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ${toneClass(status.tone)}`}
@@ -88,6 +87,26 @@ export default function ChartFeedStatusBadge(props: ChartFeedStatusBadgeProps) {
           Retry
         </button>
       ) : null}
+    </>
+  );
+
+  if (props.embedded) {
+    return (
+      <div
+        className="pointer-events-none flex max-w-[14rem] items-center gap-2"
+        data-testid="chart-feed-status-badge"
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="pointer-events-none absolute right-2 top-2 z-20 flex max-w-[14rem] items-center gap-2"
+      data-testid="chart-feed-status-badge"
+    >
+      {content}
     </div>
   );
 }

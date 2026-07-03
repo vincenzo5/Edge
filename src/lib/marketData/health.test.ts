@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildChartDatasetRow,
   buildHealthSummary,
+  buildHealthCompactSummary,
   buildProvisionalProviderRows,
   buildProviderRows,
   buildWatchlistDatasetRow,
@@ -152,6 +153,30 @@ describe("marketData health", () => {
     const summary = buildHealthSummary(chart, watchlist, "degraded");
     expect(summary).toContain("Chart: YAHOO");
     expect(summary).toContain("Quotes: TWS");
+  });
+
+  it("builds compact summary without Chart/Quotes prefixes", () => {
+    const chart = buildChartDatasetRow(
+      { source: "tws", asOf: Date.now(), streaming: true },
+      "AAPL · 1D",
+    );
+    const watchlist = buildWatchlistDatasetRow(null, "0 symbols", false, null, "rest");
+    expect(buildHealthCompactSummary(chart, watchlist, "healthy")).toBe("TWS · live");
+  });
+
+  it("builds compact summary for mixed chart and watchlist sources", () => {
+    const chart = buildChartDatasetRow(
+      { source: "yahoo", asOf: Date.now(), streaming: false },
+      "AAPL · 1D",
+    );
+    const watchlist = buildWatchlistDatasetRow(
+      { source: "tws", asOf: Date.now(), streaming: true },
+      "4/4 symbols",
+      false,
+      null,
+      "sse",
+    );
+    expect(buildHealthCompactSummary(chart, watchlist, "degraded")).toBe("YAHOO/TWS · live");
   });
 
   it("builds provisional TWS provider rows from client skip warnings", () => {

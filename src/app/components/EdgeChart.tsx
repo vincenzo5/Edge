@@ -39,7 +39,7 @@ import { eventKindsFromChartSettings } from '@/lib/chartDataFeed/eventOverlaySet
 import { drawingsToAnnotationMarkers } from '@/lib/chartDataFeed/overlayMappers';
 import { useAccountOptional } from './AccountProvider';
 import { buildPositionReferenceLines } from '@/lib/brokerage/positionOverlays';
-import ChartFeedStatusBadge from './chart-cell/ChartFeedStatusBadge';
+import ChartOverlayStatusStack from './chart-cell/ChartOverlayStatusStack';
 
 export { indicatorKey, parseIndicatorKey, legacyParseIndicatorKey };
 export type { GoToRequest, GoToResult, DrawingScreenBounds, IndicatorKey };
@@ -97,6 +97,8 @@ type Props = {
   legendContextSlot?: ReactNode;
   /** Optional content rendered before the OHLCV sections on the top legend line (e.g. symbol nav arrows). */
   legendLeadingSlot?: ReactNode;
+  /** Show app-wide Data Health overlay badge (active chart cell only). */
+  showDataHealthBadge?: boolean;
 };
 
 const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) {
@@ -118,6 +120,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     livePrice = null,
     liveMarketSession = null,
     marketSessionLabel = null,
+    showDataHealthBadge = false,
     ...rest
   } = props;
 
@@ -299,7 +302,9 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
 
   return (
     <div ref={chartAreaRef} className="relative flex min-h-0 w-full flex-1 flex-col">
-      <ChartFeedStatusBadge
+      <ChartOverlayStatusStack
+        theme={theme}
+        showDataHealth={showDataHealthBadge}
         error={error}
         streamError={streamError}
         stale={stale}

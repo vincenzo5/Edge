@@ -166,6 +166,17 @@ Optional providers degrade gracefully when keys are missing — the service retu
 | `/api/market-data/health` | GET | none (provider status summary) |
 | `/api/market-data/context` | GET | `marketContextQuerySchema` |
 
+### API hardening (local-first)
+
+| Control | Env | Behavior |
+|---------|-----|----------|
+| Sensitive-route API key | `EDGE_API_KEY` | Middleware gates `/api/brokerage/*`, `/api/ai/*`, TWS recover/warmup, and `/api/market-data/health`. Loopback requests skip the key when `EDGE_TRUST_LOCALHOST=true` (default). |
+| Rate limits | `EDGE_RATE_LIMIT=1` | In-process limits on screener, warmup, recover, AI routes, and concurrent SSE streams. |
+| Sidecar secret | `TWS_SIDECAR_SECRET` | Next.js TWS/brokerage clients send `X-Edge-Sidecar-Secret`; sidecar `/health` stays open for liveness probes. |
+| Production errors | `NODE_ENV=production` | Route helpers use `src/lib/api/safeErrorResponse.ts` to avoid leaking provider internals. |
+
+Implementation: [src/middleware.ts](../../../middleware.ts), [src/lib/api/](../../../lib/api/), [src/lib/marketData/providers/tws/sidecarAuth.ts](providers/tws/sidecarAuth.ts).
+
 ## Stock screener
 
 The lean Phase 1 screener filters US equities and ETFs through FMP `/company-screener` server-side, with mover presets reusing existing `getFmpMarketMovers`. **Phase 1.5** adds a two-step pipeline when `ScreenQuery.technical` is set: FMP prefilter → per-candidate Yahoo daily candles → `@edge/chart-core/indicators/math` rule evaluation. **Phase 4 (Massive full-universe)** when `MASSIVE_API_KEY` is configured and `ScreenQuery.technical` is set: Massive Daily Market Summary universe store + FMP paginated descriptors (~8k) → local descriptive filter → local indicator scan (removes 200-candidate cap).
@@ -189,7 +200,7 @@ The lean Phase 1 screener filters US equities and ETFs through FMP `/company-scr
 
 ## Data health center
 
-The app exposes a user-facing **Data Health** dropdown in the chart header (`src/app/components/data-health/`). It combines:
+The app exposes a user-facing **Data Health** dropdown from a compact overlay badge on the active chart cell (`src/app/components/data-health/`, `src/app/components/chart-cell/ChartOverlayStatusStack.tsx`). It combines:
 
 - **Client-observed dataset metadata** from active chart `ChartDataMeta`, watchlist quote `meta`, and optional options panel meta.
 - **Server provider probes** from `/api/market-data/health`, which summarizes IB Gateway (TWS sidecar) status plus process-local circuit-breaker snapshots. **IBKR Client Portal is not shown** in Data Health — use IB Gateway + sidecar only for live market data status. Optional-provider configured flags (`FMP`, `FRED`, `SEC`) are booleans only — no secrets are returned.
@@ -235,7 +246,7 @@ Docker Compose is **not** used for the sidecar. External mode means run `npm run
 
 **Sidecar shutdown:** FastAPI `lifespan` disconnects IB on exit; `scripts/tws-sidecar.sh` uses PID file + port check + single-instance lock (flock on Linux, mkdir on macOS).
 
-**Source labels:** The top-left Data Health badge summarizes chart candle source and watchlist quote source separately (e.g. `Chart: YAHOO · Quotes: TWS`). Account feed state remains its own Data Health dataset row via `AccountProvider`.
+**Source labels:** The active-chart overlay badge shows a compact summary of chart candle source and watchlist quote source (e.g. `TWS · live` or `YAHOO/TWS · live` when mixed). The full Data Health menu retains detailed dataset rows. Account feed state remains its own Data Health dataset row via `AccountProvider`.
 
 This is read-only with respect to brokerage operations — no orders or account mutations.
 

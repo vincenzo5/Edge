@@ -83,6 +83,7 @@ describe("DataHealthButton", () => {
     renderWithProviders(<DataHealthButton theme="dark" />);
 
     expect(screen.getByTestId("chart-data-source-badge")).toHaveTextContent("TWS");
+    expect(screen.getByTestId("chart-data-source-badge")).toHaveClass("ring-1");
     fireEvent.click(screen.getByTestId("chart-data-source-badge"));
 
     await waitFor(() => {

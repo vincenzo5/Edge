@@ -479,6 +479,20 @@ export function buildHealthSummary(
   return parts.join(" · ");
 }
 
+/** Short overlay label without "Chart:" / "Quotes:" prefixes (e.g. "TWS · live"). */
+export function buildHealthCompactSummary(
+  chartRow: DataHealthDatasetRow | undefined,
+  watchlistRow: DataHealthDatasetRow | undefined,
+  severity: DataHealthSeverity,
+): string {
+  const full = buildHealthSummary(chartRow, watchlistRow, severity);
+  if (full === "Data") return full;
+  return full
+    .replace(/Chart: ([^·]+) · Quotes: ([^·]+)/i, "$1/$2")
+    .replace(/^Chart: /i, "")
+    .replace(/^Quotes: /i, "");
+}
+
 /** True when IB Gateway provider row reports sidecar reachable and gateway connected. */
 export function isTwsGatewayHealthy(provider: ProviderHealthRow | undefined): boolean {
   if (!provider?.configured) return false;
