@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useChartDataFeed } from './useChartDataFeed';
+import { clearChartClientCacheForTests } from './chartClientCache';
 import type { Candle, ChartDataFeed, ChartCandleStreamSink } from '@edge/chart-core';
 
 const baseCandles: Candle[] = [
@@ -60,6 +61,10 @@ function createStreamingFeed(overrides?: Partial<ChartDataFeed>): StreamingTestF
 }
 
 describe('useChartDataFeed', () => {
+  beforeEach(() => {
+    clearChartClientCacheForTests();
+  });
+
   it('loads candles and starts streaming when supported', async () => {
     const feed = createStreamingFeed();
     const { result, unmount } = renderHook(() =>
@@ -182,5 +187,136 @@ describe('useChartDataFeed', () => {
     rerender({ sessionMode: 'extended' });
     await waitFor(() => expect(loadCandles).toHaveBeenCalledTimes(2));
     expect(loadCandles.mock.calls[1]?.[0]?.sessionMode).toBe('extended');
+  });
+
+  it('paints cached candles instantly on re-open then refreshes in background', async () => {
+    const loadCandles = vi.fn(async (request) => ({
+      symbol: request.symbol,
+      interval: request.interval,
+      candles: baseCandles,
+      hasMore: true,
+      meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+    }));
+    const feed = createStreamingFeed({ loadCandles, subscribeCandles: undefined });
+
+    const { unmount } = renderHook(() =>
+      useChartDataFeed({
+        feed,
+        symbol: 'AAPL',
+        interval: '1d',
+        range: '1mo',
+        live: false,
+      }),
+    );
+    await waitFor(() => expect(loadCandles).toHaveBeenCalledTimes(1));
+
+    unmount();
+
+    const { result } = renderHook(() =>
+      useChartDataFeed({
+        feed,
+        symbol: 'AAPL',
+        interval: '1d',
+        range: '1mo',
+        live: false,
+      }),
+    );
+
+    expect(result.current.candles).toHaveLength(2);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.refreshing).toBe(true);
+    expect(result.current.stale).toBe(true);
+    expect(result.current.meta?.stale).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.refreshing).toBe(false);
+      expect(result.current.stale).toBe(false);
+    });
+    expect(loadCandles).toHaveBeenCalledTimes(2);
+  });
+
+  it('bypasses cache when reloadKey bumps', async () => {
+    const loadCandles = vi.fn(async (request) => ({
+      symbol: request.symbol,
+      interval: request.interval,
+      candles: baseCandles,
+      hasMore: true,
+      meta: { source: 'tws', asOf: Date.now(), stale: false, warnings: [] },
+    }));
+    const feed = createStreamingFeed({ loadCandles, subscribeCandles: undefined });
+    const { result, rerender } = renderHook(
+      (props: { reloadKey: number }) =>
+        useChartDataFeed({
+          feed,
+          symbol: 'AAPL',
+          interval: '1d',
+          range: '1mo',
+          reloadKey: props.reloadKey,
+          live: false,
+        }),
+      { initialProps: { reloadKey: 0 } },
+    );
+
+    await waitFor(() => expect(result.current.candles).toHaveLength(2));
+    expect(loadCandles).toHaveBeenCalledTimes(1);
+
+    rerender({ reloadKey: 1 });
+    expect(result.current.candles).toHaveLength(0);
+    expect(result.current.loading).toBe(true);
+    expect(result.current.refreshing).toBe(false);
+
+    await waitFor(() => expect(result.current.candles).toHaveLength(2));
+    expect(loadCandles).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps cached candles when background refresh fails', async () => {
+    let shouldFail = false;
+    const loadCandles = vi.fn(async (request) => {
+      if (shouldFail) {
+        throw new Error('network down');
+      }
+      return {
+        symbol: request.symbol,
+        interval: request.interval,
+        candles: baseCandles,
+        hasMore: true,
+        meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+      };
+    });
+    const feed = createStreamingFeed({ loadCandles, subscribeCandles: undefined });
+
+    const { unmount } = renderHook(() =>
+      useChartDataFeed({
+        feed,
+        symbol: 'AAPL',
+        interval: '1d',
+        range: '1mo',
+        live: false,
+      }),
+    );
+    await waitFor(() => expect(loadCandles).toHaveBeenCalledTimes(1));
+    unmount();
+
+    shouldFail = true;
+    const { result } = renderHook(() =>
+      useChartDataFeed({
+        feed,
+        symbol: 'AAPL',
+        interval: '1d',
+        range: '1mo',
+        live: false,
+      }),
+    );
+
+    expect(result.current.candles).toHaveLength(2);
+    expect(result.current.refreshing).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('network down');
+      expect(result.current.refreshing).toBe(false);
+      expect(result.current.stale).toBe(true);
+      expect(result.current.candles).toHaveLength(2);
+      expect(result.current.loading).toBe(false);
+    });
   });
 });

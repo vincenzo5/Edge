@@ -67,6 +67,22 @@ createApiChartDataFeed({
 3. **SSE unavailable** (SSR/tests): server-proxied transport emits non-recoverable error; chart keeps last REST snapshot.
 4. **Stream failures**: After 3 consecutive poll failures, emit `stale` (client polling and server SSE sessions).
 
+## Client SWR cache
+
+`useChartDataFeed` keeps a session-only in-memory memo in `chartClientCache.ts` so re-opening a recently viewed chart paints cached candles immediately while a background REST fetch refreshes them.
+
+| Behavior | Detail |
+|----------|--------|
+| Key | `symbol\|exchange\|interval\|range\|sessionMode` via `buildChartClientCacheKey` |
+| Bounds | 20 entries (LRU by `asOf`), 5 min max age |
+| First paint | Cached entry → `loading: false`, `refreshing: true`, `stale: true` |
+| Refresh | Always fetches in background; full replace on success (never merge with cached series) |
+| `reloadKey` bump | Bypasses cache (force fresh load); overwrites cache on success |
+| Errors | If cached paint occurred, candles stay visible with `stale: true` |
+| Out of scope | `loadMore` prepended history is not cached |
+
+Only the initial `loadCandles` snapshot is cached. Stream subscription still starts after the background fetch completes (unchanged).
+
 ## Key Files
 
 | File | Role |
@@ -76,6 +92,8 @@ createApiChartDataFeed({
 | `serverProxiedStreamTransport.ts` | EventSource client |
 | `streamDiff.ts` | Shared candle diff → stream events |
 | `apiChartDataFeed.ts` | ChartDataFeed wiring |
+| `chartClientCache.ts` | Session SWR memo for `useChartDataFeed` |
+| `useChartDataFeed.ts` | React hook: cache paint + background refresh + stream subscription |
 | `src/lib/marketData/stream/` | Server SSE sessions + IBKR smd quote adapter |
 | `src/app/components/watchlist/useWatchlistQuoteStream.ts` | Watchlist SSE client (`/api/stream/quotes`) |
 | `src/app/api/stream/*/route.ts` | SSE endpoints |
