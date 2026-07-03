@@ -86,6 +86,7 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Object tree / data window | `ObjectTree.tsx` |
 | Watchlist panel | `watchlist/WatchlistPanel.tsx` |
 | Bottom range bar | `ChartRangeBar.tsx` |
+| Chart cell shell | `ChartCell.tsx` — left `DrawingToolbar` rail + flex column (`EdgeChart` stack + `ChartRangeBar`) so the range bar matches chart width |
 
 Copy patterns from these files before inventing new markup.
 

@@ -63,7 +63,7 @@ createApiChartDataFeed({
 ## Fallback Rules
 
 1. **Transport mode**: `polling` unless `NEXT_PUBLIC_STREAM_TRANSPORT=server-proxied` or options override.
-2. **Provider routing** (unchanged): IBKR when enabled → Yahoo/Tradier fallback; warnings in `meta`.
+2. **Provider routing** (unchanged): IBKR when enabled → Yahoo/Tradier fallback; warnings in `meta`. REST candle/quote responses also carry trust metadata (`meta.usage`, `meta.readiness`) from `marketData/trust/enrichResponseMeta.ts` — display/analysis fallbacks are labeled `display-only` and are not trading-safe.
 3. **SSE unavailable** (SSR/tests): server-proxied transport emits non-recoverable error; chart keeps last REST snapshot.
 4. **Stream failures**: After 3 consecutive poll failures, emit `stale` (client polling and server SSE sessions).
 

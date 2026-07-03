@@ -19,16 +19,20 @@ For V1 targets and gesture specs, see [v1-scope.md](./prereqs/v1-scope.md) and [
 ## Architecture (current)
 
 ```
-StockApp → ChartGrid → ChartCell → EdgeChart
+StockApp → ChartGrid → ChartCell
               │ ChartSyncProvider (linked → crosshair broadcast)
               └─ per-cell wrapper (min-h-0, viewport-fitting grid)
-                                      ├─ ChartLegendBar (OHLCV overlay, price pane)
-                                      ├─ PaneLegendBar (indicator legend overlays, sub-panes)
-                                      ├─ ChartCanvas (price pane)
-                                      ├─ ChartCanvas (sub-panes, one per sub indicator)
-                                      ├─ PaneSeparators (drag-resize between panes)
-                                      ├─ PaneControlBar (move / remove / collapse / maximize on hover)
-                                      └─ CrosshairOverlay (unified crosshair)
+                          ├─ DrawingToolbar (left rail)
+                          └─ chart column (flex-1; chart width excludes rail)
+                                ├─ EdgeChart
+                                │     ├─ ChartLegendBar (OHLCV overlay, price pane)
+                                │     ├─ PaneLegendBar (indicator legend overlays, sub-panes)
+                                │     ├─ ChartCanvas (price pane)
+                                │     ├─ ChartCanvas (sub-panes, one per sub indicator)
+                                │     ├─ PaneSeparators (drag-resize between panes)
+                                │     ├─ PaneControlBar (move / remove / collapse / maximize on hover)
+                                │     └─ CrosshairOverlay (unified crosshair)
+                                └─ ChartRangeBar (bottom preset bar; same column width as chart)
 ```
 
 - **Engine**: Canvas 2D (`src/lib/chart/canvas.tsx`); `ChartCell` → `EdgeChart` only (legacy klinecharts removed June 2025).
@@ -185,6 +189,7 @@ StockApp → ChartGrid → ChartCell → EdgeChart
 | Horizontal line (active pane) | **Done** | Clamped to active pane plot area |
 | Free crosshair X default | **Done** | Vertical line follows cursor X freely between bars by default |
 | Lock vertical cursor line | **Done** | Blank-menu toggle freezes the vertical line at the captured plot X until unlocked; menu hover suppresses crosshair updates |
+| Crosshair anchor during pan | **Done** | Navigate-mode body pan captures bar/price at mousedown and keeps crosshair labels fixed while the viewport scrolls (`dragCrosshairAnchorRef` + `emitCrosshairMove` in `canvas.tsx`) |
 | Price badge (Y-axis) | **Done** | `formatCrosshairValue()` + `priceForPlotY()` |
 | Time badge (X-axis) | **Done** | Bottom pane only; `formatAxisTime()` |
 | Indicator value at cursor | **Partial** | `valueAt` on MACD; other indicators lack it |
@@ -331,6 +336,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Theme persistence | **Done** | Part of `ChartLayout`; live switch via toolbar |
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
 | Drawing toolbar rail | **Done** | Left column in `ChartCell` |
+| Bottom range bar alignment | **Done** | `ChartRangeBar` sits in the chart column beside the drawing rail (not full cell width) so presets align with the plot area |
 | Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.ts` for watchlist, account, risk, and object-tree panels |
 | Account sidebar panel | **Partial** | App-level `account` panel via `AccountProvider` + `/api/brokerage/*`; overhauled layout with color-coded PnL, metric help tooltips, tabbed open orders/today's fills, icon refresh, day-trades in net-liq card, and computed leverage; live positions/PnL/summary/fills when TWS sidecar + IB Gateway connected; open orders require `TWS_READONLY=false`; what-if preview UI removed |
 | Risk sidebar panel | **Done** | App-level `risk` panel via `RiskSettingsProvider`; percent-of-account or absolute $ sizing with IB summary basis tags; `dollarRisk`/`riskAccount` propagate to options Risk Calculator and risk-ruler presets; stale badge + `manualCapital` fallback when account disconnected; localStorage `edge.riskSettings.v1` |

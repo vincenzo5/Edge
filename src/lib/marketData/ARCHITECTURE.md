@@ -83,7 +83,7 @@ When `TWS_ENABLED=true`, `MarketDataService` attempts **TWS first** via the loca
 
 Cache keys are namespaced per provider (`massive`, `ibkr`, `tws`, `yahoo` / `tradier`) so a fallback cached while the Gateway is logged out does not block a later provider fetch after credentials recover.
 
-API routes return optional `meta: { source, warnings, stale, asOf }` alongside legacy `{ candles }` / `{ quotes }` payloads. Probe routes under `/api/market-data/ibkr/*` remain available for diagnostics.
+API routes return optional `meta: { source, warnings, stale, asOf, usage, readiness }` alongside legacy `{ candles }` / `{ quotes }` payloads. Candles and quotes attach trust fields via `trust/enrichResponseMeta.ts` (see [Data trust model](#data-trust-model)). Probe routes under `/api/market-data/ibkr/*` remain available for diagnostics.
 
 ## Providers
 

@@ -79,6 +79,8 @@ The chart pane draw loop is split into ordered layers registered in `LayerRegist
 
 Crosshair rendering stays in the separate `CrosshairOverlay.tsx` DOM/canvas overlay — not part of the pane layer stack.
 
+**Crosshair input (`canvas.tsx`):** Hover emits `onCrosshairMove` via `emitCrosshairMove`. In navigate mode, body pan captures a drag anchor at mousedown (`dataIndex`, `timestamp`, `price`) and re-emits crosshair events at that anchored bar/price while the viewport scrolls so legend/OHLC labels stay fixed under the cursor. Time-lock mode (`lockCrosshairToTime` + `lockedCrosshairPlotX`) keeps the vertical line at the captured plot X instead. Drawing drags and context-menu hover suppress crosshair updates.
+
 Each layer declares `invalidatingReasons` (`data`, `viewport`, `size`, `theme`, `settings`, `drawings`, `selection`, `crosshair`). `RenderScheduler` coalesces reasons per frame; `canvas.tsx` builds a `LayerDrawState` and iterates `defaultLayerRegistry.getOrderedLayers()`.
 
 Cache reuse helpers (`canReuseBackgroundCache`, `canReuseSeriesCache`) derive from shared invalidation sets exported by `renderScheduler.ts` and mirrored on layer metadata in `layers.ts`.
