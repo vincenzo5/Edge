@@ -54,6 +54,7 @@ If you change chart background, grid, or axis colors, update `edgeChartColors` /
 | `text-secondary` / `text-muted` | Hints, axis-like labels, section headers |
 | `accent-blue` | Links, primary actions, last-price line color |
 | `positive` / `negative` | Price change, up/down candles (via `toneTextClass`) |
+| `warning` | Stale data, stream interruptions, non-fatal alerts (`ChartFeedStatusBadge`, data-health menu) |
 
 Prefer **semantic** tokens over raw hex. Use `toneTextClass('positive' | 'negative' | 'neutral')` for signed values.
 
@@ -86,7 +87,10 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Object tree / data window | `ObjectTree.tsx` |
 | Watchlist panel | `watchlist/WatchlistPanel.tsx` |
 | Bottom range bar | `ChartRangeBar.tsx` |
-| Chart cell shell | `ChartCell.tsx` — left `DrawingToolbar` rail + flex column (`EdgeChart` stack + `ChartRangeBar`) so the range bar matches chart width |
+| Chart cell shell | `ChartCell.tsx` — left `DrawingToolbar` rail + flex column (`ChartErrorBoundary` → `EdgeChart` + `ChartRangeBar`) so the range bar matches chart width |
+| Chart feed status overlay | `chart-cell/ChartFeedStatusBadge.tsx` — absolute top-right badge for stale/stream/error/refreshing feed state |
+| Chart error fallback | `chart-cell/ChartErrorBoundary.tsx` — in-cell error UI with retry and copy-error actions |
+| App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full-screen chart-bg shell until layout hydrates |
 
 Copy patterns from these files before inventing new markup.
 
