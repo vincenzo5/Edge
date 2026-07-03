@@ -34,6 +34,7 @@
     "ibkr:options-probe": "npx tsx scripts/ibkr-options-probe.mts",
     "tws:sidecar-setup": "bash scripts/tws-sidecar-setup.sh",
     "tws:sidecar": "bash scripts/tws-sidecar.sh",
+    "tws:sidecar:test": "cd services/tws-sidecar && ../../.tools/tws-sidecar-venv/bin/python -m unittest test_main -v",
     "tws:probe": "npx tsx scripts/tws-probe.mts",
     "tws:options-probe": "npx tsx scripts/tws-options-probe.mts",
     "fmp:gap-probe": "npx tsx scripts/fmp-gap-probe.mts",

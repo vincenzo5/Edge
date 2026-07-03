@@ -84,7 +84,7 @@ _account_portfolio: dict[int, dict[str, Any]] = {}
 _account_values: dict[str, dict[str, Any]] = {}
 _account_pnl: dict[str, Any] = {}
 _account_orders: dict[int, dict[str, Any]] = {}
-_account_executions: list[dict[str, Any]] = {}
+_account_executions: list[dict[str, Any]] = []
 _account_positions_raw: dict[int, dict[str, Any]] = {}
 
 PRIORITY_HIGH = 0
@@ -1068,7 +1068,78 @@ def _setup_account_subscriptions(ib: IB) -> None:
     except Exception:  # noqa: BLE001
         pass
 
+    try:
+        _seed_portfolio_market_data(ib)
+    except Exception:  # noqa: BLE001
+        pass
+
     _account_subscriptions_active = True
+
+
+def _seed_portfolio_market_data(ib: IB) -> None:
+    """Synchronously fill _account_portfolio so cold loads include MKT/PnL."""
+    try:
+        for item in ib.portfolio():
+            _on_update_portfolio(item)
+    except Exception:  # noqa: BLE001
+        pass
+
+    with _account_lock:
+        keys_needing_price = [
+            key
+            for key in _account_positions_raw
+            if _account_portfolio.get(key, {}).get("marketPrice") is None
+        ]
+        raw_snapshots = {
+            key: dict(_account_positions_raw.get(key, {})) for key in keys_needing_price
+        }
+
+    for key, raw in raw_snapshots.items():
+        position = _safe_float(raw.get("position"))
+        if not position:
+            continue
+        contract_info = raw.get("contract") or {}
+        symbol = (contract_info.get("symbol") or "").strip().upper()
+        if not symbol:
+            continue
+        try:
+            con_id = contract_info.get("conId")
+            if con_id:
+                from ib_insync import Contract
+
+                contract = Contract(conId=int(con_id), symbol=symbol)
+                qualified = ib.qualifyContracts(contract)
+                contract = qualified[0] if qualified else Stock(symbol, "SMART", "USD")
+            else:
+                contract = Stock(symbol, "SMART", "USD")
+                qualified = ib.qualifyContracts(contract)
+                if not qualified:
+                    continue
+                contract = qualified[0]
+            ticker = ib.reqMktData(contract, "", False, False)
+            ib.sleep(0.4)
+            price = _safe_float(getattr(ticker, "last", None)) or _safe_float(
+                getattr(ticker, "close", None)
+            )
+            ib.cancelMktData(contract)
+            if price is None:
+                continue
+            avg_cost = _safe_float(raw.get("avgCost")) or 0.0
+            with _account_lock:
+                existing = _account_portfolio.get(key, {})
+                _account_portfolio[key] = {
+                    "account": raw.get("account") or existing.get("account"),
+                    "contract": contract_info,
+                    "position": position,
+                    "marketPrice": price,
+                    "marketValue": price * position,
+                    "averageCost": existing.get("averageCost") or avg_cost,
+                    "unrealizedPNL": (price - avg_cost) * position,
+                    "realizedPNL": existing.get("realizedPNL"),
+                    "updatedAt": _now_ms(),
+                }
+        except Exception:  # noqa: BLE001
+            continue
 
 
 def _merge_positions() -> list[dict[str, Any]]:
@@ -1572,6 +1643,7 @@ def account_positions() -> dict[str, Any]:
                         "avgCost": _safe_float(pos.avgCost),
                         "updatedAt": _now_ms(),
                     }
+            _seed_portfolio_market_data(ib)
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return {"positions": _merge_positions(), "updatedAt": _now_ms()}
@@ -1624,11 +1696,15 @@ def account_trades() -> dict[str, Any]:
         try:
             ib = _get_ib()
             ib.reqExecutions()
-            ib.sleep(0.5)
+            ib.sleep(1.5)
+            fills = list(ib.fills())
+            mapped = [_map_execution_from_fill(fill) for fill in fills]
+            if len(mapped) > 200:
+                mapped = mapped[-200:]
             with _account_lock:
                 _account_executions.clear()
-            for fill in ib.fills():
-                _on_exec_details(None, fill)
+                for row in mapped:
+                    _account_executions.append(row)
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         with _account_lock:

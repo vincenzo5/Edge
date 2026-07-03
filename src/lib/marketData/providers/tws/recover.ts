@@ -59,6 +59,21 @@ export function resetManagedSidecarProcessForTests(): void {
   managedSidecarProcess = null;
 }
 
+export function setManagedSidecarProcessForTests(child: ChildProcess | null): void {
+  managedSidecarProcess = child;
+}
+
+export function killManagedSidecar(): void {
+  if (managedSidecarProcess && !managedSidecarProcess.killed) {
+    try {
+      managedSidecarProcess.kill("SIGTERM");
+    } catch {
+      // Best-effort — stale process may already be gone.
+    }
+  }
+  managedSidecarProcess = null;
+}
+
 function parseReconnectPayload(json: Record<string, unknown>): TwsStatusProbe {
   const warnings = Array.isArray(json.warnings)
     ? json.warnings.filter((row): row is string => typeof row === "string")
