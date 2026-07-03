@@ -19,11 +19,11 @@ import {
   validateSummaryAgainstChanges,
   type AutomationLane,
   type DiffRange,
-} from "./docs-automation-framework";
+} from "./docs-automation-framework.mts";
 
 config({ path: ".env.local" });
 
-export type { DiffRange } from "./docs-automation-framework";
+export type { DiffRange } from "./docs-automation-framework.mts";
 
 export type PrePushLine = {
   localRef: string;
