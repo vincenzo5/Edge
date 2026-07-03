@@ -78,5 +78,30 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(body["managedBy"], main.TWS_MANAGED_BY)
 
 
+class SidecarSecretTests(unittest.TestCase):
+    def test_secret_helper_allows_health_without_header(self) -> None:
+        original = main.TWS_SIDECAR_SECRET
+        try:
+            main.TWS_SIDECAR_SECRET = "test-secret"
+            self.assertTrue(main._sidecar_secret_allowed("/health", {}))
+            self.assertFalse(main._sidecar_secret_allowed("/status", {}))
+            self.assertTrue(
+                main._sidecar_secret_allowed(
+                    "/status",
+                    {main.EDGE_SIDECAR_SECRET_HEADER: "test-secret"},
+                )
+            )
+        finally:
+            main.TWS_SIDECAR_SECRET = original
+
+    def test_secret_helper_allows_all_routes_when_unconfigured(self) -> None:
+        original = main.TWS_SIDECAR_SECRET
+        try:
+            main.TWS_SIDECAR_SECRET = ""
+            self.assertTrue(main._sidecar_secret_allowed("/status", {}))
+        finally:
+            main.TWS_SIDECAR_SECRET = original
+
+
 if __name__ == "__main__":
     unittest.main()

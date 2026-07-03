@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonErrorResponse, toPublicErrorMessage } from "@/lib/api/safeErrorResponse";
 import { BrokerageRequestError } from "@/lib/brokerage/brokerageClient";
 
 export function brokerageDisabledResponse(): Response {
@@ -21,8 +22,13 @@ export function brokerageErrorResponse(error: unknown): Response {
           : error.category === "sidecar_unreachable"
             ? 503
             : 500;
-    return NextResponse.json({ error: error.message, category: error.category }, { status });
+    return NextResponse.json(
+      {
+        error: toPublicErrorMessage(error, "Brokerage request failed"),
+        category: error.category,
+      },
+      { status },
+    );
   }
-  const message = error instanceof Error ? error.message : "Brokerage request failed";
-  return NextResponse.json({ error: message }, { status: 500 });
+  return jsonErrorResponse(error, "Brokerage request failed", 500);
 }

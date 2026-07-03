@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from ib_insync import IB, LimitOrder, MarketOrder, Option, Stock
 from pydantic import BaseModel, Field
 
@@ -31,6 +31,8 @@ TWS_CLIENT_ID = int(os.environ.get("TWS_CLIENT_ID", "77"))
 TWS_READONLY = os.environ.get("TWS_READONLY", "true").lower() != "false"
 TWS_ACCOUNT_ID = os.environ.get("TWS_ACCOUNT_ID", "").strip()
 SIDECAR_PORT = int(os.environ.get("TWS_SIDECAR_PORT", "8765"))
+TWS_SIDECAR_SECRET = os.environ.get("TWS_SIDECAR_SECRET", "").strip()
+EDGE_SIDECAR_SECRET_HEADER = "X-Edge-Sidecar-Secret"
 
 INTERVAL_TO_BAR = {
     "1m": "1 min",
@@ -71,6 +73,23 @@ async def _lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Edge TWS Sidecar", version=SIDECAR_VERSION, lifespan=_lifespan)
+
+
+@app.middleware("http")
+async def _sidecar_secret_middleware(request: Request, call_next):
+    if not _sidecar_secret_allowed(request.url.path, request.headers):
+        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    return await call_next(request)
+
+
+def _sidecar_secret_allowed(path: str, headers: Any) -> bool:
+    if not TWS_SIDECAR_SECRET:
+        return True
+    if path == "/health":
+        return True
+    provided = headers.get(EDGE_SIDECAR_SECRET_HEADER, "")
+    return provided == TWS_SIDECAR_SECRET
+
 _lock = threading.Lock()
 _ib: IB | None = None
 _last_connect_error: str | None = None

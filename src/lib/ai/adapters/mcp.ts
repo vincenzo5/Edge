@@ -47,7 +47,12 @@ async function forwardToSessionBridge(
   try {
     const res = await fetch(`${appUrl}/api/ai/session/execute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.EDGE_API_KEY?.trim()
+          ? { "X-Edge-Api-Key": process.env.EDGE_API_KEY.trim() }
+          : {}),
+      },
       body: JSON.stringify({
         name,
         input: args ?? {},

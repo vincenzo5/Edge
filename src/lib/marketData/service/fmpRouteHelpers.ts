@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonErrorResponse } from "@/lib/api/safeErrorResponse";
 import type { DataResult } from "@/lib/marketData/contracts/result";
 import type { MarketDataPerfPhase } from "@/lib/marketData/contracts/result";
 import { dataResultToResponseMeta } from "@/lib/marketData/contracts/result";
@@ -31,6 +32,5 @@ export function validationErrorResponse(parsed: {
 }
 
 export function providerErrorResponse(error: unknown, fallback: string): Response {
-  const message = error instanceof Error ? error.message : fallback;
-  return NextResponse.json({ error: message }, { status: 500 });
+  return jsonErrorResponse(error, fallback, 500);
 }

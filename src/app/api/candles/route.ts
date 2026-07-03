@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonErrorResponse } from "@/lib/api/safeErrorResponse";
 import {
   candlesRequestSchema,
   parseMarketRequest,
@@ -84,7 +85,6 @@ export async function POST(request: Request): Promise<Response> {
     perfContext.collector.record("api.total", routeStartedAt, false, "api", {
       error: error instanceof Error ? error.message : String(error),
     });
-    const message = error instanceof Error ? error.message : "Failed to fetch candles";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonErrorResponse(error, "Failed to fetch candles", 500);
   }
 }

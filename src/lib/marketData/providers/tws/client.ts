@@ -1,4 +1,5 @@
 import { asFiniteNumber } from "../../validation/parseRequest";
+import { sidecarAuthHeaders } from "./sidecarAuth";
 import { TwsRequestError, classifyTwsError } from "./healthGate";
 
 export type TwsSidecarCapabilities = {
@@ -301,10 +302,11 @@ export function createTwsClient(config?: TwsClientConfig) {
     try {
       const res = await fetch(url, {
         method,
-        headers:
+        headers: sidecarAuthHeaders(
           options.body != null
             ? { "Content-Type": "application/json", Accept: "application/json" }
             : { Accept: "application/json" },
+        ),
         body: options.body != null ? JSON.stringify(options.body) : undefined,
         signal: AbortSignal.timeout(timeoutForKind(kind, resolved)),
       });

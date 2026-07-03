@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonErrorResponse } from "@/lib/api/safeErrorResponse";
 import {
   buildProviderRows,
   collectRecentWarnings,
@@ -49,7 +50,6 @@ export async function GET(request: Request): Promise<Response> {
 
     return NextResponse.json({ ok: true, health: payload });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to fetch data health";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonErrorResponse(error, "Failed to fetch data health", 500);
   }
 }

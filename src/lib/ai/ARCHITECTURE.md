@@ -61,6 +61,8 @@ type AiTool<TInput> = {
 
 External agents (HTTP/MCP) default to `read` unless session grants write access.
 
+When `EDGE_API_KEY` is configured, HTTP/MCP callers must send `X-Edge-Api-Key` (or `Authorization: Bearer …`) for sensitive routes unless the request originates from trusted localhost. The MCP adapter forwards `EDGE_API_KEY` when calling `/api/ai/session/execute`.
+
 ## Invariants
 
 - Tools MUST NOT import React — use `ToolContext` facades only.

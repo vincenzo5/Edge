@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     typeof body.permissionMode === "string" &&
     VALID_MODES.has(body.permissionMode as PermissionMode)
       ? (body.permissionMode as PermissionMode)
-      : "write";
+      : "read";
 
   const confirmed = body.confirmed === true;
 

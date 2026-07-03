@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { toPublicErrorMessage } from "@/lib/api/safeErrorResponse";
 import { parseMarketRequest, twsRecoverRequestSchema } from "@/lib/marketData/schemas";
 import { isTwsConfigured } from "@/lib/marketData/providers/tws/client";
 import { recoverTwsSidecar } from "@/lib/marketData/providers/tws/recover";
@@ -67,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
       warmup,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "TWS recovery failed";
+    const message = toPublicErrorMessage(error, "TWS recovery failed");
     const statusCode = message.includes("not configured") ? 403 : 500;
     return NextResponse.json({ error: message }, { status: statusCode });
   }

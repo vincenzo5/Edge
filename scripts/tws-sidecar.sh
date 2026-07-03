@@ -73,6 +73,7 @@ export TWS_READONLY="${TWS_READONLY:-true}"
 export TWS_SIDECAR_PORT="${PORT}"
 export TWS_MANAGED_BY="${TWS_MANAGED_BY:-standalone}"
 export EDGE_INSTANCE_ID="${EDGE_INSTANCE_ID:-}"
+export TWS_SIDECAR_SECRET="${TWS_SIDECAR_SECRET:-}"
 
 echo "Starting TWS sidecar: IB Gateway ${TWS_HOST}:${TWS_PORT} (paper default 4002, live 4001), clientId=${TWS_CLIENT_ID}, sidecarPort=${TWS_SIDECAR_PORT}, managedBy=${TWS_MANAGED_BY}" >&2
 

@@ -8,6 +8,7 @@ import type {
   WhatIfRequest,
   WhatIfResult,
 } from "../marketData/contracts/brokerage";
+import { sidecarAuthHeaders } from "../marketData/providers/tws/sidecarAuth";
 import {
   BrokerageRequestError,
   classifyBrokerageError,
@@ -109,10 +110,11 @@ export function createBrokerageClient(config?: BrokerageClientConfig) {
     try {
       const res = await fetch(url, {
         method,
-        headers:
+        headers: sidecarAuthHeaders(
           options.body != null
             ? { "Content-Type": "application/json", Accept: "application/json" }
             : { Accept: "application/json" },
+        ),
         body: options.body != null ? JSON.stringify(options.body) : undefined,
         signal: AbortSignal.timeout(resolved.timeoutMs),
       });
