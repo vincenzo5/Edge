@@ -276,9 +276,9 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 
 **Toolbar layout:** Left rail in `ChartCell` — cursor + 3 grouped flyouts (Lines, Channels & Shapes, Annotation) + utilities (zoom, measure, ruler, magnet, keep-drawing, lock-all, hide-all, delete, clear).
 
-**Registry aliases** (`pluginHost.ts`): 13 drawing tool names mapped to registry keys (12 grouped + measure utility).
+**Registry aliases** (`pluginHost.ts`): 14 names mapped to registry keys (11 grouped flyout tools + measure + ruler utilities + `riskRuler` preset alias).
 
-**Engine registry** (`drawings/registry.ts`): 13 plugins registered.
+**Engine registry** (`drawings/registry.ts`): 14 plugins registered (11 geometry + measure + ruler + `risk_ruler`).
 
 | Tool (toolbar name) | Registry name | Status |
 |---------------------|---------------|--------|
@@ -306,7 +306,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Click select + CP edit | **Done** | `hitTestAll` + control-point drag |
 | Draw on chart | **Done** | Price + sub-panes; z-sorted render per pane |
 | Sub-pane drawing routing (platform 4.1) | **Done** | Pane-scoped input, coords, render; trend/hline on RSI |
-| Full sub-pane tool parity (platform 4.2) | **Done** | All 13 tools; pane-scoped hit-test + selection |
+| Full sub-pane tool parity (platform 4.2) | **Done** | All 14 tools; pane-scoped hit-test + selection |
 | Object Tree pane labels (platform 4.2) | **Done** | Data window section headers; object tree uses flat labels |
 | Serialize to `CellConfig.drawings` | **Done** | `timestamp`+`value` points; debounced 500 ms |
 | Hit test / select | **Done** | 4px tolerance; topmost z-order |
@@ -331,8 +331,9 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Theme persistence | **Done** | Part of `ChartLayout`; live switch via toolbar |
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
 | Drawing toolbar rail | **Done** | Left column in `ChartCell` |
-| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.ts` for watchlist, account, and object-tree panels |
+| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.ts` for watchlist, account, risk, and object-tree panels |
 | Account sidebar panel | **Partial** | App-level `account` panel via `AccountProvider` + `/api/brokerage/*`; overhauled layout with color-coded PnL, metric help tooltips, tabbed open orders/today's fills, icon refresh, day-trades in net-liq card, and computed leverage; live positions/PnL/summary/fills when TWS sidecar + IB Gateway connected; open orders require `TWS_READONLY=false`; what-if preview UI removed |
+| Risk sidebar panel | **Done** | App-level `risk` panel via `RiskSettingsProvider`; percent-of-account or absolute $ sizing with IB summary basis tags; `dollarRisk`/`riskAccount` propagate to options Risk Calculator and risk-ruler presets; stale badge + `manualCapital` fallback when account disconnected; localStorage `edge.riskSettings.v1` |
 | Chart position overlay (`showPositions`) | **Partial** | Settings → Trading → Positions toggles avg-cost reference line on the active symbol from held position (`positionOverlays.ts`); buy/sell buttons, orders, executions, and PnL chart overlays not yet wired |
 | Object Tree panel | **Done** | Right sidebar panel (`object-tree`); follows active chart via `ActiveChartContext`; Object tree / Data window tabs persisted per `chartId` |
 | Object Tree — symbol row | **Done** | Flat list: symbol · exchange · interval |

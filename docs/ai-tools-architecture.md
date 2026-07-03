@@ -74,7 +74,7 @@ MA, EMA, BOLL, MACD, RSI, VOL
 
 ### Supported Drawing Types
 
-`trend_line`, `horizontal_line`, `vertical_line`, `ray`, `rectangle`, `parallel_channel`, `price_channel`, `circle`, `fib_retracement`, `price_line`, `annotation`, `measure`
+`trend_line`, `horizontal_line`, `vertical_line`, `ray`, `rectangle`, `parallel_channel`, `price_channel`, `circle`, `fib_retracement`, `price_line`, `annotation`, `measure`, `ruler`
 
 ### Drawing annotation metadata (Phase A)
 
