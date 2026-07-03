@@ -55,6 +55,7 @@ Drizzle ORM + Postgres
 - Requires `EDGE_AUTH_SECRET` and `DATABASE_URL` in environment.
 - `POST /api/auth/dev-session` establishes a session (passphrase required when `EDGE_DEV_PASSPHRASE` is set).
 - `ensurePersistenceSession()` in the root layout bootstraps a session when no passphrase is configured.
+- When a passphrase is required, `DevPersistenceLoginBanner` prompts via `GET`/`POST /api/auth/dev-session` until authenticated.
 - `getCurrentUser()` resolves a verified cookie only — it does not auto-create users.
 - **Not production auth** — placeholder boundary for persistence routes.
 

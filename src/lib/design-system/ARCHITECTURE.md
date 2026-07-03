@@ -88,7 +88,8 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Watchlist panel | `watchlist/WatchlistPanel.tsx` |
 | Bottom range bar | `ChartRangeBar.tsx` |
 | Chart cell shell | `ChartCell.tsx` — left `DrawingToolbar` rail + flex column (`ChartErrorBoundary` → `EdgeChart` + `ChartRangeBar`) so the range bar matches chart width |
-| Chart feed status overlay | `chart-cell/ChartFeedStatusBadge.tsx` — absolute top-right badge for stale/stream/error/refreshing feed state |
+| Chart overlay status stack | `chart-cell/ChartOverlayStatusStack.tsx` — active-cell top-right stack: feed badge + optional `DataHealthButton` |
+| Chart feed status overlay | `chart-cell/ChartFeedStatusBadge.tsx` — stale/stream/error/refreshing feed state (standalone or embedded in the stack) |
 | Chart error fallback | `chart-cell/ChartErrorBoundary.tsx` — in-cell error UI with retry and copy-error actions |
 | App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full-screen chart-bg shell until layout hydrates |
 

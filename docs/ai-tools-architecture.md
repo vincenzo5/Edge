@@ -132,6 +132,8 @@ Tools never import React. Context providers assemble a `ToolContext` snapshot at
 
 External agents (HTTP/MCP) default to `read` unless a session grants write access.
 
+When `EDGE_API_KEY` is configured, HTTP/MCP callers must send `X-Edge-Api-Key` (or `Authorization: Bearer …`) for `/api/ai/*` unless the request originates from trusted localhost (`EDGE_TRUST_LOCALHOST`, default true).
+
 ## Serving Adapters
 
 ### In-App Adapter
@@ -143,11 +145,11 @@ External agents (HTTP/MCP) default to `read` unless a session grants write acces
 - `GET /api/ai/tools` — list tool definitions with JSON Schema
 - `POST /api/ai/tools/execute` — execute a tool by name
 
-Server-side execution supports market-data tools directly. Client-state tools return a `requiresClientSession` error when no browser context is available.
+Server-side execution supports market-data tools directly. Client-state tools return a `requiresClientSession` error when no browser context is available. Middleware applies optional `EDGE_API_KEY` and in-process rate limits (`EDGE_RATE_LIMIT`) to `/api/ai/*`.
 
 ### MCP Adapter
 
-`scripts/edge-mcp-server.mts` exposes market-data and tool-definition tools for Cursor and other MCP clients. Stateful chart/layout tools require the in-app session bridge (future WebSocket bridge).
+`scripts/edge-mcp-server.mts` exposes market-data and tool-definition tools for Cursor and other MCP clients. Stateful chart/layout tools require the in-app session bridge (future WebSocket bridge). When bridging to `/api/ai/session/execute`, the adapter forwards `EDGE_API_KEY` as `X-Edge-Api-Key`.
 
 Add to `.cursor/mcp.json`:
 
