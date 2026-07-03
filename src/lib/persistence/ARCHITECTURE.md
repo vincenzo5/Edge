@@ -34,8 +34,10 @@ Drizzle ORM + Postgres
 | `client/*.ts` | Fetch wrappers for API routes |
 | `sync/*.ts` | React hooks for bidirectional sync |
 | `sync/syncMetadata.ts` | Local revision tracking for conflict detection |
-| `auth/getCurrentUser.ts` | Dev session cookie auth boundary |
+| `auth/getCurrentUser.ts` | Resolve signed dev session cookie (no auto-create) |
+| `auth/devSession.ts` | Establish/clear dev session; layout bootstrap |
 | `auth/devSessionCookie.ts` | Signed cookie creation/verification |
+| `auth/signedCookieCore.ts` | HMAC cookie helpers shared by server routes |
 
 ## Resources
 
@@ -51,7 +53,9 @@ Drizzle ORM + Postgres
 
 - Dev-only signed cookie auth (`EDGE_USER_COOKIE`).
 - Requires `EDGE_AUTH_SECRET` and `DATABASE_URL` in environment.
-- `getCurrentUser()` auto-creates dev user on first request.
+- `POST /api/auth/dev-session` establishes a session (passphrase required when `EDGE_DEV_PASSPHRASE` is set).
+- `ensurePersistenceSession()` in the root layout bootstraps a session when no passphrase is configured.
+- `getCurrentUser()` resolves a verified cookie only — it does not auto-create users.
 - **Not production auth** — placeholder boundary for persistence routes.
 
 ## Sync Contract

@@ -62,3 +62,16 @@ export function parseJsonBody<T>(
     details: parsed.error.flatten(),
   };
 }
+
+export function isPersistenceDatabaseUnavailable(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const errorWithCode = error as Error & { code?: string; cause?: unknown; errors?: unknown[] };
+  if (errorWithCode.code === "ECONNREFUSED") return true;
+  if (error.message.includes("ECONNREFUSED")) return true;
+  if (error.message.includes("Failed query")) return true;
+  if (error.message.includes("does not exist")) return true;
+  if (errorWithCode.cause && isPersistenceDatabaseUnavailable(errorWithCode.cause)) return true;
+  return Array.isArray(errorWithCode.errors)
+    ? errorWithCode.errors.some(isPersistenceDatabaseUnavailable)
+    : false;
+}

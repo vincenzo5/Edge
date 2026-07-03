@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { DevPersistenceLoginBanner } from "@/app/components/DevPersistenceLoginBanner";
+import { ensurePersistenceSession } from "@/lib/persistence/auth/devSession";
 
 export const metadata: Metadata = {
   title: "Stock Charts",
   description: "Stock charting prototype with KLineChart and Yahoo Finance data",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await ensurePersistenceSession();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -25,7 +29,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <DevPersistenceLoginBanner />
+        {children}
+      </body>
     </html>
   );
 }

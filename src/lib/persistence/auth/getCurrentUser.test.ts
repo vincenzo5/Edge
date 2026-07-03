@@ -76,18 +76,20 @@ describe("getCurrentUser", () => {
     expect(cookieStore.set).not.toHaveBeenCalled();
   });
 
-  it("ignores unsigned cookies and creates a signed dev user", async () => {
+  it("returns null for unsigned cookies instead of auto-creating a user", async () => {
     cookieStore.get.mockReturnValue({
       value: "11111111-1111-1111-1111-111111111111",
     });
 
     const user = await getCurrentUser();
 
-    expect(user?.id).toBe("22222222-2222-2222-2222-222222222222");
-    expect(cookieStore.set).toHaveBeenCalledWith(
-      "edge-user-id",
-      expect.stringContaining("22222222-2222-2222-2222-222222222222."),
-      expect.objectContaining({ httpOnly: true }),
-    );
+    expect(user).toBeNull();
+    expect(dbMocks.insert).not.toHaveBeenCalled();
+    expect(cookieStore.set).not.toHaveBeenCalled();
+  });
+
+  it("returns null when no cookie is present", async () => {
+    cookieStore.get.mockReturnValue(undefined);
+    expect(await getCurrentUser()).toBeNull();
   });
 });

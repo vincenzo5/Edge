@@ -3,17 +3,10 @@ import "server-only";
 import { isDatabaseConfigured } from "@/db";
 import { AuthSecretMissingError } from "@/lib/persistence/auth/devSessionCookie";
 import { getCurrentUser } from "@/lib/persistence/auth/getCurrentUser";
-import { persistenceError } from "@/lib/persistence/common";
+import { persistenceError, isPersistenceDatabaseUnavailable } from "@/lib/persistence/common";
 
 function hasDatabaseUnavailableCause(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const errorWithCode = error as Error & { code?: string; cause?: unknown; errors?: unknown[] };
-  if (errorWithCode.code === "ECONNREFUSED") return true;
-  if (error.message.includes("ECONNREFUSED")) return true;
-  if (errorWithCode.cause && hasDatabaseUnavailableCause(errorWithCode.cause)) return true;
-  return Array.isArray(errorWithCode.errors)
-    ? errorWithCode.errors.some(hasDatabaseUnavailableCause)
-    : false;
+  return isPersistenceDatabaseUnavailable(error);
 }
 
 export async function withPersistenceAuth<T>(
