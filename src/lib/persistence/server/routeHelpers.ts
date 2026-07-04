@@ -1,12 +1,31 @@
 import "server-only";
 
 import { isDatabaseConfigured } from "@/db";
+import { establishDevSession, isDevPassphraseRequired } from "@/lib/persistence/auth/devSession";
 import { AuthSecretMissingError } from "@/lib/persistence/auth/devSessionCookie";
 import { getCurrentUser } from "@/lib/persistence/auth/getCurrentUser";
 import { persistenceError, isPersistenceDatabaseUnavailable } from "@/lib/persistence/common";
 
 function hasDatabaseUnavailableCause(error: unknown): boolean {
   return isPersistenceDatabaseUnavailable(error);
+}
+
+async function resolvePersistenceUser() {
+  let user = await getCurrentUser();
+  if (user || isDevPassphraseRequired()) {
+    return user;
+  }
+
+  try {
+    user = await establishDevSession({ bootstrap: true });
+  } catch (error) {
+    if (hasDatabaseUnavailableCause(error)) {
+      return null;
+    }
+    throw error;
+  }
+
+  return user;
 }
 
 export async function withPersistenceAuth<T>(
@@ -22,7 +41,7 @@ export async function withPersistenceAuth<T>(
 
   let user;
   try {
-    user = await getCurrentUser();
+    user = await resolvePersistenceUser();
   } catch (error) {
     if (error instanceof AuthSecretMissingError) {
       return persistenceError(

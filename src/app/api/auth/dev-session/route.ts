@@ -9,6 +9,14 @@ import { getCurrentUser, isPersistenceEnabled } from "@/lib/persistence/auth/get
 
 export const runtime = "nodejs";
 
+async function resolveDevSessionUser() {
+  let user = await getCurrentUser();
+  if (user || isDevPassphraseRequired()) {
+    return user;
+  }
+  return establishDevSession({ bootstrap: true });
+}
+
 export async function GET() {
   if (!isPersistenceEnabled()) {
     return NextResponse.json({
@@ -18,7 +26,7 @@ export async function GET() {
     });
   }
 
-  const user = await getCurrentUser();
+  const user = await resolveDevSessionUser();
   return NextResponse.json({
     persistenceEnabled: true,
     authenticated: user != null,

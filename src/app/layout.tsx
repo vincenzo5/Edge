@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { DevPersistenceLoginBanner } from "@/app/components/DevPersistenceLoginBanner";
-import { ensurePersistenceSession } from "@/lib/persistence/auth/devSession";
 
 export const metadata: Metadata = {
   title: "Stock Charts",
@@ -13,8 +12,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  await ensurePersistenceSession();
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

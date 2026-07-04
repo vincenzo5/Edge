@@ -24,13 +24,14 @@ npm run dev
 
 The dev server runs at http://localhost:3003.
 
-Optional persistence:
+Optional persistence (cloud sync for layout, watchlists, screeners, templates):
 
 ```bash
-cp .env.example .env.local
-npm run db:up
-npm run db:migrate
+cp .env.example .env.local   # set DATABASE_URL and EDGE_AUTH_SECRET
+npm run dev:with-db          # Postgres + migrate + dev on http://localhost:3003
 ```
+
+Stop Postgres when finished: `npm run db:down`. Plain `npm run dev` works without the database (localStorage fallback).
 
 ## Verification
 

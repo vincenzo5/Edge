@@ -30,10 +30,13 @@ npm run dev                # http://localhost:3003
 Optional: `scripts/init.sh` (add `--full` for full check). Copy `.env.example` → `.env.local` when using persistence or auth.
 
 ```bash
-npm run db:up              # start Postgres (optional)
+npm run dev:with-db        # Postgres + migrate + dev (cloud sync)
+npm run db:up              # start Postgres only (optional)
 npm run db:migrate         # apply migrations (requires DATABASE_URL)
 npm run mcp:edge           # MCP server for external agents
 ```
+
+Cloud sync requires `DATABASE_URL` and `EDGE_AUTH_SECRET` in `.env.local`. Use `npm run dev:with-db` so Postgres is up before the app bootstraps a dev session. Plain `npm run dev` still works without Postgres (localStorage fallback). Stop Postgres with `npm run db:down` when finished.
 
 ## Verify
 

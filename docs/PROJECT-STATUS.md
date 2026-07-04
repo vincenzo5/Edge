@@ -6,6 +6,38 @@ Single source for current progress. For row-by-row feature detail, see [chart/fe
 
 ## Current Verified State
 
+- **Current task:** Postgres dev coupling — `npm run dev:with-db` starts Postgres, waits, migrates, then dev; cloud sync session bootstraps in route handlers; `/api/me/*` returns 200 when coupled.
+- **State:** **Passing** — focused tests, startup gate, and app-level curl passed on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 4 passed (4)`, `Tests 14 passed (14)`; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/auth/dev-session` → `authenticated: true`; `GET /api/me/chart-template-library` HTTP 200; `GET /api/me/chart-workspaces/default` HTTP 200; **Architecture review:** self-review — Passed.
+- **Evidence:** `scripts/{wait-for-postgres.mts,dev-with-db.sh}`, `package.json`, `src/lib/persistence/server/routeHelpers.ts`, `src/app/api/auth/dev-session/route.ts`, `src/app/layout.tsx`, `AGENTS.md`, `README.md`, `src/lib/persistence/ARCHITECTURE.md`, tests.
+- **Current blocker:** none.
+- **Next best step:** Use `npm run dev:with-db` for local cloud sync; `npm run db:down` when finished with Postgres.
+
+## Previous Verified State (Display-fresh market data health)
+
+- **Current task:** Display-fresh market data health — chart + options Data Health use age-based freshness aligned with `HOT_STALE_MS`; hot-stale SWR no longer false orange; options trust-dataset split.
+- **State:** **Passing** — focused tests and build passed; app-level walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 6 passed (6)`, `Tests 108 passed (108)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/marketData/trust/dataTrust.ts`, `src/lib/marketData/health.ts`, `src/app/components/data-health/DataHealthProvider.tsx`, `src/app/components/options/useOptionsChainModel.ts`, tests, `ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 (chart hot-stale OK, options row age label); optional interval-aware candle display ages.
+
+## Previous Verified State (Watchlist age-based Data Health)
+
+- **Current task:** Watchlist age-based Data Health — severity uses quote age + source + coverage; false orange on hot-stale cache fixed; per-row age hints.
+- **State:** **Passing** — focused tests and build passed; app-level walkthrough recorded on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 101 passed (101)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **App-level:** Watchlist Quotes OK + `updated Ns ago` after SSE→REST (no `stale · hot stale`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/marketData/trust/dataTrust.ts`, `src/lib/marketData/health.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/app/components/{MarketDataProvider,DataHealthProvider}.tsx`, `src/app/components/watchlist/WatchlistRow.tsx`, `src/lib/watchlist/formatQuoteAge.ts`, tests, `ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by display-fresh market data health (chart/options parity shipped).
+
+## Previous Verified State (Data Health readiness-first UX)
+
+- **Current task:** Data Health readiness-first UX — badge/menu reflect `dataTrust` readiness; transport recovery events informational only; per-dataset dots + connection strip.
+- **State:** **Passing** — focused tests and build passed; superseded by watchlist age-based health row.
+
+## Previous Verified State (Startup bootstrap performance)
+
 - **Current task:** Startup bootstrap performance — unified local+remote bootstrap, deduped quote warmup, 2s cold SSE fallback, chart-first server warmup, sessionStorage chart cache.
 - **State:** **Passing** — focused tests, build, startup gate, and perf baseline passed; app-level telemetry walkthrough deferred.
 - **Latest verification:** **Focused:** 113 tests passed; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Startup:** `npm run check:startup` passed (26 tests); **Perf:** `npm run perf:market-data` — warmup `925ms` (phases: `tws.warmup`, `candles`, `options.expirations`; no `quotes`); **Architecture review:** self-review — Passed.
@@ -340,6 +372,10 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
+| Postgres dev coupling | `npm run dev:with-db` starts Docker Postgres, waits for readiness, migrates, then dev; route handlers bootstrap dev session (layout cookie write removed); cloud sync `/api/me/*` works when coupled | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 14 passed (14)`; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `authenticated: true`; `/api/me/chart-template-library` HTTP 200; **Architecture review:** self-review Passed | `scripts/{wait-for-postgres.mts,dev-with-db.sh}`, `package.json`, `routeHelpers.ts`, `dev-session/route.ts`, `layout.tsx`, docs, tests |
+| Display-fresh market data health | Chart + options Data Health use `maxDisplayAgeMs` aligned with `HOT_STALE_MS`; generalized `isDisplayFresh` severity; options chain vs expirations trust-dataset; age labels in menu rows | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 108 passed (108)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed | `dataTrust.ts`, `health.ts`, `DataHealthProvider.tsx`, `useOptionsChainModel.ts`, data-health tests, `ARCHITECTURE.md` |
+| Watchlist age-based Data Health | Watchlist severity uses quote age (60s) + source + coverage; hot-stale cache no longer false orange; silent revalidation; per-row age hints after 30s | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 101 passed (101)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **App-level:** localhost:3003 Watchlist Quotes OK + `updated Ns ago` | `dataTrust.ts`, `health.ts`, `marketDataService.ts`, `MarketDataProvider.tsx`, `DataHealthProvider.tsx`, `WatchlistRow.tsx`, `formatQuoteAge.ts`, tests, `ARCHITECTURE.md` |
+| Data Health readiness-first UX | Badge/menu use dataTrust readiness (not warning count); SSE→REST recovery → session Recent events (informational); connection strip + per-dataset dots; Active warnings for incidents only | **Passing** | Superseded by watchlist age-based row; prior **Focused:** 49 tests passed | `src/lib/marketData/{health.ts,healthEvents.ts}`, `src/app/components/data-health/*`, `MarketDataProvider.tsx`, tests |
 | Startup bootstrap performance | Unified bootstrap (layout+watchlist+screener) before provider mount; 500ms remote layout gate; warmup active-cell-first without quote batch; 2s cold SSE→REST fallback; sessionStorage chart cache for hard reload | **Passing** | **Focused:** 113 tests passed; **Build:** npm run build passed (`✓ Compiled successfully in 2.5s`); **Startup:** npm run check:startup passed (26 tests); **Perf:** warmup 925ms (no quotes phase) | `src/lib/app/bootstrap/*`, `StockApp.tsx`, `useChartWorkspaceRemoteSync.ts`, `MarketDataProvider.tsx`, `marketDataService.ts`, `quoteStreamPolicy.ts`, `chartClientCache.ts`, architecture docs, tests |
 | Product surface state models | Options in-memory session (tab/legs/analyze handoff shared rail ↔ float ↔ dialog; reset on symbol/expiration); Screener `ScreenerSessionState` + fetch hook; `AppWorkspaceSnapshot` extends `get_app_state`; `AccountSnapshot` type; AI read tools `get_risk_settings`, `get_account_snapshot`, `get_options_session` | **Passing** | **Focused:** 89 tests passed; **Build:** npm run build passed (`✓ Compiled successfully in 2.4s`); **Architecture review:** self-review Passed | `src/lib/options/optionsSession.ts`, `src/app/components/options/{OptionsSessionProvider,useOptionsWorkspaceModel}.tsx`, `src/lib/screener/{screenerSession.ts,useScreenerSessionModel.ts}`, `src/lib/app/workspaceSnapshot.ts`, `src/lib/brokerage/accountSnapshot.ts`, `src/lib/ai/tools/sessionState.ts`, `src/lib/ai/{context.ts,ARCHITECTURE.md}`, panel wiring, tests |
 | Initial loading UX | `AppHydrationShell` chrome skeleton gates layout hydration (no default-symbol flash); `ChartLoadingOverlay` for cold candle fetch; `loading.tsx` covers route/bundle gap; shared `EdgeSpinner` / `EdgeSkeletonLine` with reduced-motion CSS | **Passing** | **Focused:** 18 tests passed; **Build:** npm run build passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed | `chart-cell/{AppHydrationShell,ChartLoadingOverlay}.tsx`, `design-system/{EdgeSpinner,EdgeSkeletonLine}.tsx`, `StockApp.tsx`, `EdgeChart.tsx`, `loading.tsx`, `globals.css`, tests, `ARCHITECTURE.md` |
@@ -630,6 +666,31 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 - **Verification:** focused options tests (10 passed) + `npm run check:startup` (26 passed); app-level expiration switch check pending on `localhost:3003`.
 - **Blockers:** none.
 
+## Task Contract — Display-fresh market data health
+
+- **Status:** Complete — row marked **Passing** 2026-07-04.
+- **Goal:** Extend age-based display freshness to chart candles and options; eliminate false orange Active Chart / Options rows on hot-stale SWR cache.
+- **In scope:** `maxDisplayAgeMs` for `chart_candles`, `options_chain`, `options_expirations` (aligned with `HOT_STALE_MS`); generalized `deriveDatasetSeverity` / `formatDatasetLine` / `buildHealthCaveatSubtitle`; options `trustDataset` wiring; tests + architecture doc.
+- **Out of scope:** Interval-aware candle ages; client chart/options silent revalidation; `ChartFeedStatusBadge` overlay changes; account/pre_trade_quote policy changes.
+- **Verification:** **Focused:** `Test Files 6 passed (6)`, `Tests 108 passed (108)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **App-level:** deferred on `localhost:3003`.
+- **Blockers:** none.
+
+## Task Contract — Watchlist age-based Data Health
+
+- **Status:** Complete — row marked **Passing** 2026-07-04.
+- **Goal:** Age-based watchlist health; green badge after SSE→REST when TWS quotes are within 60s display window.
+- **Delivered:** `maxDisplayAgeMs` + `isDisplayFresh` in `dataTrust.ts`; watchlist-only severity in `health.ts`; batch `asOf` on hot-cache hits; client `watchlistAsOf` + silent revalidation; `formatQuoteAge` row hints; tests + architecture doc.
+- **Verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 101 passed (101)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **App-level:** localhost:3003 — Watchlist Quotes **OK**, status `4/4 symbols · rest · TWS · updated Ns ago · display-only` (no stale/hot-stale caveat).
+- **Blockers:** none.
+
+## Task Contract — Data Health readiness-first UX
+
+- **Status:** Complete — row marked **Passing** 2026-07-04.
+- **Goal:** Align badge severity with `dataTrust` readiness; separate session events from incidents so recovered SSE→REST fallbacks stay green when TWS data is loaded.
+- **In scope:** `health.ts` severity rewrite, `healthEvents.ts` session log, `MarketDataProvider` producer fix, Data Health menu/badge UI, architecture doc, tests.
+- **Out of scope:** `trading_decision` readiness UI, new API routes, telemetry panel changes.
+- **Verification:** focused health/data-health tests (`Test Files 9 passed (9)`, `Tests 49 passed (49)`) + `npm run build` (`✓ Compiled successfully in 2.5s`); app-level walkthrough scenarios 1–5 deferred on `localhost:3003`.
+
 ## Task Contract — Data Health latency diagnostics
 
 - **Status:** Complete — row marked **Passing** 2026-06-27.
@@ -711,6 +772,38 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Keep the current state above short and authoritative; keep historical detail here.
+
+### 2026-07-04 — Postgres dev coupling
+
+- **Goal:** Couple local Postgres startup with the dev server so cloud sync works without manual `db:up`; eliminate `/api/me/*` 401s when persistence is configured.
+- **Completed:** `scripts/wait-for-postgres.mts` + tests; `scripts/dev-with-db.sh`; `npm run dev:with-db` / `db:wait`; docs in AGENTS/README/persistence ARCHITECTURE; moved dev session bootstrap from layout (Next.js cookie restriction) to `/api/me/*` + `GET /api/auth/dev-session` route handlers.
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 14 passed (14)`; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `GET /api/auth/dev-session` → `authenticated: true`; `GET /api/me/chart-template-library` HTTP 200; `GET /api/me/chart-workspaces/default` HTTP 200.
+- **Known blockers:** none — plain `npm run dev` without Postgres still returns 401 on sync routes (localStorage fallback unchanged).
+- **Next best step:** Optional client-side sync gating when unauthenticated to reduce log noise on plain `dev`.
+
+### 2026-07-04 — Display-fresh market data health
+
+- **Goal:** Chart + options Data Health age parity with watchlist; stop false orange on hot-stale SWR when data is display-fresh.
+- **Completed:** `maxDisplayAgeMs` on chart/options policies (from `HOT_STALE_MS`); `resolveTrustDataset` + `isDatasetDisplayFresh`; generalized severity/caveat/format lines; options chain vs expirations trust-dataset in `DataHealthProvider` / `useOptionsChainModel`; tests + architecture doc.
+- **Verification run:** **Focused:** `Test Files 6 passed (6)`, `Tests 108 passed (108)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level chart hot-stale + options row walkthrough on `localhost:3003` not recorded.
+- **Next best step:** Manual verify Active Chart OK with `updated Ns ago` after >15s idle; optional interval-aware candle display ages.
+
+### 2026-07-04 — Watchlist age-based Data Health
+
+- **Goal:** Replace watchlist false orange (hot-stale cache after SSE→REST) with age-based display freshness; per-row quote age hints.
+- **Completed:** `dataTrust` display policy (60s); watchlist-only `deriveDatasetSeverity`; server `asOf=min(updatedAt)`; client wiring + silent revalidation; `formatQuoteAge` in watchlist rows; harness + architecture doc.
+- **Verification run:** **Focused:** `Test Files 7 passed (7)`, `Tests 101 passed (101)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **App-level:** localhost:3003 Data Health — Watchlist Quotes **OK**, `updated Ns ago` line (no orange caveat for hot-stale TWS cache).
+- **Known blockers:** none.
+- **Next best step:** Optional chart dataset age parity.
+
+### 2026-07-04 — Data Health readiness-first UX
+
+- **Goal:** Rebuild Data Health severity around `dataTrust` readiness; stop false-positive degraded badge after recovered SSE→REST fallback.
+- **Completed:** `healthEvents.ts` session log; readiness-based `deriveDatasetSeverity`; `MarketDataProvider` emits transport events without polluting `quotesMeta.warnings`; connection strip + per-dataset dots + Recent events UI; architecture doc update.
+- **Verification run:** **Focused:** `Test Files 9 passed (9)`, `Tests 49 passed (49)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level walkthrough scenarios 1–5 on `localhost:3003` not recorded.
+- **Next best step:** Manual verify recovered SSE timeout shows green badge + Recent events; Yahoo fallback shows caveat subtitle.
 
 ### 2026-07-04 — Startup bootstrap performance
 

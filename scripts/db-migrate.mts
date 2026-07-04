@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { Pool } from "pg";
 
+import { runPendingMigrations } from "./db-migrate-lib.mts";
+
 config({ path: ".env.local" });
 config();
 
@@ -25,14 +27,21 @@ if (migrationFiles.length === 0) {
   process.exit(1);
 }
 
+const migrations = migrationFiles.map((file) => ({
+  filename: file,
+  sql: readFileSync(join(migrationsDir, file), "utf8"),
+}));
+
 const pool = new Pool({ connectionString: databaseUrl });
 
 try {
-  for (const file of migrationFiles) {
-    const migrationPath = join(migrationsDir, file);
-    const sql = readFileSync(migrationPath, "utf8");
-    await pool.query(sql);
-    console.log("Applied migration:", migrationPath);
+  const appliedNow = await runPendingMigrations(pool, migrations);
+  if (appliedNow.length === 0) {
+    console.log("No pending migrations.");
+  } else {
+    for (const file of appliedNow) {
+      console.log("Applied migration:", join(migrationsDir, file));
+    }
   }
 } finally {
   await pool.end();

@@ -54,7 +54,7 @@ Drizzle ORM + Postgres
 - Dev-only signed cookie auth (`EDGE_USER_COOKIE`).
 - Requires `EDGE_AUTH_SECRET` and `DATABASE_URL` in environment.
 - `POST /api/auth/dev-session` establishes a session (passphrase required when `EDGE_DEV_PASSPHRASE` is set).
-- `ensurePersistenceSession()` in the root layout bootstraps a session when no passphrase is configured.
+- `GET /api/auth/dev-session` and `/api/me/*` route handlers bootstrap a session when no passphrase is configured and Postgres is reachable.
 - When a passphrase is required, `DevPersistenceLoginBanner` prompts via `GET`/`POST /api/auth/dev-session` until authenticated.
 - `getCurrentUser()` resolves a verified cookie only — it does not auto-create users.
 - **Not production auth** — placeholder boundary for persistence routes.
@@ -87,9 +87,24 @@ Drizzle ORM + Postgres
 
 ```bash
 cp .env.example .env.local   # set DATABASE_URL, EDGE_AUTH_SECRET
-npm run db:up                # start Postgres container
-npm run db:migrate           # apply Drizzle migrations
+npm run dev:with-db          # start Postgres, migrate, then dev server
 ```
+
+Manual steps (equivalent):
+
+```bash
+npm run db:up
+npm run db:wait
+npm run db:migrate   # applies only pending migrations (tracked in edge_schema_migrations)
+npm run dev
+```
+
+## Dev startup
+
+- **`npm run dev:with-db`** — starts the Docker Postgres container, waits until `DATABASE_URL` accepts connections, applies SQL migrations, then runs `npm run dev`. Use this when cloud sync should work on first load.
+- **`npm run dev`** — unchanged. Persistence sync hooks still run when `DATABASE_URL` is set, but without Postgres you get `401` on `/api/me/*` and localStorage remains the effective store.
+- **Shutdown** — Ctrl+C stops only the Next.js dev server. Postgres keeps running (`restart: unless-stopped`). Stop the container with `npm run db:down`.
+- **Requirements** — `DATABASE_URL`, `EDGE_AUTH_SECRET` (non-placeholder), and Docker. Optional `EDGE_DEV_PASSPHRASE` requires the login banner before sync works.
 
 ## Verification
 
