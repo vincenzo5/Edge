@@ -25,16 +25,23 @@ export type WatchlistContextValue = WatchlistActions & {
 
 const WatchlistContext = createContext<WatchlistContextValue | null>(null);
 
-export function WatchlistProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<WatchlistState>(DEFAULT_WATCHLIST_STATE);
-  const [hydrated, setHydrated] = useState(false);
-  const hydratedRef = useRef(false);
+export function WatchlistProvider({
+  children,
+  initialState,
+}: {
+  children: ReactNode;
+  initialState?: WatchlistState;
+}) {
+  const [state, setState] = useState<WatchlistState>(initialState ?? DEFAULT_WATCHLIST_STATE);
+  const [hydrated, setHydrated] = useState(initialState != null);
+  const hydratedRef = useRef(initialState != null);
 
   useEffect(() => {
+    if (initialState != null) return;
     setState(loadWatchlistState());
     hydratedRef.current = true;
     setHydrated(true);
-  }, []);
+  }, [initialState]);
 
   const handleApplyRemoteState = useCallback((remoteState: WatchlistState) => {
     setState(remoteState);

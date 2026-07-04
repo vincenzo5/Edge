@@ -992,5 +992,38 @@ describe("MarketDataService", () => {
       expect(optionsPhase?.ok).toBe(false);
       expect(optionsPhase?.error).toMatch(/deferred/i);
     });
+
+    it("does not run a quotes warmup phase", async () => {
+      const tws = createMockTws();
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      const report = await service.primeMarketData({
+        symbols: ["AAPL", "MSFT"],
+        candleRequests: [{ symbol: "AAPL", interval: "1d", range: "1mo" }],
+      });
+      expect(report.phases.some((phase) => phase.name === "quotes")).toBe(false);
+    });
+
+    it("fetches active cell candles before secondary cells", async () => {
+      const order: string[] = [];
+      const tws = createMockTws({
+        getCandles: vi.fn(async (request: { symbol: string }) => {
+          if (request.symbol === "MSFT") {
+            await new Promise((resolve) => setTimeout(resolve, 30));
+          }
+          order.push(request.symbol);
+          return { ...ibkrCandles, symbol: request.symbol };
+        }),
+      });
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      await service.primeMarketData({
+        candleRequests: [
+          { symbol: "AAPL", interval: "1d", range: "1mo" },
+          { symbol: "MSFT", interval: "1d", range: "1mo" },
+        ],
+        activeCellIndex: 1,
+      });
+      expect(order[0]).toBe("MSFT");
+      expect(order[1]).toBe("AAPL");
+    });
   });
 });

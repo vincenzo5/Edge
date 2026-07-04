@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { QuoteSnapshot } from "@/lib/watchlist/types";
 import { fetchQuotes } from "@/lib/watchlist/quoteClient";
 import { useMarketDataQuotes, useMarketDataQuotesForSymbols } from "../MarketDataProvider";
-
-const SSE_FIRST_PAINT_DEADLINE_MS = 8_000;
+import { resolveQuoteStreamFirstPaintMs } from "@/lib/marketData/quoteStreamPolicy";
 
 function watchlistStreamEnabled(): boolean {
   if (typeof window === "undefined") return false;
@@ -109,7 +108,7 @@ function useLegacyWatchlistQuoteStream(symbols: string[]): {
 
     const firstPaintTimer = window.setTimeout(() => {
       runRestFallback("Quote stream first snapshot timeout");
-    }, SSE_FIRST_PAINT_DEADLINE_MS);
+    }, resolveQuoteStreamFirstPaintMs(quotesRef.current.length > 0));
 
     source.onmessage = (message) => {
       if (cancelled) return;

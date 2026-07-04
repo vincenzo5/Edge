@@ -10,6 +10,9 @@ export function createServerToolContext(): ToolContext {
     chart: null,
     watchlist: null,
     screener: null,
+    risk: null,
+    account: null,
+    options: null,
     marketData: createServiceMarketDataPort(getServerMarketDataService()),
   };
 }

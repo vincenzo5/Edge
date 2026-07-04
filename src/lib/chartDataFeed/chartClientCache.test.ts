@@ -3,6 +3,8 @@ import {
   buildChartClientCacheKey,
   CHART_CLIENT_CACHE_MAX_AGE_MS,
   CHART_CLIENT_CACHE_MAX_ENTRIES,
+  CHART_CLIENT_SESSION_STORAGE_PREFIX,
+  clearChartClientCache,
   clearChartClientCacheForTests,
   readChartClientCache,
   writeChartClientCache,
@@ -79,5 +81,37 @@ describe('chartClientCache', () => {
     expect(first).not.toBe(second);
     expect(first?.candles).not.toBe(second?.candles);
     expect(first?.candles).toEqual(second?.candles);
+  });
+
+  it('round-trips through sessionStorage when memory store is empty', () => {
+    const key = 'AAPL||1d|1mo|regular';
+    const entry = {
+      ...sampleEntry,
+      asOf: Date.now(),
+    };
+    writeChartClientCache(key, entry);
+    clearChartClientCache();
+    window.sessionStorage.setItem(
+      `${CHART_CLIENT_SESSION_STORAGE_PREFIX}${key}`,
+      JSON.stringify(entry),
+    );
+
+    const restored = readChartClientCache(key);
+    expect(restored?.candles).toEqual(entry.candles);
+  });
+
+  it('falls back to memory when sessionStorage write fails', () => {
+    const key = 'MSFT||1d|1mo|regular';
+    const setItem = vi.spyOn(window.sessionStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+
+    writeChartClientCache(key, {
+      ...sampleEntry,
+      asOf: Date.now(),
+    });
+
+    expect(readChartClientCache(key)?.candles).toEqual(sampleEntry.candles);
+    setItem.mockRestore();
   });
 });

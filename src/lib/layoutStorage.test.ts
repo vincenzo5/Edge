@@ -120,7 +120,7 @@ describe('loadLayout sidebar prefs', () => {
     expect(loaded.sidebar?.width).toBe(420);
   });
 
-  it('migrates legacy options active panel to null on load', () => {
+  it('preserves legacy options active panel on load', () => {
     saveLayout({
       ...DEFAULT_LAYOUT,
       sidebar: {
@@ -129,8 +129,24 @@ describe('loadLayout sidebar prefs', () => {
       },
     });
     const loaded = loadLayout();
-    expect(loaded.sidebar?.activePanel).toBeNull();
+    expect(loaded.sidebar?.activePanel).toBe('options');
     expect(loaded.sidebar?.width).toBe(420);
+  });
+
+  it('migrates legacy risk active panel to settings on load', () => {
+    localStorageMock.setItem(
+      'tv-ai:layout:v1',
+      JSON.stringify({
+        ...DEFAULT_LAYOUT,
+        sidebar: {
+          activePanel: 'risk',
+          width: 360,
+        },
+      }),
+    );
+    const loaded = loadLayout();
+    expect(loaded.sidebar?.activePanel).toBe('settings');
+    expect(loaded.sidebar?.width).toBe(360);
   });
 
   it('migrates legacy per-panel widths to shared width on load', () => {
@@ -146,7 +162,28 @@ describe('loadLayout sidebar prefs', () => {
     );
     const loaded = loadLayout();
     expect(loaded.sidebar?.width).toBe(420);
-    expect(loaded.sidebar?.activePanel).toBeNull();
+    expect(loaded.sidebar?.activePanel).toBe('options');
+  });
+
+  it('round-trips panel presentation and floating geometry', () => {
+    saveLayout({
+      ...DEFAULT_LAYOUT,
+      sidebar: {
+        activePanel: 'options',
+        presentation: { options: 'floating', watchlist: 'docked' },
+        floatingGeometry: {
+          options: { x: 64, y: 72, width: 900, height: 540 },
+        },
+      },
+    });
+    const loaded = loadLayout();
+    expect(loaded.sidebar?.presentation?.options).toBe('floating');
+    expect(loaded.sidebar?.floatingGeometry?.options).toEqual({
+      x: 64,
+      y: 72,
+      width: 900,
+      height: 540,
+    });
   });
 
   it('preserves drawing metadata through loadLayout', () => {

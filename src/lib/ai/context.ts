@@ -38,10 +38,33 @@ export type ChartBridgeActions = {
 };
 
 import type { ScreenerLastRun, ScreenerState } from "@/lib/screener/types";
+import type { RiskSettings } from "@/lib/risk/riskSettings";
+import type { AccountSnapshot } from "@/lib/brokerage/accountSnapshot";
+import type { OptionsSessionState } from "@/lib/options/optionsSession";
 
 export type ScreenerActions = {
   getState: () => ScreenerState;
   getLastRun: () => ScreenerLastRun | null;
+};
+
+export type RiskSettingsActions = {
+  getRiskSettings: () => {
+    settings: RiskSettings;
+    dollarRisk: number | null;
+    basisStale: boolean;
+  };
+};
+
+export type AccountActions = {
+  getSnapshot: () => AccountSnapshot;
+};
+
+export type OptionsSessionActions = {
+  getSession: () => OptionsSessionState & {
+    symbol: string | null;
+    primaryExpiration: string | null;
+    legCount: number;
+  };
 };
 
 /** Snapshot passed to tool executors at call time. */
@@ -50,6 +73,9 @@ export type ToolContext = BaseToolContext & {
   chart: ChartBridgeActions | null;
   watchlist: WatchlistActions | null;
   screener: ScreenerActions | null;
+  risk: RiskSettingsActions | null;
+  account: AccountActions | null;
+  options: OptionsSessionActions | null;
   marketData: MarketDataPort;
 };
 

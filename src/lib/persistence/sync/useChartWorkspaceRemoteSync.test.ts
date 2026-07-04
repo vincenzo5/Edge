@@ -98,4 +98,50 @@ describe("useChartWorkspaceRemoteSync", () => {
       });
     });
   });
+
+  it("skips initial remote fetch when bootstrap already applied remote layout", async () => {
+    const onApplyRemoteLayout = vi.fn();
+
+    renderHook(() =>
+      useChartWorkspaceRemoteSync({
+        layout: DEFAULT_LAYOUT,
+        hydrated: true,
+        bootstrapRemoteApplied: true,
+        onApplyRemoteLayout,
+      }),
+    );
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(mocks.fetchDefaultChartWorkspace).not.toHaveBeenCalled();
+    expect(onApplyRemoteLayout).not.toHaveBeenCalled();
+  });
+
+  it("applies late remote layout via finishRemoteLayout when bootstrap timed out", async () => {
+    const remoteLayout = {
+      ...DEFAULT_LAYOUT,
+      cells: [{ ...DEFAULT_LAYOUT.cells[0], symbol: "AMD" }],
+    };
+    const finishRemoteLayout = vi.fn(async () => remoteLayout);
+    const onApplyRemoteLayout = vi.fn();
+
+    renderHook(() =>
+      useChartWorkspaceRemoteSync({
+        layout: DEFAULT_LAYOUT,
+        hydrated: true,
+        bootstrapRemotePending: true,
+        finishRemoteLayout,
+        onApplyRemoteLayout,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(finishRemoteLayout).toHaveBeenCalled();
+      expect(onApplyRemoteLayout).toHaveBeenCalledWith(remoteLayout);
+    });
+
+    expect(mocks.fetchDefaultChartWorkspace).not.toHaveBeenCalled();
+  });
 });

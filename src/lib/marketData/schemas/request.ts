@@ -315,6 +315,7 @@ export const warmupRequestSchema = z.object({
   symbols: z.array(marketSymbolSchema).max(50).optional().default([]),
   candleRequests: z.array(warmupCandleRequestSchema).max(10).optional().default([]),
   optionsSymbol: marketSymbolSchema.optional(),
+  activeCellIndex: z.number().int().min(0).max(9).optional(),
 });
 
 export const twsRecoverRequestSchema = z.object({

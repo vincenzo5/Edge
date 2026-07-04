@@ -31,34 +31,62 @@ import {
   type LayoutSyncPrefs,
   type GridMode,
   type SidebarPanelId,
+  type FloatingPanelGeometry,
   type Theme,
   type ToolbarPrefs,
 } from "@/lib/chartConfig";
 import type { Interval } from "@/lib/chart/contracts";
-import { loadLayout, saveLayout } from "@/lib/layoutStorage";
+import { saveLayout } from "@/lib/layoutStorage";
+import { resolveAppBootstrap, type AppBootstrapResult } from "@/lib/app/bootstrap/resolveAppBootstrap";
+import type { WatchlistState } from "@/lib/watchlist/types";
+import type { ScreenerState } from "@/lib/screener/types";
+import type { ScreenerSessionState } from "@/lib/screener/screenerSession";
 import { resolveSidebarPanelWidth } from "@/lib/responsive/sidebarWidth";
 import { useChartTemplateLibraryRemoteSync } from "@/lib/persistence/sync/useChartTemplateLibraryRemoteSync";
 import { useChartWorkspaceRemoteSync } from "@/lib/persistence/sync/useChartWorkspaceRemoteSync";
 import { useResponsiveLayout } from "@/lib/responsive/useResponsiveLayout";
 import { ShortcutUIProvider } from "./shortcuts/ShortcutUIContext";
 import ShortcutProvider from "./shortcuts/ShortcutProvider";
-import { OptionsChainDialog } from "./options/OptionsChainDialog";
-import { ScreenerDialog } from "./screener";
+import { PanelPresentationProvider } from "./sidebar/PanelPresentationContext";
+import FloatingPanelHost from "./sidebar/FloatingPanelHost";
+import {
+  defaultFloatingGeometry,
+  getPanelPresentation,
+} from "@/lib/sidebar/floatingPanelGeometry";
 import { useSymbolNavigationHistory } from "./chart-chrome/useSymbolNavigationHistory";
 import AppHydrationShell from "./chart-cell/AppHydrationShell";
+import { OptionsSessionProvider } from "./options/OptionsSessionProvider";
 
 export default function StockApp() {
   const [layout, setLayout] = useState<ChartLayout>(DEFAULT_LAYOUT);
+  const [watchlistBootstrap, setWatchlistBootstrap] = useState<WatchlistState | null>(null);
+  const [screenerBootstrap, setScreenerBootstrap] = useState<ScreenerState | null>(null);
+  const [screenerSessionBootstrap, setScreenerSessionBootstrap] =
+    useState<ScreenerSessionState | null>(null);
+  const [bootstrapRemoteApplied, setBootstrapRemoteApplied] = useState(false);
+  const [bootstrapRemotePending, setBootstrapRemotePending] = useState(false);
+  const finishRemoteLayoutRef = useRef<AppBootstrapResult["finishRemoteLayout"]>(undefined);
   const [hydrated, setHydrated] = useState(false);
-  const [optionsChainOpen, setOptionsChainOpen] = useState(false);
-  const [screenerOpen, setScreenerOpen] = useState(false);
   const hydratedRef = useRef(false);
 
-  // Hydrate from localStorage on mount.
   useEffect(() => {
-    setLayout(loadLayout());
-    hydratedRef.current = true;
-    setHydrated(true);
+    let cancelled = false;
+    void resolveAppBootstrap().then((result) => {
+      if (cancelled) return;
+      setLayout(result.layout);
+      setWatchlistBootstrap(result.watchlist);
+      setScreenerBootstrap(result.screener);
+      setScreenerSessionBootstrap(result.screenerSession);
+      setBootstrapRemoteApplied(result.remoteApplied);
+      setBootstrapRemotePending(result.remotePending);
+      finishRemoteLayoutRef.current = result.finishRemoteLayout;
+      applyThemeToRoot(result.layout.theme);
+      hydratedRef.current = true;
+      setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleApplyRemoteLayout = useCallback((remoteLayout: ChartLayout) => {
@@ -66,9 +94,18 @@ export default function StockApp() {
     saveLayout(remoteLayout);
   }, []);
 
+  const finishRemoteLayout = useCallback(async () => {
+    const finish = finishRemoteLayoutRef.current;
+    if (!finish) return null;
+    return finish();
+  }, []);
+
   useChartWorkspaceRemoteSync({
     layout,
     hydrated,
+    bootstrapRemoteApplied,
+    bootstrapRemotePending,
+    finishRemoteLayout: bootstrapRemotePending ? finishRemoteLayout : undefined,
     onApplyRemoteLayout: handleApplyRemoteLayout,
   });
 
@@ -78,7 +115,7 @@ export default function StockApp() {
   useEffect(() => {
     if (!hydratedRef.current) return;
     applyThemeToRoot(layout.theme);
-  }, [layout.theme]);
+  }, [layout.theme, hydrated]);
 
   // Debounced save on any layout change.
   useEffect(() => {
@@ -169,6 +206,59 @@ export default function StockApp() {
         width,
       },
     }));
+  }, []);
+
+  const handleFloatingGeometryChange = useCallback(
+    (panelId: SidebarPanelId, geometry: FloatingPanelGeometry) => {
+      setLayout((prev) => ({
+        ...prev,
+        sidebar: {
+          ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
+          floatingGeometry: {
+            ...(prev.sidebar?.floatingGeometry),
+            [panelId]: geometry,
+          },
+        },
+      }));
+    },
+    [],
+  );
+
+  const handlePanelDock = useCallback((panelId: SidebarPanelId) => {
+    setLayout((prev) => ({
+      ...prev,
+      sidebar: {
+        ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
+        presentation: {
+          ...(prev.sidebar?.presentation),
+          [panelId]: "docked",
+        },
+      },
+    }));
+  }, []);
+
+  const handlePanelPopOut = useCallback(() => {
+    setLayout((prev) => {
+      const panelId = prev.sidebar?.activePanel;
+      if (!panelId) return prev;
+      const sidebar = prev.sidebar ?? DEFAULT_SIDEBAR_PREFS;
+      const geometry =
+        sidebar.floatingGeometry?.[panelId] ?? defaultFloatingGeometry(panelId);
+      return {
+        ...prev,
+        sidebar: {
+          ...sidebar,
+          presentation: {
+            ...sidebar.presentation,
+            [panelId]: "floating",
+          },
+          floatingGeometry: {
+            ...sidebar.floatingGeometry,
+            [panelId]: geometry,
+          },
+        },
+      };
+    });
   }, []);
 
   const cells = useMemo(
@@ -269,25 +359,42 @@ export default function StockApp() {
   const responsive = useResponsiveLayout();
   const activePanel = layout.sidebar?.activePanel ?? null;
   const sidebarPanelWidth = resolveSidebarPanelWidth(layout.sidebar?.width);
+  const activePresentation =
+    activePanel != null ? getPanelPresentation(layout.sidebar, activePanel) : "docked";
+  const isPanelFloating = activePresentation === "floating";
+
   const handleSidebarClose = useCallback(() => {
     handleSidebarPanelChange(null);
   }, [handleSidebarPanelChange]);
 
-  const handleOpenOptionsChain = useCallback(() => {
-    setOptionsChainOpen(true);
-  }, []);
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    if (responsive.sidebarMode !== "overlay") return;
+    const panelId = layout.sidebar?.activePanel;
+    if (!panelId) return;
+    if (getPanelPresentation(layout.sidebar, panelId) !== "floating") return;
+    handlePanelDock(panelId);
+  }, [responsive.sidebarMode, layout.sidebar, handlePanelDock]);
 
-  const handleCloseOptionsChain = useCallback(() => {
-    setOptionsChainOpen(false);
-  }, []);
-
-  const handleOpenScreener = useCallback(() => {
-    setScreenerOpen(true);
-  }, []);
-
-  const handleCloseScreener = useCallback(() => {
-    setScreenerOpen(false);
-  }, []);
+  const panelPresentation = useMemo(
+    () => ({
+      presentation: activePresentation,
+      popOut: handlePanelPopOut,
+      dock: () => {
+        if (activePanel) handlePanelDock(activePanel);
+      },
+      canPopOut: responsive.sidebarMode === "inline" && activePanel != null && !isPanelFloating,
+      canDock: isPanelFloating,
+    }),
+    [
+      activePresentation,
+      activePanel,
+      handlePanelDock,
+      handlePanelPopOut,
+      isPanelFloating,
+      responsive.sidebarMode,
+    ],
+  );
 
   if (!hydrated) {
     return <AppHydrationShell />;
@@ -298,20 +405,23 @@ export default function StockApp() {
       activePanel={layout.sidebar?.activePanel ?? null}
       onActivePanelChange={handleSidebarPanelChange}
     >
-      <div className="edge-app-shell flex h-screen min-h-0 flex-col overflow-hidden">
+      <div className="edge-app-shell edge-app-enter flex h-screen min-h-0 flex-col overflow-hidden">
         <ChartActionsProvider
           activeCellSymbol={activeCell.symbol}
           loadSymbolIntoActiveChart={handleSymbolSelect}
         >
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <AppActionsProvider value={appActions}>
-            <WatchlistProvider>
-              <ScreenerProvider>
+            <WatchlistProvider initialState={watchlistBootstrap ?? undefined}>
+              <ScreenerProvider
+                initialState={screenerBootstrap ?? undefined}
+                initialSession={screenerSessionBootstrap ?? undefined}
+              >
               <MarketDataProvider layout={layout}>
               <AccountProvider>
               <RiskSettingsProvider>
+              <PanelPresentationProvider value={panelPresentation}>
               <ActiveChartProvider>
+                <OptionsSessionProvider>
                 <DataHealthProvider>
                 <ShortcutUIProvider>
                   <ShortcutProvider>
@@ -335,14 +445,11 @@ export default function StockApp() {
               layoutActions={{
                 onGridModeChange: handleGridModeChange,
                 onLayoutSyncChange: handleLayoutSyncChange,
-                onThemeChange: handleThemeChange,
               }}
               chartActions={{
                 onSymbolSelect: handleSymbolSelect,
                 onIntervalChange: handleIntervalChange,
                 onChartTypeChange: handleChartTypeChange,
-                onOpenOptionsChain: handleOpenOptionsChain,
-                onOpenScreener: handleOpenScreener,
               }}
               symbolNav={{
                 canBack: symbolHistory.canBack,
@@ -351,65 +458,77 @@ export default function StockApp() {
                 onForward: handleSymbolForward,
               }}
             />
-            <div className="relative flex min-h-0 flex-1">
-              <ChartGrid
-                gridMode={layout.gridMode}
-                linkCrosshair={layout.linkCrosshair}
-                linkDrawings={layout.linkDrawings}
+            <div className="flex min-h-0 flex-1 overflow-hidden">
+              <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+                <div className="relative flex min-h-0 flex-1">
+                  <ChartGrid
+                    gridMode={layout.gridMode}
+                    linkCrosshair={layout.linkCrosshair}
+                    linkDrawings={layout.linkDrawings}
+                    theme={layout.theme}
+                    cells={cells}
+                    activeCellIndex={activeCellIndex}
+                    toolbarPrefs={layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
+                    symbolNav={{
+                      canBack: symbolHistory.canBack,
+                      canForward: symbolHistory.canForward,
+                      onBack: handleSymbolBack,
+                      onForward: handleSymbolForward,
+                      onSymbolSelect: handleSymbolSelect,
+                    }}
+                    onCellChange={applyCellUpdate}
+                    onActiveCellChange={handleActiveCellChange}
+                    onToolbarPrefsChange={handleToolbarPrefsChange}
+                  />
+                  <FloatingPanelHost
+                    activePanel={activePanel}
+                    sidebar={layout.sidebar}
+                    onGeometryChange={handleFloatingGeometryChange}
+                    onDock={handlePanelDock}
+                    onClose={handleSidebarClose}
+                  />
+                  {responsive.sidebarMode === "inline" ? (
+                    <RightSidebar
+                      activePanel={activePanel}
+                      mode="inline"
+                      width={sidebarPanelWidth}
+                      isFloating={isPanelFloating}
+                      onWidthChange={handleSidebarWidthChange}
+                    />
+                  ) : null}
+                </div>
+                {responsive.sidebarMode === "overlay" ? (
+                  <RightSidebar
+                    activePanel={activePanel}
+                    mode="overlay"
+                    width={sidebarPanelWidth}
+                    isFloating={isPanelFloating}
+                    onWidthChange={handleSidebarWidthChange}
+                    onClose={handleSidebarClose}
+                  />
+                ) : null}
+              </div>
+              <SidebarRail
                 theme={layout.theme}
-                cells={cells}
-                activeCellIndex={activeCellIndex}
-                toolbarPrefs={layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
-                symbolNav={{
-                  canBack: symbolHistory.canBack,
-                  canForward: symbolHistory.canForward,
-                  onBack: handleSymbolBack,
-                  onForward: handleSymbolForward,
-                  onSymbolSelect: handleSymbolSelect,
-                }}
-                onCellChange={applyCellUpdate}
-                onActiveCellChange={handleActiveCellChange}
-                onToolbarPrefsChange={handleToolbarPrefsChange}
-              />
-              <OptionsChainDialog open={optionsChainOpen} onClose={handleCloseOptionsChain} />
-              <ScreenerDialog open={screenerOpen} onClose={handleCloseScreener} />
-              {responsive.sidebarMode === "inline" ? (
-                <RightSidebar
-                  activePanel={activePanel}
-                  mode="inline"
-                  width={sidebarPanelWidth}
-                  onWidthChange={handleSidebarWidthChange}
-                />
-              ) : null}
-            </div>
-            {responsive.sidebarMode === "overlay" ? (
-              <RightSidebar
                 activePanel={activePanel}
-                mode="overlay"
-                width={sidebarPanelWidth}
-                onWidthChange={handleSidebarWidthChange}
-                onClose={handleSidebarClose}
+                railMode={responsive.railMode}
+                onTogglePanel={handleSidebarToggle}
+                onThemeChange={handleThemeChange}
               />
-            ) : null}
+            </div>
                 </AiToolsProvider>
                   </ShortcutProvider>
                 </ShortcutUIProvider>
                 </DataHealthProvider>
+                </OptionsSessionProvider>
               </ActiveChartProvider>
+              </PanelPresentationProvider>
               </RiskSettingsProvider>
               </AccountProvider>
               </MarketDataProvider>
               </ScreenerProvider>
             </WatchlistProvider>
           </AppActionsProvider>
-        </div>
-        <SidebarRail
-          theme={layout.theme}
-          activePanel={activePanel}
-          railMode={responsive.railMode}
-          onTogglePanel={handleSidebarToggle}
-        />
-      </div>
         </ChartActionsProvider>
       </div>
     </SidebarProvider>

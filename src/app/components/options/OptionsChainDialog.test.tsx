@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import { OptionsChainDialog } from "./OptionsChainDialog";
+import { OptionsSessionProvider } from "./OptionsSessionProvider";
 import {
   ActiveChartProvider,
   useActiveChartBridge,
@@ -182,8 +183,10 @@ describe("OptionsChainDialog", () => {
   it("does not render when closed", () => {
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
         <OptionsChainDialog open={false} onClose={vi.fn()} />
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
     expect(screen.queryByTestId("options-chain-dialog")).toBeNull();
@@ -192,13 +195,15 @@ describe("OptionsChainDialog", () => {
   it("renders dialog with chain table when open", async () => {
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
         <OptionsChainDialog open onClose={vi.fn()} />
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
     expect(screen.getByTestId("options-chain-dialog")).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: /AAPL options chain/i })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /AAPL — Options Chain/i })).toBeInTheDocument();
     expect(await screen.findByTestId("options-chain-table")).toBeInTheDocument();
   });
 
@@ -206,8 +211,10 @@ describe("OptionsChainDialog", () => {
     const onClose = vi.fn();
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
         <OptionsChainDialog open onClose={onClose} />
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
@@ -219,8 +226,10 @@ describe("OptionsChainDialog", () => {
     const onClose = vi.fn();
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
         <OptionsChainDialog open onClose={onClose} />
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
@@ -235,8 +244,10 @@ describe("OptionsChainDialog", () => {
 
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
         <OptionsChainDialog open={false} onClose={vi.fn()} />
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
@@ -293,8 +304,10 @@ describe("OptionsChainDialog", () => {
 
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
         <OptionsChainDialog open onClose={vi.fn()} />
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
@@ -332,8 +345,10 @@ describe("OptionsChainDialog", () => {
 
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
         <OptionsChainDialog open onClose={vi.fn()} />
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
@@ -376,8 +391,10 @@ describe("OptionsChainDialog", () => {
   it("shows analyze buttons and switches to risk calculator", async () => {
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
         <OptionsChainDialog open onClose={vi.fn()} />
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
@@ -393,8 +410,10 @@ describe("OptionsChainDialog", () => {
     render(
       <div style={{ position: "relative", width: 1200, height: 800 }}>
         <ActiveChartProvider>
+          <OptionsSessionProvider>
           <SeedSnapshot snapshot={makeSnapshot()} />
           <OptionsChainDialog open onClose={vi.fn()} />
+          </OptionsSessionProvider>
         </ActiveChartProvider>
       </div>,
     );

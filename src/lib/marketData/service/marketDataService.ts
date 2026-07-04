@@ -2638,11 +2638,12 @@ export class MarketDataService {
     }
   }
 
-  /** Best-effort warmup for watchlist/chart/options symbols. */
+  /** Best-effort warmup for watchlist/chart/options symbols. Quotes are client-owned. */
   async primeMarketData(args: {
     symbols?: string[];
     candleRequests?: CandleRequest[];
     optionsSymbol?: string;
+    activeCellIndex?: number;
     traceId?: string;
   }): Promise<WarmupReport> {
     const startedAt = Date.now();
@@ -2694,7 +2695,7 @@ export class MarketDataService {
       });
     }
 
-    const candleTasks = (args.candleRequests ?? []).map(async (request) => {
+    const runCandleTask = async (request: CandleRequest) => {
       const phaseStart = Date.now();
       const key = `${request.symbol}|${request.interval}|${request.range ?? "1y"}`;
       try {
@@ -2716,35 +2717,22 @@ export class MarketDataService {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-    });
+    };
 
-    const quoteTask =
-      symbols.length > 0
-        ? (async () => {
-            const phaseStart = Date.now();
-            try {
-              const result = await this.getQuotes(symbols, readOptions);
-              phases.push({
-                name: "quotes",
-                key: symbols.join(","),
-                ms: Date.now() - phaseStart,
-                ok: true,
-                source: result.source,
-                cacheTier: result.cacheTier,
-              });
-            } catch (error) {
-              phases.push({
-                name: "quotes",
-                key: symbols.join(","),
-                ms: Date.now() - phaseStart,
-                ok: false,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            }
-          })()
-        : Promise.resolve();
+    const candleRequests = args.candleRequests ?? [];
+    const activeIndex = args.activeCellIndex ?? 0;
+    const primaryRequest =
+      activeIndex >= 0 && activeIndex < candleRequests.length
+        ? candleRequests[activeIndex]
+        : candleRequests[0];
+    const secondaryRequests = candleRequests.filter((_, index) => index !== activeIndex);
 
-    await Promise.all([...candleTasks, quoteTask]);
+    if (primaryRequest) {
+      await runCandleTask(primaryRequest);
+    }
+    if (secondaryRequests.length > 0) {
+      await Promise.all(secondaryRequests.map((request) => runCandleTask(request)));
+    }
 
     const optionsSymbol = args.optionsSymbol?.trim().toUpperCase();
     if (optionsSymbol) {

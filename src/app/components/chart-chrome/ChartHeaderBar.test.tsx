@@ -162,15 +162,12 @@ function RegisterActiveChart({ snapshot }: { snapshot: ActiveChartSnapshot }) {
 const layoutActions = {
   onGridModeChange: vi.fn(),
   onLayoutSyncChange: vi.fn(),
-  onThemeChange: vi.fn(),
 };
 
 const chartActions = {
   onSymbolSelect: vi.fn(),
   onIntervalChange: vi.fn(),
   onChartTypeChange: vi.fn(),
-  onOpenOptionsChain: vi.fn(),
-  onOpenScreener: vi.fn(),
 };
 
 const baseProps = {
@@ -228,10 +225,11 @@ describe('ChartHeaderBar', () => {
     expect(screen.getByTestId('layout-setup-trigger')).toBeTruthy();
     expect(screen.getByTestId('layout-manage-trigger')).toBeTruthy();
     expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('AAPL');
-    expect(screen.getByTestId('options-chain-trigger')).toBeTruthy();
+    expect(screen.queryByTestId('options-chain-trigger')).toBeNull();
+    expect(screen.queryByTestId('screener-trigger')).toBeNull();
     expect(screen.getByTestId('indicators-trigger')).toBeTruthy();
     expect(screen.getByTestId('settings-trigger')).toBeTruthy();
-    expect(screen.getByTestId('theme-toggle-trigger')).toBeTruthy();
+    expect(screen.queryByTestId('theme-toggle-trigger')).toBeNull();
     expect(screen.getByTestId('quick-search-trigger')).toBeTruthy();
     expect(screen.getByTestId('fullscreen-trigger')).toBeTruthy();
     expect(screen.getByTestId('snapshot-trigger')).toBeTruthy();
@@ -240,9 +238,6 @@ describe('ChartHeaderBar', () => {
     expect(screen.getByTestId('redo-trigger')).toBeTruthy();
 
     expect(screen.getByTestId('layout-manage-trigger').nextElementSibling).toContainElement(
-      screen.getByTestId('theme-toggle-trigger'),
-    );
-    expect(screen.getByTestId('theme-toggle-trigger').parentElement?.nextElementSibling).toContainElement(
       screen.getByTestId('quick-search-trigger'),
     );
   });
@@ -278,13 +273,6 @@ describe('ChartHeaderBar', () => {
     expect(onForward).not.toHaveBeenCalled();
   });
 
-  it('toggles the layout theme from the top bar', () => {
-    renderHeader();
-
-    fireEvent.click(screen.getByTestId('theme-toggle-trigger'));
-    expect(layoutActions.onThemeChange).toHaveBeenCalledWith('light');
-  });
-
   it('opens quick search modal', () => {
     renderHeader();
 
@@ -293,21 +281,7 @@ describe('ChartHeaderBar', () => {
     expect(screen.getByTestId('quick-search-modal')).toBeTruthy();
   });
 
-  it('opens options chain from header button', () => {
-    renderHeader();
-
-    fireEvent.click(screen.getByTestId('options-chain-trigger'));
-    expect(chartActions.onOpenOptionsChain).toHaveBeenCalled();
-  });
-
-  it('opens screener from header button', () => {
-    renderHeader();
-
-    fireEvent.click(screen.getByTestId('screener-trigger'));
-    expect(chartActions.onOpenScreener).toHaveBeenCalled();
-  });
-
-  it('disables options chain button when no active chart is registered', () => {
+  it('disables chart commands when no active chart is registered', () => {
     render(
       <ShortcutUIProvider>
         <ActiveChartProvider>
@@ -319,7 +293,7 @@ describe('ChartHeaderBar', () => {
     );
 
     expect(screen.getByTestId('indicators-trigger')).toBeDisabled();
-    expect(screen.getByTestId('options-chain-trigger')).toBeDisabled();
+    expect(screen.queryByTestId('options-chain-trigger')).toBeNull();
     expect(screen.getByTestId('settings-trigger')).toBeDisabled();
     expect(screen.getByTestId('replay-trigger')).toBeDisabled();
   });

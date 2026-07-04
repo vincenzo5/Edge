@@ -1,9 +1,15 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState, useCallback, type ComponentProps } from "react";
 import { OptionsRiskCalculator } from "./OptionsRiskCalculator";
 import type { OptionsChainModel } from "./useOptionsChainModel";
 import type { StrikeRow } from "@/lib/options/optionsClient";
+import {
+  DEFAULT_OPTIONS_CALCULATOR,
+  type OptionsCalculatorState,
+} from "@/lib/options/optionsSession";
+import type { StrategyLegInput } from "@/lib/risk/optionsStrategyRisk";
 
 function contract(
   type: "call" | "put",
@@ -68,6 +74,36 @@ function makeModel(overrides?: Partial<OptionsChainModel>): OptionsChainModel {
   };
 }
 
+function CalculatorHarness(
+  props: Omit<
+    ComponentProps<typeof OptionsRiskCalculator>,
+    "calculator" | "patchCalculator" | "setLegs"
+  > & { initialCalculator?: Partial<OptionsCalculatorState> },
+) {
+  const { initialCalculator, ...rest } = props;
+  const [calculator, setCalculator] = useState<OptionsCalculatorState>(() => ({
+    ...DEFAULT_OPTIONS_CALCULATOR,
+    ...initialCalculator,
+  }));
+
+  const patchCalculator = useCallback((patch: Partial<OptionsCalculatorState>) => {
+    setCalculator((current) => ({ ...current, ...patch }));
+  }, []);
+
+  const setLegs = useCallback((updater: (prev: StrategyLegInput[]) => StrategyLegInput[]) => {
+    setCalculator((current) => ({ ...current, legs: updater(current.legs) }));
+  }, []);
+
+  return (
+    <OptionsRiskCalculator
+      {...rest}
+      calculator={calculator}
+      patchCalculator={patchCalculator}
+      setLegs={setLegs}
+    />
+  );
+}
+
 describe("OptionsRiskCalculator", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -76,38 +112,38 @@ describe("OptionsRiskCalculator", () => {
 
   it("prefills max risk from dollarRisk when set", () => {
     render(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={1000} basisStale={false} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={1000} basisStale={false} />,
     );
     expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(1000);
   });
 
   it("fills max risk when dollarRisk arrives after mount", () => {
     const { rerender } = render(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={null} basisStale={false} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={null} basisStale={false} />,
     );
 
     expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(null);
 
     rerender(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={1000} basisStale={false} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={1000} basisStale={false} />,
     );
     expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(1000);
   });
 
   it("updates max risk when dollarRisk changes before user edits", () => {
     const { rerender } = render(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={1000} basisStale={false} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={1000} basisStale={false} />,
     );
 
     rerender(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={2000} basisStale={false} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={2000} basisStale={false} />,
     );
     expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(2000);
   });
 
   it("does not overwrite max risk after the user edits it", () => {
     const { rerender } = render(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={1000} basisStale={false} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={1000} basisStale={false} />,
     );
 
     fireEvent.change(screen.getByTestId("options-calc-max-risk"), {
@@ -115,21 +151,21 @@ describe("OptionsRiskCalculator", () => {
     });
 
     rerender(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={2000} basisStale={false} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={2000} basisStale={false} />,
     );
     expect(screen.getByTestId("options-calc-max-risk")).toHaveValue(750);
   });
 
   it("shows hint when dollarRisk is unavailable", () => {
     render(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={null} basisStale={false} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={null} basisStale={false} />,
     );
     expect(screen.getByText(/Set risk in the Risk sidebar panel/i)).toBeInTheDocument();
   });
 
   it("shows stale hint when basis is stale", () => {
     render(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={1000} basisStale={true} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={1000} basisStale={true} />,
     );
     expect(screen.getByTestId("options-calc-stale-hint")).toBeInTheDocument();
   });
@@ -137,7 +173,7 @@ describe("OptionsRiskCalculator", () => {
   it("seeds a leg from chain analyze handoff", () => {
     const call = contract("call", 105, 2.3).call!;
     render(
-      <OptionsRiskCalculator
+      <CalculatorHarness
         model={makeModel()}
         dollarRisk={5000}
         basisStale={false}
@@ -157,7 +193,7 @@ describe("OptionsRiskCalculator", () => {
       contract("call", 110, 1.1),
     ];
     render(
-      <OptionsRiskCalculator
+      <CalculatorHarness
         model={makeModel({
           spotPrice: 103,
           chainContracts: rows.flatMap((row) => [row.call, row.put].filter(Boolean)) as NonNullable<
@@ -179,7 +215,7 @@ describe("OptionsRiskCalculator", () => {
 
   it("shows auto contracts badge when max risk sizes a seeded leg", () => {
     render(
-      <OptionsRiskCalculator
+      <CalculatorHarness
         model={makeModel()}
         dollarRisk={5000}
         basisStale={false}
@@ -196,7 +232,7 @@ describe("OptionsRiskCalculator", () => {
 
   it("disables add leg while chain is loading", () => {
     render(
-      <OptionsRiskCalculator
+      <CalculatorHarness
         model={makeModel({ chainLoading: true, chainContracts: [] })}
         dollarRisk={1000}
         basisStale={false}
@@ -209,7 +245,7 @@ describe("OptionsRiskCalculator", () => {
 
   it("shows empty chain message when chain is not loaded", () => {
     render(
-      <OptionsRiskCalculator
+      <CalculatorHarness
         model={makeModel({ chainContracts: [] })}
         dollarRisk={1000}
         basisStale={false}
@@ -222,7 +258,7 @@ describe("OptionsRiskCalculator", () => {
 
   it("lists chain strikes in leg strike select", () => {
     render(
-      <OptionsRiskCalculator
+      <CalculatorHarness
         model={makeModel()}
         dollarRisk={5000}
         basisStale={false}
@@ -246,7 +282,7 @@ describe("OptionsRiskCalculator", () => {
       last: null,
     };
     render(
-      <OptionsRiskCalculator
+      <CalculatorHarness
         model={makeModel({
           chainContracts: [badCall],
           contracts: [{ strike: 105, call: badCall }],
@@ -264,7 +300,7 @@ describe("OptionsRiskCalculator", () => {
   it("draws risk ruler from evaluated strategy", () => {
     const model = makeModel();
     render(
-      <OptionsRiskCalculator
+      <CalculatorHarness
         model={model}
         dollarRisk={5000}
         basisStale={false}
@@ -286,14 +322,14 @@ describe("OptionsRiskCalculator", () => {
 
   it("shows stale source badge", () => {
     render(
-      <OptionsRiskCalculator model={makeModel()} dollarRisk={1000} basisStale={false} />,
+      <CalculatorHarness model={makeModel()} dollarRisk={1000} basisStale={false} />,
     );
     expect(screen.getByTestId("options-calc-source-badge")).toHaveTextContent(/stale/i);
   });
 
   it("updates scenario detail when a payoff cell is clicked", () => {
     render(
-      <OptionsRiskCalculator
+      <CalculatorHarness
         model={makeModel()}
         dollarRisk={5000}
         basisStale={false}

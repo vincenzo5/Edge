@@ -507,14 +507,12 @@ function PinControls({ model }: { model: OptionsChainModel }) {
 export type OptionsChainViewProps = {
   model: OptionsChainModel;
   variant: "dialog" | "sidebar";
-  onOpenFullChain?: () => void;
   onAnalyzeContract?: (contract: OptionContractSnapshot) => void;
 };
 
 export function OptionsChainView({
   model,
   variant,
-  onOpenFullChain,
   onAnalyzeContract,
 }: OptionsChainViewProps) {
   const {
@@ -564,16 +562,6 @@ export function OptionsChainView({
             <SourceBadge source={meta?.source} stale={meta?.stale} />
           </div>
           <WarningsList warnings={warnings} />
-          {onOpenFullChain && (
-            <button
-              type="button"
-              data-testid="options-open-full-chain"
-              onClick={onOpenFullChain}
-              className="mb-2 w-full rounded bg-[var(--edge-accent-blue)]/15 px-2 py-1.5 text-[10px] font-medium text-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/25"
-            >
-              Open full chain
-            </button>
-          )}
           {expLoading && (
             <div data-testid="options-exp-loading" className="text-[var(--edge-text-secondary)]">
               Loading expirations…

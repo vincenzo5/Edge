@@ -16,11 +16,15 @@ import {
 export function useChartWorkspaceRemoteSync(options: {
   layout: ChartLayout;
   hydrated: boolean;
+  bootstrapRemoteApplied?: boolean;
+  bootstrapRemotePending?: boolean;
+  finishRemoteLayout?: () => Promise<ChartLayout | null>;
   onApplyRemoteLayout: (layout: ChartLayout) => void;
 }): void {
   const layoutRef = useRef(options.layout);
   const syncingRef = useRef(false);
   const remoteHydratedRef = useRef(false);
+  const pendingRemoteStartedRef = useRef(false);
 
   layoutRef.current = options.layout;
 
@@ -62,8 +66,33 @@ export function useChartWorkspaceRemoteSync(options: {
 
   useEffect(() => {
     if (!options.hydrated || remoteHydratedRef.current) return;
+
+    if (options.bootstrapRemoteApplied) {
+      remoteHydratedRef.current = true;
+      return;
+    }
+
+    if (options.bootstrapRemotePending && options.finishRemoteLayout) {
+      if (pendingRemoteStartedRef.current) return;
+      pendingRemoteStartedRef.current = true;
+      void options.finishRemoteLayout().then((layout) => {
+        if (layout) {
+          options.onApplyRemoteLayout(layout);
+        }
+        remoteHydratedRef.current = true;
+      });
+      return;
+    }
+
     void applyRemoteIfNewer();
-  }, [options.hydrated, applyRemoteIfNewer]);
+  }, [
+    options.hydrated,
+    options.bootstrapRemoteApplied,
+    options.bootstrapRemotePending,
+    options.finishRemoteLayout,
+    applyRemoteIfNewer,
+    options.onApplyRemoteLayout,
+  ]);
 
   useEffect(() => {
     if (!options.hydrated || !remoteHydratedRef.current) return;

@@ -163,9 +163,41 @@ export function SettingsIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export function SunIcon({ size = 16 }: { size?: number }) {
+export function CogIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+    <svg
+      width={className ? undefined : size}
+      height={className ? undefined : size}
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M8 5.25a2.75 2.75 0 1 1 0 5.5 2.75 2.75 0 0 1 0-5.5Z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M8 1.75v1.35M8 12.9v1.35M1.75 8h1.35M12.9 8h1.35M3.86 3.86l.95.95M11.19 11.19l.95.95M3.86 12.14l.95-.95M11.19 4.81l.95-.95M10.35 2.48l-.62 1.08M12.52 5.65l-1.08.62M12.52 10.35l-1.08-.62M10.35 13.52l-.62-1.08M5.65 13.52l.62-1.08M3.48 10.35l1.08-.62M3.48 5.65l1.08.62M5.65 2.48l.62 1.08"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function SunIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={className ? undefined : size}
+      height={className ? undefined : size}
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+    >
       <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.2" />
       <path
         d="M8 1.5v1.5M8 13v1.5M1.5 8h1.5M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"
@@ -177,9 +209,16 @@ export function SunIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export function MoonIcon({ size = 16 }: { size?: number }) {
+export function MoonIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+    <svg
+      width={className ? undefined : size}
+      height={className ? undefined : size}
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+    >
       <path
         d="M11.5 10.5A5.2 5.2 0 015.5 4.5a5 5 0 105.9 5.9"
         stroke="currentColor"
@@ -262,11 +301,58 @@ export function LinkIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export function ExternalLinkIcon({ size = 16 }: { size?: number }) {
+export function ExternalLinkIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+    <svg
+      width={className ? undefined : size}
+      height={className ? undefined : size}
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+    >
       <path d="M6 3h7v7M13 3L6 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
       <path d="M3 6v7h7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Pop a docked sidebar panel into a floating window. */
+export function PanelPopOutIcon({ size = 14, className }: { size?: number; className?: string }) {
+  return <ExternalLinkIcon size={size} className={className} />;
+}
+
+/** Dock a floating panel back into the right sidebar. */
+export function PanelDockIcon({ size = 14, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={className ? undefined : size}
+      height={className ? undefined : size}
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+    >
+      <rect
+        x="2.5"
+        y="3.5"
+        width="7.5"
+        height="9"
+        rx="0.75"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="10.5"
+        y="3.5"
+        width="3"
+        height="9"
+        rx="0.75"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        fill="currentColor"
+        fillOpacity="0.18"
+      />
     </svg>
   );
 }

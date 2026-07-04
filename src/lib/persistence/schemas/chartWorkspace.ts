@@ -11,6 +11,10 @@ import {
   type SidebarPanelId,
 } from "@/lib/chartConfig";
 import { migrateSidebarWidth } from "@/lib/responsive/sidebarWidth";
+import {
+  normalizeFloatingGeometry,
+  normalizePanelPresentation,
+} from "@/lib/sidebar/floatingPanelGeometry";
 import { writeRequestBaseSchema } from "@/lib/persistence/common";
 
 const rangeValues = RANGES.map((r) => r.value) as [string, ...string[]];
@@ -65,16 +69,55 @@ const cellConfigSchema = z.object({
   chartSettings: z.record(z.string(), z.unknown()).optional(),
 });
 
+const SIDEBAR_PANEL_ID_VALUES = [
+  "object-tree",
+  "watchlist",
+  "account",
+  "settings",
+  "options",
+  "screener",
+] as const satisfies readonly SidebarPanelId[];
+
+function migrateLegacySidebarPanelId(
+  value: LegacySidebarPanelId | null | undefined,
+): SidebarPanelId | null {
+  if (value == null) return null;
+  if (value === "risk") return "settings";
+  if ((SIDEBAR_PANEL_ID_VALUES as readonly string[]).includes(value)) {
+    return value as SidebarPanelId;
+  }
+  return null;
+}
+
+function normalizePresentationRecord(
+  value: unknown,
+): Partial<Record<SidebarPanelId, "docked" | "floating">> | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  const result: Record<string, "docked" | "floating"> = {};
+  for (const panelId of SIDEBAR_PANEL_ID_VALUES) {
+    const presentation = normalizePanelPresentation(record[panelId]);
+    if (presentation) result[panelId] = presentation;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function normalizeFloatingGeometryRecord(value: unknown) {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, { x: number; y: number; width: number; height: number }>;
+  const result: Record<string, { x: number; y: number; width: number; height: number }> = {};
+  for (const panelId of SIDEBAR_PANEL_ID_VALUES) {
+    const geometry = normalizeFloatingGeometry(panelId, record[panelId]);
+    if (geometry) result[panelId] = geometry;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function migrateSidebarSnapshot(sidebar: unknown): ChartLayout["sidebar"] | undefined {
   if (!sidebar || typeof sidebar !== "object") return undefined;
   const record = sidebar as Record<string, unknown>;
   const rawActive = record.activePanel as LegacySidebarPanelId | null | undefined;
-  const activePanel: SidebarPanelId | null =
-    rawActive === "options" || rawActive == null
-      ? null
-      : rawActive === "object-tree" || rawActive === "watchlist" || rawActive === "account" || rawActive === "risk"
-        ? rawActive
-        : null;
+  const activePanel = migrateLegacySidebarPanelId(rawActive);
   const width = migrateSidebarWidth({
     activePanel: rawActive ?? null,
     width: record.width as number | undefined,
@@ -82,9 +125,13 @@ function migrateSidebarSnapshot(sidebar: unknown): ChartLayout["sidebar"] | unde
       | Partial<Record<LegacySidebarPanelId, number>>
       | undefined,
   });
+  const presentation = normalizePresentationRecord(record.presentation);
+  const floatingGeometry = normalizeFloatingGeometryRecord(record.floatingGeometry);
   return {
     activePanel,
     ...(width != null ? { width } : {}),
+    ...(presentation ? { presentation } : {}),
+    ...(floatingGeometry ? { floatingGeometry } : {}),
   };
 }
 
@@ -125,8 +172,22 @@ export const chartLayoutSnapshotSchema = z.preprocess((value) => {
     .optional(),
   sidebar: z
     .object({
-      activePanel: z.enum(["object-tree", "watchlist", "account", "risk"]).nullable(),
+      activePanel: z.enum(SIDEBAR_PANEL_ID_VALUES).nullable(),
       width: z.number().finite().optional(),
+      presentation: z
+        .record(z.string(), z.enum(["docked", "floating"]))
+        .optional(),
+      floatingGeometry: z
+        .record(
+          z.string(),
+          z.object({
+            x: z.number().finite(),
+            y: z.number().finite(),
+            width: z.number().finite(),
+            height: z.number().finite(),
+          }),
+        )
+        .optional(),
     })
     .optional(),
   cells: z.array(cellConfigSchema).min(1).max(4),

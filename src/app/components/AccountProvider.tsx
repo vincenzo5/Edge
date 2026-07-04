@@ -19,13 +19,13 @@ import type {
   AccountStreamEvent,
   AccountSummary,
 } from "@/lib/marketData/contracts/brokerage";
+import {
+  buildAccountSnapshot,
+  type AccountSnapshotPayload,
+} from "@/lib/brokerage/accountSnapshot";
 
-export type AccountConnectionState =
-  | "disabled"
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "error";
+export type { AccountConnectionState } from "@/lib/brokerage/accountSnapshot";
+import type { AccountConnectionState } from "@/lib/brokerage/accountSnapshot";
 
 type AccountContextValue = {
   connectionState: AccountConnectionState;
@@ -43,14 +43,7 @@ type AccountContextValue = {
 
 const AccountContext = createContext<AccountContextValue | null>(null);
 
-type SnapshotPayload = {
-  status?: AccountStatus | null;
-  summary?: AccountSummary | null;
-  positions?: AccountPosition[];
-  pnl?: AccountPnL | null;
-  orders?: AccountOrder[];
-  executions?: AccountExecution[];
-};
+type SnapshotPayload = AccountSnapshotPayload;
 
 function applyStreamEvent(
   prev: SnapshotPayload,
@@ -86,10 +79,13 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch("/api/brokerage/snapshot", { cache: "no-store" });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          category?: string;
+        };
         setDisabled(false);
         setSidecarReachable(false);
-        setConnectionState("error");
+        setConnectionState(res.status === 503 ? "disconnected" : "error");
         setError(body.error ?? `Account snapshot failed (${res.status})`);
         return;
       }
@@ -168,22 +164,27 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     [snapshot.positions],
   );
 
-  const value = useMemo<AccountContextValue>(
-    () => ({
+  const value = useMemo<AccountContextValue>(() => {
+    const accountSnapshot = buildAccountSnapshot(
       connectionState,
-      status: snapshot.status ?? null,
-      summary: snapshot.summary ?? null,
-      positions: snapshot.positions ?? [],
-      pnl: snapshot.pnl ?? null,
-      orders: snapshot.orders ?? [],
-      executions: snapshot.executions ?? [],
-      error,
       disabled,
+      error,
+      snapshot,
+    );
+    return {
+      connectionState: accountSnapshot.connectionState,
+      status: accountSnapshot.status,
+      summary: accountSnapshot.summary,
+      positions: accountSnapshot.positions,
+      pnl: accountSnapshot.pnl,
+      orders: accountSnapshot.orders,
+      executions: accountSnapshot.executions,
+      error: accountSnapshot.error,
+      disabled: accountSnapshot.disabled,
       refresh,
       positionForSymbol,
-    }),
-    [connectionState, snapshot, error, disabled, refresh, positionForSymbol],
-  );
+    };
+  }, [connectionState, snapshot, error, disabled, refresh, positionForSymbol]);
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
 }

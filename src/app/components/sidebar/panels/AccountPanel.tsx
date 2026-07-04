@@ -7,6 +7,7 @@ import { parseSummaryTagNumber } from "@/lib/marketData/contracts/brokerage";
 import type { AccountPosition } from "@/lib/marketData/contracts/brokerage";
 import EdgeIconButton from "../../design-system/EdgeIconButton";
 import Tooltip from "../../Tooltip";
+import { PanelPopOutButton } from "../PanelChromeActions";
 
 function formatMoney(value: number | null | undefined, currency = "USD"): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -150,7 +151,9 @@ export function AccountPanel() {
               updated {relativeUpdatedAt(account.summary?.updatedAt)}
             </div>
           </div>
-          <EdgeIconButton
+          <div className="flex items-center gap-1">
+            <PanelPopOutButton label="Pop out" />
+            <EdgeIconButton
             theme="dark"
             aria-label="Refresh account"
             onClick={() => void account.refresh()}
@@ -172,6 +175,7 @@ export function AccountPanel() {
               />
             </svg>
           </EdgeIconButton>
+          </div>
         </div>
         {account.error ? (
           <p className="mt-1 text-[10px] text-[var(--edge-negative)]">{account.error}</p>

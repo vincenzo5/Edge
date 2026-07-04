@@ -2,6 +2,7 @@
 
 import ObjectTree from "../../ObjectTree";
 import { useActiveChart } from "../../ActiveChartContext";
+import { PanelPopOutButton } from "../PanelChromeActions";
 
 export function ObjectTreePanel() {
   const snapshot = useActiveChart();
@@ -15,7 +16,14 @@ export function ObjectTreePanel() {
   }
 
   return (
-    <ObjectTree
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--edge-border)] px-3 py-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--edge-text-secondary)]">
+          Object tree
+        </span>
+        <PanelPopOutButton label="Pop out" />
+      </div>
+      <ObjectTree
       chartId={snapshot.chartId}
       config={snapshot.config}
       overlays={snapshot.overlays}
@@ -30,5 +38,6 @@ export function ObjectTreePanel() {
       onAddIndicator={snapshot.openIndicatorPicker}
       embedded
     />
+    </div>
   );
 }

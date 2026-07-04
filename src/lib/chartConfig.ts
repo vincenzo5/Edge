@@ -78,15 +78,34 @@ export const DEFAULT_TOOLBAR_PREFS: ToolbarPrefs = {
 };
 
 /** Right sidebar panel identifiers — extend as new panels ship. */
-export type SidebarPanelId = "object-tree" | "watchlist" | "account" | "risk";
+export type SidebarPanelId =
+  | "object-tree"
+  | "watchlist"
+  | "account"
+  | "settings"
+  | "options"
+  | "screener";
 
-/** Legacy persisted panel id removed from the rail; migrate to null on load. */
-export type LegacySidebarPanelId = SidebarPanelId | "options";
+/** Legacy persisted panel ids migrated on load. */
+export type LegacySidebarPanelId = SidebarPanelId | "risk";
+
+export type PanelPresentation = "docked" | "floating";
+
+export type FloatingPanelGeometry = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export type SidebarPrefs = {
   activePanel: SidebarPanelId | null;
   /** User-resized sidebar width in pixels (shared across all panels). */
   width?: number;
+  /** Per-panel docked vs floating presentation; missing entry defaults to docked. */
+  presentation?: Partial<Record<SidebarPanelId, PanelPresentation>>;
+  /** Persisted position/size for floating panels. */
+  floatingGeometry?: Partial<Record<SidebarPanelId, FloatingPanelGeometry>>;
 };
 
 export const DEFAULT_SIDEBAR_PREFS: SidebarPrefs = {

@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { DEFAULT_LAYOUT } from '@/lib/chartConfig';
 import StockApp from './StockApp';
-import AppHydrationShell from './chart-cell/AppHydrationShell';
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -28,27 +27,49 @@ vi.mock('./ChartCell', () => ({
   ),
 }));
 
+let flushHydrationFrame: (() => void) | null = null;
+
+function flushHydration() {
+  act(() => {
+    flushHydrationFrame?.();
+  });
+}
+
+beforeEach(() => {
+  flushHydrationFrame = null;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    flushHydrationFrame = () => callback(0);
+    return 1;
+  });
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe('StockApp', () => {
   beforeEach(() => {
     localStorageMock.clear();
     document.documentElement.className = '';
   });
 
-  it('shows hydration shell before layout is loaded', () => {
-    render(<AppHydrationShell />);
+  it('shows hydration shell before layout is restored', async () => {
+    render(<StockApp />);
     expect(screen.getByTestId('app-hydration-shell')).toBeInTheDocument();
-  });
+    expect(screen.queryByTestId('chart-cell-0')).toBeNull();
 
-  it('hides hydration shell after layout hydration completes', async () => {
-    render(<StockApp />);
+    flushHydration();
+
     await waitFor(() => {
-      expect(screen.queryByTestId('app-hydration-shell')).toBeNull();
+      expect(screen.getByTestId('chart-cell-0')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('chart-cell-0')).toBeInTheDocument();
+    expect(screen.queryByTestId('app-hydration-shell')).toBeNull();
   });
 
-  it('renders a single chart header, chart grid, and sidebar rail', async () => {
+  it('renders a single chart header, chart grid, and sidebar rail after hydration', async () => {
     render(<StockApp />);
+    flushHydration();
 
     await waitFor(() => {
       expect(screen.getByRole('toolbar', { name: 'Chart header' })).toBeInTheDocument();
@@ -63,6 +84,7 @@ describe('StockApp', () => {
   it('applies theme class to html element after hydration', async () => {
     document.documentElement.classList.add('custom-root-class');
     render(<StockApp />);
+    flushHydration();
     await waitFor(() => {
       expect(document.documentElement.classList.contains('dark')).toBe(true);
     });
@@ -76,6 +98,7 @@ describe('StockApp', () => {
       JSON.stringify({ ...DEFAULT_LAYOUT, theme: 'light' }),
     );
     render(<StockApp />);
+    flushHydration();
     await waitFor(() => {
       expect(document.documentElement.classList.contains('light')).toBe(true);
       expect(document.documentElement.classList.contains('dark')).toBe(false);
@@ -89,6 +112,7 @@ describe('StockApp', () => {
       JSON.stringify({ ...DEFAULT_LAYOUT, theme: 'neon' }),
     );
     render(<StockApp />);
+    flushHydration();
     await waitFor(() => {
       expect(document.documentElement.classList.contains('dark')).toBe(true);
       expect(document.documentElement.classList.contains('neon')).toBe(false);
@@ -112,6 +136,7 @@ describe('StockApp', () => {
     );
 
     render(<StockApp />);
+    flushHydration();
 
     await waitFor(() => {
       expect(screen.getByTestId('chart-cell-0')).toBeInTheDocument();
@@ -138,6 +163,7 @@ describe('StockApp', () => {
     );
 
     render(<StockApp />);
+    flushHydration();
 
     await waitFor(() => {
       expect(screen.getByTestId('symbol-search-input')).toHaveValue('AAPL');
@@ -148,5 +174,26 @@ describe('StockApp', () => {
     await waitFor(() => {
       expect(screen.getByTestId('symbol-search-input')).toHaveValue('MSFT');
     });
+  });
+
+  it('does not flash default symbol before persisted layout hydrates', async () => {
+    localStorageMock.setItem(
+      'tv-ai:layout:v1',
+      JSON.stringify({
+        ...DEFAULT_LAYOUT,
+        cells: [{ ...DEFAULT_LAYOUT.cells[0], symbol: 'MSFT' }],
+      }),
+    );
+
+    render(<StockApp />);
+    expect(screen.getByTestId('app-hydration-shell')).toBeInTheDocument();
+    expect(screen.queryByTestId('symbol-search-input')).toBeNull();
+
+    flushHydration();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('symbol-search-input')).toHaveValue('MSFT');
+    });
+    expect(screen.queryByTestId('symbol-search-input')).not.toHaveValue('AAPL');
   });
 });

@@ -88,3 +88,17 @@ npm test -- --run src/app/api/ai/tools/route.test.ts
 
 - [docs/ai-tools-architecture.md](../../../docs/ai-tools-architecture.md) — full design and tool inventory
 - [docs/chart/rich-annotations-vision.md](../../../docs/chart/rich-annotations-vision.md) — annotation metadata direction
+
+## State Ownership
+
+| Surface | Type | Persisted | AI read tool |
+|---------|------|-----------|--------------|
+| Chart layout / cells | `ChartLayout`, `CellConfig` | Yes (localStorage + optional Postgres) | `get_app_state`, `get_chart_state` |
+| Watchlist | `WatchlistState` | Yes | watchlist tools |
+| Screener query/library | `ScreenerState` | Yes | `summarize_screen` (uses session last run) |
+| Screener session | `ScreenerSessionState` | No (ephemeral) | via `summarize_screen` |
+| Risk settings | `RiskSettings` | Yes (localStorage) | `get_risk_settings` |
+| Options chain data | `OptionsChainModel` | No | `get_options_chain` (server) |
+| Options workspace | `OptionsSessionState` | No (in-memory) | `get_options_session` |
+| Account | `AccountSnapshot` | No (broker stream) | `get_account_snapshot` |
+| Active chart | `ActiveChartReadState` | Derived from layout + runtime | `get_chart_state` |

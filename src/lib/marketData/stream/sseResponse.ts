@@ -13,25 +13,22 @@ export function createSseResponse(
   signal: AbortSignal,
 ): Response {
   const encoder = new TextEncoder();
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let session: StreamSession | null = null;
+  let cleaned = false;
+  let cleanupFn: (() => void) | null = null;
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (payload: string) => {
-        if (signal.aborted) return;
-        controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
-      };
-
-      const session = await createSession(send);
-      session.start(send);
-
-      const heartbeat = setInterval(() => {
-        if (signal.aborted) return;
-        controller.enqueue(encoder.encode(': heartbeat\n\n'));
-      }, 30_000);
-
       const cleanup = () => {
-        clearInterval(heartbeat);
-        session.stop();
+        if (cleaned) return;
+        cleaned = true;
+        if (heartbeat) {
+          clearInterval(heartbeat);
+          heartbeat = null;
+        }
+        session?.stop();
+        signal.removeEventListener('abort', onAbort);
         try {
           controller.close();
         } catch {
@@ -39,7 +36,39 @@ export function createSseResponse(
         }
       };
 
-      signal.addEventListener('abort', cleanup);
+      const onAbort = () => cleanup();
+      cleanupFn = () => cleanup();
+
+      const send = (payload: string) => {
+        if (signal.aborted || cleaned) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+        } catch {
+          cleanup();
+        }
+      };
+
+      signal.addEventListener('abort', onAbort, { once: true });
+
+      try {
+        session = await createSession(send);
+        session.start(send);
+
+        heartbeat = setInterval(() => {
+          if (signal.aborted || cleaned) return;
+          try {
+            controller.enqueue(encoder.encode(': heartbeat\n\n'));
+          } catch {
+            cleanup();
+          }
+        }, 30_000);
+      } catch (error) {
+        cleanup();
+        throw error;
+      }
+    },
+    cancel() {
+      cleanupFn?.();
     },
   });
 

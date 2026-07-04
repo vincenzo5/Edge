@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
-import type { ScreenerSortSpec, ScreenerState, ScreenerLastRun, PersistedScreenerSortSpec } from "@/lib/screener/types";
+import type { ScreenerState, PersistedScreenerSortSpec } from "@/lib/screener/types";
 import {
   DEFAULT_SCREENER_STATE,
   applySortToActiveSavedScreen,
@@ -19,6 +19,10 @@ import {
   patchScreenerState,
   saveScreenerState,
 } from "@/lib/screener/screenStorage";
+import {
+  createDefaultScreenerSession,
+  type ScreenerSessionState,
+} from "@/lib/screener/screenerSession";
 import { useScreenerLibraryRemoteSync } from "@/lib/persistence/sync/useScreenerLibraryRemoteSync";
 
 export type ScreenerContextValue = {
@@ -27,11 +31,17 @@ export type ScreenerContextValue = {
   setState: (updater: (prev: ScreenerState) => ScreenerState) => void;
   sort: PersistedScreenerSortSpec | null;
   setSort: (sort: PersistedScreenerSortSpec | null) => void;
-  /** Visible result symbols for live quote streaming (max 32). */
+  session: ScreenerSessionState;
+  patchSession: (patch: Partial<ScreenerSessionState>) => void;
+  setSession: (updater: (prev: ScreenerSessionState) => ScreenerSessionState) => void;
+  /** @deprecated Use session.lastRun */
+  lastRun: ScreenerSessionState["lastRun"];
+  /** @deprecated Use session.lastRun via patchSession */
+  setLastRun: (run: ScreenerSessionState["lastRun"]) => void;
+  /** @deprecated Use session.visibleSymbols */
   screenerVisibleSymbols: string[];
+  /** @deprecated Use patchSession */
   setScreenerVisibleSymbols: (symbols: string[]) => void;
-  lastRun: ScreenerLastRun | null;
-  setLastRun: (run: ScreenerLastRun | null) => void;
   selectedCompareSymbols: string[];
   toggleCompareSymbol: (symbol: string) => void;
   clearCompareSelection: () => void;
@@ -41,23 +51,34 @@ export type ScreenerContextValue = {
 
 const ScreenerContext = createContext<ScreenerContextValue | null>(null);
 
-export function ScreenerProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<ScreenerState>(DEFAULT_SCREENER_STATE);
-  const [hydrated, setHydrated] = useState(false);
-  const [screenerVisibleSymbols, setScreenerVisibleSymbols] = useState<string[]>([]);
-  const [lastRun, setLastRun] = useState<ScreenerLastRun | null>(null);
-  const [selectedCompareSymbols, setSelectedCompareSymbols] = useState<string[]>([]);
-  const [compareOpen, setCompareOpen] = useState(false);
-  const hydratedRef = useRef(false);
+export function ScreenerProvider({
+  children,
+  initialState,
+  initialSession,
+}: {
+  children: ReactNode;
+  initialState?: ScreenerState;
+  initialSession?: ScreenerSessionState;
+}) {
+  const [state, setState] = useState<ScreenerState>(initialState ?? DEFAULT_SCREENER_STATE);
+  const [session, setSessionState] = useState<ScreenerSessionState>(
+    () => initialSession ?? createDefaultScreenerSession(initialState ?? DEFAULT_SCREENER_STATE),
+  );
+  const [hydrated, setHydrated] = useState(initialState != null);
+  const hydratedRef = useRef(initialState != null);
 
   useEffect(() => {
-    setState(loadScreenerState());
+    if (initialState != null) return;
+    const loaded = loadScreenerState();
+    setState(loaded);
+    setSessionState(createDefaultScreenerSession(loaded));
     hydratedRef.current = true;
     setHydrated(true);
-  }, []);
+  }, [initialState]);
 
   const handleApplyRemoteState = useCallback((remoteState: ScreenerState) => {
     setState(remoteState);
+    setSessionState(createDefaultScreenerSession(remoteState));
     saveScreenerState(remoteState);
   }, []);
 
@@ -87,19 +108,54 @@ export function ScreenerProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const patchSession = useCallback((patch: Partial<ScreenerSessionState>) => {
+    setSessionState((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const setSession = useCallback(
+    (updater: (prev: ScreenerSessionState) => ScreenerSessionState) => {
+      setSessionState(updater);
+    },
+    [],
+  );
+
   const resolvedSort = state.sort ?? null;
 
   const toggleCompareSymbol = useCallback((symbol: string) => {
     const key = symbol.trim().toUpperCase();
     if (!key) return;
-    setSelectedCompareSymbols((prev) =>
-      prev.includes(key) ? prev.filter((entry) => entry !== key) : [...prev, key],
-    );
+    setSessionState((prev) => ({
+      ...prev,
+      compareSelection: prev.compareSelection.includes(key)
+        ? prev.compareSelection.filter((entry) => entry !== key)
+        : [...prev.compareSelection, key],
+    }));
   }, []);
 
   const clearCompareSelection = useCallback(() => {
-    setSelectedCompareSymbols([]);
-  }, []);
+    patchSession({ compareSelection: [] });
+  }, [patchSession]);
+
+  const setCompareOpen = useCallback(
+    (open: boolean) => {
+      patchSession({ compareOpen: open });
+    },
+    [patchSession],
+  );
+
+  const setLastRun = useCallback(
+    (run: ScreenerSessionState["lastRun"]) => {
+      patchSession({ lastRun: run });
+    },
+    [patchSession],
+  );
+
+  const setScreenerVisibleSymbols = useCallback(
+    (symbols: string[]) => {
+      patchSession({ visibleSymbols: symbols });
+    },
+    [patchSession],
+  );
 
   const value = useMemo(
     (): ScreenerContextValue => ({
@@ -108,14 +164,17 @@ export function ScreenerProvider({ children }: { children: ReactNode }) {
       setState: setStateUpdater,
       sort: resolvedSort,
       setSort,
-      screenerVisibleSymbols,
-      setScreenerVisibleSymbols,
-      lastRun,
+      session,
+      patchSession,
+      setSession,
+      lastRun: session.lastRun,
       setLastRun,
-      selectedCompareSymbols,
+      screenerVisibleSymbols: session.visibleSymbols,
+      setScreenerVisibleSymbols,
+      selectedCompareSymbols: session.compareSelection,
       toggleCompareSymbol,
       clearCompareSelection,
-      compareOpen,
+      compareOpen: session.compareOpen,
       setCompareOpen,
     }),
     [
@@ -124,12 +183,14 @@ export function ScreenerProvider({ children }: { children: ReactNode }) {
       setStateUpdater,
       resolvedSort,
       setSort,
-      screenerVisibleSymbols,
-      lastRun,
-      selectedCompareSymbols,
+      session,
+      patchSession,
+      setSession,
+      setLastRun,
+      setScreenerVisibleSymbols,
       toggleCompareSymbol,
       clearCompareSelection,
-      compareOpen,
+      setCompareOpen,
     ],
   );
 

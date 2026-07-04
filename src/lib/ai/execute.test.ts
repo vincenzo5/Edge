@@ -10,6 +10,9 @@ function mockContext(overrides: Partial<ToolContext> = {}): ToolContext {
     chart: null,
     watchlist: null,
     screener: null,
+    risk: null,
+    account: null,
+    options: null,
     marketData: {
       searchSymbols: vi.fn().mockResolvedValue([{ symbol: "AAPL", name: "Apple", exchange: "NASDAQ" }]),
       getCandles: vi.fn().mockResolvedValue([]),

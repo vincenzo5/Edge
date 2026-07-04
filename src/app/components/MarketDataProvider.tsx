@@ -22,6 +22,7 @@ import {
   marketDataTraceHeaders,
   recordMarketDataTelemetry,
 } from "@/lib/marketData/telemetry";
+import { resolveQuoteStreamFirstPaintMs } from "@/lib/marketData/quoteStreamPolicy";
 
 export type WatchlistQuotesTransport = "rest" | "sse";
 
@@ -167,7 +168,6 @@ function buildSymbolUniverse(
 }
 
 const STREAM_SYMBOL_CAP = 32;
-const SSE_FIRST_PAINT_DEADLINE_MS = 8_000;
 
 function prioritizeStreamSymbols(
   layout: ChartLayout,
@@ -298,6 +298,7 @@ export function MarketDataProvider({
         symbols: symbolUniverse,
         candleRequests,
         optionsSymbol: activeSymbol ?? undefined,
+        activeCellIndex: layout.activeCellIndex ?? 0,
       }),
     })
       .then(async (res) => {
@@ -460,9 +461,10 @@ export function MarketDataProvider({
         });
     };
 
+    const firstPaintDeadlineMs = resolveQuoteStreamFirstPaintMs(quotesRef.current.size > 0);
     const firstPaintTimer = window.setTimeout(() => {
       runRestFallback("Quote stream first snapshot timeout");
-    }, SSE_FIRST_PAINT_DEADLINE_MS);
+    }, firstPaintDeadlineMs);
 
     source.onmessage = (message) => {
       try {

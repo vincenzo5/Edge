@@ -152,6 +152,8 @@ export type ScreenerLastRun = {
   meta: ScreenerMeta | null;
 };
 
+/** Ephemeral screener run results — not persisted; see ScreenerSessionState.lastRun. */
+
 export type ScreenerMeta = {
   source: string;
   warnings: string[];

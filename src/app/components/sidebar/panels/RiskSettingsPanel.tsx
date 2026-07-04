@@ -9,6 +9,7 @@ import {
 } from "@/lib/risk/riskSettings";
 import EdgeSegmentedTabs from "../../design-system/EdgeSegmentedTabs";
 import { EdgeButton } from "../../design-system";
+import { PanelPopOutButton } from "../PanelChromeActions";
 
 function formatMoney(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -46,9 +47,12 @@ export function RiskSettingsPanel() {
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-[var(--edge-text-strong)]">Risk settings</h2>
-        <EdgeButton type="button" data-testid="risk-settings-reset" onClick={resetSettings}>
-          Reset
-        </EdgeButton>
+        <div className="flex items-center gap-1">
+          <PanelPopOutButton label="Pop out" />
+          <EdgeButton type="button" data-testid="risk-settings-reset" onClick={resetSettings}>
+            Reset
+          </EdgeButton>
+        </div>
       </div>
 
       <div>

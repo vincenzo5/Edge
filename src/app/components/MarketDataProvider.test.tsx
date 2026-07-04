@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, act } from "@testing-library/react";
 import { MarketDataProvider, useMarketDataQuotes } from "./MarketDataProvider";
 import type { ChartLayout } from "@/lib/chartConfig";
 
@@ -73,6 +73,7 @@ describe("MarketDataProvider quotes", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("loads watchlist quotes via REST when SSE is disabled", async () => {
@@ -115,6 +116,86 @@ describe("MarketDataProvider quotes", () => {
     await waitFor(() => {
       expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/quotes"))).toBe(true);
     });
+  });
+
+  it("does not duplicate quote fetch via warmup on startup", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "1");
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/market-data/warmup")) {
+        return new Response(JSON.stringify({ ok: true, warmup: { phases: [] } }), {
+          status: 200,
+        });
+      }
+      if (url.includes("/api/quotes")) {
+        return new Response(JSON.stringify({ quotes: [], meta: { source: "yahoo" } }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MarketDataProvider layout={layout}>
+        <QuoteStatusProbe />
+      </MarketDataProvider>,
+    );
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/market-data/warmup"))).toBe(
+        true,
+      );
+    });
+
+    const quoteCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/quotes"));
+    expect(quoteCalls.length).toBe(0);
+  });
+
+  it("falls back to REST after cold SSE first-paint timeout", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "1");
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/quotes")) {
+        return new Response(
+          JSON.stringify({
+            quotes: [
+              {
+                symbol: "AAPL",
+                regularMarketPrice: 175,
+                regularMarketChange: 1,
+                regularMarketChangePercent: 1,
+                regularMarketVolume: 1000,
+                updatedAt: Date.now(),
+              },
+            ],
+            meta: { source: "yahoo" },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/market-data/warmup")) {
+        return new Response(JSON.stringify({ ok: true, warmup: { phases: [] } }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MarketDataProvider layout={layout}>
+        <QuoteStatusProbe />
+      </MarketDataProvider>,
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+
+    expect(document.querySelector('[data-testid="quote-transport"]')?.textContent).toBe("rest");
+    expect(document.querySelector('[data-testid="quote-count"]')?.textContent).toBe("1");
   });
 
   it("falls back to REST when SSE disconnects", async () => {

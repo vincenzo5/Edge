@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-06-29T01:32:31.357Z",
+  "generatedAt": "2026-07-04T16:35:04.609Z",
   "git": {
-    "commit": "b18367e",
+    "commit": "2dd5199",
     "branch": "main"
   },
   "environment": {
@@ -17,197 +17,197 @@
     {
       "presetId": "rsi-oversold",
       "variant": "cold",
-      "traceId": "screener-rsi-oversold-cold:1782696653597",
+      "traceId": "screener-rsi-oversold-cold:1783182828216",
       "ok": true,
-      "totalMs": 8137,
-      "rows": 18,
-      "technicalMs": 4672,
-      "matched": 18,
-      "candleP50Ms": 58,
-      "candleP95Ms": 266,
+      "totalMs": 5879,
+      "rows": 9,
+      "technicalMs": 3007,
+      "matched": 9,
+      "candleP50Ms": 57,
+      "candleP95Ms": 211,
       "candleCacheHitPct": 0,
       "indicatorCacheHitPct": 0,
       "providerMix": {
-        "massive": 922,
-        "yahoo": 90,
+        "massive": 994,
+        "yahoo": 54,
         "unknown": 30
       }
     },
     {
       "presetId": "rsi-oversold",
       "variant": "warm",
-      "traceId": "screener-rsi-oversold-warm:1782696661735",
-      "ok": true,
-      "totalMs": 0,
-      "rows": 18,
-      "providerMix": {}
-    },
-    {
-      "presetId": "rsi-overbought",
-      "variant": "cold",
-      "traceId": "screener-rsi-overbought-cold:1782696661735",
-      "ok": true,
-      "totalMs": 8693,
-      "rows": 37,
-      "technicalMs": 4443,
-      "matched": 37,
-      "candleP50Ms": 60,
-      "candleP95Ms": 409,
-      "candleCacheHitPct": 0,
-      "indicatorCacheHitPct": 0,
-      "providerMix": {
-        "massive": 922,
-        "yahoo": 90,
-        "unknown": 30
-      }
-    },
-    {
-      "presetId": "rsi-overbought",
-      "variant": "warm",
-      "traceId": "screener-rsi-overbought-warm:1782696670429",
-      "ok": true,
-      "totalMs": 0,
-      "rows": 37,
-      "providerMix": {}
-    },
-    {
-      "presetId": "golden-cross",
-      "variant": "cold",
-      "traceId": "screener-golden-cross-cold:1782696670429",
-      "ok": true,
-      "totalMs": 10606,
-      "rows": 331,
-      "technicalMs": 6518,
-      "matched": 331,
-      "candleP50Ms": 68,
-      "candleP95Ms": 578,
-      "candleCacheHitPct": 0,
-      "indicatorCacheHitPct": 0,
-      "providerMix": {
-        "massive": 932,
-        "yahoo": 88,
-        "unknown": 22
-      }
-    },
-    {
-      "presetId": "golden-cross",
-      "variant": "warm",
-      "traceId": "screener-golden-cross-warm:1782696681035",
+      "traceId": "screener-rsi-oversold-warm:1783182834098",
       "ok": true,
       "totalMs": 1,
-      "rows": 331,
+      "rows": 9,
       "providerMix": {}
     },
     {
-      "presetId": "near-52wk-high",
+      "presetId": "rsi-overbought",
       "variant": "cold",
-      "traceId": "screener-near-52wk-high-cold:1782696681036",
+      "traceId": "screener-rsi-overbought-cold:1783182834099",
       "ok": true,
-      "totalMs": 15680,
-      "rows": 138,
-      "technicalMs": 10688,
-      "matched": 138,
-      "candleP50Ms": 69,
-      "candleP95Ms": 661,
-      "candleCacheHitPct": 0,
-      "indicatorCacheHitPct": 0,
-      "providerMix": {
-        "massive": 932,
-        "yahoo": 88,
-        "unknown": 22
-      }
-    },
-    {
-      "presetId": "near-52wk-high",
-      "variant": "warm",
-      "traceId": "screener-near-52wk-high-warm:1782696696717",
-      "ok": true,
-      "totalMs": 0,
-      "rows": 138,
-      "providerMix": {}
-    },
-    {
-      "presetId": "macd-bullish",
-      "variant": "cold",
-      "traceId": "screener-macd-bullish-cold:1782696696717",
-      "ok": true,
-      "totalMs": 16173,
-      "rows": 252,
-      "technicalMs": 11024,
-      "matched": 252,
-      "candleP50Ms": 69,
-      "candleP95Ms": 966,
-      "candleCacheHitPct": 0,
-      "indicatorCacheHitPct": 0,
-      "providerMix": {
-        "massive": 932,
-        "yahoo": 88,
-        "unknown": 22
-      }
-    },
-    {
-      "presetId": "macd-bullish",
-      "variant": "warm",
-      "traceId": "screener-macd-bullish-warm:1782696712891",
-      "ok": true,
-      "totalMs": 0,
-      "rows": 252,
-      "providerMix": {}
-    },
-    {
-      "presetId": "boll-pctb-overbought",
-      "variant": "cold",
-      "traceId": "screener-boll-pctb-overbought-cold:1782696712891",
-      "ok": true,
-      "totalMs": 17820,
-      "rows": 160,
-      "technicalMs": 11583,
-      "matched": 160,
-      "candleP50Ms": 58,
-      "candleP95Ms": 1182,
-      "candleCacheHitPct": 0,
-      "indicatorCacheHitPct": 0,
-      "providerMix": {
-        "massive": 922,
-        "yahoo": 90,
-        "unknown": 30
-      }
-    },
-    {
-      "presetId": "boll-pctb-overbought",
-      "variant": "warm",
-      "traceId": "screener-boll-pctb-overbought-warm:1782696730712",
-      "ok": true,
-      "totalMs": 0,
-      "rows": 160,
-      "providerMix": {}
-    },
-    {
-      "presetId": "rsi-indicator",
-      "variant": "cold",
-      "traceId": "screener-rsi-indicator-cold:1782696730712",
-      "ok": true,
-      "totalMs": 20644,
-      "rows": 18,
-      "technicalMs": 13612,
-      "matched": 18,
+      "totalMs": 6095,
+      "rows": 49,
+      "technicalMs": 3757,
+      "matched": 49,
       "candleP50Ms": 57,
-      "candleP95Ms": 1349,
+      "candleP95Ms": 327,
       "candleCacheHitPct": 0,
       "indicatorCacheHitPct": 0,
       "providerMix": {
-        "massive": 922,
-        "yahoo": 90,
+        "massive": 994,
+        "yahoo": 54,
+        "unknown": 30
+      }
+    },
+    {
+      "presetId": "rsi-overbought",
+      "variant": "warm",
+      "traceId": "screener-rsi-overbought-warm:1783182840195",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 49,
+      "providerMix": {}
+    },
+    {
+      "presetId": "golden-cross",
+      "variant": "cold",
+      "traceId": "screener-golden-cross-cold:1783182840196",
+      "ok": true,
+      "totalMs": 8900,
+      "rows": 334,
+      "technicalMs": 5803,
+      "matched": 334,
+      "candleP50Ms": 69,
+      "candleP95Ms": 463,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 1004,
+        "yahoo": 52,
+        "unknown": 22
+      }
+    },
+    {
+      "presetId": "golden-cross",
+      "variant": "warm",
+      "traceId": "screener-golden-cross-warm:1783182849097",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 334,
+      "providerMix": {}
+    },
+    {
+      "presetId": "near-52wk-high",
+      "variant": "cold",
+      "traceId": "screener-near-52wk-high-cold:1783182849098",
+      "ok": true,
+      "totalMs": 11576,
+      "rows": 164,
+      "technicalMs": 6714,
+      "matched": 164,
+      "candleP50Ms": 66,
+      "candleP95Ms": 579,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 1004,
+        "yahoo": 52,
+        "unknown": 22
+      }
+    },
+    {
+      "presetId": "near-52wk-high",
+      "variant": "warm",
+      "traceId": "screener-near-52wk-high-warm:1783182860675",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 164,
+      "providerMix": {}
+    },
+    {
+      "presetId": "macd-bullish",
+      "variant": "cold",
+      "traceId": "screener-macd-bullish-cold:1783182860676",
+      "ok": true,
+      "totalMs": 12348,
+      "rows": 280,
+      "technicalMs": 7030,
+      "matched": 280,
+      "candleP50Ms": 66,
+      "candleP95Ms": 744,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 1004,
+        "yahoo": 52,
+        "unknown": 22
+      }
+    },
+    {
+      "presetId": "macd-bullish",
+      "variant": "warm",
+      "traceId": "screener-macd-bullish-warm:1783182873025",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 280,
+      "providerMix": {}
+    },
+    {
+      "presetId": "boll-pctb-overbought",
+      "variant": "cold",
+      "traceId": "screener-boll-pctb-overbought-cold:1783182873026",
+      "ok": true,
+      "totalMs": 15503,
+      "rows": 184,
+      "technicalMs": 10130,
+      "matched": 184,
+      "candleP50Ms": 57,
+      "candleP95Ms": 876,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 994,
+        "yahoo": 54,
+        "unknown": 30
+      }
+    },
+    {
+      "presetId": "boll-pctb-overbought",
+      "variant": "warm",
+      "traceId": "screener-boll-pctb-overbought-warm:1783182888529",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 184,
+      "providerMix": {}
+    },
+    {
+      "presetId": "rsi-indicator",
+      "variant": "cold",
+      "traceId": "screener-rsi-indicator-cold:1783182888530",
+      "ok": true,
+      "totalMs": 16077,
+      "rows": 9,
+      "technicalMs": 10105,
+      "matched": 9,
+      "candleP50Ms": 58,
+      "candleP95Ms": 1100,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 994,
+        "yahoo": 54,
         "unknown": 30
       }
     },
     {
       "presetId": "rsi-indicator",
       "variant": "warm",
-      "traceId": "screener-rsi-indicator-warm:1782696751356",
+      "traceId": "screener-rsi-indicator-warm:1783182904608",
       "ok": true,
       "totalMs": 1,
-      "rows": 18,
+      "rows": 9,
       "providerMix": {}
     }
   ]

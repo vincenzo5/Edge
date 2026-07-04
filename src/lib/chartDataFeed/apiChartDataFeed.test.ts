@@ -35,7 +35,12 @@ describe('createApiChartDataFeed', () => {
       '/api/candles',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ symbol: 'AAPL', range: '1mo', interval: '1d' }),
+        body: JSON.stringify({
+          symbol: 'AAPL',
+          range: '1mo',
+          interval: '1d',
+          sessionMode: 'regular',
+        }),
       }),
     );
   });

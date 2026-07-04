@@ -17,6 +17,9 @@ describe("marketData options tools", () => {
         chart: null,
         watchlist: null,
         screener: null,
+        risk: null,
+        account: null,
+        options: null,
         marketData: {
           searchSymbols: vi.fn(),
           getCandles: vi.fn(),
@@ -45,6 +48,9 @@ describe("marketData options tools", () => {
         chart: null,
         watchlist: null,
         screener: null,
+        risk: null,
+        account: null,
+        options: null,
         marketData: {
           searchSymbols: vi.fn(),
           getCandles: vi.fn(),

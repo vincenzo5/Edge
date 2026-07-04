@@ -26,4 +26,12 @@ describe('RightSidebar', () => {
     rerender(<RightSidebar activePanel="watchlist" mode="inline" width={360} />);
     expect(screen.getByTestId('sidebar-panel')).toHaveStyle({ width: '360px' });
   });
+
+  it('hides docked shell when panel is floating', () => {
+    const { container } = render(
+      <RightSidebar activePanel="watchlist" mode="inline" width={360} isFloating />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
 });

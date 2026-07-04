@@ -55,6 +55,9 @@ describe("summarizeScreenTool", () => {
           },
         }),
       },
+      risk: null,
+      account: null,
+      options: null,
       marketData: {
         searchSymbols: async () => [],
         getCandles: async () => [],
@@ -88,6 +91,9 @@ describe("summarizeScreenTool", () => {
         getState: () => baseState,
         getLastRun: () => null,
       },
+      risk: null,
+      account: null,
+      options: null,
       marketData: {
         searchSymbols: async () => [],
         getCandles: async () => [],

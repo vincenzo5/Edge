@@ -40,6 +40,7 @@ import { drawingsToAnnotationMarkers } from '@/lib/chartDataFeed/overlayMappers'
 import { useAccountOptional } from './AccountProvider';
 import { buildPositionReferenceLines } from '@/lib/brokerage/positionOverlays';
 import ChartOverlayStatusStack from './chart-cell/ChartOverlayStatusStack';
+import ChartLoadingOverlay from './chart-cell/ChartLoadingOverlay';
 
 export { indicatorKey, parseIndicatorKey, legacyParseIndicatorKey };
 export type { GoToRequest, GoToResult, DrawingScreenBounds, IndicatorKey };
@@ -313,6 +314,13 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         onRetry={onRetry}
         showRetry={!!error && candles.length === 0}
       />
+      {loading && candles.length === 0 && !error ? (
+        <ChartLoadingOverlay
+          symbol={config.symbol}
+          interval={config.interval}
+          range={config.range}
+        />
+      ) : null}
       <PackageEdgeChart
         ref={innerRef}
         chartId={chartId}

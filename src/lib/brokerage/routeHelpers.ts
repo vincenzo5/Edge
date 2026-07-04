@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { jsonErrorResponse, toPublicErrorMessage } from "@/lib/api/safeErrorResponse";
+import { jsonErrorResponse } from "@/lib/api/safeErrorResponse";
 import { BrokerageRequestError } from "@/lib/brokerage/brokerageClient";
 
 export function brokerageDisabledResponse(): Response {
@@ -12,19 +12,20 @@ export function brokerageDisabledResponse(): Response {
   );
 }
 
+const DEGRADED_BROKERAGE_STATUSES = new Set<BrokerageRequestError["category"]>([
+  "disabled",
+  "gateway_disconnected",
+  "sidecar_unreachable",
+  "request_failed",
+  "request_timeout",
+]);
+
 export function brokerageErrorResponse(error: unknown): Response {
   if (error instanceof BrokerageRequestError) {
-    const status =
-      error.category === "disabled"
-        ? 503
-        : error.category === "gateway_disconnected"
-          ? 503
-          : error.category === "sidecar_unreachable"
-            ? 503
-            : 500;
+    const status = DEGRADED_BROKERAGE_STATUSES.has(error.category) ? 503 : 500;
     return NextResponse.json(
       {
-        error: toPublicErrorMessage(error, "Brokerage request failed"),
+        error: error.message,
         category: error.category,
       },
       { status },

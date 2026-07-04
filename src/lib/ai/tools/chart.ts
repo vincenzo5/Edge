@@ -12,7 +12,7 @@ import {
   symbolSchema,
 } from "../schemas";
 import { getCell, requireApp } from "./_helpers";
-import { cellCountFor } from "@/lib/chartConfig";
+import { buildAppWorkspaceSnapshot } from "@/lib/app/workspaceSnapshot";
 
 function requireChart(context: ToolContext) {
   if (!context.chart) {
@@ -32,29 +32,12 @@ export const getAppStateTool = defineTool({
   async execute(_input, context) {
     const app = requireApp(context);
     const layout = app.getLayout();
-    const count = cellCountFor(layout.gridMode);
+    const snapshot = buildAppWorkspaceSnapshot(layout, app.isHydrated());
     return {
       ok: true,
       data: {
-        hydrated: app.isHydrated(),
-        gridMode: layout.gridMode,
-        linkSymbol: layout.linkSymbol,
-        linkInterval: layout.linkInterval,
-        linkCrosshair: layout.linkCrosshair,
-        theme: layout.theme,
-        activeCellIndex: layout.activeCellIndex ?? 0,
+        ...snapshot,
         sidebarPanel: layout.sidebar?.activePanel ?? null,
-        cells: layout.cells.slice(0, count).map((cell, index) => ({
-          index,
-          symbol: cell.symbol,
-          symbolName: cell.symbolName,
-          exchange: cell.exchange,
-          range: cell.range,
-          interval: cell.interval,
-          chartType: cell.chartType,
-          indicatorCount: cell.indicators.length,
-          drawingCount: cell.drawings.length,
-        })),
       },
     };
   },

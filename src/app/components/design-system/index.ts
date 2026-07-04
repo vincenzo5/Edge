@@ -9,4 +9,6 @@ export type { EdgeSegment } from "./EdgeSegmentedTabs";
 export { default as EdgeToggle } from "./EdgeToggle";
 export { default as EdgePanelHeader } from "./EdgePanelHeader";
 export { default as EdgeEmptyState } from "./EdgeEmptyState";
+export { default as EdgeSpinner } from "./EdgeSpinner";
+export { default as EdgeSkeletonLine } from "./EdgeSkeletonLine";
 export * from "./styles";

@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { useEffect } from "react";
 import { OptionsPanel } from "./OptionsPanel";
+import { OptionsSessionProvider } from "../../options/OptionsSessionProvider";
+import { PanelPresentationProvider } from "../PanelPresentationContext";
 import {
   ActiveChartProvider,
   useActiveChartBridge,
@@ -15,6 +17,24 @@ import {
   makeUICommandsMock,
   toActiveChartRegistration,
 } from "@/test/activeChartMocks";
+
+vi.mock("../../MarketDataProvider", () => ({
+  useMarketDataQuotesForSymbols: () => ({ quotes: [] }),
+}));
+
+vi.mock("../../data-health", () => ({
+  useRegisterOptionsHealthMeta: vi.fn(),
+}));
+
+vi.mock("../../RiskSettingsProvider", () => ({
+  useRiskSettings: () => ({
+    dollarRisk: 1000,
+    basisStale: false,
+  }),
+  useRiskSettingsOptional: () => ({
+    riskAccount: { capital: 100_000, riskPercent: 1 },
+  }),
+}));
 
 function makeSnapshot(overrides?: Partial<ActiveChartSnapshot>): ActiveChartSnapshot {
   return {
@@ -97,46 +117,91 @@ function SeedSnapshot({ snapshot }: { snapshot: ActiveChartSnapshot }) {
 describe("OptionsPanel", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(global, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/options/expirations")) {
+        return new Response(
+          JSON.stringify({
+            expirations: [{ underlying: "AAPL", expiration: "2026-07-11" }],
+            meta: { source: "massive" },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/options/chain")) {
+        return new Response(
+          JSON.stringify({
+            chain: { underlying: "AAPL", expiration: "2026-07-11", contracts: [] },
+            meta: { source: "massive" },
+          }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
   });
 
   it("shows placeholder when no active chart", () => {
     render(
       <ActiveChartProvider>
-        <OptionsPanel />
+        <OptionsSessionProvider>
+          <OptionsPanel />
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
     expect(screen.getByText("Focus a chart to view options.")).toBeInTheDocument();
   });
 
-  it("shows compact launcher without chain table for active symbol", () => {
-    const fetchSpy = vi.spyOn(global, "fetch");
-
+  it("shows compact sidebar view for active symbol", () => {
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
-        <OptionsPanel onOpenFullChain={vi.fn()} />
+        <PanelPresentationProvider
+          value={{
+            presentation: "docked",
+            popOut: vi.fn(),
+            dock: vi.fn(),
+            canPopOut: true,
+            canDock: false,
+          }}
+        >
+          <OptionsPanel />
+        </PanelPresentationProvider>
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
     expect(screen.getByTestId("options-panel")).toBeInTheDocument();
     expect(screen.getByText("AAPL options")).toBeInTheDocument();
-    expect(screen.getByTestId("options-open-full-chain")).toHaveTextContent("Open options chain");
+    expect(screen.getByTestId("panel-pop-out")).toHaveAttribute("aria-label", "Pop out");
     expect(screen.queryByTestId("options-chain-table")).toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("calls onOpenFullChain when launcher button is clicked", () => {
-    const onOpenFullChain = vi.fn();
+  it("calls popOut when Pop out button is clicked", () => {
+    const popOut = vi.fn();
 
     render(
       <ActiveChartProvider>
+        <OptionsSessionProvider>
         <SeedSnapshot snapshot={makeSnapshot()} />
-        <OptionsPanel onOpenFullChain={onOpenFullChain} />
+        <PanelPresentationProvider
+          value={{
+            presentation: "docked",
+            popOut,
+            dock: vi.fn(),
+            canPopOut: true,
+            canDock: false,
+          }}
+        >
+          <OptionsPanel />
+        </PanelPresentationProvider>
+        </OptionsSessionProvider>
       </ActiveChartProvider>,
     );
 
-    fireEvent.click(screen.getByTestId("options-open-full-chain"));
-    expect(onOpenFullChain).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTestId("panel-pop-out"));
+    expect(popOut).toHaveBeenCalledTimes(1);
   });
 });

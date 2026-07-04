@@ -69,12 +69,12 @@ createApiChartDataFeed({
 
 ## Client SWR cache
 
-`useChartDataFeed` keeps a session-only in-memory memo in `chartClientCache.ts` so re-opening a recently viewed chart paints cached candles immediately while a background REST fetch refreshes them.
+`useChartDataFeed` keeps a session memo in `chartClientCache.ts` (in-memory plus `sessionStorage` under `edge:chart-cache:v1:`) so re-opening or hard-reloading a recently viewed chart paints cached candles immediately while a background REST fetch refreshes them.
 
 | Behavior | Detail |
 |----------|--------|
 | Key | `symbol\|exchange\|interval\|range\|sessionMode` via `buildChartClientCacheKey` |
-| Bounds | 20 entries (LRU by `asOf`), 5 min max age |
+| Bounds | 20 entries (LRU by `asOf`), 5 min max age; persisted in `sessionStorage` for hard reload |
 | First paint | Cached entry → `loading: false`, `refreshing: true`, `stale: true` |
 | Refresh | Always fetches in background; full replace on success (never merge with cached series) |
 | `reloadKey` bump | Bypasses cache (force fresh load); overwrites cache on success |

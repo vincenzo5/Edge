@@ -2,6 +2,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useChartDataFeed } from './useChartDataFeed';
 import { clearChartClientCacheForTests } from './chartClientCache';
+import {
+  buildChartClientCacheKey,
+  CHART_CLIENT_SESSION_STORAGE_PREFIX,
+} from './chartClientCache';
 import type { Candle, ChartDataFeed, ChartCandleStreamSink } from '@edge/chart-core';
 
 const baseCandles: Candle[] = [
@@ -233,6 +237,53 @@ describe('useChartDataFeed', () => {
       expect(result.current.stale).toBe(false);
     });
     expect(loadCandles).toHaveBeenCalledTimes(2);
+  });
+
+  it('paints from sessionStorage on simulated hard reload', async () => {
+    const key = buildChartClientCacheKey({
+      symbol: 'AAPL',
+      interval: '1d',
+      range: '1mo',
+      sessionMode: 'regular',
+    });
+    window.sessionStorage.setItem(
+      `${CHART_CLIENT_SESSION_STORAGE_PREFIX}${key}`,
+      JSON.stringify({
+        candles: baseCandles,
+        meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+        hasMore: true,
+        asOf: Date.now(),
+      }),
+    );
+
+    const loadCandles = vi.fn(async (request) => ({
+      symbol: request.symbol,
+      interval: request.interval,
+      candles: baseCandles,
+      hasMore: true,
+      meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+    }));
+    const feed = createStreamingFeed({ loadCandles, subscribeCandles: undefined });
+
+    const { result } = renderHook(() =>
+      useChartDataFeed({
+        feed,
+        symbol: 'AAPL',
+        interval: '1d',
+        range: '1mo',
+        live: false,
+      }),
+    );
+
+    expect(result.current.candles).toHaveLength(2);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.refreshing).toBe(true);
+    expect(result.current.stale).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.refreshing).toBe(false);
+    });
+    expect(loadCandles).toHaveBeenCalledTimes(1);
   });
 
   it('bypasses cache when reloadKey bumps', async () => {

@@ -28,6 +28,7 @@ import WatchlistTable from "./WatchlistTable";
 import SymbolDetailsPanel from "./SymbolDetailsPanel";
 import { useWatchlistQuoteStream } from "./useWatchlistQuoteStream";
 import { useWatchlistFundamentalsCache } from "./useWatchlistFundamentalsCache";
+import { PanelPopOutButton } from "../sidebar/PanelChromeActions";
 
 export function WatchlistPanel() {
   const chartActions = useChartActions();
@@ -263,7 +264,9 @@ export function WatchlistPanel() {
             onClear={handleClearList}
             onDelete={handleDeleteList}
           />
-          <button
+          <div className="flex items-center gap-1">
+            <PanelPopOutButton label="Pop out" />
+            <button
             type="button"
             data-testid="watchlist-add-symbol-trigger"
             aria-label={`Add symbol to ${activeList.name}`}
@@ -274,6 +277,7 @@ export function WatchlistPanel() {
               <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
           </button>
+          </div>
         </div>
         <WatchlistSearch
           open={addSymbolOpen}

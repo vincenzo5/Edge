@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SIDEBAR_PANELS, SIDEBAR_PANEL_MAP } from './registry';
+import { SIDEBAR_PANELS, SIDEBAR_PANEL_MAP, SIDEBAR_MAIN_PANELS, SIDEBAR_FOOTER_PANELS } from './registry';
 
 describe('sidebar registry', () => {
   it('includes object-tree panel', () => {
@@ -17,9 +17,21 @@ describe('sidebar registry', () => {
     expect(SIDEBAR_PANEL_MAP['account'].scope).toBe('app');
   });
 
-  it('includes risk panel as app-scoped', () => {
-    expect(SIDEBAR_PANEL_MAP['risk']).toBeDefined();
-    expect(SIDEBAR_PANEL_MAP['risk'].scope).toBe('app');
+  it('includes settings panel as app-scoped footer entry', () => {
+    expect(SIDEBAR_PANEL_MAP['settings']).toBeDefined();
+    expect(SIDEBAR_PANEL_MAP['settings'].scope).toBe('app');
+    expect(SIDEBAR_PANEL_MAP['settings'].label).toBe('Settings');
+    expect(SIDEBAR_FOOTER_PANELS.map((panel) => panel.id)).toEqual(['settings']);
+  });
+
+  it('orders main panels watchlist → options → screener → object-tree → account', () => {
+    expect(SIDEBAR_MAIN_PANELS.map((panel) => panel.id)).toEqual([
+      'watchlist',
+      'options',
+      'screener',
+      'object-tree',
+      'account',
+    ]);
   });
 
   it('uses unique panel ids', () => {

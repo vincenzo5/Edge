@@ -43,6 +43,7 @@ export async function POST(request: Request): Promise<Response> {
         range: row.range,
       })),
       optionsSymbol: parsed.data.optionsSymbol,
+      activeCellIndex: parsed.data.activeCellIndex,
       traceId,
     }),
     new Promise<Awaited<ReturnType<typeof service.primeMarketData>>>((resolve) => {

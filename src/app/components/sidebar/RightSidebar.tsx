@@ -9,6 +9,7 @@ type Props = {
   activePanel: SidebarPanelId | null;
   mode: SidebarMode;
   width: number;
+  isFloating?: boolean;
   onWidthChange?: (width: number) => void;
   onClose?: () => void;
 };
@@ -17,12 +18,13 @@ export default function RightSidebar({
   activePanel,
   mode,
   width,
+  isFloating = false,
   onWidthChange,
   onClose,
 }: Props) {
   const panelDef = activePanel ? SIDEBAR_PANEL_MAP[activePanel] : null;
 
-  if (!panelDef) {
+  if (!panelDef || !activePanel || isFloating) {
     return null;
   }
 
@@ -38,3 +40,4 @@ export default function RightSidebar({
     </SidebarPanelShell>
   );
 }
+

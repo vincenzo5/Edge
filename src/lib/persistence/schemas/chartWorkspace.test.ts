@@ -62,7 +62,7 @@ describe("chartWorkspace schemas", () => {
     }
   });
 
-  it("migrates legacy options active panel to null", () => {
+  it("preserves options active panel on parse", () => {
     const parsed = chartLayoutSnapshotSchema.safeParse({
       ...DEFAULT_LAYOUT,
       sidebar: {
@@ -72,8 +72,37 @@ describe("chartWorkspace schemas", () => {
     });
     expect(parsed.success).toBe(true);
     if (parsed.success) {
-      expect(parsed.data.sidebar?.activePanel).toBeNull();
+      expect(parsed.data.sidebar?.activePanel).toBe("options");
       expect(parsed.data.sidebar?.width).toBe(420);
     }
+  });
+
+  it("migrates legacy risk active panel to settings", () => {
+    const parsed = chartLayoutSnapshotSchema.safeParse({
+      ...DEFAULT_LAYOUT,
+      sidebar: {
+        activePanel: "risk",
+        width: 360,
+      },
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.sidebar?.activePanel).toBe("settings");
+      expect(parsed.data.sidebar?.width).toBe(360);
+    }
+  });
+
+  it("accepts panel presentation and floating geometry", () => {
+    const parsed = chartLayoutSnapshotSchema.safeParse({
+      ...DEFAULT_LAYOUT,
+      sidebar: {
+        activePanel: "screener",
+        presentation: { screener: "floating" },
+        floatingGeometry: {
+          screener: { x: 40, y: 40, width: 960, height: 600 },
+        },
+      },
+    });
+    expect(parsed.success).toBe(true);
   });
 });

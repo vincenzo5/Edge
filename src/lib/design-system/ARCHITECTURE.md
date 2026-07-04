@@ -71,6 +71,8 @@ Import from `src/app/components/design-system/index.ts`:
 | `EdgeSegmentedTabs` | 2–4 way panel tabs (Object tree / Data window) |
 | `EdgePanelHeader` | Sidebar panel title row |
 | `EdgeEmptyState` | Placeholder when no data |
+| `EdgeSpinner` | Loading spinners (`sm` / `md`); uses `.edge-spinner` with reduced-motion fallback |
+| `EdgeSkeletonLine` | Pulse skeleton bars/lines; uses `.edge-skeleton-pulse` with reduced-motion fallback |
 | `EdgeToggle` | Boolean settings rows |
 
 Shared rail styling for left drawing toolbar and right sidebar: `src/app/components/chart-icons/toolbarButtonStyles.ts` (icons 22/20 px via `edgeLayoutTokens.iconRailIconSize`; active state uses `surface-hover` without ring).
@@ -83,7 +85,11 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Symbol search pill | `SearchBar.tsx` (compact mode) |
 | Context menu | `ContextMenu.tsx` |
 | Settings modal | `ChartSettingsModal.tsx` |
-| Sidebar icon rail | `sidebar/SidebarRail.tsx` + `toolbarButtonStyles.ts` |
+| Sidebar icon rail | `sidebar/SidebarRail.tsx` + `toolbarButtonStyles.ts` — main group (watchlist → options → screener → object-tree → account); footer group: theme toggle (sun/moon) then settings cog |
+| Docked sidebar panel | `sidebar/{RightSidebar,SidebarPanelShell}.tsx` — inline (desktop) or overlay (narrow); resizable width via `SidebarResizeHandle` |
+| Floating panel window | `sidebar/{FloatingPanelShell,FloatingPanelHost}.tsx` — draggable/resizable pop-out over chart; **Dock** returns to sidebar; geometry persisted in `layout.sidebar.floatingGeometry` |
+| Panel Pop out / Dock | `sidebar/{PanelPresentationContext,PanelChromeActions}.tsx` — `PanelPopOutButton` in panel headers; state in `layout.sidebar.presentation` (`docked` \| `floating`) |
+| Centered modal (short flows) | `EdgeModalShell` — symbol search, confirmations; not for persistent tools (use floating panel instead) |
 | Object tree / data window | `ObjectTree.tsx` |
 | Watchlist panel | `watchlist/WatchlistPanel.tsx` |
 | Bottom range bar | `ChartRangeBar.tsx` |
@@ -91,7 +97,8 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Chart overlay status stack | `chart-cell/ChartOverlayStatusStack.tsx` — active-cell top-right stack: feed badge + optional `DataHealthButton` |
 | Chart feed status overlay | `chart-cell/ChartFeedStatusBadge.tsx` — stale/stream/error/refreshing feed state (standalone or embedded in the stack) |
 | Chart error fallback | `chart-cell/ChartErrorBoundary.tsx` — in-cell error UI with retry and copy-error actions |
-| App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full-screen chart-bg shell until layout hydrates |
+| App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full chrome skeleton (header, rails, chart grid, range bar) until `StockApp` layout hydrates; also used by `src/app/loading.tsx` during route load |
+| Chart cold-load overlay | `chart-cell/ChartLoadingOverlay.tsx` — symbol-aware spinner + skeleton bars when candles are loading and empty; rendered from app `EdgeChart.tsx` |
 
 Copy patterns from these files before inventing new markup.
 

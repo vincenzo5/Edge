@@ -18,16 +18,17 @@ import {
   type StrategyLegInput,
 } from "@/lib/risk/optionsStrategyRisk";
 import { EdgeButton } from "../design-system";
+import type { OptionsCalculatorState } from "@/lib/options/optionsSession";
+import type { RiskCalculatorSeedLeg } from "@/lib/options/optionsSession";
 import type { OptionsChainModel } from "./useOptionsChainModel";
 
-export type RiskCalculatorSeedLeg = {
-  contract: OptionContractSnapshot;
-  action?: "buy" | "sell";
-  quantity?: number;
-};
+export type { RiskCalculatorSeedLeg } from "@/lib/options/optionsSession";
 
 type Props = {
   model: OptionsChainModel;
+  calculator: OptionsCalculatorState;
+  patchCalculator: (patch: Partial<OptionsCalculatorState>) => void;
+  setLegs: (updater: (prev: StrategyLegInput[]) => StrategyLegInput[]) => void;
   dollarRisk: number | null;
   basisStale: boolean;
   seedLeg?: RiskCalculatorSeedLeg | null;
@@ -141,6 +142,9 @@ function createDefaultLeg(
 
 export function OptionsRiskCalculator({
   model,
+  calculator,
+  patchCalculator,
+  setLegs,
   dollarRisk,
   basisStale,
   seedLeg,
@@ -148,15 +152,12 @@ export function OptionsRiskCalculator({
   onDone,
 }: Props) {
   const spotPrice = model.spotPrice;
+  const { legs, entryPriceMode, exitPriceMode, ivScenario } = calculator;
   const [maxRisk, setMaxRisk] = useState(() => {
     if (dollarRisk == null) return "";
     return String(dollarRisk);
   });
-  const [entryPriceMode, setEntryPriceMode] = useState<EntryPriceMode>("mid");
-  const [exitPriceMode, setExitPriceMode] = useState<ExitPriceMode>("bid");
-  const [ivScenario, setIvScenario] = useState<IvScenario>("unchanged");
   const [manualContracts, setManualContracts] = useState("");
-  const [legs, setLegs] = useState<StrategyLegInput[]>(() => legsFromSeed(seedLeg));
   const [selectedCell, setSelectedCell] = useState<PayoffCell | null>(null);
   const userTouchedMaxRiskRef = useRef(false);
 
@@ -175,16 +176,16 @@ export function OptionsRiskCalculator({
     if (model.primaryExpiration !== seedLeg.contract.expiration) {
       model.selectExpiration(seedLeg.contract.expiration);
     }
-    setLegs(legsFromSeed(seedLeg));
+    setLegs(() => legsFromSeed(seedLeg));
     onSeedConsumed?.();
-  }, [seedLeg, model.primaryExpiration, model.selectExpiration, onSeedConsumed]);
+  }, [seedLeg, model.primaryExpiration, model.selectExpiration, onSeedConsumed, setLegs]);
 
   useEffect(() => {
     if (model.chainContracts.length === 0 || legs.length === 0) return;
     setLegs((current) =>
       current.map((leg) => resolveLegOnChain(leg, model.chainContracts, spotPrice)),
     );
-  }, [model.chainContracts, spotPrice]); // eslint-disable-line react-hooks/exhaustive-deps -- re-resolve when chain loads
+  }, [model.chainContracts, spotPrice, setLegs]); // eslint-disable-line react-hooks/exhaustive-deps -- re-resolve when chain loads
 
   const chainReady =
     !model.expLoading && !model.chainLoading && model.chainContracts.length > 0;
@@ -424,7 +425,9 @@ export function OptionsRiskCalculator({
               </span>
               <select
                 value={entryPriceMode}
-                onChange={(event) => setEntryPriceMode(event.target.value as EntryPriceMode)}
+                onChange={(event) =>
+                  patchCalculator({ entryPriceMode: event.target.value as EntryPriceMode })
+                }
                 className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
                 data-testid="options-calc-entry-mode"
               >
@@ -440,7 +443,9 @@ export function OptionsRiskCalculator({
               </span>
               <select
                 value={exitPriceMode}
-                onChange={(event) => setExitPriceMode(event.target.value as ExitPriceMode)}
+                onChange={(event) =>
+                  patchCalculator({ exitPriceMode: event.target.value as ExitPriceMode })
+                }
                 className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
                 data-testid="options-calc-exit-mode"
               >
@@ -454,7 +459,9 @@ export function OptionsRiskCalculator({
               </span>
               <select
                 value={ivScenario}
-                onChange={(event) => setIvScenario(event.target.value as IvScenario)}
+                onChange={(event) =>
+                  patchCalculator({ ivScenario: event.target.value as IvScenario })
+                }
                 className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
                 data-testid="options-calc-iv-scenario"
               >

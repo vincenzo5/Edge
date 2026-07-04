@@ -1,12 +1,23 @@
 import type { LegacySidebarPanelId, SidebarPanelId } from "@/lib/chartConfig";
 import { LAYOUT_DIMENSIONS } from "./layoutConstants";
 
-const SIDEBAR_PANEL_IDS: SidebarPanelId[] = ["object-tree", "watchlist"];
+const SIDEBAR_PANEL_IDS: SidebarPanelId[] = [
+  "object-tree",
+  "watchlist",
+  "options",
+  "screener",
+  "account",
+  "settings",
+];
 
 const LEGACY_PANEL_WIDTH_KEYS: LegacySidebarPanelId[] = [
   "object-tree",
   "watchlist",
   "options",
+  "screener",
+  "settings",
+  "account",
+  "risk",
 ];
 
 export function clampSidebarPanelWidth(width: number): number {

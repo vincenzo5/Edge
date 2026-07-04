@@ -22,18 +22,14 @@ import ChartSnapshotMenu from './ChartSnapshotMenu';
 import ChartFullscreenButton from './ChartFullscreenButton';
 import ChartHeaderMoreMenu from './ChartHeaderMoreMenu';
 import SymbolNavArrows from './SymbolNavArrows';
-import { ScreenerButton } from '../screener';
 import { headerBarClass } from './headerStyles';
 import {
   AlertIcon,
   IndicatorsIcon,
-  MoonIcon,
-  OptionsIcon,
   QuickSearchIcon,
   RedoIcon,
   ReplayIcon,
   SettingsIcon,
-  SunIcon,
   UndoIcon,
 } from './ChartHeaderIcons';
 
@@ -56,7 +52,6 @@ export type ChartHeaderLayoutState = {
 export type ChartHeaderLayoutActions = {
   onGridModeChange: (mode: GridMode) => void;
   onLayoutSyncChange: (patch: Partial<LayoutSyncPrefs>) => void;
-  onThemeChange: (theme: Theme) => void;
 };
 
 export type ChartHeaderChartState = {
@@ -70,8 +65,6 @@ export type ChartHeaderChartActions = {
   onSymbolSelect: (result: SymbolResult) => void;
   onIntervalChange: (interval: Interval) => void;
   onChartTypeChange: (chartType: ChartType) => void;
-  onOpenOptionsChain?: () => void;
-  onOpenScreener?: () => void;
 };
 
 export type ChartHeaderSymbolNav = {
@@ -142,17 +135,6 @@ export default function ChartHeaderBar({
 
     if (!showInline(density, 'primary')) {
       items.push({
-        id: 'screener',
-        label: 'Stock screener',
-        onClick: () => chartActions.onOpenScreener?.(),
-      });
-      items.push({
-        id: 'options',
-        label: 'Options chain',
-        disabled: !activeChart || !chart.symbol,
-        onClick: () => chartActions.onOpenOptionsChain?.(),
-      });
-      items.push({
         id: 'indicators',
         label: 'Indicators',
         disabled: !activeChart,
@@ -162,11 +144,6 @@ export default function ChartHeaderBar({
 
     if (!showInline(density, 'secondary')) {
       items.push(
-        {
-          id: 'theme',
-          label: theme === 'dark' ? 'Light mode' : 'Dark mode',
-          onClick: () => layoutActions.onThemeChange(theme === 'dark' ? 'light' : 'dark'),
-        },
         {
           id: 'quick-search',
           label: `Quick search (${getShortcutLabel('quickSearch')})`,
@@ -228,7 +205,7 @@ export default function ChartHeaderBar({
     }
 
     return items;
-  }, [activeChart, commands, density, layoutActions, theme]);
+  }, [activeChart, commands, density]);
 
   return (
     <>
@@ -254,22 +231,6 @@ export default function ChartHeaderBar({
               onBack={symbolNav.onBack}
               onForward={symbolNav.onForward}
             />
-          ) : null}
-          <ScreenerButton theme={theme} onOpen={() => chartActions.onOpenScreener?.()} />
-          <ChartHeaderDivider theme={theme} />
-          {showInline(density, 'primary') ? (
-            <>
-              <ChartHeaderButton
-                theme={theme}
-                label="Options"
-                onClick={() => chartActions.onOpenOptionsChain?.()}
-                disabled={!activeChart || !chart.symbol}
-                data-testid="options-chain-trigger"
-              >
-                <OptionsIcon />
-              </ChartHeaderButton>
-              <ChartHeaderDivider theme={theme} />
-            </>
           ) : null}
           <ChartIntervalMenu
             theme={theme}
@@ -364,15 +325,6 @@ export default function ChartHeaderBar({
 
           {showInline(density, 'secondary') ? (
             <>
-              <ChartHeaderButton
-                theme={theme}
-                label={theme === 'dark' ? 'Light' : 'Dark'}
-                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                onClick={() => layoutActions.onThemeChange(theme === 'dark' ? 'light' : 'dark')}
-                data-testid="theme-toggle-trigger"
-              >
-                {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-              </ChartHeaderButton>
               <ChartHeaderButton
                 theme={theme}
                 iconOnly

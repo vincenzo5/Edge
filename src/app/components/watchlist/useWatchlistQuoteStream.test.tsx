@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, act } from "@testing-library/react";
 import { useWatchlistQuoteStream } from "./useWatchlistQuoteStream";
 import React from "react";
 
@@ -60,6 +60,7 @@ describe("useWatchlistQuoteStream legacy path", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it("falls back to REST when SSE disconnects", async () => {
@@ -77,5 +78,16 @@ describe("useWatchlistQuoteStream legacy path", () => {
     });
 
     expect(MockEventSource.instances[0]?.closed).toBe(true);
+  });
+
+  it("falls back to REST after cold SSE first-paint timeout", async () => {
+    vi.useFakeTimers();
+    render(<QuoteProbe symbols={["AAPL"]} />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+
+    expect(document.querySelector('[data-testid="quote-count"]')?.textContent).toBe("1");
   });
 });
