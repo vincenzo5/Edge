@@ -15,7 +15,7 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 | Area | State | Notes |
 |------|-------|-------|
 | Custom chart engine | Shipped foundation | Canvas 2D renderer, pan/zoom, range presets, indicators, drawings, panes, templates, context menus, TradingView-style layout templates, workspace tabs, and per-tab layout persistence are in place. |
-| App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, and workspace tab bar with optional cloud sync. |
+| App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, workspace tab bar with optional cloud sync, and responsive module home hub at `/home` with charts at `/chart` plus smart `/` entry (24h last-module redirect). |
 | Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Tradier, and IBKR adapters; age-based display freshness and trust-event logging for transport recovery. |
 | IBKR provider | Shipped in main routing | IBKR-first candles and quotes in `MarketDataService` with Yahoo fallback; probe routes remain for diagnostics. Requires daily Gateway login for live IBKR data. |
 | AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data tools run server-side; stateful chart, watchlist, screener, risk, account, and options session tools require an app session. |

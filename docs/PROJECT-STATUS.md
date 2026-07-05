@@ -6,14 +6,23 @@ Single source for current progress. For row-by-row feature detail, see [chart/fe
 
 ## Current Verified State
 
-- **Current task:** Multi-pane shared toolbar + object tree — one left drawing rail in multi-pane layouts targeting the active pane; object tree lists all panes with indicators/drawings; single-pane unchanged.
-- **State:** **Passing** — focused tests and build passed; app-level multi-pane toolbar + object tree walkthrough deferred on localhost:3003.
-- **Latest verification:** **Focused:** `Test Files 6 passed (6)`, `Tests 91 passed (91)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review — Passed.
-- **Evidence:** `ChartGrid.tsx`, `ChartCell.tsx`, `ChartDrawingRail.tsx`, `ActiveChartContext.tsx`, `useRegisterActiveChart.ts`, `objectTreeModel.ts`, `ObjectTree.tsx`, `ObjectTreePanel.tsx`, tests, `docs/chart/features.md`.
+- **Current task:** App home hub — Layout 1 tri-pane with responsive fallbacks.
+- **State:** **Passing** — focused tests and build passed; app-level width/redirect walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 10 passed (10)`, `Tests 38 passed (38)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/app/{homeLayout,lastModule,buildHomeWorkspaceSummaries}.ts`, `src/app/components/home/*`, `src/app/{page,home,chart,journal,research}/`, tests, `src/lib/design-system/ARCHITECTURE.md`.
 - **Current blocker:** none.
-- **Next best step:** App-level walkthrough on localhost:3003 — 2×2 layout → one left rail; tool applies to blue-bordered pane; object tree shows both symbols; toggle indicator on inactive pane via config.
+- **Next best step:** App-level walkthrough on localhost:3003 — resize `/home` at 5120/1920/1440/1280/768; verify `/` redirects to `/chart` after chart visit; Home nav forces `/home`.
 
-## Previous Verified State (Multi-pane layout cell duplication)
+## Previous Verified State (Long/Short Position drawing tools)
+
+- **Current task:** Long/Short Position drawing tools — Forecasting flyout with bounded green/red zones, 6-handle resize, TV-style target/entry/stop labels.
+- **State:** **Passing** — focused tests, build, and app-level walkthrough passed on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 52 passed (52)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Boundaries:** `npm run lint:package-boundaries` passed; **App-level:** `/chart` XLF — Forecasting flyout Long/Short; Short selection swaps rail icon; short draw shows red stop above / green target below with labels; object tree lists drawing; reload persists `Forecasting — Short Position` + drawing; **Architecture review:** self-review — Passed.
+- **Evidence:** `packages/chart-core/src/drawings/{positionGeometry,position_tool,long_position,short_position}.ts`, `packages/chart-core/src/risk/positionLabels.ts`, `pluginHost.ts`, `toolGroups.ts`, `iconPaths.ts`, `ChartToolIcons.tsx`, `DrawingToolbar.forecasting.test.tsx`, `DrawingToolGroup.test.tsx`, `position_tool.test.ts`, `pluginHost.test.ts`, `toolGroups.test.ts`, `docs/chart/features.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by app home hub row.
+
+## Previous Verified State (Multi-pane shared toolbar + object tree)
 
 - **Current task:** Multi-pane layout cell duplication — expanding layout clones the active cell into new panes; shrinking to single-pane promotes the active cell to the sole pane.
 - **State:** **Passing** — focused tests and build passed; app-level layout round-trip walkthrough deferred on localhost:3003.
@@ -419,6 +428,8 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
+| App home hub — Layout 1 tri-pane with responsive fallbacks | `/home` module hub (Continue + workspaces + journal stub + research preview); `/chart` workspace; smart `/` remembers last module (24h); journal/research stub routes | **Passing** | **Focused:** `Test Files 10 passed (10)`, `Tests 38 passed (38)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed; app-level width/redirect walkthrough deferred | `homeLayout.ts`, `lastModule.ts`, `buildHomeWorkspaceSummaries.ts`, `src/app/components/home/*`, `src/app/{page,home,chart,journal,research}/`, tests, `ARCHITECTURE.md` |
+| Long/Short Position drawing tools | Forecasting flyout tools; bounded green/red zones; 6-handle resize; TV-style target/entry/stop labels | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 52 passed (52)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Boundaries:** `npm run lint:package-boundaries` passed; **App-level:** `/chart` XLF — flyout, Short icon swap, short draw (red stop above / green target below), object tree entry, reload persistence; **Architecture review:** self-review Passed | `positionGeometry.ts`, `position_tool.ts`, `long_position.ts`, `short_position.ts`, `positionLabels.ts`, `registry.ts`, `pluginHost.ts`, `toolGroups.ts`, `iconPaths.ts`, `ChartToolIcons.tsx`, `DrawingToolbar.forecasting.test.tsx`, tests, `features.md` |
 | Multi-pane shared toolbar + object tree | Multi-pane layouts show one left drawing rail targeting the active pane; object tree lists all panes with indicators/drawings; single-pane unchanged (inline rail + flat tree) | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 91 passed (91)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level walkthrough deferred | `ChartGrid.tsx`, `ChartCell.tsx`, `ChartDrawingRail.tsx`, `ActiveChartContext.tsx`, `useRegisterActiveChart.ts`, `objectTreeModel.ts`, `ObjectTree.tsx`, `ObjectTreePanel.tsx`, tests, `features.md` |
 | Multi-pane layout cell duplication | Expanding layout clones active cell (symbol, settings, indicators, drawings) into new panes; shrinking to single promotes active cell to sole pane | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 25 passed (25)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level round-trip walkthrough deferred | `chartConfig.ts`, `chartConfig.layoutResize.test.ts`, `StockApp.tsx`, `StockApp.test.tsx`, `features.md` |
 | Multi-chart layout templates | Layout setup menu: pane counts 1–10, 12, 14, 16 with ~52 TradingView-style shape variants; template-driven CSS grid; legacy `gridMode` → `layoutId` migration | **Passing** | **Focused:** `Test Files 8 passed (8)`, `Tests 161 passed (161)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed; app-level layout walkthrough deferred | `layoutTemplates.ts`, `ChartGrid.tsx`, `ChartLayoutMenu.tsx`, `chartConfig.ts`, `chartWorkspace.ts`, tests, `features.md` |
@@ -510,6 +521,13 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Stock screener Phase 2 (composition + persistence + live results) | Postgres screener library sync (localStorage fallback), group watchlist actions, live quote overlay on visible rows, AND/OR query groups, CSV + clipboard export | **Passing** | **Focused:** 63 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** Gainers preset, group actions, OR group, save screen verified on `localhost:3003` | `src/db/schema.ts`, `src/lib/persistence/schemas/screenerLibrary.ts`, `src/lib/persistence/repositories/screenerLibraryRepository.ts`, `src/app/api/me/screener-library/`, `src/lib/persistence/sync/useScreenerLibraryRemoteSync.ts`, `src/app/components/screener/ScreenerProvider.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/lib/screener/{compileQuery,exportResults}.ts`, `src/lib/watchlist/storage.ts`, `docs/screener-roadmap.md` |
 | Stock screener Phase 1.5 (technical presets) | Four technical presets (RSI oversold/overbought, golden cross, near 52-week high) via server-side two-step pipeline: FMP prefilter → Yahoo daily candles + chart-core indicator math; bounded concurrency; two-phase loading label + phase summary in modal | **Passing** | **Focused:** 52 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** preset rail visible in screener modal on `localhost:3003`; **Architecture review:** self-review Passed | `src/lib/screener/{technicalMath,technicalFilter,presets,types}.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/marketData/schemas/request.ts`, `src/lib/marketData/cache/ttlPolicy.ts`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
 | Stock screener MVP (Lean) | Header-bar icon opens modal screener filtering US equities/ETFs via FMP `/company-screener`; presets + flat query-builder; sortable paginated results; per-row load-into-chart and add-to-watchlist; named screens persist in localStorage | **Passing** | **Focused:** 48 tests passed (Phase 1 baseline); **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** screener modal walkthrough on `localhost:3003` (preset run, row actions, save/load) | `src/app/api/screener/run/route.ts`, `src/lib/marketData/providers/fmp/`, `src/lib/screener/`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/StockApp.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
+
+## Task Contract — App home hub
+
+- **Goal:** Ship responsive home hub without chart bootstrap; route charts off `/`; smart `/` entry remembers last module within 24h.
+- **Delivered:** `resolveHomeLayoutMode` (tri-pane → hub fallbacks); `/home` hub shell; `/chart` StockApp; journal/research stubs; `lastModule` localStorage; research preview via `fetchMarketResearchNotes`; focused Vitest coverage.
+- **Verification:** `npm test -- --run src/lib/app/homeLayout.test.ts src/lib/app/lastModule.test.ts src/lib/app/buildHomeWorkspaceSummaries.test.ts src/app/components/home/ src/app/chart/page.test.tsx` → `Test Files 10 passed (10)`, `Tests 38 passed (38)`; `npm run build` → `✓ Compiled successfully in 2.5s`; app-level width matrix (5120/1920/1440/1280/768) + `/` redirect walkthrough deferred on localhost:3003.
+- **Blockers:** none.
 
 ## Task Contract — Multi-pane shared toolbar + object tree
 
@@ -849,6 +867,30 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Keep the current state above short and authoritative; keep historical detail here.
+
+### 2026-07-05 — App home hub
+
+- **Goal:** Layout 1 tri-pane home hub with responsive fallbacks; charts at `/chart`; smart `/` remembers last module (24h).
+- **Shipped:** `homeLayout.ts`, `lastModule.ts`, `buildHomeWorkspaceSummaries.ts`, `HomeShell` + panels, routes `/home`, `/chart`, `/journal`, `/research`; 38 focused tests.
+- **Verification run:** **Focused:** `Test Files 10 passed (10)`, `Tests 38 passed (38)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level width/redirect walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual verify `/home` at 5120/1920/1440/1280/768; visit `/chart` then `/` redirects back; Home nav forces `/home`.
+
+### 2026-07-05 — Long/Short Position verification closure
+
+- **Goal:** Close deferred app-level evidence and short-position test parity for Forecasting flyout tools.
+- **Completed:** Wiring audit (no gaps); added short geometry/plugin/toolbar tests; alias smoke test in `pluginHost.test.ts`.
+- **Verification run:** **Focused:** `Test Files 7 passed (7)`, `Tests 52 passed (52)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Boundaries:** `npm run lint:package-boundaries` passed; **App-level:** `/chart` XLF — Forecasting flyout Long/Short; Short arms + icon swap; short position drawn with red stop above / green target below + labels; object tree lists drawing; reload keeps `Forecasting — Short Position` selection and drawing; **Architecture review:** self-review Passed.
+- **Known blockers:** none.
+- **Next best step:** none — verification complete.
+
+### 2026-07-05 — Long/Short Position drawing tools
+
+- **Goal:** TradingView-style Long/Short Position tools in Forecasting flyout with bounded profit/loss zones, independent vertical resize, horizontal width, and TV-style labels.
+- **Shipped:** `long_position` / `short_position` plugins in chart-core; shared `positionGeometry` + `positionLabels`; Forecasting toolbar group with L/S icons; 42 focused tests.
+- **Verification run:** **Focused:** `Test Files 6 passed (6)`, `Tests 42 passed (42)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Boundaries:** `npm run lint:package-boundaries` passed; **Architecture review:** self-review Passed.
+- **Known blockers:** none — superseded by verification closure entry above.
+- **Next best step:** none — closed by verification closure entry.
 
 ### 2026-07-05 — Multi-pane shared toolbar + object tree
 
