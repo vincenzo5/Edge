@@ -101,6 +101,59 @@ describe("ChartOverlayStatusStack", () => {
     expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
   });
 
+  it('renders unified status pill with health dot only (no session label)', () => {
+    renderStack(
+      <ChartOverlayStatusStack
+        theme="dark"
+        showDataHealth
+        marketSessionLabel="Market closed"
+        showMarketStatus
+        error={null}
+        streamError={null}
+        stale={false}
+        refreshing={false}
+      />,
+    );
+
+    expect(screen.getByTestId("chart-overlay-status-row")).toBeInTheDocument();
+    expect(screen.queryByTestId("chart-market-session-label")).toBeNull();
+    expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
+  });
+
+  it("positions overlay left of the price axis strip", () => {
+    renderStack(
+      <ChartOverlayStatusStack
+        theme="dark"
+        showDataHealth
+        error={null}
+        streamError={null}
+        stale={false}
+        refreshing={false}
+      />,
+    );
+
+    const stack = screen.getByTestId("chart-overlay-status-stack");
+    expect(stack).toHaveStyle({ right: "58px" });
+  });
+
+  it('never renders market session label regardless of showMarketStatus', () => {
+    renderStack(
+      <ChartOverlayStatusStack
+        theme="dark"
+        showDataHealth
+        marketSessionLabel="Market closed"
+        showMarketStatus={false}
+        error={null}
+        streamError={null}
+        stale={false}
+        refreshing={false}
+      />,
+    );
+
+    expect(screen.queryByTestId("chart-market-session-label")).toBeNull();
+    expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
+  });
+
   it("falls back to standalone feed badge when showDataHealth is false", () => {
     render(
       <ChartOverlayStatusStack

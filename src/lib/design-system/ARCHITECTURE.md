@@ -33,7 +33,7 @@ Tailwind var(...)       chartSettings defaults + renderer.ts
 ```
 
 - **DOM UI** (`src/app/components/`): use `var(--edge-*)`, `Edge*` components, or helpers from `styles.ts`.
-- **In-chart legend overlay** (`packages/chart-react/src/components/PaneLegendBar.tsx`): uses `--edge-*` in class names.
+- **In-chart legend overlay** (`packages/chart-react/src/components/PriceLegendLayout.tsx` for price pane; `PaneLegendBar.tsx` for indicator panes): uses `--edge-*` in class names. Price legend tiers: identity (13px semibold), hero price (16px mono tabular), OHLC group (10px muted labels + mono values), context row chips (10px mono ticker pills).
 - **Canvas draw loop** (`packages/chart-react/src/engine/renderer.ts`): uses `getChartColors()` / `themeTokens.ts`.
 
 If you change chart background, grid, or axis colors, update `edgeChartColors` / `themeTokens.ts` together — not only CSS.
@@ -82,6 +82,7 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Surface | Reference file |
 |---------|----------------|
 | Chart header | `chart-chrome/ChartHeaderBar.tsx` + `styles.ts` |
+| Workspace tab bar | `chart-chrome/WorkspaceTabBar.tsx` — scrollable pills above header; symbol + live quote + layout title; `+` create / close when >1 tab |
 | Symbol search pill | `SearchBar.tsx` (compact mode) |
 | Context menu | `ContextMenu.tsx` |
 | Settings modal | `ChartSettingsModal.tsx` |
@@ -97,7 +98,7 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Chart overlay status stack | `chart-cell/ChartOverlayStatusStack.tsx` — active-cell top-right stack: feed badge + optional `DataHealthButton` |
 | Chart feed status overlay | `chart-cell/ChartFeedStatusBadge.tsx` — stale/stream/error/refreshing feed state (standalone or embedded in the stack) |
 | Chart error fallback | `chart-cell/ChartErrorBoundary.tsx` — in-cell error UI with retry and copy-error actions |
-| App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full chrome skeleton (header, rails, chart grid, range bar) until `StockApp` layout hydrates; also used by `src/app/loading.tsx` during route load |
+| App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full chrome skeleton (workspace tab bar, header, rails, chart grid, range bar) until `StockApp` layout hydrates; also used by `src/app/loading.tsx` during route load |
 | Chart cold-load overlay | `chart-cell/ChartLoadingOverlay.tsx` — symbol-aware spinner + skeleton bars when candles are loading and empty; rendered from app `EdgeChart.tsx` |
 
 Copy patterns from these files before inventing new markup.

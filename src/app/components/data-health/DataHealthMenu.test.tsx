@@ -1,10 +1,11 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ActiveChartProvider } from "../ActiveChartContext";
 import { DataHealthProvider } from "./DataHealthProvider";
 import DataHealthButton from "./DataHealthButton";
+import { recordHealthEvent, resetHealthEventsForTests } from "@/lib/marketData/healthEvents";
 
 const chartMetaState = vi.hoisted(() => ({
   value: {
@@ -13,7 +14,6 @@ const chartMetaState = vi.hoisted(() => ({
     streaming: true,
     cacheTier: "hot-fresh" as string | undefined,
     stale: false as boolean | undefined,
-    latencyMs: 120 as number | undefined,
   },
 }));
 
@@ -32,18 +32,19 @@ vi.mock("../ActiveChartContext", async () => {
 
 vi.mock("../MarketDataProvider", () => ({
   useMarketDataQuotes: () => ({
-    quotesBySymbol: new Map([["AAPL", {}]]),
+    quotesBySymbol: new Map([["AAPL", {}], ["AMD", {}], ["NVDA", {}], ["TSM", {}]]),
     quotesLoading: false,
     quoteError: null,
     quotesMeta: {
       source: "tws",
-      asOf: Date.now(),
-      stale: false,
-      cacheTier: "cold",
+      asOf: Date.now() - 5_000,
+      stale: true,
+      cacheTier: "hot-stale",
+      latencyMs: 1411,
       warnings: [],
     },
     quotesTransport: "rest",
-    watchlistSymbolCount: 1,
+    watchlistSymbolCount: 4,
     recoverySymbols: [],
     recoveryCandleRequests: [],
     recoveryOptionsSymbol: null,
@@ -60,7 +61,7 @@ function renderWithProviders(ui: ReactNode) {
   );
 }
 
-describe("DataHealthButton", () => {
+describe("DataHealthMenu readiness UX", () => {
   beforeEach(() => {
     chartMetaState.value = {
       source: "tws",
@@ -68,8 +69,14 @@ describe("DataHealthButton", () => {
       streaming: true,
       cacheTier: "hot-fresh",
       stale: false,
-      latencyMs: 120,
     };
+    resetHealthEventsForTests();
+    recordHealthEvent({
+      kind: "transport_fallback",
+      message: "Quote stream first snapshot timeout",
+      recovered: true,
+      dataset: "watchlist",
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -93,67 +100,39 @@ describe("DataHealthButton", () => {
     );
   });
 
-  it("renders icon-only badge with accessible label and opens health menu", async () => {
+  it("shows healthy state with recent events after recovered SSE fallback", async () => {
     renderWithProviders(<DataHealthButton theme="dark" />);
 
-    const badge = screen.getByTestId("chart-data-source-badge");
-    expect(badge.textContent?.trim()).toBe("");
+    fireEvent.click(screen.getByTestId("chart-data-source-badge"));
 
     await waitFor(() => {
-      expect(badge).toHaveAttribute(
-        "aria-label",
-        expect.stringMatching(/Connected · IB Gateway ok/i),
-      );
-    });
-
-    fireEvent.click(badge);
-
-    await waitFor(() => {
-      expect(screen.getByText("Data Health")).toBeTruthy();
-      expect(screen.getByText(/Connected · IB Gateway ok/i)).toBeTruthy();
-      expect(screen.getByTestId("data-health-dataset-chart")).toBeTruthy();
-      expect(screen.getByTestId("data-health-dataset-watchlist")).toBeTruthy();
+      expect(screen.getByText(/All loaded datasets ready/i)).toBeInTheDocument();
+      expect(screen.getByText(/Issues/i)).toBeInTheDocument();
+      expect(screen.getByTestId("data-health-issues")).toHaveTextContent(/timeout/i);
+      expect(screen.getByTestId("data-health-issues")).toHaveTextContent(/recovered/i);
+      expect(screen.getByTestId("data-health-dataset-watchlist")).toHaveTextContent(/TWS/i);
     });
   });
 
-  it("shows healthy badge when chart is hot-stale but display-fresh", async () => {
+  it("shows chart OK without stale caveat when hot-stale but display-fresh", async () => {
     chartMetaState.value = {
       source: "tws",
       asOf: Date.now() - 30_000,
       streaming: false,
       cacheTier: "hot-stale",
       stale: true,
-      latencyMs: 0,
     };
 
-    renderWithProviders(<DataHealthButton theme="dark" />);
-
-    const badge = screen.getByTestId("chart-data-source-badge");
-    expect(badge.textContent?.trim()).toBe("");
-    expect(badge.className).not.toMatch(/edge-warning/);
-
-    fireEvent.click(badge);
-
-    await waitFor(() => {
-      expect(screen.getByText(/All loaded datasets ready/i)).toBeInTheDocument();
-    });
-  });
-
-  it("shows collapsible latency diagnostics in menu when telemetry enabled", async () => {
-    vi.stubEnv("NEXT_PUBLIC_MARKET_DATA_TELEMETRY", "1");
     renderWithProviders(<DataHealthButton theme="dark" />);
 
     fireEvent.click(screen.getByTestId("chart-data-source-badge"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("data-health-latency-section")).toBeInTheDocument();
+      expect(screen.getByText(/All loaded datasets ready/i)).toBeInTheDocument();
+      expect(screen.getByTestId("data-health-dataset-chart")).toHaveTextContent(/AAPL/i);
+      expect(screen.getByTestId("data-health-dataset-chart")).toHaveTextContent(/8s ago|30s ago|just now/i);
     });
 
-    expect(screen.getByTestId("data-health-latency-toggle")).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByTestId("data-health-latency-diagnostics")).not.toBeInTheDocument();
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
+    expect(screen.queryByText(/Active Chart data is stale/i)).not.toBeInTheDocument();
   });
 });

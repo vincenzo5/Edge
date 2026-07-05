@@ -2,75 +2,65 @@
 
 import { useRef } from "react";
 import type { Theme } from "@/lib/chartConfig";
-import type { DataHealthSeverity } from "@/lib/marketData/health";
-import { buildHealthCompactSummary } from "@/lib/marketData/health";
+import { buildHealthBadgeLabel } from "@/lib/marketData/health";
+import Tooltip from "../Tooltip";
 import DataHealthMenu from "./DataHealthMenu";
+import HealthSeverityDot, { severityRingClass } from "./HealthSeverityDot";
 import { useDataHealth } from "./DataHealthProvider";
-
-function severityDotClass(severity: DataHealthSeverity): string {
-  switch (severity) {
-    case "healthy":
-      return "bg-[var(--edge-positive)]";
-    case "degraded":
-      return "bg-[var(--edge-warning)]";
-    case "offline":
-      return "bg-[var(--edge-negative)]";
-    default:
-      return "bg-[var(--edge-text-muted)]";
-  }
-}
-
-function severityRingClass(severity: DataHealthSeverity): string {
-  switch (severity) {
-    case "healthy":
-      return "text-[var(--edge-text-muted)] ring-[var(--edge-border)]";
-    case "degraded":
-      return "text-[var(--edge-warning)] ring-[var(--edge-warning)]/30";
-    case "offline":
-      return "text-[var(--edge-negative)] ring-[var(--edge-negative)]/30";
-    default:
-      return "text-[var(--edge-text-muted)] ring-[var(--edge-border)]";
-  }
-}
+import { useMarketDataQuotes } from "../MarketDataProvider";
 
 type Props = {
   theme: Theme;
+  /** @deprecated Session label removed from chart chrome; kept for call-site compatibility */
+  marketSessionLabel?: string | null;
+  /** @deprecated No longer renders session label */
+  showMarketStatus?: boolean;
 };
 
-export default function DataHealthButton({ theme }: Props) {
+export default function DataHealthButton({
+  theme,
+}: Props) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const { snapshot, menuOpen, setMenuOpen } = useDataHealth();
+  const marketData = useMarketDataQuotes();
 
-  const compactLabel = buildHealthCompactSummary(
-    snapshot.datasets.find((row) => row.kind === "chart"),
-    snapshot.datasets.find((row) => row.kind === "watchlist"),
+  const chartRow = snapshot.datasets.find((row) => row.kind === "chart");
+  const watchlistRow = snapshot.datasets.find((row) => row.kind === "watchlist");
+
+  const compactLabel = buildHealthBadgeLabel(
+    chartRow,
+    watchlistRow,
     snapshot.severity,
+    marketData?.quotesTransport,
   );
 
-  const title =
-    snapshot.recentWarnings.length > 0
-      ? snapshot.recentWarnings.join("; ")
-      : `Data health: ${snapshot.severityLabel}`;
+  const titleParts = [snapshot.connectionSummary];
+  if (snapshot.recentWarnings.length > 0) {
+    titleParts.push(snapshot.recentWarnings.join("; "));
+  } else if (snapshot.severity !== "healthy") {
+    titleParts.push(`Data health: ${snapshot.severityLabel}`);
+  }
+  const title = titleParts.join(" · ");
 
   return (
     <>
-      <button
-        ref={anchorRef}
-        type="button"
-        title={title}
-        aria-label={title}
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        data-testid="chart-data-source-badge"
-        onClick={() => setMenuOpen(!menuOpen)}
-        className={`edge-focus-ring inline-flex max-w-[9rem] items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 transition-colors hover:bg-[var(--edge-surface-hover)] ${severityRingClass(snapshot.severity)} ${menuOpen ? "bg-[var(--edge-surface-hover)]" : ""}`}
-      >
-        <span
-          className={`inline-flex h-1.5 w-1.5 shrink-0 rounded-full ${severityDotClass(snapshot.severity)}`}
-          aria-hidden
-        />
-        <span className="truncate">{compactLabel}</span>
-      </button>
+      <Tooltip content={compactLabel} theme={theme} side="left" portaled>
+        <button
+          ref={anchorRef}
+          type="button"
+          title={title}
+          aria-label={title}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          data-testid="chart-data-source-badge"
+          onClick={() => setMenuOpen(!menuOpen)}
+          className={`edge-focus-ring inline-flex items-stretch overflow-hidden rounded bg-[var(--edge-surface-panel)] ring-1 transition-colors hover:bg-[var(--edge-surface-hover)] ${severityRingClass(snapshot.severity)} ${menuOpen ? "bg-[var(--edge-surface-hover)]" : ""}`}
+        >
+          <span className="flex items-center px-1.5 py-0.5">
+            <HealthSeverityDot severity={snapshot.severity} size="md" />
+          </span>
+        </button>
+      </Tooltip>
       <DataHealthMenu theme={theme} anchorRef={anchorRef} />
     </>
   );

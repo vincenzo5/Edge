@@ -1,31 +1,27 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { Theme } from "@/lib/chartConfig";
-import type { DataHealthSeverity } from "@/lib/marketData/health";
+import type { DataHealthDatasetRow, ProviderHealthRow } from "@/lib/marketData/health";
 import {
-  formatDatasetLine,
+  buildDatasetChips,
+  buildHealthCaveatSubtitle,
   shouldShowTwsRecovery,
   twsRecoveryButtonLabel,
 } from "@/lib/marketData/health";
 import ChartAnchoredPopover from "../chart-chrome/ChartAnchoredPopover";
 import { menuSectionHeaderClass } from "../chart-chrome/headerStyles";
+import DataHealthDatasetChips from "./DataHealthDatasetChips";
 import DataHealthLatencySection from "./DataHealthLatencySection";
+import HealthSeverityDot, { formatHealthEventAge } from "./HealthSeverityDot";
 import { useDataHealth } from "./DataHealthProvider";
 
-function severityDotClass(severity: DataHealthSeverity): string {
-  switch (severity) {
-    case "healthy":
-      return "bg-[var(--edge-positive)]";
-    case "degraded":
-      return "bg-[var(--edge-warning)]";
-    case "offline":
-      return "bg-[var(--edge-negative)]";
-    default:
-      return "bg-[var(--edge-text-muted)]";
-  }
-}
+type Props = {
+  theme: Theme;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+};
 
-function providerStatusClass(status: string): string {
+function providerStatusClass(status: ProviderHealthRow["status"]): string {
   switch (status) {
     case "healthy":
       return "text-[var(--edge-positive)]";
@@ -38,10 +34,46 @@ function providerStatusClass(status: string): string {
   }
 }
 
-type Props = {
-  theme: Theme;
-  anchorRef: React.RefObject<HTMLButtonElement | null>;
-};
+function ProviderRow({ provider }: { provider: ProviderHealthRow }) {
+  return (
+    <div
+      className="flex items-start justify-between gap-2 text-[10px]"
+      data-testid={`data-health-provider-${provider.id}`}
+    >
+      <span className="font-medium text-[var(--edge-text-primary)]">{provider.label}</span>
+      <span className={`text-right ${providerStatusClass(provider.status)}`}>{provider.detail}</span>
+    </div>
+  );
+}
+
+function DatasetRow({ row }: { row: DataHealthDatasetRow }) {
+  if (row.status === "not_loaded") {
+    return (
+      <div
+        className="text-[10px] text-[var(--edge-text-muted)]"
+        data-testid={`data-health-dataset-${row.kind}`}
+      >
+        {row.label} · Not open
+      </div>
+    );
+  }
+
+  const chips = buildDatasetChips(row);
+
+  return (
+    <div data-testid={`data-health-dataset-${row.kind}`}>
+      <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--edge-text-primary)]">
+        {row.severity && row.status === "loaded" ? (
+          <HealthSeverityDot severity={row.severity} />
+        ) : (
+          <span className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--edge-text-muted)]/40" />
+        )}
+        <span>{row.label}</span>
+      </div>
+      <DataHealthDatasetChips chips={chips} />
+    </div>
+  );
+}
 
 export default function DataHealthMenu({ theme, anchorRef }: Props) {
   const {
@@ -54,8 +86,49 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
     recoverMessage,
     recoverTws,
   } = useDataHealth();
+  const [providersExpanded, setProvidersExpanded] = useState(false);
+  const [showAllProviders, setShowAllProviders] = useState(false);
+
   const twsProvider = snapshot.providers.find((provider) => provider.id === "tws");
   const showTwsRecovery = shouldShowTwsRecovery(twsProvider);
+  const caveatSubtitle = buildHealthCaveatSubtitle(snapshot.datasets);
+  const connectionSeverity =
+    snapshot.providers.find((provider) => provider.id === "tws")?.status === "offline"
+      ? "offline"
+      : snapshot.severity;
+
+  const showStatusBanner =
+    snapshot.severity !== "healthy" || caveatSubtitle != null;
+  const bannerToneClass =
+    snapshot.severity === "offline"
+      ? "border-[var(--edge-negative)]/30 bg-[var(--edge-negative)]/10"
+      : "border-[var(--edge-warning)]/30 bg-[var(--edge-warning)]/10";
+
+  const unhealthyProviders = useMemo(
+    () => snapshot.providers.filter((provider) => provider.status !== "healthy"),
+    [snapshot.providers],
+  );
+  const providersAutoExpand =
+    snapshot.severity !== "healthy" || unhealthyProviders.length > 0;
+  const providersVisible = providersAutoExpand || providersExpanded;
+  const visibleProviders =
+    providersAutoExpand && !showAllProviders && unhealthyProviders.length > 0
+      ? unhealthyProviders
+      : snapshot.providers;
+  const hiddenHealthyCount = snapshot.providers.length - unhealthyProviders.length;
+
+  const issueItems = useMemo(() => {
+    const items: string[] = [];
+    for (const warning of snapshot.recentWarnings) {
+      items.push(warning);
+    }
+    for (const event of snapshot.recentEvents) {
+      items.push(
+        `${event.message}${event.recovered ? " · recovered" : ""} · ${formatHealthEventAge(event.at)}`,
+      );
+    }
+    return items;
+  }, [snapshot.recentEvents, snapshot.recentWarnings]);
 
   return (
     <ChartAnchoredPopover
@@ -67,76 +140,33 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
       minWidth={320}
       className="px-3 py-2"
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div>
-          <div className="text-sm font-medium text-[var(--edge-text-primary)]">Data Health</div>
-          <div className="text-[11px] text-[var(--edge-text-secondary)]">
-            Status: {snapshot.severityLabel}
-          </div>
-        </div>
-        <span
-          className={`inline-flex h-2.5 w-2.5 rounded-full ${severityDotClass(snapshot.severity)}`}
-          aria-hidden
-        />
-      </div>
-
-      <div className={menuSectionHeaderClass(theme)}>Datasets</div>
-      <div className="mb-3 space-y-2">
-        {snapshot.datasets.map((row) => (
-          <div key={row.kind} data-testid={`data-health-dataset-${row.kind}`}>
-            <div className="text-[11px] font-medium text-[var(--edge-text-primary)]">
-              {row.label}
-            </div>
-            <div className="text-[10px] text-[var(--edge-text-secondary)]">
-              {row.status === "not_loaded"
-                ? "Not loaded"
-                : row.status === "loading"
-                  ? "Loading…"
-                  : formatDatasetLine(row) || row.detail || "—"}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className={menuSectionHeaderClass(theme)}>Provider Status</div>
-      <div className="mb-3 space-y-1.5">
-        {serverHealthLoading && !serverHealthLoaded && snapshot.providers.length === 0 ? (
+      <div className="mb-2">
+        <div className="text-sm font-medium text-[var(--edge-text-primary)]">Data Health</div>
+        {showStatusBanner ? (
           <div
-            className="text-[10px] text-[var(--edge-text-secondary)]"
-            data-testid="data-health-providers-loading"
+            className={`mt-1.5 rounded-[var(--edge-radius-sm)] border px-2 py-1.5 ${bannerToneClass}`}
+            data-testid="data-health-status-banner"
           >
-            Loading provider status…
+            <div className="flex items-center gap-1.5 text-[11px] text-[var(--edge-text-primary)]">
+              <HealthSeverityDot severity={connectionSeverity} size="md" />
+              <span>{snapshot.connectionSummary}</span>
+            </div>
+            {caveatSubtitle ? (
+              <div className="mt-0.5 text-[10px] text-[var(--edge-warning)]">{caveatSubtitle}</div>
+            ) : null}
           </div>
-        ) : null}
-        {snapshot.providers.map((provider) => (
-          <div
-            key={provider.id}
-            className="flex items-start justify-between gap-2 text-[10px]"
-            data-testid={`data-health-provider-${provider.id}`}
-          >
-            <span className="font-medium text-[var(--edge-text-primary)]">{provider.label}</span>
-            <span className={`text-right ${providerStatusClass(provider.status)}`}>
-              {provider.detail}
-            </span>
-          </div>
-        ))}
+        ) : (
+          <>
+            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[var(--edge-text-secondary)]">
+              <HealthSeverityDot severity={connectionSeverity} size="md" />
+              <span>{snapshot.connectionSummary}</span>
+            </div>
+            <div className="mt-1 text-[10px] text-[var(--edge-text-secondary)]">
+              All loaded datasets ready
+            </div>
+          </>
+        )}
       </div>
-
-      {snapshot.recentWarnings.length > 0 ? (
-        <>
-          <div className={menuSectionHeaderClass(theme)}>Recent Fallbacks</div>
-          <ul
-            className="mb-3 space-y-1 text-[10px] text-[var(--edge-text-secondary)]"
-            data-testid="data-health-warnings"
-          >
-            {snapshot.recentWarnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-
-      <DataHealthLatencySection />
 
       {showTwsRecovery ? (
         <div className="mb-3 space-y-1.5">
@@ -162,16 +192,88 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        className="w-full rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] px-2 py-1.5 text-[11px] text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)]"
-        onClick={() => {
-          void navigator.clipboard?.writeText(JSON.stringify(snapshot, null, 2));
-        }}
-        data-testid="data-health-copy-json"
-      >
-        Copy health JSON
-      </button>
+      <div className={menuSectionHeaderClass(theme)}>Datasets</div>
+      <div className="mb-3 space-y-2">
+        {snapshot.datasets.map((row) => (
+          <DatasetRow key={row.kind} row={row} />
+        ))}
+      </div>
+
+      {snapshot.providers.length > 0 || (serverHealthLoading && !serverHealthLoaded) ? (
+        <div className="mb-3">
+          {providersAutoExpand ? (
+            <div className={menuSectionHeaderClass(theme)}>Providers</div>
+          ) : (
+            <button
+              type="button"
+              className={`${menuSectionHeaderClass(theme)} flex w-full items-center gap-1 text-left hover:text-[var(--edge-text-primary)]`}
+              onClick={() => setProvidersExpanded((value) => !value)}
+              aria-expanded={providersVisible}
+              data-testid="data-health-providers-toggle"
+            >
+              <span aria-hidden>{providersVisible ? "▾" : "▸"}</span>
+              <span>Provider details</span>
+            </button>
+          )}
+          {providersVisible ? (
+            <div className="space-y-1.5">
+              {serverHealthLoading && !serverHealthLoaded && snapshot.providers.length === 0 ? (
+                <div
+                  className="text-[10px] text-[var(--edge-text-secondary)]"
+                  data-testid="data-health-providers-loading"
+                >
+                  Loading provider status…
+                </div>
+              ) : null}
+              {visibleProviders.map((provider) => (
+                <ProviderRow key={provider.id} provider={provider} />
+              ))}
+              {providersAutoExpand &&
+              !showAllProviders &&
+              hiddenHealthyCount > 0 &&
+              unhealthyProviders.length > 0 ? (
+                <button
+                  type="button"
+                  className="text-[10px] text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-primary)]"
+                  onClick={() => setShowAllProviders(true)}
+                  data-testid="data-health-show-all-providers"
+                >
+                  Show all providers ({hiddenHealthyCount} more)
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {issueItems.length > 0 ? (
+        <>
+          <div className={menuSectionHeaderClass(theme)}>Issues</div>
+          <ul
+            className="mb-3 space-y-1 text-[10px] text-[var(--edge-text-secondary)]"
+            data-testid="data-health-issues"
+          >
+            {issueItems.map((item, index) => (
+              <li key={`${item}-${index}`}>{item}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
+      <DataHealthLatencySection />
+
+      <div className="mt-1 flex justify-end">
+        <button
+          type="button"
+          className="text-[10px] text-[var(--edge-text-muted)] hover:text-[var(--edge-text-primary)]"
+          onClick={() => {
+            void navigator.clipboard?.writeText(JSON.stringify(snapshot, null, 2));
+          }}
+          data-testid="data-health-copy-json"
+        >
+          Copy health JSON
+        </button>
+      </div>
     </ChartAnchoredPopover>
   );
 }
