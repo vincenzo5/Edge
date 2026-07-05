@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   chartAreaWidthForViewport,
-  resolveGridContainerClass,
   resolveHeaderDensity,
   resolveSidebarMode,
   resolveViewportTier,
-  shouldStackGridColumns,
+  shouldStackLayout,
 } from './responsiveLayout';
+import { getLayoutTemplate } from '@/lib/chart/layoutTemplates';
 
 describe('responsiveLayout', () => {
   describe('resolveViewportTier', () => {
@@ -37,24 +37,12 @@ describe('responsiveLayout', () => {
     });
   });
 
-  describe('shouldStackGridColumns', () => {
-    it('stacks two-column modes when width is below minimum usable cell width', () => {
-      expect(shouldStackGridColumns('1x2', 639)).toBe(true);
-      expect(shouldStackGridColumns('2x2', 639)).toBe(true);
-      expect(shouldStackGridColumns('1x2', 640)).toBe(false);
-      expect(shouldStackGridColumns('2x1', 400)).toBe(false);
-    });
-  });
-
-  describe('resolveGridContainerClass', () => {
-    it('preserves desktop grid classes when width is sufficient', () => {
-      expect(resolveGridContainerClass('1x2', 900)).toBe('grid-cols-2 chart-grid-rows-1');
-      expect(resolveGridContainerClass('2x2', 900)).toBe('grid-cols-2 chart-grid-rows-2');
-    });
-
-    it('stacks narrow two-column modes', () => {
-      expect(resolveGridContainerClass('1x2', 500)).toBe('grid-cols-1 chart-grid-rows-2');
-      expect(resolveGridContainerClass('2x2', 500)).toBe('grid-cols-1 chart-grid-rows-4');
+  describe('shouldStackLayout', () => {
+    it('stacks multi-column templates when width is below minimum usable cell width', () => {
+      expect(shouldStackLayout(getLayoutTemplate('n2-cols'), 639)).toBe(true);
+      expect(shouldStackLayout(getLayoutTemplate('n4-grid-2x2'), 639)).toBe(true);
+      expect(shouldStackLayout(getLayoutTemplate('n2-cols'), 640)).toBe(false);
+      expect(shouldStackLayout(getLayoutTemplate('n3-rows'), 400)).toBe(false);
     });
   });
 

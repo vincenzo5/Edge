@@ -1,4 +1,4 @@
-import type { GridMode } from '@/lib/chartConfig';
+import type { LayoutTemplate } from '@/lib/chart/layoutTemplates';
 import { LAYOUT_DIMENSIONS, RESPONSIVE_BREAKPOINTS } from './layoutConstants';
 
 export type SidebarMode = 'inline' | 'overlay';
@@ -26,47 +26,15 @@ export function resolveHeaderDensity(availableWidth: number): HeaderDensity {
   return 'minimal';
 }
 
-/** Whether a two-column grid should stack into a single column. */
-export function shouldStackGridColumns(
-  gridMode: GridMode,
+/** Whether a multi-column layout should stack into a single column. */
+export function shouldStackLayout(
+  template: LayoutTemplate,
   availableWidth: number,
 ): boolean {
-  const columnCount = gridMode === '1x2' || gridMode === '2x2' ? 2 : 1;
-  if (columnCount === 1) return false;
-  const minWidth = LAYOUT_DIMENSIONS.minUsableChartWidth * columnCount;
+  if (template.columns <= 1) return false;
+  const minWidth = LAYOUT_DIMENSIONS.minUsableChartWidth * template.columns;
   return availableWidth < minWidth;
 }
-
-/** CSS grid classes for the requested mode and available container width. */
-export function resolveGridContainerClass(
-  gridMode: GridMode,
-  availableWidth: number,
-): string {
-  if (shouldStackGridColumns(gridMode, availableWidth)) {
-    switch (gridMode) {
-      case '1x2':
-        return 'grid-cols-1 chart-grid-rows-2';
-      case '2x2':
-        return 'grid-cols-1 chart-grid-rows-4';
-      default:
-        break;
-    }
-  }
-
-  switch (gridMode) {
-    case '1x1':
-      return 'grid-cols-1 chart-grid-rows-1';
-    case '2x1':
-      return 'grid-cols-1 chart-grid-rows-2';
-    case '1x2':
-      return 'grid-cols-2 chart-grid-rows-1';
-    case '3x1':
-      return 'grid-cols-1 chart-grid-rows-3';
-    case '2x2':
-      return 'grid-cols-2 chart-grid-rows-2';
-  }
-}
-
 export function chartAreaWidthForViewport(
   viewportWidth: number,
   sidebarMode: SidebarMode,

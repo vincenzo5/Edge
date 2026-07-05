@@ -1,12 +1,13 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import type { GridMode, Theme, LayoutSyncPrefs } from '@/lib/chartConfig';
-import { GRID_MODES } from '@/lib/chartConfig';
+import type { LayoutTemplateId, Theme, LayoutSyncPrefs } from '@/lib/chartConfig';
+import { LAYOUT_MENU_ROWS, templatesForPaneCount } from '@/lib/chartConfig';
 import ChartAnchoredPopover from './ChartAnchoredPopover';
 import ChartHeaderButton from './ChartHeaderButton';
 import ChartMenuItemRow from './ChartMenuItemRow';
 import ChartMenuSectionHeader from './ChartMenuSectionHeader';
+import LayoutTemplateIcon from './LayoutTemplateIcon';
 import {
   ChevronDownIcon,
   CopyIcon,
@@ -20,13 +21,18 @@ import {
 type Props = {
   theme: Theme;
   layoutName?: string;
-  gridMode: GridMode;
+  layoutId: LayoutTemplateId;
   linkSymbol: boolean;
   linkInterval: boolean;
   linkCrosshair: boolean;
   linkDrawings: boolean;
-  onGridModeChange: (mode: GridMode) => void;
+  onLayoutChange: (id: LayoutTemplateId) => void;
   onLayoutSyncChange: (patch: Partial<LayoutSyncPrefs>) => void;
+  workspaceTabs?: Array<{ id: string; title: string; selected?: boolean }>;
+  onCreateLayout?: () => void;
+  onCopyLayout?: () => void;
+  onRenameLayout?: () => void;
+  onSelectLayout?: (tabId: string) => void;
 };
 
 function ToggleSwitch({
@@ -58,61 +64,21 @@ function ToggleSwitch({
   );
 }
 
-function GridModeIcon({ mode }: { mode: GridMode }) {
-  const cells: boolean[] = (() => {
-    switch (mode) {
-      case '1x1':
-        return [true];
-      case '2x1':
-        return [true, true];
-      case '1x2':
-        return [true, true];
-      case '3x1':
-        return [true, true, true];
-      case '2x2':
-        return [true, true, true, true];
-    }
-  })();
-
-  const cols = mode === '1x2' || mode === '2x2' ? 2 : 1;
-  const rows = mode === '2x1' || mode === '3x1' ? cells.length : mode === '2x2' ? 2 : 1;
-
-  return (
-    <svg width={20} height={20} viewBox="0 0 20 20" fill="none" aria-hidden>
-      {cells.map((_, i) => {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const w = (18 - (cols - 1)) / cols;
-        const h = (18 - (rows - 1)) / rows;
-        const x = 1 + col * (w + 1);
-        const y = 1 + row * (h + 1);
-        return (
-          <rect
-            key={i}
-            x={x}
-            y={y}
-            width={w}
-            height={h}
-            stroke="currentColor"
-            strokeWidth="1"
-            fill="none"
-          />
-        );
-      })}
-    </svg>
-  );
-}
-
 export default function ChartLayoutMenu({
   theme,
   layoutName = 'Default',
-  gridMode,
+  layoutId,
   linkSymbol,
   linkInterval,
   linkCrosshair,
   linkDrawings,
-  onGridModeChange,
+  onLayoutChange,
   onLayoutSyncChange,
+  workspaceTabs,
+  onCreateLayout,
+  onCopyLayout,
+  onRenameLayout,
+  onSelectLayout,
 }: Props) {
   const setupRef = useRef<HTMLButtonElement>(null);
   const manageRef = useRef<HTMLButtonElement>(null);
@@ -156,33 +122,40 @@ export default function ChartLayoutMenu({
         onClose={() => setSetupOpen(false)}
         minWidth={280}
       >
-        {GRID_MODES.map((mode, idx) => (
-          <div key={mode.value}>
-            {idx > 0 ? (
-              <div className="my-1 border-t border-[var(--edge-border-strong)]" />
-            ) : null}
-            <div className="flex items-center gap-2 px-3 py-1">
-              <span className="w-4 shrink-0 text-xs opacity-60">{mode.label}</span>
-              <div className="flex flex-wrap gap-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onGridModeChange(mode.value);
-                    setSetupOpen(false);
-                  }}
-                  className={`edge-focus-ring rounded-[var(--edge-radius-sm)] p-1 transition-colors ${
-                    gridMode === mode.value
-                      ? 'bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]'
-                      : 'hover:bg-[var(--edge-surface-hover)]'
-                  }`}
-                  aria-label={`Layout ${mode.label}`}
-                >
-                  <GridModeIcon mode={mode.value} />
-                </button>
+        {LAYOUT_MENU_ROWS.map((paneCount, idx) => {
+          const templates = templatesForPaneCount(paneCount);
+          return (
+            <div key={paneCount}>
+              {idx > 0 ? (
+                <div className="my-1 border-t border-[var(--edge-border-strong)]" />
+              ) : null}
+              <div className="flex items-center gap-2 px-3 py-1">
+                <span className="w-4 shrink-0 text-xs opacity-60">{paneCount}</span>
+                <div className="flex flex-wrap gap-1">
+                  {templates.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => {
+                        onLayoutChange(template.id);
+                        setSetupOpen(false);
+                      }}
+                      className={`edge-focus-ring rounded-[var(--edge-radius-sm)] p-1 transition-colors ${
+                        layoutId === template.id
+                          ? 'bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]'
+                          : 'hover:bg-[var(--edge-surface-hover)]'
+                      }`}
+                      aria-label={`Layout ${paneCount} ${template.id}`}
+                      data-testid={`layout-template-${template.id}`}
+                    >
+                      <LayoutTemplateIcon template={template} />
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div className="my-1 border-t border-[var(--edge-border-strong)]" />
         <ChartMenuSectionHeader theme={theme} label="SYNC IN LAYOUT" collapsed={false} />
         <div className="flex items-center justify-between px-3 py-1.5">
@@ -241,13 +214,58 @@ export default function ChartLayoutMenu({
           </span>
           <ToggleSwitch checked={false} disabled />
         </div>
-        <ChartMenuItemRow theme={theme} label="Make a copy..." icon={<CopyIcon size={14} />} disabled disabledReason="Coming soon" />
-        <ChartMenuItemRow theme={theme} label="Rename..." icon={<PencilIcon size={14} />} disabled disabledReason="Coming soon" />
+        <ChartMenuItemRow
+          theme={theme}
+          label="Make a copy..."
+          icon={<CopyIcon size={14} />}
+          disabled={!onCopyLayout}
+          disabledReason={onCopyLayout ? undefined : 'Coming soon'}
+          onClick={() => {
+            onCopyLayout?.();
+            setManageOpen(false);
+          }}
+        />
+        <ChartMenuItemRow
+          theme={theme}
+          label="Rename..."
+          icon={<PencilIcon size={14} />}
+          disabled={!onRenameLayout}
+          disabledReason={onRenameLayout ? undefined : 'Coming soon'}
+          onClick={() => {
+            onRenameLayout?.();
+            setManageOpen(false);
+          }}
+        />
         <ChartMenuItemRow theme={theme} label="Download chart data..." icon={<DownloadIcon size={14} />} disabled disabledReason="Coming soon" />
         <div className="my-1 border-t border-[var(--edge-border-strong)]" />
-        <ChartMenuItemRow theme={theme} label="Create new layout..." icon={<PlusIcon size={14} />} disabled disabledReason="Coming soon" />
+        <ChartMenuItemRow
+          theme={theme}
+          label="Create new layout..."
+          icon={<PlusIcon size={14} />}
+          disabled={!onCreateLayout}
+          disabledReason={onCreateLayout ? undefined : 'Coming soon'}
+          onClick={() => {
+            onCreateLayout?.();
+            setManageOpen(false);
+          }}
+        />
         <ChartMenuSectionHeader theme={theme} label="RECENTLY USED" collapsed={false} />
-        <ChartMenuItemRow theme={theme} label={layoutName} selected />
+        {(workspaceTabs ?? [{ id: 'active', title: layoutName, selected: true }]).map((tab) => (
+          <ChartMenuItemRow
+            key={tab.id}
+            theme={theme}
+            label={tab.title}
+            selected={tab.selected}
+            onClick={
+              onSelectLayout && !tab.selected
+                ? () => {
+                    onSelectLayout(tab.id);
+                    setManageOpen(false);
+                  }
+                : undefined
+            }
+          />
+        ))}
         <div className="my-1 border-t border-[var(--edge-border-strong)]" />
         <ChartMenuItemRow theme={theme} label="Open layout..." icon={<FolderIcon size={14} />} disabled disabledReason="Coming soon" />
       </ChartAnchoredPopover>

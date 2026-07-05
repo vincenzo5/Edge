@@ -92,7 +92,7 @@ describe('migrateLayoutSync', () => {
     expect(
       migrateLayoutSync({
         version: 1,
-        gridMode: '1x2',
+        layoutId: 'n2-cols',
         linked: true,
         cells: [DEFAULT_CELL],
       }),
@@ -108,7 +108,7 @@ describe('migrateLayoutSync', () => {
     expect(
       migrateLayoutSync({
         version: 1,
-        gridMode: '1x2',
+        layoutId: 'n2-cols',
         linked: true,
         linkSymbol: false,
         linkInterval: true,
@@ -128,7 +128,7 @@ describe('migrateLayoutSync', () => {
 describe('linked cell propagation', () => {
   const twoCellLayout: ChartLayout = {
     ...DEFAULT_LAYOUT,
-    gridMode: '1x2',
+    layoutId: 'n2-cols',
     linkSymbol: true,
     linkInterval: true,
     linkCrosshair: true,
@@ -230,7 +230,7 @@ describe('linked drawing propagation', () => {
 
   const twoCellLayout: ChartLayout = {
     ...DEFAULT_LAYOUT,
-    gridMode: '1x2',
+    layoutId: 'n2-cols',
     linkDrawings: true,
     cells: [
       { ...DEFAULT_CELL, drawings: [] },
@@ -261,7 +261,7 @@ describe('linked drawing propagation', () => {
   it('round-trips linked drawings through layoutStorage', () => {
     const layout: ChartLayout = {
       ...DEFAULT_LAYOUT,
-      gridMode: '2x2',
+      layoutId: 'n4-grid-2x2',
       linkDrawings: true,
       cells: [
         { ...DEFAULT_CELL, drawings: [sampleDrawing] },
@@ -285,7 +285,7 @@ describe('activeCellIndex persistence', () => {
   it('round-trips activeCellIndex through layoutStorage', () => {
     const layout: ChartLayout = {
       ...DEFAULT_LAYOUT,
-      gridMode: '2x2',
+      layoutId: 'n4-grid-2x2',
       activeCellIndex: 2,
       cells: [
         { ...DEFAULT_CELL },
@@ -311,7 +311,7 @@ describe('activeCellIndex persistence', () => {
       'tv-ai:layout:v1',
       JSON.stringify({
         version: 1,
-        gridMode: '1x1',
+        layoutId: 'n1',
         linked: true,
         activeCellIndex: 0,
         theme: 'dark',

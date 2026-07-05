@@ -2,8 +2,13 @@ import type { Range } from "./yahoo";
 import type { Interval } from "./chart/contracts";
 import type { IndicatorConfig, SerializedDrawing } from "./chart/contracts";
 import type { ChartSettings } from "./chart/chartSettings";
-import { defaultInputsFromSchema } from "./chart/indicatorInputs";
-import { getIndicator } from "./chart/indicators/registry";
+import {
+  DEFAULT_CHART_SETTINGS,
+  mergeChartSettings,
+  migrateChartSettings,
+  patchChartSettings,
+  serializeChartSettings,
+} from "./chart/chartSettings";
 
 export type { Range, Interval };
 export type { IndicatorConfig, SerializedDrawing, DrawingStyles, TrackedOverlay, LineStyleOverride } from "./chart/contracts";
@@ -29,7 +34,9 @@ export {
   migrateChartSettings,
   patchChartSettings,
   serializeChartSettings,
-} from "./chart/chartSettings";
+};
+import { defaultInputsFromSchema } from "./chart/indicatorInputs";
+import { getIndicator } from "./chart/indicators/registry";
 
 export type ChartType =
   | "candle_solid"
@@ -46,10 +53,31 @@ export function isTheme(value: unknown): value is Theme {
   return value === "light" || value === "dark";
 }
 
-export type GridMode = "1x1" | "2x1" | "2x2" | "3x1" | "1x2";
+import type { LayoutTemplateId } from "./chart/layoutTemplates";
+import {
+  cellCountForLayout,
+  DEFAULT_LAYOUT_ID,
+  migrateLegacyGridMode,
+  normalizeLayoutId,
+} from "./chart/layoutTemplates";
 
-/** @deprecated Use IndicatorConfig from chart/contracts */
-export type LegacyIndicatorConfig = IndicatorConfig;
+/** @deprecated Use LayoutTemplateId from layoutTemplates. */
+export type GridMode = LayoutTemplateId;
+
+export type { LayoutTemplateId };
+export {
+  DEFAULT_LAYOUT_ID,
+  LAYOUT_MENU_ROWS,
+  LAYOUT_TEMPLATES,
+  LAYOUT_TEMPLATE_IDS,
+  cellCountForLayout,
+  getLayoutTemplate,
+  isLayoutTemplateId,
+  migrateLegacyGridMode,
+  normalizeLayoutId,
+  resolveLayoutIdForSnapshot,
+  templatesForPaneCount,
+} from "./chart/layoutTemplates";
 
 /** Sentinel key representing the price (main candle) pane in paneOrder / collapsedPanes / maximizedPane. */
 export const PRICE_PANE_KEY = "price";
@@ -150,7 +178,9 @@ export type LayoutSyncPrefs = {
 
 export type ChartLayout = {
   version: 1;
-  gridMode: GridMode;
+  layoutId: LayoutTemplateId;
+  /** @deprecated Use layoutId. Kept for migration only. */
+  gridMode?: GridMode;
   /** @deprecated Use linkSymbol / linkInterval / linkCrosshair. Kept for migration only. */
   linked?: boolean;
   linkSymbol: boolean;
@@ -223,7 +253,7 @@ export const DEFAULT_LAYOUT_SYNC: LayoutSyncPrefs = {
 };
 
 export function migrateLayoutSync(
-  layout: Partial<ChartLayout> & Pick<ChartLayout, "version" | "gridMode" | "cells">,
+  layout: Partial<ChartLayout> & Pick<ChartLayout, "version" | "cells">,
 ): LayoutSyncPrefs {
   if (
     typeof layout.linkSymbol === "boolean" ||
@@ -247,12 +277,27 @@ export function migrateLayoutSync(
   };
 }
 
+export function migrateChartLayout(
+  layout: Partial<ChartLayout> & Pick<ChartLayout, "version" | "cells">,
+): ChartLayout {
+  const record = layout as Record<string, unknown>;
+  const layoutId = normalizeLayoutId(record);
+  const sync = migrateLayoutSync(layout);
+  return {
+    ...DEFAULT_LAYOUT,
+    ...layout,
+    ...sync,
+    layoutId,
+    gridMode: undefined,
+  };
+}
+
 export function applyLinkPropagation(
   layout: ChartLayout,
   index: number,
   next: CellConfig,
 ): ChartLayout {
-  const count = cellCountFor(layout.gridMode);
+  const count = cellCountFor(layout.layoutId);
   const cells = [...layout.cells];
   cells[index] = next;
 
@@ -294,7 +339,7 @@ export const DEFAULT_CELL: CellConfig = {
 
 export const DEFAULT_LAYOUT: ChartLayout = {
   version: 1,
-  gridMode: "1x1",
+  layoutId: DEFAULT_LAYOUT_ID,
   ...DEFAULT_LAYOUT_SYNC,
   activeCellIndex: 0,
   theme: "dark",
@@ -348,34 +393,31 @@ export const CHART_TYPES: Array<{ label: string; value: ChartType }> = [
   { label: "Heikin Ashi", value: "heikin_ashi" },
 ];
 
-export const GRID_MODES: Array<{ label: string; value: GridMode }> = [
-  { label: "1", value: "1x1" },
-  { label: "2", value: "2x1" },
-  { label: "1+2", value: "1x2" },
-  { label: "3", value: "3x1" },
-  { label: "2x2", value: "2x2" },
-];
-
-export function cellCountFor(mode: GridMode): number {
-  switch (mode) {
-    case "1x1":
-      return 1;
-    case "2x1":
-      return 2;
-    case "1x2":
-      return 2;
-    case "3x1":
-      return 3;
-    case "2x2":
-      return 4;
-  }
+export function cellCountFor(layoutId: LayoutTemplateId | string): number {
+  return cellCountForLayout(layoutId);
 }
+
+/** @deprecated Use LAYOUT_TEMPLATES / templatesForPaneCount. */
+export const GRID_MODES = [
+  { label: "1", value: "n1" as LayoutTemplateId },
+  { label: "2 cols", value: "n2-cols" as LayoutTemplateId },
+  { label: "2 rows", value: "n2-rows" as LayoutTemplateId },
+  { label: "3 rows", value: "n3-rows" as LayoutTemplateId },
+  { label: "2x2", value: "n4-grid-2x2" as LayoutTemplateId },
+] as const;
 
 export function generateIndicatorId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
   return `ind_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+}
+
+export function generateDrawingId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `d_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
 export function legacyIndicatorKey(name: string, pane: "main" | "sub"): string {
@@ -434,5 +476,143 @@ export function migrateCellIndicators(cell: CellConfig): CellConfig {
           Object.entries(cell.paneHeights).map(([k, v]) => [remapKey(k), v]),
         )
       : undefined,
+  };
+}
+
+function remapCellPaneKeys(
+  cell: Pick<
+    CellConfig,
+    "paneOrder" | "collapsedPanes" | "maximizedPane" | "paneHeights"
+  >,
+  remapKey: (key: string) => string,
+): Pick<
+  CellConfig,
+  "paneOrder" | "collapsedPanes" | "maximizedPane" | "paneHeights"
+> {
+  return {
+    paneOrder: cell.paneOrder?.map(remapKey),
+    collapsedPanes: cell.collapsedPanes?.map(remapKey),
+    maximizedPane:
+      cell.maximizedPane != null ? remapKey(cell.maximizedPane) : cell.maximizedPane,
+    paneHeights: cell.paneHeights
+      ? Object.fromEntries(
+          Object.entries(cell.paneHeights).map(([k, v]) => [remapKey(k), v]),
+        )
+      : undefined,
+  };
+}
+
+function cloneCellIndicatorsWithNewIds(
+  source: CellConfig,
+): Pick<CellConfig, "indicators"> &
+  Pick<CellConfig, "paneOrder" | "collapsedPanes" | "maximizedPane" | "paneHeights"> {
+  const keyRemap = new Map<string, string>();
+
+  const indicators: IndicatorConfig[] = source.indicators.map((ind) => {
+    const id = generateIndicatorId();
+    keyRemap.set(legacyIndicatorKey(ind.name, ind.pane), id);
+    if (ind.id) keyRemap.set(ind.id, id);
+    return {
+      ...ind,
+      id,
+      inputs: ind.inputs ? structuredClone(ind.inputs) : ind.inputs,
+      visible: ind.visible ?? true,
+    };
+  });
+
+  const remapKey = (key: string) => {
+    if (keyRemap.has(key)) return keyRemap.get(key)!;
+    if (key.includes("::")) {
+      for (const ind of indicators) {
+        if (legacyIndicatorKey(ind.name, ind.pane) === key) return ind.id;
+      }
+    }
+    return key;
+  };
+
+  return {
+    indicators,
+    ...remapCellPaneKeys(source, remapKey),
+  };
+}
+
+function cloneCellDrawings(
+  source: CellConfig,
+  sharedDrawingIds: boolean,
+): SerializedDrawing[] {
+  if (sharedDrawingIds) {
+    return structuredClone(source.drawings);
+  }
+  return source.drawings.map((drawing) => ({
+    ...structuredClone(drawing),
+    id: generateDrawingId(),
+    points: drawing.points.map((p) => ({ ...p })),
+    styles: drawing.styles ? { ...drawing.styles } : undefined,
+  }));
+}
+
+/** Deep copy of one chart cell for a new layout pane. */
+export function cloneCellConfig(
+  source: CellConfig,
+  opts?: { sharedDrawingIds?: boolean },
+): CellConfig {
+  const sharedDrawingIds = opts?.sharedDrawingIds ?? false;
+  const { indicators, paneOrder, collapsedPanes, maximizedPane, paneHeights } =
+    cloneCellIndicatorsWithNewIds(source);
+
+  return {
+    symbol: source.symbol,
+    symbolName: source.symbolName,
+    exchange: source.exchange,
+    range: source.range,
+    interval: source.interval,
+    rangePreset: source.rangePreset ?? null,
+    chartType: source.chartType,
+    indicators,
+    drawings: cloneCellDrawings(source, sharedDrawingIds),
+    paneOrder,
+    collapsedPanes,
+    maximizedPane,
+    paneHeights,
+    chartSettings: mergeChartSettings(source.chartSettings),
+    mainSeriesVisible: source.mainSeriesVisible,
+  };
+}
+
+/** Resize layout template: clone active cell into new panes; promote active when shrinking to single. */
+export function applyLayoutTemplateChange(
+  layout: ChartLayout,
+  nextLayoutId: LayoutTemplateId,
+): ChartLayout {
+  if (layout.layoutId === nextLayoutId) return layout;
+
+  const needed = cellCountFor(nextLayoutId);
+  const activeIndex = layout.activeCellIndex ?? 0;
+  const activeCell = layout.cells[activeIndex] ?? layout.cells[0] ?? DEFAULT_CELL;
+
+  if (needed === 1) {
+    return {
+      ...layout,
+      layoutId: nextLayoutId,
+      cells: [activeCell],
+      activeCellIndex: 0,
+    };
+  }
+
+  const cells = [...layout.cells];
+  while (cells.length < needed) {
+    cells.push(
+      cloneCellConfig(activeCell, { sharedDrawingIds: layout.linkDrawings }),
+    );
+  }
+  const trimmed = cells.slice(0, needed);
+  const maxIndex = Math.max(0, needed - 1);
+  const nextActiveCellIndex = Math.min(activeIndex, maxIndex);
+
+  return {
+    ...layout,
+    layoutId: nextLayoutId,
+    cells: trimmed,
+    activeCellIndex: nextActiveCellIndex,
   };
 }

@@ -1,12 +1,5 @@
 /**
- * Layout shell smoke tests for multi-chart grid modes.
- *
- * Manual CDP QA (run in devtools after layout changes):
- * ({ mode: document.querySelector('header select')?.value,
- *    gridH: document.querySelector('[data-testid="chart-grid"]')?.getBoundingClientRect().height,
- *    vh: innerHeight,
- *    scroll: document.documentElement.scrollHeight - innerHeight,
- *    charts: [...document.querySelectorAll('[data-edge-chart]')].map(c => c.getBoundingClientRect().height) })
+ * Layout shell smoke tests for multi-chart templates.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -14,9 +7,9 @@ import ChartGrid from './ChartGrid';
 import {
   DEFAULT_CELL,
   DEFAULT_TOOLBAR_PREFS,
-  GRID_MODES,
+  LAYOUT_TEMPLATES,
   cellCountFor,
-  type GridMode,
+  type LayoutTemplateId,
 } from '@/lib/chartConfig';
 
 vi.mock('./ChartCell', () => ({
@@ -25,15 +18,15 @@ vi.mock('./ChartCell', () => ({
   ),
 }));
 
-const cells = Array.from({ length: 4 }, () => ({ ...DEFAULT_CELL }));
+const cells = Array.from({ length: 16 }, () => ({ ...DEFAULT_CELL }));
 
 describe('ChartGrid layout shell', () => {
-  it.each(GRID_MODES.map((m) => [m.value, m.label] as const))(
-    'renders grid mode %s with %i cells',
-    (gridMode: GridMode) => {
+  it.each(LAYOUT_TEMPLATES.map((t) => [t.id, t.paneCount] as const))(
+    'renders template %s with %i cells',
+    (layoutId: LayoutTemplateId) => {
       render(
         <ChartGrid
-          gridMode={gridMode}
+          layoutId={layoutId}
           linkCrosshair={false}
           linkDrawings={false}
           theme="light"
@@ -52,14 +45,14 @@ describe('ChartGrid layout shell', () => {
       expect(grid.className).toMatch(/flex-1/);
 
       const charts = document.querySelectorAll('[data-edge-chart]');
-      expect(charts.length).toBe(cellCountFor(gridMode));
+      expect(charts.length).toBe(cellCountFor(layoutId));
     },
   );
 
-  it('uses fractional row utilities for multi-row modes', () => {
+  it('uses template-driven grid styles for multi-cell layouts', () => {
     render(
       <ChartGrid
-        gridMode="2x2"
+        layoutId="n4-grid-2x2"
         linkCrosshair={false}
         linkDrawings={false}
         theme="light"
@@ -73,7 +66,68 @@ describe('ChartGrid layout shell', () => {
     );
 
     const grid = screen.getByTestId('chart-grid');
-    expect(grid.className).toMatch(/chart-grid-rows-2/);
-    expect(grid.className).toMatch(/grid-cols-2/);
+    expect(grid.style.gridTemplateColumns).toBe('repeat(2, minmax(0, 1fr))');
+    expect(grid.style.gridTemplateRows).toBe('repeat(2, minmax(0, 1fr))');
+  });
+
+  it('highlights the active cell in multi-pane layouts', () => {
+    render(
+      <ChartGrid
+        layoutId="n2-cols"
+        linkCrosshair={false}
+        linkDrawings={false}
+        theme="light"
+        cells={cells}
+        activeCellIndex={1}
+        toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+        onCellChange={vi.fn()}
+        onActiveCellChange={vi.fn()}
+        onToolbarPrefsChange={vi.fn()}
+      />,
+    );
+
+    const activeWrappers = document.querySelectorAll('[data-active-cell="true"]');
+    expect(activeWrappers.length).toBe(1);
+    expect(
+      activeWrappers[0]?.querySelector('[data-testid="chart-cell-active-outline"]'),
+    ).not.toBeNull();
+  });
+
+  it('renders one shared drawing toolbar in multi-pane layouts', () => {
+    render(
+      <ChartGrid
+        layoutId="n2-cols"
+        linkCrosshair={false}
+        linkDrawings={false}
+        theme="light"
+        cells={cells}
+        activeCellIndex={0}
+        toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+        onCellChange={vi.fn()}
+        onActiveCellChange={vi.fn()}
+        onToolbarPrefsChange={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelectorAll('[data-testid="chart-drawing-rail"]')).toHaveLength(1);
+  });
+
+  it('does not highlight cells in single-pane layout', () => {
+    render(
+      <ChartGrid
+        layoutId="n1"
+        linkCrosshair={false}
+        linkDrawings={false}
+        theme="light"
+        cells={cells}
+        activeCellIndex={0}
+        toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+        onCellChange={vi.fn()}
+        onActiveCellChange={vi.fn()}
+        onToolbarPrefsChange={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector('[data-active-cell="true"]')).toBeNull();
   });
 });
