@@ -5,6 +5,7 @@ import type { QuoteSnapshot } from "@/lib/watchlist/types";
 import { fetchQuotes } from "@/lib/watchlist/quoteClient";
 import { useMarketDataQuotes, useMarketDataQuotesForSymbols } from "../MarketDataProvider";
 import { resolveQuoteStreamFirstPaintMs } from "@/lib/marketData/quoteStreamPolicy";
+import { recordHealthEvent } from "@/lib/marketData/healthEvents";
 
 function watchlistStreamEnabled(): boolean {
   if (typeof window === "undefined") return false;
@@ -96,9 +97,21 @@ function useLegacyWatchlistQuoteStream(symbols: string[]): {
           if (cancelled) return;
           setQuotes(next);
           setError(null);
+          recordHealthEvent({
+            kind: "transport_fallback",
+            message: reason,
+            recovered: true,
+            dataset: "watchlist",
+          });
         })
         .catch((err) => {
           if (cancelled) return;
+          recordHealthEvent({
+            kind: "stream_error",
+            message: err instanceof Error ? err.message : reason,
+            recovered: false,
+            dataset: "watchlist",
+          });
           setError(err instanceof Error ? err.message : reason);
         })
         .finally(() => {

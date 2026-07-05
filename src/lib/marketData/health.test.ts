@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { HOT_STALE_MS } from "./hotStore";
 import {
   buildChartDatasetRow,
+  buildDatasetChips,
+  buildHealthCaveatSubtitle,
   buildHealthSummary,
   buildHealthCompactSummary,
+  buildOptionsDatasetRow,
   buildProvisionalProviderRows,
   buildProviderRows,
   buildWatchlistDatasetRow,
+  classifyHealthWarning,
+  deriveDatasetSeverity,
   deriveOverallSeverity,
   formatDatasetLine,
+  formatQuoteAgeLabel,
   isTwsGatewayHealthy,
   mergeHealthSnapshot,
   severityLabel,
@@ -293,5 +300,385 @@ describe("marketData health", () => {
 
     expect(providers.some((row) => row.id === "ibkr")).toBe(false);
     expect(providers.find((row) => row.id === "tws")?.label).toBe("IB Gateway");
+  });
+
+  it("classifies transport timeouts as events, not incidents", () => {
+    expect(classifyHealthWarning("Quote stream first snapshot timeout")).toBe("event");
+    expect(classifyHealthWarning("TWS temporarily skipped (gateway_disconnected)")).toBe(
+      "incident",
+    );
+  });
+
+  it("stays healthy when TWS watchlist hot-stale cache is within display age", () => {
+    const now = Date.now();
+    const row = buildWatchlistDatasetRow(
+      {
+        source: "tws",
+        asOf: now - 10_000,
+        stale: true,
+        cacheTier: "hot-stale",
+        latencyMs: 0,
+        warnings: [],
+      },
+      "4/4 symbols · rest",
+      false,
+      null,
+      "rest",
+      now - 10_000,
+    );
+
+    expect(deriveDatasetSeverity(row)).toBe("healthy");
+    expect(formatDatasetLine(row, now)).toContain("updated 10s ago");
+    expect(formatDatasetLine(row, now)).not.toContain("stale");
+  });
+
+  it("marks watchlist degraded when quote age exceeds display max", () => {
+    const now = Date.now();
+    const row = buildWatchlistDatasetRow(
+      {
+        source: "tws",
+        asOf: now - 90_000,
+        stale: true,
+        cacheTier: "hot-stale",
+      },
+      "4/4 symbols · rest",
+      false,
+      null,
+      "rest",
+      now - 90_000,
+    );
+
+    expect(deriveDatasetSeverity(row)).toBe("degraded");
+    expect(buildHealthCaveatSubtitle([row])).toMatch(/90s old/i);
+  });
+
+  it("stays healthy when TWS chart hot-stale cache is within display age", () => {
+    const now = Date.now();
+    const row = buildChartDatasetRow(
+      {
+        source: "tws",
+        asOf: now - 30_000,
+        stale: true,
+        cacheTier: "hot-stale",
+        latencyMs: 0,
+        warnings: [],
+      },
+      "AAPL · 1D",
+    );
+
+    expect(deriveDatasetSeverity(row)).toBe("healthy");
+    expect(formatDatasetLine(row, now)).toContain("updated 30s ago");
+    expect(formatDatasetLine(row, now)).not.toContain("stale");
+    expect(formatDatasetLine(row, now)).not.toContain("hot stale");
+  });
+
+  it("marks chart degraded when candle age exceeds display max", () => {
+    const now = Date.now();
+    const row = buildChartDatasetRow(
+      {
+        source: "tws",
+        asOf: now - HOT_STALE_MS.candles - 60_000,
+        stale: true,
+        cacheTier: "hot-stale",
+      },
+      "AAPL · 1D",
+    );
+
+    expect(deriveDatasetSeverity(row)).toBe("degraded");
+    expect(buildHealthCaveatSubtitle([row])).toMatch(/Chart candles/i);
+  });
+
+  it("stays healthy when options chain hot-stale cache is within display age", () => {
+    const now = Date.now();
+    const row = buildOptionsDatasetRow(
+      {
+        source: "tws",
+        asOf: now - 60_000,
+        stale: true,
+        cacheTier: "hot-stale",
+      },
+      "AAPL · 12 expirations",
+      "options_chain",
+    );
+
+    expect(deriveDatasetSeverity(row)).toBe("healthy");
+    expect(formatDatasetLine(row, now)).toContain("updated 1m ago");
+    expect(formatDatasetLine(row, now)).not.toContain("stale");
+  });
+
+  it("stays healthy when options expirations-only meta is within 24h display age", () => {
+    const now = Date.now();
+    const row = buildOptionsDatasetRow(
+      {
+        source: "tws",
+        asOf: now - 3_600_000,
+        stale: true,
+        cacheTier: "hot-stale",
+      },
+      "AAPL · 12 expirations",
+      "options_expirations",
+    );
+
+    expect(deriveDatasetSeverity(row)).toBe("healthy");
+  });
+
+  it("marks options chain degraded when age exceeds display max", () => {
+    const now = Date.now();
+    const row = buildOptionsDatasetRow(
+      {
+        source: "tws",
+        asOf: now - HOT_STALE_MS.options_chain - 60_000,
+        stale: true,
+        cacheTier: "hot-stale",
+      },
+      "AAPL · 12 expirations",
+      "options_chain",
+    );
+
+    expect(deriveDatasetSeverity(row)).toBe("degraded");
+    expect(buildHealthCaveatSubtitle([row])).toMatch(/Options data/i);
+  });
+
+  it("mergeHealthSnapshot stays healthy when chart has stale flag but display-fresh age", () => {
+    const now = Date.now();
+    const snapshot = mergeHealthSnapshot(
+      {
+        chartMeta: {
+          source: "tws",
+          asOf: now - 20_000,
+          stale: true,
+          cacheTier: "hot-stale",
+        },
+        chartDetail: "AAPL · 1D",
+        watchlistMeta: {
+          source: "tws",
+          asOf: now - 5_000,
+          stale: false,
+        },
+        watchlistDetail: "4/4 symbols",
+        watchlistTransport: "rest",
+      },
+      {
+        generatedAt: now,
+        providers: buildProviderRows({
+          tws: {
+            configured: true,
+            sidecarReachable: true,
+            gatewayConnected: true,
+            warnings: [],
+          },
+          twsGate: {
+            skipUntil: 0,
+            lastFailure: null,
+            failureCount: 0,
+            lastSuccessAt: now,
+          },
+        }),
+        recentWarnings: [],
+      },
+    );
+
+    const chartRow = snapshot.datasets.find((row) => row.kind === "chart");
+    expect(chartRow?.severity).toBe("healthy");
+    expect(snapshot.severity).toBe("healthy");
+    expect(buildHealthSummary(chartRow, snapshot.datasets[1], snapshot.severity)).not.toContain(
+      "stale",
+    );
+  });
+
+  it("stays healthy when TWS watchlist recovered via REST after SSE timeout", () => {
+    const datasets = [
+      buildChartDatasetRow(
+        {
+          source: "tws",
+          asOf: Date.now(),
+          stale: false,
+          streaming: true,
+          cacheTier: "hot-fresh",
+        },
+        "AAPL · 1D",
+      ),
+      buildWatchlistDatasetRow(
+        {
+          source: "tws",
+          asOf: Date.now() - 5_000,
+          stale: true,
+          cacheTier: "hot-stale",
+          latencyMs: 1411,
+          warnings: ["Quote stream first snapshot timeout"],
+        },
+        "4/4 symbols · rest",
+        false,
+        null,
+        "rest",
+        Date.now() - 5_000,
+      ),
+      buildWatchlistDatasetRow(null, undefined, false, null, "rest"),
+    ];
+    datasets.pop();
+    const providers = buildProviderRows({
+      tws: {
+        configured: true,
+        sidecarReachable: true,
+        gatewayConnected: true,
+        warnings: [],
+      },
+      twsGate: {
+        skipUntil: 0,
+        lastFailure: null,
+        failureCount: 0,
+        lastSuccessAt: Date.now(),
+      },
+    });
+
+    expect(deriveDatasetSeverity(datasets[1]!)).toBe("healthy");
+    expect(deriveOverallSeverity(datasets, providers)).toBe("healthy");
+  });
+
+  it.each([
+    {
+      name: "yahoo stale chart fallback",
+      datasets: [
+        buildChartDatasetRow(
+          {
+            source: "yahoo",
+            asOf: Date.now(),
+            stale: true,
+            warnings: ["TWS temporarily skipped (gateway_disconnected)"],
+          },
+          "AAPL · 1D",
+        ),
+        buildWatchlistDatasetRow(null, "0 symbols", false, null, "rest"),
+      ],
+      expected: "degraded" as const,
+    },
+    {
+      name: "mixed stale watchlist",
+      datasets: [
+        buildChartDatasetRow(
+          { source: "tws", asOf: Date.now(), streaming: true },
+          "AAPL · 1D",
+        ),
+        buildWatchlistDatasetRow(
+          { source: "mixed", asOf: Date.now(), stale: true, cacheTier: "hot-stale" },
+          "12/14 symbols",
+          false,
+          null,
+          "sse",
+        ),
+      ],
+      expected: "degraded" as const,
+    },
+    {
+      name: "options not loaded with healthy chart and watchlist",
+      datasets: [
+        buildChartDatasetRow(
+          { source: "tws", asOf: Date.now(), streaming: true },
+          "AAPL · 1D",
+        ),
+        buildWatchlistDatasetRow(
+          { source: "tws", asOf: Date.now(), streaming: true },
+          "4/4 symbols",
+          false,
+          null,
+          "sse",
+        ),
+      ],
+      expected: "healthy" as const,
+    },
+  ])("deriveOverallSeverity: $name", ({ datasets, expected }) => {
+    const providers = buildProviderRows({
+      tws: {
+        configured: true,
+        sidecarReachable: true,
+        gatewayConnected: true,
+        warnings: [],
+      },
+      twsGate: {
+        skipUntil: 0,
+        lastFailure: null,
+        failureCount: 0,
+        lastSuccessAt: Date.now(),
+      },
+    });
+    expect(deriveOverallSeverity(datasets, providers)).toBe(expected);
+  });
+
+  it("merges snapshot with connection summary and recent events", () => {
+    const snapshot = mergeHealthSnapshot(
+      {
+        chartMeta: { source: "tws", asOf: Date.now(), streaming: true },
+        chartDetail: "AAPL · 1D",
+        watchlistMeta: { source: "tws", asOf: Date.now() },
+        watchlistDetail: "4/4 symbols",
+        watchlistTransport: "rest",
+      },
+      {
+        generatedAt: Date.now(),
+        providers: buildProviderRows({
+          tws: {
+            configured: true,
+            sidecarReachable: true,
+            gatewayConnected: true,
+            warnings: [],
+          },
+          twsGate: {
+            skipUntil: 0,
+            lastFailure: null,
+            failureCount: 0,
+            lastSuccessAt: Date.now(),
+          },
+        }),
+        recentWarnings: [],
+      },
+      [
+        {
+          id: "e1",
+          kind: "transport_fallback",
+          message: "Quote stream first snapshot timeout",
+          at: Date.now(),
+          recovered: true,
+          dataset: "watchlist",
+        },
+      ],
+    );
+
+    expect(snapshot.connectionSummary).toContain("Connected");
+    expect(snapshot.recentEvents).toHaveLength(1);
+    expect(snapshot.severity).toBe("healthy");
+    expect(snapshot.datasets.every((row) => row.severity != null)).toBe(true);
+  });
+
+  it("formats quote age labels for health lines", () => {
+    const now = 1_000_000;
+    expect(formatQuoteAgeLabel(now - 500, now)).toBe("updated just now");
+    expect(formatQuoteAgeLabel(now - 8_000, now)).toBe("updated 8s ago");
+    expect(formatQuoteAgeLabel(now - 120_000, now)).toBe("updated 2m ago");
+  });
+
+  it("builds structured dataset chips from row fields", () => {
+    const now = Date.now();
+    const row = buildChartDatasetRow(
+      {
+        source: "tws",
+        asOf: now - 8_000,
+        streaming: true,
+        latencyMs: 120,
+        stale: false,
+        cacheTier: "hot-fresh",
+        warnings: [],
+      },
+      "AAPL · 1D",
+    );
+
+    const chips = buildDatasetChips(row, now);
+    expect(chips.map((chip) => chip.label)).toEqual(
+      expect.arrayContaining(["AAPL", "1D", "TWS", "Live", "8s ago", "120ms", "display-only"]),
+    );
+  });
+
+  it("returns empty chips for not_loaded datasets", () => {
+    const row = buildOptionsDatasetRow(null, undefined, undefined);
+    expect(buildDatasetChips(row)).toEqual([]);
   });
 });

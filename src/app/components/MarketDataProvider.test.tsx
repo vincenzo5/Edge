@@ -30,6 +30,14 @@ vi.mock("@/lib/marketData/telemetry", () => ({
   recordMarketDataTelemetry: vi.fn(),
 }));
 
+const recordHealthEventMock = vi.fn();
+vi.mock("@/lib/marketData/healthEvents", () => ({
+  recordHealthEvent: (...args: unknown[]) => recordHealthEventMock(...args),
+  getHealthEvents: () => [],
+  subscribeHealthEvents: () => () => {},
+  resetHealthEventsForTests: () => {},
+}));
+
 const mockWatchlistState = {
   watchlists: [{ id: "default", name: "Default", items: [{ symbol: "AAPL" }] }],
   activeWatchlistId: "default",
@@ -42,7 +50,8 @@ vi.mock("./watchlist/WatchlistContext", () => ({
 }));
 
 const layout: ChartLayout = {
-  gridMode: "1x1",
+  version: 1,
+  layoutId: "n1",
   cells: [{ symbol: "AAPL", interval: "1d", range: "1mo" }],
   activeCellIndex: 0,
   linked: false,
@@ -60,6 +69,10 @@ function QuoteStatusProbe() {
       <span data-testid="quote-transport">{marketData?.quotesTransport ?? "none"}</span>
       <span data-testid="quote-error">{marketData?.quoteError ?? ""}</span>
       <span data-testid="quote-count">{marketData?.quotesBySymbol.size ?? 0}</span>
+      <span data-testid="quote-warnings">
+        {JSON.stringify(marketData?.quotesMeta?.warnings ?? [])}
+      </span>
+      <span data-testid="quote-asof">{marketData?.quotesMeta?.asOf ?? ""}</span>
     </div>
   );
 }
@@ -67,6 +80,7 @@ function QuoteStatusProbe() {
 describe("MarketDataProvider quotes", () => {
   beforeEach(() => {
     MockEventSource.instances = [];
+    recordHealthEventMock.mockClear();
     vi.stubGlobal("EventSource", MockEventSource);
   });
 
@@ -196,6 +210,16 @@ describe("MarketDataProvider quotes", () => {
 
     expect(document.querySelector('[data-testid="quote-transport"]')?.textContent).toBe("rest");
     expect(document.querySelector('[data-testid="quote-count"]')?.textContent).toBe("1");
+    expect(document.querySelector('[data-testid="quote-warnings"]')?.textContent).not.toContain(
+      "timeout",
+    );
+    expect(recordHealthEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "transport_fallback",
+        recovered: true,
+        dataset: "watchlist",
+      }),
+    );
   });
 
   it("falls back to REST when SSE disconnects", async () => {
@@ -274,5 +298,106 @@ describe("MarketDataProvider quotes", () => {
         /Quotes unavailable|Failed to load quotes|500/i,
       );
     });
+  });
+
+  it("sets quotesMeta.asOf from oldest quote updatedAt", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "0");
+    const updatedAt = Date.now() - 8_000;
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/quotes")) {
+        return new Response(
+          JSON.stringify({
+            quotes: [
+              {
+                symbol: "AAPL",
+                regularMarketPrice: 123,
+                regularMarketChange: 1,
+                regularMarketChangePercent: 1,
+                regularMarketVolume: 1000,
+                updatedAt,
+              },
+            ],
+            meta: { source: "tws", stale: true, asOf: Date.now() },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/market-data/warmup")) {
+        return new Response(JSON.stringify({ ok: true, warmup: { phases: [] } }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MarketDataProvider layout={layout}>
+        <QuoteStatusProbe />
+      </MarketDataProvider>,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="quote-asof"]')?.textContent).toBe(
+        String(updatedAt),
+      );
+    });
+  });
+
+  it("schedules silent revalidation when quote age exceeds display threshold", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "0");
+    const updatedAt = Date.now() - 50_000;
+    let quoteFetchCount = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/quotes")) {
+        quoteFetchCount += 1;
+        return new Response(
+          JSON.stringify({
+            quotes: [
+              {
+                symbol: "AAPL",
+                regularMarketPrice: 123,
+                regularMarketChange: 1,
+                regularMarketChangePercent: 1,
+                regularMarketVolume: 1000,
+                updatedAt: quoteFetchCount > 1 ? Date.now() : updatedAt,
+              },
+            ],
+            meta: {
+              source: "tws",
+              stale: quoteFetchCount === 1,
+              asOf: quoteFetchCount > 1 ? Date.now() : updatedAt,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/market-data/warmup")) {
+        return new Response(JSON.stringify({ ok: true, warmup: { phases: [] } }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MarketDataProvider layout={layout}>
+        <QuoteStatusProbe />
+      </MarketDataProvider>,
+    );
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(quoteFetchCount).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+    expect(quoteFetchCount).toBe(2);
   });
 });

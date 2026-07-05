@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createDataResult } from "../contracts/result";
+import { HOT_STALE_MS } from "../hotStore";
 import {
   DATASET_POLICIES,
   buildTrustMeta,
+  displayFreshnessReason,
   evaluateReadiness,
   getDatasetPolicy,
+  isDisplayFresh,
   isFallbackSource,
   provenanceFromDataResult,
   provenanceFromMeta,
@@ -81,6 +84,96 @@ describe("dataTrust", () => {
     const readiness = evaluateReadiness("options_chain", "analysis", provenance);
     expect(readiness.status).toBe("blocked");
     expect(readiness.reasons.some((r) => /Fallback source/i.test(r))).toBe(true);
+  });
+
+  it("treats watchlist quotes within 60s as display fresh even when stale flag set", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - 10_000,
+      receivedAt: now,
+      cacheTier: "hot-stale",
+    });
+    expect(isDisplayFresh("watchlist_quotes", provenance, now)).toBe(true);
+    expect(displayFreshnessReason("watchlist_quotes", provenance, now)).toBeNull();
+  });
+
+  it("marks watchlist quotes older than 60s as not display fresh", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - 90_000,
+      receivedAt: now,
+    });
+    expect(isDisplayFresh("watchlist_quotes", provenance, now)).toBe(false);
+    expect(displayFreshnessReason("watchlist_quotes", provenance, now)).toMatch(/90s/);
+  });
+
+  it("treats chart candles within hot-stale window as display fresh even when stale flag set", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - 30_000,
+      receivedAt: now,
+      cacheTier: "hot-stale",
+    });
+    expect(isDisplayFresh("chart_candles", provenance, now)).toBe(true);
+    expect(displayFreshnessReason("chart_candles", provenance, now)).toBeNull();
+  });
+
+  it("marks chart candles older than hot-stale window as not display fresh", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - HOT_STALE_MS.candles - 1_000,
+      receivedAt: now,
+    });
+    expect(isDisplayFresh("chart_candles", provenance, now)).toBe(false);
+  });
+
+  it("treats options chain within hot-stale window as display fresh even when stale flag set", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - 60_000,
+      receivedAt: now,
+      cacheTier: "hot-stale",
+    });
+    expect(isDisplayFresh("options_chain", provenance, now)).toBe(true);
+  });
+
+  it("treats options expirations within 24h as display fresh even when stale flag set", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - 3_600_000,
+      receivedAt: now,
+      cacheTier: "hot-stale",
+    });
+    expect(isDisplayFresh("options_expirations", provenance, now)).toBe(true);
+  });
+
+  it("marks options chain older than hot-stale window as not display fresh", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - HOT_STALE_MS.options_chain - 1_000,
+      receivedAt: now,
+    });
+    expect(isDisplayFresh("options_chain", provenance, now)).toBe(false);
+  });
+
+  it("does not change yahoo fallback detection for watchlist", () => {
+    expect(isFallbackSource("yahoo")).toBe(true);
+    const provenance = provenanceFromMeta({ source: "yahoo", asOf: Date.now() });
+    expect(provenance.isFallback).toBe(true);
   });
 
   it("buildTrustMeta attaches usage and readiness summary", () => {

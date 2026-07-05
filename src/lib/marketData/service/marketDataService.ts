@@ -125,6 +125,11 @@ function hotCacheTier(fresh: boolean): DataCacheTier {
   return fresh ? "hot-fresh" : "hot-stale";
 }
 
+function oldestQuoteUpdatedAt(quotes: EquityQuote[]): number | undefined {
+  if (quotes.length === 0) return undefined;
+  return Math.min(...quotes.map((quote) => quote.updatedAt));
+}
+
 function recentIsoDate(offsetDays: number): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + offsetDays);
@@ -811,6 +816,7 @@ export class MarketDataService {
       return attachPerfMeta(
         createDataResult(fromHot, primarySource ?? "yahoo", {
           requestedAt,
+          asOf: oldestQuoteUpdatedAt(fromHot),
           stale: anyStale,
           warnings: hotWarnings,
           cacheTier: hotCacheTier(!anyStale),
@@ -853,6 +859,7 @@ export class MarketDataService {
       return attachPerfMeta(
         createDataResult(merged, mergedSource, {
           requestedAt,
+          asOf: oldestQuoteUpdatedAt(merged),
           stale: anyStale,
           warnings: [...hotWarnings, ...fresh.warnings],
           cacheTier: hotCacheTier(!anyStale && fresh.cacheTier === "hot-fresh"),

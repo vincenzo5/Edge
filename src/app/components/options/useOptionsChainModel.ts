@@ -23,6 +23,7 @@ import {
   type RiskRulerCalcInput,
   type RiskRulerPresetInput,
 } from "@/lib/risk/createRiskRulerPreset";
+import type { DatasetKind } from "@/lib/marketData/trust/dataTrust";
 import { OPTION_SETUP_TYPES, DEFAULT_RISK_ACCOUNT, type OptionSetupType } from "@edge/chart-core";
 import { useRiskSettingsOptional } from "../RiskSettingsProvider";
 
@@ -99,11 +100,21 @@ export function useOptionsChainModel(): OptionsChainModel {
     return null;
   }, [chainMeta, expMeta]);
 
+  const optionsHealthTrustDataset = useMemo((): DatasetKind | undefined => {
+    if (chainMeta?.source) return "options_chain";
+    if (expMeta?.source) return "options_expirations";
+    return undefined;
+  }, [chainMeta?.source, expMeta?.source]);
+
   const optionsHealthDetail = symbol
     ? `${symbol}${expirations.length ? ` · ${expirations.length} expirations` : ""}`
     : undefined;
 
-  useRegisterOptionsHealthMeta(optionsHealthMeta, optionsHealthDetail);
+  useRegisterOptionsHealthMeta(
+    optionsHealthMeta,
+    optionsHealthDetail,
+    optionsHealthTrustDataset,
+  );
 
   useEffect(() => {
     if (!symbol) {

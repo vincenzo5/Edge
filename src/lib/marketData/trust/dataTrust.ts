@@ -1,4 +1,5 @@
 import type { DataCacheTier, DataResult } from "../contracts/result";
+import { HOT_STALE_MS } from "../hotStore";
 
 /** What the consumer is allowed to use the data for. */
 export type DataUsage =
@@ -50,6 +51,8 @@ export type DatasetPolicy = {
   tradingSources?: readonly string[];
   /** Max quote age for trading_decision when tradingDecisionAllowed. */
   maxAgeMs?: number;
+  /** Max quote age for display health when set (watchlist badge). */
+  maxDisplayAgeMs?: number;
 };
 
 const FALLBACK_SOURCES = new Set(["yahoo", "mixed"]);
@@ -63,24 +66,28 @@ export const DATASET_POLICIES: Record<DatasetKind, DatasetPolicy> = {
     allowedUsages: ["display", "analysis"],
     fallbackAllowed: true,
     tradingDecisionAllowed: false,
+    maxDisplayAgeMs: HOT_STALE_MS.candles,
   },
   watchlist_quotes: {
     dataset: "watchlist_quotes",
     allowedUsages: ["display", "analysis"],
     fallbackAllowed: true,
     tradingDecisionAllowed: false,
+    maxDisplayAgeMs: HOT_STALE_MS.quote,
   },
   options_expirations: {
     dataset: "options_expirations",
     allowedUsages: ["analysis"],
     fallbackAllowed: false,
     tradingDecisionAllowed: false,
+    maxDisplayAgeMs: HOT_STALE_MS.options_expirations,
   },
   options_chain: {
     dataset: "options_chain",
     allowedUsages: ["analysis"],
     fallbackAllowed: false,
     tradingDecisionAllowed: false,
+    maxDisplayAgeMs: HOT_STALE_MS.options_chain,
   },
   account_summary: {
     dataset: "account_summary",
@@ -164,9 +171,36 @@ export function provenanceFromMeta(meta: {
   };
 }
 
-function quoteAgeMs(provenance: DataProvenance, now: number): number {
+export function quoteAgeMs(provenance: DataProvenance, now = Date.now()): number {
   const anchor = provenance.asOf ?? provenance.receivedAt;
   return Math.max(0, now - anchor);
+}
+
+/** Whether quote age is within the dataset display freshness window. */
+export function isDisplayFresh(
+  dataset: DatasetKind,
+  provenance: DataProvenance,
+  now = Date.now(),
+): boolean {
+  const policy = getDatasetPolicy(dataset);
+  if (policy.maxDisplayAgeMs == null) return !provenance.stale;
+  return quoteAgeMs(provenance, now) <= policy.maxDisplayAgeMs;
+}
+
+/** Human-readable reason when display freshness fails, or null when fresh. */
+export function displayFreshnessReason(
+  dataset: DatasetKind,
+  provenance: DataProvenance,
+  now = Date.now(),
+): string | null {
+  const policy = getDatasetPolicy(dataset);
+  if (policy.maxDisplayAgeMs == null) {
+    return provenance.stale ? "Data is marked stale" : null;
+  }
+  const ageMs = quoteAgeMs(provenance, now);
+  if (ageMs <= policy.maxDisplayAgeMs) return null;
+  const ageSec = Math.round(ageMs / 1000);
+  return `Quote age ${ageSec}s exceeds display max ${Math.round(policy.maxDisplayAgeMs / 1000)}s`;
 }
 
 function tradingDecisionReasons(

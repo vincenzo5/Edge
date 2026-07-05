@@ -1,12 +1,18 @@
 import type { ChartDataMeta } from "@edge/chart-core";
 import type { DataCacheTier } from "./contracts/result";
+import type { HealthEvent } from "./healthEvents";
 import type { TwsStatusProbe } from "./providers/tws/client";
-import type { DataUsage } from "./trust/dataTrust";
+import type { DataUsage, DatasetKind } from "./trust/dataTrust";
 import {
   buildTrustMeta,
   datasetKindFromHealthKind,
   defaultUsageForDataset,
+  evaluateReadiness,
+  getDatasetPolicy,
+  isDisplayFresh,
+  isFallbackSource,
   provenanceFromMeta,
+  quoteAgeMs,
 } from "./trust/dataTrust";
 
 export type DataHealthSeverity = "healthy" | "degraded" | "offline" | "unknown";
@@ -14,6 +20,8 @@ export type DataHealthSeverity = "healthy" | "degraded" | "offline" | "unknown";
 export type DataHealthDatasetKind = "chart" | "watchlist" | "options" | "account";
 
 export type DataHealthDatasetStatus = "loaded" | "loading" | "unavailable" | "not_loaded";
+
+export type DatasetReadinessLabel = "ok" | "caveat" | "blocked" | "unavailable" | "idle";
 
 export type DataHealthDatasetRow = {
   kind: DataHealthDatasetKind;
@@ -24,11 +32,16 @@ export type DataHealthDatasetRow = {
   stale?: boolean;
   streaming?: boolean;
   latencyMs?: number;
+  asOf?: number;
   status: DataHealthDatasetStatus;
   warnings: string[];
   usage?: DataUsage;
   allowedForTradingDecision?: boolean;
   readinessReasons?: string[];
+  readinessLabel?: DatasetReadinessLabel;
+  severity?: DataHealthSeverity;
+  /** Trust policy for options row when chain vs expirations meta differs. */
+  trustDataset?: DatasetKind;
 };
 
 export type ProviderHealthStatus = "healthy" | "degraded" | "offline" | "disabled";
@@ -65,8 +78,10 @@ export type ClientHealthInputs = {
   watchlistLoading?: boolean;
   watchlistError?: string | null;
   watchlistTransport?: "rest" | "sse";
+  watchlistAsOf?: number;
   optionsMeta?: Partial<ChartDataMeta> | null;
   optionsDetail?: string;
+  optionsTrustDataset?: DatasetKind;
   chartStreamTransport?: string;
   accountDisabled?: boolean;
   accountConnectionState?: string;
@@ -78,38 +93,112 @@ export type DataHealthSnapshot = {
   severity: DataHealthSeverity;
   severityLabel: string;
   summary: string;
+  connectionSummary: string;
   datasets: DataHealthDatasetRow[];
   providers: ProviderHealthRow[];
   recentWarnings: string[];
+  recentEvents: HealthEvent[];
   generatedAt: number;
 };
 
 const FALLBACK_SOURCES = new Set(["yahoo", "mixed"]);
+
+const TRANSPORT_EVENT_WARNING =
+  /first snapshot timeout|stream disconnected|stream error/i;
+
+const INCIDENT_WARNING =
+  /fallback|fill|skipped|trying next provider|TWS temporarily skipped|unavailable|error/i;
+
+export function classifyHealthWarning(warning: string): "incident" | "event" {
+  const trimmed = warning.trim();
+  if (!trimmed) return "event";
+  if (TRANSPORT_EVENT_WARNING.test(trimmed)) return "event";
+  if (INCIDENT_WARNING.test(trimmed)) return "incident";
+  return "event";
+}
+
+function incidentWarnings(warnings: string[]): string[] {
+  return warnings.filter((warning) => classifyHealthWarning(warning) === "incident");
+}
+
+function hasPartialSymbolCoverage(detail: string | undefined): boolean {
+  if (!detail) return false;
+  const match = detail.match(/(\d+)\/(\d+)\s*symbols?/i);
+  if (!match) return false;
+  const loaded = Number(match[1]);
+  const total = Number(match[2]);
+  return Number.isFinite(loaded) && Number.isFinite(total) && loaded < total;
+}
+
+export function resolveTrustDataset(row: DataHealthDatasetRow): DatasetKind {
+  if (row.kind === "options" && row.trustDataset) {
+    return row.trustDataset;
+  }
+  return datasetKindFromHealthKind(row.kind);
+}
+
+function rowProvenance(row: DataHealthDatasetRow): ReturnType<typeof provenanceFromMeta> {
+  return provenanceFromMeta({
+    source: row.source,
+    stale: row.stale,
+    warnings: incidentWarnings(row.warnings),
+    cacheTier: row.cacheTier,
+    asOf: row.asOf,
+  });
+}
+
+export function isDatasetDisplayFresh(
+  row: DataHealthDatasetRow,
+  now = Date.now(),
+): boolean {
+  const dataset = resolveTrustDataset(row);
+  const policy = getDatasetPolicy(dataset);
+  if (policy.maxDisplayAgeMs == null) {
+    return !row.stale;
+  }
+  return isDisplayFresh(dataset, rowProvenance(row), now);
+}
+
+function hasDisplayAgePolicy(row: DataHealthDatasetRow): boolean {
+  return getDatasetPolicy(resolveTrustDataset(row)).maxDisplayAgeMs != null;
+}
 
 function attachTrustFields(
   kind: DataHealthDatasetKind,
   row: DataHealthDatasetRow,
 ): DataHealthDatasetRow {
   if (row.status !== "loaded" || !row.source) return row;
-  const dataset = datasetKindFromHealthKind(kind);
+  const dataset = resolveTrustDataset({ ...row, kind });
   const usage = defaultUsageForDataset(dataset);
+  const warningsForTrust = incidentWarnings(row.warnings);
   const trust = buildTrustMeta(
     dataset,
     usage,
     provenanceFromMeta({
       source: row.source,
       stale: row.stale,
-      warnings: row.warnings,
+      warnings: warningsForTrust,
       cacheTier: row.cacheTier,
-      asOf: undefined,
+      asOf: row.asOf,
     }),
   );
-  return {
+  const enriched: DataHealthDatasetRow = {
     ...row,
     usage: trust.usage,
     allowedForTradingDecision: trust.readiness.allowedForTradingDecision,
     readinessReasons:
       trust.readiness.status === "blocked" ? trust.readiness.reasons : undefined,
+  };
+  return enrichDatasetRow(enriched);
+}
+
+export function enrichDatasetRow(row: DataHealthDatasetRow): DataHealthDatasetRow {
+  const readinessLabel = deriveDatasetReadiness(row);
+  const severity = deriveDatasetSeverity(row);
+  return {
+    ...row,
+    readinessLabel,
+    severity,
   };
 }
 
@@ -120,6 +209,16 @@ function upperSource(source: string | undefined): string {
 function formatCacheTier(tier: DataCacheTier | undefined): string | undefined {
   if (!tier) return undefined;
   return tier.replace("-", " ");
+}
+
+/** Relative age label for health dataset lines (e.g. "updated 8s ago"). */
+export function formatQuoteAgeLabel(asOf: number | undefined, now = Date.now()): string | undefined {
+  if (asOf == null) return undefined;
+  const ageMs = Math.max(0, now - asOf);
+  if (ageMs < 1_000) return "updated just now";
+  if (ageMs < 60_000) return `updated ${Math.round(ageMs / 1_000)}s ago`;
+  if (ageMs < 3_600_000) return `updated ${Math.round(ageMs / 60_000)}m ago`;
+  return `updated ${Math.round(ageMs / 3_600_000)}h ago`;
 }
 
 export function buildChartDatasetRow(
@@ -154,6 +253,7 @@ export function buildChartDatasetRow(
     stale: meta.stale,
     streaming: meta.streaming,
     latencyMs: meta.latencyMs,
+    asOf: meta.asOf,
     status: meta.streamError ? "unavailable" : "loaded",
     warnings: [
       ...(meta.warnings ?? []),
@@ -168,6 +268,7 @@ export function buildWatchlistDatasetRow(
   loading: boolean,
   error: string | null | undefined,
   transport: "rest" | "sse" | undefined,
+  watchlistAsOf?: number,
 ): DataHealthDatasetRow {
   if (loading && !meta?.source) {
     return {
@@ -203,6 +304,7 @@ export function buildWatchlistDatasetRow(
     source: meta.source,
     cacheTier: meta.cacheTier,
     stale: meta.stale,
+    asOf: watchlistAsOf ?? meta.asOf,
     streaming: transport === "sse" || meta.streaming,
     latencyMs: meta.latencyMs,
     status: "loaded",
@@ -213,6 +315,7 @@ export function buildWatchlistDatasetRow(
 export function buildOptionsDatasetRow(
   meta: Partial<ChartDataMeta> | null | undefined,
   detail: string | undefined,
+  trustDataset?: DatasetKind,
 ): DataHealthDatasetRow {
   if (!meta?.source) {
     return {
@@ -230,8 +333,12 @@ export function buildOptionsDatasetRow(
     source: meta.source,
     cacheTier: meta.cacheTier,
     stale: meta.stale,
+    asOf: meta.asOf,
+    streaming: meta.streaming,
+    latencyMs: meta.latencyMs,
     status: meta.warnings?.length ? "unavailable" : "loaded",
     warnings: meta.warnings ?? [],
+    trustDataset,
   });
 }
 
@@ -372,14 +479,14 @@ export function buildProviderRows(args: {
   ];
 }
 
-export function collectRecentWarnings(
+export function collectIncidentWarnings(
   datasets: DataHealthDatasetRow[],
   providers: ProviderHealthRow[],
   extra: string[] = [],
 ): string[] {
   const warnings = new Set<string>();
   for (const row of datasets) {
-    for (const warning of row.warnings) {
+    for (const warning of incidentWarnings(row.warnings)) {
       if (warning.trim()) warnings.add(warning.trim());
     }
   }
@@ -389,24 +496,78 @@ export function collectRecentWarnings(
     }
   }
   for (const warning of extra) {
-    if (warning.trim()) warnings.add(warning.trim());
+    if (warning.trim() && classifyHealthWarning(warning) === "incident") {
+      warnings.add(warning.trim());
+    }
   }
   return [...warnings].slice(0, 8);
+}
+
+/** @deprecated Use collectIncidentWarnings — kept as alias for internal callers. */
+export function collectRecentWarnings(
+  datasets: DataHealthDatasetRow[],
+  providers: ProviderHealthRow[],
+  extra: string[] = [],
+): string[] {
+  return collectIncidentWarnings(datasets, providers, extra);
+}
+
+export function deriveDatasetReadiness(row: DataHealthDatasetRow): DatasetReadinessLabel {
+  if (row.status === "not_loaded") return "idle";
+  if (row.status === "loading") return "idle";
+  if (row.status === "unavailable") return "unavailable";
+  const severity = deriveDatasetSeverity(row);
+  if (severity === "offline") return "unavailable";
+  if (severity === "degraded") return "caveat";
+  if (row.readinessReasons?.length) return "blocked";
+  return "ok";
 }
 
 export function deriveDatasetSeverity(row: DataHealthDatasetRow): DataHealthSeverity {
   if (row.status === "unavailable") return "offline";
   if (row.status === "loading" || row.status === "not_loaded") return "unknown";
-  if (row.stale || row.source === "mixed" || FALLBACK_SOURCES.has(row.source ?? "")) {
-    if (row.source === "yahoo" && row.warnings.some((w) => /fallback|fill|skipped|trying/i.test(w))) {
-      return "degraded";
-    }
-    if (row.source === "yahoo" && row.cacheTier === "cold") return "degraded";
-    if (row.source === "mixed") return "degraded";
-    if (row.stale) return "degraded";
+  if (!row.source) return "unknown";
+
+  const warningsForTrust = incidentWarnings(row.warnings);
+  const dataset = resolveTrustDataset(row);
+  const usage = defaultUsageForDataset(dataset);
+  const provenance = rowProvenance(row);
+  const readiness = evaluateReadiness(dataset, usage, provenance);
+
+  if (provenance.isFallback || row.source === "mixed") return "degraded";
+  if (FALLBACK_SOURCES.has(row.source) && isFallbackSource(row.source, warningsForTrust)) {
+    return "degraded";
   }
-  if (row.warnings.length > 0) return "degraded";
+  const policy = getDatasetPolicy(dataset);
+  if (policy.maxDisplayAgeMs != null) {
+    if (!isDisplayFresh(dataset, provenance)) return "degraded";
+  } else if (row.stale) {
+    return "degraded";
+  }
+  if (hasPartialSymbolCoverage(row.detail)) return "degraded";
+  if (readiness.status === "blocked") return "degraded";
+  if (warningsForTrust.length > 0) return "degraded";
   return "healthy";
+}
+
+export function buildConnectionSummary(providers: ProviderHealthRow[]): {
+  label: string;
+  severity: DataHealthSeverity;
+} {
+  const tws = providers.find((provider) => provider.id === "tws");
+  if (!tws?.configured) {
+    return { label: "No primary gateway configured", severity: "unknown" };
+  }
+  if (tws.status === "offline") {
+    return { label: "Disconnected · IB Gateway offline", severity: "offline" };
+  }
+  if (isTwsGatewayHealthy(tws)) {
+    return { label: "Connected · IB Gateway ok", severity: "healthy" };
+  }
+  if (tws.status === "degraded") {
+    return { label: `Connecting · ${tws.detail}`, severity: "degraded" };
+  }
+  return { label: tws.detail, severity: "degraded" };
 }
 
 export function deriveOverallSeverity(
@@ -472,8 +633,9 @@ export function buildHealthSummary(
   const label = chartSource ? "Chart" : "Quotes";
   const parts = [`${label}: ${source}`];
   if (primaryRow?.streaming) parts.push("live");
-  else if (primaryRow?.stale) parts.push("stale");
-  else if (severity === "degraded" && FALLBACK_SOURCES.has(primaryRow?.source ?? "")) {
+  else if (primaryRow && !isDatasetDisplayFresh(primaryRow)) {
+    parts.push("stale");
+  } else if (severity === "degraded" && FALLBACK_SOURCES.has(primaryRow?.source ?? "")) {
     parts.push("fallback");
   }
   return parts.join(" · ");
@@ -491,6 +653,24 @@ export function buildHealthCompactSummary(
     .replace(/Chart: ([^·]+) · Quotes: ([^·]+)/i, "$1/$2")
     .replace(/^Chart: /i, "")
     .replace(/^Quotes: /i, "");
+}
+
+export function buildHealthBadgeLabel(
+  chartRow: DataHealthDatasetRow | undefined,
+  watchlistRow: DataHealthDatasetRow | undefined,
+  severity: DataHealthSeverity,
+  watchlistTransport?: "rest" | "sse",
+): string {
+  const base = buildHealthCompactSummary(chartRow, watchlistRow, severity);
+  if (
+    severity === "healthy" &&
+    watchlistTransport === "rest" &&
+    watchlistRow?.status === "loaded" &&
+    chartRow?.streaming
+  ) {
+    return `${base} · REST`;
+  }
+  return base;
 }
 
 /** True when IB Gateway provider row reports sidecar reachable and gateway connected. */
@@ -534,9 +714,44 @@ export function buildProvisionalProviderRows(
   ];
 }
 
+export function buildHealthCaveatSubtitle(
+  datasets: DataHealthDatasetRow[],
+): string | null {
+  for (const row of datasets) {
+    if (row.severity !== "degraded" || row.status !== "loaded") continue;
+    if (row.kind === "watchlist" && isFallbackSource(row.source, incidentWarnings(row.warnings))) {
+      return "Watchlist on fallback source";
+    }
+    if (row.kind === "chart" && isFallbackSource(row.source, incidentWarnings(row.warnings))) {
+      return "Chart on fallback source";
+    }
+    if (hasDisplayAgePolicy(row) && row.asOf != null && !isDatasetDisplayFresh(row)) {
+      const provenance = rowProvenance(row);
+      const ageSec = Math.round(quoteAgeMs(provenance) / 1_000);
+      if (row.kind === "watchlist") {
+        return `Watchlist quotes ${ageSec}s old`;
+      }
+      if (row.kind === "chart") {
+        return `Chart candles ${ageSec}s old`;
+      }
+      if (row.kind === "options") {
+        return `Options data ${ageSec}s old`;
+      }
+    }
+    if (!hasDisplayAgePolicy(row) && row.stale) {
+      return `${row.label} data is stale`;
+    }
+    if (hasPartialSymbolCoverage(row.detail)) {
+      return "Watchlist has partial symbol coverage";
+    }
+  }
+  return null;
+}
+
 export function mergeHealthSnapshot(
   client: ClientHealthInputs,
   server: ServerHealthPayload | null,
+  recentEvents: HealthEvent[] = [],
 ): DataHealthSnapshot {
   const chart = buildChartDatasetRow(client.chartMeta, client.chartDetail);
   const watchlist = buildWatchlistDatasetRow(
@@ -545,8 +760,13 @@ export function mergeHealthSnapshot(
     client.watchlistLoading ?? false,
     client.watchlistError,
     client.watchlistTransport,
+    client.watchlistAsOf,
   );
-  const options = buildOptionsDatasetRow(client.optionsMeta, client.optionsDetail);
+  const options = buildOptionsDatasetRow(
+    client.optionsMeta,
+    client.optionsDetail,
+    client.optionsTrustDataset,
+  );
   const account = buildAccountDatasetRow({
     disabled: client.accountDisabled,
     connectionState: client.accountConnectionState,
@@ -554,44 +774,106 @@ export function mergeHealthSnapshot(
     error: client.accountError,
   });
 
-  const datasets = [chart, watchlist, options, account];
+  const datasets = [chart, watchlist, options, account].map((row) =>
+    row.severity ? row : enrichDatasetRow(row),
+  );
   const provisionalProviders = server?.providers?.length
     ? null
     : buildProvisionalProviderRows(datasets);
   const providers = server?.providers?.length
     ? server.providers
     : (provisionalProviders ?? []);
-  const recentWarnings = collectRecentWarnings(
+  const recentWarnings = collectIncidentWarnings(
     datasets,
     providers,
     server?.recentWarnings ?? [],
   );
   const severity = deriveOverallSeverity(datasets, providers);
+  const connection = buildConnectionSummary(providers);
 
   return {
     severity,
     severityLabel: severityLabel(severity),
     summary: buildHealthSummary(chart, watchlist, severity),
+    connectionSummary: connection.label,
     datasets,
     providers,
     recentWarnings,
+    recentEvents,
     generatedAt: server?.generatedAt ?? Date.now(),
   };
 }
 
-export function formatDatasetLine(row: DataHealthDatasetRow): string {
+export function formatDatasetLine(row: DataHealthDatasetRow, now = Date.now()): string {
   const parts: string[] = [];
   if (row.detail) parts.push(row.detail);
   if (row.source) parts.push(upperSource(row.source));
   if (row.streaming) parts.push("live");
-  if (row.stale) parts.push("stale");
-  const cache = formatCacheTier(row.cacheTier);
-  if (cache) parts.push(cache);
+  const displayFresh = isDatasetDisplayFresh(row, now);
+  if (row.asOf != null && hasDisplayAgePolicy(row)) {
+    const ageLabel = formatQuoteAgeLabel(row.asOf, now);
+    if (ageLabel) parts.push(ageLabel);
+  } else if (row.stale && !displayFresh) {
+    parts.push("stale");
+  }
+  if (!hasDisplayAgePolicy(row)) {
+    const cache = formatCacheTier(row.cacheTier);
+    if (cache) parts.push(cache);
+  }
   if (row.latencyMs != null) parts.push(`${Math.round(row.latencyMs)}ms`);
   if (row.allowedForTradingDecision === false && row.status === "loaded") {
     parts.push("display-only");
   }
   return parts.join(" · ");
+}
+
+export type DatasetChipTone = "default" | "muted" | "warning" | "positive";
+
+export type DatasetChip = { label: string; tone?: DatasetChipTone };
+
+export function buildDatasetChips(row: DataHealthDatasetRow, now = Date.now()): DatasetChip[] {
+  if (row.status === "not_loaded") return [];
+  if (row.status === "loading") return [{ label: "Loading…", tone: "muted" }];
+  if (row.status === "unavailable") {
+    return [{ label: row.detail ?? "Unavailable", tone: "warning" }];
+  }
+
+  const chips: DatasetChip[] = [];
+  if (row.detail) {
+    for (const part of row.detail.split(" · ")) {
+      const trimmed = part.trim();
+      if (trimmed) chips.push({ label: trimmed, tone: "default" });
+    }
+  }
+  if (row.source) {
+    chips.push({ label: upperSource(row.source), tone: "default" });
+  }
+  if (row.streaming) {
+    chips.push({ label: "Live", tone: "positive" });
+  }
+  const displayFresh = isDatasetDisplayFresh(row, now);
+  if (row.asOf != null && hasDisplayAgePolicy(row)) {
+    const ageLabel = formatQuoteAgeLabel(row.asOf, now);
+    if (ageLabel) {
+      chips.push({
+        label: ageLabel.replace(/^updated /i, ""),
+        tone: displayFresh ? "muted" : "warning",
+      });
+    }
+  } else if (row.stale && !displayFresh) {
+    chips.push({ label: "Stale", tone: "warning" });
+  }
+  if (!hasDisplayAgePolicy(row)) {
+    const cache = formatCacheTier(row.cacheTier);
+    if (cache) chips.push({ label: cache, tone: "muted" });
+  }
+  if (row.latencyMs != null) {
+    chips.push({ label: `${Math.round(row.latencyMs)}ms`, tone: "muted" });
+  }
+  if (row.allowedForTradingDecision === false && row.status === "loaded") {
+    chips.push({ label: "display-only", tone: "muted" });
+  }
+  return chips;
 }
 
 export function exportHealthJson(snapshot: DataHealthSnapshot): string {

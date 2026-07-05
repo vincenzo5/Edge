@@ -23,6 +23,8 @@ import {
   recordMarketDataTelemetry,
 } from "@/lib/marketData/telemetry";
 import { resolveQuoteStreamFirstPaintMs } from "@/lib/marketData/quoteStreamPolicy";
+import { recordHealthEvent } from "@/lib/marketData/healthEvents";
+import { getDatasetPolicy, isDisplayFresh, provenanceFromMeta } from "@/lib/marketData/trust/dataTrust";
 
 export type WatchlistQuotesTransport = "rest" | "sse";
 
@@ -150,6 +152,37 @@ function applyRestQuotesPayload(
   return { next, firstPaint };
 }
 
+function oldestQuoteUpdatedAt(quotes: Iterable<QuoteSnapshot>): number | undefined {
+  let oldest: number | undefined;
+  for (const quote of quotes) {
+    if (typeof quote.updatedAt !== "number") continue;
+    oldest = oldest == null ? quote.updatedAt : Math.min(oldest, quote.updatedAt);
+  }
+  return oldest;
+}
+
+function mergeQuotesMeta(
+  quotes: Map<string, QuoteSnapshot>,
+  meta: RestQuotesResponse["meta"] | undefined,
+  prev: Partial<ChartDataMeta> | null | undefined,
+  streaming?: boolean,
+): Partial<ChartDataMeta> {
+  const asOf = oldestQuoteUpdatedAt(quotes.values()) ?? meta?.asOf ?? prev?.asOf ?? Date.now();
+  return {
+    ...prev,
+    ...(meta?.source ? { source: meta.source as ChartDataMeta["source"] } : {}),
+    asOf,
+    stale: meta?.stale ?? prev?.stale,
+    warnings: meta?.warnings ?? prev?.warnings ?? [],
+    latencyMs: meta?.latencyMs ?? prev?.latencyMs,
+    cacheTier: (meta?.cacheTier as ChartDataMeta["cacheTier"]) ?? prev?.cacheTier,
+    traceId: meta?.traceId ?? prev?.traceId,
+    ...(streaming != null ? { streaming } : {}),
+  };
+}
+
+const SILENT_REVALIDATE_DELAY_MS = 3_000;
+
 function buildSymbolUniverse(
   layout: ChartLayout,
   watchlistSymbols: string[],
@@ -159,7 +192,7 @@ function buildSymbolUniverse(
   for (const symbol of screenerSymbols) {
     symbols.add(symbol.trim().toUpperCase());
   }
-  const count = cellCountFor(layout.gridMode);
+  const count = cellCountFor(layout.layoutId);
   for (let i = 0; i < count; i++) {
     const cell = layout.cells[i];
     if (cell?.symbol) symbols.add(cell.symbol.trim().toUpperCase());
@@ -183,7 +216,7 @@ function prioritizeStreamSymbols(
     ordered.push(normalized);
   };
 
-  const count = cellCountFor(layout.gridMode);
+  const count = cellCountFor(layout.layoutId);
   for (let i = 0; i < count; i++) {
     const cell = layout.cells[i];
     if (cell?.symbol) push(cell.symbol);
@@ -215,6 +248,7 @@ export function MarketDataProvider({
   quotesRef.current = quotesBySymbol;
   const quotesFetchStartedRef = useRef<number | null>(null);
   const quotesFirstPaintRef = useRef(false);
+  const silentRevalidateKeyRef = useRef<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   const reloadMarketData = useCallback(() => {
@@ -250,7 +284,7 @@ export function MarketDataProvider({
   const activeSymbol = activeCell?.symbol?.trim().toUpperCase() ?? null;
 
   const candleRequests = useMemo(() => {
-    const count = cellCountFor(layout.gridMode);
+    const count = cellCountFor(layout.layoutId);
     const requests: Array<{ symbol: string; interval: string; range?: string }> = [];
     for (let i = 0; i < count; i++) {
       const cell = layout.cells[i];
@@ -262,7 +296,7 @@ export function MarketDataProvider({
       });
     }
     return requests;
-  }, [layout.gridMode, layout.cells]);
+  }, [layout.layoutId, layout.cells]);
 
   const candleKey = candleRequests
     .map((row) => `${row.symbol}|${row.interval}|${row.range ?? "1y"}`)
@@ -367,16 +401,8 @@ export function MarketDataProvider({
           });
           setQuotesBySymbol(next);
           setQuoteError(null);
-          if (payload.meta) {
-            setQuotesMeta({
-              source: payload.meta.source as ChartDataMeta["source"],
-              asOf: payload.meta.asOf ?? Date.now(),
-              stale: payload.meta.stale,
-              warnings: payload.meta.warnings,
-              latencyMs: payload.meta.latencyMs,
-              cacheTier: payload.meta.cacheTier as ChartDataMeta["cacheTier"],
-              traceId: payload.meta.traceId,
-            });
+          if (payload.meta || next.size > 0) {
+            setQuotesMeta(mergeQuotesMeta(next, payload.meta, null, false));
           }
           if (firstPaint) {
             quotesFirstPaintRef.current = true;
@@ -427,31 +453,25 @@ export function MarketDataProvider({
             startedAt: quotesFetchStartedRef.current,
           });
           setQuotesBySymbol(next);
-          if (payload.meta) {
-            setQuotesMeta((prev) => ({
-              ...prev,
-              source: payload.meta?.source as ChartDataMeta["source"],
-              asOf: payload.meta?.asOf ?? Date.now(),
-              stale: payload.meta?.stale ?? prev?.stale,
-              warnings: [...(payload.meta?.warnings ?? []), reason],
-              latencyMs: payload.meta?.latencyMs,
-              cacheTier: payload.meta?.cacheTier as ChartDataMeta["cacheTier"],
-              traceId: payload.meta?.traceId,
-              streaming: false,
-            }));
-          } else {
-            setQuotesMeta((prev) => ({
-              ...prev,
-              warnings: [...(prev?.warnings ?? []), reason],
-              streaming: false,
-            }));
-          }
+          recordHealthEvent({
+            kind: "transport_fallback",
+            message: reason,
+            recovered: true,
+            dataset: "watchlist",
+          });
+          setQuotesMeta((prev) => mergeQuotesMeta(next, payload.meta, prev, false));
           if (firstPaint) {
             quotesFirstPaintRef.current = true;
           }
         })
         .catch((err) => {
           if (cancelled) return;
+          recordHealthEvent({
+            kind: "stream_error",
+            message: err instanceof Error ? err.message : reason,
+            recovered: false,
+            dataset: "watchlist",
+          });
           setQuoteError(err instanceof Error ? err.message : reason);
         })
         .finally(() => {
@@ -524,17 +544,9 @@ export function MarketDataProvider({
           }
           setQuotesLoading(false);
           setQuoteError(null);
-          setQuotesMeta((prev) => ({
-            ...prev,
-            ...(event.meta?.source
-              ? { source: event.meta.source as ChartDataMeta["source"] }
-              : {}),
-            stale: event.meta?.stale ?? prev?.stale,
-            warnings: event.meta?.warnings ?? prev?.warnings,
-            cacheTier: (event.meta?.cacheTier as ChartDataMeta["cacheTier"]) ?? prev?.cacheTier,
-            streaming: true,
-            asOf: event.meta?.asOf ?? Date.now(),
-          }));
+          setQuotesMeta((prev) =>
+            mergeQuotesMeta(next, event.meta, prev, true),
+          );
         }
       } catch {
         // Ignore malformed frames.
@@ -551,6 +563,57 @@ export function MarketDataProvider({
       source.close();
     };
   }, [streamKey, streamSymbols, reloadToken]);
+
+  useEffect(() => {
+    silentRevalidateKeyRef.current = null;
+  }, [streamKey, reloadToken]);
+
+  useEffect(() => {
+    if (streamSymbols.length === 0 || quotesLoading) return;
+    if (quotesBySymbol.size < streamSymbols.length) return;
+
+    const asOf = oldestQuoteUpdatedAt(quotesBySymbol.values()) ?? quotesMeta?.asOf;
+    if (asOf == null || !quotesMeta?.source) return;
+
+    const provenance = provenanceFromMeta({
+      source: quotesMeta.source,
+      asOf,
+      stale: quotesMeta.stale,
+      warnings: quotesMeta.warnings ?? [],
+      cacheTier: quotesMeta.cacheTier,
+    });
+    const maxDisplayAgeMs = getDatasetPolicy("watchlist_quotes").maxDisplayAgeMs ?? 60_000;
+    const ageMs = Date.now() - asOf;
+    const needsRefresh =
+      !isDisplayFresh("watchlist_quotes", provenance) || ageMs > maxDisplayAgeMs * 0.8;
+    if (!needsRefresh) return;
+
+    const revalidateKey = `${streamKey}:${Math.floor(asOf / 1_000)}`;
+    if (silentRevalidateKeyRef.current === revalidateKey) return;
+
+    const timer = window.setTimeout(() => {
+      silentRevalidateKeyRef.current = revalidateKey;
+      const scenario = `watchlist-quotes-revalidate:${streamSymbols.length}-symbols`;
+      const traceId = createMarketDataTraceId(scenario);
+      void fetchRestWatchlistQuotes(streamSymbols, scenario, traceId)
+        .then((payload) => {
+          if (!payload.quotes?.length) return;
+          const next = new Map(quotesRef.current);
+          for (const quote of payload.quotes) {
+            next.set(quote.symbol, quote);
+          }
+          setQuotesBySymbol(next);
+          setQuotesMeta((prev) => mergeQuotesMeta(next, payload.meta, prev, prev?.streaming));
+        })
+        .catch(() => {
+          silentRevalidateKeyRef.current = null;
+        });
+    }, SILENT_REVALIDATE_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [streamSymbols, streamKey, quotesBySymbol, quotesLoading, quotesMeta]);
 
   const value = useMemo(
     (): MarketDataContextValue => ({

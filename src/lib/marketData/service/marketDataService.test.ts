@@ -820,6 +820,26 @@ describe("MarketDataService", () => {
       expect(result.data.find((quote) => quote.symbol === "MSFT")?.price).toBe(420);
       expect(tws.getQuotesBatch).toHaveBeenCalledWith(["MSFT"]);
     });
+
+    it("sets batch asOf to oldest quote updatedAt on full hot cache hit", async () => {
+      vi.useFakeTimers();
+      const base = Date.now();
+      vi.setSystemTime(base);
+      const older = base - 15_000;
+      const newer = base - 5_000;
+      writeHotQuote({ ...ibkrQuotes[0]!, symbol: "AAPL", updatedAt: newer }, "tws");
+      writeHotQuote({ ...ibkrQuotes[0]!, symbol: "MSFT", price: 420, updatedAt: older }, "tws");
+
+      vi.setSystemTime(base + 5_000);
+      const tws = createMockTws();
+      const service = createService({ ibkr: createMockIbkr(), tws });
+      const result = await service.getWatchlistQuotes(["AAPL", "MSFT"]);
+
+      expect(result.asOf).toBe(older);
+      expect(result.stale).toBe(true);
+      expect(result.cacheTier).toBe("hot-stale");
+      vi.useRealTimers();
+    });
   });
 
   describe("TWS gateway status probe routing", () => {

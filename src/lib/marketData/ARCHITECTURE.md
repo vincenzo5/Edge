@@ -205,7 +205,18 @@ The app exposes a user-facing **Data Health** dropdown from a compact overlay ba
 - **Client-observed dataset metadata** from active chart `ChartDataMeta`, watchlist quote `meta`, and optional options panel meta.
 - **Server provider probes** from `/api/market-data/health`, which summarizes IB Gateway (TWS sidecar) status plus process-local circuit-breaker snapshots. **IBKR Client Portal is not shown** in Data Health — use IB Gateway + sidecar only for live market data status. Optional-provider configured flags (`FMP`, `FRED`, `SEC`) are booleans only — no secrets are returned.
 
-Severity (`healthy` / `degraded` / `offline` / `unknown`) is derived in `src/lib/marketData/health.ts` from dataset source, stale/cache tier, warnings, and provider availability. Yahoo remains the documented fallback path when TWS/IBKR are skipped or unavailable.
+Severity (`healthy` / `degraded` / `offline` / `unknown`) is derived in `src/lib/marketData/health.ts` from **dataset readiness** (`evaluateReadiness` in `src/lib/marketData/trust/dataTrust.ts`), provenance (source, fallback, partial symbol coverage), and provider connection state — **not** from raw warning counts. **Display market data** (watchlist quotes, active chart candles, options chain/expirations) use **age-based display freshness** via `maxDisplayAgeMs` in `DATASET_POLICIES`, aligned with `HOT_STALE_MS` in `hotStore.ts`:
+
+| Dataset | Display max | Notes |
+|---------|-------------|-------|
+| `watchlist_quotes` | 60s | Oldest quote `updatedAt` drives row age |
+| `chart_candles` | 5 min | Active chart `ChartDataMeta.asOf` |
+| `options_chain` | 5 min | When chain meta is registered |
+| `options_expirations` | 24 h | When only expirations meta is registered |
+
+TWS data within the display window stays **healthy** even when served from `hot-stale` SWR cache; internal `stale` and cache tier stay out of user-facing dataset lines. `resolveTrustDataset()` picks the options policy (`options_chain` vs `options_expirations`). Account feed severity remains connection-based. Transport recovery events (SSE timeout → REST success) are recorded in a session **Issues** log via `src/lib/marketData/healthEvents.ts` and do not downgrade the badge when datasets are display-fresh. Incident warnings (Yahoo fallback, TWS skip, circuit open) still surface under **Issues** and drive degraded severity when they affect current provenance. `MarketDataProvider` silently revalidates aged watchlist quotes (~3s debounce) and the watchlist table shows muted per-row age hints after 30s.
+
+**Chart chrome:** On the active chart cell, `ChartOverlayStatusStack` owns a single top-right pill (left of the price-axis strip): market session label and severity dot in one control. Hover shows the compact source summary via tooltip; click opens the Data Health panel. The chart legend suppresses the duplicate market session label when the overlay stack is shown. Dataset rows in the panel use structured chips from `buildDatasetChips()` in `health.ts`; idle datasets collapse to `Not open`; provider details collapse when healthy.
 
 ### TWS-only mental model
 
@@ -246,7 +257,7 @@ Docker Compose is **not** used for the sidecar. External mode means run `npm run
 
 **Sidecar shutdown:** FastAPI `lifespan` disconnects IB on exit; `scripts/tws-sidecar.sh` uses PID file + port check + single-instance lock (flock on Linux, mkdir on macOS).
 
-**Source labels:** The active-chart overlay badge shows a compact summary of chart candle source and watchlist quote source (e.g. `TWS · live` or `YAHOO/TWS · live` when mixed). The full Data Health menu retains detailed dataset rows. Account feed state remains its own Data Health dataset row via `AccountProvider`.
+**Source labels:** The active-chart overlay shows an icon-only severity dot; hover tooltip summarizes chart candle source and watchlist quote source (e.g. `TWS · LIVE · REST`). The Data Health menu shows structured dataset chips. Account feed state remains its own Data Health dataset row via `AccountProvider`.
 
 This is read-only with respect to brokerage operations — no orders or account mutations.
 

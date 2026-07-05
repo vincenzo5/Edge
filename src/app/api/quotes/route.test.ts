@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST, clearQuoteCacheForTests } from "./route";
+import { writeHotQuote } from "@/lib/marketData/hotStore";
 
 const { getQuoteSnapshots } = vi.hoisted(() => ({
   getQuoteSnapshots: vi.fn(async () => [
@@ -133,6 +134,31 @@ describe("/api/quotes POST", () => {
     const second = await POST(makeRequest(body));
     expect(second.status).toBe(200);
     expect(getQuoteSnapshots).toHaveBeenCalledTimes(2);
+  });
+
+  it("includes asOf in meta when serving stale hot cache", async () => {
+    vi.useFakeTimers();
+    const base = Date.now();
+    vi.setSystemTime(base);
+    const asOf = base - 12_000;
+    writeHotQuote(
+      {
+        symbol: "AAPL",
+        price: 150,
+        change: 1,
+        changePercent: 1,
+        volume: 1000,
+        updatedAt: asOf,
+      },
+      "tws",
+    );
+    vi.setSystemTime(base + 5_000);
+
+    const res = await POST(makeRequest({ symbols: ["AAPL"] }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.meta.asOf).toBe(asOf);
+    expect(json.meta.stale).toBe(true);
   });
 
   it("expires cache after ttl", async () => {

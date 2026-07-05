@@ -17,6 +17,13 @@ import {
   type DataHealthSnapshot,
   type ServerHealthPayload,
 } from "@/lib/marketData/health";
+import type { DatasetKind } from "@/lib/marketData/trust/dataTrust";
+import {
+  getHealthEvents,
+  recordHealthEvent,
+  subscribeHealthEvents,
+  type HealthEvent,
+} from "@/lib/marketData/healthEvents";
 import { useActiveChart } from "../ActiveChartContext";
 import { useMarketDataQuotes } from "../MarketDataProvider";
 import { useAccountOptional } from "../AccountProvider";
@@ -37,7 +44,11 @@ type DataHealthContextValue = {
   serverHealthLoading: boolean;
   serverHealthLoaded: boolean;
   refreshServerHealth: () => Promise<ServerHealthPayload | null>;
-  registerOptionsMeta: (meta: OptionsHealthMeta, detail?: string) => void;
+  registerOptionsMeta: (
+    meta: OptionsHealthMeta,
+    detail?: string,
+    trustDataset?: DatasetKind,
+  ) => void;
   recoveringTws: boolean;
   recoverMessage: string | null;
   recoverTws: () => Promise<void>;
@@ -53,10 +64,14 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
   const [serverHealth, setServerHealth] = useState<ServerHealthPayload | null>(null);
   const [optionsMeta, setOptionsMeta] = useState<OptionsHealthMeta>(null);
   const [optionsDetail, setOptionsDetail] = useState<string | undefined>();
+  const [optionsTrustDataset, setOptionsTrustDataset] = useState<DatasetKind | undefined>();
   const [recoveringTws, setRecoveringTws] = useState(false);
   const [recoverMessage, setRecoverMessage] = useState<string | null>(null);
   const [serverHealthLoading, setServerHealthLoading] = useState(false);
+  const [healthEvents, setHealthEvents] = useState<HealthEvent[]>(() => getHealthEvents());
   const recoveryRunRef = useRef(0);
+
+  useEffect(() => subscribeHealthEvents(setHealthEvents), []);
 
   const refreshServerHealth = useCallback(async (): Promise<ServerHealthPayload | null> => {
     setServerHealthLoading(true);
@@ -93,10 +108,14 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(timer);
   }, [menuOpen, refreshServerHealth]);
 
-  const registerOptionsMeta = useCallback((meta: OptionsHealthMeta, detail?: string) => {
-    setOptionsMeta(meta);
-    setOptionsDetail(detail);
-  }, []);
+  const registerOptionsMeta = useCallback(
+    (meta: OptionsHealthMeta, detail?: string, trustDataset?: DatasetKind) => {
+      setOptionsMeta(meta);
+      setOptionsDetail(detail);
+      setOptionsTrustDataset(trustDataset);
+    },
+    [],
+  );
 
   const reloadFeedsAfterRecovery = useCallback(async () => {
     marketData?.reloadMarketData();
@@ -188,6 +207,12 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
       if (payload.message) {
         setRecoverMessage(payload.message);
       }
+      recordHealthEvent({
+        kind: "recovery",
+        message: payload.message ?? "TWS recovery started",
+        recovered: payload.ok === true && payload.commandState === "confirmed",
+        dataset: "tws",
+      });
 
       const commandState = payload.commandState;
       if (payload.ok && commandState === "confirmed") {
@@ -234,6 +259,14 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     const chartInterval = activeChart?.config.interval;
     const quoteCount = marketData?.quotesBySymbol.size ?? 0;
     const watchlistTotal = marketData?.watchlistSymbolCount ?? 0;
+    let watchlistAsOf: number | undefined = marketData?.quotesMeta?.asOf;
+    if (marketData?.quotesBySymbol.size) {
+      for (const quote of marketData.quotesBySymbol.values()) {
+        if (typeof quote.updatedAt !== "number") continue;
+        watchlistAsOf =
+          watchlistAsOf == null ? quote.updatedAt : Math.min(watchlistAsOf, quote.updatedAt);
+      }
+    }
 
     return mergeHealthSnapshot(
       {
@@ -241,6 +274,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
         chartDetail:
           chartSymbol && chartInterval ? `${chartSymbol} · ${chartInterval.toUpperCase()}` : chartSymbol,
         watchlistMeta: marketData?.quotesMeta,
+        watchlistAsOf,
         watchlistDetail:
           watchlistTotal > 0 ? `${quoteCount}/${watchlistTotal} symbols` : undefined,
         watchlistLoading: marketData?.quotesLoading,
@@ -248,6 +282,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
         watchlistTransport: marketData?.quotesTransport,
         optionsMeta,
         optionsDetail,
+        optionsTrustDataset,
         chartStreamTransport: process.env.NEXT_PUBLIC_STREAM_TRANSPORT ?? "polling",
         accountDisabled: account?.disabled,
         accountConnectionState: account?.connectionState,
@@ -257,6 +292,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
         accountError: account?.error,
       },
       serverHealth,
+      healthEvents,
     );
   }, [
     activeChart?.config.interval,
@@ -270,12 +306,14 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     marketData?.watchlistSymbolCount,
     optionsDetail,
     optionsMeta,
+    optionsTrustDataset,
     account?.connectionState,
     account?.disabled,
     account?.error,
     account?.positions.length,
     account?.status?.accountId,
     serverHealth,
+    healthEvents,
   ]);
 
   const value = useMemo(
@@ -318,11 +356,12 @@ export function useDataHealth(): DataHealthContextValue {
 export function useRegisterOptionsHealthMeta(
   meta: OptionsHealthMeta,
   detail?: string,
+  trustDataset?: DatasetKind,
 ): void {
   const context = useContext(DataHealthContext);
   useEffect(() => {
     if (!context) return;
-    context.registerOptionsMeta(meta, detail);
-    return () => context.registerOptionsMeta(null, undefined);
-  }, [context, meta, detail]);
+    context.registerOptionsMeta(meta, detail, trustDataset);
+    return () => context.registerOptionsMeta(null, undefined, undefined);
+  }, [context, meta, detail, trustDataset]);
 }

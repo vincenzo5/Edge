@@ -3,6 +3,7 @@
 import type { WatchlistDisplayRow } from "@/lib/watchlist/viewModel";
 import type { QuoteSnapshot, WatchlistColumnId, WatchlistViewPrefs } from "@/lib/watchlist/types";
 import { toneTextClass } from "@/lib/design-system/edge";
+import { formatQuoteAge, shouldShowQuoteAgeHint } from "@/lib/watchlist/formatQuoteAge";
 
 function formatPrice(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -101,7 +102,12 @@ export default function WatchlistRow({
             key={column}
             className="px-1.5 py-1 text-right tabular-nums text-[var(--edge-text-primary)]"
           >
-            {formatPrice(metrics.last ?? quote?.regularMarketPrice)}
+            <span>{formatPrice(metrics.last ?? quote?.regularMarketPrice)}</span>
+            {shouldShowQuoteAgeHint(quote?.updatedAt) ? (
+              <span className="ml-1 text-[9px] text-[var(--edge-text-muted)]">
+                · {formatQuoteAge(quote?.updatedAt)}
+              </span>
+            ) : null}
           </td>
         );
       case "changePct":
