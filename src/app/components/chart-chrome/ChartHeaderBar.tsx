@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { ChartType, GridMode, Theme, LayoutSyncPrefs } from '@/lib/chartConfig';
+import type { ChartType, LayoutTemplateId, Theme, LayoutSyncPrefs } from '@/lib/chartConfig';
 import type { Interval } from '@/lib/chart/contracts';
 import { loadIndicatorFavorites } from '@/lib/chart/indicatorFavorites';
 import { resolveHeaderDensity, type HeaderDensity } from '@/lib/responsive/responsiveLayout';
@@ -41,7 +41,7 @@ type SymbolResult = {
 
 export type ChartHeaderLayoutState = {
   layoutName: string;
-  gridMode: GridMode;
+  layoutId: LayoutTemplateId;
   linkSymbol: boolean;
   linkInterval: boolean;
   linkCrosshair: boolean;
@@ -50,7 +50,7 @@ export type ChartHeaderLayoutState = {
 };
 
 export type ChartHeaderLayoutActions = {
-  onGridModeChange: (mode: GridMode) => void;
+  onLayoutChange: (layoutId: LayoutTemplateId) => void;
   onLayoutSyncChange: (patch: Partial<LayoutSyncPrefs>) => void;
 };
 
@@ -74,12 +74,21 @@ export type ChartHeaderSymbolNav = {
   onForward: () => void;
 };
 
+export type ChartHeaderWorkspaceActions = {
+  workspaceTabs: Array<{ id: string; title: string; selected?: boolean }>;
+  onCreateLayout: () => void;
+  onCopyLayout: () => void;
+  onRenameLayout: () => void;
+  onSelectLayout: (tabId: string) => void;
+};
+
 type Props = {
   layout: ChartHeaderLayoutState;
   chart: ChartHeaderChartState;
   layoutActions: ChartHeaderLayoutActions;
   chartActions: ChartHeaderChartActions;
   symbolNav?: ChartHeaderSymbolNav;
+  workspaceActions?: ChartHeaderWorkspaceActions;
   /** Optional density override for tests. */
   density?: HeaderDensity;
 };
@@ -96,9 +105,10 @@ export default function ChartHeaderBar({
   layoutActions,
   chartActions,
   symbolNav,
+  workspaceActions,
   density: densityOverride,
 }: Props) {
-  const { theme, gridMode, linkSymbol, linkInterval, linkCrosshair, linkDrawings, layoutName } = layout;
+  const { theme, layoutId, linkSymbol, linkInterval, linkCrosshair, linkDrawings, layoutName } = layout;
   const { symbol, interval, chartType, indicatorFavorites } = chart;
   const activeChart = useActiveChart();
   const commands = activeChart?.headerCommands;
@@ -314,13 +324,18 @@ export default function ChartHeaderBar({
           <ChartLayoutMenu
             theme={theme}
             layoutName={layoutName}
-            gridMode={gridMode}
+            layoutId={layoutId}
             linkSymbol={linkSymbol}
             linkInterval={linkInterval}
             linkCrosshair={linkCrosshair}
             linkDrawings={linkDrawings}
-            onGridModeChange={layoutActions.onGridModeChange}
+            onLayoutChange={layoutActions.onLayoutChange}
             onLayoutSyncChange={layoutActions.onLayoutSyncChange}
+            workspaceTabs={workspaceActions?.workspaceTabs}
+            onCreateLayout={workspaceActions?.onCreateLayout}
+            onCopyLayout={workspaceActions?.onCopyLayout}
+            onRenameLayout={workspaceActions?.onRenameLayout}
+            onSelectLayout={workspaceActions?.onSelectLayout}
           />
 
           {showInline(density, 'secondary') ? (

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { parseJsonBody, persistenceError } from "@/lib/persistence/common";
 import { chartWorkspaceWriteSchema } from "@/lib/persistence/schemas/chartWorkspace";
 import {
+  archiveChartWorkspace,
   getChartWorkspaceById,
   saveChartWorkspace,
 } from "@/lib/persistence/repositories/chartWorkspaceRepository";
@@ -16,6 +17,26 @@ export const runtime = "nodejs";
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+export async function GET(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+
+  return withPersistenceAuth(async (userId) => {
+    const workspace = await getChartWorkspaceById(userId, id);
+    if (!workspace) {
+      return persistenceError(404, "not_found", "Chart workspace not found.");
+    }
+
+    return NextResponse.json({
+      id: workspace.id,
+      workspaceName: workspace.workspaceName,
+      schemaVersion: workspace.schemaVersion,
+      syncRevision: workspace.syncRevision,
+      updatedAt: workspace.updatedAt,
+      chartLayoutSnapshot: workspace.chartLayoutSnapshot,
+    });
+  });
+}
 
 export async function PUT(request: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -68,5 +89,21 @@ export async function PUT(request: Request, context: RouteContext) {
       updatedAt: result.record.updatedAt,
       chartLayoutSnapshot: result.record.chartLayoutSnapshot,
     });
+  });
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+
+  return withPersistenceAuth(async (userId) => {
+    const result = await archiveChartWorkspace(userId, id);
+    if (!result.ok) {
+      if (result.code === "not_found") {
+        return persistenceError(404, "not_found", "Chart workspace not found.");
+      }
+      return persistenceError(409, "conflict", "Cannot archive the last workspace.");
+    }
+
+    return NextResponse.json({ ok: true });
   });
 }

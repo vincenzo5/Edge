@@ -5,7 +5,8 @@ import {
   INTERVALS,
   RANGES,
   CHART_TYPES,
-  GRID_MODES,
+  LAYOUT_TEMPLATE_IDS,
+  resolveLayoutIdForSnapshot,
   type ChartLayout,
   type LegacySidebarPanelId,
   type SidebarPanelId,
@@ -15,12 +16,12 @@ import {
   normalizeFloatingGeometry,
   normalizePanelPresentation,
 } from "@/lib/sidebar/floatingPanelGeometry";
-import { writeRequestBaseSchema } from "@/lib/persistence/common";
+import { writeRequestBaseSchema, SCHEMA_VERSION } from "@/lib/persistence/common";
 
 const rangeValues = RANGES.map((r) => r.value) as [string, ...string[]];
 const intervalValues = INTERVALS.map((i) => i.value) as [string, ...string[]];
 const chartTypeValues = CHART_TYPES.map((c) => c.value) as [string, ...string[]];
-const gridModeValues = GRID_MODES.map((g) => g.value) as [string, ...string[]];
+const layoutIdValues = LAYOUT_TEMPLATE_IDS;
 
 const drawingPointSchema = z.object({
   dataIndex: z.number().int().optional(),
@@ -138,9 +139,10 @@ function migrateSidebarSnapshot(sidebar: unknown): ChartLayout["sidebar"] | unde
 export const chartLayoutSnapshotSchema = z.preprocess((value) => {
   if (!value || typeof value !== "object") return value;
   const record = value as Record<string, unknown>;
+  const layoutId = resolveLayoutIdForSnapshot(record);
   const sync = migrateLayoutSync({
     version: 1,
-    gridMode: (record.gridMode as ChartLayout["gridMode"]) ?? "1x1",
+    layoutId,
     cells: Array.isArray(record.cells) ? (record.cells as ChartLayout["cells"]) : [],
     linked: record.linked as boolean | undefined,
     linkSymbol: record.linkSymbol as boolean | undefined,
@@ -149,14 +151,16 @@ export const chartLayoutSnapshotSchema = z.preprocess((value) => {
     linkDrawings: record.linkDrawings as boolean | undefined,
   });
   const sidebar = migrateSidebarSnapshot(record.sidebar);
+  const { gridMode: _legacyGridMode, ...rest } = record;
   return {
-    ...record,
+    ...rest,
+    layoutId,
     ...sync,
     ...(sidebar ? { sidebar } : {}),
   };
 }, z.object({
   version: z.literal(1),
-  gridMode: z.enum(gridModeValues),
+  layoutId: z.enum(layoutIdValues),
   linkSymbol: z.boolean(),
   linkInterval: z.boolean(),
   linkCrosshair: z.boolean(),
@@ -190,7 +194,7 @@ export const chartLayoutSnapshotSchema = z.preprocess((value) => {
         .optional(),
     })
     .optional(),
-  cells: z.array(cellConfigSchema).min(1).max(4),
+  cells: z.array(cellConfigSchema).min(1).max(16),
 }));
 
 export type ChartLayoutSnapshot = z.infer<typeof chartLayoutSnapshotSchema>;
@@ -206,6 +210,20 @@ export const chartWorkspaceResponseSchema = z.object({
   schemaVersion: z.literal(1),
   syncRevision: z.number().int().positive(),
   updatedAt: z.string().datetime(),
+  chartLayoutSnapshot: chartLayoutSnapshotSchema,
+});
+
+export const chartWorkspaceSummarySchema = chartWorkspaceResponseSchema.extend({
+  isDefault: z.boolean(),
+});
+
+export const chartWorkspaceListResponseSchema = z.object({
+  workspaces: z.array(chartWorkspaceSummarySchema),
+});
+
+export const chartWorkspaceCreateSchema = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION),
+  workspaceName: z.string().trim().min(1).max(120),
   chartLayoutSnapshot: chartLayoutSnapshotSchema,
 });
 

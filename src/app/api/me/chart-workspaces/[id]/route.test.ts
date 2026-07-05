@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
-import { PUT } from "../[id]/route";
+import { DELETE, GET, PUT } from "../[id]/route";
 
 const mocks = vi.hoisted(() => ({
   isDatabaseConfigured: vi.fn(() => true),
@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
       },
     },
   })),
+  archiveChartWorkspace: vi.fn(async () => ({ ok: true as const })),
 }));
 
 vi.mock("@/db", () => ({
@@ -46,14 +47,24 @@ vi.mock("@/lib/persistence/auth/getCurrentUser", () => ({
 vi.mock("@/lib/persistence/repositories/chartWorkspaceRepository", () => ({
   getChartWorkspaceById: mocks.getChartWorkspaceById,
   saveChartWorkspace: mocks.saveChartWorkspace,
+  archiveChartWorkspace: mocks.archiveChartWorkspace,
 }));
 
-describe("/api/me/chart-workspaces/[id] PUT", () => {
+describe("/api/me/chart-workspaces/[id]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns 409 on revision conflict", async () => {
+  it("GET returns workspace by id", async () => {
+    const res = await GET(new Request("http://localhost"), {
+      params: Promise.resolve({ id: "workspace-1" }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.id).toBe("workspace-1");
+  });
+
+  it("PUT returns 409 on revision conflict", async () => {
     const res = await PUT(
       new Request("http://localhost/api/me/chart-workspaces/workspace-1", {
         method: "PUT",
@@ -72,5 +83,13 @@ describe("/api/me/chart-workspaces/[id] PUT", () => {
     expect(json.code).toBe("conflict");
     expect(json.current.syncRevision).toBe(2);
     expect(json.current.chartLayoutSnapshot.cells[0].symbol).toBe("MSFT");
+  });
+
+  it("DELETE archives workspace", async () => {
+    const res = await DELETE(new Request("http://localhost"), {
+      params: Promise.resolve({ id: "workspace-2" }),
+    });
+    expect(res.status).toBe(200);
+    expect(mocks.archiveChartWorkspace).toHaveBeenCalledWith("user-1", "workspace-2");
   });
 });

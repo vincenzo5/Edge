@@ -12,6 +12,10 @@ export type ChartWorkspaceRemoteRecord = {
   chartLayoutSnapshot: ChartLayoutSnapshot;
 };
 
+export type ChartWorkspaceRemoteSummary = ChartWorkspaceRemoteRecord & {
+  isDefault: boolean;
+};
+
 export type SaveChartWorkspaceRemoteInput = {
   workspaceId: string;
   baseRevision: number;
@@ -48,6 +52,47 @@ export async function fetchDefaultChartWorkspace(): Promise<ChartWorkspaceRemote
   if (!response.ok) return null;
 
   return parseJsonResponse<ChartWorkspaceRemoteRecord>(response);
+}
+
+export async function fetchChartWorkspaces(): Promise<ChartWorkspaceRemoteSummary[] | null> {
+  const response = await persistenceFetch("/api/me/chart-workspaces", {
+    method: "GET",
+  });
+
+  if (response.status === 503) return null;
+  if (!response.ok) return null;
+
+  const body = await parseJsonResponse<{ workspaces: ChartWorkspaceRemoteSummary[] }>(response);
+  return body?.workspaces ?? null;
+}
+
+export async function createChartWorkspaceRemote(input: {
+  workspaceName: string;
+  chartLayoutSnapshot: ChartLayout;
+}): Promise<ChartWorkspaceRemoteRecord | null> {
+  const response = await persistenceFetch("/api/me/chart-workspaces", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      schemaVersion: SCHEMA_VERSION,
+      workspaceName: input.workspaceName,
+      chartLayoutSnapshot: input.chartLayoutSnapshot,
+    }),
+  });
+
+  if (response.status === 503) return null;
+  if (!response.ok) return null;
+
+  return parseJsonResponse<ChartWorkspaceRemoteRecord>(response);
+}
+
+export async function archiveChartWorkspaceRemote(workspaceId: string): Promise<boolean> {
+  const response = await persistenceFetch(`/api/me/chart-workspaces/${workspaceId}`, {
+    method: "DELETE",
+  });
+
+  if (response.status === 503) return false;
+  return response.ok;
 }
 
 export async function saveChartWorkspaceRemote(

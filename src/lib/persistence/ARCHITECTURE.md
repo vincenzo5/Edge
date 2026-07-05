@@ -43,7 +43,7 @@ Drizzle ORM + Postgres
 
 | Resource | API Route | Schema |
 |----------|-----------|--------|
-| Chart workspace | `/api/me/chart-workspaces/default` | `chartWorkspace.ts` |
+| Chart workspace | `/api/me/chart-workspaces` (GET list, POST create), `/api/me/chart-workspaces/default`, `/api/me/chart-workspaces/[id]` (GET, PUT, DELETE archive) | `chartWorkspace.ts` |
 | Watchlist library | `/api/me/watchlist-library` | `watchlistLibrary.ts` |
 | Screener library | `/api/me/screener-library` | `screenerLibrary.ts` |
 | Chart templates | `/api/me/chart-template-library` | `chartTemplateLibrary.ts` |
@@ -79,7 +79,8 @@ Drizzle ORM + Postgres
 ## Invariants
 
 - Persistence is optional — `isPersistenceEnabled()` checks `DATABASE_URL`.
-- localStorage remains primary for layout when Postgres unavailable.
+- localStorage remains primary for layout when Postgres unavailable (`tv-ai:workspace-tabs:v1`; legacy `tv-ai:layout:v1` migrates on load).
+- Each workspace tab stores embedded `remote` sync metadata (`resourceId`, `syncRevision`, `updatedAt`); active tab debounced PUT (800 ms) via `useWorkspaceTabsRemoteSync`.
 - All request bodies MUST validate against Zod schemas.
 - MUST NOT commit secrets (see `.env.example` for required vars).
 

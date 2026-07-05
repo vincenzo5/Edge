@@ -160,7 +160,7 @@ function RegisterActiveChart({ snapshot }: { snapshot: ActiveChartSnapshot }) {
 }
 
 const layoutActions = {
-  onGridModeChange: vi.fn(),
+  onLayoutChange: vi.fn(),
   onLayoutSyncChange: vi.fn(),
 };
 
@@ -173,7 +173,7 @@ const chartActions = {
 const baseProps = {
   layout: {
     layoutName: 'Default',
-    gridMode: '1x1' as const,
+    layoutId: 'n1' as const,
     linkSymbol: false,
     linkInterval: false,
     linkCrosshair: false,

@@ -20,12 +20,33 @@ describe("chartWorkspace schemas", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("rejects invalid grid mode", () => {
+  it("rejects invalid layout id", () => {
     const parsed = chartLayoutSnapshotSchema.safeParse({
       ...DEFAULT_LAYOUT,
-      gridMode: "4x4",
+      layoutId: "invalid-layout",
     });
     expect(parsed.success).toBe(false);
+  });
+
+  it("migrates legacy gridMode to layoutId", () => {
+    const { layoutId: _ignored, ...withoutLayoutId } = DEFAULT_LAYOUT;
+    const parsed = chartLayoutSnapshotSchema.safeParse({
+      ...withoutLayoutId,
+      gridMode: "2x2",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.layoutId).toBe("n4-grid-2x2");
+    }
+  });
+
+  it("accepts layout with 16 cells", () => {
+    const parsed = chartLayoutSnapshotSchema.safeParse({
+      ...DEFAULT_LAYOUT,
+      layoutId: "n16-grid-4x4",
+      cells: Array.from({ length: 16 }, () => DEFAULT_LAYOUT.cells[0]),
+    });
+    expect(parsed.success).toBe(true);
   });
 
   it("requires baseRevision on write requests", () => {

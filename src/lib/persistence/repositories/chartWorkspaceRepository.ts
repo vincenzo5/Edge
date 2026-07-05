@@ -1,11 +1,21 @@
 import "server-only";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { chartWorkspaces } from "@/db/schema";
 import type { ChartLayoutSnapshot } from "@/lib/persistence/schemas/chartWorkspace";
 import { isUniqueViolation } from "@/lib/persistence/repositories/pgErrors";
+
+export type ChartWorkspaceSummary = {
+  id: string;
+  workspaceName: string;
+  schemaVersion: 1;
+  syncRevision: number;
+  updatedAt: string;
+  isDefault: boolean;
+  chartLayoutSnapshot: ChartLayoutSnapshot;
+};
 
 export type ChartWorkspaceRecord = {
   id: string;
@@ -37,6 +47,73 @@ function toRecord(row: typeof chartWorkspaces.$inferSelect): ChartWorkspaceRecor
     updatedAt: row.updatedAt.toISOString(),
     chartLayoutSnapshot: row.chartLayoutSnapshot as ChartLayoutSnapshot,
   };
+}
+
+function toSummary(row: typeof chartWorkspaces.$inferSelect): ChartWorkspaceSummary {
+  return {
+    ...toRecord(row),
+    isDefault: row.isDefault,
+  };
+}
+
+export async function listChartWorkspaces(userId: string): Promise<ChartWorkspaceSummary[]> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(chartWorkspaces)
+    .where(and(eq(chartWorkspaces.userId, userId), isNull(chartWorkspaces.archivedAt)))
+    .orderBy(desc(chartWorkspaces.updatedAt));
+
+  return rows.map(toSummary);
+}
+
+export async function createChartWorkspace(
+  userId: string,
+  chartLayoutSnapshot: ChartLayoutSnapshot,
+  workspaceName: string,
+  isDefault = false,
+): Promise<ChartWorkspaceRecord> {
+  const db = getDb();
+  const rows = await db
+    .insert(chartWorkspaces)
+    .values({
+      userId,
+      workspaceName,
+      schemaVersion: 1,
+      chartLayoutSnapshot,
+      syncRevision: 1,
+      isDefault,
+    })
+    .returning();
+
+  return toRecord(rows[0]!);
+}
+
+export type ArchiveChartWorkspaceResult =
+  | { ok: true }
+  | { ok: false; code: "not_found" | "default_required" };
+
+export async function archiveChartWorkspace(
+  userId: string,
+  workspaceId: string,
+): Promise<ArchiveChartWorkspaceResult> {
+  const existing = await getChartWorkspaceById(userId, workspaceId);
+  if (!existing) {
+    return { ok: false, code: "not_found" };
+  }
+
+  const active = await listChartWorkspaces(userId);
+  if (active.length <= 1) {
+    return { ok: false, code: "default_required" };
+  }
+
+  const db = getDb();
+  await db
+    .update(chartWorkspaces)
+    .set({ archivedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(chartWorkspaces.id, workspaceId), eq(chartWorkspaces.userId, userId)));
+
+  return { ok: true };
 }
 
 export async function getDefaultChartWorkspace(userId: string): Promise<ChartWorkspaceRecord | null> {
