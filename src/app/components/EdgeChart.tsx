@@ -306,6 +306,8 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       <ChartOverlayStatusStack
         theme={theme}
         showDataHealth={showDataHealthBadge}
+        marketSessionLabel={marketSessionLabel}
+        showMarketStatus={config.chartSettings?.statusLine?.showMarketStatus !== false}
         error={error}
         streamError={streamError}
         stale={stale}
@@ -335,7 +337,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         exchange={config.exchange}
         livePrice={livePrice}
         liveMarketSession={liveMarketSession}
-        marketSessionLabel={marketSessionLabel}
+        marketSessionLabel={showDataHealthBadge ? null : marketSessionLabel}
         interval={config.interval}
         range={config.range}
         rangePreset={config.rangePreset ?? null}

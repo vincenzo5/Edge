@@ -64,12 +64,19 @@ export function mergeCandlesPrepend(existing: Candle[], older: Candle[]): Candle
   return merged;
 }
 
-export const EDGE_FETCH_BAR_COUNT = 200;
-export const PREFETCH_START_INDEX_THRESHOLD = 30;
+import {
+  EDGE_FETCH_BAR_COUNT,
+  HISTORY_FETCH_BAR_COUNT,
+  PREFETCH_START_INDEX_THRESHOLD,
+  shouldPrefetchEdge,
+} from '@edge/chart-core';
 
-export function shouldPrefetchEdge(startIndex: number, threshold = PREFETCH_START_INDEX_THRESHOLD): boolean {
-  return startIndex < threshold;
-}
+export {
+  EDGE_FETCH_BAR_COUNT,
+  HISTORY_FETCH_BAR_COUNT,
+  PREFETCH_START_INDEX_THRESHOLD,
+  shouldPrefetchEdge,
+};
 
 export async function fetchOlderCandles(
   symbol: string,

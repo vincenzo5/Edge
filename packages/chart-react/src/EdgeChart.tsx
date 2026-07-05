@@ -26,7 +26,8 @@ import { resolveIndicatorLegend, appendLegendSettingsAction, indicatorHasSetting
 import { createInitialLayout, applyBoundaryResize, computePaneBoundaries, PANE_SEPARATOR_HEIGHT, type Pane, type PaneLayout } from '@edge/chart-core/panes';
 import PaneSeparators from './components/PaneSeparators';
 import PaneControlBar from './components/PaneControlBar';
-import { applyVisibleSlice, mergeCandlesPrepend, shouldPrefetchEdge, transformCandlesForChartType, ensureCandlesCover } from '@edge/chart-core/series';
+import { applyVisibleSlice, mergeCandlesPrepend, transformCandlesForChartType, ensureCandlesCover } from '@edge/chart-core/series';
+import { createHistoryPrefetchController, type HistoryPrefetchController } from './engine/historyPrefetchController';
 import type { Candle, Range, Interval } from '@edge/chart-core';
 import { buildCandleSessionKey, resolveViewportRevision } from './engine/rangePresetTransition';
 import { goToDate, goToRange, type GoToRequest, type GoToResult } from './engine/goTo';
@@ -182,8 +183,8 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
   const candlesRef = useRef<Candle[]>([]);
   const baseCandlesRef = useRef<Candle[]>([]);
   const appliedCandlesSessionKeyRef = useRef<string | null>(null);
-  const fetchStateRef = useRef({ inFlight: false, hasMoreHistory: true, abortController: null as AbortController | null });
-  const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasMoreHistoryRef = useRef(true);
+  const prefetchControllerRef = useRef<HistoryPrefetchController | null>(null);
   const userPannedTimeAxisRef = useRef(false);
   const goToImplRef = useRef<(req: GoToRequest) => Promise<GoToResult>>(async () => ({
     ok: false,
@@ -376,11 +377,68 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
 
   useEffect(() => {
     userPannedTimeAxisRef.current = false;
-    if (prefetchTimerRef.current) {
-      clearTimeout(prefetchTimerRef.current);
-      prefetchTimerRef.current = null;
-    }
+    hasMoreHistoryRef.current = true;
+    prefetchControllerRef.current?.reset();
   }, [candleSessionKey]);
+
+  useEffect(() => {
+    if (!prefetchControllerRef.current) {
+      prefetchControllerRef.current = createHistoryPrefetchController({
+        getSnapshot: () => {
+          const vp =
+            latestVpRef.current ?? paneHandlesRef.current.get('price')?.getViewport() ?? null;
+          if (!vp) return null;
+          return {
+            startIndex: vp.startIndex,
+            endIndex: vp.endIndex,
+            loadedBars: baseCandlesRef.current.length,
+            hasMore: hasMoreHistoryRef.current,
+            userHasPanned: userPannedTimeAxisRef.current,
+          };
+        },
+        onFetch: async () => {
+          const base = baseCandlesRef.current;
+          const loader = onLoadOlderCandlesRef.current;
+          if (!loader || base.length === 0) {
+            return { addedBars: 0, hasMore: false };
+          }
+          try {
+            const older = await loader(base[0]!.t);
+            if (older.length === 0) {
+              hasMoreHistoryRef.current = false;
+              return { addedBars: 0, hasMore: false };
+            }
+            const merged = mergeCandlesPrepend(base, older);
+            const added = merged.length - base.length;
+            if (added <= 0) {
+              hasMoreHistoryRef.current = false;
+              return { addedBars: 0, hasMore: false };
+            }
+            const priceHandle = paneHandlesRef.current.get('price');
+            const vp = priceHandle?.getViewport();
+            if (vp && priceHandle) {
+              const shifted = adjustViewportForPrepend(vp, added);
+              priceHandle.syncTimeWindow(shifted.startIndex, shifted.endIndex, true);
+              syncSiblingsRef.current(shifted.startIndex, shifted.endIndex, 'price');
+              latestVpRef.current = priceHandle.getViewport();
+            }
+            baseCandlesRef.current = merged;
+            setBaseCandles(merged);
+            onCandlesChangeRef.current?.(merged);
+            return { addedBars: added, hasMore: hasMoreHistoryRef.current };
+          } catch (e: unknown) {
+            if (!(e instanceof DOMException && e.name === 'AbortError')) {
+              hasMoreHistoryRef.current = false;
+            }
+            return { addedBars: 0, hasMore: hasMoreHistoryRef.current };
+          }
+        },
+      });
+    }
+    return () => {
+      prefetchControllerRef.current?.dispose();
+    };
+  }, []);
 
   const markUserTimePan = useCallback(() => {
     userPannedTimeAxisRef.current = true;
@@ -407,7 +465,8 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
       appliedCandlesSessionKeyRef.current = candleSessionKey;
       setLoadedSessionKey(candleSessionKey);
       setDisplayInterval(interval);
-      fetchStateRef.current.hasMoreHistory = true;
+      hasMoreHistoryRef.current = true;
+      prefetchControllerRef.current?.prefetchBackground();
     }
   }, [candlesProp, candleSessionKey, interval]);
 
@@ -596,74 +655,20 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     return { ok: true };
   };
 
-  const runEdgeFetch = useCallback(async () => {
-    const base = baseCandlesRef.current;
-    const loader = onLoadOlderCandlesRef.current;
-    if (
-      base.length === 0 ||
-      !loader ||
-      fetchStateRef.current.inFlight ||
-      !fetchStateRef.current.hasMoreHistory
-    ) {
+  const handleViewport = useCallback((vp: VisibleRange, paneId: string) => {
+    if (paneId === 'price') latestVpRef.current = vp;
+    syncSiblings(vp.startIndex, vp.endIndex, paneId);
+
+    if (paneId !== 'price' || !userPannedTimeAxisRef.current) {
       return;
     }
-    const firstTs = base[0].t;
-    fetchStateRef.current.inFlight = true;
-    const controller = new AbortController();
-    fetchStateRef.current.abortController = controller;
-    try {
-      const older = await loader(firstTs);
-      if (older.length === 0) {
-        fetchStateRef.current.hasMoreHistory = false;
-        return;
-      }
-      const merged = mergeCandlesPrepend(base, older);
-      const added = merged.length - base.length;
-      if (added <= 0) {
-        fetchStateRef.current.hasMoreHistory = false;
-        return;
-      }
-      const priceHandle = paneHandlesRef.current.get('price');
-      const vp = priceHandle?.getViewport();
-      if (vp) {
-        const shifted = adjustViewportForPrepend(vp, added);
-        priceHandle?.syncTimeWindow(shifted.startIndex, shifted.endIndex, true);
-        syncSiblings(shifted.startIndex, shifted.endIndex, 'price');
-      }
-      baseCandlesRef.current = merged;
-      setBaseCandles(merged);
-      onCandlesChangeRef.current?.(merged);
-    } catch (e: unknown) {
-      if (e instanceof DOMException && e.name === 'AbortError') return;
-      fetchStateRef.current.hasMoreHistory = false;
-    } finally {
-      fetchStateRef.current.inFlight = false;
-      fetchStateRef.current.abortController = null;
-    }
+    prefetchControllerRef.current?.scheduleViewportCheck();
   }, [syncSiblings]);
 
   const registerPane: RegisterPane = useCallback((handle) => {
     paneHandlesRef.current.set(handle.paneId, handle);
     return () => paneHandlesRef.current.delete(handle.paneId);
   }, []);
-
-  const handleViewport = useCallback((vp: VisibleRange, paneId: string) => {
-    if (paneId === 'price') latestVpRef.current = vp;
-    syncSiblings(vp.startIndex, vp.endIndex, paneId);
-
-    if (
-      paneId !== 'price' ||
-      !userPannedTimeAxisRef.current ||
-      !shouldPrefetchEdge(vp.startIndex)
-    ) {
-      return;
-    }
-    if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
-    prefetchTimerRef.current = setTimeout(() => {
-      prefetchTimerRef.current = null;
-      void runEdgeFetch();
-    }, 150);
-  }, [syncSiblings, runEdgeFetch]);
 
   const flushWheel = useCallback(() => {
     wheelRafRef.current = null;
@@ -686,7 +691,12 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
       vp = priceHandle.applyWheelAction(action, batch.anchorX);
     }
 
-    if (vp) syncSiblings(vp.startIndex, vp.endIndex, 'price');
+    if (vp) {
+      syncSiblings(vp.startIndex, vp.endIndex, 'price');
+      if (action.type === 'pan') {
+        prefetchControllerRef.current?.maybePrefetch();
+      }
+    }
   }, [syncSiblings]);
 
   // Single non-passive wheel listener on the chart container — one authority, rAF-batched.
@@ -987,6 +997,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                         theme={theme}
                         chartSettings={chartSettings}
                         marketSessionLabel={marketSessionLabel}
+                        livePrice={livePrice}
                         compact={pane.isCollapsed}
                         contextSlot={pane.isCollapsed ? undefined : legendContextSlot}
                         leadingSlot={pane.isCollapsed ? undefined : legendLeadingSlot}
@@ -1002,7 +1013,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                             sections={sections}
                             theme={theme}
                             onAction={handleLegendAction}
-                            style={{ top: `${28 + idx * 22}px` }}
+                            style={{ top: `${32 + idx * 22}px` }}
                           />
                         );
                       })}

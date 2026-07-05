@@ -117,12 +117,12 @@ export function applyCandleStreamEvent(
   }
 }
 
-export const EDGE_FETCH_BAR_COUNT = 200;
-export const PREFETCH_START_INDEX_THRESHOLD = 30;
-
-export function shouldPrefetchEdge(startIndex: number, threshold = PREFETCH_START_INDEX_THRESHOLD): boolean {
-  return startIndex < threshold;
-}
+export {
+  EDGE_FETCH_BAR_COUNT,
+  HISTORY_FETCH_BAR_COUNT,
+  PREFETCH_START_INDEX_THRESHOLD,
+  shouldPrefetchEdge,
+} from './historyPrefetch';
 
 export type EnsureCandlesCoverResult = {
   candles: Candle[];

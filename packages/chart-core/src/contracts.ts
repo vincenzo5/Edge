@@ -87,7 +87,7 @@ export type CellConfig = {
 
 export type Theme = 'light' | 'dark';
 
-export type GridMode = '1x1' | '2x1' | '2x2' | '3x1' | '1x2';
+export type GridMode = string;
 
 export const PRICE_PANE_KEY = 'price';
 

@@ -2,9 +2,9 @@
 
 import { useMemo, type ReactNode } from 'react';
 import type { Candle, Interval, Theme } from '@edge/chart-core';
-import { resolvePriceLegend } from '../engine/legend';
+import { resolvePriceLegendLayout } from '../engine/priceLegendLayout';
 import type { ChartSettings } from '../engine/chartSettings';
-import PaneLegendBar from './PaneLegendBar';
+import PriceLegendLayout from './PriceLegendLayout';
 
 type Props = {
   symbol: string;
@@ -16,7 +16,7 @@ type Props = {
   theme: Theme;
   chartSettings?: ChartSettings;
   marketSessionLabel?: string | null;
-  onAction?: (actionId: string) => void;
+  livePrice?: number | null;
   compact?: boolean;
   /** Optional second-line content below the OHLCV legend (e.g. market context breadcrumb). */
   contextSlot?: ReactNode;
@@ -33,44 +33,53 @@ export default function ChartLegendBar({
   dataIndex,
   theme,
   chartSettings,
-  marketSessionLabel,
-  onAction,
+  marketSessionLabel: _marketSessionLabel,
+  livePrice = null,
   compact = false,
   contextSlot,
   leadingSlot,
 }: Props) {
-  const displayName = symbolName ?? symbol;
-  const displayExchange = exchange ?? '';
+  void theme;
 
-  const sections = useMemo(
+  const layout = useMemo(
     () =>
-      resolvePriceLegend({
+      resolvePriceLegendLayout({
         symbol,
-        symbolName: displayName,
-        exchange: displayExchange,
+        symbolName,
+        exchange,
         interval,
         candles,
         dataIndex,
         chartSettings,
+        livePrice,
+        compact,
       }),
-    [symbol, displayName, displayExchange, interval, candles, dataIndex, chartSettings],
+    [
+      symbol,
+      symbolName,
+      exchange,
+      interval,
+      candles,
+      dataIndex,
+      chartSettings,
+      livePrice,
+      compact,
+    ],
   );
 
-  if (!sections) return null;
+  if (!layout) return null;
 
   return (
-    <div className="relative">
-      {marketSessionLabel && chartSettings?.statusLine?.showMarketStatus !== false ? (
-        <span className="pointer-events-none absolute right-2 top-0 z-10 rounded-[var(--edge-radius-xs)] bg-[var(--edge-surface-panel)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--edge-text-muted)]">
-          {marketSessionLabel}
-        </span>
-      ) : null}
-      <PaneLegendBar sections={sections} theme={theme} onAction={onAction} compact={compact} leading={compact ? undefined : leadingSlot} />
-      {!compact && contextSlot ? (
-        <div className="pointer-events-none absolute left-2 top-[36px] z-10 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-1 [&>*]:pointer-events-auto">
-          {contextSlot}
-        </div>
-      ) : null}
+    <div
+      className="absolute left-2 top-2 z-10 max-w-[calc(100%-1rem)]"
+      data-testid="chart-legend-bar"
+    >
+      <PriceLegendLayout
+        layout={layout}
+        leadingSlot={compact ? undefined : leadingSlot}
+        contextSlot={!compact ? contextSlot : undefined}
+        compact={compact}
+      />
     </div>
   );
 }

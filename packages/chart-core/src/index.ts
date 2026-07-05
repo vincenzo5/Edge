@@ -69,6 +69,21 @@ export {
   EDGE_FETCH_BAR_COUNT,
   PREFETCH_START_INDEX_THRESHOLD,
 } from './series';
+export type { HistoryPrefetchInput } from './historyPrefetch';
+export {
+  HISTORY_FETCH_BAR_COUNT,
+  HISTORY_PREFETCH_DEBOUNCE_MS,
+  HISTORY_PREFETCH_LOOKAHEAD_RATIO,
+  HISTORY_PREFETCH_MIN_THRESHOLD,
+  HISTORY_URGENT_LOOKAHEAD_RATIO,
+  HISTORY_URGENT_MIN_THRESHOLD,
+  HISTORY_BACKGROUND_PREFETCH_PAGES,
+  computePrefetchThreshold,
+  computeUrgentThreshold,
+  shouldPrefetchHistory,
+  isUrgentPrefetch,
+  shouldBackgroundPrefetch,
+} from './historyPrefetch';
 export type { ApplyCandleStreamResult } from './series';
 
 export type { SerializedChartState, ChartStateValidationResult } from './chartState';

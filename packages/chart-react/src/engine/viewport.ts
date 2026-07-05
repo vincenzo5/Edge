@@ -50,7 +50,7 @@ export const TIME_SCALE_SENSITIVITY = 2.0;
 /** Vertical price-axis drag: higher = scale faster per pixel. */
 export const PRICE_SCALE_SENSITIVITY = 1.0;
 /** Extra virtual candles allowed past first/last bar when panning horizontally. */
-export const SCROLL_BUFFER_CANDLES = 100;
+export const SCROLL_BUFFER_CANDLES = 40;
 
 function scrollMinStart() {
   return -SCROLL_BUFFER_CANDLES;
