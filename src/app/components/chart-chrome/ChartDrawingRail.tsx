@@ -3,16 +3,19 @@
 import DrawingToolbar, { resolveGroupSelections } from '../DrawingToolbar';
 import { useActiveChart } from '../ActiveChartContext';
 import type { Theme, ToolbarPrefs } from '@/lib/chartConfig';
+import type { RailMode } from '@/lib/responsive/responsiveLayout';
 import type { DrawingToolName } from '../chart-icons/toolGroups';
 
 type Props = {
   theme: Theme;
+  railMode?: RailMode;
   toolbarPrefs: ToolbarPrefs;
   onToolbarPrefsChange: (next: ToolbarPrefs) => void;
 };
 
 export default function ChartDrawingRail({
   theme,
+  railMode = 'full',
   toolbarPrefs,
   onToolbarPrefsChange,
 }: Props) {
@@ -38,7 +41,7 @@ export default function ChartDrawingRail({
     >
       <DrawingToolbar
         theme={theme}
-        compact
+        railMode={railMode}
         disabled={!snapshot}
         activeTool={toolbarState?.activeTool ?? '__cursor__'}
         magnet={magnet}

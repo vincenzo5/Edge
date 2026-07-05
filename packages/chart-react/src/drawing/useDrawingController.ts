@@ -334,7 +334,6 @@ export function useDrawingController(deps: DrawingControllerDeps) {
         const drawing = paneDrawings.find((d) => d.id === state.draggingDrawingId);
         const plugin = drawing ? getPluginForTool(drawing.name) : undefined;
         if (drawing && plugin?.updateFromControl && !drawing.locked) {
-          const pt = getPoint();
           const updated = plugin.updateFromControl(
             drawing,
             state.draggingCpIndex,
@@ -344,12 +343,6 @@ export function useDrawingController(deps: DrawingControllerDeps) {
             candlesRef.current,
             showTimeAxis,
           );
-          updated.points[state.draggingCpIndex] = {
-            ...updated.points[state.draggingCpIndex],
-            timestamp: pt.timestamp,
-            value: pt.value,
-            dataIndex: pt.dataIndex,
-          };
           drawingStoreRef.current.replaceDrawing(drawing.id!, updated);
         }
         return true;

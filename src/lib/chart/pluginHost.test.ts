@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { DrawingRegistry } from "@edge/chart-core/pluginHost";
 import { serializeAll } from "./pluginHost";
 import type { SerializedDrawing } from "./contracts";
+
+describe("DrawingRegistry aliases", () => {
+  it("resolves shortPosition toolbar name to short_position plugin", () => {
+    expect(DrawingRegistry.resolveName("shortPosition")).toBe("short_position");
+    expect(DrawingRegistry.get("shortPosition")?.name).toBe("short_position");
+  });
+});
 
 describe("serializeAll metadata", () => {
   it("preserves drawing metadata", () => {

@@ -46,6 +46,15 @@ export const DRAWING_TOOL_GROUPS: ToolGroup[] = [
     defaultTool: "simpleAnnotation",
     tools: [{ name: "simpleAnnotation", label: "Text" }],
   },
+  {
+    id: "forecasting",
+    label: "Forecasting",
+    defaultTool: "longPosition",
+    tools: [
+      { name: "longPosition", label: "Long Position" },
+      { name: "shortPosition", label: "Short Position" },
+    ],
+  },
 ];
 
 /** Standalone utility tools (TV §6.9) — not in a flyout group. */

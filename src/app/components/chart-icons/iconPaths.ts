@@ -26,6 +26,8 @@ export type ChartIconId =
   | "measure"
   | "ruler"
   | "risk-ruler"
+  | "long-position"
+  | "short-position"
   | "zoom-in"
   | "magnet"
   | "keep-drawing"
@@ -135,6 +137,22 @@ export const CHART_ICON_MARKUP: Record<ChartIconId, string> = {
     <line x1="14" y1="14" x2="16" y2="12"/>
     <line x1="17" y1="11" x2="19" y2="9"/>
     <text x="14" y="24" font-size="6" fill="currentColor" stroke="none" text-anchor="middle">R</text>
+  `,
+  "long-position": `
+    <circle cx="8" cy="9" r="1.75"/>
+    <line x1="8" y1="9" x2="22" y2="9"/>
+    <line x1="11" y1="14" x2="22" y2="14"/>
+    <circle cx="8" cy="19" r="1.75"/>
+    <line x1="8" y1="19" x2="22" y2="19"/>
+    <text x="14" y="12.5" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">L</text>
+  `,
+  "short-position": `
+    <circle cx="8" cy="9" r="1.75"/>
+    <line x1="8" y1="9" x2="22" y2="9"/>
+    <line x1="11" y1="14" x2="22" y2="14"/>
+    <circle cx="8" cy="19" r="1.75"/>
+    <line x1="8" y1="19" x2="22" y2="19"/>
+    <text x="14" y="17" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">S</text>
   `,
   "zoom-in": `
     <circle cx="12" cy="12" r="5.5"/>

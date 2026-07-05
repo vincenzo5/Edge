@@ -344,7 +344,7 @@ export default function ChartCanvas({
 
   const buildSessionViewport = useCallback(() => {
     let vp = isPricePane
-      ? getSessionViewport(candles, width, height, rangePreset ?? null)
+      ? getSessionViewport(candles, width, height, rangePreset ?? null, interval)
       : getDefaultViewport(candles, width, height);
     vp = attachViewportHelpers(
       {
@@ -355,7 +355,7 @@ export default function ChartCanvas({
       candles.length,
     );
     return fitPriceScaleIfAuto(vp);
-  }, [candles, width, height, rangePreset, isPricePane, showTimeAxis, eventMarkers.length, fitPriceScaleIfAuto]);
+  }, [candles, width, height, rangePreset, interval, isPricePane, showTimeAxis, eventMarkers.length, fitPriceScaleIfAuto]);
 
   const drawWithReasons = useCallback(
     (reasons: ReadonlySet<DrawInvalidationReason>) => {
@@ -595,7 +595,7 @@ export default function ChartCanvas({
       if (paneId === 'price') {
         next = attachViewportHelpers(
           {
-            ...getSessionViewport(candles, width, height, rangePreset ?? null),
+            ...getSessionViewport(candles, width, height, rangePreset ?? null, interval),
             reserveTimeAxis: showTimeAxis,
             reserveEventRail: eventMarkers.length > 0 && showTimeAxis,
           },
@@ -642,10 +642,20 @@ export default function ChartCanvas({
 
     const isViewportModified = (): boolean => {
       if (!vpRef.current || candles.length === 0) return false;
-      return isViewportModifiedFn(vpRef.current, candles, width, height, (vp) => {
-        const auto = fitPriceScale({ ...vp, priceScaleMode: 'auto' } as VisibleRange);
-        return { priceMin: auto.priceMin, priceMax: auto.priceMax };
-      });
+      const baseline = isPricePane
+        ? getSessionViewport(candles, width, height, rangePreset ?? null, interval)
+        : getDefaultViewport(candles, width, height);
+      return isViewportModifiedFn(
+        vpRef.current,
+        candles,
+        width,
+        height,
+        (vp) => {
+          const auto = fitPriceScale({ ...vp, priceScaleMode: 'auto' } as VisibleRange);
+          return { priceMin: auto.priceMin, priceMax: auto.priceMax };
+        },
+        baseline,
+      );
     };
 
     return registerPane({
@@ -659,7 +669,7 @@ export default function ChartCanvas({
       isViewportModified,
       getLastDrawPhases: () => schedulerRef.current?.getLastPhases() ?? null,
     });
-  }, [registerPane, paneId, candles, fitPriceScaleIfAuto, width, height, indicators, rangePreset, showTimeAxis, drawNow, chartSettings, isPricePane]);
+  }, [registerPane, paneId, candles, fitPriceScaleIfAuto, width, height, indicators, rangePreset, interval, showTimeAxis, drawNow, chartSettings, isPricePane]);
 
   useEffect(() => {
     drawNow('data');

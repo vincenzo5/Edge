@@ -13,7 +13,7 @@ The left rail in `ChartCell` is ordered top-to-bottom:
 | Section | Items | Behavior |
 |---------|-------|----------|
 | **Cursor** | Crosshair | Disarms drawing; returns to selection/navigation mode |
-| **Drawing groups** | Lines, Channels & Shapes, Annotation | Flyout menus; group button shows last/active tool icon |
+| **Drawing groups** | Lines, Channels & Shapes, Annotation, Forecasting | Flyout menus; group button shows last/active tool icon |
 | **Utilities** | Zoom in, Measure | Single-click actions (Measure arms drawing tool in Phase 1) |
 | **Workflow toggles** | Magnet, Keep drawing, Lock all, Hide all | Toggle buttons; state persisted in layout |
 | **Destructive** | Delete selected, Clear all | Delete selected appears only when a drawing is selected |
@@ -54,7 +54,7 @@ Edge implements a **subset** of TV's 110+ tools via three flyout groups plus sta
 | §6.2 Channels | `shapes` (partial) | Parallel channel, price channel | **Have** — pitchforks, regression **Phase 3** |
 | §6.3 Fibonacci / Gann | `shapes` | Fib retracement | **Have (1)** — fan, arc, time zone **Phase 3** |
 | §6.4 Patterns | — | — | **Omit V3** |
-| §6.5 Forecasting | — | — | **Omit V3**; date/price range measurers **Phase 2** |
+| §6.5 Forecasting | `forecasting` | Long position, short position | **Have (2)** — forecast, bars pattern **Omit V3**; date/price range measurers **Phase 2** |
 | §6.6 Geometric shapes | `shapes` | Rectangle, circle | **Have** — brush, highlighter **Phase 2** |
 | §6.7 Annotation | `annotation` | Text | **Have** — note, callout, pin **Phase 3** |
 | §6.8 Icons | — | — | **Omit V3** |

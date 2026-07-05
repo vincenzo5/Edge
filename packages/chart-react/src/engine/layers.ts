@@ -336,7 +336,11 @@ function drawDrawingsLayer(state: LayerDrawState): void {
     const plugin = DrawingRegistry.get(d.name);
     if (plugin) {
       const selected = d.id === selectedDrawingId;
-      plugin.draw(ctx, d, vp, theme, selected, candles, { showTimeAxis, interval });
+      plugin.draw(ctx, d, vp, theme, selected, candles, {
+        hovered: Boolean(d.id && d.id === hoveredDrawingId),
+        showTimeAxis,
+        interval,
+      });
       if (d.metadata?.kind && d.points.length > 0) {
         const anchor = pointToPlot(d.points[0]!, vp, candles, showTimeAxis);
         drawAnnotationBadge(ctx, d, anchor, theme);

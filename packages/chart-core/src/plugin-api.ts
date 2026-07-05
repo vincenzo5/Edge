@@ -86,6 +86,7 @@ export type DrawingPlacement = 'one-point' | 'two-point' | 'multi-point';
 
 export type DrawingDrawOptions = {
   preview?: boolean;
+  hovered?: boolean;
   showTimeAxis?: boolean;
   interval?: Interval;
 };

@@ -10,6 +10,8 @@ import { priceLine, annotation } from './annotation';
 import { measure } from './measure';
 import { riskRuler } from './risk_ruler';
 import { ruler } from './ruler';
+import { longPosition } from './long_position';
+import { shortPosition } from './short_position';
 
 const reg = new Map<string, DrawingPlugin>();
 
@@ -39,3 +41,5 @@ registerDrawing(annotation);
 registerDrawing(measure);
 registerDrawing(riskRuler);
 registerDrawing(ruler);
+registerDrawing(longPosition);
+registerDrawing(shortPosition);

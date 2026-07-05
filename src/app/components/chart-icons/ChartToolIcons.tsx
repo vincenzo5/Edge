@@ -52,6 +52,8 @@ export const TextAnnotationIcon = (p: IconProps) => (
 export const MeasureIcon = (p: IconProps) => <ChartIcon {...p} id="measure" />;
 export const RulerIcon = (p: IconProps) => <ChartIcon {...p} id="ruler" />;
 export const RiskRulerIcon = (p: IconProps) => <ChartIcon {...p} id="risk-ruler" />;
+export const LongPositionIcon = (p: IconProps) => <ChartIcon {...p} id="long-position" />;
+export const ShortPositionIcon = (p: IconProps) => <ChartIcon {...p} id="short-position" />;
 export const ZoomInIcon = (p: IconProps) => <ChartIcon {...p} id="zoom-in" />;
 export const MagnetIcon = (p: IconProps) => <ChartIcon {...p} id="magnet" />;
 export const KeepDrawingIcon = (p: IconProps) => (
@@ -91,4 +93,6 @@ export const CHART_TOOL_ICONS = {
   measure: MeasureIcon,
   rulerTool: RulerIcon,
   riskRuler: RiskRulerIcon,
+  longPosition: LongPositionIcon,
+  shortPosition: ShortPositionIcon,
 } as const;

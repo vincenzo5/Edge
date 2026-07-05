@@ -285,11 +285,11 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 
 **Toolbar design:** [drawing-toolbar-design.md](./drawing-toolbar-design.md) — grouped flyouts, utilities rail, icon system, persistence, phased TV parity.
 
-**Toolbar layout:** Left rail in `ChartCell` — cursor + 3 grouped flyouts (Lines, Channels & Shapes, Annotation) + utilities (zoom, measure, ruler, magnet, keep-drawing, lock-all, hide-all, delete, clear).
+**Toolbar layout:** Left rail in `ChartCell` — cursor + 4 grouped flyouts (Lines, Channels & Shapes, Annotation, Forecasting) + utilities (zoom, measure, ruler, risk ruler, magnet, keep-drawing, lock-all, hide-all, delete, clear).
 
-**Registry aliases** (`pluginHost.ts`): 14 names mapped to registry keys (11 grouped flyout tools + measure + ruler utilities + `riskRuler` preset alias).
+**Registry aliases** (`pluginHost.ts`): 16 names mapped to registry keys (13 grouped flyout tools + measure + ruler + risk ruler utilities).
 
-**Engine registry** (`drawings/registry.ts`): 14 plugins registered (11 geometry + measure + ruler + `risk_ruler`).
+**Engine registry** (`drawings/registry.ts`): 16 plugins registered (11 geometry + measure + ruler + risk_ruler + long_position + short_position).
 
 | Tool (toolbar name) | Registry name | Status |
 |---------------------|---------------|--------|
@@ -306,10 +306,12 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Annotation | `annotation` | **Done** |
 | Measure (utility §6.9) | `measure` | **Done** (persisted; ephemeral in Phase 2) |
 | Ruler (utility §6.9) | `ruler` | **Done** — shaded Δtime/Δprice band; bar count + cumulative volume; ⇧+click on price pane or toolbar |
+| Long Position (`longPosition`) | `long_position` | **Done** — green target / red stop box; 6-handle resize; target/entry/stop labels |
+| Short Position (`shortPosition`) | `short_position` | **Done** — red stop / green target box; 6-handle resize; target/entry/stop labels |
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Grouped toolbar flyouts | **Done** | Lines, Channels & Shapes, Annotation; hover (desktop) / pin (touch) |
+| Grouped toolbar flyouts | **Done** | Lines, Channels & Shapes, Annotation, Forecasting; hover (desktop) / pin (touch) |
 | Toolbar utilities rail | **Done** | Zoom, measure, ruler, magnet, keep-drawing, lock-all, hide-all, delete, clear |
 | Toolbar prefs persistence | **Done** | `ChartLayout.toolbarPrefs` — group selections, magnet, keep-drawing |
 | Start/stop drawing tool | **Done** | FSM: return to cursor after create unless keep-drawing ON |

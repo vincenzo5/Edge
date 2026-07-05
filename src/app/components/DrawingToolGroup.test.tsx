@@ -54,7 +54,7 @@ describe("DrawingToolGroup", () => {
     );
   }
 
-  it("arms last selection on click when pointer is fine", () => {
+  it("opens flyout on click when pointer is fine and group has multiple tools", () => {
     Object.defineProperty(window, "matchMedia", {
       writable: true,
       value: vi.fn().mockImplementation(() => ({
@@ -67,7 +67,9 @@ describe("DrawingToolGroup", () => {
 
     renderGroup();
     fireEvent.click(screen.getByRole("button", { name: groupButtonName }));
-    expect(onSelect).toHaveBeenCalledWith("straightLine");
+    expect(onPin).toHaveBeenCalled();
+    expect(onOpen).toHaveBeenCalled();
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("pins flyout on tap when pointer is coarse", () => {
@@ -117,5 +119,76 @@ describe("DrawingToolGroup", () => {
     expect(onSelect).toHaveBeenCalledWith("horizontalStraightLine");
     expect(onClose).toHaveBeenCalled();
     expect(onUnpin).toHaveBeenCalled();
+  });
+});
+
+describe("DrawingToolGroup forecasting", () => {
+  const forecastingGroup = DRAWING_TOOL_GROUPS.find((g) => g.id === "forecasting")!;
+  const onOpen = vi.fn();
+  const onClose = vi.fn();
+  const onPin = vi.fn();
+  const onUnpin = vi.fn();
+  const onSelect = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation(() => ({
+        matches: false,
+        media: "(pointer: coarse)",
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+  });
+
+  function renderForecastingGroup(
+    overrides: Partial<ComponentProps<typeof DrawingToolGroup>> = {},
+  ) {
+    return render(
+      <DrawingToolGroup
+        theme="dark"
+        group={forecastingGroup}
+        selectedTool="longPosition"
+        activeTool="__cursor__"
+        iconSize={22}
+        compact={false}
+        disabled={false}
+        isOpen={false}
+        isPinned={false}
+        onOpen={onOpen}
+        onClose={onClose}
+        onPin={onPin}
+        onUnpin={onUnpin}
+        onSelect={onSelect}
+        {...overrides}
+      />,
+    );
+  }
+
+  it("renders long and short position menu items when open", () => {
+    renderForecastingGroup({ isOpen: true });
+    expect(screen.getByRole("menu", { name: "Forecasting" })).toBeTruthy();
+    expect(screen.getByRole("menuitemradio", { name: "Long Position" })).toBeTruthy();
+    expect(screen.getByRole("menuitemradio", { name: "Short Position" })).toBeTruthy();
+  });
+
+  it("selects short position from flyout", () => {
+    renderForecastingGroup({ isOpen: true, isPinned: true });
+    fireEvent.click(screen.getByText("Short Position"));
+    expect(onSelect).toHaveBeenCalledWith("shortPosition");
+    expect(onClose).toHaveBeenCalled();
+    expect(onUnpin).toHaveBeenCalled();
+  });
+
+  it("shows short position label when active", () => {
+    renderForecastingGroup({
+      selectedTool: "shortPosition",
+      activeTool: "shortPosition",
+    });
+    expect(
+      screen.getByRole("button", { name: "Forecasting — Short Position" }),
+    ).toBeTruthy();
   });
 });

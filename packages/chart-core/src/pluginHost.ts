@@ -24,6 +24,8 @@ export const drawingAliases: Record<string, string> = {
   measure: 'measure',
   riskRuler: 'risk_ruler',
   rulerTool: 'ruler',
+  longPosition: 'long_position',
+  shortPosition: 'short_position',
 };
 
 export const DrawingRegistry = {

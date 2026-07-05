@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
 import type { Theme } from "@/lib/chartConfig";
 import Tooltip from "./Tooltip";
 import {
@@ -31,6 +40,15 @@ type Props = {
   onSelect: (toolName: DrawingToolName) => void;
 };
 
+function flyoutPanelStyle(rect: DOMRect): CSSProperties {
+  return {
+    position: "fixed",
+    top: rect.top,
+    left: rect.right + 4,
+    zIndex: 10_000,
+  };
+}
+
 export default function DrawingToolGroup({
   theme,
   group,
@@ -51,6 +69,8 @@ export default function DrawingToolGroup({
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const [flyoutStyle, setFlyoutStyle] = useState<CSSProperties | null>(null);
+  const hasMultipleTools = group.tools.length > 1;
 
   const isGroupActive = group.tools.some((t) => t.name === activeTool);
   const displayTool = isGroupActive
@@ -64,11 +84,17 @@ export default function DrawingToolGroup({
     activeItem?.label ?? selectedItem?.label ?? defaultItem?.label ?? group.label;
   const groupTooltip = `${group.label} — ${buttonLabel}`;
 
+  const updateFlyoutPosition = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    setFlyoutStyle(flyoutPanelStyle(el.getBoundingClientRect()));
+  }, []);
+
   const clearCloseTimer = useCallback(() => {
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
-      closeTimer.current = null;
     }
+    closeTimer.current = null;
   }, []);
 
   const scheduleClose = useCallback(() => {
@@ -76,6 +102,16 @@ export default function DrawingToolGroup({
     clearCloseTimer();
     closeTimer.current = setTimeout(onClose, 120);
   }, [clearCloseTimer, coarse, isPinned, onClose]);
+
+  const toggleFlyout = useCallback(() => {
+    if (isOpen) {
+      onClose();
+      onUnpin();
+      return;
+    }
+    onPin();
+    onOpen();
+  }, [isOpen, onClose, onOpen, onPin, onUnpin]);
 
   const handleEnter = () => {
     if (coarse || disabled) return;
@@ -91,14 +127,8 @@ export default function DrawingToolGroup({
 
   const handleGroupClick = () => {
     if (disabled) return;
-    if (coarse) {
-      if (isOpen) {
-        onClose();
-        onUnpin();
-      } else {
-        onPin();
-        onOpen();
-      }
+    if (coarse || hasMultipleTools) {
+      toggleFlyout();
       return;
     }
     onSelect(selectedTool);
@@ -108,21 +138,15 @@ export default function DrawingToolGroup({
     if (disabled) return;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      if (coarse || isPinned) {
-        if (isOpen) {
-          onClose();
-          onUnpin();
-        } else {
-          onPin();
-          onOpen();
-        }
+      if (coarse || hasMultipleTools) {
+        toggleFlyout();
       } else {
         onSelect(selectedTool);
       }
     }
     if (e.key === "ArrowDown" && isOpen) {
       e.preventDefault();
-      const first = containerRef.current?.querySelector<HTMLElement>(
+      const first = document.getElementById(menuId)?.querySelector<HTMLElement>(
         '[role="menuitemradio"]',
       );
       first?.focus();
@@ -134,17 +158,35 @@ export default function DrawingToolGroup({
     }
   };
 
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setFlyoutStyle(null);
+      return;
+    }
+    updateFlyoutPosition();
+    const onLayoutChange = () => updateFlyoutPosition();
+    window.addEventListener("scroll", onLayoutChange, true);
+    window.addEventListener("resize", onLayoutChange);
+    return () => {
+      window.removeEventListener("scroll", onLayoutChange, true);
+      window.removeEventListener("resize", onLayoutChange);
+    };
+  }, [isOpen, updateFlyoutPosition]);
+
   // Dismiss pinned flyout on outside tap.
   useEffect(() => {
     if (!isPinned || !isOpen) return;
     const onPointerDown = (e: PointerEvent) => {
-      if (containerRef.current?.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      const menu = document.getElementById(menuId);
+      if (menu?.contains(target)) return;
       onClose();
       onUnpin();
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [isOpen, isPinned, onClose, onUnpin]);
+  }, [isOpen, isPinned, menuId, onClose, onUnpin]);
 
   // Global Escape closes pinned flyout.
   useEffect(() => {
@@ -158,6 +200,55 @@ export default function DrawingToolGroup({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose, onUnpin]);
+
+  const flyoutPanel =
+    isOpen && !disabled ? (
+      <div
+        id={menuId}
+        role="menu"
+        aria-label={group.label}
+        className="min-w-[200px] overflow-hidden rounded border border-[#1e222d] bg-[#131722] py-1 shadow-lg"
+        style={flyoutStyle ?? { visibility: "hidden" }}
+        onMouseEnter={clearCloseTimer}
+        onMouseLeave={scheduleClose}
+      >
+        <div className="border-b border-[#1e222d] px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[#787b86]">
+          {group.label}
+        </div>
+        {group.tools.map((tool) => {
+          const Icon = getToolIcon(tool.name);
+          const isActive = activeTool === tool.name;
+          return (
+            <Tooltip
+              key={tool.name}
+              content={tool.label}
+              theme={theme}
+              side="right"
+              portaled
+              className="block w-full"
+            >
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={isActive}
+                aria-label={tool.label}
+                onClick={() => handleSelect(tool.name)}
+                className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
+                  isActive
+                    ? "bg-[#2a2e39] text-[#d1d4dc]"
+                    : "text-[#d1d4dc] hover:bg-[#1e222d]"
+                }`}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center text-[#787b86]">
+                  <Icon size={22} />
+                </span>
+                <span>{tool.label}</span>
+              </button>
+            </Tooltip>
+          );
+        })}
+      </div>
+    ) : null;
 
   return (
     <div
@@ -176,58 +267,23 @@ export default function DrawingToolGroup({
           disabled={disabled}
           onClick={handleGroupClick}
           onKeyDown={handleGroupKeyDown}
-          className={`${iconRailButtonClass(compact)} ${toolbarButtonStateClass(isGroupActive)}`}
+          className={`relative ${iconRailButtonClass(compact)} ${toolbarButtonStateClass(isGroupActive)}`}
         >
           <DisplayIcon size={iconSize} />
+          {hasMultipleTools ? (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute bottom-0.5 right-0.5 text-[9px] leading-none text-[var(--edge-text-rail)] opacity-80"
+            >
+              ▸
+            </span>
+          ) : null}
         </button>
       </Tooltip>
 
-      {isOpen && !disabled && (
-        <div
-          id={menuId}
-          role="menu"
-          aria-label={group.label}
-          className="absolute left-full top-0 z-50 ml-1 min-w-[200px] overflow-hidden rounded border border-[#1e222d] bg-[#131722] py-1 shadow-lg"
-          onMouseEnter={clearCloseTimer}
-          onMouseLeave={scheduleClose}
-        >
-          <div className="border-b border-[#1e222d] px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[#787b86]">
-            {group.label}
-          </div>
-          {group.tools.map((tool) => {
-            const Icon = getToolIcon(tool.name);
-            const isActive = activeTool === tool.name;
-            return (
-              <Tooltip
-                key={tool.name}
-                content={tool.label}
-                theme={theme}
-                side="right"
-                portaled
-                className="block w-full"
-              >
-                <button
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={isActive}
-                  aria-label={tool.label}
-                  onClick={() => handleSelect(tool.name)}
-                  className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
-                    isActive
-                      ? "bg-[#2a2e39] text-[#d1d4dc]"
-                      : "text-[#d1d4dc] hover:bg-[#1e222d]"
-                  }`}
-                >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center text-[#787b86]">
-                    <Icon size={22} />
-                  </span>
-                  <span>{tool.label}</span>
-                </button>
-              </Tooltip>
-            );
-          })}
-        </div>
-      )}
+      {flyoutPanel && typeof document !== "undefined"
+        ? createPortal(flyoutPanel, document.body)
+        : null}
     </div>
   );
 }

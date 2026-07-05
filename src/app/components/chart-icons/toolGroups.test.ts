@@ -3,17 +3,19 @@ import {
   DRAWING_TOOL_GROUPS,
   MEASURE_TOOL,
   findGroupForTool,
+  getToolIcon,
   initialGroupSelections,
   isGroupedDrawingTool,
 } from "./toolGroups";
 
 describe("toolGroups", () => {
-  it("defines three flyout groups", () => {
-    expect(DRAWING_TOOL_GROUPS).toHaveLength(3);
+  it("defines four flyout groups", () => {
+    expect(DRAWING_TOOL_GROUPS).toHaveLength(4);
     expect(DRAWING_TOOL_GROUPS.map((g) => g.id)).toEqual([
       "lines",
       "shapes",
       "annotation",
+      "forecasting",
     ]);
   });
 
@@ -41,12 +43,21 @@ describe("toolGroups", () => {
     expect(findGroupForTool("straightLine")?.id).toBe("lines");
     expect(findGroupForTool("rect")?.id).toBe("shapes");
     expect(findGroupForTool("simpleAnnotation")?.id).toBe("annotation");
+    expect(findGroupForTool("longPosition")?.id).toBe("forecasting");
+    expect(findGroupForTool("shortPosition")?.id).toBe("forecasting");
     expect(findGroupForTool("measure")).toBeUndefined();
     expect(findGroupForTool("__cursor__")).toBeUndefined();
   });
 
   it("isGroupedDrawingTool excludes measure and cursor", () => {
     expect(isGroupedDrawingTool("straightLine")).toBe(true);
+    expect(isGroupedDrawingTool("longPosition")).toBe(true);
+    expect(isGroupedDrawingTool("shortPosition")).toBe(true);
     expect(isGroupedDrawingTool("measure")).toBe(false);
+  });
+
+  it("getToolIcon resolves forecasting position tools", () => {
+    expect(getToolIcon("longPosition")).toBeDefined();
+    expect(getToolIcon("shortPosition")).toBeDefined();
   });
 });
