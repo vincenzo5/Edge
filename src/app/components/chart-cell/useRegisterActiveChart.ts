@@ -15,6 +15,7 @@ import type {
   ActiveChartCommands,
   ActiveChartDataWindowActions,
   ActiveChartDrawingCommands,
+  ActiveChartDrawingToolbarActions,
   ActiveChartHeaderActions,
   ActiveChartOverlayActions,
   ActiveChartUICommands,
@@ -49,7 +50,12 @@ type Params = {
   addIndicator: (ind: Pick<IndicatorConfig, "name" | "pane">) => void;
   chartCommands: () => ActiveChartCommands;
   drawingCommands: () => ActiveChartDrawingCommands;
+  drawingToolbarActions: () => ActiveChartDrawingToolbarActions;
   uiCommands: () => ActiveChartUICommands;
+  activeTool: string;
+  allLocked: boolean;
+  allHidden: boolean;
+  hasDrawingSelection: boolean;
 };
 
 export function useRegisterActiveChart({
@@ -80,10 +86,19 @@ export function useRegisterActiveChart({
   addIndicator,
   chartCommands,
   drawingCommands,
+  drawingToolbarActions,
   uiCommands,
+  activeTool,
+  allLocked,
+  allHidden,
+  hasDrawingSelection,
 }: Params) {
   const chartCommandRefs = useMemo(() => chartCommands(), [chartCommands]);
   const drawingCommandRefs = useMemo(() => drawingCommands(), [drawingCommands]);
+  const drawingToolbarActionRefs = useMemo(
+    () => drawingToolbarActions(),
+    [drawingToolbarActions],
+  );
   const overlayActionRefs = useMemo(() => overlayActions(), [overlayActions]);
   const dataWindowActionRefs = useMemo(() => dataWindowActions(), [dataWindowActions]);
   const uiCommandRefs = useMemo(() => uiCommands(), [uiCommands]);
@@ -191,8 +206,25 @@ export function useRegisterActiveChart({
       dataMeta,
       dataWindow,
       headerState,
+      drawingToolbarState: {
+        activeTool,
+        allLocked,
+        allHidden,
+        hasSelection: hasDrawingSelection,
+      },
     }),
-    [config, theme, overlays, dataMeta, dataWindow, headerState],
+    [
+      config,
+      theme,
+      overlays,
+      dataMeta,
+      dataWindow,
+      headerState,
+      activeTool,
+      allLocked,
+      allHidden,
+      hasDrawingSelection,
+    ],
   );
 
   useEffect(() => {
@@ -214,6 +246,7 @@ export function useRegisterActiveChart({
     activeChartBridge.register(chartId, {
       chartCommands: chartCommandRefs,
       drawingCommands: drawingCommandRefs,
+      drawingToolbarActions: drawingToolbarActionRefs,
       overlayActions: overlayActionRefs,
       dataWindowActions: dataWindowActionRefs,
       uiCommands: uiCommandRefs,
@@ -228,6 +261,7 @@ export function useRegisterActiveChart({
     chartId,
     chartCommandRefs,
     drawingCommandRefs,
+    drawingToolbarActionRefs,
     overlayActionRefs,
     dataWindowActionRefs,
     uiCommandRefs,

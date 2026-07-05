@@ -28,6 +28,15 @@ export default function AppHydrationShell() {
       className="edge-app-shell flex h-screen min-h-0 flex-col overflow-hidden bg-[var(--edge-background)]"
     >
       <div
+        data-testid="app-hydration-tab-bar"
+        className="flex h-8 shrink-0 items-end gap-2 border-b border-[var(--edge-border)] bg-[var(--edge-background)] px-2 pt-0.5"
+        aria-hidden
+      >
+        <EdgeSkeletonLine className="h-5 w-24" />
+        <EdgeSkeletonLine className="h-5 w-20" />
+        <EdgeSkeletonLine className="h-5 w-6" />
+      </div>
+      <div
         data-testid="app-hydration-header"
         className="flex h-9 shrink-0 items-center gap-2 border-b border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-2"
         aria-hidden

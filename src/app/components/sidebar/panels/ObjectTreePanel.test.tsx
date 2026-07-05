@@ -7,14 +7,18 @@ import {
   useActiveChartBridge,
   type ActiveChartSnapshot,
 } from '../../ActiveChartContext';
-import { DEFAULT_CELL, type TrackedOverlay } from '@/lib/chartConfig';
+import { DEFAULT_CELL, DEFAULT_TOOLBAR_PREFS, type TrackedOverlay } from '@/lib/chartConfig';
 import {
   makeDrawingCommandsMock,
+  makeDrawingToolbarActionsMock,
+  makeDrawingToolbarStateMock,
   makeDataWindowActionsMock,
   makeUICommandsMock,
   toActiveChartRegistration,
 } from '@/test/activeChartMocks';
 import type { Candle } from '@/lib/chart/contracts';
+import { AppActionsProvider } from '../../AppActionsContext';
+import type { ChartLayout } from '@/lib/chartConfig';
 
 const candles: Candle[] = [
   { t: 1, o: 10, h: 12, l: 9, c: 11, v: 1000 },
@@ -88,8 +92,43 @@ function makeSnapshot(overrides?: Partial<ActiveChartSnapshot>): ActiveChartSnap
       captureSnapshot: vi.fn(async () => new Blob([new Uint8Array(32)], { type: 'image/png' })),
     },
     drawingCommands: makeDrawingCommandsMock(),
+    drawingToolbarState: makeDrawingToolbarStateMock(),
+    drawingToolbarActions: makeDrawingToolbarActionsMock(),
     uiCommands: makeUICommandsMock(),
     ...overrides,
+  };
+}
+
+function makeLayout(overrides?: Partial<ChartLayout>): ChartLayout {
+  return {
+    layoutId: 'n2-cols',
+    cells: [
+      { ...DEFAULT_CELL, symbol: 'AAPL' },
+      { ...DEFAULT_CELL, symbol: 'MSFT' },
+    ],
+    activeCellIndex: 0,
+    theme: 'dark',
+    linkSymbol: false,
+    linkInterval: false,
+    linkCrosshair: true,
+    linkDrawings: false,
+    toolbarPrefs: DEFAULT_TOOLBAR_PREFS,
+    ...overrides,
+  } as ChartLayout;
+}
+
+function makeAppActions(layout: ChartLayout) {
+  return {
+    getLayout: () => layout,
+    isHydrated: () => true,
+    applyCellUpdate: vi.fn(),
+    patchActiveCell: vi.fn(),
+    setActiveCellIndex: vi.fn(),
+    setLayoutId: vi.fn(),
+    setGridMode: vi.fn(),
+    setLayoutSync: vi.fn(),
+    setTheme: vi.fn(),
+    setSidebarPanel: vi.fn(),
   };
 }
 
@@ -351,5 +390,91 @@ describe('ObjectTreePanel', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Data window' }));
     fireEvent.click(screen.getByTitle('Hide price series'));
     expect(setPriceVisible).toHaveBeenCalledWith(false);
+  });
+
+  it('lists all panes in multi-pane layouts', () => {
+    const layout = makeLayout();
+
+    render(
+      <AppActionsProvider value={makeAppActions(layout)}>
+        <ActiveChartProvider>
+          <SeedSnapshot snapshot={makeSnapshot()} />
+          <ObjectTreePanel />
+        </ActiveChartProvider>
+      </AppActionsProvider>,
+    );
+
+    expect(screen.getByText(/AAPL/)).toBeInTheDocument();
+    expect(screen.getByText(/MSFT/)).toBeInTheDocument();
+  });
+
+  it('focuses pane when pane header is clicked in multi-pane layout', () => {
+    const layout = makeLayout();
+    const setActiveCellIndex = vi.fn();
+    const appActions = { ...makeAppActions(layout), setActiveCellIndex };
+
+    render(
+      <AppActionsProvider value={appActions}>
+        <ActiveChartProvider>
+          <SeedSnapshot snapshot={makeSnapshot()} />
+          <ObjectTreePanel />
+        </ActiveChartProvider>
+      </AppActionsProvider>,
+    );
+
+    fireEvent.click(screen.getByText(/MSFT/));
+    expect(setActiveCellIndex).toHaveBeenCalledWith(1);
+  });
+
+  it('updates inactive pane indicators through applyCellUpdate', () => {
+    const layout = makeLayout({
+      cells: [
+        {
+          ...DEFAULT_CELL,
+          symbol: 'AAPL',
+          indicators: [
+            {
+              id: 'ma1',
+              name: 'MA',
+              pane: 'main',
+              params: { period: 20 },
+              visible: true,
+            },
+          ],
+        },
+        {
+          ...DEFAULT_CELL,
+          symbol: 'MSFT',
+          indicators: [
+            {
+              id: 'ma2',
+              name: 'MA',
+              pane: 'main',
+              params: { period: 20 },
+              visible: true,
+            },
+          ],
+        },
+      ],
+    });
+    const applyCellUpdate = vi.fn();
+    const appActions = { ...makeAppActions(layout), applyCellUpdate };
+
+    render(
+      <AppActionsProvider value={appActions}>
+        <ActiveChartProvider>
+          <SeedSnapshot snapshot={makeSnapshot()} />
+          <ObjectTreePanel />
+        </ActiveChartProvider>
+      </AppActionsProvider>,
+    );
+
+    fireEvent.click(screen.getByText(/MSFT/));
+    const hideButtons = screen.getAllByTitle('Hide indicator');
+    fireEvent.click(hideButtons[hideButtons.length - 1]!);
+
+    expect(applyCellUpdate).toHaveBeenCalledWith(1, expect.objectContaining({
+      indicators: [expect.objectContaining({ id: 'ma2', visible: false })],
+    }));
   });
 });

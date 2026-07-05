@@ -85,10 +85,29 @@ export type ActiveChartUICommands = {
   runSnapshot: (action: SnapshotAction) => void | Promise<void>;
 };
 
+export type ActiveChartDrawingToolbarState = {
+  activeTool: string;
+  allLocked: boolean;
+  allHidden: boolean;
+  hasSelection: boolean;
+};
+
+export type ActiveChartDrawingToolbarActions = {
+  selectTool: (toolName: string) => void;
+  clearDrawings: () => void;
+  toggleLockAll: () => void;
+  toggleHideAll: () => void;
+  toggleMagnet: (on: boolean) => void;
+  toggleKeepDrawing: (on: boolean) => void;
+  deleteSelected: () => void;
+  zoomIn: () => void;
+};
+
 /** Stable command refs — identity should stay fixed between crosshair/data-window ticks. */
 export type ActiveChartCommandRefs = {
   chartCommands: ActiveChartCommands;
   drawingCommands: ActiveChartDrawingCommands;
+  drawingToolbarActions: ActiveChartDrawingToolbarActions;
   overlayActions: ActiveChartOverlayActions;
   dataWindowActions: ActiveChartDataWindowActions;
   uiCommands: ActiveChartUICommands;
@@ -106,6 +125,7 @@ export type ActiveChartReadState = {
   dataWindow: DataWindowProps;
   dataMeta?: ChartDataMeta | null;
   headerState: ActiveChartHeaderState;
+  drawingToolbarState: ActiveChartDrawingToolbarState;
 };
 
 export type ActiveChartSnapshot = ActiveChartReadState &
@@ -151,6 +171,7 @@ function commandRefsEqual(
   return (
     prev.chartCommands === next.chartCommands &&
     prev.drawingCommands === next.drawingCommands &&
+    prev.drawingToolbarActions === next.drawingToolbarActions &&
     prev.overlayActions === next.overlayActions &&
     prev.dataWindowActions === next.dataWindowActions &&
     prev.uiCommands === next.uiCommands &&
@@ -176,6 +197,16 @@ function readStateNeedsNotify(
     prevHeader.replayActive !== nextHeader.replayActive ||
     prevHeader.canUndo !== nextHeader.canUndo ||
     prevHeader.canRedo !== nextHeader.canRedo
+  ) {
+    return true;
+  }
+  const prevToolbar = prev.drawingToolbarState;
+  const nextToolbar = next.drawingToolbarState;
+  if (
+    prevToolbar.activeTool !== nextToolbar.activeTool ||
+    prevToolbar.allLocked !== nextToolbar.allLocked ||
+    prevToolbar.allHidden !== nextToolbar.allHidden ||
+    prevToolbar.hasSelection !== nextToolbar.hasSelection
   ) {
     return true;
   }
@@ -213,6 +244,16 @@ function snapshotUnchanged(
     prev.headerState.replayActive !== next.headerState.replayActive ||
     prev.headerState.canUndo !== next.headerState.canUndo ||
     prev.headerState.canRedo !== next.headerState.canRedo
+  ) {
+    return false;
+  }
+  const prevToolbar = prev.drawingToolbarState;
+  const nextToolbar = next.drawingToolbarState;
+  if (
+    prevToolbar.activeTool !== nextToolbar.activeTool ||
+    prevToolbar.allLocked !== nextToolbar.allLocked ||
+    prevToolbar.allHidden !== nextToolbar.allHidden ||
+    prevToolbar.hasSelection !== nextToolbar.hasSelection
   ) {
     return false;
   }
@@ -256,6 +297,7 @@ export function ActiveChartProvider({ children }: { children: React.ReactNode })
       const nextCommands: ActiveChartCommandRefs = {
         chartCommands: payload.chartCommands,
         drawingCommands: payload.drawingCommands,
+        drawingToolbarActions: payload.drawingToolbarActions,
         overlayActions: payload.overlayActions,
         dataWindowActions: payload.dataWindowActions,
         uiCommands: payload.uiCommands,

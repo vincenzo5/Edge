@@ -57,6 +57,9 @@ export function useSymbolNavigationHistory({
 }: SymbolNavigationHistoryInput) {
   const historiesRef = useRef<Map<number, CellHistory>>(new Map());
   const lastSeenRef = useRef<Map<number, string>>(new Map());
+  const pendingHistoryNavRef = useRef<{ cellIndex: number; symbol: string } | null>(
+    null,
+  );
   const [, bump] = useState(0);
 
   const refresh = useCallback(() => {
@@ -71,6 +74,13 @@ export function useSymbolNavigationHistory({
     cells.forEach((cell, cellIndex) => {
       const normalized = normalizeSymbol(cell.symbol);
       if (!normalized) return;
+
+      const pendingNav = pendingHistoryNavRef.current;
+      if (pendingNav?.cellIndex === cellIndex && pendingNav.symbol === normalized) {
+        pendingHistoryNavRef.current = null;
+        lastSeenRef.current.set(cellIndex, normalized);
+        return;
+      }
 
       const lastSeen = lastSeenRef.current.get(cellIndex);
       if (lastSeen === normalized) return;
@@ -106,6 +116,14 @@ export function useSymbolNavigationHistory({
       const nextIndex =
         direction === "back" ? current.index - 1 : current.index + 1;
       if (nextIndex < 0 || nextIndex >= current.entries.length) return null;
+
+      const target = current.entries[nextIndex];
+      if (!target) return null;
+
+      pendingHistoryNavRef.current = {
+        cellIndex,
+        symbol: normalizeSymbol(target.symbol),
+      };
 
       historiesRef.current.set(cellIndex, {
         entries: current.entries,

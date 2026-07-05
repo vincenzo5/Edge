@@ -72,6 +72,7 @@ describe('ChartCell focus', () => {
         theme="dark"
         compact
         isActive={false}
+        showDrawingRail={false}
         toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
         onConfigChange={vi.fn()}
         onToolbarPrefsChange={vi.fn()}

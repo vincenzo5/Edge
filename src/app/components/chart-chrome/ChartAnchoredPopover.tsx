@@ -7,9 +7,10 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import type { Theme } from '@/lib/chartConfig';
-import { clampMenuPosition } from '../ContextMenu';
 import { popoverPanelClass } from './headerStyles';
+import { computeChartAnchoredPopoverLayout } from './chartAnchoredPopoverLayout';
 
 type Props = {
   open: boolean;
@@ -33,26 +34,78 @@ export default function ChartAnchoredPopover({
   minWidth = 200,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [layout, setLayout] = useState<ReturnType<typeof computeChartAnchoredPopoverLayout> | null>(
+    null,
+  );
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useLayoutEffect(() => {
     if (!open) {
-      setPosition(null);
+      setLayout(null);
       return;
     }
-    const anchor = anchorRef.current;
-    const panel = panelRef.current;
-    if (!anchor) return;
 
-    const rect = anchor.getBoundingClientRect();
-    const panelWidth = panel?.getBoundingClientRect().width ?? minWidth;
-    const panelHeight = panel?.getBoundingClientRect().height ?? 320;
-    const rawX = align === 'end' ? rect.right - panelWidth : rect.left;
-    const raw = { x: rawX, y: rect.bottom + 4 };
-    setPosition(
-      clampMenuPosition(raw, panelWidth, panelHeight, window.innerWidth, window.innerHeight),
-    );
+    const measure = () => {
+      const anchor = anchorRef.current;
+      const panel = panelRef.current;
+      if (!anchor || !panel) return;
+
+      const anchorRect = anchor.getBoundingClientRect();
+      const panelWidth = Math.max(panel.getBoundingClientRect().width, minWidth);
+      const contentHeight = panel.scrollHeight;
+
+      setLayout(
+        computeChartAnchoredPopoverLayout(
+          anchorRect,
+          panelWidth,
+          contentHeight,
+          align,
+          window.innerWidth,
+          window.innerHeight,
+        ),
+      );
+    };
+
+    measure();
+    const raf = window.requestAnimationFrame(measure);
+    return () => window.cancelAnimationFrame(raf);
   }, [open, anchorRef, align, minWidth, children]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const remeasure = () => {
+      const anchor = anchorRef.current;
+      const panel = panelRef.current;
+      if (!anchor || !panel) return;
+
+      const anchorRect = anchor.getBoundingClientRect();
+      const panelWidth = Math.max(panel.getBoundingClientRect().width, minWidth);
+      const contentHeight = panel.scrollHeight;
+
+      setLayout(
+        computeChartAnchoredPopoverLayout(
+          anchorRect,
+          panelWidth,
+          contentHeight,
+          align,
+          window.innerWidth,
+          window.innerHeight,
+        ),
+      );
+    };
+
+    window.addEventListener('resize', remeasure);
+    window.addEventListener('scroll', remeasure, true);
+    return () => {
+      window.removeEventListener('resize', remeasure);
+      window.removeEventListener('scroll', remeasure, true);
+    };
+  }, [open, anchorRef, align, minWidth]);
 
   useEffect(() => {
     if (!open) return;
@@ -77,16 +130,34 @@ export default function ChartAnchoredPopover({
     };
   }, [open, onClose, anchorRef]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  const panel = (
     <div
       ref={panelRef}
       role="menu"
-      style={position ? { left: position.x, top: position.y, minWidth } : { visibility: 'hidden', minWidth }}
-      className={`fixed z-50 max-h-[70vh] overflow-y-auto py-1 ${popoverPanelClass(theme)} ${className ?? ''}`}
+      style={
+        layout
+          ? {
+              left: layout.x,
+              top: layout.y,
+              minWidth,
+              maxHeight: layout.maxHeight,
+              overflowY: layout.scrollable ? 'auto' : 'visible',
+            }
+          : {
+              visibility: 'hidden',
+              left: 0,
+              top: 0,
+              minWidth,
+              overflowY: 'visible',
+            }
+      }
+      className={`fixed z-[1200] py-1 ${popoverPanelClass(theme)} ${className ?? ''}`}
     >
       {children}
     </div>
   );
+
+  return createPortal(panel, document.body);
 }

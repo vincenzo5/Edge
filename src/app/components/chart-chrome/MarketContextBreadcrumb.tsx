@@ -1,216 +1,52 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type {
-  MarketContext,
-  MarketContextRelationship,
-  MarketContextTradable,
-  TradableFlavor,
-  TradableGroup,
-} from "@/lib/marketData/contracts/marketContext";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { MarketContext } from "@/lib/marketData/contracts/marketContext";
 import type { Theme } from "@/lib/chartConfig";
 import type { SymbolSelectResult } from "@/lib/watchlist/types";
 import Tooltip from "../Tooltip";
+import {
+  buildContextDisplayModel,
+  chipTooltipTitle,
+  type ContextChip,
+  type ContextDensity,
+} from "./marketContextDisplay";
 
 type Props = {
   symbol: string;
   theme: Theme;
-  density: "full" | "compact" | "minimal";
+  density: ContextDensity;
   onSymbolSelect: (result: SymbolSelectResult) => void;
 };
 
-type NavigableCrumb = {
-  kind: "navigable";
-  id: string;
-  label: string;
-  symbol: string;
-  tooltipName: string;
-  testId: string;
-};
+const chipClass =
+  "edge-focus-ring cursor-pointer shrink-0 rounded-[var(--edge-radius-xs)] border border-[var(--edge-border-subtle)] bg-transparent px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums text-[var(--edge-text-secondary)] hover:border-[var(--edge-border)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]";
 
-type LabelCrumb = {
-  kind: "label";
-  id: string;
-  label: string;
-  testId: string;
-};
+const overflowTriggerClass =
+  "edge-focus-ring shrink-0 rounded-[var(--edge-radius-xs)] border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--edge-text-muted)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]";
 
-type CrumbItem = NavigableCrumb | LabelCrumb;
-
-function classificationCrumbs(context: MarketContext): MarketContextRelationship[] {
-  const fromRelationships = context.relationships.filter(
-    (rel) =>
-      (rel.kind === "sector" || rel.kind === "industry") && rel.label.trim().length > 0,
-  );
-  if (fromRelationships.length > 0) return fromRelationships;
-
-  const fallback: MarketContextRelationship[] = [];
-  if (context.sector?.label) {
-    fallback.push({
-      kind: "sector",
-      label: context.sector.label,
-      source: context.sector.source,
-      confidence: context.sector.confidence,
-    });
-  }
-  if (context.industry?.label) {
-    fallback.push({
-      kind: "industry",
-      label: context.industry.label,
-      source: context.industry.source,
-      confidence: context.industry.confidence,
-    });
-  }
-  return fallback;
-}
-
-function firstTradableByFlavor(
-  groups: TradableGroup[],
-  flavor: TradableFlavor,
-): MarketContextTradable | null {
-  const group = groups.find((g) => g.flavor === flavor);
-  return group?.members[0] ?? null;
-}
-
-function allTradableMembers(groups: TradableGroup[]): MarketContextTradable[] {
-  const members: MarketContextTradable[] = [];
-  for (const group of groups) {
-    members.push(...group.members);
-  }
-  return members;
-}
-
-function legacyNavigableRows(context: MarketContext): MarketContextRelationship[] {
-  const flat: MarketContextRelationship[] = [];
-  for (const rel of context.relationships) {
-    if (rel.members && rel.members.length > 0) {
-      flat.push(...rel.members);
-    } else if (rel.symbol) {
-      flat.push(rel);
-    }
-  }
-  return flat;
-}
-
-function buildCrumbItems(context: MarketContext): CrumbItem[] {
-  const groups = context.tradableGroups ?? [];
-  const classifications = classificationCrumbs(context);
-  const sectorRel = classifications.find((rel) => rel.kind === "sector");
-  const industryRel = classifications.find((rel) => rel.kind === "industry");
-  const sectorEtf = firstTradableByFlavor(groups, "sector_etf");
-  const industryEtf = firstTradableByFlavor(groups, "industry_etf");
-
-  const items: CrumbItem[] = [];
-  const usedSymbols = new Set<string>();
-
-  if (sectorRel) {
-    if (sectorEtf) {
-      const sym = sectorEtf.symbol.trim().toUpperCase();
-      usedSymbols.add(sym);
-      items.push({
-        kind: "navigable",
-        id: `sector-${sym}`,
-        label: sectorRel.label,
-        symbol: sectorEtf.symbol,
-        tooltipName: sectorEtf.label,
-        testId: `market-context-crumb-sector-${sym}`,
-      });
-    } else {
-      items.push({
-        kind: "label",
-        id: `sector-${sectorRel.label}`,
-        label: sectorRel.label,
-        testId: "market-context-crumb-sector",
-      });
-    }
-  }
-
-  if (industryRel) {
-    const industryTarget = industryEtf ?? sectorEtf;
-    if (industryTarget) {
-      const sym = industryTarget.symbol.trim().toUpperCase();
-      usedSymbols.add(sym);
-      items.push({
-        kind: "navigable",
-        id: `industry-${sym}`,
-        label: industryRel.label,
-        symbol: industryTarget.symbol,
-        tooltipName: industryTarget.label,
-        testId: `market-context-crumb-industry-${sym}`,
-      });
-    } else {
-      items.push({
-        kind: "label",
-        id: `industry-${industryRel.label}`,
-        label: industryRel.label,
-        testId: "market-context-crumb-industry",
-      });
-    }
-  }
-
-  for (const member of allTradableMembers(groups)) {
-    const sym = member.symbol.trim().toUpperCase();
-    if (usedSymbols.has(sym)) continue;
-    usedSymbols.add(sym);
-    items.push({
-      kind: "navigable",
-      id: `${member.flavor}-${sym}`,
-      label: member.label,
-      symbol: member.symbol,
-      tooltipName: member.label,
-      testId: `market-context-crumb-${member.flavor}-${sym}`,
-    });
-  }
-
-  if (items.length === 0 && groups.length === 0) {
-    for (const rel of legacyNavigableRows(context)) {
-      if (!rel.symbol) continue;
-      const sym = rel.symbol.trim().toUpperCase();
-      if (usedSymbols.has(sym)) continue;
-      usedSymbols.add(sym);
-      items.push({
-        kind: "navigable",
-        id: `${rel.kind}-${sym}`,
-        label: rel.label,
-        symbol: rel.symbol,
-        tooltipName: rel.label,
-        testId: `market-context-crumb-${rel.kind}-${sym}`,
-      });
-    }
-  }
-
-  return items;
-}
-
-function visibleCrumbItems(items: CrumbItem[], density: Props["density"]): CrumbItem[] {
-  if (density === "minimal") return [];
-  if (density === "compact") {
-    return items.filter(
-      (item) =>
-        item.testId.startsWith("market-context-crumb-sector") ||
-        item.id.startsWith("sector-"),
-    );
-  }
-  return items;
-}
-
-function CrumbSeparator() {
+function ContextChipButton({
+  chip,
+  theme,
+  onSelect,
+}: {
+  chip: ContextChip;
+  theme: Theme;
+  onSelect: (chip: ContextChip) => void;
+}) {
   return (
-    <span className="px-0.5 text-[10px] text-[var(--edge-text-muted)]" aria-hidden>
-      ›
-    </span>
+    <Tooltip content={chipTooltipTitle(chip)} theme={theme} portaled>
+      <button
+        type="button"
+        data-testid={chip.testId}
+        onClick={() => onSelect(chip)}
+        className={chipClass}
+      >
+        {chip.symbol}
+      </button>
+    </Tooltip>
   );
 }
-
-function navigableCrumbTitle(item: NavigableCrumb): string {
-  return `Opens related ETF ${item.symbol.trim().toUpperCase()} — ${item.tooltipName}`;
-}
-
-const navigableCrumbClass =
-  "edge-focus-ring cursor-pointer max-w-[160px] truncate rounded px-1 py-0.5 text-[10px] font-medium text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]";
-
-const labelCrumbClass =
-  "max-w-[160px] truncate rounded px-1 py-0.5 text-[10px] font-medium text-[var(--edge-text-muted)]";
 
 export default function MarketContextBreadcrumb({
   symbol,
@@ -218,11 +54,11 @@ export default function MarketContextBreadcrumb({
   density,
   onSymbolSelect,
 }: Props) {
-  void theme;
-
   const [context, setContext] = useState<MarketContext | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const sym = symbol.trim().toUpperCase();
@@ -264,15 +100,30 @@ export default function MarketContextBreadcrumb({
     };
   }, [symbol]);
 
-  const crumbItems = useMemo(
-    () => (context ? visibleCrumbItems(buildCrumbItems(context), density) : []),
+  useEffect(() => {
+    setOverflowOpen(false);
+  }, [symbol, density, context]);
+
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!overflowRef.current?.contains(event.target as Node)) {
+        setOverflowOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [overflowOpen]);
+
+  const display = useMemo(
+    () => (context ? buildContextDisplayModel(context, density) : null),
     [context, density],
   );
 
-  const navigateToSymbol = (args: { symbol: string; name: string }) => {
+  const navigateToChip = (chip: ContextChip) => {
     onSymbolSelect({
-      symbol: args.symbol,
-      name: args.name,
+      symbol: chip.symbol,
+      name: chip.tooltipName,
       exchange: context?.exchange ?? "",
     });
   };
@@ -281,7 +132,7 @@ export default function MarketContextBreadcrumb({
 
   return (
     <div
-      className="flex min-w-0 flex-wrap items-center gap-1"
+      className="flex min-w-0 flex-wrap items-center gap-1.5"
       data-testid="market-context-breadcrumb"
     >
       {loading ? (
@@ -293,35 +144,65 @@ export default function MarketContextBreadcrumb({
         </span>
       ) : null}
 
-      {!loading && crumbItems.length > 0 ? (
-        <div className="flex min-w-0 flex-wrap items-center gap-0.5">
-          {crumbItems.map((item, index) => (
-            <div key={item.id} className="flex min-w-0 items-center">
-              {index > 0 ? <CrumbSeparator /> : null}
-              {item.kind === "navigable" ? (
-                <Tooltip content={navigableCrumbTitle(item)} theme={theme} portaled>
+      {!loading && display && (display.classification || display.chips.length > 0) ? (
+        <>
+          {display.classification ? (
+            <span
+              data-testid="market-context-classification"
+              className="max-w-[240px] truncate text-[10px] font-medium text-[var(--edge-text-muted)]"
+            >
+              {display.classification}
+            </span>
+          ) : null}
+
+          {display.chips.length > 0 ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              {display.chips.map((chip) => (
+                <ContextChipButton
+                  key={chip.id}
+                  chip={chip}
+                  theme={theme}
+                  onSelect={navigateToChip}
+                />
+              ))}
+
+              {display.overflow.length > 0 ? (
+                <div ref={overflowRef} className="relative">
                   <button
                     type="button"
-                    data-testid={item.testId}
-                    onClick={() =>
-                      navigateToSymbol({ symbol: item.symbol, name: item.tooltipName })
-                    }
-                    className={navigableCrumbClass}
+                    data-testid="market-context-overflow-trigger"
+                    className={overflowTriggerClass}
+                    aria-expanded={overflowOpen}
+                    onClick={() => setOverflowOpen((open) => !open)}
                   >
-                    {item.label}
+                    +{display.overflow.length}
                   </button>
-                </Tooltip>
-              ) : (
-                <span data-testid={item.testId} className={labelCrumbClass}>
-                  {item.label}
-                </span>
-              )}
+                  {overflowOpen ? (
+                    <div
+                      data-testid="market-context-overflow-menu"
+                      className="absolute left-0 top-full z-20 mt-1 flex min-w-[72px] flex-col gap-0.5 rounded-[var(--edge-radius-sm)] border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-popover)] p-1 shadow-lg"
+                    >
+                      {display.overflow.map((chip) => (
+                        <ContextChipButton
+                          key={chip.id}
+                          chip={chip}
+                          theme={theme}
+                          onSelect={(selected) => {
+                            navigateToChip(selected);
+                            setOverflowOpen(false);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
-          ))}
-        </div>
+          ) : null}
+        </>
       ) : null}
 
-      {!loading && error && crumbItems.length === 0 ? (
+      {!loading && error && !display?.classification && display?.chips.length === 0 ? (
         <span
           data-testid="market-context-error"
           className="text-[10px] text-[var(--edge-negative)]"

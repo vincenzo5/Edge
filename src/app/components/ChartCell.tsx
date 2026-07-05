@@ -77,6 +77,7 @@ type Props = {
   theme: "light" | "dark";
   compact?: boolean;
   isActive?: boolean;
+  showDrawingRail?: boolean;
   toolbarPrefs: ToolbarPrefs;
   symbolNav?: ChartSymbolNav;
   onFocus?: () => void;
@@ -91,6 +92,7 @@ export default function ChartCell({
   theme,
   compact = false,
   isActive = true,
+  showDrawingRail = true,
   toolbarPrefs,
   symbolNav,
   onFocus,
@@ -805,6 +807,29 @@ export default function ChartCell({
     if (selected.length > 0) copyDrawings(selected);
   }, [selectedOverlayId]);
 
+  const drawingToolbarActions = useCallback(
+    () => ({
+      selectTool: handleToolSelect,
+      clearDrawings: handleClearDrawings,
+      toggleLockAll: handleToggleLockAll,
+      toggleHideAll: handleToggleHideAll,
+      toggleMagnet: handleToggleMagnet,
+      toggleKeepDrawing: handleToggleKeepDrawing,
+      deleteSelected: handleDeleteSelected,
+      zoomIn: handleZoomIn,
+    }),
+    [
+      handleToolSelect,
+      handleClearDrawings,
+      handleToggleLockAll,
+      handleToggleHideAll,
+      handleToggleMagnet,
+      handleToggleKeepDrawing,
+      handleDeleteSelected,
+      handleZoomIn,
+    ],
+  );
+
   const drawingCommands = useCallback(
     () => ({
       hasSelection: () => selectedOverlayId != null,
@@ -908,7 +933,12 @@ export default function ChartCell({
     addIndicator,
     chartCommands,
     drawingCommands,
+    drawingToolbarActions,
     uiCommands,
+    activeTool,
+    allLocked,
+    allHidden,
+    hasDrawingSelection: selectedOverlayId != null,
   });
 
   const handleOverlayRightClick = useCallback(
@@ -1111,6 +1141,7 @@ export default function ChartCell({
     >
       {/* Body: drawing rail + chart column (chart + range bar) */}
       <div className="flex min-h-0 min-w-0 flex-1">
+        {showDrawingRail ? (
         <div className="relative z-20 flex h-full shrink-0 self-stretch overflow-visible">
           <DrawingToolbar
           theme={theme}
@@ -1135,6 +1166,7 @@ export default function ChartCell({
           }
           />
         </div>
+        ) : null}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--edge-surface-chart)] p-px" ref={chartOverlayRef}>
           <ChartErrorBoundary resetKey={chartRetryKey} onRetry={handleChartRetry}>

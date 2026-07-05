@@ -11,6 +11,8 @@ import {
 import { DEFAULT_CELL } from '@/lib/chartConfig';
 import {
   makeDrawingCommandsMock,
+  makeDrawingToolbarActionsMock,
+  makeDrawingToolbarStateMock,
   makeDataWindowActionsMock,
   makeHeaderActionsMock,
   makeUICommandsMock,
@@ -69,6 +71,8 @@ function makeSnapshot(chartId: string, overrides?: Partial<ActiveChartSnapshot>)
       captureSnapshot: vi.fn(async () => new Blob([new Uint8Array(32)], { type: 'image/png' })),
     },
     drawingCommands: makeDrawingCommandsMock(),
+    drawingToolbarState: makeDrawingToolbarStateMock({ activeTool: 'trend_line' }),
+    drawingToolbarActions: makeDrawingToolbarActionsMock(),
     uiCommands: makeUICommandsMock(),
     dataWindowActions: makeDataWindowActionsMock(),
     ...overrides,
@@ -243,6 +247,7 @@ describe('ActiveChartContext', () => {
       const reg = makeRegistration('cell-0');
       reg.chartCommands = registration.chartCommands;
       reg.drawingCommands = registration.drawingCommands;
+      reg.drawingToolbarActions = registration.drawingToolbarActions;
       reg.overlayActions = registration.overlayActions;
       reg.dataWindowActions = registration.dataWindowActions;
       reg.uiCommands = registration.uiCommands;
@@ -265,6 +270,7 @@ describe('ActiveChartContext', () => {
       const reg = makeRegistration('cell-0');
       reg.chartCommands = registration.chartCommands;
       reg.drawingCommands = registration.drawingCommands;
+      reg.drawingToolbarActions = registration.drawingToolbarActions;
       reg.overlayActions = registration.overlayActions;
       reg.dataWindowActions = registration.dataWindowActions;
       reg.uiCommands = registration.uiCommands;
@@ -344,6 +350,7 @@ describe('ActiveChartContext', () => {
       const reg = makeRegistration('cell-0');
       reg.chartCommands = registration.chartCommands;
       reg.drawingCommands = registration.drawingCommands;
+      reg.drawingToolbarActions = registration.drawingToolbarActions;
       reg.overlayActions = registration.overlayActions;
       reg.dataWindowActions = registration.dataWindowActions;
       reg.uiCommands = registration.uiCommands;
@@ -356,5 +363,20 @@ describe('ActiveChartContext', () => {
 
     expect(onSnapshot.mock.calls.length).toBeGreaterThan(callsAfterInitial);
     expect(onSnapshot.mock.calls.at(-1)?.[0]?.overlays).toHaveLength(1);
+  });
+
+  it('includes drawing toolbar state in the active snapshot', () => {
+    const onSnapshot = vi.fn();
+
+    render(
+      <ActiveChartProvider>
+        <RegisterProbe chartId="cell-0" active />
+        <SnapshotProbe onSnapshot={onSnapshot} />
+      </ActiveChartProvider>,
+    );
+
+    const snap = onSnapshot.mock.calls.at(-1)?.[0];
+    expect(snap?.drawingToolbarState.activeTool).toBe('trend_line');
+    expect(snap?.drawingToolbarActions.selectTool).toBeTypeOf('function');
   });
 });

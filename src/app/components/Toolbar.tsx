@@ -1,29 +1,30 @@
 "use client";
 
 import {
-  GRID_MODES,
+  LAYOUT_MENU_ROWS,
+  templatesForPaneCount,
   cellCountFor,
-  type GridMode,
+  type LayoutTemplateId,
   type Theme,
 } from "@/lib/chartConfig";
 
 type Props = {
-  gridMode: GridMode;
+  layoutId: LayoutTemplateId;
   theme: Theme;
   linkSymbol: boolean;
   activeCellIndex: number;
-  onGridModeChange: (mode: GridMode) => void;
+  onLayoutChange: (layoutId: LayoutTemplateId) => void;
   onThemeChange: (theme: Theme) => void;
   onLinkSymbolChange: (linkSymbol: boolean) => void;
   onReset: () => void;
 };
 
 export default function Toolbar({
-  gridMode,
+  layoutId,
   theme,
   linkSymbol,
   activeCellIndex,
-  onGridModeChange,
+  onLayoutChange,
   onThemeChange,
   onLinkSymbolChange,
   onReset,
@@ -35,15 +36,17 @@ export default function Toolbar({
       <div className="flex items-center gap-1">
         <span className="text-xs opacity-60">Layout</span>
         <select
-          value={gridMode}
-          onChange={(e) => onGridModeChange(e.target.value as GridMode)}
+          value={layoutId}
+          onChange={(e) => onLayoutChange(e.target.value as LayoutTemplateId)}
           className="rounded border border-gray-300 bg-transparent px-1 py-1 text-xs dark:border-gray-700"
         >
-          {GRID_MODES.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
+          {LAYOUT_MENU_ROWS.flatMap((paneCount) =>
+            templatesForPaneCount(paneCount).map((t) => (
+              <option key={t.id} value={t.id}>
+                {paneCount} — {t.id}
+              </option>
+            )),
+          )}
         </select>
       </div>
 
@@ -56,9 +59,9 @@ export default function Toolbar({
         Link symbols
       </label>
 
-      {cellCountFor(gridMode) > 1 && (
+      {cellCountFor(layoutId) > 1 && (
         <span className="text-xs opacity-60">
-          Cell {activeCellIndex + 1}/{cellCountFor(gridMode)}
+          Cell {activeCellIndex + 1}/{cellCountFor(layoutId)}
         </span>
       )}
 

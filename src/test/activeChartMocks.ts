@@ -60,6 +60,34 @@ export function makeHeaderActionsMock(
   };
 }
 
+export function makeDrawingToolbarActionsMock(
+  overrides?: Partial<ActiveChartSnapshot["drawingToolbarActions"]>,
+): ActiveChartSnapshot["drawingToolbarActions"] {
+  return {
+    selectTool: vi.fn(),
+    clearDrawings: vi.fn(),
+    toggleLockAll: vi.fn(),
+    toggleHideAll: vi.fn(),
+    toggleMagnet: vi.fn(),
+    toggleKeepDrawing: vi.fn(),
+    deleteSelected: vi.fn(),
+    zoomIn: vi.fn(),
+    ...overrides,
+  };
+}
+
+export function makeDrawingToolbarStateMock(
+  overrides?: Partial<ActiveChartSnapshot["drawingToolbarState"]>,
+): ActiveChartSnapshot["drawingToolbarState"] {
+  return {
+    activeTool: "__cursor__",
+    allLocked: false,
+    allHidden: false,
+    hasSelection: false,
+    ...overrides,
+  };
+}
+
 /** Split a flat snapshot fixture into the register() payload shape. */
 export function toActiveChartRegistration(
   snapshot: ActiveChartSnapshot,
@@ -75,11 +103,13 @@ export function toActiveChartRegistration(
     dataMeta,
     chartCommands,
     drawingCommands,
+    drawingToolbarActions,
     overlayActions,
     dataWindowActions,
     uiCommands,
     onConfigChange,
     openIndicatorPicker,
+    drawingToolbarState,
   } = snapshot;
 
   const {
@@ -92,6 +122,7 @@ export function toActiveChartRegistration(
   return {
     chartCommands,
     drawingCommands,
+    drawingToolbarActions: drawingToolbarActions ?? makeDrawingToolbarActionsMock(),
     overlayActions,
     dataWindowActions,
     uiCommands,
@@ -105,6 +136,7 @@ export function toActiveChartRegistration(
       dataWindow,
       dataMeta,
       headerState: headerState ?? { replayActive, canUndo, canRedo },
+      drawingToolbarState: drawingToolbarState ?? makeDrawingToolbarStateMock(),
     },
   };
 }

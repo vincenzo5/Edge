@@ -8,12 +8,19 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import type { CellConfig, TrackedOverlay } from "@/lib/chartConfig";
-import { mergeChartSettings, patchChartSettings } from "@/lib/chart/chartSettings";
-import type { Candle, IndicatorConfig, Theme } from "@/lib/chart/contracts";
+import type { IndicatorConfig } from "@/lib/chart/contracts";
 import { getCatalogEntry } from "@/lib/chart/indicators/registry";
 import { resolveIndicatorLegend, resolvePriceLegend } from "@/lib/chart/legend";
 import { formatObjectTreeLabel } from "@/lib/chart/annotationMetadata";
+import type {
+  ObjectTreeDrawingRow,
+  ObjectTreeLayoutModel,
+  ObjectTreePaneNode,
+} from "@/lib/chart/objectTreeModel";
+import { formatObjectTreeSymbolLine } from "@/lib/chart/objectTreeModel";
+import { mergeChartSettings, patchChartSettings } from "@/lib/chart/chartSettings";
+import type { Candle, Theme } from "@/lib/chart/contracts";
+import type { CellConfig } from "@/lib/chartConfig";
 import { IndicatorRegistry } from "@/lib/chart/pluginHost";
 import { formatCrosshairTime } from "@/lib/chart/timeAxis";
 import type { ActiveChartDataWindowActions } from "./ActiveChartContext";
@@ -47,31 +54,27 @@ export type DataWindowProps = {
   } | null;
 };
 
-type ChartCommands = {
-  selectDrawing: (id: string | null) => void;
-  getSelectedDrawingId: () => string | null;
+export type ObjectTreePaneActions = {
+  onPaneFocus: (cellIndex: number) => void;
+  onToggleIndicatorVisible: (cellIndex: number, indicatorId: string) => void;
+  onRemoveIndicator: (cellIndex: number, indicatorId: string) => void;
+  onAddIndicator: (cellIndex: number) => void;
+  onDrawingSetVisible: (cellIndex: number, drawingId: string, visible: boolean) => void;
+  onDrawingSetLocked: (cellIndex: number, drawingId: string, locked: boolean) => void;
+  onDrawingRemove: (cellIndex: number, drawingId: string) => void;
+  onDrawingRename: (cellIndex: number, drawingId: string, label: string) => void;
+  onDrawingBringForward: (cellIndex: number, drawingId: string) => void;
+  onSelectDrawing: (cellIndex: number, drawingId: string) => void;
+  subscribeOverlayChanges?: (cb: () => void) => () => void;
 };
 
 type Props = {
-  chartId: string;
-  config: CellConfig;
-  overlays: TrackedOverlay[];
+  panelKey: string;
+  layoutModel: ObjectTreeLayoutModel;
+  paneActions: ObjectTreePaneActions;
+  selectedDrawingId: string | null;
   dataWindow?: DataWindowProps;
   dataWindowActions?: ActiveChartDataWindowActions;
-  chartCommands?: ChartCommands;
-  onConfigChange: (next: CellConfig) => void;
-  onOverlayAction: {
-    remove: (id: string) => void;
-    setVisible: (id: string, visible: boolean) => void;
-    setLocked: (id: string, locked: boolean) => void;
-    rename: (id: string, label: string) => void;
-    bringForward: (id: string) => void;
-    sendBackward: (id: string) => void;
-    duplicate: (id: string) => void;
-    subscribe: (cb: () => void) => () => void;
-  };
-  onAddIndicator: () => void;
-  /** When true, renders without outer chrome (for right sidebar panel). */
   embedded?: boolean;
 };
 
@@ -81,19 +84,19 @@ const TAB_STORAGE_PREFIX = "tv-ai:object-panel-tab:";
 
 const ICON_SIZE = 14;
 
-function loadActiveTab(chartId: string): PanelTab {
+function loadActiveTab(panelKey: string): PanelTab {
   if (typeof window === "undefined") return "object-tree";
   try {
-    const raw = localStorage.getItem(`${TAB_STORAGE_PREFIX}${chartId}`);
+    const raw = localStorage.getItem(`${TAB_STORAGE_PREFIX}${panelKey}`);
     if (raw === "data-window" || raw === "object-tree") return raw;
   } catch { /* ignore */ }
   return "object-tree";
 }
 
-function saveActiveTab(chartId: string, tab: PanelTab) {
+function saveActiveTab(panelKey: string, tab: PanelTab) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(`${TAB_STORAGE_PREFIX}${chartId}`, tab);
+    localStorage.setItem(`${TAB_STORAGE_PREFIX}${panelKey}`, tab);
   } catch { /* ignore */ }
 }
 
@@ -102,10 +105,7 @@ function formatSymbolLine(
   interval: CellConfig["interval"],
   exchange?: string,
 ): string {
-  const parts = [symbol];
-  if (exchange) parts.push(exchange);
-  parts.push(interval);
-  return parts.join(" · ");
+  return formatObjectTreeSymbolLine(symbol, interval, exchange);
 }
 
 function HoverIconButton({
@@ -135,86 +135,78 @@ function HoverIconButton({
 }
 
 export default function ObjectTree({
-  chartId,
-  config,
-  overlays,
+  panelKey,
+  layoutModel,
+  paneActions,
+  selectedDrawingId,
   dataWindow,
   dataWindowActions,
-  chartCommands,
-  onConfigChange,
-  onOverlayAction,
-  onAddIndicator,
   embedded = false,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<PanelTab>(() => loadActiveTab(chartId));
+  const [activeTab, setActiveTab] = useState<PanelTab>(() => loadActiveTab(panelKey));
 
   useEffect(() => {
-    setActiveTab(loadActiveTab(chartId));
-  }, [chartId]);
+    setActiveTab(loadActiveTab(panelKey));
+  }, [panelKey]);
 
   const switchTab = useCallback(
     (tab: PanelTab) => {
       setActiveTab(tab);
-      saveActiveTab(chartId, tab);
+      saveActiveTab(panelKey, tab);
     },
-    [chartId],
+    [panelKey],
   );
 
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
   const [, bumpOverlayRevision] = useState(0);
+  const [collapsedPanes, setCollapsedPanes] = useState<Set<number>>(() => new Set());
 
   useEffect(() => {
-    const unsub = onOverlayAction.subscribe(() => {
+    const unsub = paneActions.subscribeOverlayChanges?.(() => {
       bumpOverlayRevision((n) => n + 1);
     });
     return unsub;
-  }, [onOverlayAction]);
+  }, [paneActions]);
 
-  const removeIndicator = useCallback(
-    (id: string) => {
-      onConfigChange({
-        ...config,
-        indicators: config.indicators.filter((i) => i.id !== id),
-      });
-    },
-    [config, onConfigChange],
-  );
+  useEffect(() => {
+    setCollapsedPanes((prev) => {
+      const next = new Set(prev);
+      for (const pane of layoutModel.panes) {
+        if (pane.isActive) next.delete(pane.cellIndex);
+      }
+      return next;
+    });
+  }, [layoutModel]);
 
-  const toggleIndicatorVisible = useCallback(
-    (id: string) => {
-      onConfigChange({
-        ...config,
-        indicators: config.indicators.map((i) =>
-          i.id === id ? { ...i, visible: i.visible === false } : i,
-        ),
-      });
-    },
-    [config, onConfigChange],
-  );
-
-  const startRename = useCallback((id: string, currentLabel: string) => {
-    setEditingId(id);
+  const startRename = useCallback((cellIndex: number, drawingId: string, currentLabel: string) => {
+    setEditingKey(`${cellIndex}:${drawingId}`);
     setEditValue(currentLabel);
     requestAnimationFrame(() => editInputRef.current?.focus());
   }, []);
 
   const commitRename = useCallback(() => {
-    if (editingId && editValue.trim()) {
-      onOverlayAction.rename(editingId, editValue.trim());
+    if (!editingKey || !editValue.trim()) {
+      setEditingKey(null);
+      return;
     }
-    setEditingId(null);
-  }, [editingId, editValue, onOverlayAction]);
+    const [cellIndexRaw, drawingId] = editingKey.split(":");
+    const cellIndex = Number(cellIndexRaw);
+    if (Number.isFinite(cellIndex) && drawingId) {
+      paneActions.onDrawingRename(cellIndex, drawingId, editValue.trim());
+    }
+    setEditingKey(null);
+  }, [editingKey, editValue, paneActions]);
 
-  const sortedOverlays = [...overlays].sort((a, b) => b.zLevel - a.zLevel);
-  const selectedDrawingId = chartCommands?.getSelectedDrawingId() ?? null;
-
-  const symbolLine = formatSymbolLine(
-    config.symbol,
-    config.interval,
-    config.exchange,
-  );
+  const togglePaneCollapsed = useCallback((cellIndex: number) => {
+    setCollapsedPanes((prev) => {
+      const next = new Set(prev);
+      if (next.has(cellIndex)) next.delete(cellIndex);
+      else next.add(cellIndex);
+      return next;
+    });
+  }, []);
 
   return (
     <div
@@ -245,23 +237,19 @@ export default function ObjectTree({
 
       <div className={embedded ? "min-h-0 flex-1 overflow-auto" : "flex-1 overflow-auto"}>
         {activeTab === "object-tree" ? (
-          <ObjectTreeTab
-            symbolLine={symbolLine}
-            config={config}
-            sortedOverlays={sortedOverlays}
+          <ObjectTreeContent
+            layoutModel={layoutModel}
+            collapsedPanes={collapsedPanes}
             selectedDrawingId={selectedDrawingId}
-            editingId={editingId}
+            editingKey={editingKey}
             editValue={editValue}
             editInputRef={editInputRef}
-            onToggleIndicatorVisible={toggleIndicatorVisible}
-            onRemoveIndicator={removeIndicator}
-            onAddIndicator={onAddIndicator}
-            onOverlayAction={onOverlayAction}
-            onSelectDrawing={chartCommands?.selectDrawing}
+            paneActions={paneActions}
+            onTogglePaneCollapsed={togglePaneCollapsed}
             onStartRename={startRename}
             onEditValueChange={setEditValue}
             onCommitRename={commitRename}
-            onCancelRename={() => setEditingId(null)}
+            onCancelRename={() => setEditingKey(null)}
           />
         ) : (
           <DataWindowTab
@@ -274,173 +262,380 @@ export default function ObjectTree({
   );
 }
 
-function ObjectTreeTab({
-  symbolLine,
-  config,
-  sortedOverlays,
+function ObjectTreeContent({
+  layoutModel,
+  collapsedPanes,
   selectedDrawingId,
-  editingId,
+  editingKey,
   editValue,
   editInputRef,
-  onToggleIndicatorVisible,
-  onRemoveIndicator,
-  onAddIndicator,
-  onOverlayAction,
-  onSelectDrawing,
+  paneActions,
+  onTogglePaneCollapsed,
   onStartRename,
   onEditValueChange,
   onCommitRename,
   onCancelRename,
 }: {
-  symbolLine: string;
-  config: CellConfig;
-  sortedOverlays: TrackedOverlay[];
+  layoutModel: ObjectTreeLayoutModel;
+  collapsedPanes: Set<number>;
   selectedDrawingId: string | null;
-  editingId: string | null;
+  editingKey: string | null;
   editValue: string;
   editInputRef: RefObject<HTMLInputElement | null>;
-  onToggleIndicatorVisible: (id: string) => void;
-  onRemoveIndicator: (id: string) => void;
-  onAddIndicator: () => void;
-  onOverlayAction: Props["onOverlayAction"];
-  onSelectDrawing?: (id: string | null) => void;
-  onStartRename: (id: string, label: string) => void;
-  onEditValueChange: (v: string) => void;
+  paneActions: ObjectTreePaneActions;
+  onTogglePaneCollapsed: (cellIndex: number) => void;
+  onStartRename: (cellIndex: number, drawingId: string, label: string) => void;
+  onEditValueChange: (value: string) => void;
+  onCommitRename: () => void;
+  onCancelRename: () => void;
+}) {
+  if (layoutModel.mode === "single") {
+    const pane = layoutModel.panes[0];
+    return (
+      <ObjectTreePaneBody
+        pane={pane}
+        showHeader
+        selectedDrawingId={selectedDrawingId}
+        editingKey={editingKey}
+        editValue={editValue}
+        editInputRef={editInputRef}
+        paneActions={paneActions}
+        onStartRename={onStartRename}
+        onEditValueChange={onEditValueChange}
+        onCommitRename={onCommitRename}
+        onCancelRename={onCancelRename}
+      />
+    );
+  }
+
+  return (
+    <div className="py-1">
+      {layoutModel.panes.map((pane) => (
+        <ObjectTreePaneSection
+          key={pane.chartId}
+          pane={pane}
+          collapsed={collapsedPanes.has(pane.cellIndex)}
+          selectedDrawingId={selectedDrawingId}
+          editingKey={editingKey}
+          editValue={editValue}
+          editInputRef={editInputRef}
+          paneActions={paneActions}
+          onToggleCollapsed={() => onTogglePaneCollapsed(pane.cellIndex)}
+          onStartRename={onStartRename}
+          onEditValueChange={onEditValueChange}
+          onCommitRename={onCommitRename}
+          onCancelRename={onCancelRename}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ObjectTreePaneSection({
+  pane,
+  collapsed,
+  selectedDrawingId,
+  editingKey,
+  editValue,
+  editInputRef,
+  paneActions,
+  onToggleCollapsed,
+  onStartRename,
+  onEditValueChange,
+  onCommitRename,
+  onCancelRename,
+}: {
+  pane: ObjectTreePaneNode;
+  collapsed: boolean;
+  selectedDrawingId: string | null;
+  editingKey: string | null;
+  editValue: string;
+  editInputRef: RefObject<HTMLInputElement | null>;
+  paneActions: ObjectTreePaneActions;
+  onToggleCollapsed: () => void;
+  onStartRename: (cellIndex: number, drawingId: string, label: string) => void;
+  onEditValueChange: (value: string) => void;
+  onCommitRename: () => void;
+  onCancelRename: () => void;
+}) {
+  return (
+    <div
+      className={`mb-1 border-b border-[var(--edge-border)] last:border-b-0 ${
+        pane.isActive ? "bg-[color-mix(in_srgb,var(--edge-accent-blue)_8%,transparent)]" : ""
+      }`}
+    >
+      <div className="flex w-full items-center gap-1 px-2 py-1.5">
+        <button
+          type="button"
+          onClick={() => paneActions.onPaneFocus(pane.cellIndex)}
+          className={`min-w-0 flex-1 truncate text-left text-xs font-medium ${
+            pane.isActive
+              ? "text-[var(--edge-accent-blue)]"
+              : "text-[var(--edge-text-primary)] hover:text-[var(--edge-text-strong)]"
+          }`}
+        >
+          {pane.title}
+        </button>
+        <button
+          type="button"
+          aria-label={`${collapsed ? "Expand" : "Collapse"} ${pane.title}`}
+          onClick={onToggleCollapsed}
+          className="shrink-0 px-1 text-[10px] text-[var(--edge-text-muted)] hover:text-[var(--edge-text-primary)]"
+        >
+          {collapsed ? "▸" : "▾"}
+        </button>
+      </div>
+      {!collapsed ? (
+        <ObjectTreePaneBody
+          pane={pane}
+          showHeader={false}
+          selectedDrawingId={selectedDrawingId}
+          editingKey={editingKey}
+          editValue={editValue}
+          editInputRef={editInputRef}
+          paneActions={paneActions}
+          onStartRename={onStartRename}
+          onEditValueChange={onEditValueChange}
+          onCommitRename={onCommitRename}
+          onCancelRename={onCancelRename}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ObjectTreePaneBody({
+  pane,
+  showHeader,
+  selectedDrawingId,
+  editingKey,
+  editValue,
+  editInputRef,
+  paneActions,
+  onStartRename,
+  onEditValueChange,
+  onCommitRename,
+  onCancelRename,
+}: {
+  pane: ObjectTreePaneNode;
+  showHeader: boolean;
+  selectedDrawingId: string | null;
+  editingKey: string | null;
+  editValue: string;
+  editInputRef: RefObject<HTMLInputElement | null>;
+  paneActions: ObjectTreePaneActions;
+  onStartRename: (cellIndex: number, drawingId: string, label: string) => void;
+  onEditValueChange: (value: string) => void;
   onCommitRename: () => void;
   onCancelRename: () => void;
 }) {
   return (
     <div className="py-1">
-      <div className="px-2 py-1 text-xs font-medium text-[var(--edge-text-primary)]">
-        {symbolLine}
-      </div>
+      {showHeader ? (
+        <div className="px-2 py-1 text-xs font-medium text-[var(--edge-text-primary)]">
+          {pane.title}
+        </div>
+      ) : null}
 
-      {config.indicators.map((ind) => {
-        const isVisible = ind.visible !== false;
-        return (
-          <div
-            key={ind.id}
-            className={`group flex items-center gap-0.5 px-1 py-0.5 text-xs hover:bg-[var(--edge-surface-hover)] ${
-              !isVisible ? "opacity-50" : ""
-            }`}
-          >
-            <HoverIconButton
-              title={isVisible ? "Hide indicator" : "Show indicator"}
-              onClick={() => onToggleIndicatorVisible(ind.id)}
-            >
-              {isVisible ? (
-                <EyeIcon size={ICON_SIZE} aria-hidden />
-              ) : (
-                <EyeOffIcon size={ICON_SIZE} aria-hidden />
-              )}
-            </HoverIconButton>
-            <span className="min-w-0 flex-1 truncate text-[var(--edge-text-primary)]">
-              {ind.name}
-            </span>
-            <div className="flex items-center opacity-0 group-hover:opacity-100">
-              <HoverIconButton
-                title={`Remove ${ind.name}`}
-                onClick={() => onRemoveIndicator(ind.id)}
-                className="hover:text-[var(--edge-negative)]"
-              >
-                <TrashIcon size={ICON_SIZE} aria-hidden />
-              </HoverIconButton>
-            </div>
-          </div>
-        );
-      })}
+      {pane.indicators.map((ind) => (
+        <ObjectTreeIndicatorRow
+          key={ind.id}
+          indicator={ind}
+          onToggleVisible={() => paneActions.onToggleIndicatorVisible(pane.cellIndex, ind.id)}
+          onRemove={() => paneActions.onRemoveIndicator(pane.cellIndex, ind.id)}
+        />
+      ))}
 
-      {sortedOverlays.map((o) => {
-        const drawingMeta = config.drawings.find((d) => d.id === o.id)?.metadata;
-        const displayLabel = formatObjectTreeLabel(o.label || o.name, drawingMeta);
-        const isSelected = selectedDrawingId === o.id;
-        return (
-          <div
-            key={o.id}
-            className={`group flex items-center gap-0.5 px-1 py-0.5 text-xs hover:bg-[var(--edge-surface-hover)] ${
-              !o.visible ? "opacity-50" : ""
-            } ${isSelected ? "bg-[var(--edge-surface-active)] ring-1 ring-inset ring-[var(--edge-border-strong)]" : ""}`}
-            draggable
-            onClick={() => onSelectDrawing?.(o.id)}
-            onDragStart={(e) => {
-              e.dataTransfer.setData("text/plain", o.id);
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              const draggedId = e.dataTransfer.getData("text/plain");
-              if (draggedId && draggedId !== o.id) {
-                onOverlayAction.bringForward(draggedId);
-              }
-            }}
-          >
-            <div className="flex items-center opacity-0 group-hover:opacity-100">
-              <HoverIconButton
-                title={o.visible ? "Hide drawing" : "Show drawing"}
-                onClick={() => onOverlayAction.setVisible(o.id, !o.visible)}
-              >
-                {o.visible ? (
-                  <EyeIcon size={ICON_SIZE} aria-hidden />
-                ) : (
-                  <EyeOffIcon size={ICON_SIZE} aria-hidden />
-                )}
-              </HoverIconButton>
-              <HoverIconButton
-                title={o.locked ? "Unlock drawing" : "Lock drawing"}
-                onClick={() => onOverlayAction.setLocked(o.id, !o.locked)}
-                className={o.locked ? "text-orange-500" : ""}
-              >
-                <LockIcon size={ICON_SIZE} aria-hidden />
-              </HoverIconButton>
-            </div>
-
-            {editingId === o.id ? (
-              <input
-                ref={editInputRef}
-                value={editValue}
-                onChange={(e) => onEditValueChange(e.target.value)}
-                onBlur={onCommitRename}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onCommitRename();
-                  if (e.key === "Escape") onCancelRename();
-                }}
-                className="min-w-0 flex-1 rounded border border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)] px-1 py-0 text-xs text-[var(--edge-text-primary)]"
-              />
-            ) : (
-              <span
-                className="min-w-0 flex-1 truncate text-xs text-[var(--edge-text-primary)]"
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  onStartRename(o.id, o.label);
-                }}
-                title="Double-click to rename"
-              >
-                {displayLabel}
-              </span>
-            )}
-
-            <div className="flex items-center opacity-0 group-hover:opacity-100">
-              <HoverIconButton
-                title="Remove drawing"
-                onClick={() => onOverlayAction.remove(o.id)}
-                className="hover:text-[var(--edge-negative)]"
-              >
-                <TrashIcon size={ICON_SIZE} aria-hidden />
-              </HoverIconButton>
-            </div>
-          </div>
-        );
-      })}
+      {pane.drawings.map((drawing) => (
+        <ObjectTreeDrawingRowView
+          key={drawing.id}
+          cellIndex={pane.cellIndex}
+          drawing={drawing}
+          isSelected={selectedDrawingId === drawing.id && pane.isActive}
+          isEditing={editingKey === `${pane.cellIndex}:${drawing.id}`}
+          editValue={editValue}
+          editInputRef={editInputRef}
+          onSelect={() => paneActions.onSelectDrawing(pane.cellIndex, drawing.id)}
+          onToggleVisible={() =>
+            paneActions.onDrawingSetVisible(pane.cellIndex, drawing.id, !drawing.visible)
+          }
+          onToggleLocked={() =>
+            paneActions.onDrawingSetLocked(pane.cellIndex, drawing.id, !drawing.locked)
+          }
+          onRemove={() => paneActions.onDrawingRemove(pane.cellIndex, drawing.id)}
+          onBringForward={(draggedId) =>
+            paneActions.onDrawingBringForward(pane.cellIndex, draggedId)
+          }
+          onStartRename={() => onStartRename(pane.cellIndex, drawing.id, drawing.label)}
+          onEditValueChange={onEditValueChange}
+          onCommitRename={onCommitRename}
+          onCancelRename={onCancelRename}
+        />
+      ))}
 
       <button
         type="button"
-        onClick={onAddIndicator}
+        onClick={() => paneActions.onAddIndicator(pane.cellIndex)}
         className="w-full px-2 py-1.5 text-left text-xs text-[var(--edge-accent-blue)] hover:bg-[var(--edge-surface-hover)]"
       >
         + Add indicator...
       </button>
+    </div>
+  );
+}
+
+function ObjectTreeIndicatorRow({
+  indicator,
+  onToggleVisible,
+  onRemove,
+}: {
+  indicator: IndicatorConfig;
+  onToggleVisible: () => void;
+  onRemove: () => void;
+}) {
+  const isVisible = indicator.visible !== false;
+  return (
+    <div
+      className={`group flex items-center gap-0.5 px-1 py-0.5 text-xs hover:bg-[var(--edge-surface-hover)] ${
+        !isVisible ? "opacity-50" : ""
+      }`}
+    >
+      <HoverIconButton
+        title={isVisible ? "Hide indicator" : "Show indicator"}
+        onClick={onToggleVisible}
+      >
+        {isVisible ? (
+          <EyeIcon size={ICON_SIZE} aria-hidden />
+        ) : (
+          <EyeOffIcon size={ICON_SIZE} aria-hidden />
+        )}
+      </HoverIconButton>
+      <span className="min-w-0 flex-1 truncate text-[var(--edge-text-primary)]">
+        {indicator.name}
+      </span>
+      <div className="flex items-center opacity-0 group-hover:opacity-100">
+        <HoverIconButton
+          title={`Remove ${indicator.name}`}
+          onClick={onRemove}
+          className="hover:text-[var(--edge-negative)]"
+        >
+          <TrashIcon size={ICON_SIZE} aria-hidden />
+        </HoverIconButton>
+      </div>
+    </div>
+  );
+}
+
+function ObjectTreeDrawingRowView({
+  cellIndex,
+  drawing,
+  isSelected,
+  isEditing,
+  editValue,
+  editInputRef,
+  onSelect,
+  onToggleVisible,
+  onToggleLocked,
+  onRemove,
+  onBringForward,
+  onStartRename,
+  onEditValueChange,
+  onCommitRename,
+  onCancelRename,
+}: {
+  cellIndex: number;
+  drawing: ObjectTreeDrawingRow;
+  isSelected: boolean;
+  isEditing: boolean;
+  editValue: string;
+  editInputRef: RefObject<HTMLInputElement | null>;
+  onSelect: () => void;
+  onToggleVisible: () => void;
+  onToggleLocked: () => void;
+  onRemove: () => void;
+  onBringForward: (draggedId: string) => void;
+  onStartRename: () => void;
+  onEditValueChange: (value: string) => void;
+  onCommitRename: () => void;
+  onCancelRename: () => void;
+}) {
+  void cellIndex;
+  const displayLabel = formatObjectTreeLabel(drawing.label || drawing.name, drawing.metadata);
+  return (
+    <div
+      className={`group flex items-center gap-0.5 px-1 py-0.5 text-xs hover:bg-[var(--edge-surface-hover)] ${
+        !drawing.visible ? "opacity-50" : ""
+      } ${isSelected ? "bg-[var(--edge-surface-active)] ring-1 ring-inset ring-[var(--edge-border-strong)]" : ""}`}
+      draggable
+      onClick={onSelect}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", drawing.id);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData("text/plain");
+        if (draggedId && draggedId !== drawing.id) {
+          onBringForward(draggedId);
+        }
+      }}
+    >
+      <div className="flex items-center opacity-0 group-hover:opacity-100">
+        <HoverIconButton
+          title={drawing.visible ? "Hide drawing" : "Show drawing"}
+          onClick={onToggleVisible}
+        >
+          {drawing.visible ? (
+            <EyeIcon size={ICON_SIZE} aria-hidden />
+          ) : (
+            <EyeOffIcon size={ICON_SIZE} aria-hidden />
+          )}
+        </HoverIconButton>
+        <HoverIconButton
+          title={drawing.locked ? "Unlock drawing" : "Lock drawing"}
+          onClick={onToggleLocked}
+          className={drawing.locked ? "text-orange-500" : ""}
+        >
+          <LockIcon size={ICON_SIZE} aria-hidden />
+        </HoverIconButton>
+      </div>
+
+      {isEditing ? (
+        <input
+          ref={editInputRef}
+          value={editValue}
+          onChange={(e) => onEditValueChange(e.target.value)}
+          onBlur={onCommitRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onCommitRename();
+            if (e.key === "Escape") onCancelRename();
+          }}
+          className="min-w-0 flex-1 rounded border border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)] px-1 py-0 text-xs text-[var(--edge-text-primary)]"
+        />
+      ) : (
+        <span
+          className="min-w-0 flex-1 truncate text-xs text-[var(--edge-text-primary)]"
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onStartRename();
+          }}
+          title="Double-click to rename"
+        >
+          {displayLabel}
+        </span>
+      )}
+
+      <div className="flex items-center opacity-0 group-hover:opacity-100">
+        <HoverIconButton
+          title="Remove drawing"
+          onClick={onRemove}
+          className="hover:text-[var(--edge-negative)]"
+        >
+          <TrashIcon size={ICON_SIZE} aria-hidden />
+        </HoverIconButton>
+      </div>
     </div>
   );
 }
