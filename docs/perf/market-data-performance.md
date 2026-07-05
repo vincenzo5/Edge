@@ -1,7 +1,7 @@
 # Market Data Performance Report
 
-**Generated:** 2026-06-26  
-**Baseline artifact:** [market-data-baseline-latest.json](./market-data-baseline-latest.json)  
+**Generated:** 2026-07-04  
+**Baseline artifact:** [market-data-baseline-latest.json](./market-data-baseline-latest.json) (snapshot [2026-07-04T16-35-04-609Z](./market-data-baseline-2026-07-04T16-35-04-609Z.json))  
 **Collection command:** `npm run perf:market-data`
 
 This report documents how market data flows through Edge today, where time is spent, and what to optimize next. It complements chart rendering baselines in `chart-baseline-latest.json` (Canvas/WebGL draw loop), which measure a different layer.
@@ -49,7 +49,7 @@ npm run perf:market-data
 
 | Setting | Value |
 |---------|-------|
-| Git | `f21a666` on `main` |
+| Git | `2dd5199` on `main` |
 | Node | v24.16.0 / darwin arm64 |
 | `TWS_ENABLED` | true |
 | `IBKR_ENABLED` | true |
@@ -62,27 +62,28 @@ Live TWS timing was captured in this run. IBKR Client Portal remains unauthentic
 
 | Scenario | Total | Source | Cache tier | Notes |
 |----------|------:|--------|------------|-------|
-| Cold chart candles (AAPL 1y) | **184 ms** | tws | cold | TWS returned 251 bars |
+| Cold chart candles (AAPL 1y) | **602 ms** | tws | cold | TWS returned 251 bars |
 | Warm chart revisit (AAPL 1y) | **1 ms** | tws | hot-fresh | Hot store served fresh TWS candles |
-| Watchlist quotes (10 symbols) | **825 ms** | mixed | cold | TWS 9 quotes; IBKR skipped via auth probe; Yahoo filled 1 missing symbol |
-| Warmup (layout core) | **309 ms** | mixed | — | Expirations-only options prewarm; no blocking chain fetch |
-| Options expirations (AAPL) | **0 ms** | tws | hot-fresh | 25 expirations |
-| Options chain (AAPL nearest expiry) | **2751 ms** | tws | cold | On-demand chain scenario (not part of warmup) |
+| Watchlist quotes (10 symbols) | **2628 ms** | mixed | cold | TWS 9 quotes (1821 ms); IBKR skipped via auth probe; Yahoo filled 1 missing symbol (546 ms) |
+| Warmup (layout core) | **925 ms** | mixed | — | Expirations-only options prewarm (Massive cold 534 ms); MSFT candles cold 373 ms |
+| Options expirations (AAPL) | **0 ms** | massive | hot-fresh | 23 expirations (cached) |
+| Options chain (AAPL nearest expiry) | **118 ms** | massive | cold | On-demand chain scenario (40 contracts; not part of warmup) |
 
-Raw baseline: `docs/perf/market-data-baseline-2026-06-26T02-11-28-095Z.json`.
+Raw baseline: `docs/perf/market-data-baseline-2026-07-04T16-35-04-609Z.json`.
 
-**Shipped since prior baseline:** deferred options-chain warmup, IBKR auth health gate + proactive auth probe, partial hot quote serving, TWS Gateway status probe before candle/quote attempts, TWS stream missing-symbol fill-in.
+**Shipped since prior baseline (2026-06-29):** age-based Data Health display freshness (`maxDisplayAgeMs`), trust-event logging for transport recovery, client chart cache in `sessionStorage`, history prefetch (500-bar pages, pipelined edge fetch), per-symbol hot quote fill without blocking batch, workspace bootstrap resolving local + remote before provider mount.
 
 ## Phase breakdown (cold chart load)
 
-Cold AAPL 1y candle load (`184 ms` total):
+Cold AAPL 1y candle load (`602 ms` total):
 
 ```
 cache.hot.read          0 ms   miss
-provider.tws.candles    259 ms  251 bars OK
+provider.tws.candles    595 ms  251 bars OK
+service.fetchCandlesFresh 600 ms cold tws
 ```
 
-**Takeaway:** With Gateway connected, TWS-first chart candles are fast and avoid the previous ~3s timeout/fallback path.
+**Takeaway:** With Gateway connected, TWS-first chart candles remain sub-second on cold load; this run is slower than the 2026-06-29 sample (173–184 ms) — treat as run variance, not a regression signal from a single sample.
 
 ## Phase breakdown (warm revisit)
 
@@ -96,49 +97,54 @@ Hot store now serves broker-sourced candles immediately on revisit.
 
 ## Watchlist quotes
 
-10-symbol batch (`825 ms`):
+10-symbol batch (`2628 ms`):
 
 ```
 cache.hot.read          0 ms    0/10 hot hits
-provider.tws.quotes     114 ms  9 quotes
+provider.tws.quotes     1821 ms  9 quotes
 provider.ibkr.skipped   0 ms    auth probe skip
-provider.yahoo.quotes   463 ms  1 quote filled
+provider.yahoo.quotes   546 ms  1 quote filled
 ```
 
-Watchlist cold start is now TWS quote subscription warmup plus Yahoo fill for missing symbols. IBKR auth probe removes the prior ~450 ms 401 hop when Client Portal is logged out.
+Watchlist cold start is TWS quote subscription warmup plus Yahoo fill for missing symbols. This run is slower than the 2026-06-29 sample (~825–994 ms); IBKR auth probe still removes the prior ~450 ms 401 hop when Client Portal is logged out.
 
 ## Warmup coordinator
 
-`primeMarketData` layout warmup (`309 ms`):
+`primeMarketData` layout warmup (`925 ms`):
 
 | Phase | ms | Result |
 |-------|---:|--------|
-| tws.warmup | 16 | OK |
+| tws.warmup | 17 | OK |
 | candles AAPL | 0 | OK (hot-fresh tws) |
-| candles MSFT | 195 | OK (cold tws) |
-| quotes ×5 | 0 | OK (hot-fresh mixed) |
-| options expirations AAPL | 74 | OK (cold tws) |
+| candles MSFT | 373 | OK (cold tws) |
+| options expirations AAPL | 534 | OK (cold massive) |
 
-Warmup preloads candles, quotes, and expirations only. Options chain loads on demand when the Options panel or API requests it (~2751 ms cold in the separate chain scenario).
+Warmup preloads candles, quote subscriptions, and expirations only. Options chain loads on demand when the Options panel or API requests it (~118 ms cold Massive in the separate chain scenario on this run).
 
 ## Bottlenecks (ranked)
 
-### 1. On-demand cold options chain
+### 1. Watchlist cold quote batch variance
 
-- **Impact:** ~2.8s when explicitly fetching the nearest ATM chain outside warmup
-- **Evidence:** `options-chain:AAPL:2026-06-26` 2751 ms
-- **Next optimization:** Defer chain fetch until Options panel open; consider narrower strike window for first paint
+- **Impact:** 2.6s in this run when TWS subscription warmup is slow; prior baselines saw ~0.8–1.0s
+- **Evidence:** `watchlist-quotes:10-symbols` 2628 ms; `provider.tws.quotes` 1821 ms for 9/10 symbols
+- **Next optimization:** Ensure sidecar `/warmup` covers every visible watchlist symbol before first batch read; silent aged-quote revalidation in `MarketDataProvider`
 
 ### 2. Yahoo fill for missing TWS quote symbols
 
-- **Impact:** ~460 ms when one symbol misses TWS subscription on cold batch
-- **Evidence:** `provider.yahoo.quotes` 463 ms fill after TWS partial batch
-- **Next optimization:** Ensure sidecar warmup subscribes all watchlist symbols before first batch read
+- **Impact:** ~546 ms when one symbol misses TWS subscription on cold batch
+- **Evidence:** `provider.yahoo.quotes` 546 ms fill after TWS partial batch
+- **Next optimization:** Per-symbol hot quote serving without blocking the full batch (shipped); verify warmup subscription parity
 
-### 3. Gateway-down fallback remains important
+### 3. Cold chart candle run variance
+
+- **Impact:** 602 ms in this run vs ~173–184 ms on 2026-06-29 samples
+- **Evidence:** `provider.tws.candles` 595 ms; single-sample noise
+- **Next optimization:** Track p95 across repeated cold loads in CI gate
+
+### 4. Gateway-down fallback remains important
 
 - **Impact:** Prior baseline showed +~3s cold candle timeout when Gateway was down
-- **Evidence:** Previous `provider.tws.candles` timeout path; now mitigated by cached Gateway status probe + circuit breaker
+- **Evidence:** Previous `provider.tws.candles` timeout path; mitigated by cached Gateway status probe + circuit breaker
 - **Next optimization:** Keep health-aware skip-before-timeout for disconnected Gateway states
 
 ## Recommendations
@@ -192,7 +198,7 @@ npm run perf:market-data
 npm run check:startup
 ```
 
-Latest run: **`perf:market-data` succeeded** after first-paint performance work (warmup 309 ms, watchlist 825 ms); **37 focused tests passed** in service + IBKR health gate suites.
+Latest run: **`perf:market-data` succeeded** on 2026-07-04 (`2dd5199`); cold chart 602 ms, watchlist 2628 ms, warmup 925 ms, options chain 118 ms (Massive). Prior 2026-06-29 focused suites remain valid for instrumentation regressions.
 
 ## Screener performance — before/after comparison
 
@@ -249,17 +255,17 @@ After = Massive full-universe daily-store path (b18367e, 2026-06-29T01:32:357Z r
 2. **Indicator result cache** across runs for unchanged universes (currently 0% hit on cold).
 3. **Massive backfill** of historical bars so indicator compute can run on the universe store without per-symbol candle fetches at all.
 
-## Market data scenarios — before/after (2026-06-29)
+## Market data scenarios — before/after (2026-07-04)
 
-Same `npm run perf:market-data` run, b18367e. Baseline column is the 2026-06-26 f21a666 collection recorded above.
+Same `npm run perf:market-data` run, `2dd5199`. Baseline column is the 2026-06-29 `b18367e` collection recorded in the section below.
 
-| Scenario | Baseline (2026-06-26) | After (2026-06-29) | Delta | Notes |
+| Scenario | Baseline (2026-06-29) | After (2026-07-04) | Delta | Notes |
 |----------|----------------------:|-------------------:|------:|-------|
-| Cold chart candles AAPL 1y | 184ms | 173ms | -11ms | TWS 251 bars both runs |
+| Cold chart candles AAPL 1y | 173ms | 602ms | +429ms | TWS 251 bars both runs; single-sample variance |
 | Warm chart revisit AAPL 1y | 1ms | 1ms | — | hot-fresh |
-| Watchlist quotes 10-sym | 825ms | 994ms | +169ms | Yahoo fill 463ms → 596ms (run variance) |
-| Warmup layout-core | 309ms | 218ms | **-91ms** | MSFT cold 195ms → 188ms; quotes hot-fresh |
-| Options expirations AAPL | 0ms | 0ms | — | hot-fresh, 25 expirations |
-| Options chain AAPL cold | 2751ms | 7446ms | +4695ms | Different expiry date (2026-06-29, Sunday); single sample, out of optimization scope |
+| Watchlist quotes 10-sym | 994ms | 2628ms | +1634ms | TWS quote warmup slower this run |
+| Warmup layout-core | 218ms | 925ms | +707ms | MSFT cold 188ms → 373ms; Massive expirations cold 534ms |
+| Options expirations AAPL | 0ms | 0ms | — | hot-fresh; provider mix shifted TWS → Massive when cached |
+| Options chain AAPL cold | 7446ms | 118ms | **-7328ms** | Different provider (Massive) and expiry date (2026-07-06) |
 
-Warmup improved; cold chart, warm revisit, and expirations unchanged. Watchlist and options-chain regressions are run-to-run variance / different expiry, not code regressions.
+Watchlist and cold-chart deltas are run-to-run variance on a single sample. Options chain improved dramatically when served from Massive with a narrow strike window.

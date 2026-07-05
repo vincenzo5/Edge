@@ -9,14 +9,16 @@ Render OHLCV candles, indicators, and drawings; handle viewport pan/zoom/scale; 
 ## Component Flow
 
 ```
-StockApp → ChartGrid → ChartCell → EdgeChart
-                                      ├─ ChartCanvas (price + sub-panes)
-                                      ├─ CrosshairOverlay
-                                      ├─ ChartLegendBar / PaneLegendBar
-                                      └─ DrawingStore (undo/redo)
+StockApp → WorkspaceTabBar
+         → ChartGrid ── ChartDrawingRail (multi-pane; targets active cell)
+              └─ ChartCell → EdgeChart
+                                ├─ ChartCanvas (price + sub-panes)
+                                ├─ CrosshairOverlay
+                                ├─ PriceLegendLayout / PaneLegendBar
+                                └─ DrawingStore (undo/redo)
 ```
 
-Data path: `POST /api/candles` → `series.ts` → `@edge/chart-react` `EdgeChart` → `packages/chart-react/src/engine/canvas.tsx` render loop.
+Data path: `POST /api/candles` → `series.ts` → `@edge/chart-react` `EdgeChart` → `packages/chart-react/src/engine/canvas.tsx` render loop. History pagination uses `historyPrefetchController.ts` (50% visible lookahead, 500-bar pages, pipelined fetch) with thresholds from `@edge/chart-core` `historyPrefetch.ts`.
 
 ## Canonical vs compatibility paths
 
@@ -44,6 +46,10 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 | `packages/chart-core/src/drawingCoords.ts` | Plot ↔ data coordinate transforms |
 | `packages/chart-react/src/engine/paneHandle.ts` | Imperative pane registration for multi-pane sync |
 | `packages/chart-core/src/contracts.ts` | Core types: `Candle`, `SerializedDrawing`, `IndicatorConfig` |
+| `packages/chart-core/src/historyPrefetch.ts` | Lookahead thresholds, debounce constants, background prefetch gate |
+| `packages/chart-react/src/engine/historyPrefetchController.ts` | Pipelined `loadMore` (1 in-flight + 1 queued), urgent debounce bypass |
+| `src/lib/chart/layoutTemplates.ts` | Layout template catalog, CSS grid classes, pane counts (1–16) |
+| `src/lib/chart/objectTreeModel.ts` | Multi-pane object tree sections from layout + active chart snapshot |
 
 ## Plugin System
 
@@ -114,7 +120,8 @@ Package path: `packages/chart-react/src/engine/webgl/`.
 
 | Field | Storage |
 |-------|---------|
-| `ChartLayout` | `localStorage` via `layoutStorage.ts`; optional Postgres sync |
+| Workspace tabs | `tv-ai:workspace-tabs:v1` via `workspaceTabsStorage.ts`; legacy `tv-ai:layout:v1` migrates on load |
+| `ChartLayout` (per tab) | Embedded in active workspace tab; optional Postgres sync per tab via `useWorkspaceTabsRemoteSync` |
 | Per-cell `drawings`, `indicators`, `paneOrder`, etc. | Inside `ChartLayout.cells[]` |
 | Undo history | In-memory only — cleared on hydrate |
 

@@ -2,7 +2,7 @@
 
 Single roadmap for the Edge stock screener: filter the full US-listed universe (equities + ETFs) by technical, fundamental, and descriptive criteria, then load results into the chart or watchlists.
 
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-05
 
 A solo-trader tool for two workflows:
 
@@ -24,7 +24,7 @@ The screener is **not** an alerting engine, a backtester, or a multi-asset scann
 | Output | Configurable-column table with leading-rule default sort, cog column picker, per-saved-screen sort persistence, indicator columns for technical screens; sort, filter-in-results, pagination, export |
 | Per-row actions | Load ticker into chart; add ticker to watchlist |
 | Group actions | Add full result set to existing watchlist; create new watchlist from result set |
-| Surface | Header-bar icon next to `DataHealthButton`; opens modal |
+| Surface | Sidebar rail (`screener` panel in `sidebar/registry.tsx`); optional **Pop out** to floating window via `FloatingPanelHost` / `useFloatingPanel`; legacy header modal via thin `ScreenerDialog` wrapper |
 | Saved screens | Named, persistent, reusable (localStorage + optional Postgres) |
 
 ## Architecture Decisions
@@ -68,13 +68,14 @@ Target: first paint < 1s for cached screens, < 3s for fresh complex queries. Suf
 
 ## UI Surface
 
-- **Entry point:** new `ChartHeaderButton` in `ChartHeaderBar.tsx` placed adjacent to `DataHealthButton`, with a `ScreenerIcon` added to `ChartHeaderIcons.tsx`. Density behavior matches the existing header pattern (inline at `full`, in the `More` menu at `compact` / `minimal`).
-- **Container:** `EdgeModalShell`-based modal (consistent with `OptionsChainDialog` and `ChartSettingsModal`), large viewport, scroll-stable.
+- **Entry point:** `screener` icon in `SidebarRail.tsx` (main group between options and object-tree). Opens the docked sidebar panel; **Pop out** in the panel header moves it to a floating window (`FloatingPanelShell` + `FloatingPanelHost`). Presentation state persists in `layout.sidebar.presentation` / `floatingGeometry`.
+- **Shared body:** `ScreenerPanelContent.tsx` renders query builder, saved screens, and results for `variant="sidebar" | "floating" | "modal"`. `ScreenerSessionProvider` holds ephemeral session state (last run, UI collapse) separate from persisted `ScreenerState`.
+- **Legacy modal:** `ScreenerDialog.tsx` is a thin wrapper around `ScreenerPanelContent` (`variant="modal"`) for tests and any header-triggered flows; primary surface is sidebar/floating.
 - **Layout:**
   - **Left rail:** saved screens list, presets.
   - **Custom query panel:** `Run screen` primary button top-right with `⌘↵` shortcut; collapsible rule rows with expand-all/collapse-all inside a bounded scroll region (`max-h-[40vh]`).
-  - **Modal header:** save-name input + Save button (`EdgeModalShell` `headerActions` slot).
-  - **Modal footer:** limit control (1–1000).
+  - **Header row:** save-name input + Save button (sidebar/floating panel header; modal variant uses `EdgeModalShell` `headerActions` when opened).
+  - **Footer row:** limit control (1–1000).
   - **Body:** results table.
 - **Styling:** Edge design tokens and primitives per `src/lib/design-system/ARCHITECTURE.md`.
 
@@ -95,7 +96,7 @@ Scope (implemented):
 5. **Results table** — default columns (symbol, name, price, change %, volume, sector, market cap, beta); sortable; paginated 50/page.
 6. **Per-row actions** — load into chart; add to current watchlist.
 7. **Saved screens (localStorage)** — save / load / delete named screens in `tv-ai:screener:v1`.
-8. **Header-bar entry** — `ScreenerButton` + `ScreenerDialog` from `ChartHeaderBar.tsx`.
+8. **Sidebar entry** — `screener` panel in `sidebar/registry.tsx` + shared `ScreenerPanelContent`; optional floating pop-out via `FloatingPanelHost`.
 
 **Deferred from original Phase 1 scope (see Phase 1.5):**
 - RSI, SMA50/200, 52-week proximity, golden cross presets (require per-symbol technical fetches).
@@ -190,8 +191,8 @@ Intentionally not in scope:
 | Backend route | `src/app/api/screener/run/route.ts` (new), `src/app/api/screener/presets/route.ts` (new) |
 | Domain logic | `src/lib/screener/` (new): `querySchema.ts`, `fmpScreenerAdapter.ts`, `presets.ts`, `normalizeResults.ts` |
 | Storage | `src/lib/screener/screenStorage.ts` (localStorage, Phase 1), `src/lib/persistence/schemas/screenDefinitions.ts` (Phase 2) |
-| UI | `src/app/components/screener/` (new): `ScreenerModal.tsx`, `ScreenerButton.tsx`, `QueryBuilder.tsx`, `ResultsTable.tsx`, `SavedScreensRail.tsx` |
-| Header entry | `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/chart-chrome/ChartHeaderIcons.tsx` |
+| UI | `src/app/components/screener/` — `ScreenerPanelContent.tsx`, `ScreenerProvider.tsx`, `QueryBuilder.tsx`, `ResultsTable.tsx`; `ScreenerDialog.tsx` (modal wrapper) |
+| Sidebar entry | `src/app/components/sidebar/registry.tsx`, `panels/ScreenerSidebarPanel.tsx`, `FloatingPanelHost.tsx` |
 | Design system | `EdgeModalShell`, `EdgeButton`, `EdgeSearchInput` per `src/lib/design-system/ARCHITECTURE.md` |
 | Provider reuse | `src/lib/marketData/providers/fmp/adapter.ts` (`getMarketMovers`, `getFinancialsBundle`, `getCompanyProfile`) |
 | Cache reuse | `src/lib/marketData/cache/dataCache.ts`, `src/lib/marketData/hotStore.ts` |

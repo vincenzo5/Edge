@@ -2,7 +2,7 @@
 
 Single roadmap for where Edge is going and how current work fits together.
 
-**Last updated:** 2026-06-27
+**Last updated:** 2026-07-05
 
 ## Product Direction
 
@@ -14,10 +14,11 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 
 | Area | State | Notes |
 |------|-------|-------|
-| Custom chart engine | Shipped foundation | Canvas 2D renderer, pan/zoom, range presets, indicators, drawings, panes, templates, context menus, and layout persistence are in place. |
-| Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Tradier, and IBKR adapters. |
+| Custom chart engine | Shipped foundation | Canvas 2D renderer, pan/zoom, range presets, indicators, drawings, panes, templates, context menus, TradingView-style layout templates, workspace tabs, and per-tab layout persistence are in place. |
+| App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, and workspace tab bar with optional cloud sync. |
+| Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Tradier, and IBKR adapters; age-based display freshness and trust-event logging for transport recovery. |
 | IBKR provider | Shipped in main routing | IBKR-first candles and quotes in `MarketDataService` with Yahoo fallback; probe routes remain for diagnostics. Requires daily Gateway login for live IBKR data. |
-| AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data tools run server-side; stateful chart tools require an app session. |
+| AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data tools run server-side; stateful chart, watchlist, screener, risk, account, and options session tools require an app session. |
 | Semantic annotations | Phase A shipped | Drawings can carry thesis, invalidation, target, and note metadata; AI drawing tools can read/write/filter metadata. |
 | Copilot UI | Future | Tool layer exists, but the in-app copilot panel and stateful MCP session bridge are not built yet. |
 
@@ -35,7 +36,7 @@ Completed foundations:
 - Candles, OHLC, area, Heikin Ashi, axes, crosshair, pan/zoom, pinch, range presets, and infinite history prepend work.
 - Six implemented indicators: MA, EMA, BOLL, MACD, RSI, VOL.
 - Twelve drawing tools, undo/redo, object tree, data window, drawing metadata, and basic context menus are in place.
-- Layouts, templates, watchlists, and chart settings persist locally with optional remote persistence.
+- Layouts, templates, watchlists, workspace tabs, and chart settings persist locally with optional remote persistence.
 
 Remaining chart work:
 

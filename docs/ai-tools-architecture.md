@@ -24,6 +24,8 @@ AI Agent
                     ├── ActiveChartContext (active chart read/write)
                     ├── ChartActionsContext (symbol load)
                     ├── WatchlistContext (watchlist CRUD)
+                    ├── ScreenerProvider (saved screens + last run)
+                    ├── RiskSettingsProvider / AccountProvider / OptionsSessionProvider
                     └── MarketDataPort (search, candles, quotes, fundamentals)
 ```
 
@@ -31,9 +33,9 @@ AI Agent
 
 | Group | Tool | Permission | Confirmation |
 |---|---|---|---|
-| **App** | `get_app_state` | read | — |
+| **App** | `get_app_state` | read | — | Returns `layoutId`, linked mode, theme, active cell, and per-cell summary via `buildAppWorkspaceSnapshot` |
 | **App** | `set_active_cell` | write | no |
-| **App** | `set_grid_mode` | write | no |
+| **App** | `set_grid_mode` | write | no | Accepts `layoutId` (preferred) or legacy `gridMode`; migrates to template id |
 | **App** | `set_linked_mode` | write | no |
 | **App** | `set_theme` | write | no |
 | **Chart** | `get_chart_state` | read | — |
@@ -67,6 +69,9 @@ AI Agent
 | **Workflow** | `compare_symbols` | write | no |
 | **Workflow** | `prepare_chart_for_analysis` | write | no |
 | **Screener** | `summarize_screen` | read | — |
+| **Session state** | `get_risk_settings` | read | — |
+| **Session state** | `get_account_snapshot` | read | — |
+| **Session state** | `get_options_session` | read | — |
 
 ### Supported Indicators (implemented only)
 
@@ -118,6 +123,10 @@ type AiTool<TInput> = {
 | `getActiveChart()` | `ActiveChartContext` |
 | `getWatchlistState()` / watchlist mutators | `WatchlistContext` |
 | `loadSymbolIntoActiveChart()` | `ChartActionsContext` |
+| `screener.getState()` / `getLastRun()` | `ScreenerProvider` |
+| `risk.getRiskSettings()` | `RiskSettingsProvider` |
+| `account.getSnapshot()` | `AccountProvider` |
+| `options.getSession()` | `OptionsSessionProvider` |
 | `marketData` | `YahooMarketDataPort` (server) or `FetchMarketDataPort` (client) |
 
 Tools never import React. Context providers assemble a `ToolContext` snapshot at execution time.
