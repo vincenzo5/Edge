@@ -1,5 +1,5 @@
-import StockApp from "./components/StockApp";
+import RootEntryRedirect from "./components/home/RootEntryRedirect";
 
-export default function Home() {
-  return <StockApp />;
+export default function RootPage() {
+  return <RootEntryRedirect />;
 }

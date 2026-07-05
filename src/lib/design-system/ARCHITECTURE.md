@@ -99,6 +99,7 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Chart feed status overlay | `chart-cell/ChartFeedStatusBadge.tsx` — stale/stream/error/refreshing feed state (standalone or embedded in the stack) |
 | Chart error fallback | `chart-cell/ChartErrorBoundary.tsx` — in-cell error UI with retry and copy-error actions |
 | App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full chrome skeleton (workspace tab bar, header, rails, chart grid, range bar) until `StockApp` layout hydrates; also used by `src/app/loading.tsx` during route load |
+| App home hub | `home/HomeShell.tsx` + `home/HomeAppNav.tsx` — responsive Layout 1 tri-pane (≥2560) with dual-stack/tabbed/drawer/hub fallbacks; Continue card + workspace cards; journal stub + research preview; module nav rail (Home/Charts/Journal/Research); no chart bootstrap |
 | Chart cold-load overlay | `chart-cell/ChartLoadingOverlay.tsx` — symbol-aware spinner + skeleton bars when candles are loading and empty; rendered from app `EdgeChart.tsx` |
 
 Copy patterns from these files before inventing new markup.

@@ -1,8 +1,15 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo } from 'react';
 import { getTabPrimarySymbol, type WorkspaceTabsState } from '@/lib/app/workspaceTabs';
+import { recordLastModule } from '@/lib/app/lastModule';
 import { useMarketDataQuotesForSymbols } from '../MarketDataProvider';
+import {
+  iconRailButtonClass,
+  iconRailIconClass,
+  toolbarButtonStateClass,
+} from '../chart-icons/toolbarButtonStyles';
 
 type Props = {
   workspaceTabs: WorkspaceTabsState;
@@ -10,6 +17,14 @@ type Props = {
   onTabCreate: () => void;
   onTabClose: (tabId: string) => void;
 };
+
+function HomeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-8.5z" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function formatPrice(value: number | undefined): string | null {
   if (value == null || !Number.isFinite(value)) return null;
@@ -50,6 +65,15 @@ export default function WorkspaceTabBar({
       aria-label="Workspace tabs"
       data-testid="workspace-tab-bar"
     >
+      <Link
+        href="/home"
+        data-testid="workspace-tab-home"
+        aria-label="Home"
+        onClick={() => recordLastModule('home')}
+        className={`${iconRailButtonClass(false)} ${toolbarButtonStateClass(false)} mb-0.5 shrink-0 text-[var(--edge-text-rail)] hover:text-[var(--edge-text-rail-active)]`}
+      >
+        <HomeIcon className={iconRailIconClass(false)} />
+      </Link>
       {workspaceTabs.tabs.map((tab) => {
         const selected = tab.id === workspaceTabs.activeTabId;
         const symbol = getTabPrimarySymbol(tab);
