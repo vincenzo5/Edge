@@ -18,7 +18,9 @@ StockApp → WorkspaceTabBar
                                 └─ DrawingStore (undo/redo)
 ```
 
-Data path: `POST /api/candles` → `series.ts` → `@edge/chart-react` `EdgeChart` → `packages/chart-react/src/engine/canvas.tsx` render loop. History pagination uses `historyPrefetchController.ts` (50% visible lookahead, 500-bar pages, pipelined fetch) with thresholds from `@edge/chart-core` `historyPrefetch.ts`.
+Data path: `POST /api/candles` → `series.ts` → `@edge/chart-react` `EdgeChart` → `packages/chart-react/src/engine/canvas.tsx` render loop. App `EdgeChart.tsx` passes `resolveCellFetchRange(config)` so weekly/monthly intervals fetch enough history (1wk→5y, 1mo→max when no bottom-bar preset). History pagination uses `historyPrefetchController.ts` (50% visible lookahead, 500-bar pages, pipelined fetch) with thresholds from `@edge/chart-core` `historyPrefetch.ts`.
+
+**Range & viewport session:** Manual interval picks use `rangeForManualInterval()`. Initial visible window comes from `getSessionViewport()` — active bottom-bar presets use calendar cutoffs; no preset + daily interval shows ~270 calendar days (`getCalendarWindowViewport`); weekly/monthly show the full fetched window. When the candle session changes (symbol/range/interval), `viewportRevision` triggers `resetAllPaneViewports()` so pan/zoom does not carry stale state across bar sizes.
 
 ## Canonical vs compatibility paths
 
@@ -39,6 +41,9 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 | `packages/chart-react/src/engine/renderScheduler.ts` | RAF draw coalescing, invalidation reasons, phase timings |
 | `packages/chart-react/src/engine/layerCache.ts` | Offscreen cache for static background layer |
 | `packages/chart-react/src/engine/viewport.ts` | Pan, zoom, momentum, price/time scale modes |
+| `packages/chart-react/src/engine/rangeInterval.ts` | Interval↔range pairing; `resolveCellFetchRange`, `rangeForManualInterval` |
+| `packages/chart-react/src/engine/rangePresets.ts` | Session viewport (`getSessionViewport`), calendar daily window, range cutoffs |
+| `packages/chart-core/src/drawings/position_tool.ts` | Shared long/short position plugin factory; geometry in `positionGeometry.ts`; labels via `risk/positionLabels.ts` |
 | `packages/chart-react/src/engine/renderer.ts` | Grid, candles, axes, annotations draw primitives |
 | `packages/chart-core/src/pluginHost.ts` | Indicator/drawing registries, hit-test, serialize/restore |
 | `packages/chart-core/src/drawingStore.ts` | Command-based undo/redo (max 50 history) |
@@ -54,7 +59,7 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 ## Plugin System
 
 - **Indicators**: register in `indicators/registry.ts`; implement compute + draw via `plugin-api.ts`.
-- **Drawings**: register in `drawings/registry.ts`; toolbar names aliased in `pluginHost.ts`. Utility tools include `measure` (bar/price line) and `ruler` (shaded Δtime/Δprice band; ⇧+click shortcut on price pane).
+- **Drawings**: register in `drawings/registry.ts`; toolbar names aliased in `pluginHost.ts`. Utility tools include `measure` (bar/price line), `ruler` (shaded Δtime/Δprice band; ⇧+click shortcut on price pane), and `risk_ruler`. Forecasting tools `long_position` / `short_position` use `createPositionPlugin()` — two-point create expands to four anchor points, 6-handle resize, profit/loss zones, and TV-style target/entry/stop labels backed by `risk/*` helpers.
 - New plugins MUST follow existing patterns (`ma.ts`, `trend_line.ts`).
 
 ## Invariants

@@ -75,14 +75,14 @@ Import from `src/app/components/design-system/index.ts`:
 | `EdgeSkeletonLine` | Pulse skeleton bars/lines; uses `.edge-skeleton-pulse` with reduced-motion fallback |
 | `EdgeToggle` | Boolean settings rows |
 
-Shared rail styling for left drawing toolbar and right sidebar: `src/app/components/chart-icons/toolbarButtonStyles.ts` (icons 22/20 px via `edgeLayoutTokens.iconRailIconSize`; active state uses `surface-hover` without ring).
+Shared rail styling for left drawing toolbar and right sidebar: `src/app/components/chart-icons/toolbarButtonStyles.ts` — `iconRailShellClass(edge)`, `iconRailButtonClass`, `railMode` prop (`full` \| `compact`) on `DrawingToolbar`, `ChartDrawingRail`, and `SidebarRail`; icons 22/20 px via `edgeLayoutTokens.iconRailIconSize`; active state uses `surface-hover` without ring.
 
 ## Surface recipes (canonical examples)
 
 | Surface | Reference file |
 |---------|----------------|
 | Chart header | `chart-chrome/ChartHeaderBar.tsx` + `styles.ts` |
-| Workspace tab bar | `chart-chrome/WorkspaceTabBar.tsx` — scrollable pills above header; symbol + live quote + layout title; `+` create / close when >1 tab |
+| Workspace tab bar | `chart-chrome/WorkspaceTabBar.tsx` — Home link (→ `/home`, records last module) + scrollable pills above header; symbol + live quote + layout title; `+` create / close when >1 tab |
 | Symbol search pill | `SearchBar.tsx` (compact mode) |
 | Context menu | `ContextMenu.tsx` |
 | Settings modal | `ChartSettingsModal.tsx` |

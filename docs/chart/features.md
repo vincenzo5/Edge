@@ -91,7 +91,7 @@ StockApp → WorkspaceTabBar
 | Range selector (bottom bar) | **Done** | 1D, 5D, 1M, 3M, 6M, YTD, 1Y, 5Y, All — sets visible window **and** default interval (1D→1m, 5D→5m, 1M→30m, 3M→1h, 6M→2h, YTD/1Y→1d, 5Y→1wk, All→1mo). Click active preset again to deselect and restore default 1Y/1D landing view. Top interval dropdown overrides bar size and clears preset highlight. Calendar icon opens **Go to** modal (date or custom range) |
 | Interval selector | **Done** | 1m, 5m, 15m, 30m, 1h, 2h, 1D, 1W, 1M — candle/bar resolution only; top toolbar dropdown |
 | Chart type selector | **Done** | Cell toolbar; 5 types from `CHART_TYPES` |
-| Yahoo candle fetch | **Done** | `fetchYahooCandles()` in `series.ts` |
+| Yahoo candle fetch | **Done** | `fetchYahooCandles()` in `series.ts`; app `EdgeChart` widens fetch via `resolveCellFetchRange()` (1wk→5y, 1mo→max when no bottom-bar preset); manual interval picks use `rangeForManualInterval()` |
 | Candle validation / normalization | **Done** | Short-form `{ t,o,h,l,c,v }`; ms timestamps |
 | Heikin Ashi transform | **Done** | Applied when `chartType === 'heikin_ashi'` |
 | Bar Replay data slice | **Done** | `onDataLoaded` → `candleCount`; `baseCandles` + `applyVisibleSlice` (no refetch on scrub) |
@@ -146,7 +146,8 @@ StockApp → WorkspaceTabBar
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Initial viewport | **Done** | Range preset aligns left/right to selected window anchored on latest bar |
+| Initial viewport | **Done** | Range preset aligns left/right to selected window anchored on latest bar; no preset + daily interval shows ~270 calendar days; weekly/monthly show full fetched window (`getSessionViewport`) |
+| Viewport reset on interval change | **Done** | `viewportRevision` triggers `resetAllPaneViewports()` when candle session changes so pan/zoom does not carry across bar sizes |
 | Horizontal pan (drag body) | **Done** | `pan()`; preserves visible count |
 | Pan momentum | **Done** | Decay 0.9/frame after release (`applyMomentum`) |
 | Vertical wheel zoom | **Done** | Zoom anchored to cursor X; 10–5000 candle clamp |
@@ -319,7 +320,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Click select + CP edit | **Done** | `hitTestAll` + control-point drag |
 | Draw on chart | **Done** | Price + sub-panes; z-sorted render per pane |
 | Sub-pane drawing routing (platform 4.1) | **Done** | Pane-scoped input, coords, render; trend/hline on RSI |
-| Full sub-pane tool parity (platform 4.2) | **Done** | All 14 tools; pane-scoped hit-test + selection |
+| Full sub-pane tool parity (platform 4.2) | **Done** | All 16 tools; pane-scoped hit-test + selection |
 | Object Tree pane labels (platform 4.2) | **Done** | Data window section headers; object tree uses flat labels |
 | Serialize to `CellConfig.drawings` | **Done** | `timestamp`+`value` points; debounced 500 ms |
 | Hit test / select | **Done** | 4px tolerance; topmost z-order |
@@ -345,7 +346,8 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Workspace tabs | **Done** | TradingView-style tab bar above header; each tab owns full `ChartLayout` in `tv-ai:workspace-tabs:v1`; migrates legacy `tv-ai:layout:v1`; per-tab Postgres sync via list/create/archive API |
 | Theme persistence | **Done** | Part of `ChartLayout`; live switch via toolbar |
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
-| Drawing toolbar rail | **Done** | Single-pane: left column in `ChartCell`. Multi-pane: one shared compact rail in `ChartGrid` (`ChartDrawingRail`) driven by active cell registration |
+| Module home hub | **Done** | `/home` hub (`HomeShell`); charts at `/chart`; `/` redirects via `lastModule.ts` (24h) to last module (Home/Charts/Journal/Research) |
+| Drawing toolbar rail | **Done** | Single-pane: left column in `ChartCell`. Multi-pane: one shared rail in `ChartGrid` (`ChartDrawingRail`) driven by active cell registration; `railMode` (`full` \| `compact`) via shared `iconRailShellClass` |
 | Bottom range bar alignment | **Done** | `ChartRangeBar` sits in the chart column beside the drawing rail (not full cell width) so presets align with the plot area |
 | Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.tsx` for watchlist, options, screener, object-tree, account, and settings panels |
 | Floating panel pop-out | **Done** | Any sidebar panel can Pop out to `FloatingPanelHost` / `FloatingPanelShell` (drag/resize) or Dock back; `presentation` + `floatingGeometry` persisted in layout |
