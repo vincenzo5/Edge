@@ -4,16 +4,15 @@ import { useEffect, useRef } from "react";
 import { useAiTools } from "./AiToolsProvider";
 import type { SessionJob } from "@/lib/ai/types";
 
-const HEARTBEAT_MS = 5_000;
-
 export default function AiSessionBridge() {
   const ai = useAiTools();
+  const aiRef = useRef(ai);
+  aiRef.current = ai;
   const sessionIdRef = useRef<string | null>(null);
   const pollingRef = useRef(false);
 
   useEffect(() => {
-    if (!ai) return;
-    const aiTools = ai;
+    if (!aiRef.current) return;
 
     let cancelled = false;
 
@@ -35,6 +34,9 @@ export default function AiSessionBridge() {
     }
 
     async function runJob(job: SessionJob) {
+      const aiTools = aiRef.current;
+      if (!aiTools) return;
+
       const result = await aiTools.execute(job.name, job.input, {
         permissionMode: job.permissionMode,
         confirmed: job.confirmed,
@@ -80,19 +82,15 @@ export default function AiSessionBridge() {
     }
 
     void heartbeat();
-    const heartbeatTimer = setInterval(() => {
-      void heartbeat();
-    }, HEARTBEAT_MS);
-
     document.addEventListener("visibilitychange", onVisible);
     void pollLoop();
 
     return () => {
       cancelled = true;
-      clearInterval(heartbeatTimer);
+      pollingRef.current = false;
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [ai]);
+  }, [Boolean(ai)]);
 
   return null;
 }

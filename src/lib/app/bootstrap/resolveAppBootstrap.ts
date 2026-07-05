@@ -1,39 +1,32 @@
-import type { ChartLayout } from "@/lib/chartConfig";
 import {
-  fetchDefaultChartWorkspace,
-  type ChartWorkspaceRemoteRecord,
+  fetchChartWorkspaces,
+  type ChartWorkspaceRemoteSummary,
 } from "@/lib/persistence/client/chartWorkspaceClient";
-import {
-  getChartWorkspaceSyncMetadata,
-  isRemoteNewer,
-  setChartWorkspaceSyncMetadata,
-} from "@/lib/persistence/sync/syncMetadata";
 import {
   createDefaultScreenerSession,
   type ScreenerSessionState,
 } from "@/lib/screener/screenerSession";
 import type { ScreenerState } from "@/lib/screener/types";
 import type { WatchlistState } from "@/lib/watchlist/types";
+import { getActiveLayout, mergeRemoteWorkspaces, type WorkspaceTabsState } from "../workspaceTabs";
 import { loadLocalAppState, type LocalAppState } from "./loadLocalAppState";
 
 export const REMOTE_BOOTSTRAP_TIMEOUT_MS = 500;
 
 export type AppBootstrapResult = {
-  layout: ChartLayout;
+  workspaceTabs: WorkspaceTabsState;
   watchlist: WatchlistState;
   screener: ScreenerState;
   screenerSession: ScreenerSessionState;
   remoteApplied: boolean;
   remotePending: boolean;
   /** When remote fetch exceeded the bootstrap timeout, await and apply if newer. */
-  finishRemoteLayout?: () => Promise<ChartLayout | null>;
+  finishRemoteWorkspaceMerge?: () => Promise<WorkspaceTabsState | null>;
 };
 
 export type ResolveAppBootstrapDeps = {
   loadLocal?: () => LocalAppState;
-  fetchRemote?: () => Promise<ChartWorkspaceRemoteRecord | null>;
-  getSyncMetadata?: typeof getChartWorkspaceSyncMetadata;
-  setSyncMetadata?: typeof setChartWorkspaceSyncMetadata;
+  fetchRemoteList?: () => Promise<ChartWorkspaceRemoteSummary[] | null>;
   remoteTimeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
 };
@@ -42,100 +35,85 @@ function sleepDefault(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function mergeRemoteLayout(
-  localLayout: ChartLayout,
-  remote: ChartWorkspaceRemoteRecord,
-  localMeta: ReturnType<typeof getChartWorkspaceSyncMetadata>,
-  setSyncMetadata: typeof setChartWorkspaceSyncMetadata,
-): ChartLayout | null {
-  const remoteLayout = remote.chartLayoutSnapshot as ChartLayout;
-  if (!localMeta) {
-    setSyncMetadata({
-      resourceId: remote.id,
-      syncRevision: remote.syncRevision,
-      updatedAt: remote.updatedAt,
-    });
-    return JSON.stringify(remoteLayout) !== JSON.stringify(localLayout) ? remoteLayout : null;
-  }
-
-  if (
-    isRemoteNewer(localMeta, remote.updatedAt, remote.syncRevision) &&
-    JSON.stringify(remoteLayout) !== JSON.stringify(localLayout)
-  ) {
-    setSyncMetadata({
-      resourceId: remote.id,
-      syncRevision: remote.syncRevision,
-      updatedAt: remote.updatedAt,
-    });
-    return remoteLayout;
-  }
-
-  return null;
-}
-
 function buildResult(
   local: LocalAppState,
-  layout: ChartLayout,
+  workspaceTabs: WorkspaceTabsState,
   remoteApplied: boolean,
   remotePending: boolean,
-  finishRemoteLayout?: () => Promise<ChartLayout | null>,
+  finishRemoteWorkspaceMerge?: () => Promise<WorkspaceTabsState | null>,
 ): AppBootstrapResult {
   return {
-    layout,
+    workspaceTabs,
     watchlist: local.watchlist,
     screener: local.screener,
     screenerSession: createDefaultScreenerSession(local.screener),
     remoteApplied,
     remotePending,
-    finishRemoteLayout,
+    finishRemoteWorkspaceMerge,
   };
+}
+
+function applyRemoteMerge(
+  localTabs: WorkspaceTabsState,
+  remotes: ChartWorkspaceRemoteSummary[],
+): { tabs: WorkspaceTabsState; changed: boolean } {
+  const { state, changed } = mergeRemoteWorkspaces(localTabs, remotes);
+  return { tabs: state, changed };
 }
 
 export async function resolveAppBootstrap(
   deps: ResolveAppBootstrapDeps = {},
 ): Promise<AppBootstrapResult> {
   const loadLocal = deps.loadLocal ?? loadLocalAppState;
-  const fetchRemote = deps.fetchRemote ?? fetchDefaultChartWorkspace;
-  const getSyncMetadata = deps.getSyncMetadata ?? getChartWorkspaceSyncMetadata;
-  const setSyncMetadata = deps.setSyncMetadata ?? setChartWorkspaceSyncMetadata;
+  const fetchRemoteList = deps.fetchRemoteList ?? fetchChartWorkspaces;
   const remoteTimeoutMs = deps.remoteTimeoutMs ?? REMOTE_BOOTSTRAP_TIMEOUT_MS;
   const sleep = deps.sleep ?? sleepDefault;
 
   const local = loadLocal();
-  let remoteFetchPromise: Promise<ChartWorkspaceRemoteRecord | null> | null = null;
+
+  let remoteFetchPromise: Promise<ChartWorkspaceRemoteSummary[] | null> | null = null;
 
   const startRemoteFetch = () => {
     if (!remoteFetchPromise) {
-      remoteFetchPromise = fetchRemote();
+      remoteFetchPromise = fetchRemoteList();
     }
     return remoteFetchPromise;
   };
 
-  const remoteResult = await Promise.race([
-    startRemoteFetch(),
-    sleep(remoteTimeoutMs).then(() => "timeout" as const),
-  ]);
+  let remoteResult: ChartWorkspaceRemoteSummary[] | null | "timeout";
+  try {
+    remoteResult = await Promise.race([
+      startRemoteFetch(),
+      sleep(remoteTimeoutMs).then(() => "timeout" as const),
+    ]);
+  } catch {
+    remoteResult = null;
+  }
 
   if (remoteResult === "timeout") {
-    const finishRemoteLayout = async (): Promise<ChartLayout | null> => {
-      const remote = await startRemoteFetch();
-      if (!remote) return null;
-      return mergeRemoteLayout(local.layout, remote, getSyncMetadata(), setSyncMetadata);
+    const finishRemoteWorkspaceMerge = async (): Promise<WorkspaceTabsState | null> => {
+      const remotes = await startRemoteFetch();
+      if (!remotes || remotes.length === 0) return null;
+      const { tabs, changed } = applyRemoteMerge(local.workspaceTabs, remotes);
+      return changed ? tabs : null;
     };
 
-    return buildResult(local, local.layout, false, true, finishRemoteLayout);
+    return buildResult(local, local.workspaceTabs, false, true, finishRemoteWorkspaceMerge);
   }
 
-  if (!remoteResult) {
-    return buildResult(local, local.layout, false, false);
+  if (!remoteResult || remoteResult.length === 0) {
+    return buildResult(local, local.workspaceTabs, false, false);
   }
 
-  const merged = mergeRemoteLayout(
-    local.layout,
-    remoteResult,
-    getSyncMetadata(),
-    setSyncMetadata,
-  );
+  try {
+    const { tabs, changed } = applyRemoteMerge(local.workspaceTabs, remoteResult);
+    return buildResult(local, tabs, changed, false);
+  } catch {
+    return buildResult(local, local.workspaceTabs, false, false);
+  }
+}
 
-  return buildResult(local, merged ?? local.layout, merged != null, false);
+/** @deprecated Use workspaceTabs from AppBootstrapResult */
+export function getBootstrapLayout(result: AppBootstrapResult) {
+  return getActiveLayout(result.workspaceTabs);
 }

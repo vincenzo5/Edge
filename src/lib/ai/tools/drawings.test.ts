@@ -10,7 +10,7 @@ import type { ChartLayout } from "@/lib/chartConfig";
 function mockLayout(drawings: ChartLayout["cells"][0]["drawings"]): ChartLayout {
   return {
     version: 1,
-    gridMode: "1x1",
+    layoutId: "n1",
     linkSymbol: false,
     linkInterval: false,
     linkCrosshair: false,

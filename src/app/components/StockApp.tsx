@@ -23,27 +23,48 @@ import {
   DEFAULT_SIDEBAR_PREFS,
   DEFAULT_TOOLBAR_PREFS,
   applyLinkPropagation,
+  applyLayoutTemplateChange,
   applyThemeToRoot,
   cellCountFor,
   type CellConfig,
   type ChartLayout,
   type ChartType,
   type LayoutSyncPrefs,
-  type GridMode,
+  type LayoutTemplateId,
   type SidebarPanelId,
   type FloatingPanelGeometry,
   type Theme,
   type ToolbarPrefs,
 } from "@/lib/chartConfig";
 import type { Interval } from "@/lib/chart/contracts";
-import { saveLayout } from "@/lib/layoutStorage";
+import { saveWorkspaceTabs } from "@/lib/app/workspaceTabsStorage";
+import {
+  cloneLayoutForNewTab,
+  closeTab,
+  createDefaultWorkspaceTabs,
+  createTab,
+  getActiveLayout,
+  getActiveTab,
+  renameTab,
+  switchTab,
+  updateActiveTabLayout,
+  type WorkspaceTabsState,
+} from "@/lib/app/workspaceTabs";
+import {
+  mergeWorkspaceTabsApply,
+  type ApplyWorkspaceTabsOptions,
+} from "@/lib/persistence/sync/useWorkspaceTabsRemoteSync";
 import { resolveAppBootstrap, type AppBootstrapResult } from "@/lib/app/bootstrap/resolveAppBootstrap";
+import { loadLocalAppState } from "@/lib/app/bootstrap/loadLocalAppState";
 import type { WatchlistState } from "@/lib/watchlist/types";
 import type { ScreenerState } from "@/lib/screener/types";
 import type { ScreenerSessionState } from "@/lib/screener/screenerSession";
+import { createDefaultScreenerSession } from "@/lib/screener/screenerSession";
 import { resolveSidebarPanelWidth } from "@/lib/responsive/sidebarWidth";
 import { useChartTemplateLibraryRemoteSync } from "@/lib/persistence/sync/useChartTemplateLibraryRemoteSync";
-import { useChartWorkspaceRemoteSync } from "@/lib/persistence/sync/useChartWorkspaceRemoteSync";
+import { archiveChartWorkspaceRemote } from "@/lib/persistence/client/chartWorkspaceClient";
+import { useWorkspaceTabsRemoteSync } from "@/lib/persistence/sync/useWorkspaceTabsRemoteSync";
+import WorkspaceTabBar from "./chart-chrome/WorkspaceTabBar";
 import { useResponsiveLayout } from "@/lib/responsive/useResponsiveLayout";
 import { ShortcutUIProvider } from "./shortcuts/ShortcutUIContext";
 import ShortcutProvider from "./shortcuts/ShortcutProvider";
@@ -58,56 +79,113 @@ import AppHydrationShell from "./chart-cell/AppHydrationShell";
 import { OptionsSessionProvider } from "./options/OptionsSessionProvider";
 
 export default function StockApp() {
-  const [layout, setLayout] = useState<ChartLayout>(DEFAULT_LAYOUT);
+  const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTabsState>(() =>
+    createDefaultWorkspaceTabs(),
+  );
   const [watchlistBootstrap, setWatchlistBootstrap] = useState<WatchlistState | null>(null);
   const [screenerBootstrap, setScreenerBootstrap] = useState<ScreenerState | null>(null);
   const [screenerSessionBootstrap, setScreenerSessionBootstrap] =
     useState<ScreenerSessionState | null>(null);
   const [bootstrapRemoteApplied, setBootstrapRemoteApplied] = useState(false);
   const [bootstrapRemotePending, setBootstrapRemotePending] = useState(false);
-  const finishRemoteLayoutRef = useRef<AppBootstrapResult["finishRemoteLayout"]>(undefined);
+  const finishRemoteWorkspaceMergeRef =
+    useRef<AppBootstrapResult["finishRemoteWorkspaceMerge"]>(undefined);
   const [hydrated, setHydrated] = useState(false);
   const hydratedRef = useRef(false);
+  const flushActiveTabSaveRef = useRef<() => Promise<void>>(async () => {});
+
+  const layout = useMemo(() => getActiveLayout(workspaceTabs), [workspaceTabs]);
+  const activeTab = useMemo(() => getActiveTab(workspaceTabs), [workspaceTabs]);
+
+  const setLayout = useCallback(
+    (updater: ChartLayout | ((prev: ChartLayout) => ChartLayout)) => {
+      setWorkspaceTabs((prev) => updateActiveTabLayout(prev, updater));
+    },
+    [],
+  );
+
+  const applyBootstrapResult = useCallback((result: AppBootstrapResult) => {
+    setWorkspaceTabs(result.workspaceTabs);
+    setWatchlistBootstrap(result.watchlist);
+    setScreenerBootstrap(result.screener);
+    setScreenerSessionBootstrap(result.screenerSession);
+    setBootstrapRemoteApplied(result.remoteApplied);
+    setBootstrapRemotePending(result.remotePending);
+    finishRemoteWorkspaceMergeRef.current = result.finishRemoteWorkspaceMerge;
+    applyThemeToRoot(getActiveLayout(result.workspaceTabs).theme);
+    hydratedRef.current = true;
+    setHydrated(true);
+  }, []);
+
+  const hydrateFromLocalFallback = useCallback(() => {
+    try {
+      const local = loadLocalAppState();
+      applyBootstrapResult({
+        workspaceTabs: local.workspaceTabs,
+        watchlist: local.watchlist,
+        screener: local.screener,
+        screenerSession: createDefaultScreenerSession(local.screener),
+        remoteApplied: false,
+        remotePending: false,
+      });
+    } catch {
+      hydratedRef.current = true;
+      setHydrated(true);
+    }
+  }, [applyBootstrapResult]);
 
   useEffect(() => {
     let cancelled = false;
-    void resolveAppBootstrap().then((result) => {
-      if (cancelled) return;
-      setLayout(result.layout);
-      setWatchlistBootstrap(result.watchlist);
-      setScreenerBootstrap(result.screener);
-      setScreenerSessionBootstrap(result.screenerSession);
-      setBootstrapRemoteApplied(result.remoteApplied);
-      setBootstrapRemotePending(result.remotePending);
-      finishRemoteLayoutRef.current = result.finishRemoteLayout;
-      applyThemeToRoot(result.layout.theme);
-      hydratedRef.current = true;
-      setHydrated(true);
-    });
+    void resolveAppBootstrap()
+      .then((result) => {
+        if (cancelled) return;
+        try {
+          applyBootstrapResult(result);
+        } catch {
+          if (!cancelled) {
+            hydrateFromLocalFallback();
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          hydrateFromLocalFallback();
+        }
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applyBootstrapResult, hydrateFromLocalFallback]);
 
-  const handleApplyRemoteLayout = useCallback((remoteLayout: ChartLayout) => {
-    setLayout(remoteLayout);
-    saveLayout(remoteLayout);
-  }, []);
+  const handleApplyWorkspaceTabs = useCallback(
+    (incoming: WorkspaceTabsState, applyOptions?: ApplyWorkspaceTabsOptions) => {
+      setWorkspaceTabs((current) => {
+        const next = mergeWorkspaceTabsApply(current, incoming, applyOptions);
+        saveWorkspaceTabs(next);
+        return next;
+      });
+    },
+    [],
+  );
 
-  const finishRemoteLayout = useCallback(async () => {
-    const finish = finishRemoteLayoutRef.current;
+  const finishRemoteWorkspaceMerge = useCallback(async () => {
+    const finish = finishRemoteWorkspaceMergeRef.current;
     if (!finish) return null;
     return finish();
   }, []);
 
-  useChartWorkspaceRemoteSync({
-    layout,
+  const { flushActiveTabSave } = useWorkspaceTabsRemoteSync({
+    workspaceTabs,
     hydrated,
     bootstrapRemoteApplied,
     bootstrapRemotePending,
-    finishRemoteLayout: bootstrapRemotePending ? finishRemoteLayout : undefined,
-    onApplyRemoteLayout: handleApplyRemoteLayout,
+    finishRemoteWorkspaceMerge: bootstrapRemotePending ? finishRemoteWorkspaceMerge : undefined,
+    onApplyWorkspaceTabs: handleApplyWorkspaceTabs,
   });
+
+  useEffect(() => {
+    flushActiveTabSaveRef.current = flushActiveTabSave;
+  }, [flushActiveTabSave]);
 
   useChartTemplateLibraryRemoteSync();
 
@@ -117,38 +195,12 @@ export default function StockApp() {
     applyThemeToRoot(layout.theme);
   }, [layout.theme, hydrated]);
 
-  // Debounced save on any layout change.
+  // Debounced save on any workspace tab change.
   useEffect(() => {
     if (!hydratedRef.current) return;
-    const t = setTimeout(() => saveLayout(layout), 500);
+    const t = setTimeout(() => saveWorkspaceTabs(workspaceTabs), 500);
     return () => clearTimeout(t);
-  }, [layout]);
-
-  // Ensure cells array matches grid mode count; clamp active cell index.
-  useEffect(() => {
-    if (!hydratedRef.current) return;
-    const needed = cellCountFor(layout.gridMode);
-    setLayout((prev) => {
-      const cells = [...prev.cells];
-      while (cells.length < needed) {
-        cells.push({ ...DEFAULT_CELL });
-      }
-      const trimmed = cells.slice(0, Math.max(needed, cells.length));
-      const maxIndex = Math.max(0, needed - 1);
-      const activeCellIndex = Math.min(prev.activeCellIndex ?? 0, maxIndex);
-      if (
-        trimmed.length === prev.cells.length &&
-        activeCellIndex === prev.activeCellIndex
-      ) {
-        return prev;
-      }
-      return {
-        ...prev,
-        cells: trimmed,
-        activeCellIndex,
-      };
-    });
-  }, [layout.gridMode]);
+  }, [workspaceTabs]);
 
   const applyCellUpdate = useCallback((index: number, next: CellConfig) => {
     setLayout((prev) => applyLinkPropagation(prev, index, next));
@@ -156,15 +208,15 @@ export default function StockApp() {
 
   const handleActiveCellChange = useCallback((index: number) => {
     setLayout((prev) => {
-      const maxIndex = cellCountFor(prev.gridMode) - 1;
+      const maxIndex = cellCountFor(prev.layoutId) - 1;
       const activeCellIndex = Math.max(0, Math.min(index, maxIndex));
       if (activeCellIndex === prev.activeCellIndex) return prev;
       return { ...prev, activeCellIndex };
     });
   }, []);
 
-  const handleGridModeChange = useCallback((mode: GridMode) => {
-    setLayout((prev) => ({ ...prev, gridMode: mode }));
+  const handleLayoutChange = useCallback((layoutId: LayoutTemplateId) => {
+    setLayout((prev) => applyLayoutTemplateChange(prev, layoutId));
   }, []);
 
   const handleLayoutSyncChange = useCallback((patch: Partial<LayoutSyncPrefs>) => {
@@ -262,8 +314,8 @@ export default function StockApp() {
   }, []);
 
   const cells = useMemo(
-    () => layout.cells.slice(0, cellCountFor(layout.gridMode)),
-    [layout.cells, layout.gridMode],
+    () => layout.cells.slice(0, cellCountFor(layout.layoutId)),
+    [layout.cells, layout.layoutId],
   );
 
   const activeCellIndex = layout.activeCellIndex ?? 0;
@@ -301,7 +353,7 @@ export default function StockApp() {
       symbolName: previous.name,
       exchange: previous.exchange,
     });
-  }, [activeCellIndex, patchActiveCell, symbolHistory]);
+  }, [activeCellIndex, activeCell.symbol, patchActiveCell, symbolHistory]);
 
   const handleSymbolForward = useCallback(() => {
     const next = symbolHistory.navigate(activeCellIndex, "forward");
@@ -329,7 +381,76 @@ export default function StockApp() {
 
   const handleThemeChange = useCallback((theme: Theme) => {
     setLayout((prev) => ({ ...prev, theme }));
+  }, [setLayout]);
+
+  const runWithFlush = useCallback(async (action: () => void) => {
+    await flushActiveTabSaveRef.current();
+    action();
   }, []);
+
+  const handleTabSelect = useCallback(
+    (tabId: string) => {
+      void runWithFlush(() => {
+        setWorkspaceTabs((prev) => switchTab(prev, tabId));
+      });
+    },
+    [runWithFlush],
+  );
+
+  const handleTabCreate = useCallback(() => {
+    void runWithFlush(() => {
+      setWorkspaceTabs((prev) =>
+        createTab(prev, {
+          layout: cloneLayoutForNewTab(getActiveLayout(prev)),
+        }),
+      );
+    });
+  }, [runWithFlush]);
+
+  const handleTabClose = useCallback(
+    (tabId: string) => {
+      void runWithFlush(async () => {
+        let remoteId: string | undefined;
+        setWorkspaceTabs((prev) => {
+          const tab = prev.tabs.find((t) => t.id === tabId);
+          remoteId = tab?.remote?.resourceId;
+          return closeTab(prev, tabId);
+        });
+        if (remoteId) {
+          await archiveChartWorkspaceRemote(remoteId);
+        }
+      });
+    },
+    [runWithFlush],
+  );
+
+  const handleTabRename = useCallback(() => {
+    const nextTitle = window.prompt("Rename layout", activeTab.title);
+    if (!nextTitle) return;
+    setWorkspaceTabs((prev) => renameTab(prev, prev.activeTabId, nextTitle));
+  }, [activeTab.title]);
+
+  const handleTabCopy = useCallback(() => {
+    void runWithFlush(() => {
+      setWorkspaceTabs((prev) => {
+        const source = getActiveTab(prev);
+        return createTab(prev, {
+          title: `${source.title} copy`,
+          layout: cloneLayoutForNewTab(source.layout),
+        });
+      });
+    });
+  }, [runWithFlush]);
+
+  const workspaceMenuTabs = useMemo(
+    () =>
+      workspaceTabs.tabs.map((tab) => ({
+        id: tab.id,
+        title: tab.title,
+        selected: tab.id === workspaceTabs.activeTabId,
+      })),
+    [workspaceTabs],
+  );
 
   const appActions = useMemo(
     () =>
@@ -339,7 +460,8 @@ export default function StockApp() {
         applyCellUpdate,
         patchActiveCell,
         setActiveCellIndex: handleActiveCellChange,
-        setGridMode: handleGridModeChange,
+        setLayoutId: handleLayoutChange,
+        setGridMode: handleLayoutChange,
         setLayoutSync: handleLayoutSyncChange,
         setTheme: handleThemeChange,
         setSidebarPanel: handleSidebarPanelChange,
@@ -349,7 +471,7 @@ export default function StockApp() {
       applyCellUpdate,
       patchActiveCell,
       handleActiveCellChange,
-      handleGridModeChange,
+      handleLayoutChange,
       handleLayoutSyncChange,
       handleThemeChange,
       handleSidebarPanelChange,
@@ -427,15 +549,28 @@ export default function StockApp() {
                   <ShortcutProvider>
                 <AiToolsProvider>
                   <AiSessionBridge />
+            <WorkspaceTabBar
+              workspaceTabs={workspaceTabs}
+              onTabSelect={handleTabSelect}
+              onTabCreate={handleTabCreate}
+              onTabClose={handleTabClose}
+            />
             <ChartHeaderBar
               layout={{
-                layoutName: "Default",
-                gridMode: layout.gridMode,
+                layoutName: activeTab.title,
+                layoutId: layout.layoutId,
                 linkSymbol: layout.linkSymbol,
                 linkInterval: layout.linkInterval,
                 linkCrosshair: layout.linkCrosshair,
                 linkDrawings: layout.linkDrawings,
                 theme: layout.theme,
+              }}
+              workspaceActions={{
+                workspaceTabs: workspaceMenuTabs,
+                onCreateLayout: handleTabCreate,
+                onCopyLayout: handleTabCopy,
+                onRenameLayout: handleTabRename,
+                onSelectLayout: handleTabSelect,
               }}
               chart={{
                 symbol: activeCell.symbol,
@@ -443,7 +578,7 @@ export default function StockApp() {
                 chartType: activeCell.chartType,
               }}
               layoutActions={{
-                onGridModeChange: handleGridModeChange,
+                onLayoutChange: handleLayoutChange,
                 onLayoutSyncChange: handleLayoutSyncChange,
               }}
               chartActions={{
@@ -462,7 +597,7 @@ export default function StockApp() {
               <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
                 <div className="relative flex min-h-0 flex-1">
                   <ChartGrid
-                    gridMode={layout.gridMode}
+                    layoutId={layout.layoutId}
                     linkCrosshair={layout.linkCrosshair}
                     linkDrawings={layout.linkDrawings}
                     theme={layout.theme}

@@ -131,7 +131,7 @@ export function buildShortcutCommands(deps: ShortcutCommandDeps): ShortcutComman
 
   if (appActions) {
     const layout = appActions.getLayout();
-    const visibleCells = cellCountFor(layout.gridMode);
+    const visibleCells = cellCountFor(layout.layoutId);
 
     commands.push(
       {

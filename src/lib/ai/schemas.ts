@@ -1,5 +1,9 @@
 import { z } from "zod";
+import { LAYOUT_TEMPLATE_IDS } from "@/lib/chartConfig";
 
+export const LAYOUT_IDS = LAYOUT_TEMPLATE_IDS;
+
+/** @deprecated Use LAYOUT_IDS. Legacy grid mode strings still accepted at runtime via migration. */
 export const GRID_MODES = ["1x1", "2x1", "2x2", "3x1", "1x2"] as const;
 export const CHART_TYPES = [
   "candle_solid",

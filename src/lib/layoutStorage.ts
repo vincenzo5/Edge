@@ -1,13 +1,13 @@
 import type { ChartLayout } from "./chartConfig";
 import {
+  migrateChartLayout,
+  mergeChartSettings,
+  migrateCellIndicators,
+  coerceTheme,
   DEFAULT_LAYOUT,
   DEFAULT_CELL,
   DEFAULT_SIDEBAR_PREFS,
   DEFAULT_TOOLBAR_PREFS,
-  coerceTheme,
-  mergeChartSettings,
-  migrateCellIndicators,
-  migrateLayoutSync,
   type LegacySidebarPanelId,
   type SidebarPanelId,
   type SidebarPrefs,
@@ -43,10 +43,8 @@ export function loadLayout(): ChartLayout {
         chartSettings: mergeChartSettings(c.chartSettings),
       }),
     );
-    const sync = migrateLayoutSync(parsed as ChartLayout);
+    const sync = migrateChartLayout({ ...parsed, version: 1, cells } as ChartLayout);
     return {
-      ...DEFAULT_LAYOUT,
-      ...parsed,
       ...sync,
       theme: coerceTheme(parsed.theme),
       activeCellIndex:
@@ -60,7 +58,7 @@ export function loadLayout(): ChartLayout {
       },
       sidebar: normalizeSidebarPrefs(parsed.sidebar),
       cells,
-    } as ChartLayout;
+    };
   } catch {
     return DEFAULT_LAYOUT;
   }

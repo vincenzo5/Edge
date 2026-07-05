@@ -10,7 +10,7 @@ import type {
   CellConfig,
   ChartLayout,
   ChartType,
-  GridMode,
+  LayoutTemplateId,
   SidebarPanelId,
   Theme,
   LayoutSyncPrefs,
@@ -46,7 +46,8 @@ export type AppActionsDeps = {
   applyCellUpdate: (index: number, next: CellConfig) => void;
   patchActiveCell: (patch: Partial<CellConfig>) => void;
   setActiveCellIndex: (index: number) => void;
-  setGridMode: (mode: GridMode) => void;
+  setLayoutId: (layoutId: LayoutTemplateId) => void;
+  setGridMode: (layoutId: LayoutTemplateId) => void;
   setLayoutSync: (patch: Partial<LayoutSyncPrefs>) => void;
   setTheme: (theme: Theme) => void;
   setSidebarPanel: (panel: SidebarPanelId | null) => void;
@@ -59,6 +60,7 @@ export function buildAppActions(deps: AppActionsDeps): AppActions {
     applyCellUpdate: deps.applyCellUpdate,
     patchActiveCell: deps.patchActiveCell,
     setActiveCellIndex: deps.setActiveCellIndex,
+    setLayoutId: deps.setLayoutId,
     setGridMode: deps.setGridMode,
     setLayoutSync: deps.setLayoutSync,
     setTheme: (theme: Theme) => deps.setTheme(theme),

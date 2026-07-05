@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { DEFAULT_LAYOUT } from '@/lib/chartConfig';
+import {
+  createDefaultWorkspaceTabs,
+  resetWorkspaceTabIdCounterForTests,
+} from '@/lib/app/workspaceTabs';
+import { WORKSPACE_TABS_STORAGE_KEY } from '@/lib/app/workspaceTabsStorage';
 import StockApp from './StockApp';
 
 const localStorageMock = (() => {
@@ -27,6 +32,10 @@ vi.mock('./ChartCell', () => ({
   ),
 }));
 
+vi.mock('@/lib/persistence/sync/useWorkspaceTabsRemoteSync', () => ({
+  useWorkspaceTabsRemoteSync: () => ({ flushActiveTabSave: async () => {} }),
+}));
+
 let flushHydrationFrame: (() => void) | null = null;
 
 function flushHydration() {
@@ -50,6 +59,7 @@ afterEach(() => {
 
 describe('StockApp', () => {
   beforeEach(() => {
+    resetWorkspaceTabIdCounterForTests();
     localStorageMock.clear();
     document.documentElement.className = '';
   });
@@ -195,5 +205,54 @@ describe('StockApp', () => {
       expect(screen.getByTestId('symbol-search-input')).toHaveValue('MSFT');
     });
     expect(screen.queryByTestId('symbol-search-input')).not.toHaveValue('AAPL');
+  });
+
+  it('persists workspace tabs to localStorage and renders tab bar', async () => {
+    render(<StockApp />);
+    flushHydration();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace-tab-bar')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('workspace-tab-create'));
+
+    await waitFor(() => {
+      const raw = localStorageMock.getItem('tv-ai:workspace-tabs:v1');
+      expect(raw).toBeTruthy();
+      const parsed = JSON.parse(raw!);
+      expect(parsed.tabs.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('expands layout by cloning the active cell into new panes', async () => {
+    const tabs = createDefaultWorkspaceTabs({
+      ...DEFAULT_LAYOUT,
+      layoutId: 'n1',
+      cells: [
+        {
+          ...DEFAULT_LAYOUT.cells[0],
+          symbol: 'XLF',
+          symbolName: 'Financial Services sector',
+        },
+      ],
+    });
+    localStorageMock.setItem(WORKSPACE_TABS_STORAGE_KEY, JSON.stringify(tabs));
+
+    render(<StockApp />);
+    flushHydration();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('symbol-search-input')).toHaveValue('XLF');
+    });
+    expect(screen.queryByTestId('chart-cell-1')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('layout-setup-trigger'));
+    fireEvent.click(screen.getByTestId('layout-template-n2-cols'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chart-cell-1')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('symbol-search-input')).toHaveValue('XLF');
   });
 });

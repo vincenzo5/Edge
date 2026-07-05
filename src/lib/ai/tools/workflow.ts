@@ -108,12 +108,12 @@ export const compareSymbolsTool = defineTool({
   requiresClientSession: true,
   async execute(input, context) {
     const app = requireApp(context);
-    const gridModes = ["2x1", "1x2", "3x1", "2x2"] as const;
-    const gridMode = gridModes[input.symbols.length - 2] ?? "2x1";
+    const layoutIds = ["n2-rows", "n2-cols", "n3-rows", "n4-grid-2x2"] as const;
+    const layoutId = layoutIds[input.symbols.length - 2] ?? "n2-rows";
     const range = input.range ?? "1y";
     const interval = input.interval ?? "1d";
 
-    app.setGridMode(gridMode);
+    app.setLayoutId(layoutId);
     app.setLayoutSync({
       linkSymbol: false,
       linkInterval: false,
@@ -122,7 +122,7 @@ export const compareSymbolsTool = defineTool({
     });
 
     const layout = app.getLayout();
-    const count = cellCountFor(gridMode);
+    const count = cellCountFor(layoutId);
     for (let i = 0; i < count && i < input.symbols.length; i++) {
       const cell = layout.cells[i];
       app.applyCellUpdate(i, {
@@ -137,7 +137,7 @@ export const compareSymbolsTool = defineTool({
 
     return {
       ok: true,
-      data: { gridMode, symbols: input.symbols.slice(0, count), range, interval },
+      data: { layoutId, symbols: input.symbols.slice(0, count), range, interval },
     };
   },
 });

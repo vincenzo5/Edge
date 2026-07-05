@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
+import { createDefaultWorkspaceTabs } from "@/lib/app/workspaceTabs";
 import { DEFAULT_SCREENER_STATE } from "@/lib/screener/screenStorage";
 import { DEFAULT_WATCHLIST_STATE } from "@/lib/watchlist/storage";
 import { createDefaultScreenerSession } from "@/lib/screener/screenerSession";
@@ -65,8 +65,12 @@ vi.mock("@/lib/persistence/sync/useChartTemplateLibraryRemoteSync", () => ({
   useChartTemplateLibraryRemoteSync: () => {},
 }));
 
-vi.mock("@/lib/persistence/sync/useChartWorkspaceRemoteSync", () => ({
-  useChartWorkspaceRemoteSync: () => {},
+vi.mock("./chart-chrome/WorkspaceTabBar", () => ({
+  default: () => <div data-testid="workspace-tab-bar" />,
+}));
+
+vi.mock("@/lib/persistence/sync/useWorkspaceTabsRemoteSync", () => ({
+  useWorkspaceTabsRemoteSync: () => ({ flushActiveTabSave: async () => {} }),
 }));
 
 vi.mock("@/lib/responsive/useResponsiveLayout", () => ({
@@ -110,7 +114,7 @@ describe("StockApp bootstrap", () => {
     vi.clearAllMocks();
     watchlistProbe.initial = null;
     bootstrapMock.resolveAppBootstrap.mockResolvedValue({
-      layout: DEFAULT_LAYOUT,
+      workspaceTabs: createDefaultWorkspaceTabs(),
       watchlist: DEFAULT_WATCHLIST_STATE,
       screener: DEFAULT_SCREENER_STATE,
       screenerSession: createDefaultScreenerSession(DEFAULT_SCREENER_STATE),
@@ -125,7 +129,7 @@ describe("StockApp bootstrap", () => {
         new Promise((resolve) => {
           setTimeout(() => {
             resolve({
-              layout: DEFAULT_LAYOUT,
+              workspaceTabs: createDefaultWorkspaceTabs(),
               watchlist: DEFAULT_WATCHLIST_STATE,
               screener: DEFAULT_SCREENER_STATE,
               screenerSession: createDefaultScreenerSession(DEFAULT_SCREENER_STATE),
@@ -154,5 +158,17 @@ describe("StockApp bootstrap", () => {
 
     expect(bootstrapMock.resolveAppBootstrap).toHaveBeenCalledOnce();
     expect(watchlistProbe.initial).toEqual(DEFAULT_WATCHLIST_STATE);
+  });
+
+  it("hydrates from local fallback when bootstrap rejects", async () => {
+    bootstrapMock.resolveAppBootstrap.mockRejectedValue(new Error("bootstrap failed"));
+
+    render(<StockApp />);
+    expect(screen.getByTestId("app-hydration-shell")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chart-grid")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("app-hydration-shell")).toBeNull();
   });
 });

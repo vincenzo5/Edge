@@ -4,13 +4,13 @@ import type { AiTool } from "../types";
 import type { ToolContext } from "../context";
 import {
   CHART_TYPES,
-  GRID_MODES,
   INTERVALS,
   RANGES,
   THEMES,
   cellIndexSchema,
   symbolSchema,
 } from "../schemas";
+import { LAYOUT_TEMPLATE_IDS, migrateLegacyGridMode } from "@/lib/chartConfig";
 import { getCell, requireApp } from "./_helpers";
 import { buildAppWorkspaceSnapshot } from "@/lib/app/workspaceSnapshot";
 
@@ -132,14 +132,23 @@ export const setActiveCellTool = defineTool({
 
 export const setGridModeTool = defineTool({
   name: "set_grid_mode",
-  description: "Change the multi-chart grid layout.",
-  inputSchema: z.object({ gridMode: z.enum(GRID_MODES) }),
+  description:
+    "Change the multi-chart layout template. Accepts layout template ids (e.g. n4-grid-2x2, n3-main-left) or legacy grid modes (1x1, 2x1, 1x2, 3x1, 2x2).",
+  inputSchema: z.object({
+    layoutId: z.enum(LAYOUT_TEMPLATE_IDS).optional(),
+    gridMode: z.string().optional(),
+  }),
   permission: "write",
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    requireApp(context).setGridMode(input.gridMode);
-    return { ok: true, data: { gridMode: input.gridMode } };
+    const raw = input.layoutId ?? input.gridMode;
+    if (!raw) {
+      throw new Error("layoutId or gridMode is required");
+    }
+    const layoutId = migrateLegacyGridMode(raw);
+    requireApp(context).setLayoutId(layoutId);
+    return { ok: true, data: { layoutId } };
   },
 });
 

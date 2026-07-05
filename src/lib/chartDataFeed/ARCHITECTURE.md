@@ -81,6 +81,8 @@ createApiChartDataFeed({
 | Errors | If cached paint occurred, candles stay visible with `stale: true` |
 | Out of scope | `loadMore` prepended history is not cached |
 
+History pagination (`loadMoreCandles`) requests **500 bars** per page by default (`HISTORY_FETCH_BAR_COUNT` in `@edge/chart-core`). `@edge/chart-react` prefetches older pages with a 50% visible-window lookahead, one background page after initial paint, and at most one queued follow-up while a fetch is in flight.
+
 Only the initial `loadCandles` snapshot is cached. Stream subscription still starts after the background fetch completes (unchanged).
 
 ## Key Files

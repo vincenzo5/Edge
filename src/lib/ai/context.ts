@@ -2,7 +2,7 @@ import type { BaseToolContext } from "@edge/ai-tools-core";
 import type {
   CellConfig,
   ChartLayout,
-  GridMode,
+  LayoutTemplateId,
   LayoutSyncPrefs,
   SidebarPanelId,
   Theme,
@@ -21,7 +21,9 @@ export type AppActions = {
   applyCellUpdate: (index: number, next: CellConfig) => void;
   patchActiveCell: (patch: Partial<CellConfig>) => void;
   setActiveCellIndex: (index: number) => void;
-  setGridMode: (mode: GridMode) => void;
+  setLayoutId: (layoutId: LayoutTemplateId) => void;
+  /** @deprecated Use setLayoutId. */
+  setGridMode: (layoutId: LayoutTemplateId) => void;
   setLayoutSync: (patch: Partial<LayoutSyncPrefs>) => void;
   setTheme: (theme: Theme) => void;
   setSidebarPanel: (panel: SidebarPanelId | null) => void;

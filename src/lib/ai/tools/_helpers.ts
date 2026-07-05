@@ -12,7 +12,7 @@ export function requireApp(context: ToolContext) {
 export function getCell(context: ToolContext, cellIndex?: number) {
   const layout = requireApp(context).getLayout();
   const index = cellIndex ?? layout.activeCellIndex ?? 0;
-  const max = cellCountFor(layout.gridMode) - 1;
+  const max = cellCountFor(layout.layoutId) - 1;
   const resolved = Math.max(0, Math.min(index, max));
   return { layout, index: resolved, cell: layout.cells[resolved] };
 }

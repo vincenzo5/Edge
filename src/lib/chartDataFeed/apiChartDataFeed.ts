@@ -13,6 +13,7 @@ import type {
   ChartQuoteResult,
   Interval,
 } from '@edge/chart-core';
+import { HISTORY_FETCH_BAR_COUNT } from '@edge/chart-core';
 import { validateCandles } from '@/lib/chart/series';
 import { applyIntervalResample, resolveFetchInterval } from '@/lib/chart/intervalAdapter';
 import type { StreamTransportFactory, StreamTransportOptions } from './streamTransport';
@@ -330,7 +331,7 @@ export function createApiChartDataFeed(
 
     async loadMoreCandles(request: ChartHistoryRequest): Promise<ChartCandleResult> {
       const { providerInterval, resampleTo } = resolveFetchInterval(request.interval);
-      const barCount = request.barCount ?? 200;
+      const barCount = request.barCount ?? HISTORY_FETCH_BAR_COUNT;
       const fetchBarCount = resampleTo === '2h' ? barCount * 2 : barCount;
       const payload = await postCandles({
         symbol: request.symbol,

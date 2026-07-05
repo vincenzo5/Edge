@@ -7,7 +7,7 @@ describe("summarizeChartTool annotations", () => {
   it("includes annotation items and thesis summary", async () => {
     const layout = {
       version: 1,
-      gridMode: "1x1",
+      layoutId: "n1",
       linkSymbol: false,
       linkInterval: false,
       linkCrosshair: false,

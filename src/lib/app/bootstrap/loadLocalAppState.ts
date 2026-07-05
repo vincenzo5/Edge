@@ -1,20 +1,20 @@
-import type { ChartLayout } from "@/lib/chartConfig";
-import { loadLayout } from "@/lib/layoutStorage";
 import type { ScreenerState } from "@/lib/screener/types";
 import { loadScreenerState } from "@/lib/screener/screenStorage";
 import type { WatchlistState } from "@/lib/watchlist/types";
 import { loadWatchlistState } from "@/lib/watchlist/storage";
+import type { WorkspaceTabsState } from "../workspaceTabs";
+import { loadWorkspaceTabs } from "../workspaceTabsStorage";
 
 export type LocalAppState = {
-  layout: ChartLayout;
+  workspaceTabs: WorkspaceTabsState;
   watchlist: WatchlistState;
   screener: ScreenerState;
 };
 
-/** Synchronous read of layout, watchlist, and screener from localStorage. */
+/** Synchronous read of workspace tabs, watchlist, and screener from localStorage. */
 export function loadLocalAppState(): LocalAppState {
   return {
-    layout: loadLayout(),
+    workspaceTabs: loadWorkspaceTabs(),
     watchlist: loadWatchlistState(),
     screener: loadScreenerState(),
   };

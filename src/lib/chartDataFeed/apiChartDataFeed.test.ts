@@ -59,14 +59,13 @@ describe('createApiChartDataFeed', () => {
       symbol: 'AAPL',
       interval: '1d',
       beforeTimestamp: 1000,
-      barCount: 200,
     });
 
     expect(result.candles[0]?.t).toBe(1_700_000_000_000);
     expect(result.meta.warnings).toEqual(['fallback']);
     const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
     expect(body.before).toBe(1000);
-    expect(body.barCount).toBe(200);
+    expect(body.barCount).toBe(500);
   });
 
   it('throws on non-OK candle responses', async () => {

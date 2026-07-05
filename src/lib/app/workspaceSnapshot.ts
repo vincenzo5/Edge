@@ -3,11 +3,19 @@ import {
   DEFAULT_SIDEBAR_PREFS,
   DEFAULT_TOOLBAR_PREFS,
   type ChartLayout,
-  type GridMode,
+  type LayoutTemplateId,
   type SidebarPrefs,
   type Theme,
   type ToolbarPrefs,
 } from "@/lib/chartConfig";
+import { getTabPrimarySymbol, type WorkspaceTabsState } from "@/lib/app/workspaceTabs";
+
+export type AppWorkspaceTabSummary = {
+  id: string;
+  title: string;
+  active: boolean;
+  symbol: string;
+};
 
 export type AppWorkspaceCellSummary = {
   index: number;
@@ -23,7 +31,10 @@ export type AppWorkspaceCellSummary = {
 
 export type AppWorkspaceSnapshot = {
   hydrated: boolean;
-  gridMode: GridMode;
+  activeTabId?: string;
+  tabCount?: number;
+  tabs?: AppWorkspaceTabSummary[];
+  layoutId: LayoutTemplateId;
   linkSymbol: boolean;
   linkInterval: boolean;
   linkCrosshair: boolean;
@@ -38,11 +49,24 @@ export type AppWorkspaceSnapshot = {
 export function buildAppWorkspaceSnapshot(
   layout: ChartLayout,
   hydrated: boolean,
+  tabsState?: WorkspaceTabsState,
 ): AppWorkspaceSnapshot {
-  const count = cellCountFor(layout.gridMode);
+  const count = cellCountFor(layout.layoutId);
   return {
     hydrated,
-    gridMode: layout.gridMode,
+    ...(tabsState
+      ? {
+          activeTabId: tabsState.activeTabId,
+          tabCount: tabsState.tabs.length,
+          tabs: tabsState.tabs.map((tab) => ({
+            id: tab.id,
+            title: tab.title,
+            active: tab.id === tabsState.activeTabId,
+            symbol: getTabPrimarySymbol(tab),
+          })),
+        }
+      : {}),
+    layoutId: layout.layoutId,
     linkSymbol: layout.linkSymbol,
     linkInterval: layout.linkInterval,
     linkCrosshair: layout.linkCrosshair,
