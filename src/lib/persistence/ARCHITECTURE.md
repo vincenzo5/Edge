@@ -10,7 +10,7 @@ Sync chart workspaces, watchlist libraries, screener libraries, chart templates,
 
 ```
 Client (React hooks)
-  ├── useChartWorkspaceRemoteSync
+  ├── useWorkspaceTabsRemoteSync
   ├── useWatchlistLibraryRemoteSync
   ├── useScreenerLibraryRemoteSync
   └── useChartTemplateLibraryRemoteSync

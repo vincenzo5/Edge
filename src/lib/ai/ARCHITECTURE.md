@@ -20,6 +20,7 @@ AI Agent
                     ├── ActiveChartContext (active chart read/write)
                     ├── WatchlistContext (watchlist CRUD)
                     ├── ScreenerProvider (last run + saved screen state)
+                    ├── RiskSettingsProvider / AccountProvider / OptionsSessionProvider
                     └── MarketDataPort (search, candles, quotes)
 ```
 
@@ -29,7 +30,7 @@ AI Agent
 |--------|------|
 | `registry.ts` | Tool registration and lookup |
 | `tools/index.ts` | Aggregates all tool groups into `edgeToolRegistry` |
-| `tools/*.ts` | Implementations: chart, marketData, indicators, drawings, watchlist, workflow, screener |
+| `tools/*.ts` | Implementations: chart, marketData, indicators, drawings, watchlist, workflow, screener, sessionState |
 | `context.ts` | `ToolContext` interface — adapter boundary |
 | `validation.ts` | Parse helpers, JSON Schema export |
 | `schemas.ts` | Shared Zod schemas |

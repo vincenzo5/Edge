@@ -19,13 +19,14 @@ For V1 targets and gesture specs, see [v1-scope.md](./prereqs/v1-scope.md) and [
 ## Architecture (current)
 
 ```
-StockApp → ChartGrid → ChartCell
+StockApp → WorkspaceTabBar
+         → ChartGrid ── ChartDrawingRail (multi-pane; targets active cell)
               │ ChartSyncProvider (linked → crosshair broadcast)
-              └─ per-cell wrapper (min-h-0, viewport-fitting grid)
-                          ├─ DrawingToolbar (left rail)
+              └─ ChartCell (min-h-0, viewport-fitting grid)
+                          ├─ DrawingToolbar (left rail; single-pane only)
                           └─ chart column (flex-1; chart width excludes rail)
                                 ├─ EdgeChart
-                                │     ├─ ChartLegendBar (OHLCV overlay, price pane)
+                                │     ├─ ChartLegendBar → PriceLegendLayout (price pane)
                                 │     ├─ PaneLegendBar (indicator legend overlays, sub-panes)
                                 │     ├─ ChartCanvas (price pane)
                                 │     ├─ ChartCanvas (sub-panes, one per sub indicator)
@@ -344,7 +345,10 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
 | Drawing toolbar rail | **Done** | Single-pane: left column in `ChartCell`. Multi-pane: one shared compact rail in `ChartGrid` (`ChartDrawingRail`) driven by active cell registration |
 | Bottom range bar alignment | **Done** | `ChartRangeBar` sits in the chart column beside the drawing rail (not full cell width) so presets align with the plot area |
-| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.ts` for watchlist, account, risk, and object-tree panels |
+| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.tsx` for watchlist, options, screener, object-tree, account, and settings panels |
+| Floating panel pop-out | **Done** | Any sidebar panel can Pop out to `FloatingPanelHost` / `FloatingPanelShell` (drag/resize) or Dock back; `presentation` + `floatingGeometry` persisted in layout |
+| Data Health overlay | **Done** | Active cell: icon-only severity dot (`DataHealthButton`) + progressive-disclosure panel with dataset chips, Issues log, and provider recovery |
+| App bootstrap / hydration | **Done** | `resolveAppBootstrap` gates provider mount; `AppHydrationShell` full-chrome skeleton until layout hydrates; `ChartLoadingOverlay` on cold candle fetch |
 | Account sidebar panel | **Partial** | App-level `account` panel via `AccountProvider` + `/api/brokerage/*`; overhauled layout with color-coded PnL, metric help tooltips, tabbed open orders/today's fills, icon refresh, day-trades in net-liq card, and computed leverage; live positions/PnL/summary/fills when TWS sidecar + IB Gateway connected; open orders require `TWS_READONLY=false`; what-if preview UI removed |
 | Risk sidebar panel | **Done** | App-level `risk` panel via `RiskSettingsProvider`; percent-of-account or absolute $ sizing with IB summary basis tags; `dollarRisk`/`riskAccount` propagate to options Risk Calculator and risk-ruler presets; stale badge + `manualCapital` fallback when account disconnected; localStorage `edge.riskSettings.v1` |
 | Chart position overlay (`showPositions`) | **Partial** | Settings → Trading → Positions toggles avg-cost reference line on the active symbol from held position (`positionOverlays.ts`); buy/sell buttons, orders, executions, and PnL chart overlays not yet wired |

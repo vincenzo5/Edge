@@ -33,7 +33,7 @@ Tailwind var(...)       chartSettings defaults + renderer.ts
 ```
 
 - **DOM UI** (`src/app/components/`): use `var(--edge-*)`, `Edge*` components, or helpers from `styles.ts`.
-- **In-chart legend overlay** (`packages/chart-react/src/components/PriceLegendLayout.tsx` for price pane; `PaneLegendBar.tsx` for indicator panes): uses `--edge-*` in class names. Price legend tiers: identity (13px semibold), hero price (16px mono tabular), OHLC group (10px muted labels + mono values), context row chips (10px mono ticker pills).
+- **In-chart legend overlay** (`packages/chart-react/src/components/PriceLegendLayout.tsx` for price pane; `PaneLegendBar.tsx` for indicator panes): uses `--edge-*` in class names. Price legend tiers: identity (13px semibold + optional letter badge), inline tone-colored O/H/L/C + change (11px mono tabular), context row chips on identity hover (10px mono ticker pills via `legendContextSlot`).
 - **Canvas draw loop** (`packages/chart-react/src/engine/renderer.ts`): uses `getChartColors()` / `themeTokens.ts`.
 
 If you change chart background, grid, or axis colors, update `edgeChartColors` / `themeTokens.ts` together — not only CSS.
@@ -95,7 +95,7 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Watchlist panel | `watchlist/WatchlistPanel.tsx` |
 | Bottom range bar | `ChartRangeBar.tsx` |
 | Chart cell shell | `ChartCell.tsx` — left `DrawingToolbar` rail + flex column (`ChartErrorBoundary` → `EdgeChart` + `ChartRangeBar`) so the range bar matches chart width |
-| Chart overlay status stack | `chart-cell/ChartOverlayStatusStack.tsx` — active-cell top-right stack: feed badge + optional `DataHealthButton` |
+| Chart overlay status stack | `chart-cell/ChartOverlayStatusStack.tsx` — active-cell top-right stack (left of price-axis strip): embedded `ChartFeedStatusBadge` when stale/stream/error; icon-only `DataHealthButton` (severity dot + tooltip) on active cell |
 | Chart feed status overlay | `chart-cell/ChartFeedStatusBadge.tsx` — stale/stream/error/refreshing feed state (standalone or embedded in the stack) |
 | Chart error fallback | `chart-cell/ChartErrorBoundary.tsx` — in-cell error UI with retry and copy-error actions |
 | App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full chrome skeleton (workspace tab bar, header, rails, chart grid, range bar) until `StockApp` layout hydrates; also used by `src/app/loading.tsx` during route load |
