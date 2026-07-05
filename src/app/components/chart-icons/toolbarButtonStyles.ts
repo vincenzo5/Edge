@@ -1,3 +1,14 @@
+export type IconRailEdge = "left" | "right";
+
+/** Outer shell shared by the left drawing toolbar and right sidebar rails. */
+export function iconRailShellClass(compact: boolean, edge: IconRailEdge): string {
+  const border =
+    edge === "left"
+      ? "border-r border-[var(--edge-border)]"
+      : "border-l border-[var(--edge-border)]";
+  return `relative z-50 flex h-full shrink-0 flex-col items-stretch self-stretch ${border} bg-[var(--edge-surface-rail)] px-0.5 py-1.5 ${iconRailWidthClass(compact)}`;
+}
+
 /** Slim icon rail shared by the left drawing toolbar and right sidebar. */
 export function iconRailButtonClass(compact: boolean): string {
   return compact

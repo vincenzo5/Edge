@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import type { Theme } from "@/lib/chartConfig";
+import type { RailMode } from "@/lib/responsive/responsiveLayout";
 import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
 import Tooltip from "./Tooltip";
 import {
@@ -28,14 +29,15 @@ import {
 } from "./chart-icons/toolGroups";
 import {
   iconRailButtonClass,
+  iconRailIconClass,
   iconRailIconSize,
-  iconRailWidthClass,
+  iconRailShellClass,
   toolbarButtonStateClass,
 } from "./chart-icons/toolbarButtonStyles";
 import DrawingToolGroup from "./DrawingToolGroup";
 
 type Props = {
-  compact?: boolean;
+  railMode?: RailMode;
   disabled?: boolean;
   theme: Theme;
   activeTool: string;
@@ -96,7 +98,7 @@ function ToolButton({
 }
 
 export default function DrawingToolbar({
-  compact = false,
+  railMode = "full",
   disabled = false,
   theme,
   activeTool,
@@ -115,10 +117,13 @@ export default function DrawingToolbar({
   onZoomIn,
   onDeleteSelected,
 }: Props) {
+  const compact = railMode === "compact";
   const iconSize = iconRailIconSize(compact);
-  const railWidth = compact
-    ? LAYOUT_DIMENSIONS.compactSidebarRailWidth
-    : LAYOUT_DIMENSIONS.sidebarRailWidth;
+  const iconClass = iconRailIconClass(compact);
+  const railWidth =
+    railMode === "compact"
+      ? LAYOUT_DIMENSIONS.compactSidebarRailWidth
+      : LAYOUT_DIMENSIONS.sidebarRailWidth;
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const [pinnedGroupId, setPinnedGroupId] = useState<string | null>(null);
 
@@ -144,10 +149,11 @@ export default function DrawingToolbar({
   return (
     <div
       data-testid="drawing-toolbar"
-      data-rail-mode={compact ? "compact" : "full"}
+      data-rail-mode={railMode}
       style={{ width: railWidth } as CSSProperties}
-      className={`relative z-10 flex h-full min-h-0 shrink-0 flex-col items-stretch justify-start gap-0.5 overflow-y-auto overflow-x-visible border-r border-[var(--edge-border)] bg-[var(--edge-surface-rail)] px-0.5 py-1.5 ${iconRailWidthClass(compact)} ${disabled ? "pointer-events-none opacity-40" : ""}`}
+      className={`${iconRailShellClass(compact, "left")} min-h-0 overflow-x-visible ${disabled ? "pointer-events-none opacity-40" : ""}`}
     >
+      <div className="flex min-h-0 flex-1 flex-col items-stretch gap-0.5 overflow-y-auto overflow-x-visible">
       <ToolButton
         title="Cursor"
         theme={theme}
@@ -156,7 +162,7 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={() => selectTool("__cursor__")}
       >
-        <CrosshairIcon size={iconSize} />
+        <CrosshairIcon className={iconClass} size={iconSize} />
       </ToolButton>
 
       {DRAWING_TOOL_GROUPS.map((group) => (
@@ -196,7 +202,7 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={onZoomIn}
       >
-        <ZoomInIcon size={iconSize} />
+        <ZoomInIcon className={iconClass} size={iconSize} />
       </ToolButton>
 
       <ToolButton
@@ -207,7 +213,7 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={() => selectTool(MEASURE_TOOL)}
       >
-        <MeasureIcon size={iconSize} />
+        <MeasureIcon className={iconClass} size={iconSize} />
       </ToolButton>
 
       <ToolButton
@@ -218,7 +224,7 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={() => selectTool(RULER_TOOL)}
       >
-        <RulerIcon size={iconSize} />
+        <RulerIcon className={iconClass} size={iconSize} />
       </ToolButton>
 
       <ToolButton
@@ -229,7 +235,7 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={() => selectTool(RISK_RULER_TOOL)}
       >
-        <RiskRulerIcon size={iconSize} />
+        <RiskRulerIcon className={iconClass} size={iconSize} />
       </ToolButton>
 
       <Divider compact={compact} />
@@ -242,7 +248,7 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={() => onToggleMagnet(!magnet)}
       >
-        <MagnetIcon size={iconSize} />
+        <MagnetIcon className={iconClass} size={iconSize} />
       </ToolButton>
 
       <ToolButton
@@ -253,7 +259,7 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={() => onToggleKeepDrawing(!keepDrawing)}
       >
-        <KeepDrawingIcon size={iconSize} />
+        <KeepDrawingIcon className={iconClass} size={iconSize} />
       </ToolButton>
 
       <ToolButton
@@ -264,7 +270,7 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={onToggleLockAll}
       >
-        <LockAllIcon size={iconSize} />
+        <LockAllIcon className={iconClass} size={iconSize} />
       </ToolButton>
 
       <ToolButton
@@ -275,7 +281,7 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={onToggleHideAll}
       >
-        <HideDrawingsIcon size={iconSize} />
+        <HideDrawingsIcon className={iconClass} size={iconSize} />
       </ToolButton>
 
       <Divider compact={compact} />
@@ -288,7 +294,7 @@ export default function DrawingToolbar({
           compact={compact}
           onClick={onDeleteSelected}
         >
-          <DeleteIcon size={iconSize} />
+          <DeleteIcon className={iconClass} size={iconSize} />
         </ToolButton>
       )}
 
@@ -299,8 +305,9 @@ export default function DrawingToolbar({
         compact={compact}
         onClick={onClear}
       >
-        <TrashIcon size={iconSize} />
+        <TrashIcon className={iconClass} size={iconSize} />
       </ToolButton>
+      </div>
     </div>
   );
 }

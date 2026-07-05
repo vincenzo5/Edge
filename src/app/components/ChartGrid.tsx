@@ -6,6 +6,7 @@ import type { CellConfig, LayoutTemplateId, Theme, ToolbarPrefs } from "@/lib/ch
 import { cellCountFor, getLayoutTemplate } from "@/lib/chartConfig";
 import { resolveLayoutGridStyles } from "@/lib/chart/layoutTemplateGrid";
 import { shouldStackLayout } from "@/lib/responsive/responsiveLayout";
+import type { RailMode } from "@/lib/responsive/responsiveLayout";
 import { useElementSize } from "@/lib/responsive/useElementSize";
 import { ChartSyncProvider } from "./ChartSyncContext";
 import ChartDrawingRail from "./chart-chrome/ChartDrawingRail";
@@ -27,6 +28,7 @@ type Props = {
   cells: CellConfig[];
   activeCellIndex: number;
   toolbarPrefs: ToolbarPrefs;
+  railMode?: RailMode;
   symbolNav?: ChartSymbolNav;
   onCellChange: (index: number, next: CellConfig) => void;
   onActiveCellChange: (index: number) => void;
@@ -41,6 +43,7 @@ export default function ChartGrid({
   cells,
   activeCellIndex,
   toolbarPrefs,
+  railMode = "full",
   symbolNav,
   onCellChange,
   onActiveCellChange,
@@ -69,6 +72,7 @@ export default function ChartGrid({
         {count > 1 ? (
           <ChartDrawingRail
             theme={theme}
+            railMode={railMode}
             toolbarPrefs={toolbarPrefs}
             onToolbarPrefsChange={onToolbarPrefsChange}
           />
@@ -94,6 +98,7 @@ export default function ChartGrid({
               config={cell}
               theme={theme}
               compact={count > 1}
+              railMode={railMode}
               showDrawingRail={count === 1}
               isActive={i === activeCellIndex}
               toolbarPrefs={toolbarPrefs}

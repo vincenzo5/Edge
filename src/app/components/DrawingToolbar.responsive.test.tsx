@@ -24,7 +24,7 @@ describe('DrawingToolbar responsive overflow', () => {
       <div style={{ height: 200 }}>
         <DrawingToolbar
           theme="dark"
-          compact={false}
+          railMode="full"
           disabled={false}
           activeTool="__cursor__"
           magnet={false}
@@ -45,7 +45,7 @@ describe('DrawingToolbar responsive overflow', () => {
     );
 
     const toolbar = screen.getByTestId('drawing-toolbar');
-    expect(toolbar.className).toMatch(/overflow-y-auto/);
+    expect(toolbar.querySelector('.overflow-y-auto')).toBeTruthy();
     expect(toolbar).toHaveStyle({ width: '44px' });
     expect(toolbar).toHaveAttribute('data-rail-mode', 'full');
   });

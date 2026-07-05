@@ -8,7 +8,7 @@ import Tooltip from "../Tooltip";
 import {
   iconRailButtonClass,
   iconRailIconClass,
-  iconRailWidthClass,
+  iconRailShellClass,
   toolbarButtonStateClass,
 } from "../chart-icons/toolbarButtonStyles";
 import { SIDEBAR_FOOTER_PANELS, SIDEBAR_MAIN_PANELS, type SidebarPanelDef } from "./registry";
@@ -77,7 +77,7 @@ export default function SidebarRail({
           width: railWidth,
         } as CSSProperties
       }
-      className={`relative z-50 flex h-full shrink-0 flex-col items-stretch self-stretch border-l border-[var(--edge-border)] bg-[var(--edge-surface-rail)] px-0.5 py-1.5 ${iconRailWidthClass(compact)}`}
+      className={iconRailShellClass(compact, "right")}
     >
       <div className="flex flex-col items-stretch gap-0.5">
         {SIDEBAR_MAIN_PANELS.map((panel) => (

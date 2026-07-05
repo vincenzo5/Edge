@@ -68,6 +68,7 @@ import { getShortcutLabel } from "@/lib/shortcuts/formatShortcutLabel";
 import MarketContextBreadcrumb from "./chart-chrome/MarketContextBreadcrumb";
 import type { ChartSymbolNav } from "./ChartGrid";
 import type { SymbolSelectResult } from "@/lib/watchlist/types";
+import type { RailMode } from "@/lib/responsive/responsiveLayout";
 
 type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
 
@@ -76,6 +77,7 @@ type Props = {
   config: CellConfig;
   theme: "light" | "dark";
   compact?: boolean;
+  railMode?: RailMode;
   isActive?: boolean;
   showDrawingRail?: boolean;
   toolbarPrefs: ToolbarPrefs;
@@ -91,6 +93,7 @@ export default function ChartCell({
   config,
   theme,
   compact = false,
+  railMode = "full",
   isActive = true,
   showDrawingRail = true,
   toolbarPrefs,
@@ -1145,7 +1148,7 @@ export default function ChartCell({
         <div className="relative z-20 flex h-full shrink-0 self-stretch overflow-visible">
           <DrawingToolbar
           theme={theme}
-          compact={compact}
+          railMode={railMode}
           disabled={!isActive}
           activeTool={activeTool}
           magnet={magnet}

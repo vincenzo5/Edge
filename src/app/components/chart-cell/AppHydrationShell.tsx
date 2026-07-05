@@ -55,7 +55,7 @@ export default function AppHydrationShell() {
           <div className="relative flex min-h-0 flex-1">
             <div
               data-testid="app-hydration-drawing-rail"
-              className="flex w-11 shrink-0 flex-col gap-1 border-r border-[var(--edge-border-subtle)] bg-[var(--edge-surface-rail)] px-0.5 py-1.5"
+              className="flex w-11 shrink-0 flex-col gap-0.5 border-r border-[var(--edge-border)] bg-[var(--edge-surface-rail)] px-0.5 py-1.5"
               aria-hidden
             >
               {Array.from({ length: 8 }).map((_, index) => (
@@ -104,7 +104,7 @@ export default function AppHydrationShell() {
         <div
           data-testid="app-hydration-sidebar-rail"
           style={{ width: railWidth }}
-          className="flex shrink-0 flex-col gap-1 border-l border-[var(--edge-border)] bg-[var(--edge-surface-rail)] px-0.5 py-1.5"
+          className="flex shrink-0 flex-col gap-0.5 border-l border-[var(--edge-border)] bg-[var(--edge-surface-rail)] px-0.5 py-1.5"
           aria-hidden
         >
           {Array.from({ length: 7 }).map((_, index) => (
