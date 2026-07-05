@@ -539,7 +539,7 @@ describe('getLiveEdgeViewport', () => {
 });
 
 describe('getDefaultViewport', () => {
-  it('shows last DEFAULT_VISIBLE_BARS candles with right margin past the last bar', () => {
+  it('shows all fetched candles with right margin past the last bar', () => {
     const candles = Array.from({ length: 300 }, (_, i) => ({
       t: i,
       o: 10,
@@ -549,10 +549,9 @@ describe('getDefaultViewport', () => {
     }));
     const width = 800;
     const height = 400;
-    const margin = liveEdgeMarginBars(width, DEFAULT_VISIBLE_BARS);
     const vp = getDefaultViewport(candles, width, height);
-    expect(vp.endIndex).toBeGreaterThanOrEqual(300 + margin);
-    expect(vp.startIndex).toBeGreaterThanOrEqual(300 - DEFAULT_VISIBLE_BARS);
+    expect(vp.startIndex).toBe(0);
+    expect(vp.endIndex).toBeGreaterThanOrEqual(300);
     expect(vp.priceScaleMode).toBe('auto');
   });
 

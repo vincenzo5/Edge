@@ -25,6 +25,22 @@ export type CreateEdgeChartHandleDeps = {
   drawingHandleSlice: DrawingHandleSlice;
 };
 
+export function resetAllPaneViewports(
+  paneHandles: Map<string, ChartPaneHandle> | undefined,
+): void {
+  const priceHandle = paneHandles?.get('price');
+  if (!priceHandle) return;
+  const vp = priceHandle.resetViewport();
+  if (vp) {
+    paneHandles?.forEach((handle, id) => {
+      if (id !== 'price') handle.syncTimeWindow(vp.startIndex, vp.endIndex, true);
+    });
+  }
+  paneHandles?.forEach((handle, id) => {
+    if (id !== 'price') handle.resetViewport();
+  });
+}
+
 export function createEdgeChartHandle(deps: CreateEdgeChartHandleDeps): EdgeChartHandle {
   const {
     stateRef,
@@ -88,17 +104,7 @@ export function createEdgeChartHandle(deps: CreateEdgeChartHandleDeps): EdgeChar
     getSubPaneId: (key) => key,
     applyPaneHeights: () => {},
     resetChartView: () => {
-      const priceHandle = paneHandlesRef.current?.get('price');
-      if (!priceHandle) return;
-      const vp = priceHandle.resetViewport();
-      if (vp) {
-        paneHandlesRef.current?.forEach((handle, id) => {
-          if (id !== 'price') handle.syncTimeWindow(vp.startIndex, vp.endIndex, true);
-        });
-      }
-      paneHandlesRef.current?.forEach((handle, id) => {
-        if (id !== 'price') handle.resetViewport();
-      });
+      resetAllPaneViewports(paneHandlesRef.current);
     },
     resetPriceScaleWindow: (settingsOverride?: ChartSettings) => {
       const priceHandle = paneHandlesRef.current?.get('price');

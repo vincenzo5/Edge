@@ -23,6 +23,7 @@ import type { Candle, ChartDataMeta } from '@edge/chart-core';
 import type { CellConfig, Theme, TrackedOverlay, SerializedDrawing } from '@/lib/chartConfig';
 import { mergeChartSettings } from '@/lib/chartConfig';
 import { buildCandleSessionKey } from '@/lib/chart/rangePresetTransition';
+import { resolveCellFetchRange } from '@/lib/chart/rangeInterval';
 import { cellConfigToChartState } from '@/lib/chart/stateMapping';
 import {
   captureChartElement,
@@ -132,6 +133,11 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   const configRef = useRef(config);
   configRef.current = config;
 
+  const fetchRange = useMemo(
+    () => resolveCellFetchRange(config),
+    [config.range, config.interval, config.rangePreset],
+  );
+
   const {
     candles,
     loading,
@@ -146,7 +152,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     symbol: config.symbol,
     exchange: config.exchange,
     interval: config.interval,
-    range: config.range,
+    range: fetchRange,
     sessionMode,
     reloadKey,
   });
@@ -189,8 +195,8 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
 
   const chartState = useMemo(() => cellConfigToChartState(config), [config]);
   const sessionKey = useMemo(
-    () => buildCandleSessionKey(config.symbol, config.range, config.interval),
-    [config.symbol, config.range, config.interval],
+    () => buildCandleSessionKey(config.symbol, fetchRange, config.interval),
+    [config.symbol, fetchRange, config.interval],
   );
 
   useEffect(() => {
@@ -339,7 +345,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         liveMarketSession={liveMarketSession}
         marketSessionLabel={showDataHealthBadge ? null : marketSessionLabel}
         interval={config.interval}
-        range={config.range}
+        range={fetchRange}
         rangePreset={config.rangePreset ?? null}
         sessionKey={sessionKey}
         collapsedKeys={collapsedKeys}

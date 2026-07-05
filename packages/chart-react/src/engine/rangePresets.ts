@@ -1,4 +1,4 @@
-import type { Candle, Range, VisibleRange } from '@edge/chart-core';
+import type { Candle, Interval, Range, VisibleRange } from '@edge/chart-core';
 import {
   attachViewportHelpers,
   createViewport,
@@ -6,6 +6,11 @@ import {
   getLiveEdgeViewport,
   liveEdgeEndIndex,
 } from './viewport';
+
+const MS_DAY = 86_400_000;
+
+/** Default visible calendar span for daily bars when no bottom-bar preset is active. */
+export const DAILY_DEFAULT_VISIBLE_DAYS = 270;
 
 const RANGE_DAYS: Partial<Record<Range, number>> = {
   '1d': 1,
@@ -82,6 +87,30 @@ export function getRangeViewport(
   return attachViewportHelpers({ ...base, startIndex, endIndex }, n);
 }
 
+/** Viewport anchored to the latest bar for a calendar-day lookback. */
+export function getCalendarWindowViewport(
+  candles: Candle[],
+  width: number,
+  height: number,
+  calendarDays: number,
+  ref = new Date(),
+): VisibleRange {
+  const n = candles.length;
+  if (n === 0) {
+    return createViewport(candles, width, height, 0, 0);
+  }
+
+  const cutoff = ref.getTime() - calendarDays * MS_DAY;
+  let startIndex = findStartIndexForCutoff(candles, cutoff);
+  if (startIndex >= n) startIndex = 0;
+  const visibleCount = Math.max(1, n - startIndex);
+  const endIndex = liveEdgeEndIndex(startIndex, n, width);
+  const margin = endIndex - n;
+
+  const base = createViewport(candles, width, height, visibleCount, margin);
+  return attachViewportHelpers({ ...base, startIndex, endIndex }, n);
+}
+
 /** Viewport that shows every candle in the fetched dataset (fetch is already scoped to range). */
 export function getFetchedWindowViewport(
   candles: Candle[],
@@ -99,6 +128,7 @@ export function getSessionViewport(
   width: number,
   height: number,
   rangePreset: Range | null,
+  interval?: Interval | null,
 ): VisibleRange {
   if (rangePreset != null) {
     if (rangePreset === 'max') {
@@ -106,7 +136,20 @@ export function getSessionViewport(
     }
     return getRangeViewport(candles, rangePreset, width, height);
   }
-  return getLiveEdgeViewport(candles, width, height, DEFAULT_VISIBLE_BARS);
+  switch (interval) {
+    case '1d':
+      return getCalendarWindowViewport(
+        candles,
+        width,
+        height,
+        DAILY_DEFAULT_VISIBLE_DAYS,
+      );
+    case '1wk':
+    case '1mo':
+      return getFetchedWindowViewport(candles, width, height);
+    default:
+      return getLiveEdgeViewport(candles, width, height, DEFAULT_VISIBLE_BARS);
+  }
 }
 
 export function rangePresetLabel(range: Range): string {

@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import type { Candle } from './contracts';
 import {
   BOTTOM_RANGE_PRESETS,
+  DAILY_DEFAULT_VISIBLE_DAYS,
   findStartIndexForCutoff,
+  getCalendarWindowViewport,
   getRangeViewport,
   getFetchedWindowViewport,
   getSessionViewport,
@@ -101,11 +103,42 @@ describe('getSessionViewport', () => {
     expect(vp.startIndex).toBeGreaterThan(0);
   });
 
-  it('uses live-edge window when no preset is active', () => {
+  it('uses a recent window when no preset is active on intraday intervals', () => {
     const candles = makeCandles(200);
-    const vp = getSessionViewport(candles, 800, 400, null);
+    const vp = getSessionViewport(candles, 800, 400, null, '1h');
     expect(vp.startIndex).toBeGreaterThan(0);
     expect(vp.endIndex).toBeGreaterThan(candles.length);
+  });
+
+  it('shows about nine months on daily when no preset is active', () => {
+    const ref = new Date(2026, 5, 15);
+    const candles = makeCandles(400, new Date(2025, 0, 1));
+    const vp = getCalendarWindowViewport(
+      candles,
+      800,
+      400,
+      DAILY_DEFAULT_VISIBLE_DAYS,
+      ref,
+    );
+    const cutoff = ref.getTime() - DAILY_DEFAULT_VISIBLE_DAYS * MS_DAY;
+    expect(vp.startIndex).toBe(findStartIndexForCutoff(candles, cutoff));
+    expect(vp.endIndex).toBeGreaterThan(candles.length);
+  });
+
+  it('zooms daily further in than the full fetched window', () => {
+    const candles = makeCandles(400, new Date(2025, 0, 1));
+    const daily = getSessionViewport(candles, 800, 400, null, '1d');
+    const full = getFetchedWindowViewport(candles, 800, 400);
+    expect(daily.startIndex).toBeGreaterThan(full.startIndex);
+  });
+
+  it('shows the full fetched window for weekly and monthly intervals', () => {
+    const candles = makeCandles(120);
+    for (const interval of ['1wk', '1mo'] as const) {
+      const vp = getSessionViewport(candles, 800, 400, null, interval);
+      expect(vp.startIndex).toBe(0);
+      expect(vp.endIndex).toBeGreaterThan(candles.length);
+    }
   });
 
   it('aligns latest candle x-position with the default landing view', () => {

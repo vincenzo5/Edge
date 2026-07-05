@@ -471,23 +471,24 @@ export function getLiveEdgeViewport(
   return attachViewportHelpers(applyAutoPriceScale(vp, candles), n);
 }
 
-/** Fresh viewport matching initial chart load (last N bars, auto Y). */
+/** Fresh viewport matching initial chart load (full fetched window, auto Y). */
 export function getDefaultViewport(
   candles: Candle[],
   width: number,
   height: number
 ): VisibleRange {
-  return getLiveEdgeViewport(candles, width, height, DEFAULT_VISIBLE_BARS);
+  return getLiveEdgeViewport(candles, width, height, Math.max(1, candles.length));
 }
 
 export function isTimeWindowModified(
   current: ViewportState,
   candles: Candle[],
   width: number,
-  height: number
+  height: number,
+  baseline?: Pick<ViewportState, 'startIndex' | 'endIndex'>,
 ): boolean {
   if (candles.length === 0) return false;
-  const def = getDefaultViewport(candles, width, height);
+  const def = baseline ?? getDefaultViewport(candles, width, height);
   return (
     Math.abs(current.startIndex - def.startIndex) > INDEX_EPS ||
     Math.abs(current.endIndex - def.endIndex) > INDEX_EPS
@@ -514,10 +515,11 @@ export function isViewportModified(
   candles: Candle[],
   width: number,
   height: number,
-  getAutoFit?: (vp: ViewportState) => Pick<ViewportState, 'priceMin' | 'priceMax'>
+  getAutoFit?: (vp: ViewportState) => Pick<ViewportState, 'priceMin' | 'priceMax'>,
+  baseline?: Pick<ViewportState, 'startIndex' | 'endIndex'>,
 ): boolean {
   if (candles.length === 0) return false;
-  if (isTimeWindowModified(current, candles, width, height)) return true;
+  if (isTimeWindowModified(current, candles, width, height, baseline)) return true;
   if (current.priceScaleMode === 'manual') return true;
   const expected = getAutoFit
     ? getAutoFit(current)

@@ -11,9 +11,9 @@ const FIXTURE_CANDLES = [
   { t: 3000, o: 110, h: 120, l: 100, c: 115, v: 1200 },
 ];
 
-function makeCandles(count: number, startT = 1_000_000): Candle[] {
+function makeCandles(count: number, startT = 1_000_000, stepMs = 86_400_000): Candle[] {
   return Array.from({ length: count }, (_, index) => ({
-    t: startT + index * 86_400_000,
+    t: startT + index * stepMs,
     o: 100,
     h: 110,
     l: 90,
@@ -255,5 +255,106 @@ describe('@edge/chart-react EdgeChart', () => {
       },
       { timeout: 3000 },
     );
+  });
+
+  it('resets the viewport when the interval session loads after panning', async () => {
+    const dailyCandles = makeCandles(300);
+    const weeklyCandles = makeCandles(120, dailyCandles[0]!.t, 7 * 86_400_000);
+    const ref = createRef<EdgeChartHandle>();
+
+    const { rerender } = render(
+      <EdgeChart
+        ref={ref}
+        candles={dailyCandles}
+        state={createDefaultChartState()}
+        theme="dark"
+        symbol="DEMO"
+        range="1y"
+        interval="1d"
+        loading={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current?.getVisibleRange()).not.toBeNull();
+    });
+
+    ref.current!.setVisibleRange(0, 80);
+    await waitFor(() => {
+      expect(ref.current?.isViewportModified()).toBe(true);
+    });
+
+    rerender(
+      <EdgeChart
+        ref={ref}
+        candles={weeklyCandles}
+        state={createDefaultChartState()}
+        theme="dark"
+        symbol="DEMO"
+        range="1y"
+        interval="1wk"
+        loading={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current?.isViewportModified()).toBe(false);
+    });
+  });
+
+  it('resets sub-pane viewports when the interval session loads', async () => {
+    const dailyCandles = makeCandles(300);
+    const weeklyCandles = makeCandles(120, dailyCandles[0]!.t, 7 * 86_400_000);
+    const ref = createRef<EdgeChartHandle>();
+    const state = createDefaultChartState({
+      indicators: [
+        {
+          id: 'rsi-1',
+          name: 'RSI',
+          pane: 'rsi',
+          inputs: { period: 14 },
+          visible: true,
+        },
+      ],
+    });
+
+    const { rerender } = render(
+      <EdgeChart
+        ref={ref}
+        candles={dailyCandles}
+        state={state}
+        theme="dark"
+        symbol="DEMO"
+        range="1y"
+        interval="1d"
+        loading={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current?.getVisibleRange()).not.toBeNull();
+    });
+
+    ref.current!.setVisibleRange(0, 80);
+    await waitFor(() => {
+      expect(ref.current?.isViewportModified()).toBe(true);
+    });
+
+    rerender(
+      <EdgeChart
+        ref={ref}
+        candles={weeklyCandles}
+        state={state}
+        theme="dark"
+        symbol="DEMO"
+        range="1y"
+        interval="1wk"
+        loading={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current?.isViewportModified()).toBe(false);
+    });
   });
 });

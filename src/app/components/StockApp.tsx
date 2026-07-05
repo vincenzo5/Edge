@@ -37,6 +37,7 @@ import {
   type ToolbarPrefs,
 } from "@/lib/chartConfig";
 import type { Interval } from "@/lib/chart/contracts";
+import { rangeForManualInterval } from "@/lib/chart/rangeInterval";
 import { saveWorkspaceTabs } from "@/lib/app/workspaceTabsStorage";
 import {
   cloneLayoutForNewTab,
@@ -367,7 +368,11 @@ export default function StockApp() {
 
   const handleIntervalChange = useCallback(
     (interval: Interval) => {
-      patchActiveCell({ interval, rangePreset: null });
+      patchActiveCell({
+        interval,
+        range: rangeForManualInterval(interval),
+        rangePreset: null,
+      });
     },
     [patchActiveCell],
   );
@@ -604,6 +609,7 @@ export default function StockApp() {
                     cells={cells}
                     activeCellIndex={activeCellIndex}
                     toolbarPrefs={layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
+                    railMode={responsive.railMode}
                     symbolNav={{
                       canBack: symbolHistory.canBack,
                       canForward: symbolHistory.canForward,

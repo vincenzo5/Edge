@@ -49,7 +49,7 @@ import {
 } from '@edge/chart-core/crosshair';
 import type { EdgeChartProps, EdgeChartHandle } from './types';
 import { useDrawingController } from './drawing/useDrawingController';
-import { createEdgeChartHandle } from './createEdgeChartHandle';
+import { createEdgeChartHandle, resetAllPaneViewports } from './createEdgeChartHandle';
 import { indicatorKey } from './indicatorKey';
 import EventDetailCard, { type EventDetailAnchor } from './components/EventDetailCard';
 import type { EventBadgeGroup } from './engine/eventBadges';
@@ -183,6 +183,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
   const candlesRef = useRef<Candle[]>([]);
   const baseCandlesRef = useRef<Candle[]>([]);
   const appliedCandlesSessionKeyRef = useRef<string | null>(null);
+  const prevViewportRevisionRef = useRef<string | undefined>(undefined);
   const hasMoreHistoryRef = useRef(true);
   const prefetchControllerRef = useRef<HistoryPrefetchController | null>(null);
   const userPannedTimeAxisRef = useRef(false);
@@ -374,6 +375,17 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
       }),
     [applyCrosshairFromSync, hydrateDrawings, drawingHandleSlice],
   );
+
+  useLayoutEffect(() => {
+    setLoadedSessionKey((current) => (current === candleSessionKey ? current : null));
+  }, [candleSessionKey]);
+
+  useLayoutEffect(() => {
+    if (viewportRevision == null || displayCandles.length === 0) return;
+    if (prevViewportRevisionRef.current === viewportRevision) return;
+    prevViewportRevisionRef.current = viewportRevision;
+    resetAllPaneViewports(paneHandlesRef.current);
+  }, [viewportRevision, displayCandles.length]);
 
   useEffect(() => {
     userPannedTimeAxisRef.current = false;

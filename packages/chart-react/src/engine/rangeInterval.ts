@@ -25,3 +25,29 @@ export function intervalForRange(range: Range): Interval {
       return '1d';
   }
 }
+
+/** Fetch range paired with a manually selected interval (header dropdown). */
+export function rangeForManualInterval(interval: Interval): Range {
+  switch (interval) {
+    case '1wk':
+      return '5y';
+    case '1mo':
+      return 'max';
+    default:
+      return '1y';
+  }
+}
+
+/** Effective candle fetch range for a cell (widens stale 1y+monthly/weekly combos). */
+export function resolveCellFetchRange(config: {
+  range: Range;
+  interval: Interval;
+  rangePreset?: Range | null;
+}): Range {
+  if (config.rangePreset != null) return config.range;
+  if (config.interval === '1mo') return 'max';
+  if (config.interval === '1wk') {
+    return config.range === '5y' || config.range === 'max' ? config.range : '5y';
+  }
+  return config.range;
+}
