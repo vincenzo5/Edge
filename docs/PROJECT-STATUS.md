@@ -2,9 +2,56 @@
 
 Single source for current progress. For row-by-row feature detail, see [chart/features.md](./chart/features.md).
 
-**Last updated:** 2026-07-04
+**Last updated:** 2026-07-05
 
 ## Current Verified State
+
+- **Current task:** Multi-pane shared toolbar + object tree — one left drawing rail in multi-pane layouts targeting the active pane; object tree lists all panes with indicators/drawings; single-pane unchanged.
+- **State:** **Passing** — focused tests and build passed; app-level multi-pane toolbar + object tree walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 6 passed (6)`, `Tests 91 passed (91)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `ChartGrid.tsx`, `ChartCell.tsx`, `ChartDrawingRail.tsx`, `ActiveChartContext.tsx`, `useRegisterActiveChart.ts`, `objectTreeModel.ts`, `ObjectTree.tsx`, `ObjectTreePanel.tsx`, tests, `docs/chart/features.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — 2×2 layout → one left rail; tool applies to blue-bordered pane; object tree shows both symbols; toggle indicator on inactive pane via config.
+
+## Previous Verified State (Multi-pane layout cell duplication)
+
+- **Current task:** Multi-pane layout cell duplication — expanding layout clones the active cell into new panes; shrinking to single-pane promotes the active cell to the sole pane.
+- **State:** **Passing** — focused tests and build passed; app-level layout round-trip walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 25 passed (25)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/chartConfig.ts`, `src/lib/chartConfig.layoutResize.test.ts`, `src/app/components/StockApp.tsx`, `src/app/components/StockApp.test.tsx`, `docs/chart/features.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by multi-pane shared toolbar + object tree row.
+
+## Previous Verified State (Multi-chart layout templates)
+
+- **Current task:** Multi-chart layout templates — TradingView-style layout setup menu with pane counts 1–10, 12, 14, 16 and ~52 shape variants; template-driven CSS grid; legacy `gridMode` migrated to `layoutId`.
+- **State:** **Passing** — focused tests and build passed; app-level layout walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 8 passed (8)`, `Tests 161 passed (161)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/chart/layoutTemplates.ts`, `layoutTemplateGrid.ts`, `ChartGrid.tsx`, `ChartLayoutMenu.tsx`, `LayoutTemplateIcon.tsx`, `chartConfig.ts`, `chartWorkspace.ts`, `responsiveLayout.ts`, tests, `docs/chart/features.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by multi-pane layout cell duplication row.
+
+## Previous Verified State (Continuous history scroll)
+
+- **Current task:** TV-style price legend — top-left chart status line matches TradingView: logo + name + inline tone-colored OHLC + change; no interval/exchange/volume/session on chart.
+- **State:** **Passing** — focused tests and build passed; app-level walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 4 passed (4)`, `Tests 30 passed (30)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `packages/chart-react/src/engine/priceLegendLayout.ts`, `packages/chart-react/src/components/PriceLegendLayout.tsx`, `ChartLegendBar.tsx`, `EdgeChart.tsx`, `DataHealthButton.tsx`, tests, `docs/chart/features.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — confirm top-left row (no 1D/NASDAQ), red/green/gray OHLC, crosshair updates; no session label on chart.
+
+## Previous Verified State (Workspace tabs)
+
+## Previous Verified State (Data Health chrome + panel UX)
+
+- **Current task:** Data Health chrome + panel UX — unified top-right row (market session + icon-only health dot with tooltip); progressive-disclosure Data Health panel with dataset chips.
+- **State:** **Passing** — focused tests and build passed; app-level walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 6 passed (6)`, `Tests 47 passed (47)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/app/components/chart-cell/ChartOverlayStatusStack.tsx`, `src/app/components/data-health/{DataHealthButton,DataHealthMenu,DataHealthDatasetChips}.tsx`, `src/app/components/EdgeChart.tsx`, `src/lib/marketData/health.ts`, tests, `ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — confirm market session + dot alignment, tooltip on hover, redesigned panel; Chart Settings disable market status hides label.
+
+## Previous Verified State (Postgres dev coupling)
 
 - **Current task:** Postgres dev coupling — `npm run dev:with-db` starts Postgres, waits, migrates, then dev; cloud sync session bootstraps in route handlers; `/api/me/*` returns 200 when coupled.
 - **State:** **Passing** — focused tests, startup gate, and app-level curl passed on localhost:3003.
@@ -372,6 +419,14 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
+| Multi-pane shared toolbar + object tree | Multi-pane layouts show one left drawing rail targeting the active pane; object tree lists all panes with indicators/drawings; single-pane unchanged (inline rail + flat tree) | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 91 passed (91)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level walkthrough deferred | `ChartGrid.tsx`, `ChartCell.tsx`, `ChartDrawingRail.tsx`, `ActiveChartContext.tsx`, `useRegisterActiveChart.ts`, `objectTreeModel.ts`, `ObjectTree.tsx`, `ObjectTreePanel.tsx`, tests, `features.md` |
+| Multi-pane layout cell duplication | Expanding layout clones active cell (symbol, settings, indicators, drawings) into new panes; shrinking to single promotes active cell to sole pane | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 25 passed (25)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level round-trip walkthrough deferred | `chartConfig.ts`, `chartConfig.layoutResize.test.ts`, `StockApp.tsx`, `StockApp.test.tsx`, `features.md` |
+| Multi-chart layout templates | Layout setup menu: pane counts 1–10, 12, 14, 16 with ~52 TradingView-style shape variants; template-driven CSS grid; legacy `gridMode` → `layoutId` migration | **Passing** | **Focused:** `Test Files 8 passed (8)`, `Tests 161 passed (161)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed; app-level layout walkthrough deferred | `layoutTemplates.ts`, `ChartGrid.tsx`, `ChartLayoutMenu.tsx`, `chartConfig.ts`, `chartWorkspace.ts`, tests, `features.md` |
+| Continuous history scroll | Prefetch 50% visible lookahead, 500-bar pages, pipelined history fetch, reduced scroll buffer (±40), background page on chart load | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 118 passed (118)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed; app-level scroll walkthrough deferred | `historyPrefetch.ts`, `historyPrefetchController.ts`, `EdgeChart.tsx`, `viewport.ts`, `apiChartDataFeed.ts`, `series.ts`, tests, `features.md`, `ARCHITECTURE.md` |
+| TV-style price legend | Top-left overlay: logo + name + inline tone-colored OHLC + change; no interval/exchange/volume; session label removed from chart | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 30 passed (30)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed; app-level walkthrough deferred | `priceLegendLayout.ts`, `PriceLegendLayout.tsx`, `ChartLegendBar.tsx`, `EdgeChart.tsx`, `DataHealthButton.tsx`, tests, `features.md` |
+| Workspace tabs | TradingView-style tabs above header; each tab = full ChartLayout; local + per-tab Postgres sync (list/create/archive) | **Passing** | **Focused:** `Test Files 11 passed (11)`, `Tests 48 passed (48)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.4s`); **Startup:** `npm run check:startup` passed (26 tests); **Architecture review:** self-review Passed; app-level walkthrough deferred | `workspaceTabs*.ts`, `WorkspaceTabBar.tsx`, `StockApp.tsx`, bootstrap, `useWorkspaceTabsRemoteSync.ts`, API routes, repository, tests, docs |
+| Chart legend hierarchy redesign | Superseded by TV-style price legend row — prior hero price + OHLC inset replaced with inline TradingView layout | **Passing** | Superseded 2026-07-04; see TV-style price legend row | `priceLegendLayout.ts`, `PriceLegendLayout.tsx`, tests |
+| Data Health chrome + panel UX | Unified top-right row (market session + icon-only health dot with tooltip); progressive-disclosure Data Health panel with dataset chips | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 47 passed (47)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed; app-level alignment walkthrough deferred | `ChartOverlayStatusStack.tsx`, `DataHealthButton.tsx`, `DataHealthMenu.tsx`, `DataHealthDatasetChips.tsx`, `health.ts`, `EdgeChart.tsx`, tests, `ARCHITECTURE.md` |
 | Postgres dev coupling | `npm run dev:with-db` starts Docker Postgres, waits for readiness, migrates, then dev; route handlers bootstrap dev session (layout cookie write removed); cloud sync `/api/me/*` works when coupled | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 14 passed (14)`; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** `authenticated: true`; `/api/me/chart-template-library` HTTP 200; **Architecture review:** self-review Passed | `scripts/{wait-for-postgres.mts,dev-with-db.sh}`, `package.json`, `routeHelpers.ts`, `dev-session/route.ts`, `layout.tsx`, docs, tests |
 | Display-fresh market data health | Chart + options Data Health use `maxDisplayAgeMs` aligned with `HOT_STALE_MS`; generalized `isDisplayFresh` severity; options chain vs expirations trust-dataset; age labels in menu rows | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 108 passed (108)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed | `dataTrust.ts`, `health.ts`, `DataHealthProvider.tsx`, `useOptionsChainModel.ts`, data-health tests, `ARCHITECTURE.md` |
 | Watchlist age-based Data Health | Watchlist severity uses quote age (60s) + source + coverage; hot-stale cache no longer false orange; silent revalidation; per-row age hints after 30s | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 101 passed (101)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **App-level:** localhost:3003 Watchlist Quotes OK + `updated Ns ago` | `dataTrust.ts`, `health.ts`, `marketDataService.ts`, `MarketDataProvider.tsx`, `DataHealthProvider.tsx`, `WatchlistRow.tsx`, `formatQuoteAge.ts`, tests, `ARCHITECTURE.md` |
@@ -455,6 +510,28 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Stock screener Phase 2 (composition + persistence + live results) | Postgres screener library sync (localStorage fallback), group watchlist actions, live quote overlay on visible rows, AND/OR query groups, CSV + clipboard export | **Passing** | **Focused:** 63 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** Gainers preset, group actions, OR group, save screen verified on `localhost:3003` | `src/db/schema.ts`, `src/lib/persistence/schemas/screenerLibrary.ts`, `src/lib/persistence/repositories/screenerLibraryRepository.ts`, `src/app/api/me/screener-library/`, `src/lib/persistence/sync/useScreenerLibraryRemoteSync.ts`, `src/app/components/screener/ScreenerProvider.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/lib/screener/{compileQuery,exportResults}.ts`, `src/lib/watchlist/storage.ts`, `docs/screener-roadmap.md` |
 | Stock screener Phase 1.5 (technical presets) | Four technical presets (RSI oversold/overbought, golden cross, near 52-week high) via server-side two-step pipeline: FMP prefilter → Yahoo daily candles + chart-core indicator math; bounded concurrency; two-phase loading label + phase summary in modal | **Passing** | **Focused:** 52 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** preset rail visible in screener modal on `localhost:3003`; **Architecture review:** self-review Passed | `src/lib/screener/{technicalMath,technicalFilter,presets,types}.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/marketData/schemas/request.ts`, `src/lib/marketData/cache/ttlPolicy.ts`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
 | Stock screener MVP (Lean) | Header-bar icon opens modal screener filtering US equities/ETFs via FMP `/company-screener`; presets + flat query-builder; sortable paginated results; per-row load-into-chart and add-to-watchlist; named screens persist in localStorage | **Passing** | **Focused:** 48 tests passed (Phase 1 baseline); **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** screener modal walkthrough on `localhost:3003` (preset run, row actions, save/load) | `src/app/api/screener/run/route.ts`, `src/lib/marketData/providers/fmp/`, `src/lib/screener/`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/StockApp.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
+
+## Task Contract — Multi-pane shared toolbar + object tree
+
+- **Goal:** TradingView-style multi-pane chrome — unified drawing rail + grouped object tree.
+- **Delivered:** `drawingToolbar` slice on `ActiveChartContext`; `ChartDrawingRail` lifted to `ChartGrid` when `count > 1`; per-cell rail hidden via `showDrawingRail`; `buildObjectTreeLayoutModel` + config patch helpers; `ObjectTree` pane sections; `ObjectTreePanel` wired to `AppActions` + active snapshot.
+- **Verification:** `npm test -- --run src/app/components/ActiveChartContext.test.tsx src/app/components/chart-chrome/ChartDrawingRail.test.tsx src/app/components/ChartGrid.layout.test.tsx src/app/components/ChartCell.focus.test.tsx src/lib/chart/objectTreeModel.test.ts src/app/components/sidebar/panels/ObjectTreePanel.test.tsx`; `npm run build`.
+- **Blockers:** none — app-level walkthrough on localhost:3003 not recorded.
+
+## Task Contract — Multi-pane layout cell duplication
+
+- **Behavior:** `applyLayoutTemplateChange` in `chartConfig.ts` — expand pads missing cells via `cloneCellConfig(activeCell)`; shrink to `n1` sets `cells = [activeCell]`; shrink to N>1 trims without promotion.
+- **Clone rules:** new indicator IDs + pane-key remap; drawings get new IDs unless `linkDrawings`; viewport out of scope.
+- **Wiring:** `StockApp.handleLayoutChange` calls `applyLayoutTemplateChange`; removed layoutId `useEffect` DEFAULT_CELL padding.
+- **Verification:** `npm test -- --run src/lib/chartConfig.layoutResize.test.ts src/app/components/StockApp.test.tsx`; `npm run build`.
+
+## Task Contract — Chart legend hierarchy redesign
+
+- **Status:** Passing — shipped 2026-07-04.
+- **Goal:** Redesign price-pane legend (symbol + OHLCV) and market-context row with clear visual hierarchy, live-quote support, crosshair modes, and chip-based context navigation.
+- **Delivered:** `resolvePriceLegendLayout` + `PriceLegendLayout` (hero price, OHLC inset group, session chip, crosshair timestamp); `ChartLegendBar` two-row stack; `livePrice` wired to legend; `marketContextDisplay` + chip-based `MarketContextBreadcrumb` with overflow; main-pane indicator legend offset bump.
+- **Verification:** **Focused:** `Test Files 6 passed (6)`, `Tests 43 passed (43)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.4s`); **Architecture review:** self-review Passed; app-level walkthrough deferred.
+- **Blockers:** none.
 
 ## Task Contract — Startup bootstrap performance
 
@@ -772,6 +849,61 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Keep the current state above short and authoritative; keep historical detail here.
+
+### 2026-07-05 — Multi-pane shared toolbar + object tree
+
+- **Goal:** One shared drawing rail for multi-pane layouts; object tree grouped by pane.
+- **Shipped:** `drawingToolbar` on `ActiveChartContext`; `ChartDrawingRail` in `ChartGrid`; `showDrawingRail` on `ChartCell`; `objectTreeModel.ts`; multi-pane `ObjectTree` sections; `ObjectTreePanel` layout + active snapshot wiring; 91 focused tests.
+- **Verification run:** **Focused:** `Test Files 6 passed (6)`, `Tests 91 passed (91)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level multi-pane toolbar + object tree walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual verify 2×2 layout → one rail; pane switch moves highlight + toolbar; object tree shows both panes.
+
+### 2026-07-05 — Multi-pane layout cell duplication
+
+- **Goal:** When expanding layout, clone the active chart into new panes; when shrinking to single, promote the active pane to the sole cell.
+- **Shipped:** `cloneCellConfig` + `applyLayoutTemplateChange` in `chartConfig.ts`; `StockApp.handleLayoutChange` atomic update; removed DEFAULT_CELL padding `useEffect`; 15 unit + 1 app integration tests; `features.md` row updated.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 25 passed (25)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level expand/shrink round-trip on localhost:3003 not recorded.
+- **Next best step:** Manual verify XLF single → 2 cols; focus alternate pane → single → correct symbol retained.
+
+### 2026-07-04 — Continuous history scroll
+
+- **Goal:** Make left-scroll history loading feel continuous (TradingView-style lookahead).
+- **Shipped:** `historyPrefetch` policy in chart-core (50% visible lookahead, urgent bypass, 500-bar pages); `historyPrefetchController` in chart-react (background prefetch, debounce, 1 queued follow-up); EdgeChart wiring; scroll buffer reduced to ±40.
+- **Verification:** `Test Files 7 passed (7)`, `Tests 118 passed (118)`; `npm run build:packages` + `npm run build` passed.
+- **Deferred:** App-level scroll walkthrough on localhost:3003; pagination client-cache; warmup history pages.
+
+### 2026-07-04 — TV-style price legend
+
+- **Goal:** Match TradingView top-left status line — logo + company name + inline O/H/L/C + change; tone-colored values (red/green/gray); remove interval, exchange, volume, hero price, and session label from chart chrome.
+- **Completed:** `resolveBarTone` + `barToneToColor`; reshaped `PriceLegendLayout` model; TV inline layout in component; live close in OHLC when streaming; session label removed from `DataHealthButton`; indicator legend offset 32px; `features.md` updated.
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 30 passed (30)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual verify top-left row parity (no 1D/NASDAQ), tone colors on down/up/flat bars, crosshair bar updates.
+
+### 2026-07-04 — Workspace tabs
+
+- **Goal:** TradingView-style workspace tabs above header; each tab owns full `ChartLayout`; local persistence + per-tab Postgres sync.
+- **Completed:** `WorkspaceTabsState` + storage migration from `tv-ai:layout:v1`; `WorkspaceTabBar` UI with live quotes; bootstrap remote list merge; `useWorkspaceTabsRemoteSync`; GET/POST `/api/me/chart-workspaces` + DELETE archive on `[id]`; `ChartLayoutMenu` create/copy/rename wired; docs updated.
+- **Verification run:** **Focused:** `Test Files 11 passed (11)`, `Tests 48 passed (48)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.4s`); **Startup:** `npm run check:startup` passed (26 tests); **Architecture review:** self-review Passed.
+- **Known blockers:** App-level tab create/switch/close + cloud sync walkthrough on `localhost:3003` not recorded.
+- **Next best step:** Manual verify with `npm run dev:with-db` — create second tab, switch symbols, reload, confirm `GET /api/me/chart-workspaces` lists both workspaces.
+
+### 2026-07-04 — Chart legend hierarchy redesign
+
+- **Goal:** Hero price + OHLC micro-group on price pane; live quote when idle; crosshair bar timestamp; market context as classification + ticker chips with overflow.
+- **Completed:** `resolvePriceLegendLayout` + `PriceLegendLayout`; `ChartLegendBar` two-row stack; `livePrice` wired to legend; `marketContextDisplay` + chip-based `MarketContextBreadcrumb`; main-pane indicator legend offset bump to 52px.
+- **Verification run:** **Focused:** `Test Files 6 passed (6)`, `Tests 43 passed (43)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.4s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual verify hero price, crosshair timestamp, context chips/overflow, compact density, Chart Settings toggles.
+
+### 2026-07-04 — Data Health chrome + panel UX
+
+- **Goal:** Align market session label with health indicator; icon-only dot with tooltip; progressive-disclosure Data Health panel.
+- **Completed:** Unified status row in `ChartOverlayStatusStack`; legend market label suppressed on active chart; icon-only `DataHealthButton` with portaled tooltip; `buildDatasetChips` + chip rows; panel banner, collapsed providers/issues, compact copy JSON.
+- **Verification run:** **Focused:** `Test Files 6 passed (6)`, `Tests 47 passed (47)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level alignment walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual verify market session + dot row, tooltip hover, redesigned panel on active chart cell.
 
 ### 2026-07-04 — Postgres dev coupling
 

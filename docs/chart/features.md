@@ -69,13 +69,13 @@ StockApp → ChartGrid → ChartCell
 | Field | Purpose |
 |-------|---------|
 | `version` | Schema version (`1`) |
-| `gridMode` | `1x1`, `2x1`, `1x2`, `3x1`, `2x2` |
+| `layoutId` | Layout template id from catalog (e.g. `n1`, `n4-grid-2x2`, `n3-main-left`); legacy `gridMode` migrated on load |
 | `linkSymbol` | When on: symbol / symbolName / exchange propagate to peer cells on active-cell update |
 | `linkInterval` | When on: range / interval / rangePreset propagate to peer cells |
 | `linkCrosshair` | When on: crosshair timestamp broadcast across visible cells |
 | `activeCellIndex` | Focused cell (0…N−1); drawing tools apply here; persisted |
 | `theme` | `light` \| `dark` (applied to `<html>` class) |
-| `cells` | Array of `CellConfig` (length matches grid mode) |
+| `cells` | Array of `CellConfig` (length matches template pane count; max 16) |
 
 **Multi-chart layout shell** (implemented): `StockApp` uses `h-screen overflow-hidden`; `ChartGrid` uses `flex-1 min-h-0 overflow-hidden` plus `chart-grid-rows-*` utilities in `globals.css` so all grid modes fit the viewport without page scroll. When `cellCount > 1`, cells use **compact chrome** (symbol + interval only; no per-cell Bar Replay).
 
@@ -94,7 +94,7 @@ StockApp → ChartGrid → ChartCell
 | Candle validation / normalization | **Done** | Short-form `{ t,o,h,l,c,v }`; ms timestamps |
 | Heikin Ashi transform | **Done** | Applied when `chartType === 'heikin_ashi'` |
 | Bar Replay data slice | **Done** | `onDataLoaded` → `candleCount`; `baseCandles` + `applyVisibleSlice` (no refetch on scrub) |
-| Infinite scroll / edge fetch | **Done** | Pan-left (`startIndex < 30`, 150 ms throttle) prepends via `POST /api/candles` `{ before }`; `adjustViewportForPrepend` keeps window stable |
+| Infinite scroll / edge fetch | **Done** | 50% visible lookahead prefetch, 500-bar pages, pipelined history fetch (1 in-flight + 1 queued), 100ms debounce (urgent bypass), background page on chart load, scroll buffer ±40 bars; prepends via `POST /api/candles` `{ before }`; `adjustViewportForPrepend` keeps window stable |
 | Event badge overlays | **Done** | Corporate, filing, macro, news, and options expiration events render in a reserved bottom event rail as grouped badges (count glyph when overlapping); click opens grouped detail card; full-height guides on hover/selection only. Chart settings default to earnings/dividends/splits/filings plus macro for benchmark symbols; news and options expirations are opt-in. |
 | Loading / error states | **Done** | Overlay text in `EdgeChart` while fetching or on failure |
 
@@ -122,17 +122,22 @@ StockApp → ChartGrid → ChartCell
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Chart legend overlay | **Done** | `ChartLegendBar` → `PaneLegendBar` on price pane (`EdgeChart`) |
+| Chart legend overlay | **Done** | `ChartLegendBar` → `PriceLegendLayout` on price pane; TV-style inline OHLC + change |
+| Tone-colored OHLC + change | **Done** | All numeric values share bar tone (green/red/gray vs previous close); labels muted |
+| Live quote close | **Done** | Idle mode uses `livePrice` for C + change when streaming; no separate hero price |
+| Crosshair bar timestamp | **Done** | Muted chip when crosshair active; `formatCrosshairTime` |
+| Market context row | **Done** | `MarketContextBreadcrumb` — classification text + navigable ticker chips + overflow |
 | Indicator pane legend | **Done** | `PaneLegendBar` on each sub-pane; `resolveIndicatorLegend()` + plugin `legendAt` |
 | Crosshair bar values | **Done** | Global sync: all legends use crosshair `dataIndex` when crosshair is active |
 | Last-bar fallback | **Done** | When crosshair absent, legends show last candle / last bar values |
-| Change / change % | **Done** | vs previous close; `resolveLegendBar()` in `legend.ts` |
+| Change / change % | **Done** | Inline after C; vs previous close; `resolveLegendBar()` in `legend.ts` |
 | Legend hover chrome | **Done** | Gray rounded background on legend hover (`PaneLegendBar`) |
 | Per-section tooltips | **Done** | Reusable `Tooltip` component with hover/focus delay and `role="tooltip"` |
 | Legend action slots | **Done** | Settings gear opens `IndicatorSettingsModal`; eye/delete still planned |
 | Price / volume formatting | **Done** | `formatPrice`, `formatVolume`, `formatChange` in `format.ts` |
 | Symbol display name | **Done** | Uses `symbolName` from config or fetches via `/api/search` |
-| Interval / exchange labels | **Done** | Shown in legend header |
+| Interval / exchange labels | **N/A** | Removed from price status line (TradingView parity) |
+| Market session label on chart | **N/A** | Removed from legend and Data Health button |
 
 ---
 
@@ -146,7 +151,7 @@ StockApp → ChartGrid → ChartCell
 | Vertical wheel zoom | **Done** | Zoom anchored to cursor X; 10–5000 candle clamp |
 | Horizontal wheel pan | **Done** | Dominant-axis routing in `wheel.ts` |
 | rAF wheel batching | **Done** | One update per frame; no React re-render per tick |
-| Virtual scroll margin | **Done** | ±100 candles past first/last bar |
+| Virtual scroll margin | **Done** | ±40 candles past first/last bar |
 | Auto Y-scale (default) | **Done** | `priceScaleMode: 'auto'`; refits to visible OHLC + 5% pad |
 | Manual Y-scale (price-axis drag) | **Done** | `scalePriceFromInitial()` sets manual |
 | Manual Y lock (time-axis drag) | **Done** | `scaleTimeFromInitial()` sets manual |
@@ -328,23 +333,25 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Grid modes (1×1, 2×1, 1×2, 3×1, 2×2) | **Done** | Viewport-fitting grid (`min-h-0` chain + `chart-grid-rows-*`); compact cell chrome when N>1 |
+| Multi-chart layout templates | **Done** | TradingView-style layout setup menu: pane counts 1–10, 12, 14, 16 with ~52 shape variants; template-driven CSS grid; legacy `gridMode` migrated to `layoutId`; narrow viewports stack multi-column templates; expanding layout clones the active cell (symbol, settings, indicators, drawings) into new panes; shrinking to single-pane promotes the active cell to the sole pane |
 | Link symbols (range/interval/symbol) | **Done** | Atomic propagation via `applyCellUpdate` in `StockApp`; includes `symbolName`/`exchange` |
-| Active cell focus | **Done** | `activeCellIndex` persisted; focus ring; drawing tools disabled on inactive cells |
+| Active cell focus | **Done** | `activeCellIndex` persisted; blue focus ring when `cellCount > 1`; drawing tools disabled on inactive cells |
+| Shared drawing rail (multi-pane) | **Done** | When `cellCount > 1`, one compact `ChartDrawingRail` in `ChartGrid` targets active pane via `ActiveChartContext`; single-pane keeps inline rail in `ChartCell` |
 | Per-cell config | **Done** | `CellConfig` per grid cell |
 | Layout persistence (localStorage) | **Done** | `loadLayout` / `saveLayout` in `layoutStorage.ts`; includes `sidebar.activePanel` |
+| Workspace tabs | **Done** | TradingView-style tab bar above header; each tab owns full `ChartLayout` in `tv-ai:workspace-tabs:v1`; migrates legacy `tv-ai:layout:v1`; per-tab Postgres sync via list/create/archive API |
 | Theme persistence | **Done** | Part of `ChartLayout`; live switch via toolbar |
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
-| Drawing toolbar rail | **Done** | Left column in `ChartCell` |
+| Drawing toolbar rail | **Done** | Single-pane: left column in `ChartCell`. Multi-pane: one shared compact rail in `ChartGrid` (`ChartDrawingRail`) driven by active cell registration |
 | Bottom range bar alignment | **Done** | `ChartRangeBar` sits in the chart column beside the drawing rail (not full cell width) so presets align with the plot area |
 | Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.ts` for watchlist, account, risk, and object-tree panels |
 | Account sidebar panel | **Partial** | App-level `account` panel via `AccountProvider` + `/api/brokerage/*`; overhauled layout with color-coded PnL, metric help tooltips, tabbed open orders/today's fills, icon refresh, day-trades in net-liq card, and computed leverage; live positions/PnL/summary/fills when TWS sidecar + IB Gateway connected; open orders require `TWS_READONLY=false`; what-if preview UI removed |
 | Risk sidebar panel | **Done** | App-level `risk` panel via `RiskSettingsProvider`; percent-of-account or absolute $ sizing with IB summary basis tags; `dollarRisk`/`riskAccount` propagate to options Risk Calculator and risk-ruler presets; stale badge + `manualCapital` fallback when account disconnected; localStorage `edge.riskSettings.v1` |
 | Chart position overlay (`showPositions`) | **Partial** | Settings → Trading → Positions toggles avg-cost reference line on the active symbol from held position (`positionOverlays.ts`); buy/sell buttons, orders, executions, and PnL chart overlays not yet wired |
-| Object Tree panel | **Done** | Right sidebar panel (`object-tree`); follows active chart via `ActiveChartContext`; Object tree / Data window tabs persisted per `chartId` |
-| Object Tree — symbol row | **Done** | Flat list: symbol · exchange · interval |
-| Object Tree — data window tab | **Done** | Crosshair date, collapsible price/indicator sections with hover eye toggles; indicator sections always show their value rows in the panel; Volume appears only for added `VOL`; price eye syncs `mainSeriesVisible` and hides the on-chart price legend |
-| Object Tree — drawing rows | **Done** | z-sorted flat list; select, hover eye/lock/trash, rename, drag reorder |
+| Object Tree panel | **Done** | Right sidebar panel (`object-tree`); active pane live state via `ActiveChartContext`; layout-wide pane list via `AppActions`; Object tree / Data window tabs persisted per `chartId` |
+| Object Tree — symbol row | **Done** | Single-pane: flat symbol · exchange · interval header. Multi-pane: collapsible pane sections per cell (title click focuses pane; chevron toggles collapse) |
+| Object Tree — data window tab | **Done** | Active pane only — crosshair date, collapsible price/indicator sections with hover eye toggles; indicator sections always show their value rows in the panel; Volume appears only for added `VOL`; price eye syncs `mainSeriesVisible` and hides the on-chart price legend |
+| Object Tree — drawing rows | **Done** | z-sorted list per pane; active pane uses live overlays; inactive panes use cell config; select, hover eye/lock/trash, rename, drag reorder on active pane |
 | Indicator picker modal | **Done** | |
 | Bar Replay panel | **Done** | Slider driven by `onDataLoaded`; slice via `visibleCount` without refetch |
 | Blank chart context menu | **Done** | Reset, copy price, paste, object tree, crosshair lock toggle, templates, bulk remove (incl. combined), settings — [context-menu-reference.md §1](./context-menu-reference.md#1-blank-chart-plot-area) |
@@ -412,7 +419,7 @@ Chart engine tests live under `src/lib/chart/` (Vitest). App/layout tests under 
 | Drawing FSM | `drawingFsm.test.ts` | Arm, place, cancel |
 | Drawing plugins | `drawings/trend_line.test.ts`, `drawings/fib_retracement.test.ts`, `drawings/primitives.test.ts` | hitTest, fib levels |
 | EdgeChart drawing | `EdgeChart.drawing.test.tsx` | Handle API smoke |
-| Grid layout shell | `ChartGrid.layout.test.tsx` | All 5 `GridMode`s; `min-h-0` / `overflow-hidden` classes |
+| Grid layout shell | `ChartGrid.layout.test.tsx`, `layoutTemplates.test.ts` | All catalog templates render correct cell count; geometry invariants; `min-h-0` / overflow-hidden |
 | Link propagation | `chartConfig.link.test.ts` | `pickLinkSymbolFields`, `pickLinkIntervalFields`, per-flag propagation, legacy `linked` migration, `activeCellIndex` persistence |
 | Crosshair sync bus | `ChartSyncContext.test.tsx` | Broadcast when `linkCrosshair`; no-op when off |
 | Blank chart context menu | `chartContextMenu.test.ts` | Menu builder items, disabled reset, counts, actions |
@@ -420,7 +427,7 @@ Chart engine tests live under `src/lib/chart/` (Vitest). App/layout tests under 
 | App smoke | `StockApp.test.tsx` | Render, theme hydration |
 
 Run engine tests: `npm test -- --run src/lib/chart/`  
-Run layout/sync tests: `npm test -- --run src/app/components/ChartGrid.layout.test.tsx src/lib/chartConfig.link.test.ts src/app/components/ChartSyncContext.test.tsx`
+Run layout/sync tests: `npm test -- --run src/lib/chart/layoutTemplates.test.ts src/app/components/ChartGrid.layout.test.tsx src/lib/chartConfig.link.test.ts src/app/components/ChartSyncContext.test.tsx`
 
 ---
 
@@ -514,7 +521,6 @@ Prioritized against [tradingview-reference.md](./tradingview-reference.md). Edge
 - Alerts on price or drawings
 - Non-time charts: Renko, P&F, Kagi
 - Volume footprint, TPO, session profile
-- 16-chart layouts, watchlists, cloud sync
 
 ---
 

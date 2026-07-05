@@ -1,0 +1,438 @@
+{
+  "generatedAt": "2026-07-04T16:35:04.609Z",
+  "git": {
+    "commit": "2dd5199",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "twsEnabled": true,
+    "ibkrEnabled": true,
+    "twsGatewayConnected": true,
+    "ibkrAuthenticated": false
+  },
+  "scenarios": [
+    {
+      "scenario": "cold-chart-candles:AAPL:1d:1y",
+      "traceId": "cold-chart-candles-AAPL-1d-1y:1783182823942",
+      "ok": true,
+      "totalMs": 602,
+      "serverMs": 602,
+      "source": "tws",
+      "cacheTier": "cold",
+      "provider": "tws",
+      "counts": {
+        "bars": 251
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 0,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": false,
+            "fresh": false,
+            "servable": false
+          }
+        },
+        {
+          "name": "provider.tws.candles",
+          "ms": 595,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "source": "tws",
+            "barCount": 251
+          }
+        },
+        {
+          "name": "service.fetchCandlesFresh",
+          "ms": 600,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "source": "tws",
+            "cacheTier": "cold",
+            "barCount": 251
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "warm-chart-revisit:AAPL:1d:1y",
+      "traceId": "warm-chart-revisit-AAPL-1d-1y:1783182824544",
+      "ok": true,
+      "totalMs": 1,
+      "serverMs": 1,
+      "source": "tws",
+      "cacheTier": "hot-fresh",
+      "provider": "tws",
+      "counts": {
+        "bars": 251
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 0,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": true,
+            "fresh": true,
+            "servable": true,
+            "source": "tws"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "watchlist-quotes:10-symbols",
+      "traceId": "watchlist-quotes-10-symbols:1783182824545",
+      "ok": true,
+      "totalMs": 2628,
+      "serverMs": 2628,
+      "source": "mixed",
+      "cacheTier": "cold",
+      "provider": "mixed",
+      "counts": {
+        "quotes": 10,
+        "symbols": 10
+      },
+      "phases": [
+        {
+          "name": "cache.hot.read",
+          "ms": 0,
+          "ok": true,
+          "layer": "cache",
+          "detail": {
+            "hit": false,
+            "hits": 0,
+            "requested": 10,
+            "allServable": false
+          }
+        },
+        {
+          "name": "provider.tws.quotes",
+          "ms": 1821,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "quoteCount": 9,
+            "missing": 1
+          }
+        },
+        {
+          "name": "provider.ibkr.skipped",
+          "ms": 0,
+          "ok": false,
+          "layer": "provider",
+          "detail": {
+            "reason": "IBKR temporarily skipped (auth_failure); retry in ~45s"
+          }
+        },
+        {
+          "name": "provider.yahoo.quotes",
+          "ms": 546,
+          "ok": true,
+          "layer": "provider",
+          "detail": {
+            "quoteCount": 1,
+            "fill": true
+          }
+        },
+        {
+          "name": "service.fetchQuotesFresh",
+          "ms": 2628,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "source": "mixed",
+            "quoteCount": 10
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "warmup:layout-core",
+      "traceId": "warmup-layout-core:1783182827173",
+      "ok": true,
+      "totalMs": 925,
+      "serverMs": 924,
+      "phases": [
+        {
+          "name": "tws.warmup",
+          "ms": 17,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL,MSFT,GOOGL,AMZN,NVDA"
+          }
+        },
+        {
+          "name": "candles",
+          "ms": 0,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL|1d|1y",
+            "source": "tws",
+            "cacheTier": "hot-fresh"
+          }
+        },
+        {
+          "name": "candles",
+          "ms": 373,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "MSFT|1d|1y",
+            "source": "tws",
+            "cacheTier": "cold"
+          }
+        },
+        {
+          "name": "options.expirations",
+          "ms": 534,
+          "ok": true,
+          "layer": "service",
+          "detail": {
+            "key": "AAPL",
+            "source": "massive",
+            "cacheTier": "cold"
+          }
+        }
+      ],
+      "counts": {
+        "symbols": 5,
+        "candles": 2
+      }
+    },
+    {
+      "scenario": "options-expirations:AAPL",
+      "traceId": "options-expirations-AAPL:1783182828098",
+      "ok": true,
+      "totalMs": 0,
+      "serverMs": 0,
+      "source": "massive",
+      "cacheTier": "hot-fresh",
+      "provider": "massive",
+      "counts": {
+        "contracts": 23
+      }
+    },
+    {
+      "scenario": "options-chain:AAPL:2026-07-06",
+      "traceId": "options-chain-AAPL-2026-07-06:1783182828098",
+      "ok": true,
+      "totalMs": 118,
+      "serverMs": 118,
+      "source": "massive",
+      "cacheTier": "cold",
+      "provider": "massive",
+      "counts": {
+        "contracts": 40
+      }
+    }
+  ],
+  "screener": [
+    {
+      "presetId": "rsi-oversold",
+      "variant": "cold",
+      "traceId": "screener-rsi-oversold-cold:1783182828216",
+      "ok": true,
+      "totalMs": 5879,
+      "rows": 9,
+      "technicalMs": 3007,
+      "matched": 9,
+      "candleP50Ms": 57,
+      "candleP95Ms": 211,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 994,
+        "yahoo": 54,
+        "unknown": 30
+      }
+    },
+    {
+      "presetId": "rsi-oversold",
+      "variant": "warm",
+      "traceId": "screener-rsi-oversold-warm:1783182834098",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 9,
+      "providerMix": {}
+    },
+    {
+      "presetId": "rsi-overbought",
+      "variant": "cold",
+      "traceId": "screener-rsi-overbought-cold:1783182834099",
+      "ok": true,
+      "totalMs": 6095,
+      "rows": 49,
+      "technicalMs": 3757,
+      "matched": 49,
+      "candleP50Ms": 57,
+      "candleP95Ms": 327,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 994,
+        "yahoo": 54,
+        "unknown": 30
+      }
+    },
+    {
+      "presetId": "rsi-overbought",
+      "variant": "warm",
+      "traceId": "screener-rsi-overbought-warm:1783182840195",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 49,
+      "providerMix": {}
+    },
+    {
+      "presetId": "golden-cross",
+      "variant": "cold",
+      "traceId": "screener-golden-cross-cold:1783182840196",
+      "ok": true,
+      "totalMs": 8900,
+      "rows": 334,
+      "technicalMs": 5803,
+      "matched": 334,
+      "candleP50Ms": 69,
+      "candleP95Ms": 463,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 1004,
+        "yahoo": 52,
+        "unknown": 22
+      }
+    },
+    {
+      "presetId": "golden-cross",
+      "variant": "warm",
+      "traceId": "screener-golden-cross-warm:1783182849097",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 334,
+      "providerMix": {}
+    },
+    {
+      "presetId": "near-52wk-high",
+      "variant": "cold",
+      "traceId": "screener-near-52wk-high-cold:1783182849098",
+      "ok": true,
+      "totalMs": 11576,
+      "rows": 164,
+      "technicalMs": 6714,
+      "matched": 164,
+      "candleP50Ms": 66,
+      "candleP95Ms": 579,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 1004,
+        "yahoo": 52,
+        "unknown": 22
+      }
+    },
+    {
+      "presetId": "near-52wk-high",
+      "variant": "warm",
+      "traceId": "screener-near-52wk-high-warm:1783182860675",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 164,
+      "providerMix": {}
+    },
+    {
+      "presetId": "macd-bullish",
+      "variant": "cold",
+      "traceId": "screener-macd-bullish-cold:1783182860676",
+      "ok": true,
+      "totalMs": 12348,
+      "rows": 280,
+      "technicalMs": 7030,
+      "matched": 280,
+      "candleP50Ms": 66,
+      "candleP95Ms": 744,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 1004,
+        "yahoo": 52,
+        "unknown": 22
+      }
+    },
+    {
+      "presetId": "macd-bullish",
+      "variant": "warm",
+      "traceId": "screener-macd-bullish-warm:1783182873025",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 280,
+      "providerMix": {}
+    },
+    {
+      "presetId": "boll-pctb-overbought",
+      "variant": "cold",
+      "traceId": "screener-boll-pctb-overbought-cold:1783182873026",
+      "ok": true,
+      "totalMs": 15503,
+      "rows": 184,
+      "technicalMs": 10130,
+      "matched": 184,
+      "candleP50Ms": 57,
+      "candleP95Ms": 876,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 994,
+        "yahoo": 54,
+        "unknown": 30
+      }
+    },
+    {
+      "presetId": "boll-pctb-overbought",
+      "variant": "warm",
+      "traceId": "screener-boll-pctb-overbought-warm:1783182888529",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 184,
+      "providerMix": {}
+    },
+    {
+      "presetId": "rsi-indicator",
+      "variant": "cold",
+      "traceId": "screener-rsi-indicator-cold:1783182888530",
+      "ok": true,
+      "totalMs": 16077,
+      "rows": 9,
+      "technicalMs": 10105,
+      "matched": 9,
+      "candleP50Ms": 58,
+      "candleP95Ms": 1100,
+      "candleCacheHitPct": 0,
+      "indicatorCacheHitPct": 0,
+      "providerMix": {
+        "massive": 994,
+        "yahoo": 54,
+        "unknown": 30
+      }
+    },
+    {
+      "presetId": "rsi-indicator",
+      "variant": "warm",
+      "traceId": "screener-rsi-indicator-warm:1783182904608",
+      "ok": true,
+      "totalMs": 1,
+      "rows": 9,
+      "providerMix": {}
+    }
+  ]
+}
