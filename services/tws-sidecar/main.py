@@ -972,10 +972,11 @@ def _on_order_status(trade) -> None:
     _on_open_order(trade)
 
 
-def _map_execution_from_fill(fill) -> dict[str, Any]:
+def _map_execution_from_fill(fill, commission_report=None) -> dict[str, Any]:
     contract = getattr(fill, "contract", None)
     execution = getattr(fill, "execution", None)
-    commission = getattr(fill, "commissionReport", None)
+    commission = commission_report or getattr(fill, "commissionReport", None)
+    mapped_contract = _map_contract(contract) if contract else {}
     return {
         "execId": getattr(execution, "execId", None) if execution else None,
         "time": str(getattr(execution, "time", "")) if execution else None,
@@ -986,8 +987,12 @@ def _map_execution_from_fill(fill) -> dict[str, Any]:
         "cumQty": _safe_float(getattr(execution, "cumQty", None)) if execution else None,
         "avgPrice": _safe_float(getattr(execution, "avgPrice", None)) if execution else None,
         "orderId": getattr(execution, "orderId", None) if execution else None,
-        "symbol": getattr(contract, "symbol", None) if contract else None,
-        "secType": getattr(contract, "secType", None) if contract else None,
+        "permId": getattr(execution, "permId", None) if execution else None,
+        "orderRef": getattr(execution, "orderRef", None) if execution else None,
+        "exchange": getattr(execution, "exchange", None) if execution else None,
+        "symbol": mapped_contract.get("symbol"),
+        "secType": mapped_contract.get("secType"),
+        "contract": mapped_contract,
         "commission": _safe_float(getattr(commission, "commission", None))
         if commission
         else None,
@@ -999,23 +1004,27 @@ def _map_execution_from_fill(fill) -> dict[str, Any]:
     }
 
 
+def _upsert_execution(mapped: dict[str, Any]) -> None:
+    exec_id = mapped.get("execId")
+    if exec_id:
+        for index, existing in enumerate(_account_executions):
+            if existing.get("execId") == exec_id:
+                merged = {**existing, **mapped}
+                _account_executions[index] = merged
+                return
+    _account_executions.append(mapped)
+    if len(_account_executions) > 200:
+        _account_executions[:] = _account_executions[-200:]
+
+
 def _on_exec_details(trade, fill) -> None:
     with _account_lock:
-        _account_executions.append(_map_execution_from_fill(fill))
-        if len(_account_executions) > 200:
-            _account_executions[:] = _account_executions[-200:]
+        _upsert_execution(_map_execution_from_fill(fill))
 
 
 def _on_commission_report(trade, fill, report) -> None:
     with _account_lock:
-        mapped = _map_execution_from_fill(fill)
-        if report is not None:
-            mapped["commission"] = _safe_float(getattr(report, "commission", None))
-            mapped["commissionCurrency"] = getattr(report, "currency", None)
-            mapped["realizedPNL"] = _safe_float(getattr(report, "realizedPNL", None))
-        _account_executions.append(mapped)
-        if len(_account_executions) > 200:
-            _account_executions[:] = _account_executions[-200:]
+        _upsert_execution(_map_execution_from_fill(fill, commission_report=report))
 
 
 def _map_order(order, contract) -> dict[str, Any]:
