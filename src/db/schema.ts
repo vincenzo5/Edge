@@ -1,9 +1,12 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  doublePrecision,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -92,9 +95,84 @@ export const marketResearchNotes = pgTable("market_research_notes", {
   archivedAt: timestamp("archived_at", { withTimezone: true }),
 });
 
+export const journalFills = pgTable(
+  "journal_fills",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    execId: text("exec_id").notNull(),
+    account: text("account"),
+    fillTime: timestamp("fill_time", { withTimezone: true }).notNull(),
+    side: text("side").notNull(),
+    quantity: doublePrecision("quantity").notNull(),
+    price: doublePrecision("price").notNull(),
+    avgPrice: doublePrecision("avg_price"),
+    orderId: bigint("order_id", { mode: "number" }),
+    permId: bigint("perm_id", { mode: "number" }),
+    orderRef: text("order_ref"),
+    exchange: text("exchange"),
+    contract: jsonb("contract").notNull(),
+    commission: doublePrecision("commission"),
+    commissionCurrency: text("commission_currency"),
+    realizedPnl: doublePrecision("realized_pnl"),
+    source: text("source").notNull().default("live"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("journal_fills_user_exec_unique").on(table.userId, table.execId),
+  ],
+);
+
+export const journalTrades = pgTable("journal_trades", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  status: text("status").notNull(),
+  direction: text("direction").notNull(),
+  symbol: text("symbol").notNull(),
+  secType: text("sec_type").notNull(),
+  openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+  netQuantity: doublePrecision("net_quantity"),
+  avgEntry: doublePrecision("avg_entry"),
+  avgExit: doublePrecision("avg_exit"),
+  grossPnl: doublePrecision("gross_pnl"),
+  netPnl: doublePrecision("net_pnl"),
+  totalCommission: doublePrecision("total_commission"),
+  legs: jsonb("legs"),
+  tags: jsonb("tags").notNull().default([]),
+  setup: text("setup"),
+  reviewNote: text("review_note"),
+  plannedRiskMode: text("planned_risk_mode"),
+  plannedRiskValue: doublePrecision("planned_risk_value"),
+  plannedRiskUsd: doublePrecision("planned_risk_usd"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const journalTradeFills = pgTable(
+  "journal_trade_fills",
+  {
+    tradeId: uuid("trade_id")
+      .notNull()
+      .references(() => journalTrades.id, { onDelete: "cascade" }),
+    fillId: uuid("fill_id")
+      .notNull()
+      .references(() => journalFills.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.tradeId, table.fillId] })],
+);
+
 export type AppUser = typeof appUsers.$inferSelect;
 export type ChartWorkspace = typeof chartWorkspaces.$inferSelect;
 export type UserWatchlistLibrary = typeof userWatchlistLibrary.$inferSelect;
 export type UserScreenerLibrary = typeof userScreenerLibrary.$inferSelect;
 export type ChartTemplateLibrary = typeof chartTemplateLibrary.$inferSelect;
 export type MarketResearchNote = typeof marketResearchNotes.$inferSelect;
+export type JournalFill = typeof journalFills.$inferSelect;
+export type JournalTrade = typeof journalTrades.$inferSelect;
+export type JournalTradeFill = typeof journalTradeFills.$inferSelect;

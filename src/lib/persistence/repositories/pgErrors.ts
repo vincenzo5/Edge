@@ -8,3 +8,10 @@ export function isUniqueViolation(error: unknown): boolean {
     (error as { code: string }).code === "23505"
   );
 }
+
+export function isIntegerOutOfRange(error: unknown): boolean {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    if ((error as { code: string }).code === "22003") return true;
+  }
+  return error instanceof Error && error.message.includes("integer out of range");
+}

@@ -48,6 +48,7 @@ Drizzle ORM + Postgres
 | Screener library | `/api/me/screener-library` | `screenerLibrary.ts` |
 | Chart templates | `/api/me/chart-template-library` | `chartTemplateLibrary.ts` |
 | Research notes | `/api/me/market-research-notes` | `marketResearchNote.ts` |
+| Trading journal | `/api/me/journal/fills`, `/api/me/journal/trades`, `/api/me/journal/trades/[id]`, `/api/me/journal/import` | `journal.ts` + `src/lib/journal/ARCHITECTURE.md` |
 
 ## Auth Model
 

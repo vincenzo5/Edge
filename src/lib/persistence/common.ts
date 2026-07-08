@@ -66,6 +66,8 @@ export function parseJsonBody<T>(
 export function isPersistenceDatabaseUnavailable(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const errorWithCode = error as Error & { code?: string; cause?: unknown; errors?: unknown[] };
+  if (errorWithCode.code === "22003") return false;
+  if (errorWithCode.message.includes("integer out of range")) return false;
   if (errorWithCode.code === "ECONNREFUSED") return true;
   if (error.message.includes("ECONNREFUSED")) return true;
   if (error.message.includes("Failed query")) return true;

@@ -13,3 +13,12 @@ describe("isUniqueViolation", () => {
     expect(isUniqueViolation(null)).toBe(false);
   });
 });
+
+describe("isIntegerOutOfRange", () => {
+  it("detects postgres numeric overflow", async () => {
+    const { isIntegerOutOfRange } = await import("./pgErrors");
+    expect(isIntegerOutOfRange({ code: "22003" })).toBe(true);
+    expect(isIntegerOutOfRange(new Error("integer out of range"))).toBe(true);
+    expect(isIntegerOutOfRange(new Error("boom"))).toBe(false);
+  });
+});

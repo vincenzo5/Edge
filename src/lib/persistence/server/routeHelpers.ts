@@ -5,6 +5,7 @@ import { establishDevSession, isDevPassphraseRequired } from "@/lib/persistence/
 import { AuthSecretMissingError } from "@/lib/persistence/auth/devSessionCookie";
 import { getCurrentUser } from "@/lib/persistence/auth/getCurrentUser";
 import { persistenceError, isPersistenceDatabaseUnavailable } from "@/lib/persistence/common";
+import { isIntegerOutOfRange } from "@/lib/persistence/repositories/pgErrors";
 
 function hasDatabaseUnavailableCause(error: unknown): boolean {
   return isPersistenceDatabaseUnavailable(error);
@@ -67,6 +68,13 @@ export async function withPersistenceAuth<T>(
   try {
     return await handler(user.id);
   } catch (error) {
+    if (isIntegerOutOfRange(error)) {
+      return persistenceError(
+        400,
+        "validation",
+        "One or more numeric values are out of range for persistence storage.",
+      );
+    }
     if (hasDatabaseUnavailableCause(error)) {
       return persistenceError(
         503,
