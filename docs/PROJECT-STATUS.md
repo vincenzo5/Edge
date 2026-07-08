@@ -2,16 +2,158 @@
 
 Single source for current progress. For row-by-row feature detail, see [chart/features.md](./chart/features.md).
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-08
 
 ## Current Verified State
+
+- **Current task:** Journal loading + empty states.
+- **State:** **Passing** — focused tests and build passed; app-level loading/empty walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 24 passed (24)`, `Tests 136 passed (136)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `journalDataPhase.ts`, `journalEmptyCopy.ts`, `JournalTradesProvider.tsx`, `JournalContentGate.tsx`, `JournalPageLoadingSkeleton.tsx`, `JournalGlobalEmptyState.tsx`, `JournalDashboardView.tsx`, `JournalTradesView.tsx`, tests, `ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough — cold load `/journal/dashboard` shows skeleton (no scoped-empty flash), global empty with Import/Sync when no trades, scoped filtered empty when filters exclude all rows.
+
+## Previous Verified State (Journal trades table controls)
+
+- **Current task:** Journal trades table controls.
+- **State:** **Passing** — focused tests and build passed; app-level trades table walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 4 passed (4)`, `Tests 48 passed (48)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `journalTradesTableControls.ts`, `JournalTradesTableControls.tsx`, `JournalTradesTable.tsx`, `JournalTradesView.tsx`, `JournalPage.test.tsx`, `ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough — `/journal/trades` sortable headers, result count, pagination, column/density prefs persist across refresh.
+
+## Previous Verified State (Journal trades page hero summary cards)
+
+- **Current task:** Journal account equity hero card.
+- **State:** **Passing** — focused tests and build passed; app-level dashboard equity-card walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 41 passed (41)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 4.2s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `JournalModuleShell.tsx`, `JournalDashboardView.tsx`, `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx`, `JournalPage.test.tsx`, `ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — `/journal/dashboard` account equity card shows live NetLiquidation when IB connected, `—` when disconnected, inline filter-scoped net P&L suffix with tone; closed-trade count and tooltips intact.
+
+## Previous Verified State (Journal dashboard trade list cards)
+
+- **Current task:** Journal Calendar P&L — selection + This Month nav.
+- **State:** **Passing** — focused tests and build passed; app-level dashboard calendar walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 20 passed (20)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `JournalDashboardView.tsx`, `JournalCalendar.tsx`, `JournalCalendar.test.tsx`, `JournalPage.test.tsx`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by calendar day summary modal row.
+
+## Previous Verified State (Journal Equity curve + Calendar P&L card parity)
+
+- **Current task:** Journal Equity curve + Calendar P&L card parity.
+- **State:** **Passing** — focused tests and build passed; app-level dashboard card walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 29 passed (29)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `JournalEquityChart.tsx`, `JournalCalendar.tsx`, `JournalDashboardView.tsx`, `journalStats.ts`, tests, `ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by Calendar P&L selection + This Month nav row.
+
+## Previous Verified State (Journal Avg win/loss trade hero card)
+
+- **Current task:** Journal Avg win/loss trade hero card.
+- **State:** **Passing** — focused tests and build passed; app-level dashboard card walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx`, `JournalPage.test.tsx`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by Equity curve + Calendar P&L card parity row.
+
+## Previous Verified State (Journal Profit factor hero card)
+
+- **Current task:** Journal Trade win % hero card.
+- **State:** **Passing** — focused tests and build passed; app-level dashboard card walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 1 passed (1)`, `Tests 12 passed (12)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — `/journal/dashboard` Trade win % card shows gauge, W/L/BE badges, info tooltip, segment hover pill.
+
+## Previous Verified State (Journal Net P&L hero card)
+
+- **Current task:** Journal Net P&L hero card.
+- **State:** **Passing** — focused tests and build passed; app-level dashboard card walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 11 passed (11)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx`, `Tooltip.tsx`, `Tooltip.test.tsx`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — `/journal/dashboard` Net P&L card shows hero value, closed-trade count, info tooltip, hover pill.
+
+## Previous Verified State (Journal trade detail slide-over)
+
+- **Current task:** Journal trade detail slide-over.
+- **State:** **Passing** — focused tests and build passed; app-level slide-over walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 14 passed (14)`, `Tests 39 passed (39)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `EdgeSlideOver.tsx`, `styles.ts`, `JournalTradeDetailDrawer.tsx`, `JournalTradesView.tsx`, `JournalDashboardView.tsx`, `JournalTradeDetail.tsx`, `journalTradeDetailTitle.ts`, tests, `ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — full-width trades list, row opens ~⅓ overlay drawer, backdrop/Escape dismisses.
+
+## Previous Verified State (Journal sub-nav)
+
+- **Current task:** Journal sub-nav + Dashboard/Trades/Settings views.
+- **State:** **Passing** — focused tests and build passed; app-level sub-nav walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 14 passed (14)`, `Tests 38 passed (38)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `JournalModuleShell.tsx`, `JournalSubNav.tsx`, `JournalTradesProvider.tsx`, `JournalDashboardView.tsx`, `JournalTradesView.tsx`, `JournalTradesTable.tsx`, `JournalSettingsView.tsx`, `journalTradeDisplay.ts`, `src/app/journal/{layout,dashboard,trades,settings}/`, `HomeAppNav.tsx`, tests.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — sub-nav switches Dashboard/Trades/Settings; trades row opens detail panel.
+
+## Previous Verified State (App module shell)
+
+- **Current task:** App module shell — persistent nav + journal scroll.
+- **State:** **Passing** — focused tests and build passed; app-level nav/scroll walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 20 passed (20)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `AppModuleShell.tsx`, `JournalPageShell.tsx`, `HomeShell.tsx`, `chart/page.tsx`, `StockApp.tsx`, `AppHydrationShell.tsx`, `ModulePlaceholderPage.tsx`, `HomeJournalPanel.tsx`, `HomeResearchPanel.tsx`, `homeLayout.ts`, tests.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — `/journal` scroll + left nav on `/chart`, `/research`, `/home` (768px hub).
+
+## Previous Verified State (Journal Tier 2)
+
+- **Current task:** Journal Tier 2 — time-of-day/week reports, R-multiple ($/%), chart execution overlay.
+- **State:** **Passing** — focused tests and build passed; app-level Tier 2 walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 18 passed (18)`, `Tests 69 passed (69)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `journalStats.ts`, `JournalTimeReport.tsx`, `rMultiple.ts`, `chartDeepLink.ts`, `journalExecutionMarkers.ts`, `JournalChartOverlayProvider.tsx`, `0004_journal_planned_risk.sql`, `JournalTradeDetail.tsx`, `StockApp.tsx`, `EdgeChart.tsx`, tests, `docs/journal-roadmap.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by app module shell row.
+
+## Previous Verified State (Journal Tier 1 reporting)
+
+- **Current task:** Journal Tier 1 reporting — calendar P&L, tag/setup breakdown, equity curve, richer filters, expanded KPIs on `/journal`.
+- **State:** **Passing** — focused tests and build passed; app-level calendar/breakdown walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 17 passed (17)`, `Tests 57 passed (57)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/journal/journalStats.ts`, `src/app/components/journal/{JournalCalendar,JournalEquityChart,JournalBreakdownReport,JournalFiltersBar,JournalSummaryCards}.tsx`, `JournalPageShell.tsx`, tests, `docs/journal-roadmap.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by Journal Tier 2 row.
+
+## Previous Verified State (Trading journal v1)
+
+- **Current task:** Trading journal v1 — IBKR fills → grouped trades (STK + multi-leg OPT), Flex CSV import, stats, notes, chart link on `/journal`.
+- **State:** **Passing** — focused tests and build passed; app-level IBKR/Flex import walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 15 passed (15)`, `Tests 40 passed (40)`; **Sidecar:** `Ran 9 tests in 0.000s OK`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/journal/**`, `src/lib/persistence/{schemas/journal.ts,repositories/journalRepository.ts,client/journalClient.ts}`, `src/app/api/me/journal/**`, `src/app/components/journal/**`, `src/app/journal/page.tsx`, `services/tws-sidecar/main.py`, `src/db/migrations/0002_journal.sql`, `src/lib/journal/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by Journal Tier 1 reporting row.
+
+## Previous Verified State (Options chain panel UX v3)
+- **State:** **Passing** — focused tests and build passed; app-level sidebar/dialog walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 17 passed (17)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/options/chainDisplay.ts`, `src/app/components/options/OptionsChainView.tsx`, tests.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough on localhost:3003 — open Options sidebar + pop out; confirm always-visible preset footer buttons, expiration tabs show date + DTE, pin badge on pinned expirations, scroll chevrons when list overflows.
+
+## Previous Verified State (Options chain panel UX v2)
+
+- **Current task:** Options chain panel UX v2 — compact header, chain-first layout, 7-column bid/ask/last spine table, row-hover greeks, collapsed preset footer.
+- **State:** **Passing** — focused tests and build passed; app-level sidebar/dialog walkthrough deferred on localhost:3003.
+- **Latest verification:** **Focused:** `Test Files 4 passed (4)`, `Tests 24 passed (24)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/options/chainDisplay.ts`, `src/app/components/options/{OptionsChainTable,ChainRowGreeksPopover,OptionsChainView}.tsx`, tests.
+- **Current blocker:** none.
+- **Next best step:** Superseded by Options chain panel UX v3 row.
+
+## Previous Verified State (App home hub)
 
 - **Current task:** App home hub — Layout 1 tri-pane with responsive fallbacks.
 - **State:** **Passing** — focused tests and build passed; app-level width/redirect walkthrough deferred on localhost:3003.
 - **Latest verification:** **Focused:** `Test Files 10 passed (10)`, `Tests 38 passed (38)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review — Passed.
 - **Evidence:** `src/lib/app/{homeLayout,lastModule,buildHomeWorkspaceSummaries}.ts`, `src/app/components/home/*`, `src/app/{page,home,chart,journal,research}/`, tests, `src/lib/design-system/ARCHITECTURE.md`.
 - **Current blocker:** none.
-- **Next best step:** App-level walkthrough on localhost:3003 — resize `/home` at 5120/1920/1440/1280/768; verify `/` redirects to `/chart` after chart visit; Home nav forces `/home`.
+- **Next best step:** Superseded by Options chain panel UX v2 row.
 
 ## Previous Verified State (Long/Short Position drawing tools)
 
@@ -428,6 +570,29 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
+| Journal loading + empty states | Page-level skeleton/global empty/error gates on Dashboard + Trades; scoped widget empty copy standardized; no flash of scoped empty on initial load | **Passing** | **Focused:** `Test Files 24 passed (24)`, `Tests 136 passed (136)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed; app-level loading/empty walkthrough deferred | `journalDataPhase.ts`, `journalEmptyCopy.ts`, `JournalTradesProvider.tsx`, `JournalContentGate.tsx`, `JournalPageLoadingSkeleton.tsx`, `JournalGlobalEmptyState.tsx`, `JournalDashboardView.tsx`, `JournalTradesView.tsx`, tests, `ARCHITECTURE.md` |
+| Journal trades table controls | `/journal/trades` table has sortable headers (default activity desc), result count strip, filtered empty state, client pagination (25/50/100), column visibility + density prefs in localStorage | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 48 passed (48)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level trades table walkthrough deferred | `journalTradesTableControls.ts`, `JournalTradesTableControls.tsx`, `JournalTradesTable.tsx`, `JournalTradesView.tsx`, tests, `ARCHITECTURE.md` |
+| Journal trades page hero summary cards | Trades page shows the same four dashboard hero KPI cards (account equity, win %, profit factor, avg win/loss) above the trades table, scoped to page filters/period | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 44 passed (44)`; **Architecture review:** self-review Passed; app-level trades-page walkthrough deferred | `JournalTradesView.tsx`, `JournalPage.test.tsx` |
+| Journal trades page load performance | Stop sync effect re-firing on every account SSE tick; dedupe live-fill upserts by execution fingerprint; background trade refresh; single-flight journal store sync | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 19 passed (19)`; **Architecture review:** self-review Passed; app-level trades-page walkthrough deferred | `JournalSyncProvider.tsx`, `JournalTradesProvider.tsx`, `journalClient.ts`, tests |
+| Journal summary card layout polish | Account equity closed-trade count shows "N trades"; win %, profit factor, and avg win/loss chart visuals top-aligned with card titles; avg win/loss loss label right-aligned with bar edge | **Passing** | **Focused:** `Test Files 1 passed (1)`, `Tests 28 passed (28)`; **Architecture review:** self-review Passed; app-level card layout walkthrough deferred | `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx` |
+| Journal scope bar + filter drawer | Compact header scope bar (period select, symbol search, filter drawer, chips); unified closed-trade period scoping on dashboard + trades; open positions ignore period | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 64 passed (64)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 4.4s`); **Architecture review:** self-review Passed; app-level scope-bar walkthrough deferred | `journalFilterHelpers.ts`, `journalStats.ts`, `JournalScopeBar.tsx`, `JournalFilterDrawer.tsx`, `JournalDashboardView.tsx`, `JournalTradesView.tsx`, tests, `ARCHITECTURE.md` |
+| Journal account equity hero card | Dashboard first hero KPI shows live IB NetLiquidation as account equity (2xl strong) with inline filter-scoped net P&L suffix (tone-colored); `—` when disconnected; closed-trade count + equity/P&L help tooltips + Total Trades hover pill | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 41 passed (41)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 4.2s`); **Architecture review:** self-review Passed; app-level equity-card walkthrough deferred | `JournalModuleShell.tsx`, `JournalDashboardView.tsx`, `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx`, `JournalPage.test.tsx`, `ARCHITECTURE.md` |
+| Journal dashboard trade list cards | Dashboard shows side-by-side Recent trades (Close Date/Symbol/Net P&L) and Open positions (Open Date/Symbol/Entry) list cards; respects filters; row opens trade slide-over | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 27 passed (27)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed; app-level list-card walkthrough deferred | `JournalTradeListCard.tsx`, `JournalDashboardView.tsx`, `journalTradeDisplay.ts`, `JournalTradeListCard.test.tsx`, `JournalPage.test.tsx`, `journalTradeDisplay.test.ts`, `ARCHITECTURE.md` |
+| Journal calendar day summary modal | Calendar day click opens TradeZella-style daily dashboard modal (intraday P&L chart, stat grid, trades table); no longer filters dashboard table | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 62 passed (62)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level calendar modal walkthrough deferred | `JournalDaySummaryModal.tsx`, `JournalPnLAreaChart.tsx`, `JournalMetricGrid.tsx`, `JournalDayTradesTable.tsx`, `JournalCalendar.tsx`, `JournalDashboardView.tsx`, `journalStats.ts`, `journalTradeDisplay.ts`, tests, `ARCHITECTURE.md` |
+| Journal Calendar P&L — selection + This Month nav | Calendar cells always show daily P&L regardless of selected day; "This Month" button appears when viewing a non-current month and returns to today | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 20 passed (20)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; superseded by day summary modal | `JournalDashboardView.tsx`, `JournalCalendar.tsx`, `JournalCalendar.test.tsx`, `JournalPage.test.tsx` |
+| Journal Equity curve + Calendar P&L card parity | TradeZella-style daily cumulative area chart (title stays "Equity curve") with Y-axis ticks, dashed grid, green/red gradient fill, info tooltip, point hover pill; Calendar P&L grid stretches full card height alongside equity chart | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 29 passed (29)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level dashboard card walkthrough deferred | `JournalEquityChart.tsx`, `JournalCalendar.tsx`, `JournalDashboardView.tsx`, `journalStats.ts`, tests, `ARCHITECTURE.md` |
+| Journal Avg win/loss trade hero card | Dashboard unified expectancy KPI — TradeZella-style horizontal win/loss bar with compact avg labels, expectancy hero value with tone, info tooltip, segment hover pills; replaces separate Expectancy/Avg win/Avg loss tiles | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level dashboard card walkthrough deferred | `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx`, `JournalPage.test.tsx` |
+| Journal Profit factor hero card | Dashboard profit-factor KPI — TradeZella-style full profit/loss donut ring, info tooltip, profit/loss hover pills; shell matches Net P&L and Trade win % hero cards | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 37 passed (37)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed; app-level dashboard card walkthrough deferred | `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx`, `journalStats.ts`, `journalStats.test.ts` |
+| Journal Trade win % hero card | Dashboard win-rate KPI — TradeZella-style semi-circle gauge (W/L/BE segments), count badges, info tooltip, outcome hover pill; shell matches Net P&L hero card | **Passing** | **Focused:** `Test Files 1 passed (1)`, `Tests 12 passed (12)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level dashboard card walkthrough deferred | `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx` |
+| Journal Net P&L hero card | Dashboard Net P&L KPI — hero typography, semantic P&L tone, info tooltip, inline closed-trade count, decorative Total Trades hover pill | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 11 passed (11)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level dashboard card walkthrough deferred | `JournalSummaryCards.tsx`, `JournalSummaryCards.test.tsx`, `Tooltip.tsx`, `Tooltip.test.tsx` |
+| Journal trade detail slide-over | Reusable `EdgeSlideOver`; Trades + Dashboard open trade detail as right overlay drawer (~33% width), not persistent column | **Passing** | **Focused:** `Test Files 14 passed (14)`, `Tests 39 passed (39)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level slide-over walkthrough deferred | `EdgeSlideOver.tsx`, `styles.ts`, `JournalTradeDetailDrawer.tsx`, `JournalTradesView.tsx`, `JournalDashboardView.tsx`, `JournalTradeDetail.tsx`, tests, `ARCHITECTURE.md` |
+| Journal sub-nav + Dashboard/Trades/Settings views | Second left nav inside journal module; Dashboard = current reporting page; Trades = TradeZilla-style list with detail; Settings = placeholder; `/journal` redirects to `/journal/dashboard` | **Passing** | **Focused:** `Test Files 14 passed (14)`, `Tests 38 passed (38)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level sub-nav walkthrough deferred | `JournalModuleShell.tsx`, `JournalSubNav.tsx`, `JournalTradesProvider.tsx`, `JournalDashboardView.tsx`, `JournalTradesView.tsx`, `JournalTradesTable.tsx`, `JournalSettingsView.tsx`, `journalTradeDisplay.ts`, `src/app/journal/**`, `HomeAppNav.tsx`, tests |
+| App module shell — persistent nav + journal scroll | `HomeAppNav` on all module routes; `/journal` scrolls inside bounded main; home journal/research panels scroll in grid cells | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 20 passed (20)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed; app-level nav/scroll walkthrough deferred | `AppModuleShell.tsx`, `JournalPageShell.tsx`, `HomeShell.tsx`, `chart/page.tsx`, `StockApp.tsx`, `AppHydrationShell.tsx`, `ModulePlaceholderPage.tsx`, `HomeJournalPanel.tsx`, `HomeResearchPanel.tsx`, tests |
+| Journal Tier 2 | Time-of-day/week reports (ET), R-multiple ($/%), chart execution overlay with entry/exit markers | **Passing** | **Focused:** `Test Files 18 passed (18)`, `Tests 69 passed (69)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed; app-level Tier 2 walkthrough deferred | `journalStats.ts`, `JournalTimeReport.tsx`, `rMultiple.ts`, `chartDeepLink.ts`, `journalExecutionMarkers.ts`, `JournalChartOverlayProvider.tsx`, `0004_journal_planned_risk.sql`, `JournalTradeDetail.tsx`, `StockApp.tsx`, `EdgeChart.tsx`, tests |
+| Journal Tier 1 reporting | Calendar P&L, tag/setup breakdown, equity curve, richer filters, expanded KPIs on `/journal`; client-computed from local journal snapshot | **Passing** | **Focused:** `Test Files 17 passed (17)`, `Tests 57 passed (57)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level calendar/breakdown walkthrough deferred | `journalStats.ts`, `JournalCalendar.tsx`, `JournalEquityChart.tsx`, `JournalBreakdownReport.tsx`, `JournalFiltersBar.tsx`, `JournalPageShell.tsx`, tests, `docs/journal-roadmap.md` |
+| Trading journal v1 | IBKR fills → grouped trades (STK + multi-leg OPT), Flex CSV import, stats, tags/notes, chart link on `/journal`; localStorage fallback when Postgres unavailable | **Passing** | **Focused:** `Test Files 15 passed (15)`, `Tests 40 passed (40)`; **Sidecar:** `Ran 9 tests OK`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level Flex import + live sync walkthrough deferred | `src/lib/journal/**`, `journalRepository.ts`, `/api/me/journal/**`, `JournalPageShell.tsx`, `0002_journal.sql`, `brokerage.ts`, `tws-sidecar/main.py` |
+| Options chain panel UX v3 | Always-visible Quick presets footer toolbar; expiration tabs with DTE sublabels, pin badges, scroll chevrons; spot-only header line; sidebar + floating dialog | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 17 passed (17)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed; app-level sidebar/dialog walkthrough deferred | `chainDisplay.ts`, `OptionsChainView.tsx`, tests |
+| Options chain panel UX v2 | Compact header + chain-first layout; 7-col bid/ask/last spine table with strike differentiation; row-hover greeks popover; collapsed Quick presets footer; sidebar + floating dialog; Analyze moved to dialog row popover | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 24 passed (24)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; superseded by UX v3 | `chainDisplay.ts`, `OptionsChainTable.tsx`, `ChainRowGreeksPopover.tsx`, `OptionsChainView.tsx`, tests |
 | App home hub — Layout 1 tri-pane with responsive fallbacks | `/home` module hub (Continue + workspaces + journal stub + research preview); `/chart` workspace; smart `/` remembers last module (24h); journal/research stub routes | **Passing** | **Focused:** `Test Files 10 passed (10)`, `Tests 38 passed (38)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed; app-level width/redirect walkthrough deferred | `homeLayout.ts`, `lastModule.ts`, `buildHomeWorkspaceSummaries.ts`, `src/app/components/home/*`, `src/app/{page,home,chart,journal,research}/`, tests, `ARCHITECTURE.md` |
 | Long/Short Position drawing tools | Forecasting flyout tools; bounded green/red zones; 6-handle resize; TV-style target/entry/stop labels | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 52 passed (52)`; **Build:** `npm run build:packages` + `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Boundaries:** `npm run lint:package-boundaries` passed; **App-level:** `/chart` XLF — flyout, Short icon swap, short draw (red stop above / green target below), object tree entry, reload persistence; **Architecture review:** self-review Passed | `positionGeometry.ts`, `position_tool.ts`, `long_position.ts`, `short_position.ts`, `positionLabels.ts`, `registry.ts`, `pluginHost.ts`, `toolGroups.ts`, `iconPaths.ts`, `ChartToolIcons.tsx`, `DrawingToolbar.forecasting.test.tsx`, tests, `features.md` |
 | Multi-pane shared toolbar + object tree | Multi-pane layouts show one left drawing rail targeting the active pane; object tree lists all panes with indicators/drawings; single-pane unchanged (inline rail + flat tree) | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 91 passed (91)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level walkthrough deferred | `ChartGrid.tsx`, `ChartCell.tsx`, `ChartDrawingRail.tsx`, `ActiveChartContext.tsx`, `useRegisterActiveChart.ts`, `objectTreeModel.ts`, `ObjectTree.tsx`, `ObjectTreePanel.tsx`, tests, `features.md` |
@@ -521,6 +686,38 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Stock screener Phase 2 (composition + persistence + live results) | Postgres screener library sync (localStorage fallback), group watchlist actions, live quote overlay on visible rows, AND/OR query groups, CSV + clipboard export | **Passing** | **Focused:** 63 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** Gainers preset, group actions, OR group, save screen verified on `localhost:3003` | `src/db/schema.ts`, `src/lib/persistence/schemas/screenerLibrary.ts`, `src/lib/persistence/repositories/screenerLibraryRepository.ts`, `src/app/api/me/screener-library/`, `src/lib/persistence/sync/useScreenerLibraryRemoteSync.ts`, `src/app/components/screener/ScreenerProvider.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/lib/screener/{compileQuery,exportResults}.ts`, `src/lib/watchlist/storage.ts`, `docs/screener-roadmap.md` |
 | Stock screener Phase 1.5 (technical presets) | Four technical presets (RSI oversold/overbought, golden cross, near 52-week high) via server-side two-step pipeline: FMP prefilter → Yahoo daily candles + chart-core indicator math; bounded concurrency; two-phase loading label + phase summary in modal | **Passing** | **Focused:** 52 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** preset rail visible in screener modal on `localhost:3003`; **Architecture review:** self-review Passed | `src/lib/screener/{technicalMath,technicalFilter,presets,types}.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/marketData/schemas/request.ts`, `src/lib/marketData/cache/ttlPolicy.ts`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
 | Stock screener MVP (Lean) | Header-bar icon opens modal screener filtering US equities/ETFs via FMP `/company-screener`; presets + flat query-builder; sortable paginated results; per-row load-into-chart and add-to-watchlist; named screens persist in localStorage | **Passing** | **Focused:** 48 tests passed (Phase 1 baseline); **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** screener modal walkthrough on `localhost:3003` (preset run, row actions, save/load) | `src/app/api/screener/run/route.ts`, `src/lib/marketData/providers/fmp/`, `src/lib/screener/`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/StockApp.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
+
+## Task Contract — App module shell
+
+- **Status:** Passing — shipped 2026-07-06.
+- **Goal:** Persistent `HomeAppNav` on every module route; fix journal scroll clipping via shared viewport-bounded shell.
+- **Delivered:** `AppModuleShell` (nav + `h-screen overflow-hidden` content column); migrated `JournalPageShell`, `HomeShell`, `chart/page.tsx`, `ModulePlaceholderPage`; `StockApp`/`AppHydrationShell` `h-full`; home panel grid cells `h-full`; `homeLayoutShowsAppNav` always true.
+- **Verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 20 passed (20)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed; app-level nav/scroll walkthrough deferred.
+- **Blockers:** none.
+
+## Task Contract — Journal Tier 2
+
+- **Status:** Passing — shipped 2026-07-06.
+- **Behavior:** `/journal` answers when traders perform (hour/weekday ET buckets) and how well they executed (R-multiple + chart entry/exit markers).
+- **Delivered:** `computeTimeBreakdownReport`, `JournalTimeReport`; `rMultiple.ts` + migration `0004_journal_planned_risk.sql`; `chartDeepLink` + `journalExecutionMarkers` + `JournalChartOverlayProvider` + `StockApp` URL bootstrap + `EdgeChart` transient markers.
+- **Verification:** **Focused:** `Test Files 18 passed (18)`, `Tests 69 passed (69)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed; app-level walkthrough deferred.
+- **Out of scope:** Tier 3 (rating, screenshots, compare, MFE/MFA), trade replay, AI tagging, playbooks, multi-broker.
+
+## Task Contract — Journal Tier 1 reporting
+
+- **Status:** Passing — shipped 2026-07-06.
+- **Behavior:** `/journal` shows calendar P&L, setup/tag breakdown, equity curve, expanded KPIs, and richer filters — all scoped consistently from the local trade snapshot.
+- **Delivered:** `filterJournalTrades` / `matchesJournalFilters`, `computeEquityCurve`, `computeBreakdownReport`, `buildCalendarMonth`; `JournalFiltersBar`, `JournalCalendar`, `JournalEquityChart`, `JournalBreakdownReport`; expanded `JournalSummaryCards`; `JournalPageShell` reporting pipeline.
+- **Verification:** **Focused:** `Test Files 17 passed (17)`, `Tests 57 passed (57)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level walkthrough deferred.
+- **Out of scope:** API/schema changes, URL query sync, chart execution overlay.
+
+## Task Contract — Trading journal v1
+
+- **Behavior:** User reviews grouped IBKR trades on `/journal` with stats, Flex CSV backfill, live fill sync, trade notes/tags, and chart deep-links.
+- **Slices:** execution contract + sidecar dedupe → Postgres `journal_*` tables + localStorage mirror → fill sync + grouping → Flex CSV/API import → UI + stats → notes PATCH + chart link.
+- **Grouping oracles:** STK FIFO per conId; OPT single-leg per conId; multi-leg by shared `orderId` (2s window) or `orderRef`; P&L from IB `realizedPNL` minus commissions.
+- **Env:** optional `IB_FLEX_TOKEN`, `IB_FLEX_QUERY_ID` for server-side Flex pull (`.env.example`).
+- **Deferred:** assignment/exercise events, calendar heatmap, sidebar journal panel, AI tools.
 
 ## Task Contract — App home hub
 
@@ -864,9 +1061,199 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 - **Delivered:** Edge token module + CSS variables; `Edge*` primitive layer; converted context menu, modals, indicator picker, settings, symbol search.
 - **Verification:** focused tests + `npm run check:startup` passed.
 
+## Task Contract — Journal trades table controls
+
+- **Status:** Passing
+- **Goal:** P0/P1 table controls on `/journal/trades` — sort, result count, filtered empty, client pagination, column visibility, density prefs
+- **Delivered:** `journalTradesTableControls.ts` (sort/paginate/prefs); `JournalTradesTableControls` toolbar; sortable sticky-header `JournalTradesTable`; wired pipeline in `JournalTradesView`
+- **Verification:** **Focused:** `Test Files 4 passed (4)`, `Tests 48 passed (48)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed
+- **Blockers:** none
+
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Keep the current state above short and authoritative; keep historical detail here.
+
+### 2026-07-08 — Journal loading + empty states
+
+- **Goal:** Layered loading, global empty, scoped empty, and error states across journal Dashboard + Trades without duplicate fetches or flash-of-empty on initial load.
+- **Shipped:** `journalDataPhase` + `journalEmptyCopy`; `JournalTradesProvider` error/retry; `JournalContentGate`, `JournalPageLoadingSkeleton`, `JournalGlobalEmptyState`; page gates on `JournalDashboardView` + `JournalTradesView`; scoped empty copy unified in equity/table/list/breakdown/time widgets.
+- **Verification run:** **Focused:** `Test Files 24 passed (24)`, `Tests 136 passed (136)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed.
+- **Next:** App-level walkthrough on localhost:3003 — skeleton on cold load, global empty with Import/Sync, scoped filtered empty when filters exclude rows.
+
+### 2026-07-07 — Journal trades table controls
+
+- **Goal:** Add P0/P1 table controls to `/journal/trades` — sortable headers, result count, filtered empty state, client pagination, column visibility, density prefs.
+- **Shipped:** `journalTradesTableControls.ts`; `JournalTradesTableControls` toolbar; upgraded `JournalTradesTable` (sortable sticky headers, conditional columns, dual empty states); `JournalTradesView` sort → paginate pipeline with localStorage prefs.
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 48 passed (48)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed.
+- **Next:** App-level walkthrough on `/journal/trades` — sort, paginate, toggle columns/density, confirm prefs survive refresh.
+
+### 2026-07-07 — Journal trades page hero summary cards
+
+- **Goal:** Show the four dashboard hero KPI cards at the top of `/journal/trades` with the trades table below.
+- **Shipped:** `JournalTradesView` renders `JournalSummaryCards` above `JournalTradesTable` using the same scoped closed-trade stats + account equity as dashboard.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 44 passed (44)`; **Architecture review:** self-review Passed.
+
+### 2026-07-07 — Journal trades page load performance
+
+- **Goal:** Fix slow/hanging `/journal/trades` load caused by repeated slow brokerage trade fetches.
+- **Root cause:** `JournalSyncProvider` re-ran `syncNow` on every account SSE snapshot (unstable `[account]` dependency), hammering `/api/brokerage/trades` (~4.5s each) and re-triggering trade reload spinners.
+- **Shipped:** Stable sync callback + execution fingerprint dedupe; skip upsert when no new fills; background refresh in `JournalTradesProvider`; single-flight + single GET in `syncJournalStores`.
+- **Verification run:** **Focused:** `Test Files 3 passed (3)`, `Tests 19 passed (19)`; **Architecture review:** self-review Passed.
+
+### 2026-07-07 — Journal summary card layout polish
+
+- **Goal:** Fix three dashboard hero card UI issues — trade count label clarity, chart vertical alignment, avg win/loss loss label alignment.
+- **Shipped:** Account equity shows `tradeCountLabel` ("N trades"); `HeroMetricCardLayout` visual wrapper changed from `self-center` to `self-start`; avg win/loss bar labels use absolute left/right positioning.
+- **Verification run:** **Focused:** `Test Files 1 passed (1)`, `Tests 28 passed (28)`; **Architecture review:** self-review Passed.
+- **Next:** App-level walkthrough on `/journal/dashboard` to confirm visual alignment.
+
+### 2026-07-07 — Journal scope bar + filter drawer
+
+- **Goal:** Replace crowded inline filter bar with scope bar + filter drawer; unify closed-trade period scoping across dashboard widgets.
+- **Shipped:** `journalFilterHelpers.ts`, `scopeClosedTradesForReporting` / `scopeTradesForTradesView`, `JournalScopeBar`, `JournalFilterDrawer`; dashboard + trades header wiring; removed `JournalFiltersBar`.
+- **Verification run:** **Focused:** `Test Files 5 passed (5)`, `Tests 64 passed (64)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 4.4s`); **Architecture review:** self-review Passed.
+- **Next:** App-level walkthrough — period/chips/drawer on dashboard and trades; confirm recent trades respect period while open positions do not.
+
+### 2026-07-07 — Journal account equity hero card
+
+- **Goal:** Revise dashboard Net P&L hero card (Option A) — account equity primary, inline net P&L suffix secondary.
+- **Shipped:** `AccountProvider` on `JournalModuleShell`; `JournalDashboardView` resolves `NetLiquidation` and passes `accountEquity`; `AccountEquityMetricCard` in `JournalSummaryCards` — 2xl strong equity, tone-colored P&L suffix, separate help tooltips, `—` when disconnected.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 41 passed (41)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 4.2s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level equity-card walkthrough on localhost:3003 not recorded.
+- **Next action:** App-level walkthrough — `/journal/dashboard` account equity + net P&L suffix with IB connected vs disconnected.
+
+### 2026-07-07 — Journal dashboard trade list cards
+
+- **Goal:** Add TradeZella-style Recent trades and Open positions list cards to the journal dashboard.
+- **Shipped:** `JournalTradeListCard` reusable list card (accent title underline, column headers, scrollable rows, empty state); dashboard slices `recentClosedTrades` / `openTrades` from filtered trades; display helpers `formatTradeListDate`, `formatTradeMoney`, `pnlToneClass` in `journalTradeDisplay.ts`; row click opens existing trade detail slide-over.
+- **Verification run:** **Focused:** `Test Files 3 passed (3)`, `Tests 27 passed (27)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level list-card walkthrough on localhost:3003 not recorded.
+- **Next action:** App-level walkthrough — `/journal/dashboard` Recent trades + Open positions cards; row opens slide-over; empty states show filter hint.
+
+### 2026-07-07 — Journal calendar day summary modal
+
+- **Goal:** Replace calendar day-click dashboard filtering with a TradeZella-style daily summary modal (intraday chart, stats grid, trades table).
+- **Shipped:** `JournalDaySummaryModal`, `JournalPnLAreaChart` (extracted from equity chart), `JournalMetricGrid`, `JournalDayTradesTable`; stats helpers `filterTradesClosedOnDate`, `computeIntradayPnLCurve`, `computeDaySummaryStats`; display helpers in `journalTradeDisplay.ts`; `EdgeModalShell` accepts `ReactNode` title; calendar `onDayClick` API.
+- **Supersedes:** Calendar `closedDate` filter behavior from "Journal Calendar P&L — selection + This Month nav".
+- **Verification run:** **Focused:** `Test Files 7 passed (7)`, `Tests 62 passed (62)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level calendar modal walkthrough on localhost:3003 not recorded.
+- **Next action:** App-level walkthrough — click calendar day → modal → row opens slide-over → Escape closes modal.
+
+### 2026-07-07 — Journal Calendar P&L — selection + This Month nav
+
+- **Goal:** Keep calendar day P&L visible when a day is selected; add "This Month" button when navigated away from current month.
+- **Shipped:** `calendarDailyRows` memo in `JournalDashboardView` scopes trades without `closedDate` so calendar aggregates persist during day selection; `JournalCalendar` shows conditional "This Month" button; regression + integration tests.
+- **Root cause fixed:** `dailyRows` was derived from `scopedTrades` which included `closedDate` filter — selecting an empty day cleared all other cells.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 20 passed (20)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level calendar walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual walkthrough — select empty day, confirm Jul 1/2 P&L remain; navigate months, confirm "This Month" returns to current month.
+
+### 2026-07-07 — Journal Equity curve + Calendar P&L card parity
+
+- **Goal:** Restyle Equity curve card to TradeZella-style daily cumulative area chart (keep "Equity curve" title); fix Calendar P&L to vertically fill its card height.
+- **Shipped:** `computeEquityCurve` daily aggregation; `JournalEquityChart` area chart with Y-axis ticks, dashed grid, gradient fill, info tooltip, hover pill; `JournalCalendar` + `JournalDashboardView` full-height flex/grid layout (`min-h-96` row).
+- **Verification run:** **Focused:** `Test Files 3 passed (3)`, `Tests 29 passed (29)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level dashboard card walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual walkthrough — confirm area chart axes/grid/tooltip/hover on Equity curve; confirm calendar day cells stretch to card height on `/journal/dashboard`.
+
+### 2026-07-07 — Journal Avg win/loss trade hero card
+
+- **Goal:** Replace separate Expectancy, Avg win, and Avg loss tiles with one TradeZella-style hero card — expectancy as hero value, proportional win/loss bar, compact avg labels, info tooltip, segment hover pills.
+- **Shipped:** `AvgWinLossMetricCard` + `AvgWinLossBar` in `JournalSummaryCards`; `formatCompactMoney` for bar sub-labels; card slotted fourth in dashboard grid (`md:col-span-2`); removed three small `MetricCard` tiles.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level dashboard card walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual walkthrough — confirm expectancy tone, bar proportions, compact labels, tooltip copy, segment hover pills on `/journal/dashboard`.
+
+### 2026-07-07 — Journal Profit factor hero card
+
+- **Goal:** Replace plain Profit factor metric with TradeZella-style hero card — full profit/loss donut ring, info tooltip, profit/loss hover pills; consistent shell with Net P&L and Trade win % cards.
+- **Shipped:** `ProfitFactorMetricCard` + `ProfitFactorDonut` in `JournalSummaryCards`; `totalProfit`/`totalLoss` on `JournalStats`; card slotted third in dashboard grid (`md:col-span-2`).
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 37 passed (37)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level dashboard card walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual walkthrough — confirm donut proportions, tooltip copy, profit/loss hover pills on `/journal/dashboard`.
+
+### 2026-07-07 — Journal Trade win % hero card
+
+- **Goal:** Replace plain Win rate metric with TradeZella-style hero card — semi-circle gauge, W/L/BE count badges, info tooltip, segment hover pill; consistent shell with Net P&L card.
+- **Shipped:** `WinRateMetricCard` + shared `HeroMetricCardShell`/`MetricHelpIcon` in `JournalSummaryCards`; inline SVG gauge with proportional segments; breakeven derived from closed − win − loss.
+- **Verification run:** **Focused:** `Test Files 1 passed (1)`, `Tests 12 passed (12)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level dashboard card walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual walkthrough — confirm gauge proportions, badge counts, tooltip copy, segment hover pill on `/journal/dashboard`.
+
+### 2026-07-07 — Journal Net P&L hero card
+
+- **Goal:** Redesign dashboard Net P&L KPI to match reference — hero value, semantic tone, info tooltip, closed-trade count beside icon, decorative Total Trades hover pill.
+- **Shipped:** `NetPnLMetricCard` in `JournalSummaryCards`; `Tooltip` `side="top"` for portaled help above info icon; focused tests for tone, count, tooltip, hover pill.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 11 passed (11)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level dashboard card walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual walkthrough — confirm green/red P&L value, closed count, tooltip copy, hover pill on `/journal/dashboard`.
+
+### 2026-07-07 — Journal trade detail slide-over
+
+- **Goal:** Replace persistent trade detail column with reusable right-side overlay drawer on Trades + Dashboard.
+- **Shipped:** `EdgeSlideOver` design-system primitive; `JournalTradeDetailDrawer`; full-width trade lists; embedded `JournalTradeDetail` in ~33vw slide-over with scrim, Escape, and backdrop dismiss.
+- **Verification run:** **Focused:** `Test Files 14 passed (14)`, `Tests 39 passed (39)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level slide-over walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual walkthrough — click trade row, confirm overlay focus, close via backdrop/Escape.
+
+### 2026-07-07 — Journal sub-nav + Dashboard/Trades/Settings views
+
+- **Goal:** Add journal-specific left sub-nav with Dashboard (current reporting page), Trades (TradeZilla-style list + detail), and Settings placeholder.
+- **Shipped:** `JournalModuleShell` + `JournalSubNav`; routed `/journal/dashboard`, `/journal/trades`, `/journal/settings`; shared `JournalTradesProvider`; `JournalTradesTable` with WIN/LOSS/OPEN status badges; trade selection fix preserved via stable `loadTrades` deps.
+- **Verification run:** **Focused:** `Test Files 14 passed (14)`, `Tests 38 passed (38)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level sub-nav walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual walkthrough — sub-nav routing, trades list columns, row-click detail panel.
+
+### 2026-07-06 — App module shell (persistent nav + journal scroll)
+
+- **Goal:** Fix `/journal` scroll clipping; show `HomeAppNav` on all module routes (`/home`, `/chart`, `/journal`, `/research`).
+- **Shipped:** `AppModuleShell`; migrated journal/home/chart/research shells; `StockApp`/`AppHydrationShell` height fix; home panel scroll cells.
+- **Verification run:** **Focused:** `Test Files 5 passed (5)`, `Tests 20 passed (20)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level nav/scroll walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual walkthrough — `/journal` scrollbar, left nav on chart + research + home hub (768px).
+
+### 2026-07-06 — Journal Tier 2
+
+- **Goal:** Dimensional analysis and chart review — ET time-of-day/week reports, R-multiple ($/%), chart execution overlay.
+- **Shipped:** `computeTimeBreakdownReport` + `JournalTimeReport`; `rMultiple.ts` + `0004_journal_planned_risk.sql`; extended `chartDeepLink`, `journalExecutionMarkers`, `JournalChartOverlayProvider`, `StockApp` URL bootstrap, `EdgeChart` transient markers.
+- **Verification run:** **Focused:** `Test Files 18 passed (18)`, `Tests 69 passed (69)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.8s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level Tier 2 walkthrough on localhost:3003 not recorded.
+- **Next best step:** Tier 3.1 trade rating scale, or manual Flex CSV → time reports → R → chart markers walkthrough.
+
+### 2026-07-06 — Journal Tier 1 reporting
+
+- **Goal:** TradeZella-inspired reporting on `/journal` — calendar P&L, setup/tag breakdown, equity curve, richer filters, expanded KPIs (client-computed from local snapshot).
+- **Shipped:** Extended `journalStats.ts` (filters, equity curve, breakdown, calendar builder); `JournalFiltersBar`, `JournalCalendar`, `JournalEquityChart`, `JournalBreakdownReport`; expanded `JournalSummaryCards`; `JournalPageShell` scoped pipeline.
+- **Verification run:** **Focused:** `Test Files 17 passed (17)`, `Tests 57 passed (57)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed.
+- **Known blockers:** none — app-level calendar/breakdown walkthrough on localhost:3003 not recorded.
+- **Next best step:** Tier 2.1 time-of-day report, or manual Flex CSV import walkthrough.
+
+### 2026-07-06 — Trading journal v1
+
+- **Goal:** IBKR-backed trading journal with durable fills, grouped trades (stocks + multi-leg options), Flex CSV import, stats, notes, and chart review links on `/journal`.
+- **Shipped:** Extended `AccountExecution` + sidecar mapper/dedupe; `journal_*` Postgres tables + migration; `src/lib/journal/*` domain (grouping, flex import, stats, localStorage mirror); `/api/me/journal/*` routes; `/journal` UI + home preview; 40 focused Vitest tests + 9 sidecar tests.
+- **Verification run:** **Focused:** `Test Files 15 passed (15)`, `Tests 40 passed (40)`; **Sidecar:** `Ran 9 tests in 0.000s OK`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed.
+- **Out of scope:** calendar heatmap, sidebar journal panel, assignment/exercise-specific grouping, AI journal tools.
+- **Known blockers:** none — app-level Flex CSV import + live IB sync walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual verify import → trades → note save → reload → chart link.
+
+### 2026-07-05 — Options chain panel UX v3
+
+- **Goal:** Always-visible preset footer toolbar; expiration header with DTE labels, pin badges, scroll chevrons; spot-only header line.
+- **Shipped:** `daysToExpiration` / `formatExpirationDteLabel` in `chainDisplay.ts`; refactored `RiskRulerPresets` footer and `ExpirationTabs` in `OptionsChainView.tsx`; updated tests.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 17 passed (17)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed.
+- **Out of scope:** month grouping / More dropdown for expirations, provider/API changes.
+- **Known blockers:** none — app-level sidebar/dialog walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual verify Options sidebar + pop out — preset footer buttons, expiration DTE + pin badges, scroll chevrons.
+
+### 2026-07-05 — Options chain panel UX v2
+
+- **Goal:** Layout A for Options sidebar + floating dialog — compact header, chain-first scroll, 7-column bid/ask/last spine table, row-hover greeks, collapsed Quick presets footer.
+- **Shipped:** `chainDisplay.ts`, `OptionsChainTable.tsx`, `ChainRowGreeksPopover.tsx`, refactored `OptionsChainView.tsx`; dialog Analyze moved to row greeks popover; 24 focused tests.
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 24 passed (24)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed.
+- **Out of scope:** provider/API changes, column picker for OI/IV, floating panel geometry.
+- **Known blockers:** none — app-level sidebar/dialog walkthrough on localhost:3003 not recorded.
+- **Next best step:** Manual verify Options sidebar + pop out — compact header, chain scroll, greeks hover, Analyze from popover, preset footer.
 
 ### 2026-07-05 — App home hub
 
@@ -1798,6 +2185,7 @@ npm test -- --run src/lib/ai/
 
 - [chart/features.md](./chart/features.md) — full feature inventory with status per row
 - [ROADMAP.md](./ROADMAP.md) — consolidated product and engineering roadmap
+- [journal-roadmap.md](./journal-roadmap.md) — post-v1 journal reporting tiers (Tier 1–3)
 - [chart/context-menu-reference.md](./chart/context-menu-reference.md) — TV vs Edge menu parity
 - [ai-tools-architecture.md](./ai-tools-architecture.md) — AI tool design and rollout phases
 - [chart/drawing-platform-plan.md](./chart/drawing-platform-plan.md) — drawing platform (complete)

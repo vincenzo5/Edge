@@ -24,19 +24,19 @@ Before feature work, read [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md) (Star
 ```bash
 npm run setup              # install from lockfile
 npm run check:startup      # fast readiness gate
-npm run dev                # http://localhost:3003
+npm run dev                # Postgres (Docker) + migrate + dev on http://localhost:3003
 ```
 
-Optional: `scripts/init.sh` (add `--full` for full check). Copy `.env.example` → `.env.local` when using persistence or auth.
+Optional: `scripts/init.sh` (add `--full` for full check). Copy `.env.example` → `.env.local` and set `EDGE_AUTH_SECRET` before first `npm run dev`.
 
 ```bash
-npm run dev:with-db        # Postgres + migrate + dev (cloud sync)
+npm run dev:lite           # app only, no Postgres (localStorage fallback)
 npm run db:up              # start Postgres only (optional)
 npm run db:migrate         # apply migrations (requires DATABASE_URL)
 npm run mcp:edge           # MCP server for external agents
 ```
 
-Cloud sync requires `DATABASE_URL` and `EDGE_AUTH_SECRET` in `.env.local`. Use `npm run dev:with-db` so Postgres is up before the app bootstraps a dev session. Plain `npm run dev` still works without Postgres (localStorage fallback). Stop Postgres with `npm run db:down` when finished.
+Cloud sync requires `DATABASE_URL` and `EDGE_AUTH_SECRET` in `.env.local`. `npm run dev` starts the Docker Postgres container, waits, migrates, then the app. Stop Postgres with `npm run db:down` when finished.
 
 ## Verify
 
