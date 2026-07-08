@@ -164,7 +164,9 @@ describe("OptionsChainDialog", () => {
                   strike: 150,
                   bid: 1,
                   ask: 1.2,
+                  last: 1.15,
                   impliedVolatility: 0.35,
+                  delta: 0.52,
                   volume: 100,
                   openInterest: 500,
                   updatedAt: Date.now(),
@@ -398,12 +400,36 @@ describe("OptionsChainDialog", () => {
       </ActiveChartProvider>,
     );
 
-    expect(await screen.findByTestId("options-analyze-call-150")).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("options-analyze-call-150"));
+    const row = await screen.findByTestId("options-chain-row-150");
+    const callBidCell = row.querySelectorAll("td")[0];
+    fireEvent.mouseEnter(callBidCell!);
+
+    const analyzeCall = await screen.findByTestId(
+      "options-analyze-call-150",
+      {},
+      { timeout: 500 },
+    );
+    fireEvent.click(analyzeCall);
     expect(screen.getByTestId("options-risk-calculator")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("options-calc-payoff-grid")).toBeInTheDocument();
     });
+  });
+
+  it("renders Last column headers in unified chain table", async () => {
+    render(
+      <ActiveChartProvider>
+        <OptionsSessionProvider>
+        <SeedSnapshot snapshot={makeSnapshot()} />
+        <OptionsChainDialog open onClose={vi.fn()} />
+        </OptionsSessionProvider>
+      </ActiveChartProvider>,
+    );
+
+    await screen.findByTestId("options-chain-table");
+    const headers = screen.getAllByRole("columnheader");
+    expect(headers.filter((el) => el.textContent === "Last")).toHaveLength(2);
+    expect(screen.getByTestId("options-chain-strike-header")).toBeInTheDocument();
   });
 
   it("updates position when header is dragged", () => {

@@ -1,18 +1,20 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { OptionContractSnapshot } from "@/lib/marketData/contracts/options";
 import {
-  formatOptionGreek,
-  formatOptionIv,
-  formatOptionPrice,
-  type StrikeRow,
-} from "@/lib/options/optionsClient";
+  formatExpirationAriaLabel,
+  formatExpirationDteLabel,
+  formatExpirationTabLabel,
+} from "@/lib/options/chainDisplay";
 import {
   OPTION_SETUP_LABELS,
   optionPresetTooltip,
 } from "@/lib/risk/createRiskRulerPreset";
-import { OPTION_SETUP_TYPES, type OptionSetupType } from "@edge/chart-core";
+import { OPTION_SETUP_TYPES } from "@edge/chart-core";
+import EdgeIconButton from "../design-system/EdgeIconButton";
+import { headerButtonClass, segmentedTabClass } from "../design-system/styles";
+import { OptionsChainTable } from "./OptionsChainTable";
 import type { OptionsChainModel } from "./useOptionsChainModel";
 
 function SourceBadge({ source, stale }: { source?: string; stale?: boolean }) {
@@ -42,294 +44,22 @@ function WarningsList({ warnings }: { warnings?: string[] }) {
   );
 }
 
-function formatVolume(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return "—";
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(value);
-}
-
-function heatBarWidth(value: number | null | undefined, max: number): string {
-  if (value == null || !Number.isFinite(value) || max <= 0) return "0%";
-  return `${Math.min(100, (value / max) * 100).toFixed(1)}%`;
-}
-
-function strikeRowClass(
-  strike: number,
-  spot: number | null,
-  variant: "dialog" | "sidebar",
-): string {
-  if (spot == null || !Number.isFinite(spot)) return "";
-  const diff = Math.abs(strike - spot);
-  const isAtm = diff / spot < 0.005;
-  if (isAtm) {
-    return variant === "dialog"
-      ? "bg-[var(--edge-accent-blue)]/10 ring-1 ring-inset ring-[var(--edge-accent-blue)]/30"
-      : "bg-[var(--edge-bg-secondary)]";
-  }
-  if (variant === "dialog") {
-    return strike < spot
-      ? "bg-[var(--edge-positive)]/5"
-      : "bg-[var(--edge-negative)]/5";
-  }
-  return strike < spot
-    ? "text-[var(--edge-positive)]"
-    : "text-[var(--edge-negative)]";
-}
-
-function HeatCell({
-  value,
-  max,
-  children,
-  align = "left",
-}: {
-  value: number | null | undefined;
-  max: number;
-  children: ReactNode;
-  align?: "left" | "right";
-}) {
+function ExpirationPinBadge({ expiration }: { expiration: string }) {
   return (
-    <td className="relative px-1 py-0.5">
-      <div
-        className={`absolute inset-y-0 ${align === "right" ? "right-0" : "left-0"} bg-[var(--edge-accent-blue)]/15`}
-        style={{ width: heatBarWidth(value, max) }}
-        aria-hidden
-      />
-      <span className="relative z-[1] tabular-nums">{children}</span>
-    </td>
-  );
-}
-
-function ChainLoadingState({
-  symbol,
-  expiration,
-}: {
-  symbol: string;
-  expiration: string | null;
-}) {
-  const label = expiration
-    ? `Loading ${symbol} ${expiration} options chain…`
-    : `Loading ${symbol} options chain…`;
-
-  return (
-    <div
-      data-testid="options-chain-loading"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-      className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-md border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)]/40 px-4 py-8"
+    <span
+      data-testid={`options-exp-pin-${expiration}`}
+      aria-label="Pinned"
+      className="absolute right-0.5 top-0.5 text-[var(--edge-accent-blue)]"
     >
-      <div
-        data-testid="options-chain-loading-spinner"
-        className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--edge-border)] border-t-[var(--edge-accent-blue)]"
+      <svg
         aria-hidden
-      />
-      <div className="text-center">
-        <div className="text-xs font-medium text-[var(--edge-text-strong)]">{label}</div>
-        <div className="mt-1 text-[10px] text-[var(--edge-text-secondary)]">
-          Fetching strikes and quotes from market data…
-        </div>
-      </div>
-      <div className="w-full max-w-md space-y-2" aria-hidden>
-        {Array.from({ length: 6 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-3 animate-pulse rounded bg-[var(--edge-bg-tertiary)]"
-            style={{ width: `${70 + (index % 3) * 10}%` }}
-          />
-        ))}
-      </div>
-    </div>
+        viewBox="0 0 12 12"
+        className="h-2.5 w-2.5 fill-current"
+      >
+        <path d="M6 1.5 7.2 4.5H10.5L8 6.3 8.9 9.5 6 7.8 3.1 9.5 4 6.3 1.5 4.5H4.8L6 1.5Z" />
+      </svg>
+    </span>
   );
-}
-
-type ChainTableProps = {
-  contracts: StrikeRow[];
-  spotPrice: number | null;
-  variant: "dialog" | "sidebar";
-  chainMode: "atm" | "full";
-  chainLoading: boolean;
-  chainError: string | null;
-  symbol: string;
-  primaryExpiration: string | null;
-  onLoadAllStrikes: () => void;
-  onAnalyzeContract?: (contract: OptionContractSnapshot) => void;
-};
-
-function ChainTable({
-  contracts,
-  spotPrice,
-  variant,
-  chainMode,
-  chainLoading,
-  chainError,
-  symbol,
-  primaryExpiration,
-  onLoadAllStrikes,
-  onAnalyzeContract,
-}: ChainTableProps) {
-  const maxVolume = useMemoMax(contracts, (r) =>
-    Math.max(r.call?.volume ?? 0, r.put?.volume ?? 0),
-  );
-
-  if (chainLoading) {
-    return <ChainLoadingState symbol={symbol} expiration={primaryExpiration} />;
-  }
-
-  if (chainError) {
-    return (
-      <div data-testid="options-chain-error" className="text-[var(--edge-negative)]" role="alert">
-        {chainError}
-      </div>
-    );
-  }
-
-  if (primaryExpiration && contracts.length === 0) {
-    return <div className="text-[var(--edge-text-secondary)]">No contracts for this expiration.</div>;
-  }
-
-  if (contracts.length === 0) return null;
-
-  const isDialog = variant === "dialog";
-
-  return (
-    <>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-[10px] text-[var(--edge-text-secondary)]">
-          {chainMode === "atm" ? "ATM strikes" : "All strikes"}
-        </span>
-        {chainMode === "atm" && (
-          <button
-            type="button"
-            data-testid="options-load-all-strikes"
-            onClick={onLoadAllStrikes}
-            className="rounded bg-[var(--edge-bg-secondary)] px-2 py-1 text-[10px] text-[var(--edge-text-primary)] hover:bg-[var(--edge-bg-tertiary)]"
-          >
-            Load all strikes
-          </button>
-        )}
-      </div>
-      <div className={isDialog ? "overflow-x-auto" : ""}>
-        <table
-          data-testid="options-chain-table"
-          className={`w-full border-collapse text-[10px] ${isDialog ? "min-w-[720px]" : ""}`}
-        >
-          <thead className="sticky top-0 z-[2] bg-[var(--edge-surface-panel)]">
-            <tr className="text-[var(--edge-text-secondary)]">
-              {isDialog ? (
-                <>
-                  <th className="px-1 py-1 text-left font-medium">Call</th>
-                  <th className="px-1 py-1 text-left font-medium">Vol</th>
-                  <th className="px-1 py-1 text-left font-medium">Bid</th>
-                  <th className="px-1 py-1 text-left font-medium">Ask</th>
-                  <th className="px-1 py-1 text-center font-medium">Strike</th>
-                  <th className="px-1 py-1 text-left font-medium">Bid</th>
-                  <th className="px-1 py-1 text-left font-medium">Ask</th>
-                  <th className="px-1 py-1 text-left font-medium">Vol</th>
-                  <th className="px-1 py-1 text-left font-medium">Put</th>
-                </>
-              ) : (
-                <>
-                  <th className="px-1 py-1 text-left font-medium">Call bid</th>
-                  <th className="px-1 py-1 text-left font-medium">Call ask</th>
-                  <th className="px-1 py-1 text-left font-medium">Vol</th>
-                  <th className="px-1 py-1 text-left font-medium">OI</th>
-                  <th className="px-1 py-1 text-left font-medium">IV</th>
-                  <th className="px-1 py-1 text-left font-medium">Δ</th>
-                  <th className="px-1 py-1 text-center font-medium">Strike</th>
-                  <th className="px-1 py-1 text-left font-medium">Put bid</th>
-                  <th className="px-1 py-1 text-left font-medium">Put ask</th>
-                  <th className="px-1 py-1 text-left font-medium">Vol</th>
-                  <th className="px-1 py-1 text-left font-medium">OI</th>
-                  <th className="px-1 py-1 text-left font-medium">IV</th>
-                  <th className="px-1 py-1 text-left font-medium">Δ</th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {contracts.map((row) => (
-              <tr
-                key={row.strike}
-                data-testid={`options-chain-row-${row.strike}`}
-                className={`border-t border-[var(--edge-border)] tabular-nums ${strikeRowClass(row.strike, spotPrice, variant)}`}
-              >
-                {isDialog ? (
-                  <>
-                    <td className="px-1 py-0.5">
-                      {row.call && onAnalyzeContract ? (
-                        <button
-                          type="button"
-                          data-testid={`options-analyze-call-${row.strike}`}
-                          onClick={() => onAnalyzeContract(row.call!)}
-                          className="rounded bg-[var(--edge-bg-secondary)] px-1.5 py-0.5 text-[9px] text-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10"
-                        >
-                          Analyze
-                        </button>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <HeatCell value={row.call?.volume} max={maxVolume}>
-                      {formatVolume(row.call?.volume)}
-                    </HeatCell>
-                    <td className="px-1 py-0.5">{formatOptionPrice(row.call?.bid)}</td>
-                    <td className="px-1 py-0.5">{formatOptionPrice(row.call?.ask)}</td>
-                    <td className="px-1 py-0.5 text-center font-semibold text-[var(--edge-text-strong)]">
-                      {row.strike}
-                    </td>
-                    <td className="px-1 py-0.5">{formatOptionPrice(row.put?.bid)}</td>
-                    <td className="px-1 py-0.5">{formatOptionPrice(row.put?.ask)}</td>
-                    <HeatCell value={row.put?.volume} max={maxVolume} align="right">
-                      {formatVolume(row.put?.volume)}
-                    </HeatCell>
-                    <td className="px-1 py-0.5 text-right">
-                      {row.put && onAnalyzeContract ? (
-                        <button
-                          type="button"
-                          data-testid={`options-analyze-put-${row.strike}`}
-                          onClick={() => onAnalyzeContract(row.put!)}
-                          className="rounded bg-[var(--edge-bg-secondary)] px-1.5 py-0.5 text-[9px] text-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10"
-                        >
-                          Analyze
-                        </button>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td className="px-1 py-0.5">{formatOptionPrice(row.call?.bid)}</td>
-                    <td className="px-1 py-0.5">{formatOptionPrice(row.call?.ask)}</td>
-                    <td className="px-1 py-0.5">{row.call?.volume ?? "—"}</td>
-                    <td className="px-1 py-0.5">{row.call?.openInterest ?? "—"}</td>
-                    <td className="px-1 py-0.5">{formatOptionIv(row.call?.impliedVolatility)}</td>
-                    <td className="px-1 py-0.5">{formatOptionGreek(row.call?.delta)}</td>
-                    <td className="px-1 py-0.5 text-center font-medium">{row.strike}</td>
-                    <td className="px-1 py-0.5">{formatOptionPrice(row.put?.bid)}</td>
-                    <td className="px-1 py-0.5">{formatOptionPrice(row.put?.ask)}</td>
-                    <td className="px-1 py-0.5">{row.put?.volume ?? "—"}</td>
-                    <td className="px-1 py-0.5">{row.put?.openInterest ?? "—"}</td>
-                    <td className="px-1 py-0.5">{formatOptionIv(row.put?.impliedVolatility)}</td>
-                    <td className="px-1 py-0.5">{formatOptionGreek(row.put?.delta)}</td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
-
-function useMemoMax(contracts: StrikeRow[], selector: (row: StrikeRow) => number): number {
-  let max = 0;
-  for (const row of contracts) {
-    max = Math.max(max, selector(row));
-  }
-  return max;
 }
 
 function ExpirationTabs({
@@ -337,115 +67,166 @@ function ExpirationTabs({
   primaryExpiration,
   pinnedExpirations,
   onSelect,
-  compact,
 }: {
   expirations: string[];
   primaryExpiration: string | null;
   pinnedExpirations: string[];
   onSelect: (expiration: string) => void;
-  compact?: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollAffordances = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+    const maxScrollLeft = el.scrollWidth - el.clientWidth;
+    setCanScrollLeft(el.scrollLeft > 1);
+    setCanScrollRight(maxScrollLeft - el.scrollLeft > 1);
+  }, []);
+
+  useEffect(() => {
+    updateScrollAffordances();
+    const el = scrollRef.current;
+    if (!el) return;
+
+    el.addEventListener("scroll", updateScrollAffordances, { passive: true });
+    const observer = new ResizeObserver(updateScrollAffordances);
+    observer.observe(el);
+
+    return () => {
+      el.removeEventListener("scroll", updateScrollAffordances);
+      observer.disconnect();
+    };
+  }, [expirations, updateScrollAffordances]);
+
+  const scrollByAmount = (delta: number) => {
+    scrollRef.current?.scrollBy({ left: delta, behavior: "smooth" });
+  };
+
   return (
-    <div className={`flex gap-1 ${compact ? "flex-wrap" : "overflow-x-auto pb-1"}`}>
-      {expirations.map((expiration) => {
-        const selected = expiration === primaryExpiration;
-        const pinned = pinnedExpirations.includes(expiration);
-        return (
-          <button
-            key={expiration}
-            type="button"
-            data-testid={`options-exp-${expiration}`}
-            aria-pressed={selected}
-            onClick={() => onSelect(expiration)}
-            className={`shrink-0 rounded px-2 py-1 text-[10px] tabular-nums transition-colors ${
-              selected
-                ? "border border-[var(--edge-accent-blue)] bg-[var(--edge-accent-blue)]/15 text-[var(--edge-accent-blue)]"
-                : "bg-[var(--edge-bg-secondary)] text-[var(--edge-text-primary)] hover:bg-[var(--edge-bg-tertiary)]"
-            }`}
-          >
-            {expiration}
-            {pinned ? " · pinned" : ""}
-          </button>
-        );
-      })}
+    <div
+      data-testid="options-expiration-tabs"
+      className="flex min-w-0 items-center gap-0.5"
+    >
+      {canScrollLeft && (
+        <EdgeIconButton
+          size="sm"
+          aria-label="Scroll expirations left"
+          data-testid="options-exp-scroll-left"
+          onClick={() => scrollByAmount(-120)}
+        >
+          <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-current">
+            <path d="M10.5 3.5 6 8l4.5 4.5-.7.7L4.6 8l5.2-5.2.7.7Z" />
+          </svg>
+        </EdgeIconButton>
+      )}
+      <div
+        ref={scrollRef}
+        data-testid="options-expiration-tabs-scroll"
+        className="min-w-0 flex-1 overflow-x-auto rounded border border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <div className="flex flex-nowrap gap-0.5">
+          {expirations.map((expiration) => {
+            const selected = expiration === primaryExpiration;
+            const pinned = pinnedExpirations.includes(expiration);
+            return (
+              <button
+                key={expiration}
+                type="button"
+                data-testid={`options-exp-${expiration}`}
+                aria-pressed={selected}
+                aria-label={formatExpirationAriaLabel(expiration)}
+                title={expiration}
+                onClick={() => onSelect(expiration)}
+                className={`relative shrink-0 min-w-[3.25rem] px-2.5 py-1 text-xs tabular-nums transition-colors ${segmentedTabClass(selected)} ${
+                  selected
+                    ? "ring-1 ring-inset ring-[var(--edge-accent-blue)]/40"
+                    : ""
+                }`}
+              >
+                {pinned ? <ExpirationPinBadge expiration={expiration} /> : null}
+                <span className="block leading-tight">{formatExpirationTabLabel(expiration)}</span>
+                <span
+                  data-testid={`options-exp-dte-${expiration}`}
+                  className="block text-[10px] leading-tight text-[var(--edge-text-muted)]"
+                >
+                  {formatExpirationDteLabel(expiration)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {canScrollRight && (
+        <EdgeIconButton
+          size="sm"
+          aria-label="Scroll expirations right"
+          data-testid="options-exp-scroll-right"
+          onClick={() => scrollByAmount(120)}
+        >
+          <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-current">
+            <path d="M5.5 3.5 10 8l-4.5 4.5.7.7L11.4 8 6.2 2.8l-.7.7Z" />
+          </svg>
+        </EdgeIconButton>
+      )}
     </div>
   );
 }
 
 const RISK_PRESET_BUTTON_CLASS =
-  "w-full rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2.5 py-1.5 text-[10px] font-medium text-[var(--edge-text-primary)] shadow-sm transition-colors hover:border-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10 hover:text-[var(--edge-accent-blue)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--edge-accent-blue)] disabled:cursor-not-allowed disabled:border-[var(--edge-border)] disabled:bg-[var(--edge-bg-secondary)] disabled:text-[var(--edge-text-muted)] disabled:opacity-60 disabled:shadow-none";
+  "rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1.5 text-[10px] font-medium text-[var(--edge-text-primary)] shadow-sm transition-colors hover:border-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10 hover:text-[var(--edge-accent-blue)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--edge-accent-blue)] disabled:cursor-not-allowed disabled:border-[var(--edge-border)] disabled:bg-[var(--edge-bg-secondary)] disabled:text-[var(--edge-text-muted)] disabled:opacity-60 disabled:shadow-none";
 
 function RiskRulerPresets({
   model,
-  compact,
-  atTop,
+  variant,
 }: {
   model: OptionsChainModel;
-  compact?: boolean;
-  atTop?: boolean;
+  variant: "dialog" | "sidebar";
 }) {
   const { spotPrice, chainContracts, presetStatuses, addRiskRulerPreset } = model;
   if (spotPrice == null) return null;
 
+  const buttonLayoutClass =
+    variant === "dialog"
+      ? "grid grid-cols-2 gap-1.5 sm:grid-cols-4"
+      : "flex flex-wrap gap-1.5";
+
   return (
     <div
       data-testid="options-risk-ruler-presets"
-      className={
-        atTop
-          ? "mb-3 rounded-md border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)]/30 px-3 py-2.5"
-          : `border-t border-[var(--edge-border)] pt-3 ${compact ? "mt-2" : "mt-3"}`
-      }
+      className="shrink-0 border-t border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-3 py-2"
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--edge-text-strong)]">
-          Quick risk ruler
-        </div>
-        <span className="text-[10px] text-[var(--edge-text-secondary)]">Click to add to chart</span>
+      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--edge-text-muted)]">
+        Quick presets
       </div>
-      <div className={compact ? "space-y-2" : "grid grid-cols-2 gap-2"}>
+      <div className={buttonLayoutClass}>
         {OPTION_SETUP_TYPES.map((setupType) => {
           const status = presetStatuses?.[setupType];
           const chainLoaded = chainContracts.length > 0;
           const disabled = chainLoaded && status != null && !status.ok;
+          const tooltip = [
+            optionPresetTooltip(setupType),
+            status?.ok ? status.preview : status?.reason,
+          ]
+            .filter(Boolean)
+            .join(" — ");
           return (
-            <div
+            <button
               key={setupType}
-              data-testid={`options-risk-preset-row-${setupType}`}
-              className="space-y-1"
+              type="button"
+              data-testid={`options-risk-preset-${setupType}`}
+              title={tooltip}
+              disabled={disabled}
+              onClick={() => addRiskRulerPreset(setupType)}
+              className={`${RISK_PRESET_BUTTON_CLASS} ${variant === "sidebar" ? "min-w-[7rem] flex-1" : "w-full"}`}
             >
-              <button
-                type="button"
-                data-testid={`options-risk-preset-${setupType}`}
-                title={optionPresetTooltip(setupType)}
-                disabled={disabled}
-                onClick={() => addRiskRulerPreset(setupType)}
-                className={RISK_PRESET_BUTTON_CLASS}
-              >
-                {OPTION_SETUP_LABELS[setupType]}
-              </button>
-              {status?.ok ? (
-                <div
-                  data-testid={`options-risk-preset-preview-${setupType}`}
-                  className="text-[10px] text-[var(--edge-text-secondary)]"
-                >
-                  {status.preview}
-                </div>
-              ) : chainLoaded && status ? (
-                <div
-                  data-testid={`options-risk-preset-reason-${setupType}`}
-                  className="text-[10px] text-[var(--edge-text-secondary)]"
-                >
-                  {status.reason}
-                </div>
-              ) : !chainLoaded ? (
-                <div
-                  data-testid={`options-risk-preset-fallback-${setupType}`}
-                  className="text-[10px] text-[var(--edge-text-secondary)]"
-                >
-                  Spot estimate until chain loads
-                </div>
-              ) : null}
-            </div>
+              {OPTION_SETUP_LABELS[setupType]}
+            </button>
           );
         })}
       </div>
@@ -464,16 +245,18 @@ function PinControls({ model }: { model: OptionsChainModel }) {
 
   if (!primaryExpiration || !snapshot) return null;
 
+  const pinButtonClass = headerButtonClass("dark");
+
   return (
-    <div className="mt-2 flex flex-wrap gap-2">
+    <div className="flex shrink-0 items-center gap-1.5">
       <button
         type="button"
         data-testid="options-pin-primary"
         onClick={() => pinExpiration(primaryExpiration)}
         disabled={isExpirationPinned(primaryExpiration)}
-        className="rounded bg-[var(--edge-bg-secondary)] px-2 py-1 text-[10px] text-[var(--edge-text-primary)] hover:bg-[var(--edge-bg-tertiary)] disabled:opacity-50"
+        className={pinButtonClass}
       >
-        Pin expiration
+        Pin
       </button>
       {expirations.length > 1 && (
         <select
@@ -487,18 +270,102 @@ function PinControls({ model }: { model: OptionsChainModel }) {
               event.target.value = "";
             }
           }}
-          className="rounded bg-[var(--edge-bg-secondary)] px-2 py-1 text-[10px] text-[var(--edge-text-primary)]"
+          className="max-w-[7rem] rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1.5 py-1 text-[10px] text-[var(--edge-text-primary)]"
         >
-          <option value="">Add another…</option>
+          <option value="">+ pin</option>
           {expirations
             .filter((exp) => exp !== primaryExpiration)
             .filter((exp) => !isExpirationPinned(exp))
             .map((exp) => (
               <option key={exp} value={exp}>
-                {exp}
+                {formatExpirationTabLabel(exp)}
               </option>
             ))}
         </select>
+      )}
+    </div>
+  );
+}
+
+function OptionsChainHeader({
+  model,
+  meta,
+  warnings,
+  variant,
+}: {
+  model: OptionsChainModel;
+  meta: OptionsChainModel["expMeta"];
+  warnings: string[];
+  variant: "dialog" | "sidebar";
+}) {
+  const {
+    symbol,
+    spotPrice,
+    expirations,
+    expLoading,
+    expError,
+    primaryExpiration,
+    pinnedExpirations,
+    selectExpiration,
+  } = model;
+
+  const spotLine = spotPrice != null ? `Spot ${spotPrice.toFixed(2)}` : null;
+
+  return (
+    <div
+      data-testid="options-chain-header"
+      className={`shrink-0 border-b border-[var(--edge-border)] ${variant === "sidebar" ? "px-3 py-2" : "px-4 py-2"}`}
+    >
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div
+            className={`font-semibold text-[var(--edge-text-strong)] ${variant === "dialog" ? "text-sm" : ""}`}
+          >
+            {variant === "dialog" ? `${symbol} options chain` : `${symbol} options`}
+          </div>
+          {spotLine && (
+            <div className="text-[10px] text-[var(--edge-text-secondary)]">{spotLine}</div>
+          )}
+        </div>
+        <SourceBadge source={meta?.source} stale={meta?.stale} />
+      </div>
+      <WarningsList warnings={warnings} />
+      {expLoading && (
+        <div
+          data-testid="options-exp-loading"
+          role={variant === "dialog" ? "status" : undefined}
+          className={
+            variant === "dialog"
+              ? "rounded-md border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)]/40 px-3 py-2 text-[var(--edge-text-secondary)]"
+              : "text-[var(--edge-text-secondary)]"
+          }
+        >
+          Loading expirations…
+        </div>
+      )}
+      {expError && (
+        <div data-testid="options-exp-error" className="text-[var(--edge-negative)]" role="alert">
+          {expError}
+        </div>
+      )}
+      {!expLoading && !expError && expirations.length === 0 && (
+        <div className="text-[var(--edge-text-secondary)]">No expirations available.</div>
+      )}
+      {expirations.length > 0 && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--edge-text-muted)]">
+              Expirations
+            </span>
+            <PinControls model={model} />
+          </div>
+          <ExpirationTabs
+            expirations={expirations}
+            primaryExpiration={primaryExpiration}
+            pinnedExpirations={pinnedExpirations}
+            onSelect={selectExpiration}
+          />
+        </div>
       )}
     </div>
   );
@@ -519,18 +386,13 @@ export function OptionsChainView({
     snapshot,
     symbol,
     spotPrice,
-    expirations,
     expMeta,
-    expLoading,
-    expError,
-    primaryExpiration,
     chainMeta,
+    primaryExpiration,
     chainLoading,
     chainError,
     contracts,
     chainMode,
-    pinnedExpirations,
-    selectExpiration,
     loadAllStrikes,
   } = model;
 
@@ -553,125 +415,35 @@ export function OptionsChainView({
   const meta = chainMeta ?? expMeta;
   const warnings = [...(expMeta?.warnings ?? []), ...(chainMeta?.warnings ?? [])];
 
-  if (variant === "sidebar") {
-    return (
-      <div data-testid="options-panel" className="flex min-h-0 flex-1 flex-col text-xs">
-        <div className="border-b border-[var(--edge-border)] px-3 py-2">
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <div className="font-semibold text-[var(--edge-text-strong)]">{symbol} options</div>
-            <SourceBadge source={meta?.source} stale={meta?.stale} />
-          </div>
-          <WarningsList warnings={warnings} />
-          {expLoading && (
-            <div data-testid="options-exp-loading" className="text-[var(--edge-text-secondary)]">
-              Loading expirations…
-            </div>
-          )}
-          {expError && (
-            <div data-testid="options-exp-error" className="text-[var(--edge-negative)]" role="alert">
-              {expError}
-            </div>
-          )}
-          {!expLoading && !expError && expirations.length === 0 && (
-            <div className="text-[var(--edge-text-secondary)]">No expirations available.</div>
-          )}
-          {expirations.length > 0 && (
-            <ExpirationTabs
-              expirations={expirations}
-              primaryExpiration={primaryExpiration}
-              pinnedExpirations={pinnedExpirations}
-              onSelect={selectExpiration}
-              compact
-            />
-          )}
-          <PinControls model={model} />
-          <RiskRulerPresets model={model} compact />
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto px-2 py-2">
-          <ChainTable
-            contracts={contracts}
-            spotPrice={spotPrice}
-            variant="sidebar"
-            chainMode={chainMode}
-            chainLoading={chainLoading}
-            chainError={chainError}
-            symbol={symbol}
-            primaryExpiration={primaryExpiration}
-            onLoadAllStrikes={loadAllStrikes}
-          />
-        </div>
-      </div>
-    );
-  }
+  const chainTable = (
+    <OptionsChainTable
+      contracts={contracts}
+      spotPrice={spotPrice}
+      chainMode={chainMode}
+      chainLoading={chainLoading}
+      chainError={chainError}
+      symbol={symbol}
+      primaryExpiration={primaryExpiration}
+      onLoadAllStrikes={loadAllStrikes}
+      onAnalyzeContract={onAnalyzeContract}
+    />
+  );
+
+  const shellClass =
+    variant === "sidebar"
+      ? "flex min-h-0 flex-1 flex-col text-xs"
+      : "flex min-h-0 flex-1 flex-col overflow-hidden text-xs";
 
   return (
-    <div
-      data-testid="options-chain-view-dialog"
-      className="flex min-h-0 flex-1 flex-col overflow-hidden text-xs"
-    >
+    <div data-testid={variant === "sidebar" ? "options-panel" : "options-chain-view-dialog"} className={shellClass}>
+      <OptionsChainHeader model={model} meta={meta} warnings={warnings} variant={variant} />
       <div
-        data-testid="options-chain-dialog-scroll"
-        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+        data-testid="options-chain-scroll"
+        className={`min-h-0 flex-1 overflow-auto ${variant === "sidebar" ? "px-2 py-2" : "px-3 py-2"}`}
       >
-        <div className="border-b border-[var(--edge-border)] px-4 py-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div>
-              <div className="text-sm font-semibold text-[var(--edge-text-strong)]">
-                {symbol} options chain
-              </div>
-              {spotPrice != null && (
-                <div className="mt-0.5 text-[10px] text-[var(--edge-text-secondary)]">
-                  Spot {spotPrice.toFixed(2)}
-                  {primaryExpiration ? ` · ${primaryExpiration}` : ""}
-                </div>
-              )}
-            </div>
-            <SourceBadge source={meta?.source} stale={meta?.stale} />
-          </div>
-          <WarningsList warnings={warnings} />
-          {expLoading && (
-            <div
-              data-testid="options-exp-loading"
-              role="status"
-              className="rounded-md border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)]/40 px-3 py-2 text-[var(--edge-text-secondary)]"
-            >
-              Loading expirations…
-            </div>
-          )}
-          {expError && (
-            <div data-testid="options-exp-error" className="text-[var(--edge-negative)]" role="alert">
-              {expError}
-            </div>
-          )}
-          {!expLoading && !expError && expirations.length === 0 && (
-            <div className="text-[var(--edge-text-secondary)]">No expirations available.</div>
-          )}
-          {expirations.length > 0 && (
-            <ExpirationTabs
-              expirations={expirations}
-              primaryExpiration={primaryExpiration}
-              pinnedExpirations={pinnedExpirations}
-              onSelect={selectExpiration}
-            />
-          )}
-          <PinControls model={model} />
-          <RiskRulerPresets model={model} atTop />
-        </div>
-        <div className="px-3 py-2">
-          <ChainTable
-            contracts={contracts}
-            spotPrice={spotPrice}
-            variant="dialog"
-            chainMode={chainMode}
-            chainLoading={chainLoading}
-            chainError={chainError}
-            symbol={symbol}
-            primaryExpiration={primaryExpiration}
-            onLoadAllStrikes={loadAllStrikes}
-            onAnalyzeContract={onAnalyzeContract}
-          />
-        </div>
+        {chainTable}
       </div>
+      <RiskRulerPresets model={model} variant={variant} />
     </div>
   );
 }
