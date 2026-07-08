@@ -5,8 +5,9 @@ import { modalBackdropClass, modalShellClass } from "./styles";
 
 type Props = {
   open: boolean;
-  title: string;
-  subtitle?: string;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  ariaLabel?: string;
   onClose: () => void;
   maxWidth?: "sm" | "md" | "lg" | "full";
   children: ReactNode;
@@ -27,6 +28,7 @@ export default function EdgeModalShell({
   open,
   title,
   subtitle,
+  ariaLabel,
   onClose,
   maxWidth = "md",
   children,
@@ -46,6 +48,8 @@ export default function EdgeModalShell({
 
   if (!open) return null;
 
+  const dialogLabel = ariaLabel ?? (typeof title === "string" ? title : "Dialog");
+
   const alignClass =
     align === "center"
       ? "items-center justify-center"
@@ -61,7 +65,7 @@ export default function EdgeModalShell({
     >
       <div
         role="dialog"
-        aria-label={title}
+        aria-label={dialogLabel}
         className={`${modalShellClass()} w-full ${maxWidthClass[maxWidth]}`}
         onMouseDown={(e) => e.stopPropagation()}
       >

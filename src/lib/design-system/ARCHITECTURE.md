@@ -67,6 +67,7 @@ Import from `src/app/components/design-system/index.ts`:
 | `EdgeButton` / `EdgeIconButton` | Toolbar and header actions; `EdgeButton` supports `variant="primary"` for filled accent CTAs |
 | `EdgeMenuItem` / `EdgeMenuSectionHeader` | Context menus and dropdown lists |
 | `EdgeModalShell` | Dialog shells (settings, search, confirmations); optional `headerActions` beside title, `footer` for bottom controls |
+| `EdgeSlideOver` | Right-side overlay detail panels (~⅓ or ½ viewport); backdrop + Escape dismiss; portaled to `document.body` |
 | `EdgeSearchInput` | Modal search fields |
 | `EdgeSegmentedTabs` | 2–4 way panel tabs (Object tree / Data window) |
 | `EdgePanelHeader` | Sidebar panel title row |
@@ -91,6 +92,7 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Floating panel window | `sidebar/{FloatingPanelShell,FloatingPanelHost}.tsx` — draggable/resizable pop-out over chart; **Dock** returns to sidebar; geometry persisted in `layout.sidebar.floatingGeometry` |
 | Panel Pop out / Dock | `sidebar/{PanelPresentationContext,PanelChromeActions}.tsx` — `PanelPopOutButton` in panel headers; state in `layout.sidebar.presentation` (`docked` \| `floating`) |
 | Centered modal (short flows) | `EdgeModalShell` — symbol search, confirmations; not for persistent tools (use floating panel instead) |
+| Right overlay detail panel | `EdgeSlideOver` — journal trade review, future research/settings sub-panels; overlays content without reflow |
 | Object tree / data window | `ObjectTree.tsx` |
 | Watchlist panel | `watchlist/WatchlistPanel.tsx` |
 | Bottom range bar | `ChartRangeBar.tsx` |

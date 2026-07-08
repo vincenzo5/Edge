@@ -18,7 +18,7 @@ const VIEWPORT_PADDING_PX = 8;
 const MAX_TOOLTIP_WIDTH_PX = 224; // Tailwind max-w-56.
 const ESTIMATED_TOOLTIP_HEIGHT_PX = 48;
 
-type Side = 'bottom' | 'left' | 'right';
+type Side = 'bottom' | 'left' | 'right' | 'top';
 
 type Props = {
   content?: string;
@@ -32,6 +32,7 @@ type Props = {
 
 const PANEL_POSITION: Record<Side, string> = {
   bottom: 'left-1/2 top-full z-[100] mt-1 -translate-x-1/2',
+  top: 'left-1/2 bottom-full z-[100] mb-1 -translate-x-1/2',
   left: 'right-full top-1/2 z-[100] mr-1 -translate-y-1/2',
   right: 'left-full top-1/2 z-[100] ml-1 -translate-y-1/2',
 };
@@ -73,6 +74,16 @@ function panelStyle(rect: DOMRect, side: Side): CSSProperties {
       top: verticalCenter,
       left: hasRoomRight ? rect.right + 4 : rect.left - 4,
       transform: hasRoomRight ? 'translateY(-50%)' : 'translate(-100%, -50%)',
+      zIndex: 10_000,
+    };
+  }
+  if (side === 'top') {
+    const hasRoomAbove = rect.top - 4 - ESTIMATED_TOOLTIP_HEIGHT_PX >= VIEWPORT_PADDING_PX;
+    return {
+      position: 'fixed',
+      top: hasRoomAbove ? rect.top - 4 : rect.bottom + 4,
+      left: horizontalCenter,
+      transform: hasRoomAbove ? 'translate(-50%, -100%)' : 'translateX(-50%)',
       zIndex: 10_000,
     };
   }

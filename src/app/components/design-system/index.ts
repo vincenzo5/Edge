@@ -3,6 +3,7 @@ export { default as EdgeIconButton } from "./EdgeIconButton";
 export { default as EdgeMenuItem } from "./EdgeMenuItem";
 export { default as EdgeMenuSectionHeader } from "./EdgeMenuSectionHeader";
 export { default as EdgeModalShell } from "./EdgeModalShell";
+export { default as EdgeSlideOver } from "./EdgeSlideOver";
 export { default as EdgeSearchInput } from "./EdgeSearchInput";
 export { default as EdgeSegmentedTabs } from "./EdgeSegmentedTabs";
 export type { EdgeSegment } from "./EdgeSegmentedTabs";

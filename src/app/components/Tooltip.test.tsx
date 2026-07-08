@@ -87,6 +87,35 @@ describe('Tooltip', () => {
     expect(screen.getByRole('tooltip')).toHaveStyle({ left: '120px' });
   });
 
+  it('renders portaled tooltip above trigger when side is top', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 100,
+      y: 80,
+      width: 16,
+      height: 16,
+      top: 80,
+      right: 116,
+      bottom: 96,
+      left: 100,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <Tooltip content="Net P&L help" theme="dark" side="top" portaled>
+        <button type="button">Info</button>
+      </Tooltip>,
+    );
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Info' }));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toHaveTextContent('Net P&L help');
+    expect(tooltip).toHaveStyle({ top: '76px', transform: 'translate(-50%, -100%)' });
+  });
+
   it('hides tooltip on mouse leave', () => {
     render(
       <Tooltip content="Opening price for this bar" theme="dark">

@@ -79,6 +79,18 @@ export function modalBackdropClass(): string {
   return "fixed inset-0 z-[100] flex edge-modal-backdrop px-5";
 }
 
+export function slideOverBackdropClass(): string {
+  return "fixed inset-0 z-[100] edge-modal-backdrop";
+}
+
+export function slideOverPanelClass(width: "third" | "half"): string {
+  const widthClass =
+    width === "half"
+      ? "w-[min(50vw,640px)] min-w-[360px]"
+      : "w-[min(33vw,480px)] min-w-[320px]";
+  return `fixed right-0 top-0 z-[101] flex h-full flex-col overflow-hidden border-l border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)] shadow-2xl motion-safe:transition-transform motion-safe:duration-200 ${widthClass}`;
+}
+
 export function searchInputShellClass(): string {
   return "flex h-10 items-center gap-2 rounded-[var(--edge-radius-md)] border border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)] px-3";
 }
