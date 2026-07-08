@@ -131,7 +131,38 @@ describe("OptionsPanel", () => {
       if (url.includes("/api/options/chain")) {
         return new Response(
           JSON.stringify({
-            chain: { underlying: "AAPL", expiration: "2026-07-11", contracts: [] },
+            chain: {
+              underlying: "AAPL",
+              expiration: "2026-07-11",
+              contracts: [
+                {
+                  contractSymbol: "AAPL260711C00150000",
+                  underlying: "AAPL",
+                  type: "call",
+                  expiration: "2026-07-11",
+                  strike: 150,
+                  bid: 1,
+                  ask: 1.2,
+                  last: 1.15,
+                  delta: 0.52,
+                  volume: 100,
+                  updatedAt: Date.now(),
+                },
+                {
+                  contractSymbol: "AAPL260711P00150000",
+                  underlying: "AAPL",
+                  type: "put",
+                  expiration: "2026-07-11",
+                  strike: 150,
+                  bid: 0.9,
+                  ask: 1.0,
+                  last: 0.95,
+                  delta: -0.48,
+                  volume: 80,
+                  updatedAt: Date.now(),
+                },
+              ],
+            },
             meta: { source: "massive" },
           }),
           { status: 200 },
@@ -153,7 +184,7 @@ describe("OptionsPanel", () => {
     expect(screen.getByText("Focus a chart to view options.")).toBeInTheDocument();
   });
 
-  it("shows compact sidebar view for active symbol", () => {
+  it("shows compact sidebar view for active symbol", async () => {
     render(
       <ActiveChartProvider>
         <OptionsSessionProvider>
@@ -176,7 +207,11 @@ describe("OptionsPanel", () => {
     expect(screen.getByTestId("options-panel")).toBeInTheDocument();
     expect(screen.getByText("AAPL options")).toBeInTheDocument();
     expect(screen.getByTestId("panel-pop-out")).toHaveAttribute("aria-label", "Pop out");
-    expect(screen.queryByTestId("options-chain-table")).toBeNull();
+    expect(await screen.findByTestId("options-exp-2026-07-11")).toHaveTextContent("Jul 11");
+    expect(await screen.findByTestId("options-chain-table")).toBeInTheDocument();
+    expect(screen.getByTestId("options-chain-strike-150")).toBeInTheDocument();
+    expect(screen.getAllByText("1.15").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("0.95").length).toBeGreaterThan(0);
   });
 
   it("calls popOut when Pop out button is clicked", () => {
