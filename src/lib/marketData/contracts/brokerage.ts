@@ -93,8 +93,14 @@ export const AccountExecutionSchema = z.object({
   cumQty: z.number().nullable().optional(),
   avgPrice: z.number().nullable().optional(),
   orderId: z.number().nullable().optional(),
+  permId: z.number().nullable().optional(),
+  orderRef: z.string().nullable().optional(),
+  exchange: z.string().nullable().optional(),
+  /** @deprecated Prefer contract.symbol — kept for backward compatibility with cached payloads */
   symbol: z.string().nullable().optional(),
+  /** @deprecated Prefer contract.secType */
   secType: z.string().nullable().optional(),
+  contract: BrokerageContractSchema.optional(),
   commission: z.number().nullable().optional(),
   commissionCurrency: z.string().nullable().optional(),
   realizedPNL: z.number().nullable().optional(),
@@ -102,6 +108,26 @@ export const AccountExecutionSchema = z.object({
 });
 
 export type AccountExecution = z.infer<typeof AccountExecutionSchema>;
+
+/** Human-readable label for a fill row (supports OPT contracts). */
+export function formatExecutionLabel(fill: AccountExecution): string {
+  const contract = fill.contract;
+  const secType = contract?.secType ?? fill.secType;
+  const symbol =
+    (secType === "OPT" && contract?.localSymbol?.trim()) ||
+    contract?.symbol ||
+    fill.symbol ||
+    "—";
+  const side = fill.side ?? "—";
+  const qty = fill.shares ?? "—";
+  const price = fill.price ?? "—";
+  if (secType === "OPT" && contract?.strike != null && contract.right) {
+    const expiry = contract.lastTradeDateOrContractMonth ?? "";
+    const expirySuffix = expiry ? ` ${expiry}` : "";
+    return `${symbol} · ${contract.strike}${contract.right}${expirySuffix} · ${side} ${qty} @ ${price}`;
+  }
+  return `${symbol} · ${side} ${qty} @ ${price}`;
+}
 
 export const WhatIfRequestSchema = z.object({
   symbol: z.string().min(1),
