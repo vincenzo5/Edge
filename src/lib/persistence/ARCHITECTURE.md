@@ -29,10 +29,10 @@ Drizzle ORM + Postgres
 | Module | Role |
 |--------|------|
 | `common.ts` | Schema version, sync envelope, error codes, JSON body parsing |
-| `schemas/*.ts` | Zod schemas for workspace, watchlist, templates, notes |
-| `repositories/*.ts` | Database CRUD with revision tracking |
-| `client/*.ts` | Fetch wrappers for API routes |
-| `sync/*.ts` | React hooks for bidirectional sync |
+| `schemas/*.ts` | Zod schemas for workspace, watchlist, screener, templates, notes, journal |
+| `repositories/*.ts` | Database CRUD with revision tracking (includes `journalRepository.ts`) |
+| `client/*.ts` | Fetch wrappers for API routes (includes `journalClient.ts` with localStorage fallback) |
+| `sync/*.ts` | React hooks for bidirectional sync; `reconcileChartWorkspaces.ts` archives orphan remote workspaces on tab close |
 | `sync/syncMetadata.ts` | Local revision tracking for conflict detection |
 | `auth/getCurrentUser.ts` | Resolve signed dev session cookie (no auto-create) |
 | `auth/devSession.ts` | Establish/clear dev session; layout bootstrap |
@@ -82,6 +82,7 @@ Drizzle ORM + Postgres
 - Persistence is optional — `isPersistenceEnabled()` checks `DATABASE_URL`.
 - localStorage remains primary for layout when Postgres unavailable (`tv-ai:workspace-tabs:v1`; legacy `tv-ai:layout:v1` migrates on load).
 - Each workspace tab stores embedded `remote` sync metadata (`resourceId`, `syncRevision`, `updatedAt`); active tab debounced PUT (800 ms) via `useWorkspaceTabsRemoteSync`.
+- Closing a workspace tab calls `reconcileChartWorkspacesAfterTabClose()` to archive remote chart workspaces no longer linked to open tabs (records dismissed IDs in `tv-ai:workspace-tabs:dismissed-remotes:v1` so they are not auto-reopened).
 - All request bodies MUST validate against Zod schemas.
 - MUST NOT commit secrets (see `.env.example` for required vars).
 
