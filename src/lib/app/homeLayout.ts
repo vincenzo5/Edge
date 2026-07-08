@@ -1,3 +1,5 @@
+import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
+
 export type HomeLayoutMode =
   | "tri-pane"
   | "dual-stack"
@@ -13,7 +15,7 @@ export const HOME_LAYOUT_BREAKPOINTS = {
 } as const;
 
 export const HOME_LAYOUT_DIMENSIONS = {
-  navRailWidth: 64,
+  navRailWidth: LAYOUT_DIMENSIONS.sidebarRailWidth,
   chartsMin: 560,
   sidePanelMin: 320,
   sidePanelComfort: 360,
@@ -63,6 +65,6 @@ export function resolveHomeLayoutMode(
   return "hub";
 }
 
-export function homeLayoutShowsAppNav(mode: HomeLayoutMode): boolean {
-  return mode !== "hub";
+export function homeLayoutShowsAppNav(_mode: HomeLayoutMode): boolean {
+  return true;
 }

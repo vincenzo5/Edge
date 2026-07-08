@@ -38,6 +38,8 @@ import {
 } from "@/lib/chartConfig";
 import type { Interval } from "@/lib/chart/contracts";
 import { rangeForManualInterval } from "@/lib/chart/rangeInterval";
+import { useChartDeepLinkBootstrap } from "@/app/components/journal/JournalChartOverlayProvider";
+import type { ChartDeepLinkParams } from "@/lib/journal/chartDeepLink";
 import { saveWorkspaceTabs } from "@/lib/app/workspaceTabsStorage";
 import {
   cloneLayoutForNewTab,
@@ -63,7 +65,7 @@ import type { ScreenerSessionState } from "@/lib/screener/screenerSession";
 import { createDefaultScreenerSession } from "@/lib/screener/screenerSession";
 import { resolveSidebarPanelWidth } from "@/lib/responsive/sidebarWidth";
 import { useChartTemplateLibraryRemoteSync } from "@/lib/persistence/sync/useChartTemplateLibraryRemoteSync";
-import { archiveChartWorkspaceRemote } from "@/lib/persistence/client/chartWorkspaceClient";
+import { reconcileChartWorkspacesAfterTabClose } from "@/lib/persistence/sync/reconcileChartWorkspaces";
 import { useWorkspaceTabsRemoteSync } from "@/lib/persistence/sync/useWorkspaceTabsRemoteSync";
 import WorkspaceTabBar from "./chart-chrome/WorkspaceTabBar";
 import { useResponsiveLayout } from "@/lib/responsive/useResponsiveLayout";
@@ -93,7 +95,10 @@ export default function StockApp() {
     useRef<AppBootstrapResult["finishRemoteWorkspaceMerge"]>(undefined);
   const [hydrated, setHydrated] = useState(false);
   const hydratedRef = useRef(false);
+  const workspaceTabsRef = useRef(workspaceTabs);
   const flushActiveTabSaveRef = useRef<() => Promise<void>>(async () => {});
+
+  workspaceTabsRef.current = workspaceTabs;
 
   const layout = useMemo(() => getActiveLayout(workspaceTabs), [workspaceTabs]);
   const activeTab = useMemo(() => getActiveTab(workspaceTabs), [workspaceTabs]);
@@ -106,7 +111,9 @@ export default function StockApp() {
   );
 
   const applyBootstrapResult = useCallback((result: AppBootstrapResult) => {
+    workspaceTabsRef.current = result.workspaceTabs;
     setWorkspaceTabs(result.workspaceTabs);
+    saveWorkspaceTabs(result.workspaceTabs);
     setWatchlistBootstrap(result.watchlist);
     setScreenerBootstrap(result.screener);
     setScreenerSessionBootstrap(result.screenerSession);
@@ -162,6 +169,7 @@ export default function StockApp() {
     (incoming: WorkspaceTabsState, applyOptions?: ApplyWorkspaceTabsOptions) => {
       setWorkspaceTabs((current) => {
         const next = mergeWorkspaceTabsApply(current, incoming, applyOptions);
+        workspaceTabsRef.current = next;
         saveWorkspaceTabs(next);
         return next;
       });
@@ -335,6 +343,40 @@ export default function StockApp() {
     [activeCellIndex, activeCell, applyCellUpdate],
   );
 
+  const handleChartDeepLink = useCallback(
+    (params: ChartDeepLinkParams) => {
+      if (!params.symbol) return;
+      const validIntervals = new Set<Interval>([
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d",
+        "1wk",
+        "1mo",
+      ]);
+      const interval =
+        params.interval && validIntervals.has(params.interval)
+          ? params.interval
+          : undefined;
+      patchActiveCell({
+        symbol: params.symbol,
+        ...(interval
+          ? {
+              interval,
+              range: rangeForManualInterval(interval),
+              rangePreset: null,
+            }
+          : {}),
+      });
+    },
+    [patchActiveCell],
+  );
+
+  useChartDeepLinkBootstrap(hydrated, handleChartDeepLink);
+
   const handleSymbolSelect = useCallback(
     (result: { symbol: string; name: string; exchange: string }) => {
       patchActiveCell({
@@ -388,9 +430,9 @@ export default function StockApp() {
     setLayout((prev) => ({ ...prev, theme }));
   }, [setLayout]);
 
-  const runWithFlush = useCallback(async (action: () => void) => {
+  const runWithFlush = useCallback(async (action: () => void | Promise<void>) => {
     await flushActiveTabSaveRef.current();
-    action();
+    await action();
   }, []);
 
   const handleTabSelect = useCallback(
@@ -415,14 +457,20 @@ export default function StockApp() {
   const handleTabClose = useCallback(
     (tabId: string) => {
       void runWithFlush(async () => {
-        let remoteId: string | undefined;
-        setWorkspaceTabs((prev) => {
-          const tab = prev.tabs.find((t) => t.id === tabId);
-          remoteId = tab?.remote?.resourceId;
-          return closeTab(prev, tabId);
-        });
-        if (remoteId) {
-          await archiveChartWorkspaceRemote(remoteId);
+        const current = workspaceTabsRef.current;
+        const tab = current.tabs.find((t) => t.id === tabId);
+        const remoteId = tab?.remote?.resourceId;
+        const next = closeTab(current, tabId);
+        if (next === current) return;
+        workspaceTabsRef.current = next;
+        setWorkspaceTabs(next);
+        saveWorkspaceTabs(next);
+        const { failed } = await reconcileChartWorkspacesAfterTabClose(next, remoteId);
+        if (failed.length > 0 && process.env.NODE_ENV !== "production") {
+          console.warn(
+            "[Edge] Some chart workspaces could not be archived in Postgres:",
+            failed,
+          );
         }
       });
     },
@@ -532,7 +580,7 @@ export default function StockApp() {
       activePanel={layout.sidebar?.activePanel ?? null}
       onActivePanelChange={handleSidebarPanelChange}
     >
-      <div className="edge-app-shell edge-app-enter flex h-screen min-h-0 flex-col overflow-hidden">
+      <div className="edge-app-shell edge-app-enter flex h-full min-h-0 flex-col overflow-hidden">
         <ChartActionsProvider
           activeCellSymbol={activeCell.symbol}
           loadSymbolIntoActiveChart={handleSymbolSelect}

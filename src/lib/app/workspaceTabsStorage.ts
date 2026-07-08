@@ -9,6 +9,7 @@ import {
 } from "./workspaceTabs";
 
 export const WORKSPACE_TABS_STORAGE_KEY = "tv-ai:workspace-tabs:v1";
+export const DISMISSED_REMOTE_WORKSPACES_KEY = "tv-ai:workspace-tabs:dismissed-remotes:v1";
 
 function readLegacyRemoteMetadata(): WorkspaceTabRemote | undefined {
   const meta = getChartWorkspaceSyncMetadata();
@@ -84,6 +85,15 @@ export function saveWorkspaceTabs(state: WorkspaceTabsState): void {
   }
 }
 
+export function hasPersistedWorkspaceTabs(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(WORKSPACE_TABS_STORAGE_KEY) != null;
+  } catch {
+    return false;
+  }
+}
+
 export function clearWorkspaceTabs(): void {
   if (typeof window === "undefined") return;
   try {
@@ -91,6 +101,50 @@ export function clearWorkspaceTabs(): void {
   } catch {
     // ignore
   }
+}
+
+function readDismissedRemoteIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(DISMISSED_REMOTE_WORKSPACES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id): id is string => typeof id === "string" && id.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function writeDismissedRemoteIds(ids: string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (ids.length === 0) {
+      window.localStorage.removeItem(DISMISSED_REMOTE_WORKSPACES_KEY);
+      return;
+    }
+    window.localStorage.setItem(DISMISSED_REMOTE_WORKSPACES_KEY, JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
+}
+
+export function loadDismissedRemoteWorkspaceIds(): Set<string> {
+  return new Set(readDismissedRemoteIds());
+}
+
+export function recordDismissedRemoteWorkspace(resourceId: string): void {
+  const trimmed = resourceId.trim();
+  if (!trimmed) return;
+  const ids = readDismissedRemoteIds();
+  if (ids.includes(trimmed)) return;
+  writeDismissedRemoteIds([...ids, trimmed]);
+}
+
+export function clearDismissedRemoteWorkspace(resourceId: string): void {
+  const trimmed = resourceId.trim();
+  if (!trimmed) return;
+  writeDismissedRemoteIds(readDismissedRemoteIds().filter((id) => id !== trimmed));
 }
 
 /** Read active tab theme from localStorage for SSR inline script (no DOM). */

@@ -62,8 +62,11 @@ const NAV_ITEMS: NavItem[] = [
   { module: "research", href: "/research", label: "Research", testId: "home-nav-research", Icon: ResearchIcon },
 ];
 
-function isActivePath(pathname: string, href: string): boolean {
+function isActivePath(pathname: string, href: string, module: AppModule): boolean {
   if (href === "/home") return pathname === "/home";
+  if (module === "journal") {
+    return pathname === "/journal" || pathname.startsWith("/journal/");
+  }
   return pathname.startsWith(href);
 }
 
@@ -75,11 +78,11 @@ export default function HomeAppNav() {
       data-testid="home-app-nav"
       aria-label="App modules"
       style={{ width: HOME_LAYOUT_DIMENSIONS.navRailWidth }}
-      className={`${iconRailShellClass(false, "left")} shrink-0 border-r border-[var(--edge-border)]`}
+      className={`${iconRailShellClass(false, "left")} shrink-0`}
     >
-      <div className="flex flex-col gap-0.5 px-0.5 py-1.5">
+      <div className="flex flex-col items-stretch gap-0.5">
         {NAV_ITEMS.map((item) => {
-          const active = isActivePath(pathname, item.href);
+          const active = isActivePath(pathname, item.href, item.module);
           const Icon = item.Icon;
           return (
             <Link

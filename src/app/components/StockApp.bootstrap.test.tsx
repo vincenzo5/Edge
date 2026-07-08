@@ -13,6 +13,10 @@ vi.mock("@/lib/app/bootstrap/resolveAppBootstrap", () => ({
   resolveAppBootstrap: bootstrapMock.resolveAppBootstrap,
 }));
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 vi.mock("./ChartGrid", () => ({
   default: () => <div data-testid="chart-grid" />,
 }));

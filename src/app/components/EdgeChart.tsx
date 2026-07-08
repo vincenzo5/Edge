@@ -19,7 +19,7 @@ import PackageEdgeChart, {
   parseIndicatorKey,
   legacyParseIndicatorKey,
 } from '@edge/chart-react';
-import type { Candle, ChartDataMeta } from '@edge/chart-core';
+import type { Candle, ChartDataMeta, ChartAnnotationChannelMarker } from '@edge/chart-core';
 import type { CellConfig, Theme, TrackedOverlay, SerializedDrawing } from '@/lib/chartConfig';
 import { mergeChartSettings } from '@/lib/chartConfig';
 import { buildCandleSessionKey } from '@/lib/chart/rangePresetTransition';
@@ -37,7 +37,7 @@ import {
   type UseChartDataFeedOptions,
 } from '@/lib/chartDataFeed';
 import { eventKindsFromChartSettings } from '@/lib/chartDataFeed/eventOverlaySettings';
-import { drawingsToAnnotationMarkers } from '@/lib/chartDataFeed/overlayMappers';
+import { drawingsToAnnotationMarkers, mergeAnnotationMarkers } from '@/lib/chartDataFeed/overlayMappers';
 import { useAccountOptional } from './AccountProvider';
 import { buildPositionReferenceLines } from '@/lib/brokerage/positionOverlays';
 import ChartOverlayStatusStack from './chart-cell/ChartOverlayStatusStack';
@@ -101,6 +101,8 @@ type Props = {
   legendLeadingSlot?: ReactNode;
   /** Show app-wide Data Health overlay badge (active chart cell only). */
   showDataHealthBadge?: boolean;
+  /** Transient journal execution markers (not persisted as drawings). */
+  journalAnnotationMarkers?: ChartAnnotationChannelMarker[];
 };
 
 const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) {
@@ -123,6 +125,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     liveMarketSession = null,
     marketSessionLabel = null,
     showDataHealthBadge = false,
+    journalAnnotationMarkers = [],
     ...rest
   } = props;
 
@@ -158,8 +161,12 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
   });
 
   const localAnnotations = useMemo(
-    () => drawingsToAnnotationMarkers(config.drawings, candles),
-    [config.drawings, candles],
+    () =>
+      mergeAnnotationMarkers(
+        drawingsToAnnotationMarkers(config.drawings, candles),
+        journalAnnotationMarkers,
+      ),
+    [config.drawings, candles, journalAnnotationMarkers],
   );
   const eventKinds = useMemo(
     () => eventKindsFromChartSettings(config.chartSettings, config.symbol),

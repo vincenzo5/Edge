@@ -209,14 +209,22 @@ export function createTabFromRemote(remote: ChartWorkspaceRemoteSummary): Worksp
 export function mergeRemoteWorkspaces(
   local: WorkspaceTabsState,
   remotes: ChartWorkspaceRemoteSummary[],
+  options?: { dismissedRemoteIds?: ReadonlySet<string>; adoptOrphans?: boolean },
 ): { state: WorkspaceTabsState; changed: boolean } {
-  if (remotes.length === 0) {
+  const adoptOrphans = options?.adoptOrphans ?? true;
+  const dismissed = options?.dismissedRemoteIds;
+  const activeRemotes =
+    dismissed && dismissed.size > 0
+      ? remotes.filter((remote) => !dismissed.has(remote.id))
+      : remotes;
+
+  if (activeRemotes.length === 0) {
     return { state: local, changed: false };
   }
 
   const hasAnyRemote = local.tabs.some((tab) => tab.remote?.resourceId);
-  if (!hasAnyRemote && local.tabs.length === 1 && remotes.length === 1) {
-    const remote = remotes[0]!;
+  if (!hasAnyRemote && local.tabs.length === 1 && activeRemotes.length === 1) {
+    const remote = activeRemotes[0]!;
     const remoteLayout = remote.chartLayoutSnapshot as ChartLayout;
     const tab = local.tabs[0]!;
     if (
@@ -260,7 +268,7 @@ export function mergeRemoteWorkspaces(
     };
   }
 
-  const remoteById = new Map(remotes.map((r) => [r.id, r]));
+  const remoteById = new Map(activeRemotes.map((r) => [r.id, r]));
   let changed = false;
   const linkedRemoteIds = new Set<string>();
 
@@ -308,16 +316,18 @@ export function mergeRemoteWorkspaces(
     return tab;
   });
 
-  const orphanRemotes = remotes
+  const orphanRemotes = activeRemotes
     .filter((r) => !linkedRemoteIds.has(r.id))
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 
   let nextTabs = tabs;
-  for (const remote of orphanRemotes) {
-    if (nextTabs.length >= MAX_WORKSPACE_TABS) break;
-    if (nextTabs.some((t) => t.remote?.resourceId === remote.id)) continue;
-    nextTabs = [...nextTabs, createTabFromRemote(remote)];
-    changed = true;
+  if (adoptOrphans) {
+    for (const remote of orphanRemotes) {
+      if (nextTabs.length >= MAX_WORKSPACE_TABS) break;
+      if (nextTabs.some((t) => t.remote?.resourceId === remote.id)) continue;
+      nextTabs = [...nextTabs, createTabFromRemote(remote)];
+      changed = true;
+    }
   }
 
   let activeTabId = local.activeTabId;

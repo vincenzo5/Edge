@@ -173,6 +173,33 @@ describe("AccountPanel", () => {
     expect(pnlCell.className).not.toContain("--edge-negative");
   });
 
+  it("renders option fill labels with strike and right", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        executions: [
+          {
+            execId: "e2",
+            side: "SLD",
+            shares: 1,
+            price: 2.5,
+            time: "10:00:00",
+            contract: {
+              symbol: "AAPL",
+              secType: "OPT",
+              localSymbol: "AAPL  260718C00200000",
+              strike: 200,
+              right: "C",
+              lastTradeDateOrContractMonth: "20260718",
+            },
+          },
+        ],
+      }),
+    );
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Today's fills" }));
+    expect(screen.getByText(/200C 20260718 · SLD 1 @ 2\.5/)).toBeInTheDocument();
+  });
+
   it("switches between open orders and today's fills tabs", () => {
     mockUseAccount.mockReturnValue(
       connectedAccount({

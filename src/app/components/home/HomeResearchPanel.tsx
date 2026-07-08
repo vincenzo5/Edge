@@ -31,7 +31,7 @@ export default function HomeResearchPanel() {
   return (
     <section
       data-testid="home-research-panel"
-      className="flex min-h-0 flex-col rounded-[var(--edge-radius-md)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)]"
+      className="flex h-full min-h-0 flex-col rounded-[var(--edge-radius-md)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)]"
     >
       <EdgePanelHeader
         title="Research"

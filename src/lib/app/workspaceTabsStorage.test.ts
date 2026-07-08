@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
 import {
   clearWorkspaceTabs,
+  DISMISSED_REMOTE_WORKSPACES_KEY,
+  hasPersistedWorkspaceTabs,
+  loadDismissedRemoteWorkspaceIds,
   loadWorkspaceTabs,
   migrateLayoutToWorkspaceTabs,
+  recordDismissedRemoteWorkspace,
   saveWorkspaceTabs,
   WORKSPACE_TABS_STORAGE_KEY,
 } from "./workspaceTabsStorage";
@@ -63,6 +67,18 @@ describe("workspaceTabsStorage", () => {
     const loaded = loadWorkspaceTabs();
     expect(loaded).toEqual(state);
     expect(localStorage.getItem(WORKSPACE_TABS_STORAGE_KEY)).toBeTruthy();
+  });
+
+  it("detects persisted workspace tabs in localStorage", () => {
+    expect(hasPersistedWorkspaceTabs()).toBe(false);
+    saveWorkspaceTabs(createDefaultWorkspaceTabs());
+    expect(hasPersistedWorkspaceTabs()).toBe(true);
+  });
+
+  it("tracks dismissed remote workspaces locally", () => {
+    recordDismissedRemoteWorkspace("ws-closed");
+    expect(loadDismissedRemoteWorkspaceIds()).toEqual(new Set(["ws-closed"]));
+    expect(localStorage.getItem(DISMISSED_REMOTE_WORKSPACES_KEY)).toContain("ws-closed");
   });
 
   it("falls back to default when storage invalid", () => {

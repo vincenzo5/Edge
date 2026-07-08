@@ -25,7 +25,7 @@ export default function AppHydrationShell() {
       aria-live="polite"
       aria-busy="true"
       aria-label="Starting Edge"
-      className="edge-app-shell flex h-screen min-h-0 flex-col overflow-hidden bg-[var(--edge-background)]"
+      className="edge-app-shell flex h-full min-h-0 flex-col overflow-hidden bg-[var(--edge-background)]"
     >
       <div
         data-testid="app-hydration-tab-bar"

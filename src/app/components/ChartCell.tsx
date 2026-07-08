@@ -7,6 +7,7 @@ import DrawingSelectionToolbar from "./DrawingSelectionToolbar";
 import ChartRangeBar from "./ChartRangeBar";
 import ChartCellDialogs from "./chart-cell/ChartCellDialogs";
 import ChartErrorBoundary from "./chart-cell/ChartErrorBoundary";
+import { useJournalChartOverlay } from "./journal/JournalChartOverlayProvider";
 import { useDrawingLayoutSync } from "./chart-cell/useDrawingLayoutSync";
 import { useRegisterActiveChart } from "./chart-cell/useRegisterActiveChart";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
@@ -156,6 +157,12 @@ export default function ChartCell({
   const activeChartBridge = useActiveChartBridge();
   const marketData = useMarketDataQuotes();
   const sidebar = useSidebarOptional();
+  const {
+    markers: journalMarkers,
+    gotoMs: journalGotoMs,
+    consumeGoto: consumeJournalGoto,
+  } = useJournalChartOverlay(config.symbol);
+  const appliedJournalGotoRef = useRef<number | null>(null);
 
   const magnet = toolbarPrefs.magnet ?? false;
   const keepDrawing = toolbarPrefs.keepDrawing ?? false;
@@ -377,6 +384,14 @@ export default function ChartCell({
     setLastCandleTimestamp(candles.at(-1)?.t ?? null);
     setCandlesRevision((revision) => revision + 1);
   }, []);
+
+  useEffect(() => {
+    if (!isActive || journalGotoMs == null || candleCount === 0) return;
+    if (appliedJournalGotoRef.current === journalGotoMs) return;
+    appliedJournalGotoRef.current = journalGotoMs;
+    void chartRef.current?.goTo({ mode: "date", at: journalGotoMs });
+    consumeJournalGoto();
+  }, [isActive, journalGotoMs, candleCount, consumeJournalGoto]);
 
   const handleCrosshairMove = useCallback(
     (ev: {
@@ -1188,6 +1203,7 @@ export default function ChartCell({
               marketSessionLabel={marketSessionLabel}
               legendContextSlot={legendContextSlot}
               showDataHealthBadge={isActive}
+              journalAnnotationMarkers={journalMarkers}
               onCrosshairTimestamp={handleCrosshairFire}
               onCrosshairMove={handleCrosshairMove}
               suppressCrosshair={contextMenu != null}

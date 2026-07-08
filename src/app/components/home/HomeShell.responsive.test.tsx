@@ -81,5 +81,6 @@ describe("HomeShell responsive modes", () => {
     render(<HomeShell />);
     expect(screen.getByTestId("home-shell")).toHaveAttribute("data-home-layout-mode", "hub");
     expect(screen.getByTestId("home-hub-cards")).toBeInTheDocument();
+    expect(screen.getByTestId("home-app-nav")).toBeInTheDocument();
   });
 });

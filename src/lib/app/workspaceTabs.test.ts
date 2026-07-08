@@ -173,6 +173,85 @@ describe("workspaceTabs", () => {
     expect(state.tabs[0]?.layout.cells[0]?.symbol).toBe("GOOG");
   });
 
+  it("does not adopt orphan remotes when adoptOrphans is false", () => {
+    const local = createDefaultWorkspaceTabs(DEFAULT_LAYOUT, {
+      resourceId: "ws-1",
+      syncRevision: 1,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const { state, changed } = mergeRemoteWorkspaces(
+      local,
+      [
+        {
+          id: "ws-1",
+          workspaceName: "Default",
+          schemaVersion: 1,
+          syncRevision: 1,
+          updatedAt: "2026-07-04T00:00:00.000Z",
+          isDefault: true,
+          chartLayoutSnapshot: DEFAULT_LAYOUT,
+        },
+        {
+          id: "ws-2",
+          workspaceName: "AAPL",
+          schemaVersion: 1,
+          syncRevision: 1,
+          updatedAt: "2026-07-05T00:00:00.000Z",
+          isDefault: false,
+          chartLayoutSnapshot: {
+            ...DEFAULT_LAYOUT,
+            cells: [{ ...DEFAULT_LAYOUT.cells[0]!, symbol: "AAPL" }],
+          },
+        },
+      ],
+      { adoptOrphans: false },
+    );
+
+    expect(changed).toBe(false);
+    expect(state.tabs).toHaveLength(1);
+  });
+
+  it("does not re-adopt dismissed remote workspaces", () => {
+    const local = createDefaultWorkspaceTabs(DEFAULT_LAYOUT, {
+      resourceId: "ws-1",
+      syncRevision: 1,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const { state, changed } = mergeRemoteWorkspaces(
+      local,
+      [
+        {
+          id: "ws-1",
+          workspaceName: "Default",
+          schemaVersion: 1,
+          syncRevision: 1,
+          updatedAt: "2026-07-04T00:00:00.000Z",
+          isDefault: true,
+          chartLayoutSnapshot: DEFAULT_LAYOUT,
+        },
+        {
+          id: "ws-2",
+          workspaceName: "Tech",
+          schemaVersion: 1,
+          syncRevision: 1,
+          updatedAt: "2026-07-05T00:00:00.000Z",
+          isDefault: false,
+          chartLayoutSnapshot: {
+            ...DEFAULT_LAYOUT,
+            cells: [{ ...DEFAULT_LAYOUT.cells[0]!, symbol: "AAPL" }],
+          },
+        },
+      ],
+      { dismissedRemoteIds: new Set(["ws-2"]) },
+    );
+
+    expect(changed).toBe(false);
+    expect(state.tabs).toHaveLength(1);
+    expect(state.tabs[0]?.remote?.resourceId).toBe("ws-1");
+  });
+
   it("generates unique tab ids", () => {
     resetWorkspaceTabIdCounterForTests();
     const originalUuid = globalThis.crypto?.randomUUID;

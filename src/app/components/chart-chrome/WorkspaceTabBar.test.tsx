@@ -1,7 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { createDefaultWorkspaceTabs, createTab } from '@/lib/app/workspaceTabs';
-import * as lastModule from '@/lib/app/lastModule';
 import WorkspaceTabBar from './WorkspaceTabBar';
 
 vi.mock('../MarketDataProvider', () => ({
@@ -9,11 +8,7 @@ vi.mock('../MarketDataProvider', () => ({
 }));
 
 describe('WorkspaceTabBar', () => {
-  beforeEach(() => {
-    vi.spyOn(lastModule, 'recordLastModule').mockImplementation(() => {});
-  });
-
-  it('renders home link, tabs, and create button', () => {
+  it('renders tabs and create button', () => {
     render(
       <WorkspaceTabBar
         workspaceTabs={createDefaultWorkspaceTabs()}
@@ -23,23 +18,8 @@ describe('WorkspaceTabBar', () => {
       />,
     );
 
-    expect(screen.getByTestId('workspace-tab-home')).toHaveAttribute('href', '/home');
     expect(screen.getByRole('tablist', { name: 'Workspace tabs' })).toBeInTheDocument();
     expect(screen.getByTestId('workspace-tab-create')).toBeInTheDocument();
-  });
-
-  it('records home module when home link is clicked', () => {
-    render(
-      <WorkspaceTabBar
-        workspaceTabs={createDefaultWorkspaceTabs()}
-        onTabSelect={vi.fn()}
-        onTabCreate={vi.fn()}
-        onTabClose={vi.fn()}
-      />,
-    );
-
-    fireEvent.click(screen.getByTestId('workspace-tab-home'));
-    expect(lastModule.recordLastModule).toHaveBeenCalledWith('home');
   });
 
   it('selects tab and creates a new tab', () => {

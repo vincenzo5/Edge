@@ -3,10 +3,15 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { DEFAULT_LAYOUT } from '@/lib/chartConfig';
 import {
   createDefaultWorkspaceTabs,
+  createTab,
   resetWorkspaceTabIdCounterForTests,
 } from '@/lib/app/workspaceTabs';
 import { WORKSPACE_TABS_STORAGE_KEY } from '@/lib/app/workspaceTabsStorage';
 import StockApp from './StockApp';
+
+const reconcileMock = vi.hoisted(() => ({
+  reconcileChartWorkspacesAfterTabClose: vi.fn(async () => ({ archived: [], failed: [] })),
+}));
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -14,6 +19,9 @@ const localStorageMock = (() => {
     getItem: (k: string) => store[k] || null,
     setItem: (k: string, v: string) => {
       store[k] = v;
+    },
+    removeItem: (k: string) => {
+      delete store[k];
     },
     clear: () => {
       store = {};
@@ -36,6 +44,15 @@ vi.mock('@/lib/persistence/sync/useWorkspaceTabsRemoteSync', () => ({
   useWorkspaceTabsRemoteSync: () => ({ flushActiveTabSave: async () => {} }),
 }));
 
+vi.mock('@/lib/persistence/sync/reconcileChartWorkspaces', () => ({
+  reconcileChartWorkspacesAfterTabClose:
+    reconcileMock.reconcileChartWorkspacesAfterTabClose,
+}));
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 let flushHydrationFrame: (() => void) | null = null;
 
 function flushHydration() {
@@ -54,6 +71,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -61,6 +79,7 @@ describe('StockApp', () => {
   beforeEach(() => {
     resetWorkspaceTabIdCounterForTests();
     localStorageMock.clear();
+    reconcileMock.reconcileChartWorkspacesAfterTabClose.mockClear();
     document.documentElement.className = '';
   });
 
@@ -223,6 +242,59 @@ describe('StockApp', () => {
       const parsed = JSON.parse(raw!);
       expect(parsed.tabs.length).toBeGreaterThanOrEqual(2);
     });
+  });
+
+  it('saves a closed remote tab immediately so refresh does not restore it', async () => {
+    let tabs = createDefaultWorkspaceTabs(DEFAULT_LAYOUT, {
+      resourceId: 'ws-1',
+      syncRevision: 1,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    tabs = createTab(tabs, {
+      id: 'tab-2',
+      title: 'Apple',
+      layout: {
+        ...DEFAULT_LAYOUT,
+        cells: [{ ...DEFAULT_LAYOUT.cells[0], symbol: 'AAPL' }],
+      },
+      remote: {
+        resourceId: 'ws-2',
+        syncRevision: 1,
+        updatedAt: '2026-01-02T00:00:00.000Z',
+      },
+    });
+    localStorageMock.setItem(WORKSPACE_TABS_STORAGE_KEY, JSON.stringify(tabs));
+
+    render(<StockApp />);
+    flushHydration();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace-tab-close-tab-2')).toBeInTheDocument();
+    });
+
+    vi.useFakeTimers();
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('workspace-tab-close-tab-2'));
+      await Promise.resolve();
+    });
+
+    const raw = localStorageMock.getItem(WORKSPACE_TABS_STORAGE_KEY);
+    expect(raw).toBeTruthy();
+    const saved = JSON.parse(raw!);
+    expect(saved.tabs).toHaveLength(1);
+    expect(saved.tabs[0].remote.resourceId).toBe('ws-1');
+    expect(
+      saved.tabs.some(
+        (tab: { remote?: { resourceId?: string } }) =>
+          tab.remote?.resourceId === 'ws-2',
+      ),
+    ).toBe(false);
+    expect(reconcileMock.reconcileChartWorkspacesAfterTabClose).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tabs: expect.arrayContaining([expect.objectContaining({ title: 'Default' })]),
+      }),
+      'ws-2',
+    );
   });
 
   it('expands layout by cloning the active cell into new panes', async () => {

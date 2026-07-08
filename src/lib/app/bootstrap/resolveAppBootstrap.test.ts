@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
 import { DEFAULT_SCREENER_STATE } from "@/lib/screener/screenStorage";
 import { DEFAULT_WATCHLIST_STATE } from "@/lib/watchlist/storage";
 import { createDefaultWorkspaceTabs } from "../workspaceTabs";
+import { WORKSPACE_TABS_STORAGE_KEY } from "../workspaceTabsStorage";
 import { resolveAppBootstrap } from "./resolveAppBootstrap";
 
 const localTabs = createDefaultWorkspaceTabs();
@@ -14,6 +15,21 @@ const localState = {
 };
 
 describe("resolveAppBootstrap", () => {
+  beforeEach(() => {
+    vi.stubGlobal("localStorage", {
+      store: {} as Record<string, string>,
+      getItem(key: string) {
+        return this.store[key] ?? null;
+      },
+      setItem(key: string, value: string) {
+        this.store[key] = value;
+      },
+      removeItem(key: string) {
+        delete this.store[key];
+      },
+    });
+  });
+
   it("returns local state when remote fetch resolves null", async () => {
     const result = await resolveAppBootstrap({
       loadLocal: () => localState,
@@ -99,6 +115,56 @@ describe("resolveAppBootstrap", () => {
 
     expect(result.workspaceTabs.tabs).toHaveLength(2);
     expect(result.remoteApplied).toBe(true);
+  });
+
+  it("does not adopt orphan remotes when workspace tabs are persisted locally", async () => {
+    localStorage.setItem(
+      WORKSPACE_TABS_STORAGE_KEY,
+      JSON.stringify(
+        createDefaultWorkspaceTabs(DEFAULT_LAYOUT, {
+          resourceId: "workspace-1",
+          syncRevision: 1,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        }),
+      ),
+    );
+
+    const result = await resolveAppBootstrap({
+      loadLocal: () => ({
+        ...localState,
+        workspaceTabs: createDefaultWorkspaceTabs(DEFAULT_LAYOUT, {
+          resourceId: "workspace-1",
+          syncRevision: 1,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        }),
+      }),
+      fetchRemoteList: async () => [
+        {
+          id: "workspace-1",
+          workspaceName: "Default",
+          schemaVersion: 1,
+          syncRevision: 1,
+          updatedAt: "2026-07-04T00:00:00.000Z",
+          isDefault: true,
+          chartLayoutSnapshot: DEFAULT_LAYOUT,
+        },
+        {
+          id: "workspace-2",
+          workspaceName: "AAPL",
+          schemaVersion: 1,
+          syncRevision: 1,
+          updatedAt: "2026-07-05T00:00:00.000Z",
+          isDefault: false,
+          chartLayoutSnapshot: {
+            ...DEFAULT_LAYOUT,
+            cells: [{ ...DEFAULT_LAYOUT.cells[0]!, symbol: "AAPL" }],
+          },
+        },
+      ],
+    });
+
+    expect(result.workspaceTabs.tabs).toHaveLength(1);
+    expect(result.remoteApplied).toBe(false);
   });
 
   it("returns local tabs when remote fetch rejects", async () => {

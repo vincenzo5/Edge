@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useAccount } from "../../AccountProvider";
 import { useChartActions } from "../../ChartActionsContext";
-import { parseSummaryTagNumber } from "@/lib/marketData/contracts/brokerage";
+import { parseSummaryTagNumber, formatExecutionLabel } from "@/lib/marketData/contracts/brokerage";
 import type { AccountPosition } from "@/lib/marketData/contracts/brokerage";
 import EdgeIconButton from "../../design-system/EdgeIconButton";
 import Tooltip from "../../Tooltip";
@@ -296,7 +296,7 @@ export function AccountPanel() {
                   className="rounded border border-[var(--edge-border)] px-2 py-1"
                 >
                   <div className="font-medium">
-                    {fill.symbol} · {fill.side} {fill.shares} @ {fill.price}
+                    {formatExecutionLabel(fill)}
                   </div>
                   <div className="text-[var(--edge-text-secondary)]">
                     {fill.time}

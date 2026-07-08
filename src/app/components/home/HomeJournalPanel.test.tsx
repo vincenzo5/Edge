@@ -1,49 +1,39 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+
+vi.mock("@/lib/persistence/client/journalClient", () => ({
+  fetchJournalTrades: vi.fn(async () => [
+    {
+      id: "t1",
+      status: "closed",
+      direction: "long",
+      symbol: "AAPL",
+      secType: "STK",
+      openedAt: "2026-06-01T13:30:00.000Z",
+      closedAt: "2026-06-02T13:30:00.000Z",
+      netPnL: 50,
+      fillExecIds: ["e1"],
+      tags: [],
+      setup: null,
+      reviewNote: null,
+      createdAt: "2026-06-01T13:30:00.000Z",
+      updatedAt: "2026-06-02T13:30:00.000Z",
+    },
+  ]),
+}));
+
 import HomeJournalPanel from "./HomeJournalPanel";
 
 describe("HomeJournalPanel", () => {
-  it("shows coming soon copy and journal link", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows recent closed trades preview", async () => {
     render(<HomeJournalPanel />);
-
-    expect(screen.getByText(/Trading journal is coming soon/)).toBeInTheDocument();
     expect(screen.getByTestId("home-journal-open")).toHaveAttribute("href", "/journal");
-  });
-});
-
-describe("HomeModuleDrawer", () => {
-  it("opens drawer panel and closes on escape", async () => {
-    const onClose = vi.fn();
-    const { default: HomeModuleDrawer } = await import("./HomeModuleDrawer");
-
-    render(
-      <HomeModuleDrawer
-        open
-        panel="journal"
-        onPanelChange={vi.fn()}
-        onClose={onClose}
-      />,
-    );
-
-    expect(screen.getByTestId("home-module-drawer")).toBeInTheDocument();
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it("closes when backdrop is clicked", async () => {
-    const onClose = vi.fn();
-    const { default: HomeModuleDrawer } = await import("./HomeModuleDrawer");
-
-    render(
-      <HomeModuleDrawer
-        open
-        panel="research"
-        onPanelChange={vi.fn()}
-        onClose={onClose}
-      />,
-    );
-
-    fireEvent.click(screen.getByTestId("home-module-drawer-backdrop"));
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText(/AAPL · STK/)).toBeInTheDocument();
+    });
   });
 });

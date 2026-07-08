@@ -8,7 +8,12 @@ import {
 } from "@/lib/screener/screenerSession";
 import type { ScreenerState } from "@/lib/screener/types";
 import type { WatchlistState } from "@/lib/watchlist/types";
-import { getActiveLayout, mergeRemoteWorkspaces, type WorkspaceTabsState } from "../workspaceTabs";
+import {
+  getActiveLayout,
+  mergeRemoteWorkspaces,
+  type WorkspaceTabsState,
+} from "../workspaceTabs";
+import { loadDismissedRemoteWorkspaceIds, hasPersistedWorkspaceTabs } from "../workspaceTabsStorage";
 import { loadLocalAppState, type LocalAppState } from "./loadLocalAppState";
 
 export const REMOTE_BOOTSTRAP_TIMEOUT_MS = 500;
@@ -57,7 +62,10 @@ function applyRemoteMerge(
   localTabs: WorkspaceTabsState,
   remotes: ChartWorkspaceRemoteSummary[],
 ): { tabs: WorkspaceTabsState; changed: boolean } {
-  const { state, changed } = mergeRemoteWorkspaces(localTabs, remotes);
+  const { state, changed } = mergeRemoteWorkspaces(localTabs, remotes, {
+    dismissedRemoteIds: loadDismissedRemoteWorkspaceIds(),
+    adoptOrphans: !hasPersistedWorkspaceTabs(),
+  });
   return { tabs: state, changed };
 }
 
@@ -94,7 +102,8 @@ export async function resolveAppBootstrap(
     const finishRemoteWorkspaceMerge = async (): Promise<WorkspaceTabsState | null> => {
       const remotes = await startRemoteFetch();
       if (!remotes || remotes.length === 0) return null;
-      const { tabs, changed } = applyRemoteMerge(local.workspaceTabs, remotes);
+      const freshLocal = loadLocal();
+      const { tabs, changed } = applyRemoteMerge(freshLocal.workspaceTabs, remotes);
       return changed ? tabs : null;
     };
 

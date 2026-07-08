@@ -46,10 +46,10 @@ describe("homeLayout", () => {
   });
 
   describe("homeLayoutShowsAppNav", () => {
-    it("shows app nav for desktop home modes only", () => {
+    it("always shows app nav across home layout modes", () => {
       expect(homeLayoutShowsAppNav("tri-pane")).toBe(true);
       expect(homeLayoutShowsAppNav("main-drawer")).toBe(true);
-      expect(homeLayoutShowsAppNav("hub")).toBe(false);
+      expect(homeLayoutShowsAppNav("hub")).toBe(true);
     });
   });
 
