@@ -4,7 +4,7 @@ Optional Postgres-backed persistence with localStorage fallback. App works witho
 
 ## Responsibility
 
-Sync chart workspaces, watchlist libraries, screener libraries, chart templates, and market research notes between client and server with optimistic concurrency.
+Sync chart workspaces, watchlist libraries, screener libraries, chart templates, market research notes, and trading journal fills/trades between client and server with optimistic concurrency.
 
 ## Layer Structure
 
@@ -48,7 +48,7 @@ Drizzle ORM + Postgres
 | Screener library | `/api/me/screener-library` | `screenerLibrary.ts` |
 | Chart templates | `/api/me/chart-template-library` | `chartTemplateLibrary.ts` |
 | Research notes | `/api/me/market-research-notes` | `marketResearchNote.ts` |
-| Trading journal | `/api/me/journal/fills`, `/api/me/journal/trades`, `/api/me/journal/trades/[id]`, `/api/me/journal/import` | `journal.ts` + `src/lib/journal/ARCHITECTURE.md` |
+| Trading journal | `/api/me/journal/fills`, `/api/me/journal/trades`, `/api/me/journal/trades/[id]`, `/api/me/journal/trades/rebuild`, `/api/me/journal/import` | `journal.ts` + `journalClient.ts` + `src/lib/journal/ARCHITECTURE.md` |
 
 ## Auth Model
 
@@ -89,7 +89,7 @@ Drizzle ORM + Postgres
 
 ```bash
 cp .env.example .env.local   # set DATABASE_URL, EDGE_AUTH_SECRET
-npm run dev:with-db          # start Postgres, migrate, then dev server
+npm run dev                  # start Postgres, migrate, then dev server
 ```
 
 Manual steps (equivalent):
@@ -103,8 +103,8 @@ npm run dev
 
 ## Dev startup
 
-- **`npm run dev:with-db`** — starts the Docker Postgres container, waits until `DATABASE_URL` accepts connections, applies SQL migrations, then runs `npm run dev`. Use this when cloud sync should work on first load.
-- **`npm run dev`** — unchanged. Persistence sync hooks still run when `DATABASE_URL` is set, but without Postgres you get `401` on `/api/me/*` and localStorage remains the effective store.
+- **`npm run dev`** — starts the Docker Postgres container, waits until `DATABASE_URL` accepts connections, applies SQL migrations, then runs the Next.js dev server. Use this when cloud sync (workspaces, journal, libraries) should work on first load.
+- **`npm run dev:lite`** — app only, no Postgres bootstrap. Persistence sync hooks still run when `DATABASE_URL` is set, but without Postgres you get `401` on `/api/me/*` and localStorage remains the effective store (including `edge.journal.v1` for the trading journal).
 - **Shutdown** — Ctrl+C stops only the Next.js dev server. Postgres keeps running (`restart: unless-stopped`). Stop the container with `npm run db:down`.
 - **Requirements** — `DATABASE_URL`, `EDGE_AUTH_SECRET` (non-placeholder), and Docker. Optional `EDGE_DEV_PASSPHRASE` requires the login banner before sync works.
 

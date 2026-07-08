@@ -2,7 +2,7 @@
 
 Single roadmap for where Edge is going and how current work fits together.
 
-**Last updated:** 2026-07-06
+**Last updated:** 2026-07-08
 
 ## Product Direction
 
@@ -15,7 +15,8 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 | Area | State | Notes |
 |------|-------|-------|
 | Custom chart engine | Shipped foundation | Canvas 2D renderer, pan/zoom, range presets, indicators, drawings, panes, templates, context menus, TradingView-style layout templates, workspace tabs, and per-tab layout persistence are in place. |
-| App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, workspace tab bar with optional cloud sync, and responsive module home hub at `/home` with charts at `/chart` plus smart `/` entry (24h last-module redirect). |
+| App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, workspace tab bar with optional cloud sync, responsive module home hub at `/home` with charts at `/chart` plus smart `/` entry (24h last-module redirect), and `/journal` module (Dashboard / Trades / Settings). |
+| Trading journal | Shipped foundation | IBKR fill sync + Flex CSV import → grouped round-trip trades; Postgres + localStorage fallback; dashboard KPIs, calendar P&L, equity curve, tag/setup and time reports, R-multiple, filters, chart deep links with execution markers. Tier 3+ in [Journal Roadmap](./journal-roadmap.md). |
 | Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Tradier, and IBKR adapters; age-based display freshness and trust-event logging for transport recovery. |
 | IBKR provider | Shipped in main routing | IBKR-first candles and quotes in `MarketDataService` with Yahoo fallback; probe routes remain for diagnostics. Requires daily Gateway login for live IBKR data. |
 | AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data tools run server-side; stateful chart, watchlist, screener, risk, account, and options session tools require an app session. |
@@ -137,7 +138,7 @@ Later market data work:
   - **Fundamentals workflows**: Expanded SymbolDetailsPanel (tabbed: profile, financial statements with trend charts, estimates, executives, ownership, valuation metrics) beyond the current snapshot; watchlist enrichment via hover cards or columns (e.g., "EPS growth +12% YoY"); multi-symbol comparison mode (table or radar); deeper AI tool integration so `summarize_chart` and analysis tools pull live fundamentals context.
   - **Macro & Economic Calendar workflows**: Global or layout-aware Macro Calendar view (FMP Premium + FRED) showing releases with expected/actual values and impact flags; ability to add macro series as secondary panes, comparison overlays, or priced reference lines; watchlist-aware filtering ("releases affecting my holdings"); AI workflows such as "list macro events this week relevant to tech names in my watchlist".
   - **Stock Screener workflows**: Header-bar modal screener that filters the full US-listed universe (equities + ETFs) by technical, fundamental, and descriptive criteria using FMP as primary and Yahoo / IBKR / TWS as fallbacks. Both fixed presets and a composable query-builder. Results load directly into the chart or feed watchlists (single ticker or full result group). Named saved screens persisted via localStorage with optional Postgres sync. Full scope, phasing, and touch points in [Screener Roadmap](./screener-roadmap.md).
-  - **Trading journal & reporting workflows**: IBKR fill sync and Flex CSV import → grouped round-trip trades (STK + multi-leg OPT), stats, tags/notes, and chart deep links on `/journal` (**v1 shipped**). Post-v1 reporting tiers: calendar P&L, tag/setup reports, equity curve, filters, time-of-day/week analysis, chart execution overlay, R-multiple, trade rating, screenshots, compare reports, MFE/MFA. Excludes replay, AI agents, playbooks/notebook, and multi-broker consolidation. Full phasing in [Journal Roadmap](./journal-roadmap.md).
+  - **Trading journal & reporting workflows**: IBKR fill sync and Flex CSV import → grouped round-trip trades (STK + multi-leg OPT), stats, tags/notes, and chart deep links on `/journal` (**v1 + Tier 1–2 reporting shipped** — calendar P&L, tag/setup reports, equity curve, filters, time-of-day/week analysis, chart execution overlay, R-multiple). Remaining tiers: trade rating, screenshots, compare reports, MFE/MFA. Excludes replay, AI agents, playbooks/notebook, and multi-broker consolidation. Full phasing in [Journal Roadmap](./journal-roadmap.md).
 - Add entitlement-aware warnings for broker data delays or missing market subscriptions.
 - Consider streaming quotes/candles only after REST provider routing is reliable.
 
