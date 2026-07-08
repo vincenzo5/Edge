@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-log() { printf '\033[1;34m[dev:with-db]\033[0m %s\n' "$1"; }
-err() { printf '\033[1;31m[dev:with-db]\033[0m %s\n' "$1" >&2; }
+log() { printf '\033[1;34m[dev]\033[0m %s\n' "$1"; }
+err() { printf '\033[1;31m[dev]\033[0m %s\n' "$1" >&2; }
 
 if ! command -v docker >/dev/null 2>&1; then
   err "Docker is not installed or not on PATH. Install Docker Desktop to use cloud sync locally."
@@ -89,4 +89,4 @@ npm run db:migrate
 log "Postgres ready. Starting dev server on http://localhost:${DEV_PORT} ..."
 clear_dev_port
 dev_started=true
-exec npm run dev
+exec npm run dev:lite
