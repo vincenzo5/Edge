@@ -1,0 +1,23 @@
+# IB Gateway — paper + live in one container (TRADING_MODE=both).
+# Copy services/ib-gateway/.env.example → services/ib-gateway/.env and set credentials.
+# Start: npm run ib:gateway:up  |  Stop: npm run ib:gateway:down
+services:
+  ib-gateway:
+    image: ghcr.io/gnzsnz/ib-gateway:stable
+    container_name: edge-ib-gateway
+    restart: unless-stopped
+    environment:
+      TRADING_MODE: ${TRADING_MODE:-both}
+      EXISTING_SESSION_DETECTED_ACTION: ${EXISTING_SESSION_DETECTED_ACTION:-primary}
+      READ_ONLY_API: ${READ_ONLY_API:-no}
+      TWS_USERID: ${TWS_USERID:-}
+      TWS_PASSWORD: ${TWS_PASSWORD:-}
+      TWS_USERID_PAPER: ${TWS_USERID_PAPER:-}
+      TWS_PASSWORD_PAPER: ${TWS_PASSWORD_PAPER:-}
+      VNC_SERVER_PASSWORD: ${VNC_SERVER_PASSWORD:-}
+    ports:
+      # Live TWS API (container socat 4003 → host 4001)
+      - "127.0.0.1:4001:4003"
+      # Paper TWS API (container socat 4004 → host 4002)
+      - "127.0.0.1:4002:4004"
+      # VNC optional — omit host bind if 5900 taken (macOS Screen Sharing); IBC auto-login still works

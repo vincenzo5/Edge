@@ -31,6 +31,8 @@
     "db:migrate": "npx tsx scripts/db-migrate.mts",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
+    "ib:gateway:up": "docker compose --project-directory services/ib-gateway -f services/ib-gateway/docker-compose.yml up -d",
+    "ib:gateway:down": "docker compose --project-directory services/ib-gateway -f services/ib-gateway/docker-compose.yml down",
     "ibkr:setup": "bash scripts/ibkr-setup-gateway.sh",
     "ibkr:gateway": "bash scripts/ibkr-gateway.sh",
     "ibkr:probe": "npx tsx scripts/ibkr-probe.mts",
