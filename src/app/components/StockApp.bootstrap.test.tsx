@@ -47,6 +47,11 @@ vi.mock("./MarketDataProvider", () => ({
 
 vi.mock("./AccountProvider", () => ({
   AccountProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAccountOptional: () => ({
+    activeTradingAccountId: "DUP586813",
+    tradingEnvironment: "paper",
+    refresh: vi.fn(),
+  }),
 }));
 
 vi.mock("./RiskSettingsProvider", () => ({

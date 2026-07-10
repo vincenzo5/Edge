@@ -1,6 +1,8 @@
 "use client";
 
 import type { HTMLAttributes, ReactNode, Ref } from "react";
+import { AccountProvider } from "../AccountProvider";
+import AppTopHeader from "./AppTopHeader";
 import HomeAppNav from "./HomeAppNav";
 
 type Props = {
@@ -17,14 +19,19 @@ export default function AppModuleShell({
   ...rest
 }: Props) {
   return (
-    <div
-      ref={shellRef}
-      data-testid={testId}
-      className={`flex h-screen min-h-0 overflow-hidden bg-[var(--edge-background)]${className ? ` ${className}` : ""}`}
-      {...rest}
-    >
-      <HomeAppNav />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
-    </div>
+    <AccountProvider>
+      <div
+        ref={shellRef}
+        data-testid={testId}
+        className={`flex h-screen min-h-0 overflow-hidden bg-[var(--edge-background)]${className ? ` ${className}` : ""}`}
+        {...rest}
+      >
+        <HomeAppNav />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <AppTopHeader />
+          {children}
+        </div>
+      </div>
+    </AccountProvider>
   );
 }

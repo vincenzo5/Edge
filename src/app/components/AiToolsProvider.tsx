@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { ToolContext } from "@/lib/ai/context";
 import { createFetchMarketDataPort } from "@/lib/ai/marketDataPort";
+import { createFetchTradingPort } from "@/lib/ai/tradingPort";
 import { edgeToolRegistry } from "@/lib/ai/tools";
 import {
   createInAppAiTools,
@@ -42,6 +43,7 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
   const account = useAccountOptional();
   const optionsSession = useOptionsSessionOptional();
   const marketDataRef = useRef(createFetchMarketDataPort());
+  const tradingRef = useRef(createFetchTradingPort());
 
   const getContext = useCallback((): ToolContext => {
     return {
@@ -103,6 +105,7 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
           }
         : null,
       marketData: marketDataRef.current,
+      trading: tradingRef.current,
     };
   }, [app, chartBridge, chartActions, watchlist, screener, risk, account, optionsSession]);
 

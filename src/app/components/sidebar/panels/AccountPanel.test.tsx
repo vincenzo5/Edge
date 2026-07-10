@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AccountPanel } from "./AccountPanel";
 import { ChartActionsProvider } from "../../ChartActionsContext";
 
@@ -11,7 +11,15 @@ vi.mock("../../AccountProvider", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/trading/tradingClient", () => ({
+  cancelOrder: vi.fn().mockResolvedValue({ order: { status: "Cancelled" } }),
+  TradingApiError: class TradingApiError extends Error {
+    status = 500;
+  },
+}));
+
 import { useAccount } from "../../AccountProvider";
+import { cancelOrder } from "@/lib/trading/tradingClient";
 
 const mockUseAccount = vi.mocked(useAccount);
 
@@ -57,6 +65,11 @@ function connectedAccount(overrides: Partial<ReturnType<typeof useAccount>> = {}
     ],
     pnl: { dailyPnL: 120 },
     orders: [],
+    ordersForActiveAccount: [],
+    activeTradingAccountId: null,
+    tradingEnvironment: "paper" as const,
+    setTradingEnvironment: vi.fn(),
+    setActiveTradingAccount: vi.fn(),
     executions: [],
     error: null,
     disabled: false,
@@ -79,6 +92,11 @@ describe("AccountPanel", () => {
       positions: [],
       pnl: null,
       orders: [],
+      ordersForActiveAccount: [],
+      activeTradingAccountId: null,
+      tradingEnvironment: "paper" as const,
+      setTradingEnvironment: vi.fn(),
+      setActiveTradingAccount: vi.fn(),
       executions: [],
       error: null,
       disabled: true,
@@ -203,7 +221,8 @@ describe("AccountPanel", () => {
   it("switches between open orders and today's fills tabs", () => {
     mockUseAccount.mockReturnValue(
       connectedAccount({
-        orders: [
+        activeTradingAccountId: "DU123",
+        ordersForActiveAccount: [
           {
             orderId: 1,
             symbol: "AAPL",
@@ -212,6 +231,7 @@ describe("AccountPanel", () => {
             orderType: "LMT",
             status: "Submitted",
             filled: 0,
+            account: "DU123",
           },
         ],
         executions: [
@@ -234,6 +254,49 @@ describe("AccountPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Today's fills" }));
     expect(screen.getByText(/AAPL · BOT 5 @ 150/)).toBeInTheDocument();
     expect(screen.queryByText(/AAPL · BUY 10 · LMT/)).not.toBeInTheDocument();
+  });
+
+  it("cancels an active order for the active account", async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccountId: "DU123",
+        ordersForActiveAccount: [
+          {
+            orderId: 42,
+            symbol: "AAPL",
+            action: "BUY",
+            totalQuantity: 1,
+            orderType: "MKT",
+            status: "Submitted",
+            filled: 0,
+            account: "DU123",
+          },
+        ],
+        refresh,
+      }),
+    );
+    renderPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => {
+      expect(cancelOrder).toHaveBeenCalledWith(42, "DU123", {
+        environment: "paper",
+        liveConfirmation: undefined,
+      });
+      expect(refresh).toHaveBeenCalled();
+    });
+  });
+
+  it("shows message when no active trading account is selected", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccountId: null,
+        ordersForActiveAccount: [],
+      }),
+    );
+    renderPanel();
+    expect(screen.getByText(/No active trading account selected/i)).toBeInTheDocument();
   });
 
   it("does not render sort dropdown for positions", () => {

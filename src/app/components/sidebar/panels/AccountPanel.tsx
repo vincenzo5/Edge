@@ -4,10 +4,13 @@ import { useMemo, useState } from "react";
 import { useAccount } from "../../AccountProvider";
 import { useChartActions } from "../../ChartActionsContext";
 import { parseSummaryTagNumber, formatExecutionLabel } from "@/lib/marketData/contracts/brokerage";
-import type { AccountPosition } from "@/lib/marketData/contracts/brokerage";
+import type { AccountOrder, AccountPosition } from "@/lib/marketData/contracts/brokerage";
 import EdgeIconButton from "../../design-system/EdgeIconButton";
+import { EdgeButton } from "../../design-system";
 import Tooltip from "../../Tooltip";
 import { PanelPopOutButton } from "../PanelChromeActions";
+import { cancelOrder, TradingApiError } from "@/lib/trading/tradingClient";
+import { isOrderCancellable } from "@/lib/trading/orderStatus";
 
 function formatMoney(value: number | null | undefined, currency = "USD"): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -99,6 +102,8 @@ export function AccountPanel() {
   const chartActions = useChartActions();
   const [positionFilter, setPositionFilter] = useState<PositionFilter>("all");
   const [ordersTab, setOrdersTab] = useState<OrdersTab>("orders");
+  const [cancellingOrderId, setCancellingOrderId] = useState<number | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const tags = account.summary?.tags ?? {};
   const netLiq = parseSummaryTagNumber(tags, "NetLiquidation");
@@ -128,6 +133,31 @@ export function AccountPanel() {
     });
   };
 
+  const handleCancelOrder = async (order: AccountOrder) => {
+    const orderId = order.orderId;
+    const accountId = order.account?.trim() || account.activeTradingAccountId?.trim();
+    if (orderId == null || !accountId) {
+      setCancelError("Cannot cancel order without account id.");
+      return;
+    }
+    setCancellingOrderId(orderId);
+    setCancelError(null);
+    try {
+      await cancelOrder(orderId, accountId, {
+        environment: account.tradingEnvironment,
+        liveConfirmation:
+          account.tradingEnvironment === "live" ? "LIVE" : undefined,
+      });
+      await account.refresh();
+    } catch (error) {
+      setCancelError(
+        error instanceof TradingApiError ? error.message : "Cancel failed. Try again.",
+      );
+    } finally {
+      setCancellingOrderId(null);
+    }
+  };
+
   if (account.disabled) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-xs text-[var(--edge-text-secondary)]">
@@ -143,7 +173,7 @@ export function AccountPanel() {
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className="text-xs font-semibold text-[var(--edge-text-strong)]">
-              {account.status?.accountId ?? "Account"}
+              {account.activeTradingAccountId ?? account.status?.accountId ?? "Account"}
             </div>
             <div className="text-[10px] text-[var(--edge-text-secondary)]">
               {account.connectionState === "connected" ? "Connected" : account.connectionState}
@@ -151,7 +181,7 @@ export function AccountPanel() {
               updated {relativeUpdatedAt(account.summary?.updatedAt)}
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <PanelPopOutButton label="Pop out" />
             <EdgeIconButton
             theme="dark"
@@ -266,21 +296,41 @@ export function AccountPanel() {
             ))}
           </div>
           {ordersTab === "orders" ? (
-            account.orders.length === 0 ? (
+            !account.activeTradingAccountId ? (
+              <p className="text-[11px] text-[var(--edge-text-secondary)]">
+                No active trading account selected.
+              </p>
+            ) : account.ordersForActiveAccount.length === 0 ? (
               <p className="text-[11px] text-[var(--edge-text-secondary)]">No open orders.</p>
             ) : (
               <div className="space-y-1 text-[11px]">
-                {account.orders.map((order) => (
+                {cancelError ? (
+                  <p className="text-[10px] text-[var(--edge-negative)]">{cancelError}</p>
+                ) : null}
+                {account.ordersForActiveAccount.map((order) => (
                   <div
                     key={order.orderId ?? order.permId ?? `${order.symbol}-${order.updatedAt}`}
                     className="rounded border border-[var(--edge-border)] px-2 py-1"
                   >
-                    <div className="font-medium">
-                      {order.symbol} · {order.action} {order.totalQuantity} · {order.orderType}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-medium">
+                        {order.symbol} · {order.action} {order.totalQuantity} · {order.orderType}
+                      </div>
+                      {isOrderCancellable(order.status) && order.orderId != null ? (
+                        <EdgeButton
+                          theme="dark"
+                          className="!px-2 !py-0.5 text-[10px]"
+                          disabled={cancellingOrderId === order.orderId}
+                          onClick={() => void handleCancelOrder(order)}
+                        >
+                          {cancellingOrderId === order.orderId ? "Cancelling…" : "Cancel"}
+                        </EdgeButton>
+                      ) : null}
                     </div>
                     <div className="text-[var(--edge-text-secondary)]">
                       {order.status} · filled {order.filled ?? 0}/{order.totalQuantity ?? 0}
                       {order.lmtPrice != null ? ` · lmt ${order.lmtPrice}` : ""}
+                      {order.orderRef ? ` · ref ${order.orderRef}` : ""}
                     </div>
                   </div>
                 ))}

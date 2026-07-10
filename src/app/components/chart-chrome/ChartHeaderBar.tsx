@@ -89,6 +89,7 @@ type Props = {
   chartActions: ChartHeaderChartActions;
   symbolNav?: ChartHeaderSymbolNav;
   workspaceActions?: ChartHeaderWorkspaceActions;
+  onOpenTrade?: () => void;
   /** Optional density override for tests. */
   density?: HeaderDensity;
 };
@@ -106,6 +107,7 @@ export default function ChartHeaderBar({
   chartActions,
   symbolNav,
   workspaceActions,
+  onOpenTrade,
   density: densityOverride,
 }: Props) {
   const { theme, layoutId, linkSymbol, linkInterval, linkCrosshair, linkDrawings, layoutName } = layout;
@@ -202,8 +204,9 @@ export default function ChartHeaderBar({
         {
           id: 'trade',
           label: 'Trade',
-          disabled: true,
-          title: 'Trading not available',
+          disabled: !onOpenTrade,
+          title: onOpenTrade ? 'Open trade ticket' : 'Trading not available',
+          onClick: onOpenTrade,
         },
         {
           id: 'publish',
@@ -367,7 +370,14 @@ export default function ChartHeaderBar({
           {showInline(density, 'tertiary') ? (
             <>
               <ChartHeaderDivider theme={theme} />
-              <ChartHeaderButton theme={theme} label="Trade" disabled title="Trading not available" />
+              <ChartHeaderButton
+                theme={theme}
+                label="Trade"
+                disabled={!onOpenTrade}
+                title={onOpenTrade ? 'Open trade ticket' : 'Trading not available'}
+                onClick={onOpenTrade}
+                data-testid="trade-trigger"
+              />
               <ChartHeaderButton
                 theme={theme}
                 label="Publish"

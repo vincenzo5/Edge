@@ -5,6 +5,7 @@ import ChartGrid from "./ChartGrid";
 import RightSidebar from "./sidebar/RightSidebar";
 import SidebarRail from "./sidebar/SidebarRail";
 import ChartHeaderBar from "./chart-chrome/ChartHeaderBar";
+import TradeTicketModal from "./trading/TradeTicketModal";
 import { SidebarProvider } from "./SidebarContext";
 import { ActiveChartProvider } from "./ActiveChartContext";
 import { ChartActionsProvider } from "./ChartActionsContext";
@@ -12,7 +13,6 @@ import { AppActionsProvider, buildAppActions } from "./AppActionsContext";
 import { WatchlistProvider } from "./watchlist/WatchlistContext";
 import { ScreenerProvider } from "./screener/ScreenerProvider";
 import { MarketDataProvider } from "./MarketDataProvider";
-import { AccountProvider } from "./AccountProvider";
 import { RiskSettingsProvider } from "./RiskSettingsProvider";
 import { DataHealthProvider } from "./data-health";
 import { AiToolsProvider } from "./AiToolsProvider";
@@ -94,11 +94,20 @@ export default function StockApp() {
   const finishRemoteWorkspaceMergeRef =
     useRef<AppBootstrapResult["finishRemoteWorkspaceMerge"]>(undefined);
   const [hydrated, setHydrated] = useState(false);
+  const [tradeTicketOpen, setTradeTicketOpen] = useState(false);
   const hydratedRef = useRef(false);
   const workspaceTabsRef = useRef(workspaceTabs);
   const flushActiveTabSaveRef = useRef<() => Promise<void>>(async () => {});
 
   workspaceTabsRef.current = workspaceTabs;
+
+  const handleOpenTrade = useCallback(() => {
+    setTradeTicketOpen(true);
+  }, []);
+
+  const handleCloseTrade = useCallback(() => {
+    setTradeTicketOpen(false);
+  }, []);
 
   const layout = useMemo(() => getActiveLayout(workspaceTabs), [workspaceTabs]);
   const activeTab = useMemo(() => getActiveTab(workspaceTabs), [workspaceTabs]);
@@ -592,7 +601,6 @@ export default function StockApp() {
                 initialSession={screenerSessionBootstrap ?? undefined}
               >
               <MarketDataProvider layout={layout}>
-              <AccountProvider>
               <RiskSettingsProvider>
               <PanelPresentationProvider value={panelPresentation}>
               <ActiveChartProvider>
@@ -645,6 +653,13 @@ export default function StockApp() {
                 onBack: handleSymbolBack,
                 onForward: handleSymbolForward,
               }}
+              onOpenTrade={handleOpenTrade}
+            />
+            <TradeTicketModal
+              open={tradeTicketOpen}
+              symbol={activeCell.symbol}
+              theme={layout.theme}
+              onClose={handleCloseTrade}
             />
             <div className="flex min-h-0 flex-1 overflow-hidden">
               <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -713,7 +728,6 @@ export default function StockApp() {
               </ActiveChartProvider>
               </PanelPresentationProvider>
               </RiskSettingsProvider>
-              </AccountProvider>
               </MarketDataProvider>
               </ScreenerProvider>
             </WatchlistProvider>

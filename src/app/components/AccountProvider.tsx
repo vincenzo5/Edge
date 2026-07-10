@@ -23,6 +23,16 @@ import {
   buildAccountSnapshot,
   type AccountSnapshotPayload,
 } from "@/lib/brokerage/accountSnapshot";
+import { filterOrdersByAccount } from "@/lib/brokerage/filterOrders";
+import {
+  readActiveTradingAccount,
+  writeActiveTradingAccount,
+} from "@/lib/trading/activeAccount";
+import {
+  readTradingEnvironment,
+  writeTradingEnvironment,
+} from "@/lib/trading/tradingEnvironment";
+import type { TradingAccount, TradingEnvironment } from "@/lib/trading/types";
 
 export type { AccountConnectionState } from "@/lib/brokerage/accountSnapshot";
 import type { AccountConnectionState } from "@/lib/brokerage/accountSnapshot";
@@ -34,6 +44,12 @@ type AccountContextValue = {
   positions: AccountPosition[];
   pnl: AccountPnL | null;
   orders: AccountOrder[];
+  ordersForActiveAccount: AccountOrder[];
+  activeTradingAccount: TradingAccount | null;
+  activeTradingAccountId: string | null;
+  tradingEnvironment: TradingEnvironment;
+  setTradingEnvironment: (environment: TradingEnvironment) => void;
+  setActiveTradingAccount: (account: TradingAccount) => void;
   executions: AccountExecution[];
   error: string | null;
   disabled: boolean;
@@ -73,11 +89,38 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     orders: [],
     executions: [],
   });
+  const [activeTradingAccount, setActiveTradingAccountState] = useState<TradingAccount | null>(
+    () => readActiveTradingAccount(),
+  );
+  const [activeTradingAccountId, setActiveTradingAccountId] = useState<string | null>(
+    () => readActiveTradingAccount()?.accountId ?? null,
+  );
+  const [tradingEnvironment, setTradingEnvironmentState] = useState<TradingEnvironment>(
+    () => readActiveTradingAccount()?.environment ?? readTradingEnvironment(),
+  );
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  const setTradingEnvironment = useCallback((environment: TradingEnvironment) => {
+    writeTradingEnvironment(environment);
+    setTradingEnvironmentState(environment);
+  }, []);
+
+  const setActiveTradingAccount = useCallback(
+    (account: TradingAccount) => {
+      writeActiveTradingAccount(account);
+      setActiveTradingAccountState(account);
+      setActiveTradingAccountId(account.accountId);
+      setTradingEnvironment(account.environment);
+    },
+    [setTradingEnvironment],
+  );
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/brokerage/snapshot", { cache: "no-store" });
+      const res = await fetch(
+        `/api/brokerage/snapshot?environment=${encodeURIComponent(tradingEnvironment)}`,
+        { cache: "no-store" },
+      );
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as {
           error?: string;
@@ -100,11 +143,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setConnectionState("error");
       setError(err instanceof Error ? err.message : "Account refresh failed");
     }
-  }, []);
+  }, [tradingEnvironment]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const stored = readActiveTradingAccount();
+    setActiveTradingAccountState(stored);
+    setActiveTradingAccountId(stored?.accountId ?? null);
+  }, [snapshot.orders]);
 
   // Slow re-probe when the sidecar was unreachable or errored, so the panel
   // recovers without manual refresh. Capped at 30s to avoid hammering a dead
@@ -122,8 +171,11 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   // browser-driven reconnect and starves unrelated API traffic (e.g. /api/candles).
   useEffect(() => {
     if (sidecarReachable !== true) return;
+    if (tradingEnvironment === "live") return;
 
-    const es = new EventSource("/api/brokerage/stream");
+    const es = new EventSource(
+      `/api/brokerage/stream?environment=${encodeURIComponent(tradingEnvironment)}`,
+    );
     eventSourceRef.current = es;
     setConnectionState("connecting");
 
@@ -150,7 +202,15 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       es.close();
       eventSourceRef.current = null;
     };
-  }, [sidecarReachable]);
+  }, [sidecarReachable, tradingEnvironment]);
+
+  useEffect(() => {
+    if (sidecarReachable !== true || tradingEnvironment !== "live") return;
+    const timer = setInterval(() => {
+      void refresh();
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, [sidecarReachable, tradingEnvironment, refresh]);
 
   const positionForSymbol = useCallback(
     (symbol: string) => {
@@ -171,6 +231,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       error,
       snapshot,
     );
+    const ordersForActiveAccount = filterOrdersByAccount(
+      accountSnapshot.orders,
+      activeTradingAccountId,
+    );
     return {
       connectionState: accountSnapshot.connectionState,
       status: accountSnapshot.status,
@@ -178,13 +242,31 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       positions: accountSnapshot.positions,
       pnl: accountSnapshot.pnl,
       orders: accountSnapshot.orders,
+      ordersForActiveAccount,
+      activeTradingAccount,
+      activeTradingAccountId,
+      tradingEnvironment,
+      setTradingEnvironment,
+      setActiveTradingAccount,
       executions: accountSnapshot.executions,
       error: accountSnapshot.error,
       disabled: accountSnapshot.disabled,
       refresh,
       positionForSymbol,
     };
-  }, [connectionState, snapshot, error, disabled, refresh, positionForSymbol]);
+  }, [
+    connectionState,
+    snapshot,
+    error,
+    disabled,
+    refresh,
+    positionForSymbol,
+    activeTradingAccount,
+    activeTradingAccountId,
+    tradingEnvironment,
+    setTradingEnvironment,
+    setActiveTradingAccount,
+  ]);
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
 }

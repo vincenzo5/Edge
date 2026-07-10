@@ -50,6 +50,7 @@ type Props = {
   canUndo?: boolean;
   canRedo?: boolean;
   actions: ChartTopBarActions;
+  onOpenTrade?: () => void;
 };
 
 export default function ChartTopBar({
@@ -63,6 +64,7 @@ export default function ChartTopBar({
   canUndo,
   canRedo,
   actions,
+  onOpenTrade,
 }: Props) {
   return (
     <div className={headerBarClass(theme, compact)} role="toolbar" aria-label="Chart header">
@@ -157,7 +159,14 @@ export default function ChartTopBar({
             <SettingsIcon />
           </ChartHeaderButton>
           <ChartHeaderDivider theme={theme} />
-          <ChartHeaderButton theme={theme} label="Trade" disabled title="Trading not available" />
+          <ChartHeaderButton
+            theme={theme}
+            label="Trade"
+            disabled={!onOpenTrade}
+            title={onOpenTrade ? 'Open trade ticket' : 'Trading not available'}
+            onClick={onOpenTrade}
+            data-testid="trade-trigger"
+          />
           <ChartHeaderButton
             theme={theme}
             label="Publish"

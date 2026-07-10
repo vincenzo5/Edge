@@ -212,6 +212,6 @@ export const HEADER_ACTIONS: HeaderActionDescriptor[] = [
     implemented: true,
     shortcutId: 'snapshotDownload',
   },
-  { id: 'trade', label: 'Trade', implemented: false, disabledReason: 'Trading not available' },
+  { id: 'trade', label: 'Trade', implemented: true },
   { id: 'publish', label: 'Publish', implemented: false, disabledReason: 'Publishing not available' },
 ];
