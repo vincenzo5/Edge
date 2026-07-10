@@ -2,16 +2,63 @@
 
 Single source for current progress. For row-by-row feature detail, see [chart/features.md](./chart/features.md).
 
-**Last updated:** 2026-07-08
+**Last updated:** 2026-07-09
 
 ## Current Verified State
 
-- **Current task:** Journal loading + empty states.
-- **State:** **Passing** — focused tests and build passed; app-level loading/empty walkthrough deferred on localhost:3003.
-- **Latest verification:** **Focused:** `Test Files 24 passed (24)`, `Tests 136 passed (136)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review — Passed.
-- **Evidence:** `journalDataPhase.ts`, `journalEmptyCopy.ts`, `JournalTradesProvider.tsx`, `JournalContentGate.tsx`, `JournalPageLoadingSkeleton.tsx`, `JournalGlobalEmptyState.tsx`, `JournalDashboardView.tsx`, `JournalTradesView.tsx`, tests, `ARCHITECTURE.md`.
+- **Current task:** Dual connection — Phase A dual Gateway infra.
+- **State:** **Active** — compose + scripts + docs shipped; sidecar restart proves honest `connectionId` routing; full dual-port exit pending local IB credentials + 2FA.
+- **Latest verification:** **Focused:** `Ran 26 tests OK`; **App-level (partial):** `ib-paper` HTTP 200 `accountId: DUP586813`; `ib-live` HTTP 503 (not cloning paper when 4001 down); `docker compose config` OK.
+- **Evidence:** `services/ib-gateway/docker-compose.yml`, `services/ib-gateway/.env.example`, `package.json` (`ib:gateway:up|down`), `.env.example`, `docs/dual-connection-roadmap.md`, `src/lib/trading/ARCHITECTURE.md`.
+- **Current blocker:** Copy `services/ib-gateway/.env.example` → `.env` with live + paper IB credentials; stop desktop Gateway on 4002; `npm run ib:gateway:up` + VNC 2FA; then re-curl both connections for distinct managed account ids.
+- **Next best step:** Complete A.5 — both ports listening (4001 live, 4002 paper); curl `ib-live` → live managed id (e.g. `U25026894`); mark Phase A **Passing**; start Phase B.
+
+## Previous Verified State (Dual connection plan only)
+
+- **Current task:** Dual connection — live data + paper/live orders (roadmap).
+- **State:** **Pending** — roadmap documented; implementation not started.
+- **Latest verification:** Plan-only (no code). Architecture self-review Passed for planning.
+- **Evidence:** `docs/dual-connection-roadmap.md`, links in `docs/ROADMAP.md`, `docs/trading-execution-roadmap.md`, `src/lib/trading/ARCHITECTURE.md`.
+- **Current blocker:** none (infra depends on Docker dual Gateway + sidecar restart when implementation starts).
+- **Next best step:** Phase A — Docker `TRADING_MODE=both` compose mapping 4001/4002; restart sidecar; prove distinct `ib-paper` / `ib-live` account status. See [dual-connection-roadmap.md](./dual-connection-roadmap.md).
+
+## Previous Verified State (Account context wiring)
+
+- **Current task:** Account context wiring.
+- **State:** **Passing** — journal providers nested under `AccountProvider`; header picker uses composite `connectionId::accountId` keys; journal-only accounts from fills appear in picker; journal filters react to active account; trade ticket disabled for journal-only selection.
+- **Latest verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 23 passed (23)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `JournalModuleShell.tsx`, `JournalTradesProvider.nesting.test.tsx`, `AppTopHeader.tsx`, `accountPickerOptions.ts`, `AccountProvider.tsx`, `TradeTicketModal.tsx`, `filterTradesByAccount.ts`, `src/lib/journal/ARCHITECTURE.md`, `src/lib/trading/ARCHITECTURE.md`.
 - **Current blocker:** none.
-- **Next best step:** App-level walkthrough — cold load `/journal/dashboard` shows skeleton (no scoped-empty flash), global empty with Import/Sync when no trades, scoped filtered empty when filters exclude all rows.
+- **Next best step:** Superseded by dual-connection roadmap (remove journal-only rows after live Gateway discovery).
+
+## Previous Verified State (Global account header + single account context)
+
+- **Current task:** Global account header + single account context.
+- **State:** **Passing** — persistent content-column header (`edge` + app-wide account picker); selecting an account sets environment; trade modal and AccountPanel are display-only; journal trades filtered by active account (nesting bug fixed in account context wiring row).
+- **Latest verification:** **Focused:** `Test Files 6 passed (6)`, `Tests 26 passed (26)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.9s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `AppModuleShell.tsx`, `AppTopHeader.tsx`, `AccountProvider.tsx`, `TradeTicketModal.tsx`, `AccountPanel.tsx`, `JournalTradesProvider.tsx`, `filterTradesByAccount.ts`, `src/lib/trading/ARCHITECTURE.md`, `src/lib/design-system/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by account context wiring row.
+
+## Previous Verified State (Trading execution — Phase 5 connection registry + paper/live)
+
+- **Current task:** Trading execution — Phase 5 connection registry + paper/live.
+- **State:** **Passing** — connection registry (`ib-paper`/`ib-live`), dual sidecar sockets, in-app Paper/Live toggle, `liveConfirmation: LIVE` gate.
+- **Latest verification:** **Focused:** `Test Files 15 passed (15)`, `Tests 76 passed (76)`; **Sidecar:** `Ran 26 tests OK`; **Build:** `npm run build` passed; **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/trading/connectionRegistry.ts`, `src/lib/trading/adapters/{ibTws,stub}.ts`, `src/lib/trading/tradingEnvironment.ts`, `services/tws-sidecar/main.py`, `TradeTicketModal.tsx`, `AccountPanel.tsx`, `AccountProvider.tsx`, `docs/trading-execution-roadmap.md`, `src/lib/trading/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by global account header row.
+
+## Previous Verified State (Trading execution — Phase 4 UI + journal)
+
+- **Current task:** Trading execution — Phase 4 UI + journal.
+- **State:** **Passing** — chart trade ticket, confirm modal, AccountPanel cancel, journal orderRef correlation, AI `preview_order`/`place_order`.
+- **Latest verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/trading/tradingClient.ts`, `src/app/components/trading/TradeTicketModal.tsx`, `src/app/components/sidebar/panels/AccountPanel.tsx`, `src/lib/journal/correlateOrderRef.ts`, `src/lib/ai/tools/trading.ts`, `src/lib/ai/tradingPort.ts`, `docs/trading-execution-roadmap.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by Phase 5 row.
+
+## Previous Verified State (Journal loading + empty states)
 
 ## Previous Verified State (Journal trades table controls)
 
@@ -570,6 +617,15 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
+| Dual connection — live data + paper/live orders | Phase A: Docker dual Gateway infra (`TRADING_MODE=both`, 4001/4002); sidecar honest routing; full dual-port proof pending credentials | **Active** | **Focused:** `Ran 26 tests OK`; **App-level (partial):** `ib-paper` → `DUP586813` HTTP 200; `ib-live` → HTTP 503 (4001 down, no paper clone after sidecar restart); compose validates; **Blocker:** `services/ib-gateway/.env` + 2FA + stop desktop 4002 | `services/ib-gateway/*`, `package.json`, `.env.example`, `.gitignore`, `docs/dual-connection-roadmap.md`, `src/lib/trading/ARCHITECTURE.md` |
+| Account context wiring | Journal providers under `AccountProvider`; composite picker keys; journal-only accounts from fills; journal filter reacts to picker; trade ticket Gateway-only | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 23 passed (23)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level journal/chart walkthrough deferred | `JournalModuleShell.tsx`, `JournalTradesProvider.nesting.test.tsx`, `AppTopHeader.tsx`, `accountPickerOptions.ts`, `AccountProvider.tsx`, `TradeTicketModal.tsx`, `filterTradesByAccount.ts`, `src/lib/journal/ARCHITECTURE.md`, `src/lib/trading/ARCHITECTURE.md` |
+| Global account header + single account context | Persistent content-column header with `edge` + app-wide account picker; selecting account sets `environment`; trade modal/AccountPanel display-only; journal filtered by active account | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 26 passed (26)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.9s`); **Architecture review:** self-review Passed; nesting bug fixed in account context wiring row | `AppModuleShell.tsx`, `AppTopHeader.tsx`, `AccountProvider.tsx`, `TradeTicketModal.tsx`, `AccountPanel.tsx`, `JournalTradesProvider.tsx`, `filterTradesByAccount.ts`, `src/lib/trading/ARCHITECTURE.md`, `src/lib/design-system/ARCHITECTURE.md` |
+| Trading execution — Phase 5 connection registry + paper/live | Connection registry (`ib-paper`/`ib-live`); dual sidecar Gateway sockets; global header account picker (replaces in-modal/panel Paper/Live toggle); `liveConfirmation: LIVE` on live mutations; stub second adapter | **Passing** | **Focused:** `Test Files 15 passed (15)`, `Tests 76 passed (76)`; **Sidecar:** `Ran 26 tests OK`; **Build:** `npm run build` passed; **Architecture review:** self-review Passed; app-level paper/live walkthrough deferred | `src/lib/trading/connectionRegistry.ts`, `src/lib/trading/adapters/{ibTws,stub}.ts`, `src/lib/trading/tradingEnvironment.ts`, `services/tws-sidecar/main.py`, `TradeTicketModal.tsx`, `AccountPanel.tsx`, `AccountProvider.tsx`, `docs/trading-execution-roadmap.md`, `src/lib/trading/ARCHITECTURE.md` |
+| Trading execution — Phase 4 UI + journal | Chart trade ticket + what-if confirm; AccountPanel cancel on `ordersForActiveAccount`; journal `orderRef` correlation; AI `preview_order`/`place_order` with mandatory confirmation | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed; app-level paper walkthrough deferred | `src/lib/trading/tradingClient.ts`, `src/app/components/trading/TradeTicketModal.tsx`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/sidebar/panels/AccountPanel.tsx`, `src/lib/journal/correlateOrderRef.ts`, `src/lib/ai/tools/trading.ts`, `src/lib/ai/tradingPort.ts`, `docs/trading-execution-roadmap.md` |
+| Trading execution — Phase 3 stops + safety | STP/STP LMT preview+submit; previewIntentId 30s expiry; short-sale hard block; PDT soft warning; `EDGE_TRADING_KILL_SWITCH`; audit log | **Passing** | **Focused:** `Test Files 10 passed (10)`, `Tests 52 passed (52)`; **Sidecar:** `Ran 25 tests OK`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`); **Architecture review:** self-review Passed | `src/lib/trading/{types,validateOrder,safetyGuards,auditLog,tradingService}.ts`, `src/lib/trading/adapters/ibTws.ts`, `services/tws-sidecar/main.py`, `services/tws-sidecar/test_main.py`, `src/app/api/trading/**`, `.env.example`, `src/lib/trading/ARCHITECTURE.md`, `docs/trading-execution-roadmap.md` |
+| Trading execution — Phase 2 manage + account | Modify MKT/LMT; active account persistence; account-scoped orders; lost-response reconciler | **Passing** | **Focused:** `Test Files 8 passed (8)`, `Tests 32 passed (32)`; **Sidecar:** `Ran 19 tests OK`; **Build:** `npm run build` passed; **App-level:** `defaultAccountId: DUP586813`; LMT `orderId: 38` `permId: 1306430116`; PATCH `lmtPrice: 8.95`; scoped orders include `orderRef`; cancel `status: "Cancelled"`; **Architecture review:** self-review Passed | `services/tws-sidecar/main.py`, `services/tws-sidecar/test_main.py`, `src/lib/trading/**`, `src/lib/brokerage/filterOrders.ts`, `src/app/api/trading/**`, `src/app/components/AccountProvider.tsx`, `docs/trading-execution-roadmap.md` |
+| Trading execution — Phase 1 domain + adapter | Broker-neutral `TradingService`, `IbTwsTradingAdapter`, intent store, `/api/trading/*` on paper only (MKT/LMT); no UI | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 14 passed (14)`; **Build:** `npm run build` passed; **App-level:** preview MKT HTTP 200; MKT `orderId: 17` `permId: 1306430090`; LMT `orderId: 19` `permId: 1306430091`; cancel `status: "Cancelled"`; idempotent retry same intent; **Architecture review:** self-review Passed | `src/lib/trading/**`, `src/app/api/trading/**`, `src/lib/api/apiAuth.ts`, `src/lib/trading/ARCHITECTURE.md` |
+| Trading execution — Phase 0 paper spike | Prove IB paper place + cancel via TWS sidecar; MKT 1-share place + LMT cancel; explicit accountId; paper-only gate (`TWS_PORT=4002`) | **Passing** | **Focused:** `Ran 15 tests OK`; **App-level:** paper `DUP586813` — MKT `orderId: 9` `permId: 1306430087`; LMT `orderId: 10` `permId: 1306430088`; cancel `status: "Cancelled"`; **Architecture review:** self-review Passed | `services/tws-sidecar/main.py`, `services/tws-sidecar/test_main.py`, `docs/trading-execution-roadmap.md` |
 | Journal loading + empty states | Page-level skeleton/global empty/error gates on Dashboard + Trades; scoped widget empty copy standardized; no flash of scoped empty on initial load | **Passing** | **Focused:** `Test Files 24 passed (24)`, `Tests 136 passed (136)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.5s`); **Architecture review:** self-review Passed; app-level loading/empty walkthrough deferred | `journalDataPhase.ts`, `journalEmptyCopy.ts`, `JournalTradesProvider.tsx`, `JournalContentGate.tsx`, `JournalPageLoadingSkeleton.tsx`, `JournalGlobalEmptyState.tsx`, `JournalDashboardView.tsx`, `JournalTradesView.tsx`, tests, `ARCHITECTURE.md` |
 | Journal trades table controls | `/journal/trades` table has sortable headers (default activity desc), result count strip, filtered empty state, client pagination (25/50/100), column visibility + density prefs in localStorage | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 48 passed (48)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **Architecture review:** self-review Passed; app-level trades table walkthrough deferred | `journalTradesTableControls.ts`, `JournalTradesTableControls.tsx`, `JournalTradesTable.tsx`, `JournalTradesView.tsx`, tests, `ARCHITECTURE.md` |
 | Journal trades page hero summary cards | Trades page shows the same four dashboard hero KPI cards (account equity, win %, profit factor, avg win/loss) above the trades table, scoped to page filters/period | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 44 passed (44)`; **Architecture review:** self-review Passed; app-level trades-page walkthrough deferred | `JournalTradesView.tsx`, `JournalPage.test.tsx` |
@@ -686,6 +742,96 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Stock screener Phase 2 (composition + persistence + live results) | Postgres screener library sync (localStorage fallback), group watchlist actions, live quote overlay on visible rows, AND/OR query groups, CSV + clipboard export | **Passing** | **Focused:** 63 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** Gainers preset, group actions, OR group, save screen verified on `localhost:3003` | `src/db/schema.ts`, `src/lib/persistence/schemas/screenerLibrary.ts`, `src/lib/persistence/repositories/screenerLibraryRepository.ts`, `src/app/api/me/screener-library/`, `src/lib/persistence/sync/useScreenerLibraryRemoteSync.ts`, `src/app/components/screener/ScreenerProvider.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/lib/screener/{compileQuery,exportResults}.ts`, `src/lib/watchlist/storage.ts`, `docs/screener-roadmap.md` |
 | Stock screener Phase 1.5 (technical presets) | Four technical presets (RSI oversold/overbought, golden cross, near 52-week high) via server-side two-step pipeline: FMP prefilter → Yahoo daily candles + chart-core indicator math; bounded concurrency; two-phase loading label + phase summary in modal | **Passing** | **Focused:** 52 tests passed; **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** preset rail visible in screener modal on `localhost:3003`; **Architecture review:** self-review Passed | `src/lib/screener/{technicalMath,technicalFilter,presets,types}.ts`, `src/lib/marketData/service/marketDataService.ts`, `src/lib/marketData/schemas/request.ts`, `src/lib/marketData/cache/ttlPolicy.ts`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
 | Stock screener MVP (Lean) | Header-bar icon opens modal screener filtering US equities/ETFs via FMP `/company-screener`; presets + flat query-builder; sortable paginated results; per-row load-into-chart and add-to-watchlist; named screens persist in localStorage | **Passing** | **Focused:** 48 tests passed (Phase 1 baseline); **Build:** `npm run build` passed; **Startup:** `npm run check:startup` passed (26 tests); **App-level:** screener modal walkthrough on `localhost:3003` (preset run, row actions, save/load) | `src/app/api/screener/run/route.ts`, `src/lib/marketData/providers/fmp/`, `src/lib/screener/`, `src/lib/chartDataFeed/apiScreenerFeed.ts`, `src/app/components/screener/`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `src/app/components/StockApp.tsx`, `src/lib/marketData/ARCHITECTURE.md`, `docs/screener-roadmap.md` |
+
+## Task Contract — Dual connection (live data + paper/live orders)
+
+- **Status:** Active — Phase A infra shipped 2026-07-09; A.5 dual-port proof pending credentials.
+- **Goal:** Run paper+live IB Gateways simultaneously (Docker preferred); keep live market data stable while switching order account paper↔live; fold journal fills into real Gateway accounts (no `(journal)` picker rows); preserve pluggable market-data providers.
+- **Delivered:** `docs/dual-connection-roadmap.md` (Phases A–D); `services/ib-gateway/docker-compose.yml` + `.env.example`; `npm run ib:gateway:up|down`; `.env.example` placeholder block; Phase A ops docs; `src/lib/trading/ARCHITECTURE.md` local dual Gateway note; sidecar restart + honest `ib-live` 503 when 4001 down.
+- **Verification:** **Focused:** `Ran 26 tests OK`; **App-level (partial):** `curl …/account/status?connectionId=ib-paper` → `DUP586813`; `curl …/account/status?connectionId=ib-live` → HTTP 503 (not paper clone). **Pending:** both ports up + distinct live managed id.
+- **Out of scope:** Postgres intents, options/brackets, Client Portal dual-session substitute, fill account remapping, new market-data plugin framework.
+- **Blockers:** `services/ib-gateway/.env` with live + paper credentials; VNC 2FA; stop desktop Gateway on 4002 before Docker start.
+- **Next:** Complete A.5 dual-port proof → Phase B (remove journal-only picker + sidecar discovery honesty).
+
+## Task Contract — Account context wiring
+
+- **Status:** Passing — shipped 2026-07-08.
+- **Goal:** Journal and header account picker share one `AccountProvider` context; picker uniquely identifies paper/live; Flex journal accounts selectable; journal filters react to selection.
+- **Delivered:** `JournalModuleShell` provider reorder; `accountPickerOptions.ts`; composite picker keys in `AppTopHeader`; `activeTradingAccount` on `AccountProvider`; journal-only trade ticket guard; nesting regression test.
+- **Verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 23 passed (23)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`).
+- **Out of scope:** Sidecar multi-account summary switching; positions/summary per-account filtering; denormalized `accountId` on `journal_trades`.
+- **Blockers:** none.
+- **Next:** Superseded by dual-connection roadmap (remove journal-only after live discovery).
+
+## Task Contract — Global account header + single account context
+
+- **Status:** Passing — shipped 2026-07-08.
+- **Goal:** One persistent header account picker drives app-wide context; trade modal and AccountPanel no longer select account/env; journal scoped to selected account.
+- **Delivered:** `AppTopHeader.tsx` in `AppModuleShell`; lifted `AccountProvider` with `setActiveTradingAccount`; trade modal display-only account; AccountPanel env toggle removed; `filterTradesByAccount.ts` + `JournalTradesProvider` account filter.
+- **Verification:** **Focused:** `Test Files 6 passed (6)`, `Tests 26 passed (26)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.9s`).
+- **Out of scope:** Logo asset, full-width header above left nav, brokerage position/summary per-account filtering.
+- **Blockers:** none.
+- **Next:** App-level header/account walkthrough on localhost:3003.
+
+## Task Contract — Trading execution Phase 5
+
+- **Status:** Passing — shipped 2026-07-08.
+- **Goal:** Connection registry + paper/live routing without `TWS_PORT` restart; live stepped confirm; dual Gateway routing in sidecar.
+- **Delivered:** `connectionRegistry.ts`, `StubTradingAdapter`, `tradingEnvironment.ts` (`edge:trading:environment`); sidecar `ib-paper`/`ib-live` sockets; `liveConfirmation: LIVE` gate; global header account picker (replaces trade ticket + Account panel Paper/Live toggle); brokerage snapshot/stream `?environment=`.
+- **Verification:** **Focused:** `Test Files 15 passed (15)`, `Tests 76 passed (76)`; **Sidecar:** `Ran 26 tests OK`; **Build:** `npm run build` passed.
+- **Out of scope:** IBKR Web API adapter, Postgres intents, options execution, dual-homed chart market data.
+- **Blockers:** none.
+- **Next:** Superseded by [dual-connection-roadmap.md](./dual-connection-roadmap.md).
+
+## Task Contract — Trading execution Phase 4
+
+- **Status:** Passing — shipped 2026-07-08.
+- **Goal:** Chart ticket UI + what-if confirm; AccountPanel cancel; journal `orderRef` correlation; AI `place_order` with mandatory confirmation.
+- **Delivered:** `tradingClient.ts`; `TradeTicketModal` (form → confirm → submit with `previewIntentId`); ChartHeaderBar Trade entry; AccountPanel cancel on `ordersForActiveAccount`; `correlateOrderRef.ts` + journal detail order-ref display; `preview_order`/`place_order` AI tools + `TradingPort`.
+- **Verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`).
+- **Out of scope:** options execution, chart order overlays, live accounts, Postgres intents.
+- **Blockers:** none.
+- **Next:** Superseded by Phase 5 row.
+
+## Task Contract — Trading execution Phase 3
+
+- **Status:** Passing — shipped 2026-07-08.
+- **Goal:** STP/STP LMT stop orders end-to-end; preview expiry binding; short-sale/PDT/extended-hours safety; kill switch + audit log.
+- **Delivered:** `STP`/`STP LMT` in types, sidecar `StopOrder`/`StopLimitOrder`, adapter mapping; `previewIntentId` + 30s TTL on submit; `safetyGuards.ts` (covered sell, PDT warnings); `EDGE_TRADING_KILL_SWITCH`; `auditLog.ts`; `outsideRth` default false.
+- **Verification:** **Focused:** `Test Files 10 passed (10)`, `Tests 52 passed (52)`; **Sidecar:** `Ran 25 tests OK`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`).
+- **Out of scope:** chart ticket UI, AccountPanel cancel, AI tool, Postgres intents, live port 4001.
+- **Blockers:** none.
+- **Next:** Phase 4 per [trading-execution-roadmap.md](./trading-execution-roadmap.md).
+
+## Task Contract — Trading execution Phase 2
+
+- **Status:** Passing — shipped 2026-07-08.
+- **Goal:** Modify open paper MKT/LMT orders; active trading account selection; account-scoped order views; lost-response reconciler via `orderRef`/`permId`.
+- **Delivered:** sidecar `PATCH /trading/orders/{id}` + `orderRef` on `_map_order`; `OrderModifyPatch`, `BrokerTradingPort.modify` + `listOpenOrders`; `reconcile.ts`, `activeAccount.ts`, `filterOrders.ts`; `TradingService.modifyOrder` + submit recovery; `PATCH /api/trading/orders/[orderId]`; `defaultAccountId` on accounts API; `ordersForActiveAccount` on `AccountProvider`.
+- **Verification:** **Focused:** `Test Files 8 passed (8)`, `Tests 32 passed (32)`; **Sidecar:** `Ran 19 tests OK`; **Build:** `npm run build` passed; **App-level:** `orderId: 38` `permId: 1306430116`; PATCH `lmtPrice: 8.95`; scoped orders `orderRef: edge-phase2-api`; cancel `status: "Cancelled"`.
+- **Out of scope:** chart ticket UI, AccountPanel picker, STOP orders, Postgres intents, live port 4001.
+- **Blockers:** none.
+- **Next:** Phase 4 per [trading-execution-roadmap.md](./trading-execution-roadmap.md).
+
+## Task Contract — Trading execution Phase 1
+
+- **Status:** Passing — shipped 2026-07-08.
+- **Goal:** Broker-neutral types, `TradingService`, `IbTwsTradingAdapter`, intent store, `/api/trading/*` on paper only (MKT/LMT); no UI.
+- **Delivered:** `types.ts`, `validateOrder.ts`, `ports.ts`, `intentStore.ts`, `tradingService.ts`, `adapters/ibTws.ts`, `routeHelpers.ts`, `/api/trading/*`, `apiAuth` sensitive prefix, `ARCHITECTURE.md`.
+- **Verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 14 passed (14)`; **Build:** `npm run build` passed; **App-level:** MKT `orderId: 17` `permId: 1306430090`; LMT `orderId: 19` `permId: 1306430091`; cancel `status: "Cancelled"`; idempotent retry same intent.
+- **Out of scope:** chart ticket UI, AI tool, STOP orders, live port 4001, Postgres intents.
+- **Blockers:** none.
+- **Next:** Phase 2 per [trading-execution-roadmap.md](./trading-execution-roadmap.md).
+
+## Task Contract — Trading execution Phase 0
+
+- **Status:** Passing — shipped 2026-07-08.
+- **Goal:** Prove IB Gateway **paper** can place and cancel stock orders through the TWS sidecar before building `TradingService` or UI.
+- **Delivered:** `_require_trading_enabled` (paper port 4002 + non-readonly gate); `PlaceOrderRequest`; shared `_build_stock_order`; `POST /trading/orders`; `DELETE /trading/orders/{order_id}`; 6 trading unit tests in `test_main.py`.
+- **Verification:** **Focused:** `Ran 15 tests OK`; **App-level:** paper account `DUP586813` on port 4002 — what-if MKT+LMT (no 403); MKT F 1-share `permId: 1306430087`; LMT AAPL @ $1 `permId: 1306430088`; cancel returned `status: "Cancelled"`.
+- **Out of scope:** `src/lib/trading/`, Next.js `/api/trading/*`, stop orders, chart ticket UI, live account (`4001`).
+- **Blockers:** none.
+- **Next:** Phase 1 per [trading-execution-roadmap.md](./trading-execution-roadmap.md).
 
 ## Task Contract — App module shell
 
@@ -1072,6 +1218,77 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Keep the current state above short and authoritative; keep historical detail here.
+
+### 2026-07-09 — Dual connection Phase A infra
+
+- **Goal:** Ship Docker dual Gateway compose (`TRADING_MODE=both`), npm scripts, env templates, ops docs; restart sidecar; prove honest `connectionId` routing.
+- **Shipped:** `services/ib-gateway/docker-compose.yml` (`ghcr.io/gnzsnz/ib-gateway:stable`, localhost 4001/4002/5900); `services/ib-gateway/.env.example`; `ib:gateway:up|down` with `--project-directory`; `.env.example` + `.gitignore` for gateway secrets; Phase A ops in `dual-connection-roadmap.md`; local dual Gateway note in `src/lib/trading/ARCHITECTURE.md`.
+- **Verification run:** **Focused:** `Ran 26 tests OK`; **App-level (partial):** sidecar restarted — `ib-paper` `DUP586813` HTTP 200; `ib-live` HTTP 503 when 4001 down (no paper clone); `docker compose config` OK.
+- **Known blockers:** No `services/ib-gateway/.env` yet; desktop IB Gateway on 4002; Docker image pull not completed in session.
+- **Next:** Copy `.env.example` → `.env`, stop desktop Gateway, `npm run ib:gateway:up`, VNC 2FA, confirm both ports, curl distinct live managed id → mark Phase A Passing → Phase B.
+
+### 2026-07-08 — Dual connection roadmap (plan only)
+
+- **Goal:** Document roadmap for Docker dual Gateway + decouple live market data from paper/live order routing; remove journal-only account workaround.
+- **Shipped:** `docs/dual-connection-roadmap.md` (Phases A–D); links from `ROADMAP.md`, `trading-execution-roadmap.md`, `src/lib/trading/ARCHITECTURE.md`; harness Pending row + Task Contract.
+- **Verification run:** Plan-only — no code/tests.
+- **Next:** Phase A — Docker `TRADING_MODE=both`, map 4001/4002, restart sidecar, prove distinct paper/live account status.
+
+### 2026-07-08 — Account context wiring
+
+- **Goal:** Fix journal ignoring header account picker; composite account identity; journal-discovered accounts in picker.
+- **Shipped:** Journal providers nested under `AccountProvider`; `accountPickerOptions.ts` + composite picker keys; journal-only accounts from fills; `activeTradingAccount` context; trade ticket Gateway-only guard; nesting regression test.
+- **Verification run:** **Focused:** `Test Files 7 passed (7)`, `Tests 23 passed (23)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`).
+- **Next:** App-level walkthrough — `/journal/dashboard` switch `DUP586813` vs `U25026894 (journal)`; paper vs live distinct; `/chart` trade ticket with Gateway account.
+
+### 2026-07-08 — Global account header + single account context
+
+- **Goal:** Persistent content-column header with `edge` + app-wide account picker; single account drives trading, account panel, and journal.
+- **Shipped:** `AppTopHeader.tsx` in `AppModuleShell`; lifted `AccountProvider` with `setActiveTradingAccount`; trade modal/AccountPanel display-only account; journal `filterTradesByAccount`.
+- **Verification run:** **Focused:** `Test Files 6 passed (6)`, `Tests 26 passed (26)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.9s`).
+- **Next:** App-level header/account walkthrough on localhost:3003.
+
+### 2026-07-08 — Trading execution Phase 5 connection registry + paper/live
+
+- **Goal:** Connection registry, dual Gateway sockets, in-app Paper/Live toggle, live `LIVE` confirm gate.
+- **Shipped:** `connectionRegistry.ts`, `StubTradingAdapter`, `tradingEnvironment.ts`; sidecar `ib-paper`/`ib-live`; Trade ticket + Account panel mode toggle; `liveConfirmation` on submit/cancel/modify.
+- **Verification run:** **Focused:** `Test Files 15 passed (15)`, `Tests 76 passed (76)`; **Sidecar:** `Ran 26 tests OK`; **Build:** `npm run build` passed.
+- **Next:** App-level paper/live walkthrough; Postgres intent store backlog.
+
+### 2026-07-08 — Trading execution Phase 4 UI + journal
+
+- **Goal:** Chart trade ticket, confirm modal, AccountPanel cancel, journal orderRef correlation, AI place_order.
+- **Shipped:** `TradeTicketModal`, `tradingClient.ts`, AccountPanel cancel + scoped orders, `correlateOrderRef.ts`, `preview_order`/`place_order` tools.
+- **Verification run:** **Focused:** `Test Files 7 passed (7)`, `Tests 36 passed (36)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`).
+- **Next:** Superseded by Phase 5 row.
+
+### 2026-07-08 — Trading execution Phase 3 stops + safety
+
+- **Goal:** STP/STP LMT orders, preview expiry, short-sale/PDT guards, kill switch, audit log.
+- **Shipped:** `STP`/`STP LMT` types + sidecar builders; `previewIntentId` 30s TTL; `safetyGuards.ts`; `auditLog.ts`; `EDGE_TRADING_KILL_SWITCH`; `outsideRth` default false.
+- **Verification run:** **Focused:** `Test Files 10 passed (10)`, `Tests 52 passed (52)`; **Sidecar:** `Ran 25 tests OK`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.6s`).
+- **Next:** Phase 4 — chart ticket UI + journal wiring.
+
+### 2026-07-08 — Trading execution Phase 2 manage + account
+
+- **Goal:** Modify open orders, active account selection, account-scoped orders, lost-response reconciler.
+- **Shipped:** sidecar `PATCH /trading/orders/{id}`; `reconcile.ts`, `activeAccount.ts`, `filterOrders.ts`; `TradingService.modifyOrder`; `PATCH /api/trading/orders/[orderId]`; `AccountProvider.ordersForActiveAccount`.
+- **Verification run:** **Focused:** `Test Files 8 passed (8)`, `Tests 32 passed (32)`; **Sidecar:** `Ran 19 tests OK`; **Build:** `npm run build` passed; **App-level:** `orderId: 38` `permId: 1306430116`; PATCH `lmtPrice: 8.95`; scoped `orderRef: edge-phase2-api`.
+- **Next:** Phase 3 — STOP orders + safety hardening.
+
+### 2026-07-08 — Trading execution Phase 1 domain + adapter
+
+- **Goal:** Broker-neutral trading layer on top of Phase 0 sidecar — types, service, adapter, `/api/trading/*`.
+- **Shipped:** `src/lib/trading/**`, `src/app/api/trading/**`, `/api/trading` in `apiAuth` sensitive prefixes.
+- **Verification run:** **Focused:** `Test Files 5 passed (5)`, `Tests 14 passed (14)`; **Build:** `npm run build` passed; **App-level:** MKT `orderId: 17` `permId: 1306430090`; LMT `orderId: 19` `permId: 1306430091`; cancel `status: "Cancelled"`.
+- **Next:** Phase 2 — modify orders + active account selection.
+
+### 2026-07-08 — Trading execution Phase 0 paper spike
+
+- **Goal:** Prove IB paper place + cancel via TWS sidecar before full trading layer.
+- **Shipped:** `POST /trading/orders`, `DELETE /trading/orders/{order_id}`, trading guards/helpers, unit tests; `.env.local` paper pins (`TWS_PORT=4002`, `TWS_ACCOUNT_ID=DUP586813`, `TWS_READONLY=false`).
+- **Verification run:** **Focused:** `Ran 15 tests OK`; **App-level:** MKT `orderId: 9` `permId: 1306430087`; LMT `orderId: 10` `permId: 1306430088`; cancel `status: "Cancelled"`.
+- **Next:** Phase 1 — broker-neutral types, `TradingService`, `/api/trading/*`.
 
 ### 2026-07-08 — Journal loading + empty states
 

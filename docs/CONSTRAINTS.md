@@ -25,7 +25,7 @@ Prefer encoding one-off lessons as tests instead of permanent narrative constrai
 - **MUST** route all AI capabilities through the shared tool registry in `src/lib/ai/`.
 - **MUST NOT** let tools import React or mutate component state directly — use `ToolContext` facades.
 - **MUST** validate all tool inputs with Zod schemas before execution.
-- **MUST** require explicit confirmation for destructive tools (`delete_drawing`, `clear_watchlist`, `delete_watchlist`).
+- **MUST** require explicit confirmation for destructive tools (`delete_drawing`, `clear_watchlist`, `delete_watchlist`, `place_order`).
 - **MUST** document linked-layout propagation when tools mutate symbol/range/interval.
 
 ## Persistence

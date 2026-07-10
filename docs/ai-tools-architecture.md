@@ -72,6 +72,8 @@ AI Agent
 | **Session state** | `get_risk_settings` | read | — |
 | **Session state** | `get_account_snapshot` | read | — |
 | **Session state** | `get_options_session` | read | — |
+| **Trading** | `preview_order` | write | no |
+| **Trading** | `place_order` | destructive | yes |
 
 ### Supported Indicators (implemented only)
 
