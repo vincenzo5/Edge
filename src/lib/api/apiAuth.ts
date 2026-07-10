@@ -1,5 +1,6 @@
 const SENSITIVE_PREFIXES = [
   "/api/brokerage",
+  "/api/trading",
   "/api/ai",
   "/api/market-data/tws/recover",
   "/api/market-data/warmup",

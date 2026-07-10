@@ -10,6 +10,10 @@ import type {
 } from "../marketData/contracts/brokerage";
 import { sidecarAuthHeaders } from "../marketData/providers/tws/sidecarAuth";
 import {
+  IB_PAPER_CONNECTION_ID,
+  connectionQuery,
+} from "@/lib/trading/connectionRegistry";
+import {
   BrokerageRequestError,
   classifyBrokerageError,
   recordBrokerageFailure,
@@ -40,9 +44,12 @@ function readConfig(): BrokerageClientConfig {
   };
 }
 
-export function getBrokerageStreamUrl(baseUrl?: string): string {
+export function getBrokerageStreamUrl(
+  baseUrl?: string,
+  connectionId: string = IB_PAPER_CONNECTION_ID,
+): string {
   const resolved = baseUrl ?? readConfig().baseUrl;
-  return `${resolved.replace(/\/$/, "")}/stream/account`;
+  return `${resolved.replace(/\/$/, "")}/stream/account?${connectionQuery(connectionId)}`;
 }
 
 /**
@@ -81,7 +88,15 @@ function toRequestError(error: unknown): BrokerageRequestError {
   return new BrokerageRequestError(category, message);
 }
 
-export function createBrokerageClient(config?: BrokerageClientConfig) {
+function withConnectionQuery(path: string, connectionId: string): string {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}${connectionQuery(connectionId)}`;
+}
+
+export function createBrokerageClient(
+  config?: BrokerageClientConfig,
+  connectionId: string = IB_PAPER_CONNECTION_ID,
+) {
   const resolved = config ?? readConfig();
 
   async function request<T>(
@@ -146,6 +161,10 @@ export function createBrokerageClient(config?: BrokerageClientConfig) {
   }
 
   return {
+    getConnectionId() {
+      return connectionId;
+    },
+
     getConfig() {
       return resolved;
     },
@@ -156,37 +175,44 @@ export function createBrokerageClient(config?: BrokerageClientConfig) {
     },
 
     async getStatus(): Promise<AccountStatus> {
-      return request<AccountStatus>("/account/status");
+      return request<AccountStatus>(withConnectionQuery("/account/status", connectionId));
     },
 
     async getSummary(): Promise<AccountSummary> {
-      return request<AccountSummary>("/account/summary");
+      return request<AccountSummary>(withConnectionQuery("/account/summary", connectionId));
     },
 
     async getPositions(): Promise<{ positions: AccountPosition[]; updatedAt: number }> {
       return request<{ positions: AccountPosition[]; updatedAt: number }>(
-        "/account/positions",
+        withConnectionQuery("/account/positions", connectionId),
       );
     },
 
     async getPnL(): Promise<AccountPnL> {
-      return request<AccountPnL>("/account/pnl");
+      return request<AccountPnL>(withConnectionQuery("/account/pnl", connectionId));
     },
 
-    async getOrders(): Promise<{ orders: AccountOrder[]; updatedAt: number }> {
-      return request<{ orders: AccountOrder[]; updatedAt: number }>("/account/orders");
+    async getOrders(options?: {
+      accountId?: string;
+    }): Promise<{ orders: AccountOrder[]; updatedAt: number }> {
+      const accountQuery = options?.accountId?.trim()
+        ? `&accountId=${encodeURIComponent(options.accountId.trim())}`
+        : "";
+      return request<{ orders: AccountOrder[]; updatedAt: number }>(
+        `${withConnectionQuery("/account/orders", connectionId)}${accountQuery}`,
+      );
     },
 
     async getTrades(): Promise<{ executions: AccountExecution[]; updatedAt: number }> {
       return request<{ executions: AccountExecution[]; updatedAt: number }>(
-        "/account/trades",
+        withConnectionQuery("/account/trades", connectionId),
       );
     },
 
     async whatIfOrder(body: WhatIfRequest): Promise<WhatIfResult> {
-      return request<WhatIfResult>("/account/whatif", {
+      return request<WhatIfResult>(withConnectionQuery("/account/whatif", connectionId), {
         method: "POST",
-        body: body,
+        body: { ...body, connectionId },
       });
     },
   };
@@ -194,14 +220,21 @@ export function createBrokerageClient(config?: BrokerageClientConfig) {
 
 export type BrokerageClient = ReturnType<typeof createBrokerageClient>;
 
-let singletonClient: BrokerageClient | null = null;
+const clientCache = new Map<string, BrokerageClient>();
 
-export function getBrokerageClient(): BrokerageClient | null {
+export function getBrokerageClient(
+  connectionId: string = IB_PAPER_CONNECTION_ID,
+): BrokerageClient | null {
   if (!isBrokerageConfigured()) return null;
-  if (!singletonClient) {
-    singletonClient = createBrokerageClient();
-  }
-  return singletonClient;
+  const cached = clientCache.get(connectionId);
+  if (cached) return cached;
+  const client = createBrokerageClient(undefined, connectionId);
+  clientCache.set(connectionId, client);
+  return client;
+}
+
+export function resetBrokerageClientForTests(): void {
+  clientCache.clear();
 }
 
 export { BrokerageRequestError };

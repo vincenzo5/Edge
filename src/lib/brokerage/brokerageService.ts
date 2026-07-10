@@ -15,6 +15,8 @@ import {
   probeSidecarLiveness,
 } from "./brokerageClient";
 import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
+import { resolveConnectionByEnvironment } from "@/lib/trading/connectionRegistry";
+import type { TradingEnvironment } from "@/lib/trading/types";
 
 export type BrokerageSnapshot = {
   status: AccountStatus | null;
@@ -45,8 +47,9 @@ export class BrokerageService {
     return getBrokerageClient();
   }
 
-  async getSnapshot(): Promise<BrokerageSnapshot> {
-    const client = getBrokerageClient();
+  async getSnapshot(environment: TradingEnvironment = "paper"): Promise<BrokerageSnapshot> {
+    const connection = resolveConnectionByEnvironment(environment);
+    const client = getBrokerageClient(connection.connectionId);
     if (!client) return EMPTY_SNAPSHOT;
 
     await awaitSidecarForBrokerage();

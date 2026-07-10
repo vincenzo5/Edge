@@ -18,21 +18,34 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from ib_insync import IB, LimitOrder, MarketOrder, Option, Stock
-from pydantic import BaseModel, Field
+from ib_insync import IB, LimitOrder, MarketOrder, Option, Stock, StopLimitOrder, StopOrder
+from pydantic import BaseModel, Field, model_validator
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env.local", override=True)
 load_dotenv(ROOT / ".env", override=True)
 
 TWS_HOST = os.environ.get("TWS_HOST", "127.0.0.1")
-TWS_PORT = int(os.environ.get("TWS_PORT", "4002"))
-TWS_CLIENT_ID = int(os.environ.get("TWS_CLIENT_ID", "77"))
+TWS_PAPER_PORT = int(os.environ.get("TWS_PAPER_PORT", os.environ.get("TWS_PORT", "4002")))
+TWS_LIVE_PORT = int(os.environ.get("TWS_LIVE_PORT", "4001"))
+TWS_PAPER_CLIENT_ID = int(
+    os.environ.get("TWS_PAPER_CLIENT_ID", os.environ.get("TWS_CLIENT_ID", "77"))
+)
+TWS_LIVE_CLIENT_ID = int(os.environ.get("TWS_LIVE_CLIENT_ID", str(TWS_PAPER_CLIENT_ID + 1)))
+TWS_PORT = TWS_PAPER_PORT
+TWS_CLIENT_ID = TWS_PAPER_CLIENT_ID
 TWS_READONLY = os.environ.get("TWS_READONLY", "true").lower() != "false"
 TWS_ACCOUNT_ID = os.environ.get("TWS_ACCOUNT_ID", "").strip()
 SIDECAR_PORT = int(os.environ.get("TWS_SIDECAR_PORT", "8765"))
 TWS_SIDECAR_SECRET = os.environ.get("TWS_SIDECAR_SECRET", "").strip()
 EDGE_SIDECAR_SECRET_HEADER = "X-Edge-Sidecar-Secret"
+
+PRIMARY_CONNECTION_ID = "ib-paper"
+IB_LIVE_CONNECTION_ID = "ib-live"
+_CONNECTION_SPECS: dict[str, dict[str, int]] = {
+    PRIMARY_CONNECTION_ID: {"port": TWS_PAPER_PORT, "client_id": TWS_PAPER_CLIENT_ID},
+    IB_LIVE_CONNECTION_ID: {"port": TWS_LIVE_PORT, "client_id": TWS_LIVE_CLIENT_ID},
+}
 
 INTERVAL_TO_BAR = {
     "1m": "1 min",
@@ -92,6 +105,8 @@ def _sidecar_secret_allowed(path: str, headers: Any) -> bool:
 
 _lock = threading.Lock()
 _ib: IB | None = None
+_ib_extra: dict[str, IB] = {}
+_extra_connect_errors: dict[str, str | None] = {}
 _last_connect_error: str | None = None
 _contract_cache: dict[str, Any] = {}
 _secdef_cache: dict[str, tuple[float, list[Any]]] = {}
@@ -381,6 +396,74 @@ def _build_occ_symbol(
     return f"{underlying}{yymmdd}{right}{strike_part}"
 
 
+def _resolve_connection_id(
+    connection_id: str | None = None,
+    environment: str | None = None,
+) -> str:
+    if connection_id and connection_id.strip():
+        normalized = connection_id.strip()
+        if normalized not in _CONNECTION_SPECS:
+            raise HTTPException(status_code=400, detail=f"Unknown connectionId {normalized!r}")
+        return normalized
+    if environment and environment.strip().lower() == "live":
+        return IB_LIVE_CONNECTION_ID
+    return PRIMARY_CONNECTION_ID
+
+
+def _connect_ib_to(port: int, client_id: int) -> IB:
+    last_exc: Exception | None = None
+    for offset in range(4):
+        candidate_id = client_id + offset
+        ib = IB()
+        try:
+            ib.connect(
+                TWS_HOST,
+                port,
+                clientId=candidate_id,
+                readonly=TWS_READONLY,
+                timeout=4,
+            )
+            return ib
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            try:
+                ib.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("Unable to connect to IB Gateway")
+
+
+def _get_ib_for_connection(connection_id: str) -> IB:
+    if connection_id == PRIMARY_CONNECTION_ID:
+        return _get_ib()
+    spec = _CONNECTION_SPECS[connection_id]
+    with _lock:
+        existing = _ib_extra.get(connection_id)
+        if existing is not None and existing.isConnected():
+            return existing
+        if existing is not None:
+            try:
+                existing.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            ib = _connect_ib_to(spec["port"], spec["client_id"])
+            _ib_extra[connection_id] = ib
+            _extra_connect_errors[connection_id] = None
+            return ib
+        except Exception as exc:  # noqa: BLE001
+            _extra_connect_errors[connection_id] = str(exc)
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    f"Not connected to IB Gateway at {TWS_HOST}:{spec['port']} "
+                    f"for {connection_id} ({exc})"
+                ),
+            ) from exc
+
+
 def _get_ib() -> IB:
     global _ib, _last_connect_error, _active_client_id, _restart_required, _subscriptions_lost
     with _lock:
@@ -538,19 +621,24 @@ def _status_payload() -> dict[str, Any]:
     }
 
 
-def _resolve_stock(symbol: str):
+def _resolve_stock(symbol: str, ib: IB | None = None) -> Any:
     sym = symbol.strip().upper()
+    session_ib = ib or _get_ib()
     cached = _contract_cache.get(sym)
-    if cached is not None:
+    if cached is not None and ib is None:
         return cached
-    ib = _get_ib()
     contract = Stock(sym, "SMART", "USD")
-    qualified = ib.qualifyContracts(contract)
+    qualified = session_ib.qualifyContracts(contract)
     if not qualified:
         raise HTTPException(status_code=404, detail=f"Could not resolve stock {sym}")
     resolved = qualified[0]
-    _contract_cache[sym] = resolved
+    if ib is None:
+        _contract_cache[sym] = resolved
     return resolved
+
+
+def _resolve_stock_for_connection(symbol: str, ib: IB) -> Any:
+    return _resolve_stock(symbol, ib)
 
 
 def _get_secdef_chains(sym: str, stock) -> list[Any]:
@@ -1048,6 +1136,7 @@ def _map_order(order, contract) -> dict[str, Any]:
         "symbol": getattr(contract, "symbol", None),
         "secType": getattr(contract, "secType", None),
         "conId": getattr(contract, "conId", None),
+        "orderRef": getattr(order, "orderRef", None),
         "updatedAt": _now_ms(),
     }
 
@@ -1256,12 +1345,249 @@ def _account_stream_payload() -> dict[str, Any]:
     }
 
 
+def _ephemeral_account_status(ib: IB) -> dict[str, Any]:
+    connected = ib.isConnected()
+    managed = list(ib.managedAccounts() or [])
+    account_id = TWS_ACCOUNT_ID or (managed[0] if managed else None)
+    return {
+        "enabled": True,
+        "connected": connected,
+        "accountId": account_id,
+        "managedAccounts": managed,
+        "summaryUpdatedAt": _now_ms() if connected else None,
+        "readOnly": TWS_READONLY,
+        "timestamp": _now_ms(),
+    }
+
+
+def _ephemeral_account_summary(ib: IB) -> dict[str, Any]:
+    managed = list(ib.managedAccounts() or [])
+    account_id = TWS_ACCOUNT_ID or (managed[0] if managed else None)
+    tags: dict[str, dict[str, Any]] = {}
+    try:
+        ib.reqAccountSummary()
+        for item in ib.accountSummary():
+            tag = getattr(item, "tag", None)
+            if not tag:
+                continue
+            tags[str(tag)] = {
+                "value": getattr(item, "value", None),
+                "currency": getattr(item, "currency", None),
+            }
+    except Exception:  # noqa: BLE001
+        pass
+    return {
+        "accountId": account_id,
+        "tags": tags,
+        "pnl": {},
+        "updatedAt": _now_ms(),
+    }
+
+
+def _ephemeral_positions(ib: IB) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for pos in ib.positions():
+        if _safe_float(pos.position) in (None, 0):
+            continue
+        rows.append(
+            {
+                "account": pos.account,
+                "contract": _map_contract(pos.contract),
+                "position": _safe_float(pos.position),
+                "avgCost": _safe_float(pos.avgCost),
+                "updatedAt": _now_ms(),
+            }
+        )
+    return rows
+
+
+def _ephemeral_orders(ib: IB, account_id: str | None = None) -> list[dict[str, Any]]:
+    orders: list[dict[str, Any]] = []
+    for trade in ib.openTrades():
+        mapped = _map_order(trade.order, trade.contract)
+        if account_id and mapped.get("account") != account_id:
+            continue
+        orders.append(mapped)
+    return orders
+
+
 class WhatIfRequest(BaseModel):
     symbol: str = Field(min_length=1)
     action: str = Field(pattern="^(BUY|SELL)$")
     quantity: float = Field(gt=0)
-    orderType: str = Field(default="LMT", pattern="^(LMT|MKT)$")
+    orderType: str = Field(default="LMT", pattern="^(LMT|MKT|STP|STP LMT)$")
     limitPrice: float | None = None
+    stopPrice: float | None = None
+    outsideRth: bool = False
+    connectionId: str | None = None
+
+    @model_validator(mode="after")
+    def validate_prices(self) -> "WhatIfRequest":
+        order_type = self.orderType.upper()
+        if order_type == "LMT" and self.limitPrice is None:
+            raise ValueError("limitPrice required for LMT orders")
+        if order_type == "STP" and self.stopPrice is None:
+            raise ValueError("stopPrice required for STP orders")
+        if order_type == "STP LMT":
+            if self.stopPrice is None:
+                raise ValueError("stopPrice required for STP LMT orders")
+            if self.limitPrice is None:
+                raise ValueError("limitPrice required for STP LMT orders")
+        return self
+
+
+class PlaceOrderRequest(BaseModel):
+    accountId: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    action: str = Field(pattern="^(BUY|SELL)$")
+    quantity: float = Field(gt=0)
+    orderType: str = Field(default="LMT", pattern="^(LMT|MKT|STP|STP LMT)$")
+    limitPrice: float | None = None
+    stopPrice: float | None = None
+    outsideRth: bool = False
+    tif: str = Field(default="DAY", pattern="^(DAY|GTC)$")
+    orderRef: str | None = None
+    connectionId: str | None = None
+
+    @model_validator(mode="after")
+    def validate_prices(self) -> "PlaceOrderRequest":
+        order_type = self.orderType.upper()
+        if order_type == "LMT" and self.limitPrice is None:
+            raise ValueError("limitPrice required for LMT orders")
+        if order_type == "STP" and self.stopPrice is None:
+            raise ValueError("stopPrice required for STP orders")
+        if order_type == "STP LMT":
+            if self.stopPrice is None:
+                raise ValueError("stopPrice required for STP LMT orders")
+            if self.limitPrice is None:
+                raise ValueError("limitPrice required for STP LMT orders")
+        return self
+
+
+class ModifyOrderRequest(BaseModel):
+    accountId: str = Field(min_length=1)
+    quantity: float | None = Field(default=None, gt=0)
+    limitPrice: float | None = Field(default=None, gt=0)
+    stopPrice: float | None = Field(default=None, gt=0)
+    tif: str | None = Field(default=None, pattern="^(DAY|GTC)$")
+    connectionId: str | None = None
+
+    @model_validator(mode="after")
+    def require_at_least_one_patch(self) -> "ModifyOrderRequest":
+        if (
+            self.quantity is None
+            and self.limitPrice is None
+            and self.stopPrice is None
+            and self.tif is None
+        ):
+            raise ValueError(
+                "At least one of quantity, limitPrice, stopPrice, or tif is required"
+            )
+        return self
+
+
+def _require_trading_enabled(connection_id: str | None = None) -> str:
+    _require_brokerage_enabled()
+    if TWS_READONLY:
+        raise HTTPException(
+            status_code=403,
+            detail="Trading requires TWS_READONLY=false for the IB API session.",
+        )
+    return _resolve_connection_id(connection_id=connection_id)
+
+
+def _validate_account_id(ib: IB, account_id: str) -> str:
+    normalized = account_id.strip()
+    managed = list(ib.managedAccounts() or [])
+    if normalized not in managed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"accountId {normalized!r} not in managed accounts: {managed}",
+        )
+    return normalized
+
+
+def _build_stock_order(
+    *,
+    action: str,
+    quantity: float,
+    order_type: str,
+    limit_price: float | None,
+    stop_price: float | None = None,
+    account: str,
+    transmit: bool,
+    order_ref: str | None = None,
+    tif: str = "DAY",
+    outside_rth: bool = False,
+):
+    action_upper = action.upper()
+    order_type_upper = order_type.upper()
+    if order_type_upper == "MKT":
+        order = MarketOrder(action_upper, quantity)
+    elif order_type_upper == "LMT":
+        if limit_price is None:
+            raise HTTPException(
+                status_code=400, detail="limitPrice required for LMT orders"
+            )
+        order = LimitOrder(action_upper, quantity, limit_price)
+    elif order_type_upper == "STP":
+        if stop_price is None:
+            raise HTTPException(
+                status_code=400, detail="stopPrice required for STP orders"
+            )
+        order = StopOrder(action_upper, quantity, stop_price)
+    elif order_type_upper == "STP LMT":
+        if stop_price is None:
+            raise HTTPException(
+                status_code=400, detail="stopPrice required for STP LMT orders"
+            )
+        if limit_price is None:
+            raise HTTPException(
+                status_code=400, detail="limitPrice required for STP LMT orders"
+            )
+        order = StopLimitOrder(action_upper, quantity, limit_price, stop_price)
+    else:
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported orderType: {order_type}"
+        )
+    order.account = account
+    order.transmit = transmit
+    order.tif = tif
+    order.outsideRth = outside_rth
+    if order_ref:
+        order.orderRef = order_ref
+    return order
+
+
+def _find_open_trade(ib: IB, order_id: int):
+    for trade in ib.openTrades():
+        oid = getattr(trade.order, "orderId", None)
+        if oid is not None and int(oid) == order_id:
+            return trade
+    raise HTTPException(status_code=404, detail=f"Open order {order_id} not found")
+
+
+def _apply_order_modify_patch(order, body: ModifyOrderRequest) -> None:
+    if body.quantity is not None:
+        order.totalQuantity = body.quantity
+    if body.limitPrice is not None:
+        order_type = getattr(order, "orderType", None)
+        if order_type not in ("LMT", "STP LMT"):
+            raise HTTPException(
+                status_code=400,
+                detail="limitPrice can only be modified on LMT or STP LMT orders",
+            )
+        order.lmtPrice = body.limitPrice
+    if body.stopPrice is not None:
+        order_type = getattr(order, "orderType", None)
+        if order_type not in ("STP", "STP LMT"):
+            raise HTTPException(
+                status_code=400,
+                detail="stopPrice can only be modified on STP or STP LMT orders",
+            )
+        order.auxPrice = body.stopPrice
+    if body.tif is not None:
+        order.tif = body.tif
 
 
 def _require_brokerage_enabled() -> None:
@@ -1634,98 +1960,139 @@ def stream_quotes(symbols: str = Query(min_length=1)) -> StreamingResponse:
 
 
 @app.get("/account/status")
-def account_status() -> dict[str, Any]:
+def account_status(connectionId: str | None = Query(default=None)) -> dict[str, Any]:
     _require_brokerage_enabled()
+    resolved = _resolve_connection_id(connectionId)
 
     def work():
         try:
-            _get_ib()
+            if resolved == PRIMARY_CONNECTION_ID:
+                _get_ib()
+                return _account_status_payload()
+            ib = _get_ib_for_connection(resolved)
+            return _ephemeral_account_status(ib)
+        except HTTPException:
+            raise
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        return _account_status_payload()
 
     return run_on_ib_thread(work, PRIORITY_HIGH)
 
 
 @app.get("/account/summary")
-def account_summary() -> dict[str, Any]:
+def account_summary(connectionId: str | None = Query(default=None)) -> dict[str, Any]:
     _require_brokerage_enabled()
+    resolved = _resolve_connection_id(connectionId)
 
     def work():
         try:
-            ib = _get_ib()
-            if _account_summary_updated_at == 0:
-                try:
-                    ib.reqAccountSummary()
-                    for item in ib.accountSummary():
-                        _on_update_account_value(item)
-                except Exception:  # noqa: BLE001
-                    pass
+            if resolved == PRIMARY_CONNECTION_ID:
+                ib = _get_ib()
+                if _account_summary_updated_at == 0:
+                    try:
+                        ib.reqAccountSummary()
+                        for item in ib.accountSummary():
+                            _on_update_account_value(item)
+                    except Exception:  # noqa: BLE001
+                        pass
+                return _account_summary_payload()
+            ib = _get_ib_for_connection(resolved)
+            return _ephemeral_account_summary(ib)
+        except HTTPException:
+            raise
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        return _account_summary_payload()
 
     return run_on_ib_thread(work, PRIORITY_HIGH)
 
 
 @app.get("/account/positions")
-def account_positions() -> dict[str, Any]:
+def account_positions(connectionId: str | None = Query(default=None)) -> dict[str, Any]:
     _require_brokerage_enabled()
+    resolved = _resolve_connection_id(connectionId)
 
     def work():
         try:
-            ib = _get_ib()
-            for pos in ib.positions():
-                key = _portfolio_key(pos.contract)
-                with _account_lock:
-                    _account_positions_raw[key] = {
-                        "account": pos.account,
-                        "contract": _map_contract(pos.contract),
-                        "position": _safe_float(pos.position),
-                        "avgCost": _safe_float(pos.avgCost),
-                        "updatedAt": _now_ms(),
-                    }
-            _seed_portfolio_market_data(ib)
+            if resolved == PRIMARY_CONNECTION_ID:
+                ib = _get_ib()
+                for pos in ib.positions():
+                    key = _portfolio_key(pos.contract)
+                    with _account_lock:
+                        _account_positions_raw[key] = {
+                            "account": pos.account,
+                            "contract": _map_contract(pos.contract),
+                            "position": _safe_float(pos.position),
+                            "avgCost": _safe_float(pos.avgCost),
+                            "updatedAt": _now_ms(),
+                        }
+                _seed_portfolio_market_data(ib)
+                return {"positions": _merge_positions(), "updatedAt": _now_ms()}
+            ib = _get_ib_for_connection(resolved)
+            return {"positions": _ephemeral_positions(ib), "updatedAt": _now_ms()}
+        except HTTPException:
+            raise
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        return {"positions": _merge_positions(), "updatedAt": _now_ms()}
 
     return run_on_ib_thread(work, PRIORITY_HIGH)
 
 
 @app.get("/account/pnl")
-def account_pnl() -> dict[str, Any]:
+def account_pnl(connectionId: str | None = Query(default=None)) -> dict[str, Any]:
     _require_brokerage_enabled()
+    resolved = _resolve_connection_id(connectionId)
 
     def work():
         try:
-            _get_ib()
+            if resolved == PRIMARY_CONNECTION_ID:
+                _get_ib()
+                with _account_lock:
+                    payload = dict(_account_pnl)
+                payload.setdefault("updatedAt", _now_ms())
+                return payload
+            _get_ib_for_connection(resolved)
+            return {"updatedAt": _now_ms()}
+        except HTTPException:
+            raise
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        with _account_lock:
-            payload = dict(_account_pnl)
-        payload.setdefault("updatedAt", _now_ms())
-        return payload
 
     return run_on_ib_thread(work, PRIORITY_HIGH)
 
 
 @app.get("/account/orders")
-def account_orders() -> dict[str, Any]:
+def account_orders(
+    accountId: str | None = Query(default=None),
+    connectionId: str | None = Query(default=None),
+) -> dict[str, Any]:
     _require_brokerage_enabled()
+    resolved = _resolve_connection_id(connectionId)
 
     def work():
         try:
-            ib = _get_ib()
-            if not TWS_READONLY:
-                ib.client.reqOpenOrders()
-                for trade in ib.openTrades():
-                    _on_open_order(trade)
+            if resolved == PRIMARY_CONNECTION_ID:
+                ib = _get_ib()
+                if not TWS_READONLY:
+                    ib.client.reqOpenOrders()
+                    for trade in ib.openTrades():
+                        _on_open_order(trade)
+                orders = list(_account_orders.values())
+                if accountId:
+                    orders = [
+                        order
+                        for order in orders
+                        if str(order.get("account", "")).strip() == accountId.strip()
+                    ]
+                return {"orders": orders, "updatedAt": _now_ms()}
+            ib = _get_ib_for_connection(resolved)
+            return {
+                "orders": _ephemeral_orders(ib, accountId.strip() if accountId else None),
+                "updatedAt": _now_ms(),
+            }
+        except HTTPException:
+            raise
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        with _account_lock:
-            orders = list(_account_orders.values())
-        return {"orders": orders, "updatedAt": _now_ms()}
 
     return run_on_ib_thread(work, PRIORITY_HIGH)
 
@@ -1764,23 +2131,28 @@ def account_whatif(body: WhatIfRequest) -> dict[str, Any]:
             status_code=403,
             detail="What-if preview requires TWS_READONLY=false for the IB API session.",
         )
+    resolved = _resolve_connection_id(body.connectionId)
 
     def work():
         sym = body.symbol.strip().upper()
         action = body.action.upper()
         try:
-            ib = _get_ib()
-            contract = _resolve_stock(sym)
-            if body.orderType.upper() == "MKT":
-                order = MarketOrder(action, body.quantity)
-            else:
-                if body.limitPrice is None:
-                    raise HTTPException(
-                        status_code=400, detail="limitPrice required for LMT orders"
-                    )
-                order = LimitOrder(action, body.quantity, body.limitPrice)
-            order.account = _resolve_account_id(ib)
-            order.transmit = False
+            ib = (
+                _get_ib()
+                if resolved == PRIMARY_CONNECTION_ID
+                else _get_ib_for_connection(resolved)
+            )
+            contract = _resolve_stock_for_connection(sym, ib)
+            order = _build_stock_order(
+                action=action,
+                quantity=body.quantity,
+                order_type=body.orderType,
+                limit_price=body.limitPrice,
+                stop_price=body.stopPrice,
+                account=_resolve_account_id(ib),
+                transmit=False,
+                outside_rth=body.outsideRth,
+            )
             state = ib.whatIfOrder(contract, order)
             return {
                 "symbol": sym,
@@ -1788,6 +2160,7 @@ def account_whatif(body: WhatIfRequest) -> dict[str, Any]:
                 "quantity": body.quantity,
                 "orderType": body.orderType.upper(),
                 "limitPrice": body.limitPrice,
+                "stopPrice": body.stopPrice,
                 "initMarginChange": _safe_float(getattr(state, "initMarginChange", None)),
                 "maintMarginChange": _safe_float(getattr(state, "maintMarginChange", None)),
                 "equityWithLoanChange": _safe_float(
@@ -1799,6 +2172,135 @@ def account_whatif(body: WhatIfRequest) -> dict[str, Any]:
                 "warningText": getattr(state, "warningText", None),
                 "updatedAt": _now_ms(),
             }
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return run_on_ib_thread(work, PRIORITY_HIGH)
+
+
+@app.post("/trading/orders")
+def trading_place_order(body: PlaceOrderRequest) -> dict[str, Any]:
+    resolved = _require_trading_enabled(body.connectionId)
+
+    def work():
+        sym = body.symbol.strip().upper()
+        action = body.action.upper()
+        order_ref = body.orderRef or f"edge-{uuid.uuid4()}"
+        try:
+            ib = (
+                _get_ib()
+                if resolved == PRIMARY_CONNECTION_ID
+                else _get_ib_for_connection(resolved)
+            )
+            account = _validate_account_id(ib, body.accountId)
+            contract = _resolve_stock(sym, ib)
+            order = _build_stock_order(
+                action=action,
+                quantity=body.quantity,
+                order_type=body.orderType,
+                limit_price=body.limitPrice,
+                stop_price=body.stopPrice,
+                account=account,
+                transmit=True,
+                order_ref=order_ref,
+                tif=body.tif,
+                outside_rth=body.outsideRth,
+            )
+            trade = ib.placeOrder(contract, order)
+            ib.sleep(0.5)
+            mapped = _map_order(trade.order, trade.contract)
+            if resolved == PRIMARY_CONNECTION_ID:
+                with _account_lock:
+                    oid = mapped.get("orderId")
+                    if oid is not None:
+                        _account_orders[int(oid)] = mapped
+            return {"order": mapped, "updatedAt": _now_ms()}
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return run_on_ib_thread(work, PRIORITY_HIGH)
+
+
+@app.patch("/trading/orders/{order_id}")
+def trading_modify_order(order_id: int, body: ModifyOrderRequest) -> dict[str, Any]:
+    resolved = _require_trading_enabled(body.connectionId)
+
+    def work():
+        try:
+            ib = (
+                _get_ib()
+                if resolved == PRIMARY_CONNECTION_ID
+                else _get_ib_for_connection(resolved)
+            )
+            account = _validate_account_id(ib, body.accountId)
+            trade = _find_open_trade(ib, order_id)
+            trade_account = getattr(trade.order, "account", None)
+            if trade_account and str(trade_account).strip() != account:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Order {order_id} belongs to {trade_account!r}, "
+                        f"not {account!r}"
+                    ),
+                )
+            _apply_order_modify_patch(trade.order, body)
+            ib.placeOrder(trade.contract, trade.order)
+            ib.sleep(0.5)
+            mapped = _map_order(trade.order, trade.contract)
+            if resolved == PRIMARY_CONNECTION_ID:
+                with _account_lock:
+                    oid = mapped.get("orderId")
+                    if oid is not None:
+                        _account_orders[int(oid)] = mapped
+            return {"order": mapped, "updatedAt": _now_ms()}
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return run_on_ib_thread(work, PRIORITY_HIGH)
+
+
+@app.delete("/trading/orders/{order_id}")
+def trading_cancel_order(
+    order_id: int,
+    connectionId: str | None = Query(default=None),
+) -> dict[str, Any]:
+    resolved = _require_trading_enabled(connectionId)
+
+    def work():
+        try:
+            ib = (
+                _get_ib()
+                if resolved == PRIMARY_CONNECTION_ID
+                else _get_ib_for_connection(resolved)
+            )
+            trade = _find_open_trade(ib, order_id)
+            ib.cancelOrder(trade.order)
+            ib.sleep(1.0)
+            mapped: dict[str, Any] | None = None
+            for open_trade in ib.openTrades():
+                oid = getattr(open_trade.order, "orderId", None)
+                if oid is not None and int(oid) == order_id:
+                    mapped = _map_order(open_trade.order, open_trade.contract)
+                    break
+            if mapped is None:
+                with _account_lock:
+                    cached = _account_orders.get(order_id)
+                if cached:
+                    mapped = {**cached, "status": "Cancelled", "updatedAt": _now_ms()}
+                else:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Order {order_id} not found after cancel",
+                    )
+            with _account_lock:
+                _account_orders[order_id] = mapped
+            return {"order": mapped, "updatedAt": _now_ms()}
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001

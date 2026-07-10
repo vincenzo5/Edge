@@ -78,6 +78,7 @@ export const AccountOrderSchema = z.object({
   symbol: z.string().nullable().optional(),
   secType: z.string().nullable().optional(),
   conId: z.number().nullable().optional(),
+  orderRef: z.string().nullable().optional(),
   updatedAt: z.number().optional(),
 });
 
@@ -133,8 +134,9 @@ export const WhatIfRequestSchema = z.object({
   symbol: z.string().min(1),
   action: z.enum(["BUY", "SELL"]),
   quantity: z.number().positive(),
-  orderType: z.enum(["LMT", "MKT"]).default("LMT"),
+  orderType: z.enum(["LMT", "MKT", "STP", "STP LMT"]).default("LMT"),
   limitPrice: z.number().positive().optional(),
+  stopPrice: z.number().positive().optional(),
 });
 
 export type WhatIfRequest = z.infer<typeof WhatIfRequestSchema>;
@@ -143,8 +145,9 @@ export const WhatIfResultSchema = z.object({
   symbol: z.string(),
   action: z.enum(["BUY", "SELL"]),
   quantity: z.number(),
-  orderType: z.enum(["LMT", "MKT"]),
+  orderType: z.enum(["LMT", "MKT", "STP", "STP LMT"]),
   limitPrice: z.number().nullable().optional(),
+  stopPrice: z.number().nullable().optional(),
   initMarginChange: z.number().nullable().optional(),
   maintMarginChange: z.number().nullable().optional(),
   equityWithLoanChange: z.number().nullable().optional(),

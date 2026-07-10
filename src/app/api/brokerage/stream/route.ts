@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import {
   BrokerageRequestError,
   getBrokerageStreamUrl,
@@ -6,6 +7,8 @@ import {
 import { brokerageDisabledResponse, brokerageErrorResponse } from "@/lib/brokerage/routeHelpers";
 import { isBrokerageConfigured } from "@/lib/brokerage/brokerageService";
 import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
+import { resolveConnectionByEnvironment } from "@/lib/trading/connectionRegistry";
+import { TradingEnvironmentSchema } from "@/lib/trading/types";
 
 export const runtime = "nodejs";
 
@@ -13,11 +16,15 @@ export const runtime = "nodejs";
 export async function GET(request: Request): Promise<Response> {
   if (!isBrokerageConfigured()) return brokerageDisabledResponse();
 
+  const url = new URL(request.url);
+  const environmentParam = url.searchParams.get("environment") ?? "paper";
+  const environment = TradingEnvironmentSchema.safeParse(environmentParam);
+  if (!environment.success) {
+    return NextResponse.json({ error: "Invalid environment" }, { status: 400 });
+  }
+
   await awaitSidecarForBrokerage();
 
-  // Fast-fail when the sidecar is unresponsive. Without this, the proxy holds
-  // a route handler + socket open for the full sidecar timeout (often minutes)
-  // on every EventSource reconnect, starving the dev server.
   const live = await probeSidecarLiveness(undefined, 2_000);
   if (!live) {
     return brokerageErrorResponse(
@@ -28,7 +35,8 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
-  const url = getBrokerageStreamUrl();
+  const connection = resolveConnectionByEnvironment(environment.data);
+  const sidecarUrl = getBrokerageStreamUrl(undefined, connection.connectionId);
   const signal = request.signal;
 
   const encoder = new TextEncoder();
@@ -46,7 +54,7 @@ export async function GET(request: Request): Promise<Response> {
       signal.addEventListener("abort", abort);
 
       try {
-        const res = await fetch(url, {
+        const res = await fetch(sidecarUrl, {
           headers: { Accept: "text/event-stream" },
           signal,
         });

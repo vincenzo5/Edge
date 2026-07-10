@@ -186,5 +186,229 @@ class SidecarSecretTests(unittest.TestCase):
             main.TWS_SIDECAR_SECRET = original
 
 
+class TradingGuardTests(unittest.TestCase):
+    def test_require_trading_enabled_rejects_readonly(self) -> None:
+        original_readonly = main.TWS_READONLY
+        original_port = main.TWS_PORT
+        try:
+            main.TWS_READONLY = True
+            main.TWS_PORT = 4002
+            with self.assertRaises(main.HTTPException) as ctx:
+                main._require_trading_enabled()
+            self.assertEqual(ctx.exception.status_code, 403)
+        finally:
+            main.TWS_READONLY = original_readonly
+            main.TWS_PORT = original_port
+
+    def test_require_trading_enabled_allows_live_connection(self) -> None:
+        original_readonly = main.TWS_READONLY
+        try:
+            main.TWS_READONLY = False
+            resolved = main._require_trading_enabled(main.IB_LIVE_CONNECTION_ID)
+            self.assertEqual(resolved, main.IB_LIVE_CONNECTION_ID)
+        finally:
+            main.TWS_READONLY = original_readonly
+
+    def test_resolve_connection_id_maps_environment(self) -> None:
+        self.assertEqual(main._resolve_connection_id(environment="live"), main.IB_LIVE_CONNECTION_ID)
+        self.assertEqual(main._resolve_connection_id(environment="paper"), main.PRIMARY_CONNECTION_ID)
+
+    def test_build_stock_order_lmt_requires_limit_price(self) -> None:
+        with self.assertRaises(main.HTTPException) as ctx:
+            main._build_stock_order(
+                action="BUY",
+                quantity=1,
+                order_type="LMT",
+                limit_price=None,
+                account="DUP586813",
+                transmit=True,
+            )
+        self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_build_stock_order_mkt_sets_transmit(self) -> None:
+        order = main._build_stock_order(
+            action="buy",
+            quantity=2,
+            order_type="MKT",
+            limit_price=None,
+            account="DUP586813",
+            transmit=True,
+            order_ref="edge-test",
+        )
+        self.assertEqual(order.action, "BUY")
+        self.assertTrue(order.transmit)
+        self.assertEqual(order.orderRef, "edge-test")
+
+    def test_build_stock_order_stp_requires_stop_price(self) -> None:
+        with self.assertRaises(main.HTTPException) as ctx:
+            main._build_stock_order(
+                action="BUY",
+                quantity=1,
+                order_type="STP",
+                limit_price=None,
+                stop_price=None,
+                account="DUP586813",
+                transmit=True,
+            )
+        self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_build_stock_order_stp_sets_aux_price(self) -> None:
+        order = main._build_stock_order(
+            action="BUY",
+            quantity=1,
+            order_type="STP",
+            limit_price=None,
+            stop_price=8.5,
+            account="DUP586813",
+            transmit=True,
+            outside_rth=False,
+        )
+        self.assertEqual(order.orderType, "STP")
+        self.assertEqual(order.auxPrice, 8.5)
+        self.assertFalse(order.outsideRth)
+
+    def test_build_stock_order_stp_lmt_sets_both_prices(self) -> None:
+        order = main._build_stock_order(
+            action="SELL",
+            quantity=2,
+            order_type="STP LMT",
+            limit_price=9.25,
+            stop_price=9.0,
+            account="DUP586813",
+            transmit=True,
+        )
+        self.assertEqual(order.orderType, "STP LMT")
+        self.assertEqual(order.auxPrice, 9.0)
+        self.assertEqual(order.lmtPrice, 9.25)
+
+    def test_place_order_request_accepts_stp(self) -> None:
+        req = main.PlaceOrderRequest(
+            accountId="DUP586813",
+            symbol="F",
+            action="BUY",
+            quantity=1,
+            orderType="STP",
+            stopPrice=8.5,
+        )
+        self.assertEqual(req.orderType, "STP")
+        self.assertEqual(req.stopPrice, 8.5)
+
+    def test_validate_account_id_rejects_unknown(self) -> None:
+        class _FakeIb:
+            def managedAccounts(self):
+                return ["DUP586813"]
+
+        with self.assertRaises(main.HTTPException) as ctx:
+            main._validate_account_id(_FakeIb(), "U999999")
+        self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_place_order_request_rejects_invalid_action(self) -> None:
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            main.PlaceOrderRequest(
+                accountId="DUP586813",
+                symbol="AAPL",
+                action="HOLD",
+                quantity=1,
+                orderType="MKT",
+            )
+
+
+class TradingModifyTests(unittest.TestCase):
+    def test_map_order_includes_order_ref(self) -> None:
+        class _Order:
+            orderId = 7
+            permId = 99
+            clientId = 1
+            account = "DUP586813"
+            action = "BUY"
+            totalQuantity = 1
+            orderType = "LMT"
+            lmtPrice = 10.0
+            auxPrice = None
+            tif = "DAY"
+            status = "Submitted"
+            filled = 0
+            remaining = 1
+            avgFillPrice = None
+            lastFillPrice = None
+            whyHeld = None
+            orderRef = "edge-intent-abc"
+
+        class _Contract:
+            symbol = "F"
+            secType = "STK"
+            conId = 123
+
+        mapped = main._map_order(_Order(), _Contract())
+        self.assertEqual(mapped["orderRef"], "edge-intent-abc")
+
+    def test_modify_order_request_requires_patch_field(self) -> None:
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            main.ModifyOrderRequest(accountId="DUP586813")
+
+    def test_apply_order_modify_patch_updates_lmt_price(self) -> None:
+        class _Order:
+            orderType = "LMT"
+            totalQuantity = 1
+            lmtPrice = 10.0
+            tif = "DAY"
+
+        order = _Order()
+        body = main.ModifyOrderRequest(
+            accountId="DUP586813",
+            limitPrice=12.5,
+        )
+        main._apply_order_modify_patch(order, body)
+        self.assertEqual(order.lmtPrice, 12.5)
+
+    def test_apply_order_modify_patch_rejects_limit_on_mkt(self) -> None:
+        class _Order:
+            orderType = "MKT"
+            totalQuantity = 1
+            tif = "DAY"
+
+        body = main.ModifyOrderRequest(
+            accountId="DUP586813",
+            limitPrice=12.5,
+        )
+        with self.assertRaises(main.HTTPException) as ctx:
+            main._apply_order_modify_patch(_Order(), body)
+        self.assertEqual(ctx.exception.status_code, 400)
+
+
+    def test_apply_order_modify_patch_updates_stp_aux_price(self) -> None:
+        class _Order:
+            orderType = "STP"
+            totalQuantity = 1
+            auxPrice = 8.0
+            tif = "DAY"
+
+        order = _Order()
+        body = main.ModifyOrderRequest(
+            accountId="DUP586813",
+            stopPrice=8.75,
+        )
+        main._apply_order_modify_patch(order, body)
+        self.assertEqual(order.auxPrice, 8.75)
+
+    def test_apply_order_modify_patch_rejects_stop_on_mkt(self) -> None:
+        class _Order:
+            orderType = "MKT"
+            totalQuantity = 1
+            tif = "DAY"
+
+        body = main.ModifyOrderRequest(
+            accountId="DUP586813",
+            stopPrice=8.75,
+        )
+        with self.assertRaises(main.HTTPException) as ctx:
+            main._apply_order_modify_patch(_Order(), body)
+        self.assertEqual(ctx.exception.status_code, 400)
+
+
 if __name__ == "__main__":
     unittest.main()
