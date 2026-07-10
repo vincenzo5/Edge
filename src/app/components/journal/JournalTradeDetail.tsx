@@ -6,7 +6,11 @@ import type { JournalTradeResponse } from "@/lib/persistence/schemas/journal";
 import { JOURNAL_SETUP_VALUES, type PlannedRiskMode } from "@/lib/journal/types";
 import { buildChartDeepLink } from "@/lib/journal/chartDeepLink";
 import { computeRMultiple } from "@/lib/journal/rMultiple";
-import { patchJournalTradeRemote } from "@/lib/persistence/client/journalClient";
+import {
+  collectOrderRefsForTrade,
+  isEdgeIntentOrderRef,
+} from "@/lib/journal/correlateOrderRef";
+import { fetchJournalFills, patchJournalTradeRemote } from "@/lib/persistence/client/journalClient";
 import { EdgeButton } from "../design-system";
 
 type Props = {
@@ -22,6 +26,7 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
   const [plannedRiskMode, setPlannedRiskMode] = useState<PlannedRiskMode | "">("");
   const [plannedRiskValue, setPlannedRiskValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [orderRefs, setOrderRefs] = useState<string[]>([]);
 
   useEffect(() => {
     setTags((trade.tags ?? []).join(", "));
@@ -31,6 +36,22 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
     setPlannedRiskValue(
       trade.plannedRiskValue != null ? String(trade.plannedRiskValue) : "",
     );
+  }, [trade]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const fills = await fetchJournalFills();
+        if (cancelled) return;
+        setOrderRefs(collectOrderRefsForTrade(fills, trade));
+      } catch {
+        if (!cancelled) setOrderRefs([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [trade]);
 
   async function saveNotes() {
@@ -87,6 +108,27 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
           ))}
         </ul>
       </div>
+
+      {orderRefs.length > 0 ? (
+        <div>
+          <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Order refs</div>
+          <ul className="mt-1 space-y-1 text-xs">
+            {orderRefs.map((orderRef) => (
+              <li
+                key={orderRef}
+                className="rounded border border-[var(--edge-border-subtle)] px-2 py-1 font-mono text-[11px] break-all"
+              >
+                {orderRef}
+                {isEdgeIntentOrderRef(orderRef) ? (
+                  <span className="ml-2 rounded bg-[var(--edge-surface-active)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                    Edge
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {trade.legs && trade.legs.length > 0 ? (
         <div>

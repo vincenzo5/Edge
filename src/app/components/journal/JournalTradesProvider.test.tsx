@@ -2,9 +2,17 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchJournalTrades = vi.fn(async () => [] as never[]);
+const fetchJournalFills = vi.fn(async () => [] as never[]);
 
 vi.mock("@/lib/persistence/client/journalClient", () => ({
   fetchJournalTrades: (...args: unknown[]) => fetchJournalTrades(...args),
+  fetchJournalFills: (...args: unknown[]) => fetchJournalFills(...args),
+}));
+
+vi.mock("@/app/components/AccountProvider", () => ({
+  useAccountOptional: () => ({
+    activeTradingAccountId: "DU123",
+  }),
 }));
 
 vi.mock("@/app/components/journal/JournalSyncProvider", () => ({
@@ -36,7 +44,22 @@ function TradesProbe() {
 describe("JournalTradesProvider", () => {
   beforeEach(() => {
     fetchJournalTrades.mockReset();
+    fetchJournalFills.mockReset();
     fetchJournalTrades.mockResolvedValue([]);
+    fetchJournalFills.mockResolvedValue([
+      {
+        id: "fill-1",
+        execId: "e1",
+        fillTime: "2026-07-01T13:30:00.000Z",
+        side: "BOT",
+        quantity: 1,
+        price: 100,
+        contract: { symbol: "AAPL", secType: "STK" },
+        source: "live",
+        createdAt: "2026-07-01T13:30:00.000Z",
+        account: "DU123",
+      },
+    ]);
   });
 
   it("starts loading and clears loading after initial fetch", async () => {

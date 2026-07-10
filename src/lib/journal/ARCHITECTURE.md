@@ -24,6 +24,7 @@ tradeGrouping → journal_trades + journal_trade_fills
 | `src/lib/journal/types.ts` | Domain types |
 | `src/lib/journal/mapExecutionToFill.ts` | Broker execution → journal fill |
 | `src/lib/journal/fillSync.ts` | Live sync helpers |
+| `src/lib/journal/correlateOrderRef.ts` | `orderRef` → fill/trade lookup (`edge-intent-{intentId}`) |
 | `src/lib/journal/tradeGrouping.ts` | STK FIFO, OPT conId, multi-leg spread grouping |
 | `src/lib/journal/rebuildTrades.ts` | Idempotent regroup + note preservation |
 | `src/lib/journal/flexImport/parseFlexCsv.ts` | IB Flex Trades CSV parser |
@@ -49,7 +50,7 @@ tradeGrouping → journal_trades + journal_trade_fills
 | `src/lib/journal/localJournalStore.ts` | localStorage mirror when Postgres unavailable |
 | `src/lib/persistence/repositories/journalRepository.ts` | Postgres CRUD |
 | `src/app/api/me/journal/*` | REST routes |
-| `src/app/components/journal/JournalModuleShell.tsx` | Journal layout wrapper: AccountProvider + sync/trades providers, global nav + sub-nav |
+| `src/app/components/journal/JournalModuleShell.tsx` | Journal layout: `AppModuleShell` (`AccountProvider`) → sync/trades providers → sub-nav |
 | `src/app/components/journal/JournalSubNav.tsx` | Journal module sub-nav (Dashboard / Trades / Settings) |
 | `src/app/components/journal/JournalTradesProvider.tsx` | Shared trade list state for journal views (`loading`, `error`, `retryLoadTrades`, stale-while-revalidate refresh) |
 | `src/lib/journal/journalDataPhase.ts` | Page phase helper — `loading` \| `empty` \| `error` \| `ready` |
@@ -69,7 +70,16 @@ tradeGrouping → journal_trades + journal_trade_fills
 | `src/app/components/journal/*` | UI + sync provider |
 | `src/app/journal/page.tsx` | Redirect to `/journal/dashboard` |
 
-## Grouping rules (v1)
+## Provider tree
+
+```
+AppModuleShell (AccountProvider)
+  └── JournalSyncProvider
+        └── JournalTradesProvider
+              └── journal views (filter by activeTradingAccountId via fills)
+```
+
+Journal providers must stay **inside** `AccountProvider` so `useAccountOptional()` receives the header account context.
 
 1. **Stocks:** FIFO per `conId`; trade opens when net position leaves zero and closes when it returns to zero.
 2. **Single-leg options:** Same as stocks, keyed by full option `conId`.
