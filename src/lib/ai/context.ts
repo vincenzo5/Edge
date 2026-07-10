@@ -12,6 +12,7 @@ import type { Range } from "@/lib/yahoo";
 import type { SymbolSelectResult, WatchlistState } from "@/lib/watchlist/types";
 import type { ActiveChartSnapshot } from "@/app/components/ActiveChartContext";
 import type { MarketDataPort } from "./marketDataPort";
+import type { TradingPort } from "./tradingPort";
 
 export type { BaseToolContext };
 
@@ -79,6 +80,7 @@ export type ToolContext = BaseToolContext & {
   account: AccountActions | null;
   options: OptionsSessionActions | null;
   marketData: MarketDataPort;
+  trading: TradingPort | null;
 };
 
 export type ChartRangeInput = {

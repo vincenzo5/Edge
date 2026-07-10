@@ -6,6 +6,7 @@ import { watchlistTools } from "./watchlist";
 import { workflowTools } from "./workflow";
 import { screenerTools } from "./screener";
 import { sessionStateTools } from "./sessionState";
+import { tradingTools } from "./trading";
 import { createToolRegistry } from "../registry";
 
 export const ALL_AI_TOOLS = [
@@ -17,6 +18,7 @@ export const ALL_AI_TOOLS = [
   ...workflowTools,
   ...screenerTools,
   ...sessionStateTools,
+  ...tradingTools,
 ];
 
 export const edgeToolRegistry = createToolRegistry(ALL_AI_TOOLS);
@@ -30,4 +32,5 @@ export {
   workflowTools,
   screenerTools,
   sessionStateTools,
+  tradingTools,
 };
