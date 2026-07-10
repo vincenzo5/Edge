@@ -105,7 +105,7 @@ Dynamic labels reflect counts on the chart.
 | Status line | Logo, title, OHLC values visibility | **Partial** — granular toggles in `ChartSettingsModal`; legend bar |
 | Scales and lines | Price scale mode, labels, countdown, time format | **Partial** — log/percent/indexed, labels, countdown, axis text size |
 | Canvas | Background, grid, crosshair style, watermark | **Partial** — background, grid orientation/style/opacity, crosshair mode/style, margins, button visibility prefs |
-| Trading | Buy/sell buttons, order display, P&L labels | **Partial** — display-only toggles persisted; no broker overlays yet |
+| Trading | Buy/sell buttons, order display, P&L labels | **Partial** — display-only toggles + header Trade ticket (`TradeTicketModal`); no in-chart broker overlays yet |
 | Alerts | Alert line appearance on chart | **None** |
 | Events | Dividends, earnings, news markers | **None** |
 | Template | Save/apply (duplicate of submenu) | **Partial** — Template section + blank menu items |

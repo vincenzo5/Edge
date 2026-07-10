@@ -21,7 +21,8 @@ AI Agent
                     ├── WatchlistContext (watchlist CRUD)
                     ├── ScreenerProvider (last run + saved screen state)
                     ├── RiskSettingsProvider / AccountProvider / OptionsSessionProvider
-                    └── MarketDataPort (search, candles, quotes)
+                    ├── MarketDataPort (search, candles, quotes)
+                    └── TradingPort (preview / place / cancel orders)
 ```
 
 ## Key Modules
@@ -30,8 +31,9 @@ AI Agent
 |--------|------|
 | `registry.ts` | Tool registration and lookup |
 | `tools/index.ts` | Aggregates all tool groups into `edgeToolRegistry` |
-| `tools/*.ts` | Implementations: chart, marketData, indicators, drawings, watchlist, workflow, screener, sessionState |
+| `tools/*.ts` | Implementations: chart, marketData, indicators, drawings, watchlist, workflow, screener, sessionState, trading |
 | `context.ts` | `ToolContext` interface — adapter boundary |
+| `tradingPort.ts` | `TradingPort` facade over `/api/trading/*` (fetch) or `TradingService` (HTTP adapter) |
 | `validation.ts` | Parse helpers, JSON Schema export |
 | `schemas.ts` | Shared Zod schemas |
 | `adapters/inApp.ts` | React provider execution |
@@ -68,15 +70,16 @@ When `EDGE_API_KEY` is configured, HTTP/MCP callers must send `X-Edge-Api-Key` (
 
 - Tools MUST NOT import React — use `ToolContext` facades only.
 - All inputs MUST pass Zod validation before execution.
-- Destructive tools (`delete_drawing`, `clear_watchlist`, `delete_watchlist`) require confirmation.
-- Server-side tools (market data) run without browser session; client-state tools return `requiresClientSession` error when no session.
+- Destructive tools (`delete_drawing`, `clear_watchlist`, `delete_watchlist`, `place_order`) require confirmation.
+- Server-side tools (market data, trading) run without browser session; client-state tools return `requiresClientSession` error when no session.
 - When `layout.linkSymbol` or `layout.linkInterval` is on, matching fields propagate to peer cells; crosshair sync uses `layout.linkCrosshair`; drawing sync uses `layout.linkDrawings`.
+- Trading tools use `TradingPort` only — never call brokerage or React account state directly. Live `place_order` requires `liveConfirmation: "LIVE"`.
 
 ## Server vs Client Split
 
 | Runs server-side | Requires client session |
 |------------------|------------------------|
-| `search_symbols`, `get_candles`, `get_quotes`, `get_fundamentals` | `set_symbol`, `add_indicator`, `add_drawing`, layout mutators |
+| `search_symbols`, `get_candles`, `get_quotes`, `get_fundamentals`, `preview_order`, `place_order` | `set_symbol`, `add_indicator`, `add_drawing`, layout mutators |
 
 ## Verification
 
@@ -102,4 +105,5 @@ npm test -- --run src/app/api/ai/tools/route.test.ts
 | Options chain data | `OptionsChainModel` | No | `get_options_chain` (server) |
 | Options workspace | `OptionsSessionState` | No (in-memory) | `get_options_session` |
 | Account | `AccountSnapshot` | No (broker stream) | `get_account_snapshot` |
+| Trading intents / orders | `TradingService` + connection registry | No (in-memory intents; broker holds orders) | `preview_order`, `place_order` |
 | Active chart | `ActiveChartReadState` | Derived from layout + runtime | `get_chart_state` |

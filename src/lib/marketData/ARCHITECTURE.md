@@ -39,9 +39,9 @@ DataResult / ChartDataMeta
 
 - **API:** `/api/candles` and `/api/quotes` attach `meta.usage` and `meta.readiness` via `trust/enrichResponseMeta.ts`.
 - **Data Health:** dataset rows include `usage`, `allowedForTradingDecision`, and `display-only` in `formatDatasetLine` when not trading-safe.
-- **Future trading:** `src/lib/tradingSafety/tradingReadiness.ts` evaluates brokerage connection, account freshness, approved quote source, and resolved risk settings before any order path is enabled.
+- **Order execution:** command path lives in `src/lib/trading/` (`TradingService`, connection registry, `/api/trading/*`) — separate from this read layer. Display readiness helpers remain in `src/lib/tradingSafety/tradingReadiness.ts`.
 
-Brokerage truth remains in `src/lib/brokerage/` (TWS sidecar only, no fallback).
+Brokerage truth remains in `src/lib/brokerage/` (TWS sidecar only, no fallback). Clients are scoped by connection id (`ib-paper` / `ib-live` via `connectionRegistry`).
 
 ## Data flow
 
@@ -259,17 +259,18 @@ Docker Compose is **not** used for the sidecar. External mode means run `npm run
 
 **Source labels:** The active-chart overlay shows an icon-only severity dot; hover tooltip summarizes chart candle source and watchlist quote source (e.g. `TWS · LIVE · REST`). The Data Health menu shows structured dataset chips. Account feed state remains its own Data Health dataset row via `AccountProvider`.
 
-This is read-only with respect to brokerage operations — no orders or account mutations.
+This section is read-only with respect to brokerage operations — no orders or account mutations here. Place/cancel/modify go through `src/lib/trading/` and `/api/trading/*`.
 
 ### Brokerage / account tracking
 
 Live IB account data (positions, PnL, summary, orders, executions) is a **separate vertical** in `src/lib/brokerage/` and is always attempted through the local TWS sidecar when the app is running.
 
-- **Sidecar endpoints** (`services/tws-sidecar/main.py`): `/account/*` REST + `/stream/account` SSE via `ib_insync`. Live account updates use non-blocking `ib.client.reqAccountUpdates(True, account)` plus `reqPnL`, summaries, positions, and executions. Cold positions load synchronously seeds `_account_portfolio` from `ib.portfolio()` with a one-shot `reqMktData` fallback for missing MKT/PnL; executions cache upserts by `execId` (commission reports merge into existing rows, cap 200) and `/account/trades` snapshots `ib.fills()` atomically. When `TWS_READONLY=true`, open-order snapshot requests are skipped and what-if preview returns 403; verify order/what-if behavior only with `TWS_READONLY=false`.
-- **Execution contract** (`contracts/brokerage.ts`): `AccountExecution` includes `permId`, `orderRef`, `exchange`, and nested `contract` (prefer over top-level `symbol`/`secType`). `formatExecutionLabel()` renders OPT-aware fill labels for account UI and journal review.
+- **Sidecar endpoints** (`services/tws-sidecar/main.py`): `/account/*` REST + `/stream/account` SSE via `ib_insync`, plus `/trading/*` for order commands used by `TradingService`. Live account updates use non-blocking `ib.client.reqAccountUpdates(True, account)` plus `reqPnL`, summaries, positions, and executions. Cold positions load synchronously seeds `_account_portfolio` from `ib.portfolio()` with a one-shot `reqMktData` fallback for missing MKT/PnL; executions cache upserts by `execId` (commission reports merge into existing rows, cap 200) and `/account/trades` snapshots `ib.fills()` atomically. When `TWS_READONLY=true`, open-order snapshot requests are skipped and what-if preview returns 403; verify order/what-if behavior only with `TWS_READONLY=false`.
+- **Connection scoping**: `getBrokerageClient(connectionId)` and stream URLs pass `connectionId` (`ib-paper` default); `BrokerageService.getSnapshot(environment)` resolves paper/live via `resolveConnectionByEnvironment`.
+- **Execution contract** (`contracts/brokerage.ts`): `AccountOrder` / `AccountExecution` include `orderRef` (journal correlation). What-if accepts `MKT` / `LMT` / `STP` / `STP LMT` with optional `stopPrice`. `formatExecutionLabel()` renders OPT-aware fill labels for account UI and journal review.
 - **App routes**: `/api/brokerage/*` proxy the sidecar with Zod-validated contracts in `src/lib/marketData/contracts/brokerage.ts`. Journal live fill sync maps brokerage executions via `src/lib/journal/mapExecutionToFill.ts` → `/api/me/journal/fills`.
-- **UI**: `AccountProvider` + Account sidebar panel; chart position overlays when `chartSettings.trading.showPositions` is enabled.
-- **Read-only posture preserved**: no `placeOrder`; what-if preview returns margin/commission impact without transmitting orders, but IB requires a non-read-only API session for that preview call.
+- **UI**: `AccountProvider` + Account sidebar panel (account-filtered orders, cancel via trading API); chart Trade ticket (`TradeTicketModal`); chart position overlays when `chartSettings.trading.showPositions` is enabled.
+- **Read-only posture preserved on brokerage path**: no `placeOrder` in `BrokerageService`; what-if preview returns margin/commission impact without transmitting orders. Order mutations use the trading command path.
 
 ### Risk settings (app-wide sizing source)
 

@@ -82,7 +82,8 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 
 | Surface | Reference file |
 |---------|----------------|
-| Chart header | `chart-chrome/ChartHeaderBar.tsx` + `styles.ts` |
+| Chart header | `chart-chrome/ChartHeaderBar.tsx` + `styles.ts` — includes enabled **Trade** control when `onOpenTrade` is wired |
+| Trade ticket modal | `trading/TradeTicketModal.tsx` — `EdgeModalShell` place/preview/confirm flow (paper/live, LIVE confirm); opened from chart header Trade |
 | Workspace tab bar | `chart-chrome/WorkspaceTabBar.tsx` — Home link (→ `/home`, records last module) + scrollable pills above header; symbol + live quote + layout title; `+` create / close when >1 tab |
 | Symbol search pill | `SearchBar.tsx` (compact mode) |
 | Context menu | `ContextMenu.tsx` |

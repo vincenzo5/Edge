@@ -8,7 +8,7 @@ Edge exposes product features to AI agents through a shared, validated tool regi
 2. **No direct React manipulation** — agents call typed commands that route through existing app update paths (`StockApp`, `ActiveChartContext`, watchlist reducers).
 3. **Validate before execute** — all inputs pass through Zod schemas; invalid args return structured errors.
 4. **Permission-aware** — read, write, and destructive tools are gated; destructive actions require explicit confirmation.
-5. **Server vs client split** — market-data tools run server-side; layout/chart/watchlist tools require a live browser session.
+5. **Server vs client split** — market-data and trading tools run server-side; layout/chart/watchlist tools require a live browser session.
 
 ## Architecture
 
@@ -26,7 +26,8 @@ AI Agent
                     ├── WatchlistContext (watchlist CRUD)
                     ├── ScreenerProvider (saved screens + last run)
                     ├── RiskSettingsProvider / AccountProvider / OptionsSessionProvider
-                    └── MarketDataPort (search, candles, quotes, fundamentals)
+                    ├── MarketDataPort (search, candles, quotes, fundamentals)
+                    └── TradingPort (preview / place / cancel via TradingService)
 ```
 
 ## Tool Inventory
@@ -130,8 +131,9 @@ type AiTool<TInput> = {
 | `account.getSnapshot()` | `AccountProvider` |
 | `options.getSession()` | `OptionsSessionProvider` |
 | `marketData` | `YahooMarketDataPort` (server) or `FetchMarketDataPort` (client) |
+| `trading` | `ServiceTradingPort` (HTTP → `TradingService`) or `FetchTradingPort` (in-app → `/api/trading/*`) |
 
-Tools never import React. Context providers assemble a `ToolContext` snapshot at execution time.
+Tools never import React. Context providers assemble a `ToolContext` snapshot at execution time. `preview_order` / `place_order` require a non-null `trading` port; `place_order` is destructive and needs confirmation (plus `liveConfirmation: "LIVE"` for live).
 
 ## Permission Model
 
@@ -156,7 +158,7 @@ When `EDGE_API_KEY` is configured, HTTP/MCP callers must send `X-Edge-Api-Key` (
 - `GET /api/ai/tools` — list tool definitions with JSON Schema
 - `POST /api/ai/tools/execute` — execute a tool by name
 
-Server-side execution supports market-data tools directly. Client-state tools return a `requiresClientSession` error when no browser context is available. Middleware applies optional `EDGE_API_KEY` and in-process rate limits (`EDGE_RATE_LIMIT`) to `/api/ai/*`.
+Server-side execution supports market-data and trading tools directly (`TradingPort` → `TradingService`). Client-state tools return a `requiresClientSession` error when no browser context is available. Middleware applies optional `EDGE_API_KEY` and in-process rate limits (`EDGE_RATE_LIMIT`) to `/api/ai/*`.
 
 ### MCP Adapter
 
