@@ -79,6 +79,45 @@ describe("dataTrust", () => {
     expect(readiness.allowedForTradingDecision).toBe(true);
   });
 
+  it("blocks yahoo pre_trade_quote for trading decision", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "yahoo",
+      stale: false,
+      asOf: now,
+      receivedAt: now,
+    });
+    const readiness = evaluateReadiness("pre_trade_quote", "trading_decision", provenance, now);
+    expect(readiness.status).toBe("blocked");
+    expect(readiness.allowedForTradingDecision).toBe(false);
+  });
+
+  it("blocks mixed pre_trade_quote for trading decision", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "mixed",
+      stale: false,
+      asOf: now,
+      receivedAt: now,
+    });
+    const readiness = evaluateReadiness("pre_trade_quote", "trading_decision", provenance, now);
+    expect(readiness.status).toBe("blocked");
+    expect(readiness.allowedForTradingDecision).toBe(false);
+  });
+
+  it("blocks massive pre_trade_quote for trading decision", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "massive",
+      stale: false,
+      asOf: now,
+      receivedAt: now,
+    });
+    const readiness = evaluateReadiness("pre_trade_quote", "trading_decision", provenance, now);
+    expect(readiness.status).toBe("blocked");
+    expect(readiness.allowedForTradingDecision).toBe(false);
+  });
+
   it("blocks options chain fallback sources", () => {
     const provenance = provenanceFromMeta({ source: "yahoo" });
     const readiness = evaluateReadiness("options_chain", "analysis", provenance);

@@ -4,7 +4,7 @@ Single roadmap for running **paper and live IB Gateway simultaneously**, decoupl
 
 **Last updated:** 2026-07-08
 
-**Status:** Phase A infra shipped (2026-07-09); A.5 dual-port verification pending local credentials + 2FA.
+**Status:** Phase D abstraction hardening + Data Health split shipped (2026-07-12); Phase C data preference split shipped.
 
 **Related:** [Trading Execution Roadmap](./trading-execution-roadmap.md) (Phases 0–5 shipped), [Market Data Architecture](../src/lib/marketData/ARCHITECTURE.md), [Trading Architecture](../src/lib/trading/ARCHITECTURE.md), [Edge Roadmap](./ROADMAP.md).
 
@@ -85,12 +85,13 @@ Let Edge:
 |------------|--------|-------|
 | Order routing by `environment` / `connectionId` | **Shipped** | Phase 5 registry + adapters |
 | Brokerage snapshot by `environment` | **Shipped** | `/api/brokerage/*?environment=` |
-| Dual Gateway sockets in sidecar code | **Shipped in source** | Running process may be stale / ignore `connectionId` |
-| Paper + live Gateways both listening | **Not verified** | Only `4002` observed; `4001` down |
-| Chart/quotes on selectable connection | **Gap** | Primary `ib-paper` only |
-| Independent data preference vs order account | **Gap** | One header selection drives both |
-| Journal-only synthetic picker rows | **Shipped (undesired)** | Workaround for missing live id |
-| Docker dual Gateway compose | **Not started** | |
+| Dual Gateway sockets in sidecar code | **Shipped** | `connectionId` on MD + account routes |
+| Paper + live Gateways both listening | **Partial** | Docker compose shipped; app-level dual-port proof credential-gated |
+| Chart/quotes on selectable connection | **Shipped** | Phase C — `edge:marketData:connectionId` |
+| Independent data preference vs order account | **Shipped** | Phase C — header data chip vs order picker |
+| Journal-only synthetic picker rows | **Removed** | Phase B — real Gateway ids only |
+| Docker dual Gateway compose | **Shipped** | Phase A |
+| Data Health paper/live/preference split | **Shipped** | Phase D — Connections section in health panel |
 
 ---
 
@@ -217,6 +218,8 @@ curl -s "http://127.0.0.1:8765/account/status?connectionId=ib-live"  | jq '.acco
 
 ### Phase D — Abstraction hardening (pluggable data sources)
 
+**Status:** Shipped 2026-07-12 — TWS-only preference docs/tests; Data Health Connections section (paper, live, preference).
+
 **Outcome:** Future vendors plug in without coupling to IB paper/live sockets.
 
 | # | Deliverable |
@@ -224,7 +227,7 @@ curl -s "http://127.0.0.1:8765/account/status?connectionId=ib-live"  | jq '.acco
 | D.1 | Document “connection preference” as TWS-specific adapter input; non-IB providers ignore it |
 | D.2 | Keep `EquityMarketDataPort` / router as the only chart entry; no UI imports of TWS client |
 | D.3 | Ensure trust/`trading_decision` policy still blocks Yahoo (and other display-only sources) for submit readiness |
-| D.4 | Optional: Data Health shows paper socket, live socket, and active data preference separately |
+| D.4 | Data Health shows paper socket, live socket, and active data preference separately |
 
 **Exit evidence:** Focused tests prove preference is threaded to TWS adapter only; router still falls back per existing waterfall; trading readiness rejects display-only sources.
 

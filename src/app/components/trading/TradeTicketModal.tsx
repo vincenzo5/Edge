@@ -325,7 +325,9 @@ export default function TradeTicketModal({
               {gatewayAccountSelected
                 ? accountId || "No account selected"
                 : accountId
-                  ? `${accountId} (journal only — select a Gateway account to trade)`
+                  ? account?.activeTradingAccount?.availability === "offline"
+                    ? `${accountId} (live offline — connect live Gateway to trade)`
+                    : "Select a connected Gateway account in the header before trading."
                   : "No account selected"}
             </div>
           </div>

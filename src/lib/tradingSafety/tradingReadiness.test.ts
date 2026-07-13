@@ -41,6 +41,24 @@ describe("tradingReadiness", () => {
     expect(result.quoteReadiness?.status).toBe("blocked");
   });
 
+  it("blocks mixed quote for trading", () => {
+    const now = Date.now();
+    const result = evaluateTradingReadiness({
+      brokerageConnected: true,
+      accountSummary: summary,
+      accountUpdatedAt: now,
+      riskSettings: DEFAULT_RISK_SETTINGS,
+      quote: {
+        source: "mixed",
+        asOf: now,
+        receivedAt: now,
+      },
+      now,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.quoteReadiness?.status).toBe("blocked");
+  });
+
   it("allows connected brokerage with fresh tws quote and resolved risk", () => {
     const now = Date.now();
     const result = evaluateTradingReadiness({

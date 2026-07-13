@@ -40,6 +40,10 @@ export type TwsClientConfig = {
 
 export type TwsRequestKind = "candles" | "quotes" | "options" | "status" | "warmup" | "default";
 
+export type TwsConnectionRequest = {
+  connectionId?: string;
+};
+
 export type TwsRecoveryPhase =
   | "idle"
   | "reconnecting"
@@ -79,6 +83,17 @@ export type TwsWorkerDiagnostics = {
   };
 };
 
+export type TwsConnectionProbe = {
+  connectionId: string;
+  gatewayConnected: boolean;
+  apiSessionConnected?: boolean;
+  gatewaySocketOpen?: boolean;
+  host?: string;
+  port?: number;
+  clientId?: number;
+  message?: string | null;
+};
+
 export type TwsStatusProbe = {
   configured: boolean;
   sidecarReachable: boolean;
@@ -101,6 +116,8 @@ export type TwsStatusProbe = {
   /** Sidecar reconnect HTTP accepted but IB work may still be running. */
   reconnectInProgress?: boolean;
   reconnectTimedOut?: boolean;
+  /** Per-socket paper/live status from sidecar `/status`. */
+  connections?: Record<string, TwsConnectionProbe>;
 };
 
 export type TwsContractProbe = {
@@ -233,14 +250,38 @@ export function getTwsClientConfig(): TwsClientConfig | null {
   return readConfig();
 }
 
-export function getTwsStreamUrl(baseUrl?: string, symbols?: string[]): string {
+export function getTwsStreamUrl(
+  baseUrl?: string,
+  symbols?: string[],
+  connectionId?: string,
+): string {
   const resolved = baseUrl ?? readConfig().baseUrl;
   const params = new URLSearchParams({ symbols: (symbols ?? []).join(",") });
+  if (connectionId) params.set("connectionId", connectionId);
   return `${resolved.replace(/\/$/, "")}/stream/quotes?${params.toString()}`;
 }
 
 function parseStatusPayload(status: Record<string, unknown>): TwsStatusProbe {
   const diagnostics = status.diagnostics as TwsWorkerDiagnostics | undefined;
+  const rawConnections = status.connections;
+  let connections: Record<string, TwsConnectionProbe> | undefined;
+  if (rawConnections && typeof rawConnections === "object" && !Array.isArray(rawConnections)) {
+    connections = {};
+    for (const [key, value] of Object.entries(rawConnections)) {
+      if (!value || typeof value !== "object") continue;
+      const row = value as Record<string, unknown>;
+      connections[key] = {
+        connectionId: typeof row.connectionId === "string" ? row.connectionId : key,
+        gatewayConnected: Boolean(row.gatewayConnected),
+        apiSessionConnected: Boolean(row.apiSessionConnected ?? row.gatewayConnected),
+        gatewaySocketOpen: Boolean(row.gatewaySocketOpen ?? row.gatewayConnected),
+        host: typeof row.host === "string" ? row.host : undefined,
+        port: asFiniteNumber(row.port) ?? undefined,
+        clientId: asFiniteNumber(row.clientId) ?? undefined,
+        message: typeof row.message === "string" ? row.message : row.message === null ? null : undefined,
+      };
+    }
+  }
   return {
     configured: true,
     sidecarReachable: true,
@@ -268,6 +309,7 @@ function parseStatusPayload(status: Record<string, unknown>): TwsStatusProbe {
     diagnostics,
     reconnectInProgress: Boolean(status.inProgress),
     reconnectTimedOut: Boolean(status.timedOut),
+    connections,
   };
 }
 
@@ -468,13 +510,16 @@ export function createTwsClient(config?: TwsClientConfig) {
       }
     },
 
-    async warmup(symbols: string[]): Promise<void> {
+    async warmup(symbols: string[], options: TwsConnectionRequest = {}): Promise<void> {
       const normalized = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
       if (normalized.length === 0) return;
       try {
         await request<{ warmed?: string[] }>("/warmup", {
           method: "POST",
-          body: { symbols: normalized },
+          body: {
+            symbols: normalized,
+            ...(options.connectionId ? { connectionId: options.connectionId } : {}),
+          },
           kind: "warmup",
         });
       } catch {
@@ -488,7 +533,8 @@ export function createTwsClient(config?: TwsClientConfig) {
       range: string;
       before?: number;
       barCount?: number;
-      sessionMode?: 'regular' | 'extended';
+      sessionMode?: "regular" | "extended";
+      connectionId?: string;
     }): Promise<TwsCandlesResponse | null> {
       const params = new URLSearchParams({
         symbol: args.symbol.trim().toUpperCase(),
@@ -498,6 +544,7 @@ export function createTwsClient(config?: TwsClientConfig) {
       if (args.before != null) params.set("before", String(args.before));
       if (args.barCount != null) params.set("barCount", String(args.barCount));
       if (args.sessionMode === "extended") params.set("sessionMode", "extended");
+      if (args.connectionId) params.set("connectionId", args.connectionId);
       try {
         return await request<TwsCandlesResponse>(`/candles?${params.toString()}`, {
           kind: "candles",
@@ -507,7 +554,10 @@ export function createTwsClient(config?: TwsClientConfig) {
       }
     },
 
-    async getQuotesBatch(symbols: string[]): Promise<TwsQuotesResponse> {
+    async getQuotesBatch(
+      symbols: string[],
+      options: TwsConnectionRequest = {},
+    ): Promise<TwsQuotesResponse> {
       const normalized = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
       if (normalized.length === 0) {
         return { quotes: [], missingSymbols: [] };
@@ -515,7 +565,10 @@ export function createTwsClient(config?: TwsClientConfig) {
       try {
         const result = await request<TwsQuotesResponse>("/quotes", {
           method: "POST",
-          body: { symbols: normalized },
+          body: {
+            symbols: normalized,
+            ...(options.connectionId ? { connectionId: options.connectionId } : {}),
+          },
           kind: "quotes",
         });
         return result ?? { quotes: [], missingSymbols: normalized };

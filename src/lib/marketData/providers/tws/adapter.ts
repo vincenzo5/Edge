@@ -23,6 +23,10 @@ export type TwsContractProbe = {
   companyName?: string;
 };
 
+export type TwsBatchQuoteOptions = {
+  connectionId?: string;
+};
+
 export type TwsBatchQuoteResult = {
   quotes: EquityQuote[];
   missingSymbols: string[];
@@ -133,34 +137,40 @@ export function createTwsProvider(client?: TwsClient) {
       };
     },
 
-    async warmup(symbols: string[]): Promise<void> {
+    async warmup(symbols: string[], options: TwsBatchQuoteOptions = {}): Promise<void> {
       if (!tws) return;
-      await tws.warmup(symbols);
+      await tws.warmup(symbols, options);
     },
 
-    async getQuote(symbol: string): Promise<EquityQuote | null> {
-      const batch = await this.getQuotesBatch([symbol]);
+    async getQuote(symbol: string, options: TwsBatchQuoteOptions = {}): Promise<EquityQuote | null> {
+      const batch = await this.getQuotesBatch([symbol], options);
       return batch.quotes[0] ?? null;
     },
 
-    async getQuotesBatch(symbols: string[]): Promise<TwsBatchQuoteResult> {
+    async getQuotesBatch(
+      symbols: string[],
+      options: TwsBatchQuoteOptions = {},
+    ): Promise<TwsBatchQuoteResult> {
       if (!tws || symbols.length === 0) {
         return { quotes: [], missingSymbols: symbols.map((s) => s.trim().toUpperCase()) };
       }
-      const batch = await tws.getQuotesBatch(symbols);
+      const batch = await tws.getQuotesBatch(symbols, options);
       return {
         quotes: batch.quotes.map(mapQuoteRow),
         missingSymbols: batch.missingSymbols,
       };
     },
 
-    async getQuotes(symbols: string[]): Promise<EquityQuote[] | null> {
-      const batch = await this.getQuotesBatch(symbols);
+    async getQuotes(symbols: string[], options: TwsBatchQuoteOptions = {}): Promise<EquityQuote[] | null> {
+      const batch = await this.getQuotesBatch(symbols, options);
       if (batch.quotes.length === 0) return null;
       return batch.quotes;
     },
 
-    async getCandles(request: CandleRequest): Promise<CandleResponse | null> {
+    async getCandles(
+      request: CandleRequest,
+      options: TwsBatchQuoteOptions = {},
+    ): Promise<CandleResponse | null> {
       if (!tws) return null;
       const sym = request.symbol.trim().toUpperCase();
       const range = request.range ?? "1mo";
@@ -171,6 +181,7 @@ export function createTwsProvider(client?: TwsClient) {
         before: request.beforeTimestamp,
         barCount: request.barCount,
         sessionMode: request.sessionMode,
+        connectionId: options.connectionId,
       });
       if (!data) return null;
       const candles = mapHistoryBars(data.candles ?? []);

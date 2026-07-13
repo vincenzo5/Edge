@@ -1,23 +1,45 @@
-# IB Gateway — paper + live in one container (TRADING_MODE=both).
+# IB Gateway — separate live + paper containers (no shared-display 2FA race).
 # Copy services/ib-gateway/.env.example → services/ib-gateway/.env and set credentials.
 # Start: npm run ib:gateway:up  |  Stop: npm run ib:gateway:down
+x-ib-gateway-common: &ib-gateway-common
+  image: ghcr.io/gnzsnz/ib-gateway:stable
+  restart: unless-stopped
+  environment: &ib-gateway-env
+    EXISTING_SESSION_DETECTED_ACTION: ${EXISTING_SESSION_DETECTED_ACTION:-primary}
+    READ_ONLY_API: ${READ_ONLY_API:-no}
+    TWS_ACCEPT_INCOMING: ${TWS_ACCEPT_INCOMING:-accept}
+    BYPASS_WARNING: ${BYPASS_WARNING:-yes}
+    TWOFA_TIMEOUT_ACTION: ${TWOFA_TIMEOUT_ACTION:-restart}
+    RELOGIN_AFTER_TWOFA_TIMEOUT: ${RELOGIN_AFTER_TWOFA_TIMEOUT:-yes}
+    TWOFA_EXIT_INTERVAL: ${TWOFA_EXIT_INTERVAL:-300}
+    TWOFA_DEVICE: ${TWOFA_DEVICE:-}
+    VNC_SERVER_PASSWORD: ${VNC_SERVER_PASSWORD:-}
+
 services:
-  ib-gateway:
-    image: ghcr.io/gnzsnz/ib-gateway:stable
-    container_name: edge-ib-gateway
-    restart: unless-stopped
+  ib-gateway-live:
+    <<: *ib-gateway-common
+    container_name: edge-ib-gateway-live
     environment:
-      TRADING_MODE: ${TRADING_MODE:-both}
-      EXISTING_SESSION_DETECTED_ACTION: ${EXISTING_SESSION_DETECTED_ACTION:-primary}
-      READ_ONLY_API: ${READ_ONLY_API:-no}
+      <<: *ib-gateway-env
+      TRADING_MODE: live
       TWS_USERID: ${TWS_USERID:-}
       TWS_PASSWORD: ${TWS_PASSWORD:-}
-      TWS_USERID_PAPER: ${TWS_USERID_PAPER:-}
-      TWS_PASSWORD_PAPER: ${TWS_PASSWORD_PAPER:-}
-      VNC_SERVER_PASSWORD: ${VNC_SERVER_PASSWORD:-}
+      TWS_SETTINGS_PATH: /home/ibgateway/tws_settings
+    volumes:
+      - ./tws_settings_live:/home/ibgateway/tws_settings
     ports:
-      # Live TWS API (container socat 4003 → host 4001)
       - "127.0.0.1:4001:4003"
-      # Paper TWS API (container socat 4004 → host 4002)
+
+  ib-gateway-paper:
+    <<: *ib-gateway-common
+    container_name: edge-ib-gateway-paper
+    environment:
+      <<: *ib-gateway-env
+      TRADING_MODE: paper
+      TWS_USERID: ${TWS_USERID_PAPER:-}
+      TWS_PASSWORD: ${TWS_PASSWORD_PAPER:-}
+      TWS_SETTINGS_PATH: /home/ibgateway/tws_settings
+    volumes:
+      - ./tws_settings_paper:/home/ibgateway/tws_settings
+    ports:
       - "127.0.0.1:4002:4004"
-      # VNC optional — omit host bind if 5900 taken (macOS Screen Sharing); IBC auto-login still works

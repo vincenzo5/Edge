@@ -55,7 +55,7 @@ export async function POST(request: Request): Promise<Response> {
         barCount: input.barCount,
         sessionMode: input.sessionMode,
       },
-      { traceId },
+      { traceId, twsConnectionId: input.connectionId },
     );
     perfContext.collector.record("api.service.getLegacyCandles", serviceStartedAt, true, "api", {
       source: result.source,

@@ -71,6 +71,7 @@ function mapStatusToAccounts(status: AccountStatus, connectionId: string): Tradi
     connectionId: connection.connectionId,
     accountId,
     environment: connection.environment,
+    availability: "online" as const,
   }));
 }
 

@@ -30,6 +30,7 @@ import {
   recordMarketDataTelemetry,
 } from '@/lib/marketData/telemetry';
 import type { MarketDataPerfPhase } from '@/lib/marketData/telemetry';
+import { readDataConnectionPreference } from '@/lib/marketData/dataConnectionPreference';
 
 type ApiMetaPayload = Partial<ChartDataMeta> & {
   source?: string;
@@ -239,13 +240,17 @@ async function postCandles(
   const scenario = `chart-load:${String(body.symbol ?? 'unknown')}:${String(body.interval ?? '1d')}:${String(body.range ?? '1y')}`;
   const traceId = createMarketDataTraceId(scenario);
   const startedAt = Date.now();
+  const connectionId = readDataConnectionPreference();
   const res = await fetch('/api/candles', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...marketDataTraceHeaders(traceId, scenario),
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      ...body,
+      ...(connectionId ? { connectionId } : {}),
+    }),
     signal,
   });
   if (!res.ok) {
@@ -350,10 +355,14 @@ export function createApiChartDataFeed(
     },
 
     async loadQuotes(request: ChartQuoteRequest): Promise<ChartQuoteResult> {
+      const connectionId = readDataConnectionPreference();
       const res = await fetch('/api/quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbols: request.symbols }),
+        body: JSON.stringify({
+          symbols: request.symbols,
+          ...(connectionId ? { connectionId } : {}),
+        }),
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));

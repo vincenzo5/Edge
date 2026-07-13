@@ -3,20 +3,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { headerBarClass } from "../design-system/styles";
 import { useAccount } from "../AccountProvider";
-import { fetchJournalFills } from "@/lib/persistence/client/journalClient";
 import { fetchTradingAccounts, TradingApiError } from "@/lib/trading/tradingClient";
 import {
   accountPickerLabel,
-  buildAccountPickerOptions,
-  distinctJournalAccountIds,
   findAccountByKey,
   resolveActiveAccountMatch,
   tradingAccountKey,
 } from "@/lib/trading/accountPickerOptions";
 import type { TradingAccount } from "@/lib/trading/types";
+import {
+  applyDefaultDataConnectionPreferenceIfNeeded,
+  dataConnectionLabel,
+} from "@/lib/marketData/dataConnectionPreference";
+import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
+import {
+  IB_LIVE_CONNECTION_ID,
+  IB_PAPER_CONNECTION_ID,
+} from "@/lib/trading/connectionRegistry";
 
 export default function AppTopHeader() {
   const account = useAccount();
+  const { preference, setPreference } = useDataConnectionPreference();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [defaultAccountId, setDefaultAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,15 +34,9 @@ export default function AppTopHeader() {
     void (async () => {
       setLoading(true);
       try {
-        const [tradingResult, fills] = await Promise.all([
-          fetchTradingAccounts(),
-          fetchJournalFills().catch(() => []),
-        ]);
+        const tradingResult = await fetchTradingAccounts();
         if (cancelled) return;
-        const journalAccountIds = distinctJournalAccountIds(fills);
-        setAccounts(
-          buildAccountPickerOptions(tradingResult.accounts, journalAccountIds),
-        );
+        setAccounts(tradingResult.accounts);
         setDefaultAccountId(tradingResult.defaultAccountId);
         setError(null);
       } catch (err) {
@@ -53,6 +54,20 @@ export default function AppTopHeader() {
       cancelled = true;
     };
   }, []);
+
+  const liveGatewayOnline = useMemo(
+    () =>
+      accounts.some(
+        (row) =>
+          row.connectionId === IB_LIVE_CONNECTION_ID && row.availability === "online",
+      ),
+    [accounts],
+  );
+
+  useEffect(() => {
+    if (accounts.length === 0) return;
+    applyDefaultDataConnectionPreferenceIfNeeded({ liveConnected: liveGatewayOnline });
+  }, [accounts, liveGatewayOnline]);
 
   useEffect(() => {
     if (accounts.length === 0) return;
@@ -100,6 +115,21 @@ export default function AppTopHeader() {
             {error}
           </span>
         ) : null}
+        <button
+          type="button"
+          data-testid="app-data-connection-chip"
+          className="rounded border border-[var(--edge-border)] px-2 py-1 text-[10px] text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-primary)]"
+          aria-label="Chart data connection"
+          onClick={() =>
+            setPreference(
+              preference === IB_LIVE_CONNECTION_ID
+                ? IB_PAPER_CONNECTION_ID
+                : IB_LIVE_CONNECTION_ID,
+            )
+          }
+        >
+          {dataConnectionLabel(preference)}
+        </button>
         <label className="sr-only" htmlFor="app-account-picker">
           Account
         </label>

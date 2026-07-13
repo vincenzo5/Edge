@@ -29,6 +29,10 @@ import {
   fetchUniverseDescriptors,
   getCandlesFromUniverseStore,
 } from "../screenerUniverse/universeDailyStore";
+import {
+  buildDescriptorMap,
+  enrichMoversWithDescriptors,
+} from "../screenerUniverse/enrichMoversWithDescriptors";
 import type { DerivedMetric, DerivedMetricKind } from "../contracts/derived";
 import type { MarketContext } from "../contracts/marketContext";
 import { buildMarketContext } from "../context/buildMarketContext";
@@ -139,6 +143,8 @@ function recentIsoDate(offsetDays: number): string {
 type MarketDataReadOptions = {
   traceId?: string;
   perf?: PerfPhaseCollector | null;
+  /** TWS sidecar socket for display/trading-scoped market data (ib-paper | ib-live). */
+  twsConnectionId?: string;
 };
 
 function attachPerfMeta<T extends DataResult<unknown>>(
@@ -185,10 +191,15 @@ export class MarketDataService {
     this.tws = deps.tws ?? createTwsProvider();
   }
 
-  private candlesCacheKey(provider: string, request: CandleRequest): string {
+  private candlesCacheKey(
+    provider: string,
+    request: CandleRequest,
+    connectionId?: string,
+  ): string {
     return buildCacheKey([
       "candles",
       provider,
+      connectionId ?? "",
       request.symbol,
       request.range ?? "",
       request.interval,
@@ -198,8 +209,8 @@ export class MarketDataService {
     ]);
   }
 
-  private quotesCacheKey(provider: string, symbols: string[]): string {
-    return buildCacheKey(["quotes", provider, symbols.join(",")]);
+  private quotesCacheKey(provider: string, symbols: string[], connectionId?: string): string {
+    return buildCacheKey(["quotes", provider, connectionId ?? "", symbols.join(",")]);
   }
 
   private optionExpirationsCacheKey(provider: string, underlying: string): string {
@@ -472,8 +483,13 @@ export class MarketDataService {
     request: CandleRequest,
     requestedAt: number,
     bypassLegacyCache = false,
+    twsConnectionId?: string,
   ): Promise<DataResult<CandleResponse> | null> {
-    const cacheKey = this.candlesCacheKey(providerName, request);
+    const cacheKey = this.candlesCacheKey(
+      providerName,
+      request,
+      providerName === "tws" ? twsConnectionId : undefined,
+    );
     if (!bypassLegacyCache) {
       const cached = globalDataCache.read<CandleResponse>("candles", cacheKey);
       if (cached.hit && cached.value) {
@@ -483,7 +499,12 @@ export class MarketDataService {
         });
       }
     }
-    const data = await provider.getCandles(request);
+    const twsOptions =
+      providerName === "tws" && twsConnectionId ? { connectionId: twsConnectionId } : undefined;
+    const data =
+      providerName === "tws"
+        ? await (provider as TwsProvider).getCandles(request, twsOptions)
+        : await provider.getCandles(request);
     if (data && data.candles.length > 0) {
       globalDataCache.write(
         "candles",
@@ -515,7 +536,7 @@ export class MarketDataService {
       hot.source === "yahoo" && (this.tws.isConfigured() || this.ibkr.isConfigured());
     if (hot.hit && hot.data && hot.servable && !skipHotYahoo) {
       if (!hot.fresh) {
-        this.scheduleCandlesRevalidate(request, key);
+        this.scheduleCandlesRevalidate(request, key, options.twsConnectionId);
       }
       return attachPerfMeta(
         createDataResult(hot.data, hot.source ?? "mixed", {
@@ -530,7 +551,10 @@ export class MarketDataService {
       );
     }
     const freshStart = Date.now();
-    const result = await this.fetchCandlesFresh(request, { perf });
+    const result = await this.fetchCandlesFresh(request, {
+      perf,
+      twsConnectionId: options.twsConnectionId,
+    });
     perf?.record("service.fetchCandlesFresh", freshStart, true, "service", {
       source: result.source,
       cacheTier: result.cacheTier ?? "cold",
@@ -544,10 +568,14 @@ export class MarketDataService {
     );
   }
 
-  private scheduleCandlesRevalidate(request: CandleRequest, key: string): void {
+  private scheduleCandlesRevalidate(
+    request: CandleRequest,
+    key: string,
+    twsConnectionId?: string,
+  ): void {
     if (this.candlesRevalidateKeys.has(key)) return;
     this.candlesRevalidateKeys.add(key);
-    void this.fetchCandlesFresh(request, { bypassLegacyCache: true })
+    void this.fetchCandlesFresh(request, { bypassLegacyCache: true, twsConnectionId })
       .then((result) => {
         writeHotCandles(request, result.data, result.source, result.warnings);
       })
@@ -559,7 +587,11 @@ export class MarketDataService {
 
   private async fetchCandlesFresh(
     request: CandleRequest,
-    options: { bypassLegacyCache?: boolean; perf?: PerfPhaseCollector | null } = {},
+    options: {
+      bypassLegacyCache?: boolean;
+      perf?: PerfPhaseCollector | null;
+      twsConnectionId?: string;
+    } = {},
   ): Promise<DataResult<CandleResponse>> {
     const requestedAt = Date.now();
     const providerWarnings: string[] = [];
@@ -576,6 +608,7 @@ export class MarketDataService {
           request,
           requestedAt,
           options.bypassLegacyCache,
+          options.twsConnectionId,
         );
         if (twsResult) {
           perf?.record("provider.tws.candles", twsStart, true, "provider", {
@@ -734,8 +767,13 @@ export class MarketDataService {
     provider: TwsProvider | IbkrProvider,
     normalized: string[],
     requestedAt: number,
+    twsConnectionId?: string,
   ): Promise<{ quotes: EquityQuote[]; missingSymbols: string[]; source: "tws" | "ibkr" | "mixed" } | null> {
-    const cacheKey = this.quotesCacheKey(providerName, normalized);
+    const cacheKey = this.quotesCacheKey(
+      providerName,
+      normalized,
+      providerName === "tws" ? twsConnectionId : undefined,
+    );
     const cached = globalDataCache.read<EquityQuote[]>("quotes", cacheKey);
     if (cached.hit && cached.value) {
       return {
@@ -744,7 +782,12 @@ export class MarketDataService {
         source: providerName,
       };
     }
-    const batch = await provider.getQuotesBatch(normalized);
+    const twsOptions =
+      providerName === "tws" && twsConnectionId ? { connectionId: twsConnectionId } : undefined;
+    const batch =
+      providerName === "tws"
+        ? await (provider as TwsProvider).getQuotesBatch(normalized, twsOptions)
+        : await provider.getQuotesBatch(normalized);
     if (batch.quotes.length === 0 && batch.missingSymbols.length === 0) {
       return null;
     }
@@ -811,7 +854,7 @@ export class MarketDataService {
 
     if (allServable && fromHot.length === normalized.length) {
       if (anyStale) {
-        this.scheduleQuotesRevalidate(normalized);
+        this.scheduleQuotesRevalidate(normalized, options.twsConnectionId);
       }
       return attachPerfMeta(
         createDataResult(fromHot, primarySource ?? "yahoo", {
@@ -831,7 +874,7 @@ export class MarketDataService {
 
     if (fromHot.length > 0 && missingSymbols.length > 0) {
       const freshStart = Date.now();
-      const fresh = await this.fetchQuotesFresh(missingSymbols, requestedAt, perf);
+      const fresh = await this.fetchQuotesFresh(missingSymbols, requestedAt, perf, options);
       perf?.record("service.fetchQuotesFresh", freshStart, true, "service", {
         source: fresh.source,
         quoteCount: fresh.data.length,
@@ -854,6 +897,7 @@ export class MarketDataService {
             const hot = globalHotStore.read<EquityQuote>(hotQuoteKey(sym));
             return hot.hit && !hot.fresh;
           }),
+          options.twsConnectionId,
         );
       }
       return attachPerfMeta(
@@ -870,7 +914,7 @@ export class MarketDataService {
     }
 
     const freshStart = Date.now();
-    const result = await this.fetchQuotesFresh(normalized, requestedAt, perf);
+    const result = await this.fetchQuotesFresh(normalized, requestedAt, perf, options);
     perf?.record("service.fetchQuotesFresh", freshStart, true, "service", {
       source: result.source,
       quoteCount: result.data.length,
@@ -885,12 +929,12 @@ export class MarketDataService {
     );
   }
 
-  private scheduleQuotesRevalidate(symbols: string[]): void {
+  private scheduleQuotesRevalidate(symbols: string[], twsConnectionId?: string): void {
     if (symbols.length === 0) return;
-    const key = symbols.join(",");
+    const key = `${twsConnectionId ?? ""}|${symbols.join(",")}`;
     if (this.quotesRevalidateKey === key) return;
     this.quotesRevalidateKey = key;
-    void this.fetchQuotesFresh(symbols, Date.now())
+    void this.fetchQuotesFresh(symbols, Date.now(), null, { twsConnectionId })
       .then((result) => {
         for (const quote of result.data) {
           writeHotQuote(quote, result.source, result.warnings);
@@ -908,6 +952,7 @@ export class MarketDataService {
     normalized: string[],
     requestedAt: number,
     perf: PerfPhaseCollector | null = null,
+    options: Pick<MarketDataReadOptions, "twsConnectionId"> = {},
   ): Promise<DataResult<EquityQuote[]>> {
 
     if (!this.tws.isConfigured() && !this.ibkr.isConfigured()) {
@@ -953,7 +998,13 @@ export class MarketDataService {
     if (twsDecision.shouldTry) {
       const twsStart = Date.now();
       try {
-        const twsBatch = await this.fetchProviderQuotes("tws", this.tws, normalized, requestedAt);
+        const twsBatch = await this.fetchProviderQuotes(
+          "tws",
+          this.tws,
+          normalized,
+          requestedAt,
+          options.twsConnectionId,
+        );
         if (twsBatch) {
           if (twsBatch.quotes.length > 0) {
             this.recordTwsSuccess();
@@ -1706,16 +1757,31 @@ export class MarketDataService {
       return createDataResult(cached.value, "fmp", { requestedAt, asOf: cached.asOf });
     }
     const result = await this.fmp.getMarketMovers({ kind, limit });
+    let movers = result.movers;
+    const warnings = [...result.warnings];
+    try {
+      const descriptorResult = await fetchUniverseDescriptors(this.fmp);
+      if (descriptorResult.rows.length > 0) {
+        movers = enrichMoversWithDescriptors(
+          movers,
+          buildDescriptorMap(descriptorResult.rows),
+        );
+      } else if (descriptorResult.warnings.length > 0) {
+        warnings.push(...descriptorResult.warnings);
+      }
+    } catch {
+      warnings.push("Mover descriptor enrichment failed; fundamentals unavailable");
+    }
     globalDataCache.write(
       "fmp_movers",
       cacheKey,
-      result.movers,
+      movers,
       cacheTtlMs("fmp_movers"),
       Date.now(),
     );
-    return createDataResult(result.movers, "fmp", {
+    return createDataResult(movers, "fmp", {
       requestedAt,
-      warnings: result.warnings,
+      warnings,
     });
   }
 

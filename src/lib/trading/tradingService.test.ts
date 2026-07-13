@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AccountSummary } from "@/lib/marketData/contracts/brokerage";
+import { createIbTwsTradingAdapter } from "./adapters/ibTws";
 import { createMemoryIntentStore } from "./intentStore";
 import { resetAuditLogForTests, listAudit } from "./auditLog";
 import { TradingKillSwitchError, TradingReadinessBlockedError, TradingService } from "./tradingService";
@@ -42,6 +43,7 @@ function createMockPort(): BrokerTradingPort {
         connectionId: "ib-paper",
         accountId: "DUP586813",
         environment: "paper",
+        availability: "online",
       },
     ]),
     preview: vi.fn(async () => ({
@@ -183,6 +185,25 @@ describe("TradingService", () => {
     );
     expect(retry.intent.intentId).toBe(result.intent.intentId);
     expect(mockPort.place).toHaveBeenCalledOnce();
+    expect(mockGetQuotes).toHaveBeenCalledWith(["F"], { twsConnectionId: "ib-paper" });
+  });
+
+  it("requests pre-trade quotes from live connection for live orders", async () => {
+    const service = new TradingService(createMemoryIntentStore());
+    await service.submitOrder(
+      {
+        accountId: "U25026894",
+        symbol: "F",
+        side: "BUY",
+        quantity: 1,
+        orderType: "MKT",
+        environment: "live",
+      },
+      "idem-live-quotes",
+      undefined,
+      "LIVE",
+    );
+    expect(mockGetQuotes).toHaveBeenCalledWith(["F"], { twsConnectionId: "ib-live" });
   });
 
   it("recovers submit when broker accepted order but place timed out", async () => {
@@ -329,5 +350,109 @@ describe("TradingService", () => {
         "idem-short",
       ),
     ).rejects.toThrow(/uncovered short/);
+  });
+
+  it("lists paper and live accounts when both connections are up", async () => {
+    vi.mocked(createIbTwsTradingAdapter).mockImplementation((connectionId) => {
+      if (connectionId === "ib-live") {
+        return {
+          ...createMockPort(),
+          listAccounts: vi.fn(async () => [
+            {
+              broker: "ib",
+              connectionId: "ib-live",
+              accountId: "U25026894",
+              environment: "live",
+              availability: "online",
+            },
+          ]),
+        };
+      }
+      return createMockPort();
+    });
+
+    const service = new TradingService(createMemoryIntentStore());
+    const accounts = await service.listAccounts();
+
+    expect(accounts).toEqual([
+      {
+        broker: "ib",
+        connectionId: "ib-paper",
+        accountId: "DUP586813",
+        environment: "paper",
+        availability: "online",
+      },
+      {
+        broker: "ib",
+        connectionId: "ib-live",
+        accountId: "U25026894",
+        environment: "live",
+        availability: "online",
+      },
+    ]);
+  });
+
+  it("omits live accounts when live discovery fails without fabricating ids", async () => {
+    delete process.env.TWS_LIVE_ACCOUNT_ID;
+    vi.mocked(createIbTwsTradingAdapter).mockImplementation((connectionId) => {
+      if (connectionId === "ib-live") {
+        return {
+          ...createMockPort(),
+          listAccounts: vi.fn(async () => {
+            throw new Error("live gateway offline");
+          }),
+        };
+      }
+      return createMockPort();
+    });
+
+    const service = new TradingService(createMemoryIntentStore());
+    const accounts = await service.listAccounts();
+
+    expect(accounts).toEqual([
+      {
+        broker: "ib",
+        connectionId: "ib-paper",
+        accountId: "DUP586813",
+        environment: "paper",
+        availability: "online",
+      },
+    ]);
+  });
+
+  it("seeds offline live account when live discovery fails and TWS_LIVE_ACCOUNT_ID is set", async () => {
+    process.env.TWS_LIVE_ACCOUNT_ID = "U25026894";
+    vi.mocked(createIbTwsTradingAdapter).mockImplementation((connectionId) => {
+      if (connectionId === "ib-live") {
+        return {
+          ...createMockPort(),
+          listAccounts: vi.fn(async () => {
+            throw new Error("live gateway offline");
+          }),
+        };
+      }
+      return createMockPort();
+    });
+
+    const service = new TradingService(createMemoryIntentStore());
+    const accounts = await service.listAccounts();
+
+    expect(accounts).toEqual([
+      {
+        broker: "ib",
+        connectionId: "ib-paper",
+        accountId: "DUP586813",
+        environment: "paper",
+        availability: "online",
+      },
+      {
+        broker: "ib",
+        connectionId: "ib-live",
+        accountId: "U25026894",
+        environment: "live",
+        availability: "offline",
+      },
+    ]);
+    delete process.env.TWS_LIVE_ACCOUNT_ID;
   });
 });

@@ -42,6 +42,12 @@ vi.mock("@/lib/marketData/providers/tws/recoverySession", () => ({
   getTwsRecoverySession: vi.fn(() => null),
 }));
 
+vi.mock("@/lib/marketData/providers/tws/client", () => ({
+  createTwsClient: vi.fn(() => ({
+    probeHealth: vi.fn(async () => ({ ok: true, capabilities: { controlRecovery: true } })),
+  })),
+}));
+
 describe("/api/market-data/health GET", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -64,6 +70,7 @@ describe("/api/market-data/health GET", () => {
     expect(json.ok).toBe(true);
     expect(json.health.providers.some((row) => row.id === "tws")).toBe(true);
     expect(json.health.providers.some((row) => row.id === "ibkr")).toBe(false);
+    expect(json.health.twsStatus?.gatewayConnected).toBe(true);
     expect(JSON.stringify(json)).not.toMatch(/FMP_API_KEY|FRED_API_KEY|SEC_USER_AGENT/);
     expect(json.health.recentWarnings.some((w) => w.includes("authenticated"))).toBe(false);
     expect(getIbkrStatusProbe).not.toHaveBeenCalled();

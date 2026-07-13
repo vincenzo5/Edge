@@ -34,6 +34,8 @@ export const marketRangeSchema = z.enum(MARKET_RANGES);
 
 export const marketSessionModeSchema = z.enum(["regular", "extended"]);
 
+export const dataConnectionIdSchema = z.enum(["ib-paper", "ib-live"]);
+
 export const candlesRequestSchema = z
   .object({
     symbol: marketSymbolSchema,
@@ -42,6 +44,7 @@ export const candlesRequestSchema = z
     before: z.number().finite().optional(),
     barCount: z.number().int().min(1).max(500).optional(),
     sessionMode: marketSessionModeSchema.optional().default("regular"),
+    connectionId: dataConnectionIdSchema.optional(),
   })
   .superRefine((val, ctx) => {
     if (val.before == null && val.range == null) {
@@ -63,6 +66,7 @@ export const searchRequestSchema = z.object({
 
 export const quotesRequestSchema = z.object({
   symbols: marketSymbolsSchema,
+  connectionId: dataConnectionIdSchema.optional(),
 });
 
 export const fundamentalsQuerySchema = z.object({

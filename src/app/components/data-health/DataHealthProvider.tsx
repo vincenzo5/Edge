@@ -27,6 +27,7 @@ import {
 import { useActiveChart } from "../ActiveChartContext";
 import { useMarketDataQuotes } from "../MarketDataProvider";
 import { useAccountOptional } from "../AccountProvider";
+import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
 
 type OptionsHealthMeta = Partial<ChartDataMeta> | null;
 
@@ -60,6 +61,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
   const activeChart = useActiveChart();
   const marketData = useMarketDataQuotes();
   const account = useAccountOptional();
+  const { preference: dataConnectionPreference } = useDataConnectionPreference();
   const [menuOpen, setMenuOpen] = useState(false);
   const [serverHealth, setServerHealth] = useState<ServerHealthPayload | null>(null);
   const [optionsMeta, setOptionsMeta] = useState<OptionsHealthMeta>(null);
@@ -290,6 +292,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
           ? `${account.status.accountId} · ${account.positions.length} positions`
           : account?.connectionState,
         accountError: account?.error,
+        dataConnectionPreference,
       },
       serverHealth,
       healthEvents,
@@ -312,6 +315,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     account?.error,
     account?.positions.length,
     account?.status?.accountId,
+    dataConnectionPreference,
     serverHealth,
     healthEvents,
   ]);

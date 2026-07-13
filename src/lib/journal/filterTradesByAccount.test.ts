@@ -76,4 +76,17 @@ describe("filterTradesByAccount", () => {
     ];
     expect(filterTradesByAccount(trades, fills, "DU123")).toEqual(trades);
   });
+
+  it("scopes journal to live managed account id regardless of connection metadata", () => {
+    const trades = [
+      baseTrade({ id: "trade-live", fillExecIds: ["exec-live"] }),
+      baseTrade({ id: "trade-paper", fillExecIds: ["exec-paper"] }),
+    ];
+    const fills = [
+      baseFill({ execId: "exec-live", account: "U25026894" }),
+      baseFill({ execId: "exec-paper", account: "DUP586813" }),
+    ];
+
+    expect(filterTradesByAccount(trades, fills, "U25026894")).toEqual([trades[0]]);
+  });
 });

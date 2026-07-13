@@ -13,6 +13,7 @@ import { createIbTwsTradingAdapter } from "./adapters/ibTws";
 import { appendAudit } from "./auditLog";
 import {
   listIbConnections,
+  IB_LIVE_CONNECTION_ID,
   resolveConnectionByEnvironment,
   isTradingConfigured,
 } from "./connectionRegistry";
@@ -88,15 +89,40 @@ export class TradingService {
       : listIbConnections();
 
     const accounts: TradingAccount[] = [];
+    let liveDiscoveryFailed = false;
+
     for (const connection of targets) {
       try {
         const adapter = createIbTwsTradingAdapter(connection.connectionId);
         const rows = await adapter.listAccounts();
-        accounts.push(...rows);
+        accounts.push(
+          ...rows.map((row) => ({
+            ...row,
+            availability: row.availability ?? ("online" as const),
+          })),
+        );
       } catch {
+        if (connection.connectionId === IB_LIVE_CONNECTION_ID) {
+          liveDiscoveryFailed = true;
+        }
         // Live gateway may be offline — omit unavailable connection.
       }
     }
+
+    if (liveDiscoveryFailed) {
+      const offlineLiveId = process.env.TWS_LIVE_ACCOUNT_ID?.trim();
+      const hasLiveRow = accounts.some((row) => row.environment === "live");
+      if (offlineLiveId && !hasLiveRow) {
+        accounts.push({
+          broker: "ib",
+          connectionId: IB_LIVE_CONNECTION_ID,
+          accountId: offlineLiveId,
+          environment: "live",
+          availability: "offline",
+        });
+      }
+    }
+
     return accounts;
   }
 
@@ -361,7 +387,9 @@ export class TradingService {
     const [status, summary, quoteResult, positionsResult] = await Promise.all([
       client.getStatus(),
       client.getSummary(),
-      getServerMarketDataService().getQuotes([draft.symbol]),
+      getServerMarketDataService().getQuotes([draft.symbol], {
+        twsConnectionId: connection.connectionId,
+      }),
       client.getPositions(),
     ]);
 

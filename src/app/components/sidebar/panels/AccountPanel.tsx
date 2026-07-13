@@ -179,6 +179,7 @@ export function AccountPanel() {
               {account.connectionState === "connected" ? "Connected" : account.connectionState}
               {" · "}
               updated {relativeUpdatedAt(account.summary?.updatedAt)}
+              {account.tradingEnvironment === "live" ? " · updates every 15s" : ""}
             </div>
           </div>
           <div className="flex items-center gap-2">

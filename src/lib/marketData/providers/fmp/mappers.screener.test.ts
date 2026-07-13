@@ -38,4 +38,19 @@ describe("mapFmpScreenerRow", () => {
   it("returns null when symbol is missing", () => {
     expect(mapFmpScreenerRow({ companyName: "No Symbol Co." })).toBeNull();
   });
+
+  it("reads changePercentage alias and derives percent from change and price", () => {
+    const fromAlias = mapFmpScreenerRow({
+      symbol: "MSFT",
+      changePercentage: 2.5,
+    });
+    expect(fromAlias?.changePercent).toBe(2.5);
+
+    const derived = mapFmpScreenerRow({
+      symbol: "AAPL",
+      price: 105,
+      change: 5,
+    });
+    expect(derived?.changePercent).toBeCloseTo(5, 5);
+  });
 });

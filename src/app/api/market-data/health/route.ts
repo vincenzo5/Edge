@@ -46,6 +46,7 @@ export async function GET(request: Request): Promise<Response> {
         status: twsResult.data,
         recoveryActive,
       }),
+      twsStatus: twsResult.data,
     };
 
     return NextResponse.json({ ok: true, health: payload });

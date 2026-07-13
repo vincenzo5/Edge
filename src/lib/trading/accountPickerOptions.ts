@@ -1,5 +1,6 @@
 import type { TradingAccount } from "./types";
 
+/** Legacy persisted connection id — remapped to gateway/offline live on load. */
 export const JOURNAL_CONNECTION_ID = "journal";
 
 export function tradingAccountKey(
@@ -15,56 +16,28 @@ export function accountsMatch(
   return a.connectionId === b.connectionId && a.accountId === b.accountId;
 }
 
+export function isOnlineTradingAccount(account: TradingAccount | null | undefined): boolean {
+  return account?.availability !== "offline";
+}
+
 export function isGatewayTradingAccount(account: TradingAccount | null | undefined): boolean {
-  return Boolean(account && account.connectionId !== JOURNAL_CONNECTION_ID);
+  return Boolean(
+    account &&
+      account.connectionId !== JOURNAL_CONNECTION_ID &&
+      isOnlineTradingAccount(account),
+  );
 }
 
 export function accountPickerLabel(account: TradingAccount): string {
-  if (account.connectionId === JOURNAL_CONNECTION_ID) {
-    return `${account.accountId} (journal)`;
+  if (account.availability === "offline") {
+    return `${account.accountId} (live, offline)`;
   }
   const envLabel = account.environment === "live" ? "live" : "paper";
   return `${account.accountId} (${envLabel})`;
 }
 
-export function buildJournalOnlyAccount(accountId: string): TradingAccount {
-  return {
-    broker: "ib",
-    connectionId: JOURNAL_CONNECTION_ID,
-    accountId: accountId.trim(),
-    environment: "paper",
-  };
-}
-
-export function distinctJournalAccountIds(
-  fills: Array<{ account?: string | null }>,
-): string[] {
-  const ids = new Set<string>();
-  for (const fill of fills) {
-    const accountId = fill.account?.trim();
-    if (accountId) ids.add(accountId);
-  }
-  return [...ids].sort();
-}
-
-export function buildAccountPickerOptions(
-  gatewayAccounts: TradingAccount[],
-  journalAccountIds: string[],
-): TradingAccount[] {
-  const gatewayIds = new Set(gatewayAccounts.map((row) => row.accountId.trim()));
-  const seenJournal = new Set<string>();
-  const journalOnly: TradingAccount[] = [];
-
-  for (const accountId of journalAccountIds) {
-    const normalized = accountId.trim();
-    if (!normalized || gatewayIds.has(normalized) || seenJournal.has(normalized)) {
-      continue;
-    }
-    seenJournal.add(normalized);
-    journalOnly.push(buildJournalOnlyAccount(normalized));
-  }
-
-  return [...gatewayAccounts, ...journalOnly];
+export function buildAccountPickerOptions(gatewayAccounts: TradingAccount[]): TradingAccount[] {
+  return [...gatewayAccounts];
 }
 
 export function findAccountByKey(
@@ -80,6 +53,12 @@ export function resolveActiveAccountMatch(
   activeAccountIdOnly: string | null | undefined,
 ): TradingAccount | null {
   if (stored) {
+    if (stored.connectionId === JOURNAL_CONNECTION_ID) {
+      const normalizedId = stored.accountId.trim();
+      const remapped =
+        accounts.find((row) => row.accountId === normalizedId) ?? null;
+      if (remapped) return remapped;
+    }
     const match = accounts.find((row) => accountsMatch(row, stored));
     if (match) return match;
   }

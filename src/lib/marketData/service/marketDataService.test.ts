@@ -457,6 +457,39 @@ describe("MarketDataService", () => {
     });
   });
 
+  describe("TWS connection preference threading", () => {
+    it("passes twsConnectionId to TWS adapter only, not IBKR", async () => {
+      const tws = createMockTws();
+      const ibkr = createMockIbkr();
+      const service = createService({ ibkr, tws });
+
+      await service.getQuotes(["AAPL"], { twsConnectionId: "ib-live" });
+
+      expect(tws.getQuotesBatch).toHaveBeenCalledWith(
+        ["AAPL"],
+        expect.objectContaining({ connectionId: "ib-live" }),
+      );
+      expect(ibkr.getQuotesBatch).not.toHaveBeenCalled();
+    });
+
+    it("passes twsConnectionId to TWS candles only", async () => {
+      const tws = createMockTws();
+      const ibkr = createMockIbkr();
+      const service = createService({ ibkr, tws });
+
+      await service.getCandles(
+        { symbol: "AAPL", range: "1mo", interval: "1d" },
+        { twsConnectionId: "ib-live" },
+      );
+
+      expect(tws.getCandles).toHaveBeenCalledWith(
+        expect.objectContaining({ symbol: "AAPL", interval: "1d", range: "1mo" }),
+        expect.objectContaining({ connectionId: "ib-live" }),
+      );
+      expect(ibkr.getCandles).not.toHaveBeenCalled();
+    });
+  });
+
   describe("TWS health gate candle routing", () => {
     it("skips TWS and falls back quickly when circuit is open", async () => {
       twsHealthGate.recordFailure("gateway_disconnected");
@@ -818,7 +851,7 @@ describe("MarketDataService", () => {
       expect(result.data).toHaveLength(2);
       expect(result.data.find((quote) => quote.symbol === "AAPL")?.price).toBe(150);
       expect(result.data.find((quote) => quote.symbol === "MSFT")?.price).toBe(420);
-      expect(tws.getQuotesBatch).toHaveBeenCalledWith(["MSFT"]);
+      expect(tws.getQuotesBatch).toHaveBeenCalledWith(["MSFT"], undefined);
     });
 
     it("sets batch asOf to oldest quote updatedAt on full hot cache hit", async () => {

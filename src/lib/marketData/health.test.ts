@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import { HOT_STALE_MS } from "./hotStore";
 import {
   buildChartDatasetRow,
+  buildConnectionSummary,
+  buildDataPreferenceRow,
   buildDatasetChips,
   buildHealthCaveatSubtitle,
   buildHealthSummary,
   buildHealthCompactSummary,
+  buildIbSocketRows,
   buildOptionsDatasetRow,
   buildProvisionalProviderRows,
   buildProviderRows,
@@ -300,6 +303,96 @@ describe("marketData health", () => {
 
     expect(providers.some((row) => row.id === "ibkr")).toBe(false);
     expect(providers.find((row) => row.id === "tws")?.label).toBe("IB Gateway");
+  });
+
+  it("builds separate paper and live socket rows from sidecar connections", () => {
+    const rows = buildIbSocketRows({
+      configured: true,
+      sidecarReachable: true,
+      gatewayConnected: true,
+      host: "127.0.0.1",
+      port: 4002,
+      warnings: [],
+      connections: {
+        "ib-paper": {
+          connectionId: "ib-paper",
+          gatewayConnected: true,
+          host: "127.0.0.1",
+          port: 4002,
+        },
+        "ib-live": {
+          connectionId: "ib-live",
+          gatewayConnected: false,
+          host: "127.0.0.1",
+          port: 4001,
+          message: "Not connected to IB Gateway at 127.0.0.1:4001",
+        },
+      },
+    });
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.id).toBe("tws-paper");
+    expect(rows[0]?.status).toBe("healthy");
+    expect(rows[1]?.id).toBe("tws-live");
+    expect(rows[1]?.status).toBe("degraded");
+  });
+
+  it("builds connection summary with preference-aware severity", () => {
+    const connectionRows = buildIbSocketRows({
+      configured: true,
+      sidecarReachable: true,
+      gatewayConnected: true,
+      warnings: [],
+      connections: {
+        "ib-paper": { connectionId: "ib-paper", gatewayConnected: true, port: 4002 },
+        "ib-live": { connectionId: "ib-live", gatewayConnected: false, port: 4001 },
+      },
+    });
+    const dataPreference = buildDataPreferenceRow("ib-live");
+    const summary = buildConnectionSummary([], { connectionRows, dataPreference });
+
+    expect(summary.label).toContain("Paper: ok");
+    expect(summary.label).toContain("Live: down");
+    expect(summary.label).toContain("Live data");
+    expect(summary.severity).toBe("degraded");
+  });
+
+  it("merges connection rows and data preference into health snapshot", () => {
+    const twsStatus = {
+      configured: true,
+      sidecarReachable: true,
+      gatewayConnected: true,
+      warnings: [],
+      connections: {
+        "ib-paper": { connectionId: "ib-paper", gatewayConnected: true, port: 4002 },
+        "ib-live": { connectionId: "ib-live", gatewayConnected: false, port: 4001 },
+      },
+    };
+    const snapshot = mergeHealthSnapshot(
+      {
+        chartMeta: { source: "tws", asOf: Date.now(), streaming: true },
+        chartDetail: "AAPL · 1D",
+        dataConnectionPreference: "ib-live",
+      },
+      {
+        generatedAt: Date.now(),
+        providers: buildProviderRows({
+          tws: twsStatus,
+          twsGate: {
+            skipUntil: 0,
+            lastFailure: null,
+            failureCount: 0,
+            lastSuccessAt: Date.now(),
+          },
+        }),
+        recentWarnings: [],
+        twsStatus,
+      },
+    );
+
+    expect(snapshot.connectionRows).toHaveLength(2);
+    expect(snapshot.dataPreference?.label).toBe("Live data");
+    expect(snapshot.connectionSummary).toContain("Live: down");
   });
 
   it("classifies transport timeouts as events, not incidents", () => {

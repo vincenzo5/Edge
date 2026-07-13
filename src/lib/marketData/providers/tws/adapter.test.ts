@@ -100,6 +100,23 @@ describe("createTwsProvider", () => {
     expect(batch.missingSymbols).toEqual([]);
   });
 
+  it("forwards connectionId to TWS client for candles and quotes", async () => {
+    const provider = createTwsProvider(client);
+    await provider.getCandles(
+      { symbol: "AAPL", interval: "1d", range: "1mo" },
+      { connectionId: "ib-live" },
+    );
+    expect(client.getCandles).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: "ib-live" }),
+    );
+
+    await provider.getQuotesBatch(["AAPL"], { connectionId: "ib-live" });
+    expect(client.getQuotesBatch).toHaveBeenCalledWith(
+      ["AAPL"],
+      expect.objectContaining({ connectionId: "ib-live" }),
+    );
+  });
+
   it("returns option expirations with warnings helper", async () => {
     const provider = createTwsProvider(client);
     const result = await provider.getOptionExpirationsWithWarnings("AAPL");

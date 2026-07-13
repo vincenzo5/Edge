@@ -240,15 +240,31 @@ export function mapFmpMarketMover(row: Record<string, unknown>): FmpMarketMover 
   return validate(fmpMarketMoverSchema, mapped);
 }
 
+function deriveChangePercent(change: number | null, price: number | null): number | null {
+  if (change == null || price == null || !Number.isFinite(change) || !Number.isFinite(price)) {
+    return null;
+  }
+  const prior = price - change;
+  if (prior === 0 || !Number.isFinite(prior)) return null;
+  const percent = (change / prior) * 100;
+  return Number.isFinite(percent) ? percent : null;
+}
+
 export function mapFmpScreenerRow(row: Record<string, unknown>): FmpScreenerRow | null {
   const symbol = str(row.symbol);
   if (!symbol) return null;
+  const price = num(row.price);
+  const change = num(row.change);
   const mapped: FmpScreenerRow = {
     symbol: symbol.toUpperCase(),
     name: str(row.name) ?? str(row.companyName),
-    price: num(row.price),
-    change: num(row.change),
-    changePercent: num(row.changesPercentage) ?? num(row.changePercent),
+    price,
+    change,
+    changePercent:
+      num(row.changesPercentage) ??
+      num(row.changePercent) ??
+      num(row.changePercentage) ??
+      deriveChangePercent(change, price),
     exchange: str(row.exchange),
     volume: num(row.volume),
     sector: str(row.sector),

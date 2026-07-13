@@ -117,7 +117,7 @@ _ib_job_seq = 0
 _ib_job_seq_lock = threading.Lock()
 _ib_results: dict[str, tuple[bool, Any]] = {}
 _ib_results_lock = threading.Lock()
-_quote_subscriptions: dict[str, Any] = {}
+_quote_subscriptions_by_connection: dict[str, dict[str, Any]] = {}
 _quote_sub_lock = threading.Lock()
 _account_lock = threading.Lock()
 _account_subscriptions_active = False
@@ -280,11 +280,12 @@ def _attach_ib_handlers(ib: IB) -> None:
 
 def _resubscribe_quote_symbols(ib: IB) -> None:
     with _quote_sub_lock:
-        symbols = list(_quote_subscriptions.keys())
-        _quote_subscriptions.clear()
+        primary_subs = _quote_subscriptions_by_connection.get(PRIMARY_CONNECTION_ID, {})
+        symbols = list(primary_subs.keys())
+        primary_subs.clear()
     if not symbols:
         return
-    _ensure_quote_subscriptions(ib, symbols)
+    _ensure_quote_subscriptions(ib, symbols, PRIMARY_CONNECTION_ID)
 
 
 def _ib_worker() -> None:
@@ -351,10 +352,12 @@ def run_on_ib_thread(
 
 class QuotesRequest(BaseModel):
     symbols: list[str] = Field(min_length=1, max_length=100)
+    connectionId: str | None = None
 
 
 class WarmupRequest(BaseModel):
     symbols: list[str] = Field(default_factory=list, max_length=50)
+    connectionId: str | None = None
 
 
 def _now_ms() -> int:
@@ -435,6 +438,26 @@ def _connect_ib_to(port: int, client_id: int) -> IB:
     raise RuntimeError("Unable to connect to IB Gateway")
 
 
+def _debug_agent_log(hypothesis_id: str, location: str, message: str, data: dict[str, Any]) -> None:
+    # region agent log
+    try:
+        import json as _json
+
+        payload = {
+            "sessionId": "0e92a1",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": _now_ms(),
+        }
+        with open("/Users/vincentn/TV AI/.cursor/debug-0e92a1.log", "a", encoding="utf-8") as fh:
+            fh.write(_json.dumps(payload) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+    # endregion
+
+
 def _get_ib_for_connection(connection_id: str) -> IB:
     if connection_id == PRIMARY_CONNECTION_ID:
         return _get_ib()
@@ -448,13 +471,40 @@ def _get_ib_for_connection(connection_id: str) -> IB:
                 existing.disconnect()
             except Exception:  # noqa: BLE001
                 pass
+        _debug_agent_log(
+            "H2",
+            "main.py:_get_ib_for_connection",
+            "connect_attempt",
+            {
+                "connectionId": connection_id,
+                "host": TWS_HOST,
+                "port": spec["port"],
+                "clientId": spec["client_id"],
+            },
+        )
         try:
             ib = _connect_ib_to(spec["port"], spec["client_id"])
             _ib_extra[connection_id] = ib
             _extra_connect_errors[connection_id] = None
+            _debug_agent_log(
+                "H2",
+                "main.py:_get_ib_for_connection",
+                "connect_success",
+                {"connectionId": connection_id, "port": spec["port"]},
+            )
             return ib
         except Exception as exc:  # noqa: BLE001
             _extra_connect_errors[connection_id] = str(exc)
+            _debug_agent_log(
+                "H1",
+                "main.py:_get_ib_for_connection",
+                "connect_failed",
+                {
+                    "connectionId": connection_id,
+                    "port": spec["port"],
+                    "error": str(exc),
+                },
+            )
             raise HTTPException(
                 status_code=503,
                 detail=(
@@ -530,7 +580,7 @@ def _reset_ib_connection() -> None:
     _ib_handlers_attached = False
     _active_client_id = None
     with _quote_sub_lock:
-        _quote_subscriptions.clear()
+        _quote_subscriptions_by_connection.pop(PRIMARY_CONNECTION_ID, None)
     with _account_lock:
         _account_subscriptions_active = False
         _account_summary.clear()
@@ -565,6 +615,44 @@ def _reconnect_ib() -> dict[str, Any]:
             _set_connection_state("failed")
         _set_recovery_phase("failed", str(exc))
     return _status_payload()
+
+
+def _read_connection_connected(connection_id: str) -> bool:
+    if connection_id == PRIMARY_CONNECTION_ID:
+        return _read_gateway_connected()
+    with _lock:
+        ib = _ib_extra.get(connection_id)
+        if ib is None:
+            return False
+        try:
+            return bool(ib.isConnected())
+        except Exception:  # noqa: BLE001
+            return False
+
+
+def _connection_status_entry(connection_id: str) -> dict[str, Any]:
+    spec = _CONNECTION_SPECS[connection_id]
+    connected = _read_connection_connected(connection_id)
+    message: str | None = None
+    if connection_id != PRIMARY_CONNECTION_ID and not connected:
+        message = _extra_connect_errors.get(connection_id)
+    return {
+        "connectionId": connection_id,
+        "gatewayConnected": connected,
+        "apiSessionConnected": connected,
+        "gatewaySocketOpen": connected,
+        "host": TWS_HOST,
+        "port": spec["port"],
+        "clientId": spec["client_id"],
+        "message": message,
+    }
+
+
+def _connections_map() -> dict[str, dict[str, Any]]:
+    return {
+        PRIMARY_CONNECTION_ID: _connection_status_entry(PRIMARY_CONNECTION_ID),
+        IB_LIVE_CONNECTION_ID: _connection_status_entry(IB_LIVE_CONNECTION_ID),
+    }
 
 
 def _status_payload() -> dict[str, Any]:
@@ -618,6 +706,7 @@ def _status_payload() -> dict[str, Any]:
         "message": _last_connect_error,
         "warnings": warnings,
         "diagnostics": diagnostics,
+        "connections": _connections_map(),
     }
 
 
@@ -881,25 +970,40 @@ def _select_strikes(
     return ranked[:count]
 
 
-def _ensure_quote_subscriptions(ib: IB, symbols: list[str]) -> None:
+def _get_ib_for_market_data(connection_id: str) -> IB:
+    if connection_id == PRIMARY_CONNECTION_ID:
+        return _get_ib()
+    return _get_ib_for_connection(connection_id)
+
+
+def _ensure_quote_subscriptions(
+    ib: IB,
+    symbols: list[str],
+    connection_id: str = PRIMARY_CONNECTION_ID,
+) -> None:
     with _quote_sub_lock:
+        subs = _quote_subscriptions_by_connection.setdefault(connection_id, {})
         for sym in symbols:
-            if sym in _quote_subscriptions:
+            if sym in subs:
                 continue
             try:
                 resolved = _resolve_stock(sym)
                 ticker = ib.reqMktData(resolved, "", False, False)
-                _quote_subscriptions[sym] = ticker
+                subs[sym] = ticker
             except Exception:  # noqa: BLE001
                 continue
 
 
-def _read_cached_quotes(symbols: list[str]) -> dict[str, Any]:
+def _read_cached_quotes(
+    symbols: list[str],
+    connection_id: str = PRIMARY_CONNECTION_ID,
+) -> dict[str, Any]:
     quotes_out: list[dict[str, Any]] = []
     missing: list[str] = []
     with _quote_sub_lock:
+        subs = _quote_subscriptions_by_connection.get(connection_id, {})
         for sym in symbols:
-            ticker = _quote_subscriptions.get(sym)
+            ticker = subs.get(sym)
             if ticker is None:
                 missing.append(sym)
                 continue
@@ -907,13 +1011,16 @@ def _read_cached_quotes(symbols: list[str]) -> dict[str, Any]:
     return {"quotes": quotes_out, "missingSymbols": missing}
 
 
-def _fetch_quotes(symbols: list[str]) -> dict[str, Any]:
-    ib = _get_ib()
-    _ensure_quote_subscriptions(ib, symbols)
-    payload = _read_cached_quotes(symbols)
+def _fetch_quotes(
+    symbols: list[str],
+    connection_id: str = PRIMARY_CONNECTION_ID,
+) -> dict[str, Any]:
+    ib = _get_ib_for_market_data(connection_id)
+    _ensure_quote_subscriptions(ib, symbols, connection_id)
+    payload = _read_cached_quotes(symbols, connection_id)
     if payload["missingSymbols"]:
-        _ensure_quote_subscriptions(ib, payload["missingSymbols"])
-        payload = _read_cached_quotes(symbols)
+        _ensure_quote_subscriptions(ib, payload["missingSymbols"], connection_id)
+        payload = _read_cached_quotes(symbols, connection_id)
     return payload
 
 
@@ -1411,6 +1518,32 @@ def _ephemeral_orders(ib: IB, account_id: str | None = None) -> list[dict[str, A
     return orders
 
 
+def _ephemeral_trades(ib: IB, limit: int = 100) -> list[dict[str, Any]]:
+    try:
+        ib.reqExecutions()
+        ib.sleep(1.5)
+        fills = list(ib.fills())
+        mapped = [_map_execution_from_fill(fill) for fill in fills]
+        if len(mapped) > limit:
+            mapped = mapped[-limit:]
+        return mapped
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _ephemeral_stream_payload(ib: IB) -> dict[str, Any]:
+    return {
+        "type": "update",
+        "status": _ephemeral_account_status(ib),
+        "summary": _ephemeral_account_summary(ib),
+        "positions": _ephemeral_positions(ib),
+        "pnl": {},
+        "orders": _ephemeral_orders(ib),
+        "executions": _ephemeral_trades(ib, limit=50),
+        "meta": {"source": "tws", "asOf": _now_ms(), "streaming": True},
+    }
+
+
 class WhatIfRequest(BaseModel):
     symbol: str = Field(min_length=1)
     action: str = Field(pattern="^(BUY|SELL)$")
@@ -1690,12 +1823,13 @@ def control_reconnect() -> dict[str, Any]:
 @app.post("/warmup")
 def warmup(body: WarmupRequest) -> dict[str, Any]:
     symbols = sorted({s.strip().upper() for s in body.symbols if s.strip()})
+    resolved = _resolve_connection_id(body.connectionId)
 
     def work():
         warmed: list[str] = []
         subscribed: list[str] = []
         try:
-            ib = _get_ib()
+            ib = _get_ib_for_market_data(resolved)
             for sym in symbols:
                 try:
                     _resolve_stock(sym)
@@ -1706,14 +1840,17 @@ def warmup(body: WarmupRequest) -> dict[str, Any]:
                     continue
             if symbols:
                 try:
-                    _ensure_quote_subscriptions(ib, symbols)
-                    subscribed = [sym for sym in symbols if sym in _quote_subscriptions]
+                    _ensure_quote_subscriptions(ib, symbols, resolved)
+                    with _quote_sub_lock:
+                        subs = _quote_subscriptions_by_connection.get(resolved, {})
+                        subscribed = [sym for sym in symbols if sym in subs]
                 except Exception:  # noqa: BLE001
                     subscribed = []
             return {
                 "warmed": warmed,
                 "subscribed": subscribed,
                 "timestamp": _now_ms(),
+                "connectionId": resolved,
             }
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -1787,8 +1924,10 @@ def candles(
     before: int | None = None,
     barCount: int | None = None,
     sessionMode: str = Query(default="regular"),
+    connectionId: str | None = Query(default=None),
 ) -> dict[str, Any]:
     use_rth = sessionMode.strip().lower() != "extended"
+    resolved = _resolve_connection_id(connectionId)
 
     def work():
         sym = symbol.strip().upper()
@@ -1797,15 +1936,15 @@ def candles(
         if before is not None and barCount is not None:
             duration = f"{max(barCount, 1)} D"
         try:
-            resolved = _resolve_stock(sym)
-            ib = _get_ib()
+            resolved_stock = _resolve_stock(sym)
+            ib = _get_ib_for_market_data(resolved)
             end_dt = ""
             if before is not None:
                 end_dt = datetime.fromtimestamp(before / 1000, tz=timezone.utc).strftime(
                     "%Y%m%d %H:%M:%S UTC"
                 )
             bars = ib.reqHistoricalData(
-                resolved,
+                resolved_stock,
                 endDateTime=end_dt,
                 durationStr=duration,
                 barSizeSetting=bar_size,
@@ -1820,6 +1959,7 @@ def candles(
                 "candles": mapped,
                 "hasMore": len(mapped) > 0,
                 "sessionMode": "extended" if not use_rth else "regular",
+                "connectionId": resolved,
             }
         except HTTPException:
             raise
@@ -1832,10 +1972,13 @@ def candles(
 @app.post("/quotes")
 def quotes(body: QuotesRequest) -> dict[str, Any]:
     symbols = sorted({s.strip().upper() for s in body.symbols if s.strip()})
+    resolved = _resolve_connection_id(body.connectionId)
 
     def work():
         try:
-            return _fetch_quotes(symbols)
+            payload = _fetch_quotes(symbols, resolved)
+            payload["connectionId"] = resolved
+            return payload
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -1894,10 +2037,14 @@ def option_chain(
 
 
 @app.get("/stream/quotes")
-def stream_quotes(symbols: str = Query(min_length=1)) -> StreamingResponse:
+def stream_quotes(
+    symbols: str = Query(min_length=1),
+    connectionId: str | None = Query(default=None),
+) -> StreamingResponse:
     symbol_list = sorted({s.strip().upper() for s in symbols.split(",") if s.strip()})
     if not symbol_list:
         raise HTTPException(status_code=400, detail="No symbols provided")
+    resolved = _resolve_connection_id(connectionId)
 
     def event_generator():
         primed = False
@@ -1921,7 +2068,7 @@ def stream_quotes(symbols: str = Query(min_length=1)) -> StreamingResponse:
                 continue
             try:
                 payload = run_on_ib_thread(
-                    lambda: _fetch_quotes(symbol_list),
+                    lambda: _fetch_quotes(symbol_list, resolved),
                     PRIORITY_QUOTES,
                     job_name="stream_quotes",
                 )
@@ -1937,6 +2084,7 @@ def stream_quotes(symbols: str = Query(min_length=1)) -> StreamingResponse:
                                 "source": "tws",
                                 "asOf": _now_ms(),
                                 "streaming": True,
+                                "connectionId": resolved,
                             },
                         }
                     )
@@ -2098,27 +2246,34 @@ def account_orders(
 
 
 @app.get("/account/trades")
-def account_trades() -> dict[str, Any]:
+def account_trades(connectionId: str | None = Query(default=None)) -> dict[str, Any]:
     _require_brokerage_enabled()
+    resolved = _resolve_connection_id(connectionId)
 
     def work():
         try:
-            ib = _get_ib()
-            ib.reqExecutions()
-            ib.sleep(1.5)
-            fills = list(ib.fills())
-            mapped = [_map_execution_from_fill(fill) for fill in fills]
-            if len(mapped) > 200:
-                mapped = mapped[-200:]
-            with _account_lock:
-                _account_executions.clear()
-                for row in mapped:
-                    _account_executions.append(row)
+            if resolved == PRIMARY_CONNECTION_ID:
+                ib = _get_ib()
+                ib.reqExecutions()
+                ib.sleep(1.5)
+                fills = list(ib.fills())
+                mapped = [_map_execution_from_fill(fill) for fill in fills]
+                if len(mapped) > 200:
+                    mapped = mapped[-200:]
+                with _account_lock:
+                    _account_executions.clear()
+                    for row in mapped:
+                        _account_executions.append(row)
+                with _account_lock:
+                    executions = list(_account_executions)[-100:]
+                return {"executions": executions, "updatedAt": _now_ms()}
+            ib = _get_ib_for_connection(resolved)
+            executions = _ephemeral_trades(ib, limit=100)
+            return {"executions": executions, "updatedAt": _now_ms()}
+        except HTTPException:
+            raise
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        with _account_lock:
-            executions = list(_account_executions)[-100:]
-        return {"executions": executions, "updatedAt": _now_ms()}
 
     return run_on_ib_thread(work, PRIORITY_HIGH)
 
@@ -2310,8 +2465,9 @@ def trading_cancel_order(
 
 
 @app.get("/stream/account")
-def stream_account() -> StreamingResponse:
+def stream_account(connectionId: str | None = Query(default=None)) -> StreamingResponse:
     _require_brokerage_enabled()
+    resolved = _resolve_connection_id(connectionId)
 
     def event_generator():
         primed = False
@@ -2334,11 +2490,18 @@ def stream_account() -> StreamingResponse:
                 time.sleep(1)
                 continue
             try:
-                payload = run_on_ib_thread(
-                    lambda: (_get_ib(), _account_stream_payload())[1],
-                    PRIORITY_HIGH,
-                    job_name="stream_account",
-                )
+                if resolved == PRIMARY_CONNECTION_ID:
+                    payload = run_on_ib_thread(
+                        lambda: (_get_ib(), _account_stream_payload())[1],
+                        PRIORITY_HIGH,
+                        job_name="stream_account",
+                    )
+                else:
+                    payload = run_on_ib_thread(
+                        lambda: _ephemeral_stream_payload(_get_ib_for_connection(resolved)),
+                        PRIORITY_HIGH,
+                        job_name=f"stream_account_{resolved}",
+                    )
                 if not primed:
                     payload = {**payload, "type": "snapshot"}
                     primed = True

@@ -27,7 +27,7 @@ src/lib/trading/
     stub.ts             # StubTradingAdapter (registry test surface)
   intentStore.ts        # Idempotency + orderRef (`edge-intent-{intentId}`)
   activeAccount.ts      # localStorage active account + resolveTradingAccountId
-  accountPickerOptions.ts # Composite picker keys + journal-only account union
+  accountPickerOptions.ts # Composite picker keys; offline live seed labels; legacy journal rematch
   reconcile.ts          # Lost-response recovery via orderRef / permId
   tradingService.ts     # Readiness → preview/submit/modify/cancel orchestration
   routeHelpers.ts       # API error mapping
@@ -38,7 +38,7 @@ src/app/components/trading/
   TradeTicketModal.tsx  # Read-only account from header context; what-if confirm; LIVE token for live submit
 
 src/app/components/home/
-  AppTopHeader.tsx      # Global account picker (Gateway + journal-only); composite connectionId::accountId keys
+  AppTopHeader.tsx      # Global account picker (Gateway paper/live + offline live seed); composite connectionId::accountId keys
 
 src/lib/brokerage/
   filterOrders.ts       # filterOrdersByAccount helper (stream + REST)
@@ -49,12 +49,12 @@ src/lib/brokerage/
 | Surface | Scoped to active account? | Mechanism |
 |---------|---------------------------|-----------|
 | Header picker | Sets full `TradingAccount` | `edge:trading:activeAccount` localStorage |
-| Trade ticket / order cancel | Yes (Gateway only) | `activeTradingAccount` + `isGatewayTradingAccount` |
+| Trade ticket / order cancel | Yes (online Gateway only) | `activeTradingAccount` + `isGatewayTradingAccount` |
 | AccountPanel orders | Yes | `filterOrdersByAccount` on stream orders |
 | Brokerage snapshot (positions, summary, PnL) | Environment only | Sidecar `reqAccountUpdates` per connection |
 | Journal trades/stats | Yes | `filterTradesByAccount` via fill `account` + `JournalTradesProvider` under `AccountProvider` |
 
-Journal-only picker entries (`connectionId: journal`) scope journal data without claiming a live Gateway connection.
+Picker shows Gateway-discovered paper/live accounts only. When live discovery fails, `TWS_LIVE_ACCOUNT_ID` seeds one offline live row (`availability: offline`, label `(live, offline)`) for journal filter — trading remains disabled. Legacy `connectionId: journal` selections remap to gateway/offline live by `accountId` on load.
 
 API routes: `src/app/api/trading/{accounts,preview,orders,orders/[orderId]}`.
 
@@ -76,7 +76,9 @@ Brokerage snapshot/stream accept `?environment=paper|live` and route to the matc
               GET /account/*?connectionId=
 ```
 
-Market-data paths on the sidecar remain on the **primary** connection (`ib-paper` / `TWS_PORT`).
+Market-data routes on the sidecar accept optional `connectionId` on `/candles`, `/quotes`, `/warmup`, and `/stream/quotes`. Display preference is persisted separately at `edge:marketData:connectionId` (header chip in `AppTopHeader`); order routing and brokerage still follow `edge:trading:activeAccount`.
+
+**Live account panel:** paper uses SSE via `/stream/account`; live uses a 15s poll in `AccountProvider` (labeled in Account panel).
 
 ## Connection registry (Phase 5)
 
@@ -154,10 +156,17 @@ npm run build
 
 ## Post–Phase 5 backlog (not shipped)
 
-- **Dual connection track** — see [docs/dual-connection-roadmap.md](../../../docs/dual-connection-roadmap.md): Docker paper+live Gateways, remove journal-only picker, decouple market-data preference from order account, dual-homed chart market data
 - Postgres-backed intent store
 - Options execution, brackets, OCO
 - Second real broker adapter (beyond stub)
+
+## Dual connection (Phases A–D)
+
+Phases A–C shipped: Docker paper+live Gateways, honest account discovery, decoupled chart data preference from order account. Phase D hardens TWS-only preference threading and splits Data Health into paper socket, live socket, and active data preference. Full track: [docs/dual-connection-roadmap.md](../../../docs/dual-connection-roadmap.md).
+
+### Submit readiness vs display data
+
+Chart and watchlist meta (`usage: display`) never authorizes order submit. `TradingService.assertPreTrade` fetches a fresh quote via the **order** environment's TWS connection, then `evaluateTradingReadiness` applies `trading_decision` trust policy — only TWS/IBKR sources pass; Yahoo, mixed, and other display-only sources block submit.
 
 ## Local dual Gateway (Phase A infra)
 

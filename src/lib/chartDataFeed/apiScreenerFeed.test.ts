@@ -39,6 +39,8 @@ describe("apiScreenerFeed", () => {
               changePercent: 1,
               exchange: "NASDAQ",
               volume: 1000,
+              sector: "Technology",
+              marketCap: 3_000_000_000_000,
             },
           ],
           meta: { source: "fmp", warnings: [], stale: false },
@@ -49,7 +51,8 @@ describe("apiScreenerFeed", () => {
 
     const result = await fetchMarketMoverResults({ kind: "gainers", limit: 10 });
     expect(result.rows[0]?.symbol).toBe("NVDA");
-    expect(result.rows[0]?.sector).toBeNull();
+    expect(result.rows[0]?.sector).toBe("Technology");
+    expect(result.rows[0]?.marketCap).toBe(3_000_000_000_000);
   });
 
   it("throws on non-OK screener response", async () => {

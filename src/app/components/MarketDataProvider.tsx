@@ -25,6 +25,7 @@ import {
 import { resolveQuoteStreamFirstPaintMs } from "@/lib/marketData/quoteStreamPolicy";
 import { recordHealthEvent } from "@/lib/marketData/healthEvents";
 import { getDatasetPolicy, isDisplayFresh, provenanceFromMeta } from "@/lib/marketData/trust/dataTrust";
+import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
 
 export type WatchlistQuotesTransport = "rest" | "sse";
 
@@ -97,6 +98,7 @@ async function fetchRestWatchlistQuotes(
   symbols: string[],
   scenario: string,
   traceId: string,
+  connectionId?: string,
 ): Promise<RestQuotesResponse> {
   const res = await fetch("/api/quotes", {
     method: "POST",
@@ -104,7 +106,10 @@ async function fetchRestWatchlistQuotes(
       "Content-Type": "application/json",
       ...marketDataTraceHeaders(traceId, scenario),
     },
-    body: JSON.stringify({ symbols }),
+    body: JSON.stringify({
+      symbols,
+      ...(connectionId ? { connectionId } : {}),
+    }),
   });
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
@@ -236,6 +241,7 @@ export function MarketDataProvider({
 }) {
   const watchlist = useWatchlistActions();
   const screener = useScreenerStateOptional();
+  const { preference: dataConnectionPreference } = useDataConnectionPreference();
   const [quotesBySymbol, setQuotesBySymbol] = useState<Map<string, QuoteSnapshot>>(
     () => new Map(),
   );
@@ -391,7 +397,12 @@ export function MarketDataProvider({
       quotesFetchStartedRef.current = Date.now();
       const quoteScenario = `watchlist-quotes:${streamSymbols.length}-symbols`;
       const quoteTraceId = createMarketDataTraceId(quoteScenario);
-      void fetchRestWatchlistQuotes(streamSymbols, quoteScenario, quoteTraceId)
+      void fetchRestWatchlistQuotes(
+        streamSymbols,
+        quoteScenario,
+        quoteTraceId,
+        dataConnectionPreference,
+      )
         .then((payload) => {
           const { next, firstPaint } = applyRestQuotesPayload(payload, {
             traceId: quoteTraceId,
@@ -430,7 +441,10 @@ export function MarketDataProvider({
     const streamScenario = `watchlist-quotes-stream:${streamSymbols.length}-symbols`;
     const streamTraceId = createMarketDataTraceId(streamScenario);
 
-    const params = new URLSearchParams({ symbols: streamSymbols.join(",") });
+    const params = new URLSearchParams({
+      symbols: streamSymbols.join(","),
+      connectionId: dataConnectionPreference,
+    });
     const source = new EventSource(`/api/stream/quotes?${params.toString()}`);
     let cancelled = false;
     let restFallbackStarted = false;
@@ -443,7 +457,12 @@ export function MarketDataProvider({
       setQuoteError(null);
       const fallbackScenario = `watchlist-quotes-rest-fallback:${streamSymbols.length}-symbols`;
       const fallbackTraceId = createMarketDataTraceId(fallbackScenario);
-      void fetchRestWatchlistQuotes(streamSymbols, fallbackScenario, fallbackTraceId)
+      void fetchRestWatchlistQuotes(
+        streamSymbols,
+        fallbackScenario,
+        fallbackTraceId,
+        dataConnectionPreference,
+      )
         .then((payload) => {
           if (cancelled) return;
           const { next, firstPaint } = applyRestQuotesPayload(payload, {
@@ -562,7 +581,7 @@ export function MarketDataProvider({
       window.clearTimeout(firstPaintTimer);
       source.close();
     };
-  }, [streamKey, streamSymbols, reloadToken]);
+  }, [streamKey, streamSymbols, reloadToken, dataConnectionPreference]);
 
   useEffect(() => {
     silentRevalidateKeyRef.current = null;
@@ -595,7 +614,12 @@ export function MarketDataProvider({
       silentRevalidateKeyRef.current = revalidateKey;
       const scenario = `watchlist-quotes-revalidate:${streamSymbols.length}-symbols`;
       const traceId = createMarketDataTraceId(scenario);
-      void fetchRestWatchlistQuotes(streamSymbols, scenario, traceId)
+      void fetchRestWatchlistQuotes(
+        streamSymbols,
+        scenario,
+        traceId,
+        dataConnectionPreference,
+      )
         .then((payload) => {
           if (!payload.quotes?.length) return;
           const next = new Map(quotesRef.current);
@@ -613,7 +637,7 @@ export function MarketDataProvider({
     return () => {
       window.clearTimeout(timer);
     };
-  }, [streamSymbols, streamKey, quotesBySymbol, quotesLoading, quotesMeta]);
+  }, [streamSymbols, streamKey, quotesBySymbol, quotesLoading, quotesMeta, dataConnectionPreference]);
 
   const value = useMemo(
     (): MarketDataContextValue => ({

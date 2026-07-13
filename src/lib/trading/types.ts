@@ -16,11 +16,15 @@ export type OrderType = z.infer<typeof OrderTypeSchema>;
 export const TimeInForceSchema = z.enum(["DAY", "GTC"]);
 export type TimeInForce = z.infer<typeof TimeInForceSchema>;
 
+export const TradingAccountAvailabilitySchema = z.enum(["online", "offline"]);
+export type TradingAccountAvailability = z.infer<typeof TradingAccountAvailabilitySchema>;
+
 export const TradingAccountSchema = z.object({
   broker: TradingBrokerSchema,
   connectionId: z.string(),
   accountId: z.string(),
   environment: TradingEnvironmentSchema,
+  availability: TradingAccountAvailabilitySchema.optional(),
 });
 
 export type TradingAccount = z.infer<typeof TradingAccountSchema>;

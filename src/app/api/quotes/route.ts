@@ -44,7 +44,10 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const service = getServerMarketDataService();
     const serviceStartedAt = Date.now();
-    const result = await service.getWatchlistQuotes(parsed.data.symbols, { traceId });
+    const result = await service.getWatchlistQuotes(parsed.data.symbols, {
+      traceId,
+      twsConnectionId: parsed.data.connectionId,
+    });
     perfContext.collector.record("api.service.getWatchlistQuotes", serviceStartedAt, true, "api", {
       source: result.source,
       cacheTier: result.cacheTier,

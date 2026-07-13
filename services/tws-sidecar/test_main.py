@@ -160,6 +160,21 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn("managedBy", body)
         self.assertEqual(body["managedBy"], main.TWS_MANAGED_BY)
 
+    def test_status_includes_paper_and_live_connections(self) -> None:
+        body = main._status_payload()
+        connections = body.get("connections")
+        self.assertIsInstance(connections, dict)
+        self.assertIn(main.PRIMARY_CONNECTION_ID, connections)
+        self.assertIn(main.IB_LIVE_CONNECTION_ID, connections)
+        paper = connections[main.PRIMARY_CONNECTION_ID]
+        live = connections[main.IB_LIVE_CONNECTION_ID]
+        self.assertEqual(paper["connectionId"], main.PRIMARY_CONNECTION_ID)
+        self.assertEqual(live["connectionId"], main.IB_LIVE_CONNECTION_ID)
+        self.assertEqual(paper["port"], main.TWS_PAPER_PORT)
+        self.assertEqual(live["port"], main.TWS_LIVE_PORT)
+        self.assertIn("gatewayConnected", paper)
+        self.assertIn("gatewayConnected", live)
+
 
 class SidecarSecretTests(unittest.TestCase):
     def test_secret_helper_allows_health_without_header(self) -> None:
@@ -212,6 +227,19 @@ class TradingGuardTests(unittest.TestCase):
     def test_resolve_connection_id_maps_environment(self) -> None:
         self.assertEqual(main._resolve_connection_id(environment="live"), main.IB_LIVE_CONNECTION_ID)
         self.assertEqual(main._resolve_connection_id(environment="paper"), main.PRIMARY_CONNECTION_ID)
+
+    def test_resolve_connection_id_accepts_explicit_connections(self) -> None:
+        self.assertEqual(main._resolve_connection_id("ib-paper"), main.PRIMARY_CONNECTION_ID)
+        self.assertEqual(main._resolve_connection_id("ib-live"), main.IB_LIVE_CONNECTION_ID)
+
+    def test_resolve_connection_id_missing_defaults_to_primary(self) -> None:
+        self.assertEqual(main._resolve_connection_id(None), main.PRIMARY_CONNECTION_ID)
+
+    def test_resolve_connection_id_rejects_unknown(self) -> None:
+        with self.assertRaises(main.HTTPException) as ctx:
+            main._resolve_connection_id("bogus")
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("Unknown connectionId", ctx.exception.detail)
 
     def test_build_stock_order_lmt_requires_limit_price(self) -> None:
         with self.assertRaises(main.HTTPException) as ctx:
@@ -408,6 +436,46 @@ class TradingModifyTests(unittest.TestCase):
         with self.assertRaises(main.HTTPException) as ctx:
             main._apply_order_modify_patch(_Order(), body)
         self.assertEqual(ctx.exception.status_code, 400)
+
+
+class ConnectionRoutingEndpointTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        from fastapi.testclient import TestClient
+
+        cls.client = TestClient(main.app)
+
+    def test_account_trades_rejects_unknown_connection_id(self) -> None:
+        response = self.client.get("/account/trades?connectionId=bogus")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Unknown connectionId", response.json()["detail"])
+
+    def test_account_status_rejects_unknown_connection_id(self) -> None:
+        response = self.client.get("/account/status?connectionId=bogus")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Unknown connectionId", response.json()["detail"])
+
+    def test_stream_account_rejects_unknown_connection_id(self) -> None:
+        response = self.client.get("/stream/account?connectionId=bogus")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Unknown connectionId", response.json()["detail"])
+
+    def test_quotes_rejects_unknown_connection_id(self) -> None:
+        response = self.client.post("/quotes", json={"symbols": ["AAPL"], "connectionId": "bogus"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Unknown connectionId", response.json()["detail"])
+
+    def test_candles_rejects_unknown_connection_id(self) -> None:
+        response = self.client.get(
+            "/candles?symbol=AAPL&interval=1d&range=1mo&connectionId=bogus"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Unknown connectionId", response.json()["detail"])
+
+    def test_stream_quotes_rejects_unknown_connection_id(self) -> None:
+        response = self.client.get("/stream/quotes?symbols=AAPL&connectionId=bogus")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Unknown connectionId", response.json()["detail"])
 
 
 if __name__ == "__main__":

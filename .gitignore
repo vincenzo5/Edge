@@ -30,6 +30,8 @@ yarn-error.log*
 .env*.local
 .env
 services/ib-gateway/.env
+services/ib-gateway/tws_settings_live/
+services/ib-gateway/tws_settings_paper/
 
 # vercel
 .vercel

@@ -3,6 +3,7 @@ import {
   createMarketDataService,
   clearMarketDataCacheForTests,
 } from "../service/marketDataService";
+import * as universeStore from "../screenerUniverse/universeDailyStore";
 
 const fmp = {
   isConfigured: vi.fn(() => true),
@@ -153,6 +154,35 @@ describe("MarketDataService FMP gap-fill", () => {
     expect((await service.getFmpExecutives("AAPL")).data[0]?.name).toBe("Tim Cook");
     expect((await service.getFmpSecFilings({ symbol: "AAPL" })).data[0]?.formType).toBe("10-K");
     expect((await service.getFmpMarketMovers({ kind: "gainers" })).data[0]?.symbol).toBe("NVDA");
+  });
+
+  it("enriches market movers with universe descriptors", async () => {
+    vi.spyOn(universeStore, "fetchUniverseDescriptors").mockResolvedValue({
+      rows: [
+        {
+          symbol: "NVDA",
+          name: "NVIDIA Corporation",
+          price: 120,
+          change: 5,
+          changePercent: 4,
+          exchange: "NASDAQ",
+          volume: 50_000_000,
+          sector: "Technology",
+          industry: "Semiconductors",
+          country: "US",
+          beta: 1.7,
+          marketCap: 3_000_000_000_000,
+          dividendYield: 0.001,
+        },
+      ],
+      warnings: [],
+    });
+    clearMarketDataCacheForTests();
+    const service = createMarketDataService({ yahoo });
+    const result = await service.getFmpMarketMovers({ kind: "gainers" });
+    expect(result.data[0]?.sector).toBe("Technology");
+    expect(result.data[0]?.marketCap).toBe(3_000_000_000_000);
+    expect(result.data[0]?.volume).toBe(1);
   });
 
   it("returns screener results and caches repeated queries", async () => {

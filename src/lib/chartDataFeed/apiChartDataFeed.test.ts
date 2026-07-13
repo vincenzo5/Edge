@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createApiChartDataFeed } from './apiChartDataFeed';
 
+vi.mock('@/lib/marketData/dataConnectionPreference', () => ({
+  readDataConnectionPreference: vi.fn(() => 'ib-live' as const),
+}));
+
 describe('createApiChartDataFeed', () => {
   const fetchMock = vi.fn();
 
@@ -40,6 +44,7 @@ describe('createApiChartDataFeed', () => {
           range: '1mo',
           interval: '1d',
           sessionMode: 'regular',
+          connectionId: 'ib-live',
         }),
       }),
     );
@@ -79,6 +84,27 @@ describe('createApiChartDataFeed', () => {
     await expect(
       feed.loadCandles({ symbol: 'AAPL', interval: '1d', range: '1mo' }),
     ).rejects.toThrow('upstream failed');
+  });
+
+  it('includes connectionId from data preference when loading quotes', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        quotes: [{ symbol: 'AAPL', price: 150, change: 1, changePercent: 1, volume: 1000, updatedAt: Date.now() }],
+        meta: { source: 'tws', stale: false, warnings: [], asOf: Date.now() },
+      }),
+    });
+
+    const feed = createApiChartDataFeed();
+    await feed.loadQuotes({ symbols: ['AAPL'] });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/quotes',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ symbols: ['AAPL'], connectionId: 'ib-live' }),
+      }),
+    );
   });
 
   it('requests macro events for benchmark symbols', async () => {

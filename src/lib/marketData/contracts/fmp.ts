@@ -141,6 +141,12 @@ export type FmpMarketMover = {
   changePercent: number | null;
   exchange: string | null;
   volume: number | null;
+  sector?: string | null;
+  industry?: string | null;
+  country?: string | null;
+  beta?: number | null;
+  marketCap?: number | null;
+  dividendYield?: number | null;
 };
 
 export type FmpScreenerRow = {

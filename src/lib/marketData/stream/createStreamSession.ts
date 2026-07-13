@@ -166,7 +166,9 @@ function createPollQuoteStreamSession(
   const poll = async (onEvent: (payload: string) => void) => {
     if (stopped) return;
     try {
-      const result = await service.getQuotes(query.symbols);
+      const result = await service.getQuotes(query.symbols, {
+        twsConnectionId: query.connectionId,
+      });
       if (stopped) return;
       failureCount = 0;
 

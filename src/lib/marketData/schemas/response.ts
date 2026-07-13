@@ -309,6 +309,12 @@ export const fmpMarketMoverSchema = z.object({
   changePercent: finiteOrNull,
   exchange: z.string().nullable(),
   volume: finiteOrNull,
+  sector: z.string().nullable().optional(),
+  industry: z.string().nullable().optional(),
+  country: z.string().nullable().optional(),
+  beta: finiteOrNull.optional(),
+  marketCap: finiteOrNull.optional(),
+  dividendYield: finiteOrNull.optional(),
 });
 
 export const screenerResultRowSchema = z.object({

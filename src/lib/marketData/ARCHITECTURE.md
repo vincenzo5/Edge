@@ -179,7 +179,7 @@ Implementation: [src/middleware.ts](../../../middleware.ts), [src/lib/api/](../.
 
 ## Stock screener
 
-The lean Phase 1 screener filters US equities and ETFs through FMP `/company-screener` server-side, with mover presets reusing existing `getFmpMarketMovers`. **Phase 1.5** adds a two-step pipeline when `ScreenQuery.technical` is set: FMP prefilter → per-candidate Yahoo daily candles → `@edge/chart-core/indicators/math` rule evaluation. **Phase 4 (Massive full-universe)** when `MASSIVE_API_KEY` is configured and `ScreenQuery.technical` is set: Massive Daily Market Summary universe store + FMP paginated descriptors (~8k) → local descriptive filter → local indicator scan (removes 200-candidate cap).
+The lean Phase 1 screener filters US equities and ETFs through FMP `/company-screener` server-side, with mover presets reusing existing `getFmpMarketMovers` (enriched via cached `fetchUniverseDescriptors` join for sector/marketCap/beta/volume). **Phase 1.5** adds a two-step pipeline when `ScreenQuery.technical` is set: FMP prefilter → per-candidate Yahoo daily candles → `@edge/chart-core/indicators/math` rule evaluation. **Phase 4 (Massive full-universe)** when `MASSIVE_API_KEY` is configured and `ScreenQuery.technical` is set: Massive Daily Market Summary universe store + FMP paginated descriptors (~8k) → local descriptive filter → local indicator scan (removes 200-candidate cap).
 
 | Layer | Path | Notes |
 |-------|------|-------|
@@ -261,16 +261,39 @@ Docker Compose is **not** used for the sidecar. External mode means run `npm run
 
 This section is read-only with respect to brokerage operations — no orders or account mutations here. Place/cancel/modify go through `src/lib/trading/` and `/api/trading/*`.
 
+### Chart data entry path
+
+Charts load market data through `ChartDataFeed` in `src/lib/chartDataFeed/apiChartDataFeed.ts`, not by importing provider adapters. The feed posts to `/api/candles` and `/api/quotes`, which delegate to `MarketDataService` and its provider waterfall. UI components must stay on this path.
+
 ### Brokerage / account tracking
 
 Live IB account data (positions, PnL, summary, orders, executions) is a **separate vertical** in `src/lib/brokerage/` and is always attempted through the local TWS sidecar when the app is running.
 
 - **Sidecar endpoints** (`services/tws-sidecar/main.py`): `/account/*` REST + `/stream/account` SSE via `ib_insync`, plus `/trading/*` for order commands used by `TradingService`. Live account updates use non-blocking `ib.client.reqAccountUpdates(True, account)` plus `reqPnL`, summaries, positions, and executions. Cold positions load synchronously seeds `_account_portfolio` from `ib.portfolio()` with a one-shot `reqMktData` fallback for missing MKT/PnL; executions cache upserts by `execId` (commission reports merge into existing rows, cap 200) and `/account/trades` snapshots `ib.fills()` atomically. When `TWS_READONLY=true`, open-order snapshot requests are skipped and what-if preview returns 403; verify order/what-if behavior only with `TWS_READONLY=false`.
-- **Connection scoping**: `getBrokerageClient(connectionId)` and stream URLs pass `connectionId` (`ib-paper` default); `BrokerageService.getSnapshot(environment)` resolves paper/live via `resolveConnectionByEnvironment`.
+- **Connection scoping**: `getBrokerageClient(connectionId)` and stream URLs pass `connectionId` (`ib-paper` default); `BrokerageService.getSnapshot(environment)` resolves paper/live via `resolveConnectionByEnvironment`. Chart/watchlist display data uses a separate persisted preference (`edge:marketData:connectionId`) threaded as `connectionId` on `/api/candles`, `/api/quotes`, and `/api/stream/quotes`. Pre-trade readiness quotes in `TradingService.assertPreTrade` always use the **order** environment's `connectionId`, not the display preference.
 - **Execution contract** (`contracts/brokerage.ts`): `AccountOrder` / `AccountExecution` include `orderRef` (journal correlation). What-if accepts `MKT` / `LMT` / `STP` / `STP LMT` with optional `stopPrice`. `formatExecutionLabel()` renders OPT-aware fill labels for account UI and journal review.
 - **App routes**: `/api/brokerage/*` proxy the sidecar with Zod-validated contracts in `src/lib/marketData/contracts/brokerage.ts`. Journal live fill sync maps brokerage executions via `src/lib/journal/mapExecutionToFill.ts` → `/api/me/journal/fills`.
 - **UI**: `AccountProvider` + Account sidebar panel (account-filtered orders, cancel via trading API); chart Trade ticket (`TradeTicketModal`); chart position overlays when `chartSettings.trading.showPositions` is enabled.
 - **Read-only posture preserved on brokerage path**: no `placeOrder` in `BrokerageService`; what-if preview returns margin/commission impact without transmitting orders. Order mutations use the trading command path.
+
+### TWS-only connection preference (display data)
+
+Chart and watchlist market data can target a specific IB Gateway socket independently of the order account. This preference is **TWS-specific** — other providers ignore it.
+
+| Layer | Field | Values |
+|-------|-------|--------|
+| Client storage | `edge:marketData:connectionId` | `ib-paper` \| `ib-live` |
+| API request body / query | `connectionId` | Same |
+| `MarketDataService` internal | `twsConnectionId` | Same — scoped to TWS cache keys and adapter options only |
+| TWS sidecar | `?connectionId=` | Routes to paper (4002) or live (4001) socket |
+
+**Threading:** `ChartDataFeed` (`apiChartDataFeed.ts`) → `/api/candles|quotes|stream` → `MarketDataService` → TWS adapter `options.connectionId` → sidecar. Yahoo, IBKR Client Portal, Massive, FRED, SEC, and Tradier paths never receive `connectionId`; the provider waterfall is unchanged.
+
+**UI rule:** App components must not import `src/lib/marketData/providers/tws/*`. Use `dataConnectionPreference`, `MarketDataProvider`, and API routes only.
+
+**Trading rule:** Display preference does not authorize submit. Pre-trade quotes follow the order environment (`ib-paper` or `ib-live` per `draft.environment`), gated by `trading_decision` trust policy (TWS/IBKR only; Yahoo/mixed/display-only blocked).
+
+**Data Health:** When dual Gateways are configured, Data Health shows paper socket, live socket, and active chart data preference as separate connection rows (see `health.ts` Connections section).
 
 ### Risk settings (app-wide sizing source)
 

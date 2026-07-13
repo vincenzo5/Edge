@@ -82,7 +82,9 @@ export function createTwsQuoteStreamSession(
     if (missing.length === 0) return;
     fillInFlight = true;
     try {
-      const result = await service.getWatchlistQuotes(missing);
+      const result = await service.getWatchlistQuotes(missing, {
+        twsConnectionId: query.connectionId,
+      });
       if (stopped || result.data.length === 0) return;
       const merged = new Map<string, MarketQuote>();
       for (const quote of received) {
@@ -103,7 +105,9 @@ export function createTwsQuoteStreamSession(
   const pollFallback = async (onEvent: (payload: string) => void, alreadyPrimed: boolean) => {
     if (stopped) return;
     try {
-      const result = await service.getQuotes(query.symbols);
+      const result = await service.getQuotes(query.symbols, {
+        twsConnectionId: query.connectionId,
+      });
       if (stopped) return;
       failureCount = 0;
       const meta = normalizeChartMeta(dataResultToResponseMeta(result));
@@ -165,7 +169,7 @@ export function createTwsQuoteStreamSession(
       void (async () => {
         try {
           const config = client.getConfig();
-          const url = getTwsStreamUrl(config.baseUrl, query.symbols);
+          const url = getTwsStreamUrl(config.baseUrl, query.symbols, query.connectionId);
           abortController = new AbortController();
           const connectTimer = setTimeout(() => abortController?.abort(), TWS_STREAM_CONNECT_TIMEOUT_MS);
           const res = await fetch(url, {

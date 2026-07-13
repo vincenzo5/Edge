@@ -20,12 +20,12 @@ function moverToScreenerRow(mover: FmpMarketMover): ScreenerResultRow {
     changePercent: mover.changePercent,
     exchange: mover.exchange,
     volume: mover.volume,
-    sector: null,
-    industry: null,
-    country: null,
-    beta: null,
-    marketCap: null,
-    dividendYield: null,
+    sector: mover.sector ?? null,
+    industry: mover.industry ?? null,
+    country: mover.country ?? null,
+    beta: mover.beta ?? null,
+    marketCap: mover.marketCap ?? null,
+    dividendYield: mover.dividendYield ?? null,
   };
 }
 

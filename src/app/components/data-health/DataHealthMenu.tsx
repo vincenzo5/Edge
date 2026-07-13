@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Theme } from "@/lib/chartConfig";
-import type { DataHealthDatasetRow, ProviderHealthRow } from "@/lib/marketData/health";
+import type { DataHealthDatasetRow, IbSocketHealthRow, ProviderHealthRow } from "@/lib/marketData/health";
 import {
   buildDatasetChips,
   buildHealthCaveatSubtitle,
@@ -42,6 +42,18 @@ function ProviderRow({ provider }: { provider: ProviderHealthRow }) {
     >
       <span className="font-medium text-[var(--edge-text-primary)]">{provider.label}</span>
       <span className={`text-right ${providerStatusClass(provider.status)}`}>{provider.detail}</span>
+    </div>
+  );
+}
+
+function ConnectionRow({ row }: { row: IbSocketHealthRow }) {
+  return (
+    <div
+      className="flex items-start justify-between gap-2 text-[10px]"
+      data-testid={`data-health-connection-${row.id}`}
+    >
+      <span className="font-medium text-[var(--edge-text-primary)]">{row.label}</span>
+      <span className={`text-right ${providerStatusClass(row.status)}`}>{row.detail}</span>
     </div>
   );
 }
@@ -189,6 +201,30 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
               {recoverMessage}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {snapshot.connectionRows.length > 0 || snapshot.dataPreference ? (
+        <div className="mb-3">
+          <div className={menuSectionHeaderClass(theme)}>Connections</div>
+          <div className="space-y-1.5">
+            {snapshot.connectionRows.map((row) => (
+              <ConnectionRow key={row.id} row={row} />
+            ))}
+            {snapshot.dataPreference ? (
+              <div
+                className="flex items-start justify-between gap-2 text-[10px]"
+                data-testid="data-health-connection-preference"
+              >
+                <span className="font-medium text-[var(--edge-text-primary)]">
+                  Chart data preference
+                </span>
+                <span className="text-right text-[var(--edge-text-secondary)]">
+                  {snapshot.dataPreference.label}
+                </span>
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

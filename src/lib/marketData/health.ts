@@ -1,7 +1,11 @@
 import type { ChartDataMeta } from "@edge/chart-core";
 import type { DataCacheTier } from "./contracts/result";
+import {
+  dataConnectionLabel,
+  type DataConnectionId,
+} from "./dataConnectionPreference";
 import type { HealthEvent } from "./healthEvents";
-import type { TwsStatusProbe } from "./providers/tws/client";
+import type { TwsConnectionProbe, TwsStatusProbe } from "./providers/tws/client";
 import type { DataUsage, DatasetKind } from "./trust/dataTrust";
 import {
   buildTrustMeta,
@@ -56,6 +60,19 @@ export type ProviderHealthRow = {
   circuitReason?: string | null;
 };
 
+export type IbSocketHealthRow = {
+  id: "tws-paper" | "tws-live";
+  connectionId: DataConnectionId;
+  label: string;
+  status: ProviderHealthStatus;
+  detail: string;
+};
+
+export type DataPreferenceHealthRow = {
+  connectionId: DataConnectionId;
+  label: string;
+};
+
 export type HealthGateSnapshot = {
   skipUntil: number;
   lastFailure: string | null;
@@ -68,6 +85,7 @@ export type ServerHealthPayload = {
   providers: ProviderHealthRow[];
   recentWarnings: string[];
   lifecycle?: string;
+  twsStatus?: TwsStatusProbe;
 };
 
 export type ClientHealthInputs = {
@@ -87,6 +105,7 @@ export type ClientHealthInputs = {
   accountConnectionState?: string;
   accountDetail?: string;
   accountError?: string | null;
+  dataConnectionPreference?: DataConnectionId | null;
 };
 
 export type DataHealthSnapshot = {
@@ -94,6 +113,8 @@ export type DataHealthSnapshot = {
   severityLabel: string;
   summary: string;
   connectionSummary: string;
+  connectionRows: IbSocketHealthRow[];
+  dataPreference: DataPreferenceHealthRow | null;
   datasets: DataHealthDatasetRow[];
   providers: ProviderHealthRow[];
   recentWarnings: string[];
@@ -550,10 +571,108 @@ export function deriveDatasetSeverity(row: DataHealthDatasetRow): DataHealthSeve
   return "healthy";
 }
 
-export function buildConnectionSummary(providers: ProviderHealthRow[]): {
+function socketEndpointDetail(probe: TwsConnectionProbe | undefined, fallbackHost?: string, fallbackPort?: number): string {
+  if (probe?.gatewayConnected) {
+    const host = probe.host ?? fallbackHost ?? "127.0.0.1";
+    const port = probe.port ?? fallbackPort;
+    return port != null ? `Connected · ${host}:${port}` : "Connected";
+  }
+  if (probe?.message) return probe.message;
+  return "Gateway disconnected";
+}
+
+function socketStatus(
+  probe: TwsConnectionProbe | undefined,
+  fallbackConnected: boolean | undefined,
+  sidecarReachable: boolean,
+): ProviderHealthStatus {
+  const connected = probe?.gatewayConnected ?? fallbackConnected ?? false;
+  if (connected) return "healthy";
+  if (!sidecarReachable) return "offline";
+  return "degraded";
+}
+
+export function buildIbSocketRows(tws: TwsStatusProbe): IbSocketHealthRow[] {
+  const paperProbe = tws.connections?.["ib-paper"];
+  const liveProbe = tws.connections?.["ib-live"];
+  const sidecarReachable = tws.sidecarReachable;
+
+  return [
+    {
+      id: "tws-paper",
+      connectionId: "ib-paper",
+      label: "Paper Gateway",
+      status: socketStatus(paperProbe, tws.gatewayConnected, sidecarReachable),
+      detail: socketEndpointDetail(paperProbe, tws.host, tws.port),
+    },
+    {
+      id: "tws-live",
+      connectionId: "ib-live",
+      label: "Live Gateway",
+      status: socketStatus(liveProbe, false, sidecarReachable),
+      detail: socketEndpointDetail(liveProbe, tws.host, liveProbe?.port ?? 4001),
+    },
+  ];
+}
+
+export function buildDataPreferenceRow(
+  connectionId: DataConnectionId | null | undefined,
+): DataPreferenceHealthRow | null {
+  if (!connectionId) return null;
+  return {
+    connectionId,
+    label: dataConnectionLabel(connectionId),
+  };
+}
+
+function connectionShortStatus(status: ProviderHealthStatus): string {
+  switch (status) {
+    case "healthy":
+      return "ok";
+    case "offline":
+      return "offline";
+    case "degraded":
+      return "down";
+    default:
+      return "unknown";
+  }
+}
+
+export function buildConnectionSummary(
+  providers: ProviderHealthRow[],
+  options: {
+    connectionRows?: IbSocketHealthRow[];
+    dataPreference?: DataPreferenceHealthRow | null;
+  } = {},
+): {
   label: string;
   severity: DataHealthSeverity;
 } {
+  const { connectionRows, dataPreference } = options;
+  if (connectionRows?.length) {
+    const paper = connectionRows.find((row) => row.id === "tws-paper");
+    const live = connectionRows.find((row) => row.id === "tws-live");
+    const paperShort = connectionShortStatus(paper?.status ?? "disabled");
+    const liveShort = connectionShortStatus(live?.status ?? "disabled");
+    const dataLabel = dataPreference?.label ?? "Paper data";
+    const label = `Paper: ${paperShort} · Live: ${liveShort} · Data: ${dataLabel}`;
+
+    const preferredRow = dataPreference
+      ? connectionRows.find((row) => row.connectionId === dataPreference.connectionId)
+      : paper;
+    const preferredStatus = preferredRow?.status ?? "unknown";
+    if (preferredStatus === "offline") {
+      return { label, severity: "offline" };
+    }
+    if (preferredStatus === "degraded") {
+      return { label, severity: "degraded" };
+    }
+    if (preferredStatus === "healthy") {
+      return { label, severity: "healthy" };
+    }
+    return { label, severity: "unknown" };
+  }
+
   const tws = providers.find((provider) => provider.id === "tws");
   if (!tws?.configured) {
     return { label: "No primary gateway configured", severity: "unknown" };
@@ -573,6 +692,10 @@ export function buildConnectionSummary(providers: ProviderHealthRow[]): {
 export function deriveOverallSeverity(
   datasets: DataHealthDatasetRow[],
   providers: ProviderHealthRow[],
+  options: {
+    connectionRows?: IbSocketHealthRow[];
+    dataPreference?: DataPreferenceHealthRow | null;
+  } = {},
 ): DataHealthSeverity {
   const loaded = datasets.filter((row) => row.status === "loaded");
   if (loaded.length === 0) return "unknown";
@@ -580,6 +703,15 @@ export function deriveOverallSeverity(
   const datasetSeverities = loaded.map(deriveDatasetSeverity);
   if (datasetSeverities.includes("offline")) return "offline";
   if (datasetSeverities.includes("degraded")) return "degraded";
+
+  const { connectionRows, dataPreference } = options;
+  if (connectionRows?.length && dataPreference) {
+    const preferredRow = connectionRows.find(
+      (row) => row.connectionId === dataPreference.connectionId,
+    );
+    if (preferredRow?.status === "offline") return "offline";
+    if (preferredRow?.status === "degraded") return "degraded";
+  }
 
   const primaryConfigured = providers.filter(
     (provider) => provider.configured && provider.id === "tws",
@@ -783,19 +915,34 @@ export function mergeHealthSnapshot(
   const providers = server?.providers?.length
     ? server.providers
     : (provisionalProviders ?? []);
+  const connectionRows =
+    server?.twsStatus?.configured === false
+      ? []
+      : server?.twsStatus
+        ? buildIbSocketRows(server.twsStatus)
+        : [];
+  const dataPreference = buildDataPreferenceRow(client.dataConnectionPreference);
   const recentWarnings = collectIncidentWarnings(
     datasets,
     providers,
     server?.recentWarnings ?? [],
   );
-  const severity = deriveOverallSeverity(datasets, providers);
-  const connection = buildConnectionSummary(providers);
+  const severity = deriveOverallSeverity(datasets, providers, {
+    connectionRows,
+    dataPreference,
+  });
+  const connection = buildConnectionSummary(providers, {
+    connectionRows,
+    dataPreference,
+  });
 
   return {
     severity,
     severityLabel: severityLabel(severity),
     summary: buildHealthSummary(chart, watchlist, severity),
     connectionSummary: connection.label,
+    connectionRows,
+    dataPreference,
     datasets,
     providers,
     recentWarnings,
