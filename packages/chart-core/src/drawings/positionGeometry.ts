@@ -1,7 +1,16 @@
 import type { SerializedDrawing } from '../contracts';
 import type { DrawingPoint } from '../drawingCoords';
+import { targetPriceForRMultiple } from '../risk/riskCompute';
 import type { RiskDirection } from '../risk/riskTypes';
 import { HIT_TOLERANCE_PX } from './primitives';
+
+export type PositionRLevel = {
+  r: number;
+  price: number;
+};
+
+/** Max integer R yard lines drawn in the profit zone. */
+export const MAX_POSITION_R_LEVELS = 20;
 
 export type PositionBox = {
   entry: number;
@@ -21,6 +30,32 @@ export type PositionPlotBounds = {
 
 /** Minimum price distance between entry and stop/target (avoids collapsed boxes). */
 export const MIN_POSITION_PRICE_DELTA = 0.01;
+
+/**
+ * Integer R multiples that fit inside the profit zone (1R .. floor(reward/risk)).
+ */
+export function profitRLevels(
+  entry: number,
+  stop: number,
+  target: number,
+  direction: RiskDirection,
+): PositionRLevel[] {
+  const risk = Math.abs(entry - stop);
+  if (risk <= 0 || !Number.isFinite(risk)) return [];
+
+  const reward = Math.abs(target - entry);
+  const maxR = Math.min(Math.floor(reward / risk), MAX_POSITION_R_LEVELS);
+  if (maxR < 1) return [];
+
+  const levels: PositionRLevel[] = [];
+  for (let r = 1; r <= maxR; r++) {
+    levels.push({
+      r,
+      price: targetPriceForRMultiple(entry, stop, direction, r),
+    });
+  }
+  return levels;
+}
 
 export function boxFromPoints(
   points: SerializedDrawing['points'],

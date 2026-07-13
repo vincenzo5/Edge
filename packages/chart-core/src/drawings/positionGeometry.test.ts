@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   boxFromPoints,
   expandTwoPointDraft,
+  MAX_POSITION_R_LEVELS,
   positionControlPoints,
   positionPlotBounds,
+  profitRLevels,
   updatePositionFromControl,
 } from './positionGeometry';
 
@@ -244,5 +246,39 @@ describe('positionGeometry', () => {
     expect(next.points[1]?.value).toBe(108);
     expect(next.points[0]?.value).toBe(100);
     expect(next.points[2]?.value).toBe(90);
+  });
+
+  describe('profitRLevels', () => {
+    it('returns 1R and 2R prices for a long 2R target', () => {
+      expect(profitRLevels(100, 95, 110, 'long')).toEqual([
+        { r: 1, price: 105 },
+        { r: 2, price: 110 },
+      ]);
+    });
+
+    it('returns mirrored R levels for a short 2R target', () => {
+      expect(profitRLevels(100, 105, 90, 'short')).toEqual([
+        { r: 1, price: 95 },
+        { r: 2, price: 90 },
+      ]);
+    });
+
+    it('returns empty when reward is less than 1R', () => {
+      expect(profitRLevels(100, 95, 103, 'long')).toEqual([]);
+    });
+
+    it('caps at MAX_POSITION_R_LEVELS', () => {
+      const entry = 100;
+      const stop = 99;
+      const target = entry + (MAX_POSITION_R_LEVELS + 5);
+      const levels = profitRLevels(entry, stop, target, 'long');
+      expect(levels).toHaveLength(MAX_POSITION_R_LEVELS);
+      expect(levels[0]).toEqual({ r: 1, price: 101 });
+      expect(levels[MAX_POSITION_R_LEVELS - 1]?.r).toBe(MAX_POSITION_R_LEVELS);
+    });
+
+    it('returns empty when risk distance is zero', () => {
+      expect(profitRLevels(100, 100, 110, 'long')).toEqual([]);
+    });
   });
 });

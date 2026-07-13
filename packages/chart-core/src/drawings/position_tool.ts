@@ -25,6 +25,7 @@ import {
   positionControlPoints,
   positionHitTest,
   positionPlotBounds,
+  profitRLevels,
   updatePositionFromControl,
 } from './positionGeometry';
 
@@ -33,6 +34,10 @@ const PROFIT_FILL_LIGHT = 'rgba(34, 197, 94, 0.2)';
 const LOSS_FILL_DARK = 'rgba(239, 68, 68, 0.15)';
 const LOSS_FILL_LIGHT = 'rgba(239, 68, 68, 0.2)';
 const ENTRY_LINE_COLOR = '#94a3b8';
+const R_TICK_COLOR_DARK = 'rgba(34, 197, 94, 0.75)';
+const R_TICK_COLOR_LIGHT = 'rgba(22, 163, 74, 0.85)';
+const R_TICK_LENGTH_PX = 12;
+const R_LABEL_MIN_WIDTH_PX = 16;
 
 function profitFill(theme: Theme) {
   return theme === 'dark' ? PROFIT_FILL_DARK : PROFIT_FILL_LIGHT;
@@ -40,6 +45,51 @@ function profitFill(theme: Theme) {
 
 function lossFill(theme: Theme) {
   return theme === 'dark' ? LOSS_FILL_DARK : LOSS_FILL_LIGHT;
+}
+
+function rTickColor(theme: Theme) {
+  return theme === 'dark' ? R_TICK_COLOR_DARK : R_TICK_COLOR_LIGHT;
+}
+
+function drawProfitRYardLines(
+  ctx: CanvasRenderingContext2D,
+  entry: number,
+  stop: number,
+  target: number,
+  direction: RiskDirection,
+  leftX: number,
+  rightX: number,
+  vp: { yForPrice: (p: number) => number },
+  theme: Theme,
+) {
+  const levels = profitRLevels(entry, stop, target, direction);
+  if (levels.length === 0) return;
+
+  const tickColor = rTickColor(theme);
+  const tickEndX = leftX + R_TICK_LENGTH_PX;
+  const labelX = tickEndX + 3;
+
+  ctx.save();
+  ctx.strokeStyle = tickColor;
+  ctx.fillStyle = tickColor;
+  ctx.lineWidth = 1;
+  ctx.font = '10px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  for (const { r, price } of levels) {
+    const y = vp.yForPrice(price);
+    ctx.beginPath();
+    ctx.moveTo(leftX, y);
+    ctx.lineTo(tickEndX, y);
+    ctx.stroke();
+
+    if (rightX - labelX >= R_LABEL_MIN_WIDTH_PX) {
+      ctx.fillText(`${r}R`, labelX, y);
+    }
+  }
+
+  ctx.restore();
 }
 
 function drawPositionLabelBox(
@@ -182,8 +232,22 @@ export function createPositionPlugin(
       ctx.setLineDash([]);
       ctx.restore();
 
+      const box = boxFromPoints(expanded.points, direction);
+      if (box) {
+        drawProfitRYardLines(
+          ctx,
+          box.entry,
+          box.stop,
+          box.target,
+          direction,
+          leftX,
+          rightX,
+          vp,
+          theme,
+        );
+      }
+
       if (shouldShowPositionLabels(selected, opts)) {
-        const box = boxFromPoints(expanded.points, direction);
         const setup = readTradeSetupFromDrawing(expanded);
         if (box && setup) {
           try {

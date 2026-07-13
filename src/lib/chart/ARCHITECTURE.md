@@ -43,7 +43,7 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 | `packages/chart-react/src/engine/viewport.ts` | Pan, zoom, momentum, price/time scale modes |
 | `packages/chart-react/src/engine/rangeInterval.ts` | Interval↔range pairing; `resolveCellFetchRange`, `rangeForManualInterval` |
 | `packages/chart-react/src/engine/rangePresets.ts` | Session viewport (`getSessionViewport`), calendar daily window, range cutoffs |
-| `packages/chart-core/src/drawings/position_tool.ts` | Shared long/short position plugin factory; geometry in `positionGeometry.ts`; labels via `risk/positionLabels.ts` |
+| `packages/chart-core/src/drawings/position_tool.ts` | Shared long/short position plugin factory; geometry in `positionGeometry.ts`; profit-zone 1R yard lines; labels via `risk/positionLabels.ts` |
 | `packages/chart-react/src/engine/renderer.ts` | Grid, candles, axes, annotations draw primitives |
 | `packages/chart-core/src/pluginHost.ts` | Indicator/drawing registries, hit-test, serialize/restore |
 | `packages/chart-core/src/drawingStore.ts` | Command-based undo/redo (max 50 history) |
@@ -59,7 +59,7 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 ## Plugin System
 
 - **Indicators**: register in `indicators/registry.ts`; implement compute + draw via `plugin-api.ts`.
-- **Drawings**: register in `drawings/registry.ts`; toolbar names aliased in `pluginHost.ts`. Utility tools include `measure` (bar/price line), `ruler` (shaded Δtime/Δprice band; ⇧+click shortcut on price pane), and `risk_ruler`. Forecasting tools `long_position` / `short_position` use `createPositionPlugin()` — two-point create expands to four anchor points, 6-handle resize, profit/loss zones, and TV-style target/entry/stop labels backed by `risk/*` helpers.
+- **Drawings**: register in `drawings/registry.ts`; toolbar names aliased in `pluginHost.ts`. Utility tools include `measure` (bar/price line), `ruler` (shaded Δtime/Δprice band; ⇧+click shortcut on price pane), and `risk_ruler`. Forecasting tools `long_position` / `short_position` use `createPositionPlugin()` — two-point create expands to four anchor points, 6-handle resize, profit/loss zones, left-edge 1R yard lines with in-box NR labels, and TV-style target/entry/stop labels backed by `risk/*` helpers.
 - New plugins MUST follow existing patterns (`ma.ts`, `trend_line.ts`).
 
 ## Invariants

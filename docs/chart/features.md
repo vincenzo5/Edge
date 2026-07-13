@@ -307,8 +307,8 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Annotation | `annotation` | **Done** |
 | Measure (utility §6.9) | `measure` | **Done** (persisted; ephemeral in Phase 2) |
 | Ruler (utility §6.9) | `ruler` | **Done** — shaded Δtime/Δprice band; bar count + cumulative volume; ⇧+click on price pane or toolbar |
-| Long Position (`longPosition`) | `long_position` | **Done** — green target / red stop box; 6-handle resize; target/entry/stop labels |
-| Short Position (`shortPosition`) | `short_position` | **Done** — red stop / green target box; 6-handle resize; target/entry/stop labels |
+| Long Position (`longPosition`) | `long_position` | **Done** — green target / red stop box; 6-handle resize; target/entry/stop labels; left-edge 1R ticks + in-box NR labels in profit zone |
+| Short Position (`shortPosition`) | `short_position` | **Done** — red stop / green target box; 6-handle resize; target/entry/stop labels; left-edge 1R ticks + in-box NR labels in profit zone |
 
 | Feature | Status | Notes |
 |---------|--------|-------|
