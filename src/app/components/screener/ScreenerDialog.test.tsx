@@ -124,6 +124,8 @@ describe("ScreenerDialog", () => {
   it("shows technical rule in builder after macd preset", async () => {
     renderDialog();
     fireEvent.click(screen.getByTestId("screener-preset-macd-bullish"));
+    await screen.findByTestId("screener-results-table");
+    fireEvent.click(screen.getByTestId("screener-edit-filters"));
     expect(await screen.findByTestId("screener-technical-rule-rule-technical")).toBeTruthy();
     fireEvent.click(screen.getByTestId("screener-rule-toggle-rule-technical"));
     expect(screen.getByTestId("screener-technical-indicator-rule-technical")).toHaveValue("MACD");
@@ -194,14 +196,53 @@ describe("ScreenerDialog", () => {
     expect(screen.getByTestId("screener-save-button")).toBeTruthy();
   });
 
-  it("renders limit input in modal footer", () => {
+  it("shows never-run placeholder before first screen run", () => {
+    renderDialog();
+    expect(screen.getByTestId("screener-results-never-run")).toBeTruthy();
+    expect(screen.queryByTestId("screener-results-empty")).toBeNull();
+    expect(screen.getByTestId("screener-never-run-starters")).toBeTruthy();
+  });
+
+  it("enters scan mode with filter chips after a successful preset run", async () => {
+    renderDialog();
+    fireEvent.click(screen.getByTestId("screener-preset-large-cap-dividend"));
+    expect(await screen.findByTestId("screener-results-table")).toBeTruthy();
+    expect(screen.getByTestId("screener-scan-summary")).toBeTruthy();
+    expect(screen.getByTestId("screener-filter-chip-summary")).toBeTruthy();
+    expect(screen.queryByTestId("screener-rules-scroll")).toBeNull();
+  });
+
+  it("restores query builder from scan mode via Edit filters", async () => {
+    renderDialog();
+    fireEvent.click(screen.getByTestId("screener-preset-large-cap-dividend"));
+    await screen.findByTestId("screener-scan-summary");
+    fireEvent.click(screen.getByTestId("screener-edit-filters"));
+    expect(screen.getByTestId("screener-query-builder")).toBeTruthy();
+    expect(screen.queryByTestId("screener-scan-summary")).toBeNull();
+  });
+
+  it("shows limit input beside run button in custom query header", () => {
     renderDialog();
     expect(screen.getByTestId("screener-limit-input")).toBeTruthy();
+    expect(screen.getByTestId("screener-run-button")).toBeTruthy();
   });
 
   it("shows run shortcut hint in custom query header", () => {
     renderDialog();
     expect(screen.getByTestId("screener-run-shortcut-hint")).toHaveTextContent("⌘↵");
     expect(screen.getByTestId("screener-run-button")).toBeTruthy();
+  });
+
+  it("keeps presets rail separate from scrollable results region after a run", async () => {
+    renderDialog();
+    fireEvent.click(screen.getByTestId("screener-preset-large-cap-dividend"));
+    expect(await screen.findByTestId("screener-results-table")).toBeTruthy();
+
+    const aside = screen.getByTestId("screener-presets-aside");
+    expect(aside.className).toContain("shrink-0");
+    expect(aside.className).toContain("self-stretch");
+
+    const scrollRegion = screen.getByTestId("screener-results-scroll");
+    expect(scrollRegion.className).toContain("overflow-auto");
   });
 });

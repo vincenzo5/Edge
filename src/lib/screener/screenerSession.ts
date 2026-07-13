@@ -1,6 +1,12 @@
 import { groupFromScreenQuery } from "@/lib/screener/compileQuery";
 import type { RuleGroup } from "@/lib/screener/compileQuery";
 import type { ScreenerLastRun, ScreenerSortSpec, ScreenerState } from "@/lib/screener/types";
+import type { HeatMapConfig } from "@/lib/heatmap/types";
+import { DEFAULT_HEAT_MAP_CONFIG } from "@/lib/heatmap/defaults";
+
+export type ScreenerResultsViewMode = "list" | "heatmap";
+
+export type ScreenerFilterViewMode = "edit" | "scan";
 
 export type ScreenerSessionState = {
   lastRun: ScreenerLastRun | null;
@@ -13,6 +19,9 @@ export type ScreenerSessionState = {
   compareSelection: string[];
   compareOpen: boolean;
   visibleSymbols: string[];
+  filterViewMode: ScreenerFilterViewMode;
+  resultsViewMode: ScreenerResultsViewMode;
+  heatMapConfig: HeatMapConfig;
 };
 
 export function createDefaultScreenerSession(
@@ -29,5 +38,8 @@ export function createDefaultScreenerSession(
     compareSelection: [],
     compareOpen: false,
     visibleSymbols: [],
+    filterViewMode: "edit",
+    resultsViewMode: "list",
+    heatMapConfig: DEFAULT_HEAT_MAP_CONFIG,
   };
 }

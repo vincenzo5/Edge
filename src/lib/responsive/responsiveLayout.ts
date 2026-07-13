@@ -12,8 +12,8 @@ export function resolveViewportTier(viewportWidth: number): ViewportTier {
   return 'desktop';
 }
 
-export function resolveSidebarMode(viewportWidth: number): SidebarMode {
-  return viewportWidth >= RESPONSIVE_BREAKPOINTS.tablet ? 'inline' : 'overlay';
+export function resolveSidebarMode(_viewportWidth: number): SidebarMode {
+  return 'overlay';
 }
 
 export function resolveRailMode(viewportWidth: number): RailMode {

@@ -1,5 +1,6 @@
 import type { TechnicalRule } from "@/lib/marketData/schemas/request";
 import type { ScreenQuery } from "./types";
+import { formatTechnicalRuleSummary } from "./validateIndicatorRule";
 
 export type QueryRuleField =
   | "sector"
@@ -69,6 +70,20 @@ export function formatQueryRuleSummary(rule: QueryRule): string {
   if (min != null) return `${meta.label} ≥ ${min}`;
   if (max != null) return `${meta.label} ≤ ${max}`;
   return meta.label;
+}
+
+export function collectFilterSummaries(group: RuleGroup): string[] {
+  const summaries: string[] = [];
+  for (const child of group.children) {
+    if (isRuleGroup(child)) {
+      summaries.push(...collectFilterSummaries(child));
+    } else if (isTechnicalQueryRule(child)) {
+      summaries.push(formatTechnicalRuleSummary(child.technical));
+    } else {
+      summaries.push(formatQueryRuleSummary(child));
+    }
+  }
+  return summaries;
 }
 
 export function collectRuleGroupNodeIds(group: RuleGroup): string[] {

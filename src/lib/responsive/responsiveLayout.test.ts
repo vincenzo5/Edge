@@ -19,9 +19,9 @@ describe('responsiveLayout', () => {
   });
 
   describe('resolveSidebarMode', () => {
-    it('uses inline sidebar at desktop widths and overlay below tablet', () => {
-      expect(resolveSidebarMode(1024)).toBe('inline');
-      expect(resolveSidebarMode(1023)).toBe('overlay');
+    it('always uses overlay so the docked panel does not reflow chart width', () => {
+      expect(resolveSidebarMode(1440)).toBe('overlay');
+      expect(resolveSidebarMode(1024)).toBe('overlay');
       expect(resolveSidebarMode(390)).toBe('overlay');
     });
   });

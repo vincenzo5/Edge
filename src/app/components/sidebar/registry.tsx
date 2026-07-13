@@ -126,7 +126,7 @@ export const SIDEBAR_MAIN_PANELS: SidebarPanelDef[] = [
     Icon: ScreenerIcon,
     Panel: ScreenerSidebarPanel,
     supportsPopOut: true,
-    floatingDefaults: { width: 960, height: 600 },
+    floatingDefaults: { width: 1200, height: 700 },
   },
   {
     id: "object-tree",

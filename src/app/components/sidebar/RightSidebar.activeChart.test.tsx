@@ -94,7 +94,7 @@ describe('RightSidebar active chart integration', () => {
     render(
       <ActiveChartProvider>
         <SeedActiveChart />
-        <RightSidebar activePanel="object-tree" mode="inline" width={300} />
+        <RightSidebar activePanel="object-tree" mode="inline" width={300} viewportWidth={1440} />
       </ActiveChartProvider>,
     );
 

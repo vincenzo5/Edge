@@ -10,6 +10,8 @@ type Props = {
   width: number;
   onWidthChange?: (width: number) => void;
   onClose?: () => void;
+  resizeMaxWidth?: number;
+  resizeMinWidth?: number;
   children: ReactNode;
 };
 
@@ -19,6 +21,8 @@ export default function SidebarPanelShell({
   width,
   onWidthChange,
   onClose,
+  resizeMaxWidth,
+  resizeMinWidth,
   children,
 }: Props) {
   const [draftWidth, setDraftWidth] = useState<number | null>(null);
@@ -57,9 +61,9 @@ export default function SidebarPanelShell({
       data-panel-id={panelId}
       data-sidebar-mode={mode}
       style={{ width: displayWidth }}
-      className={`edge-panel relative flex shrink-0 flex-col overflow-hidden border-l ${
+      className={`edge-panel flex shrink-0 flex-col overflow-hidden border-l ${
         mode === "overlay"
-          ? "fixed right-[var(--sidebar-rail-width,44px)] top-0 z-40 h-full shadow-xl"
+          ? "absolute right-0 top-0 bottom-0 z-40 shadow-xl"
           : "relative h-full"
       }`}
     >
@@ -68,31 +72,18 @@ export default function SidebarPanelShell({
           width={displayWidth}
           onWidthPreview={handleWidthPreview}
           onWidthCommit={handleWidthCommit}
+          maxWidth={resizeMaxWidth}
+          minWidth={resizeMinWidth}
         />
       ) : null}
       <div
         data-testid={`sidebar-panel-${panelId}`}
-        className="min-h-0 flex-1 overflow-auto"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
       >
         {children}
       </div>
     </div>
   );
-
-  if (mode === "overlay") {
-    return (
-      <>
-        <button
-          type="button"
-          aria-label="Close sidebar panel"
-          data-testid="sidebar-overlay-backdrop"
-          className="fixed inset-0 z-30 bg-black/40"
-          onClick={onClose}
-        />
-        {panel}
-      </>
-    );
-  }
 
   return panel;
 }

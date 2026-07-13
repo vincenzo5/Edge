@@ -5,6 +5,12 @@ export const RESPONSIVE_BREAKPOINTS = {
   desktop: 1280,
 } as const;
 
+/** Screener docked panel may use up to 90% of viewport minus rail, capped here. */
+export const SCREENER_SIDEBAR_WIDTH_MAX_CAP = 1400;
+export const SCREENER_SIDEBAR_WIDTH_VIEWPORT_RATIO = 0.9;
+/** Below this width the screener stacks presets as horizontal chips instead of a left column. */
+export const SCREENER_NARROW_LAYOUT_THRESHOLD = 520;
+
 export const LAYOUT_DIMENSIONS = {
   sidebarPanelWidth: 300,
   sidebarPanelWidthMin: 260,

@@ -8,6 +8,8 @@ import type {
   ScreenerResultRow,
   ScreenerSortSpec,
 } from "@/lib/screener/types";
+import type { HeatMapConfig } from "@/lib/heatmap/types";
+import type { ScreenerResultsViewMode } from "@/lib/screener/screenerSession";
 import {
   DEFAULT_SCREENER_COLUMNS,
   formatScreenerPhaseSummary,
@@ -18,13 +20,20 @@ import {
   copySymbolsToClipboard,
   downloadResultsCsv,
 } from "@/lib/screener/exportResults";
+import {
+  heatMapSizeMetricCoverageWarning,
+  screenerRowsToHeatMapItems,
+  topHeatMapQuoteSymbols,
+} from "@/lib/screener/screenerHeatMapAdapter";
 import { useMarketDataQuotesForSymbols } from "../MarketDataProvider";
-import { EdgeButton, EdgeEmptyState } from "../design-system";
+import { EdgeButton, EdgeEmptyState, EdgeSegmentedTabs } from "../design-system";
+import { HeatMapToolbar, HeatMapView } from "../heatmap";
 import { mergeScreenerQuoteOverlay } from "./useScreenerQuoteOverlay";
 import ColumnPicker from "./ColumnPicker";
 
 const PAGE_SIZE = 50;
 const LIVE_QUOTE_STREAM_CAP = 32;
+const HEAT_MAP_QUOTE_STREAM_CAP = 200;
 
 type Props = {
   rows: ScreenerResultRow[];
@@ -50,6 +59,12 @@ type Props = {
   selectedCompareSymbols?: string[];
   onToggleCompareSymbol?: (symbol: string) => void;
   onCompareSelected?: () => void;
+  hasRun?: boolean;
+  onEditFilters?: () => void;
+  resultsViewMode?: ScreenerResultsViewMode;
+  onResultsViewModeChange?: (mode: ScreenerResultsViewMode) => void;
+  heatMapConfig?: HeatMapConfig;
+  onHeatMapConfigChange?: (config: HeatMapConfig) => void;
 };
 
 function formatNumber(value: number | null, digits = 2): string {
@@ -137,6 +152,12 @@ export default function ResultsTable({
   selectedCompareSymbols = [],
   onToggleCompareSymbol,
   onCompareSelected,
+  hasRun = false,
+  onEditFilters,
+  resultsViewMode = "list",
+  onResultsViewModeChange,
+  heatMapConfig,
+  onHeatMapConfigChange,
 }: Props) {
   const [visibleIndicatorKeys, setVisibleIndicatorKeys] = useState<string[]>([]);
 
@@ -167,7 +188,7 @@ export default function ResultsTable({
   const safePage = Math.min(Math.max(page, 0), pageCount - 1);
   const pageStart = safePage * PAGE_SIZE;
   const pageRowsRaw = sortedRows.slice(pageStart, pageStart + PAGE_SIZE);
-  const streamSymbols = useMemo(
+  const listStreamSymbols = useMemo(
     () =>
       pageRowsRaw
         .slice(0, LIVE_QUOTE_STREAM_CAP)
@@ -175,10 +196,31 @@ export default function ResultsTable({
         .filter(Boolean),
     [pageRowsRaw],
   );
+  const heatMapStreamSymbols = useMemo(
+    () =>
+      heatMapConfig
+        ? topHeatMapQuoteSymbols(sortedRows, heatMapConfig, HEAT_MAP_QUOTE_STREAM_CAP)
+        : [],
+    [sortedRows, heatMapConfig],
+  );
+  const streamSymbols =
+    resultsViewMode === "heatmap" ? heatMapStreamSymbols : listStreamSymbols;
   const { quotes } = useMarketDataQuotesForSymbols(streamSymbols);
+  const overlayRows = useMemo(
+    () => mergeScreenerQuoteOverlay(sortedRows, quotes),
+    [sortedRows, quotes],
+  );
   const pageRows = useMemo(
     () => mergeScreenerQuoteOverlay(pageRowsRaw, quotes),
     [pageRowsRaw, quotes],
+  );
+  const heatMapItems = useMemo(() => {
+    if (!heatMapConfig) return [];
+    return screenerRowsToHeatMapItems(overlayRows, heatMapConfig);
+  }, [overlayRows, heatMapConfig]);
+  const heatMapSizeCoverageWarning = useMemo(
+    () => (heatMapConfig ? heatMapSizeMetricCoverageWarning(heatMapItems, heatMapConfig) : null),
+    [heatMapItems, heatMapConfig],
   );
   const [exportMessage, setExportMessage] = useState<string | null>(null);
 
@@ -204,18 +246,45 @@ export default function ResultsTable({
 
   if (!loading && rows.length === 0) {
     const warningText = warnings.length > 0 ? warnings.join(" ") : undefined;
+    if (!hasRun) {
+      return (
+        <div
+          className="flex min-h-0 flex-1 flex-col justify-center py-6"
+          data-testid="screener-results-never-run"
+        >
+          <p className="text-center text-xs text-[var(--edge-text-secondary)]">
+            Results appear here after you run a screen.
+          </p>
+        </div>
+      );
+    }
     return (
       <div data-testid="screener-results-empty">
         <EdgeEmptyState
           message={warningText ?? "No symbols matched this screen. Adjust filters and run again."}
         />
+        {onEditFilters ? (
+          <div className="mt-2 flex justify-center">
+            <EdgeButton type="button" data-testid="screener-edit-filters-empty" onClick={onEditFilters}>
+              Edit filters
+            </EdgeButton>
+          </div>
+        ) : null}
       </div>
     );
   }
 
   const phaseSummary = formatScreenerPhaseSummary(phases);
   const showLiveCaption =
-    !loading && pageRowsRaw.length > 0 && streamSymbols.length > 0;
+    !loading &&
+    resultsViewMode === "list" &&
+    pageRowsRaw.length > 0 &&
+    streamSymbols.length > 0;
+  const showHeatMapLiveCaption =
+    !loading &&
+    resultsViewMode === "heatmap" &&
+    sortedRows.length > 0 &&
+    streamSymbols.length > 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="screener-results-table">
@@ -259,9 +328,30 @@ export default function ResultsTable({
           Live prices on first {Math.min(LIVE_QUOTE_STREAM_CAP, pageRowsRaw.length)} visible rows.
         </div>
       ) : null}
+      {showHeatMapLiveCaption ? (
+        <div
+          className="px-2 py-1 text-[10px] text-[var(--edge-text-muted)]"
+          data-testid="screener-heatmap-live-caption"
+        >
+          Live prices on top {Math.min(HEAT_MAP_QUOTE_STREAM_CAP, sortedRows.length)} symbols by size.
+        </div>
+      ) : null}
 
       {!loading && rows.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 border-b border-[var(--edge-border-subtle)] px-2 py-2">
+          {onResultsViewModeChange ? (
+            <div data-testid="screener-results-view-toggle">
+              <EdgeSegmentedTabs
+                segments={[
+                  { id: "list", label: "List" },
+                  { id: "heatmap", label: "Heat map" },
+                ]}
+                value={resultsViewMode}
+                onChange={(id) => onResultsViewModeChange(id as ScreenerResultsViewMode)}
+                className="w-auto shrink-0"
+              />
+            </div>
+          ) : null}
           {onCompareSelected && selectedCompareSymbols.length > 0 ? (
             <EdgeButton
               type="button"
@@ -328,7 +418,33 @@ export default function ResultsTable({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto" data-testid="screener-results-scroll">
+        {resultsViewMode === "heatmap" && heatMapConfig && onHeatMapConfigChange ? (
+          <div className="flex h-full min-h-[280px] flex-col px-2 py-2" data-testid="screener-results-heatmap">
+            <HeatMapToolbar
+              config={heatMapConfig}
+              onChange={onHeatMapConfigChange}
+              className="mb-2"
+            />
+            {heatMapSizeCoverageWarning ? (
+              <p
+                className="mb-2 text-[10px] text-[var(--edge-text-muted)]"
+                data-testid="heatmap-size-coverage-warning"
+              >
+                {heatMapSizeCoverageWarning}
+              </p>
+            ) : null}
+            <HeatMapView
+              items={heatMapItems}
+              config={heatMapConfig}
+              className="min-h-0 flex-1"
+              onLeafClick={(item) => {
+                const row = item.meta as ScreenerResultRow | undefined;
+                if (row) onLoadChart(row);
+              }}
+            />
+          </div>
+        ) : (
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10 bg-[var(--edge-surface-popover)]">
             <tr className="text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
@@ -490,8 +606,10 @@ export default function ResultsTable({
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
+      {resultsViewMode === "list" ? (
       <div className="flex items-center justify-between border-t border-[var(--edge-border)] px-2 py-2 text-[10px] text-[var(--edge-text-secondary)]">
         <span>
           {sortedRows.length} result{sortedRows.length === 1 ? "" : "s"}
@@ -518,6 +636,11 @@ export default function ResultsTable({
           </button>
         </div>
       </div>
+      ) : (
+        <div className="border-t border-[var(--edge-border)] px-2 py-2 text-[10px] text-[var(--edge-text-secondary)]">
+          {sortedRows.length} result{sortedRows.length === 1 ? "" : "s"}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,15 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { clampSidebarPanelWidth } from "@/lib/responsive/sidebarWidth";
+import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
 
 const KEYBOARD_STEP = 16;
+
+function clampToBounds(
+  width: number,
+  minWidth: number,
+  maxWidth: number,
+): number {
+  return Math.min(maxWidth, Math.max(minWidth, Math.round(width)));
+}
 
 type Options = {
   width: number;
   onWidthPreview: (width: number) => void;
   onWidthCommit: (width: number) => void;
   enabled?: boolean;
+  maxWidth?: number;
+  minWidth?: number;
 };
 
 export function useSidebarResize({
@@ -17,6 +27,8 @@ export function useSidebarResize({
   onWidthPreview,
   onWidthCommit,
   enabled = true,
+  maxWidth = LAYOUT_DIMENSIONS.sidebarPanelWidthMax,
+  minWidth = LAYOUT_DIMENSIONS.sidebarPanelWidthMin,
 }: Options) {
   const draggingRef = useRef(false);
   const pointerIdRef = useRef<number | null>(null);
@@ -24,10 +36,13 @@ export function useSidebarResize({
   const startWidthRef = useRef(width);
   const latestWidthRef = useRef(width);
 
-  const computeWidth = useCallback((clientX: number) => {
-    const delta = startXRef.current - clientX;
-    return clampSidebarPanelWidth(startWidthRef.current + delta);
-  }, []);
+  const computeWidth = useCallback(
+    (clientX: number) => {
+      const delta = startXRef.current - clientX;
+      return clampToBounds(startWidthRef.current + delta, minWidth, maxWidth);
+    },
+    [maxWidth, minWidth],
+  );
 
   const beginDrag = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -118,17 +133,17 @@ export function useSidebarResize({
       if (!enabled) return;
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        const nextWidth = clampSidebarPanelWidth(width + KEYBOARD_STEP);
+        const nextWidth = clampToBounds(width + KEYBOARD_STEP, minWidth, maxWidth);
         onWidthPreview(nextWidth);
         onWidthCommit(nextWidth);
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
-        const nextWidth = clampSidebarPanelWidth(width - KEYBOARD_STEP);
+        const nextWidth = clampToBounds(width - KEYBOARD_STEP, minWidth, maxWidth);
         onWidthPreview(nextWidth);
         onWidthCommit(nextWidth);
       }
     },
-    [enabled, onWidthCommit, onWidthPreview, width],
+    [enabled, maxWidth, minWidth, onWidthCommit, onWidthPreview, width],
   );
 
   return {

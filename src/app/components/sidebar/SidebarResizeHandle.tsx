@@ -1,12 +1,15 @@
 "use client";
 
 import { useSidebarResize } from "./useSidebarResize";
+import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
 
 type Props = {
   width: number;
   onWidthPreview: (width: number) => void;
   onWidthCommit: (width: number) => void;
   enabled?: boolean;
+  maxWidth?: number;
+  minWidth?: number;
 };
 
 export default function SidebarResizeHandle({
@@ -14,6 +17,8 @@ export default function SidebarResizeHandle({
   onWidthPreview,
   onWidthCommit,
   enabled = true,
+  maxWidth = LAYOUT_DIMENSIONS.sidebarPanelWidthMax,
+  minWidth = LAYOUT_DIMENSIONS.sidebarPanelWidthMin,
 }: Props) {
   const {
     handlePointerDown,
@@ -26,6 +31,8 @@ export default function SidebarResizeHandle({
     onWidthPreview,
     onWidthCommit,
     enabled,
+    maxWidth,
+    minWidth,
   });
 
   return (
@@ -33,8 +40,8 @@ export default function SidebarResizeHandle({
       role="separator"
       aria-orientation="vertical"
       aria-label="Resize sidebar panel"
-      aria-valuemin={260}
-      aria-valuemax={560}
+      aria-valuemin={minWidth}
+      aria-valuemax={maxWidth}
       aria-valuenow={width}
       tabIndex={enabled ? 0 : -1}
       data-testid="sidebar-resize-handle"

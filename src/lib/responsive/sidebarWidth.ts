@@ -1,5 +1,9 @@
 import type { LegacySidebarPanelId, SidebarPanelId } from "@/lib/chartConfig";
-import { LAYOUT_DIMENSIONS } from "./layoutConstants";
+import {
+  LAYOUT_DIMENSIONS,
+  SCREENER_SIDEBAR_WIDTH_MAX_CAP,
+  SCREENER_SIDEBAR_WIDTH_VIEWPORT_RATIO,
+} from "./layoutConstants";
 
 const SIDEBAR_PANEL_IDS: SidebarPanelId[] = [
   "object-tree",
@@ -20,18 +24,69 @@ const LEGACY_PANEL_WIDTH_KEYS: LegacySidebarPanelId[] = [
   "risk",
 ];
 
-export function clampSidebarPanelWidth(width: number): number {
+export function resolveScreenerSidebarPanelMax(
+  viewportWidth: number,
+  railWidth: number = LAYOUT_DIMENSIONS.sidebarRailWidth,
+): number {
+  const available = viewportWidth - railWidth;
+  const ratioWidth = Math.round(SCREENER_SIDEBAR_WIDTH_VIEWPORT_RATIO * available);
   return Math.min(
-    LAYOUT_DIMENSIONS.sidebarPanelWidthMax,
-    Math.max(LAYOUT_DIMENSIONS.sidebarPanelWidthMin, Math.round(width)),
+    SCREENER_SIDEBAR_WIDTH_MAX_CAP,
+    Math.max(LAYOUT_DIMENSIONS.sidebarPanelWidthMin, ratioWidth),
   );
 }
 
-export function resolveSidebarPanelWidth(width: number | undefined): number {
+export function resolveSidebarPanelMaxWidth(
+  activePanel: SidebarPanelId | null | undefined,
+  viewportWidth?: number,
+  railWidth: number = LAYOUT_DIMENSIONS.sidebarRailWidth,
+): number {
+  if (activePanel === "screener" && typeof viewportWidth === "number" && Number.isFinite(viewportWidth)) {
+    return resolveScreenerSidebarPanelMax(viewportWidth, railWidth);
+  }
+  return LAYOUT_DIMENSIONS.sidebarPanelWidthMax;
+}
+
+export function clampSidebarPanelWidth(
+  width: number,
+  activePanel?: SidebarPanelId | null,
+  viewportWidth?: number,
+  railWidth?: number,
+): number {
+  const max = resolveSidebarPanelMaxWidth(activePanel, viewportWidth, railWidth);
+  return Math.min(max, Math.max(LAYOUT_DIMENSIONS.sidebarPanelWidthMin, Math.round(width)));
+}
+
+/** When leaving screener, clamp a wide stored width back to the default panel max. */
+export function clampSidebarWidthOnPanelLeave(width: number): number {
+  if (width > LAYOUT_DIMENSIONS.sidebarPanelWidthMax) {
+    return LAYOUT_DIMENSIONS.sidebarPanelWidthMax;
+  }
+  return clampSidebarPanelWidth(width);
+}
+
+export function computeScreenerExpandedSidebarWidth(
+  viewportWidth: number,
+  railWidth: number = LAYOUT_DIMENSIONS.sidebarRailWidth,
+): number {
+  return clampSidebarPanelWidth(
+    viewportWidth - railWidth,
+    "screener",
+    viewportWidth,
+    railWidth,
+  );
+}
+
+export function resolveSidebarPanelWidth(
+  width: number | undefined,
+  activePanel?: SidebarPanelId | null,
+  viewportWidth?: number,
+  railWidth?: number,
+): number {
   if (typeof width !== "number" || !Number.isFinite(width)) {
     return LAYOUT_DIMENSIONS.sidebarPanelWidth;
   }
-  return clampSidebarPanelWidth(width);
+  return clampSidebarPanelWidth(width, activePanel, viewportWidth, railWidth);
 }
 
 type LegacySidebarPrefs = {
@@ -47,7 +102,7 @@ export function migrateSidebarWidth(
   if (!sidebar) return undefined;
 
   if (typeof sidebar.width === "number" && Number.isFinite(sidebar.width)) {
-    return clampSidebarPanelWidth(sidebar.width);
+    return clampSidebarWidthOnPanelLeave(sidebar.width);
   }
 
   const legacy = sidebar.panelWidths;

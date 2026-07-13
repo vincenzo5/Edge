@@ -27,6 +27,7 @@ import {
   isScreenerColumnId,
 } from "@/lib/screener";
 import type { ScreenerSessionState } from "@/lib/screener/screenerSession";
+import { topHeatMapQuoteSymbols } from "@/lib/screener/screenerHeatMapAdapter";
 import { useScreenerState } from "@/app/components/screener/ScreenerProvider";
 import { SCREENER_PAGE_SIZE } from "@/app/components/screener/ResultsTable";
 
@@ -36,6 +37,12 @@ const DEFAULT_SORT: ScreenerSortSpec = {
 };
 
 const LIVE_QUOTE_STREAM_CAP = 32;
+const HEAT_MAP_QUOTE_STREAM_CAP = 200;
+const EMPTY_SCREENER_ROWS: ScreenerResultRow[] = [];
+
+function visibleSymbolsKey(symbols: string[]): string {
+  return symbols.join(",");
+}
 
 export function useScreenerSessionModel(active: boolean) {
   const {
@@ -61,16 +68,22 @@ export function useScreenerSessionModel(active: boolean) {
     displaySort,
     compareSelection: selectedCompareSymbols,
     compareOpen,
+    filterViewMode,
+    resultsViewMode,
+    heatMapConfig,
   } = session;
 
-  const rows = lastRun?.rows ?? [];
+  const rows = lastRun?.rows ?? EMPTY_SCREENER_ROWS;
   const meta = lastRun?.meta ?? null;
+  const hasRun = lastRun != null;
 
   const effectiveSort = displaySort ?? sort ?? DEFAULT_SORT;
 
   useEffect(() => {
     if (!active) {
-      patchSession({ visibleSymbols: [] });
+      if (session.visibleSymbols.length > 0) {
+        patchSession({ visibleSymbols: [] });
+      }
       return;
     }
     patchSession({
@@ -78,7 +91,7 @@ export function useScreenerSessionModel(active: boolean) {
       page: 0,
       error: null,
     });
-  }, [active, state.query, patchSession]);
+  }, [active, state.query, patchSession, session.visibleSymbols]);
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => compareScreenerRows(a, b, effectiveSort, meta?.indicatorValues)),
@@ -90,13 +103,24 @@ export function useScreenerSessionModel(active: boolean) {
 
   useEffect(() => {
     if (!active) return;
-    const pageStart = safePage * SCREENER_PAGE_SIZE;
-    const visible = sortedRows
-      .slice(pageStart, pageStart + LIVE_QUOTE_STREAM_CAP)
-      .map((row) => row.symbol.trim().toUpperCase())
-      .filter(Boolean);
+    const visible =
+      resultsViewMode === "heatmap"
+        ? topHeatMapQuoteSymbols(sortedRows, heatMapConfig, HEAT_MAP_QUOTE_STREAM_CAP)
+        : sortedRows
+            .slice(safePage * SCREENER_PAGE_SIZE, safePage * SCREENER_PAGE_SIZE + LIVE_QUOTE_STREAM_CAP)
+            .map((row) => row.symbol.trim().toUpperCase())
+            .filter(Boolean);
+    if (visibleSymbolsKey(session.visibleSymbols) === visibleSymbolsKey(visible)) return;
     patchSession({ visibleSymbols: visible });
-  }, [active, sortedRows, safePage, patchSession]);
+  }, [
+    active,
+    sortedRows,
+    safePage,
+    patchSession,
+    session.visibleSymbols,
+    resultsViewMode,
+    heatMapConfig,
+  ]);
 
   const limit = state.query.limit ?? 200;
 
@@ -119,6 +143,7 @@ export function useScreenerSessionModel(active: boolean) {
       patchSession({
         lastRun: result,
         compareSelection: [],
+        filterViewMode: result.rows.length > 0 ? "scan" : "edit",
       });
 
       if (options?.resetSortFromRoot) {
@@ -300,6 +325,27 @@ export function useScreenerSessionModel(active: boolean) {
     [patchSession],
   );
 
+  const setFilterViewMode = useCallback(
+    (mode: ScreenerSessionState["filterViewMode"]) => {
+      patchSession({ filterViewMode: mode });
+    },
+    [patchSession],
+  );
+
+  const setResultsViewMode = useCallback(
+    (mode: ScreenerSessionState["resultsViewMode"]) => {
+      patchSession({ resultsViewMode: mode });
+    },
+    [patchSession],
+  );
+
+  const setHeatMapConfig = useCallback(
+    (config: ScreenerSessionState["heatMapConfig"]) => {
+      patchSession({ heatMapConfig: config });
+    },
+    [patchSession],
+  );
+
   const compareRows = useMemo(
     () =>
       rows.filter((row) =>
@@ -344,5 +390,12 @@ export function useScreenerSessionModel(active: boolean) {
     indicatorColumns,
     warnings: meta?.warnings ?? [],
     skippedSymbols: meta?.skippedSymbols ?? [],
+    hasRun,
+    filterViewMode,
+    setFilterViewMode,
+    resultsViewMode,
+    setResultsViewMode,
+    heatMapConfig,
+    setHeatMapConfig,
   };
 }

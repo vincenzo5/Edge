@@ -21,7 +21,7 @@ const maxWidthClass = {
   sm: "max-w-[480px]",
   md: "max-w-[840px]",
   lg: "max-w-4xl",
-  full: "max-w-[960px]",
+  full: "max-w-[min(96vw,1400px)]",
 } as const;
 
 export default function EdgeModalShell({

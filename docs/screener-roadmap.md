@@ -72,12 +72,13 @@ Target: first paint < 1s for cached screens, < 3s for fresh complex queries. Suf
 - **Shared body:** `ScreenerPanelContent.tsx` renders query builder, saved screens, and results for `variant="sidebar" | "floating" | "modal"`. `ScreenerSessionProvider` holds ephemeral session state (last run, UI collapse) separate from persisted `ScreenerState`.
 - **Legacy modal:** `ScreenerDialog.tsx` is a thin wrapper around `ScreenerPanelContent` (`variant="modal"`) for tests and any header-triggered flows; primary surface is sidebar/floating.
 - **Layout:**
-  - **Left rail:** saved screens list, presets.
-  - **Custom query panel:** `Run screen` primary button top-right with `⌘↵` shortcut; collapsible rule rows with expand-all/collapse-all inside a bounded scroll region (`max-h-[40vh]`).
-  - **Header row:** save-name input + Save button (sidebar/floating panel header; modal variant uses `EdgeModalShell` `headerActions` when opened).
-  - **Footer row:** limit control (1–1000).
-  - **Body:** results table.
+  - **Width:** Docked screener uses panel-aware max (`90% viewport − rail`, cap 1400px); **Expand / Collapse** in sidebar header; other panels stay at 560px max; leaving screener clamps stored width.
+  - **Left rail (wide):** presets + saved screens. **Narrow (&lt;520px):** horizontal preset chip scroller above query.
+  - **Custom query:** `Run screen` + Limit + `⌘↵`; never-run starter chips; after successful run → **scan mode** (filter chip summary + Edit filters); **edit mode** shows full QueryBuilder.
+  - **Header row:** save-name input + Save button (sidebar/floating); Expand + Pop out on docked screener.
+  - **Body:** results table **or** treemap heat map (List / Heat map toggle); Size / Color / Group controls in heat map mode; never-run placeholder distinct from no-match empty state.
 - **Styling:** Edge design tokens and primitives per `src/lib/design-system/ARCHITECTURE.md`.
+- **Heat map view (shipped):** Reusable treemap in `src/lib/heatmap/` + `src/app/components/heatmap/`; screener adapter maps `ScreenerResultRow[]` → `HeatMapItem[]`; session-only `resultsViewMode` + `heatMapConfig` (defaults: size=market cap linear, color=change % ±3%, group=sector; Scale Linear/Log in toolbar); mover presets enriched via universe descriptors; live quotes on top 200 by size. See `src/lib/heatmap/ARCHITECTURE.md`.
 
 ## Roadmap Phases
 

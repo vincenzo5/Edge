@@ -63,7 +63,11 @@ import type { WatchlistState } from "@/lib/watchlist/types";
 import type { ScreenerState } from "@/lib/screener/types";
 import type { ScreenerSessionState } from "@/lib/screener/screenerSession";
 import { createDefaultScreenerSession } from "@/lib/screener/screenerSession";
-import { resolveSidebarPanelWidth } from "@/lib/responsive/sidebarWidth";
+import { resolveSidebarPanelWidth, computeScreenerExpandedSidebarWidth, clampSidebarWidthOnPanelLeave } from "@/lib/responsive/sidebarWidth";
+import {
+  LAYOUT_DIMENSIONS,
+  RESPONSIVE_BREAKPOINTS,
+} from "@/lib/responsive/layoutConstants";
 import { useChartTemplateLibraryRemoteSync } from "@/lib/persistence/sync/useChartTemplateLibraryRemoteSync";
 import { reconcileChartWorkspacesAfterTabClose } from "@/lib/persistence/sync/reconcileChartWorkspaces";
 import { useWorkspaceTabsRemoteSync } from "@/lib/persistence/sync/useWorkspaceTabsRemoteSync";
@@ -72,6 +76,7 @@ import { useResponsiveLayout } from "@/lib/responsive/useResponsiveLayout";
 import { ShortcutUIProvider } from "./shortcuts/ShortcutUIContext";
 import ShortcutProvider from "./shortcuts/ShortcutProvider";
 import { PanelPresentationProvider } from "./sidebar/PanelPresentationContext";
+import { SidebarPanelWidthProvider } from "./sidebar/SidebarPanelWidthContext";
 import FloatingPanelHost from "./sidebar/FloatingPanelHost";
 import {
   defaultFloatingGeometry,
@@ -95,6 +100,8 @@ export default function StockApp() {
     useRef<AppBootstrapResult["finishRemoteWorkspaceMerge"]>(undefined);
   const [hydrated, setHydrated] = useState(false);
   const [tradeTicketOpen, setTradeTicketOpen] = useState(false);
+  const [screenerPanelExpanded, setScreenerPanelExpanded] = useState(false);
+  const screenerPreExpandWidthRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
   const workspaceTabsRef = useRef(workspaceTabs);
   const flushActiveTabSaveRef = useRef<() => Promise<void>>(async () => {});
@@ -246,23 +253,45 @@ export default function StockApp() {
   }, []);
 
   const handleSidebarPanelChange = useCallback((activePanel: SidebarPanelId | null) => {
-    setLayout((prev) => ({
-      ...prev,
-      sidebar: {
-        ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
-        activePanel,
-      },
-    }));
+    setLayout((prev) => {
+      const prevPanel = prev.sidebar?.activePanel ?? null;
+      const storedWidth = prev.sidebar?.width;
+      const shouldClamp =
+        prevPanel === "screener" &&
+        activePanel !== "screener" &&
+        typeof storedWidth === "number";
+      return {
+        ...prev,
+        sidebar: {
+          ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
+          activePanel,
+          ...(shouldClamp ? { width: clampSidebarWidthOnPanelLeave(storedWidth) } : {}),
+        },
+      };
+    });
+    setScreenerPanelExpanded(false);
+    screenerPreExpandWidthRef.current = null;
   }, []);
 
   const handleSidebarToggle = useCallback((id: SidebarPanelId) => {
     setLayout((prev) => {
       const current = prev.sidebar?.activePanel ?? null;
+      const nextPanel = current === id ? null : id;
+      const storedWidth = prev.sidebar?.width;
+      const shouldClamp =
+        current === "screener" &&
+        nextPanel !== "screener" &&
+        typeof storedWidth === "number";
+      if (current === "screener" && nextPanel !== "screener") {
+        setScreenerPanelExpanded(false);
+        screenerPreExpandWidthRef.current = null;
+      }
       return {
         ...prev,
         sidebar: {
           ...(prev.sidebar ?? DEFAULT_SIDEBAR_PREFS),
-          activePanel: current === id ? null : id,
+          activePanel: nextPanel,
+          ...(shouldClamp ? { width: clampSidebarWidthOnPanelLeave(storedWidth) } : {}),
         },
       };
     });
@@ -542,7 +571,16 @@ export default function StockApp() {
 
   const responsive = useResponsiveLayout();
   const activePanel = layout.sidebar?.activePanel ?? null;
-  const sidebarPanelWidth = resolveSidebarPanelWidth(layout.sidebar?.width);
+  const sidebarRailWidth =
+    responsive.railMode === "compact"
+      ? LAYOUT_DIMENSIONS.compactSidebarRailWidth
+      : LAYOUT_DIMENSIONS.sidebarRailWidth;
+  const sidebarPanelWidth = resolveSidebarPanelWidth(
+    layout.sidebar?.width,
+    activePanel,
+    responsive.viewportWidth,
+    sidebarRailWidth,
+  );
   const activePresentation =
     activePanel != null ? getPanelPresentation(layout.sidebar, activePanel) : "docked";
   const isPanelFloating = activePresentation === "floating";
@@ -553,12 +591,12 @@ export default function StockApp() {
 
   useEffect(() => {
     if (!hydratedRef.current) return;
-    if (responsive.sidebarMode !== "overlay") return;
+    if (responsive.viewportWidth >= RESPONSIVE_BREAKPOINTS.tablet) return;
     const panelId = layout.sidebar?.activePanel;
     if (!panelId) return;
     if (getPanelPresentation(layout.sidebar, panelId) !== "floating") return;
     handlePanelDock(panelId);
-  }, [responsive.sidebarMode, layout.sidebar, handlePanelDock]);
+  }, [responsive.viewportWidth, layout.sidebar, handlePanelDock]);
 
   const panelPresentation = useMemo(
     () => ({
@@ -567,7 +605,7 @@ export default function StockApp() {
       dock: () => {
         if (activePanel) handlePanelDock(activePanel);
       },
-      canPopOut: responsive.sidebarMode === "inline" && activePanel != null && !isPanelFloating,
+      canPopOut: activePanel != null && !isPanelFloating,
       canDock: isPanelFloating,
     }),
     [
@@ -576,7 +614,49 @@ export default function StockApp() {
       handlePanelDock,
       handlePanelPopOut,
       isPanelFloating,
-      responsive.sidebarMode,
+    ],
+  );
+
+  const handleScreenerExpand = useCallback(() => {
+    screenerPreExpandWidthRef.current = sidebarPanelWidth;
+    setScreenerPanelExpanded(true);
+    const fillWidth = computeScreenerExpandedSidebarWidth(
+      responsive.viewportWidth,
+      sidebarRailWidth,
+    );
+    handleSidebarWidthChange(fillWidth);
+  }, [
+    handleSidebarWidthChange,
+    responsive.viewportWidth,
+    sidebarPanelWidth,
+    sidebarRailWidth,
+  ]);
+
+  const handleScreenerCollapse = useCallback(() => {
+    const restore =
+      screenerPreExpandWidthRef.current ?? LAYOUT_DIMENSIONS.sidebarPanelWidth;
+    setScreenerPanelExpanded(false);
+    screenerPreExpandWidthRef.current = null;
+    handleSidebarWidthChange(restore);
+  }, [handleSidebarWidthChange]);
+
+  const sidebarPanelWidthContext = useMemo(
+    () => ({
+      panelWidth: sidebarPanelWidth,
+      viewportWidth: responsive.viewportWidth,
+      isExpanded: screenerPanelExpanded,
+      canExpand: activePanel === "screener" && !isPanelFloating,
+      expand: handleScreenerExpand,
+      collapse: handleScreenerCollapse,
+    }),
+    [
+      activePanel,
+      handleScreenerCollapse,
+      handleScreenerExpand,
+      isPanelFloating,
+      responsive.viewportWidth,
+      screenerPanelExpanded,
+      sidebarPanelWidth,
     ],
   );
 
@@ -603,6 +683,7 @@ export default function StockApp() {
               <MarketDataProvider layout={layout}>
               <RiskSettingsProvider>
               <PanelPresentationProvider value={panelPresentation}>
+              <SidebarPanelWidthProvider value={sidebarPanelWidthContext}>
               <ActiveChartProvider>
                 <OptionsSessionProvider>
                 <DataHealthProvider>
@@ -691,26 +772,17 @@ export default function StockApp() {
                     onDock={handlePanelDock}
                     onClose={handleSidebarClose}
                   />
-                  {responsive.sidebarMode === "inline" ? (
-                    <RightSidebar
-                      activePanel={activePanel}
-                      mode="inline"
-                      width={sidebarPanelWidth}
-                      isFloating={isPanelFloating}
-                      onWidthChange={handleSidebarWidthChange}
-                    />
-                  ) : null}
-                </div>
-                {responsive.sidebarMode === "overlay" ? (
                   <RightSidebar
                     activePanel={activePanel}
                     mode="overlay"
                     width={sidebarPanelWidth}
+                    viewportWidth={responsive.viewportWidth}
+                    railWidth={sidebarRailWidth}
                     isFloating={isPanelFloating}
                     onWidthChange={handleSidebarWidthChange}
                     onClose={handleSidebarClose}
                   />
-                ) : null}
+                </div>
               </div>
               <SidebarRail
                 theme={layout.theme}
@@ -726,6 +798,7 @@ export default function StockApp() {
                 </DataHealthProvider>
                 </OptionsSessionProvider>
               </ActiveChartProvider>
+              </SidebarPanelWidthProvider>
               </PanelPresentationProvider>
               </RiskSettingsProvider>
               </MarketDataProvider>
