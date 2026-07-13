@@ -10,6 +10,20 @@ export type ChartAnchoredPopoverLayout = {
   scrollable: boolean;
 };
 
+export function isSameChartAnchoredPopoverLayout(
+  a: ChartAnchoredPopoverLayout | null,
+  b: ChartAnchoredPopoverLayout | null,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.x === b.x &&
+    a.y === b.y &&
+    a.maxHeight === b.maxHeight &&
+    a.scrollable === b.scrollable
+  );
+}
+
 export function computeChartAnchoredPopoverLayout(
   anchorRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right'>,
   panelWidth: number,

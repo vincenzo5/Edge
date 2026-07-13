@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -10,7 +11,11 @@ import {
 import { createPortal } from 'react-dom';
 import type { Theme } from '@/lib/chartConfig';
 import { popoverPanelClass } from './headerStyles';
-import { computeChartAnchoredPopoverLayout } from './chartAnchoredPopoverLayout';
+import {
+  computeChartAnchoredPopoverLayout,
+  isSameChartAnchoredPopoverLayout,
+  type ChartAnchoredPopoverLayout,
+} from './chartAnchoredPopoverLayout';
 
 type Props = {
   open: boolean;
@@ -34,78 +39,81 @@ export default function ChartAnchoredPopover({
   minWidth = 200,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState<ReturnType<typeof computeChartAnchoredPopoverLayout> | null>(
-    null,
-  );
+  const contentRef = useRef<HTMLDivElement>(null);
+  const measureFrameRef = useRef<number | null>(null);
+  const [layout, setLayout] = useState<ChartAnchoredPopoverLayout | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  const commitLayout = useCallback((next: ChartAnchoredPopoverLayout | null) => {
+    setLayout((prev) => (isSameChartAnchoredPopoverLayout(prev, next) ? prev : next));
+  }, []);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  const measureLayout = useCallback(() => {
+    const anchor = anchorRef.current;
+    const panel = panelRef.current;
+    const content = contentRef.current;
+    if (!anchor || !panel || !content) return;
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const panelWidth = Math.max(panel.getBoundingClientRect().width, minWidth);
+    const contentHeight = content.scrollHeight;
+
+    const next = computeChartAnchoredPopoverLayout(
+      anchorRect,
+      panelWidth,
+      contentHeight,
+      align,
+      window.innerWidth,
+      window.innerHeight,
+    );
+
+    commitLayout(next);
+  }, [align, anchorRef, commitLayout, minWidth]);
+
+  const scheduleMeasureLayout = useCallback(() => {
+    if (measureFrameRef.current != null) return;
+    measureFrameRef.current = window.requestAnimationFrame(() => {
+      measureFrameRef.current = null;
+      measureLayout();
+    });
+  }, [measureLayout]);
+
+  useEffect(() => {
+    if (open) return;
+    setLayout((prev) => (prev == null ? prev : null));
+  }, [open]);
+
   useLayoutEffect(() => {
-    if (!open) {
-      setLayout(null);
-      return;
-    }
+    if (!open) return;
 
-    const measure = () => {
-      const anchor = anchorRef.current;
-      const panel = panelRef.current;
-      if (!anchor || !panel) return;
-
-      const anchorRect = anchor.getBoundingClientRect();
-      const panelWidth = Math.max(panel.getBoundingClientRect().width, minWidth);
-      const contentHeight = panel.scrollHeight;
-
-      setLayout(
-        computeChartAnchoredPopoverLayout(
-          anchorRect,
-          panelWidth,
-          contentHeight,
-          align,
-          window.innerWidth,
-          window.innerHeight,
-        ),
-      );
+    scheduleMeasureLayout();
+    return () => {
+      if (measureFrameRef.current != null) {
+        window.cancelAnimationFrame(measureFrameRef.current);
+        measureFrameRef.current = null;
+      }
     };
-
-    measure();
-    const raf = window.requestAnimationFrame(measure);
-    return () => window.cancelAnimationFrame(raf);
-  }, [open, anchorRef, align, minWidth, children]);
+  }, [open, scheduleMeasureLayout]);
 
   useEffect(() => {
     if (!open) return;
+    const content = contentRef.current;
+    if (!content) return;
 
-    const remeasure = () => {
-      const anchor = anchorRef.current;
-      const panel = panelRef.current;
-      if (!anchor || !panel) return;
-
-      const anchorRect = anchor.getBoundingClientRect();
-      const panelWidth = Math.max(panel.getBoundingClientRect().width, minWidth);
-      const contentHeight = panel.scrollHeight;
-
-      setLayout(
-        computeChartAnchoredPopoverLayout(
-          anchorRect,
-          panelWidth,
-          contentHeight,
-          align,
-          window.innerWidth,
-          window.innerHeight,
-        ),
-      );
-    };
-
-    window.addEventListener('resize', remeasure);
-    window.addEventListener('scroll', remeasure, true);
+    const observer = new ResizeObserver(() => scheduleMeasureLayout());
+    observer.observe(content);
+    window.addEventListener('resize', scheduleMeasureLayout);
+    window.addEventListener('scroll', scheduleMeasureLayout, true);
     return () => {
-      window.removeEventListener('resize', remeasure);
-      window.removeEventListener('scroll', remeasure, true);
+      observer.disconnect();
+      window.removeEventListener('resize', scheduleMeasureLayout);
+      window.removeEventListener('scroll', scheduleMeasureLayout, true);
     };
-  }, [open, anchorRef, align, minWidth]);
+  }, [open, scheduleMeasureLayout]);
 
   useEffect(() => {
     if (!open) return;
@@ -155,7 +163,7 @@ export default function ChartAnchoredPopover({
       }
       className={`fixed z-[1200] py-1 ${popoverPanelClass(theme)} ${className ?? ''}`}
     >
-      {children}
+      <div ref={contentRef}>{children}</div>
     </div>
   );
 
