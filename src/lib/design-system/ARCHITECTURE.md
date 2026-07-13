@@ -89,9 +89,10 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Context menu | `ContextMenu.tsx` |
 | Settings modal | `ChartSettingsModal.tsx` |
 | Sidebar icon rail | `sidebar/SidebarRail.tsx` + `toolbarButtonStyles.ts` — main group (watchlist → options → screener → object-tree → account); footer group: theme toggle (sun/moon) then settings cog |
-| Docked sidebar panel | `sidebar/{RightSidebar,SidebarPanelShell}.tsx` — `absolute` overlay on chart row (`right-0`); resizable via `SidebarResizeHandle`; chart width unchanged |
+| Docked sidebar panel | `sidebar/{RightSidebar,SidebarPanelShell}.tsx` — `absolute` overlay on chart row (`right-0`); resizable via `SidebarResizeHandle`; chart width unchanged; panel-aware max via `sidebarWidth.ts` (screener: `90% viewport − rail`, cap 1400px; other panels 560px; leaving screener clamps stored width) |
 | Floating panel window | `sidebar/{FloatingPanelShell,FloatingPanelHost}.tsx` — draggable/resizable pop-out over chart; **Dock** returns to sidebar; geometry persisted in `layout.sidebar.floatingGeometry` |
-| Panel Pop out / Dock | `sidebar/{PanelPresentationContext,PanelChromeActions}.tsx` — `PanelPopOutButton` in panel headers; state in `layout.sidebar.presentation` (`docked` \| `floating`) |
+| Panel Pop out / Dock / Expand | `sidebar/{PanelPresentationContext,PanelChromeActions,SidebarPanelWidthContext}.tsx` — `PanelPopOutButton` + screener `PanelExpandButton`; presentation in `layout.sidebar.presentation` (`docked` \| `floating`) |
+| Screener results heat map | `heatmap/{HeatMapView,HeatMapToolbar}.tsx` + `src/lib/heatmap/` — treemap List/Heat map toggle in screener; see `docs/screener-roadmap.md` |
 | Centered modal (short flows) | `EdgeModalShell` — symbol search, confirmations; not for persistent tools (use floating panel instead) |
 | Right overlay detail panel | `EdgeSlideOver` — journal trade review, future research/settings sub-panels; overlays content without reflow |
 | Object tree / data window | `ObjectTree.tsx` |

@@ -67,6 +67,10 @@ createApiChartDataFeed({
 3. **SSE unavailable** (SSR/tests): server-proxied transport emits non-recoverable error; chart keeps last REST snapshot.
 4. **Stream failures**: After 3 consecutive poll failures, emit `stale` (client polling and server SSE sessions).
 
+## TWS display connection preference
+
+`createApiChartDataFeed` reads `edge:marketData:connectionId` via `readDataConnectionPreference()` and attaches optional `connectionId` (`ib-paper` \| `ib-live`) on REST `loadCandles` (`/api/candles`) and `loadQuotes` (`/api/quotes`). Watchlist SSE/REST in `MarketDataProvider` threads the same preference on `/api/quotes` and `/api/stream/quotes`. Non-TWS providers ignore the field; order-account trading quotes stay on the order environment (see `src/lib/marketData/ARCHITECTURE.md`).
+
 ## Client SWR cache
 
 `useChartDataFeed` keeps a session memo in `chartClientCache.ts` (in-memory plus `sessionStorage` under `edge:chart-cache:v1:`) so re-opening or hard-reloading a recently viewed chart paints cached candles immediately while a background REST fetch refreshes them.
