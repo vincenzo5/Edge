@@ -77,3 +77,13 @@ After significant work, update the top block with:
 - [ ] **Current blocker** — none or explicit
 - [ ] **Next best step** — single concrete action
 - [ ] **Last updated** — today's date (YYYY-MM-DD)
+- [ ] Do **not** add a new `## Previous Verified State` section — replace the current block in place
+
+## Retention / Archive
+
+`PROJECT-STATUS.md` is a hot dashboard. Full history: [docs/status-archive/](../status-archive/).
+
+- [ ] Active Work keeps Active/Pending/Blocked + ≤10 recent Passing rows
+- [ ] Completed Task Contracts moved to `status-archive/` (or deleted if Session Log already has evidence)
+- [ ] Session Log keeps ~15 recent entries; older → monthly `status-archive/YYYY-MM.md`
+- [ ] Prune when the hot file exceeds ~300 lines, after marking Passing, or weekly

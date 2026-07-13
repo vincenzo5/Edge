@@ -31,6 +31,7 @@ Walk this checklist as the **last step** before ending your turn when:
 - [ ] Todos closed; no `in_progress` items left open
 - [ ] Temporary/debug artifacts removed
 - [ ] Next best step is a single concrete action
+- [ ] If `docs/PROJECT-STATUS.md` exceeds ~300 lines, prune per § Harness Retention (move cold history to `docs/status-archive/`)
 
 ## Validator Hooks
 
