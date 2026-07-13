@@ -2,7 +2,7 @@
 
 Single roadmap for the Edge stock screener: filter the full US-listed universe (equities + ETFs) by technical, fundamental, and descriptive criteria, then load results into the chart or watchlists.
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-13
 
 A solo-trader tool for two workflows:
 
@@ -21,10 +21,10 @@ The screener is **not** an alerting engine, a backtester, or a multi-asset scann
 | Freshness | Real-time preferred; delayed / EOD acceptable for fundamentals |
 | Filter categories | Technical (incl. custom indicators), Fundamental, Descriptive |
 | Filter UX | Both fixed presets and a composable query-builder (AND/OR rule stacking) |
-| Output | Configurable-column table with leading-rule default sort, cog column picker, per-saved-screen sort persistence, indicator columns for technical screens; sort, filter-in-results, pagination, export |
+| Output | Configurable-column table or treemap heat map (List / Heat map toggle); leading-rule default sort, cog column picker, per-saved-screen sort persistence, indicator columns for technical screens; sort, filter-in-results, pagination, export |
 | Per-row actions | Load ticker into chart; add ticker to watchlist |
 | Group actions | Add full result set to existing watchlist; create new watchlist from result set |
-| Surface | Sidebar rail (`screener` panel in `sidebar/registry.tsx`); optional **Pop out** to floating window via `FloatingPanelHost` / `useFloatingPanel`; legacy header modal via thin `ScreenerDialog` wrapper |
+| Surface | Sidebar rail (`screener` panel in `sidebar/registry.tsx`); docked **Expand** (wide panel); optional **Pop out** to floating window via `FloatingPanelHost` / `useFloatingPanel`; legacy header modal via thin `ScreenerDialog` wrapper |
 | Saved screens | Named, persistent, reusable (localStorage + optional Postgres) |
 
 ## Architecture Decisions

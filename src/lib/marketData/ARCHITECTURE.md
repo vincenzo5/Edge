@@ -223,7 +223,7 @@ TWS data within the display window stays **healthy** even when served from `hot-
 When `TWS_ENABLED=true` and `IBKR_ENABLED=false` (default in `.env.example`):
 
 - **Primary live data path:** IB Gateway socket API → local Python sidecar → `MarketDataService` routing (`tws → yahoo`).
-- **Data Health provider row:** **IB Gateway** (TWS sidecar + Gateway connection).
+- **Data Health Connections:** paper socket, live socket, and active chart data preference (`buildIbSocketRows` / `buildDataPreferenceRow` in `health.ts`); provider list still summarizes the TWS sidecar path (IBKR Client Portal omitted).
 - **IBKR Client Portal** is not surfaced in Data Health. Adapter code may remain for optional routing fallback elsewhere; diagnostics use `/api/market-data/ibkr/*` probe routes.
 
 ### TWS sidecar recovery

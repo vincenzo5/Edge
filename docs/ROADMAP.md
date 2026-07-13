@@ -125,7 +125,7 @@ Full phasing: [Trading Execution Roadmap](./trading-execution-roadmap.md).
 | **3 — Stops + safety** | **Passing** (2026-07-08) | STOP/STOP_LIMIT, preview expiry, kill switch |
 | **4 — UI + journal** | **Passing** (2026-07-08) | Chart ticket, confirm modal, AccountPanel cancel, AI tool |
 | **5 — Multi-broker + live** | **Passing** (2026-07-08) | Connection registry, in-app paper/live, live `LIVE` confirm (TWS sidecar only) |
-| **Dual connection (post-5)** | **Planned** | Docker paper+live Gateways; live market data preference ≠ order account; no journal-only picker. [Dual Connection Roadmap](./dual-connection-roadmap.md) |
+| **Dual connection (post-5)** | **Partial** | Display preference ≠ order account shipped (`edge:marketData:connectionId`); remaining Docker paper+live Gateways + ops. [Dual Connection Roadmap](./dual-connection-roadmap.md) |
 
 Guardrails:
 
@@ -226,7 +226,7 @@ Future work:
 
 ## Near-Term Execution Order
 
-1. **Dual connection (post–trading Phase 5).** Docker paper+live Gateways; decouple live market-data preference from order account. See [Dual Connection Roadmap](./dual-connection-roadmap.md).
+1. **Dual connection (post–trading Phase 5).** Docker paper+live Gateways (display preference ≠ order account already shipped). See [Dual Connection Roadmap](./dual-connection-roadmap.md).
 2. **WebGL candle proof.** Add a small backend-pluggable proof for main-pane candles only; keep drawings, labels, menus, and interaction chrome on Canvas/DOM.
 3. **Declarative indicator expansion.** Batch the next studies through the strengthened indicator contract: VWAP, ATR, Stochastic, CCI, OBV first.
 4. **Advanced market-context overlays.** Add event/reference channels for earnings, dividends, filings, news, options expirations, and semantic AI annotations.
@@ -239,7 +239,7 @@ These are intentionally not near-term roadmap items:
 
 - Pine Script or community indicator compatibility.
 - Full TradingView feature parity.
-- Chart trade ticket UI and in-app paper/live — **shipped** (Phases 4–5). Dual paper+live Gateways and data≠order account split — [Dual Connection Roadmap](./dual-connection-roadmap.md).
+- Chart trade ticket UI and in-app paper/live — **shipped** (Phases 4–5). Data≠order account preference — **shipped**; remaining dual paper+live Gateway ops — [Dual Connection Roadmap](./dual-connection-roadmap.md).
 - Price or drawing alerts before semantic annotations and data provenance are reliable.
 - Non-time charts such as Renko, Point and Figure, or Kagi.
 - Volume footprint, TPO, and session profile.
