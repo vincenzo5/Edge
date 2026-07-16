@@ -3,8 +3,26 @@ import "./globals.css";
 import { DevPersistenceLoginBanner } from "@/app/components/DevPersistenceLoginBanner";
 
 export const metadata: Metadata = {
-  title: "Stock Charts",
-  description: "Stock charting prototype with KLineChart and Yahoo Finance data",
+  title: {
+    default: "Edge",
+    template: "%s · Edge",
+  },
+  description: "AI-native charting workspace with a custom Edge canvas engine",
+  applicationName: "Edge",
+  icons: {
+    // Tab favicons: transparent (no dark plate). Apple/PWA keep opaque brand icons.
+    icon: [
+      { url: "/brand/favicon.svg", type: "image/svg+xml" },
+      { url: "/brand/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/favicon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [{ url: "/brand/icon-180.png", sizes: "180x180", type: "image/png" }],
+  },
+  openGraph: {
+    title: "Edge",
+    description: "AI-native charting workspace",
+    images: [{ url: "/brand/og-image.png", width: 1200, height: 630 }],
+  },
 };
 
 export default async function RootLayout({

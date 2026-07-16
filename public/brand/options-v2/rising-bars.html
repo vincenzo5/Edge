@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edge — Rising Bars Variations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: #0A0B0E;
+      color: #E8E9ED;
+      padding: 48px 32px 80px;
+    }
+    header { max-width: 1100px; margin: 0 auto 28px; }
+    h1 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 1.75rem;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .lede { color: #8B8FA3; line-height: 1.55; max-width: 760px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 18px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #12131A;
+      border: 1px solid #1E2030;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 20px 10px;
+      border-bottom: 1px solid #1E2030;
+    }
+    .card-header h2 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 1rem;
+      margin-bottom: 2px;
+    }
+    .card-header span { color: #5A5E73; font-size: 0.8rem; }
+    .preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 148px;
+      padding: 40px 24px;
+      background: #0A0B0E;
+    }
+    .preview.light {
+      background: #F4F5F7;
+      border-top: 1px solid #1E2030;
+    }
+    .desc {
+      padding: 12px 20px 16px;
+      color: #8B8FA3;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      border-top: 1px solid #1E2030;
+    }
+    .mark {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 52px;
+      letter-spacing: -0.045em;
+      line-height: 1;
+      color: #E8E9ED;
+    }
+    .preview.light .mark { color: #0A0B0E; }
+    .letters { position: relative; z-index: 2; }
+    .caret {
+      width: 3px; height: 34px; margin-left: 6px;
+      background: #00FF88; border-radius: 1px;
+      position: relative; z-index: 2;
+      animation: blink 1.2s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .mid { position: relative; display: inline-block; }
+    .behind {
+      position: absolute;
+      z-index: 1;
+      pointer-events: none;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Rising bars — market variations</h1>
+    <p class="lede">
+      Same Edge + caret. Bars stay behind <strong style="color:#E8E9ED">dg</strong>, but shaped more like real price / volume action — wicks, pullbacks, OHLC, mixed sessions.
+    </p>
+  </header>
+
+  <div class="grid">
+    <!-- R0 baseline -->
+    <article class="card">
+      <div class="card-header">
+        <h2>R0 — Baseline</h2>
+        <span>What you liked · clean ascending</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="72" viewBox="0 0 100 72">
+              <rect x="8" y="40" width="12" height="24" rx="2" fill="#00FF88" opacity="0.35"/>
+              <rect x="26" y="28" width="12" height="36" rx="2" fill="#00FF88" opacity="0.45"/>
+              <rect x="44" y="16" width="12" height="48" rx="2" fill="#00FF88" opacity="0.55"/>
+              <rect x="62" y="22" width="12" height="42" rx="2" fill="#00FF88" opacity="0.4"/>
+              <rect x="80" y="8" width="12" height="56" rx="2" fill="#00FF88" opacity="0.65"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="72" viewBox="0 0 100 72">
+              <rect x="8" y="40" width="12" height="24" rx="2" fill="#00FF88" opacity="0.35"/>
+              <rect x="26" y="28" width="12" height="36" rx="2" fill="#00FF88" opacity="0.45"/>
+              <rect x="44" y="16" width="12" height="48" rx="2" fill="#00FF88" opacity="0.55"/>
+              <rect x="62" y="22" width="12" height="42" rx="2" fill="#00FF88" opacity="0.4"/>
+              <rect x="80" y="8" width="12" height="56" rx="2" fill="#00FF88" opacity="0.65"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Reference. Smooth climb — more “icon” than “market.”</p>
+    </article>
+
+    <!-- R1 OHLC -->
+    <article class="card">
+      <div class="card-header">
+        <h2>R1 — OHLC Bars</h2>
+        <span>High-low stems + open/close ticks</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="80" viewBox="0 0 108 80">
+              <!-- bar 1 -->
+              <line x1="14" y1="28" x2="14" y2="68" stroke="#00FF88" stroke-width="2.5" opacity="0.45"/>
+              <line x1="8" y1="40" x2="14" y2="40" stroke="#00FF88" stroke-width="2.5" opacity="0.45"/>
+              <line x1="14" y1="56" x2="20" y2="56" stroke="#00FF88" stroke-width="2.5" opacity="0.45"/>
+              <!-- bar 2 -->
+              <line x1="36" y1="18" x2="36" y2="64" stroke="#00FF88" stroke-width="2.5" opacity="0.55"/>
+              <line x1="30" y1="48" x2="36" y2="48" stroke="#00FF88" stroke-width="2.5" opacity="0.55"/>
+              <line x1="36" y1="28" x2="42" y2="28" stroke="#00FF88" stroke-width="2.5" opacity="0.55"/>
+              <!-- bar 3 -->
+              <line x1="58" y1="22" x2="58" y2="70" stroke="#00FF88" stroke-width="2.5" opacity="0.5"/>
+              <line x1="52" y1="34" x2="58" y2="34" stroke="#00FF88" stroke-width="2.5" opacity="0.5"/>
+              <line x1="58" y1="58" x2="64" y2="58" stroke="#00FF88" stroke-width="2.5" opacity="0.5"/>
+              <!-- bar 4 -->
+              <line x1="80" y1="10" x2="80" y2="58" stroke="#00FF88" stroke-width="2.5" opacity="0.75"/>
+              <line x1="74" y1="42" x2="80" y2="42" stroke="#00FF88" stroke-width="2.5" opacity="0.75"/>
+              <line x1="80" y1="18" x2="86" y2="18" stroke="#00FF88" stroke-width="2.5" opacity="0.75"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="80" viewBox="0 0 108 80">
+              <line x1="14" y1="28" x2="14" y2="68" stroke="#00FF88" stroke-width="2.5" opacity="0.5"/>
+              <line x1="8" y1="40" x2="14" y2="40" stroke="#00FF88" stroke-width="2.5" opacity="0.5"/>
+              <line x1="14" y1="56" x2="20" y2="56" stroke="#00FF88" stroke-width="2.5" opacity="0.5"/>
+              <line x1="36" y1="18" x2="36" y2="64" stroke="#00FF88" stroke-width="2.5" opacity="0.6"/>
+              <line x1="30" y1="48" x2="36" y2="48" stroke="#00FF88" stroke-width="2.5" opacity="0.6"/>
+              <line x1="36" y1="28" x2="42" y2="28" stroke="#00FF88" stroke-width="2.5" opacity="0.6"/>
+              <line x1="58" y1="22" x2="58" y2="70" stroke="#00FF88" stroke-width="2.5" opacity="0.55"/>
+              <line x1="52" y1="34" x2="58" y2="34" stroke="#00FF88" stroke-width="2.5" opacity="0.55"/>
+              <line x1="58" y1="58" x2="64" y2="58" stroke="#00FF88" stroke-width="2.5" opacity="0.55"/>
+              <line x1="80" y1="10" x2="80" y2="58" stroke="#00FF88" stroke-width="2.5" opacity="0.85"/>
+              <line x1="74" y1="42" x2="80" y2="42" stroke="#00FF88" stroke-width="2.5" opacity="0.85"/>
+              <line x1="80" y1="18" x2="86" y2="18" stroke="#00FF88" stroke-width="2.5" opacity="0.85"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Classic OHLC price bars — reads as a tape, not a volume histogram.</p>
+    </article>
+
+    <!-- R2 Candles mixed -->
+    <article class="card">
+      <div class="card-header">
+        <h2>R2 — Mixed Candles</h2>
+        <span>Bodies + wicks · up/down sessions</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="112" height="82" viewBox="0 0 112 82">
+              <!-- down-ish hollow -->
+              <line x1="16" y1="20" x2="16" y2="68" stroke="#00FF88" stroke-width="2" opacity="0.4"/>
+              <rect x="10" y="28" width="12" height="22" rx="1.5" fill="none" stroke="#00FF88" stroke-width="2" opacity="0.45"/>
+              <!-- up solid -->
+              <line x1="38" y1="14" x2="38" y2="64" stroke="#00FF88" stroke-width="2" opacity="0.55"/>
+              <rect x="32" y="24" width="12" height="26" rx="1.5" fill="#00FF88" opacity="0.5"/>
+              <!-- small down -->
+              <line x1="60" y1="26" x2="60" y2="70" stroke="#00FF88" stroke-width="2" opacity="0.4"/>
+              <rect x="54" y="38" width="12" height="18" rx="1.5" fill="none" stroke="#00FF88" stroke-width="2" opacity="0.4"/>
+              <!-- strong up -->
+              <line x1="82" y1="8" x2="82" y2="58" stroke="#00FF88" stroke-width="2" opacity="0.75"/>
+              <rect x="76" y="14" width="12" height="32" rx="1.5" fill="#00FF88" opacity="0.7"/>
+              <!-- last up tip -->
+              <line x1="100" y1="18" x2="100" y2="52" stroke="#00FF88" stroke-width="2" opacity="0.55"/>
+              <rect x="94" y="22" width="12" height="16" rx="1.5" fill="#00FF88" opacity="0.55"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="112" height="82" viewBox="0 0 112 82">
+              <line x1="16" y1="20" x2="16" y2="68" stroke="#00FF88" stroke-width="2" opacity="0.45"/>
+              <rect x="10" y="28" width="12" height="22" rx="1.5" fill="none" stroke="#00FF88" stroke-width="2" opacity="0.5"/>
+              <line x1="38" y1="14" x2="38" y2="64" stroke="#00FF88" stroke-width="2" opacity="0.6"/>
+              <rect x="32" y="24" width="12" height="26" rx="1.5" fill="#00FF88" opacity="0.55"/>
+              <line x1="60" y1="26" x2="60" y2="70" stroke="#00FF88" stroke-width="2" opacity="0.45"/>
+              <rect x="54" y="38" width="12" height="18" rx="1.5" fill="none" stroke="#00FF88" stroke-width="2" opacity="0.45"/>
+              <line x1="82" y1="8" x2="82" y2="58" stroke="#00FF88" stroke-width="2" opacity="0.8"/>
+              <rect x="76" y="14" width="12" height="32" rx="1.5" fill="#00FF88" opacity="0.75"/>
+              <line x1="100" y1="18" x2="100" y2="52" stroke="#00FF88" stroke-width="2" opacity="0.6"/>
+              <rect x="94" y="22" width="12" height="16" rx="1.5" fill="#00FF88" opacity="0.6"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Real candle language: solid = up, hollow = down, wicks for range. Still overall rising.</p>
+    </article>
+
+    <!-- R3 Pullback -->
+    <article class="card">
+      <div class="card-header">
+        <h2>R3 — Climb + Pullback</h2>
+        <span>Market path, not a staircase</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="78" viewBox="0 0 108 78">
+              <rect x="6" y="46" width="11" height="24" rx="2" fill="#00FF88" opacity="0.3"/>
+              <rect x="22" y="34" width="11" height="36" rx="2" fill="#00FF88" opacity="0.4"/>
+              <rect x="38" y="18" width="11" height="52" rx="2" fill="#00FF88" opacity="0.55"/>
+              <rect x="54" y="30" width="11" height="40" rx="2" fill="#00FF88" opacity="0.35"/>
+              <rect x="70" y="24" width="11" height="46" rx="2" fill="#00FF88" opacity="0.5"/>
+              <rect x="86" y="8" width="11" height="62" rx="2" fill="#00FF88" opacity="0.75"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="78" viewBox="0 0 108 78">
+              <rect x="6" y="46" width="11" height="24" rx="2" fill="#00FF88" opacity="0.3"/>
+              <rect x="22" y="34" width="11" height="36" rx="2" fill="#00FF88" opacity="0.4"/>
+              <rect x="38" y="18" width="11" height="52" rx="2" fill="#00FF88" opacity="0.55"/>
+              <rect x="54" y="30" width="11" height="40" rx="2" fill="#00FF88" opacity="0.35"/>
+              <rect x="70" y="24" width="11" height="46" rx="2" fill="#00FF88" opacity="0.5"/>
+              <rect x="86" y="8" width="11" height="62" rx="2" fill="#00FF88" opacity="0.75"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Heights: up, up, peak, dip, recover, breakout — feels like a session, not a logo stair.</p>
+    </article>
+
+    <!-- R4 Volume under price -->
+    <article class="card">
+      <div class="card-header">
+        <h2>R4 — Price + Volume</h2>
+        <span>Thin price bars over volume stubs</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="112" height="84" viewBox="0 0 112 84">
+              <!-- volume -->
+              <rect x="8" y="64" width="10" height="12" rx="1" fill="#00FF88" opacity="0.2"/>
+              <rect x="26" y="58" width="10" height="18" rx="1" fill="#00FF88" opacity="0.28"/>
+              <rect x="44" y="54" width="10" height="22" rx="1" fill="#00FF88" opacity="0.35"/>
+              <rect x="62" y="60" width="10" height="16" rx="1" fill="#00FF88" opacity="0.25"/>
+              <rect x="80" y="50" width="10" height="26" rx="1" fill="#00FF88" opacity="0.4"/>
+              <rect x="98" y="56" width="10" height="20" rx="1" fill="#00FF88" opacity="0.3"/>
+              <!-- price candles -->
+              <line x1="13" y1="22" x2="13" y2="58" stroke="#00FF88" stroke-width="1.75" opacity="0.55"/>
+              <rect x="9" y="34" width="8" height="14" rx="1" fill="#00FF88" opacity="0.45"/>
+              <line x1="31" y1="14" x2="31" y2="52" stroke="#00FF88" stroke-width="1.75" opacity="0.65"/>
+              <rect x="27" y="22" width="8" height="18" rx="1" fill="#00FF88" opacity="0.55"/>
+              <line x1="49" y1="18" x2="49" y2="50" stroke="#00FF88" stroke-width="1.75" opacity="0.55"/>
+              <rect x="45" y="30" width="8" height="12" rx="1" fill="none" stroke="#00FF88" stroke-width="1.75" opacity="0.5"/>
+              <line x1="67" y1="26" x2="67" y2="56" stroke="#00FF88" stroke-width="1.75" opacity="0.5"/>
+              <rect x="63" y="36" width="8" height="12" rx="1" fill="none" stroke="#00FF88" stroke-width="1.75" opacity="0.45"/>
+              <line x1="85" y1="8" x2="85" y2="46" stroke="#00FF88" stroke-width="1.75" opacity="0.8"/>
+              <rect x="81" y="12" width="8" height="22" rx="1" fill="#00FF88" opacity="0.7"/>
+              <line x1="103" y1="16" x2="103" y2="50" stroke="#00FF88" stroke-width="1.75" opacity="0.65"/>
+              <rect x="99" y="20" width="8" height="16" rx="1" fill="#00FF88" opacity="0.6"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="112" height="84" viewBox="0 0 112 84">
+              <rect x="8" y="64" width="10" height="12" rx="1" fill="#00FF88" opacity="0.22"/>
+              <rect x="26" y="58" width="10" height="18" rx="1" fill="#00FF88" opacity="0.3"/>
+              <rect x="44" y="54" width="10" height="22" rx="1" fill="#00FF88" opacity="0.38"/>
+              <rect x="62" y="60" width="10" height="16" rx="1" fill="#00FF88" opacity="0.28"/>
+              <rect x="80" y="50" width="10" height="26" rx="1" fill="#00FF88" opacity="0.42"/>
+              <rect x="98" y="56" width="10" height="20" rx="1" fill="#00FF88" opacity="0.32"/>
+              <line x1="13" y1="22" x2="13" y2="58" stroke="#00FF88" stroke-width="1.75" opacity="0.6"/>
+              <rect x="9" y="34" width="8" height="14" rx="1" fill="#00FF88" opacity="0.5"/>
+              <line x1="31" y1="14" x2="31" y2="52" stroke="#00FF88" stroke-width="1.75" opacity="0.7"/>
+              <rect x="27" y="22" width="8" height="18" rx="1" fill="#00FF88" opacity="0.6"/>
+              <line x1="49" y1="18" x2="49" y2="50" stroke="#00FF88" stroke-width="1.75" opacity="0.6"/>
+              <rect x="45" y="30" width="8" height="12" rx="1" fill="none" stroke="#00FF88" stroke-width="1.75" opacity="0.55"/>
+              <line x1="67" y1="26" x2="67" y2="56" stroke="#00FF88" stroke-width="1.75" opacity="0.55"/>
+              <rect x="63" y="36" width="8" height="12" rx="1" fill="none" stroke="#00FF88" stroke-width="1.75" opacity="0.5"/>
+              <line x1="85" y1="8" x2="85" y2="46" stroke="#00FF88" stroke-width="1.75" opacity="0.85"/>
+              <rect x="81" y="12" width="8" height="22" rx="1" fill="#00FF88" opacity="0.75"/>
+              <line x1="103" y1="16" x2="103" y2="50" stroke="#00FF88" stroke-width="1.75" opacity="0.7"/>
+              <rect x="99" y="20" width="8" height="16" rx="1" fill="#00FF88" opacity="0.65"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Looks like a mini chart pane: volume underneath, candles on top.</p>
+    </article>
+
+    <!-- R5 Wick bars -->
+    <article class="card">
+      <div class="card-header">
+        <h2>R5 — Volume Bars + Wicks</h2>
+        <span>Histogram with high/low needles</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="80" viewBox="0 0 108 80">
+              <line x1="14" y1="30" x2="14" y2="42" stroke="#00FF88" stroke-width="2" opacity="0.45"/>
+              <rect x="8" y="42" width="12" height="26" rx="2" fill="#00FF88" opacity="0.35"/>
+              <line x1="14" y1="68" x2="14" y2="74" stroke="#00FF88" stroke-width="2" opacity="0.45"/>
+
+              <line x1="34" y1="18" x2="34" y2="30" stroke="#00FF88" stroke-width="2" opacity="0.55"/>
+              <rect x="28" y="30" width="12" height="34" rx="2" fill="#00FF88" opacity="0.45"/>
+              <line x1="34" y1="64" x2="34" y2="72" stroke="#00FF88" stroke-width="2" opacity="0.55"/>
+
+              <line x1="54" y1="24" x2="54" y2="38" stroke="#00FF88" stroke-width="2" opacity="0.4"/>
+              <rect x="48" y="38" width="12" height="24" rx="2" fill="#00FF88" opacity="0.35"/>
+              <line x1="54" y1="62" x2="54" y2="72" stroke="#00FF88" stroke-width="2" opacity="0.4"/>
+
+              <line x1="74" y1="12" x2="74" y2="26" stroke="#00FF88" stroke-width="2" opacity="0.6"/>
+              <rect x="68" y="26" width="12" height="38" rx="2" fill="#00FF88" opacity="0.55"/>
+              <line x1="74" y1="64" x2="74" y2="72" stroke="#00FF88" stroke-width="2" opacity="0.6"/>
+
+              <line x1="94" y1="6" x2="94" y2="16" stroke="#00FF88" stroke-width="2" opacity="0.8"/>
+              <rect x="88" y="16" width="12" height="48" rx="2" fill="#00FF88" opacity="0.7"/>
+              <line x1="94" y1="64" x2="94" y2="74" stroke="#00FF88" stroke-width="2" opacity="0.8"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="80" viewBox="0 0 108 80">
+              <line x1="14" y1="30" x2="14" y2="42" stroke="#00FF88" stroke-width="2" opacity="0.5"/>
+              <rect x="8" y="42" width="12" height="26" rx="2" fill="#00FF88" opacity="0.4"/>
+              <line x1="14" y1="68" x2="14" y2="74" stroke="#00FF88" stroke-width="2" opacity="0.5"/>
+              <line x1="34" y1="18" x2="34" y2="30" stroke="#00FF88" stroke-width="2" opacity="0.6"/>
+              <rect x="28" y="30" width="12" height="34" rx="2" fill="#00FF88" opacity="0.5"/>
+              <line x1="34" y1="64" x2="34" y2="72" stroke="#00FF88" stroke-width="2" opacity="0.6"/>
+              <line x1="54" y1="24" x2="54" y2="38" stroke="#00FF88" stroke-width="2" opacity="0.45"/>
+              <rect x="48" y="38" width="12" height="24" rx="2" fill="#00FF88" opacity="0.4"/>
+              <line x1="54" y1="62" x2="54" y2="72" stroke="#00FF88" stroke-width="2" opacity="0.45"/>
+              <line x1="74" y1="12" x2="74" y2="26" stroke="#00FF88" stroke-width="2" opacity="0.65"/>
+              <rect x="68" y="26" width="12" height="38" rx="2" fill="#00FF88" opacity="0.6"/>
+              <line x1="74" y1="64" x2="74" y2="72" stroke="#00FF88" stroke-width="2" opacity="0.65"/>
+              <line x1="94" y1="6" x2="94" y2="16" stroke="#00FF88" stroke-width="2" opacity="0.85"/>
+              <rect x="88" y="16" width="12" height="48" rx="2" fill="#00FF88" opacity="0.75"/>
+              <line x1="94" y1="64" x2="94" y2="74" stroke="#00FF88" stroke-width="2" opacity="0.85"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Keeps the rising-bar silhouette you liked, but adds wicks so it reads as price range.</p>
+    </article>
+
+    <!-- R6 Dual tone green/muted -->
+    <article class="card">
+      <div class="card-header">
+        <h2>R6 — Up / Down Tone</h2>
+        <span>Bright green up · muted down</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="78" viewBox="0 0 108 78">
+              <rect x="6" y="44" width="11" height="26" rx="2" fill="#00FF88" opacity="0.55"/>
+              <rect x="22" y="30" width="11" height="40" rx="2" fill="#00FF88" opacity="0.7"/>
+              <rect x="38" y="38" width="11" height="32" rx="2" fill="#8B8FA3" opacity="0.45"/>
+              <rect x="54" y="22" width="11" height="48" rx="2" fill="#00FF88" opacity="0.65"/>
+              <rect x="70" y="28" width="11" height="42" rx="2" fill="#8B8FA3" opacity="0.4"/>
+              <rect x="86" y="8" width="11" height="62" rx="2" fill="#00FF88" opacity="0.85"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="78" viewBox="0 0 108 78">
+              <rect x="6" y="44" width="11" height="26" rx="2" fill="#00FF88" opacity="0.6"/>
+              <rect x="22" y="30" width="11" height="40" rx="2" fill="#00FF88" opacity="0.75"/>
+              <rect x="38" y="38" width="11" height="32" rx="2" fill="#8B8FA3" opacity="0.55"/>
+              <rect x="54" y="22" width="11" height="48" rx="2" fill="#00FF88" opacity="0.7"/>
+              <rect x="70" y="28" width="11" height="42" rx="2" fill="#8B8FA3" opacity="0.5"/>
+              <rect x="86" y="8" width="11" height="62" rx="2" fill="#00FF88" opacity="0.9"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Green = up sessions, cool gray = down. Reads like a mini P&amp;L tape without red.</p>
+    </article>
+
+    <!-- R7 Dense tape -->
+    <article class="card">
+      <div class="card-header">
+        <h2>R7 — Dense Tape</h2>
+        <span>More bars · tighter market feel</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="118" height="78" viewBox="0 0 118 78">
+              <rect x="4" y="48" width="7" height="22" rx="1.5" fill="#00FF88" opacity="0.28"/>
+              <rect x="14" y="40" width="7" height="30" rx="1.5" fill="#00FF88" opacity="0.34"/>
+              <rect x="24" y="28" width="7" height="42" rx="1.5" fill="#00FF88" opacity="0.42"/>
+              <rect x="34" y="34" width="7" height="36" rx="1.5" fill="#00FF88" opacity="0.32"/>
+              <rect x="44" y="20" width="7" height="50" rx="1.5" fill="#00FF88" opacity="0.5"/>
+              <rect x="54" y="26" width="7" height="44" rx="1.5" fill="#00FF88" opacity="0.38"/>
+              <rect x="64" y="16" width="7" height="54" rx="1.5" fill="#00FF88" opacity="0.55"/>
+              <rect x="74" y="30" width="7" height="40" rx="1.5" fill="#00FF88" opacity="0.35"/>
+              <rect x="84" y="12" width="7" height="58" rx="1.5" fill="#00FF88" opacity="0.62"/>
+              <rect x="94" y="18" width="7" height="52" rx="1.5" fill="#00FF88" opacity="0.48"/>
+              <rect x="104" y="6" width="7" height="64" rx="1.5" fill="#00FF88" opacity="0.8"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="118" height="78" viewBox="0 0 118 78">
+              <rect x="4" y="48" width="7" height="22" rx="1.5" fill="#00FF88" opacity="0.3"/>
+              <rect x="14" y="40" width="7" height="30" rx="1.5" fill="#00FF88" opacity="0.36"/>
+              <rect x="24" y="28" width="7" height="42" rx="1.5" fill="#00FF88" opacity="0.45"/>
+              <rect x="34" y="34" width="7" height="36" rx="1.5" fill="#00FF88" opacity="0.35"/>
+              <rect x="44" y="20" width="7" height="50" rx="1.5" fill="#00FF88" opacity="0.52"/>
+              <rect x="54" y="26" width="7" height="44" rx="1.5" fill="#00FF88" opacity="0.4"/>
+              <rect x="64" y="16" width="7" height="54" rx="1.5" fill="#00FF88" opacity="0.58"/>
+              <rect x="74" y="30" width="7" height="40" rx="1.5" fill="#00FF88" opacity="0.38"/>
+              <rect x="84" y="12" width="7" height="58" rx="1.5" fill="#00FF88" opacity="0.65"/>
+              <rect x="94" y="18" width="7" height="52" rx="1.5" fill="#00FF88" opacity="0.5"/>
+              <rect x="104" y="6" width="7" height="64" rx="1.5" fill="#00FF88" opacity="0.85"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">More columns = more “price history,” less abstract icon.</p>
+    </article>
+  </div>
+</body>
+</html>

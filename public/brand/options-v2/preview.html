@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edge Logo Concepts v2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: #0A0B0E;
+      color: #E8E9ED;
+      min-height: 100vh;
+      padding: 48px 32px 80px;
+    }
+    header { max-width: 1100px; margin: 0 auto 36px; }
+    h1 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .lede { color: #8B8FA3; line-height: 1.6; max-width: 720px; }
+    .note {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #1E2030;
+      background: #12131A;
+      color: #8B8FA3;
+      font-size: 0.9rem;
+      max-width: 720px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #12131A;
+      border: 1px solid #1E2030;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 18px 22px 12px;
+      border-bottom: 1px solid #1E2030;
+    }
+    .card-header h2 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .card-header span { color: #5A5E73; font-size: 0.82rem; }
+    .preview-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      min-height: 130px;
+    }
+    .preview-row.dark { background: #0A0B0E; }
+    .preview-row.light { background: #F4F5F7; border-top: 1px solid #1E2030; }
+    .desc {
+      padding: 14px 22px 20px;
+      color: #8B8FA3;
+      font-size: 0.88rem;
+      line-height: 1.55;
+      border-top: 1px solid #1E2030;
+    }
+
+    /* Shared wordmark base */
+    .wm {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 42px;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .wm.dark { color: #E8E9ED; }
+    .wm.light { color: #0A0B0E; }
+
+    /* 1 — Pure type, green E */
+    .c1 .accent { color: #00FF88; }
+
+    /* 2 — Soft caps */
+    .c2 .wm {
+      font-size: 34px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .c2 .dot { color: #00FF88; letter-spacing: 0; }
+
+    /* 3 — Green hairline under E */
+    .c3 .mark-e { position: relative; display: inline-block; }
+    .c3 .mark-e::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 2px;
+      bottom: -6px;
+      height: 2px;
+      background: #00FF88;
+      border-radius: 1px;
+    }
+
+    /* 4 — Slash mark */
+    .slash {
+      width: 18px;
+      height: 42px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .slash::before {
+      content: "";
+      position: absolute;
+      inset: 4px 0;
+      width: 3px;
+      left: 50%;
+      transform: translateX(-50%) rotate(22deg);
+      background: #00FF88;
+      border-radius: 2px;
+    }
+
+    /* 5 — Corner tick mark */
+    .tick {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+    .tick svg { width: 100%; height: 100%; display: block; }
+
+    /* 6 — Cursor / caret */
+    .caret {
+      width: 3px;
+      height: 28px;
+      background: #00FF88;
+      border-radius: 1px;
+      margin-left: 2px;
+      animation: blink 1.2s steps(1) infinite;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+    .c6 .wm { gap: 6px; }
+
+    /* Favicon strip */
+    .favicon-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      padding: 0 22px 18px;
+    }
+    .fav {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #1E2030;
+      background: #0A0B0E;
+      overflow: hidden;
+    }
+    .fav.light-bg { background: #F4F5F7; }
+    .fav-letter {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      color: #00FF88;
+      letter-spacing: -0.04em;
+    }
+    .fav-mark { width: 16px; height: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Edge Logo Concepts — Round 2</h1>
+    <p class="lede">
+      Fresh set. No signal bars, no wedge cuts, no chart tiles, no bevel badges.
+      These lean on real Space Grotesk type and tiny accents — closer to how serious product brands ship.
+    </p>
+    <p class="note">Look for the one that feels least “logo-y” and most like a product you’d trust with money.</p>
+  </header>
+
+  <div class="grid">
+    <!-- 1 -->
+    <article class="card c1">
+      <div class="card-header">
+        <h2>1 — Green E</h2>
+        <span>Pure wordmark · zero icon</span>
+      </div>
+      <div class="preview-row dark">
+        <div class="wm dark"><span class="accent">E</span>dge</div>
+      </div>
+      <div class="preview-row light">
+        <div class="wm light"><span class="accent">E</span>dge</div>
+      </div>
+      <div class="favicon-row">
+        <div class="fav"><span class="fav-letter">E</span></div>
+        <div class="fav light-bg"><span class="fav-letter">E</span></div>
+      </div>
+      <p class="desc">Simplest possible identity. The green first letter is the whole brand gesture. Favicon is just E.</p>
+    </article>
+
+    <!-- 2 -->
+    <article class="card c2">
+      <div class="card-header">
+        <h2>2 — Soft Caps</h2>
+        <span>Editorial · wide tracking</span>
+      </div>
+      <div class="preview-row dark">
+        <div class="wm dark">Edge<span class="dot">.</span></div>
+      </div>
+      <div class="preview-row light">
+        <div class="wm light">Edge<span class="dot">.</span></div>
+      </div>
+      <div class="favicon-row">
+        <div class="fav"><span class="fav-letter" style="font-size:14px;letter-spacing:0.08em">EDGE</span></div>
+        <div class="fav light-bg"><span class="fav-letter" style="font-size:14px;letter-spacing:0.08em;color:#0A0B0E">EDGE</span></div>
+      </div>
+      <p class="desc">Medium-weight caps, open spacing, green period. Feels more magazine/terminal than startup sticker.</p>
+    </article>
+
+    <!-- 3 -->
+    <article class="card c3">
+      <div class="card-header">
+        <h2>3 — Hairline</h2>
+        <span>Underline accent under E</span>
+      </div>
+      <div class="preview-row dark">
+        <div class="wm dark"><span class="mark-e">E</span>dge</div>
+      </div>
+      <div class="preview-row light">
+        <div class="wm light"><span class="mark-e">E</span>dge</div>
+      </div>
+      <div class="favicon-row">
+        <div class="fav"><span class="fav-letter" style="border-bottom:2px solid #00FF88;line-height:1;padding-bottom:1px">E</span></div>
+        <div class="fav light-bg"><span class="fav-letter" style="border-bottom:2px solid #00FF88;line-height:1;padding-bottom:1px">E</span></div>
+      </div>
+      <p class="desc">All letters stay neutral; a single green hairline under the E does the work. Quiet and precise.</p>
+    </article>
+
+    <!-- 4 -->
+    <article class="card c4">
+      <div class="card-header">
+        <h2>4 — Slash</h2>
+        <span>Abstract mark + wordmark</span>
+      </div>
+      <div class="preview-row dark">
+        <div class="wm dark"><span class="slash" aria-hidden="true"></span>Edge</div>
+      </div>
+      <div class="preview-row light">
+        <div class="wm light"><span class="slash" aria-hidden="true"></span>Edge</div>
+      </div>
+      <div class="favicon-row">
+        <div class="fav"><span class="slash" style="height:18px;width:10px"></span></div>
+        <div class="fav light-bg"><span class="slash" style="height:18px;width:10px"></span></div>
+      </div>
+      <p class="desc">One green slash as the mark. No letter, no chart. Scales cleanly as a favicon.</p>
+    </article>
+
+    <!-- 5 -->
+    <article class="card c5">
+      <div class="card-header">
+        <h2>5 — Corner Tick</h2>
+        <span>Tiny geometry · not a chart</span>
+      </div>
+      <div class="preview-row dark">
+        <div class="wm dark">
+          <span class="tick" aria-hidden="true">
+            <svg viewBox="0 0 28 28" fill="none">
+              <path d="M6 22V8" stroke="#8B8FA3" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 22H20" stroke="#8B8FA3" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 22L20 8" stroke="#00FF88" stroke-width="2.25" stroke-linecap="round"/>
+            </svg>
+          </span>
+          Edge
+        </div>
+      </div>
+      <div class="preview-row light">
+        <div class="wm light">
+          <span class="tick" aria-hidden="true">
+            <svg viewBox="0 0 28 28" fill="none">
+              <path d="M6 22V8" stroke="#8B8FA3" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 22H20" stroke="#8B8FA3" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 22L20 8" stroke="#00FF88" stroke-width="2.25" stroke-linecap="round"/>
+            </svg>
+          </span>
+          Edge
+        </div>
+      </div>
+      <div class="favicon-row">
+        <div class="fav">
+          <svg class="fav-mark" viewBox="0 0 28 28" fill="none">
+            <path d="M6 22V8" stroke="#8B8FA3" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M6 22H20" stroke="#8B8FA3" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M6 22L20 8" stroke="#00FF88" stroke-width="2.75" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="fav light-bg">
+          <svg class="fav-mark" viewBox="0 0 28 28" fill="none">
+            <path d="M6 22V8" stroke="#5A5E73" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M6 22H20" stroke="#5A5E73" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M6 22L20 8" stroke="#00FF88" stroke-width="2.75" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <p class="desc">Smaller and calmer than the old Apex Corner — just axes + one green diagonal. Mark can stand alone.</p>
+    </article>
+
+    <!-- 6 -->
+    <article class="card c6">
+      <div class="card-header">
+        <h2>6 — Cursor</h2>
+        <span>Terminal · live session</span>
+      </div>
+      <div class="preview-row dark">
+        <div class="wm dark">Edge<span class="caret" aria-hidden="true"></span></div>
+      </div>
+      <div class="preview-row light">
+        <div class="wm light">Edge<span class="caret" aria-hidden="true"></span></div>
+      </div>
+      <div class="favicon-row">
+        <div class="fav"><span style="width:3px;height:14px;background:#00FF88;border-radius:1px;display:block"></span></div>
+        <div class="fav light-bg"><span style="width:3px;height:14px;background:#00FF88;border-radius:1px;display:block"></span></div>
+      </div>
+      <p class="desc">Wordmark plus a green caret. Suggests an active workspace / prompt. Favicon is just the caret (may be too thin — easy to thicken later).</p>
+    </article>
+  </div>
+</body>
+</html>

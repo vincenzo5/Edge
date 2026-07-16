@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Edge">
+  <rect width="128" height="128" rx="24" fill="#0A0B0E"/>
+  <g transform="translate(12, 20) scale(0.75)">
+    <line x1="16" y1="22" x2="16" y2="86" stroke="#00FF88" stroke-width="3" opacity="0.45"/>
+    <rect x="8" y="32" width="16" height="30" rx="2" fill="none" stroke="#00FF88" stroke-width="3" opacity="0.5"/>
+    <line x1="42" y1="12" x2="42" y2="80" stroke="#00FF88" stroke-width="3" opacity="0.6"/>
+    <rect x="34" y="26" width="16" height="34" rx="2" fill="#00FF88" opacity="0.55"/>
+    <line x1="68" y1="30" x2="68" y2="88" stroke="#00FF88" stroke-width="3" opacity="0.4"/>
+    <rect x="60" y="44" width="16" height="24" rx="2" fill="none" stroke="#00FF88" stroke-width="3" opacity="0.45"/>
+    <line x1="94" y1="4" x2="94" y2="74" stroke="#00FF88" stroke-width="3" opacity="0.85"/>
+    <rect x="86" y="12" width="16" height="42" rx="2" fill="#00FF88" opacity="0.75"/>
+    <line x1="118" y1="20" x2="118" y2="68" stroke="#00FF88" stroke-width="3" opacity="0.6"/>
+    <rect x="110" y="24" width="16" height="22" rx="2" fill="#00FF88" opacity="0.6"/>
+  </g>
+</svg>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edge Logo — R2 Locked</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "DM Sans", system-ui, sans-serif; background: #0A0B0E; color: #E8E9ED; padding: 48px 32px 80px; }
+    header { max-width: 900px; margin: 0 auto 28px; }
+    h1 { font-family: "Space Grotesk", system-ui, sans-serif; font-size: 1.75rem; letter-spacing: -0.03em; margin-bottom: 8px; }
+    .lede { color: #8B8FA3; line-height: 1.55; max-width: 640px; }
+    .badge {
+      display: inline-block; margin-top: 14px; padding: 4px 10px; border-radius: 999px;
+      background: rgba(0,255,136,.1); color: #00FF88; font-size: 0.78rem; font-weight: 600;
+    }
+    .card {
+      max-width: 900px; margin: 0 auto 20px; background: #12131A;
+      border: 1px solid #1E2030; border-radius: 16px; overflow: hidden;
+    }
+    .label { padding: 14px 20px; color: #5A5E73; font-size: 0.85rem; border-bottom: 1px solid #1E2030; }
+    .preview { display: flex; align-items: center; justify-content: center; padding: 56px 32px; }
+    .preview.dark { background: #0A0B0E; }
+    .preview.light { background: #F4F5F7; }
+    .preview img, .preview object { width: min(100%, 420px); height: auto; }
+    .meta { max-width: 900px; margin: 24px auto 0; color: #8B8FA3; font-size: 0.9rem; line-height: 1.55; }
+    .meta code { color: #E8E9ED; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Locked: R2 Mixed Candles + Cursor</h1>
+    <p class="lede">Phase 1 concept locked. Wordmark = Edge. Middle mark = mixed candles behind <em>dg</em>.</p>
+    <span class="badge">SELECTED</span>
+  </header>
+
+  <div class="card">
+    <div class="label">Dark background — logo-full-light.svg</div>
+    <div class="preview dark">
+      <img src="/logo-full-light.svg" alt="Edge logo on dark" width="420" height="165" />
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Light background — logo-full-dark.svg</div>
+    <div class="preview light">
+      <img src="/logo-full-dark.svg" alt="Edge logo on light" width="420" height="165" />
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Icon mark only — candles</div>
+    <div class="preview dark">
+      <img src="/options-v2/selected-r2-icon.svg" alt="Edge candle mark" width="200" height="140" />
+    </div>
+  </div>
+
+  <p class="meta">
+    Next (Phase 2): LogoLoom <code>export_brand_kit</code> → favicon, PNG sizes, OG image, updated <code>BRAND.md</code>.
+  </p>
+</body>
+</html>

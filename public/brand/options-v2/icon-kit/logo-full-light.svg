@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100" role="img" aria-label="Edge mark">
-  <!-- Icon-only: R2 Mixed Candles -->
+  <rect width="140" height="100" fill="#0A0B0E"/>
   <line x1="16" y1="22" x2="16" y2="86" stroke="#00FF88" stroke-width="3" opacity="0.45"/>
   <rect x="8" y="32" width="16" height="30" rx="2" fill="none" stroke="#00FF88" stroke-width="3" opacity="0.5"/>
   <line x1="42" y1="12" x2="42" y2="80" stroke="#00FF88" stroke-width="3" opacity="0.6"/>

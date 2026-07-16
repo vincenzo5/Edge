@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edge — Cursor + DG Concepts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: #0A0B0E;
+      color: #E8E9ED;
+      padding: 48px 32px 80px;
+    }
+    header { max-width: 1100px; margin: 0 auto 32px; }
+    h1 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 1.85rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .lede { color: #8B8FA3; line-height: 1.6; max-width: 760px; }
+    .base {
+      margin-top: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 1px solid #1E2030;
+      background: #12131A;
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+    .base .caret {
+      width: 3px; height: 22px; background: #00FF88; border-radius: 1px;
+      animation: blink 1.2s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 18px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #12131A;
+      border: 1px solid #1E2030;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 20px 10px;
+      border-bottom: 1px solid #1E2030;
+    }
+    .card-header h2 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 1rem;
+      margin-bottom: 2px;
+    }
+    .card-header span { color: #5A5E73; font-size: 0.8rem; }
+    .preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 120px;
+      padding: 36px 20px;
+      background: #0A0B0E;
+    }
+    .preview.light {
+      background: #F4F5F7;
+      border-top: 1px solid #1E2030;
+    }
+    .desc {
+      padding: 14px 20px 18px;
+      color: #8B8FA3;
+      font-size: 0.86rem;
+      line-height: 1.55;
+      border-top: 1px solid #1E2030;
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 44px;
+      letter-spacing: -0.045em;
+      line-height: 1;
+      color: #E8E9ED;
+    }
+    .preview.light .logo { color: #0A0B0E; }
+    .logo .caret {
+      width: 3px; height: 30px; margin-left: 5px;
+      background: #00FF88; border-radius: 1px;
+      animation: blink 1.2s steps(1) infinite;
+    }
+    .dg {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+      margin: 0 1px;
+    }
+
+    /* A — Candles in bowls */
+    .a-dg {
+      width: 52px; height: 44px;
+      margin: 0 2px -2px;
+    }
+
+    /* B — Spark through counters */
+    .b-dg {
+      position: relative;
+      display: inline-block;
+    }
+    .b-dg .letters { color: inherit; opacity: 0.92; }
+    .b-spark {
+      position: absolute;
+      left: 2px; right: 2px; top: 42%;
+      height: 0;
+      pointer-events: none;
+    }
+    .b-spark svg { width: 100%; height: 14px; overflow: visible; }
+
+    /* C — Twin panes (d|g as chart panes) */
+    .c-panes {
+      display: inline-flex;
+      gap: 3px;
+      height: 36px;
+      margin: 0 4px 2px;
+      align-items: flex-end;
+    }
+    .c-pane {
+      width: 18px;
+      border: 1.5px solid #8B8FA3;
+      border-radius: 3px 3px 0 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .c-pane.left { height: 28px; }
+    .c-pane.right { height: 36px; }
+    .c-pane .fill {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      background: #00FF88;
+      opacity: 0.85;
+    }
+    .c-pane.left .fill { height: 55%; }
+    .c-pane.right .fill { height: 78%; }
+
+    /* D — Bid/ask gap between d and g */
+    .d-pair { display: inline-flex; align-items: baseline; gap: 0; }
+    .d-pair .spread {
+      width: 4px; height: 22px;
+      margin: 0 1px 4px;
+      background: #00FF88;
+      border-radius: 1px;
+      align-self: center;
+    }
+
+    /* E — Breakout wedge between d/g */
+    .e-mid {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+    }
+    .e-mid .wedge {
+      width: 14px; height: 34px;
+      margin: 0 -1px;
+    }
+
+    /* F — Mountain / peak using dg counters */
+    .f-mid {
+      width: 54px; height: 40px;
+      margin: 0 2px -1px;
+    }
+
+    /* G — OHLC ticks as d and g stems */
+    .g-ohlc {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      height: 40px;
+      margin: 0 6px 0 4px;
+    }
+    .g-bar {
+      position: relative;
+      width: 3px;
+      height: 34px;
+      background: #8B8FA3;
+      border-radius: 1px;
+    }
+    .g-bar::before, .g-bar::after {
+      content: "";
+      position: absolute;
+      height: 3px;
+      background: #00FF88;
+      border-radius: 1px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .g-bar.d::before { width: 10px; top: 8px; margin-left: -4px; }
+    .g-bar.d::after { width: 7px; bottom: 6px; margin-left: 2px; }
+    .g-bar.g::before { width: 9px; top: 4px; margin-left: 3px; }
+    .g-bar.g::after { width: 11px; bottom: 10px; margin-left: -5px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Cursor base + “dg” concepts</h1>
+    <p class="lede">
+      Starting from #6: <strong style="color:#E8E9ED">Edge</strong> + green caret.
+      These keep <strong style="color:#E8E9ED">E</strong>…<strong style="color:#E8E9ED">e</strong>| intact and turn the middle <strong style="color:#E8E9ED">dg</strong> into something trading-native.
+    </p>
+    <div class="base">Edge<span class="caret"></span><span style="color:#5A5E73;font-size:14px;font-family:DM Sans;font-weight:400;margin-left:10px;letter-spacing:0">← base you liked</span></div>
+  </header>
+
+  <div class="grid">
+    <!-- A -->
+    <article class="card">
+      <div class="card-header">
+        <h2>A — Twin Candles</h2>
+        <span>d / g bowls → candle bodies</span>
+      </div>
+      <div class="preview">
+        <div class="logo">
+          E
+          <svg class="a-dg" viewBox="0 0 52 44" aria-label="dg as candles">
+            <!-- candle d -->
+            <line x1="14" y1="4" x2="14" y2="40" stroke="#8B8FA3" stroke-width="1.5" stroke-linecap="round"/>
+            <rect x="8" y="12" width="12" height="18" rx="1.5" fill="#00FF88"/>
+            <!-- candle g -->
+            <line x1="38" y1="6" x2="38" y2="42" stroke="#8B8FA3" stroke-width="1.5" stroke-linecap="round"/>
+            <rect x="32" y="10" width="12" height="14" rx="1.5" fill="#00FF88" opacity="0.55"/>
+            <rect x="32" y="24" width="12" height="10" rx="1.5" fill="none" stroke="#00FF88" stroke-width="1.5"/>
+          </svg>
+          e<span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="logo">
+          E
+          <svg class="a-dg" viewBox="0 0 52 44" aria-label="dg as candles">
+            <line x1="14" y1="4" x2="14" y2="40" stroke="#5A5E73" stroke-width="1.5" stroke-linecap="round"/>
+            <rect x="8" y="12" width="12" height="18" rx="1.5" fill="#00FF88"/>
+            <line x1="38" y1="6" x2="38" y2="42" stroke="#5A5E73" stroke-width="1.5" stroke-linecap="round"/>
+            <rect x="32" y="10" width="12" height="14" rx="1.5" fill="#00FF88" opacity="0.55"/>
+            <rect x="32" y="24" width="12" height="10" rx="1.5" fill="none" stroke="#00FF88" stroke-width="1.5"/>
+          </svg>
+          e<span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Replace dg with two candlesticks (bull body + mixed body). Still reads as E _ _ e| if you squint — very chart-native.</p>
+    </article>
+
+    <!-- B -->
+    <article class="card">
+      <div class="card-header">
+        <h2>B — Spark Through dg</h2>
+        <span>Keep letterforms · green line rides the counters</span>
+      </div>
+      <div class="preview">
+        <div class="logo">
+          E<span class="b-dg"><span class="letters">dg</span>
+            <span class="b-spark">
+              <svg viewBox="0 0 48 14" fill="none">
+                <path d="M2 11 L14 7 L26 9 L38 3 L46 5" stroke="#00FF88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </span>e<span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="logo">
+          E<span class="b-dg"><span class="letters">dg</span>
+            <span class="b-spark">
+              <svg viewBox="0 0 48 14" fill="none">
+                <path d="M2 11 L14 7 L26 9 L38 3 L46 5" stroke="#00FF88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </span>e<span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Letters stay legible; a micro sparkline cuts across dg like price action through the word. Safest for readability.</p>
+    </article>
+
+    <!-- C -->
+    <article class="card">
+      <div class="card-header">
+        <h2>C — Twin Panes</h2>
+        <span>d / g → linked chart panels</span>
+      </div>
+      <div class="preview">
+        <div class="logo">
+          E
+          <span class="c-panes" aria-hidden="true">
+            <span class="c-pane left"><span class="fill"></span></span>
+            <span class="c-pane right"><span class="fill"></span></span>
+          </span>
+          e<span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="logo">
+          E
+          <span class="c-panes" aria-hidden="true">
+            <span class="c-pane left" style="border-color:#5A5E73"><span class="fill"></span></span>
+            <span class="c-pane right" style="border-color:#5A5E73"><span class="fill"></span></span>
+          </span>
+          e<span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Two rising panes stand in for dg — chart + research / multi-pane workspace. Abstract, product-literal.</p>
+    </article>
+
+    <!-- D -->
+    <article class="card">
+      <div class="card-header">
+        <h2>D — Spread Gap</h2>
+        <span>Green tick between d and g</span>
+      </div>
+      <div class="preview">
+        <div class="logo">
+          E<span class="d-pair">d<span class="spread" title="spread"></span>g</span>e<span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="logo">
+          E<span class="d-pair">d<span class="spread" title="spread"></span>g</span>e<span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Keep real d and g; insert a green bid/ask spread bar between them. Subtle “edge in the market” metaphor.</p>
+    </article>
+
+    <!-- E -->
+    <article class="card">
+      <div class="card-header">
+        <h2>E — Breakout Wedge</h2>
+        <span>Negative space between d and g</span>
+      </div>
+      <div class="preview">
+        <div class="logo">
+          E<span class="e-mid">d
+            <svg class="wedge" viewBox="0 0 14 34" aria-hidden="true">
+              <path d="M1 30 L7 4 L13 30 Z" fill="#00FF88"/>
+            </svg>
+          g</span>e<span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="logo">
+          E<span class="e-mid">d
+            <svg class="wedge" viewBox="0 0 14 34" aria-hidden="true">
+              <path d="M1 30 L7 4 L13 30 Z" fill="#00FF88"/>
+            </svg>
+          g</span>e<span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">A green wedge “breaks out” between d and g — literal edge / breakout without wrecking the whole word.</p>
+    </article>
+
+    <!-- F -->
+    <article class="card">
+      <div class="card-header">
+        <h2>F — Peak / Apex</h2>
+        <span>dg silhouette as a mountain chart</span>
+      </div>
+      <div class="preview">
+        <div class="logo">
+          E
+          <svg class="f-mid" viewBox="0 0 54 40" aria-label="peak">
+            <path d="M4 34 L18 34 L27 8 L36 34 L50 34" fill="none" stroke="#E8E9ED" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="27" cy="8" r="3" fill="#00FF88"/>
+          </svg>
+          e<span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="logo">
+          E
+          <svg class="f-mid" viewBox="0 0 54 40" aria-label="peak">
+            <path d="M4 34 L18 34 L27 8 L36 34 L50 34" fill="none" stroke="#0A0B0E" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="27" cy="8" r="3" fill="#00FF88"/>
+          </svg>
+          e<span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Middle becomes a single peak with a green apex — “edge” as the high / inflection. Strong mark, weaker as letters.</p>
+    </article>
+
+    <!-- G -->
+    <article class="card">
+      <div class="card-header">
+        <h2>G — OHLC Stems</h2>
+        <span>d and g as two price bars</span>
+      </div>
+      <div class="preview">
+        <div class="logo">
+          E
+          <span class="g-ohlc" aria-hidden="true">
+            <span class="g-bar d"></span>
+            <span class="g-bar g"></span>
+          </span>
+          e<span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="logo">
+          E
+          <span class="g-ohlc" aria-hidden="true">
+            <span class="g-bar d" style="background:#5A5E73"></span>
+            <span class="g-bar g" style="background:#5A5E73"></span>
+          </span>
+          e<span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Two OHLC ticks stand in for dg. Ultra-trading, very abstract — may need the word “Edge” nearby in UI chrome.</p>
+    </article>
+  </div>
+</body>
+</html>

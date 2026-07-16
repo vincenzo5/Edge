@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edge — Behind Marks (alts)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: #0A0B0E;
+      color: #E8E9ED;
+      padding: 48px 32px 80px;
+    }
+    header { max-width: 1100px; margin: 0 auto 28px; }
+    h1 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 1.75rem;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .lede { color: #8B8FA3; line-height: 1.55; max-width: 760px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 18px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #12131A;
+      border: 1px solid #1E2030;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 20px 10px;
+      border-bottom: 1px solid #1E2030;
+    }
+    .card-header h2 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 1rem;
+      margin-bottom: 2px;
+    }
+    .card-header span { color: #5A5E73; font-size: 0.8rem; }
+    .preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 140px;
+      padding: 40px 24px;
+      background: #0A0B0E;
+    }
+    .preview.light {
+      background: #F4F5F7;
+      border-top: 1px solid #1E2030;
+    }
+    .desc {
+      padding: 12px 20px 16px;
+      color: #8B8FA3;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      border-top: 1px solid #1E2030;
+    }
+    .mark {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 52px;
+      letter-spacing: -0.045em;
+      line-height: 1;
+      color: #E8E9ED;
+    }
+    .preview.light .mark { color: #0A0B0E; }
+    .letters { position: relative; z-index: 2; }
+    .caret {
+      width: 3px; height: 34px; margin-left: 6px;
+      background: #00FF88; border-radius: 1px;
+      position: relative; z-index: 2;
+      animation: blink 1.2s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .behind {
+      position: absolute;
+      z-index: 1;
+      pointer-events: none;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Scoped to dg zone */
+    .mid {
+      position: relative;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Behind-the-type — other icons</h1>
+    <p class="lede">
+      Same setup you liked: <strong style="color:#E8E9ED">Edge</strong> + green caret, with a mark <em>behind</em> the middle.
+      No sparkline this time — different trading / “edge” shapes.
+    </p>
+  </header>
+
+  <div class="grid">
+    <!-- 1 Candles -->
+    <article class="card">
+      <div class="card-header">
+        <h2>1 — Candles</h2>
+        <span>Classic chart unit behind dg</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="92" height="78" viewBox="0 0 92 78" aria-hidden="true">
+              <line x1="22" y1="8" x2="22" y2="70" stroke="#00FF88" stroke-width="2" opacity="0.7"/>
+              <rect x="14" y="22" width="16" height="28" rx="2" fill="#00FF88" opacity="0.55"/>
+              <line x1="70" y1="12" x2="70" y2="66" stroke="#00FF88" stroke-width="2" opacity="0.5"/>
+              <rect x="62" y="18" width="16" height="20" rx="2" fill="none" stroke="#00FF88" stroke-width="2.5" opacity="0.7"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="92" height="78" viewBox="0 0 92 78" aria-hidden="true">
+              <line x1="22" y1="8" x2="22" y2="70" stroke="#00FF88" stroke-width="2" opacity="0.7"/>
+              <rect x="14" y="22" width="16" height="28" rx="2" fill="#00FF88" opacity="0.55"/>
+              <line x1="70" y1="12" x2="70" y2="66" stroke="#00FF88" stroke-width="2" opacity="0.5"/>
+              <rect x="62" y="18" width="16" height="20" rx="2" fill="none" stroke="#00FF88" stroke-width="2.5" opacity="0.7"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Two oversized candlesticks behind dg — immediately “markets.”</p>
+    </article>
+
+    <!-- 2 Bars -->
+    <article class="card">
+      <div class="card-header">
+        <h2>2 — Rising Bars</h2>
+        <span>Volume / histogram silhouette</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="72" viewBox="0 0 100 72" aria-hidden="true">
+              <rect x="8" y="40" width="12" height="24" rx="2" fill="#00FF88" opacity="0.35"/>
+              <rect x="26" y="28" width="12" height="36" rx="2" fill="#00FF88" opacity="0.45"/>
+              <rect x="44" y="16" width="12" height="48" rx="2" fill="#00FF88" opacity="0.55"/>
+              <rect x="62" y="22" width="12" height="42" rx="2" fill="#00FF88" opacity="0.4"/>
+              <rect x="80" y="8" width="12" height="56" rx="2" fill="#00FF88" opacity="0.65"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="72" viewBox="0 0 100 72" aria-hidden="true">
+              <rect x="8" y="40" width="12" height="24" rx="2" fill="#00FF88" opacity="0.35"/>
+              <rect x="26" y="28" width="12" height="36" rx="2" fill="#00FF88" opacity="0.45"/>
+              <rect x="44" y="16" width="12" height="48" rx="2" fill="#00FF88" opacity="0.55"/>
+              <rect x="62" y="22" width="12" height="42" rx="2" fill="#00FF88" opacity="0.4"/>
+              <rect x="80" y="8" width="12" height="56" rx="2" fill="#00FF88" opacity="0.65"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Ascending bars — momentum / volume without a squiggle.</p>
+    </article>
+
+    <!-- 3 Slash -->
+    <article class="card">
+      <div class="card-header">
+        <h2>3 — Hard Slash</h2>
+        <span>Single diagonal “edge”</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="88" height="90" viewBox="0 0 88 90" aria-hidden="true">
+              <line x1="18" y1="78" x2="70" y2="12" stroke="#00FF88" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="88" height="90" viewBox="0 0 88 90" aria-hidden="true">
+              <line x1="18" y1="78" x2="70" y2="12" stroke="#00FF88" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">One thick green cut behind the middle — literal edge, very simple.</p>
+    </article>
+
+    <!-- 4 Peak -->
+    <article class="card">
+      <div class="card-header">
+        <h2>4 — Peak Triangle</h2>
+        <span>Apex / high watermark</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="86" viewBox="0 0 100 86" aria-hidden="true">
+              <path d="M8 74 L50 10 L92 74 Z" fill="#00FF88" opacity="0.28"/>
+              <path d="M8 74 L50 10 L92 74" fill="none" stroke="#00FF88" stroke-width="3" stroke-linejoin="round" opacity="0.85"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="86" viewBox="0 0 100 86" aria-hidden="true">
+              <path d="M8 74 L50 10 L92 74 Z" fill="#00FF88" opacity="0.22"/>
+              <path d="M8 74 L50 10 L92 74" fill="none" stroke="#00FF88" stroke-width="3" stroke-linejoin="round" opacity="0.9"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Big triangle peak — “edge” as the tip of the move.</p>
+    </article>
+
+    <!-- 5 Crosshair -->
+    <article class="card">
+      <div class="card-header">
+        <h2>5 — Crosshair</h2>
+        <span>Chart cursor / precision</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+              <circle cx="48" cy="48" r="28" fill="none" stroke="#00FF88" stroke-width="2.5" opacity="0.45"/>
+              <circle cx="48" cy="48" r="8" fill="#00FF88" opacity="0.75"/>
+              <line x1="48" y1="8" x2="48" y2="88" stroke="#00FF88" stroke-width="2" opacity="0.55"/>
+              <line x1="8" y1="48" x2="88" y2="48" stroke="#00FF88" stroke-width="2" opacity="0.55"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+              <circle cx="48" cy="48" r="28" fill="none" stroke="#00FF88" stroke-width="2.5" opacity="0.45"/>
+              <circle cx="48" cy="48" r="8" fill="#00FF88" opacity="0.75"/>
+              <line x1="48" y1="8" x2="48" y2="88" stroke="#00FF88" stroke-width="2" opacity="0.55"/>
+              <line x1="8" y1="48" x2="88" y2="48" stroke="#00FF88" stroke-width="2" opacity="0.55"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Reticle behind the middle — targeting / analysis on the chart.</p>
+    </article>
+
+    <!-- 6 Pulse rings -->
+    <article class="card">
+      <div class="card-header">
+        <h2>6 — Pulse Rings</h2>
+        <span>Live signal / radar</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="100" viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="14" fill="#00FF88" opacity="0.8"/>
+              <circle cx="50" cy="50" r="28" fill="none" stroke="#00FF88" stroke-width="3" opacity="0.45"/>
+              <circle cx="50" cy="50" r="42" fill="none" stroke="#00FF88" stroke-width="2.5" opacity="0.25"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="100" viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="14" fill="#00FF88" opacity="0.8"/>
+              <circle cx="50" cy="50" r="28" fill="none" stroke="#00FF88" stroke-width="3" opacity="0.45"/>
+              <circle cx="50" cy="50" r="42" fill="none" stroke="#00FF88" stroke-width="2.5" opacity="0.25"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Concentric rings — real-time signal, less “chart doodle.”</p>
+    </article>
+
+    <!-- 7 Chevron -->
+    <article class="card">
+      <div class="card-header">
+        <h2>7 — Chevron</h2>
+        <span>Forward / breakout arrow</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="96" height="88" viewBox="0 0 96 88" aria-hidden="true">
+              <path d="M18 12 L78 44 L18 76" fill="none" stroke="#00FF88" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="96" height="88" viewBox="0 0 96 88" aria-hidden="true">
+              <path d="M18 12 L78 44 L18 76" fill="none" stroke="#00FF88" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Big chevron — direction / breakout without looking like a price series.</p>
+    </article>
+
+    <!-- 8 Depth -->
+    <article class="card">
+      <div class="card-header">
+        <h2>8 — Order Book Depth</h2>
+        <span>Mirrored ladder silhouette</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="110" height="78" viewBox="0 0 110 78" aria-hidden="true">
+              <rect x="8" y="10" width="38" height="8" rx="1" fill="#00FF88" opacity="0.25"/>
+              <rect x="18" y="22" width="28" height="8" rx="1" fill="#00FF88" opacity="0.35"/>
+              <rect x="28" y="34" width="18" height="8" rx="1" fill="#00FF88" opacity="0.5"/>
+              <rect x="34" y="46" width="12" height="8" rx="1" fill="#00FF88" opacity="0.7"/>
+              <rect x="64" y="10" width="38" height="8" rx="1" fill="#00FF88" opacity="0.25"/>
+              <rect x="64" y="22" width="28" height="8" rx="1" fill="#00FF88" opacity="0.35"/>
+              <rect x="64" y="34" width="18" height="8" rx="1" fill="#00FF88" opacity="0.5"/>
+              <rect x="64" y="46" width="12" height="8" rx="1" fill="#00FF88" opacity="0.7"/>
+              <rect x="52" y="8" width="6" height="54" rx="1" fill="#00FF88" opacity="0.85"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="110" height="78" viewBox="0 0 110 78" aria-hidden="true">
+              <rect x="8" y="10" width="38" height="8" rx="1" fill="#00FF88" opacity="0.25"/>
+              <rect x="18" y="22" width="28" height="8" rx="1" fill="#00FF88" opacity="0.35"/>
+              <rect x="28" y="34" width="18" height="8" rx="1" fill="#00FF88" opacity="0.5"/>
+              <rect x="34" y="46" width="12" height="8" rx="1" fill="#00FF88" opacity="0.7"/>
+              <rect x="64" y="10" width="38" height="8" rx="1" fill="#00FF88" opacity="0.25"/>
+              <rect x="64" y="22" width="28" height="8" rx="1" fill="#00FF88" opacity="0.35"/>
+              <rect x="64" y="34" width="18" height="8" rx="1" fill="#00FF88" opacity="0.5"/>
+              <rect x="64" y="46" width="12" height="8" rx="1" fill="#00FF88" opacity="0.7"/>
+              <rect x="52" y="8" width="6" height="54" rx="1" fill="#00FF88" opacity="0.85"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Bid/ask ladder with a green mid — “edge” as the spread you’re trading.</p>
+    </article>
+
+    <!-- 9 Grid -->
+    <article class="card">
+      <div class="card-header">
+        <h2>9 — Chart Grid</h2>
+        <span>Axes + one highlight cell</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="86" viewBox="0 0 100 86" aria-hidden="true">
+              <rect x="10" y="10" width="80" height="66" fill="none" stroke="#00FF88" stroke-width="2" opacity="0.35" rx="2"/>
+              <line x1="10" y1="32" x2="90" y2="32" stroke="#00FF88" stroke-width="1.5" opacity="0.25"/>
+              <line x1="10" y1="54" x2="90" y2="54" stroke="#00FF88" stroke-width="1.5" opacity="0.25"/>
+              <line x1="37" y1="10" x2="37" y2="76" stroke="#00FF88" stroke-width="1.5" opacity="0.25"/>
+              <line x1="63" y1="10" x2="63" y2="76" stroke="#00FF88" stroke-width="1.5" opacity="0.25"/>
+              <rect x="37" y="32" width="26" height="22" fill="#00FF88" opacity="0.45"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="100" height="86" viewBox="0 0 100 86" aria-hidden="true">
+              <rect x="10" y="10" width="80" height="66" fill="none" stroke="#00FF88" stroke-width="2" opacity="0.4" rx="2"/>
+              <line x1="10" y1="32" x2="90" y2="32" stroke="#00FF88" stroke-width="1.5" opacity="0.25"/>
+              <line x1="10" y1="54" x2="90" y2="54" stroke="#00FF88" stroke-width="1.5" opacity="0.25"/>
+              <line x1="37" y1="10" x2="37" y2="76" stroke="#00FF88" stroke-width="1.5" opacity="0.25"/>
+              <line x1="63" y1="10" x2="63" y2="76" stroke="#00FF88" stroke-width="1.5" opacity="0.25"/>
+              <rect x="37" y="32" width="26" height="22" fill="#00FF88" opacity="0.4"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Quiet chart grid with one lit cell — workspace / focus.</p>
+    </article>
+
+    <!-- 10 Bracket -->
+    <article class="card">
+      <div class="card-header">
+        <h2>10 — Corner Bracket</h2>
+        <span>Crop / frame the middle</span>
+      </div>
+      <div class="preview">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="88" viewBox="0 0 108 88" aria-hidden="true">
+              <path d="M18 28 V14 H36" fill="none" stroke="#00FF88" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+              <path d="M90 28 V14 H72" fill="none" stroke="#00FF88" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+              <path d="M18 60 V74 H36" fill="none" stroke="#00FF88" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+              <path d="M90 60 V74 H72" fill="none" stroke="#00FF88" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <div class="preview light">
+        <div class="mark">
+          <span class="letters">E</span>
+          <span class="mid">
+            <svg class="behind" width="108" height="88" viewBox="0 0 108 88" aria-hidden="true">
+              <path d="M18 28 V14 H36" fill="none" stroke="#00FF88" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+              <path d="M90 28 V14 H72" fill="none" stroke="#00FF88" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+              <path d="M18 60 V74 H36" fill="none" stroke="#00FF88" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+              <path d="M90 60 V74 H72" fill="none" stroke="#00FF88" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+            </svg>
+            <span class="letters">dg</span>
+          </span>
+          <span class="letters">e</span><span class="caret"></span>
+        </div>
+      </div>
+      <p class="desc">Four corner brackets framing dg — selection / focus, not a chart glyph.</p>
+    </article>
+  </div>
+</body>
+</html>

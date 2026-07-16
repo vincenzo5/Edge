@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><title>R2 vs Fixed Logo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap" rel="stylesheet"/>
+<style>
+body{font-family:system-ui;background:#0A0B0E;color:#E8E9ED;padding:40px}
+h1{font-family:"Space Grotesk";margin-bottom:8px}
+.sub{color:#8B8FA3;margin-bottom:28px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:980px}
+.card{background:#12131A;border:1px solid #1E2030;border-radius:14px;overflow:hidden}
+.label{padding:12px 16px;color:#5A5E73;font-size:13px;border-bottom:1px solid #1E2030}
+.preview{display:flex;align-items:center;justify-content:center;min-height:140px;padding:36px;background:#0A0B0E}
+.mark{font-family:"Space Grotesk";font-weight:700;font-size:52px;letter-spacing:-0.045em;color:#E8E9ED;display:inline-flex;align-items:center;line-height:1}
+.mid{position:relative;display:inline-block}
+.behind{position:absolute;z-index:1;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
+.letters{position:relative;z-index:2}
+.caret{width:3.5px;height:34px;margin-left:7px;background:#00FF88;border-radius:1px}
+</style></head><body>
+<h1>Why it looked wrong + fix</h1>
+<p class="sub"><code>SpaceGrotesk-Bold.ttf</code> was actually <b>Space Grotesk Light</b>. Rebuilt with real Bold 700.</p>
+<div class="grid">
+  <div class="card"><div class="label">Original R2 (HTML · Space Grotesk 700)</div>
+  <div class="preview"><div class="mark"><span class="letters">E</span><span class="mid">
+    <svg class="behind" width="112" height="82" viewBox="0 0 112 82"><line x1="16" y1="20" x2="16" y2="68" stroke="#00FF88" stroke-width="2" opacity="0.4"/><rect x="10" y="28" width="12" height="22" rx="1.5" fill="none" stroke="#00FF88" stroke-width="2" opacity="0.45"/><line x1="38" y1="14" x2="38" y2="64" stroke="#00FF88" stroke-width="2" opacity="0.55"/><rect x="32" y="24" width="12" height="26" rx="1.5" fill="#00FF88" opacity="0.5"/><line x1="60" y1="26" x2="60" y2="70" stroke="#00FF88" stroke-width="2" opacity="0.4"/><rect x="54" y="38" width="12" height="18" rx="1.5" fill="none" stroke="#00FF88" stroke-width="2" opacity="0.4"/><line x1="82" y1="8" x2="82" y2="58" stroke="#00FF88" stroke-width="2" opacity="0.75"/><rect x="76" y="14" width="12" height="32" rx="1.5" fill="#00FF88" opacity="0.7"/><line x1="100" y1="18" x2="100" y2="52" stroke="#00FF88" stroke-width="2" opacity="0.55"/><rect x="94" y="22" width="12" height="16" rx="1.5" fill="#00FF88" opacity="0.55"/></svg>
+    <span class="letters">dg</span></span><span class="letters">e</span><span class="caret"></span></div></div></div>
+  <div class="card"><div class="label">Fixed SVG (real Bold outlines)</div>
+  <div class="preview"><img src="/logo-full-light.svg" width="320" alt="fixed"/></div></div>
+</div>
+</body></html>

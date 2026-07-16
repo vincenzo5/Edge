@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edge — Spark B (scaled)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: #0A0B0E;
+      color: #E8E9ED;
+      padding: 48px 32px 80px;
+    }
+    header { max-width: 1000px; margin: 0 auto 28px; }
+    h1 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 1.75rem;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .lede { color: #8B8FA3; line-height: 1.55; max-width: 720px; }
+    .grid {
+      display: grid;
+      gap: 18px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #12131A;
+      border: 1px solid #1E2030;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 22px 12px;
+      border-bottom: 1px solid #1E2030;
+    }
+    .card-header h2 {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-size: 1.05rem;
+      margin-bottom: 2px;
+    }
+    .card-header span { color: #5A5E73; font-size: 0.82rem; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+    .preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 160px;
+      padding: 44px 28px;
+      background: #0A0B0E;
+    }
+    .preview.light {
+      background: #F4F5F7;
+      border-left: 1px solid #1E2030;
+    }
+    @media (max-width: 720px) {
+      .preview.light { border-left: none; border-top: 1px solid #1E2030; }
+    }
+    .desc {
+      padding: 14px 22px 18px;
+      color: #8B8FA3;
+      font-size: 0.88rem;
+      line-height: 1.55;
+      border-top: 1px solid #1E2030;
+    }
+
+    .mark {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 56px;
+      letter-spacing: -0.045em;
+      line-height: 1;
+      color: #E8E9ED;
+    }
+    .preview.light .mark { color: #0A0B0E; }
+    .mark .caret {
+      width: 3px;
+      height: 36px;
+      margin-left: 6px;
+      background: #00FF88;
+      border-radius: 1px;
+      flex-shrink: 0;
+      animation: blink 1.2s steps(1) infinite;
+      position: relative;
+      z-index: 2;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .letters {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Spark sits behind letters */
+    .spark {
+      position: absolute;
+      z-index: 1;
+      pointer-events: none;
+      overflow: visible;
+    }
+    .spark path {
+      fill: none;
+      stroke: #00FF88;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* B1 — behind dg only, large */
+    .b1 { position: relative; }
+    .b1 .spark {
+      left: -8%;
+      right: -8%;
+      top: 8%;
+      height: 84%;
+      width: 116%;
+    }
+    .b1 .spark svg { width: 100%; height: 100%; }
+
+    /* B2 — behind whole word, larger still */
+    .b2 .spark {
+      left: -6%;
+      right: -2%;
+      top: -18%;
+      width: 108%;
+      height: 136%;
+    }
+    .b2 .spark svg { width: 100%; height: 100%; }
+
+    /* B3 — bold stroke, behind dg, oversized */
+    .b3 { position: relative; display: inline-block; }
+    .b3 .spark {
+      left: -20%;
+      right: -20%;
+      top: -35%;
+      width: 140%;
+      height: 170%;
+    }
+    .b3 .spark svg { width: 100%; height: 100%; }
+
+    /* B4 — soft glow behind + thick spark across dg */
+    .b4 { position: relative; display: inline-block; }
+    .b4 .spark {
+      left: -18%;
+      top: -40%;
+      width: 136%;
+      height: 180%;
+      filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.35));
+    }
+    .b4 .spark svg { width: 100%; height: 100%; }
+
+    /* B5 — full-bleed chart behind Edge */
+    .b5-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      padding: 28px 20px;
+    }
+    .b5-wrap .spark {
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.9;
+    }
+    .b5-wrap .spark svg { width: 100%; height: 100%; }
+    .b5-wrap .mark { font-size: 56px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>B refined — bigger spark, behind the type</h1>
+    <p class="lede">
+      Same Cursor wordmark. The green squiggle is now a background shape — larger, behind the letters, not a thin line on top of <em>dg</em>.
+    </p>
+  </header>
+
+  <div class="grid">
+    <!-- B1 -->
+    <article class="card">
+      <div class="card-header">
+        <h2>B1 — Large spark behind dg</h2>
+        <span>Scoped to the middle · ~letter height</span>
+      </div>
+      <div class="row">
+        <div class="preview">
+          <div class="mark">
+            <span class="letters">E</span>
+            <span class="b1">
+              <span class="spark" aria-hidden="true">
+                <svg viewBox="0 0 80 50" preserveAspectRatio="none">
+                  <path d="M4 38 C14 38, 18 12, 30 18 S48 44, 56 22 S72 8, 76 14" stroke-width="4"/>
+                </svg>
+              </span>
+              <span class="letters">dg</span>
+            </span>
+            <span class="letters">e</span><span class="caret"></span>
+          </div>
+        </div>
+        <div class="preview light">
+          <div class="mark">
+            <span class="letters">E</span>
+            <span class="b1">
+              <span class="spark" aria-hidden="true">
+                <svg viewBox="0 0 80 50" preserveAspectRatio="none">
+                  <path d="M4 38 C14 38, 18 12, 30 18 S48 44, 56 22 S72 8, 76 14" stroke-width="4"/>
+                </svg>
+              </span>
+              <span class="letters">dg</span>
+            </span>
+            <span class="letters">e</span><span class="caret"></span>
+          </div>
+        </div>
+      </div>
+      <p class="desc">Spark sits only under/behind <strong>dg</strong>, roughly the height of the letters. Clear that the middle is the “live” part.</p>
+    </article>
+
+    <!-- B2 -->
+    <article class="card">
+      <div class="card-header">
+        <h2>B2 — Spark behind the whole word</h2>
+        <span>Full Edge · chart as backdrop</span>
+      </div>
+      <div class="row">
+        <div class="preview">
+          <div class="mark b2">
+            <span class="spark" aria-hidden="true">
+              <svg viewBox="0 0 200 70" preserveAspectRatio="none">
+                <path d="M4 52 C28 52, 36 18, 58 28 S92 62, 112 30 S148 8, 168 22 S190 40, 196 28" stroke-width="5"/>
+              </svg>
+            </span>
+            <span class="letters">Edge</span><span class="caret"></span>
+          </div>
+        </div>
+        <div class="preview light">
+          <div class="mark b2">
+            <span class="spark" aria-hidden="true">
+              <svg viewBox="0 0 200 70" preserveAspectRatio="none">
+                <path d="M4 52 C28 52, 36 18, 58 28 S92 62, 112 30 S148 8, 168 22 S190 40, 196 28" stroke-width="5"/>
+              </svg>
+            </span>
+            <span class="letters">Edge</span><span class="caret"></span>
+          </div>
+        </div>
+      </div>
+      <p class="desc">Squiggle runs the full wordmark, peeking above and below. Type stays on top.</p>
+    </article>
+
+    <!-- B3 -->
+    <article class="card">
+      <div class="card-header">
+        <h2>B3 — Oversized behind dg</h2>
+        <span>Much bigger than the letters · thick stroke</span>
+      </div>
+      <div class="row">
+        <div class="preview">
+          <div class="mark">
+            <span class="letters">E</span>
+            <span class="b3">
+              <span class="spark" aria-hidden="true">
+                <svg viewBox="0 0 100 80" preserveAspectRatio="none">
+                  <path d="M6 58 C18 58, 22 14, 38 22 S58 70, 70 28 S88 10, 96 20" stroke-width="7"/>
+                </svg>
+              </span>
+              <span class="letters">dg</span>
+            </span>
+            <span class="letters">e</span><span class="caret"></span>
+          </div>
+        </div>
+        <div class="preview light">
+          <div class="mark">
+            <span class="letters">E</span>
+            <span class="b3">
+              <span class="spark" aria-hidden="true">
+                <svg viewBox="0 0 100 80" preserveAspectRatio="none">
+                  <path d="M6 58 C18 58, 22 14, 38 22 S58 70, 70 28 S88 10, 96 20" stroke-width="7"/>
+                </svg>
+              </span>
+              <span class="letters">dg</span>
+            </span>
+            <span class="letters">e</span><span class="caret"></span>
+          </div>
+        </div>
+      </div>
+      <p class="desc">Closest to what you described: the squiggle dominates the middle, letters sit in front of it.</p>
+    </article>
+
+    <!-- B4 -->
+    <article class="card">
+      <div class="card-header">
+        <h2>B4 — Oversized + soft glow</h2>
+        <span>Same as B3 with a light green bloom</span>
+      </div>
+      <div class="row">
+        <div class="preview">
+          <div class="mark">
+            <span class="letters">E</span>
+            <span class="b4">
+              <span class="spark" aria-hidden="true">
+                <svg viewBox="0 0 100 80" preserveAspectRatio="none">
+                  <path d="M6 58 C18 58, 22 14, 38 22 S58 70, 70 28 S88 10, 96 20" stroke-width="7"/>
+                </svg>
+              </span>
+              <span class="letters">dg</span>
+            </span>
+            <span class="letters">e</span><span class="caret"></span>
+          </div>
+        </div>
+        <div class="preview light">
+          <div class="mark">
+            <span class="letters">E</span>
+            <span class="b4">
+              <span class="spark" aria-hidden="true">
+                <svg viewBox="0 0 100 80" preserveAspectRatio="none">
+                  <path d="M6 58 C18 58, 22 14, 38 22 S58 70, 70 28 S88 10, 96 20" stroke-width="7"/>
+                </svg>
+              </span>
+              <span class="letters">dg</span>
+            </span>
+            <span class="letters">e</span><span class="caret"></span>
+          </div>
+        </div>
+      </div>
+      <p class="desc">Same geometry as B3, with a soft glow so the spark reads as energy / live data.</p>
+    </article>
+
+    <!-- B5 -->
+    <article class="card">
+      <div class="card-header">
+        <h2>B5 — Billboard spark</h2>
+        <span>Huge backdrop · word centered on top</span>
+      </div>
+      <div class="row">
+        <div class="preview">
+          <div class="b5-wrap">
+            <span class="spark" aria-hidden="true">
+              <svg viewBox="0 0 240 100" preserveAspectRatio="none">
+                <path d="M8 78 C40 78, 48 20, 80 36 S120 92, 148 40 S190 12, 220 34 S232 60, 236 48" stroke-width="8" stroke="#00FF88"/>
+              </svg>
+            </span>
+            <div class="mark"><span class="letters">Edge</span><span class="caret"></span></div>
+          </div>
+        </div>
+        <div class="preview light">
+          <div class="b5-wrap">
+            <span class="spark" aria-hidden="true">
+              <svg viewBox="0 0 240 100" preserveAspectRatio="none">
+                <path d="M8 78 C40 78, 48 20, 80 36 S120 92, 148 40 S190 12, 220 34 S232 60, 236 48" stroke-width="8" stroke="#00FF88"/>
+              </svg>
+            </span>
+            <div class="mark"><span class="letters">Edge</span><span class="caret"></span></div>
+          </div>
+        </div>
+      </div>
+      <p class="desc">Maximum size — the spark is almost a hero chart behind the whole word. Good for landing; may need a quieter favicon sibling.</p>
+    </article>
+  </div>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 110" width="280" height="110" role="img" aria-label="Edge">
+  <!-- Selected concept: R2 Mixed Candles  (light text for dark backgrounds) -->
+  <defs>
+    <style>
+      .wm { font-family: "Space Grotesk", system-ui, sans-serif; font-weight: 700; font-size: 64px; }
+    </style>
+  </defs>
+
+  <!-- Candles behind dg -->
+  <g id="mark-candles" transform="translate(48, 8)" opacity="0.9">
+    <line x1="14" y1="22" x2="14" y2="86" stroke="#00FF88" stroke-width="2.5" opacity="0.45"/>
+    <rect x="6" y="32" width="16" height="30" rx="2" fill="none" stroke="#00FF88" stroke-width="2.5" opacity="0.5"/>
+
+    <line x1="42" y1="12" x2="42" y2="80" stroke="#00FF88" stroke-width="2.5" opacity="0.6"/>
+    <rect x="34" y="26" width="16" height="34" rx="2" fill="#00FF88" opacity="0.55"/>
+
+    <line x1="70" y1="30" x2="70" y2="88" stroke="#00FF88" stroke-width="2.5" opacity="0.4"/>
+    <rect x="62" y="44" width="16" height="24" rx="2" fill="none" stroke="#00FF88" stroke-width="2.5" opacity="0.45"/>
+
+    <line x1="98" y1="4" x2="98" y2="74" stroke="#00FF88" stroke-width="2.5" opacity="0.85"/>
+    <rect x="90" y="12" width="16" height="42" rx="2" fill="#00FF88" opacity="0.75"/>
+
+    <line x1="122" y1="20" x2="122" y2="68" stroke="#00FF88" stroke-width="2.5" opacity="0.6"/>
+    <rect x="114" y="24" width="16" height="22" rx="2" fill="#00FF88" opacity="0.6"/>
+  </g>
+
+  <text class="wm" x="12" y="78" fill="#E8E9ED">E</text>
+  <text class="wm" x="54" y="78" fill="#E8E9ED" letter-spacing="-1">dg</text>
+  <text class="wm" x="148" y="78" fill="#E8E9ED">e</text>
+
+</svg>
