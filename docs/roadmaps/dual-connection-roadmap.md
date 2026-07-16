@@ -192,7 +192,7 @@ Completion evidence in harness must quote actual command output (test counts, bu
 
 | Excluded | Reason |
 |----------|--------|
-| Postgres intent store / options / brackets | Separate backlog; WIP=1 |
+| Options / brackets execution | Separate backlog; WIP=1 (Postgres intent store shipped — see [Trading Execution Roadmap](./trading-execution-roadmap.md)) |
 | Client Portal Web API as dual-session substitute | TWS socket path remains execution + primary live data |
 | Rewriting MarketDataService plugin system | Ports/router already sufficient |
 | Remapping historical fill account ids | Data already correct; discovery was wrong |
@@ -202,6 +202,6 @@ Completion evidence in harness must quote actual command output (test counts, bu
 
 ## Next Session Entry Point
 
-1. ~~Start Phase A — Docker compose for `TRADING_MODE=both`, map 4001/4002, document secrets.~~ **Phase A infra shipped** — run local A.5 verification (credentials + 2FA).
-2. Phase B — sidecar honesty + remove journal-only picker rows.
-3. Phase C — data preference split (live chart data while paper orders).
+1. ~~Phases A–D product work~~ — **shipped** (Docker dual Gateway infra, honest picker, data≠order preference, Data Health split).
+2. Remaining: local A.5 / both-Gateway ops proof with credentials + 2FA; keep display preference independent of order account.
+3. Options / brackets stay on the trading-execution backlog (not this track).

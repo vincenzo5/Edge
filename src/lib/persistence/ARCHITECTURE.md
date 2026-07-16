@@ -4,7 +4,7 @@ Optional Postgres-backed persistence with localStorage fallback. App works witho
 
 ## Responsibility
 
-Sync chart workspaces, watchlist libraries, screener libraries, chart templates, market research notes, and trading journal fills/trades between client and server with optimistic concurrency.
+Sync chart workspaces, watchlist libraries, screener libraries, chart templates, market research notes, and trading journal fills/trades between client and server with optimistic concurrency. Also owns the durable `order_intents` rows used by the trading intent store when Postgres is configured.
 
 ## Layer Structure
 
@@ -30,7 +30,8 @@ Drizzle ORM + Postgres
 |--------|------|
 | `common.ts` | Schema version, sync envelope, error codes, JSON body parsing |
 | `schemas/*.ts` | Zod schemas for workspace, watchlist, screener, templates, notes, journal |
-| `repositories/*.ts` | Database CRUD with revision tracking (includes `journalRepository.ts`) |
+| `repositories/*.ts` | Database CRUD with revision tracking (includes `journalRepository.ts`, `intentRepository.ts`) |
+| `repositories/appUserRepository.ts` | Ensure app user rows; `ensureDevAppUser()` for server-side trading intents when no session cookie |
 | `client/*.ts` | Fetch wrappers for API routes (includes `journalClient.ts` with localStorage fallback) |
 | `sync/*.ts` | React hooks for bidirectional sync; `reconcileChartWorkspaces.ts` archives orphan remote workspaces on tab close |
 | `sync/syncMetadata.ts` | Local revision tracking for conflict detection |
@@ -49,6 +50,7 @@ Drizzle ORM + Postgres
 | Chart templates | `/api/me/chart-template-library` | `chartTemplateLibrary.ts` |
 | Research notes | `/api/me/market-research-notes` | `marketResearchNote.ts` |
 | Trading journal | `/api/me/journal/fills`, `/api/me/journal/trades`, `/api/me/journal/trades/[id]`, `/api/me/journal/trades/rebuild`, `/api/me/journal/import` | `journal.ts` + `journalClient.ts` + `src/lib/journal/ARCHITECTURE.md` |
+| Order intents | No `/api/me/*` route — server-only via `TradingService` / `resolveServerIntentStore()` | Migration `0005_order_intents.sql` + `intentRepository.ts`; consumed by `src/lib/trading/postgresIntentStore.ts` (memory fallback when `DATABASE_URL` unset) |
 
 ## Auth Model
 
@@ -83,6 +85,8 @@ Drizzle ORM + Postgres
 - localStorage remains primary for layout when Postgres unavailable (`tv-ai:workspace-tabs:v1`; legacy `tv-ai:layout:v1` migrates on load).
 - Each workspace tab stores embedded `remote` sync metadata (`resourceId`, `syncRevision`, `updatedAt`); active tab debounced PUT (800 ms) via `useWorkspaceTabsRemoteSync`.
 - Closing a workspace tab calls `reconcileChartWorkspacesAfterTabClose()` to archive remote chart workspaces no longer linked to open tabs (records dismissed IDs in `tv-ai:workspace-tabs:dismissed-remotes:v1` so they are not auto-reopened).
+- Chart workspace sidebar schema includes panel id `trade` (Trade sidebar) alongside existing panels.
+- Order intents are keyed by `(userId, idempotencyKey)` unique index; trading owns the store API, persistence owns the rows.
 - All request bodies MUST validate against Zod schemas.
 - MUST NOT commit secrets (see `.env.example` for required vars).
 
@@ -119,3 +123,4 @@ npm test -- --run src/app/api/me/
 ## Related Docs
 
 - [docs/CONSTRAINTS.md](../../../docs/CONSTRAINTS.md) — security and persistence rules
+- [src/lib/trading/ARCHITECTURE.md](../trading/ARCHITECTURE.md) — Postgres intent store consumer (`resolveServerIntentStore`)
