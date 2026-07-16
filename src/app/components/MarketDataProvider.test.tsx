@@ -64,11 +64,14 @@ const layout: ChartLayout = {
 
 function QuoteStatusProbe() {
   const marketData = useMarketDataQuotes();
+  const aapl = marketData?.quotesBySymbol.get("AAPL");
   return (
     <div>
       <span data-testid="quote-transport">{marketData?.quotesTransport ?? "none"}</span>
       <span data-testid="quote-error">{marketData?.quoteError ?? ""}</span>
       <span data-testid="quote-count">{marketData?.quotesBySymbol.size ?? 0}</span>
+      <span data-testid="quote-price">{aapl?.regularMarketPrice ?? ""}</span>
+      <span data-testid="quote-change-pct">{aapl?.regularMarketChangePercent ?? ""}</span>
       <span data-testid="quote-warnings">
         {JSON.stringify(marketData?.quotesMeta?.warnings ?? [])}
       </span>
@@ -399,5 +402,54 @@ describe("MarketDataProvider quotes", () => {
       await vi.advanceTimersByTimeAsync(3_000);
     });
     expect(quoteFetchCount).toBe(2);
+  });
+
+  it("maps MarketQuote SSE fields (price / changePercent) into QuoteSnapshot", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "1");
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/market-data/warmup")) {
+        return new Response(JSON.stringify({ ok: true, warmup: { phases: [] } }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MarketDataProvider layout={layout}>
+        <QuoteStatusProbe />
+      </MarketDataProvider>,
+    );
+
+    await waitFor(() => {
+      expect(MockEventSource.instances.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.onmessage?.({
+        data: JSON.stringify({
+          type: "snapshot",
+          quotes: [
+            {
+              symbol: "AAPL",
+              price: 13.45,
+              change: 0.23,
+              changePercent: 1.72,
+              volume: 1000,
+              updatedAt: Date.now(),
+            },
+          ],
+          meta: { source: "tws" },
+        }),
+      } as MessageEvent);
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="quote-count"]')?.textContent).toBe("1");
+      expect(document.querySelector('[data-testid="quote-price"]')?.textContent).toBe("13.45");
+      expect(document.querySelector('[data-testid="quote-change-pct"]')?.textContent).toBe("1.72");
+    });
   });
 });

@@ -4,6 +4,7 @@ import {
   isTwsSidecarControlAllowed,
   recoverTwsSidecar,
   resetManagedSidecarProcessForTests,
+  EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
 } from "./recover";
 import { twsHealthGate } from "./healthGate";
 import {
@@ -82,7 +83,53 @@ describe("recoverTwsSidecar", () => {
     expect(resetGate).toHaveBeenCalledOnce();
   });
 
-  it("returns failed when external mode and sidecar unreachable", async () => {
+  it("starts sidecar in external mode when unreachable and port is free", async () => {
+    process.env.TWS_MANAGED = "external";
+    let reachable = false;
+    const startSidecar = vi.fn(async () => {
+      reachable = true;
+      return true;
+    });
+
+    const result = await recoverTwsSidecar([], {
+      isControlAllowed: () => true,
+      isConfigured: () => true,
+      getConfig: () => ({
+        baseUrl: "http://127.0.0.1:8765",
+        timeoutMs: 1000,
+        candlesTimeoutMs: 1000,
+        quotesTimeoutMs: 1000,
+        optionsTimeoutMs: 1000,
+      }),
+      probeHealth: async () => reachable,
+      fetchHealth: async () => null,
+      probeStatus: async () => ({
+        configured: true,
+        sidecarReachable: true,
+        gatewayConnected: true,
+        warnings: [],
+      }),
+      waitForHealth: async () => {
+        reachable = true;
+        return true;
+      },
+      startSidecar,
+      reconnect: async () => ({
+        configured: true,
+        sidecarReachable: true,
+        gatewayConnected: true,
+        warnings: [],
+      }),
+      warmup: async () => {},
+      resetGate: vi.fn(),
+    });
+
+    expect(startSidecar).toHaveBeenCalledOnce();
+    expect(result.ok).toBe(true);
+    expect(result.action).toBe("started");
+  });
+
+  it("returns port conflict message in external mode when sidecar still unreachable after start", async () => {
     process.env.TWS_MANAGED = "external";
 
     const result = await recoverTwsSidecar([], {
@@ -96,14 +143,18 @@ describe("recoverTwsSidecar", () => {
         optionsTimeoutMs: 1000,
       }),
       probeHealth: async () => false,
+      fetchHealth: async () => null,
       probeStatus: async () => null,
+      startSidecar: async () => true,
+      waitForHealth: async () => false,
       reconnect: vi.fn(),
       warmup: vi.fn(),
       resetGate: vi.fn(),
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toMatch(/Start manually/i);
+    expect(result.message).toContain("8765");
+    expect(result.message).toMatch(/npm run tws:sidecar/i);
   });
 
   it("returns failed when foreign edge-local sidecar owns the port", async () => {
@@ -132,6 +183,11 @@ describe("recoverTwsSidecar", () => {
 
     expect(result.ok).toBe(false);
     expect(result.message).toMatch(/another Edge dev instance/i);
+  });
+
+  it("surfaces explicit port conflict copy for foreign sidecar", () => {
+    expect(EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE).toMatch(/8765/);
+    expect(EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE).toMatch(/npm run tws:sidecar/i);
   });
 
   it("starts sidecar when unreachable then reconnects", async () => {

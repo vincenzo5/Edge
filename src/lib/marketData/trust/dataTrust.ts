@@ -230,7 +230,12 @@ function tradingDecisionReasons(
       reasons.push(`Quote age ${age}ms exceeds max ${policy.maxAgeMs}ms`);
     }
   }
-  if (provenance.stale) {
+  // Display "stale" (e.g. no live tick after hours) does not block trading when the
+  // broker API response is still within the trading max-age window.
+  if (
+    provenance.stale &&
+    (policy.maxAgeMs == null || quoteAgeMs(provenance, now) > policy.maxAgeMs)
+  ) {
     reasons.push("Data is marked stale");
   }
   return reasons;

@@ -3,7 +3,7 @@
 import type { ChartDataMeta } from "@edge/chart-core";
 import type { Theme } from "@/lib/chartConfig";
 import { PRICE_AXIS_WIDTH } from "@/lib/chart/layout";
-import DataHealthButton from "../data-health/DataHealthButton";
+import ChartOverlayDataHealthRow from "./ChartOverlayDataHealthRow";
 import ChartFeedStatusBadge, {
   type ChartFeedStatusBadgeProps,
 } from "./ChartFeedStatusBadge";
@@ -63,13 +63,11 @@ export default function ChartOverlayStatusStack({
         onRetry={onRetry}
         showRetry={showRetry}
       />
-      <div className="pointer-events-auto" data-testid="chart-overlay-status-row">
-        <DataHealthButton
-          theme={theme}
-          marketSessionLabel={marketSessionLabel}
-          showMarketStatus={showMarketStatus}
-        />
-      </div>
+      <ChartOverlayDataHealthRow
+        theme={theme}
+        marketSessionLabel={marketSessionLabel}
+        showMarketStatus={showMarketStatus}
+      />
     </div>
   );
 }

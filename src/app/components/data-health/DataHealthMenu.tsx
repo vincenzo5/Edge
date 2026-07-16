@@ -14,6 +14,7 @@ import { menuSectionHeaderClass } from "../chart-chrome/headerStyles";
 import DataHealthDatasetChips from "./DataHealthDatasetChips";
 import DataHealthLatencySection from "./DataHealthLatencySection";
 import HealthSeverityDot, { formatHealthEventAge } from "./HealthSeverityDot";
+import TwsRecoverButton from "./TwsRecoverButton";
 import { useDataHealth } from "./DataHealthProvider";
 
 type Props = {
@@ -182,17 +183,14 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
 
       {showTwsRecovery ? (
         <div className="mb-3 space-y-1.5">
-          <button
-            type="button"
-            className="w-full rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] px-2 py-1.5 text-[11px] font-medium text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          <TwsRecoverButton
+            testId="data-health-recover-tws"
+            label={twsRecoveryButtonLabel(twsProvider)}
+            recovering={recoveringTws}
             onClick={() => {
               void recoverTws();
             }}
-            disabled={recoveringTws}
-            data-testid="data-health-recover-tws"
-          >
-            {recoveringTws ? "Recovering TWS…" : twsRecoveryButtonLabel(twsProvider)}
-          </button>
+          />
           {recoverMessage ? (
             <div
               className="text-[10px] text-[var(--edge-text-secondary)]"

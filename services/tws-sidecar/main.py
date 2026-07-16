@@ -167,6 +167,15 @@ _restart_required = False
 _ib_handlers_attached = False
 _reconnect_thread: threading.Thread | None = None
 
+# Bounded auto-reconnect supervisor — triggered on Gateway disconnect / IB errors.
+_auto_reconnect_lock = threading.Lock()
+_auto_reconnect_thread: threading.Thread | None = None
+_auto_reconnect_attempt = 0
+_auto_reconnect_max_attempts = 5
+_auto_reconnect_backoff_base_sec = 2.0
+_auto_reconnect_backoff_max_sec = 30.0
+_TRADING_MUTATION_JOB_TOKENS = ("place_order", "modify_order", "cancel_order", "whatif")
+
 
 class IbWorkerTimeoutError(TimeoutError):
     """Raised when an IB worker job exceeds its wait budget."""
@@ -205,6 +214,8 @@ def _worker_diagnostics() -> dict[str, Any]:
             "updatedAt": _recovery_updated_at,
             "message": _recovery_message,
             "pausedStreams": _reconnect_paused,
+            "autoReconnectAttempt": _auto_reconnect_attempt,
+            "autoReconnectMaxAttempts": _auto_reconnect_max_attempts,
         }
     return {
         "queueDepth": depth,
@@ -239,6 +250,86 @@ def _set_connection_state_locked(state: str) -> None:
     _connection_state = state
 
 
+def _active_trading_mutation() -> bool:
+    with _worker_lock:
+        active_name = _active_job_name
+    if not active_name:
+        return False
+    lowered = active_name.lower()
+    return any(token in lowered for token in _TRADING_MUTATION_JOB_TOKENS)
+
+
+def _auto_reconnect_backoff_sec(attempt: int) -> float:
+    delay = _auto_reconnect_backoff_base_sec * (2 ** max(attempt - 1, 0))
+    return min(delay, _auto_reconnect_backoff_max_sec)
+
+
+def _reset_auto_reconnect_attempts() -> None:
+    global _auto_reconnect_attempt
+    with _auto_reconnect_lock:
+        _auto_reconnect_attempt = 0
+
+
+def _auto_reconnect_supervisor() -> None:
+    global _auto_reconnect_attempt
+    while True:
+        with _auto_reconnect_lock:
+            if _auto_reconnect_attempt >= _auto_reconnect_max_attempts:
+                _set_recovery_phase(
+                    "failed",
+                    f"Auto-reconnect stopped after {_auto_reconnect_max_attempts} attempts",
+                )
+                return
+        while _active_trading_mutation():
+            time.sleep(1.0)
+        with _auto_reconnect_lock:
+            _auto_reconnect_attempt += 1
+            attempt = _auto_reconnect_attempt
+        delay = _auto_reconnect_backoff_sec(attempt)
+        time.sleep(delay)
+        if _active_trading_mutation():
+            continue
+        try:
+            payload = _reconnect_ib()
+            if payload.get("gatewayConnected"):
+                _reset_auto_reconnect_attempts()
+                return
+        except Exception as exc:  # noqa: BLE001
+            _set_recovery_phase("failed", str(exc))
+        with _auto_reconnect_lock:
+            if _auto_reconnect_attempt >= _auto_reconnect_max_attempts:
+                _set_recovery_phase(
+                    "failed",
+                    f"Auto-reconnect stopped after {_auto_reconnect_max_attempts} attempts",
+                )
+                return
+
+
+def _maybe_schedule_auto_reconnect() -> None:
+    global _auto_reconnect_thread
+    if _read_gateway_connected():
+        _reset_auto_reconnect_attempts()
+        return
+    with _auto_reconnect_lock:
+        if _auto_reconnect_attempt >= _auto_reconnect_max_attempts:
+            return
+        if _auto_reconnect_thread is not None and _auto_reconnect_thread.is_alive():
+            return
+        if _reconnect_thread is not None and _reconnect_thread.is_alive():
+            return
+        with _recovery_lock:
+            if _recovery_phase == "reconnecting":
+                return
+    thread = threading.Thread(
+        target=_auto_reconnect_supervisor,
+        name="tws-auto-reconnect",
+        daemon=True,
+    )
+    with _auto_reconnect_lock:
+        _auto_reconnect_thread = thread
+    thread.start()
+
+
 def _record_ib_error(error_code: int, error_message: str) -> None:
     global _last_ib_error_code, _last_ib_error_message, _subscriptions_lost, _restart_required
     with _supervisor_lock:
@@ -248,6 +339,7 @@ def _record_ib_error(error_code: int, error_message: str) -> None:
         if error_code == 1100:
             _set_connection_state_locked("gateway_disconnected")
             _set_recovery_phase("failed", error_message)
+            _maybe_schedule_auto_reconnect()
         elif error_code == 1101:
             _subscriptions_lost = True
             _set_connection_state_locked("connected")
@@ -259,6 +351,7 @@ def _record_ib_error(error_code: int, error_message: str) -> None:
             _restart_required = True
         elif error_code in (502, 504):
             _set_connection_state_locked("gateway_disconnected")
+            _maybe_schedule_auto_reconnect()
 
 
 def _on_ib_error(req_id: int, error_code: int, error_string: str, contract) -> None:
@@ -267,6 +360,7 @@ def _on_ib_error(req_id: int, error_code: int, error_string: str, contract) -> N
 
 def _on_ib_disconnected() -> None:
     _set_connection_state("gateway_disconnected")
+    _maybe_schedule_auto_reconnect()
 
 
 def _attach_ib_handlers(ib: IB) -> None:
@@ -439,23 +533,7 @@ def _connect_ib_to(port: int, client_id: int) -> IB:
 
 
 def _debug_agent_log(hypothesis_id: str, location: str, message: str, data: dict[str, Any]) -> None:
-    # region agent log
-    try:
-        import json as _json
-
-        payload = {
-            "sessionId": "0e92a1",
-            "hypothesisId": hypothesis_id,
-            "location": location,
-            "message": message,
-            "data": data,
-            "timestamp": _now_ms(),
-        }
-        with open("/Users/vincentn/TV AI/.cursor/debug-0e92a1.log", "a", encoding="utf-8") as fh:
-            fh.write(_json.dumps(payload) + "\n")
-    except Exception:  # noqa: BLE001
-        pass
-    # endregion
+    return
 
 
 def _get_ib_for_connection(connection_id: str) -> IB:
@@ -484,6 +562,7 @@ def _get_ib_for_connection(connection_id: str) -> IB:
         )
         try:
             ib = _connect_ib_to(spec["port"], spec["client_id"])
+            _attach_ib_handlers(ib)
             _ib_extra[connection_id] = ib
             _extra_connect_errors[connection_id] = None
             _debug_agent_log(
@@ -566,6 +645,37 @@ def _get_ib() -> IB:
         raise RuntimeError("Unable to connect to IB Gateway")
 
 
+def _reset_extra_ib_connections() -> None:
+    """Drop live/extra IB sockets and their quote subscriptions."""
+    global _ib_extra, _extra_connect_errors
+    with _lock:
+        for ib in _ib_extra.values():
+            try:
+                if ib.isConnected():
+                    ib.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+        _ib_extra.clear()
+        _extra_connect_errors.clear()
+    with _quote_sub_lock:
+        for conn_id in list(_quote_subscriptions_by_connection.keys()):
+            if conn_id != PRIMARY_CONNECTION_ID:
+                _quote_subscriptions_by_connection.pop(conn_id, None)
+
+
+def _reconnect_extra_connections() -> None:
+    """Best-effort reconnect for non-primary Gateway sockets (e.g. ib-live)."""
+    for connection_id in _CONNECTION_SPECS:
+        if connection_id == PRIMARY_CONNECTION_ID:
+            continue
+        try:
+            _get_ib_for_connection(connection_id)
+        except HTTPException:
+            pass
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def _reset_ib_connection() -> None:
     """Drop stale IB socket and quote subscriptions so the next connect is fresh."""
     global _ib, _account_subscriptions_active, _account_summary_updated_at, _ib_handlers_attached, _active_client_id
@@ -581,6 +691,7 @@ def _reset_ib_connection() -> None:
     _active_client_id = None
     with _quote_sub_lock:
         _quote_subscriptions_by_connection.pop(PRIMARY_CONNECTION_ID, None)
+    _reset_extra_ib_connections()
     with _account_lock:
         _account_subscriptions_active = False
         _account_summary.clear()
@@ -604,7 +715,10 @@ def _reconnect_ib() -> dict[str, Any]:
             _set_recovery_phase("reconnecting", "Resubscribing market data")
             _resubscribe_quote_symbols(ib)
             _subscriptions_lost = False
+        _set_recovery_phase("reconnecting", "Reconnecting live Gateway")
+        _reconnect_extra_connections()
         _set_recovery_phase("connected", "Gateway connected")
+        _reset_auto_reconnect_attempts()
     except Exception as exc:  # noqa: BLE001
         _last_connect_error = str(exc)
         msg = str(exc).lower()
@@ -1160,7 +1274,7 @@ def _on_open_order(trade) -> None:
         return
     contract = trade.contract
     with _account_lock:
-        _account_orders[int(order_id)] = _map_order(order, contract)
+        _account_orders[int(order_id)] = _map_order(order, contract, trade)
 
 
 def _on_order_status(trade) -> None:
@@ -1222,7 +1336,21 @@ def _on_commission_report(trade, fill, report) -> None:
         _upsert_execution(_map_execution_from_fill(fill, commission_report=report))
 
 
-def _map_order(order, contract) -> dict[str, Any]:
+def _map_order(order, contract, trade=None) -> dict[str, Any]:
+    """Map an IB order (+ optional Trade) to the account-orders payload.
+
+    Status/fill fields live on ``trade.orderStatus`` in ib_insync, not on the
+    Order object — without Trade, fall back to attributes on ``order`` (tests).
+    """
+    order_status = getattr(trade, "orderStatus", None) if trade is not None else None
+
+    def _status_field(name: str) -> Any:
+        if order_status is not None:
+            value = getattr(order_status, name, None)
+            if value is not None and value != "":
+                return value
+        return getattr(order, name, None)
+
     return {
         "orderId": getattr(order, "orderId", None),
         "permId": getattr(order, "permId", None),
@@ -1234,12 +1362,12 @@ def _map_order(order, contract) -> dict[str, Any]:
         "lmtPrice": _safe_float(getattr(order, "lmtPrice", None)),
         "auxPrice": _safe_float(getattr(order, "auxPrice", None)),
         "tif": getattr(order, "tif", None),
-        "status": getattr(order, "status", None),
-        "filled": _safe_float(getattr(order, "filled", None)),
-        "remaining": _safe_float(getattr(order, "remaining", None)),
-        "avgFillPrice": _safe_float(getattr(order, "avgFillPrice", None)),
-        "lastFillPrice": _safe_float(getattr(order, "lastFillPrice", None)),
-        "whyHeld": getattr(order, "whyHeld", None),
+        "status": _status_field("status"),
+        "filled": _safe_float(_status_field("filled")),
+        "remaining": _safe_float(_status_field("remaining")),
+        "avgFillPrice": _safe_float(_status_field("avgFillPrice")),
+        "lastFillPrice": _safe_float(_status_field("lastFillPrice")),
+        "whyHeld": _status_field("whyHeld"),
         "symbol": getattr(contract, "symbol", None),
         "secType": getattr(contract, "secType", None),
         "conId": getattr(contract, "conId", None),
@@ -1511,7 +1639,7 @@ def _ephemeral_positions(ib: IB) -> list[dict[str, Any]]:
 def _ephemeral_orders(ib: IB, account_id: str | None = None) -> list[dict[str, Any]]:
     orders: list[dict[str, Any]] = []
     for trade in ib.openTrades():
-        mapped = _map_order(trade.order, trade.contract)
+        mapped = _map_order(trade.order, trade.contract, trade)
         if account_id and mapped.get("account") != account_id:
             continue
         orders.append(mapped)
@@ -2365,7 +2493,7 @@ def trading_place_order(body: PlaceOrderRequest) -> dict[str, Any]:
             )
             trade = ib.placeOrder(contract, order)
             ib.sleep(0.5)
-            mapped = _map_order(trade.order, trade.contract)
+            mapped = _map_order(trade.order, trade.contract, trade)
             if resolved == PRIMARY_CONNECTION_ID:
                 with _account_lock:
                     oid = mapped.get("orderId")
@@ -2405,7 +2533,7 @@ def trading_modify_order(order_id: int, body: ModifyOrderRequest) -> dict[str, A
             _apply_order_modify_patch(trade.order, body)
             ib.placeOrder(trade.contract, trade.order)
             ib.sleep(0.5)
-            mapped = _map_order(trade.order, trade.contract)
+            mapped = _map_order(trade.order, trade.contract, trade)
             if resolved == PRIMARY_CONNECTION_ID:
                 with _account_lock:
                     oid = mapped.get("orderId")
@@ -2441,7 +2569,7 @@ def trading_cancel_order(
             for open_trade in ib.openTrades():
                 oid = getattr(open_trade.order, "orderId", None)
                 if oid is not None and int(oid) == order_id:
-                    mapped = _map_order(open_trade.order, open_trade.contract)
+                    mapped = _map_order(open_trade.order, open_trade.contract, open_trade)
                     break
             if mapped is None:
                 with _account_lock:

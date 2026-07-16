@@ -54,7 +54,7 @@ describe("dataTrust", () => {
     expect(readiness.reasons.some((r) => /not allowed for trading/i.test(r))).toBe(true);
   });
 
-  it("blocks stale pre_trade_quote even from tws", () => {
+  it("blocks stale pre_trade_quote when quote age exceeds trading max age", () => {
     const provenance = provenanceFromMeta({
       source: "tws",
       stale: true,
@@ -64,6 +64,19 @@ describe("dataTrust", () => {
     const readiness = evaluateReadiness("pre_trade_quote", "trading_decision", provenance);
     expect(readiness.status).toBe("blocked");
     expect(readiness.reasons).toContain("Data is marked stale");
+  });
+
+  it("allows tws pre_trade_quote marked stale when within trading max age", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - 1_000,
+      receivedAt: now,
+    });
+    const readiness = evaluateReadiness("pre_trade_quote", "trading_decision", provenance, now);
+    expect(readiness.status).toBe("ok");
+    expect(readiness.allowedForTradingDecision).toBe(true);
   });
 
   it("allows fresh tws pre_trade_quote for trading decision", () => {

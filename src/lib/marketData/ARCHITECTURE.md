@@ -196,7 +196,7 @@ The lean Phase 1 screener filters US equities and ETFs through FMP `/company-scr
 
 **Phase 2** (shipped): Postgres screener library sync, group watchlist actions, live quote overlay coalesced into `MarketDataProvider` SSE (32-symbol stream cap), AND/OR query groups with FMP comma-separated text filters, export utilities. `screen_runs` snapshots deferred.
 
-**Phase 3** (shipped): Custom-indicator rules via chart-core `IndicatorPlugin` (`ScreenQuery.technical.kind === "indicator"`) delivered through presets; Bollinger `%B` derived in screener evaluator; comparison table for multi-selected rows; `summarize_screen` read-only AI tool. **Technical rule builder (v1)** (shipped): registry-driven `QueryBuilder` technical editor + `validateIndicatorRule` semantic gate; one technical rule per screen; named kinds preserved for backward compat. Scheduled re-runs/alerts deferred — see [docs/screener-roadmap.md](../../../docs/screener-roadmap.md).
+**Phase 3** (shipped): Custom-indicator rules via chart-core `IndicatorPlugin` (`ScreenQuery.technical.kind === "indicator"`) delivered through presets; Bollinger `%B` derived in screener evaluator; comparison table for multi-selected rows; `summarize_screen` read-only AI tool. **Technical rule builder (v1)** (shipped): registry-driven `QueryBuilder` technical editor + `validateIndicatorRule` semantic gate; one technical rule per screen; named kinds preserved for backward compat. Scheduled re-runs/alerts deferred — see [docs/roadmaps/screener-roadmap.md](../../../docs/roadmaps/screener-roadmap.md).
 
 ## Data health center
 
@@ -216,7 +216,7 @@ Severity (`healthy` / `degraded` / `offline` / `unknown`) is derived in `src/lib
 
 TWS data within the display window stays **healthy** even when served from `hot-stale` SWR cache; internal `stale` and cache tier stay out of user-facing dataset lines. `resolveTrustDataset()` picks the options policy (`options_chain` vs `options_expirations`). Account feed severity remains connection-based. Transport recovery events (SSE timeout → REST success) are recorded in a session **Issues** log via `src/lib/marketData/healthEvents.ts` and do not downgrade the badge when datasets are display-fresh. Incident warnings (Yahoo fallback, TWS skip, circuit open) still surface under **Issues** and drive degraded severity when they affect current provenance. `MarketDataProvider` silently revalidates aged watchlist quotes (~3s debounce) and the watchlist table shows muted per-row age hints after 30s.
 
-**Chart chrome:** On the active chart cell, `ChartOverlayStatusStack` stacks feed status (when stale/stream/error) above an icon-only `DataHealthButton` (severity dot only; session label removed from chart chrome). Hover shows the compact source summary via tooltip; click opens the Data Health panel. The chart legend suppresses the duplicate market session label when the overlay stack is shown. Dataset rows in the panel use structured chips from `buildDatasetChips()` in `health.ts`; idle datasets collapse to `Not open`; provider details collapse when healthy.
+**Chart chrome:** On the active chart cell, `ChartOverlayStatusStack` stacks feed status (when stale/stream/error) above a row with optional inline **Reconnect TWS** (when recovery is needed) plus an icon-only `DataHealthButton` (severity dot only; session label removed from chart chrome). Hover shows the compact source summary via tooltip; click opens the Data Health panel. The chart legend suppresses the duplicate market session label when the overlay stack is shown. Dataset rows in the panel use structured chips from `buildDatasetChips()` in `health.ts`; idle datasets collapse to `Not open`; provider details collapse when healthy.
 
 ### TWS-only mental model
 
@@ -231,25 +231,27 @@ When `TWS_ENABLED=true` and `IBKR_ENABLED=false` (default in `.env.example`):
 When IB Gateway is manually restored after a disconnect, the Data Health dropdown can run recovery when `TWS_ENABLED=true`:
 
 1. `POST /api/market-data/tws/recover` with visible symbols, chart candle requests, and active options symbol.
-2. If the sidecar is unreachable, Edge spawns the static local command `npm run tws:sidecar`.
-3. The sidecar `POST /control/reconnect` drops stale IB socket state and reconnects to IB Gateway. Sidecar `/health` and `/status` are **control-plane only** (non-blocking; no IB worker queue). `/status` exposes worker diagnostics (`queueDepth`, `activeJob`, `workerWedged`, recovery phase) plus connection supervisor fields (`connectionState`, `activeClientId`, `lastIbErrorCode`, `subscriptionsLost`, `restartRequired`).
-4. When the IB worker is wedged or the API client ID is stuck, Edge restarts the managed sidecar process (`npm run tws:sidecar`) before retrying reconnect. Stale `clientId` after restart surfaces a manual action: restart IB Gateway or change `TWS_CLIENT_ID`.
-5. The sidecar supervisor handles IB error codes: `1100` → disconnected, `1101` → connected but subscriptions lost (resubscribe quotes/account), `1102` → connected with subscriptions maintained. Wedged-worker reconnect bypasses the IB worker queue via async reconnect thread.
+2. If the sidecar is unreachable, Edge spawns `scripts/tws-sidecar.sh` — in `TWS_MANAGED=local` with `TWS_MANAGED_BY=edge-local`, or on user-initiated recover in `TWS_MANAGED=external` with `TWS_MANAGED_BY=standalone` (boot-time auto-spawn remains local-only).
+3. The sidecar `POST /control/reconnect` drops stale IB socket state and reconnects **both** configured Gateway sockets (`ib-paper` primary + `ib-live` extra). Sidecar `/health` and `/status` are **control-plane only** (non-blocking; no IB worker queue). `/status` exposes worker diagnostics (`queueDepth`, `activeJob`, `workerWedged`, recovery phase, `autoReconnectAttempt`) plus connection supervisor fields (`connectionState`, `activeClientId`, `lastIbErrorCode`, `subscriptionsLost`, `restartRequired`).
+4. When the IB worker is wedged or the API client ID is stuck, Edge restarts the sidecar process before retrying reconnect. Stale `clientId` after restart surfaces a manual action: restart IB Gateway or change `TWS_CLIENT_ID`.
+5. The sidecar supervisor handles IB error codes: `1100` → disconnected + bounded auto-reconnect (exponential backoff 2s→30s, max 5 attempts), `1101` → connected but subscriptions lost (resubscribe quotes/account), `1102` → connected with subscriptions maintained, `502`/`504` → disconnected + auto-reconnect. Auto-reconnect skips active trading mutations; wedged-worker manual reconnect bypasses the IB worker queue via async reconnect thread.
 6. The recover response includes `commandState`: `accepted`, `timed_out`, `failed`, or `confirmed`, plus `recoveryPhase`. A reconnect HTTP timeout (`timed_out`) or async accept (`accepted`) is **not** a final failure — the UI polls `GET /api/market-data/tws/recover/status` for phase messages and late Gateway confirmation.
 7. `finalizeTwsRecoveryIfNeeded()` resets TWS/brokerage gates, clears stale cache keys, and runs `primeMarketData()` once per recovery session when Gateway health is confirmed (sync or via status poll). Recovery session context (`symbols`, `candleRequests`, `optionsSymbol`) is started by the recover route and preserved through status-poll finalization.
 8. During active recovery, `/api/market-data/health?recovery=1` bypasses the TWS circuit breaker for fresh sidecar truth.
 9. The client bumps `MarketDataProvider.reloadToken` (and refreshes account state when brokerage is enabled) after confirmed recovery or after status poll finalization. Data Health shows precise phase messages (sidecar restart, client ID stuck, resubscribing, Gateway not logged in).
 
+**Manual recover affordances:** When TWS is degraded/offline (`shouldShowTwsRecovery`), the shared `TwsRecoverButton` appears in the **chart top-right overlay** (`ChartOverlayDataHealthRow`, beside the Data Health severity dot) and in the **Data Health menu** (full-width). When the app header cannot load trading accounts, the same button appears next to the header error alert. All surfaces call the shared client recovery flow (`runTwsRecoveryClient` in `twsRecoveryClient.ts`), which broadcasts lifecycle events on `twsRecoveryBus` so the chart overlay, Data Health snapshot, and market-data feeds refresh immediately when recovery completes from **any** surface (header or chart). While TWS is degraded, Data Health polls `/api/market-data/health` every 5s instead of 30s.
+
 **Startup coupling:** When `TWS_ENABLED=true` and `TWS_MANAGED=local` (default), root `instrumentation.ts` calls `ensureSidecarOnServerBoot()` on Node runtime boot (fire-and-forget). That reuses `recoverTwsSidecar` to spawn the sidecar via `scripts/tws-sidecar.sh` if unreachable, restart if wedged/stuck, call `POST /control/reconnect` to prime IB Gateway, and reset the TWS circuit breaker on confirmed success. Spawned sidecars set `TWS_MANAGED_BY=edge-local` and `EDGE_INSTANCE_ID` for ownership verification via `/health`. `SIGTERM`/`SIGINT`/`beforeExit` handlers call `killManagedSidecar()` (local mode only) so repeated `next dev` restarts do not leave orphaned sidecar processes.
 
 **Management modes (`TWS_MANAGED`):**
 
-| Mode | Next spawn/kill | Boot ensure | Use when |
-|------|-----------------|-------------|----------|
-| `local` | Yes | Yes | Default dev — Next owns one sidecar |
-| `external` | No | No | Manual `npm run tws:sidecar`, systemd, or launchd |
+| Mode | Next spawn/kill | Boot ensure | User Reconnect spawn | Use when |
+|------|-----------------|-------------|----------------------|----------|
+| `local` | Yes | Yes | Yes (`edge-local`) | Default dev — Next owns one sidecar |
+| `external` | No | No | Yes when port free (`standalone`) | Manual/systemd sidecar; Reconnect starts sidecar if down |
 
-Docker Compose is **not** used for the sidecar. External mode means run `npm run tws:sidecar` yourself (or a host supervisor).
+Docker Compose is **not** used for the sidecar. External mode skips boot ensure; user Reconnect still attempts spawn unless port 8765 is owned by another Edge dev instance — then stop that process or run `npm run tws:sidecar` yourself.
 
 **Brokerage readiness:** `awaitSidecarForBrokerage()` gates `/api/brokerage/*` and `BrokerageService` only — chart/quote routes keep fast Yahoo fallback.
 

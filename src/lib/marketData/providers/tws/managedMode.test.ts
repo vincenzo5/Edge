@@ -1,6 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import {
   canNextSpawnSidecar,
+  canSpawnSidecarForUserRecovery,
   getTwsManagedMode,
   isTwsExternalManaged,
   isTwsLocalManaged,
@@ -31,5 +32,18 @@ describe("managedMode", () => {
     expect(getTwsManagedMode()).toBe("external");
     expect(isTwsExternalManaged()).toBe(true);
     expect(canNextSpawnSidecar()).toBe(false);
+  });
+
+  it("allows user recovery spawn in external mode when port is not foreign", () => {
+    process.env.TWS_ENABLED = "true";
+    process.env.TWS_MANAGED = "external";
+    expect(canSpawnSidecarForUserRecovery(false)).toBe(true);
+    expect(canSpawnSidecarForUserRecovery(true)).toBe(false);
+  });
+
+  it("allows user recovery spawn in local mode regardless of port ownership", () => {
+    process.env.TWS_ENABLED = "true";
+    process.env.TWS_MANAGED = "local";
+    expect(canSpawnSidecarForUserRecovery(true)).toBe(true);
   });
 });

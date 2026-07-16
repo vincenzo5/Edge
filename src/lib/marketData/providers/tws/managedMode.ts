@@ -24,3 +24,13 @@ export function isTwsExternalManaged(): boolean {
 export function canNextSpawnSidecar(): boolean {
   return isTwsLocalManaged();
 }
+
+/**
+ * User-initiated recover (`POST /api/market-data/tws/recover`) may spawn when local
+ * managed, or in external mode when port 8765 is not owned by a foreign edge-local sidecar.
+ */
+export function canSpawnSidecarForUserRecovery(foreignSidecarOnPort = false): boolean {
+  if (isTwsLocalManaged()) return true;
+  if (isTwsExternalManaged()) return !foreignSidecarOnPort;
+  return false;
+}

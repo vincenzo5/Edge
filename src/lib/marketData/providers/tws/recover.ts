@@ -12,7 +12,7 @@ import {
   type TwsStatusProbe,
   type TwsWorkerDiagnostics,
 } from "./client";
-import { canNextSpawnSidecar } from "./managedMode";
+import { canNextSpawnSidecar, canSpawnSidecarForUserRecovery, isTwsExternalManaged } from "./managedMode";
 import { checkSidecarOwnership } from "./sidecarOwnership";
 import { updateTwsRecoveryPhase } from "./recoverySession";
 
@@ -194,11 +194,10 @@ async function defaultWarmup(baseUrl: string, symbols: string[]): Promise<void> 
   }
 }
 
-async function defaultStartSidecar(): Promise<boolean> {
-  if (!canNextSpawnSidecar()) {
-    return false;
-  }
+export const EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE =
+  "Port 8765 is in use. Stop the other process on that port, or run: npm run tws:sidecar";
 
+function spawnManagedSidecarProcess(managedBy: "edge-local" | "standalone"): boolean {
   if (managedSidecarProcess && managedSidecarProcess.exitCode == null && !managedSidecarProcess.killed) {
     return true;
   }
@@ -211,7 +210,7 @@ async function defaultStartSidecar(): Promise<boolean> {
   const logFd = fs.openSync(logPath, "a");
 
   const instanceId = randomUUID();
-  managedSidecarInstanceId = instanceId;
+  managedSidecarInstanceId = managedBy === "edge-local" ? instanceId : null;
 
   const bashCmd = process.platform === "win32" ? "bash" : "bash";
   const child = spawn(bashCmd, [scriptPath], {
@@ -220,8 +219,8 @@ async function defaultStartSidecar(): Promise<boolean> {
     stdio: ["ignore", logFd, logFd],
     env: {
       ...process.env,
-      TWS_MANAGED_BY: "edge-local",
-      EDGE_INSTANCE_ID: instanceId,
+      TWS_MANAGED_BY: managedBy,
+      EDGE_INSTANCE_ID: managedBy === "edge-local" ? instanceId : "",
     },
   });
   child.unref();
@@ -230,14 +229,27 @@ async function defaultStartSidecar(): Promise<boolean> {
   return true;
 }
 
+async function defaultStartSidecar(): Promise<boolean> {
+  if (!canNextSpawnSidecar()) {
+    return false;
+  }
+  return spawnManagedSidecarProcess("edge-local");
+}
+
+async function defaultStartSidecarForUserRecovery(): Promise<boolean> {
+  const managedBy = isTwsExternalManaged() ? "standalone" : "edge-local";
+  return spawnManagedSidecarProcess(managedBy);
+}
+
 async function defaultRestartSidecar(
   baseUrl: string,
   probeHealth: (url: string) => Promise<boolean>,
   startSidecar: () => Promise<boolean>,
   sleep: (ms: number) => Promise<void>,
   waitForHealth: (url: string) => Promise<boolean>,
+  allowUserRecoverySpawn = false,
 ): Promise<boolean> {
-  if (!canNextSpawnSidecar()) {
+  if (!allowUserRecoverySpawn && !canNextSpawnSidecar()) {
     return false;
   }
 
@@ -390,7 +402,7 @@ export async function recoverTwsSidecar(
   const fetchHealth = deps.fetchHealth ?? defaultFetchHealth;
   const probeStatus = deps.probeStatus ?? defaultProbeStatus;
   const reconnect = deps.reconnect ?? defaultReconnect;
-  const startSidecar = deps.startSidecar ?? defaultStartSidecar;
+  const startSidecar = deps.startSidecar ?? defaultStartSidecarForUserRecovery;
   const resetGate = deps.resetGate ?? (() => twsHealthGate.reset());
   const sleep = deps.sleep ?? defaultSleep;
   const waitForHealth =
@@ -398,8 +410,15 @@ export async function recoverTwsSidecar(
     ((url: string) => defaultWaitForHealth(url, probeHealth, sleep, fetchHealth));
   const restartSidecar =
     deps.restartSidecar ??
-    ((url: string) =>
-      defaultRestartSidecar(url, probeHealth, startSidecar, sleep, waitForHealth));
+    ((url: string, allowUserRecoverySpawn?: boolean) =>
+      defaultRestartSidecar(
+        url,
+        probeHealth,
+        startSidecar,
+        sleep,
+        waitForHealth,
+        allowUserRecoverySpawn,
+      ));
 
   if (!isControlAllowed() || !isConfigured()) {
     throw new Error("TWS is not configured");
@@ -424,8 +443,7 @@ export async function recoverTwsSidecar(
         false,
         "failed",
         "failed",
-        ownership.reason ??
-          "Another process owns the TWS sidecar port. Stop it or set TWS_MANAGED=external.",
+        ownership.reason ?? EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
         {
           configured: true,
           sidecarReachable: true,
@@ -436,17 +454,17 @@ export async function recoverTwsSidecar(
       );
     }
 
-    if (!canNextSpawnSidecar()) {
+    if (!canSpawnSidecarForUserRecovery(ownership.foreign)) {
       return buildResult(
         false,
         "failed",
         "failed",
-        "Sidecar unreachable. Start manually: npm run tws:sidecar",
+        EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
         {
           configured: true,
           sidecarReachable: false,
           gatewayConnected: false,
-          warnings: ["Sidecar unreachable in TWS_MANAGED=external mode"],
+          warnings: ["Sidecar unreachable — port conflict or spawn blocked"],
         },
         "sidecar_unresponsive",
       );
@@ -460,7 +478,9 @@ export async function recoverTwsSidecar(
         false,
         "failed",
         "failed",
-        "Unable to start managed sidecar.",
+        isTwsExternalManaged()
+          ? EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE
+          : "Unable to start managed sidecar.",
         {
           configured: true,
           sidecarReachable: false,
@@ -476,7 +496,9 @@ export async function recoverTwsSidecar(
         false,
         "failed",
         "failed",
-        "Sidecar did not become reachable. Run npm run tws:sidecar-setup, then retry.",
+        isTwsExternalManaged()
+          ? `${EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE} If the port is free, run npm run tws:sidecar-setup, then retry.`
+          : "Sidecar did not become reachable. Run npm run tws:sidecar-setup, then retry.",
         {
           configured: true,
           sidecarReachable: false,
@@ -490,18 +512,19 @@ export async function recoverTwsSidecar(
 
   let preStatus = await probeStatus(baseUrl);
   if (needsSidecarRestart(preStatus)) {
-    if (!canNextSpawnSidecar()) {
+    const canRestartForUser = canSpawnSidecarForUserRecovery(false);
+    if (!canRestartForUser) {
       return buildResult(
         false,
         "failed",
         "failed",
-        "Sidecar wedged or stale. Restart manually: npm run tws:sidecar",
+        EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
         {
           configured: true,
           sidecarReachable: preStatus?.sidecarReachable ?? true,
           gatewayConnected: false,
           restartRequired: true,
-          warnings: ["Sidecar restart required in TWS_MANAGED=external mode"],
+          warnings: ["Sidecar restart required — spawn blocked"],
         },
         preStatus?.diagnostics?.workerWedged ? "worker_wedged" : "client_id_stuck",
       );
@@ -511,7 +534,7 @@ export async function recoverTwsSidecar(
       preStatus?.connectionState === "client_id_stuck" ? "client_id_stuck" : "worker_wedged",
     );
     action = "restarted";
-    const restarted = await restartSidecar(baseUrl);
+    const restarted = await restartSidecar(baseUrl, true);
     if (!restarted) {
       return buildResult(
         false,
@@ -598,19 +621,19 @@ export async function recoverTwsSidecar(
   }
 
   if (needsSidecarRestart(status) && action !== "restarted") {
-    if (!canNextSpawnSidecar()) {
+    if (!canSpawnSidecarForUserRecovery(false)) {
       return buildResult(
         false,
         "failed",
         action,
-        "Sidecar wedged. Restart manually: npm run tws:sidecar",
+        EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
         status,
         "worker_wedged",
       );
     }
     updateTwsRecoveryPhase("worker_wedged");
     action = "restarted";
-    const restarted = await restartSidecar(baseUrl);
+    const restarted = await restartSidecar(baseUrl, true);
     if (restarted) {
       try {
         status = await reconnect(baseUrl);

@@ -9,11 +9,13 @@ import {
 import { IB_PAPER_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
 
 export function useDataConnectionPreference() {
-  const [preference, setPreferenceState] = useState<DataConnectionId>(
-    () => readDataConnectionPreference() ?? IB_PAPER_CONNECTION_ID,
-  );
+  // SSR-stable default — never read localStorage in useState (hydration mismatch).
+  const [preference, setPreferenceState] = useState<DataConnectionId>(IB_PAPER_CONNECTION_ID);
 
   useEffect(() => {
+    const stored = readDataConnectionPreference();
+    if (stored) setPreferenceState(stored);
+
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<DataConnectionId>).detail;
       if (detail) {

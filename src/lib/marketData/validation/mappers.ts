@@ -38,6 +38,34 @@ export function equityQuoteToWatchlistQuote(quote: EquityQuote): QuoteSnapshot {
   };
 }
 
+function asFiniteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Map a quote SSE/REST row into QuoteSnapshot.
+ * Accepts both MarketQuote (`price`/`changePercent`) and Yahoo-style (`regularMarket*`) keys.
+ */
+export function mapRawQuoteToSnapshot(raw: Record<string, unknown>): QuoteSnapshot | null {
+  const symbol = typeof raw.symbol === "string" ? raw.symbol.trim().toUpperCase() : "";
+  if (!symbol) return null;
+  return {
+    symbol,
+    shortName: typeof raw.shortName === "string" ? raw.shortName : undefined,
+    exchange: typeof raw.exchange === "string" ? raw.exchange : undefined,
+    currency: typeof raw.currency === "string" ? raw.currency : undefined,
+    regularMarketPrice:
+      asFiniteNumber(raw.regularMarketPrice) ?? asFiniteNumber(raw.price),
+    regularMarketChange:
+      asFiniteNumber(raw.regularMarketChange) ?? asFiniteNumber(raw.change),
+    regularMarketChangePercent:
+      asFiniteNumber(raw.regularMarketChangePercent) ?? asFiniteNumber(raw.changePercent),
+    regularMarketVolume:
+      asFiniteNumber(raw.regularMarketVolume) ?? asFiniteNumber(raw.volume),
+    updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : Date.now(),
+  };
+}
+
 export function equityQuoteToMarketQuote(quote: EquityQuote): MarketQuote {
   return {
     symbol: quote.symbol,

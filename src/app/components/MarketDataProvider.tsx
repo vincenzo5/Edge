@@ -15,6 +15,7 @@ import { cellCountFor } from "@/lib/chartConfig";
 import { getActiveWatchlist } from "@/lib/watchlist/storage";
 import type { ChartDataMeta } from "@edge/chart-core";
 import type { QuoteSnapshot } from "@/lib/watchlist/types";
+import { mapRawQuoteToSnapshot } from "@/lib/marketData/validation/mappers";
 import { useWatchlistActions } from "./watchlist/WatchlistContext";
 import { useScreenerStateOptional } from "./screener/ScreenerProvider";
 import {
@@ -58,27 +59,7 @@ function watchlistStreamEnabled(): boolean {
   return typeof EventSource !== "undefined";
 }
 
-function mapStreamQuote(raw: Record<string, unknown>): QuoteSnapshot | null {
-  const symbol = typeof raw.symbol === "string" ? raw.symbol : null;
-  if (!symbol) return null;
-  return {
-    symbol,
-    shortName: typeof raw.shortName === "string" ? raw.shortName : undefined,
-    exchange: typeof raw.exchange === "string" ? raw.exchange : undefined,
-    currency: typeof raw.currency === "string" ? raw.currency : undefined,
-    regularMarketPrice:
-      typeof raw.regularMarketPrice === "number" ? raw.regularMarketPrice : null,
-    regularMarketChange:
-      typeof raw.regularMarketChange === "number" ? raw.regularMarketChange : null,
-    regularMarketChangePercent:
-      typeof raw.regularMarketChangePercent === "number"
-        ? raw.regularMarketChangePercent
-        : null,
-    regularMarketVolume:
-      typeof raw.regularMarketVolume === "number" ? raw.regularMarketVolume : null,
-    updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : Date.now(),
-  };
-}
+const mapStreamQuote = mapRawQuoteToSnapshot;
 
 type RestQuotesResponse = {
   quotes?: QuoteSnapshot[];
@@ -131,7 +112,10 @@ function applyRestQuotesPayload(
 ): { next: Map<string, QuoteSnapshot>; firstPaint: boolean } {
   const next = new Map<string, QuoteSnapshot>();
   for (const quote of payload.quotes ?? []) {
-    next.set(quote.symbol, quote);
+    next.set(quote.symbol.trim().toUpperCase(), {
+      ...quote,
+      symbol: quote.symbol.trim().toUpperCase(),
+    });
   }
   const firstPaint = next.size > 0;
   if (firstPaint) {
@@ -192,10 +176,15 @@ function buildSymbolUniverse(
   layout: ChartLayout,
   watchlistSymbols: string[],
   screenerSymbols: string[] = [],
+  extraSymbols: string[] = [],
 ): string[] {
   const symbols = new Set<string>(watchlistSymbols);
   for (const symbol of screenerSymbols) {
     symbols.add(symbol.trim().toUpperCase());
+  }
+  for (const symbol of extraSymbols) {
+    const normalized = symbol.trim().toUpperCase();
+    if (normalized) symbols.add(normalized);
   }
   const count = cellCountFor(layout.layoutId);
   for (let i = 0; i < count; i++) {
@@ -206,11 +195,13 @@ function buildSymbolUniverse(
 }
 
 const STREAM_SYMBOL_CAP = 32;
+const EMPTY_EXTRA_SYMBOLS: string[] = [];
 
 function prioritizeStreamSymbols(
   layout: ChartLayout,
   watchlistSymbols: string[],
   screenerSymbols: string[],
+  extraSymbols: string[] = [],
 ): string[] {
   const ordered: string[] = [];
   const seen = new Set<string>();
@@ -226,6 +217,7 @@ function prioritizeStreamSymbols(
     const cell = layout.cells[i];
     if (cell?.symbol) push(cell.symbol);
   }
+  for (const symbol of extraSymbols) push(symbol);
   for (const symbol of screenerSymbols) push(symbol);
   for (const symbol of watchlistSymbols) push(symbol);
 
@@ -234,9 +226,12 @@ function prioritizeStreamSymbols(
 
 export function MarketDataProvider({
   layout,
+  extraSymbols = EMPTY_EXTRA_SYMBOLS,
   children,
 }: {
   layout: ChartLayout;
+  /** Additional symbols to quote (e.g. inactive workspace tab primaries). */
+  extraSymbols?: string[];
   children: ReactNode;
 }) {
   const watchlist = useWatchlistActions();
@@ -274,13 +269,13 @@ export function MarketDataProvider({
   );
 
   const symbolUniverse = useMemo(
-    () => buildSymbolUniverse(layout, watchlistSymbols, screenerSymbols),
-    [layout, watchlistSymbols, screenerSymbols],
+    () => buildSymbolUniverse(layout, watchlistSymbols, screenerSymbols, extraSymbols),
+    [layout, watchlistSymbols, screenerSymbols, extraSymbols],
   );
 
   const streamSymbols = useMemo(
-    () => prioritizeStreamSymbols(layout, watchlistSymbols, screenerSymbols),
-    [layout, watchlistSymbols, screenerSymbols],
+    () => prioritizeStreamSymbols(layout, watchlistSymbols, screenerSymbols, extraSymbols),
+    [layout, watchlistSymbols, screenerSymbols, extraSymbols],
   );
 
   const symbolKey = symbolUniverse.join(",");
@@ -624,7 +619,8 @@ export function MarketDataProvider({
           if (!payload.quotes?.length) return;
           const next = new Map(quotesRef.current);
           for (const quote of payload.quotes) {
-            next.set(quote.symbol, quote);
+            const symbol = quote.symbol.trim().toUpperCase();
+            next.set(symbol, { ...quote, symbol });
           }
           setQuotesBySymbol(next);
           setQuotesMeta((prev) => mergeQuotesMeta(next, payload.meta, prev, prev?.streaming));

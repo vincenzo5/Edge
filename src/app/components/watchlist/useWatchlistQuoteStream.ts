@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { QuoteSnapshot } from "@/lib/watchlist/types";
 import { fetchQuotes } from "@/lib/watchlist/quoteClient";
+import { mapRawQuoteToSnapshot } from "@/lib/marketData/validation/mappers";
 import { useMarketDataQuotes, useMarketDataQuotesForSymbols } from "../MarketDataProvider";
 import { resolveQuoteStreamFirstPaintMs } from "@/lib/marketData/quoteStreamPolicy";
 import { recordHealthEvent } from "@/lib/marketData/healthEvents";
@@ -14,27 +15,7 @@ function watchlistStreamEnabled(): boolean {
   return typeof EventSource !== "undefined";
 }
 
-function mapStreamQuote(raw: Record<string, unknown>): QuoteSnapshot | null {
-  const symbol = typeof raw.symbol === "string" ? raw.symbol : null;
-  if (!symbol) return null;
-  return {
-    symbol,
-    shortName: typeof raw.shortName === "string" ? raw.shortName : undefined,
-    exchange: typeof raw.exchange === "string" ? raw.exchange : undefined,
-    currency: typeof raw.currency === "string" ? raw.currency : undefined,
-    regularMarketPrice:
-      typeof raw.regularMarketPrice === "number" ? raw.regularMarketPrice : null,
-    regularMarketChange:
-      typeof raw.regularMarketChange === "number" ? raw.regularMarketChange : null,
-    regularMarketChangePercent:
-      typeof raw.regularMarketChangePercent === "number"
-        ? raw.regularMarketChangePercent
-        : null,
-    regularMarketVolume:
-      typeof raw.regularMarketVolume === "number" ? raw.regularMarketVolume : null,
-    updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : Date.now(),
-  };
-}
+const mapStreamQuote = mapRawQuoteToSnapshot;
 
 function useLegacyWatchlistQuoteStream(symbols: string[]): {
   quotes: QuoteSnapshot[];

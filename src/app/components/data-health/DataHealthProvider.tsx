@@ -12,8 +12,8 @@ import {
 } from "react";
 import type { ChartDataMeta } from "@edge/chart-core";
 import {
-  isTwsGatewayHealthy,
   mergeHealthSnapshot,
+  shouldShowTwsRecovery,
   type DataHealthSnapshot,
   type ServerHealthPayload,
 } from "@/lib/marketData/health";
@@ -24,19 +24,18 @@ import {
   subscribeHealthEvents,
   type HealthEvent,
 } from "@/lib/marketData/healthEvents";
+import { subscribeTwsRecovery } from "@/lib/marketData/twsRecoveryBus";
+import { runTwsRecoveryClient } from "@/lib/marketData/twsRecoveryClient";
 import { useActiveChart } from "../ActiveChartContext";
 import { useMarketDataQuotes } from "../MarketDataProvider";
 import { useAccountOptional } from "../AccountProvider";
+import { useAccountAliasesOptional } from "../AccountAliasesProvider";
 import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
 
 type OptionsHealthMeta = Partial<ChartDataMeta> | null;
 
-const RECOVERY_POLL_INTERVAL_MS = 3_000;
-const RECOVERY_POLL_DEADLINE_MS = 60_000;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const HEALTH_POLL_HEALTHY_MS = 30_000;
+const HEALTH_POLL_DEGRADED_MS = 5_000;
 
 type DataHealthContextValue = {
   snapshot: DataHealthSnapshot;
@@ -44,7 +43,7 @@ type DataHealthContextValue = {
   setMenuOpen: (open: boolean) => void;
   serverHealthLoading: boolean;
   serverHealthLoaded: boolean;
-  refreshServerHealth: () => Promise<ServerHealthPayload | null>;
+  refreshServerHealth: (options?: { recovery?: boolean }) => Promise<ServerHealthPayload | null>;
   registerOptionsMeta: (
     meta: OptionsHealthMeta,
     detail?: string,
@@ -61,6 +60,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
   const activeChart = useActiveChart();
   const marketData = useMarketDataQuotes();
   const account = useAccountOptional();
+  const accountAliases = useAccountAliasesOptional();
   const { preference: dataConnectionPreference } = useDataConnectionPreference();
   const [menuOpen, setMenuOpen] = useState(false);
   const [serverHealth, setServerHealth] = useState<ServerHealthPayload | null>(null);
@@ -73,33 +73,82 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
   const [healthEvents, setHealthEvents] = useState<HealthEvent[]>(() => getHealthEvents());
   const recoveryRunRef = useRef(0);
 
+  const refreshServerHealth = useCallback(
+    async (options?: { recovery?: boolean }): Promise<ServerHealthPayload | null> => {
+      setServerHealthLoading(true);
+      try {
+        const url = options?.recovery
+          ? "/api/market-data/health?recovery=1"
+          : "/api/market-data/health";
+        const res = await fetch(url, { priority: "high" });
+        if (!res.ok) return null;
+        const payload = (await res.json()) as { health?: ServerHealthPayload };
+        if (payload.health) {
+          setServerHealth(payload.health);
+          return payload.health;
+        }
+      } catch {
+        // Keep last known server health.
+      } finally {
+        setServerHealthLoading(false);
+      }
+      return null;
+    },
+    [],
+  );
+
+  const reloadFeedsAfterRecovery = useCallback(async () => {
+    marketData?.reloadMarketData();
+    if (account && !account.disabled) {
+      await account.refresh();
+    }
+  }, [account, marketData]);
+
   useEffect(() => subscribeHealthEvents(setHealthEvents), []);
 
-  const refreshServerHealth = useCallback(async (): Promise<ServerHealthPayload | null> => {
-    setServerHealthLoading(true);
-    try {
-      const res = await fetch("/api/market-data/health", { priority: "high" });
-      if (!res.ok) return null;
-      const payload = (await res.json()) as { health?: ServerHealthPayload };
-      if (payload.health) {
-        setServerHealth(payload.health);
-        return payload.health;
+  useEffect(() => {
+    return subscribeTwsRecovery((event) => {
+      if (event.phase === "started") {
+        setRecoveringTws(true);
+        setRecoverMessage(null);
+        return;
       }
-    } catch {
-      // Keep last known server health.
-    } finally {
-      setServerHealthLoading(false);
-    }
-    return null;
-  }, []);
+      if (event.phase === "progress") {
+        if (event.message) setRecoverMessage(event.message);
+        return;
+      }
+      if (event.phase === "completed") {
+        setRecoveringTws(false);
+        setRecoverMessage(event.message ?? null);
+        void refreshServerHealth({ recovery: true });
+        void reloadFeedsAfterRecovery();
+        recordHealthEvent({
+          kind: "recovery",
+          message: event.message ?? "TWS recovery completed",
+          recovered: true,
+          dataset: "tws",
+        });
+        return;
+      }
+      if (event.phase === "failed") {
+        setRecoveringTws(false);
+        if (event.message) setRecoverMessage(event.message);
+        void refreshServerHealth({ recovery: true });
+      }
+    });
+  }, [refreshServerHealth, reloadFeedsAfterRecovery]);
 
   useEffect(() => {
     void refreshServerHealth();
+    const twsProvider = serverHealth?.providers.find((provider) => provider.id === "tws");
+    const pollMs = shouldShowTwsRecovery(twsProvider)
+      ? HEALTH_POLL_DEGRADED_MS
+      : HEALTH_POLL_HEALTHY_MS;
     const timer = window.setInterval(() => {
       void refreshServerHealth();
-    }, 30_000);
+    }, pollMs);
     return () => window.clearInterval(timer);
-  }, [refreshServerHealth]);
+  }, [refreshServerHealth, serverHealth]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -119,141 +168,31 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const reloadFeedsAfterRecovery = useCallback(async () => {
-    marketData?.reloadMarketData();
-    if (account && !account.disabled) {
-      await account.refresh();
-    }
-  }, [account, marketData]);
-
-  const waitForRecoveryConfirmation = useCallback(async (): Promise<boolean> => {
-    const deadline = Date.now() + RECOVERY_POLL_DEADLINE_MS;
-    while (Date.now() < deadline) {
-      try {
-        const res = await fetch("/api/market-data/tws/recover/status", { priority: "high" });
-        if (res.ok) {
-          const payload = (await res.json()) as {
-            ok?: boolean;
-            message?: string;
-            finalized?: boolean;
-            recoveryPhase?: string;
-          };
-          if (payload.message) {
-            setRecoverMessage(payload.message);
-          }
-          if (payload.ok && payload.finalized) {
-            return true;
-          }
-          if (payload.ok && payload.recoveryPhase === "confirmed") {
-            return true;
-          }
-        }
-      } catch {
-        // Keep polling until deadline.
-      }
-      await sleep(RECOVERY_POLL_INTERVAL_MS);
-    }
-    return false;
-  }, []);
-
-  const waitForGatewayHealth = useCallback(async (): Promise<boolean> => {
-    const confirmed = await waitForRecoveryConfirmation();
-    if (confirmed) return true;
-
-    const deadline = Date.now() + RECOVERY_POLL_DEADLINE_MS;
-    while (Date.now() < deadline) {
-      const health = await refreshServerHealth();
-      const twsProvider = health?.providers.find((provider) => provider.id === "tws");
-      if (isTwsGatewayHealthy(twsProvider)) {
-        return true;
-      }
-      await sleep(RECOVERY_POLL_INTERVAL_MS);
-    }
-    return false;
-  }, [refreshServerHealth, waitForRecoveryConfirmation]);
-
   const recoverTws = useCallback(async () => {
     const runId = ++recoveryRunRef.current;
-    setRecoveringTws(true);
-    setRecoverMessage(null);
-    try {
-      const symbols = [
-        ...new Set(
-          [
-            activeChart?.config.symbol?.trim().toUpperCase(),
-            ...(marketData?.recoverySymbols ?? []),
-          ].filter((sym): sym is string => Boolean(sym)),
-        ),
-      ];
-      const res = await fetch("/api/market-data/tws/recover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          symbols,
-          candleRequests: marketData?.recoveryCandleRequests ?? [],
-          optionsSymbol: marketData?.recoveryOptionsSymbol ?? undefined,
-        }),
-      });
-      const payload = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        commandState?: "accepted" | "timed_out" | "failed" | "confirmed";
-        message?: string;
-        recoveryPhase?: string;
-        error?: string;
-      };
-      if (!res.ok) {
-        setRecoverMessage(payload.error ?? "TWS recovery failed");
-        return;
-      }
-
-      if (payload.message) {
-        setRecoverMessage(payload.message);
-      }
-      recordHealthEvent({
-        kind: "recovery",
-        message: payload.message ?? "TWS recovery started",
-        recovered: payload.ok === true && payload.commandState === "confirmed",
-        dataset: "tws",
-      });
-
-      const commandState = payload.commandState;
-      if (payload.ok && commandState === "confirmed") {
-        await reloadFeedsAfterRecovery();
-        await refreshServerHealth();
-        return;
-      }
-
-      if (commandState === "timed_out" || commandState === "accepted") {
-        const connected = await waitForGatewayHealth();
-        if (runId !== recoveryRunRef.current) return;
-        if (connected) {
-          setRecoverMessage("Gateway connected. Reloading market data…");
-          await reloadFeedsAfterRecovery();
-          setRecoverMessage("Gateway connected. Market data reloaded.");
-        } else {
-          setRecoverMessage(
-            "Reconnect still in progress. Confirm IB Gateway is logged in, then check Data Health.",
-          );
-        }
-        await refreshServerHealth();
-        return;
-      }
-
-      setRecoverMessage(payload.message ?? "Recovery incomplete");
-      await refreshServerHealth();
-    } catch {
-      setRecoverMessage("TWS recovery request failed");
-    } finally {
-      if (runId === recoveryRunRef.current) {
-        setRecoveringTws(false);
-      }
+    const symbols = [
+      ...new Set(
+        [
+          activeChart?.config.symbol?.trim().toUpperCase(),
+          ...(marketData?.recoverySymbols ?? []),
+        ].filter((sym): sym is string => Boolean(sym)),
+      ),
+    ];
+    const result = await runTwsRecoveryClient({
+      source: "data-health",
+      symbols,
+      candleRequests: marketData?.recoveryCandleRequests ?? [],
+      optionsSymbol: marketData?.recoveryOptionsSymbol ?? undefined,
+    });
+    if (runId !== recoveryRunRef.current) return;
+    if (!result.ok && result.message) {
+      setRecoverMessage(result.message);
     }
   }, [
     activeChart?.config.symbol,
-    marketData,
-    refreshServerHealth,
-    reloadFeedsAfterRecovery,
-    waitForGatewayHealth,
+    marketData?.recoveryCandleRequests,
+    marketData?.recoveryOptionsSymbol,
+    marketData?.recoverySymbols,
   ]);
 
   const snapshot = useMemo(() => {
@@ -288,9 +227,11 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
         chartStreamTransport: process.env.NEXT_PUBLIC_STREAM_TRANSPORT ?? "polling",
         accountDisabled: account?.disabled,
         accountConnectionState: account?.connectionState,
-        accountDetail: account?.status?.accountId
-          ? `${account.status.accountId} · ${account.positions.length} positions`
-          : account?.connectionState,
+        accountDetail: account?.activeTradingAccount
+          ? `${accountAliases?.displayNameFor(account.activeTradingAccount) ?? account.status?.accountId ?? account.activeTradingAccount.accountId} · ${account.positions.length} positions`
+          : account?.status?.accountId
+            ? `${account.status.accountId} · ${account.positions.length} positions`
+            : account?.connectionState,
         accountError: account?.error,
         dataConnectionPreference,
       },
@@ -310,11 +251,13 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     optionsDetail,
     optionsMeta,
     optionsTrustDataset,
+    account?.activeTradingAccount,
     account?.connectionState,
     account?.disabled,
     account?.error,
     account?.positions.length,
     account?.status?.accountId,
+    accountAliases,
     dataConnectionPreference,
     serverHealth,
     healthEvents,

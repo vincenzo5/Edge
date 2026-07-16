@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 SIDECAR_DIR = Path(__file__).resolve().parent
@@ -371,6 +372,45 @@ class TradingModifyTests(unittest.TestCase):
 
         mapped = main._map_order(_Order(), _Contract())
         self.assertEqual(mapped["orderRef"], "edge-intent-abc")
+        self.assertEqual(mapped["status"], "Submitted")
+
+    def test_map_order_reads_status_from_trade_order_status(self) -> None:
+        class _Order:
+            orderId = 8
+            permId = 100
+            clientId = 1
+            account = "DUP586813"
+            action = "BUY"
+            totalQuantity = 1
+            orderType = "LMT"
+            lmtPrice = 1.0
+            auxPrice = None
+            tif = "GTC"
+            orderRef = "edge-intent-xyz"
+
+        class _OrderStatus:
+            status = "Submitted"
+            filled = 0
+            remaining = 1
+            avgFillPrice = 0.0
+            lastFillPrice = 0.0
+            whyHeld = ""
+
+        class _Contract:
+            symbol = "F"
+            secType = "STK"
+            conId = 123
+
+        class _Trade:
+            order = _Order()
+            contract = _Contract()
+            orderStatus = _OrderStatus()
+
+        trade = _Trade()
+        mapped = main._map_order(trade.order, trade.contract, trade)
+        self.assertEqual(mapped["status"], "Submitted")
+        self.assertEqual(mapped["filled"], 0.0)
+        self.assertEqual(mapped["remaining"], 1.0)
 
     def test_modify_order_request_requires_patch_field(self) -> None:
         from pydantic import ValidationError
@@ -436,6 +476,86 @@ class TradingModifyTests(unittest.TestCase):
         with self.assertRaises(main.HTTPException) as ctx:
             main._apply_order_modify_patch(_Order(), body)
         self.assertEqual(ctx.exception.status_code, 400)
+
+
+class ReconnectResetTests(unittest.TestCase):
+    def setUp(self) -> None:
+        main._reset_ib_connection()
+
+    def test_reset_clears_extra_connections(self) -> None:
+        mock_ib = mock.MagicMock()
+        mock_ib.isConnected.return_value = True
+        main._ib_extra["ib-live"] = mock_ib
+        main._reset_ib_connection()
+        mock_ib.disconnect.assert_called_once()
+        self.assertEqual(len(main._ib_extra), 0)
+
+    @mock.patch.object(main, "_get_ib_for_connection")
+    @mock.patch.object(main, "_get_ib")
+    def test_reconnect_ib_attempts_extra_connections(
+        self,
+        mock_get_ib: mock.MagicMock,
+        mock_get_extra: mock.MagicMock,
+    ) -> None:
+        mock_get_ib.return_value = mock.MagicMock()
+        mock_get_ib.return_value.isConnected.return_value = True
+        main._reconnect_ib()
+        mock_get_extra.assert_any_call("ib-live")
+
+
+class AutoReconnectSupervisorTests(unittest.TestCase):
+    def setUp(self) -> None:
+        main._reset_auto_reconnect_attempts()
+        with main._auto_reconnect_lock:
+            main._auto_reconnect_thread = None
+        with main._recovery_lock:
+            main._recovery_phase = "idle"
+            main._recovery_message = None
+
+    def tearDown(self) -> None:
+        main._reset_auto_reconnect_attempts()
+        with main._auto_reconnect_lock:
+            main._auto_reconnect_thread = None
+
+    def test_backoff_caps_at_thirty_seconds(self) -> None:
+        self.assertEqual(main._auto_reconnect_backoff_sec(1), 2.0)
+        self.assertEqual(main._auto_reconnect_backoff_sec(2), 4.0)
+        self.assertEqual(main._auto_reconnect_backoff_sec(3), 8.0)
+        self.assertEqual(main._auto_reconnect_backoff_sec(10), 30.0)
+
+    def test_status_includes_auto_reconnect_diagnostics(self) -> None:
+        with main._auto_reconnect_lock:
+            main._auto_reconnect_attempt = 2
+        body = main._status_payload()
+        recovery = body["diagnostics"]["recovery"]
+        self.assertEqual(recovery["autoReconnectAttempt"], 2)
+        self.assertEqual(recovery["autoReconnectMaxAttempts"], 5)
+
+    @mock.patch.object(main, "_reconnect_ib")
+    @mock.patch.object(main, "_active_trading_mutation", return_value=False)
+    @mock.patch.object(main.time, "sleep", return_value=None)
+    def test_record_ib_error_1100_schedules_auto_reconnect(
+        self,
+        _mock_sleep: mock.MagicMock,
+        _mock_trading: mock.MagicMock,
+        mock_reconnect: mock.MagicMock,
+    ) -> None:
+        mock_reconnect.return_value = {"gatewayConnected": True}
+        main._record_ib_error(1100, "Connectivity lost")
+        with main._auto_reconnect_lock:
+            thread = main._auto_reconnect_thread
+        self.assertIsNotNone(thread)
+        thread.join(timeout=2.0)
+        mock_reconnect.assert_called()
+        self.assertEqual(main._auto_reconnect_attempt, 0)
+
+    @mock.patch.object(main, "_maybe_schedule_auto_reconnect")
+    def test_on_ib_disconnected_schedules_auto_reconnect(
+        self,
+        mock_schedule: mock.MagicMock,
+    ) -> None:
+        main._on_ib_disconnected()
+        mock_schedule.assert_called_once()
 
 
 class ConnectionRoutingEndpointTests(unittest.TestCase):

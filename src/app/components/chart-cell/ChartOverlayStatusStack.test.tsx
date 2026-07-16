@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ActiveChartProvider } from "../ActiveChartContext";
 import { DataHealthProvider } from "../data-health/DataHealthProvider";
@@ -40,6 +40,38 @@ vi.mock("../MarketDataProvider", () => ({
     reloadMarketData: vi.fn(),
   }),
 }));
+
+function degradedTwsHealthFetch() {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("/api/market-data/health")) {
+      return {
+        ok: true,
+        json: async () => ({
+          health: {
+            generatedAt: Date.now(),
+            providers: [
+              {
+                id: "tws",
+                label: "TWS",
+                configured: true,
+                status: "offline",
+                detail: "Sidecar ok · Gateway disconnected",
+                circuitOpen: true,
+                circuitReason: "gateway_disconnected",
+              },
+            ],
+            recentWarnings: [],
+          },
+        }),
+      } as Response;
+    }
+    return {
+      ok: true,
+      json: async () => ({ health: { generatedAt: Date.now(), providers: [], recentWarnings: [] } }),
+    } as Response;
+  });
+}
 
 function renderStack(
   ui: ReactNode,
@@ -152,6 +184,44 @@ describe("ChartOverlayStatusStack", () => {
 
     expect(screen.queryByTestId("chart-market-session-label")).toBeNull();
     expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
+  });
+
+  it("shows inline reconnect when TWS recovery is needed", async () => {
+    renderStack(
+      <ChartOverlayStatusStack
+        theme="dark"
+        showDataHealth
+        error={null}
+        streamError={null}
+        stale={false}
+        refreshing={false}
+      />,
+      degradedTwsHealthFetch(),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chart-overlay-recover-tws")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("chart-overlay-recover-tws")).toHaveTextContent("Reconnect TWS");
+    expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
+  });
+
+  it("hides inline reconnect when TWS is healthy", async () => {
+    renderStack(
+      <ChartOverlayStatusStack
+        theme="dark"
+        showDataHealth
+        error={null}
+        streamError={null}
+        stale={false}
+        refreshing={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("chart-overlay-recover-tws")).toBeNull();
   });
 
   it("falls back to standalone feed badge when showDataHealth is false", () => {
