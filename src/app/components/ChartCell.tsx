@@ -65,13 +65,17 @@ import {
   listPresetsByKind,
   savePreset,
 } from "@/lib/presetStorage";
-import { getShortcutLabel } from "@/lib/shortcuts/formatShortcutLabel";
+import { buildOverlayContextMenuItems } from "./chart-cell/overlayContextMenu";
+import { useTradeSetupBindingOptional } from "./trading/TradeSetupBindingContext";
+import { positionOrderLevelsFromDrawing } from "@/lib/trading/positionTradeSetup";
 import MarketContextBreadcrumb from "./chart-chrome/MarketContextBreadcrumb";
 import type { ChartSymbolNav } from "./ChartGrid";
 import type { SymbolSelectResult } from "@/lib/watchlist/types";
 import type { RailMode } from "@/lib/responsive/responsiveLayout";
 
 type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
+
+const EMPTY_CONTEXT_MENU_ITEMS: ContextMenuItem[] = [];
 
 type Props = {
   chartId: string;
@@ -105,6 +109,7 @@ export default function ChartCell({
   onCandleCount,
 }: Props) {
   const chartRef = useRef<ChartHandle>(null);
+  const tradeBinding = useTradeSetupBindingOptional();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [chartRetryKey, setChartRetryKey] = useState(0);
   const [visibleCount, setVisibleCount] = useState<number | null>(null);
@@ -198,6 +203,24 @@ export default function ChartCell({
     setSelectedOverlayId,
     setHistoryRevision,
   });
+
+  const boundCellId = tradeBinding?.bind?.cellId ?? null;
+  const boundDrawingId = tradeBinding?.bind?.drawingId ?? null;
+  const updateBoundLevels = tradeBinding?.updateBoundLevels;
+
+  useEffect(() => {
+    if (!updateBoundLevels || !boundCellId || !boundDrawingId || boundCellId !== chartId) {
+      return;
+    }
+
+    const drawings = chartRef.current?.serializeDrawings() ?? [];
+    const drawing = drawings.find((item) => item.id === boundDrawingId);
+    if (!drawing) {
+      updateBoundLevels(null);
+      return;
+    }
+    updateBoundLevels(positionOrderLevelsFromDrawing(drawing));
+  }, [overlays, boundCellId, boundDrawingId, updateBoundLevels, chartId]);
 
   // Apply layout toolbar prefs to the chart when active or prefs change.
   useEffect(() => {
@@ -984,10 +1007,25 @@ export default function ChartCell({
             onPaste: handlePasteDrawings,
             canPaste: hasDrawingClipboard(),
           },
+          {
+            onTradeSetup: tradeBinding
+              ? () => {
+                  tradeBinding.openTradeFromDrawing(chartId, overlay.id, config.symbol);
+                  setContextMenu(null);
+                }
+              : undefined,
+          },
         ),
       });
     },
-    [overlayActions, overlays, handlePasteDrawings, openRenameOverlay],
+    [
+      overlayActions,
+      handlePasteDrawings,
+      openRenameOverlay,
+      tradeBinding,
+      chartId,
+      config.symbol,
+    ],
   );
 
   const handleChartContextMenu = useCallback(
@@ -1337,7 +1375,7 @@ export default function ChartCell({
       <ContextMenu
         open={!!contextMenu}
         position={contextMenu?.position ?? null}
-        items={contextMenu?.items ?? []}
+        items={contextMenu?.items ?? EMPTY_CONTEXT_MENU_ITEMS}
         header={contextMenu?.header}
         onClose={() => setContextMenu(null)}
       />
@@ -1388,98 +1426,4 @@ function ChartSyncBridge({
   }, [sync, chartId, chartRef, suppressDrawingPersistRef, lastAppliedDrawingsRef]);
 
   return null;
-}
-
-type OverlayActionHandlers = {
-  remove: (id: string) => void;
-  setVisible: (id: string, visible: boolean) => void;
-  setLocked: (id: string, locked: boolean) => void;
-  rename: (id: string, label: string) => void;
-  bringForward: (id: string) => void;
-  sendBackward: (id: string) => void;
-  duplicate: (id: string) => void;
-};
-
-type OverlayClipboardHandlers = {
-  onCopy: () => void;
-  onPaste: () => void;
-  canPaste: boolean;
-};
-
-function buildOverlayContextMenuItems(
-  overlay: TrackedOverlay,
-  actions: OverlayActionHandlers,
-  onRenamePrompt: (id: string) => void,
-  onOpenSettings: (id: string) => void,
-  clipboard: OverlayClipboardHandlers,
-): ContextMenuItem[] {
-  return [
-    {
-      id: "rename",
-      label: "Rename",
-      shortcut: getShortcutLabel("renameDrawing"),
-      action: () => onRenamePrompt(overlay.id),
-    },
-    {
-      id: "settings",
-      label: "Settings…",
-      action: () => onOpenSettings(overlay.id),
-      dividerAfter: true,
-    },
-    {
-      id: "copy",
-      label: "Copy",
-      shortcut: getShortcutLabel("copyDrawing"),
-      action: clipboard.onCopy,
-      dividerAfter: !clipboard.canPaste,
-    },
-    ...(clipboard.canPaste
-      ? [
-          {
-            id: "paste",
-            label: "Paste",
-            shortcut: getShortcutLabel("pasteDrawing"),
-            action: clipboard.onPaste,
-            dividerAfter: true,
-          } as ContextMenuItem,
-        ]
-      : []),
-    {
-      id: "lock",
-      label: overlay.locked ? "Unlock" : "Lock",
-      shortcut: getShortcutLabel("lockDrawing"),
-      action: () => actions.setLocked(overlay.id, !overlay.locked),
-    },
-    {
-      id: "hide",
-      label: overlay.visible ? "Hide" : "Show",
-      action: () => actions.setVisible(overlay.id, !overlay.visible),
-    },
-    {
-      id: "forward",
-      label: "Bring to Front",
-      action: () => actions.bringForward(overlay.id),
-      dividerAfter: true,
-    },
-    {
-      id: "backward",
-      label: "Send to Back",
-      action: () => actions.sendBackward(overlay.id),
-      dividerAfter: true,
-    },
-    {
-      id: "duplicate",
-      label: "Duplicate",
-      shortcut: getShortcutLabel("duplicateDrawing"),
-      action: () => actions.duplicate(overlay.id),
-      dividerAfter: true,
-    },
-    {
-      id: "remove",
-      label: "Remove",
-      shortcut: getShortcutLabel("deleteDrawing"),
-      danger: true,
-      action: () => actions.remove(overlay.id),
-    },
-  ];
 }

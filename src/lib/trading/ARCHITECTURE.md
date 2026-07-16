@@ -27,18 +27,33 @@ src/lib/trading/
     stub.ts             # StubTradingAdapter (registry test surface)
   intentStore.ts        # Idempotency + orderRef (`edge-intent-{intentId}`)
   activeAccount.ts      # localStorage active account + resolveTradingAccountId
+  accountAliases.ts     # edge:trading:accountAliases.v1 display-name overlay
   accountPickerOptions.ts # Composite picker keys; offline live seed labels; legacy journal rematch
   reconcile.ts          # Lost-response recovery via orderRef / permId
   tradingService.ts     # Readiness → preview/submit/modify/cancel orchestration
   routeHelpers.ts       # API error mapping
+  positionTradeSetup.ts # Live entry/stop/target from position drawing points (ignores stale riskSetup metadata)
   tradingClient.ts      # Browser fetch wrappers for /api/trading/*
-  orderStatus.ts        # Cancellable order status helper
+  orderStatus.ts        # Open vs terminal status; Cancel only for open orders
 
 src/app/components/trading/
-  TradeTicketModal.tsx  # Read-only account from header context; what-if confirm; LIVE token for live submit
+  TradeSetupBindingContext.tsx  # { cellId, drawingId } bind + live levels feed from ChartCell
+  TradeOrderForm.tsx              # Shared preview/confirm/submit form (MKT default; plan risk display)
+  TradeTicketModal.tsx            # Modal wrapper (tests); primary UX is Trade sidebar panel
+
+src/app/components/sidebar/panels/
+  TradeSidebarPanel.tsx           # Docked Trade panel; drawing-bound or header-open unbound ticket
+
+src/app/components/chart-cell/
+  overlayContextMenu.ts           # buildOverlayContextMenuItems (+ Trade setup… for position drawings)
 
 src/app/components/home/
-  AppTopHeader.tsx      # Global account picker (Gateway paper/live + offline live seed); composite connectionId::accountId keys
+  AppTopHeader.tsx      # Global account picker (Gateway paper/live + offline live seed); composite connectionId::accountId keys; dropdown includes settings rail for display names
+  AccountPickerMenu.tsx # Custom account dropdown with right-side settings rail
+  AccountAliasEditor.tsx # Display-name editor panel inside picker dropdown
+
+src/app/components/
+  AccountAliasesProvider.tsx # React context for alias map + displayNameFor()
 
 src/lib/brokerage/
   filterOrders.ts       # filterOrdersByAccount helper (stream + REST)
@@ -50,11 +65,13 @@ src/lib/brokerage/
 |---------|---------------------------|-----------|
 | Header picker | Sets full `TradingAccount` | `edge:trading:activeAccount` localStorage |
 | Trade ticket / order cancel | Yes (online Gateway only) | `activeTradingAccount` + `isGatewayTradingAccount` |
-| AccountPanel orders | Yes | `filterOrdersByAccount` on stream orders |
+| AccountPanel orders | Yes — Open = working only; History = all session orders | `filterOrdersByAccount` + `filterOpenOrders` / history tab |
 | Brokerage snapshot (positions, summary, PnL) | Environment only | Sidecar `reqAccountUpdates` per connection |
 | Journal trades/stats | Yes | `filterTradesByAccount` via fill `account` + `JournalTradesProvider` under `AccountProvider` |
 
 Picker shows Gateway-discovered paper/live accounts only. When live discovery fails, `TWS_LIVE_ACCOUNT_ID` seeds one offline live row (`availability: offline`, label `(live, offline)`) for journal filter — trading remains disabled. Legacy `connectionId: journal` selections remap to gateway/offline live by `accountId` on load.
+
+**Display aliases:** User-defined labels live in `edge:trading:accountAliases.v1` (keyed by `connectionId::accountId`). IB `accountId` remains the execution identity for orders, intents, and journal filters. UI surfaces (header picker, Account panel title, Trade form account row, Data Health account line) resolve display text via `resolveAccountDisplayName` / `AccountAliasesProvider.displayNameFor`. Configure aliases from the settings rail inside the header account picker dropdown (gear on the right).
 
 API routes: `src/app/api/trading/{accounts,preview,orders,orders/[orderId]}`.
 
@@ -92,10 +109,18 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 ## Paper / live mode (Phase 5)
 
 - **Account-as-context.** Selecting an account in `AppTopHeader` persists `edge:trading:activeAccount` and sets `edge:trading:environment` from that account’s `environment` field.
-- **Trade ticket + Account panel** display the globally selected account only — no Paper/Live toggle or account picker in those surfaces.
+- **Trade sidebar panel + Account panel** display the globally selected account only — no Paper/Live toggle or account picker in those surfaces.
 - **Live submit gate:** `liveConfirmation: "LIVE"` required server-side on submit/cancel/modify when `environment === "live"`.
 - **Kill switch** (`EDGE_TRADING_KILL_SWITCH`) remains operator emergency stop — not the normal mode control.
 - **`TWS_READONLY=false`** still required for mutations on any connection.
+
+## Drawing-bound trade setup (v1)
+
+- **Bind key:** `{ cellId, drawingId }` — only the origin long/short position drawing updates the panel.
+- **Context menu:** Right-click position drawing → **Trade setup…** opens docked `trade` sidebar panel.
+- **Live sync:** `ChartCell` re-reads `serializeDrawings()` on overlay change; levels derived from live points via `positionOrderLevelsFromDrawing` (not stale `metadata.fields.riskSetup`).
+- **Entry-only submit:** Default **MKT**; stop/TP shown as plan (preview what-if margin on confirm). Brackets deferred.
+- **Header Trade:** Opens same panel unbound (generic ticket for active chart symbol).
 
 ## Order Types (Phase 3+)
 
@@ -156,13 +181,14 @@ npm run build
 
 ## Post–Phase 5 backlog (not shipped)
 
-- Postgres-backed intent store
 - Options execution, brackets, OCO
 - Second real broker adapter (beyond stub)
 
+**Shipped 2026-07-13:** Postgres-backed `order_intents` table + `resolveServerIntentStore()` when `DATABASE_URL` is set. Handoff for open operational items: [docs/roadmaps/trading-execution-roadmap.md](../../../docs/roadmaps/trading-execution-roadmap.md#trade-execution-reliability-track--llm-handoff).
+
 ## Dual connection (Phases A–D)
 
-Phases A–C shipped: Docker paper+live Gateways, honest account discovery, decoupled chart data preference from order account. Phase D hardens TWS-only preference threading and splits Data Health into paper socket, live socket, and active data preference. Full track: [docs/dual-connection-roadmap.md](../../../docs/dual-connection-roadmap.md).
+Phases A–C shipped: Docker paper+live Gateways, honest account discovery, decoupled chart data preference from order account. Phase D hardens TWS-only preference threading and splits Data Health into paper socket, live socket, and active data preference. Full track: [docs/roadmaps/dual-connection-roadmap.md](../../../docs/roadmaps/dual-connection-roadmap.md).
 
 ### Submit readiness vs display data
 
@@ -180,4 +206,4 @@ Run paper (4002) and live (4001) IB Gateways simultaneously for connection regis
 
 **Desktop fallback:** Two IB Gateway processes (live 4001, paper 4002); same sidecar env (`TWS_PAPER_PORT`, `TWS_LIVE_PORT`).
 
-Full ops: [docs/dual-connection-roadmap.md](../../../docs/dual-connection-roadmap.md) Phase A.
+Full ops: [docs/roadmaps/dual-connection-roadmap.md](../../../docs/roadmaps/dual-connection-roadmap.md) Phase A.

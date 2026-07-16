@@ -21,14 +21,6 @@ type NavItem = {
   Icon: ComponentType<{ className?: string }>;
 };
 
-function HomeIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
-      <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-8.5z" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function ChartsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
@@ -56,14 +48,12 @@ function ResearchIcon({ className }: { className?: string }) {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { module: "home", href: "/home", label: "Home", testId: "home-nav-home", Icon: HomeIcon },
   { module: "chart", href: "/chart", label: "Charts", testId: "home-nav-chart", Icon: ChartsIcon },
   { module: "journal", href: "/journal", label: "Journal", testId: "home-nav-journal", Icon: JournalIcon },
   { module: "research", href: "/research", label: "Research", testId: "home-nav-research", Icon: ResearchIcon },
 ];
 
 function isActivePath(pathname: string, href: string, module: AppModule): boolean {
-  if (href === "/home") return pathname === "/home";
   if (module === "journal") {
     return pathname === "/journal" || pathname.startsWith("/journal/");
   }

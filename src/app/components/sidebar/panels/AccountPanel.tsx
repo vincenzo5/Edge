@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAccount } from "../../AccountProvider";
+import { useAccountAliases } from "../../AccountAliasesProvider";
 import { useChartActions } from "../../ChartActionsContext";
 import { parseSummaryTagNumber, formatExecutionLabel } from "@/lib/marketData/contracts/brokerage";
 import type { AccountOrder, AccountPosition } from "@/lib/marketData/contracts/brokerage";
@@ -11,6 +12,7 @@ import Tooltip from "../../Tooltip";
 import { PanelPopOutButton } from "../PanelChromeActions";
 import { cancelOrder, TradingApiError } from "@/lib/trading/tradingClient";
 import { isOrderCancellable } from "@/lib/trading/orderStatus";
+import { filterOpenOrders, sortOrdersNewestFirst } from "@/lib/brokerage/filterOrders";
 
 function formatMoney(value: number | null | undefined, currency = "USD"): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -49,7 +51,7 @@ const METRIC_HELP: Record<string, string> = {
 };
 
 type PositionFilter = "all" | "long" | "short";
-type OrdersTab = "orders" | "fills";
+type OrdersTab = "orders" | "fills" | "history";
 
 function HelpIcon({ help }: { help: string }) {
   return (
@@ -97,8 +99,49 @@ function toggleButtonClass(active: boolean): string {
     : "rounded px-1.5 py-0.5 hover:bg-[var(--edge-surface-hover)]";
 }
 
+function OrderRow({
+  order,
+  showCancel = false,
+  cancelling = false,
+  onCancel,
+}: {
+  order: AccountOrder;
+  showCancel?: boolean;
+  cancelling?: boolean;
+  onCancel?: () => void;
+}) {
+  const canCancel =
+    showCancel && isOrderCancellable(order.status) && order.orderId != null && onCancel;
+
+  return (
+    <div className="rounded border border-[var(--edge-border)] px-2 py-1">
+      <div className="flex items-start justify-between gap-2">
+        <div className="font-medium">
+          {order.symbol} · {order.action} {order.totalQuantity} · {order.orderType}
+        </div>
+        {canCancel ? (
+          <EdgeButton
+            theme="dark"
+            className="!px-2 !py-0.5 text-[10px]"
+            disabled={cancelling}
+            onClick={onCancel}
+          >
+            {cancelling ? "Cancelling…" : "Cancel"}
+          </EdgeButton>
+        ) : null}
+      </div>
+      <div className="text-[var(--edge-text-secondary)]">
+        {order.status?.trim() || "Open"} · filled {order.filled ?? 0}/{order.totalQuantity ?? 0}
+        {order.lmtPrice != null ? ` · lmt ${order.lmtPrice}` : ""}
+        {order.orderRef ? ` · ref ${order.orderRef}` : ""}
+      </div>
+    </div>
+  );
+}
+
 export function AccountPanel() {
   const account = useAccount();
+  const { displayNameFor } = useAccountAliases();
   const chartActions = useChartActions();
   const [positionFilter, setPositionFilter] = useState<PositionFilter>("all");
   const [ordersTab, setOrdersTab] = useState<OrdersTab>("orders");
@@ -113,6 +156,9 @@ export function AccountPanel() {
   const initMargin = parseSummaryTagNumber(tags, "InitMarginReq");
   const maintMargin = parseSummaryTagNumber(tags, "MaintMarginReq");
   const dayTrades = parseSummaryTagNumber(tags, "DayTradesRemaining");
+  const accountTitle = account.activeTradingAccount
+    ? displayNameFor(account.activeTradingAccount)
+    : account.activeTradingAccountId ?? account.status?.accountId ?? "Account";
   const dailyPnl = account.pnl?.dailyPnL ?? null;
   const leverage =
     initMargin != null && netLiq != null && netLiq !== 0 ? initMargin / netLiq : null;
@@ -124,6 +170,16 @@ export function AccountPanel() {
     rows.sort((a, b) => Math.abs(b.marketValue ?? 0) - Math.abs(a.marketValue ?? 0));
     return rows;
   }, [account.positions, positionFilter]);
+
+  const openOrders = useMemo(
+    () => filterOpenOrders(account.ordersForActiveAccount),
+    [account.ordersForActiveAccount],
+  );
+
+  const orderHistory = useMemo(
+    () => sortOrdersNewestFirst(account.ordersForActiveAccount),
+    [account.ordersForActiveAccount],
+  );
 
   const handleSelectSymbol = (symbol: string) => {
     chartActions?.loadSymbolIntoActiveChart({
@@ -173,7 +229,7 @@ export function AccountPanel() {
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className="text-xs font-semibold text-[var(--edge-text-strong)]">
-              {account.activeTradingAccountId ?? account.status?.accountId ?? "Account"}
+              {accountTitle}
             </div>
             <div className="text-[10px] text-[var(--edge-text-secondary)]">
               {account.connectionState === "connected" ? "Connected" : account.connectionState}
@@ -284,15 +340,21 @@ export function AccountPanel() {
         </section>
 
         <section className="border-t border-[var(--edge-border)] px-3 py-2">
-          <div className="mb-2 flex gap-2 text-[10px]">
-            {(["orders", "fills"] as const).map((tab) => (
+          <div className="mb-2 flex flex-wrap gap-2 text-[10px]">
+            {(
+              [
+                ["orders", "Open orders"],
+                ["fills", "Today's fills"],
+                ["history", "Order history"],
+              ] as const
+            ).map(([tab, label]) => (
               <button
                 key={tab}
                 type="button"
                 className={toggleButtonClass(ordersTab === tab)}
                 onClick={() => setOrdersTab(tab)}
               >
-                {tab === "orders" ? "Open orders" : "Today's fills"}
+                {label}
               </button>
             ))}
           </div>
@@ -301,39 +363,38 @@ export function AccountPanel() {
               <p className="text-[11px] text-[var(--edge-text-secondary)]">
                 No active trading account selected.
               </p>
-            ) : account.ordersForActiveAccount.length === 0 ? (
+            ) : openOrders.length === 0 ? (
               <p className="text-[11px] text-[var(--edge-text-secondary)]">No open orders.</p>
             ) : (
               <div className="space-y-1 text-[11px]">
                 {cancelError ? (
                   <p className="text-[10px] text-[var(--edge-negative)]">{cancelError}</p>
                 ) : null}
-                {account.ordersForActiveAccount.map((order) => (
-                  <div
+                {openOrders.map((order) => (
+                  <OrderRow
                     key={order.orderId ?? order.permId ?? `${order.symbol}-${order.updatedAt}`}
-                    className="rounded border border-[var(--edge-border)] px-2 py-1"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="font-medium">
-                        {order.symbol} · {order.action} {order.totalQuantity} · {order.orderType}
-                      </div>
-                      {isOrderCancellable(order.status) && order.orderId != null ? (
-                        <EdgeButton
-                          theme="dark"
-                          className="!px-2 !py-0.5 text-[10px]"
-                          disabled={cancellingOrderId === order.orderId}
-                          onClick={() => void handleCancelOrder(order)}
-                        >
-                          {cancellingOrderId === order.orderId ? "Cancelling…" : "Cancel"}
-                        </EdgeButton>
-                      ) : null}
-                    </div>
-                    <div className="text-[var(--edge-text-secondary)]">
-                      {order.status} · filled {order.filled ?? 0}/{order.totalQuantity ?? 0}
-                      {order.lmtPrice != null ? ` · lmt ${order.lmtPrice}` : ""}
-                      {order.orderRef ? ` · ref ${order.orderRef}` : ""}
-                    </div>
-                  </div>
+                    order={order}
+                    showCancel
+                    cancelling={cancellingOrderId === order.orderId}
+                    onCancel={() => void handleCancelOrder(order)}
+                  />
+                ))}
+              </div>
+            )
+          ) : ordersTab === "history" ? (
+            !account.activeTradingAccountId ? (
+              <p className="text-[11px] text-[var(--edge-text-secondary)]">
+                No active trading account selected.
+              </p>
+            ) : orderHistory.length === 0 ? (
+              <p className="text-[11px] text-[var(--edge-text-secondary)]">No order history yet.</p>
+            ) : (
+              <div className="space-y-1 text-[11px]">
+                {orderHistory.map((order) => (
+                  <OrderRow
+                    key={order.orderId ?? order.permId ?? `${order.symbol}-${order.updatedAt}`}
+                    order={order}
+                  />
                 ))}
               </div>
             )

@@ -51,6 +51,14 @@ describe("accountPickerOptions", () => {
     expect(accountPickerLabel(offlineLiveAccount)).toBe("U25026894 (live, offline)");
   });
 
+  it("uses alias in picker label when provided", () => {
+    const aliases = { "ib-paper::DUP586813": "Paper IRA" };
+    expect(accountPickerLabel(paperAccount, aliases)).toBe("Paper IRA (paper)");
+    expect(accountPickerLabel(offlineLiveAccount, { "ib-live::U25026894": "Live IRA" })).toBe(
+      "Live IRA (live, offline)",
+    );
+  });
+
   it("returns gateway accounts only without journal union", () => {
     const options = buildAccountPickerOptions([paperAccount, liveAccount]);
     expect(options).toEqual([paperAccount, liveAccount]);

@@ -8,6 +8,7 @@ import { AccountSidebarPanel } from "./panels/AccountSidebarPanel";
 import { RiskSettingsSidebarPanel } from "./panels/RiskSettingsSidebarPanel";
 import { OptionsSidebarPanel } from "./panels/OptionsPanel";
 import { ScreenerSidebarPanel } from "./panels/ScreenerSidebarPanel";
+import { TradeSidebarPanel } from "./panels/TradeSidebarPanel";
 import { CogIcon } from "../chart-chrome/ChartHeaderIcons";
 
 export type SidebarPanelScope = "active-chart" | "app";
@@ -80,6 +81,20 @@ function ScreenerIcon({ className }: { className?: string }) {
   );
 }
 
+function TradeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M2 12h12M4 8l4-5 4 5M8 3v9"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function AccountIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -136,6 +151,15 @@ export const SIDEBAR_MAIN_PANELS: SidebarPanelDef[] = [
     Panel: ObjectTreePanel,
     supportsPopOut: true,
     floatingDefaults: { width: 480, height: 400 },
+  },
+  {
+    id: "trade",
+    label: "Trade",
+    scope: "active-chart",
+    Icon: TradeIcon,
+    Panel: TradeSidebarPanel,
+    supportsPopOut: true,
+    floatingDefaults: { width: 400, height: 520 },
   },
   {
     id: "account",

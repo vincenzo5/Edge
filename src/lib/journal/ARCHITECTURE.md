@@ -140,7 +140,7 @@ App-level: `npm run dev:with-db` → import Flex CSV → calendar/breakdown/time
 
 ## Roadmap (post-v1)
 
-Tiered journal + reporting work (calendar, tag reports, equity curve, time analysis, chart execution overlay, R-multiple, MFE/MFA, etc.) is documented in [docs/journal-roadmap.md](../../../docs/journal-roadmap.md).
+Tiered journal + reporting work (calendar, tag reports, equity curve, time analysis, chart execution overlay, R-multiple, MFE/MFA, etc.) is documented in [docs/roadmaps/journal-roadmap.md](../../../docs/roadmaps/journal-roadmap.md).
 
 Unscheduled deferrals (not on that roadmap):
 

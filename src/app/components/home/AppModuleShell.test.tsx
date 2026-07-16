@@ -14,6 +14,10 @@ vi.mock("../AccountProvider", () => ({
   AccountProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("../AccountAliasesProvider", () => ({
+  AccountAliasesProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 describe("AppModuleShell", () => {
   it("renders app nav, top header, and viewport-bounded shell", () => {
     render(
@@ -26,5 +30,14 @@ describe("AppModuleShell", () => {
     expect(screen.getByTestId("app-top-header")).toBeInTheDocument();
     expect(screen.getByTestId("test-shell")).toHaveClass("h-screen", "overflow-hidden");
     expect(screen.getByTestId("shell-content")).toBeInTheDocument();
+
+    const shell = screen.getByTestId("test-shell");
+    const header = screen.getByTestId("app-top-header");
+    const nav = screen.getByTestId("home-app-nav");
+    expect(
+      Array.from(shell.querySelectorAll("[data-testid]")).indexOf(header),
+    ).toBeLessThan(
+      Array.from(shell.querySelectorAll("[data-testid]")).indexOf(nav),
+    );
   });
 });

@@ -1,3 +1,4 @@
+import { resolveAccountDisplayName, type AccountAliases } from "./accountAliases";
 import type { TradingAccount } from "./types";
 
 /** Legacy persisted connection id — remapped to gateway/offline live on load. */
@@ -28,12 +29,16 @@ export function isGatewayTradingAccount(account: TradingAccount | null | undefin
   );
 }
 
-export function accountPickerLabel(account: TradingAccount): string {
+export function accountPickerLabel(
+  account: TradingAccount,
+  aliases?: AccountAliases | null,
+): string {
+  const displayName = resolveAccountDisplayName(account, aliases);
   if (account.availability === "offline") {
-    return `${account.accountId} (live, offline)`;
+    return `${displayName} (live, offline)`;
   }
   const envLabel = account.environment === "live" ? "live" : "paper";
-  return `${account.accountId} (${envLabel})`;
+  return `${displayName} (${envLabel})`;
 }
 
 export function buildAccountPickerOptions(gatewayAccounts: TradingAccount[]): TradingAccount[] {

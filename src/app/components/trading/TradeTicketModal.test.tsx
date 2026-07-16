@@ -75,7 +75,7 @@ describe("TradeTicketModal", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
     await waitFor(() => {
-      expect(screen.getByText("Confirm order")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Confirm & submit" })).toBeInTheDocument();
     });
     expect(previewOrder).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Confirm & submit" })).toBeInTheDocument();

@@ -83,8 +83,9 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Surface | Reference file |
 |---------|----------------|
 | Chart header | `chart-chrome/ChartHeaderBar.tsx` + `styles.ts` — includes enabled **Trade** control when `onOpenTrade` is wired |
-| Trade ticket modal | `trading/TradeTicketModal.tsx` — `EdgeModalShell` place/preview/confirm flow (paper/live, LIVE confirm); opened from chart header Trade |
-| Workspace tab bar | `chart-chrome/WorkspaceTabBar.tsx` — Home link (→ `/home`, records last module) + scrollable pills above header; symbol + live quote + layout title; `+` create / close when >1 tab |
+| Trade sidebar panel | `sidebar/panels/TradeSidebarPanel.tsx` + `trading/TradeOrderForm.tsx` — docked place/preview/confirm; drawing-bound plan levels; header Trade opens unbound; LIVE confirm on live submit |
+| Trade ticket modal (legacy) | `trading/TradeTicketModal.tsx` — thin `EdgeModalShell` wrapper for tests |
+| Workspace tab bar | `chart-chrome/WorkspaceTabBar.tsx` — scrollable pills above header at ~75% of chart header height (`h-9`); monogram + symbol + direction + price + % change + `/` layout title; `+` create / close when >1 tab |
 | Symbol search pill | `SearchBar.tsx` (compact mode) |
 | Context menu | `ContextMenu.tsx` |
 | Settings modal | `ChartSettingsModal.tsx` |
@@ -92,7 +93,7 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Docked sidebar panel | `sidebar/{RightSidebar,SidebarPanelShell}.tsx` — `absolute` overlay on chart row (`right-0`); resizable via `SidebarResizeHandle`; chart width unchanged; panel-aware max via `sidebarWidth.ts` (screener: `90% viewport − rail`, cap 1400px; other panels 560px; leaving screener clamps stored width) |
 | Floating panel window | `sidebar/{FloatingPanelShell,FloatingPanelHost}.tsx` — draggable/resizable pop-out over chart; **Dock** returns to sidebar; geometry persisted in `layout.sidebar.floatingGeometry` |
 | Panel Pop out / Dock / Expand | `sidebar/{PanelPresentationContext,PanelChromeActions,SidebarPanelWidthContext}.tsx` — `PanelPopOutButton` + screener `PanelExpandButton`; presentation in `layout.sidebar.presentation` (`docked` \| `floating`) |
-| Screener results heat map | `heatmap/{HeatMapView,HeatMapToolbar}.tsx` + `src/lib/heatmap/` — treemap List/Heat map toggle in screener; see `docs/screener-roadmap.md` |
+| Screener results heat map | `heatmap/{HeatMapView,HeatMapToolbar}.tsx` + `src/lib/heatmap/` — treemap List/Heat map toggle in screener; see `docs/roadmaps/screener-roadmap.md` |
 | Centered modal (short flows) | `EdgeModalShell` — symbol search, confirmations; not for persistent tools (use floating panel instead) |
 | Right overlay detail panel | `EdgeSlideOver` — journal trade review, future research/settings sub-panels; overlays content without reflow |
 | Object tree / data window | `ObjectTree.tsx` |
@@ -103,8 +104,8 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Chart feed status overlay | `chart-cell/ChartFeedStatusBadge.tsx` — stale/stream/error/refreshing feed state (standalone or embedded in the stack) |
 | Chart error fallback | `chart-cell/ChartErrorBoundary.tsx` — in-cell error UI with retry and copy-error actions |
 | App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full chrome skeleton (workspace tab bar, header, rails, chart grid, range bar) until `StockApp` layout hydrates; also used by `src/app/loading.tsx` during route load |
-| App home hub | `home/HomeShell.tsx` + `home/HomeAppNav.tsx` — responsive Layout 1 tri-pane (≥2560) with dual-stack/tabbed/drawer/hub fallbacks; Continue card + workspace cards; journal preview (recent trades) + research preview; module nav rail (Home/Charts/Journal/Research); no chart bootstrap |
-| App module shell | `home/AppModuleShell.tsx` + `home/AppTopHeader.tsx` — full-height module routes with `HomeAppNav` rail + persistent content-column header (`edge` logo, chart **data connection** chip, order **account** picker) |
+| App home hub | `home/HomeShell.tsx` + `home/HomeAppNav.tsx` — responsive Layout 1 tri-pane (≥2560) with dual-stack/tabbed/drawer/hub fallbacks; Continue card + workspace cards; journal preview (recent trades) + research preview; module nav rail (Charts/Journal/Research); no chart bootstrap |
+| App module shell | `home/AppModuleShell.tsx` + `home/AppTopHeader.tsx` — full-height module routes with full-width top header (clickable `logo-full-light` → `/home`, chart **data connection** chip, order **account** picker) and `HomeAppNav` rail below the header |
 | Journal module | `journal/JournalModuleShell.tsx` + `JournalSubNav.tsx` — `AppModuleShell` + sub-nav (Dashboard / Trades / Settings) with sync/trades providers; trades scoped to header-selected account |
 | Options chain table | `options/{OptionsChainView,OptionsChainTable,ChainRowGreeksPopover}.tsx` — sidebar launcher + floating dialog; bid/ask/last spine table, row-hover greeks popover, expiration tabs |
 | Chart cold-load overlay | `chart-cell/ChartLoadingOverlay.tsx` — symbol-aware spinner + skeleton bars when candles are loading and empty; rendered from app `EdgeChart.tsx` |

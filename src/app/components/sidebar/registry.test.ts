@@ -24,14 +24,20 @@ describe('sidebar registry', () => {
     expect(SIDEBAR_FOOTER_PANELS.map((panel) => panel.id)).toEqual(['settings']);
   });
 
-  it('orders main panels watchlist → options → screener → object-tree → account', () => {
+  it('orders main panels watchlist → options → screener → object-tree → trade → account', () => {
     expect(SIDEBAR_MAIN_PANELS.map((panel) => panel.id)).toEqual([
       'watchlist',
       'options',
       'screener',
       'object-tree',
+      'trade',
       'account',
     ]);
+  });
+
+  it('includes trade panel as active-chart scoped', () => {
+    expect(SIDEBAR_PANEL_MAP.trade).toBeDefined();
+    expect(SIDEBAR_PANEL_MAP.trade.scope).toBe('active-chart');
   });
 
   it('uses unique panel ids', () => {

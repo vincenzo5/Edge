@@ -18,7 +18,8 @@ import {
   isTradingConfigured,
 } from "./connectionRegistry";
 import {
-  getServerIntentStore,
+  resolveServerIntentStore,
+  resetServerIntentStoreForTests,
   type OrderIntentStore,
 } from "./intentStore";
 import { isReconcilableError, reconcileIntentWithBroker } from "./reconcile";
@@ -58,7 +59,20 @@ export class TradingReadinessBlockedError extends Error {
 export { TradingKillSwitchError };
 
 export class TradingService {
-  constructor(private readonly intents: OrderIntentStore = getServerIntentStore()) {}
+  private storeOverride: OrderIntentStore | null;
+  private storeCached: OrderIntentStore | null = null;
+
+  constructor(store?: OrderIntentStore) {
+    this.storeOverride = store ?? null;
+  }
+
+  private async intentStore(): Promise<OrderIntentStore> {
+    if (this.storeOverride) return this.storeOverride;
+    if (!this.storeCached) {
+      this.storeCached = await resolveServerIntentStore();
+    }
+    return this.storeCached;
+  }
 
   isTradingEnabled(): boolean {
     return isTradingConfigured();
@@ -134,7 +148,8 @@ export class TradingService {
       this.ensureTradingEnabled(draft.environment);
       const port = this.portForEnvironment(draft.environment);
       const { pdtWarns } = await this.assertPreTrade(draft);
-      const intent = this.intents.createIntent(
+      const store = await this.intentStore();
+      const intent = await store.createIntent(
         draft,
         `preview:${draft.accountId}:${Date.now()}`,
       );
@@ -143,7 +158,7 @@ export class TradingService {
         ...previewResult,
         warnings: [...previewResult.warnings, ...pdtWarns],
       };
-      const updated = this.intents.updateIntent(intent.intentId, { status: "previewed" });
+      const updated = await store.updateIntent(intent.intentId, { status: "previewed" });
       appendAudit({
         action: "preview",
         outcome: "success",
@@ -170,7 +185,8 @@ export class TradingService {
     const draft = parseOrderDraft(draftInput);
     assertLiveConfirmation(draft.environment, liveConfirmation);
 
-    const existing = this.intents.getByIdempotencyKey(idempotencyKey);
+    const store = await this.intentStore();
+    const existing = await store.getByIdempotencyKey(idempotencyKey);
     if (existing?.status === "submitted" && existing.orderId != null) {
       return {
         order: {
@@ -190,23 +206,23 @@ export class TradingService {
     try {
       this.ensureTradingEnabled(draft.environment);
       if (previewIntentId) {
-        this.validatePreviewIntent(draft, previewIntentId);
+        await this.validatePreviewIntent(draft, previewIntentId);
       }
       await this.assertPreTrade(draft);
       const port = this.portForEnvironment(draft.environment);
 
-      const intent = this.intents.createIntent(draft, idempotencyKey);
+      const intent = await store.createIntent(draft, idempotencyKey);
       const draftWithRef = { ...intent.draft, orderRef: intent.orderRef };
 
       try {
         const placed = await port.place(draftWithRef);
         const updated =
-          this.intents.updateIntent(intent.intentId, {
+          (await store.updateIntent(intent.intentId, {
             status: "submitted",
             orderId: placed.order.orderId ?? null,
             permId: placed.order.permId ?? null,
             orderRef: placed.orderRef,
-          }) ?? intent;
+          })) ?? intent;
 
         appendAudit({
           action: "submit",
@@ -236,7 +252,7 @@ export class TradingService {
             return reconciled;
           }
         }
-        this.intents.updateIntent(intent.intentId, { status: "failed" });
+        await store.updateIntent(intent.intentId, { status: "failed" });
         appendAudit({
           action: "submit",
           outcome: "failed",
@@ -270,9 +286,10 @@ export class TradingService {
       const patch = parseOrderModifyPatch(patchInput);
       const port = this.portForEnvironment(environment);
       const result = await port.modify(accountId, orderId, patch);
+      const store = await this.intentStore();
       const intent =
         intentId != null
-          ? this.intents.updateIntent(intentId, { status: "submitted" })
+          ? await store.updateIntent(intentId, { status: "submitted" })
           : null;
       appendAudit({
         action: "modify",
@@ -296,7 +313,8 @@ export class TradingService {
       const orders = await port.listOpenOrders(accountId);
       const patch = reconcileIntentWithBroker(intent, orders);
       if (!patch) return null;
-      const updated = this.intents.updateIntent(intent.intentId, patch) ?? intent;
+      const store = await this.intentStore();
+      const updated = (await store.updateIntent(intent.intentId, patch)) ?? intent;
       return {
         order: {
           orderId: updated.orderId ?? null,
@@ -328,9 +346,10 @@ export class TradingService {
       await awaitSidecarForBrokerage();
       const port = this.portForEnvironment(environment);
       const result = await port.cancel(accountId, orderId);
+      const store = await this.intentStore();
       const intent =
         intentId != null
-          ? this.intents.updateIntent(intentId, { status: "cancelled" })
+          ? await store.updateIntent(intentId, { status: "cancelled" })
           : null;
       appendAudit({
         action: "cancel",
@@ -350,8 +369,12 @@ export class TradingService {
     assertTradingKillSwitchOff();
   }
 
-  private validatePreviewIntent(draft: OrderDraft, previewIntentId: string): void {
-    const previewIntent = this.intents.getById(previewIntentId);
+  private async validatePreviewIntent(
+    draft: OrderDraft,
+    previewIntentId: string,
+  ): Promise<void> {
+    const store = await this.intentStore();
+    const previewIntent = await store.getById(previewIntentId);
     if (!previewIntent) {
       throw new TradingValidationError(`Preview intent ${previewIntentId} not found`);
     }
@@ -384,6 +407,7 @@ export class TradingService {
       throw new BrokerageRequestError("disabled", "Brokerage tracking unavailable.");
     }
 
+    const preTradeFetchedAt = Date.now();
     const [status, summary, quoteResult, positionsResult] = await Promise.all([
       client.getStatus(),
       client.getSummary(),
@@ -397,12 +421,16 @@ export class TradingService {
     const readiness = evaluateTradingReadiness({
       brokerageConnected: status.connected,
       accountSummary: summary,
-      accountUpdatedAt: summary.updatedAt,
+      accountUpdatedAt: Math.max(
+        summary.updatedAt ?? 0,
+        status.summaryUpdatedAt ?? 0,
+        preTradeFetchedAt,
+      ),
       riskSettings: DEFAULT_RISK_SETTINGS,
       quote: quote
         ? {
             source: quoteResult.source,
-            asOf: quoteResult.asOf ?? quote.updatedAt,
+            asOf: quoteResult.receivedAt ?? quoteResult.asOf ?? quote.updatedAt,
             receivedAt: quoteResult.receivedAt,
             stale: quoteResult.stale,
             warnings: quoteResult.warnings,
@@ -450,6 +478,7 @@ export function getTradingService(): TradingService {
 
 export function resetTradingServiceForTests(): void {
   singletonService = null;
+  resetServerIntentStoreForTests();
 }
 
 export { isTradingConfigured, isPaperTradingConfigured };

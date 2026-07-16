@@ -3,24 +3,24 @@ import type { OrderDraft, OrderIntent, OrderIntentStatus } from "./types";
 import { normalizeDraftForHash } from "./validateOrder";
 
 export type OrderIntentStore = {
-  createIntent(draft: OrderDraft, idempotencyKey: string): OrderIntent;
-  getById(intentId: string): OrderIntent | null;
-  getByIdempotencyKey(idempotencyKey: string): OrderIntent | null;
+  createIntent(draft: OrderDraft, idempotencyKey: string): Promise<OrderIntent>;
+  getById(intentId: string): Promise<OrderIntent | null>;
+  getByIdempotencyKey(idempotencyKey: string): Promise<OrderIntent | null>;
   updateIntent(
     intentId: string,
     patch: Partial<
       Pick<OrderIntent, "status" | "permId" | "orderId" | "orderRef">
     >,
-  ): OrderIntent | null;
+  ): Promise<OrderIntent | null>;
 };
 
 export function buildOrderRef(intentId: string, explicit?: string): string {
   return explicit?.trim() || `edge-intent-${intentId}`;
 }
 
-type StoredIntent = OrderIntent & { draftHash: string };
+export type StoredIntent = OrderIntent & { draftHash: string };
 
-function createIntentRecord(
+export function createIntentRecord(
   draft: OrderDraft,
   idempotencyKey: string,
 ): StoredIntent {
@@ -39,12 +39,17 @@ function createIntentRecord(
   };
 }
 
+export function stripHash(record: StoredIntent): OrderIntent {
+  const { draftHash: _draftHash, ...intent } = record;
+  return intent;
+}
+
 export function createMemoryIntentStore(): OrderIntentStore {
   const byId = new Map<string, StoredIntent>();
   const byKey = new Map<string, string>();
 
   return {
-    createIntent(draft, idempotencyKey) {
+    async createIntent(draft, idempotencyKey) {
       const existingId = byKey.get(idempotencyKey);
       const draftHash = normalizeDraftForHash(draft);
       if (existingId) {
@@ -60,19 +65,19 @@ export function createMemoryIntentStore(): OrderIntentStore {
       return stripHash(record);
     },
 
-    getById(intentId) {
+    async getById(intentId) {
       const record = byId.get(intentId);
       return record ? stripHash(record) : null;
     },
 
-    getByIdempotencyKey(idempotencyKey) {
+    async getByIdempotencyKey(idempotencyKey) {
       const intentId = byKey.get(idempotencyKey);
       if (!intentId) return null;
       const record = byId.get(intentId);
       return record ? stripHash(record) : null;
     },
 
-    updateIntent(intentId, patch) {
+    async updateIntent(intentId, patch) {
       const record = byId.get(intentId);
       if (!record) return null;
       const next: StoredIntent = {
@@ -84,11 +89,6 @@ export function createMemoryIntentStore(): OrderIntentStore {
       return stripHash(next);
     },
   };
-}
-
-function stripHash(record: StoredIntent): OrderIntent {
-  const { draftHash: _draftHash, ...intent } = record;
-  return intent;
 }
 
 export const BROWSER_INTENT_STORAGE_KEY = "edge:trading:intents";
@@ -114,7 +114,7 @@ export function createBrowserIntentStore(): OrderIntentStore {
   }
 
   return {
-    createIntent(draft, idempotencyKey) {
+    async createIntent(draft, idempotencyKey) {
       const records = readAll();
       const draftHash = normalizeDraftForHash(draft);
       const existing = records.find((record) => record.idempotencyKey === idempotencyKey);
@@ -130,17 +130,17 @@ export function createBrowserIntentStore(): OrderIntentStore {
       return stripHash(record);
     },
 
-    getById(intentId) {
+    async getById(intentId) {
       const record = readAll().find((item) => item.intentId === intentId);
       return record ? stripHash(record) : null;
     },
 
-    getByIdempotencyKey(idempotencyKey) {
+    async getByIdempotencyKey(idempotencyKey) {
       const record = readAll().find((item) => item.idempotencyKey === idempotencyKey);
       return record ? stripHash(record) : null;
     },
 
-    updateIntent(intentId, patch) {
+    async updateIntent(intentId, patch) {
       const records = readAll();
       const index = records.findIndex((item) => item.intentId === intentId);
       if (index < 0) return null;
@@ -164,7 +164,24 @@ export function transitionIntentStatus(
 }
 
 let serverIntentStore: OrderIntentStore | null = null;
+let serverIntentStorePromise: Promise<OrderIntentStore> | null = null;
 
+export async function resolveServerIntentStore(): Promise<OrderIntentStore> {
+  if (serverIntentStore) return serverIntentStore;
+  if (!serverIntentStorePromise) {
+    serverIntentStorePromise = import("./postgresIntentStore")
+      .then(({ createPostgresIntentStoreIfConfigured }) =>
+        createPostgresIntentStoreIfConfigured(),
+      )
+      .then((store) => {
+        serverIntentStore = store;
+        return store;
+      });
+  }
+  return serverIntentStorePromise;
+}
+
+/** @deprecated Prefer resolveServerIntentStore — sync memory fallback for legacy callers. */
 export function getServerIntentStore(): OrderIntentStore {
   if (!serverIntentStore) {
     serverIntentStore = createMemoryIntentStore();
@@ -174,4 +191,5 @@ export function getServerIntentStore(): OrderIntentStore {
 
 export function resetServerIntentStoreForTests(): void {
   serverIntentStore = null;
+  serverIntentStorePromise = null;
 }

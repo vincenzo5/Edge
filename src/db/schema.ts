@@ -167,6 +167,31 @@ export const journalTradeFills = pgTable(
   (table) => [primaryKey({ columns: [table.tradeId, table.fillId] })],
 );
 
+export const orderIntents = pgTable(
+  "order_intents",
+  {
+    intentId: uuid("intent_id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    draftHash: text("draft_hash").notNull(),
+    draft: jsonb("draft").notNull(),
+    status: text("status").notNull(),
+    orderRef: text("order_ref").notNull(),
+    permId: bigint("perm_id", { mode: "number" }),
+    orderId: bigint("order_id", { mode: "number" }),
+    createdAtMs: bigint("created_at_ms", { mode: "number" }).notNull(),
+    updatedAtMs: bigint("updated_at_ms", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("order_intents_user_idempotency_unique").on(
+      table.userId,
+      table.idempotencyKey,
+    ),
+  ],
+);
+
 export type AppUser = typeof appUsers.$inferSelect;
 export type ChartWorkspace = typeof chartWorkspaces.$inferSelect;
 export type UserWatchlistLibrary = typeof userWatchlistLibrary.$inferSelect;
@@ -176,3 +201,4 @@ export type MarketResearchNote = typeof marketResearchNotes.$inferSelect;
 export type JournalFill = typeof journalFills.$inferSelect;
 export type JournalTrade = typeof journalTrades.$inferSelect;
 export type JournalTradeFill = typeof journalTradeFills.$inferSelect;
+export type OrderIntentRow = typeof orderIntents.$inferSelect;

@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { recordLastModule } from "@/lib/app/lastModule";
 import { headerBarClass } from "../design-system/styles";
 import { useAccount } from "../AccountProvider";
+import { useAccountAliases } from "../AccountAliasesProvider";
+import TwsRecoverButton from "../data-health/TwsRecoverButton";
 import { fetchTradingAccounts, TradingApiError } from "@/lib/trading/tradingClient";
 import {
-  accountPickerLabel,
-  findAccountByKey,
   resolveActiveAccountMatch,
-  tradingAccountKey,
 } from "@/lib/trading/accountPickerOptions";
 import type { TradingAccount } from "@/lib/trading/types";
+import { subscribeTwsRecovery } from "@/lib/marketData/twsRecoveryBus";
+import { runTwsRecoveryClient } from "@/lib/marketData/twsRecoveryClient";
 import {
   applyDefaultDataConnectionPreferenceIfNeeded,
   dataConnectionLabel,
@@ -20,39 +24,73 @@ import {
   IB_LIVE_CONNECTION_ID,
   IB_PAPER_CONNECTION_ID,
 } from "@/lib/trading/connectionRegistry";
+import AccountPickerMenu from "./AccountPickerMenu";
 
 export default function AppTopHeader() {
+  const router = useRouter();
   const account = useAccount();
+  const { aliases, setAlias } = useAccountAliases();
   const { preference, setPreference } = useDataConnectionPreference();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [defaultAccountId, setDefaultAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recoveringTws, setRecoveringTws] = useState(false);
+  const [recoverMessage, setRecoverMessage] = useState<string | null>(null);
+
+  const loadAccounts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const tradingResult = await fetchTradingAccounts();
+      setAccounts(tradingResult.accounts);
+      setDefaultAccountId(tradingResult.defaultAccountId);
+      setError(null);
+    } catch (err) {
+      setError(
+        err instanceof TradingApiError
+          ? err.message
+          : "Could not load trading accounts.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    router.prefetch("/home");
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      setLoading(true);
-      try {
-        const tradingResult = await fetchTradingAccounts();
-        if (cancelled) return;
-        setAccounts(tradingResult.accounts);
-        setDefaultAccountId(tradingResult.defaultAccountId);
-        setError(null);
-      } catch (err) {
-        if (cancelled) return;
-        setError(
-          err instanceof TradingApiError
-            ? err.message
-            : "Could not load trading accounts.",
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      await loadAccounts();
+      if (cancelled) return;
     })();
     return () => {
       cancelled = true;
     };
+  }, [loadAccounts]);
+
+  useEffect(() => {
+    return subscribeTwsRecovery((event) => {
+      if (event.phase === "started") {
+        setRecoveringTws(true);
+        setRecoverMessage(null);
+      } else if (event.phase === "progress" && event.message) {
+        setRecoverMessage(event.message);
+      } else if (event.phase === "completed") {
+        setRecoveringTws(false);
+        setRecoverMessage(event.message ?? null);
+        void loadAccounts();
+      } else if (event.phase === "failed") {
+        setRecoveringTws(false);
+        if (event.message) setRecoverMessage(event.message);
+      }
+    });
+  }, [loadAccounts]);
+
+  const recoverTwsAndReloadAccounts = useCallback(async () => {
+    await runTwsRecoveryClient({ source: "app-header", symbols: [], candleRequests: [] });
   }, []);
 
   const liveGatewayOnline = useMemo(
@@ -101,19 +139,52 @@ export default function AppTopHeader() {
     [accounts, account.activeTradingAccount, account.activeTradingAccountId],
   );
 
+  const handleLogoClick = () => {
+    recordLastModule("home");
+  };
+
   return (
     <header
       data-testid="app-top-header"
-      className={`${headerBarClass("dark")} justify-between px-3`}
+      className={`${headerBarClass("dark")} !h-[45px] !min-h-[45px] overflow-hidden justify-between px-3`}
     >
-      <div className="text-sm font-semibold tracking-tight text-[var(--edge-text-strong)]">
-        edge
-      </div>
+      <Link
+        href="/home"
+        prefetch
+        data-testid="app-logo-home"
+        aria-label="Edge home"
+        onClick={handleLogoClick}
+        onMouseEnter={() => router.prefetch("/home")}
+        className="edge-focus-ring flex h-full max-h-full shrink-0 items-center"
+      >
+        <img
+          src="/brand/logo-full-light.svg"
+          alt="Edge"
+          className="block h-[42px] w-auto max-h-full"
+        />
+      </Link>
       <div className="flex items-center gap-2">
         {error ? (
-          <span className="text-[10px] text-[var(--edge-negative)]" role="alert">
-            {error}
-          </span>
+          <div className="flex items-center gap-2" role="alert">
+            <span className="text-[10px] text-[var(--edge-negative)]">{error}</span>
+            <TwsRecoverButton
+              compact
+              testId="app-header-recover-tws"
+              label="Reconnect TWS"
+              recovering={recoveringTws}
+              onClick={() => {
+                void recoverTwsAndReloadAccounts();
+              }}
+            />
+            {recoverMessage ? (
+              <span
+                className="max-w-[12rem] text-[10px] text-[var(--edge-text-secondary)]"
+                data-testid="app-header-recover-message"
+              >
+                {recoverMessage}
+              </span>
+            ) : null}
+          </div>
         ) : null}
         <button
           type="button"
@@ -133,27 +204,14 @@ export default function AppTopHeader() {
         <label className="sr-only" htmlFor="app-account-picker">
           Account
         </label>
-        <select
-          id="app-account-picker"
-          data-testid="app-account-picker"
-          className="rounded border border-[var(--edge-border)] bg-transparent px-2 py-1 text-xs"
-          value={selectedAccount ? tradingAccountKey(selectedAccount) : ""}
-          disabled={loading || accounts.length === 0}
-          onChange={(event) => {
-            const next = findAccountByKey(accounts, event.target.value);
-            if (next) account.setActiveTradingAccount(next);
-          }}
-        >
-          {accounts.length === 0 ? (
-            <option value="">{loading ? "Loading accounts…" : "No accounts"}</option>
-          ) : (
-            accounts.map((row) => (
-              <option key={tradingAccountKey(row)} value={tradingAccountKey(row)}>
-                {accountPickerLabel(row)}
-              </option>
-            ))
-          )}
-        </select>
+        <AccountPickerMenu
+          accounts={accounts}
+          aliases={aliases}
+          selectedAccount={selectedAccount}
+          loading={loading}
+          onSelectAccount={account.setActiveTradingAccount}
+          onSetAlias={setAlias}
+        />
       </div>
     </header>
   );

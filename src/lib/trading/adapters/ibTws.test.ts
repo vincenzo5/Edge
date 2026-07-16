@@ -55,6 +55,7 @@ describe("IbTwsTradingAdapter", () => {
         connectionId: "ib-paper",
         accountId: "DUP586813",
         environment: "paper",
+        availability: "online",
       },
     ]);
   });

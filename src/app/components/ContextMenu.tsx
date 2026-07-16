@@ -70,23 +70,26 @@ export default function ContextMenu({
 
   useLayoutEffect(() => {
     if (!open || !position) {
-      setAdjustedPos(null);
+      setAdjustedPos((prev) => (prev == null ? prev : null));
       return;
     }
     const menu = menuRef.current;
     if (!menu) {
-      setAdjustedPos(position);
+      setAdjustedPos((prev) =>
+        prev && prev.x === position.x && prev.y === position.y ? prev : position,
+      );
       return;
     }
     const rect = menu.getBoundingClientRect();
-    setAdjustedPos(
-      clampMenuPosition(
-        position,
-        rect.width,
-        rect.height,
-        window.innerWidth,
-        window.innerHeight,
-      ),
+    const next = clampMenuPosition(
+      position,
+      rect.width,
+      rect.height,
+      window.innerWidth,
+      window.innerHeight,
+    );
+    setAdjustedPos((prev) =>
+      prev && prev.x === next.x && prev.y === next.y ? prev : next,
     );
   }, [open, position, items, header]);
 

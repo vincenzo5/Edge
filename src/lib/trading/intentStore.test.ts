@@ -12,25 +12,25 @@ const baseDraft = {
 };
 
 describe("intentStore", () => {
-  it("dedupes intents by idempotency key and draft hash", () => {
+  it("dedupes intents by idempotency key and draft hash", async () => {
     const store = createMemoryIntentStore();
-    const first = store.createIntent(baseDraft, "key-1");
-    const second = store.createIntent(baseDraft, "key-1");
+    const first = await store.createIntent(baseDraft, "key-1");
+    const second = await store.createIntent(baseDraft, "key-1");
     expect(second.intentId).toBe(first.intentId);
     expect(second.orderRef).toMatch(/^edge-intent-/);
   });
 
-  it("creates a new intent when draft changes for same key", () => {
+  it("creates a new intent when draft changes for same key", async () => {
     const store = createMemoryIntentStore();
-    const first = store.createIntent(baseDraft, "key-1");
-    const second = store.createIntent({ ...baseDraft, quantity: 2 }, "key-1");
+    const first = await store.createIntent(baseDraft, "key-1");
+    const second = await store.createIntent({ ...baseDraft, quantity: 2 }, "key-1");
     expect(second.intentId).not.toBe(first.intentId);
   });
 
-  it("updates intent status and broker ids", () => {
+  it("updates intent status and broker ids", async () => {
     const store = createMemoryIntentStore();
-    const intent = store.createIntent(baseDraft, "key-2");
-    const updated = store.updateIntent(intent.intentId, {
+    const intent = await store.createIntent(baseDraft, "key-2");
+    const updated = await store.updateIntent(intent.intentId, {
       status: "submitted",
       orderId: 42,
       permId: 99,

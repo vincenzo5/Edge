@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import ChartGrid from "./ChartGrid";
 import RightSidebar from "./sidebar/RightSidebar";
 import SidebarRail from "./sidebar/SidebarRail";
 import ChartHeaderBar from "./chart-chrome/ChartHeaderBar";
-import TradeTicketModal from "./trading/TradeTicketModal";
+import { TradeSetupBindingProvider, useTradeSetupBinding } from "./trading/TradeSetupBindingContext";
 import { SidebarProvider } from "./SidebarContext";
 import { ActiveChartProvider } from "./ActiveChartContext";
 import { ChartActionsProvider } from "./ChartActionsContext";
@@ -48,6 +48,7 @@ import {
   createTab,
   getActiveLayout,
   getActiveTab,
+  getTabPrimarySymbol,
   renameTab,
   switchTab,
   updateActiveTabLayout,
@@ -99,7 +100,6 @@ export default function StockApp() {
   const finishRemoteWorkspaceMergeRef =
     useRef<AppBootstrapResult["finishRemoteWorkspaceMerge"]>(undefined);
   const [hydrated, setHydrated] = useState(false);
-  const [tradeTicketOpen, setTradeTicketOpen] = useState(false);
   const [screenerPanelExpanded, setScreenerPanelExpanded] = useState(false);
   const screenerPreExpandWidthRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
@@ -108,16 +108,12 @@ export default function StockApp() {
 
   workspaceTabsRef.current = workspaceTabs;
 
-  const handleOpenTrade = useCallback(() => {
-    setTradeTicketOpen(true);
-  }, []);
-
-  const handleCloseTrade = useCallback(() => {
-    setTradeTicketOpen(false);
-  }, []);
-
   const layout = useMemo(() => getActiveLayout(workspaceTabs), [workspaceTabs]);
   const activeTab = useMemo(() => getActiveTab(workspaceTabs), [workspaceTabs]);
+  const workspaceTabSymbols = useMemo(
+    () => workspaceTabs.tabs.map((tab) => getTabPrimarySymbol(tab)),
+    [workspaceTabs.tabs],
+  );
 
   const setLayout = useCallback(
     (updater: ChartLayout | ((prev: ChartLayout) => ChartLayout)) => {
@@ -669,6 +665,7 @@ export default function StockApp() {
       activePanel={layout.sidebar?.activePanel ?? null}
       onActivePanelChange={handleSidebarPanelChange}
     >
+      <TradeSetupBindingProvider>
       <div className="edge-app-shell edge-app-enter flex h-full min-h-0 flex-col overflow-hidden">
         <ChartActionsProvider
           activeCellSymbol={activeCell.symbol}
@@ -680,7 +677,7 @@ export default function StockApp() {
                 initialState={screenerBootstrap ?? undefined}
                 initialSession={screenerSessionBootstrap ?? undefined}
               >
-              <MarketDataProvider layout={layout}>
+              <MarketDataProvider layout={layout} extraSymbols={workspaceTabSymbols}>
               <RiskSettingsProvider>
               <PanelPresentationProvider value={panelPresentation}>
               <SidebarPanelWidthProvider value={sidebarPanelWidthContext}>
@@ -697,7 +694,7 @@ export default function StockApp() {
               onTabCreate={handleTabCreate}
               onTabClose={handleTabClose}
             />
-            <ChartHeaderBar
+            <ChartHeaderBarWithTrade
               layout={{
                 layoutName: activeTab.title,
                 layoutId: layout.layoutId,
@@ -734,13 +731,6 @@ export default function StockApp() {
                 onBack: handleSymbolBack,
                 onForward: handleSymbolForward,
               }}
-              onOpenTrade={handleOpenTrade}
-            />
-            <TradeTicketModal
-              open={tradeTicketOpen}
-              symbol={activeCell.symbol}
-              theme={layout.theme}
-              onClose={handleCloseTrade}
             />
             <div className="flex min-h-0 flex-1 overflow-hidden">
               <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -807,6 +797,14 @@ export default function StockApp() {
           </AppActionsProvider>
         </ChartActionsProvider>
       </div>
+      </TradeSetupBindingProvider>
     </SidebarProvider>
   );
+}
+
+type ChartHeaderBarWithTradeProps = Omit<ComponentProps<typeof ChartHeaderBar>, "onOpenTrade">;
+
+function ChartHeaderBarWithTrade(props: ChartHeaderBarWithTradeProps) {
+  const { openTradePanel } = useTradeSetupBinding();
+  return <ChartHeaderBar {...props} onOpenTrade={openTradePanel} />;
 }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { AccountOrder } from "@/lib/marketData/contracts/brokerage";
-import { filterOrdersByAccount } from "./filterOrders";
+import {
+  filterOpenOrders,
+  filterOrdersByAccount,
+  sortOrdersNewestFirst,
+} from "./filterOrders";
 
 const orders: AccountOrder[] = [
   { orderId: 1, account: "DUP586813", symbol: "F" },
@@ -19,5 +23,28 @@ describe("filterOrdersByAccount", () => {
       orders[0],
       orders[2],
     ]);
+  });
+});
+
+describe("filterOpenOrders", () => {
+  it("keeps working and missing-status orders", () => {
+    const rows: AccountOrder[] = [
+      { orderId: 1, status: "Submitted", symbol: "F" },
+      { orderId: 2, status: null, symbol: "AAPL" },
+      { orderId: 3, status: "Cancelled", symbol: "MSFT" },
+      { orderId: 4, status: "Filled", symbol: "TSLA" },
+    ];
+    expect(filterOpenOrders(rows).map((o) => o.orderId)).toEqual([1, 2]);
+  });
+});
+
+describe("sortOrdersNewestFirst", () => {
+  it("sorts by updatedAt descending", () => {
+    const rows: AccountOrder[] = [
+      { orderId: 1, updatedAt: 10 },
+      { orderId: 2, updatedAt: 30 },
+      { orderId: 3, updatedAt: 20 },
+    ];
+    expect(sortOrdersNewestFirst(rows).map((o) => o.orderId)).toEqual([2, 3, 1]);
   });
 });

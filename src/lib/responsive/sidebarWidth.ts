@@ -12,6 +12,7 @@ const SIDEBAR_PANEL_IDS: SidebarPanelId[] = [
   "screener",
   "account",
   "settings",
+  "trade",
 ];
 
 const LEGACY_PANEL_WIDTH_KEYS: LegacySidebarPanelId[] = [

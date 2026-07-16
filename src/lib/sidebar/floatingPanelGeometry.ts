@@ -19,6 +19,7 @@ export const FLOATING_PANEL_DEFAULTS: Record<
   "object-tree": { width: 480, height: 400, x: 48, y: 48 },
   account: { width: 480, height: 400, x: 48, y: 48 },
   settings: { width: 480, height: 400, x: 48, y: 48 },
+  trade: { width: 400, height: 520, x: 48, y: 48 },
 };
 
 export function getPanelPresentation(

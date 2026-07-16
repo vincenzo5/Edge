@@ -11,6 +11,15 @@ vi.mock("../../AccountProvider", async (importOriginal) => {
   };
 });
 
+vi.mock("../../AccountAliasesProvider", () => ({
+  useAccountAliases: vi.fn(() => ({
+    aliases: {},
+    setAlias: vi.fn(),
+    displayNameFor: (account: { accountId: string } | null | undefined) =>
+      account?.accountId ?? "",
+  })),
+}));
+
 vi.mock("@/lib/trading/tradingClient", () => ({
   cancelOrder: vi.fn().mockResolvedValue({ order: { status: "Cancelled" } }),
   TradingApiError: class TradingApiError extends Error {
@@ -19,9 +28,11 @@ vi.mock("@/lib/trading/tradingClient", () => ({
 }));
 
 import { useAccount } from "../../AccountProvider";
+import { useAccountAliases } from "../../AccountAliasesProvider";
 import { cancelOrder } from "@/lib/trading/tradingClient";
 
 const mockUseAccount = vi.mocked(useAccount);
+const mockUseAccountAliases = vi.mocked(useAccountAliases);
 
 function renderPanel() {
   return render(
@@ -66,6 +77,7 @@ function connectedAccount(overrides: Partial<ReturnType<typeof useAccount>> = {}
     pnl: { dailyPnL: 120 },
     orders: [],
     ordersForActiveAccount: [],
+    activeTradingAccount: null,
     activeTradingAccountId: null,
     tradingEnvironment: "paper" as const,
     setTradingEnvironment: vi.fn(),
@@ -82,6 +94,12 @@ function connectedAccount(overrides: Partial<ReturnType<typeof useAccount>> = {}
 describe("AccountPanel", () => {
   beforeEach(() => {
     mockUseAccount.mockReset();
+    mockUseAccountAliases.mockReturnValue({
+      aliases: {},
+      setAlias: vi.fn(),
+      displayNameFor: (account: { accountId: string } | null | undefined) =>
+        account?.accountId ?? "",
+    });
   });
 
   it("shows unavailable state when account data cannot load", () => {
@@ -115,6 +133,29 @@ describe("AccountPanel", () => {
     expect(screen.getByText("DU123")).toBeInTheDocument();
     expect(screen.getByText("AAPL")).toBeInTheDocument();
     expect(screen.queryByText(/Preview only/i)).not.toBeInTheDocument();
+  });
+
+  it("shows account display alias in panel header when set", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccount: {
+          broker: "ib",
+          connectionId: "ib-paper",
+          accountId: "DU123",
+          environment: "paper",
+          availability: "online",
+        },
+        activeTradingAccountId: "DU123",
+      }),
+    );
+    mockUseAccountAliases.mockReturnValue({
+      aliases: { "ib-paper::DU123": "Paper IRA" },
+      setAlias: vi.fn(),
+      displayNameFor: () => "Paper IRA",
+    });
+
+    renderPanel();
+    expect(screen.getByText("Paper IRA")).toBeInTheDocument();
   });
 
   it("renders refresh icon button with accessible label", () => {
@@ -256,6 +297,52 @@ describe("AccountPanel", () => {
     expect(screen.queryByText(/AAPL · BUY 10 · LMT/)).not.toBeInTheDocument();
   });
 
+  it("hides cancelled orders from Open orders and shows them in Order history", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccountId: "DUP586813",
+        ordersForActiveAccount: [
+          {
+            orderId: 32,
+            symbol: "F",
+            action: "BUY",
+            totalQuantity: 1,
+            orderType: "LMT",
+            status: "Cancelled",
+            filled: 0,
+            lmtPrice: 1,
+            account: "DUP586813",
+            orderRef: "edge-intent-dfce6a72-d040-4977-b602-0196695a1976",
+            updatedAt: 200,
+          },
+          {
+            orderId: 33,
+            symbol: "AAPL",
+            action: "BUY",
+            totalQuantity: 1,
+            orderType: "LMT",
+            status: "Submitted",
+            filled: 0,
+            lmtPrice: 100,
+            account: "DUP586813",
+            updatedAt: 100,
+          },
+        ],
+      }),
+    );
+    renderPanel();
+
+    expect(screen.getByText(/AAPL · BUY 1 · LMT/)).toBeInTheDocument();
+    expect(screen.queryByText(/F · BUY 1 · LMT/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Order history" }));
+    expect(screen.getByText(/F · BUY 1 · LMT/)).toBeInTheDocument();
+    expect(screen.getByText(/AAPL · BUY 1 · LMT/)).toBeInTheDocument();
+    expect(screen.getByText(/Cancelled · filled 0\/1/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
   it("cancels an active order for the active account", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
     mockUseAccount.mockReturnValue(
@@ -286,6 +373,31 @@ describe("AccountPanel", () => {
       });
       expect(refresh).toHaveBeenCalled();
     });
+  });
+
+  it("shows Cancel when open order status is missing", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccountId: "DUP586813",
+        ordersForActiveAccount: [
+          {
+            orderId: 32,
+            symbol: "F",
+            action: "BUY",
+            totalQuantity: 1,
+            orderType: "LMT",
+            status: null,
+            filled: 0,
+            lmtPrice: 1,
+            account: "DUP586813",
+            orderRef: "edge-intent-dfce6a72-d040-4977-b602-0196695a1976",
+          },
+        ],
+      }),
+    );
+    renderPanel();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getByText(/Open · filled 0\/1/)).toBeInTheDocument();
   });
 
   it("shows message when no active trading account is selected", () => {
