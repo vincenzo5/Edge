@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { VisibleRange } from '@edge/chart-core';
+import { TIME_AXIS_HEIGHT, PRICE_AXIS_WIDTH } from '@edge/chart-core/layout';
 import { buildHistogramGeometry, buildLineGeometry } from './seriesGeometry';
 
 function mockViewport(values: number[]): VisibleRange {
@@ -8,8 +9,8 @@ function mockViewport(values: number[]): VisibleRange {
   const startIndex = 0;
   const endIndex = values.length;
   const visible = endIndex - startIndex;
-  const pw = width - 50;
-  const ph = height - 30;
+  const pw = width - PRICE_AXIS_WIDTH;
+  const ph = height - TIME_AXIS_HEIGHT;
   return {
     startIndex,
     endIndex,

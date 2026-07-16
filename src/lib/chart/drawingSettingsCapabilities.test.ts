@@ -18,6 +18,12 @@ describe('drawingSettingsCapabilities', () => {
     expect(drawingSettingsCapabilities('price_channel').showFill).toBe(true);
   });
 
+  it('enables stick-entry toggle for long/short position tools', () => {
+    expect(drawingSettingsCapabilities('long_position').showStickEntryToLastPrice).toBe(true);
+    expect(drawingSettingsCapabilities('short_position').showStickEntryToLastPrice).toBe(true);
+    expect(drawingSettingsCapabilities('trend_line').showStickEntryToLastPrice).toBe(false);
+  });
+
   it('maps dash presets', () => {
     expect(dashPresetFromArray([])).toBe('solid');
     expect(dashPresetFromArray(LINE_DASH_PRESETS.dashed)).toBe('dashed');

@@ -39,6 +39,19 @@ describe('drawingStyles', () => {
     expect(styles.lineColor).toBe('#00FF88');
   });
 
+  it('resolveDrawingStyles defaults stickEntryToLastPrice on for positions', () => {
+    const d: SerializedDrawing = {
+      name: 'long_position',
+      label: 'Long',
+      points: [],
+      visible: true,
+      locked: false,
+      zLevel: 0,
+    };
+    const styles = resolveDrawingStyles(d, 'dark', false);
+    expect(styles.stickEntryToLastPrice).toBe(true);
+  });
+
   it('extendSegmentEndpoints extends to plot edges when flags set', () => {
     const seg = extendSegmentEndpoints(100, 50, 200, 50, 800, 400, true, true, true);
     expect(seg.x1).toBe(0);

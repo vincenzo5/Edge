@@ -95,8 +95,8 @@ StockApp → WorkspaceTabBar
 | Candle validation / normalization | **Done** | Short-form `{ t,o,h,l,c,v }`; ms timestamps |
 | Heikin Ashi transform | **Done** | Applied when `chartType === 'heikin_ashi'` |
 | Bar Replay data slice | **Done** | `onDataLoaded` → `candleCount`; `baseCandles` + `applyVisibleSlice` (no refetch on scrub) |
-| Infinite scroll / edge fetch | **Done** | 50% visible lookahead prefetch, 500-bar pages, pipelined history fetch (1 in-flight + 1 queued), 100ms debounce (urgent bypass), background page on chart load, scroll buffer ±40 bars; prepends via `POST /api/candles` `{ before }`; `adjustViewportForPrepend` keeps window stable |
-| Event badge overlays | **Done** | Corporate, filing, macro, news, and options expiration events render in a reserved bottom event rail as grouped badges (count glyph when overlapping); click opens grouped detail card; full-height guides on hover/selection only. Chart settings default to earnings/dividends/splits/filings plus macro for benchmark symbols; news and options expirations are opt-in. |
+| Infinite scroll / edge fetch | **Done** | 50% visible lookahead prefetch, 500-bar pages, pipelined history fetch (1 in-flight + 1 queued), 100ms debounce (urgent bypass), background page on chart load, pan slack = visible−1 (first bar to right edge / last bar to left edge); prepends via `POST /api/candles` `{ before }`; `adjustViewportForPrepend` keeps window stable |
+| Event badge overlays | **Done** | Corporate, filing, macro, news, and options expiration events render in a reserved bottom event rail as grouped badges (count glyph when overlapping); rail background is transparent (inherits plot background); click opens grouped detail card; full-height guides on hover/selection only. Chart settings default to earnings/dividends/splits/filings plus macro for benchmark symbols; news and options expirations are opt-in. |
 | Loading / error states | **Done** | Overlay text in `EdgeChart` while fetching or on failure |
 
 ---
@@ -111,7 +111,7 @@ StockApp → WorkspaceTabBar
 | Area chart | **Done** | `area` |
 | Heikin Ashi display | **Done** | Data transformed before render |
 | Price grid | **Done** | Horizontal + vertical grid lines |
-| Price / time axes | **Done** | Right price strip (50 px), bottom time strip (30 px) on bottom pane only; price labels and horizontal grid use screen-space-aware anchored "nice" increments; time labels abstracted by visible span (month/year on daily zoom-out) |
+| Price / time axes | **Done** | Right price strip (50 px), bottom time strip (24 px) on bottom pane only; date labels vertically centered with equal top/bottom margin; price labels and horizontal grid use screen-space-aware anchored "nice" increments; three short quarter-partition dashes between labeled prices; time labels abstracted by visible span (month/year on daily zoom-out) |
 | Last price line | **Done** | Blue horizontal line + label on price pane |
 | Light / dark theme | **Done** | `Theme` tokens in `renderer.ts`; `StockApp` toggles `<html>` class |
 | Last-price / axis guards | **Done** | Finite checks before draw (no `toFixed` on NaN) |
@@ -307,8 +307,8 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Annotation | `annotation` | **Done** |
 | Measure (utility §6.9) | `measure` | **Done** (persisted; ephemeral in Phase 2) |
 | Ruler (utility §6.9) | `ruler` | **Done** — shaded Δtime/Δprice band; bar count + cumulative volume; ⇧+click on price pane or toolbar |
-| Long Position (`longPosition`) | `long_position` | **Done** — green target / red stop box; 6-handle resize; target/entry/stop labels; left-edge 1R ticks + in-box NR labels in profit zone |
-| Short Position (`shortPosition`) | `short_position` | **Done** — red stop / green target box; 6-handle resize; target/entry/stop labels; left-edge 1R ticks + in-box NR labels in profit zone |
+| Long Position (`longPosition`) | `long_position` | **Done** — instant place on tool select at last-bar close (left edge on last bar); green target / red stop box; TV-style 4-handle resize (TP/stop vertical, entry-left 2-axis, right width-only); target/entry/stop labels; left-edge 1R ticks + in-box NR labels in profit zone; empty-margin near-miss snaps to last bar (no `timestamp: 0` stretch); **stick entry to last price** ON by default (Settings toggle; stop/TP fixed; manual entry drag turns stick off) |
+| Short Position (`shortPosition`) | `short_position` | **Done** — instant place on tool select at last-bar close (left edge on last bar); red stop / green target box; TV-style 4-handle resize (TP/stop vertical, entry-left 2-axis, right width-only); target/entry/stop labels; left-edge 1R ticks + in-box NR labels in profit zone; empty-margin near-miss snaps to last bar (no `timestamp: 0` stretch); **stick entry to last price** ON by default (Settings toggle; stop/TP fixed; manual entry drag turns stick off) |
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -326,6 +326,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Hit test / select | **Done** | 4px tolerance; topmost z-order |
 | Edit control points | **Done** | Magnet applies on CP drag |
 | Delete selected drawing | **Done** | Toolbar ⌫ + `onSelectionChange` sync |
+| Floating selection toolbar | **Done** | `DrawingSelectionToolbar` — 28px clearance from drawing; flips below when viewport lacks room above; edge-clamped |
 | Magnet (snap OHLC) | **Done** | 5px strong magnet |
 | Drawing context menu (rename/lock/hide/z) | **Done** | Canvas right-click hit-test → overlay menu — see [context-menu-reference.md §2](./context-menu-reference.md#2-drawing--overlay-context-menu) |
 | Z-order / duplicate | **Done** | `bringForward`/`sendBackward`/`duplicateOverlay` |
@@ -343,7 +344,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Shared drawing rail (multi-pane) | **Done** | When `cellCount > 1`, one compact `ChartDrawingRail` in `ChartGrid` targets active pane via `ActiveChartContext`; single-pane keeps inline rail in `ChartCell` |
 | Per-cell config | **Done** | `CellConfig` per grid cell |
 | Layout persistence (localStorage) | **Done** | `loadLayout` / `saveLayout` in `layoutStorage.ts`; includes `sidebar.activePanel` |
-| Workspace tabs | **Done** | TradingView-style tab bar above header; each tab owns full `ChartLayout` in `tv-ai:workspace-tabs:v1`; migrates legacy `tv-ai:layout:v1`; per-tab Postgres sync via list/create/archive API |
+| Workspace tabs | **Done** | TradingView-style tab bar above header (~75% of chart header height); monogram + symbol + direction + price + % + layout title; each tab owns full `ChartLayout` in `tv-ai:workspace-tabs:v1`; migrates legacy `tv-ai:layout:v1`; per-tab Postgres sync via list/create/archive API |
 | Theme persistence | **Done** | Part of `ChartLayout`; live switch via toolbar |
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
 | Module home hub | **Done** | `/home` hub (`HomeShell`); charts at `/chart`; `/` redirects via `lastModule.ts` (24h) to last module (Home/Charts/Journal/Research) |
@@ -411,7 +412,7 @@ Chart engine tests live under `src/lib/chart/` (Vitest). App/layout tests under 
 
 | Module | File | Covers |
 |--------|------|--------|
-| Viewport | `viewport.test.ts` | Pan, zoom, scale, scroll buffer, `adjustViewportForPrepend`, `isViewportModified` |
+| Viewport | `viewport.test.ts` | Pan, zoom, scale, visible-sized pan slack, `adjustViewportForPrepend`, `isViewportModified` |
 | Layout | `layout.test.ts` | Plot width/height, drag mode, cursor resolution |
 | Panes | `panes.test.ts` | Height allocation, clamping, `applyBoundaryResize`, `computePaneBoundaries` |
 | Crosshair | `crosshair.test.ts` | Plot Y mapping, leave logic, `findDataIndexForTimestamp`, `clampIndexToViewport` |

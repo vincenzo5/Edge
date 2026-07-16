@@ -111,6 +111,54 @@ describe('resolveHoverCursor', () => {
       })
     ).toBe('grabbing');
   });
+
+  it('returns grab when hovering a drawing control point', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        overControlPoint: true,
+      })
+    ).toBe('grab');
+  });
+
+  it('returns grab when hovering a drawing body without selection', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        overDrawing: true,
+      })
+    ).toBe('grab');
+  });
+
+  it('keeps crosshair when a drawing tool is active even over a drawing', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        activeTool: 'straightLine',
+        overDrawing: true,
+      })
+    ).toBe('crosshair');
+  });
+
+  it('returns not-allowed when hovering a locked drawing control point', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        overControlPoint: true,
+        controlPointLocked: true,
+      })
+    ).toBe('not-allowed');
+  });
+
+  it('prefers price-axis cursor over control-point grab', () => {
+    expect(
+      resolveHoverCursor(WIDTH - 10, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        overControlPoint: true,
+        overDrawing: true,
+      })
+    ).toBe('ns-resize');
+  });
 });
 
 describe('plot dimensions', () => {

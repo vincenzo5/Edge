@@ -45,6 +45,11 @@ export type DrawingStyles = {
   extendRight?: boolean;
   text?: string;
   fontSize?: number;
+  /**
+   * Long/short position: when true (default), entry follows the live last price.
+   * Stop and take-profit stay fixed. Explicit `false` pins entry.
+   */
+  stickEntryToLastPrice?: boolean;
 };
 
 export type SerializedDrawing = {

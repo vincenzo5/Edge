@@ -49,15 +49,21 @@ const MAX_CANDLES = 5000;
 export const TIME_SCALE_SENSITIVITY = 2.0;
 /** Vertical price-axis drag: higher = scale faster per pixel. */
 export const PRICE_SCALE_SENSITIVITY = 1.0;
-/** Extra virtual candles allowed past first/last bar when panning horizontally. */
-export const SCROLL_BUFFER_CANDLES = 40;
 
-function scrollMinStart() {
-  return -SCROLL_BUFFER_CANDLES;
+/**
+ * Empty bars allowed past either data edge so an edge candle can reach the opposite
+ * plot edge (first bar at right; last bar at left). Visible-window sized, not fixed.
+ */
+export function scrollSlackBars(visible: number): number {
+  return Math.max(0, Math.round(visible) - 1);
 }
 
-function scrollMaxEnd(totalCandles: number) {
-  return totalCandles + SCROLL_BUFFER_CANDLES;
+function scrollMinStart(visible: number): number {
+  return -scrollSlackBars(visible);
+}
+
+function scrollMaxEnd(totalCandles: number, visible: number): number {
+  return totalCandles + scrollSlackBars(visible);
 }
 
 export function clampTimeWindow(
@@ -66,10 +72,10 @@ export function clampTimeWindow(
   totalCandles: number,
   preserveVisible = true
 ): { start: number; end: number } {
-  const minStart = scrollMinStart();
-  const maxEnd = scrollMaxEnd(totalCandles);
+  const visible = Math.max(MIN_CANDLES, end - start);
+  const minStart = scrollMinStart(visible);
+  const maxEnd = scrollMaxEnd(totalCandles, visible);
   if (preserveVisible) {
-    const visible = end - start;
     if (start < minStart) {
       end -= start - minStart;
       start = minStart;
@@ -149,11 +155,9 @@ export function refreshViewportForDataChange(
 ): VisibleRange {
   const n = candles.length;
   let next = { ...vp } as any;
-  next.endIndex = Math.min(next.endIndex, n + SCROLL_BUFFER_CANDLES);
-  next.startIndex = Math.max(
-    -SCROLL_BUFFER_CANDLES,
-    Math.min(next.startIndex, next.endIndex - MIN_CANDLES)
-  );
+  const clamped = clampTimeWindow(next.startIndex, next.endIndex, n, true);
+  next.startIndex = clamped.start;
+  next.endIndex = clamped.end;
   // Re-apply live-edge margin when candle count changes (e.g. range preset switch).
   if (next.endIndex >= n - 0.5) {
     next = ensureRightMarginBars(next, n, width);
@@ -195,8 +199,8 @@ export function indexAtX(x: number, vp: ViewportState, candleCount: number): num
   if (visible <= 0) return 0;
   const pw = plotWidth(vp.width);
   const idx = vp.startIndex + Math.floor((x / pw) * visible);
-  const minStart = scrollMinStart();
-  const maxEnd = scrollMaxEnd(candleCount);
+  const minStart = scrollMinStart(visible);
+  const maxEnd = scrollMaxEnd(candleCount, visible);
   return Math.max(minStart, Math.min(maxEnd - 1, idx));
 }
 
@@ -409,7 +413,8 @@ export function liveEdgeEndIndex(startIndex: number, candleCount: number, width:
 
   const visibleSpan = (last - startIndex) / targetRatio;
   const endIndex = startIndex + visibleSpan;
-  return Math.min(scrollMaxEnd(n), Math.max(startIndex + MIN_CANDLES, endIndex));
+  const spanVisible = Math.max(MIN_CANDLES, endIndex - startIndex);
+  return Math.min(scrollMaxEnd(n, spanVisible), Math.max(startIndex + MIN_CANDLES, endIndex));
 }
 
 /**
@@ -444,8 +449,9 @@ export function ensureRightMarginBars(
   if (vp.endIndex < n - 0.5) return vp;
 
   let endIndex = targetEnd;
-  if (endIndex > scrollMaxEnd(n)) {
-    endIndex = scrollMaxEnd(n);
+  const spanVisible = Math.max(MIN_CANDLES, endIndex - vp.startIndex);
+  if (endIndex > scrollMaxEnd(n, spanVisible)) {
+    endIndex = scrollMaxEnd(n, spanVisible);
   }
   return { ...vp, endIndex };
 }

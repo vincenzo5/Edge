@@ -20,6 +20,9 @@ import {
   type LineDashPreset,
 } from "@/lib/chart/drawingSettingsCapabilities";
 import type { DrawingScreenBounds } from "./EdgeChart";
+import {
+  resolveDrawingToolbarPosition,
+} from "./drawingSelectionToolbarPosition";
 
 type Props = {
   theme: Theme;
@@ -105,12 +108,12 @@ export default function DrawingSelectionToolbar({
     return () => ro.disconnect();
   }, [drawing.id]);
 
-  const defaultLeft = bounds
-    ? bounds.x + bounds.width / 2 - size.width / 2
-    : containerWidth / 2 - size.width / 2;
-  const defaultTop = bounds ? bounds.y - size.height - 8 : 8;
-  const left = Math.max(4, Math.min(containerWidth - size.width - 4, defaultLeft + dragOffset.x));
-  const top = Math.max(4, Math.min(containerHeight - size.height - 4, defaultTop + dragOffset.y));
+  const { left, top } = resolveDrawingToolbarPosition({
+    bounds,
+    toolbar: size,
+    container: { width: containerWidth, height: containerHeight },
+    dragOffset,
+  });
 
   const handleGripPointerDown = useCallback(
     (e: React.PointerEvent) => {

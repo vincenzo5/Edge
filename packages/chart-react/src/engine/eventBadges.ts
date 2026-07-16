@@ -231,7 +231,7 @@ export function hitTestEventBadge(
   return null;
 }
 
-/** Top Y of the event rail strip (for guide lines and backgrounds). */
+/** Top Y of the event rail strip (badge layout / hover guides). */
 export function eventRailTopY(height: number, showTimeAxis = true): number {
   return plotHeight(height, showTimeAxis, true);
 }

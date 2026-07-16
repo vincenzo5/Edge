@@ -140,6 +140,7 @@ Right-click on a selected or hit-tested drawing. Edge implements this via `build
 
 Current items (when right-click hits a drawing on the price pane):
 
+0. **Trade setup…** — long/short position drawings only; opens Trade sidebar panel bound to that drawing
 1. Rename (F2)
 2. Settings…
 3. Copy (⌘C)
@@ -236,7 +237,7 @@ Only when paper/live trading is enabled. Not applicable to Edge chart engine sco
 | Menu | File(s) | Behavior |
 |------|---------|----------|
 | Blank chart | `chartContextMenu.ts` → `buildChartContextMenuItems`; `ChartCell.tsx` → `handleChartContextMenu` | Fallback when price-pane context menu is not consumed: reset (disabled when default), copy price, object tree, bulk remove when counts > 0 |
-| Drawing overlay | `canvas.tsx` hit-test → `handleDrawingContextMenu` (returns consumed); `ChartCell.tsx` → `buildOverlayContextMenuItems` | Full overlay menu (§2.2); consumed hits call `stopPropagation` so blank menu does not overwrite |
+| Drawing overlay | `canvas.tsx` hit-test → `handleDrawingContextMenu`; `chart-cell/overlayContextMenu.ts` → `buildOverlayContextMenuItems` | Full overlay menu (§2.2); position drawings add Trade setup… |
 | Price axis | `canvas.tsx` right-click on price strip | Scale type menu (Auto/Log/Percent/Indexed), reset, More settings…; double-click → reset auto |
 | Indicator settings | `PaneLegendBar` gear → `onLegendAction` | Modal, not context menu |
 | Object Tree | `ChartCell.tsx` toolbar toggle + blank menu | Panel |

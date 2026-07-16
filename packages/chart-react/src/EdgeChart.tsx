@@ -216,6 +216,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     error,
     displayCandlesLength: displayCandles.length,
     stateDrawings: state.drawings,
+    livePrice,
   });
 
   const {

@@ -82,7 +82,7 @@ export interface IndicatorPlugin {
   ) => { min: number; max: number } | null;
 }
 
-export type DrawingPlacement = 'one-point' | 'two-point' | 'multi-point';
+export type DrawingPlacement = 'one-point' | 'two-point' | 'multi-point' | 'instant';
 
 export type DrawingDrawOptions = {
   preview?: boolean;

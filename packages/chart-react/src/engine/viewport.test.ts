@@ -16,7 +16,7 @@ import {
   attachViewportHelpers,
   withPriceScaleContext,
   ensureRightMarginBars,
-  SCROLL_BUFFER_CANDLES,
+  scrollSlackBars,
   DEFAULT_VISIBLE_BARS,
   DEFAULT_RIGHT_MARGIN_BARS,
   getDefaultViewport,
@@ -37,6 +37,10 @@ const sample: Candle[] = [
   { t: 2, o: 11, h: 13, l: 10, c: 12 },
   { t: 3, o: 12, h: 14, l: 11, c: 13 },
 ];
+
+function slackFor(vp: { startIndex: number; endIndex: number }) {
+  return scrollSlackBars(vp.endIndex - vp.startIndex);
+}
 
 describe('adjustViewportForPrepend', () => {
   it('shifts startIndex and endIndex by addedCount', () => {
@@ -84,11 +88,12 @@ describe('computePriceRange (via create/update)', () => {
 });
 
 describe('pan', () => {
-  it('shifts the visible window within scroll buffer bounds', () => {
+  it('shifts the visible window within visible-sized scroll bounds', () => {
     const vp = createViewport(sample, 800, 400, 3);
     const panned = pan(vp, 100, sample.length); // positive delta = older candles (left)
-    expect(panned.startIndex).toBeGreaterThanOrEqual(-SCROLL_BUFFER_CANDLES);
-    expect(panned.endIndex).toBeLessThanOrEqual(sample.length + SCROLL_BUFFER_CANDLES);
+    const slack = slackFor(panned);
+    expect(panned.startIndex).toBeGreaterThanOrEqual(-slack);
+    expect(panned.endIndex).toBeLessThanOrEqual(sample.length + slack);
   });
 
   it('preserves visible candle count for interior pans', () => {
@@ -121,7 +126,7 @@ describe('pan', () => {
     expect(panned.endIndex - panned.startIndex).toBe(before);
   });
 
-  it('allows panning into left virtual margin before first candle', () => {
+  it('allows panning until the first candle is at the right edge', () => {
     const candles = Array.from({ length: 200 }, (_, i) => ({
       t: i,
       o: 10,
@@ -132,12 +137,18 @@ describe('pan', () => {
     const vp = createViewport(candles, 800, 400, 50);
     vp.startIndex = 0;
     vp.endIndex = 50;
-    const panned = pan(vp, 200, candles.length);
-    expect(panned.startIndex).toBeLessThan(0);
-    expect(panned.startIndex).toBeGreaterThanOrEqual(-SCROLL_BUFFER_CANDLES);
+    const visible = vp.endIndex - vp.startIndex;
+    // Large positive delta pushes into past empty space
+    const panned = pan(vp, 10_000, candles.length);
+    expect(panned.startIndex).toBe(-(visible - 1));
+    expect(panned.endIndex).toBe(1);
+    // First candle (index 0) is the rightmost visible bar
+    const pw = plotWidth(800);
+    expect(panned.xForIndex(0)).toBeCloseTo(((0 - panned.startIndex) / visible) * pw, 5);
+    expect(panned.xForIndex(0)).toBeGreaterThan(pw * 0.9);
   });
 
-  it('allows panning into right virtual margin past last candle', () => {
+  it('allows panning until the last candle is at the left edge', () => {
     const candles = Array.from({ length: 200 }, (_, i) => ({
       t: i,
       o: 10,
@@ -148,9 +159,13 @@ describe('pan', () => {
     const vp = createViewport(candles, 800, 400, 50);
     vp.startIndex = 150;
     vp.endIndex = 200;
-    const panned = pan(vp, -200, candles.length);
-    expect(panned.endIndex).toBeGreaterThan(candles.length);
-    expect(panned.endIndex).toBeLessThanOrEqual(candles.length + SCROLL_BUFFER_CANDLES);
+    const visible = vp.endIndex - vp.startIndex;
+    // Large negative delta pushes into future empty space
+    const panned = pan(vp, -10_000, candles.length);
+    expect(panned.startIndex).toBe(candles.length - 1);
+    expect(panned.endIndex).toBe(candles.length - 1 + visible);
+    // Last candle sits at the left edge of the plot
+    expect(panned.xForIndex(candles.length - 1)).toBeCloseTo(0, 5);
   });
 });
 
@@ -404,8 +419,9 @@ describe('refreshViewportForDataChange', () => {
 
     const short = long.slice(0, 50);
     const refreshed = refreshViewportForDataChange(vp, short, 800, 400);
-    expect(refreshed.endIndex).toBeLessThanOrEqual(short.length + SCROLL_BUFFER_CANDLES);
-    expect(refreshed.startIndex).toBeGreaterThanOrEqual(-SCROLL_BUFFER_CANDLES);
+    const slack = slackFor(refreshed);
+    expect(refreshed.endIndex).toBeLessThanOrEqual(short.length + slack);
+    expect(refreshed.startIndex).toBeGreaterThanOrEqual(-slack);
     expect(refreshed.priceMax).toBeGreaterThan(refreshed.priceMin);
   });
 
@@ -439,7 +455,7 @@ describe('refreshViewportForDataChange', () => {
 });
 
 describe('indexAtX', () => {
-  it('maps x using candle count scroll buffer when endIndex exceeds data', () => {
+  it('maps x using candle count scroll slack when endIndex exceeds data', () => {
     const candles = Array.from({ length: 100 }, (_, i) => ({
       t: i,
       o: 10,
@@ -450,10 +466,11 @@ describe('indexAtX', () => {
     const vp = createViewport(candles, 800, 400, 50);
     vp.endIndex = 250;
     vp.startIndex = 150;
+    const slack = scrollSlackBars(vp.endIndex - vp.startIndex);
 
     const wrong = indexAtX(480, vp, vp.endIndex);
     const right = indexAtX(480, vp, candles.length);
-    expect(right).toBe(candles.length + SCROLL_BUFFER_CANDLES - 1);
+    expect(right).toBe(candles.length + slack - 1);
     expect(wrong).toBeGreaterThan(right);
   });
 
@@ -467,8 +484,9 @@ describe('indexAtX', () => {
     }));
     const vp = createViewport(candles, 800, 400, 50);
     vp.endIndex = candles.length + 50;
+    const slack = scrollSlackBars(vp.endIndex - vp.startIndex);
     const bound = attachViewportHelpers(vp, candles.length);
-    expect(bound.indexForX(799)).toBeLessThanOrEqual(candles.length + SCROLL_BUFFER_CANDLES - 1);
+    expect(bound.indexForX(799)).toBeLessThanOrEqual(candles.length + slack - 1);
   });
 });
 

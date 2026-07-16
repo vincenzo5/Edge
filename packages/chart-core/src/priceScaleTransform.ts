@@ -221,3 +221,24 @@ export function scaleAxisTicks(
   }
   return ticks;
 }
+
+/**
+ * Intermediate scale-space ticks between consecutive major labels.
+ * Default subdivisions=4 → three dashes that partition each interval into quarters.
+ */
+export function scaleAxisMinorTicks(
+  majorTicks: number[],
+  subdivisions = 4,
+): number[] {
+  if (majorTicks.length < 2 || subdivisions < 2) return [];
+  const minors: number[] = [];
+  for (let i = 0; i < majorTicks.length - 1; i++) {
+    const a = majorTicks[i]!;
+    const b = majorTicks[i + 1]!;
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) continue;
+    for (let k = 1; k < subdivisions; k++) {
+      minors.push(a + ((b - a) * k) / subdivisions);
+    }
+  }
+  return minors;
+}

@@ -15,6 +15,35 @@ export type PlotCoords = { x: number; y: number };
 export const MAGNET_THRESHOLD_PX = 5;
 export const CANDLE_SNAP_THRESHOLD_PX = 10;
 
+/** Median-safe bar duration for extrapolating virtual indices. */
+export function estimateBarDurationMs(candles: Candle[]): number {
+  if (candles.length >= 2) {
+    const last = candles.length - 1;
+    const dt = candles[last]!.t - candles[last - 1]!.t;
+    if (dt > 0) return dt;
+    const head = candles[1]!.t - candles[0]!.t;
+    if (head > 0) return head;
+  }
+  return 60_000;
+}
+
+/**
+ * Timestamp for a data index, including virtual bars past either end of the series.
+ * Never returns 0 when candles exist (0 is treated as "missing" by pointToPlot).
+ */
+export function timestampForDataIndex(candles: Candle[], dataIndex: number): number {
+  if (candles.length === 0) return 0;
+  if (dataIndex >= 0 && dataIndex < candles.length) {
+    return candles[Math.floor(dataIndex)]!.t;
+  }
+  const dt = estimateBarDurationMs(candles);
+  if (dataIndex < 0) {
+    return candles[0]!.t + dataIndex * dt;
+  }
+  const last = candles.length - 1;
+  return candles[last]!.t + (dataIndex - last) * dt;
+}
+
 export function clampPlot(
   x: number,
   y: number,
@@ -55,15 +84,32 @@ export function snapPlotXToCandle(
     return { plotX, dataIndex: -1 };
   }
   const idx = vp.indexForX(plotX);
-  if (idx < 0 || idx >= candles.length) {
-    return { plotX, dataIndex: Math.max(0, idx) };
+  const last = candles.length - 1;
+
+  // Left of first bar: clamp to first candle (stable anchor; matches historical behavior).
+  if (idx < 0) {
+    return { plotX, dataIndex: 0 };
+  }
+
+  // Right of last bar: snap to last candle when close so a near-miss at the live
+  // edge does not create a timestamp=0 / virtual-index stretch to the plot edge.
+  if (idx > last) {
+    const edgeX = vp.xForIndex(last);
+    const neighbor = Math.max(0, last - 1);
+    const barWidth = Math.abs(edgeX - vp.xForIndex(neighbor)) || CANDLE_SNAP_THRESHOLD_PX;
+    const snapPx = Math.max(CANDLE_SNAP_THRESHOLD_PX, barWidth);
+    if (Math.abs(plotX - edgeX) <= snapPx) {
+      return { plotX: edgeX, dataIndex: last };
+    }
+    // Far into empty right margin — keep virtual index; plotToPoint extrapolates ts.
+    return { plotX, dataIndex: idx };
   }
 
   let nearestIndex = idx;
   let nearestPlotX = vp.xForIndex(idx);
   let nearestDistance = Math.abs(plotX - nearestPlotX);
   for (const candidate of [idx - 1, idx + 1]) {
-    if (candidate < 0 || candidate >= candles.length) continue;
+    if (candidate < 0 || candidate > last) continue;
     const candidatePlotX = vp.xForIndex(candidate);
     const distance = Math.abs(plotX - candidatePlotX);
     if (distance < nearestDistance) {
@@ -172,7 +218,8 @@ export function plotToPoint(
       ? snapToOhlc(plotY, dataIndex, candle, vp, showTimeAxis)
       : priceForPlotY(plotY, vp, showTimeAxis);
   }
-  const timestamp = candle?.t ?? 0;
+  // Extrapolate when outside loaded candles — never persist timestamp 0 while data exists.
+  const timestamp = candle?.t ?? timestampForDataIndex(candles, dataIndex);
   return { timestamp, value, dataIndex };
 }
 
@@ -185,18 +232,50 @@ export function pointToPlot(
   let dataIndex: number | undefined;
   if (point.timestamp != null && point.timestamp !== 0) {
     dataIndex = candles.findIndex((c) => c.t === point.timestamp);
-    if (dataIndex < 0) {
-      for (let i = 0; i < candles.length; i++) {
-        if (candles[i].t >= (point.timestamp ?? 0)) {
-          dataIndex = i;
-          break;
+    if (dataIndex < 0 && candles.length > 0) {
+      const firstTs = candles[0]!.t;
+      const lastIdx = candles.length - 1;
+      const lastTs = candles[lastIdx]!.t;
+      const dt = estimateBarDurationMs(candles);
+      if (point.timestamp > lastTs && dt > 0) {
+        // Future / virtual-right: derive index from time (stable across history prepend).
+        dataIndex = lastIdx + (point.timestamp - lastTs) / dt;
+      } else if (point.timestamp < firstTs && dt > 0) {
+        dataIndex = (point.timestamp - firstTs) / dt;
+      } else {
+        for (let i = 0; i < candles.length; i++) {
+          if (candles[i]!.t >= point.timestamp) {
+            dataIndex = i;
+            break;
+          }
         }
       }
     }
-    if (dataIndex == null || dataIndex < 0) dataIndex = Math.max(0, candles.length - 1);
+    // Timestamp not in series and time extrapolate failed: prefer stored dataIndex.
+    if ((dataIndex == null || dataIndex < 0 || Number.isNaN(dataIndex)) && point.dataIndex != null) {
+      dataIndex = point.dataIndex;
+    }
+    if (dataIndex == null || dataIndex < 0 || Number.isNaN(dataIndex)) {
+      dataIndex = Math.max(0, candles.length - 1);
+    }
   }
   if (dataIndex == null) dataIndex = point.dataIndex;
-  if (dataIndex == null) dataIndex = 0;
+  // Missing index: default to last bar when timestamp is corrupt/missing (0), not index 0 —
+  // index 0 maps to the plot's left edge and stretches position fills across the chart.
+  if (dataIndex == null) {
+    dataIndex =
+      (point.timestamp === 0 || point.timestamp == null) && candles.length > 0
+        ? candles.length - 1
+        : 0;
+  }
+  // Legacy corrupt anchors: timestamp 0 + out-of-range index → clamp to last real bar.
+  if (
+    (point.timestamp === 0 || point.timestamp == null) &&
+    candles.length > 0 &&
+    (dataIndex < 0 || dataIndex >= candles.length)
+  ) {
+    dataIndex = candles.length - 1;
+  }
   const x = vp.xForIndex(dataIndex);
   const y = yForPricePlot(point.value ?? 0, vp, showTimeAxis);
   return { x, y };

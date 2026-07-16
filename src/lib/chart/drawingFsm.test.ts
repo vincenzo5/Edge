@@ -11,6 +11,7 @@ import {
   shouldHideCrosshair,
   createDraftFromPoint,
   advancePlacing,
+  isInstantTool,
 } from './drawingController';
 import { createViewport } from './viewport';
 import type { Candle } from './contracts';
@@ -89,5 +90,11 @@ describe('drawingController FSM', () => {
     expect(s.fsm).toBe('placing');
     expect(s.activeTool).toBe('ruler');
     expect(s.placingDraft?.name).toBe('ruler');
+  });
+
+  it('recognizes long/short position as instant tools', () => {
+    expect(isInstantTool('longPosition')).toBe(true);
+    expect(isInstantTool('shortPosition')).toBe(true);
+    expect(isInstantTool('straightLine')).toBe(false);
   });
 });

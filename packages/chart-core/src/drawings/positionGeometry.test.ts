@@ -1,12 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyStickEntryPrice,
   boxFromPoints,
+  DEFAULT_POSITION_WIDTH_BARS,
+  defaultPositionPoints,
+  entryValueChanged,
   expandTwoPointDraft,
   MAX_POSITION_R_LEVELS,
+  POSITION_CP,
   positionControlPoints,
   positionPlotBounds,
   profitRLevels,
+  repairPositionPoints,
+  stickEntryToLastPriceEnabled,
   updatePositionFromControl,
+  withStickEntryDisabled,
 } from './positionGeometry';
 
 describe('positionGeometry', () => {
@@ -16,6 +24,62 @@ describe('positionGeometry', () => {
     { timestamp: 1000, value: 110, dataIndex: 0 },
     { timestamp: 3000, value: 100, dataIndex: 2 },
   ];
+
+  it('repairPositionPoints rewrites timestamp-0 anchors from dataIndex', () => {
+    const candles = [
+      { t: 1000, o: 100, h: 110, l: 90, c: 105 },
+      { t: 2000, o: 105, h: 115, l: 95, c: 110 },
+      { t: 3000, o: 110, h: 120, l: 100, c: 115 },
+    ];
+    const corrupt = [
+      { timestamp: 0, value: 115, dataIndex: 2 },
+      { timestamp: 0, value: 100, dataIndex: 2 },
+      { timestamp: 0, value: 130, dataIndex: 2 },
+      { timestamp: 0, value: 115, dataIndex: 12 },
+    ];
+    const fixed = repairPositionPoints(corrupt, candles);
+    expect(fixed[0]?.timestamp).toBe(3000);
+    expect(fixed[0]?.dataIndex).toBe(2);
+    expect(fixed[3]?.timestamp).toBeGreaterThan(3000);
+    expect(fixed[3]?.dataIndex).toBe(12);
+  });
+
+  it('repairPositionPoints clamps left virtual indices onto the last real bar', () => {
+    const candles = [{ t: 1000, o: 100, h: 110, l: 90, c: 100 }];
+    const corrupt = [
+      { timestamp: 0, value: 100, dataIndex: 5 },
+      { timestamp: 0, value: 95, dataIndex: 5 },
+      { timestamp: 0, value: 110, dataIndex: 5 },
+      { timestamp: 0, value: 100, dataIndex: 10 },
+    ];
+    const fixed = repairPositionPoints(corrupt, candles);
+    expect(fixed[0]?.dataIndex).toBe(0);
+    expect(fixed[0]?.timestamp).toBe(1000);
+    expect(fixed[3]?.dataIndex).toBe(10);
+  });
+
+  it('defaultPositionPoints anchors entry to last-bar close and left edge', () => {
+    const candles = [
+      { t: 1000, o: 100, h: 110, l: 90, c: 105 },
+      { t: 2000, o: 105, h: 115, l: 95, c: 110 },
+      { t: 3000, o: 110, h: 120, l: 100, c: 115 },
+    ];
+    const points = defaultPositionPoints('long', candles);
+    expect(points).not.toBeNull();
+    expect(points![0]?.value).toBe(115);
+    expect(points![0]?.dataIndex).toBe(2);
+    expect(points![0]?.timestamp).toBe(3000);
+    expect(points![3]?.dataIndex).toBe(2 + DEFAULT_POSITION_WIDTH_BARS);
+    expect(points![1]?.value).toBeLessThan(115);
+    expect(points![2]?.value).toBeGreaterThan(115);
+  });
+
+  it('defaultPositionPoints mirrors stop/target for shorts', () => {
+    const candles = [{ t: 1000, o: 100, h: 110, l: 90, c: 100 }];
+    const points = defaultPositionPoints('short', candles);
+    expect(points![1]?.value).toBeGreaterThan(100);
+    expect(points![2]?.value).toBeLessThan(100);
+  });
 
   it('decodes a long box from four points', () => {
     const box = boxFromPoints(fourPoints, 'long');
@@ -95,6 +159,24 @@ describe('positionGeometry', () => {
     expect(expanded.points[3]?.timestamp).toBe(3000);
   });
 
+  it('expandTwoPointDraft ignores timestamp 0 from empty-margin corner', () => {
+    const draft = {
+      name: 'long_position',
+      label: 'Long',
+      points: [
+        { timestamp: 1000, value: 100, dataIndex: 0 },
+        { timestamp: 0, value: 92, dataIndex: 5 },
+      ],
+      visible: true,
+      locked: false,
+      zLevel: 0,
+    };
+    const expanded = expandTwoPointDraft(draft, 'long');
+    expect(expanded.points[0]?.timestamp).toBe(1000);
+    expect(expanded.points[0]?.timestamp).not.toBe(0);
+    expect(expanded.points[3]?.dataIndex).toBe(5);
+  });
+
   it('expandTwoPointDraft produces four anchors for short', () => {
     const draft = {
       name: 'short_position',
@@ -115,17 +197,22 @@ describe('positionGeometry', () => {
     expect(expanded.points[3]?.timestamp).toBe(3000);
   });
 
-  it('positionControlPoints returns six handles', () => {
+  it('positionControlPoints returns four TradingView-style handles', () => {
     const bounds = positionPlotBounds(
       { x: 10, y: 50 },
       { x: 10, y: 80 },
       { x: 10, y: 20 },
       { x: 100, y: 50 },
     );
-    expect(positionControlPoints(bounds)).toHaveLength(6);
+    expect(positionControlPoints(bounds)).toEqual([
+      { x: 10, y: 20 },
+      { x: 10, y: 50 },
+      { x: 10, y: 80 },
+      { x: 100, y: 50 },
+    ]);
   });
 
-  it('top-left handle changes target only', () => {
+  it('target handle changes take-profit price only', () => {
     const d = {
       name: 'long_position',
       label: 'Long',
@@ -134,17 +221,21 @@ describe('positionGeometry', () => {
       locked: false,
       zLevel: 0,
     };
-    const next = updatePositionFromControl(d, 0, {
-      timestamp: 1000,
+    const next = updatePositionFromControl(d, POSITION_CP.TARGET, {
+      timestamp: 1500,
       value: 115,
-      dataIndex: 0,
+      dataIndex: 1,
     });
     expect(next.points[2]?.value).toBe(115);
     expect(next.points[1]?.value).toBe(95);
     expect(next.points[0]?.value).toBe(100);
+    expect(next.points[0]?.timestamp).toBe(1000);
+    expect(next.points[1]?.timestamp).toBe(1000);
+    expect(next.points[2]?.timestamp).toBe(1000);
+    expect(next.points[3]?.timestamp).toBe(3000);
   });
 
-  it('top-left handle does not move entry when cpIndex differs from entry point', () => {
+  it('stop handle changes stop price only', () => {
     const d = {
       name: 'long_position',
       label: 'Long',
@@ -153,38 +244,20 @@ describe('positionGeometry', () => {
       locked: false,
       zLevel: 0,
     };
-    const entryBefore = d.points[0]?.value;
-    const stopBefore = d.points[1]?.value;
-    const next = updatePositionFromControl(d, 0, {
+    const next = updatePositionFromControl(d, POSITION_CP.STOP, {
       timestamp: 1500,
-      value: 112,
-      dataIndex: 0,
-    });
-    expect(next.points[0]?.value).toBe(entryBefore);
-    expect(next.points[1]?.value).toBe(stopBefore);
-    expect(next.points[2]?.value).toBe(112);
-  });
-
-  it('bottom handle changes stop only', () => {
-    const d = {
-      name: 'long_position',
-      label: 'Long',
-      points: fourPoints.map((p) => ({ ...p })),
-      visible: true,
-      locked: false,
-      zLevel: 0,
-    };
-    const next = updatePositionFromControl(d, 4, {
-      timestamp: 1000,
       value: 90,
-      dataIndex: 0,
+      dataIndex: 1,
     });
     expect(next.points[1]?.value).toBe(90);
     expect(next.points[2]?.value).toBe(110);
     expect(next.points[0]?.value).toBe(100);
+    expect(next.points[0]?.timestamp).toBe(1000);
+    expect(next.points[1]?.timestamp).toBe(1000);
+    expect(next.points[3]?.timestamp).toBe(3000);
   });
 
-  it('entry-left handle changes entry price only', () => {
+  it('entry-left handle changes entry price and left edge', () => {
     const d = {
       name: 'long_position',
       label: 'Long',
@@ -193,18 +266,22 @@ describe('positionGeometry', () => {
       locked: false,
       zLevel: 0,
     };
-    const next = updatePositionFromControl(d, 2, {
-      timestamp: 1000,
+    const next = updatePositionFromControl(d, POSITION_CP.ENTRY_LEFT, {
+      timestamp: 1500,
       value: 102,
-      dataIndex: 0,
+      dataIndex: 1,
     });
     expect(next.points[0]?.value).toBe(102);
     expect(next.points[3]?.value).toBe(102);
     expect(next.points[1]?.value).toBe(95);
     expect(next.points[2]?.value).toBe(110);
+    expect(next.points[0]?.timestamp).toBe(1500);
+    expect(next.points[1]?.timestamp).toBe(1500);
+    expect(next.points[2]?.timestamp).toBe(1500);
+    expect(next.points[3]?.timestamp).toBe(3000);
   });
 
-  it('entry-right handle changes width only', () => {
+  it('right handle changes width only without moving entry', () => {
     const d = {
       name: 'long_position',
       label: 'Long',
@@ -213,14 +290,16 @@ describe('positionGeometry', () => {
       locked: false,
       zLevel: 0,
     };
-    const next = updatePositionFromControl(d, 3, {
+    const next = updatePositionFromControl(d, POSITION_CP.RIGHT, {
       timestamp: 5000,
       value: 999,
       dataIndex: 4,
     });
     expect(next.points[3]?.timestamp).toBe(5000);
     expect(next.points[0]?.value).toBe(100);
+    expect(next.points[3]?.value).toBe(100);
     expect(next.points[1]?.value).toBe(95);
+    expect(next.points[0]?.timestamp).toBe(1000);
   });
 
   it('short stop handle changes stop without moving entry', () => {
@@ -238,7 +317,7 @@ describe('positionGeometry', () => {
       locked: false,
       zLevel: 0,
     };
-    const next = updatePositionFromControl(d, 4, {
+    const next = updatePositionFromControl(d, POSITION_CP.STOP, {
       timestamp: 1000,
       value: 108,
       dataIndex: 0,
@@ -246,6 +325,60 @@ describe('positionGeometry', () => {
     expect(next.points[1]?.value).toBe(108);
     expect(next.points[0]?.value).toBe(100);
     expect(next.points[2]?.value).toBe(90);
+  });
+
+  describe('stickEntryToLastPrice', () => {
+    const longDrawing = {
+      name: 'long_position',
+      label: 'Long',
+      points: fourPoints.map((p) => ({ ...p })),
+      visible: true,
+      locked: false,
+      zLevel: 0,
+    };
+
+    it('defaults to enabled when style is omitted', () => {
+      expect(stickEntryToLastPriceEnabled(longDrawing)).toBe(true);
+    });
+
+    it('respects explicit false', () => {
+      expect(
+        stickEntryToLastPriceEnabled({
+          ...longDrawing,
+          styles: { stickEntryToLastPrice: false },
+        }),
+      ).toBe(false);
+    });
+
+    it('moves entry only; stop and target stay fixed', () => {
+      const next = applyStickEntryPrice(longDrawing, 103.5);
+      expect(next).not.toBeNull();
+      expect(next!.points[0]?.value).toBe(103.5);
+      expect(next!.points[3]?.value).toBe(103.5);
+      expect(next!.points[1]?.value).toBe(95);
+      expect(next!.points[2]?.value).toBe(110);
+    });
+
+    it('returns null when stick is off or price unchanged', () => {
+      expect(
+        applyStickEntryPrice(
+          { ...longDrawing, styles: { stickEntryToLastPrice: false } },
+          103.5,
+        ),
+      ).toBeNull();
+      expect(applyStickEntryPrice(longDrawing, 100)).toBeNull();
+    });
+
+    it('withStickEntryDisabled persists false', () => {
+      const next = withStickEntryDisabled(longDrawing);
+      expect(next.styles?.stickEntryToLastPrice).toBe(false);
+    });
+
+    it('entryValueChanged detects entry price edits', () => {
+      expect(entryValueChanged(fourPoints, fourPoints)).toBe(false);
+      const moved = fourPoints.map((p, i) => (i === 0 || i === 3 ? { ...p, value: 101 } : p));
+      expect(entryValueChanged(fourPoints, moved)).toBe(true);
+    });
   });
 
   describe('profitRLevels', () => {

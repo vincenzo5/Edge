@@ -18,6 +18,8 @@ const FILL_TOOLS = new Set(['rectangle', 'parallel_channel', 'price_channel']);
 
 const TEXT_TOOLS = new Set(['annotation']);
 
+const POSITION_TOOLS = new Set(['long_position', 'short_position']);
+
 export type LineDashPreset = 'solid' | 'dashed' | 'dotted';
 
 export const LINE_DASH_PRESETS: Record<LineDashPreset, number[]> = {
@@ -40,5 +42,6 @@ export function drawingSettingsCapabilities(toolName: string) {
     showExtend: EXTEND_TOOLS.has(toolName),
     showFill: FILL_TOOLS.has(toolName),
     showText: TEXT_TOOLS.has(toolName),
+    showStickEntryToLastPrice: POSITION_TOOLS.has(toolName),
   };
 }

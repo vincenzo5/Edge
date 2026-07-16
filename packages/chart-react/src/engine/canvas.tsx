@@ -53,7 +53,7 @@ import {
 } from './renderScheduler';
 import { formatAxisTime } from '@edge/chart-core/time';
 import { formatCrosshairValue, shouldClearCrosshairOnLeave } from '@edge/chart-core/crosshair';
-import { hitTestAll } from '@edge/chart-core';
+import { hitTestAll, hitTestControlPoint } from '@edge/chart-core';
 import { clampPlot, pointToPlot } from '@edge/chart-core/drawingCoords';
 import type { DrawingPointerEvent } from '@edge/chart-core/drawingController';
 import { getSessionViewport } from './rangePresets';
@@ -184,6 +184,10 @@ export default function ChartCanvas({
   onDrawingPointerRef.current = onDrawingPointer;
   const drawingModeRef = useRef(drawingMode);
   drawingModeRef.current = drawingMode;
+  const drawingsRef = useRef(drawings);
+  drawingsRef.current = drawings;
+  const candlesRef = useRef(candles);
+  candlesRef.current = candles;
   const suppressCrosshairRef = useRef(suppressCrosshair);
   suppressCrosshairRef.current = suppressCrosshair;
   const drawingDragRef = useRef(false);
@@ -249,6 +253,45 @@ export default function ChartCanvas({
   const applyCursor = useCallback((x: number, y: number, isDragging = isDraggingRef.current, shiftHeld = false) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    let overControlPoint = false;
+    let controlPointLocked = false;
+    let overDrawing = false;
+    if (
+      !isDragging &&
+      vpRef.current &&
+      resolveDragMode(x, y, width, height, showTimeAxis, priceScaleSide) === 'body'
+    ) {
+      const plot = clampPlot(x, y, width, height, showTimeAxis);
+      const vp = layoutViewport(vpRef.current);
+      const candles = candlesRef.current;
+      const paneDrawings = drawingsRef.current;
+
+      // Prefer control-point hit on any visible drawing (handles work once shown;
+      // endpoints are still valid hover targets before selection).
+      for (const drawing of [...paneDrawings]
+        .filter((d) => d.visible)
+        .sort((a, b) => b.zLevel - a.zLevel)) {
+        const cpIdx = hitTestControlPoint(
+          plot.x,
+          plot.y,
+          drawing,
+          vp,
+          candles,
+          showTimeAxis,
+        );
+        if (cpIdx >= 0) {
+          overControlPoint = true;
+          controlPointLocked = drawing.locked;
+          break;
+        }
+      }
+
+      if (!overControlPoint) {
+        overDrawing = hitTestAll(plot.x, plot.y, paneDrawings, vp, candles, showTimeAxis) != null;
+      }
+    }
+
     const cursor = resolveHoverCursor(x, y, width, height, {
       showTimeAxis,
       activeTool: activeToolRef.current,
@@ -256,11 +299,14 @@ export default function ChartCanvas({
       dragMode: isDragging ? dragModeRef.current : null,
       priceScaleSide,
       shiftHeld,
+      overControlPoint,
+      controlPointLocked,
+      overDrawing,
     });
     if (appliedCursorRef.current === cursor) return;
     appliedCursorRef.current = cursor;
     canvas.style.cursor = cursor;
-  }, [width, height, showTimeAxis, priceScaleSide]);
+  }, [width, height, showTimeAxis, priceScaleSide, layoutViewport]);
 
   const resetCursor = useCallback(() => {
     const canvas = canvasRef.current;
@@ -990,10 +1036,16 @@ export default function ChartCanvas({
           rafRef.current = requestAnimationFrame(() => requestDraw('crosshair'));
         }
         if (badge) {
-          const canvas = canvasRef.current;
-          if (canvas && appliedCursorRef.current !== 'pointer') {
-            appliedCursorRef.current = 'pointer';
-            canvas.style.cursor = 'pointer';
+          // Control-point grab/not-allowed from applyCursor wins over badge pointer.
+          if (
+            appliedCursorRef.current !== 'grab' &&
+            appliedCursorRef.current !== 'not-allowed'
+          ) {
+            const canvas = canvasRef.current;
+            if (canvas && appliedCursorRef.current !== 'pointer') {
+              appliedCursorRef.current = 'pointer';
+              canvas.style.cursor = 'pointer';
+            }
           }
           return;
         }

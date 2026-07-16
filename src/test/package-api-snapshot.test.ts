@@ -51,7 +51,9 @@ describe("package API snapshots", () => {
         "applyCandleReplaceLatest",
         "applyCandleSnapshot",
         "applyCandleStreamEvent",
+        "applyStickEntryPrice",
         "applyVisibleSlice",
+        "boxFromPoints",
         "buildDefaultTargets",
         "classifyUsEquitySession",
         "computePaneBoundaries",
@@ -62,6 +64,7 @@ describe("package API snapshots", () => {
         "createInitialLayout",
         "drawingAliases",
         "ensureCandlesCover",
+        "entryValueChanged",
         "formatChange",
         "formatOptionLeg",
         "formatOptionLegsSummary",
@@ -108,6 +111,7 @@ describe("package API snapshots", () => {
         "shouldBackgroundPrefetch",
         "shouldPrefetchEdge",
         "shouldPrefetchHistory",
+        "stickEntryToLastPriceEnabled",
         "targetPriceForRMultiple",
         "toHeikinAshi",
         "tradeSetupFromPoints",
@@ -115,6 +119,7 @@ describe("package API snapshots", () => {
         "transformCandlesForChartType",
         "validateChartState",
         "validateTradeSetup",
+        "withStickEntryDisabled",
       ]
     `);
   });

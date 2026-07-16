@@ -157,6 +157,11 @@ export function isTwoPointTool(toolName: string): boolean {
   return plugin?.placement === 'two-point';
 }
 
+export function isInstantTool(toolName: string): boolean {
+  const plugin = getPluginForTool(toolName);
+  return plugin?.placement === 'instant';
+}
+
 export function isMultiPointTool(toolName: string): boolean {
   const plugin = getPluginForTool(toolName);
   return plugin?.placement === 'multi-point';

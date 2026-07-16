@@ -22,6 +22,7 @@
 - Drag to define second point; release to finish.
 - Hit test tolerance: 4px around line/segment for selection.
 - Selected drawing: show control points (small squares), allow drag to edit.
+- Hover drawing or control point: `grab` cursor (`not-allowed` on locked CP); drag uses `grabbing`. Selection is not required for the hover affordance.
 - Right-click on drawing: open context menu (position near click). Full TV item list: [context-menu-reference.md §2](../context-menu-reference.md#2-drawing--overlay-context-menu).
 - Right-click on blank chart: open chart context menu (always visible in TV). Edge target: [context-menu-reference.md §1](../context-menu-reference.md#1-blank-chart-plot-area).
 - Magnet: when enabled, snap new points to nearest candle OHLC (within 5px vertical).

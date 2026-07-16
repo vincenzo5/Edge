@@ -125,7 +125,23 @@ describe('drawAxes', () => {
     const ctx = createMockContext();
     drawAxes(ctx, vp, 300, 200, 'dark', chartSettings, candles);
     expect(ctx.fillRect).toHaveBeenCalledWith(250, 0, 50, 200);
-    expect(ctx.fillRect).toHaveBeenCalledWith(0, 170, 250, 30);
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 176, 250, 24);
+  });
+
+  it('draws three quarter-partition dashes between price labels', () => {
+    const ctx = createMockContext();
+    // Wide price range → spaced major ticks so minors are drawn.
+    const spacedVp: VisibleRange = {
+      ...vp,
+      priceMin: 100,
+      priceMax: 108,
+      yForPrice: (p) => 200 - ((p - 100) / 8) * 170,
+    };
+    drawAxes(ctx, spacedVp, 300, 200, 'dark', chartSettings, candles);
+    const lineCalls = (ctx.lineTo as ReturnType<typeof vi.fn>).mock.calls as [number, number][];
+    // Minor ticks extend 10px into the right price strip from the axis border (x=250 → 260).
+    const minorLines = lineCalls.filter(([x]) => x === 260);
+    expect(minorLines.length).toBeGreaterThanOrEqual(3);
   });
 });
 

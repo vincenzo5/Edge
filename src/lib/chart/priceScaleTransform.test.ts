@@ -6,6 +6,7 @@ import {
   formatScaleLabel,
   fromScaleCoord,
   resolveAnchorPrice,
+  scaleAxisMinorTicks,
   scaleAxisTicks,
   toScaleCoord,
 } from './priceScaleTransform';
@@ -76,5 +77,11 @@ describe('priceScaleTransform', () => {
 
     expect(ticks).toEqual([249.5, 250, 250.5, 251, 251.5, 252]);
     expect(pannedTicks).toEqual([250, 250.5, 251, 251.5, 252]);
+  });
+
+  it('places three quarter-partition minors between consecutive major ticks', () => {
+    expect(scaleAxisMinorTicks([100, 104, 108])).toEqual([101, 102, 103, 105, 106, 107]);
+    expect(scaleAxisMinorTicks([10, 20])).toEqual([12.5, 15, 17.5]);
+    expect(scaleAxisMinorTicks([1])).toEqual([]);
   });
 });

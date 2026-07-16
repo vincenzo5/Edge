@@ -1,5 +1,6 @@
 export const PRICE_AXIS_WIDTH = 50;
-export const TIME_AXIS_HEIGHT = 30;
+/** Bottom date strip — TV-like: ~11px labels with ~6px equal top/bottom margin. */
+export const TIME_AXIS_HEIGHT = 24;
 /** Reserved strip between plot area and time axis for event badges. */
 export const EVENT_RAIL_HEIGHT = 24;
 
@@ -25,6 +26,12 @@ export type CursorContext = {
   dragMode: DragMode | null;
   /** Shift held on price pane — hints ruler shortcut. */
   shiftHeld?: boolean;
+  /** Pointer is over a drawing control point. */
+  overControlPoint?: boolean;
+  /** Selected/hovered drawing is locked — CP drag rejected. */
+  controlPointLocked?: boolean;
+  /** Pointer is over a drawing body (hit-test), even if not selected. */
+  overDrawing?: boolean;
 };
 
 export function plotLeftOffset(side: PriceScaleSide = 'right'): number {
@@ -83,6 +90,14 @@ export function resolveHoverCursor(
   );
   if (zone === 'price') return 'ns-resize';
   if (zone === 'timeAxis') return 'crosshair';
+
+  if (ctx.overControlPoint) {
+    return ctx.controlPointLocked ? 'not-allowed' : 'grab';
+  }
+
+  if (ctx.overDrawing && !isDrawingToolActive(ctx.activeTool)) {
+    return 'grab';
+  }
 
   if (ctx.shiftHeld && zone === 'body') return 'crosshair';
 

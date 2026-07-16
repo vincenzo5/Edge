@@ -15,6 +15,7 @@ import {
   formatScaleLabel,
   fromScaleCoord,
   linearScaleContext,
+  scaleAxisMinorTicks,
   scaleAxisTicks,
   toScaleCoord,
 } from '@edge/chart-core/priceScaleTransform';
@@ -294,7 +295,7 @@ export function drawCrosshair(
     drawAxisBadge(ctx, price.toFixed(2), width - PRICE_AXIS_WIDTH + 4, clampedY, theme, 'right');
   }
   if (timeLabel) {
-    drawAxisBadge(ctx, timeLabel, clampedX, height - TIME_AXIS_HEIGHT + 4, theme, 'bottom');
+    drawAxisBadge(ctx, timeLabel, clampedX, height - TIME_AXIS_HEIGHT / 2, theme, 'bottom');
   }
 }
 
@@ -357,7 +358,7 @@ export function drawUnifiedCrosshair(
       ctx,
       crosshair.timeLabel,
       clampedX,
-      totalHeight - TIME_AXIS_HEIGHT + 4,
+      totalHeight - TIME_AXIS_HEIGHT / 2,
       theme,
       'bottom'
     );
@@ -391,10 +392,11 @@ function drawAxisBadge(
     textX = rectX + padX;
     textY = anchorY + 4;
   } else {
+    // bottom: anchorY is vertical center of the time-axis strip
     rectX = anchorX - textW / 2 - padX;
-    rectY = anchorY;
+    rectY = anchorY - textH / 2 - padY;
     textX = rectX + padX;
-    textY = anchorY + textH;
+    textY = anchorY + 4;
   }
 
   ctx.fillStyle = c.crosshair;
@@ -616,6 +618,37 @@ export function drawAxes(
     const ticks = scaleAxisTicks(vp.priceMin, vp.priceMax, scaleCtx);
     const axisX = axisStripX(width, priceScaleSide);
     const labelX = priceScaleSide === 'left' ? axisX + 4 : width - 45;
+    const borderX = priceScaleSide === 'left' ? axisX + PRICE_AXIS_WIDTH : axisX;
+    const ph = plotHeight(height, showTimeAxis, vp.reserveEventRail ?? false);
+
+    // Three short dashes between labeled prices (quarter partitions).
+    const minorLen = 10;
+    const minMajorGapPx = 16;
+    ctx.strokeStyle = textColor;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < ticks.length - 1; i++) {
+      const a = ticks[i]!;
+      const b = ticks[i + 1]!;
+      if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+      const y0 = vp.yForPrice(fromScaleCoord(a, scaleCtx));
+      const y1 = vp.yForPrice(fromScaleCoord(b, scaleCtx));
+      if (!Number.isFinite(y0) || !Number.isFinite(y1)) continue;
+      if (Math.abs(y1 - y0) < minMajorGapPx) continue;
+      for (const coord of scaleAxisMinorTicks([a, b])) {
+        const y = vp.yForPrice(fromScaleCoord(coord, scaleCtx));
+        if (!Number.isFinite(y) || y < 0 || y > ph) continue;
+        ctx.beginPath();
+        ctx.moveTo(borderX, y);
+        ctx.lineTo(
+          priceScaleSide === 'left' ? borderX - minorLen : borderX + minorLen,
+          y,
+        );
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+
     for (const coord of ticks) {
       if (!Number.isFinite(coord)) continue;
       const raw = fromScaleCoord(coord, scaleCtx);
@@ -625,7 +658,10 @@ export function drawAxes(
     }
   }
   if (showTimeAxis && candles && interval) {
-    const axisY = height - 4;
+    // Vertically center labels in the strip (equal top/bottom margin, TV-style).
+    const axisY = height - TIME_AXIS_HEIGHT / 2;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     for (const tick of computeTimeAxisTicks(candles, vp, interval, width)) {
       if (tick.kind === 'year') {
         ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, Ubuntu, sans-serif`;
@@ -636,6 +672,8 @@ export function drawAxes(
       }
       ctx.fillText(tick.label, tick.x, axisY);
     }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 }
 
@@ -688,7 +726,6 @@ import type { EventBadgeGroup } from './eventBadges';
 import {
   layoutEventBadgeGroups,
   eventRailTopY,
-  EVENT_RAIL_HEIGHT,
 } from './eventBadges';
 
 export type EventBadgeDrawOptions = {
@@ -727,19 +764,6 @@ export function drawEventBadges(
   const guideId = options.selectedGroupId ?? options.hoveredGroupId ?? null;
 
   ctx.save();
-
-  if (reserveEventRail) {
-    const c = getColors(theme);
-    ctx.fillStyle = theme === 'dark' ? 'rgba(19, 23, 34, 0.92)' : 'rgba(255, 255, 255, 0.95)';
-    ctx.fillRect(0, railTop, plotWidth(vp.width), EVENT_RAIL_HEIGHT);
-    ctx.strokeStyle = c.grid;
-    ctx.globalAlpha = 0.35;
-    ctx.beginPath();
-    ctx.moveTo(0, railTop);
-    ctx.lineTo(plotWidth(vp.width), railTop);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
 
   if (guideId) {
     const active = groups.find((group) => group.id === guideId);

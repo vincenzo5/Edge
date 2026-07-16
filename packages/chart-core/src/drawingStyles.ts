@@ -7,14 +7,17 @@ const DARK_LINE = '#64748b';
 const LIGHT_LINE = '#475569';
 
 export function defaultStylesForTool(toolName: string): DrawingStyles {
-  void toolName;
-  return {
+  const base: DrawingStyles = {
     lineWidth: 1.5,
     lineDash: [],
     fillOpacity: 0,
     extendLeft: false,
     extendRight: false,
   };
+  if (toolName === 'long_position' || toolName === 'short_position') {
+    return { ...base, stickEntryToLastPrice: true };
+  }
+  return base;
 }
 
 export function mergeStyles(

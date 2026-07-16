@@ -168,6 +168,14 @@ export {
   buildDefaultTargets,
   riskComputedPayload,
 } from './risk/riskDrawing';
+export {
+  boxFromPoints,
+  stickEntryToLastPriceEnabled,
+  applyStickEntryPrice,
+  withStickEntryDisabled,
+  entryValueChanged,
+} from './drawings/positionGeometry';
+export type { PositionBox } from './drawings/positionGeometry';
 export type {
   TradeSetup,
   RiskMetrics,

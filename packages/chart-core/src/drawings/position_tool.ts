@@ -21,13 +21,16 @@ import { drawControlPoints } from './primitives';
 import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUtils';
 import {
   boxFromPoints,
+  defaultPositionPoints,
   expandTwoPointDraft,
   positionControlPoints,
   positionHitTest,
   positionPlotBounds,
   profitRLevels,
+  repairPositionPoints,
   updatePositionFromControl,
 } from './positionGeometry';
+import { plotWidth } from '../layout';
 
 const PROFIT_FILL_DARK = 'rgba(34, 197, 94, 0.15)';
 const PROFIT_FILL_LIGHT = 'rgba(34, 197, 94, 0.2)';
@@ -139,18 +142,26 @@ function drawSingleLabel(
 
 function finalizePosition(draft: SerializedDrawing, direction: RiskDirection): SerializedDrawing {
   let expanded = draft.points.length < 4 ? expandTwoPointDraft(draft, direction) : draft;
-  const setup = tradeSetupFromPoints(expanded.points.slice(0, 3));
-  if (!setup) return expanded;
+  // Candles are not available here; timestamp-0 repair happens at draw time via repairPositionPoints.
+  const withStickDefault: SerializedDrawing = {
+    ...expanded,
+    styles: {
+      stickEntryToLastPrice: true,
+      ...expanded.styles,
+    },
+  };
+  const setup = tradeSetupFromPoints(withStickDefault.points.slice(0, 3));
+  if (!setup) return withStickDefault;
   try {
     const validated = validateTradeSetup({ ...setup, direction });
     const metrics = computeRiskMetrics(validated);
-    const qty = resolvePositionQty(expanded.metadata?.fields?.qty, metrics.positionSize);
+    const qty = resolvePositionQty(withStickDefault.metadata?.fields?.qty, metrics.positionSize);
     return {
-      ...expanded,
+      ...withStickDefault,
       metadata: {
-        ...expanded.metadata,
+        ...withStickDefault.metadata,
         fields: {
-          ...expanded.metadata?.fields,
+          ...withStickDefault.metadata?.fields,
           riskSetup: validated,
           qty,
         },
@@ -158,7 +169,7 @@ function finalizePosition(draft: SerializedDrawing, direction: RiskDirection): S
       },
     };
   } catch {
-    return expanded;
+    return withStickDefault;
   }
 }
 
@@ -182,8 +193,12 @@ export function createPositionPlugin(
   return {
     name: registryName,
     defaultLabel,
-    placement: 'two-point',
-    create(start) {
+    placement: 'instant',
+    create(start, _vp, candles) {
+      const defaults = defaultPositionPoints(direction, candles);
+      if (defaults) {
+        return baseDrawing(registryName, defaultLabel, defaults);
+      }
       return baseDrawing(registryName, defaultLabel, [start, { ...start }]);
     },
     updatePreview(draft, cursor) {
@@ -197,13 +212,22 @@ export function createPositionPlugin(
       const showTimeAxis = opts?.showTimeAxis ?? true;
       const expanded =
         d.points.length >= 4 ? d : expandTwoPointDraft(d, direction);
-      const plots = plotsForPoints(expanded, vp, candles, showTimeAxis);
+      const repairedPoints = repairPositionPoints(expanded.points, candles);
+      const repaired =
+        repairedPoints === expanded.points
+          ? expanded
+          : { ...expanded, points: repairedPoints };
+      const plots = plotsForPoints(repaired, vp, candles, showTimeAxis);
       if (plots.length < 4) return;
 
       const [entryPlot, stopPlot, targetPlot, rightPlot] = plots;
       const bounds = positionPlotBounds(entryPlot, stopPlot, targetPlot, rightPlot);
       const { leftX, rightX, entryY, stopY, targetY } = bounds;
       const width = Math.max(rightX - leftX, 1);
+      const pw = plotWidth(vp.width);
+      const clipLeft = Math.max(0, leftX);
+      const clipRight = Math.min(pw, rightX);
+      const clipWidth = Math.max(clipRight - clipLeft, 0);
 
       const profitZone =
         direction === 'long'
@@ -214,25 +238,27 @@ export function createPositionPlugin(
           ? { top: entryY, height: stopY - entryY }
           : { top: stopY, height: entryY - stopY };
 
-      ctx.save();
-      ctx.fillStyle = profitFill(theme);
-      ctx.fillRect(leftX, profitZone.top, width, Math.abs(profitZone.height));
-      ctx.fillStyle = lossFill(theme);
-      ctx.fillRect(leftX, lossZone.top, width, Math.abs(lossZone.height));
-      ctx.restore();
+      if (clipWidth > 0) {
+        ctx.save();
+        ctx.fillStyle = profitFill(theme);
+        ctx.fillRect(clipLeft, profitZone.top, clipWidth, Math.abs(profitZone.height));
+        ctx.fillStyle = lossFill(theme);
+        ctx.fillRect(clipLeft, lossZone.top, clipWidth, Math.abs(lossZone.height));
+        ctx.restore();
+      }
 
       ctx.save();
       ctx.strokeStyle = ENTRY_LINE_COLOR;
       ctx.lineWidth = 1;
       ctx.setLineDash(opts?.preview ? [4, 4] : []);
       ctx.beginPath();
-      ctx.moveTo(leftX, entryY);
-      ctx.lineTo(leftX + width, entryY);
+      ctx.moveTo(clipLeft, entryY);
+      ctx.lineTo(clipLeft + clipWidth, entryY);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.restore();
 
-      const box = boxFromPoints(expanded.points, direction);
+      const box = boxFromPoints(repaired.points, direction);
       if (box) {
         drawProfitRYardLines(
           ctx,
@@ -240,25 +266,25 @@ export function createPositionPlugin(
           box.stop,
           box.target,
           direction,
-          leftX,
-          rightX,
+          clipLeft,
+          clipLeft + clipWidth,
           vp,
           theme,
         );
       }
 
       if (shouldShowPositionLabels(selected, opts)) {
-        const setup = readTradeSetupFromDrawing(expanded);
+        const setup = readTradeSetupFromDrawing(repaired);
         if (box && setup) {
           try {
             const metrics = computeRiskMetrics(setup);
             const qty = resolvePositionQty(
-              expanded.metadata?.fields?.qty,
+              repaired.metadata?.fields?.qty,
               metrics.positionSize,
             );
             const lastPrice = lastCandleClose(candles);
             const labelInput = { ...box, direction, qty, lastPrice };
-            const centerX = leftX + width / 2;
+            const centerX = clipLeft + clipWidth / 2;
 
             drawSingleLabel(
               ctx,
@@ -288,14 +314,18 @@ export function createPositionPlugin(
         }
       }
 
-      if (selected && !opts?.preview && expanded.points.length >= 4) {
+      if (selected && !opts?.preview && repaired.points.length >= 4) {
         drawControlPoints(ctx, positionControlPoints(bounds), theme, true);
       }
     },
     hitTest(px, py, d, vp, candles, showTimeAxis = true) {
       if (d.points.length < 2) return false;
       const expanded = d.points.length >= 4 ? d : expandTwoPointDraft(d, direction);
-      const plots = plotsForPoints(expanded, vp, candles, showTimeAxis);
+      const repaired = {
+        ...expanded,
+        points: repairPositionPoints(expanded.points, candles),
+      };
+      const plots = plotsForPoints(repaired, vp, candles, showTimeAxis);
       if (plots.length < 4) return false;
       const [entryPlot, stopPlot, targetPlot, rightPlot] = plots;
       const bounds = positionPlotBounds(entryPlot, stopPlot, targetPlot, rightPlot);
@@ -303,7 +333,11 @@ export function createPositionPlugin(
     },
     getControlPoints(d, vp, candles, showTimeAxis = true) {
       if (d.points.length < 4) return [];
-      const plots = plotsForPoints(d, vp, candles, showTimeAxis);
+      const repaired = {
+        ...d,
+        points: repairPositionPoints(d.points, candles),
+      };
+      const plots = plotsForPoints(repaired, vp, candles, showTimeAxis);
       if (plots.length < 4) return [];
       const [entryPlot, stopPlot, targetPlot, rightPlot] = plots;
       return positionControlPoints(

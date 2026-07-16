@@ -1,5 +1,6 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import type { Candle, VisibleRange } from '@edge/chart-core';
+import { TIME_AXIS_HEIGHT, PRICE_AXIS_WIDTH } from '@edge/chart-core/layout';
 import { mergeChartSettings } from '../chartSettings';
 import {
   buildCandleGeometry,
@@ -19,8 +20,8 @@ function mockViewport(candleCount: number): VisibleRange {
   const startIndex = 0;
   const endIndex = Math.min(50, candleCount);
   const visible = endIndex - startIndex;
-  const pw = width - 50;
-  const ph = height - 30;
+  const pw = width - PRICE_AXIS_WIDTH;
+  const ph = height - TIME_AXIS_HEIGHT;
   return {
     startIndex,
     endIndex,

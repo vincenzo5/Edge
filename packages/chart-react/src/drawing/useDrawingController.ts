@@ -26,6 +26,9 @@ import {
   serializeAll,
   DrawingStore,
   pointsEqual,
+  applyStickEntryPrice,
+  entryValueChanged,
+  withStickEntryDisabled,
 } from '@edge/chart-core';
 import { plotToPoint, translateDrawingPoints } from '@edge/chart-core/drawingCoords';
 import {
@@ -41,6 +44,7 @@ import {
   createDraftFromPoint,
   isOnePointTool,
   isTwoPointTool,
+  isInstantTool,
   isMultiPointTool,
   advancePlacing,
   supportsDoubleClickFinish,
@@ -82,6 +86,8 @@ export type DrawingControllerDeps = {
   error: string | null;
   displayCandlesLength: number;
   stateDrawings: SerializedDrawing[] | undefined;
+  /** Live last price for stick-entry-to-last-price on long/short positions. */
+  livePrice?: number | null;
 };
 
 export type DrawingHandleSlice = {
@@ -139,6 +145,7 @@ export function useDrawingController(deps: DrawingControllerDeps) {
     error,
     displayCandlesLength,
     stateDrawings,
+    livePrice = null,
   } = deps;
 
   const drawingsRef = useRef<SerializedDrawing[]>([]);
@@ -243,6 +250,39 @@ export function useDrawingController(deps: DrawingControllerDeps) {
     });
   }, [syncTrackedFromDrawings, overlayChangeCbsRef]);
 
+  // Stick long/short entry to the streaming last price (stop/TP unchanged).
+  useEffect(() => {
+    if (livePrice == null || !Number.isFinite(livePrice)) return;
+    const fsm = drawingStateRef.current.fsm;
+    const draggingId =
+      fsm === 'dragging_cp' || fsm === 'dragging_drawing'
+        ? drawingStateRef.current.draggingDrawingId
+        : null;
+    const drawings = drawingStoreRef.current.getDrawings();
+    const commands: Array<{
+      type: 'updatePoints';
+      id: string;
+      before: SerializedDrawing['points'];
+      after: SerializedDrawing['points'];
+    }> = [];
+    for (const d of drawings) {
+      if (!d.id || d.id === draggingId) continue;
+      const next = applyStickEntryPrice(d, livePrice);
+      if (!next) continue;
+      commands.push({
+        type: 'updatePoints',
+        id: d.id,
+        before: d.points.map((p) => ({ ...p })),
+        after: next.points.map((p) => ({ ...p })),
+      });
+    }
+    if (commands.length === 0) return;
+    drawingStoreRef.current.execute(
+      commands.length === 1 ? commands[0]! : { type: 'batch', commands },
+      false,
+    );
+  }, [livePrice]);
+
   const finishAfterCommit = useCallback((state: DrawingControllerState): DrawingControllerState => {
     if (!keepDrawingRef.current && state.activeTool) {
       return disarmTool(state);
@@ -322,9 +362,10 @@ export function useDrawingController(deps: DrawingControllerDeps) {
         const drawing = paneDrawings.find((d) => d.id === state.draggingDrawingId);
         const before = cpDragPointsSnapshotRef.current;
         if (drawing && before && !drawing.locked) {
+          const nextPoints = translateSnapshotPoints(before);
           drawingStoreRef.current.replaceDrawing(drawing.id!, {
             ...drawing,
-            points: translateSnapshotPoints(before),
+            points: nextPoints,
           });
         }
         return true;
@@ -489,20 +530,26 @@ export function useDrawingController(deps: DrawingControllerDeps) {
 
         if (state.fsm === 'tool_armed' && state.activeTool) {
           const tool = state.activeTool;
-          if (isOnePointTool(tool)) {
+          if (isOnePointTool(tool) || isInstantTool(tool)) {
             const draft = createDraftFromPoint(tool, getPoint(), vp, candlesRef.current);
             if (!draft) return true;
             const plugin = getPluginForTool(tool);
+            const paneDraft = stampPaneId(draft, paneId);
             const finalized = plugin?.finalize
-              ? plugin.finalize(draft, vp, candlesRef.current)
-              : draft;
+              ? plugin.finalize(paneDraft, vp, candlesRef.current)
+              : paneDraft;
             const { state: nextState, drawing } = commitDrawing(
               state,
               finalized,
               drawingsRef.current,
             );
-            addCommittedDrawing(drawing);
-            syncDrawingState(finishAfterCommit(nextState));
+            const id = addCommittedDrawing(drawing);
+            const after = finishAfterCommit(nextState);
+            const selected = isInstantTool(tool)
+              ? selectDrawingState(disarmTool(after), id)
+              : after;
+            syncDrawingState(selected);
+            if (isInstantTool(tool)) notifySelectionChange(id);
             return true;
           }
           if (isTwoPointTool(tool) || isMultiPointTool(tool)) {
@@ -538,12 +585,40 @@ export function useDrawingController(deps: DrawingControllerDeps) {
           cpDragPointsSnapshotRef.current = null;
           drawingDragStartRef.current = null;
           if (drawing && before && id && !pointsEqual(before, drawing.points)) {
-            drawingStoreRef.current.execute({
-              type: 'updatePoints',
-              id,
-              before,
-              after: drawing.points.map((p) => ({ ...p })),
-            });
+            const disableStick = entryValueChanged(before, drawing.points);
+            const pinned = disableStick ? withStickEntryDisabled(drawing) : drawing;
+            const commands: Array<
+              | {
+                  type: 'updatePoints';
+                  id: string;
+                  before: SerializedDrawing['points'];
+                  after: SerializedDrawing['points'];
+                }
+              | {
+                  type: 'updateMeta';
+                  id: string;
+                  before: { styles?: SerializedDrawing['styles'] };
+                  after: { styles?: SerializedDrawing['styles'] };
+                }
+            > = [
+              {
+                type: 'updatePoints',
+                id,
+                before,
+                after: pinned.points.map((p) => ({ ...p })),
+              },
+            ];
+            if (disableStick && pinned.styles?.stickEntryToLastPrice === false) {
+              commands.push({
+                type: 'updateMeta',
+                id,
+                before: { styles: drawing.styles },
+                after: { styles: pinned.styles },
+              });
+            }
+            drawingStoreRef.current.execute(
+              commands.length === 1 ? commands[0]! : { type: 'batch', commands },
+            );
           }
           state = stopDraggingDrawing(state);
           syncDrawingState(state);
@@ -557,12 +632,40 @@ export function useDrawingController(deps: DrawingControllerDeps) {
           cpDragPointsSnapshotRef.current = null;
           drawingDragStartRef.current = null;
           if (drawing && before && id && !pointsEqual(before, drawing.points)) {
-            drawingStoreRef.current.execute({
-              type: 'updatePoints',
-              id,
-              before,
-              after: drawing.points.map((p) => ({ ...p })),
-            });
+            const disableStick = entryValueChanged(before, drawing.points);
+            const pinned = disableStick ? withStickEntryDisabled(drawing) : drawing;
+            const commands: Array<
+              | {
+                  type: 'updatePoints';
+                  id: string;
+                  before: SerializedDrawing['points'];
+                  after: SerializedDrawing['points'];
+                }
+              | {
+                  type: 'updateMeta';
+                  id: string;
+                  before: { styles?: SerializedDrawing['styles'] };
+                  after: { styles?: SerializedDrawing['styles'] };
+                }
+            > = [
+              {
+                type: 'updatePoints',
+                id,
+                before,
+                after: pinned.points.map((p) => ({ ...p })),
+              },
+            ];
+            if (disableStick && pinned.styles?.stickEntryToLastPrice === false) {
+              commands.push({
+                type: 'updateMeta',
+                id,
+                before: { styles: drawing.styles },
+                after: { styles: pinned.styles },
+              });
+            }
+            drawingStoreRef.current.execute(
+              commands.length === 1 ? commands[0]! : { type: 'batch', commands },
+            );
           }
           state = stopDraggingCp(state);
           syncDrawingState(state);
@@ -698,6 +801,37 @@ export function useDrawingController(deps: DrawingControllerDeps) {
   const drawingHandleSlice: DrawingHandleSlice = useMemo(
     () => ({
       startDrawing: (name: string) => {
+        if (isInstantTool(name)) {
+          const candles = candlesRef.current;
+          const vp =
+            paneHandlesRef.current?.get('price')?.getViewport() ?? latestVpRef.current;
+          if (candles.length > 0 && vp) {
+            const lastIdx = candles.length - 1;
+            const last = candles[lastIdx]!;
+            const start = {
+              timestamp: last.t,
+              value: last.c,
+              dataIndex: lastIdx,
+            };
+            const draft = createDraftFromPoint(name, start, vp, candles);
+            if (draft) {
+              const plugin = getPluginForTool(name);
+              const paneDraft = stampPaneId(draft, 'price');
+              const finalized = plugin?.finalize
+                ? plugin.finalize(paneDraft, vp, candles)
+                : paneDraft;
+              const armed = armTool(drawingStateRef.current, name);
+              syncDrawingState(armed);
+              const { drawing } = commitDrawing(armed, finalized, drawingsRef.current);
+              const id = addCommittedDrawing(drawing);
+              const next = selectDrawingState(disarmTool(drawingStateRef.current), id);
+              syncDrawingState(next);
+              notifySelectionChange(id);
+              setPreviewDrawing(null);
+              return;
+            }
+          }
+        }
         const next = armTool(drawingStateRef.current, name);
         syncDrawingState(next);
         setPreviewDrawing(null);
@@ -950,6 +1084,7 @@ export function useDrawingController(deps: DrawingControllerDeps) {
       notifySelectionChange,
       hydrateDrawings,
       addCommittedDrawing,
+      stampPaneId,
       overlayChangeCbsRef,
       paneHandlesRef,
       candlesRef,

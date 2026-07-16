@@ -43,7 +43,7 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 | `packages/chart-react/src/engine/viewport.ts` | Pan, zoom, momentum, price/time scale modes |
 | `packages/chart-react/src/engine/rangeInterval.ts` | Interval↔range pairing; `resolveCellFetchRange`, `rangeForManualInterval` |
 | `packages/chart-react/src/engine/rangePresets.ts` | Session viewport (`getSessionViewport`), calendar daily window, range cutoffs |
-| `packages/chart-core/src/drawings/position_tool.ts` | Shared long/short position plugin factory; geometry in `positionGeometry.ts`; profit-zone 1R yard lines; labels via `risk/positionLabels.ts` |
+| `packages/chart-core/src/drawings/position_tool.ts` | Shared long/short position plugin factory; geometry in `positionGeometry.ts`; profit-zone 1R yard lines; labels via `risk/positionLabels.ts`; `styles.stickEntryToLastPrice` (default ON) sticks entry to live last price |
 | `packages/chart-react/src/engine/renderer.ts` | Grid, candles, axes, annotations draw primitives |
 | `packages/chart-core/src/pluginHost.ts` | Indicator/drawing registries, hit-test, serialize/restore |
 | `packages/chart-core/src/drawingStore.ts` | Command-based undo/redo (max 50 history) |
@@ -59,14 +59,14 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 ## Plugin System
 
 - **Indicators**: register in `indicators/registry.ts`; implement compute + draw via `plugin-api.ts`.
-- **Drawings**: register in `drawings/registry.ts`; toolbar names aliased in `pluginHost.ts`. Utility tools include `measure` (bar/price line), `ruler` (shaded Δtime/Δprice band; ⇧+click shortcut on price pane), and `risk_ruler`. Forecasting tools `long_position` / `short_position` use `createPositionPlugin()` — two-point create expands to four anchor points, 6-handle resize, profit/loss zones, left-edge 1R yard lines with in-box NR labels, and TV-style target/entry/stop labels backed by `risk/*` helpers.
+- **Drawings**: register in `drawings/registry.ts`; toolbar names aliased in `pluginHost.ts`. Utility tools include `measure` (bar/price line), `ruler` (shaded Δtime/Δprice band; ⇧+click shortcut on price pane), and `risk_ruler`. Forecasting tools `long_position` / `short_position` use `createPositionPlugin()` — instant place on toolbar select at last-bar close with left edge on the last bar (default stop/TP/width; still resizable via TradingView-style 4 handles: target/stop vertical-only; entry-left moves entry + left edge; right edge width-only), profit/loss zones, left-edge 1R yard lines with in-box NR labels, and TV-style target/entry/stop labels backed by `risk/*` helpers.
 - New plugins MUST follow existing patterns (`ma.ts`, `trend_line.ts`).
 
 ## Invariants
 
 - Viewport updates are imperative — no React state on every wheel tick.
 - Time window is shared across panes; price scale is per-pane.
-- Price-axis labels and horizontal grid lines are generated from the same screen-space-aware anchored "nice tick" coordinates so vertical panning translates labels instead of recomputing arbitrary decimals.
+- Price-axis labels and horizontal grid lines are generated from the same screen-space-aware anchored "nice tick" coordinates so vertical panning translates labels instead of recomputing arbitrary decimals. Between labeled prices, three short axis-border dashes partition each interval into quarters (`scaleAxisMinorTicks`).
 - Axis drags use explicit gesture intent: price/time axes start scale gestures, and may convert to body pan only within the same pointer drag.
 - Drawings mutate only through `DrawingStore` commands (add/remove/updatePoints/updateMeta/reorderZ).
 - Serialized drawings persist in `CellConfig.drawings` via debounced save (500 ms).
@@ -119,7 +119,7 @@ Package path: `packages/chart-react/src/engine/webgl/`.
 
 - **Contract:** `ChartDataFeed.loadOverlays` serves typed channels: `events`, `referenceLines`, `annotations`.
 - **App adapter:** `createApiChartDataFeed` merges registry events (`/api/events`), news (`/api/news`), and options expirations (`/api/options/expirations`) into the events channel; `eventKindsFromChartSettings` filters dense feeds from per-cell settings before requests are made; derives priced reference lines from events; annotations merge feed + local drawing metadata via `useChartOverlays`.
-- **Rendering:** Event overlays render in a reserved bottom event rail (between plot and time axis) as compact badges grouped by calendar day and screen proximity. Full-height guides appear only on hover/selection. Reference overlays and annotation channel markers still render on Canvas 2D in the `candles` layer regardless of WebGL candle backend.
+- **Rendering:** Event overlays render in a reserved bottom event rail (between plot and time axis) as compact badges grouped by calendar day and screen proximity. The rail itself is transparent so the plot background (including user canvas background overrides) shows through. Full-height guides appear only on hover/selection. Reference overlays and annotation channel markers still render on Canvas 2D in the `candles` layer regardless of WebGL candle backend.
 
 ## Persistence Contract
 

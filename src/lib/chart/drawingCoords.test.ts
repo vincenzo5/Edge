@@ -126,6 +126,62 @@ describe('drawingCoords', () => {
     expect(Number.isFinite(pt.value)).toBe(true);
   });
 
+  it('plotToPoint snaps near-miss past last candle instead of timestamp 0', () => {
+    const base = createViewport(candles, 800, 400, 3, 0);
+    // Viewport with empty right slack past last bar.
+    const vp = attachViewportHelpers({ ...base, startIndex: 0, endIndex: 6 }, candles.length);
+    const lastX = vp.xForIndex(candles.length - 1);
+    const pt = plotToPoint(lastX + 5, yForPricePlot(108, vp, true), vp, candles);
+
+    expect(pt.dataIndex).toBe(candles.length - 1);
+    expect(pt.timestamp).toBe(candles[candles.length - 1]!.t);
+    expect(pt.timestamp).not.toBe(0);
+  });
+
+  it('plotToPoint extrapolates timestamp far into empty right margin', () => {
+    const base = createViewport(candles, 800, 400, 3, 0);
+    const vp = attachViewportHelpers({ ...base, startIndex: 0, endIndex: 10 }, candles.length);
+    const lastX = vp.xForIndex(candles.length - 1);
+    const farX = lastX + 200;
+    const pt = plotToPoint(farX, yForPricePlot(108, vp, true), vp, candles);
+
+    expect(pt.dataIndex).toBeGreaterThanOrEqual(candles.length);
+    expect(pt.timestamp).toBeGreaterThan(candles[candles.length - 1]!.t);
+    expect(pt.timestamp).not.toBe(0);
+  });
+
+  it('pointToPlot clamps legacy timestamp-0 virtual anchors to last candle', () => {
+    const vp = makeVp();
+    const back = pointToPlot(
+      { timestamp: 0, value: 108, dataIndex: 99 },
+      vp,
+      candles,
+      true
+    );
+    expect(back.x).toBeCloseTo(vp.xForIndex(candles.length - 1), 0);
+  });
+
+  it('pointToPlot maps timestamp-0 without dataIndex to last candle (not index 0)', () => {
+    const vp = makeVp();
+    const back = pointToPlot({ timestamp: 0, value: 108 }, vp, candles, true);
+    expect(back.x).toBeCloseTo(vp.xForIndex(candles.length - 1), 0);
+    expect(back.x).not.toBeCloseTo(vp.xForIndex(0), 0);
+  });
+
+  it('pointToPlot resolves future timestamps by time, not stale dataIndex', () => {
+    const vp = makeVp();
+    const last = candles[candles.length - 1]!;
+    const dt = last.t - candles[candles.length - 2]!.t;
+    const futureTs = last.t + 10 * dt;
+    const back = pointToPlot(
+      { timestamp: futureTs, value: 108, dataIndex: 1 },
+      vp,
+      candles,
+      true
+    );
+    expect(back.x).toBeCloseTo(vp.xForIndex(candles.length - 1 + 10), 0);
+  });
+
   it('plotToPoint with magnet on sub-pane snaps to indicator value', () => {
     const baseVp = createViewport(candles, 800, 200, 3, 0);
     const vp = attachViewportHelpers(

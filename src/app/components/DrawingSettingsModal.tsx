@@ -44,6 +44,7 @@ export default function DrawingSettingsModal({
   const [fillOpacity, setFillOpacity] = useState(0);
   const [text, setText] = useState("");
   const [fontSize, setFontSize] = useState(12);
+  const [stickEntryToLastPrice, setStickEntryToLastPrice] = useState(true);
 
   useEffect(() => {
     if (!resolved) return;
@@ -56,6 +57,7 @@ export default function DrawingSettingsModal({
     setFillOpacity(resolved.fillOpacity ?? 0);
     setText(resolved.text ?? drawing?.label ?? "");
     setFontSize(resolved.fontSize ?? 12);
+    setStickEntryToLastPrice(resolved.stickEntryToLastPrice !== false);
   }, [resolved, drawing?.label]);
 
   const handleSave = useCallback(() => {
@@ -79,12 +81,16 @@ export default function DrawingSettingsModal({
       patch.text = text.trim() || drawing.label;
       patch.fontSize = Number.isFinite(fontSize) ? fontSize : 12;
     }
+    if (caps.showStickEntryToLastPrice) {
+      patch.stickEntryToLastPrice = stickEntryToLastPrice;
+    }
     onSave(drawing.id, patch);
     onClose();
   }, [
     caps.showDash,
     caps.showExtend,
     caps.showFill,
+    caps.showStickEntryToLastPrice,
     caps.showText,
     dashPreset,
     drawing,
@@ -97,6 +103,7 @@ export default function DrawingSettingsModal({
     lineWidth,
     onClose,
     onSave,
+    stickEntryToLastPrice,
     text,
   ]);
 
@@ -123,6 +130,19 @@ export default function DrawingSettingsModal({
         </div>
 
         <div className="space-y-3">
+          {caps.showStickEntryToLastPrice && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={stickEntryToLastPrice}
+                onChange={(e) => setStickEntryToLastPrice(e.target.checked)}
+              />
+              <span className="text-gray-600 dark:text-gray-400">
+                Stick entry to last price
+              </span>
+            </label>
+          )}
+
           {caps.showLine && (
             <>
               <label className="flex items-center justify-between gap-3 text-sm">
