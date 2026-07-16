@@ -116,9 +116,24 @@ const DOC_TARGETS: DocTarget[] = [
     ownerAreas: ["persistence"],
   },
   {
-    path: "docs/screener-roadmap.md",
+    path: "docs/roadmaps/screener-roadmap.md",
     type: "product_roadmap",
     ownerAreas: ["screener"],
+  },
+  {
+    path: "docs/roadmaps/journal-roadmap.md",
+    type: "product_roadmap",
+    ownerAreas: ["journal"],
+  },
+  {
+    path: "docs/roadmaps/trading-execution-roadmap.md",
+    type: "product_roadmap",
+    ownerAreas: ["trading"],
+  },
+  {
+    path: "docs/roadmaps/dual-connection-roadmap.md",
+    type: "product_roadmap",
+    ownerAreas: ["trading", "marketData"],
   },
   {
     path: "docs/ROADMAP.md",

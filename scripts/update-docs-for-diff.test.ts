@@ -176,7 +176,7 @@ describe("runDocsUpdate guardrails", () => {
     let porcelainCall = 0;
     const getFullPorcelainFn = () => {
       porcelainCall += 1;
-      return porcelainCall === 1 ? [] : [" M docs/screener-roadmap.md"];
+      return porcelainCall === 1 ? [] : [" M docs/roadmaps/screener-roadmap.md"];
     };
 
     const exitCode = await runDocsUpdate({
@@ -184,12 +184,12 @@ describe("runDocsUpdate guardrails", () => {
       changedFiles: ["src/lib/marketData/health.ts"],
       runAgent: async () => ({
         status: "finished",
-        result: "updated: docs/screener-roadmap.md",
+        result: "updated: docs/roadmaps/screener-roadmap.md",
         durationMs: 1,
       }),
       validateInstructions: () => ({ ok: true, output: "ok" }),
       getFullPorcelainFn,
-      getDocsPorcelainFn: () => [" M docs/screener-roadmap.md"],
+      getDocsPorcelainFn: () => [" M docs/roadmaps/screener-roadmap.md"],
     });
 
     vi.unstubAllEnvs();

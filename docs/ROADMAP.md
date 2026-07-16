@@ -16,8 +16,8 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 |------|-------|-------|
 | Custom chart engine | Shipped foundation | Canvas 2D renderer, pan/zoom, range presets, indicators, drawings, panes, templates, context menus, TradingView-style layout templates, workspace tabs, and per-tab layout persistence are in place. |
 | App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, workspace tab bar with optional cloud sync, responsive module home hub at `/home` with charts at `/chart` plus smart `/` entry (24h last-module redirect), and `/journal` module (Dashboard / Trades / Settings). |
-| Trading journal | Shipped foundation | IBKR fill sync + Flex CSV import → grouped round-trip trades; Postgres + localStorage fallback; dashboard KPIs, calendar P&L, equity curve, tag/setup and time reports, R-multiple, filters, chart deep links with execution markers. Tier 3+ in [Journal Roadmap](./journal-roadmap.md). |
-| Trading execution | Phase 0–5 **Passing** | Paper + live via in-app mode; registry `ib-paper`/`ib-live`; chart ticket + confirm; AccountPanel cancel; journal orderRef; AI place_order. Dual-connection **display preference ≠ order account** shipped (`edge:marketData:connectionId`); remaining Docker both-Gateway ops in [Dual Connection Roadmap](./dual-connection-roadmap.md). Then Postgres intents / options / brackets. [Trading Execution Roadmap](./trading-execution-roadmap.md). |
+| Trading journal | Shipped foundation | IBKR fill sync + Flex CSV import → grouped round-trip trades; Postgres + localStorage fallback; dashboard KPIs, calendar P&L, equity curve, tag/setup and time reports, R-multiple, filters, chart deep links with execution markers. Tier 3+ in [Journal Roadmap](./roadmaps/journal-roadmap.md). |
+| Trading execution | Phase 0–5 **Passing** | Paper + live via in-app mode; registry `ib-paper`/`ib-live`; chart ticket + confirm; AccountPanel cancel; journal orderRef; AI place_order. Dual-connection **display preference ≠ order account** shipped (`edge:marketData:connectionId`); remaining Docker both-Gateway ops in [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md). Then Postgres intents / options / brackets. [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md). |
 | Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Tradier, TWS, and IBKR adapters; age-based display freshness and trust-event logging for transport recovery; ChartDataFeed/watchlist thread TWS `connectionId` display preference. |
 | IBKR provider | Shipped in main routing | IBKR-first candles and quotes in `MarketDataService` with Yahoo fallback; probe routes remain for diagnostics. Requires daily Gateway login for live IBKR data. |
 | AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data and trading tools (`preview_order` / `place_order`) run server-side; stateful chart, watchlist, screener, risk, account, and options session tools require an app session. |
@@ -115,7 +115,7 @@ Guardrails:
 
 **Outcome:** Place and manage stock orders (market, limit, stop) per account through IB TWS, with a broker-neutral foundation for multiple brokers later. Journal already ingests fills; execution links back via `orderRef`.
 
-Full phasing: [Trading Execution Roadmap](./trading-execution-roadmap.md).
+Full phasing: [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md).
 
 | Phase | Status | Summary |
 |-------|--------|---------|
@@ -125,7 +125,7 @@ Full phasing: [Trading Execution Roadmap](./trading-execution-roadmap.md).
 | **3 — Stops + safety** | **Passing** (2026-07-08) | STOP/STOP_LIMIT, preview expiry, kill switch |
 | **4 — UI + journal** | **Passing** (2026-07-08) | Chart ticket, confirm modal, AccountPanel cancel, AI tool |
 | **5 — Multi-broker + live** | **Passing** (2026-07-08) | Connection registry, in-app paper/live, live `LIVE` confirm (TWS sidecar only) |
-| **Dual connection (post-5)** | **Partial** | Display preference ≠ order account shipped (`edge:marketData:connectionId`); remaining Docker paper+live Gateways + ops. [Dual Connection Roadmap](./dual-connection-roadmap.md) |
+| **Dual connection (post-5)** | **Partial** | Display preference ≠ order account shipped (`edge:marketData:connectionId`); remaining Docker paper+live Gateways + ops. [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md) |
 
 Guardrails:
 
@@ -161,9 +161,9 @@ Later market data work:
   - **News workflows**: Symbol-scoped or watchlist-wide News Feed panel with headlines, publish times, and detail view; direct actions to create drawing annotations from a headline or trigger AI sentiment/thesis analysis tied to current chart state; high-impact items automatically surface as chart event pins via the existing overlay mappers.
   - **Fundamentals workflows**: Expanded SymbolDetailsPanel (tabbed: profile, financial statements with trend charts, estimates, executives, ownership, valuation metrics) beyond the current snapshot; watchlist enrichment via hover cards or columns (e.g., "EPS growth +12% YoY"); multi-symbol comparison mode (table or radar); deeper AI tool integration so `summarize_chart` and analysis tools pull live fundamentals context.
   - **Macro & Economic Calendar workflows**: Global or layout-aware Macro Calendar view (FMP Premium + FRED) showing releases with expected/actual values and impact flags; ability to add macro series as secondary panes, comparison overlays, or priced reference lines; watchlist-aware filtering ("releases affecting my holdings"); AI workflows such as "list macro events this week relevant to tech names in my watchlist".
-  - **Stock Screener workflows**: Sidebar/floating screener (legacy modal wrapper) filters the US-listed universe (equities + ETFs) by technical, fundamental, and descriptive criteria using FMP as primary and Yahoo / IBKR / TWS / Massive as configured. Presets + composable query-builder; wide dock Expand; results as table or treemap heat map; row/group actions to chart and watchlists; saved screens via localStorage with optional Postgres sync. Full scope, phasing, and touch points in [Screener Roadmap](./screener-roadmap.md).
-  - **Trading journal & reporting workflows**: IBKR fill sync and Flex CSV import → grouped round-trip trades (STK + multi-leg OPT), stats, tags/notes, and chart deep links on `/journal` (**v1 + Tier 1–2 reporting shipped** — calendar P&L, tag/setup reports, equity curve, filters, time-of-day/week analysis, chart execution overlay, R-multiple). Remaining tiers: trade rating, screenshots, compare reports, MFE/MFA. Excludes replay, AI agents, playbooks/notebook, and multi-broker consolidation. Full phasing in [Journal Roadmap](./journal-roadmap.md).
-  - **Trading execution workflows**: Phases 0–5 **shipped** (paper + live via in-app mode, connection registry, chart ticket, journal `orderRef`, AI `preview_order` / `place_order`). Dual-connection **chart/watchlist data preference** split from order account **shipped**; remaining Docker both-Gateway ops in [Dual Connection Roadmap](./dual-connection-roadmap.md). Full phasing in [Trading Execution Roadmap](./trading-execution-roadmap.md).
+  - **Stock Screener workflows**: Sidebar/floating screener (legacy modal wrapper) filters the US-listed universe (equities + ETFs) by technical, fundamental, and descriptive criteria using FMP as primary and Yahoo / IBKR / TWS / Massive as configured. Presets + composable query-builder; wide dock Expand; results as table or treemap heat map; row/group actions to chart and watchlists; saved screens via localStorage with optional Postgres sync. Full scope, phasing, and touch points in [Screener Roadmap](./roadmaps/screener-roadmap.md).
+  - **Trading journal & reporting workflows**: IBKR fill sync and Flex CSV import → grouped round-trip trades (STK + multi-leg OPT), stats, tags/notes, and chart deep links on `/journal` (**v1 + Tier 1–2 reporting shipped** — calendar P&L, tag/setup reports, equity curve, filters, time-of-day/week analysis, chart execution overlay, R-multiple). Remaining tiers: trade rating, screenshots, compare reports, MFE/MFA. Excludes replay, AI agents, playbooks/notebook, and multi-broker consolidation. Full phasing in [Journal Roadmap](./roadmaps/journal-roadmap.md).
+  - **Trading execution workflows**: Phases 0–5 **shipped** (paper + live via in-app mode, connection registry, chart ticket, journal `orderRef`, AI `preview_order` / `place_order`). Dual-connection **chart/watchlist data preference** split from order account **shipped**; remaining Docker both-Gateway ops in [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md). Full phasing in [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md).
 - Add entitlement-aware warnings for broker data delays or missing market subscriptions.
 - Consider streaming quotes/candles only after REST provider routing is reliable.
 
@@ -226,12 +226,19 @@ Future work:
 
 ## Near-Term Execution Order
 
-1. **Dual connection (post–trading Phase 5).** Docker paper+live Gateways (display preference ≠ order account already shipped). See [Dual Connection Roadmap](./dual-connection-roadmap.md).
-2. **WebGL candle proof.** Add a small backend-pluggable proof for main-pane candles only; keep drawings, labels, menus, and interaction chrome on Canvas/DOM.
-3. **Declarative indicator expansion.** Batch the next studies through the strengthened indicator contract: VWAP, ATR, Stochastic, CCI, OBV first.
-4. **Advanced market-context overlays.** Add event/reference channels for earnings, dividends, filings, news, options expirations, and semantic AI annotations.
-5. ~~**Granular layout sync.**~~ Split symbol, interval/range, and crosshair sync toggles — **shipped**.
-6. ~~**Trading execution Phase 5.**~~ Connection registry + in-app paper/live — **shipped** (2026-07-08).
+**Authoritative priority:** [Project Status](./PROJECT-STATUS.md) — Current Verified State and Active Work.
+
+Living feature tracks (phase detail in each file):
+
+- [Trading execution](./roadmaps/trading-execution-roadmap.md) — reliability track operational cleanup; options / brackets backlog
+- [Dual connection](./roadmaps/dual-connection-roadmap.md) — remaining Docker both-Gateway ops
+- [Stock screener](./roadmaps/screener-roadmap.md) — Phase 3 custom indicators, comparison, AI summarize
+- [Trading journal](./roadmaps/journal-roadmap.md) — Tier 3+ reporting
+
+Broader product backlog (not feature-track owned):
+
+- WebGL candle proof — backend-pluggable main-pane candles only; keep drawings, labels, menus, and interaction chrome on Canvas/DOM
+- Advanced market-context overlays — earnings, dividends, filings, news, options expirations, semantic AI annotations
 
 ## Explicit Deferrals
 
@@ -239,7 +246,7 @@ These are intentionally not near-term roadmap items:
 
 - Pine Script or community indicator compatibility.
 - Full TradingView feature parity.
-- Chart trade ticket UI and in-app paper/live — **shipped** (Phases 4–5). Data≠order account preference — **shipped**; remaining dual paper+live Gateway ops — [Dual Connection Roadmap](./dual-connection-roadmap.md).
+- Chart trade ticket UI and in-app paper/live — **shipped** (Phases 4–5). Data≠order account preference — **shipped**; remaining dual paper+live Gateway ops — [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md).
 - Price or drawing alerts before semantic annotations and data provenance are reliable.
 - Non-time charts such as Renko, Point and Figure, or Kagi.
 - Volume footprint, TPO, and session profile.
@@ -253,8 +260,9 @@ These are intentionally not near-term roadmap items:
 - [Market Data Architecture](../src/lib/marketData/ARCHITECTURE.md) - provider-neutral data layer and verification commands.
 - [AI Tools Architecture](./ai-tools-architecture.md) - registry, adapters, permissions, and rollout phases.
 - [Rich Annotations Vision](./chart/rich-annotations-vision.md) - semantic annotation product direction.
-- [Screener Roadmap](./screener-roadmap.md) - stock screener scope, phasing, and touch points.
-- [Journal Roadmap](./journal-roadmap.md) - trading journal reporting tiers and explicit exclusions.
-- [Trading Execution Roadmap](./trading-execution-roadmap.md) - IB order place/manage phases, domain model, verification gates.
-- [Dual Connection Roadmap](./dual-connection-roadmap.md) - paper+live Gateways and market-data vs order-account split.
+- [Feature Roadmaps index](./roadmaps/README.md) - living multi-phase tracks and status table.
+- [Screener Roadmap](./roadmaps/screener-roadmap.md) - stock screener scope, phasing, and touch points.
+- [Journal Roadmap](./roadmaps/journal-roadmap.md) - trading journal reporting tiers and explicit exclusions.
+- [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md) - IB order place/manage phases, domain model, verification gates.
+- [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md) - paper+live Gateways and market-data vs order-account split.
 - [Chart Performance Baseline](./perf/chart-baseline-latest.json) - latest harness output from `npm run perf:chart`.

@@ -95,6 +95,7 @@ Load topic docs on demand — do not read everything for every task.
 | Doc | Read when |
 |-----|-----------|
 | [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md) | Planning work, checking shipped vs active vs deferred |
+| [docs/ROADMAP.md](docs/ROADMAP.md) + [docs/roadmaps/](docs/roadmaps/README.md) | Product direction, phase index, and feature-track phasing |
 | [docs/CONSTRAINTS.md](docs/CONSTRAINTS.md) | Before any change — hard rules (MUST / MUST NOT) |
 | [src/lib/design-system/ARCHITECTURE.md](src/lib/design-system/ARCHITECTURE.md) | Styling app chrome — tokens, `Edge*` primitives, menus, modals, sidebars |
 | [src/lib/chart/ARCHITECTURE.md](src/lib/chart/ARCHITECTURE.md) | Chart rendering, drawings, indicators, viewport, panes, context menus |

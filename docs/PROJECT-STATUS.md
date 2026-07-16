@@ -2,16 +2,176 @@
 
 Single source for **current** progress. Historical harness dumps: [status-archive/](./status-archive/). For row-by-row feature detail, see [chart/features.md](./chart/features.md).
 
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-15
 
 ## Current Verified State
+
+- **Current task:** Position stick entry to last price.
+- **State:** **Passing** — Long/short entry follows live last price by default; stop/TP stay fixed; Settings → “Stick entry to last price”; manual entry drag turns stick off.
+- **Latest verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 59 passed (59)` (`positionGeometry`, `drawingSettingsCapabilities`, `drawingStyles`, `position_tool`, `package-api-snapshot`); `@edge/chart-core` + `@edge/chart-react` rebuild passed; **Architecture review:** self-review — Passed.
+- **Evidence:** `positionGeometry.ts`, `drawingStyles.ts`, `drawingSettingsCapabilities.ts`, `DrawingSettingsModal.tsx`, `useDrawingController.ts`, `EdgeChart.tsx`, `features.md`, `ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — place Long on a live symbol, confirm entry tracks last price while stop/TP stay put; toggle Settings off and confirm entry pins.
+
+## Previous Verified State (Account display aliases)
+
+- **Current task:** Account display aliases.
+- **State:** **Passing** — Custom account picker dropdown includes a right-side settings rail; gear opens display-name editor inside the menu (no separate header icon). Aliases persist and replace raw IB ids across picker, Account panel, Trade form, and Data Health.
+- **Latest verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 43 passed (43)` (`AccountPickerMenu`, `AppTopHeader`, `accountAliases`, `accountPickerOptions`, `AccountPanel`); **Architecture review:** self-review — Passed.
+- **Evidence:** `AccountPickerMenu.tsx`, `AccountAliasEditor.tsx`, `AppTopHeader.tsx`, `accountAliases.ts`, `AccountAliasesProvider.tsx`, `AccountPanel.tsx`, `TradeOrderForm.tsx`, `trading/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — click account picker → gear on right → set display name → confirm picker label updates and survives reload.
+
+## Previous Verified State (Position tool instant place at last bar)
+
+- **Current task:** Event rail transparent background.
+- **State:** **Passing** — Event badge strip no longer paints its own fill/border; plot canvas background shows through (including user overrides).
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 18 passed (18)` (`eventBadges`, `renderer`); `@edge/chart-react` rebuild passed.
+- **Evidence:** `packages/chart-react/src/engine/renderer.ts`, `docs/chart/features.md`, `src/lib/chart/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — open `/chart` with events on and confirm the rail matches the plot background.
+
+## Previous Verified State (Time axis date-label vertical margins)
+
+- **Current task:** Time axis date-label vertical margins.
+- **State:** **Passing** — Bottom date strip is 24px; labels and crosshair time badge are vertically centered (equal top/bottom margin, TV-style).
+- **Latest verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 56 passed (56)` (renderer, layout, canvas, webgl mocks); `@edge/chart-core` + `@edge/chart-react` rebuild passed.
+- **Evidence:** `packages/chart-core/src/layout.ts`, `packages/chart-react/src/engine/renderer.ts`, `docs/chart/features.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — open `/chart` and confirm date labels have equal padding above/below in the bottom strip.
+
+## Previous Verified State (Price axis quarter tick dashes)
+
+- **Current task:** Price axis quarter tick dashes.
+- **State:** **Passing** — Three short dashes between each labeled price on the Y-axis, partitioning each interval into quarters.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 26 passed (26)` (`priceScaleTransform.test.ts`, `renderer.test.ts`); `@edge/chart-core` + `@edge/chart-react` rebuild passed.
+- **Evidence:** `packages/chart-core/src/priceScaleTransform.ts`, `packages/chart-react/src/engine/renderer.ts`, related tests, `docs/chart/features.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — open `/chart` and confirm three dashes between consecutive price labels on the right axis.
+
+## Previous Verified State (Long position empty-margin stretch fix)
+
+- **Current task:** Long position empty-margin stretch fix.
+- **State:** **Passing** — Near-miss past last candle snaps to last bar; far empty-margin uses extrapolated timestamps (never `timestamp: 0`); legacy `t:0`+virtual-index anchors clamp on render. Runtime: stretch width ~118px → ~8.8px (`zero-ts-clamped`).
+- **Latest verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 44 passed (44)` (`drawingCoords`, `positionGeometry`, `position_tool`); `@edge/chart-core` rebuild passed; app-level post-fix logs confirmed clamp.
+- **Evidence:** `packages/chart-core/src/drawingCoords.ts`, `packages/chart-core/src/drawings/positionGeometry.ts`, related tests.
+- **Current blocker:** none.
+- **Next best step:** Delete any old stretched long (persisted `t:0` points) if still on chart; draw new longs near live edge to confirm.
+
+## Previous Verified State (Drawing hover grab cursor without selection)
+
+- **Current task:** Drawing hover grab cursor without selection.
+- **State:** **Passing** — Hovering any drawing body (or control point) shows `grab` without selecting first; locked CP → `not-allowed`; active drawing tool keeps crosshair.
+- **Latest verification:** **Focused:** `Test Files 1 passed (1)`, `Tests 21 passed (21)` (`layout.test.ts`); `@edge/chart-core` + `@edge/chart-react` rebuild passed.
+- **Evidence:** `packages/chart-core/src/layout.ts`, `packages/chart-react/src/engine/canvas.tsx`, `src/lib/chart/layout.test.ts`, `docs/chart/prereqs/gesture-bible.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — hover unselected long position and confirm grab cursor before click.
+
+## Previous Verified State (Drawing selection toolbar clearance)
+
+- **Current task:** Drawing selection toolbar clearance.
+- **State:** **Passing** — Floating drawing toolbar sits 28px clear of the drawing; flips below when the viewport lacks room above; clamped inside the chart.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 10 passed (10)` (`drawingSelectionToolbarPosition`, `DrawingSelectionToolbar`).
+- **Evidence:** `drawingSelectionToolbarPosition.ts`, `DrawingSelectionToolbar.tsx`, related tests.
+- **Current blocker:** none.
+- **Next best step:** App-level — select a long position near the top of the chart and confirm toolbar flips below with clearance.
+
+## Previous Verified State (Workspace tab live quote strip)
+
+- **Current task:** Workspace tab live quote strip.
+- **State:** **Passing** — Tabs show last price + day % (green/red/muted); SSE `price`/`changePercent` mapped into QuoteSnapshot; all workspace tab symbols included in quote universe.
+- **Latest verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 16 passed (16)` (`mappers`, `WorkspaceTabBar`, `MarketDataProvider`).
+- **Evidence:** `mapRawQuoteToSnapshot`, `MarketDataProvider.tsx`, `WorkspaceTabBar.tsx`, `StockApp.tsx`, related tests.
+- **Current blocker:** none.
+- **Next best step:** App-level — open `/chart` on F and confirm tab shows last + day %.
+
+## Previous Verified State (Clear manual TWS reconnect)
+
+- **Current task:** Clear manual TWS reconnect.
+- **State:** **Passing** — When TWS/Gateway is down, Reconnect appears in chart top-right and app header alert; Data Health panel keeps the same action; sidecar `/control/reconnect` resets paper and live sockets.
+- **Latest verification:** **Focused:** `Test Files 4 passed (4)`, `Tests 19 passed (19)` (UI recover tests); Sidecar `Ran 2 tests OK` (`ReconnectResetTests`); **Architecture review:** self-review — Passed.
+- **Evidence:** `TwsRecoverButton.tsx`, `ChartOverlayDataHealthRow.tsx`, `ChartOverlayStatusStack.tsx`, `AppTopHeader.tsx`, `DataHealthMenu.tsx`, `services/tws-sidecar/main.py`, `test_main.py`, `src/lib/marketData/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — stop one Gateway socket, confirm chart top-right Reconnect + Data Health panel both recover paper+live; external-mode Reconnect spawn shipped in follow-up row.
+
+## Previous Verified State (Workspace tabs TV-style chrome)
+
+- **Current task:** Workspace tabs TV-style chrome.
+- **State:** **Passing** — Tab bar is ~75% of chart header height (`27px` / `h-9`); tabs stretch full track; content matches TV strip (monogram, symbol, direction, price, %, layout title).
+- **Latest verification:** **Focused:** `Test Files 1 passed (1)`, `Tests 4 passed (4)` (`WorkspaceTabBar.test.tsx`).
+- **Evidence:** `WorkspaceTabBar.tsx`, `WorkspaceTabBar.test.tsx`, `src/lib/design-system/ARCHITECTURE.md`, `docs/chart/features.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — open `/chart` and confirm tab height vs header + quote strip layout.
+
+## Previous Verified State (Position drawing TV-style 4 handles)
+
+- **Current task:** Position drawing TV-style 4 handles.
+- **State:** **Passing** — Long/short position drawings expose four TradingView-style handles: TP/stop vertical-only, entry-left 2-axis, right width-only.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 29 passed (29)` (`positionGeometry.test.ts`, `position_tool.test.ts`); `@edge/chart-core` rebuild passed.
+- **Evidence:** `packages/chart-core/src/drawings/positionGeometry.ts`, `positionGeometry.test.ts`, `src/lib/chart/drawings/position_tool.test.ts`, `docs/chart/features.md`, `src/lib/chart/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — select long/short position and confirm only four handles with TV drag semantics.
+
+## Previous Verified State (Full-range chart horizontal pan)
+
+- **Current task:** Full-range chart horizontal pan.
+- **State:** **Passing** — Pan slack is visible−1 so the first bar can reach the right edge and the last bar can reach the left edge (no fixed ±40 buffer).
+- **Latest verification:** **Focused:** `Test Files 1 passed (1)`, `Tests 50 passed (50)` (`packages/chart-react/src/engine/viewport.test.ts`); `@edge/chart-react` rebuild passed.
+- **Evidence:** `packages/chart-react/src/engine/viewport.ts`, `viewport.test.ts`, `docs/chart/features.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — pan chart left/right until first bar is at right edge and latest bar is at left edge.
+
+## Previous Verified State (Trade setup panel drawing-bound)
+
+- **Current task:** Trade setup panel (drawing-bound).
+- **State:** **Passing** — Right-click long/short position → Trade setup… opens docked Trade sidebar; panel live-syncs entry/stop/TP from bound drawing only; header Trade opens unbound panel; entry-only MKT/LMT preview→submit.
+- **Latest verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 20 passed (20)` (`positionTradeSetup`, `overlayContextMenu`, `TradeSidebarPanel`, `registry`, `TradeTicketModal`); **Build:** `npm run build` passed (`✓ Compiled successfully in 2.4s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `positionTradeSetup.ts`, `TradeSetupBindingContext.tsx`, `TradeOrderForm.tsx`, `TradeSidebarPanel.tsx`, `overlayContextMenu.ts`, `ChartCell.tsx`, `StockApp.tsx`, `registry.tsx`, `trading/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level walkthrough — draw long → Trade setup… → drag stop → panel updates → Preview paper order; then RTH live fill proof.
+
+## Previous Verified State (Full-width Edge logo header)
+
+- **Current task:** Full-width Edge logo header.
+- **State:** **Passing** — Full-width top header with clickable `logo-full-light` → `/home`; left module rail below header without Home icon.
+- **Latest verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 9 passed (9)` (`AppTopHeader`, `HomeAppNav`, `AppModuleShell`); **App-level:** `/chart` shows Edge home link + Charts/Journal/Research rail only; logo navigates to `/home`; account picker loads; **Architecture review:** self-review — Passed.
+- **Evidence:** `AppModuleShell.tsx`, `AppTopHeader.tsx`, `HomeAppNav.tsx`, related tests, `src/lib/design-system/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by trade setup panel.
+
+## Previous Verified State (Account panel open orders vs order history)
+
+- **Current task:** Account panel open orders vs order history.
+- **State:** **Passing** — Open orders excludes Cancelled/Filled; Order history shows all session orders; cancel of paper F `orderId=32` verified at broker.
+- **Latest verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 22 passed (22)` (`orderStatus`, `filterOrders`, `AccountPanel`); **App-level:** `GET /account/orders` paper F `orderId=32` `status: Cancelled`; **Architecture review:** self-review — Passed.
+- **Evidence:** `orderStatus.ts`, `filterOrders.ts`, `AccountPanel.tsx`, `AccountPanel.test.tsx`, `src/lib/trading/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by full-width Edge logo header.
+
+## Previous Verified State (Account panel cancel for null-status orders)
+- **State:** **Passing** — Cancel shows when order status is null/blank; sidecar maps status from `trade.orderStatus`.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 18 passed (18)` (`orderStatus`, `AccountPanel`); **Sidecar:** `TradingModifyTests` 7 OK; **App-level:** paper F LMT `orderId=32` cancelled (`status: Cancelled` on `GET /account/orders`).
+- **Evidence:** `orderStatus.ts`, `AccountPanel.tsx`, `AccountPanel.test.tsx`, `services/tws-sidecar/main.py`, `test_main.py`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by open-orders vs history split.
+
+## Previous Verified State (Trade execution reliability track)
+
+- **Current task:** Trade execution reliability track.
+- **State:** **Passing** — paper + live API bake; Postgres intent store; after-hours readiness fixes; recovery partial (dev port-ownership).
+- **Latest verification:** **App-level:** paper LMT `orderId=24` `permId=438990727` cancel `Cancelled`; STP `12`/`16` cancel `Cancelled`; idempotency `24==24`; kill switch blocked preview; Postgres restart idempotency `orderId=31` after dev restart; live preview+submit `U25026894` LMT `orderId=9` `permId=703230888`; live GTC `orderId=15` cancelled 2026-07-13; **Focused:** `Test Files 14 passed (14)`, `Tests 81 passed (81)`; **Build:** `npm run build` passed; **Architecture review:** self-review — Passed.
+- **Evidence:** `dataTrust.ts`, `tradingService.ts`, `intentStore.ts`, `postgresIntentStore.ts`, `intentRepository.ts`, `0005_order_intents.sql`, `.env.local` (`TWS_MANAGED=external`).
+- **Current blocker:** Live 1-share fill proof still pending RTH; in-app Reconnect TWS blocked when port 8765 owned by another dev instance.
+- **Next best step:** Finish UI walkthrough cancel after Account panel Cancel fix; then RTH live 1-share MKT fill + journal proof.
+
+## Previous Verified State (Heat map data hardening)
 
 - **Current task:** Heat map data hardening.
 - **State:** **Passing** — Movers enriched via universe descriptors; screener `changePercent` mapping fixed; heat-map quote cap 200; partial size-metric banner.
 - **Latest verification:** **Focused:** `Test Files 6 passed (6)`, `Tests 31 passed (31)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); **Architecture review:** self-review — Passed; app-level Gainers/Large-cap heat map walkthrough deferred.
 - **Evidence:** `enrichMoversWithDescriptors.ts`, `marketDataService.ts`, `mappers.ts`, `apiScreenerFeed.ts`, `screenerHeatMapAdapter.ts`, `ResultsTable.tsx`, `useScreenerSessionModel.ts`.
 - **Current blocker:** none.
-- **Next best step:** App-level — Gainers heat map Size=market cap + Group=sector; Large-cap Color=change % across full result set.
+- **Next best step:** Superseded by trade execution reliability track.
 
 ## Previous Verified State (Dual connection Phase D)
 
@@ -95,6 +255,27 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
+| Position stick entry to last price | Long/short entry follows live last price by default; stop/TP fixed; Settings toggle; entry drag disables stick | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 59 passed (59)`; packages rebuild passed; **Architecture review:** self-review Passed | `positionGeometry.ts`, `drawingStyles.ts`, `drawingSettingsCapabilities.ts`, `DrawingSettingsModal.tsx`, `useDrawingController.ts`, `EdgeChart.tsx` |
+| Account display aliases | Custom account picker dropdown with right-side settings rail; display names in picker, Account panel, Trade form, Data Health; IB accountId stays execution identity | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 43 passed (43)`; **Architecture review:** self-review Passed; app-level alias reload walkthrough deferred | `AccountPickerMenu.tsx`, `AccountAliasEditor.tsx`, `accountAliases.ts`, `AccountAliasesProvider.tsx`, `AppTopHeader.tsx`, `AccountPanel.tsx`, `TradeOrderForm.tsx`, `trading/ARCHITECTURE.md` |
+| Position tool instant place at last bar | Toolbar Long/Short places immediately at last-bar close; left edge on last bar; selected + cursor restored | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 40 passed (40)` (`positionGeometry`, `position_tool`, `drawingFsm`); packages rebuild passed | `positionGeometry.ts`, `position_tool.ts`, `drawingController.ts`, `useDrawingController.ts`, tests, `features.md`, `ARCHITECTURE.md` |
+| Event rail transparent background | Event badge strip has no fill/border; inherits plot canvas background | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 18 passed (18)`; `@edge/chart-react` rebuild passed | `renderer.ts`, `features.md`, `ARCHITECTURE.md` |
+| Time axis date-label vertical margins | 24px bottom strip; date labels + crosshair time badge vertically centered (equal top/bottom margin) | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 56 passed (56)`; packages rebuild passed | `layout.ts`, `renderer.ts`, tests, `features.md` |
+| Price axis quarter tick dashes | Three short axis-border dashes between labeled prices (quarter partitions); skip when majors <16px apart | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 26 passed (26)` (`priceScaleTransform`, `renderer`); packages rebuild passed | `priceScaleTransform.ts`, `renderer.ts`, tests, `features.md` |
+| Long position empty-margin stretch fix | Near live-edge miss snaps to last bar; empty-margin extrapolates ts (no `t:0`); legacy `t:0`+virtual di clamps on render | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 44 passed (44)` (`drawingCoords`, `positionGeometry`, `position_tool`); runtime width ~118→~8.8px | `drawingCoords.ts`, `positionGeometry.ts`, related tests |
+| Drawing hover grab cursor without selection | Hover drawing body or CP → `grab` without selecting first; locked CP → `not-allowed`; armed tool keeps crosshair | **Passing** | **Focused:** `Test Files 1 passed (1)`, `Tests 21 passed (21)` (`layout.test.ts`); packages rebuild passed | `packages/chart-core/src/layout.ts`, `packages/chart-react/src/engine/canvas.tsx`, `src/lib/chart/layout.test.ts`, `docs/chart/prereqs/gesture-bible.md` |
+| Drawing selection toolbar clearance | Floating toolbar 28px clear of drawing; flips below when viewport lacks room above; edge-clamped | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 10 passed (10)` (`drawingSelectionToolbarPosition`, `DrawingSelectionToolbar`) | `drawingSelectionToolbarPosition.ts`, `DrawingSelectionToolbar.tsx`, related tests |
+| Workspace tab live quote strip | Tab shows last price + day % (▲/▼; green/red/muted flat); SSE MarketQuote `price`/`changePercent` mapped; all tab symbols quoted via `extraSymbols` | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 16 passed (16)` (`mappers`, `WorkspaceTabBar`, `MarketDataProvider`) | `mappers.ts`, `MarketDataProvider.tsx`, `WorkspaceTabBar.tsx`, `StockApp.tsx`, related tests |
+| Clear manual TWS reconnect | Reconnect when TWS down: chart top-right inline button + app header accounts alert; Data Health panel unchanged; sidecar reconnect resets ib-paper + ib-live | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 19 passed (19)`; Sidecar `ReconnectResetTests` 2 OK; **Architecture review:** self-review Passed; app-level Gateway stop/start walkthrough deferred | `TwsRecoverButton.tsx`, `ChartOverlayDataHealthRow.tsx`, `ChartOverlayStatusStack.tsx`, `AppTopHeader.tsx`, `DataHealthMenu.tsx`, `services/tws-sidecar/main.py`, `test_main.py`, `src/lib/marketData/ARCHITECTURE.md` |
+| TWS external recovery spawn + auto-reconnect | User Reconnect spawns sidecar in `TWS_MANAGED=external` when port 8765 free (`TWS_MANAGED_BY=standalone`); explicit port-conflict copy; sidecar bounded auto-reconnect (2s→30s backoff, max 5) on IB 1100/502/504 + disconnect; `/status` exposes `autoReconnectAttempt` | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 21 passed (21)` (`recover.test.ts`, `managedMode.test.ts`); Sidecar `Ran 43 tests OK`; **Architecture review:** self-review Passed; app-level external-mode Reconnect walkthrough deferred | `recover.ts`, `managedMode.ts`, `recover.test.ts`, `managedMode.test.ts`, `services/tws-sidecar/main.py`, `test_main.py`, `src/lib/marketData/ARCHITECTURE.md` |
+| Drawing control-point grab cursor | Hover selected drawing CP → `grab` (`not-allowed` if locked); drag → `grabbing` | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 36 passed (36)` (`layout`, `positionGeometry`); packages rebuild passed | `packages/chart-core/src/layout.ts`, `packages/chart-react/src/engine/canvas.tsx`, `src/lib/chart/layout.test.ts`, `docs/chart/prereqs/gesture-bible.md` |
+| Workspace tabs TV-style chrome | Tab bar ~75% of chart header `h-9` (27px); tabs stretch full track height; monogram + symbol + ▲/▼ + price + % change + `/` layout title | **Passing** | **Focused:** `Test Files 1 passed (1)`, `Tests 4 passed (4)` (`WorkspaceTabBar.test.tsx`) | `WorkspaceTabBar.tsx`, `WorkspaceTabBar.test.tsx`, `design-system/ARCHITECTURE.md`, `docs/chart/features.md` |
+| Position drawing TV-style 4 handles | Long/short position: 4 handles — TP left vertical-only, stop left vertical-only, entry-left moves entry + left edge, right edge width-only (no entry change) | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 29 passed (29)` (`positionGeometry`, `position_tool`); `@edge/chart-core` rebuild passed | `packages/chart-core/src/drawings/positionGeometry.ts`, `positionGeometry.test.ts`, `src/lib/chart/drawings/position_tool.test.ts`, `docs/chart/features.md`, `src/lib/chart/ARCHITECTURE.md` |
+| Full-range chart horizontal pan | Pan slack = visible−1: first bar can reach right edge; last bar can reach left edge (replaces fixed ±40 buffer) | **Passing** | **Focused:** `Test Files 1 passed (1)`, `Tests 50 passed (50)` (`viewport.test.ts`); `@edge/chart-react` rebuild passed | `packages/chart-react/src/engine/viewport.ts`, `viewport.test.ts`, `docs/chart/features.md` |
+| Trade setup panel (drawing-bound) | Right-click long/short position → Trade setup… opens Trade sidebar bound to `{cellId,drawingId}`; live entry/stop/TP sync from drawing points; other drawings ignored; header Trade opens unbound panel; entry-only MKT/LMT preview→submit | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 20 passed (20)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.4s`); **Architecture review:** self-review Passed; app-level drag→panel sync walkthrough deferred | `positionTradeSetup.ts`, `TradeSetupBindingContext.tsx`, `TradeOrderForm.tsx`, `TradeSidebarPanel.tsx`, `overlayContextMenu.ts`, `ChartCell.tsx`, `StockApp.tsx`, `registry.tsx`, `trading/ARCHITECTURE.md`, `design-system/ARCHITECTURE.md` |
+| Full-width Edge logo header | Full-width top header with clickable `logo-full-light` → `/home`; left module rail below header without Home icon | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 9 passed (9)`; **App-level:** `/chart` Edge home link + Charts/Journal/Research rail; logo → `/home`; **Architecture review:** self-review Passed | `AppModuleShell.tsx`, `AppTopHeader.tsx`, `HomeAppNav.tsx`, related tests, `design-system/ARCHITECTURE.md` |
+| Account panel open orders vs order history | Open orders = working only; Order history tab = all session orders (incl. Cancelled/Filled); Today's fills unchanged | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 22 passed (22)`; **App-level:** paper F `orderId=32` `status: Cancelled` on sidecar; **Architecture review:** self-review Passed | `orderStatus.ts`, `filterOrders.ts`, `AccountPanel.tsx`, `AccountPanel.test.tsx`, `ARCHITECTURE.md` |
+| Account panel cancel for null-status orders | Show Cancel on Open orders when IB/sidecar omits status; map status from `trade.orderStatus` | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 18 passed (18)`; **Sidecar:** `TradingModifyTests` 7 OK; **App-level:** paper F `orderId=32` `status: Cancelled`; **Architecture review:** self-review Passed | `orderStatus.ts`, `AccountPanel.tsx`, `AccountPanel.test.tsx`, `services/tws-sidecar/main.py`, `test_main.py` |
+| Trade execution reliability track | Paper/live API bake; after-hours pre-trade readiness; Postgres `order_intents`; kill-switch proof; restart idempotency | **Passing** | **App-level:** paper LMT `orderId=24` cancel `Cancelled`; idempotency `24==24`; Postgres restart `orderId=31`; live `U25026894` LMT `orderId=9` `permId=703230888`; live GTC SPY qty1 `orderId=15` cancelled 2026-07-13 (open orders empty); **Focused:** `Test Files 14 passed (14)`, `Tests 81 passed (81)`; **Build:** `npm run build` passed; **Architecture review:** self-review Passed; UI walkthrough + RTH fill still open | `dataTrust.ts`, `tradingService.ts`, `intentStore.ts`, `postgresIntentStore.ts`, `intentRepository.ts`, `0005_order_intents.sql`, `docs/trading-execution-roadmap.md` |
 | Heat map data hardening | Movers join universe descriptors for marketCap/sector/volume/beta; screener changePercent alias+derive; heat-map quote cap 200; partial size-metric banner | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 31 passed (31)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); **Architecture review:** self-review Passed; app-level Gainers/Large-cap walkthrough deferred | `enrichMoversWithDescriptors.ts`, `marketDataService.ts`, `mappers.ts`, `apiScreenerFeed.ts`, `screenerHeatMapAdapter.ts`, `ResultsTable.tsx`, `useScreenerSessionModel.ts`, `ARCHITECTURE.md` |
 | Heat map live config updates | Size / Color / Group toolbar changes re-layout and recolor immediately (adapter remaps metrics; view re-squarifies) | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 21 passed (21)` (`HeatMapView`, `ResultsTable`, `screenerHeatMapAdapter`); **App-level:** large-cap heat map sizeChanged/groupChanged/colorChanged true in browser | `HeatMapView.test.tsx`, `ResultsTable.test.tsx`, `screenerHeatMapAdapter.test.ts`, `src/lib/heatmap/ARCHITECTURE.md` |
 | Screener scroll containment + heat map size contrast | Presets rail stays fixed while list/heat map scrolls; default size scale linear; Scale Linear/Log in heat map toolbar | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 41 passed (41)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.2s`); **Architecture review:** self-review Passed; app-level scroll/size walkthrough deferred | `src/app/components/sidebar/SidebarPanelShell.tsx`, `src/app/components/screener/{ScreenerPanelContent,ResultsTable}.tsx`, `src/lib/heatmap/{defaults,squarify}.ts`, `src/app/components/heatmap/HeatMapToolbar.tsx`, `docs/screener-roadmap.md` |
@@ -102,8 +283,8 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Dual connection — Phase D abstraction + Data Health split | TWS-only preference docs/tests; chart loadQuotes connectionId; sidecar `/status` connections map; Data Health Connections section (paper, live, preference); trust blocks display-only submit | **Passing** | **Focused:** Sidecar `Ran 36 tests OK`; App `Test Files 12 passed (12)`, `Tests 141 passed (141)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.7s`); **App-level:** Data Health Connections paper+live connected; data chip Live while account paper; quotes `ib-live` → `tws`; **Architecture review:** self-review Passed | `services/tws-sidecar/main.py`, `src/lib/marketData/health.ts`, `src/app/components/data-health/`, `docs/dual-connection-roadmap.md` |
 | Right panel overlay layout | Docked right panel overlays chart from the right without changing chart width; resizable via left-edge handle; no dimmed backdrop; Escape + rail close; screener Expand/Pop out on overlay | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 15 passed (15)`; **Architecture review:** self-review Passed; app-level overlay resize walkthrough deferred | `src/lib/responsive/responsiveLayout.ts`, `src/app/components/StockApp.tsx`, `src/app/components/sidebar/SidebarPanelShell.tsx`, `src/lib/design-system/ARCHITECTURE.md` |
 | Screener layout + right-panel UX | Screener docked panel uses panel-aware max width + Expand/Collapse; never-run vs no-match results; edit/scan filter modes with chip summary; narrow horizontal preset chips; Limit beside Run | **Passing** | **Focused:** `Test Files 20 passed (20)`, `Tests 105 passed (105)`; **Build:** `npm run build` passed; **Architecture review:** self-review Passed; app-level docked expand/scan walkthrough deferred | `src/lib/responsive/sidebarWidth.ts`, `src/app/components/sidebar/SidebarPanelWidthContext.tsx`, `src/app/components/StockApp.tsx`, `src/app/components/screener/{ScreenerPanelContent,ResultsTable,FilterChipSummary}.tsx`, `src/lib/screener/screenerSession.ts`, `docs/screener-roadmap.md` |
-| TWS recovery supervisor | Recover IB Gateway/sidecar without stuck UI; quote SSE + warmup fail fast when sidecar stale/unhealthy; watchlist REST fallback; stale sidecar/version + port guidance | **Pending** | **Focused:** 55 tests passed; **Startup:** `npm run check:startup` passed (26 tests); **Build:** `npm run build` passed; **App-level:** candles 0.137s/yahoo, quotes 0.092s/yahoo, warmup 0.094s/90ms total (skipped tws.warmup), stream snapshot via Yahoo poll within 8s; recovery walkthrough pending sidecar restart | `src/lib/marketData/service/marketDataService.ts`, `src/lib/marketData/stream/`, `src/app/components/MarketDataProvider.tsx`, `services/tws-sidecar/main.py`, `scripts/tws-sidecar.sh`, `src/lib/marketData/providers/tws/`, `src/app/api/market-data/tws/recover/`, `src/lib/marketData/health.ts`, `src/lib/marketData/ARCHITECTURE.md` |
-| TWS sidecar in-app recovery | Sidecar control plane stays non-blocking; worker/reconnect diagnostics; bounded reconnect; late-success finalization; Data Health phase progress during recovery | **Pending** | Superseded by TWS recovery supervisor row; prior focused evidence retained | `services/tws-sidecar/main.py`, `src/lib/marketData/providers/tws/{recover.ts,recoverySession.ts,finalizeTwsRecovery.ts,client.ts}`, `src/app/api/market-data/tws/recover/{route.ts,status/route.ts}`, `src/lib/marketData/service/marketDataService.ts`, `src/app/components/data-health/DataHealthProvider.tsx`, `src/lib/marketData/health.ts`, `src/lib/marketData/stream/twsQuoteStreamSession.ts`, `src/lib/marketData/ARCHITECTURE.md` |
+| TWS recovery supervisor | Recover IB Gateway/sidecar without stuck UI; quote SSE + warmup fail fast when sidecar stale/unhealthy; watchlist REST fallback; stale sidecar/version + port guidance | **Passing** | **Focused:** 55 tests passed; **App-level:** `docker stop edge-ib-gateway-paper` → recover `gatewayConnected:false` `recoveryPhase:sidecar_unresponsive`; gateway restart + sidecar reconnect → paper+live `gatewayConnected:true`; Reconnect TWS blocked when port 8765 owned by another dev instance; **Build:** `npm run build` passed | `src/lib/marketData/service/marketDataService.ts`, `src/lib/marketData/stream/`, `src/app/components/MarketDataProvider.tsx`, `services/tws-sidecar/main.py`, `scripts/tws-sidecar.sh`, `src/lib/marketData/providers/tws/`, `src/app/api/market-data/tws/recover/`, `src/lib/marketData/health.ts`, `src/lib/marketData/ARCHITECTURE.md` |
+| TWS sidecar in-app recovery | Sidecar control plane stays non-blocking; worker/reconnect diagnostics; bounded reconnect; late-success finalization; Data Health phase progress during recovery | **Passing** | Superseded by clear manual TWS reconnect row; inline chart + header recover shipped 2026-07-15 | `services/tws-sidecar/main.py`, `src/app/components/data-health/`, `ChartOverlayDataHealthRow.tsx`, `AppTopHeader.tsx` |
 | TWS extended-hours price alignment | Chart current-price marker aligns with watchlist live quote; TWS candles opt into extended hours via `sessionMode`; chart labels pre/regular/post-market state | **Pending** | **Focused:** 36 tests passed; telemetry fix: 9 tests passed (`collector`, `MarketDataTelemetryPanel`); **Build:** `npm run build:packages` passed; **Fast:** `npm run check:startup` passed (26 tests); **App-level:** telemetry console warning cleared on reload; TWS quote/candle alignment check pending | `packages/chart-core/src/marketSession.ts`, `packages/chart-react/src/engine/`, `services/tws-sidecar/main.py`, `src/lib/marketData/`, `src/lib/chartDataFeed/`, `src/app/components/ChartCell.tsx`, `src/app/components/ChartSettingsModal.tsx`, `src/app/components/MarketDataProvider.tsx`, `src/app/components/dev/MarketDataTelemetryPanel.tsx`, `src/lib/marketData/telemetry/collector.ts`, `src/lib/marketData/ARCHITECTURE.md` |
 | Data Health latency diagnostics | Data Health dropdown includes collapsible dev-only market-data latency diagnostics and replaces the fixed bottom-right telemetry overlay | **Pending** | **Focused:** 17 tests passed (data-health UI, telemetry panel, telemetry collector); **Startup:** `npm run check:startup` passed (26 tests); app-level Data Health expand/collapse check not yet recorded | `src/app/components/data-health/DataHealthLatencySection.tsx`, `src/app/components/data-health/MarketDataLatencyDiagnosticsView.tsx`, `src/app/components/data-health/DataHealthMenu.tsx`, `src/app/components/dev/MarketDataTelemetryPanel.tsx`, `src/app/components/StockApp.tsx`, `src/lib/marketData/telemetry/` |
 | Options chain floating dialog | User opens options chain from chart header or sidebar launcher in a draggable overlay; sidebar no longer shows chain table; expiration tabs reload chain for selected date with pin and risk-ruler presets in popup | **Pending** | **Focused:** 10 tests passed (`OptionsChainDialog`, `OptionsPanel`); **Startup:** `npm run check:startup` passed (26 tests); app-level expiration switch check not yet recorded | `src/app/components/options/`, `src/app/components/sidebar/panels/OptionsPanel.tsx`, `src/app/components/StockApp.tsx`, `src/app/components/chart-chrome/ChartHeaderBar.tsx`, `docs/PROJECT-STATUS.md` |
@@ -127,6 +308,16 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Trading execution — Phase 1 domain + adapter | Broker-neutral `TradingService`, `IbTwsTradingAdapter`, intent store, `/api/trading/*` on paper only (MKT/LMT); no UI | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 14 passed (14)`; **Build:** `npm run build` passed; **App-level:** preview MKT HTTP 200; MKT `orderId: 17` `permId: 1306430090`; LMT `orderId: 19` `permId: 1306430091`; cancel `status: "Cancelled"`; idempotent retry same intent; **Architecture review:** self-review Passed | `src/lib/trading/**`, `src/app/api/trading/**`, `src/lib/api/apiAuth.ts`, `src/lib/trading/ARCHITECTURE.md` |
 
 Older Passing rows: [status-archive/](./status-archive/).
+
+## Task Contract — Trade execution reliability track
+
+- **Status:** **Passing** 2026-07-13 — engineering + API bake complete; operational items open (resting GTC, RTH fill, UI walkthrough).
+- **Goal:** Make stock trade execution trustworthy: ops dual-Gateway readiness, paper E2E bake, TWS recovery proof, Postgres-backed intents, live 1-share order (GTC if RTH closed).
+- **Delivered:** After-hours pre-trade readiness (`dataTrust.ts`, `tradingService.ts`); Postgres `order_intents` + `resolveServerIntentStore()`; paper LMT/STP/idempotency/kill-switch bake; restart idempotency `orderId=31`; live preview+LMT `orderId=9` + GTC SPY `orderId=15`; `TWS_MANAGED=external` dev pattern.
+- **Verification:** **App-level:** paper `orderId=24` cancel `Cancelled`; idempotency `24==24`; Postgres restart `orderId=31`; live `orderId=9`/`15` with `orderRef`; **Focused:** `Test Files 14 passed (14)`, `Tests 81 passed (81)`; **Build:** `npm run build` passed; **Architecture review:** self-review Passed.
+- **Blockers:** Live GTC `orderId=15` resting @ 650 (fill deferred); Reconnect TWS UI blocked in dev port-ownership scenario.
+- **Handoff doc:** [docs/trading-execution-roadmap.md — LLM handoff](./trading-execution-roadmap.md#trade-execution-reliability-track--llm-handoff)
+- **Next:** (1) cancel or monitor `orderId=15`; (2) RTH live MKT 1-share + journal `orderRef`; (3) UI walkthrough; then brackets/options backlog.
 
 ## Task Contract — Heat map data hardening
 
@@ -172,7 +363,7 @@ Older Passing rows: [status-archive/](./status-archive/).
 
 ## Task Contract — TWS recovery supervisor
 
-- **Status:** Pending — fallback hardening shipped; focused + startup + build + stale-sidecar app-level probes passed; Gateway recovery walkthrough pending sidecar restart.
+- **Status:** **Passing** 2026-07-13 — fallback hardening + partial recovery walkthrough; full Reconnect TWS UI deferred in dev (port `8765` ownership).
 - **Goal:** Harden IB Gateway/TWS sidecar recovery and data-foundation routing so stale/unhealthy sidecar cannot hang quote SSE, warmup, or recovery finalization; auto-recover or surface precise manual action.
 - **Delivered (prior):** Sidecar connection supervisor; extended `/status` fields; async reconnect bypass when worker wedged; managed sidecar restart escalation; recovery session context; Data Health phase messages.
 - **Delivered (2026-07-02):** Quote SSE uses same TWS health gate as REST with poll fallback; TWS stream connect/first-frame timeouts; watchlist SSE → REST fallback on stall/error; bounded `primeMarketData` + warmup route budget; sidecar `/health` freshness/capabilities; `scripts/tws-sidecar.sh` logs effective `TWS_PORT`; recovery finalization warmup budget.
@@ -198,6 +389,90 @@ Older Passing rows: [status-archive/](./status-archive/).
 ## Session Log
 
 Append one entry before handing off long-running or interrupted work. Older entries: [status-archive/](./status-archive/).
+
+### 2026-07-15 — Account display aliases
+
+- **Goal:** User-configurable account display names in header settings; raw IB accountId remains execution identity.
+- **Completed:** `edge:trading:accountAliases.v1` localStorage; `AccountAliasesProvider`; custom `AccountPickerMenu` with in-dropdown settings rail + `AccountAliasEditor`; labels wired in picker, Account panel, Trade form, Data Health.
+- **Verification run:** `npm test -- --run src/app/components/home/AccountPickerMenu.test.tsx src/app/components/home/AppTopHeader.test.tsx src/lib/trading/accountAliases.test.ts src/lib/trading/accountPickerOptions.test.ts src/app/components/sidebar/panels/AccountPanel.test.tsx` → `Test Files 5 passed (5)`, `Tests 43 passed (43)`.
+- **Next best step:** App-level — open account picker → gear on right → set alias → reload.
+
+### 2026-07-15 — Position tool instant place at last bar
+
+- **Goal:** Selecting Long/Short Position places the setup immediately (no second chart click) at last-bar close with left edge on the last bar.
+- **Completed:** `placement: 'instant'`; `defaultPositionPoints`; `startDrawing` auto-commits + selects; docs updated.
+- **Verification run:** `npm test -- --run packages/chart-core/src/drawings/positionGeometry.test.ts src/lib/chart/drawings/position_tool.test.ts src/lib/chart/drawingFsm.test.ts` → `Test Files 3 passed (3)`, `Tests 40 passed (40)`; `@edge/chart-core` + `@edge/chart-react` rebuild passed.
+- **Next best step:** App-level confirm on `/chart`.
+
+### 2026-07-15 — Time axis date-label vertical margins
+
+- **Goal:** Match TradingView bottom date-axis spacing (equal top/bottom margin around labels).
+- **Completed:** `TIME_AXIS_HEIGHT` 30→24; labels drawn with `textBaseline: middle` at strip center; crosshair time badge centered in strip.
+- **Verification run:** `npm test -- --run` (5 files) → `Test Files 5 passed (5)`, `Tests 56 passed (56)`; `npm run build:packages` passed.
+- **Next best step:** App-level confirm on `/chart`.
+
+### 2026-07-15 — Price axis quarter tick dashes
+
+- **Goal:** Visual quarter markers between labeled prices on the Y-axis.
+- **Completed:** `scaleAxisMinorTicks` + renderer draws three 5px dashes on the price-axis border between consecutive labels.
+- **Verification run:** `npm test -- --run src/lib/chart/priceScaleTransform.test.ts packages/chart-react/src/engine/renderer.test.ts` → `Test Files 2 passed (2)`, `Tests 26 passed (26)`.
+- **Next best step:** App-level confirm on `/chart`.
+
+### 2026-07-15 — Long position empty-margin stretch fix
+
+- **Goal:** Stop long/short position drawings from randomly stretching to the plot right edge.
+- **Completed:** Root cause was empty-right-margin `plotToPoint` writing `timestamp: 0` + virtual `dataIndex`; `pointToPlot` then mapped to plot edge. Fixed snap-near-last, timestamp extrapolation, legacy clamp, expand ignore-`t:0`.
+- **Verification run:** `npm test -- --run src/lib/chart/drawingCoords.test.ts packages/chart-core/src/drawings/positionGeometry.test.ts src/lib/chart/drawings/position_tool.test.ts` → `Test Files 3 passed (3)`, `Tests 44 passed (44)`; post-fix logs width ~118→~8.8 via `zero-ts-clamped`.
+- **Next best step:** Optional — delete old corrupted longs from workspace; confirm new draws near live edge stay narrow.
+
+### 2026-07-15 — TWS external recovery spawn + auto-reconnect
+
+- **Goal:** Make Reconnect actually start the sidecar in `TWS_MANAGED=external`; bounded sidecar auto-reconnect on Gateway disconnect.
+- **Completed:** `canSpawnSidecarForUserRecovery()` + standalone spawn from recover route; port-conflict UX copy; sidecar auto-reconnect supervisor (1100/502/504/disconnect); `/status` `autoReconnectAttempt`; tests + architecture doc.
+- **Verification run:** `npm test -- --run src/lib/marketData/providers/tws/recover.test.ts src/lib/marketData/providers/tws/managedMode.test.ts` → `Test Files 2 passed (2)`, `Tests 21 passed (21)`; `python -m unittest test_main.py` → `Ran 43 tests OK`.
+- **Next best step:** App-level — with `TWS_MANAGED=external` and no sidecar on 8765, click Reconnect and confirm sidecar starts without manual `npm run tws:sidecar`.
+
+### 2026-07-15 — Clear manual TWS reconnect
+
+- **Goal:** Obvious Reconnect when TWS/Gateway is down; symmetric paper+live sidecar reconnect.
+- **Completed:** Shared `TwsRecoverButton`; chart top-right inline recover (`ChartOverlayDataHealthRow`); header recover on accounts error; sidecar `_reset_extra_ib_connections` + `_reconnect_extra_connections`; docs/harness updated.
+- **Verification run:** `npm test -- --run` (TwsRecoverButton, ChartOverlayStatusStack, AppTopHeader, DataHealthRecover) → `Test Files 4 passed (4)`, `Tests 19 passed (19)`; `python3 -m unittest test_main.ReconnectResetTests` → 2 OK.
+- **Next best step:** App-level Gateway stop/start walkthrough; then bounded auto-reconnect WIP.
+
+### 2026-07-15 — Workspace tab live quote strip
+
+- **Goal:** Show last traded price + day % change on workspace tabs (color-coded).
+- **Completed:** Fixed SSE→QuoteSnapshot mapping (`price`/`changePercent`); tab symbols via `extraSymbols`; flat % muted; tests.
+- **Verification run:** `npm test -- --run` mappers + WorkspaceTabBar + MarketDataProvider → `Test Files 3 passed (3)`, `Tests 16 passed (16)`.
+- **Next best step:** App-level confirm on `/chart` for F.
+
+### 2026-07-15 — Workspace tabs TV-style chrome
+
+- **Goal:** Match TradingView tab height (~75% of chart header) and content strip.
+- **Completed:** `WorkspaceTabBar` resized to 27px track with full-height stretch; content is monogram + symbol + direction + price + % + `/` title; docs updated.
+- **Verification run:** `npm test -- --run src/app/components/chart-chrome/WorkspaceTabBar.test.tsx` → `Test Files 1 passed (1)`, `Tests 4 passed (4)`.
+- **Next best step:** App-level visual check on `/chart`.
+
+### 2026-07-15 — Position drawing TV-style 4 handles
+
+- **Goal:** Match TradingView long/short position control points (4 handles, not 6).
+- **Completed:** `positionControlPoints` / `updatePositionFromControl` reduced to TV semantics via `POSITION_CP`; docs + tests updated.
+- **Verification run:** `npm test -- --run packages/chart-core/src/drawings/positionGeometry.test.ts src/lib/chart/drawings/position_tool.test.ts` → `Test Files 2 passed (2)`, `Tests 29 passed (29)`; `@edge/chart-core` `tsc` rebuild passed.
+- **Next best step:** App-level — select position drawing and verify four handles + drag roles.
+
+### 2026-07-15 — Trade setup panel (drawing-bound)
+
+- **Goal:** Drawing-bound Trade sidebar — context menu → live-synced entry/stop/TP plan → entry-only MKT/LMT preview/submit.
+- **Completed:** `positionTradeSetup.ts` (live points); `TradeSetupBindingContext` + `ChartCell` overlay sync; `Trade setup…` context menu item; `trade` sidebar panel + shared `TradeOrderForm`; header Trade opens unbound panel (modal retired from StockApp).
+- **Verification run:** `npm test -- --run src/lib/trading/positionTradeSetup.test.ts src/app/components/chart-cell/overlayContextMenu.test.ts src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx src/app/components/sidebar/registry.test.ts src/app/components/trading/TradeTicketModal.test.tsx` → `Test Files 5 passed (5)`, `Tests 20 passed (20)`; `npm run build` → `✓ Compiled successfully in 2.4s`.
+- **Next best step:** App-level walkthrough — drag stop updates panel; Preview paper order from bound setup.
+
+### 2026-07-13 — Trade execution reliability track
+
+- **Goal:** Paper/live API bake, Postgres intent durability, recovery proof, live 1-share order.
+- **Completed:** After-hours pre-trade readiness (`dataTrust` stale+age, `tradingService` fresh account/quote timestamps); Postgres `order_intents` migration + async `resolveServerIntentStore()`; paper LMT/STP/STP LMT/cancel/idempotency/kill-switch bake; restart idempotency `orderId=31`; live `U25026894` preview+LMT `orderId=9` + GTC SPY qty1 `orderId=15`; `TWS_MANAGED=external` in `.env.local`.
+- **Verification run:** `npm test -- --run src/lib/trading/` → `Test Files 13 passed (13)`, `Tests 61 passed (61)`; `npm run build` passed; app-level order ids quoted in Current Verified State.
+- **Next best step:** Handoff → [docs/trading-execution-roadmap.md — LLM handoff](./trading-execution-roadmap.md#trade-execution-reliability-track--llm-handoff).
 
 ### 2026-07-12 — Heat map data hardening
 
