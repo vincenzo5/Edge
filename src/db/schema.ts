@@ -192,6 +192,72 @@ export const orderIntents = pgTable(
   ],
 );
 
+export const brokerIngestCursors = pgTable("broker_ingest_cursors", {
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  connectionId: text("connection_id").notNull(),
+  accountId: text("account_id"),
+  lastExecTime: timestamp("last_exec_time", { withTimezone: true }),
+  lastSeenExecIds: jsonb("last_seen_exec_ids").notNull().default([]),
+  lastIngestAt: timestamp("last_ingest_at", { withTimezone: true }),
+  lastIngestError: text("last_ingest_error"),
+  lastFlexBackfillAt: timestamp("last_flex_backfill_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.connectionId] }),
+]);
+
+export const accountSnapshots = pgTable(
+  "account_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    accountId: text("account_id").notNull(),
+    connectionId: text("connection_id").notNull(),
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull(),
+    netLiquidation: doublePrecision("net_liquidation"),
+    cash: doublePrecision("cash"),
+    buyingPower: doublePrecision("buying_power"),
+    grossPositionValue: doublePrecision("gross_position_value"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("account_snapshots_user_account_conn_captured_unique").on(
+      table.userId,
+      table.accountId,
+      table.connectionId,
+      table.capturedAt,
+    ),
+  ],
+);
+
+export const positionSnapshots = pgTable(
+  "position_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    accountId: text("account_id").notNull(),
+    connectionId: text("connection_id").notNull(),
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull(),
+    positions: jsonb("positions").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("position_snapshots_user_account_conn_captured_unique").on(
+      table.userId,
+      table.accountId,
+      table.connectionId,
+      table.capturedAt,
+    ),
+  ],
+);
+
 export type AppUser = typeof appUsers.$inferSelect;
 export type ChartWorkspace = typeof chartWorkspaces.$inferSelect;
 export type UserWatchlistLibrary = typeof userWatchlistLibrary.$inferSelect;
@@ -202,3 +268,6 @@ export type JournalFill = typeof journalFills.$inferSelect;
 export type JournalTrade = typeof journalTrades.$inferSelect;
 export type JournalTradeFill = typeof journalTradeFills.$inferSelect;
 export type OrderIntentRow = typeof orderIntents.$inferSelect;
+export type BrokerIngestCursor = typeof brokerIngestCursors.$inferSelect;
+export type AccountSnapshotRow = typeof accountSnapshots.$inferSelect;
+export type PositionSnapshotRow = typeof positionSnapshots.$inferSelect;

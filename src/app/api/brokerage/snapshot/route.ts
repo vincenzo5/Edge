@@ -7,6 +7,7 @@ import {
   getBrokerageService,
   isBrokerageConfigured,
 } from "@/lib/brokerage/brokerageService";
+import { scheduleBrokerageIngest } from "@/lib/brokerage/ingest/scheduleBrokerageIngest";
 import { TradingEnvironmentSchema } from "@/lib/trading/types";
 
 export const runtime = "nodejs";
@@ -24,6 +25,7 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const snapshot = await getBrokerageService().getSnapshot(environment.data);
+    scheduleBrokerageIngest(environment.data);
     return NextResponse.json(snapshot);
   } catch (error) {
     return brokerageErrorResponse(error);
