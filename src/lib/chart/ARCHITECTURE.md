@@ -9,7 +9,7 @@ Render OHLCV candles, indicators, and drawings; handle viewport pan/zoom/scale; 
 ## Component Flow
 
 ```
-StockApp → WorkspaceTabBar
+StockApp → PrimaryChartBrowserTabQuote (document title + favicon)
          → ChartGrid ── ChartDrawingRail (multi-pane; targets active cell)
               └─ ChartCell → EdgeChart
                                 ├─ ChartCanvas (price + sub-panes)
@@ -17,6 +17,8 @@ StockApp → WorkspaceTabBar
                                 ├─ PriceLegendLayout / PaneLegendBar
                                 └─ DrawingStore (undo/redo)
 ```
+
+In-chart workspace tab strip is removed; layout persistence still uses a single active workspace tab (`pruneToSingleActiveTab`). Multi-module tiling lives under `/workspace` (`src/lib/appWorkspace/`).
 
 `ChartCell` is a thin wiring shell; responsibility hooks live in `src/app/components/chart-cell/` (`usePatternCapture`, `usePaneLayoutActions`, `useDrawingToolbarCommands`, `useChartCellContextMenus`, etc.).
 
@@ -28,9 +30,9 @@ Data path: `POST /api/candles` → `series.ts` → `@edge/chart-react` `EdgeChar
 
 | Layer | Canonical location | App compatibility shim |
 |-------|-------------------|------------------------|
-| Pure chart logic | `packages/chart-core/src/` | `src/lib/chart/*` re-exports to `@edge/chart-core` |
+| Pure chart logic | `packages/chart-core/src/` (includes `interval.ts`, `series.ts` transforms) | `src/lib/chart/*` re-exports to `@edge/chart-core` |
 | React chart runtime | `packages/chart-react/src/` | `src/lib/chart/{canvas,viewport,renderer,chartSettings,legend,goTo,...}.ts` re-export to `@edge/chart-react/engine/*` |
-| App-only helpers | `src/lib/chart/{series,chartSnapshot,chartClipboard,stateMapping,...}.ts` | — |
+| App-only helpers | `src/lib/chart/{series,chartSnapshot,chartClipboard,stateMapping,...}.ts` — `series.ts` keeps Yahoo `/api/candles` fetch wrappers; HA/merge/resample/cover re-export from `@edge/chart-core` | — |
 
 Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate implementations under `src/lib/chart/` — change package sources and keep shims as re-exports.
 
@@ -67,6 +69,8 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 | `packages/chart-core/src/drawingCoords.ts` | Plot ↔ data coordinate transforms |
 | `packages/chart-react/src/engine/paneHandle.ts` | Imperative pane registration for multi-pane sync |
 | `packages/chart-core/src/contracts.ts` | Core types: `Candle`, `SerializedDrawing`, `IndicatorConfig` |
+| `packages/chart-core/src/interval.ts` | Domain interval helpers: `intervalToMs`, `resolveFetchInterval`, 2h resample |
+| `packages/chart-core/src/series.ts` | Pure series transforms: Heikin Ashi, merge prepend, `ensureCandlesCover`, stream apply |
 | `packages/chart-core/src/historyPrefetch.ts` | Lookahead thresholds, debounce constants, background prefetch gate |
 | `packages/chart-react/src/engine/historyPrefetchController.ts` | Pipelined `loadMore` (1 in-flight + 1 queued), urgent debounce bypass |
 | `src/lib/chart/layoutTemplates.ts` | Layout template catalog, CSS grid classes, pane counts (1–16) |
@@ -141,8 +145,8 @@ Package path: `packages/chart-react/src/engine/webgl/`.
 
 | Field | Storage |
 |-------|---------|
-| Workspace tabs | `tv-ai:workspace-tabs:v1` via `workspaceTabsStorage.ts`; legacy `tv-ai:layout:v1` migrates on load |
-| `ChartLayout` (per tab) | Embedded in active workspace tab; optional Postgres sync per tab via `useWorkspaceTabsRemoteSync` |
+| Workspace tabs (storage) | `tv-ai:workspace-tabs:v1` via `workspaceTabsStorage.ts`; hydrate prunes to one active tab; legacy `tv-ai:layout:v1` migrates on load |
+| `ChartLayout` (active tab) | Embedded in the single active workspace tab; optional Postgres sync via `useWorkspaceTabsRemoteSync` |
 | Per-cell `drawings`, `indicators`, `paneOrder`, etc. | Inside `ChartLayout.cells[]` |
 | Undo history | In-memory only — cleared on hydrate |
 

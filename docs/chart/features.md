@@ -344,13 +344,15 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Shared drawing rail (multi-pane) | **Done** | When `cellCount > 1`, one compact `ChartDrawingRail` in `ChartGrid` targets active pane via `ActiveChartContext`; single-pane keeps inline rail in `ChartCell` |
 | Per-cell config | **Done** | `CellConfig` per grid cell |
 | Layout persistence (localStorage) | **Done** | `loadLayout` / `saveLayout` in `layoutStorage.ts`; includes `sidebar.activePanel` |
-| Workspace tabs | **Done** | TradingView-style tab bar above header (~75% of chart header height); monogram + symbol + direction + price + % + layout title; each tab owns full `ChartLayout` in `tv-ai:workspace-tabs:v1`; migrates legacy `tv-ai:layout:v1`; per-tab Postgres sync via list/create/archive API |
+| Workspace tabs (storage) | **Done** | Layout persists in `tv-ai:workspace-tabs:v1` (legacy `tv-ai:layout:v1` migrates); hydrate prunes to one active tab; optional Postgres sync via `useWorkspaceTabsRemoteSync`. In-chart tab strip removed. |
+| Browser tab live quote | **Done** | Primary chart publishes symbol + price + day % to `document.title` and direction-tinted favicon (`browserTabQuote.ts`, `PrimaryChartBrowserTabQuote`) |
+| App workspace tiling | **Done** | `/workspace` binary split-tree tiles (Chart / Screener / Journal); layout presets; Use vs Edit; in-process drive via `WorkspaceDriveContext` — see `src/lib/appWorkspace/ARCHITECTURE.md` |
 | Theme persistence | **Done** | Part of `ChartLayout`; live switch via toolbar |
 | Reset layout | **Done** | Toolbar confirm → defaults (clears saved drawings) |
-| Module home hub | **Done** | `/home` hub (`HomeShell`); charts at `/chart`; `/` redirects via `lastModule.ts` (24h) to last module (Home/Charts/Journal/Research) |
+| Module home hub | **Done** | `/home` hub (`HomeShell`); charts at `/chart`; `/workspace` tiling; `/screener` + `/journal` modules; `/` redirects via `lastModule.ts` (24h) to last module |
 | Drawing toolbar rail | **Done** | Single-pane: left column in `ChartCell`. Multi-pane: one shared rail in `ChartGrid` (`ChartDrawingRail`) driven by active cell registration; `railMode` (`full` \| `compact`) via shared `iconRailShellClass` |
 | Bottom range bar alignment | **Done** | `ChartRangeBar` sits in the chart column beside the drawing rail (not full cell width) so presets align with the plot area |
-| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.tsx` for watchlist, options, screener, object-tree, account, and settings panels |
+| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.tsx` for watchlist, options, screener, patterns, object-tree, trade, account, risk, and settings panels |
 | Floating panel pop-out | **Done** | Any sidebar panel can Pop out to `FloatingPanelHost` / `FloatingPanelShell` (drag/resize) or Dock back; `presentation` + `floatingGeometry` persisted in layout |
 | Data Health overlay | **Done** | Active cell: icon-only severity dot (`DataHealthButton`) + progressive-disclosure panel with dataset chips, Issues log, and provider recovery |
 | App bootstrap / hydration | **Done** | `resolveAppBootstrap` gates provider mount; `AppHydrationShell` full-chrome skeleton until layout hydrates; `ChartLoadingOverlay` on cold candle fetch |

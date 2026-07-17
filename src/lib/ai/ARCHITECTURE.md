@@ -30,8 +30,9 @@ AI Agent
 | Module | Role |
 |--------|------|
 | `registry.ts` | Tool registration and lookup |
-| `tools/index.ts` | Aggregates all tool groups into `edgeToolRegistry` |
-| `tools/*.ts` | Implementations: chart, marketData, indicators, drawings, watchlist, workflow, screener, sessionState, trading |
+| `tools/clientTools.ts` | Browser-safe tool groups (no `node:fs`) → `clientToolRegistry` |
+| `tools/index.ts` | `ALL_AI_TOOLS` = client tools + `patternLibraryTools` → `edgeToolRegistry` |
+| `tools/*.ts` | Implementations: chart, marketData, indicators, drawings, watchlist, workflow, screener, sessionState, trading, patternLibrary |
 | `context.ts` | `ToolContext` interface — adapter boundary |
 | `tradingPort.ts` | `TradingPort` facade over `/api/trading/*` (fetch) or `TradingService` (HTTP adapter) |
 | `validation.ts` | Parse helpers, JSON Schema export |
@@ -71,15 +72,16 @@ When `EDGE_API_KEY` is configured, HTTP/MCP callers must send `X-Edge-Api-Key` (
 - Tools MUST NOT import React — use `ToolContext` facades only.
 - All inputs MUST pass Zod validation before execution.
 - Destructive tools (`delete_drawing`, `clear_watchlist`, `delete_watchlist`, `place_order`) require confirmation.
-- Server-side tools (market data, trading) run without browser session; client-state tools return `requiresClientSession` error when no session.
+- Server-side tools (market data, trading, pattern library disk I/O) run without browser session; client-state tools return `requiresClientSession` error when no session.
 - When `layout.linkSymbol` or `layout.linkInterval` is on, matching fields propagate to peer cells; crosshair sync uses `layout.linkCrosshair`; drawing sync uses `layout.linkDrawings`.
 - Trading tools use `TradingPort` only — never call brokerage or React account state directly. Live `place_order` requires `liveConfirmation: "LIVE"`.
+- Pattern library tools that touch the filesystem (`save_pattern_capture`, taxonomy/stats reads from disk) stay in `patternLibraryTools` and are **not** registered in `CLIENT_AI_TOOLS`.
 
 ## Server vs Client Split
 
 | Runs server-side | Requires client session |
 |------------------|------------------------|
-| `search_symbols`, `get_candles`, `get_quotes`, `get_fundamentals`, `preview_order`, `place_order` | `set_symbol`, `add_indicator`, `add_drawing`, layout mutators |
+| `search_symbols`, `get_candles`, `get_quotes`, `get_fundamentals`, `preview_order`, `place_order`, pattern library disk tools | `set_symbol`, `add_indicator`, `add_drawing`, layout mutators, `find_similar_setups` / `capture_pattern_setup` (active chart) |
 
 ## Two Chart-Tool Products
 

@@ -103,6 +103,8 @@ AI Agent
 
 See [`src/lib/patternLibrary/ARCHITECTURE.md`](../src/lib/patternLibrary/ARCHITECTURE.md) for hybrid retrieval + bake-off methodology.
 
+**Registry split:** `tools/clientTools.ts` builds `CLIENT_AI_TOOLS` / `clientToolRegistry` for browser registration (no `node:fs`). `tools/index.ts` adds `patternLibraryTools` for the full server `edgeToolRegistry`. Disk-backed pattern tools stay server-only; `find_similar_setups` / `capture_pattern_setup` still need an app session for active-chart OHLCV.
+
 ### Supported Indicators (implemented only)
 
 MA, EMA, BOLL, MACD, RSI, VOL

@@ -14,8 +14,8 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 
 | Area | State | Notes |
 |------|-------|-------|
-| Custom chart engine | Shipped foundation | Canvas 2D renderer, pan/zoom, range presets, indicators, drawings, panes, templates, context menus, TradingView-style layout templates, workspace tabs, and per-tab layout persistence are in place. |
-| App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, workspace tab bar with optional cloud sync, responsive module home hub at `/home` with charts at `/chart` plus smart `/` entry (24h last-module redirect), and `/journal` module (Dashboard / Trades / Settings). |
+| Custom chart engine | Shipped foundation | Canvas 2D renderer, pan/zoom, range presets, indicators, drawings, panes, templates, context menus, TradingView-style layout templates, single-layout workspace persistence, and browser-tab live quote are in place. |
+| App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, `/workspace` tiling shell (Chart/Screener/Journal tiles), responsive module home hub at `/home` with charts at `/chart`, `/screener` review app, smart `/` entry (24h last-module redirect), and `/journal` module (Dashboard / Trades / Settings). |
 | Trading journal | Shipped foundation | IBKR fill sync + Flex CSV import → grouped round-trip trades; Postgres + localStorage fallback; dashboard KPIs, calendar P&L, equity curve, tag/setup and time reports, R-multiple, filters, chart deep links with execution markers. **Server-side broker ledger ingest** (fills + account/position snapshots while Next+sidecar up) in [Broker Ledger Roadmap](./roadmaps/broker-ledger-roadmap.md). Tier 3+ in [Journal Roadmap](./roadmaps/journal-roadmap.md). |
 | Trading execution | Phase 0–5 **Passing** | Paper + live via in-app mode; registry `ib-paper`/`ib-live`; Trade sidebar + confirm; AccountPanel cancel; journal orderRef; AI place_order; Postgres `order_intents` when `DATABASE_URL` set. Dual-connection **display preference ≠ order account** shipped (`edge:marketData:connectionId`); remaining Docker both-Gateway ops in [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md). Backlog: options / brackets. [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md). |
 | Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Tradier, TWS, and IBKR adapters; age-based display freshness and trust-event logging for transport recovery; ChartDataFeed/watchlist thread TWS `connectionId` display preference. |
@@ -39,7 +39,7 @@ Completed foundations:
 - Candles, OHLC, area, Heikin Ashi, axes, crosshair, pan/zoom, pinch, range presets, and infinite history prepend work.
 - Six implemented indicators: MA, EMA, BOLL, MACD, RSI, VOL.
 - Twelve drawing tools, undo/redo, object tree, data window, drawing metadata, and basic context menus are in place.
-- Layouts, templates, watchlists, workspace tabs, and chart settings persist locally with optional remote persistence.
+- Layouts, templates, watchlists, workspace layout storage, and chart settings persist locally with optional remote persistence.
 
 Remaining chart work:
 
