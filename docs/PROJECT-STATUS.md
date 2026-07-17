@@ -2,9 +2,143 @@
 
 Single source for **current** progress. Historical harness dumps: [status-archive/](./status-archive/). For row-by-row feature detail, see [chart/features.md](./chart/features.md).
 
-**Last updated:** 2026-07-15
+**Last updated:** 2026-07-17
 
 ## Current Verified State
+
+- **Current task:** Structural refactor Tier E (persistence + AI boundaries).
+- **State:** **Passing** — E1 shared `revisionedLibraryRepository`/`revisionedLibraryClient` cores + watchlist/screener/chart-template adapters; E2 two-products docs + shared `CHART_TYPE_VALUES`/`STARTER_INDICATOR_NAMES` from `@edge/chart-core`; no user-visible behavior change.
+- **Latest verification:** **E1 Focused:** `Test Files 15 passed (15)`, `Tests 52 passed (52)` (revisioned helpers + sync + schemas + library route tests); **E2 Focused:** `Test Files 3 passed (3)`, `Tests 15 passed (15)` (`chart.test.ts`, `ai-tools-chart` tools, package-api-snapshot); **Build:** `npm run build:packages` passed; **Build:** `npm run build` passed; **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/persistence/repositories/revisionedLibraryRepository.ts`, `src/lib/persistence/client/revisionedLibraryClient.ts`, `src/lib/persistence/repositories/*LibraryRepository.ts`, `src/lib/persistence/client/*LibraryClient.ts`, `packages/chart-core/src/toolConstants.ts`, `packages/ai-tools-chart/ARCHITECTURE.md`, `src/lib/ai/tools/chart.test.ts`, `docs/ai-tools-architecture.md`, `src/lib/ai/ARCHITECTURE.md`, `docs/roadmaps/refactor-roadmap.md`, `src/lib/persistence/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Structural refactor track complete for Tier E — resume product work from [ROADMAP.md](./ROADMAP.md) (no further refactor tiers in [refactor-roadmap.md](./roadmaps/refactor-roadmap.md)).
+
+## Previous Verified State (Structural refactor Tier D)
+- **Current task:** Structural refactor Tier C (app shell decomposition).
+- **State:** **Passing** — C1 StockApp bootstrap/layout/sidebar hooks + `AppProviders`; C2 Object Tree vs Data Window file split; C3 seven chart chrome surfaces migrated to Edge tokens/shells; no behavior change (C3 visual token swap only).
+- **Latest verification:** **Focused:** `Test Files 10 passed (10)`, `Tests 53 passed (53)` (StockApp/bootstrap, ObjectTreePanel/objectTreeModel, BarReplay/TemplatePicker/ChartGoTo/DrawingSelectionToolbar); **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/app/components/stock-app/*`, `StockApp.tsx`, `src/app/components/object-tree/*`, `ObjectTree.tsx`, `BarReplay.tsx`, `ChartTimeZoneMenu.tsx`, `TemplatePickerModal.tsx`, `ChartGoToModal.tsx`, `DrawingSettingsModal.tsx`, `IndicatorSettingsModal.tsx`, `DrawingSelectionToolbar.tsx`, `docs/roadmaps/refactor-roadmap.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by Tier D row above.
+
+## Previous Verified State (Screener keyboard chart viewport drift)
+- **Current task:** Screener keyboard chart viewport drift.
+- **State:** **Passing** — cache→fresh candle growth no longer keeps stale live-edge indices; workspace screener drive no longer double-loads via BroadcastChannel.
+- **Latest verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 27 passed (27)`; **Architecture review:** self-review — Passed.
+- **Evidence:** `packages/chart-react/src/engine/canvas.tsx`, `canvas.test.tsx`, `useScreenerReviewDrive.ts`, `src/lib/chart/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — `/workspace` Chart + Screener → run screen → ↑/↓ through results and confirm chart stays fitted at live edge.
+
+## Previous Verified State (Structural refactor Tier B)
+- **Current task:** Structural refactor Tier B (duplication consolidation).
+- **State:** **Passing** — B1 generic `useRevisionedRemoteSync` + thin library wrappers; B2 series/interval math canonical in `@edge/chart-core` with app re-exports; no user-visible change.
+- **Latest verification:** **Focused:** `Test Files 13 passed (13)`, `Tests 99 passed (99)`; **Build:** `npm run build:packages` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Architecture review:** self-review — Passed.
+- **Evidence:** `useRevisionedRemoteSync.ts`, `use*LibraryRemoteSync.ts`, `packages/chart-core/src/{series,interval}.ts`, `src/lib/chart/{series,intervalAdapter}.ts`, `useChartDataFeed.ts`, `priceAxisAnnotations.ts`.
+- **Current blocker:** none.
+- **Next best step:** Tier C1 — StockApp providers + controllers ([refactor-roadmap.md](./roadmaps/refactor-roadmap.md)).
+
+## Previous Verified State (Screener header Option B)
+
+## Previous Verified State (Screener results scroll + compact view)
+- **Current task:** Screener results scroll + compact view control.
+- **State:** **Passing** — results pane scrolls independently (`min-h-0` height chain through tile → results); List/Heat map is a compact select; denser toolbar.
+- **Latest verification:** **Focused:** `Test Files 4 passed (4)`, `Tests 29 passed (29)` (`ResultsTable`, `ScreenerDialog`, `ScreenerResultsBody`, `ScreenerScreensBody`); dialog scroll assertion passed (`overflow-auto` + `min-h-0` + `flex-1`).
+- **Evidence:** `ScreenerTileSurface.tsx`, `ScreenerResultsBody.tsx`, `ScreenerScreensBody.tsx`, `ResultsTable.tsx`.
+- **Current blocker:** none.
+- **Next best step:** App-level — small Screener tile → run Top 200 → scroll results without scrolling Screens/filters.
+
+## Previous Verified State (Dead code removal Tier A)
+- **Current task:** Dead code removal (Tier A).
+- **State:** **Passing** — orphan chart duplicates (`indicators/draw`, `drawings/measure`) are package re-exports; unused app Toolbar/legend components removed; unused `createYahooMarketDataPort` removed; no user-visible change.
+- **Latest verification:** **Focused:** `Test Files 8 passed (8)`, `Tests 45 passed (45)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.9s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/chart/indicators/draw.ts`, `src/lib/chart/drawings/measure.ts`, deleted `Toolbar.tsx`/`ChartLegendBar.tsx`/`PaneLegendBar.tsx`, `src/lib/ai/{marketDataPort,index}.ts`, `docs/ai-tools-architecture.md`.
+- **Current blocker:** none.
+- **Next best step:** Tier C1 — StockApp providers ([refactor-roadmap.md](./roadmaps/refactor-roadmap.md)).
+
+## Previous Verified State (Screener results toolbar UX)
+- **Current task:** Screener results toolbar UX.
+- **State:** **Passing** — post-run chrome is one toolbar: List/Heat map + result count (+ phase tooltip) + Live badge; Watchlist/Export secondary menus; no step/live paragraphs; bulk menus hidden at 0 results.
+- **Latest verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 27 passed (27)` (`ResultsTable.test.tsx`, `ScreenerDialog.test.tsx`, `styles.test.ts`); **Architecture review:** self-review — Passed (`EdgeButton` secondary + forwardRef).
+- **Evidence:** `ResultsTable.tsx`, `EdgeButton.tsx`, `styles.ts`, `EdgeMenuItem.tsx`, `design-system/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by results scroll + compact view row above.
+
+## Previous Verified State (Screener result-limit compact select)
+- **Current task:** Screener result-limit compact select.
+- **State:** **Passing** — freeform LIMIT input replaced with compact “Top N” select (50/100/200/500) immediately before Run screen; legacy non-preset limits still shown until changed.
+- **Latest verification:** **Focused:** `Test Files 2 passed (2)`, `Tests 16 passed (16)` (`ScreenerDialog.test.tsx`, `ScreenerScreensBody.test.tsx`); **Architecture review:** self-review — Passed (UI-only control swap).
+- **Evidence:** `ScreenerScreensBody.tsx`, `ScreenerDialog.test.tsx`.
+- **Current blocker:** none.
+- **Next best step:** App-level — open screener custom query → confirm Top 200 ▾ sits left of Run → change to Top 50 and run.
+
+## Previous Verified State (Screener Option A split-pane UX)
+- **Current task:** Screener Option A split-pane UX.
+- **State:** **Passing** — unified screener surface: Screens list (starters as saved screens) + active query + results; row click / ↑↓ selects symbol and drives sibling chart via WorkspaceDrive/BroadcastChannel; Review/Screens/Results/Keepers sub-nav removed.
+- **Latest verification:** **Focused:** `Test Files 15 passed (15)`, `Tests 69 passed (69)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `ScreenerScreensBody.tsx`, `ScreenerTileSurface.tsx`, `ScreenerResultsBody.tsx`, `ResultsTable.tsx`, `useScreenerResultSelection.ts`, `useScreenerSessionModel.ts`, `screenStorage.ts`, `types.ts`, `screenerLibrary.ts`, `deepLinks.ts`, `docs/roadmaps/screener-roadmap.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — `/workspace` with Chart + Screener tiles: run a screen → click row → confirm chart symbol updates; ↑/↓ flips selection; Save creates user screen in left list.
+
+## Previous Verified State (Patterns library browse UI)
+- **Current task:** Pattern Capture start/end sections + numbered presets.
+- **State:** **Passing** — independent start/end section pairs (1-bar allowed); numbered preset labels via keys 1–N; pattern OHLCV bounds from section min/max.
+- **Latest verification:** **Focused:** `Test Files 1 passed (1)`, `Tests 13 passed (13)` (`patternCapture.test.ts`); **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/patternCapture/{fsm,presets,buildRecord}.ts`, `PatternCapturePanel.tsx`, `PatternCaptureOverlay.tsx`, `ChartCell.tsx`, `docs/chart/features.md`, `patternLibrary/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by Patterns library browse row above.
+
+## Previous Verified State (Workspace pill header UX)
+- **Current task:** Workspace pill header UX.
+- **State:** **Passing** — Use mode: single workspace pill (switch / rename / new / duplicate); Edit mode: Editing label + Layout preset picker + Done; removed always-on name input, native select, and Save copy.
+- **Latest verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 30 passed (30)`; **Architecture review:** self-review — Passed.
+- **Evidence:** `WorkspacePill.tsx`, `WorkspaceHeaderControls.tsx`, `commands.ts` (`createWorkspaceDocument`), `AppWorkspaceContext.tsx`, `appWorkspace/ARCHITECTURE.md`, `design-system/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — `/workspace` → open pill → switch/rename/new/duplicate → Edit layout → Layout preset → Done; confirm Use mode is calm again.
+
+## Previous Verified State (Workspace layout presets + empty-pane assign)
+- **Current task:** Workspace layout presets + empty-pane assign.
+- **State:** **Passing** — Edit mode **Layout** picker (8 presets) replaces geometry with placeholder panes; per-pane Chart/Screener/Journal chooser; filled-tile reassign in edit header; freeform drag-dock retained.
+- **Latest verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 52 passed (52)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `layoutPresets.ts`, `commands.ts` (`applyLayoutPreset`, `assignTileSurface`), `WorkspaceLayoutPresetPicker.tsx`, `WorkspaceLayoutPresetIcon.tsx`, `PlaceholderTile.tsx`, `TileFrame.tsx`, `SurfaceHost.tsx`, `LayoutTreeInner.tsx`, `AppWorkspaceContext.tsx`, `WorkspaceHeaderControls.tsx`, `appWorkspace/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by workspace pill header UX row above.
+
+## Previous Verified State (Broker ledger functional proof)
+- **Current task:** Broker ledger functional proof (Phases 0–4 app-level).
+- **State:** **Blocked** — Tier A API oracles + most Tier B pass; primary oracle **B2** (new fill without Journal mounted) not proven — paper MKT submitted `orderId=50` `PreSubmitted` / no new `journal_fills`; sidecar intermittently times out under load.
+- **Latest verification:** **App-level:** see Session Log 2026-07-16 functional plan; **Focused:** `Test Files 4 passed (4)`, `Tests 13 passed (13)` (incl. A4 `database_unavailable` unit).
+- **Evidence:** `docs/roadmaps/broker-ledger-functional-test-plan.md`; A1–A3/B1/B3/B4/B5 quoted below; B2 blocked; A4 unit + isolated `next dev` blocked by Next single-server lock; C1 skipped (no Flex env).
+- **Current blocker:** B2 — after-hours (~22:00 ET): paper F MKT `78` cancelled (`PreSubmitted`); LMT@$25 `184` `Submitted` then cancelled; sidecar `executions:0`, `new_fills 0`. US equity extended session closed (ends ~20:00 ET). Sidecar+Gateway connected post-2FA.
+- **Next best step:** Resume B2 in premarket/RTH (or portal fill while session open) → wait ≤30s without Journal → confirm new `execId` on GET `/api/me/journal/fills` → mark **Passing**.
+
+## Previous Verified State (Personal pattern library)
+- **State:** **Passing** — in-chart `WorkspaceTabBar` removed; one layout per chart tile (`pruneToSingleActiveTab` on hydrate); primary chart tile (DFS left-first) publishes symbol + price + day % to `document.title` with green/red/muted favicon; layout menu no longer create/copy/switch layouts.
+- **Latest verification:** **Focused:** `Test Files 9 passed (9)`, `Tests 53 passed (53)` (`browserTabQuote`, `primaryChartTile`, `workspaceTabs`, `StockApp`, `app-workspace/`); **Architecture review:** self-review — Passed.
+- **Evidence:** `browserTabQuote.ts`, `primaryChartTile.ts`, `PrimaryChartBrowserTabQuote.tsx`, `WorkspaceBrowserTabQuote.tsx`, `StockApp.tsx`, `ChartTileHost.tsx`, `SurfaceHost.tsx`, `LayoutTreeInner.tsx`, `ChartLayoutMenu.tsx`, `workspaceTabs.ts`, `appWorkspace/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** App-level — open `/workspace` with a chart; confirm browser tab shows `SYMBOL price ▲/▼ % · Edge` and favicon color; add second chart tile and confirm title still follows left/first chart; confirm no tab strip under chart header.
+
+## Previous Verified State (App Workspace Use/Edit + shell-as-app)
+
+- **Current task:** App Workspace Use/Edit + shell-as-app.
+- **State:** **Passing** — `/workspace` is the primary app shell; **Use** vs **Edit layout** modes (session-only); module routes (`/chart`, `/screener/*`, `/journal/*`) redirect into workspace deep links; rail focuses/adds surfaces; root `lastModule` for chart/journal/screener/workspace → `/workspace`.
+- **Latest verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 31 passed (31)` (`src/lib/appWorkspace/`, `src/app/components/app-workspace/`); **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); **Architecture review:** self-review — Passed.
+- **Evidence:** `AppWorkspaceContext.tsx`, `commands.ts` (`applySurfaceFocusOrOpen`), `workspace/page.tsx`, `ScreenerTileSurface.tsx`, `TileFrame.tsx`, `LayoutTreeInner.tsx`, `WorkspaceHeaderControls.tsx`, `AppWorkspaceNav.tsx`, `HomeAppNav.tsx`, `ModuleToWorkspaceRedirect.tsx`, `deepLinks.ts`, `lastModule.ts`, module redirect pages, `appWorkspace/ARCHITECTURE.md`, `design-system/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by browser tab live quote row above.
+
+## Previous Verified State (App Workspace Shell — Tiling Dock)
+
+- **Current task:** App Workspace Shell (Tiling Dock).
+- **State:** **Passing** — `/workspace` binary split-tree tiles (Chart, Screener, Journal, placeholder); resizable splitters; drag-to-dock; named save/duplicate/switch; in-process Review→Chart via `WorkspaceDriveContext`; deep links `/workspace?surface=screener`; module routes retained.
+- **Latest verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 29 passed (29)` (`src/lib/appWorkspace/`, `src/app/components/app-workspace/`, `lastModule`, `HomeAppNav`); **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); **Packages:** `npm run check:packages` passed; **Architecture review:** self-review — Passed.
+- **Evidence:** `src/lib/appWorkspace/*`, `src/app/components/app-workspace/*`, `src/app/workspace/page.tsx`, `ChartTileHost.tsx`, `WorkspaceDriveContext.tsx`, `WorkspaceChartDriveBridge.tsx`, `useScreenerReviewDrive.ts`, `HomeAppNav.tsx`, `lastModule.ts`, `design-system/ARCHITECTURE.md`.
+- **Current blocker:** none.
+- **Next best step:** Superseded by Use/Edit shell-as-app row above.
+
+## Previous Verified State (App Workspace — Phase 0 layout engine)
+
+## Previous Verified State (Position stick entry to last price)
 
 - **Current task:** Position stick entry to last price.
 - **State:** **Passing** — Long/short entry follows live last price by default; stop/TP stay fixed; Settings → “Stick entry to last price”; manual entry drag turns stick off.
@@ -255,6 +389,33 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 
 | Feature | Behavior | State | Completion evidence / latest result | Files |
 |---------|----------|-------|-------------------------------------|-------|
+| Structural refactor Tier E2 (AI chart-tool split) | Two-products docs; shared chart-type/starter-indicator enums from chart-core; app `get_chart_state`/`set_chart_type` characterization tests; package execute path unchanged | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 15 passed (15)`; **Build:** `npm run build:packages` passed; **Architecture review:** self-review Passed | `packages/chart-core/src/toolConstants.ts`, `packages/ai-tools-chart/ARCHITECTURE.md`, `packages/ai-tools-chart/src/tools.ts`, `src/lib/ai/schemas.ts`, `src/lib/ai/tools/chart.test.ts`, `docs/ai-tools-architecture.md`, `src/lib/ai/ARCHITECTURE.md`, `src/test/package-api-snapshot.test.ts` |
+| Structural refactor Tier E1 (revisioned CRUD helpers) | Shared `revisionedLibraryRepository`/`revisionedLibraryClient`; watchlist/screener/chart-template thin adapters; sync/conflict behavior unchanged | **Passing** | **Focused:** `Test Files 15 passed (15)`, `Tests 52 passed (52)`; **Build:** `npm run build` passed; **Architecture review:** self-review Passed | `revisionedLibraryRepository.ts`, `revisionedLibraryClient.ts`, `*LibraryRepository.ts`, `*LibraryClient.ts`, `persistence/ARCHITECTURE.md` |
+| Structural refactor Tier D (chart runtime) | D1 ChartCell thin wiring + `chart-cell/*` hooks; D2 canvas render/gesture split; D3 EdgeChart coordinators; D4 drawing controller FSM/facade split; no UX change; package public API unchanged | **Passing** | **Focused:** `Test Files 11 passed (11)`, `Tests 76 passed (76)`; **Build:** `npm run build:packages` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Build:** `npm run build` passed; **Architecture review:** self-review Passed; app-level pan/zoom/draw smoke deferred | `src/app/components/chart-cell/*`, `ChartCell.tsx`, `ChartCell.patternCapture.test.tsx`, `packages/chart-react/src/engine/*`, `packages/chart-react/src/EdgeChart.tsx`, `packages/chart-react/src/use*.ts`, `packages/chart-react/src/drawing/*`, `docs/roadmaps/refactor-roadmap.md`, `src/lib/chart/ARCHITECTURE.md` |
+| Structural refactor Tier C3 (design-system leftovers) | Seven chart chrome surfaces use EdgeModalShell/EdgeButton/`--edge-*` tokens; drawing paint hex preserved; no behavior change | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 11 passed (11)` (`BarReplay`, `TemplatePickerModal`, `ChartGoToModal`, `DrawingSelectionToolbar`); **Architecture review:** self-review Passed; app-level modal spot-check deferred | `BarReplay.tsx`, `ChartTimeZoneMenu.tsx`, `TemplatePickerModal.tsx`, `ChartGoToModal.tsx`, `DrawingSettingsModal.tsx`, `IndicatorSettingsModal.tsx`, `DrawingSelectionToolbar.tsx` |
+| Structural refactor Tier C2 (Object Tree split) | `DataWindowTab` + tree row/section modules extracted; `ObjectTree` tab shell; active-chart `DataWindowProps`/actions unchanged | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 19 passed (19)` (`ObjectTreePanel.test.tsx`, `objectTreeModel.test.ts`); **Architecture review:** self-review Passed | `src/app/components/object-tree/*`, `ObjectTree.tsx`, `ActiveChartContext.tsx` |
+| Structural refactor Tier C1 (StockApp providers) | `useStockAppBootstrap`, layout/sidebar controllers, `AppProviders`; provider order + hydrate gate preserved; StockApp thin composition root | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 23 passed (23)` (`StockApp.test.tsx`, `StockApp.bootstrap.test.tsx`, `src/lib/app/bootstrap/`); **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`); **Architecture review:** self-review Passed; app-level `/workspace` smoke deferred | `src/app/components/stock-app/*`, `StockApp.tsx` |
+| Screener keyboard chart viewport drift | ↑/↓ through screener results keeps chart at fitted live-edge view; cache→fresh length growth rebuilds session viewport when indices were not shifted; workspace drive skips BroadcastChannel double-load | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 27 passed (27)`; **Architecture review:** self-review Passed | `packages/chart-react/src/engine/canvas.tsx`, `canvas.test.tsx`, `useScreenerReviewDrive.ts`, `src/lib/chart/ARCHITECTURE.md` |
+| Series/interval consolidation (Tier B2) | Pure HA/merge/coverage/2h resample in `@edge/chart-core`; app + chart-react import from package; orphan `heikinAshi.ts` removed; no UX change | **Passing** | **Focused:** `Test Files 13 passed (13)`, `Tests 99 passed (99)` (incl. B1 sync); **Build:** `npm run build:packages` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Architecture review:** self-review Passed | `packages/chart-core/src/{series,interval}.ts`, `src/lib/chart/{series,intervalAdapter}.ts`, `useChartDataFeed.ts`, `priceAxisAnnotations.ts`, deleted `packages/chart-react/.../intervalAdapter.ts`, `src/lib/heikinAshi.ts` |
+| Revision-sync consolidation (Tier B1) | One `useRevisionedRemoteSync` core; watchlist/screener/chart-template hooks are thin adapters; hydrate/debounce/conflict behavior unchanged | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 21 passed (21)` (`src/lib/persistence/sync/`); **Architecture review:** self-review Passed | `useRevisionedRemoteSync.ts`, `useWatchlistLibraryRemoteSync.ts`, `useScreenerLibraryRemoteSync.ts`, `useChartTemplateLibraryRemoteSync.ts`, `persistence/ARCHITECTURE.md` |
+| Screener header Option B | Stock Screener title + Run in chrome; active screen subtitle; rail selection highlight; + Save current in Screens rail | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 19 passed (19)` | `ScreenerScreensBody.tsx`, `ScreenerPanelContent.tsx`, `summarizeScreen.ts` |
+| Screener results scroll + compact view | Results region scrolls in-pane; compact List/Heat map select; denser toolbar; tile height chain fixed | **Passing** | **Focused:** `Test Files 4 passed (4)`, `Tests 29 passed (29)`; dialog scroll assertion passed | `ScreenerTileSurface.tsx`, `ScreenerResultsBody.tsx`, `ScreenerScreensBody.tsx`, `ResultsTable.tsx` |
+| Dead code removal (Tier A) | Orphan chart duplicates become package re-exports; unused app Toolbar/legend components and unused Yahoo market-data port removed; no user-visible change | **Passing** | **Focused:** `Test Files 8 passed (8)`, `Tests 45 passed (45)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 2.9s`); **Architecture review:** self-review Passed | `src/lib/chart/indicators/draw.ts`, `src/lib/chart/drawings/measure.ts`, deleted `Toolbar.tsx`/`ChartLegendBar.tsx`/`PaneLegendBar.tsx`, `src/lib/ai/{marketDataPort,index}.ts`, `docs/ai-tools-architecture.md` |
+| Screener results toolbar UX | One post-run toolbar: view toggle + count/Live + Watchlist/Export menus (secondary buttons); hide bulk actions at 0 results; phase detail on count tooltip | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 27 passed (27)` | `ResultsTable.tsx`, `EdgeButton.tsx`, `styles.ts`, `EdgeMenuItem.tsx` |
+| Screener result-limit compact select | Custom query header: “Top N” select (50/100/200/500) before Run; no freeform LIMIT | **Passing** | **Focused:** `Test Files 2 passed (2)`, `Tests 16 passed (16)` | `ScreenerScreensBody.tsx`, `ScreenerDialog.test.tsx` |
+| Screener Option A split-pane UX | Unified screener: Screens list (starters seeded) + active query + results; click/↑↓ drives sibling chart; no Review/Keepers sub-nav | **Passing** | **Focused:** `Test Files 15 passed (15)`, `Tests 69 passed (69)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`); **Architecture review:** self-review Passed; app-level walkthrough deferred | `ScreenerScreensBody.tsx`, `ScreenerTileSurface.tsx`, `ScreenerResultsBody.tsx`, `ResultsTable.tsx`, `useScreenerResultSelection.ts`, `screenStorage.ts`, `types.ts`, `screenerLibrary.ts`, `deepLinks.ts`, `docs/roadmaps/screener-roadmap.md` |
+| Patterns library browse | Rail Patterns opens interactive captures; detail shows SVG + sections; Go to chart navigates symbol/interval/time; metadata PATCH for family/quality/notes; post-save View in Patterns | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 15 passed (15)`; **Architecture review:** self-review Passed; app-level walkthrough deferred | `src/app/api/pattern-library/records/`, `src/app/components/pattern-library/*`, `sidebar/registry.tsx`, `PatternLibraryContext.tsx`, `ChartCell.tsx`, `patternLibrary/ARCHITECTURE.md`, `docs/chart/features.md` |
+| Pattern Capture start/end + presets | Per-section start/end clicks (1-bar allowed); label via numbered presets (1–N keys) or custom text; pattern bounds from section min/max; save to pattern library | **Passing** | **Focused:** `Test Files 1 passed (1)`, `Tests 13 passed (13)`; **Architecture review:** self-review Passed | `src/lib/patternCapture/{fsm,presets,buildRecord}.ts`, `PatternCapturePanel.tsx`, `PatternCaptureOverlay.tsx`, `ChartCell.tsx` |
+| Pattern Capture Mode | Historical multi-section bar-snapped capture → labeled sections → persist OHLCV + frozen SVG + metadata into personal pattern library; retrieval-ready | **Passing** | **Focused:** `Test Files 12 passed (12)`, `Tests 33 passed (33)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); **Architecture review:** self-review Passed; superseded by start/end + presets row | `src/lib/patternCapture/*`, `src/lib/patternLibrary/*`, `src/app/api/pattern-library/captures/`, `PatternCapturePanel.tsx`, `PatternCaptureOverlay.tsx`, `ChartCell.tsx`, `patternLibrary.ts`, shortcuts |
+| Workspace pill header UX | Use mode: single workspace pill for switch/rename/new/duplicate; Edit mode: Editing label + Layout + Done; remove always-on name input/select/Save copy | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 30 passed (30)`; **Architecture review:** self-review Passed; app-level walkthrough deferred | `WorkspacePill.tsx`, `WorkspaceHeaderControls.tsx`, `commands.ts`, `AppWorkspaceContext.tsx`, `appWorkspace/ARCHITECTURE.md`, `design-system/ARCHITECTURE.md` |
+| Workspace layout presets + empty-pane assign | Edit mode **Layout** picker (8 presets) → placeholder panes → per-pane Chart/Screener/Journal chooser; filled-tile reassign in edit header; freeform drag-dock retained | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 52 passed (52)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`); **Architecture review:** self-review Passed; app-level walkthrough deferred | `layoutPresets.ts`, `commands.ts`, `WorkspaceLayoutPresetPicker.tsx`, `PlaceholderTile.tsx`, `TileFrame.tsx`, `AppWorkspaceContext.tsx`, `WorkspaceHeaderControls.tsx`, `appWorkspace/ARCHITECTURE.md` |
+| Broker ledger + sync | Server-side IB execution ingest into journal while Next+sidecar up; cursor + Flex gap backfill; account/position snapshots; client sync triggers server ingest; Data Health ledger age | **Passing** | **Functional plan complete.** **B2 PASS (RTH 2026-07-17):** paper F MKT `orderId=10190` `status:Filled` `permId=1041862008`; GET fills `before 46 after 47 new 1` `execId=00025b44.6a5abe6c.01.01` qty1 @14.32 (no Journal UI); cron later `duplicates:2`; status `lastSeenExecIds` includes that execId; `ledger sync 0m ago`. Prior: A1–A3/B1/B3–B5 pass; A4 unit 503; C1 skipped. **Focused:** `Test Files 4 passed (4)`, `Tests 13 passed (13)` | `broker-ledger-functional-test-plan.md`, ingest/*, cron route, JournalSyncProvider, DataHealthProvider |
+| Personal pattern library (chart eye MVP) | Hybrid setup library: taxonomy, OHLCV features, retrieval, rules, three-arm bake-off, stress tests; AI tools for similarity + capture draft | **Passing** | **Focused:** `Test Files 9 passed (9)`, `Tests 23 passed (23)`; **CLI:** seed 100 records, bake-off recommends retrieval over VLM stub; **Architecture review:** self-review Passed | `src/lib/patternLibrary/*`, `patternLibrary.ts`, `data/pattern-library/`, `scripts/pattern-library-*.mts` |
+| Browser tab live quote (remove chart tabs) | No in-chart tab strip; one layout per chart tile; primary chart (DFS left-first) publishes symbol + price + day % to browser tab title + direction favicon | **Passing** | **Focused:** `Test Files 9 passed (9)`, `Tests 53 passed (53)` (`browserTabQuote`, `primaryChartTile`, `workspaceTabs`, `StockApp`, `app-workspace/`); **Architecture review:** self-review Passed; app-level browser-tab walkthrough deferred | `browserTabQuote.ts`, `primaryChartTile.ts`, `PrimaryChartBrowserTabQuote.tsx`, `WorkspaceBrowserTabQuote.tsx`, `StockApp.tsx`, `ChartTileHost.tsx`, `ChartLayoutMenu.tsx`, `workspaceTabs.ts`, `appWorkspace/ARCHITECTURE.md` |
+| App Workspace Use/Edit + shell-as-app | `/workspace` primary shell; Use vs Edit layout modes; module routes redirect to workspace deep links; rail focus/add; screener in-tile nav (Screens/Results/Review) without route escape; deep-link ingress idempotent | **Passing** | **Focused:** `Test Files 7 passed (7)`, `Tests 31 passed (31)`; fixed `Maximum update depth` on screener Screens/deep-link ingress (`applySurfaceFocusOrOpen`, stable `handleSurfaceIngress`); **Architecture review:** self-review Passed; app-level walkthrough deferred | `AppWorkspaceContext.tsx`, `commands.ts`, `workspace/page.tsx`, `ScreenerTileSurface.tsx`, `ScreenerReviewView.tsx`, `ScreenerKeepersBody.tsx`, `TileFrame.tsx`, `WorkspaceHeaderControls.tsx`, `AppWorkspaceNav.tsx`, `deepLinks.ts`, `lastModule.ts`, `ModuleToWorkspaceRedirect.tsx` |
+| App Workspace Shell (Tiling Dock) | `/workspace` split-tree tiles; Chart/Screener/Journal surfaces; drag/save; in-process Review drive | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 29 passed (29)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); superseded by Use/Edit shell-as-app | `src/lib/appWorkspace/*`, `src/app/components/app-workspace/*`, `src/app/workspace/page.tsx` |
+| Screener Review app | `/screener` Review home + keyboard queue drives Chart via BroadcastChannel; sidebar screener retained | **Passing** | **Focused:** `Test Files 14 passed (14)`, `Tests 95 passed (95)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.6s`); **Architecture review:** self-review Passed; app-level dual-window walkthrough deferred | `src/app/screener/*`, `src/lib/screener/review*`, `ScreenerDriveListener`, `ScreenerReviewView`, `HomeAppNav`, `screener-roadmap.md` |
+| Liquid tradeable screener preset | Preset + QueryBuilder filter: price ≥ $5 and dollar volume (price × volume) ≥ $2M/day; local post-filter (FMP over-fetch) | **Passing** | **Focused:** `Test Files 6 passed (6)`, `Tests 37 passed (37)` (`presets`, `compileQuery`, `universeDailyStore`, `screenerParams`, `deriveDefaultSort`, `QueryBuilder`); **Architecture review:** self-review Passed | `presets.ts`, `request.ts`, `universeDailyStore.ts`, `compileQuery.ts`, `marketDataService.ts`, `ScreenerPanelContent.tsx`, `ARCHITECTURE.md` |
 | Position stick entry to last price | Long/short entry follows live last price by default; stop/TP fixed; Settings toggle; entry drag disables stick | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 59 passed (59)`; packages rebuild passed; **Architecture review:** self-review Passed | `positionGeometry.ts`, `drawingStyles.ts`, `drawingSettingsCapabilities.ts`, `DrawingSettingsModal.tsx`, `useDrawingController.ts`, `EdgeChart.tsx` |
 | Account display aliases | Custom account picker dropdown with right-side settings rail; display names in picker, Account panel, Trade form, Data Health; IB accountId stays execution identity | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 43 passed (43)`; **Architecture review:** self-review Passed; app-level alias reload walkthrough deferred | `AccountPickerMenu.tsx`, `AccountAliasEditor.tsx`, `accountAliases.ts`, `AccountAliasesProvider.tsx`, `AppTopHeader.tsx`, `AccountPanel.tsx`, `TradeOrderForm.tsx`, `trading/ARCHITECTURE.md` |
 | Position tool instant place at last bar | Toolbar Long/Short places immediately at last-bar close; left edge on last bar; selected + cursor restored | **Passing** | **Focused:** `Test Files 3 passed (3)`, `Tests 40 passed (40)` (`positionGeometry`, `position_tool`, `drawingFsm`); packages rebuild passed | `positionGeometry.ts`, `position_tool.ts`, `drawingController.ts`, `useDrawingController.ts`, tests, `features.md`, `ARCHITECTURE.md` |
@@ -308,6 +469,89 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | Trading execution — Phase 1 domain + adapter | Broker-neutral `TradingService`, `IbTwsTradingAdapter`, intent store, `/api/trading/*` on paper only (MKT/LMT); no UI | **Passing** | **Focused:** `Test Files 5 passed (5)`, `Tests 14 passed (14)`; **Build:** `npm run build` passed; **App-level:** preview MKT HTTP 200; MKT `orderId: 17` `permId: 1306430090`; LMT `orderId: 19` `permId: 1306430091`; cancel `status: "Cancelled"`; idempotent retry same intent; **Architecture review:** self-review Passed | `src/lib/trading/**`, `src/app/api/trading/**`, `src/lib/api/apiAuth.ts`, `src/lib/trading/ARCHITECTURE.md` |
 
 Older Passing rows: [status-archive/](./status-archive/).
+
+## Task Contract — Structural refactor Tier E
+
+- **Status:** Complete — **Passing** 2026-07-17.
+- **Goal:** E1 shared revisioned library repo/client helpers; E2 document portable vs app AI chart tools and share matching enums only.
+- **Delivered:** `revisionedLibraryRepository.ts` + `revisionedLibraryClient.ts` + thin watchlist/screener/chart-template adapters; `packages/chart-core/src/toolConstants.ts`; `packages/ai-tools-chart/ARCHITECTURE.md`; Two products sections in AI docs; `src/lib/ai/tools/chart.test.ts`.
+- **Verification:** **E1 Focused:** `Test Files 15 passed (15)`, `Tests 52 passed (52)`; **E2 Focused:** `Test Files 3 passed (3)`, `Tests 15 passed (15)`; **Build:** `npm run build:packages` passed; **Build:** `npm run build` passed; **Architecture review:** self-review Passed.
+- **Blockers:** none.
+
+## Task Contract — Structural refactor Tier D
+
+- **Status:** Complete — **Passing** 2026-07-17.
+- **Goal:** Decompose chart runtime god-files (ChartCell, canvas, EdgeChart, drawing controller) into responsibility-focused hooks/modules without user-visible behavior change.
+- **Delivered:** D1 `chart-cell/*` hooks + `ChartSyncBridge` + pattern-capture characterization tests; D2 `useViewportLifecycle`/`useCanvasRenderer`/`useCanvasGestures`/`useCanvasCursor`; D3 `useCandleSession`/`useCrosshairCoordinator`/`useChartWheelPinch`/`usePaneLayoutController`/`useEventDetailController`; D4 `createDrawingHandleSlice`/`applyDrawingPointerTransition`/`useDrawingStoreSync`/`useLivePriceStickEntry`.
+- **Verification:** **Focused:** `Test Files 11 passed (11)`, `Tests 76 passed (76)`; **Build:** `npm run build:packages` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Build:** `npm run build` passed; **Architecture review:** self-review Passed.
+- **Blockers:** none.
+
+## Task Contract — Workspace pill header UX
+
+- **Status:** **Passing** 2026-07-16 — UI + domain + tests complete.
+- **Goal:** Concept A header — Use mode workspace pill (switch/rename/new/duplicate); Edit mode focused chrome (Editing label + Layout + Done); remove always-on rename input, native select, Save copy.
+- **Delivered:** `createWorkspaceDocument` in `commands.ts`; `WorkspacePill.tsx` popover menu; `WorkspaceHeaderControls.tsx` Use/Edit mode branches; context wiring; architecture docs updated.
+- **Verification:** **Focused:** `Test Files 3 passed (3)`, `Tests 30 passed (30)`; **Architecture review:** self-review Passed. **Deferred:** app-level pill→edit→Done walkthrough.
+- **Blockers:** none.
+
+## Task Contract — Workspace layout presets + empty-pane assign
+
+- **Status:** **Passing** 2026-07-16 — domain + UI + tests complete.
+- **Goal:** Template-first edit flow — pick structured layout preset → empty placeholder panes → assign Chart/Screener/Journal per pane; retain freeform drag-dock as secondary.
+- **Delivered:** `layoutPresets.ts` (8 presets); `applyLayoutPreset` + `assignTileSurface` in `commands.ts`; `WorkspaceLayoutPresetPicker` + icon; `PlaceholderTile` chooser; `TileFrame` reassign select; context wiring; architecture docs updated.
+- **Verification:** **Focused:** `Test Files 7 passed (7)`, `Tests 52 passed (52)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`); **Architecture review:** self-review Passed. **Deferred:** app-level edit→preset→assign→Done walkthrough.
+- **Blockers:** none.
+
+## Task Contract — Pattern Capture start/end + numbered presets
+
+- **Status:** **Passing** 2026-07-16 — independent section pairs + keyboard preset labels shipped.
+- **Goal:** Each section defined by explicit start/end clicks (1-bar allowed); label via 1–N preset keys or custom text; pattern OHLCV span from section min/max.
+- **Delivered:** Reworked `fsm.ts` (`pendingStart`/`pendingEnd`, `PICK_PRESET`); `presets.ts`; section-bounds `buildRecord.ts`; numbered preset UI in `PatternCapturePanel`; overlay + ChartCell wiring.
+- **Verification:** **Focused:** `Test Files 1 passed (1)`, `Tests 13 passed (13)`; **Architecture review:** self-review Passed. **Deferred:** app-level 1-bar + multi-section walkthrough.
+- **Blockers:** none.
+
+## Task Contract — Pattern Capture Mode
+
+- **Status:** **Passing** 2026-07-16 — full interactive multi-section capture shipped.
+- **Goal:** Bar-snapped historical pattern path with section labels → OHLCV slice (no look-ahead) + frozen SVG with section bands → persist to `data/pattern-library/records/`; AI tools for save/get/similarity.
+- **Delivered:** `src/lib/patternCapture/*` FSM + slice + buildRecord; extended `PatternRecord.capture`; section-aware `renderChart.ts`; `POST/GET /api/pattern-library/captures`; ChartCell overlay + panel + shortcuts; `save_pattern_capture` / `get_pattern_capture` AI tools; enriched `find_similar_setups` neighbor sections.
+- **Verification:** **Focused:** `Test Files 12 passed (12)`, `Tests 33 passed (33)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); app-level walkthrough deferred.
+- **Blockers:** none.
+
+## Task Contract — Broker ledger track
+
+- **Status:** **Passing** 2026-07-17 — Phases 0–4 + app-level functional proof (incl. B2 RTH fill).
+- **Goal:** Durable broker ledger in Postgres — server fill ingest (portal + Edge), gap Flex backfill, account/position snapshots, client demoted to refresh-only; app-level proof per functional test plan.
+- **Delivered:** `docs/roadmaps/broker-ledger-roadmap.md` + `broker-ledger-functional-test-plan.md`; migrations `0006`–`0008`; `runBrokerageIngest` + `scheduleBrokerageIngest`; `/api/cron/brokerage-ingest`; snapshot-route trigger; `/api/me/brokerage-ingest/status` + `/api/me/account-snapshots`; `JournalSyncProvider` server trigger; Data Health ledger sync age; A4 unit for `database_unavailable`.
+- **Verification:** A1–A3, B1–B5 app-level pass (B2: F MKT `10190` Filled → new `execId=00025b44.6a5abe6c.01.01`); **Focused:** `Tests 13 passed (13)`; A4 unit for 503; C1 skipped (no Flex env).
+- **Blockers:** none.
+
+## Task Contract — App Workspace Use/Edit + shell-as-app
+
+- **Status:** **Passing** 2026-07-16 — Waves A–E complete via orchestrated implementation.
+- **Goal:** App shell = active workspace; session-scoped Use vs Edit layout modes; module deep links into one workspace; no Workspace peer nav destination.
+- **Delivered:** `layoutEditMode` in `AppWorkspaceContext`; gated `TileFrame`/`LayoutTreeInner`; `WorkspaceHeaderControls` Edit/Done + Esc; mode-aware `AppWorkspaceNav`/`HomeAppNav`; `deepLinks.ts` + `ModuleToWorkspaceRedirect`; `lastModule` root → `/workspace`; `handleSurfaceIngress` for deep links; architecture docs updated.
+- **Verification:** **Focused:** `Test Files 11 passed (11)`, `Tests 48 passed (48)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); **Architecture review:** self-review Passed. **Deferred:** app-level Use/Edit + redirect walkthrough.
+- **Blockers:** none.
+- **Next:** App-level — Use mode trading; Edit layout rearrange; `/chart` redirect; Review→Chart in-process.
+
+## Task Contract — App Workspace Shell (Tiling Dock)
+
+- **Status:** **Passing** 2026-07-16 — Phases 0–3 complete.
+- **Goal:** Single-window ultrawide workspace with binary split-tree tiles (Chart, Screener, Journal); local persistence; in-process Review→Chart drive; drag/save.
+- **Delivered:** `src/lib/appWorkspace/` domain; `/workspace` shell + surfaces; `WorkspaceDriveContext`; nav + deep links; drag-to-dock; named workspaces.
+- **Verification:** **Focused:** `Test Files 5 passed (5)`, `Tests 29 passed (29)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); **Packages:** `check:packages` passed; **Architecture review:** self-review Passed. **Deferred:** app-level ultrawide walkthrough; `npm run check` blocked by pre-existing harness lint:instructions rows.
+- **Blockers:** none.
+- **Next:** App-level — `/workspace` with Chart + Review + Journal; confirm in-process symbol drive.
+
+## Task Contract — Screener Review app (dual-window controller)
+
+- **Status:** **Passing** 2026-07-16 — implemented via sub-agents (scaffold, review-core, bridge, review-ui, screens-results, verify).
+- **Goal:** Dedicated `/screener` app with serial Review as home; keyboard flip/keep/skip; BroadcastChannel sync so Screener window drives Chart window; chart sidebar screener unchanged.
+- **Delivered:** `/screener` routes + `ScreenerModuleShell`; `reviewSession`/`reviewChannel`/`reviewKeepers`; `ScreenerDriveListener` in StockApp; `ScreenerReviewView` + keyboard; Screens/Results/Keepers pages; roadmap Phase 5.
+- **Verification:** **Focused:** `Test Files 14 passed (14)`, `Tests 95 passed (95)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.6s`); **Architecture review:** self-review Passed. **Deferred:** app-level dual-window walkthrough.
+- **Blockers:** none.
+- **Next:** App-level — `/chart` + `/screener` side by side; run screen → Review; confirm Chart tracks symbol on keyboard flip.
 
 ## Task Contract — Trade execution reliability track
 
@@ -390,6 +634,164 @@ Older Passing rows: [status-archive/](./status-archive/).
 
 Append one entry before handing off long-running or interrupted work. Older entries: [status-archive/](./status-archive/).
 
+### 2026-07-17 — Structural refactor Tier E
+
+- **Goal:** E1 revisioned repository/client helpers; E2 clarify app vs `@edge/ai-tools-chart` products.
+- **Completed:** Shared persistence save/fetch cores; thin library adapters; `toolConstants.ts`; package + app AI architecture docs; app chart-tool characterization tests; package-api-snapshot updated for new chart-core exports.
+- **Verification run:** **E1 Focused:** `Test Files 15 passed (15)`, `Tests 52 passed (52)`; **E2 Focused:** `Test Files 3 passed (3)`, `Tests 15 passed (15)`; **Build:** `npm run build:packages` passed; **Build:** `npm run build` passed; **Architecture review:** self-review Passed.
+- **Next best step:** Resume product work from ROADMAP.md — structural refactor Tier E complete.
+
+### 2026-07-17 — Structural refactor Tier D
+
+- **Goal:** D1 ChartCell decompose; D2 canvas render vs gestures; D3 EdgeChart coordinators; D4 drawing controller FSM/facade split.
+- **Completed:** `chart-cell/*` hooks (pattern capture, pane actions, crosshair, menus, drawing toolbar, templates, trade bind); canvas/EdgeChart/drawing internal hooks; characterization tests for capture click/save, canvas cursor/badge/gesture, EdgeChart crosshair/prepend/wheel, drawing pointer/facade.
+- **Verification run:** **Focused:** `Test Files 11 passed (11)`, `Tests 76 passed (76)`; **Build:** `npm run build:packages` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Build:** `npm run build` passed; **Architecture review:** self-review Passed.
+- **Next best step:** Tier E1 — revisioned repository/client helpers.
+
+### 2026-07-17 — Structural refactor Tier C
+
+- **Goal:** C1 StockApp provider/controller extract; C2 Object Tree vs Data Window split; C3 design-system leftover migration for seven chart chrome files.
+- **Completed:** `useStockAppBootstrap`, `useStockAppLayoutController`, `useStockAppSidebarController`, `AppProviders`; `object-tree/*` modules + thin `ObjectTree.tsx`; Edge shells/tokens on `BarReplay`, `ChartTimeZoneMenu`, `TemplatePickerModal`, `ChartGoToModal`, `DrawingSettingsModal`, `IndicatorSettingsModal`, `DrawingSelectionToolbar`.
+- **Verification run:** **Focused:** `Test Files 10 passed (10)`, `Tests 53 passed (53)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`); **Architecture review:** self-review Passed.
+- **Next best step:** Tier E1 — revisioned repository/client helpers.
+
+### 2026-07-17 — Screener keyboard chart viewport drift
+
+- **Goal:** Fix sporadic wrong chart position after ↑/↓ through screener results (brief correct view, then jump with empty lower scale).
+- **Completed:** Canvas treats unshifted cache→fresh length growth as session rebuild (not history prepend); workspace screener drive no longer also publishes BroadcastChannel `setSymbol`.
+- **Verification run:** **Focused:** `Test Files 5 passed (5)`, `Tests 27 passed (27)`.
+- **Next best step:** App-level ↑/↓ through screener beside chart; confirm no post-load viewport jump.
+
+### 2026-07-17 — Structural refactor Tier B
+
+- **Goal:** B1 generic revision-sync hook; B2 series/interval consolidation into `@edge/chart-core`.
+- **Completed:** `useRevisionedRemoteSync` + contract tests; thin watchlist/screener/template wrappers; `packages/chart-core/src/interval.ts`; app series/interval re-exports; chart-react duplicate adapter removed; orphan `heikinAshi.ts` deleted.
+- **Verification run:** **Focused:** `Test Files 13 passed (13)`, `Tests 99 passed (99)`; **Build:** `npm run build:packages` passed; **Boundaries:** `npm run lint:package-boundaries` passed; **Architecture review:** self-review Passed.
+- **Next best step:** Tier C1 — StockApp providers + controllers.
+
+### 2026-07-17 — Screener header Option B
+
+- **Goal:** Stock Screener title; show active screen; move save into Screens rail.
+- **Completed:** Title + Run chrome; active name subtitle; accent rail selection; expand-in-place “+ Save current”; modal headerActions = Run (not Save); Untitled screen fallback.
+- **Verification run:** **Focused:** `Test Files 3 passed (3)`, `Tests 19 passed (19)`.
+- **Next best step:** App-level select + save walkthrough.
+
+### 2026-07-17 — Screener results scroll + compact view
+
+- **Goal:** Scroll only results in the right pane; shrink ugly List/Heat map toggle.
+- **Completed:** `h-full`/`min-h-0` chain on tile + results; compact view `<select>`; denser toolbar.
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 29 passed (29)`.
+- **Next best step:** App-level scroll Top 200 in a small tile.
+
+### 2026-07-17 — Screener results toolbar UX
+
+- **Goal:** Collapse janky post-run status lines + text actions into one bordered-button toolbar.
+- **Completed:** Removed phase/live paragraphs; result count + Live badge; Watchlist/Export menus; `EdgeButton` `secondary` + forwardRef; empty runs keep toolbar without bulk menus.
+- **Verification run:** **Focused:** `Test Files 3 passed (3)`, `Tests 27 passed (27)`.
+- **Next best step:** App-level confirm toolbar after run / empty run.
+
+### 2026-07-17 — Screener result-limit compact select
+
+- **Goal:** Replace out-of-place freeform LIMIT input with compact dropdown before Run.
+- **Completed:** `Top 50/100/200/500` select left of Run; legacy non-preset values kept visible until changed; dialog test updated.
+- **Verification run:** **Focused:** `Test Files 2 passed (2)`, `Tests 16 passed (16)`.
+- **Next best step:** App-level confirm select placement and run with Top 50.
+
+### 2026-07-17 — Screener Option A split-pane UX
+
+- **Goal:** Collapse Review/Screens/Results/Keepers into one split-pane screener; starters as saved screens; row click / ↑↓ drives sibling chart.
+- **Completed:** `SavedScreen` movers kind + `ensureStarterScreens`; unified `ScreenerScreensBody` + `ScreenerTileSurface`; `useScreenerResultSelection` + `useScreenerReviewDrive`; removed primary Load/Open in Review; `/screener/*` → unified workspace surface; roadmap + harness updates.
+- **Verification run:** **Focused:** `Test Files 15 passed (15)`, `Tests 69 passed (69)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`). **Architecture review:** self-review Passed.
+- **Next best step:** App-level — workspace Chart + Screener tiles: run screen → click row → ↑/↓ → confirm chart symbol follows.
+
+### 2026-07-16 — Pattern Capture start/end + numbered presets
+
+- **Goal:** Rework capture UX — independent start/end section pairs (1-bar allowed); numbered preset labels via keyboard 1–N.
+- **Completed:** Reworked `fsm.ts`; added `presets.ts`; section-bounds `buildRecord.ts`; `PatternCapturePanel` numbered chips; overlay + ChartCell digit shortcuts.
+- **Verification run:** **Focused:** `Test Files 1 passed (1)`, `Tests 13 passed (13)`; API route `Tests 1 passed (1)`. **Architecture review:** self-review Passed.
+- **Next best step:** App-level — Shift+P → 1-bar section → key `2` → second section → Save; confirm JSON + SVG.
+
+### 2026-07-16 — Workspace pill header UX
+
+- **Goal:** Concept A — streamline workspace header: pill menu in Use mode; focused Edit chrome.
+- **Completed:** `createWorkspaceDocument` command; `WorkspacePill.tsx` (switch/rename/new/duplicate); `WorkspaceHeaderControls.tsx` Use/Edit branches; context wiring; architecture docs.
+- **Verification run:** **Focused:** `Test Files 3 passed (3)`, `Tests 30 passed (30)`. **Architecture review:** self-review Passed.
+- **Next best step:** App-level — open pill → switch/rename/new/duplicate → Edit layout → Layout preset → Done.
+
+### 2026-07-16 — Workspace layout presets + empty-pane assign
+
+- **Goal:** Template-first App Workspace edit flow — layout picker → placeholder panes → per-pane app assign.
+- **Completed:** `layoutPresets.ts` catalog; `applyLayoutPreset` / `assignTileSurface`; `WorkspaceLayoutPresetPicker`, `PlaceholderTile` chooser, `TileFrame` reassign; context + header wiring; architecture docs.
+- **Verification run:** **Focused:** `Test Files 7 passed (7)`, `Tests 52 passed (52)`. **Build:** `npm run build` passed (`✓ Compiled successfully in 3.1s`). **Architecture review:** self-review Passed.
+- **Next best step:** App-level — Edit layout → 2-col preset → assign Chart + Screener → Done; confirm Use mode and splitters.
+
+### 2026-07-17 — Broker ledger B2 RTH fill proof
+
+- **Goal:** Complete B2 — fill lands in ledger without Journal UI mounted.
+- **Completed:** Paper F MKT `orderId=10190` `status:Filled` `permId=1041862008`; snapshot showed exec `00025b44.6a5abe6c.01.01`; GET `/api/me/journal/fills` `before 46 after 47 new 1` (symbol F BOT qty1 @14.32); cron re-run `duplicates:2`; cursor `lastSeenExecIds` includes both session execs; status age `ledger sync 0m ago`.
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 13 passed (13)`. Track → **Passing**.
+- **Next best step:** None for ledger track; optional C1 Flex when env configured.
+
+### 2026-07-16 — Broker ledger B2 retry (post-2FA)
+
+- **Goal:** Complete B2 fill→ingest proof after Gateway 2FA.
+- **Completed:** Sidecar restarted; `gatewayConnected:true`; paper F MKT `orderId=78` `PreSubmitted`→Cancelled; LMT@$25 outsideRth `orderId=184` `Submitted`→Cancelled; cron ingest `added:0`; fills still 45; sidecar executions 0.
+- **Blocker:** ~22:00 ET — US equity extended hours closed; no fill available tonight.
+- **Next best step:** Superseded by RTH B2 proof 2026-07-17.
+
+### 2026-07-16 — Broker ledger functional test plan + app-level run
+
+- **Goal:** Write LLM-runnable functional plan; execute Tier A + Tier B against live Next+Postgres+sidecar; record harness evidence.
+- **Completed:** `docs/roadmaps/broker-ledger-functional-test-plan.md`; linked from roadmap README; A4 unit test on cron route; executed scenarios with quoted output in Active Work row.
+- **Verification run:** **Focused:** `Test Files 4 passed (4)`, `Tests 13 passed (13)`. **App-level PASS:** A1–A3, B1, B3–B5 (quoted in Active Work). **Blocked:** B2 no fill. **Skipped:** A4 isolated next; C1 no Flex.
+- **Next best step:** Superseded by B2 retry session above.
+
+### 2026-07-16 — Broker ledger + sync (Phases 0–4)
+
+- **Goal:** Server-side IB execution ingest into journal; cursor + Flex gap backfill; account/position snapshots; demote client fill upsert.
+- **Completed:** Roadmap + architecture docs; `broker_ingest_cursors`, `account_snapshots`, `position_snapshots`; ingest modules + cron route; snapshot-path scheduler; journal sync triggers server ingest; Data Health ledger age.
+- **Verification run:** `npm test -- --run src/lib/brokerage/ingest src/app/api/cron/brokerage-ingest src/app/components/journal/JournalSyncProvider.test.tsx` → `Test Files 4 passed (4)`, `Tests 12 passed (12)`.
+- **Next best step:** Superseded by functional test plan session above.
+
+### 2026-07-16 — Browser tab live quote loop fix
+
+- **Fixed:** `Maximum update depth` on `/workspace?surface=…` — deep-link handler now keys off `searchParams.toString()` only; empty `{}` surface state no longer treated as a mutation; `applySurfaceFocusOrOpen` / `setActiveTile` idempotent when already focused.
+- **Verification run:** `npm test -- --run src/lib/appWorkspace/commands.test.ts src/app/workspace/page.test.ts src/app/components/StockApp.test.tsx src/app/components/app-workspace/` → `Test Files 8 passed (8)`, `Tests 44 passed (44)`.
+
+### 2026-07-16 — Browser tab live quote (remove chart tabs)
+
+- **Completed:** Removed `WorkspaceTabBar`; `pruneToSingleActiveTab` on hydrate; `primaryChartTileId` DFS helper; `browserTabQuote` sets `document.title` + direction favicon from primary chart only; layout menu drops create/copy/switch layouts.
+- **Verification run:** `npm test -- --run src/lib/app/browserTabQuote.test.ts src/lib/appWorkspace/primaryChartTile.test.ts src/lib/app/workspaceTabs.test.ts src/app/components/StockApp.test.tsx src/app/components/app-workspace/` → `Test Files 9 passed (9)`, `Tests 53 passed (53)`.
+- **Architecture review:** self-review — Passed.
+
+### 2026-07-16 — App Workspace screener ingress loop fix
+
+- **Goal:** Fix runtime `Maximum update depth exceeded` when opening screener or clicking Screens in workspace.
+- **Completed:** `applySurfaceFocusOrOpen` (idempotent focus/open); `handleSurfaceIngress` / `focusOrOpenSurface` use functional `setState` without `state` deps; deep-link handler dedupes via `lastIngressRef`; screener tile wires in-tile nav (Screens/Results/Review/Keepers) without `/screener/*` route escape.
+- **Verification run:** **Focused:** `Test Files 7 passed (7)`, `Tests 31 passed (31)`.
+- **Next best step:** App-level — add screener tile → Screens → Results → Review; reload `/workspace?surface=screener&screenerView=screens`; confirm no error overlay.
+
+### 2026-07-16 — App Workspace Use/Edit + shell-as-app
+
+- **Goal:** Make `/workspace` the primary app experience with Use vs Edit layout modes; module routes redirect into one active workspace.
+- **Completed:** `layoutEditMode` + chrome gating; header Edit layout/Done + Esc; rail without Workspace peer; `deepLinks.ts` + module redirects; `lastModule` root → `/workspace`; `handleSurfaceIngress`; architecture docs.
+- **Verification run:** **Focused:** `Test Files 11 passed (11)`, `Tests 48 passed (48)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); **Architecture review:** self-review Passed.
+- **Next best step:** App-level — Use/Edit toggle, Esc, `/chart` redirect, Review→Chart in one tab.
+
+### 2026-07-16 — App Workspace Shell (Tiling Dock)
+
+- **Goal:** Single-window tiling workspace — Chart, Screener, Journal as rearrangeable tiles with local persistence and in-process Review→Chart drive.
+- **Completed:** `src/lib/appWorkspace/` layout engine; `/workspace` shell; ChartTileHost; surface tiles; drag-to-dock; named save/duplicate; `WorkspaceDriveContext`; nav + deep links.
+- **Verification run:** **Focused:** `Test Files 5 passed (5)`, `Tests 29 passed (29)`; **Build:** `npm run build` passed (`✓ Compiled successfully in 3.0s`); **Packages:** `check:packages` passed.
+- **Next best step:** App-level ultrawide walkthrough on `/workspace`.
+
+### 2026-07-16 — Screener Review app (dual-window controller)
+
+- **Goal:** `/screener` app with serial Review home; keyboard queue; BroadcastChannel drives Chart; sidebar screener retained.
+- **Completed:** Phases A–F via sub-agents — module scaffold, review session, cross-window bridge, Review UI, Screens/Results/Keepers pages, roadmap Phase 5.
+- **Verification run:** `npm test -- --run` (review + screener focused) → `Test Files 14 passed (14)`, `Tests 95 passed (95)`; `npm run build` → `✓ Compiled successfully in 3.6s`.
+- **Next best step:** App-level dual-window walkthrough on `localhost:3003`.
+
 ### 2026-07-15 — Account display aliases
 
 - **Goal:** User-configurable account display names in header settings; raw IB accountId remains execution identity.
@@ -417,6 +819,13 @@ Append one entry before handing off long-running or interrupted work. Older entr
 - **Completed:** `scaleAxisMinorTicks` + renderer draws three 5px dashes on the price-axis border between consecutive labels.
 - **Verification run:** `npm test -- --run src/lib/chart/priceScaleTransform.test.ts packages/chart-react/src/engine/renderer.test.ts` → `Test Files 2 passed (2)`, `Tests 26 passed (26)`.
 - **Next best step:** App-level confirm on `/chart`.
+
+### 2026-07-16 — Liquid tradeable screener preset
+
+- **Goal:** Screener for $40k market-order liquidity: price ≥ $5 and ≥ $2M average daily dollar volume.
+- **Completed:** `ScreenQuery.dollarVolume` local filter (`price × volume`); FMP over-fetch then trim; preset `liquid-tradeable` in starter chips; QueryBuilder “Dollar volume” field.
+- **Verification run:** `npm test -- --run` presets + compileQuery + universeDailyStore + screenerParams + deriveDefaultSort + QueryBuilder → `Test Files 6 passed (6)`, `Tests 37 passed (37)`.
+- **Next best step:** App-level — run “Liquid $5+ ($2M+/day)” in the screener panel and spot-check price×volume.
 
 ### 2026-07-15 — Long position empty-margin stretch fix
 
@@ -641,7 +1050,7 @@ Append one entry before handing off long-running or interrupted work. Older entr
 
 Canonical roadmap: [ROADMAP.md](./ROADMAP.md). Immediate priorities:
 
-1. **Corporate events / news / fundamentals / macro panels** — next Phase 2 market-data workflow expansions
+1. **Corporate events / news / fundamentals / macro panels** — next Phase 2 market-data workflow expansions; news provider economics in [News Flow Roadmap](./roadmaps/news-flow-roadmap.md)
 2. **Bar Replay persistence** — persist position in `CellConfig`
 3. ~~**Options sidebar panel**~~ — **shipped**
 

@@ -2,7 +2,7 @@
 
 Single roadmap for where Edge is going and how current work fits together.
 
-**Last updated:** 2026-07-13
+**Last updated:** 2026-07-17
 
 ## Product Direction
 
@@ -16,12 +16,13 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 |------|-------|-------|
 | Custom chart engine | Shipped foundation | Canvas 2D renderer, pan/zoom, range presets, indicators, drawings, panes, templates, context menus, TradingView-style layout templates, workspace tabs, and per-tab layout persistence are in place. |
 | App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, workspace tab bar with optional cloud sync, responsive module home hub at `/home` with charts at `/chart` plus smart `/` entry (24h last-module redirect), and `/journal` module (Dashboard / Trades / Settings). |
-| Trading journal | Shipped foundation | IBKR fill sync + Flex CSV import → grouped round-trip trades; Postgres + localStorage fallback; dashboard KPIs, calendar P&L, equity curve, tag/setup and time reports, R-multiple, filters, chart deep links with execution markers. Tier 3+ in [Journal Roadmap](./roadmaps/journal-roadmap.md). |
+| Trading journal | Shipped foundation | IBKR fill sync + Flex CSV import → grouped round-trip trades; Postgres + localStorage fallback; dashboard KPIs, calendar P&L, equity curve, tag/setup and time reports, R-multiple, filters, chart deep links with execution markers. **Server-side broker ledger ingest** (fills + account/position snapshots while Next+sidecar up) in [Broker Ledger Roadmap](./roadmaps/broker-ledger-roadmap.md). Tier 3+ in [Journal Roadmap](./roadmaps/journal-roadmap.md). |
 | Trading execution | Phase 0–5 **Passing** | Paper + live via in-app mode; registry `ib-paper`/`ib-live`; Trade sidebar + confirm; AccountPanel cancel; journal orderRef; AI place_order; Postgres `order_intents` when `DATABASE_URL` set. Dual-connection **display preference ≠ order account** shipped (`edge:marketData:connectionId`); remaining Docker both-Gateway ops in [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md). Backlog: options / brackets. [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md). |
 | Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Tradier, TWS, and IBKR adapters; age-based display freshness and trust-event logging for transport recovery; ChartDataFeed/watchlist thread TWS `connectionId` display preference. |
 | IBKR provider | Shipped in main routing | IBKR-first candles and quotes in `MarketDataService` with Yahoo fallback; probe routes remain for diagnostics. Requires daily Gateway login for live IBKR data. |
 | AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data and trading tools (`preview_order` / `place_order`) run server-side; stateful chart, watchlist, screener, risk, account, and options session tools require an app session. |
 | Semantic annotations | Phase A shipped | Drawings can carry thesis, invalidation, target, and note metadata; AI drawing tools can read/write/filter metadata. |
+| Alerts | Not started | Price/drawing/semantic alerts deferred until data provenance is reliable. Full phasing in [Alerts Roadmap](./roadmaps/alerts-roadmap.md). Blocks screener scheduled re-runs and rich-annotations Phase E. |
 | Copilot UI | Future | Tool layer exists, but the in-app copilot panel and stateful MCP session bridge are not built yet. |
 
 ## Roadmap Phases
@@ -158,7 +159,7 @@ Later market data work:
 - Expand options, corporate events, news, fundamentals, and macro usage into first-class app workflows (defined below). These build directly on the shipped ChartDataFeed overlay channels (events, referenceLines, annotations), event registry, provenance metadata, and AI tool registry so new surfaces remain consistent with chart pins, watchlist context, drawings, and future copilot usage.
   - **Options workflows**: Dedicated Options Panel (sidebar or per-cell) with symbol-driven expirations selector and full chain table (strikes, bid/ask, volume, OI, greeks, IV); selected expirations render as vertical reference lines or event pins on the main chart; one-click actions to overlay, create semantic annotation, or send chain summary to AI tools for analysis.
   - **Corporate Events & Earnings Calendar workflows**: Sidebar/drawer or bottom panel listing upcoming earnings, dividends, splits, and SEC filings (FMP + SEC sources); click loads symbol into active chart cell, centers range on event date, and prompts a semantic annotation or reference line; status badges ("earnings in 3d", "ex-div tomorrow") visible in watchlist rows and chart header; filterable by impact.
-  - **News workflows**: Symbol-scoped or watchlist-wide News Feed panel with headlines, publish times, and detail view; direct actions to create drawing annotations from a headline or trigger AI sentiment/thesis analysis tied to current chart state; high-impact items automatically surface as chart event pins via the existing overlay mappers.
+  - **News workflows**: Symbol-scoped or watchlist-wide News Feed panel with headlines, publish times, and detail view; direct actions to create drawing annotations from a headline or trigger AI sentiment/thesis analysis tied to current chart state; high-impact items automatically surface as chart event pins via the existing overlay mappers. Provider economics and cost-efficient stack (Benzinga Basic + EDGAR + gov feeds; FMP needs display license) in [News Flow Roadmap](./roadmaps/news-flow-roadmap.md).
   - **Fundamentals workflows**: Expanded SymbolDetailsPanel (tabbed: profile, financial statements with trend charts, estimates, executives, ownership, valuation metrics) beyond the current snapshot; watchlist enrichment via hover cards or columns (e.g., "EPS growth +12% YoY"); multi-symbol comparison mode (table or radar); deeper AI tool integration so `summarize_chart` and analysis tools pull live fundamentals context.
   - **Macro & Economic Calendar workflows**: Global or layout-aware Macro Calendar view (FMP Premium + FRED) showing releases with expected/actual values and impact flags; ability to add macro series as secondary panes, comparison overlays, or priced reference lines; watchlist-aware filtering ("releases affecting my holdings"); AI workflows such as "list macro events this week relevant to tech names in my watchlist".
   - **Stock Screener workflows**: Sidebar/floating screener (legacy modal wrapper) filters the US-listed universe (equities + ETFs) by technical, fundamental, and descriptive criteria using FMP as primary and Yahoo / IBKR / TWS / Massive as configured. Presets + composable query-builder; wide dock Expand; results as table or treemap heat map; row/group actions to chart and watchlists; saved screens via localStorage with optional Postgres sync. Full scope, phasing, and touch points in [Screener Roadmap](./roadmaps/screener-roadmap.md).
@@ -212,6 +213,28 @@ Later work:
 - Store snapshots and diffs of annotation sets over time.
 - Tie annotations to event pins, invalidation triggers, and eventually alerts.
 
+### Alerts Track
+
+**Outcome:** Reliable server-side notifications when price or analysis conditions are met — starting with price alerts, then drawing-bound and semantic annotation alerts.
+
+**Status:** Not started. Deferred until semantic annotations and data provenance are stable.
+
+Full phasing, industry patterns, best practices, and touch points: [Alerts Roadmap](./roadmaps/alerts-roadmap.md).
+
+| Phase | Summary |
+|-------|---------|
+| **0 — Foundation** | Price cross/touch alerts; server evaluator; stale-data guard; in-app delivery + audit log |
+| **1 — Drawing-bound** | Horizontal line, zone, trendline; context menu create; geometry follows edits |
+| **2 — Semantic & Edge-specific** | Thesis/invalidation/target alerts; trade-plan bundles; screener match notifications; AI create |
+| **3 — Delivery & power user** | Email/push/webhooks; indicator conditions; watchlist-wide; limited multi-condition |
+
+Guardrails:
+
+- Server-side evaluation only — alerts must fire when the browser is closed.
+- No trigger on stale quotes or unhealthy data sessions.
+- Default fire-once; recurring alerts are explicit opt-in.
+- Do not ship screener scheduling or Pine-style custom logic before Phase 0 is proven.
+
 ### Phase 5 - In-App Copilot
 
 **Outcome:** The user can collaborate with an AI inside the charting workspace.
@@ -234,11 +257,14 @@ Living feature tracks (phase detail in each file):
 - [Dual connection](./roadmaps/dual-connection-roadmap.md) — remaining Docker both-Gateway ops
 - [Stock screener](./roadmaps/screener-roadmap.md) — Phase 3 custom indicators, comparison, AI summarize
 - [Trading journal](./roadmaps/journal-roadmap.md) — Tier 3+ reporting
+- [Alerts](./roadmaps/alerts-roadmap.md) — price/drawing/semantic alerts (not started; blocks screener scheduled re-runs)
 
 Broader product backlog (not feature-track owned):
 
 - WebGL candle proof — backend-pluggable main-pane candles only; keep drawings, labels, menus, and interaction chrome on Canvas/DOM
 - Advanced market-context overlays — earnings, dividends, filings, news, options expirations, semantic AI annotations
+- TrendSpider competitive review — inventory started; prioritize which capabilities to Adopt/Adapt/Defer/Skip → [TrendSpider Competitive Roadmap](./roadmaps/trendspider-competitive-roadmap.md)
+- Structural refactor — Tier A dead code done; Tier B sync/series consolidation next; ChartCell/canvas/drawing splits later → [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md)
 
 ## Explicit Deferrals
 
@@ -247,7 +273,7 @@ These are intentionally not near-term roadmap items:
 - Pine Script or community indicator compatibility.
 - Full TradingView feature parity.
 - Chart trade ticket UI and in-app paper/live — **shipped** (Phases 4–5). Data≠order account preference — **shipped**; remaining dual paper+live Gateway ops — [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md).
-- Price or drawing alerts before semantic annotations and data provenance are reliable.
+- Price or drawing alerts before semantic annotations and data provenance are reliable — see [Alerts Roadmap](./roadmaps/alerts-roadmap.md) for full phasing when ready.
 - Non-time charts such as Renko, Point and Figure, or Kagi.
 - Volume footprint, TPO, and session profile.
 - Public package release work for the internal chart/AI packages.
@@ -265,4 +291,6 @@ These are intentionally not near-term roadmap items:
 - [Journal Roadmap](./roadmaps/journal-roadmap.md) - trading journal reporting tiers and explicit exclusions.
 - [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md) - IB order place/manage phases, domain model, verification gates.
 - [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md) - paper+live Gateways and market-data vs order-account split.
+- [Alerts Roadmap](./roadmaps/alerts-roadmap.md) - industry patterns, best practices, and phased alert platform.
+- [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md) - sync/series consolidation and chart/app coordinator decomposition.
 - [Chart Performance Baseline](./perf/chart-baseline-latest.json) - latest harness output from `npm run perf:chart`.
