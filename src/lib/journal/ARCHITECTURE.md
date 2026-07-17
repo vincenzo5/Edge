@@ -5,17 +5,32 @@ IBKR-backed trading journal: durable fills, grouped round-trip trades, Flex CSV 
 ## Data flow
 
 ```
-IB Gateway → tws-sidecar executions
+IB Gateway → tws-sidecar executions / summary / positions
          ↘
-AccountProvider / /api/brokerage/trades → fillSync → /api/me/journal/fills
-Flex CSV upload → parseFlexCsv → import route
+runBrokerageIngest (server) ← /api/brokerage/snapshot trigger + /api/cron/brokerage-ingest
          ↓
-journal_fills (Postgres) + edge.journal.v1 (localStorage fallback)
+journal_fills + broker_ingest_cursors + account/position snapshots (Postgres)
          ↓
 tradeGrouping → journal_trades + journal_trade_fills
          ↓
 /journal UI (stats, table, notes, chart deep-link)
+
+Legacy / fallback paths:
+- Flex CSV or Flex API → import route → same journal tables
+- edge.journal.v1 localStorage when Postgres unavailable
+- JournalSyncProvider syncNow → triggers server ingest + reload (no client fill upsert)
 ```
+
+## Ledger ingest (server)
+
+Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md](../../../docs/roadmaps/broker-ledger-roadmap.md).
+
+| Module | Role |
+|--------|------|
+| `src/lib/brokerage/ingest/runBrokerageIngest.ts` | Pull sidecar snapshot, upsert fills, update cursor, gap Flex backfill |
+| `src/lib/brokerage/ingest/ingestExecutions.ts` | Map executions → fill inputs; advance cursor state |
+| `src/lib/persistence/repositories/brokerIngestRepository.ts` | Postgres cursor + ingest status |
+| `/api/cron/brokerage-ingest` | Cron or manual ingest (session cookie or `EDGE_CRON_SECRET`) |
 
 ## Modules
 

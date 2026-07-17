@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ModuleToWorkspaceRedirect from "@/app/components/app-workspace/ModuleToWorkspaceRedirect";
 
 export default function JournalPage() {
-  redirect("/journal/dashboard");
+  return <ModuleToWorkspaceRedirect surface="journal" journalView="dashboard" />;
 }

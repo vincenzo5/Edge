@@ -1,28 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import ChartPage from "../chart/page";
+import { buildWorkspaceDeepLink } from "@/lib/appWorkspace/deepLinks";
 
-vi.mock("../components/StockApp", () => ({
-  default: () => <div data-testid="stock-app" />,
-}));
-
-vi.mock("../components/home/ModuleRouteTracker", () => ({
-  default: ({ module }: { module: string }) => (
-    <div data-testid="module-route-tracker" data-module={module} />
-  ),
-}));
+const replace = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  usePathname: vi.fn(() => "/chart"),
-  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ replace }),
 }));
 
 describe("ChartPage", () => {
-  it("renders StockApp with persistent app nav and records chart module", () => {
+  it("redirects to workspace chart deep link", async () => {
+    replace.mockReset();
     render(<ChartPage />);
-    expect(screen.getByTestId("chart-page")).toBeInTheDocument();
-    expect(screen.getByTestId("home-app-nav")).toBeInTheDocument();
-    expect(screen.getByTestId("stock-app")).toBeInTheDocument();
-    expect(screen.getByTestId("module-route-tracker")).toHaveAttribute("data-module", "chart");
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith(buildWorkspaceDeepLink({ surface: "chart" }));
+    });
   });
 });

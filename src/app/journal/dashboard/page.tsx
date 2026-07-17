@@ -1,5 +1,5 @@
-import JournalDashboardView from "@/app/components/journal/JournalDashboardView";
+import ModuleToWorkspaceRedirect from "@/app/components/app-workspace/ModuleToWorkspaceRedirect";
 
 export default function JournalDashboardPage() {
-  return <JournalDashboardView />;
+  return <ModuleToWorkspaceRedirect surface="journal" journalView="dashboard" />;
 }

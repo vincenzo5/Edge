@@ -37,8 +37,16 @@ vi.mock("./ModuleRouteTracker", () => ({
   default: () => null,
 }));
 
-vi.mock("./HomeAppNav", () => ({
-  default: () => <div data-testid="home-app-nav" />,
+vi.mock("./AppTopHeader", () => ({
+  default: () => <div data-testid="app-top-header" />,
+}));
+
+vi.mock("../AccountProvider", () => ({
+  AccountProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("../AccountAliasesProvider", () => ({
+  AccountAliasesProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("./HomeResearchPanel", () => ({
@@ -81,6 +89,5 @@ describe("HomeShell responsive modes", () => {
     render(<HomeShell />);
     expect(screen.getByTestId("home-shell")).toHaveAttribute("data-home-layout-mode", "hub");
     expect(screen.getByTestId("home-hub-cards")).toBeInTheDocument();
-    expect(screen.getByTestId("home-app-nav")).toBeInTheDocument();
   });
 });

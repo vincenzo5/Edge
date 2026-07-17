@@ -81,6 +81,17 @@ export function getActiveLayout(state: WorkspaceTabsState): ChartLayout {
   return getActiveTab(state).layout;
 }
 
+/** Keep only the active tab — one layout per chart tile instance. */
+export function pruneToSingleActiveTab(state: WorkspaceTabsState): WorkspaceTabsState {
+  if (state.tabs.length <= 1) return state;
+  const active = getActiveTab(state);
+  return {
+    version: 1,
+    activeTabId: active.id,
+    tabs: [active],
+  };
+}
+
 export function getTabPrimarySymbol(tab: WorkspaceTab): string {
   const index = tab.layout.activeCellIndex ?? 0;
   const count = cellCountFor(tab.layout.layoutId);

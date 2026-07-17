@@ -10,6 +10,7 @@ import {
   getTabPrimarySymbol,
   MAX_WORKSPACE_TABS,
   mergeRemoteWorkspaces,
+  pruneToSingleActiveTab,
   renameTab,
   resetWorkspaceTabIdCounterForTests,
   switchTab,
@@ -29,6 +30,15 @@ describe("workspaceTabs", () => {
     expect(state.activeTabId).toBe(state.tabs[0]!.id);
     expect(getActiveTab(state).title).toBe("Default");
     expect(getActiveLayout(state)).toEqual(DEFAULT_LAYOUT);
+  });
+
+  it("prunes to the active tab only", () => {
+    let state = createDefaultWorkspaceTabs();
+    state = createTab(state, { title: "Second", id: "tab-2" });
+    const pruned = pruneToSingleActiveTab(state);
+    expect(pruned.tabs).toHaveLength(1);
+    expect(pruned.tabs[0]!.title).toBe("Second");
+    expect(pruned.activeTabId).toBe("tab-2");
   });
 
   it("switches active tab", () => {

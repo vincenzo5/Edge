@@ -75,11 +75,7 @@ export type ChartHeaderSymbolNav = {
 };
 
 export type ChartHeaderWorkspaceActions = {
-  workspaceTabs: Array<{ id: string; title: string; selected?: boolean }>;
-  onCreateLayout: () => void;
-  onCopyLayout: () => void;
-  onRenameLayout: () => void;
-  onSelectLayout: (tabId: string) => void;
+  onRenameLayout?: () => void;
 };
 
 type Props = {
@@ -334,11 +330,7 @@ export default function ChartHeaderBar({
             linkDrawings={linkDrawings}
             onLayoutChange={layoutActions.onLayoutChange}
             onLayoutSyncChange={layoutActions.onLayoutSyncChange}
-            workspaceTabs={workspaceActions?.workspaceTabs}
-            onCreateLayout={workspaceActions?.onCreateLayout}
-            onCopyLayout={workspaceActions?.onCopyLayout}
             onRenameLayout={workspaceActions?.onRenameLayout}
-            onSelectLayout={workspaceActions?.onSelectLayout}
           />
 
           {showInline(density, 'secondary') ? (
@@ -364,6 +356,15 @@ export default function ChartHeaderBar({
               </ChartHeaderButton>
               <ChartFullscreenButton theme={theme} />
               <ChartSnapshotMenu theme={theme} />
+              <ChartHeaderButton
+                theme={theme}
+                label="Capture"
+                active={activeChart?.drawingToolbarState.patternCaptureActive}
+                title={`Pattern capture (${getShortcutLabel("patternCaptureToggle")})`}
+                onClick={() => activeChart?.uiCommands.togglePatternCapture()}
+                disabled={!activeChart}
+                data-testid="pattern-capture-trigger"
+              />
             </>
           ) : null}
 

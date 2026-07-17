@@ -19,7 +19,7 @@ describe("RootEntryRedirect", () => {
     window.localStorage.clear();
   });
 
-  it("redirects to /chart when recent chart module is stored", async () => {
+  it("redirects to /workspace when recent chart module is stored", async () => {
     window.localStorage.setItem(
       LAST_MODULE_STORAGE_KEY,
       serializeLastModuleRecord(createLastModuleRecord("chart")),
@@ -28,7 +28,7 @@ describe("RootEntryRedirect", () => {
     render(<RootEntryRedirect />);
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/chart");
+      expect(replace).toHaveBeenCalledWith("/workspace");
     });
   });
 

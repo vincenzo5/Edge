@@ -1,4 +1,4 @@
-export type AppModule = "home" | "chart" | "journal" | "research";
+export type AppModule = "home" | "chart" | "journal" | "research" | "screener" | "workspace";
 
 export const LAST_MODULE_STORAGE_KEY = "tv-ai:last-module:v1";
 export const LAST_MODULE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -8,7 +8,7 @@ export type LastModuleRecord = {
   updatedAt: string;
 };
 
-export type RootRedirectTarget = "/home" | "/chart" | "/journal";
+export type RootRedirectTarget = "/home" | "/workspace";
 
 export function readLastModuleRecord(raw: string | null): LastModuleRecord | null {
   if (!raw) return null;
@@ -18,7 +18,9 @@ export function readLastModuleRecord(raw: string | null): LastModuleRecord | nul
       parsed.module !== "home" &&
       parsed.module !== "chart" &&
       parsed.module !== "journal" &&
-      parsed.module !== "research"
+      parsed.module !== "research" &&
+      parsed.module !== "screener" &&
+      parsed.module !== "workspace"
     ) {
       return null;
     }
@@ -46,8 +48,14 @@ export function resolveRootRedirectTarget(
   if (!record || !isLastModuleRecent(record, nowMs)) {
     return "/home";
   }
-  if (record.module === "chart") return "/chart";
-  if (record.module === "journal") return "/journal";
+  if (
+    record.module === "chart" ||
+    record.module === "journal" ||
+    record.module === "screener" ||
+    record.module === "workspace"
+  ) {
+    return "/workspace";
+  }
   return "/home";
 }
 

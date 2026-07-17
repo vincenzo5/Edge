@@ -11,13 +11,6 @@ import {
   type ReactNode,
 } from "react";
 import { useAccountOptional } from "@/app/components/AccountProvider";
-import {
-  mapExecutionsToJournalFills,
-  syncExecutionsIntoFills,
-} from "@/lib/journal/fillSync";
-import { readLocalJournalSnapshot } from "@/lib/journal/localJournalStore";
-import { upsertJournalFillsRemote } from "@/lib/persistence/client/journalClient";
-import type { AccountExecution } from "@/lib/marketData/contracts/brokerage";
 
 type JournalSyncContextValue = {
   lastSyncedAt: number | null;
@@ -27,54 +20,27 @@ type JournalSyncContextValue = {
 
 const JournalSyncContext = createContext<JournalSyncContextValue | null>(null);
 
-function executionFingerprint(executions: AccountExecution[]): string {
-  const ids = executions
-    .map((execution) => execution.execId?.trim())
-    .filter((execId): execId is string => Boolean(execId))
-    .sort();
-  return ids.join("\0");
-}
-
+/** Server-side broker ledger ingest is primary; client only triggers refresh. */
 export function JournalSyncProvider({ children }: { children: ReactNode }) {
   const account = useAccountOptional();
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const syncingRef = useRef(false);
-  const lastFingerprintRef = useRef("");
-  const accountExecutionsRef = useRef<AccountExecution[]>([]);
-
-  accountExecutionsRef.current = account?.executions ?? [];
+  const lastTriggerRef = useRef(0);
 
   const syncNow = useCallback(async () => {
     if (syncingRef.current) return;
     syncingRef.current = true;
     setSyncing(true);
     try {
-      let executions = accountExecutionsRef.current;
-      if (executions.length === 0) {
-        const res = await fetch("/api/brokerage/trades", { cache: "no-store" });
-        if (res.ok) {
-          const body = (await res.json()) as { executions?: AccountExecution[] };
-          executions = body.executions ?? [];
-        }
+      const res = await fetch("/api/cron/brokerage-ingest", {
+        method: "POST",
+        cache: "no-store",
+      });
+      if (res.ok) {
+        lastTriggerRef.current = Date.now();
+        setLastSyncedAt(Date.now());
       }
-      if (executions.length === 0) {
-        executions = accountExecutionsRef.current;
-      }
-      if (executions.length === 0) return;
-
-      const fingerprint = executionFingerprint(executions);
-      if (!fingerprint || fingerprint === lastFingerprintRef.current) return;
-
-      const snapshot = readLocalJournalSnapshot();
-      const { added } = syncExecutionsIntoFills(snapshot.fills, executions, "live");
-      lastFingerprintRef.current = fingerprint;
-      if (added === 0) return;
-
-      const fills = mapExecutionsToJournalFills(executions, "live");
-      if (fills.length === 0) return;
-      await upsertJournalFillsRemote(fills, true);
-      setLastSyncedAt(Date.now());
     } finally {
       syncingRef.current = false;
       setSyncing(false);
@@ -89,12 +55,11 @@ export function JournalSyncProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(timer);
   }, [syncNow]);
 
-  const executionsFingerprint = executionFingerprint(account?.executions ?? []);
+  const executionCount = account?.executions?.length ?? 0;
   useEffect(() => {
-    if (!executionsFingerprint) return;
-    if (executionsFingerprint === lastFingerprintRef.current) return;
+    if (executionCount === 0) return;
     void syncNow();
-  }, [executionsFingerprint, syncNow]);
+  }, [executionCount, syncNow]);
 
   const value = useMemo(
     () => ({ lastSyncedAt, syncing, syncNow }),

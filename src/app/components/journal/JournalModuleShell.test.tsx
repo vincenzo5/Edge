@@ -4,6 +4,7 @@ import JournalModuleShell from "./JournalModuleShell";
 
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/journal/dashboard"),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }));
 
 vi.mock("@/app/components/journal/JournalSyncProvider", () => ({

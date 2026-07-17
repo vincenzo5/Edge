@@ -19,6 +19,13 @@ const MODULES = [
     testId: "home-hub-journal",
   },
   {
+    module: "screener" as const,
+    href: "/screener",
+    title: "Screener",
+    description: "Run screens and review results in a dedicated workflow.",
+    testId: "home-hub-screener",
+  },
+  {
     module: "research" as const,
     href: "/research",
     title: "Research",

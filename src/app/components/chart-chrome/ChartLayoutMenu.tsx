@@ -10,12 +10,10 @@ import ChartMenuSectionHeader from './ChartMenuSectionHeader';
 import LayoutTemplateIcon from './LayoutTemplateIcon';
 import {
   ChevronDownIcon,
-  CopyIcon,
   DownloadIcon,
   FolderIcon,
   LayoutSetupIcon,
   PencilIcon,
-  PlusIcon,
 } from './ChartHeaderIcons';
 
 type Props = {
@@ -28,11 +26,7 @@ type Props = {
   linkDrawings: boolean;
   onLayoutChange: (id: LayoutTemplateId) => void;
   onLayoutSyncChange: (patch: Partial<LayoutSyncPrefs>) => void;
-  workspaceTabs?: Array<{ id: string; title: string; selected?: boolean }>;
-  onCreateLayout?: () => void;
-  onCopyLayout?: () => void;
   onRenameLayout?: () => void;
-  onSelectLayout?: (tabId: string) => void;
 };
 
 function ToggleSwitch({
@@ -74,11 +68,7 @@ export default function ChartLayoutMenu({
   linkDrawings,
   onLayoutChange,
   onLayoutSyncChange,
-  workspaceTabs,
-  onCreateLayout,
-  onCopyLayout,
   onRenameLayout,
-  onSelectLayout,
 }: Props) {
   const setupRef = useRef<HTMLButtonElement>(null);
   const manageRef = useRef<HTMLButtonElement>(null);
@@ -216,17 +206,6 @@ export default function ChartLayoutMenu({
         </div>
         <ChartMenuItemRow
           theme={theme}
-          label="Make a copy..."
-          icon={<CopyIcon size={14} />}
-          disabled={!onCopyLayout}
-          disabledReason={onCopyLayout ? undefined : 'Coming soon'}
-          onClick={() => {
-            onCopyLayout?.();
-            setManageOpen(false);
-          }}
-        />
-        <ChartMenuItemRow
-          theme={theme}
           label="Rename..."
           icon={<PencilIcon size={14} />}
           disabled={!onRenameLayout}
@@ -237,35 +216,6 @@ export default function ChartLayoutMenu({
           }}
         />
         <ChartMenuItemRow theme={theme} label="Download chart data..." icon={<DownloadIcon size={14} />} disabled disabledReason="Coming soon" />
-        <div className="my-1 border-t border-[var(--edge-border-strong)]" />
-        <ChartMenuItemRow
-          theme={theme}
-          label="Create new layout..."
-          icon={<PlusIcon size={14} />}
-          disabled={!onCreateLayout}
-          disabledReason={onCreateLayout ? undefined : 'Coming soon'}
-          onClick={() => {
-            onCreateLayout?.();
-            setManageOpen(false);
-          }}
-        />
-        <ChartMenuSectionHeader theme={theme} label="RECENTLY USED" collapsed={false} />
-        {(workspaceTabs ?? [{ id: 'active', title: layoutName, selected: true }]).map((tab) => (
-          <ChartMenuItemRow
-            key={tab.id}
-            theme={theme}
-            label={tab.title}
-            selected={tab.selected}
-            onClick={
-              onSelectLayout && !tab.selected
-                ? () => {
-                    onSelectLayout(tab.id);
-                    setManageOpen(false);
-                  }
-                : undefined
-            }
-          />
-        ))}
         <div className="my-1 border-t border-[var(--edge-border-strong)]" />
         <ChartMenuItemRow theme={theme} label="Open layout..." icon={<FolderIcon size={14} />} disabled disabledReason="Coming soon" />
       </ChartAnchoredPopover>

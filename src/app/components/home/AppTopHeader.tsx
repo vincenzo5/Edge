@@ -26,7 +26,11 @@ import {
 } from "@/lib/trading/connectionRegistry";
 import AccountPickerMenu from "./AccountPickerMenu";
 
-export default function AppTopHeader() {
+type Props = {
+  centerSlot?: React.ReactNode;
+};
+
+export default function AppTopHeader({ centerSlot }: Props) {
   const router = useRouter();
   const account = useAccount();
   const { aliases, setAlias } = useAccountAliases();
@@ -163,6 +167,11 @@ export default function AppTopHeader() {
           className="block h-[42px] w-auto max-h-full"
         />
       </Link>
+      {centerSlot ? (
+        <div className="flex min-w-0 flex-1 items-center justify-center px-4">{centerSlot}</div>
+      ) : (
+        <div className="flex-1" />
+      )}
       <div className="flex items-center gap-2">
         {error ? (
           <div className="flex items-center gap-2" role="alert">

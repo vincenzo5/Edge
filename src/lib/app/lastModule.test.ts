@@ -40,14 +40,24 @@ describe("lastModule", () => {
   });
 
   describe("shouldRedirectFromRoot", () => {
-    it("redirects to chart when recent chart module", () => {
+    it("redirects to workspace when recent chart module", () => {
       const raw = JSON.stringify(createLastModuleRecord("chart", nowMs - 1000));
-      expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/chart");
+      expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/workspace");
     });
 
-    it("redirects to journal when recent journal module", () => {
+    it("redirects to workspace when recent journal module", () => {
       const raw = JSON.stringify(createLastModuleRecord("journal", nowMs - 1000));
-      expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/journal");
+      expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/workspace");
+    });
+
+    it("redirects to workspace when recent screener module", () => {
+      const raw = JSON.stringify(createLastModuleRecord("screener", nowMs - 1000));
+      expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/workspace");
+    });
+
+    it("redirects to workspace when recent workspace module", () => {
+      const raw = JSON.stringify(createLastModuleRecord("workspace", nowMs - 1000));
+      expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/workspace");
     });
 
     it("redirects to home when module is home", () => {

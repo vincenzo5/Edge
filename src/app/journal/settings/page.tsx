@@ -1,5 +1,5 @@
-import JournalSettingsView from "@/app/components/journal/JournalSettingsView";
+import ModuleToWorkspaceRedirect from "@/app/components/app-workspace/ModuleToWorkspaceRedirect";
 
 export default function JournalSettingsPage() {
-  return <JournalSettingsView />;
+  return <ModuleToWorkspaceRedirect surface="journal" journalView="settings" />;
 }

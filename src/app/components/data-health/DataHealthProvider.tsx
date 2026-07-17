@@ -71,7 +71,34 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
   const [recoverMessage, setRecoverMessage] = useState<string | null>(null);
   const [serverHealthLoading, setServerHealthLoading] = useState(false);
   const [healthEvents, setHealthEvents] = useState<HealthEvent[]>(() => getHealthEvents());
+  const [brokerIngestDetail, setBrokerIngestDetail] = useState<string | null>(null);
   const recoveryRunRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function pollBrokerIngestStatus() {
+      try {
+        const res = await fetch("/api/me/brokerage-ingest/status", { cache: "no-store" });
+        if (!res.ok) return;
+        const body = (await res.json()) as {
+          cursors?: Array<{ lastIngestAt?: string | null; lastIngestError?: string | null }>;
+        };
+        const latest = body.cursors?.find((row) => row.lastIngestAt)?.lastIngestAt;
+        if (!latest || cancelled) return;
+        const ageMs = Date.now() - Date.parse(latest);
+        const ageMin = Math.max(0, Math.round(ageMs / 60_000));
+        setBrokerIngestDetail(`ledger sync ${ageMin}m ago`);
+      } catch {
+        // optional diagnostics
+      }
+    }
+    void pollBrokerIngestStatus();
+    const timer = window.setInterval(pollBrokerIngestStatus, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const refreshServerHealth = useCallback(
     async (options?: { recovery?: boolean }): Promise<ServerHealthPayload | null> => {
@@ -138,17 +165,30 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     });
   }, [refreshServerHealth, reloadFeedsAfterRecovery]);
 
+  // Adaptive poll via setTimeout chain — do NOT depend on `serverHealth` or every
+  // successful fetch re-runs this effect and storms /api/market-data/health.
   useEffect(() => {
-    void refreshServerHealth();
-    const twsProvider = serverHealth?.providers.find((provider) => provider.id === "tws");
-    const pollMs = shouldShowTwsRecovery(twsProvider)
-      ? HEALTH_POLL_DEGRADED_MS
-      : HEALTH_POLL_HEALTHY_MS;
-    const timer = window.setInterval(() => {
-      void refreshServerHealth();
-    }, pollMs);
-    return () => window.clearInterval(timer);
-  }, [refreshServerHealth, serverHealth]);
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const poll = async () => {
+      const health = await refreshServerHealth();
+      if (cancelled) return;
+      const twsProvider = health?.providers.find((provider) => provider.id === "tws");
+      const pollMs = shouldShowTwsRecovery(twsProvider)
+        ? HEALTH_POLL_DEGRADED_MS
+        : HEALTH_POLL_HEALTHY_MS;
+      timeoutId = window.setTimeout(() => {
+        void poll();
+      }, pollMs);
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timeoutId != null) window.clearTimeout(timeoutId);
+    };
+  }, [refreshServerHealth]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -228,9 +268,9 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
         accountDisabled: account?.disabled,
         accountConnectionState: account?.connectionState,
         accountDetail: account?.activeTradingAccount
-          ? `${accountAliases?.displayNameFor(account.activeTradingAccount) ?? account.status?.accountId ?? account.activeTradingAccount.accountId} · ${account.positions.length} positions`
+          ? `${accountAliases?.displayNameFor(account.activeTradingAccount) ?? account.status?.accountId ?? account.activeTradingAccount.accountId} · ${account.positions.length} positions${brokerIngestDetail ? ` · ${brokerIngestDetail}` : ""}`
           : account?.status?.accountId
-            ? `${account.status.accountId} · ${account.positions.length} positions`
+            ? `${account.status.accountId} · ${account.positions.length} positions${brokerIngestDetail ? ` · ${brokerIngestDetail}` : ""}`
             : account?.connectionState,
         accountError: account?.error,
         dataConnectionPreference,
@@ -258,6 +298,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     account?.positions.length,
     account?.status?.accountId,
     accountAliases,
+    brokerIngestDetail,
     dataConnectionPreference,
     serverHealth,
     healthEvents,

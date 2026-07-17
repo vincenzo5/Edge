@@ -1,23 +1,11 @@
 import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const upsertJournalFillsRemote = vi.fn(async () => ({
-  fills: [],
-  imported: 0,
-  duplicates: 0,
-  tradesRebuilt: 0,
-}));
-
-vi.mock("@/lib/persistence/client/journalClient", () => ({
-  upsertJournalFillsRemote: (...args: unknown[]) => upsertJournalFillsRemote(...args),
-}));
-
 vi.mock("@/app/components/AccountProvider", () => ({
   useAccountOptional: vi.fn(() => null),
 }));
 
 import { useAccountOptional } from "@/app/components/AccountProvider";
-import { clearLocalJournalSnapshot } from "@/lib/journal/localJournalStore";
 import { JournalSyncProvider, useJournalSync } from "./JournalSyncProvider";
 
 function SyncProbe() {
@@ -33,29 +21,18 @@ function SyncProbe() {
 
 describe("JournalSyncProvider", () => {
   beforeEach(() => {
-    clearLocalJournalSnapshot();
-    upsertJournalFillsRemote.mockClear();
     vi.mocked(useAccountOptional).mockReturnValue(null);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
         Response.json({
-          executions: [
-            {
-              execId: "exec-1",
-              time: "20260707;133000",
-              side: "BOT",
-              shares: 10,
-              price: 100,
-              contract: { symbol: "AAPL", secType: "STK" },
-            },
-          ],
+          results: [{ connectionId: "ib-paper", added: 0, duplicates: 0 }],
         }),
       ),
     );
   });
 
-  it("syncs live executions once on mount without repeated brokerage fetches", async () => {
+  it("triggers server ingest on mount", async () => {
     render(
       <JournalSyncProvider>
         <SyncProbe />
@@ -63,29 +40,16 @@ describe("JournalSyncProvider", () => {
     );
 
     await waitFor(() => {
-      expect(upsertJournalFillsRemote).toHaveBeenCalledTimes(1);
+      expect(fetch).toHaveBeenCalledWith("/api/cron/brokerage-ingest", {
+        method: "POST",
+        cache: "no-store",
+      });
     });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith("/api/brokerage/trades", { cache: "no-store" });
   });
 
-  it("skips upsert when account executions fingerprint is unchanged", async () => {
+  it("re-triggers server ingest when execution count changes", async () => {
     vi.mocked(useAccountOptional).mockReturnValue({
-      executions: [
-        {
-          execId: "exec-1",
-          time: "20260707;133000",
-          side: "BOT",
-          shares: 10,
-          price: 100,
-          contract: { symbol: "AAPL", secType: "STK" },
-        },
-      ],
+      executions: [{ execId: "exec-1", shares: 1, price: 1 }],
     } as ReturnType<typeof useAccountOptional>);
 
     const { rerender } = render(
@@ -95,8 +59,15 @@ describe("JournalSyncProvider", () => {
     );
 
     await waitFor(() => {
-      expect(upsertJournalFillsRemote).toHaveBeenCalledTimes(1);
+      expect(fetch).toHaveBeenCalled();
     });
+
+    vi.mocked(useAccountOptional).mockReturnValue({
+      executions: [
+        { execId: "exec-1", shares: 1, price: 1 },
+        { execId: "exec-2", shares: 1, price: 1 },
+      ],
+    } as ReturnType<typeof useAccountOptional>);
 
     rerender(
       <JournalSyncProvider>
@@ -104,11 +75,8 @@ describe("JournalSyncProvider", () => {
       </JournalSyncProvider>,
     );
 
-    await act(async () => {
-      await Promise.resolve();
+    await waitFor(() => {
+      expect((fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2);
     });
-
-    expect(fetch).not.toHaveBeenCalled();
-    expect(upsertJournalFillsRemote).toHaveBeenCalledTimes(1);
   });
 });
