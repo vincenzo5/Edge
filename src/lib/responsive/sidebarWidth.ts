@@ -13,6 +13,7 @@ const SIDEBAR_PANEL_IDS: SidebarPanelId[] = [
   "account",
   "settings",
   "trade",
+  "patterns",
 ];
 
 const LEGACY_PANEL_WIDTH_KEYS: LegacySidebarPanelId[] = [

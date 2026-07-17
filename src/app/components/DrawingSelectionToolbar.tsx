@@ -86,16 +86,11 @@ export default function DrawingSelectionToolbar({
   const styles = resolveDrawingStyles(drawing, theme, true);
   const caps = drawingSettingsCapabilities(drawing.name);
   const dashPreset = dashPresetFromArray(styles.lineDash);
-  const isDark = theme === "dark";
   const metadata = drawing.metadata;
   const isAiProposal =
     metadata?.source === "ai" && metadata?.status === "proposed";
   const showRationale = Boolean(metadata?.kind);
-  const selectClass = `h-7 max-w-[7.5rem] rounded border px-1 text-xs ${
-    isDark
-      ? "border-[#434651] bg-[#131722] text-[#d1d4dc]"
-      : "border-gray-300 bg-white text-gray-800"
-  }`;
+  const selectClass = `h-7 max-w-[7.5rem] rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1 text-xs text-[var(--edge-text-primary)]`;
 
   useEffect(() => {
     const el = toolbarRef.current;
@@ -156,22 +151,15 @@ export default function DrawingSelectionToolbar({
     onStyleChange({ lineDash: LINE_DASH_PRESETS[preset] });
   };
 
-  const btnClass = `inline-flex h-7 min-w-7 items-center justify-center rounded px-1.5 transition-colors ${
-    isDark
-      ? "text-[#d1d4dc] hover:bg-[#363a45]"
-      : "text-gray-700 hover:bg-gray-200"
-  }`;
+  const btnClass =
+    "inline-flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-[var(--edge-text-primary)] transition-colors hover:bg-[var(--edge-surface-hover)]";
 
   return (
     <div
       ref={toolbarRef}
       role="toolbar"
       aria-label="Drawing tools"
-      className={`pointer-events-auto absolute z-30 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-md border px-1 py-0.5 shadow-lg ${
-        isDark
-          ? "border-[#363a45] bg-[#2a2e39] text-[#d1d4dc]"
-          : "border-gray-300 bg-white text-gray-800"
-      }`}
+      className="pointer-events-auto absolute z-30 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-1 py-0.5 text-[var(--edge-text-primary)] shadow-lg"
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
@@ -188,7 +176,7 @@ export default function DrawingSelectionToolbar({
         <GripIcon />
       </button>
 
-      <div className={`mx-0.5 h-5 w-px ${isDark ? "bg-[#434651]" : "bg-gray-300"}`} />
+      <div className="mx-0.5 h-5 w-px bg-[var(--edge-border-strong)]" />
 
       <select
         aria-label="Annotation kind"
@@ -227,11 +215,7 @@ export default function DrawingSelectionToolbar({
               rationale: e.target.value || undefined,
             })
           }
-          className={`h-7 min-w-[8rem] max-w-[12rem] flex-1 rounded border px-2 text-xs ${
-            isDark
-              ? "border-[#434651] bg-[#131722] text-[#d1d4dc] placeholder:text-[#5A5E73]"
-              : "border-gray-300 bg-white text-gray-800"
-          }`}
+          className={`h-7 min-w-[8rem] max-w-[12rem] flex-1 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 text-xs text-[var(--edge-text-primary)] placeholder:text-[var(--edge-text-muted)]`}
         />
       )}
 
@@ -279,11 +263,7 @@ export default function DrawingSelectionToolbar({
             title="Line width"
             value={styles.lineWidth ?? 1.5}
             onChange={(e) => onStyleChange({ lineWidth: Number(e.target.value) })}
-            className={`h-7 rounded border px-1 text-xs ${
-              isDark
-                ? "border-[#434651] bg-[#131722] text-[#d1d4dc]"
-                : "border-gray-300 bg-white text-gray-800"
-            }`}
+            className={`h-7 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1 text-xs text-[var(--edge-text-primary)]`}
           >
             {LINE_WIDTHS.map((w) => (
               <option key={w} value={w}>
@@ -300,11 +280,7 @@ export default function DrawingSelectionToolbar({
           title="Line style"
           value={dashPreset}
           onChange={(e) => setDash(e.target.value as LineDashPreset)}
-          className={`h-7 rounded border px-1 text-xs ${
-            isDark
-              ? "border-[#434651] bg-[#131722] text-[#d1d4dc]"
-              : "border-gray-300 bg-white text-gray-800"
-          }`}
+          className={`h-7 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1 text-xs text-[var(--edge-text-primary)]`}
         >
           <option value="solid">Solid</option>
           <option value="dashed">Dashed</option>
@@ -312,7 +288,7 @@ export default function DrawingSelectionToolbar({
         </select>
       )}
 
-      <div className={`mx-0.5 h-5 w-px ${isDark ? "bg-[#434651]" : "bg-gray-300"}`} />
+      <div className="mx-0.5 h-5 w-px bg-[var(--edge-border-strong)]" />
 
       <button type="button" className={btnClass} title="Settings" aria-label="Settings" onClick={onOpenSettings}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

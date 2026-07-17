@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import EdgeButton from "./design-system/EdgeButton";
 
 type Props = {
   total: number;
@@ -22,12 +23,10 @@ export default function BarReplay({ total, onVisibleChange, disabled }: Props) {
   const [speedIdx, setSpeedIdx] = useState(1);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Clamp index when total changes (new symbol/range).
   useEffect(() => {
     setIndex((prev) => Math.min(prev, total));
   }, [total]);
 
-  // Push visible count up.
   useEffect(() => {
     if (active) {
       onVisibleChange(Math.max(1, index));
@@ -36,7 +35,6 @@ export default function BarReplay({ total, onVisibleChange, disabled }: Props) {
     }
   }, [active, index, onVisibleChange]);
 
-  // Play loop.
   useEffect(() => {
     if (!active || !playing) {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -68,43 +66,42 @@ export default function BarReplay({ total, onVisibleChange, disabled }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-2 border-t border-gray-200 px-2 py-1 text-sm dark:border-gray-800">
-      <button
-        type="button"
+    <div
+      className="flex items-center gap-2 border-t border-[var(--edge-border)] px-2 py-1 text-sm"
+      data-testid="bar-replay"
+    >
+      <EdgeButton
+        variant={active ? "primary" : "secondary"}
         onClick={toggleActive}
-        className={`rounded px-2 py-0.5 text-xs ${
-          active
-            ? "bg-blue-600 text-white"
-            : "bg-gray-100 dark:bg-gray-800"
-        }`}
+        className="px-2 py-0.5"
       >
         {active ? "Stop Replay" : "Replay"}
-      </button>
+      </EdgeButton>
 
       {active && (
         <>
-          <button
-            type="button"
+          <EdgeButton
+            variant="secondary"
             onClick={() => setPlaying((p) => !p)}
             disabled={index >= total}
-            className="rounded bg-gray-100 px-2 py-0.5 text-xs disabled:opacity-40 dark:bg-gray-800"
+            className="px-2 py-0.5"
           >
             {playing ? "Pause" : "Play"}
-          </button>
-          <button
-            type="button"
+          </EdgeButton>
+          <EdgeButton
+            variant="secondary"
             onClick={() => setIndex((i) => Math.max(1, i - 1))}
-            className="rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-800"
+            className="px-2 py-0.5"
           >
             ◀
-          </button>
-          <button
-            type="button"
+          </EdgeButton>
+          <EdgeButton
+            variant="secondary"
             onClick={() => setIndex((i) => Math.min(total, i + 1))}
-            className="rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-800"
+            className="px-2 py-0.5"
           >
             ▶
-          </button>
+          </EdgeButton>
           <input
             type="range"
             min={1}
@@ -113,13 +110,13 @@ export default function BarReplay({ total, onVisibleChange, disabled }: Props) {
             onChange={(e) => setIndex(Number(e.target.value))}
             className="flex-1"
           />
-          <span className="text-xs opacity-60">
+          <span className="text-xs text-[var(--edge-text-muted)]">
             {index} / {total}
           </span>
           <select
             value={speedIdx}
             onChange={(e) => setSpeedIdx(Number(e.target.value))}
-            className="rounded border border-gray-300 bg-transparent text-xs dark:border-gray-700"
+            className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1 text-xs text-[var(--edge-text-primary)]"
           >
             {SPEEDS.map((s, i) => (
               <option key={s.label} value={i}>

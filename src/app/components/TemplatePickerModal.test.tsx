@@ -56,7 +56,7 @@ describe('TemplatePickerModal', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'study' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Study' }));
     expect(screen.getByText('RSI Setup')).toBeTruthy();
   });
 

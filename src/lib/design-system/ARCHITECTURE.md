@@ -64,7 +64,7 @@ Import from `src/app/components/design-system/index.ts`:
 
 | Primitive | Use for |
 |-----------|---------|
-| `EdgeButton` / `EdgeIconButton` | Toolbar and header actions; `EdgeButton` supports `variant="primary"` for filled accent CTAs |
+| `EdgeButton` / `EdgeIconButton` | Toolbar and header actions; `variant="primary"` filled accent CTA; `variant="secondary"` bordered panel button; default `chrome` is ghost header text |
 | `EdgeMenuItem` / `EdgeMenuSectionHeader` | Context menus and dropdown lists |
 | `EdgeModalShell` | Dialog shells (settings, search, confirmations); optional `headerActions` beside title, `footer` for bottom controls; `maxWidth="full"` ≈ `min(96vw, 1400px)` |
 | `EdgeSlideOver` | Right-side overlay detail panels (~⅓ or ½ viewport); backdrop + Escape dismiss; portaled to `document.body` |
@@ -89,6 +89,8 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Symbol search pill | `SearchBar.tsx` (compact mode) |
 | Context menu | `ContextMenu.tsx` |
 | Settings modal | `ChartSettingsModal.tsx` |
+| Chart tool modals | `DrawingSettingsModal.tsx`, `IndicatorSettingsModal.tsx`, `TemplatePickerModal.tsx`, `ChartGoToModal.tsx` — `EdgeModalShell` + `EdgeButton` + `--edge-*` field tokens (Tier C3) |
+| Chart popovers / replay | `ChartTimeZoneMenu.tsx` (`popoverPanelClass`), `DrawingSelectionToolbar.tsx`, `BarReplay.tsx` — semantic tokens; drawing paint hex unchanged |
 | Sidebar icon rail | `sidebar/SidebarRail.tsx` + `toolbarButtonStyles.ts` — main group (watchlist → options → screener → object-tree → account); footer group: theme toggle (sun/moon) then settings cog |
 | Docked sidebar panel | `sidebar/{RightSidebar,SidebarPanelShell}.tsx` — `absolute` overlay on chart row (`right-0`); resizable via `SidebarResizeHandle`; chart width unchanged; panel-aware max via `sidebarWidth.ts` (screener: `90% viewport − rail`, cap 1400px; other panels 560px; leaving screener clamps stored width) |
 | Floating panel window | `sidebar/{FloatingPanelShell,FloatingPanelHost}.tsx` — draggable/resizable pop-out over chart; **Dock** returns to sidebar; geometry persisted in `layout.sidebar.floatingGeometry` |
@@ -105,8 +107,9 @@ Shared rail styling for left drawing toolbar and right sidebar: `src/app/compone
 | Chart feed status overlay | `chart-cell/ChartFeedStatusBadge.tsx` — stale/stream/error/refreshing feed state (standalone or embedded in the stack) |
 | Chart error fallback | `chart-cell/ChartErrorBoundary.tsx` — in-cell error UI with retry and copy-error actions |
 | App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full chrome skeleton (workspace tab bar, header, rails, chart grid, range bar) until `StockApp` layout hydrates; also used by `src/app/loading.tsx` during route load |
-| App home hub | `home/HomeShell.tsx` + `home/HomeAppNav.tsx` — responsive Layout 1 tri-pane (≥2560) with dual-stack/tabbed/drawer/hub fallbacks; Continue card + workspace cards; journal preview (recent trades) + research preview; module nav rail (Charts/Journal/Research); no chart bootstrap |
-| App module shell | `home/AppModuleShell.tsx` + `home/AppTopHeader.tsx` — full-height module routes with full-width top header (clickable `logo-full-light` → `/home`, chart **data connection** chip, order **account** picker) and `HomeAppNav` rail below the header |
+| App home hub | `home/HomeShell.tsx` — responsive Layout 1 tri-pane (≥2560) with dual-stack/tabbed/drawer/hub fallbacks; Continue card + workspace cards; journal preview (recent trades) + research preview; no chart bootstrap |
+| App module shell | `home/AppModuleShell.tsx` + `home/AppTopHeader.tsx` — full-height module routes with full-width top header (clickable `logo-full-light` → `/home`, chart **data connection** chip, order **account** picker); no left module rail |
+| App workspace (app shell) | `app-workspace/AppWorkspaceShell.tsx` + `LayoutTreeView.tsx` + `SplitPane.tsx` + `TileFrame.tsx` + `WorkspacePill.tsx` + `WorkspaceHeaderControls.tsx` + `WorkspaceLayoutPresetPicker.tsx` — `/workspace` binary split-tree tiles (Chart, Screener, Journal); **Use** vs **Edit layout** modes; Use-mode workspace pill (switch/rename/new/duplicate); edit-mode **Layout** preset picker → placeholder panes → per-pane assign; drag-to-dock in edit only; module routes redirect via `deepLinks.ts`; in-process Review→Chart via `WorkspaceDriveContext` |
 | Journal module | `journal/JournalModuleShell.tsx` + `JournalSubNav.tsx` — `AppModuleShell` + sub-nav (Dashboard / Trades / Settings) with sync/trades providers; trades scoped to header-selected account |
 | Options chain table | `options/{OptionsChainView,OptionsChainTable,ChainRowGreeksPopover}.tsx` — sidebar launcher + floating dialog; bid/ask/last spine table, row-hover greeks popover, expiration tabs |
 | Chart cold-load overlay | `chart-cell/ChartLoadingOverlay.tsx` — symbol-aware spinner + skeleton bars when candles are loading and empty; rendered from app `EdgeChart.tsx` |

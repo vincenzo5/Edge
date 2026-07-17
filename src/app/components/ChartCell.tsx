@@ -1,18 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import EdgeChart, { type ChartHandle, indicatorKey } from "./EdgeChart";
+import EdgeChart, { type ChartHandle } from "./EdgeChart";
 import DrawingToolbar, { resolveGroupSelections } from "./DrawingToolbar";
 import DrawingSelectionToolbar from "./DrawingSelectionToolbar";
 import ChartRangeBar from "./ChartRangeBar";
 import ChartCellDialogs from "./chart-cell/ChartCellDialogs";
 import ChartErrorBoundary from "./chart-cell/ChartErrorBoundary";
+import ChartSyncBridge from "./chart-cell/ChartSyncBridge";
 import { useJournalChartOverlay } from "./journal/JournalChartOverlayProvider";
+import { usePatternChartGoto, usePatternLibraryOptional } from "./pattern-library/PatternLibraryContext";
 import { useDrawingLayoutSync } from "./chart-cell/useDrawingLayoutSync";
 import { useRegisterActiveChart } from "./chart-cell/useRegisterActiveChart";
+import { useTradeDrawingBinding } from "./chart-cell/useTradeDrawingBinding";
+import { usePaneLayoutActions } from "./chart-cell/usePaneLayoutActions";
+import { useJournalPatternGoto } from "./chart-cell/useJournalPatternGoto";
+import { usePatternCapture } from "./chart-cell/usePatternCapture";
+import { useCellCrosshair } from "./chart-cell/useCellCrosshair";
+import { useDrawingToolbarCommands } from "./chart-cell/useDrawingToolbarCommands";
+import { useChartTemplateActions } from "./chart-cell/useChartTemplateActions";
+import { useChartCellContextMenus } from "./chart-cell/useChartCellContextMenus";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
-import { buildChartContextMenuItems, buildPriceScaleContextMenuItems } from "./chartContextMenu";
-import { buildChartCopyItems } from "./chartCopyMenu";
 import { useChartSync } from "./ChartSyncContext";
 import { useActiveChartBridge } from "./ActiveChartContext";
 import { useMarketDataQuotes } from "./MarketDataProvider";
@@ -21,59 +29,28 @@ import type { Candle, DrawingStyles } from "@/lib/chart/contracts";
 import type { ChartDataMeta } from "@edge/chart-core";
 import type { MarketSessionKind } from "@edge/chart-core";
 import { resolveMarketSession, sessionStatusLabel } from "@edge/chart-core";
-import type { GoToRequest } from "@/lib/chart/goTo";
 import {
-  PRICE_PANE_KEY,
   createIndicatorInstance,
   mergeChartSettings,
   patchChartSettings,
   serializeChartSettings,
   type CellConfig,
   type RequiredChartSettings,
-  type PriceScaleType,
   type IndicatorConfig,
   type ToolbarPrefs,
-  type TrackedOverlay,
-  type SerializedDrawing,
 } from "@/lib/chartConfig";
 import type { Range } from "@/lib/chart/contracts";
 import type { ChartTimeZone } from "@/lib/chart/timeZone";
 import { applyRangePresetSelect } from "@/lib/chart/rangePresetTransition";
 import type { DrawingToolName } from "./chart-icons/toolGroups";
-import {
-  copyDrawings,
-  hasDrawingClipboard,
-  readClipboard,
-} from "@/lib/chart/chartClipboard";
-import {
-  SnapshotCaptureError,
-  buildSnapshotFilename,
-  prepareSnapshotTab,
-  runSnapshotAction,
-  type SnapshotAction,
-  type SnapshotCaptureOptions,
-} from "@/lib/chart/chartSnapshot";
-import { applyChartTemplate, applyStudyTemplate } from "@/lib/chart/presets/apply";
-import {
-  chartTemplateFromCell,
-  studyTemplateFromIndicator,
-  type PresetEnvelope,
-} from "@/lib/chart/presets/types";
-import {
-  createChartPreset,
-  createStudyPreset,
-  listPresetsByKind,
-  savePreset,
-} from "@/lib/presetStorage";
-import { buildOverlayContextMenuItems } from "./chart-cell/overlayContextMenu";
 import { useTradeSetupBindingOptional } from "./trading/TradeSetupBindingContext";
-import { positionOrderLevelsFromDrawing } from "@/lib/trading/positionTradeSetup";
 import MarketContextBreadcrumb from "./chart-chrome/MarketContextBreadcrumb";
+import PatternCapturePanel from "./chart-chrome/PatternCapturePanel";
+import PatternCaptureOverlay from "./chart-chrome/PatternCaptureOverlay";
+import type { PriceScaleSide } from "@/lib/chart/layout";
 import type { ChartSymbolNav } from "./ChartGrid";
 import type { SymbolSelectResult } from "@/lib/watchlist/types";
 import type { RailMode } from "@/lib/responsive/responsiveLayout";
-
-type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
 
 const EMPTY_CONTEXT_MENU_ITEMS: ContextMenuItem[] = [];
 
@@ -116,21 +93,8 @@ export default function ChartCell({
   const [candleCount, setCandleCount] = useState(0);
   const displayCandlesRef = useRef<Candle[]>([]);
   const [candlesRevision, setCandlesRevision] = useState(0);
+  const resetAppliedForSymbolRef = useRef<string | null>(null);
   const [lastCandleTimestamp, setLastCandleTimestamp] = useState<number | null>(null);
-  const [crosshairData, setCrosshairData] = useState<{
-    dataIndex: number | null;
-    timestamp: number | null;
-    valueLabel: string | null;
-    plotX: number | null;
-  }>({ dataIndex: null, timestamp: null, valueLabel: null, plotX: null });
-  const crosshairRafRef = useRef<number | null>(null);
-  const latestCrosshairPlotXRef = useRef<number | null>(null);
-  const pendingCrosshairRef = useRef<{
-    dataIndex: number | null;
-    timestamp: number | null;
-    valueLabel: string | null;
-    plotX: number | null;
-  } | null>(null);
   const [settingsIndicatorId, setSettingsIndicatorId] = useState<string | null>(null);
   const [settingsOverlayId, setSettingsOverlayId] = useState<string | null>(null);
   const [chartSettingsOpen, setChartSettingsOpen] = useState(false);
@@ -167,23 +131,16 @@ export default function ChartCell({
     gotoMs: journalGotoMs,
     consumeGoto: consumeJournalGoto,
   } = useJournalChartOverlay(config.symbol);
-  const appliedJournalGotoRef = useRef<number | null>(null);
+  const { gotoMs: patternGotoMs, consumeGoto: consumePatternGoto } =
+    usePatternChartGoto(config.symbol);
+  const patternLibrary = usePatternLibraryOptional();
 
   const magnet = toolbarPrefs.magnet ?? false;
   const keepDrawing = toolbarPrefs.keepDrawing ?? false;
   const groupSelections = resolveGroupSelections(
     toolbarPrefs.groupSelections as Record<string, DrawingToolName> | undefined,
   );
-  const chartTemplates = useMemo(
-    () =>
-      listPresetsByKind("chart").filter(
-        (preset): preset is ChartTemplatePreset => preset.kind === "chart",
-      ),
-    [chartSettingsOpen, templatePickerOpen, templateRevision],
-  );
 
-  // Pane layout state derived from persisted config (paneOrder, collapsedPanes, maximizedPane).
-  // This replaces previous local-only state so changes survive reloads.
   const collapsedKeys = new Set(config.collapsedPanes ?? []);
   const maximizedKey = config.maximizedPane ?? null;
   const paneOrder = config.paneOrder ?? [];
@@ -204,75 +161,7 @@ export default function ChartCell({
     setHistoryRevision,
   });
 
-  const boundCellId = tradeBinding?.bind?.cellId ?? null;
-  const boundDrawingId = tradeBinding?.bind?.drawingId ?? null;
-  const updateBoundLevels = tradeBinding?.updateBoundLevels;
-
-  useEffect(() => {
-    if (!updateBoundLevels || !boundCellId || !boundDrawingId || boundCellId !== chartId) {
-      return;
-    }
-
-    const drawings = chartRef.current?.serializeDrawings() ?? [];
-    const drawing = drawings.find((item) => item.id === boundDrawingId);
-    if (!drawing) {
-      updateBoundLevels(null);
-      return;
-    }
-    updateBoundLevels(positionOrderLevelsFromDrawing(drawing));
-  }, [overlays, boundCellId, boundDrawingId, updateBoundLevels, chartId]);
-
-  // Apply layout toolbar prefs to the chart when active or prefs change.
-  useEffect(() => {
-    if (!isActive) return;
-    chartRef.current?.setMagnet(magnet);
-    chartRef.current?.setKeepDrawingMode(keepDrawing);
-  }, [isActive, magnet, keepDrawing]);
-
-  // Disarm drawing tools when this cell loses focus.
-  useEffect(() => {
-    if (isActive) return;
-    chartRef.current?.stopDrawing();
-    setActiveTool('__cursor__');
-  }, [isActive]);
-
-  const pasteDrawingsRef = useRef<() => void>(() => {});
-
-  const handlePasteDrawings = useCallback(() => {
-    const payload = readClipboard();
-    if (payload?.kind !== "drawings" || payload.items.length === 0) return;
-    const chart = chartRef.current;
-    if (!chart) return;
-
-    const candles = chartRef.current?.getCandles() ?? [];
-    const idx =
-      crosshairData.dataIndex != null && crosshairData.dataIndex >= 0
-        ? crosshairData.dataIndex
-        : candles.length - 1;
-    const candle = idx >= 0 && idx < candles.length ? candles[idx] : null;
-    const timestamp =
-      crosshairData.timestamp ?? candle?.t ?? candles.at(-1)?.t ?? 0;
-    const value = candle?.c ?? 0;
-
-    chart.stopDrawing();
-    setActiveTool("__cursor__");
-    const ids = chart.pasteDrawings(payload.items, {
-      mode: "crosshair",
-      timestamp,
-      value,
-    });
-    if (ids.length > 0) {
-      setSelectedOverlayId(ids[ids.length - 1]);
-    }
-    setContextMenu(null);
-  }, [crosshairData]);
-
-  pasteDrawingsRef.current = handlePasteDrawings;
-
-  const allLocked =
-    overlays.length > 0 && overlays.every((o) => o.locked);
-  const allHidden =
-    overlays.length > 0 && overlays.every((o) => !o.visible);
+  useTradeDrawingBinding({ chartRef, chartId, overlays, tradeBinding });
 
   const update = useCallback(
     (patch: Partial<CellConfig>) => {
@@ -280,6 +169,185 @@ export default function ChartCell({
     },
     [config, onConfigChange],
   );
+
+  const {
+    handleCollapsePane,
+    handleMaximizePane,
+    handleMovePaneUp,
+    handleMovePaneDown,
+    handlePaneHeightsChange,
+  } = usePaneLayoutActions({ config, update });
+
+  useJournalPatternGoto({
+    chartRef,
+    isActive,
+    candleCount,
+    journalGotoMs,
+    patternGotoMs,
+    consumeJournalGoto,
+    consumePatternGoto,
+  });
+
+  useEffect(() => {
+    if (!isActive) return;
+    chartRef.current?.setMagnet(magnet);
+    chartRef.current?.setKeepDrawingMode(keepDrawing);
+  }, [isActive, magnet, keepDrawing]);
+
+  useEffect(() => {
+    if (isActive) return;
+    chartRef.current?.stopDrawing();
+    setActiveTool("__cursor__");
+  }, [isActive]);
+
+  useEffect(() => {
+    if (!replayActive) {
+      setVisibleCount(null);
+    }
+  }, [replayActive]);
+
+  const chartSettingsMerged = useMemo(
+    () => mergeChartSettings(config.chartSettings),
+    [config.chartSettings],
+  );
+
+  const priceScaleSide: PriceScaleSide =
+    chartSettingsMerged.scales.priceScalePlacement === "left" ? "left" : "right";
+
+  const {
+    captureState,
+    dispatchCapture,
+    captureActive,
+    captureSaveMessage,
+    captureSavedRecordId,
+    captureHoverBar,
+    captureViewport,
+    refreshCaptureViewport,
+    setVisibleRangeTick,
+    setCaptureHoverBar,
+    togglePatternCapture,
+    cancelPatternCapture,
+    undoPatternCapture,
+    savePatternCapture,
+    handleCaptureOverlayClick,
+    handleCaptureOverlayPointerMove,
+    canSaveCapture,
+    canUndoCapture,
+  } = usePatternCapture({
+    chartRef,
+    chartOverlayRef,
+    chartId,
+    config,
+    isActive,
+    priceScaleSide,
+    patternLibrary,
+    setActiveTool,
+  });
+
+  const { crosshairData, latestCrosshairPlotXRef, handleCrosshairMove } = useCellCrosshair({
+    captureActive,
+    refreshCaptureViewport,
+    setVisibleRangeTick,
+    setCaptureHoverBar,
+  });
+
+  const {
+    allLocked,
+    allHidden,
+    handleToolSelect,
+    handleDrawingDisarmed,
+    handleToggleMagnet,
+    handleToggleKeepDrawing,
+    handleGroupSelectionsChange,
+    handleToggleLockAll,
+    handleToggleHideAll,
+    handleZoomIn,
+    handleClearDrawings,
+    handlePasteDrawings,
+    overlayActions,
+    chartCommands,
+    drawingToolbarActions,
+    drawingCommands,
+    runCellSnapshot,
+    openRenameOverlay,
+    handleDeleteSelected,
+    applyPriceScaleType,
+  } = useDrawingToolbarCommands({
+    chartRef,
+    config,
+    isActive,
+    captureActive,
+    toolbarPrefs,
+    overlays,
+    selectedOverlayId,
+    crosshairData,
+    overlaysDirtyRef,
+    setActiveTool,
+    setSelectedOverlayId,
+    setContextMenu,
+    setHistoryRevision,
+    setRenameOverlayId,
+    onToolbarPrefsChange,
+    onConfigChange,
+  });
+
+  const {
+    chartTemplates,
+    handleSaveChartTemplate,
+    handleApplyTemplate,
+    handleSaveStudyTemplate,
+    openChartTemplatePicker,
+  } = useChartTemplateActions({
+    config,
+    onConfigChange,
+    chartSettingsOpen,
+    templatePickerOpen,
+    templateRevision,
+    setContextMenu,
+    setTemplateRevision,
+    setTemplatePickerTab,
+    setTemplatePickerOpen,
+  });
+
+  const { handleOverlayRightClick, handleChartContextMenu, handlePriceScaleContextMenu } =
+    useChartCellContextMenus({
+      chartRef,
+      chartId,
+      config,
+      overlays,
+      crosshairData,
+      displayCandlesRef,
+      chartSettingsMerged,
+      latestCrosshairPlotXRef,
+      sidebar,
+      tradeBinding,
+      setContextMenu,
+      setChartSettingsSection,
+      setChartSettingsOpen,
+      setGoToOpen,
+      setTemplatePickerOpen,
+      setSettingsOverlayId,
+      setSelectedOverlayId,
+      update,
+      onConfigChange,
+      handleClearDrawings,
+      handlePasteDrawings,
+      handleSaveChartTemplate,
+      openChartTemplatePicker,
+      overlayActions,
+      openRenameOverlay,
+      applyPriceScaleType,
+    });
+
+  const canUndo =
+    isActive &&
+    typeof chartRef.current?.canUndo === "function" &&
+    chartRef.current.canUndo();
+  const canRedo =
+    isActive &&
+    typeof chartRef.current?.canRedo === "function" &&
+    chartRef.current.canRedo();
+  void historyRevision;
 
   const handleRangeSelect = useCallback(
     (range: Range) => {
@@ -300,27 +368,6 @@ export default function ChartCell({
     [config, onConfigChange],
   );
 
-  useEffect(() => {
-    if (!replayActive) {
-      setVisibleCount(null);
-    }
-  }, [replayActive]);
-
-  const chartSettingsMerged = useMemo(
-    () => mergeChartSettings(config.chartSettings),
-    [config.chartSettings],
-  );
-
-  const canUndo =
-    isActive &&
-    typeof chartRef.current?.canUndo === 'function' &&
-    chartRef.current.canUndo();
-  const canRedo =
-    isActive &&
-    typeof chartRef.current?.canRedo === 'function' &&
-    chartRef.current.canRedo();
-  void historyRevision;
-
   const addIndicator = useCallback(
     (ind: Pick<IndicatorConfig, "name" | "pane">) => {
       update({
@@ -338,57 +385,6 @@ export default function ChartCell({
     },
     [config.indicators, update],
   );
-
-  const handleToolSelect = useCallback((toolName: string) => {
-    if (!isActive) return;
-    setActiveTool(toolName);
-    if (toolName === "__cursor__") {
-      chartRef.current?.stopDrawing();
-    } else {
-      chartRef.current?.startDrawing(toolName);
-    }
-  }, [isActive]);
-
-  const handleDrawingDisarmed = useCallback(() => {
-    setActiveTool("__cursor__");
-  }, []);
-
-  const handleToggleMagnet = useCallback(
-    (on: boolean) => {
-      chartRef.current?.setMagnet(on);
-      onToolbarPrefsChange({ ...toolbarPrefs, magnet: on });
-    },
-    [toolbarPrefs, onToolbarPrefsChange],
-  );
-
-  const handleToggleKeepDrawing = useCallback(
-    (on: boolean) => {
-      chartRef.current?.setKeepDrawingMode(on);
-      onToolbarPrefsChange({ ...toolbarPrefs, keepDrawing: on });
-    },
-    [toolbarPrefs, onToolbarPrefsChange],
-  );
-
-  const handleGroupSelectionsChange = useCallback(
-    (next: Record<string, DrawingToolName>) => {
-      onToolbarPrefsChange({ ...toolbarPrefs, groupSelections: next });
-    },
-    [toolbarPrefs, onToolbarPrefsChange],
-  );
-
-  const handleToggleLockAll = useCallback(() => {
-    const next = !allLocked;
-    chartRef.current?.lockAllDrawings(next);
-  }, [allLocked]);
-
-  const handleToggleHideAll = useCallback(() => {
-    const nextHidden = !allHidden;
-    chartRef.current?.setAllDrawingsVisible(!nextHidden);
-  }, [allHidden]);
-
-  const handleZoomIn = useCallback(() => {
-    chartRef.current?.zoomIn();
-  }, []);
 
   const handleDataMetaChange = useCallback((meta: ChartDataMeta | null) => {
     setDataMeta(meta);
@@ -409,41 +405,26 @@ export default function ChartCell({
   }, []);
 
   useEffect(() => {
-    if (!isActive || journalGotoMs == null || candleCount === 0) return;
-    if (appliedJournalGotoRef.current === journalGotoMs) return;
-    appliedJournalGotoRef.current = journalGotoMs;
-    void chartRef.current?.goTo({ mode: "date", at: journalGotoMs });
-    consumeJournalGoto();
-  }, [isActive, journalGotoMs, candleCount, consumeJournalGoto]);
+    if (!isActive || candleCount === 0) return;
+    if (resetAppliedForSymbolRef.current === config.symbol) return;
 
-  const handleCrosshairMove = useCallback(
-    (ev: {
-      timestamp: number | null;
-      dataIndex: number | null;
-      valueLabel: string | null;
-      plotX?: number | null;
-    }) => {
-      const next = { ...ev, plotX: ev.plotX ?? null };
-      latestCrosshairPlotXRef.current = next.plotX;
-      pendingCrosshairRef.current = next;
-      if (crosshairRafRef.current != null) return;
-      crosshairRafRef.current = requestAnimationFrame(() => {
-        crosshairRafRef.current = null;
-        if (pendingCrosshairRef.current) {
-          setCrosshairData(pendingCrosshairRef.current);
-        }
-      });
-    },
-    [],
-  );
-
-  useEffect(() => {
-    return () => {
-      if (crosshairRafRef.current != null) {
-        cancelAnimationFrame(crosshairRafRef.current);
-      }
+    const symbol = config.symbol;
+    let cancelled = false;
+    const applyReset = () => {
+      if (cancelled || resetAppliedForSymbolRef.current === symbol) return;
+      chartRef.current?.resetChartView();
+      chartRef.current?.resetPriceScaleWindow();
+      resetAppliedForSymbolRef.current = symbol;
     };
-  }, []);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(applyReset);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config.symbol, candleCount, isActive]);
 
   const handleLegendAction = useCallback((actionId: string) => {
     const match = /^settings-(.+)$/.exec(actionId);
@@ -485,125 +466,6 @@ export default function ChartCell({
       }
     },
     [config, onConfigChange],
-  );
-
-  const handleSaveChartTemplate = useCallback((settingsDraft?: RequiredChartSettings) => {
-    const name = prompt("Chart template name:");
-    if (!name?.trim()) return;
-    const sourceConfig = settingsDraft
-      ? { ...config, chartSettings: serializeChartSettings(settingsDraft) }
-      : config;
-    const preset = createChartPreset(name.trim(), chartTemplateFromCell(sourceConfig));
-    const result = savePreset(preset);
-    if (!result.ok) {
-      alert("Template limit reached (50). Delete one to save a new template.");
-    } else {
-      setTemplateRevision((revision) => revision + 1);
-    }
-    setContextMenu(null);
-  }, [config]);
-
-  const handleApplyTemplate = useCallback(
-    (preset: PresetEnvelope) => {
-      if (preset.kind === "chart") {
-        const { cell, skipped } = applyChartTemplate(config, preset.payload);
-        onConfigChange(cell);
-        if (skipped.length > 0) {
-          alert(`Skipped unavailable indicators: ${skipped.join(", ")}`);
-        }
-      } else {
-        const { cell, skipped } = applyStudyTemplate(config, preset.payload);
-        onConfigChange(cell);
-        if (skipped.length > 0) {
-          alert(`Could not apply study: ${skipped.join(", ")}`);
-        }
-      }
-    },
-    [config, onConfigChange],
-  );
-
-  const handleSaveStudyTemplate = useCallback(
-    (indicator: IndicatorConfig) => {
-      const name = prompt("Study template name:");
-      if (!name?.trim()) return;
-      const preset = createStudyPreset(
-        name.trim(),
-        studyTemplateFromIndicator(indicator),
-      );
-      const result = savePreset(preset);
-      if (!result.ok) {
-        alert("Template limit reached (50). Delete one to save a new template.");
-      } else {
-        setTemplateRevision((revision) => revision + 1);
-      }
-    },
-    [],
-  );
-
-  const applyPriceScaleType = useCallback(
-    (type: PriceScaleType) => {
-      const patched = patchChartSettings(config.chartSettings, {
-        scales: { priceScaleType: type },
-      });
-      const merged = mergeChartSettings(patched);
-      onConfigChange({ ...config, chartSettings: patched });
-      chartRef.current?.resetPriceScaleWindow(merged);
-      setContextMenu(null);
-    },
-    [config, onConfigChange],
-  );
-
-  const handlePriceScaleContextMenu = useCallback(
-    (pos: { clientX: number; clientY: number; priceScaleMode: "auto" | "manual" }) => {
-      const merged = mergeChartSettings(config.chartSettings);
-      const items = buildPriceScaleContextMenuItems(
-        {
-          settings: merged,
-          priceScaleMode: pos.priceScaleMode,
-        },
-        {
-          resetPriceScale: () => {
-            chartRef.current?.resetPriceScaleWindow();
-            setContextMenu(null);
-          },
-          setPriceScaleType: applyPriceScaleType,
-          openScaleSettings: () => {
-            setChartSettingsSection("scales");
-            setChartSettingsOpen(true);
-            setContextMenu(null);
-          },
-          patchSettings: (patch) => {
-            const patched = patchChartSettings(config.chartSettings, patch);
-            const merged = mergeChartSettings(patched);
-            onConfigChange({ ...config, chartSettings: patched });
-            if (patch.scales?.priceScaleType != null || patch.priceScaleType != null) {
-              chartRef.current?.resetPriceScaleWindow(merged);
-            }
-            setContextMenu(null);
-          },
-        },
-      );
-      setContextMenu({ position: { x: pos.clientX, y: pos.clientY }, items });
-    },
-    [applyPriceScaleType, config, onConfigChange],
-  );
-
-  const runCellSnapshot = useCallback(
-    async (action: SnapshotAction) => {
-      const chart = chartRef.current;
-      if (!chart?.canCaptureSnapshot()) return;
-      const filename = buildSnapshotFilename(config.symbol, config.interval);
-      const targetWindow = action === "open" ? prepareSnapshotTab() : undefined;
-      try {
-        const blob = await chart.captureSnapshot({ includeCrosshair: false });
-        await runSnapshotAction(action, blob, filename, targetWindow);
-      } catch (error) {
-        if (error instanceof SnapshotCaptureError) {
-          console.warn(error.reason);
-        }
-      }
-    },
-    [config.symbol, config.interval],
   );
 
   const settingsIndicator = useMemo(
@@ -651,161 +513,7 @@ export default function ChartCell({
   const handleDrawingStylesSave = useCallback((id: string, patch: Partial<DrawingStyles>) => {
     chartRef.current?.updateDrawingStyles(id, patch);
     overlaysDirtyRef.current = true;
-  }, []);
-
-  // Pane actions - uniform for price pane (PRICE_PANE_KEY) and indicator panes.
-  // Operate on paneOrder / collapsedPanes / maximizedPane in config for persistence.
-  const getPaneOrder = () => {
-    const subKeys = config.indicators
-      .filter((i) => i.pane === 'sub')
-      .map((i) => indicatorKey(i));
-    return config.paneOrder && config.paneOrder.length > 0
-      ? [...config.paneOrder]
-      : [PRICE_PANE_KEY, ...subKeys];
-  };
-
-  const handleCollapsePane = useCallback(
-    (key: string) => {
-      const currentCollapsed = new Set(config.collapsedPanes ?? []);
-      if (currentCollapsed.has(key)) {
-        currentCollapsed.delete(key);
-      } else {
-        currentCollapsed.add(key);
-      }
-      const nextMax = config.maximizedPane === key ? null : config.maximizedPane;
-      update({
-        collapsedPanes: Array.from(currentCollapsed),
-        maximizedPane: nextMax,
-      });
-    },
-    [config.collapsedPanes, config.maximizedPane, update],
-  );
-
-  const handleMaximizePane = useCallback(
-    (key: string) => {
-      const isCurrentlyMax = config.maximizedPane === key;
-      const nextMax = isCurrentlyMax ? null : key;
-      // When maximizing, ensure target not collapsed.
-      const nextCollapsed = new Set(config.collapsedPanes ?? []);
-      nextCollapsed.delete(key);
-      update({
-        collapsedPanes: Array.from(nextCollapsed),
-        maximizedPane: nextMax,
-      });
-    },
-    [config.collapsedPanes, config.maximizedPane, update],
-  );
-
-  const handleMovePaneUp = useCallback(
-    (key: string) => {
-      const order = getPaneOrder();
-      const idx = order.indexOf(key);
-      if (idx <= 0) return;
-      [order[idx], order[idx - 1]] = [order[idx - 1], order[idx]];
-      update({ paneOrder: order });
-    },
-    [config.paneOrder, config.indicators, update],
-  );
-
-  const handleMovePaneDown = useCallback(
-    (key: string) => {
-      const order = getPaneOrder();
-      const idx = order.indexOf(key);
-      if (idx < 0 || idx >= order.length - 1) return;
-      [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]];
-      update({ paneOrder: order });
-    },
-    [config.paneOrder, config.indicators, update],
-  );
-
-  const handlePaneHeightsChange = useCallback(
-    (heights: Record<string, number>) => {
-      update({ paneHeights: heights });
-    },
-    [update],
-  );
-
-  const handleClearDrawings = useCallback(() => {
-    chartRef.current?.clearDrawings();
-    setSelectedOverlayId(null);
-    setActiveTool("__cursor__");
-  }, []);
-
-  // Overlay actions (wired to both context menu and object tree).
-  const overlayActions = useCallback(
-    () => ({
-      remove: (id: string) => {
-        chartRef.current?.removeOverlay(id);
-        if (selectedOverlayId === id) setSelectedOverlayId(null);
-        setContextMenu(null);
-      },
-      setVisible: (id: string, visible: boolean) => {
-        chartRef.current?.setOverlayVisible(id, visible);
-      },
-      setLocked: (id: string, locked: boolean) => {
-        chartRef.current?.setOverlayLocked(id, locked);
-      },
-      rename: (id: string, label: string) => {
-        chartRef.current?.renameOverlay(id, label);
-      },
-      bringForward: (id: string) => {
-        chartRef.current?.bringForward(id);
-      },
-      sendBackward: (id: string) => {
-        chartRef.current?.sendBackward(id);
-      },
-      duplicate: (id: string) => {
-        chartRef.current?.duplicateOverlay(id);
-        setContextMenu(null);
-      },
-      subscribe: (cb: () => void) => {
-        return chartRef.current?.subscribeOverlayChange(cb) ?? (() => {});
-      },
-    }),
-    [selectedOverlayId],
-  );
-
-  const chartCommands = useCallback(
-    () => ({
-      undo: () => {
-        const did = chartRef.current?.undo() ?? false;
-        if (did) setHistoryRevision((r) => r + 1);
-        return did;
-      },
-      redo: () => {
-        const did = chartRef.current?.redo() ?? false;
-        if (did) setHistoryRevision((r) => r + 1);
-        return did;
-      },
-      canUndo: () => chartRef.current?.canUndo() ?? false,
-      canRedo: () => chartRef.current?.canRedo() ?? false,
-      goTo: (req: GoToRequest) =>
-        chartRef.current?.goTo(req) ??
-        Promise.resolve({ ok: false as const, reason: "no_chart" as const }),
-      zoomIn: () => chartRef.current?.zoomIn(),
-      resetChartView: () => chartRef.current?.resetChartView(),
-      getCandles: () => chartRef.current?.getCandles() ?? [],
-      selectDrawing: (id: string | null) => chartRef.current?.selectDrawing(id),
-      getSelectedDrawingId: () => chartRef.current?.getSelectedDrawingId() ?? null,
-      updateDrawingStyles: (id: string, patch: Parameters<NonNullable<typeof chartRef.current>["updateDrawingStyles"]>[1]) =>
-        chartRef.current?.updateDrawingStyles(id, patch),
-      restoreDrawings: (data: SerializedDrawing[]) => chartRef.current?.restoreDrawings(data),
-      canCaptureSnapshot: () => chartRef.current?.canCaptureSnapshot() ?? false,
-      captureSnapshot: (opts?: SnapshotCaptureOptions) => {
-        const chart = chartRef.current;
-        if (!chart?.canCaptureSnapshot()) {
-          return Promise.reject(new SnapshotCaptureError("no_data"));
-        }
-        return chart.captureSnapshot(opts);
-      },
-    }),
-    [],
-  );
-
-  const openRenameOverlay = useCallback((id: string) => {
-    setRenameOverlayId(id);
-    setContextMenu(null);
-  }, []);
+  }, [overlaysDirtyRef]);
 
   const handleRenameOverlaySave = useCallback(
     (label: string) => {
@@ -816,88 +524,27 @@ export default function ChartCell({
     [renameOverlayId],
   );
 
-  const handleDeleteSelected = useCallback(() => {
-    if (selectedOverlayId) {
-      chartRef.current?.removeOverlay(selectedOverlayId);
-      setSelectedOverlayId(null);
-      setContextMenu(null);
-    }
-  }, [selectedOverlayId]);
-
-  const handleRenameSelected = useCallback(() => {
-    if (!selectedOverlayId) return;
-    openRenameOverlay(selectedOverlayId);
-  }, [selectedOverlayId, openRenameOverlay]);
-
-  const handleDuplicateSelected = useCallback(() => {
-    if (!selectedOverlayId) return;
-    overlayActions().duplicate(selectedOverlayId);
-  }, [selectedOverlayId, overlayActions]);
-
-  const handleToggleLockSelected = useCallback(() => {
-    if (!selectedOverlayId) return;
-    const overlay = overlays.find((o) => o.id === selectedOverlayId);
-    if (!overlay) return;
-    overlayActions().setLocked(selectedOverlayId, !overlay.locked);
-  }, [selectedOverlayId, overlays, overlayActions]);
-
-  const handleCopySelected = useCallback(() => {
-    if (!selectedOverlayId) return;
-    const drawings = chartRef.current?.serializeDrawings() ?? [];
-    const selected = drawings.filter((d) => d.id === selectedOverlayId);
-    if (selected.length > 0) copyDrawings(selected);
-  }, [selectedOverlayId]);
-
-  const drawingToolbarActions = useCallback(
-    () => ({
-      selectTool: handleToolSelect,
-      clearDrawings: handleClearDrawings,
-      toggleLockAll: handleToggleLockAll,
-      toggleHideAll: handleToggleHideAll,
-      toggleMagnet: handleToggleMagnet,
-      toggleKeepDrawing: handleToggleKeepDrawing,
-      deleteSelected: handleDeleteSelected,
-      zoomIn: handleZoomIn,
-    }),
-    [
-      handleToolSelect,
-      handleClearDrawings,
-      handleToggleLockAll,
-      handleToggleHideAll,
-      handleToggleMagnet,
-      handleToggleKeepDrawing,
-      handleDeleteSelected,
-      handleZoomIn,
-    ],
-  );
-
-  const drawingCommands = useCallback(
-    () => ({
-      hasSelection: () => selectedOverlayId != null,
-      deleteSelected: handleDeleteSelected,
-      duplicateSelected: handleDuplicateSelected,
-      renameSelected: handleRenameSelected,
-      toggleLockSelected: handleToggleLockSelected,
-      copySelected: handleCopySelected,
-      pasteDrawings: () => pasteDrawingsRef.current(),
-      canPaste: () => hasDrawingClipboard(),
-    }),
-    [
-      selectedOverlayId,
-      handleDeleteSelected,
-      handleDuplicateSelected,
-      handleRenameSelected,
-      handleToggleLockSelected,
-      handleCopySelected,
-    ],
-  );
-
   const uiCommands = useCallback(
     () => ({
       openGoTo: () => setGoToOpen(true),
-      runSnapshot: (action: SnapshotAction) => runCellSnapshot(action),
+      runSnapshot: (action: import("@/lib/chart/chartSnapshot").SnapshotAction) =>
+        runCellSnapshot(action),
+      togglePatternCapture,
+      undoPatternCapture,
+      savePatternCapture: () => void savePatternCapture(),
+      cancelPatternCapture,
+      isPatternCaptureActive: () => captureActive,
+      canSavePatternCapture: () => canSaveCapture(),
     }),
-    [runCellSnapshot],
+    [
+      runCellSnapshot,
+      togglePatternCapture,
+      undoPatternCapture,
+      savePatternCapture,
+      cancelPatternCapture,
+      captureActive,
+      canSaveCapture,
+    ],
   );
 
   const dataWindowActions = useCallback(
@@ -980,162 +627,13 @@ export default function ChartCell({
     allLocked,
     allHidden,
     hasDrawingSelection: selectedOverlayId != null,
+    captureActive,
   });
-
-  const handleOverlayRightClick = useCallback(
-    (overlay: TrackedOverlay, pos: { x: number; y: number }) => {
-      setSelectedOverlayId(overlay.id);
-      const actions = overlayActions();
-      setContextMenu({
-        position: pos,
-        header: overlay.label || overlay.name,
-        items: buildOverlayContextMenuItems(
-          overlay,
-          actions,
-          openRenameOverlay,
-          (id) => {
-            setSettingsOverlayId(id);
-            setContextMenu(null);
-          },
-          {
-            onCopy: () => {
-              const drawings = chartRef.current?.serializeDrawings() ?? [];
-              const one = drawings.filter((d) => d.id === overlay.id);
-              if (one.length > 0) copyDrawings(one);
-              setContextMenu(null);
-            },
-            onPaste: handlePasteDrawings,
-            canPaste: hasDrawingClipboard(),
-          },
-          {
-            onTradeSetup: tradeBinding
-              ? () => {
-                  tradeBinding.openTradeFromDrawing(chartId, overlay.id, config.symbol);
-                  setContextMenu(null);
-                }
-              : undefined,
-          },
-        ),
-      });
-    },
-    [
-      overlayActions,
-      handlePasteDrawings,
-      openRenameOverlay,
-      tradeBinding,
-      chartId,
-      config.symbol,
-    ],
-  );
-
-  const handleChartContextMenu = useCallback(
-    (pos: { x: number; y: number }) => {
-      const modified = chartRef.current?.isViewportModified() ?? false;
-      const candles =
-        displayCandlesRef.current.length > 0
-          ? displayCandlesRef.current
-          : (chartRef.current?.getCandles() ?? []);
-      const copyItems = buildChartCopyItems({
-        valueLabel: crosshairData.valueLabel,
-        timestamp: crosshairData.timestamp,
-        dataIndex: crosshairData.dataIndex,
-        candles,
-        symbol: config.symbol,
-        exchange: config.exchange,
-        interval: config.interval,
-        range: config.range,
-        rangePreset: config.rangePreset,
-        chartType: config.chartType,
-        timeZone: chartSettingsMerged.symbol.timeZone,
-      });
-      const items = buildChartContextMenuItems(
-        {
-          viewportModified: modified,
-          drawingCount: overlays.length,
-          indicatorCount: config.indicators.length,
-          copyItems,
-          canPasteDrawings: hasDrawingClipboard(),
-          lockCrosshairToTime: chartSettingsMerged.canvas.lockCrosshairToTime,
-        },
-        {
-          resetView: () => {
-            chartRef.current?.resetChartView();
-            setContextMenu(null);
-          },
-          copyText: (text) => {
-            void navigator.clipboard.writeText(text);
-            setContextMenu(null);
-          },
-          openObjectTree: () => {
-            sidebar?.openPanel("object-tree");
-            setContextMenu(null);
-          },
-          pasteDrawings: handlePasteDrawings,
-          saveChartTemplate: handleSaveChartTemplate,
-          applyChartTemplate: () => {
-            setTemplatePickerTab("chart");
-            setTemplatePickerOpen(true);
-            setContextMenu(null);
-          },
-          removeDrawings: () => {
-            handleClearDrawings();
-            setContextMenu(null);
-          },
-          removeIndicators: () => {
-            update({ indicators: [] });
-            setContextMenu(null);
-          },
-          removeAll: () => {
-            handleClearDrawings();
-            update({ indicators: [] });
-            setContextMenu(null);
-          },
-          toggleLockCrosshairToTime: () => {
-            const nextLock = !chartSettingsMerged.canvas.lockCrosshairToTime;
-            update({
-              chartSettings: patchChartSettings(config.chartSettings, {
-                canvas: {
-                  lockCrosshairToTime: nextLock,
-                  lockedCrosshairPlotX: nextLock ? latestCrosshairPlotXRef.current : null,
-                },
-              }),
-            });
-            setContextMenu(null);
-          },
-          openSettings: () => {
-            setChartSettingsSection("status");
-            setChartSettingsOpen(true);
-            setContextMenu(null);
-          },
-          openGoTo: () => {
-            setGoToOpen(true);
-            setContextMenu(null);
-          },
-        },
-      );
-      setContextMenu({ position: pos, items });
-    },
-    [
-      overlays.length,
-      config,
-      crosshairData.valueLabel,
-      crosshairData.timestamp,
-      crosshairData.dataIndex,
-      chartSettingsMerged.symbol.timeZone,
-      chartSettingsMerged.canvas.lockCrosshairToTime,
-      handleClearDrawings,
-      handlePasteDrawings,
-      handleSaveChartTemplate,
-      update,
-      sidebar,
-    ],
-  );
 
   const renameOverlay = renameOverlayId
     ? overlays.find((overlay) => overlay.id === renameOverlayId) ?? null
     : null;
 
-  // Crosshair sync helpers.
   const handleCrosshairFire = useCallback(
     (ts: number | null) => {
       sync?.broadcast(chartId, ts);
@@ -1152,7 +650,7 @@ export default function ChartCell({
         marketState: liveQuote.marketState,
       })
     : null;
-  const sessionMode = config.chartSettings?.symbol?.sessionMode ?? 'regular';
+  const sessionMode = config.chartSettings?.symbol?.sessionMode ?? "regular";
   const marketSessionLabel =
     liveMarketSession != null
       ? sessionStatusLabel(liveMarketSession, sessionMode)
@@ -1195,132 +693,184 @@ export default function ChartCell({
       className="flex h-full min-h-0 flex-col overflow-hidden"
       onPointerDown={() => onFocus?.()}
     >
-      {/* Body: drawing rail + chart column (chart + range bar) */}
       <div className="flex min-h-0 min-w-0 flex-1">
         {showDrawingRail ? (
-        <div className="relative z-20 flex h-full shrink-0 self-stretch overflow-visible">
-          <DrawingToolbar
-          theme={theme}
-          railMode={railMode}
-          disabled={!isActive}
-          activeTool={activeTool}
-          magnet={magnet}
-          keepDrawing={keepDrawing}
-          allLocked={allLocked}
-          allHidden={allHidden}
-          groupSelections={groupSelections}
-          onGroupSelectionsChange={handleGroupSelectionsChange}
-          onToolSelect={handleToolSelect}
-          onClear={handleClearDrawings}
-          onToggleMagnet={handleToggleMagnet}
-          onToggleKeepDrawing={handleToggleKeepDrawing}
-          onToggleLockAll={handleToggleLockAll}
-          onToggleHideAll={handleToggleHideAll}
-          onZoomIn={handleZoomIn}
-          onDeleteSelected={
-            selectedOverlayId && isActive ? handleDeleteSelected : undefined
-          }
-          />
-        </div>
+          <div className="relative z-20 flex h-full shrink-0 self-stretch overflow-visible">
+            <DrawingToolbar
+              theme={theme}
+              railMode={railMode}
+              disabled={!isActive}
+              activeTool={activeTool}
+              magnet={magnet}
+              keepDrawing={keepDrawing}
+              allLocked={allLocked}
+              allHidden={allHidden}
+              groupSelections={groupSelections}
+              onGroupSelectionsChange={handleGroupSelectionsChange}
+              onToolSelect={handleToolSelect}
+              onClear={handleClearDrawings}
+              onToggleMagnet={handleToggleMagnet}
+              onToggleKeepDrawing={handleToggleKeepDrawing}
+              onToggleLockAll={handleToggleLockAll}
+              onToggleHideAll={handleToggleHideAll}
+              onZoomIn={handleZoomIn}
+              onDeleteSelected={
+                selectedOverlayId && isActive ? handleDeleteSelected : undefined
+              }
+            />
+          </div>
         ) : null}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--edge-surface-chart)] p-px" ref={chartOverlayRef}>
-          <ChartErrorBoundary resetKey={chartRetryKey} onRetry={handleChartRetry}>
-            <EdgeChart
-              key={chartRetryKey}
-              ref={chartRef}
-              config={config}
+          <div
+            className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--edge-surface-chart)] p-px"
+            ref={chartOverlayRef}
+          >
+            <ChartErrorBoundary resetKey={chartRetryKey} onRetry={handleChartRetry}>
+              <EdgeChart
+                key={chartRetryKey}
+                ref={chartRef}
+                config={config}
+                theme={theme}
+                compact={compact}
+                visibleCount={visibleCount}
+                chartId={chartId}
+                reloadKey={chartReloadKey}
+                onRetry={handleChartRetry}
+                livePrice={liveQuotePrice}
+                liveMarketSession={liveMarketSession}
+                marketSessionLabel={marketSessionLabel}
+                legendContextSlot={legendContextSlot}
+                showDataHealthBadge={isActive}
+                journalAnnotationMarkers={journalMarkers}
+                onCrosshairTimestamp={handleCrosshairFire}
+                onCrosshairMove={handleCrosshairMove}
+                suppressCrosshair={contextMenu != null}
+                onLegendAction={handleLegendAction}
+                onDrawingDisarmed={handleDrawingDisarmed}
+                onConfigChange={onConfigChange}
+                onOverlayRightClick={handleOverlayRightClick}
+                onChartContextMenu={handleChartContextMenu}
+                onPriceScaleContextMenu={handlePriceScaleContextMenu}
+                onRemoveIndicator={removeIndicator}
+                onCollapseIndicator={handleCollapsePane}
+                onMaximizeIndicator={handleMaximizePane}
+                onMoveIndicatorUp={handleMovePaneUp}
+                onMoveIndicatorDown={handleMovePaneDown}
+                onPaneHeightsChange={handlePaneHeightsChange}
+                onDataLoaded={handleDataLoaded}
+                onDataMetaChange={handleDataMetaChange}
+                onCandlesChange={handleCandlesChange}
+                collapsedKeys={collapsedKeys}
+                maximizedKey={maximizedKey}
+                paneOrder={paneOrder}
+              />
+            </ChartErrorBoundary>
+            {isActive && captureActive ? (
+              <>
+                <div
+                  className="absolute inset-0 z-[25] cursor-crosshair"
+                  style={{ pointerEvents: "auto" }}
+                  onPointerDown={handleCaptureOverlayClick}
+                  onPointerMove={handleCaptureOverlayPointerMove}
+                  data-testid="pattern-capture-click-layer"
+                />
+                <PatternCaptureOverlay
+                  sections={captureState.sections}
+                  pendingStart={captureState.pendingStart}
+                  pendingEnd={captureState.pendingEnd}
+                  hoverBarIndex={captureHoverBar}
+                  visibleRange={captureViewport}
+                  phase={captureState.phase}
+                  clickDots={captureState.clickDots}
+                  priceScaleSide={priceScaleSide}
+                />
+                <PatternCapturePanel
+                  theme={theme}
+                  phase={captureState.phase}
+                  hasPendingStart={captureState.pendingStart != null}
+                  sections={captureState.sections}
+                  labelDraft={captureState.labelDraft}
+                  error={captureState.error}
+                  canSave={canSaveCapture()}
+                  canUndo={canUndoCapture()}
+                  saving={captureState.phase === "saving"}
+                  saveMessage={captureSaveMessage}
+                  savedRecordId={captureSavedRecordId}
+                  onViewInPatterns={
+                    captureSavedRecordId
+                      ? () => patternLibrary?.openPatternsPanel(captureSavedRecordId)
+                      : undefined
+                  }
+                  onLabelDraftChange={(label) =>
+                    dispatchCapture({ type: "SET_LABEL_DRAFT", label })
+                  }
+                  onConfirmLabel={() => dispatchCapture({ type: "CONFIRM_LABEL" })}
+                  onPickPreset={(index) => dispatchCapture({ type: "PICK_PRESET", index })}
+                  onUndo={undoPatternCapture}
+                  onCancel={cancelPatternCapture}
+                  onSave={() => void savePatternCapture()}
+                />
+              </>
+            ) : null}
+            {isActive && selectedDrawing && selectedOverlayId && (
+              <DrawingSelectionToolbar
+                theme={theme}
+                drawing={selectedDrawing}
+                bounds={selectedDrawingBounds}
+                containerWidth={drawingToolbarBounds.width}
+                containerHeight={drawingToolbarBounds.height}
+                dragOffset={toolbarDragOffset}
+                onDragOffsetChange={setToolbarDragOffset}
+                onStyleChange={(patch) => {
+                  chartRef.current?.updateDrawingStyles(selectedOverlayId, patch);
+                  overlaysDirtyRef.current = true;
+                }}
+                onMetadataChange={(patch) => {
+                  chartRef.current?.updateDrawingMetadata(selectedOverlayId, patch);
+                  overlaysDirtyRef.current = true;
+                }}
+                onAcceptProposal={() => {
+                  chartRef.current?.updateDrawingMetadata(selectedOverlayId, {
+                    status: "active",
+                    source: selectedDrawing.metadata?.source ?? "ai",
+                  });
+                  overlaysDirtyRef.current = true;
+                }}
+                onDismissProposal={() => {
+                  chartRef.current?.updateDrawingMetadata(selectedOverlayId, {
+                    status: "invalidated",
+                  });
+                  overlaysDirtyRef.current = true;
+                }}
+                onOpenSettings={() => setSettingsOverlayId(selectedOverlayId)}
+                onToggleLock={() => {
+                  chartRef.current?.setOverlayLocked(
+                    selectedOverlayId,
+                    !selectedDrawing.locked,
+                  );
+                }}
+                onDelete={handleDeleteSelected}
+                onMore={(clientX, clientY) => {
+                  const overlay = overlays.find((o) => o.id === selectedOverlayId);
+                  if (overlay) {
+                    handleOverlayRightClick(overlay, { x: clientX, y: clientY });
+                  }
+                }}
+              />
+            )}
+          </div>
+
+          {!compact && candleCount > 0 && (
+            <ChartRangeBar
+              selectedPreset={config.rangePreset ?? null}
               theme={theme}
-              compact={compact}
-              visibleCount={visibleCount}
-              chartId={chartId}
-              reloadKey={chartReloadKey}
-              onRetry={handleChartRetry}
-              livePrice={liveQuotePrice}
-              liveMarketSession={liveMarketSession}
-              marketSessionLabel={marketSessionLabel}
-              legendContextSlot={legendContextSlot}
-              showDataHealthBadge={isActive}
-              journalAnnotationMarkers={journalMarkers}
-              onCrosshairTimestamp={handleCrosshairFire}
-              onCrosshairMove={handleCrosshairMove}
-              suppressCrosshair={contextMenu != null}
-              onLegendAction={handleLegendAction}
-              onDrawingDisarmed={handleDrawingDisarmed}
-              onConfigChange={onConfigChange}
-              onOverlayRightClick={handleOverlayRightClick}
-              onChartContextMenu={handleChartContextMenu}
-              onPriceScaleContextMenu={handlePriceScaleContextMenu}
-              onRemoveIndicator={removeIndicator}
-              onCollapseIndicator={handleCollapsePane}
-              onMaximizeIndicator={handleMaximizePane}
-              onMoveIndicatorUp={handleMovePaneUp}
-              onMoveIndicatorDown={handleMovePaneDown}
-              onPaneHeightsChange={handlePaneHeightsChange}
-              onDataLoaded={handleDataLoaded}
-              onDataMetaChange={handleDataMetaChange}
-              onCandlesChange={handleCandlesChange}
-              collapsedKeys={collapsedKeys}
-              maximizedKey={maximizedKey}
-              paneOrder={paneOrder}
-            />
-          </ChartErrorBoundary>
-          {isActive && selectedDrawing && selectedOverlayId && (
-            <DrawingSelectionToolbar
-              theme={theme}
-              drawing={selectedDrawing}
-              bounds={selectedDrawingBounds}
-              containerWidth={drawingToolbarBounds.width}
-              containerHeight={drawingToolbarBounds.height}
-              dragOffset={toolbarDragOffset}
-              onDragOffsetChange={setToolbarDragOffset}
-              onStyleChange={(patch) => {
-                chartRef.current?.updateDrawingStyles(selectedOverlayId, patch);
-                overlaysDirtyRef.current = true;
-              }}
-              onMetadataChange={(patch) => {
-                chartRef.current?.updateDrawingMetadata(selectedOverlayId, patch);
-                overlaysDirtyRef.current = true;
-              }}
-              onAcceptProposal={() => {
-                chartRef.current?.updateDrawingMetadata(selectedOverlayId, {
-                  status: "active",
-                  source: selectedDrawing.metadata?.source ?? "ai",
-                });
-                overlaysDirtyRef.current = true;
-              }}
-              onDismissProposal={() => {
-                chartRef.current?.updateDrawingMetadata(selectedOverlayId, {
-                  status: "invalidated",
-                });
-                overlaysDirtyRef.current = true;
-              }}
-              onOpenSettings={() => setSettingsOverlayId(selectedOverlayId)}
-              onToggleLock={() => {
-                chartRef.current?.setOverlayLocked(selectedOverlayId, !selectedDrawing.locked);
-              }}
-              onDelete={handleDeleteSelected}
-              onMore={(clientX, clientY) => {
-                const overlay = overlays.find((o) => o.id === selectedOverlayId);
-                if (overlay) {
-                  handleOverlayRightClick(overlay, { x: clientX, y: clientY });
-                }
-              }}
+              timeZone={chartSettingsMerged.symbol.timeZone}
+              exchange={config.exchange}
+              onRangeSelect={handleRangeSelect}
+              onGoToClick={() => setGoToOpen(true)}
+              onTimeZoneChange={handleTimeZoneChange}
             />
           )}
-        </div>
-
-        {!compact && candleCount > 0 && (
-          <ChartRangeBar
-            selectedPreset={config.rangePreset ?? null}
-            theme={theme}
-            timeZone={chartSettingsMerged.symbol.timeZone}
-            exchange={config.exchange}
-            onRangeSelect={handleRangeSelect}
-            onGoToClick={() => setGoToOpen(true)}
-            onTimeZoneChange={handleTimeZoneChange}
-          />
-        )}
         </div>
       </div>
 
@@ -1337,9 +887,7 @@ export default function ChartCell({
         onSettingsIndicatorClose={() => setSettingsIndicatorId(null)}
         onIndicatorParamsSave={handleIndicatorParamsSave}
         onSaveStudyTemplate={
-          settingsIndicator
-            ? () => handleSaveStudyTemplate(settingsIndicator)
-            : undefined
+          settingsIndicator ? () => handleSaveStudyTemplate(settingsIndicator) : undefined
         }
         settingsDrawing={settingsDrawing}
         settingsOverlayId={settingsOverlayId}
@@ -1380,7 +928,6 @@ export default function ChartCell({
         onClose={() => setContextMenu(null)}
       />
 
-      {/* Crosshair + drawing sync wiring */}
       <ChartSyncBridge
         chartRef={chartRef}
         chartId={chartId}
@@ -1389,41 +936,4 @@ export default function ChartCell({
       />
     </div>
   );
-}
-
-/**
- * Subscribes to crosshair timestamps from peer charts via ChartSyncContext.
- */
-function ChartSyncBridge({
-  chartRef,
-  chartId,
-  suppressDrawingPersistRef,
-  lastAppliedDrawingsRef,
-}: {
-  chartRef: React.RefObject<ChartHandle | null>;
-  chartId: string;
-  suppressDrawingPersistRef: React.MutableRefObject<boolean>;
-  lastAppliedDrawingsRef: React.MutableRefObject<string>;
-}) {
-  const sync = useChartSync();
-
-  useEffect(() => {
-    if (!sync) return;
-    return sync.subscribe(chartId, (ts) => {
-      chartRef.current?.setCrosshairFromSync(ts);
-    });
-  }, [sync, chartId, chartRef]);
-
-  useEffect(() => {
-    if (!sync) return;
-    return sync.subscribeDrawings(chartId, (drawings) => {
-      const serialized = JSON.stringify(drawings);
-      if (serialized === lastAppliedDrawingsRef.current) return;
-      lastAppliedDrawingsRef.current = serialized;
-      suppressDrawingPersistRef.current = true;
-      chartRef.current?.restoreDrawings(drawings);
-    });
-  }, [sync, chartId, chartRef, suppressDrawingPersistRef, lastAppliedDrawingsRef]);
-
-  return null;
 }

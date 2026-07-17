@@ -5,6 +5,7 @@ import {
   menuItemClass,
   modalShellClass,
   popoverPanelClass,
+  secondaryButtonClass,
   segmentedTabClass,
 } from "./styles";
 
@@ -13,6 +14,7 @@ describe("design-system styles", () => {
     expect(popoverPanelClass("dark")).toContain("edge-popover");
     expect(modalShellClass()).toContain("edge-modal-shell");
     expect(headerButtonClass("dark", true)).toContain("--edge-surface-active");
+    expect(secondaryButtonClass("dark")).toContain("border-[var(--edge-border)]");
     expect(menuItemClass("dark", false, false)).toContain("--edge-text-primary");
     expect(segmentedTabClass(true)).toContain("--edge-surface-active");
     expect(chipClass(true)).toContain("--edge-text-strong");

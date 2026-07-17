@@ -41,6 +41,9 @@ describe("formatShortcutLabel", () => {
       "activateCell3",
       "activateCell4",
       "invertScale",
+      "patternCaptureToggle",
+      "patternCaptureUndo",
+      "patternCaptureSave",
     ] as const;
 
     for (const id of ids) {

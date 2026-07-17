@@ -14,10 +14,14 @@ const mockCandles = [
   { t: 2000, o: 105, h: 115, l: 95, c: 110, v: 1100 },
 ];
 
+const resetChartView = vi.fn();
+const resetPriceScaleWindow = vi.fn();
+
 vi.mock('./EdgeChart', () => ({
   default: forwardRef(function MockEdgeChart(
     props: {
       onCandlesChange?: (candles: typeof mockCandles) => void;
+      onDataLoaded?: (info: { count: number }) => void;
       onCrosshairMove?: (ev: {
         dataIndex: number | null;
         timestamp: number | null;
@@ -28,7 +32,8 @@ vi.mock('./EdgeChart', () => ({
   ) {
     useEffect(() => {
       props.onCandlesChange?.(mockCandles);
-    }, [props.onCandlesChange]);
+      props.onDataLoaded?.({ count: mockCandles.length });
+    }, [props.onCandlesChange, props.onDataLoaded]);
 
     useImperativeHandle(ref, () => ({
       getTrackedOverlays: () => [],
@@ -52,7 +57,8 @@ vi.mock('./EdgeChart', () => ({
       sendBackward: vi.fn(),
       duplicateOverlay: vi.fn(),
       isViewportModified: () => false,
-      resetChartView: vi.fn(),
+      resetChartView,
+      resetPriceScaleWindow,
       setCrosshairFromSync: vi.fn(),
       pasteDrawings: vi.fn(),
     }));
@@ -115,6 +121,52 @@ describe('ChartCell candle ref snapshot', () => {
       const latest = onSnapshot.mock.calls.at(-1)?.[0];
       expect(latest?.dataWindow.candles).toHaveLength(mockCandles.length);
       expect(latest?.dataWindow.candles[0]?.t).toBe(1000);
+    });
+  });
+
+  it('resets chart view and price scale when symbol changes on the active cell', async () => {
+    const onConfigChange = vi.fn();
+    const { rerender } = render(
+      <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
+        <ChartCell
+          chartId="cell-0"
+          config={{ ...DEFAULT_CELL, symbol: 'AAPL' }}
+          theme="dark"
+          compact
+          isActive
+          toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+          onConfigChange={onConfigChange}
+          onToolbarPrefsChange={vi.fn()}
+        />
+      </SidebarProvider>,
+    );
+
+    await waitFor(() => {
+      expect(resetChartView).toHaveBeenCalled();
+      expect(resetPriceScaleWindow).toHaveBeenCalled();
+    });
+
+    resetChartView.mockClear();
+    resetPriceScaleWindow.mockClear();
+
+    rerender(
+      <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
+        <ChartCell
+          chartId="cell-0"
+          config={{ ...DEFAULT_CELL, symbol: 'GS' }}
+          theme="dark"
+          compact
+          isActive
+          toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+          onConfigChange={onConfigChange}
+          onToolbarPrefsChange={vi.fn()}
+        />
+      </SidebarProvider>,
+    );
+
+    await waitFor(() => {
+      expect(resetChartView).toHaveBeenCalled();
+      expect(resetPriceScaleWindow).toHaveBeenCalled();
     });
   });
 });

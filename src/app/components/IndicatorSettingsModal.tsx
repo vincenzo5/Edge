@@ -10,6 +10,7 @@ import {
   resolveIndicatorInputs,
 } from "@/lib/chart/indicatorInputs";
 import { resolveOutputColor } from "@/lib/chart/indicatorCompute";
+import { EdgeButton, EdgeModalShell, EdgeSegmentedTabs } from "./design-system";
 
 type Tab = "inputs" | "style";
 
@@ -24,6 +25,11 @@ type Props = {
   ) => void;
   onSaveAsTemplate?: () => void;
 };
+
+const fieldClass =
+  "rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-sm text-[var(--edge-text-primary)]";
+
+const labelClass = "text-[var(--edge-text-secondary)]";
 
 function clampParamValue(value: InputValue, def: ParamDef): InputValue {
   return clampInputValue(value, def);
@@ -110,57 +116,51 @@ export default function IndicatorSettingsModal({
   if (!hasInputs && !hasStyles) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[85vh] w-full max-w-sm overflow-auto rounded-lg border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-700 dark:bg-gray-900"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-base font-semibold">{indicator.name} Settings</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-          >
-            ✕
-          </button>
-        </div>
-
-        {hasInputs && hasStyles && (
-          <div className="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
-            <button
-              type="button"
-              onClick={() => setTab("inputs")}
-              className={`flex-1 rounded-md px-2 py-1 text-sm ${
-                tab === "inputs"
-                  ? "bg-white font-medium shadow dark:bg-gray-900"
-                  : "text-gray-600 dark:text-gray-400"
-              }`}
-            >
-              Inputs
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("style")}
-              className={`flex-1 rounded-md px-2 py-1 text-sm ${
-                tab === "style"
-                  ? "bg-white font-medium shadow dark:bg-gray-900"
-                  : "text-gray-600 dark:text-gray-400"
-              }`}
-            >
-              Style
-            </button>
+    <EdgeModalShell
+      open={open}
+      title={`${indicator.name} Settings`}
+      onClose={onClose}
+      maxWidth="sm"
+      align="center"
+      footer={
+        <div className="flex items-center justify-between gap-2 px-4 py-3">
+          {onSaveAsTemplate ? (
+            <EdgeButton variant="secondary" onClick={onSaveAsTemplate}>
+              Save as template…
+            </EdgeButton>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            <EdgeButton variant="secondary" onClick={onClose}>
+              Cancel
+            </EdgeButton>
+            <EdgeButton variant="primary" onClick={handleSave}>
+              Save
+            </EdgeButton>
           </div>
-        )}
+        </div>
+      }
+    >
+      {hasInputs && hasStyles && (
+        <div className="border-b border-[var(--edge-border)] px-4 py-2">
+          <EdgeSegmentedTabs
+            segments={[
+              { id: "inputs", label: "Inputs" },
+              { id: "style", label: "Style" },
+            ]}
+            value={tab}
+            onChange={(id) => setTab(id as Tab)}
+          />
+        </div>
+      )}
 
+      <div className="max-h-[60vh] overflow-y-auto p-4">
         {hasInputs && (tab === "inputs" || !hasStyles) && (
           <div className="space-y-3">
             {Object.entries(schema!).map(([key, def]) => (
               <label key={key} className="flex flex-col gap-1 text-sm">
-                <span className="text-gray-600 dark:text-gray-400">{def.label}</span>
+                <span className={labelClass}>{def.label}</span>
                 {def.kind === "number" && (
                   <input
                     type="number"
@@ -174,7 +174,7 @@ export default function IndicatorSettingsModal({
                         setInputValues((prev) => ({ ...prev, [key]: parsed }));
                       }
                     }}
-                    className="rounded border border-gray-300 bg-transparent px-2 py-1 font-mono text-sm dark:border-gray-600"
+                    className={`${fieldClass} font-mono`}
                   />
                 )}
                 {def.kind === "boolean" && (
@@ -193,7 +193,7 @@ export default function IndicatorSettingsModal({
                     onChange={(e) =>
                       setInputValues((prev) => ({ ...prev, [key]: e.target.value }))
                     }
-                    className="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
+                    className={fieldClass}
                   >
                     {def.options.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -208,7 +208,7 @@ export default function IndicatorSettingsModal({
                     onChange={(e) =>
                       setInputValues((prev) => ({ ...prev, [key]: e.target.value }))
                     }
-                    className="rounded border border-gray-300 bg-transparent px-2 py-1 text-sm dark:border-gray-600"
+                    className={fieldClass}
                   >
                     {(["close", "open", "high", "low", "hlc3", "ohlcv"] as const).map((src) => (
                       <option key={src} value={src}>
@@ -230,10 +230,10 @@ export default function IndicatorSettingsModal({
               const current = styleValues[output.id] ?? {};
               return (
                 <div key={output.id} className="flex flex-col gap-2 text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">{output.label}</span>
+                  <span className={labelClass}>{output.label}</span>
                   <div className="flex items-center gap-2">
                     <label className="flex items-center gap-1">
-                      <span className="text-xs text-gray-500">Color</span>
+                      <span className="text-xs text-[var(--edge-text-muted)]">Color</span>
                       <input
                         type="color"
                         value={current.color ?? defaultColor}
@@ -243,11 +243,11 @@ export default function IndicatorSettingsModal({
                             [output.id]: { ...prev[output.id], color: e.target.value },
                           }))
                         }
-                        className="h-8 w-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600"
+                        className="h-8 w-10 cursor-pointer rounded border border-[var(--edge-border)]"
                       />
                     </label>
                     <label className="flex flex-1 items-center gap-1">
-                      <span className="text-xs text-gray-500">Width</span>
+                      <span className="text-xs text-[var(--edge-text-muted)]">Width</span>
                       <input
                         type="number"
                         min={0.5}
@@ -263,7 +263,7 @@ export default function IndicatorSettingsModal({
                             }));
                           }
                         }}
-                        className="w-full rounded border border-gray-300 bg-transparent px-2 py-1 font-mono text-sm dark:border-gray-600"
+                        className={`${fieldClass} w-full font-mono`}
                       />
                     </label>
                   </div>
@@ -272,37 +272,7 @@ export default function IndicatorSettingsModal({
             })}
           </div>
         )}
-
-        <div className="mt-4 flex justify-between gap-2">
-          {onSaveAsTemplate ? (
-            <button
-              type="button"
-              onClick={onSaveAsTemplate}
-              className="rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-            >
-              Save as template…
-            </button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-            >
-              Save
-            </button>
-          </div>
-        </div>
       </div>
-    </div>
+    </EdgeModalShell>
   );
 }

@@ -56,6 +56,7 @@ type Params = {
   allLocked: boolean;
   allHidden: boolean;
   hasDrawingSelection: boolean;
+  captureActive: boolean;
 };
 
 export function useRegisterActiveChart({
@@ -92,6 +93,7 @@ export function useRegisterActiveChart({
   allLocked,
   allHidden,
   hasDrawingSelection,
+  captureActive,
 }: Params) {
   const chartCommandRefs = useMemo(() => chartCommands(), [chartCommands]);
   const drawingCommandRefs = useMemo(() => drawingCommands(), [drawingCommands]);
@@ -211,6 +213,7 @@ export function useRegisterActiveChart({
         allLocked,
         allHidden,
         hasSelection: hasDrawingSelection,
+        patternCaptureActive: captureActive,
       },
     }),
     [
@@ -224,6 +227,7 @@ export function useRegisterActiveChart({
       allLocked,
       allHidden,
       hasDrawingSelection,
+      captureActive,
     ],
   );
 

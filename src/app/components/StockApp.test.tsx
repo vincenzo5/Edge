@@ -6,12 +6,35 @@ import {
   createTab,
   resetWorkspaceTabIdCounterForTests,
 } from '@/lib/app/workspaceTabs';
+import { clearBrowserTabQuote } from '@/lib/app/browserTabQuote';
 import { WORKSPACE_TABS_STORAGE_KEY } from '@/lib/app/workspaceTabsStorage';
 import StockApp from './StockApp';
 
 const reconcileMock = vi.hoisted(() => ({
   reconcileChartWorkspacesAfterTabClose: vi.fn(async () => ({ archived: [], failed: [] })),
 }));
+
+const marketDataQuotesMock = vi.hoisted(() => ({
+  quotes: [] as Array<{
+    symbol: string;
+    regularMarketPrice?: number;
+    regularMarketChangePercent?: number;
+  }>,
+}));
+
+vi.mock('./MarketDataProvider', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./MarketDataProvider')>();
+  return {
+    ...actual,
+    useMarketDataQuotesForSymbols: (symbols: string[]) => ({
+      quotes: marketDataQuotesMock.quotes.filter((q) =>
+        symbols.map((s) => s.toUpperCase()).includes(q.symbol.toUpperCase()),
+      ),
+      loading: false,
+      error: null,
+    }),
+  };
+});
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -80,7 +103,9 @@ describe('StockApp', () => {
     resetWorkspaceTabIdCounterForTests();
     localStorageMock.clear();
     reconcileMock.reconcileChartWorkspacesAfterTabClose.mockClear();
+    marketDataQuotesMock.quotes = [];
     document.documentElement.className = '';
+    clearBrowserTabQuote();
   });
 
   it('shows hydration shell before layout is restored', async () => {
@@ -226,25 +251,37 @@ describe('StockApp', () => {
     expect(screen.queryByTestId('symbol-search-input')).not.toHaveValue('AAPL');
   });
 
-  it('persists workspace tabs to localStorage and renders tab bar', async () => {
+  it('does not render workspace tab bar after hydration', async () => {
     render(<StockApp />);
     flushHydration();
 
     await waitFor(() => {
-      expect(screen.getByTestId('workspace-tab-bar')).toBeInTheDocument();
+      expect(screen.getByTestId('chart-cell-0')).toBeInTheDocument();
     });
-
-    fireEvent.click(screen.getByTestId('workspace-tab-create'));
-
-    await waitFor(() => {
-      const raw = localStorageMock.getItem('tv-ai:workspace-tabs:v1');
-      expect(raw).toBeTruthy();
-      const parsed = JSON.parse(raw!);
-      expect(parsed.tabs.length).toBeGreaterThanOrEqual(2);
-    });
+    expect(screen.queryByTestId('workspace-tab-bar')).toBeNull();
   });
 
-  it('saves a closed remote tab immediately so refresh does not restore it', async () => {
+  it('publishes live quote to the browser tab for the primary chart', async () => {
+    marketDataQuotesMock.quotes = [
+      {
+        symbol: 'AAPL',
+        regularMarketPrice: 180.5,
+        regularMarketChangePercent: 1.25,
+      },
+    ];
+
+    render(<StockApp isPrimaryChart />);
+    flushHydration();
+
+    await waitFor(() => {
+      expect(document.title).toBe('AAPL 180.50 ▲ +1.25% · Edge');
+    });
+    const favicon = document.getElementById('edge-quote-favicon') as HTMLLinkElement | null;
+    expect(favicon).toBeInstanceOf(HTMLLinkElement);
+    expect(favicon?.href).toContain(encodeURIComponent('#089981'));
+  });
+
+  it('prunes extra persisted workspace tabs to a single active tab on hydrate', async () => {
     let tabs = createDefaultWorkspaceTabs(DEFAULT_LAYOUT, {
       resourceId: 'ws-1',
       syncRevision: 1,
@@ -269,32 +306,13 @@ describe('StockApp', () => {
     flushHydration();
 
     await waitFor(() => {
-      expect(screen.getByTestId('workspace-tab-close-tab-2')).toBeInTheDocument();
+      const raw = localStorageMock.getItem(WORKSPACE_TABS_STORAGE_KEY);
+      expect(raw).toBeTruthy();
+      const saved = JSON.parse(raw!);
+      expect(saved.tabs).toHaveLength(1);
+      expect(saved.tabs[0].title).toBe('Apple');
     });
-
-    vi.useFakeTimers();
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('workspace-tab-close-tab-2'));
-      await Promise.resolve();
-    });
-
-    const raw = localStorageMock.getItem(WORKSPACE_TABS_STORAGE_KEY);
-    expect(raw).toBeTruthy();
-    const saved = JSON.parse(raw!);
-    expect(saved.tabs).toHaveLength(1);
-    expect(saved.tabs[0].remote.resourceId).toBe('ws-1');
-    expect(
-      saved.tabs.some(
-        (tab: { remote?: { resourceId?: string } }) =>
-          tab.remote?.resourceId === 'ws-2',
-      ),
-    ).toBe(false);
-    expect(reconcileMock.reconcileChartWorkspacesAfterTabClose).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tabs: expect.arrayContaining([expect.objectContaining({ title: 'Default' })]),
-      }),
-      'ws-2',
-    );
+    expect(screen.queryByTestId('workspace-tab-bar')).toBeNull();
   });
 
   it('expands layout by cloning the active cell into new panes', async () => {

@@ -30,6 +30,20 @@ export function primaryButtonClass(theme: Theme, disabled?: boolean): string {
   return `${base} bg-[var(--edge-accent-blue)] text-[var(--edge-text-strong)] hover:brightness-110`;
 }
 
+/** Bordered secondary action — denser toolbars where chrome text links lack affordance. */
+export function secondaryButtonClass(theme: Theme, active?: boolean, disabled?: boolean): string {
+  void theme;
+  const base =
+    "edge-focus-ring inline-flex shrink-0 items-center gap-1 rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2.5 py-1.5 text-xs font-medium transition-colors";
+  if (disabled) {
+    return `${base} cursor-not-allowed opacity-40`;
+  }
+  if (active) {
+    return `${base} border-[var(--edge-border-strong)] bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]`;
+  }
+  return `${base} text-[var(--edge-text-primary)] hover:border-[var(--edge-border-strong)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]`;
+}
+
 export function headerIconButtonClass(theme: Theme, active?: boolean, disabled?: boolean): string {
   void theme;
   const base =

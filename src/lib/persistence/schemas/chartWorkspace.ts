@@ -78,6 +78,7 @@ const SIDEBAR_PANEL_ID_VALUES = [
   "options",
   "screener",
   "trade",
+  "patterns",
 ] as const satisfies readonly SidebarPanelId[];
 
 function migrateLegacySidebarPanelId(

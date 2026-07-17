@@ -9,6 +9,7 @@ type Props = {
   disabled?: boolean;
   hasSubmenu?: boolean;
   icon?: ReactNode;
+  testId?: string;
   onClick?: () => void;
 };
 
@@ -19,6 +20,7 @@ export default function EdgeMenuItem({
   disabled,
   hasSubmenu,
   icon,
+  testId,
   onClick,
 }: Props) {
   return (
@@ -26,6 +28,7 @@ export default function EdgeMenuItem({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      data-testid={testId}
       data-danger={danger ? "true" : undefined}
       className="edge-menu-item edge-focus-ring"
     >

@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Theme } from '@/lib/chart/contracts';
 import type { ChartTimeZone } from '@/lib/chart/timeZone';
 import { buildTimeZoneMenuOptions } from '@/lib/chart/timeZone';
+import { menuItemClass, popoverPanelClass } from './design-system/styles';
 import { clampMenuPosition } from './ContextMenu';
 
 type Props = {
@@ -25,7 +26,6 @@ export default function ChartTimeZoneMenu({
 }: Props) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const isDark = theme === 'dark';
   const options = buildTimeZoneMenuOptions();
 
   useLayoutEffect(() => {
@@ -80,11 +80,7 @@ export default function ChartTimeZoneMenu({
       role="menu"
       aria-label="Select timezone"
       style={position ? { left: position.x, top: position.y } : { visibility: 'hidden' }}
-      className={`fixed z-50 max-h-72 min-w-[220px] overflow-y-auto rounded border py-1 shadow-lg ${
-        isDark
-          ? 'border-[#1E2030] bg-[#12131A] text-[#E8E9ED]'
-          : 'border-gray-200 bg-white text-gray-900'
-      }`}
+      className={`fixed z-50 max-h-72 min-w-[220px] overflow-y-auto py-1 shadow-lg ${popoverPanelClass(theme)} bg-[var(--edge-surface-popover)] text-[var(--edge-text-primary)]`}
     >
       {options.map((opt, i) => {
         const showDivider =
@@ -100,9 +96,7 @@ export default function ChartTimeZoneMenu({
                 onSelect(opt.id);
                 onClose();
               }}
-              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
-                isDark ? 'hover:bg-[#1E2030]' : 'hover:bg-gray-100'
-              }`}
+              className={menuItemClass(theme, active)}
             >
               <span className="inline-flex w-4 shrink-0 justify-center" aria-hidden>
                 {active ? '✓' : ''}
@@ -111,7 +105,7 @@ export default function ChartTimeZoneMenu({
             </button>
             {showDivider && (
               <div
-                className={`my-1 border-t ${isDark ? 'border-[#1E2030]' : 'border-gray-200'}`}
+                className="my-1 border-t border-[var(--edge-border)]"
                 aria-hidden
               />
             )}

@@ -56,6 +56,9 @@ export const SHORTCUT_BINDINGS: Record<ShortcutId, KeyBinding[]> = {
   activateCell3: [{ alt: true, key: "3" }],
   activateCell4: [{ alt: true, key: "4" }],
   invertScale: [{ alt: true, key: "i" }],
+  patternCaptureToggle: [{ shift: true, key: "p" }],
+  patternCaptureUndo: [{ key: "backspace" }],
+  patternCaptureSave: [{ mod: true, key: "Enter" }],
 };
 
 export function getShortcutLabel(id: ShortcutId): string {

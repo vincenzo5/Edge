@@ -22,7 +22,10 @@ export type ShortcutId =
   | "activateCell2"
   | "activateCell3"
   | "activateCell4"
-  | "invertScale";
+  | "invertScale"
+  | "patternCaptureToggle"
+  | "patternCaptureUndo"
+  | "patternCaptureSave";
 
 export type KeyBinding = {
   /** Primary modifier: Meta on macOS, Ctrl elsewhere */

@@ -81,6 +81,7 @@ const VALID_SIDEBAR_PANELS = new Set<SidebarPanelId>([
   "options",
   "screener",
   "trade",
+  "patterns",
 ]);
 
 function migrateLegacySidebarPanelId(

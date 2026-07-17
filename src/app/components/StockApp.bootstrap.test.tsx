@@ -41,8 +41,13 @@ vi.mock("./AiSessionBridge", () => ({
   default: () => null,
 }));
 
+vi.mock("./chart-chrome/PrimaryChartBrowserTabQuote", () => ({
+  default: () => null,
+}));
+
 vi.mock("./MarketDataProvider", () => ({
   MarketDataProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useMarketDataQuotesForSymbols: () => ({ quotes: [], loading: false, error: null }),
 }));
 
 vi.mock("./AccountProvider", () => ({
@@ -72,10 +77,6 @@ vi.mock("./shortcuts/ShortcutProvider", () => ({
 
 vi.mock("@/lib/persistence/sync/useChartTemplateLibraryRemoteSync", () => ({
   useChartTemplateLibraryRemoteSync: () => {},
-}));
-
-vi.mock("./chart-chrome/WorkspaceTabBar", () => ({
-  default: () => <div data-testid="workspace-tab-bar" />,
 }));
 
 vi.mock("@/lib/persistence/sync/useWorkspaceTabsRemoteSync", () => ({

@@ -66,6 +66,26 @@ export function buildShortcutCommands(deps: ShortcutCommandDeps): ShortcutComman
         run: () => chart.resetChartView(),
       },
       {
+        id: "patternCaptureToggle",
+        scope: "chart",
+        keys: bindings("patternCaptureToggle"),
+        run: () => ui?.togglePatternCapture(),
+      },
+      {
+        id: "patternCaptureUndo",
+        scope: "chart",
+        keys: bindings("patternCaptureUndo"),
+        enabled: () => ui?.isPatternCaptureActive() ?? false,
+        run: () => ui?.undoPatternCapture(),
+      },
+      {
+        id: "patternCaptureSave",
+        scope: "chart",
+        keys: bindings("patternCaptureSave"),
+        enabled: () => ui?.canSavePatternCapture() ?? false,
+        run: () => void ui?.savePatternCapture(),
+      },
+      {
         id: "snapshotDownload",
         scope: "chart",
         keys: bindings("snapshotDownload"),
@@ -102,7 +122,7 @@ export function buildShortcutCommands(deps: ShortcutCommandDeps): ShortcutComman
         id: "deleteDrawing",
         scope: "drawing",
         keys: bindings("deleteDrawing"),
-        enabled: () => drawing.hasSelection(),
+        enabled: () => drawing.hasSelection() && !(ui?.isPatternCaptureActive() ?? false),
         run: () => drawing.deleteSelected(),
       },
       {

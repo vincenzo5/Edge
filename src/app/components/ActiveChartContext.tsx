@@ -83,6 +83,12 @@ export type ActiveChartDrawingCommands = {
 export type ActiveChartUICommands = {
   openGoTo: () => void;
   runSnapshot: (action: SnapshotAction) => void | Promise<void>;
+  togglePatternCapture: () => void;
+  undoPatternCapture: () => void;
+  savePatternCapture: () => void;
+  cancelPatternCapture: () => void;
+  isPatternCaptureActive: () => boolean;
+  canSavePatternCapture: () => boolean;
 };
 
 export type ActiveChartDrawingToolbarState = {
@@ -90,6 +96,7 @@ export type ActiveChartDrawingToolbarState = {
   allLocked: boolean;
   allHidden: boolean;
   hasSelection: boolean;
+  patternCaptureActive?: boolean;
 };
 
 export type ActiveChartDrawingToolbarActions = {

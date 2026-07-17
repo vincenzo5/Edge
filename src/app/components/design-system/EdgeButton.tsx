@@ -1,32 +1,38 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { headerButtonClass, primaryButtonClass } from "./styles";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { headerButtonClass, primaryButtonClass, secondaryButtonClass } from "./styles";
 import type { Theme } from "@/lib/chartConfig";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   theme?: Theme;
   active?: boolean;
-  variant?: "chrome" | "primary";
+  variant?: "chrome" | "primary" | "secondary";
   children: ReactNode;
 };
 
-export default function EdgeButton({
-  theme = "dark",
-  active,
-  variant = "chrome",
-  disabled,
-  className = "",
-  children,
-  ...rest
-}: Props) {
+const EdgeButton = forwardRef<HTMLButtonElement, Props>(function EdgeButton(
+  {
+    theme = "dark",
+    active,
+    variant = "chrome",
+    disabled,
+    className = "",
+    children,
+    ...rest
+  },
+  ref,
+) {
   const styleClass =
     variant === "primary"
       ? primaryButtonClass(theme, disabled)
-      : headerButtonClass(theme, active, disabled);
+      : variant === "secondary"
+        ? secondaryButtonClass(theme, active, disabled)
+        : headerButtonClass(theme, active, disabled);
 
   return (
     <button
+      ref={ref}
       type="button"
       disabled={disabled}
       className={`${styleClass} ${className}`.trim()}
@@ -35,4 +41,6 @@ export default function EdgeButton({
       {children}
     </button>
   );
-}
+});
+
+export default EdgeButton;

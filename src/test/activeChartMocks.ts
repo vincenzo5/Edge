@@ -38,6 +38,12 @@ export function makeUICommandsMock(
   return {
     openGoTo: vi.fn(),
     runSnapshot: vi.fn(),
+    togglePatternCapture: vi.fn(),
+    undoPatternCapture: vi.fn(),
+    savePatternCapture: vi.fn(),
+    cancelPatternCapture: vi.fn(),
+    isPatternCaptureActive: vi.fn(() => false),
+    canSavePatternCapture: vi.fn(() => false),
     ...overrides,
   };
 }
