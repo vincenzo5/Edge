@@ -54,6 +54,8 @@ export { getChartColors } from './themeTokens';
 export { formatPrice, formatVolume, formatChange } from './format';
 
 export type { ChartType } from './series';
+export { CHART_TYPE_VALUES, STARTER_INDICATOR_NAMES } from './toolConstants';
+export type { StarterIndicatorName } from './toolConstants';
 export {
   toHeikinAshi,
   applyVisibleSlice,
@@ -84,7 +86,15 @@ export {
   isUrgentPrefetch,
   shouldBackgroundPrefetch,
 } from './historyPrefetch';
-export type { ApplyCandleStreamResult } from './series';
+export type { ApplyCandleStreamResult, EnsureCandlesCoverResult } from './series';
+
+export type { FetchIntervalResolution, ProviderInterval } from './interval';
+export {
+  intervalToMs,
+  resolveFetchInterval,
+  resampleCandlesTo2h,
+  applyIntervalResample,
+} from './interval';
 
 export type { SerializedChartState, ChartStateValidationResult } from './chartState';
 export {

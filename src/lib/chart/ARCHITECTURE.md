@@ -18,9 +18,11 @@ StockApp → WorkspaceTabBar
                                 └─ DrawingStore (undo/redo)
 ```
 
+`ChartCell` is a thin wiring shell; responsibility hooks live in `src/app/components/chart-cell/` (`usePatternCapture`, `usePaneLayoutActions`, `useDrawingToolbarCommands`, `useChartCellContextMenus`, etc.).
+
 Data path: `POST /api/candles` → `series.ts` → `@edge/chart-react` `EdgeChart` → `packages/chart-react/src/engine/canvas.tsx` render loop. App `EdgeChart.tsx` passes `resolveCellFetchRange(config)` so weekly/monthly intervals fetch enough history (1wk→5y, 1mo→max when no bottom-bar preset). History pagination uses `historyPrefetchController.ts` (50% visible lookahead, 500-bar pages, pipelined fetch) with thresholds from `@edge/chart-core` `historyPrefetch.ts`.
 
-**Range & viewport session:** Manual interval picks use `rangeForManualInterval()`. Initial visible window comes from `getSessionViewport()` — active bottom-bar presets use calendar cutoffs; no preset + daily interval shows ~270 calendar days (`getCalendarWindowViewport`); weekly/monthly show the full fetched window. When the candle session changes (symbol/range/interval), `viewportRevision` triggers `resetAllPaneViewports()` so pan/zoom does not carry stale state across bar sizes.
+**Range & viewport session:** Manual interval picks use `rangeForManualInterval()`. Initial visible window comes from `getSessionViewport()` — active bottom-bar presets use calendar cutoffs; no preset + daily interval shows ~270 calendar days (`getCalendarWindowViewport`); weekly/monthly show the full fetched window. When the candle session changes (symbol/range/interval), `viewportRevision` triggers `resetAllPaneViewports()` so pan/zoom does not carry stale state across bar sizes. Within the same session, true history prepends keep shifted indices; if candle length grows while the viewport is no longer at the live edge (typical cache→fresh replace), the price pane rebuilds via `getSessionViewport()` instead of keeping stale indices.
 
 ## Canonical vs compatibility paths
 
@@ -36,7 +38,21 @@ Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate imp
 
 | Module | Role |
 |--------|------|
-| `packages/chart-react/src/engine/canvas.tsx` | Render loop, pointer input, crosshair, pane registration |
+| `packages/chart-react/src/engine/canvas.tsx` | Composition shell: pane registration, hook wiring |
+| `packages/chart-react/src/engine/useViewportLifecycle.ts` | Session viewport, candle replace/prepend, size |
+| `packages/chart-react/src/engine/useCanvasRenderer.ts` | Scheduler, layer draw coalescing, WebGL refs |
+| `packages/chart-react/src/engine/useCanvasGestures.ts` | Pointer pan/zoom/drag, momentum, drawing bridge |
+| `packages/chart-react/src/engine/useCanvasCursor.ts` | Cursor policy + event badge interaction |
+| `packages/chart-react/src/EdgeChart.tsx` | Package API shell: props → coordinator hooks → JSX |
+| `packages/chart-react/src/useCandleSession.ts` | Candle session key, history prefetch binding |
+| `packages/chart-react/src/useCrosshairCoordinator.ts` | Crosshair sync, RAF flush, sibling callbacks |
+| `packages/chart-react/src/useChartWheelPinch.ts` | Wheel/pinch → price pane viewport |
+| `packages/chart-react/src/usePaneLayoutController.ts` | Pane layout, separator resize, sibling sync |
+| `packages/chart-react/src/useEventDetailController.ts` | Event badge selection + detail card |
+| `packages/chart-react/src/drawing/useDrawingController.ts` | Thin orchestrator for drawing FSM + facade |
+| `packages/chart-react/src/drawing/createDrawingHandleSlice.ts` | Imperative drawing command facade |
+| `packages/chart-react/src/drawing/applyDrawingPointerTransition.ts` | Pure pointer/FSM transition phases |
+| `src/app/components/chart-cell/` | ChartCell responsibility hooks (capture, menus, toolbar, sync) |
 | `packages/chart-react/src/engine/layers.ts` | Layer contract + registry; ordered draw phases with invalidation metadata |
 | `packages/chart-react/src/engine/renderScheduler.ts` | RAF draw coalescing, invalidation reasons, phase timings |
 | `packages/chart-react/src/engine/layerCache.ts` | Offscreen cache for static background layer |

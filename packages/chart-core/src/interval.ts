@@ -1,4 +1,4 @@
-import type { Candle, Interval } from '@edge/chart-core';
+import type { Candle, Interval } from './contracts';
 
 /** Provider interval strings (Yahoo-compatible subset). */
 export type ProviderInterval = Interval;
@@ -39,7 +39,7 @@ export function resolveFetchInterval(interval: Interval): FetchIntervalResolutio
   if (interval === '2h') {
     return { providerInterval: '1h', resampleTo: '2h' };
   }
-  return { providerInterval: interval as ProviderInterval };
+  return { providerInterval: interval };
 }
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;

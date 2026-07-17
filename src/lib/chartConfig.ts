@@ -113,7 +113,8 @@ export type SidebarPanelId =
   | "settings"
   | "options"
   | "screener"
-  | "trade";
+  | "trade"
+  | "patterns";
 
 /** Legacy persisted panel ids migrated on load. */
 export type LegacySidebarPanelId = SidebarPanelId | "risk";

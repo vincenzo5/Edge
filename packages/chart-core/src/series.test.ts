@@ -1,11 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   applyCandleAppend,
   applyCandleReplaceLatest,
   applyCandleSnapshot,
   applyCandleStreamEvent,
+  applyVisibleSlice,
+  ensureCandlesCover,
   mergeCandlesByTimestamp,
   mergeCandlesPrepend,
+  toHeikinAshi,
+  transformCandlesForChartType,
 } from './series';
 import type { Candle } from './contracts';
 import type { ChartDataMeta } from './dataSource';
@@ -97,5 +101,96 @@ describe('applyCandleStreamEvent', () => {
       meta,
     });
     expect(result.candles.at(-1)?.c).toBe(7);
+  });
+});
+
+describe('toHeikinAshi', () => {
+  it('transforms a simple series correctly', () => {
+    const input: Candle[] = [
+      { t: 1, o: 10, h: 12, l: 9, c: 11 },
+      { t: 2, o: 11, h: 13, l: 10, c: 12 },
+    ];
+    const ha = toHeikinAshi(input);
+    expect(ha).toHaveLength(2);
+    expect(ha[0].o).toBeCloseTo(10.5);
+    expect(ha[0].c).toBeCloseTo(10.5);
+    expect(ha[1].o).toBeCloseTo(10.5);
+    expect(ha[1].c).toBeCloseTo(11.5);
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(toHeikinAshi([])).toEqual([]);
+  });
+});
+
+describe('transformCandlesForChartType', () => {
+  const input: Candle[] = [
+    { t: 1, o: 10, h: 12, l: 9, c: 11 },
+    { t: 2, o: 11, h: 13, l: 10, c: 12 },
+  ];
+
+  it('returns candles unchanged for non-heikin types', () => {
+    expect(transformCandlesForChartType(input, 'candle_solid')).toBe(input);
+  });
+
+  it('applies Heikin Ashi transform for heikin_ashi type', () => {
+    const ha = transformCandlesForChartType(input, 'heikin_ashi');
+    expect(ha).toHaveLength(2);
+    expect(ha[0].o).toBeCloseTo(10.5);
+    expect(ha[0].c).toBeCloseTo(10.5);
+  });
+});
+
+describe('applyVisibleSlice', () => {
+  const data: Candle[] = Array.from({ length: 10 }, (_, i) => ({
+    t: i,
+    o: i,
+    h: i + 1,
+    l: i - 1,
+    c: i,
+  }));
+
+  it('returns full data when visibleCount is null or <=0', () => {
+    expect(applyVisibleSlice(data, null)).toHaveLength(10);
+    expect(applyVisibleSlice(data, 0)).toHaveLength(10);
+  });
+
+  it('slices from the start when visibleCount is positive', () => {
+    expect(applyVisibleSlice(data, 3)).toHaveLength(3);
+    expect(applyVisibleSlice(data, 3)[2].t).toBe(2);
+  });
+});
+
+describe('ensureCandlesCover', () => {
+  const DAY = 86_400_000;
+
+  function makeCandles(count: number, startMs: number): Candle[] {
+    return Array.from({ length: count }, (_, i) => ({
+      t: startMs + i * DAY,
+      o: 1,
+      h: 1,
+      l: 1,
+      c: 1,
+    }));
+  }
+
+  it('returns immediately when target is within loaded range', async () => {
+    const candles = makeCandles(10, 1000);
+    const result = await ensureCandlesCover(candles, candles[3]!.t, vi.fn());
+    expect(result.covered).toBe(true);
+    expect(result.prepended).toBe(0);
+    expect(result.candles).toBe(candles);
+  });
+
+  it('prepends older bars until target is covered', async () => {
+    const candles = makeCandles(5, 1000 + 5 * DAY);
+    const older = makeCandles(3, 1000);
+    const fetchOlder = vi.fn().mockResolvedValueOnce(older).mockResolvedValueOnce([]);
+
+    const result = await ensureCandlesCover(candles, 1000 + DAY, fetchOlder);
+    expect(result.covered).toBe(true);
+    expect(result.prepended).toBe(3);
+    expect(result.candles[0]!.t).toBe(1000);
+    expect(fetchOlder).toHaveBeenCalledTimes(1);
   });
 });

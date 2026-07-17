@@ -302,6 +302,137 @@ describe('@edge/chart-react EdgeChart', () => {
     });
   });
 
+  it('setCrosshairFromSync drives onCrosshairMove with clamped data index', async () => {
+    const ref = createRef<EdgeChartHandle>();
+    const onCrosshairMove = vi.fn();
+
+    render(
+      <EdgeChart
+        ref={ref}
+        candles={FIXTURE_CANDLES}
+        state={createDefaultChartState()}
+        theme="dark"
+        symbol="DEMO"
+        range="1y"
+        interval="1d"
+        loading={false}
+        onCrosshairMove={onCrosshairMove}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current?.getVisibleRange()).not.toBeNull();
+    });
+
+    ref.current!.setCrosshairFromSync(FIXTURE_CANDLES[1]!.t);
+
+    await waitFor(() => {
+      expect(onCrosshairMove).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timestamp: FIXTURE_CANDLES[1]!.t,
+          dataIndex: expect.any(Number),
+          plotX: expect.any(Number),
+        }),
+      );
+    });
+  });
+
+  it('shifts viewport indices when older history prepends', async () => {
+    const candles = makeCandles(120);
+    const olderStart = candles[0]!.t - 50 * 86_400_000;
+    const older = makeCandles(50, olderStart);
+
+    const baselineRef = createRef<EdgeChartHandle>();
+    render(
+      <EdgeChart
+        ref={baselineRef}
+        candles={candles}
+        state={createDefaultChartState()}
+        theme="dark"
+        symbol="DEMO"
+        range="1y"
+        interval="1d"
+        loading={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(baselineRef.current?.getVisibleRange()).not.toBeNull();
+    });
+    const baselineVp = baselineRef.current!.getVisibleRange()!;
+
+    const ref = createRef<EdgeChartHandle>();
+    const onLoadOlderCandles = vi.fn().mockResolvedValue(older);
+
+    render(
+      <EdgeChart
+        ref={ref}
+        candles={candles}
+        state={createDefaultChartState()}
+        theme="dark"
+        symbol="DEMO"
+        range="1y"
+        interval="1d"
+        loading={false}
+        onLoadOlderCandles={onLoadOlderCandles}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current?.getRawCandleCount()).toBe(170);
+    });
+
+    const afterPrependVp = ref.current!.getVisibleRange()!;
+    expect(afterPrependVp.startIndex).toBe(baselineVp.startIndex + 50);
+    expect(afterPrependVp.endIndex).toBe(baselineVp.endIndex + 50);
+  });
+
+  it('wheel pan updates viewport when a sub-pane is visible', async () => {
+    const candles = makeCandles(120);
+    const ref = createRef<EdgeChartHandle>();
+    const state = createDefaultChartState({
+      indicators: [
+        {
+          id: 'rsi-1',
+          name: 'RSI',
+          pane: 'sub',
+          inputs: { period: 14 },
+          visible: true,
+        },
+      ],
+    });
+
+    const { container } = render(
+      <EdgeChart
+        ref={ref}
+        candles={candles}
+        state={state}
+        theme="dark"
+        symbol="DEMO"
+        range="1y"
+        interval="1d"
+        loading={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current?.getVisibleRange()).not.toBeNull();
+    });
+
+    expect(container.querySelectorAll('canvas').length).toBeGreaterThan(1);
+
+    const before = ref.current!.getVisibleRange()!;
+    const chartArea = container.querySelector('[data-edge-chart]');
+    expect(chartArea).not.toBeNull();
+    fireEvent.wheel(chartArea!, { deltaX: 3000, deltaY: 0, deltaMode: 0 });
+
+    await waitFor(() => {
+      const after = ref.current!.getVisibleRange()!;
+      expect(after.startIndex).not.toBe(before.startIndex);
+      expect(after.endIndex).not.toBe(before.endIndex);
+    });
+  });
+
   it('resets sub-pane viewports when the interval session loads', async () => {
     const dailyCandles = makeCandles(300);
     const weeklyCandles = makeCandles(120, dailyCandles[0]!.t, 7 * 86_400_000);

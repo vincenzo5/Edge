@@ -10,8 +10,7 @@ import type {
   MarketSessionMode,
   Range,
 } from '@edge/chart-core';
-import { applyCandleStreamEvent } from '@edge/chart-core';
-import { mergeCandlesPrepend } from '@/lib/chart/series';
+import { applyCandleStreamEvent, mergeCandlesPrepend } from '@edge/chart-core';
 import { recordMarketDataTelemetry, type MarketDataPerfPhase } from '@/lib/marketData/telemetry';
 import {
   buildChartClientCacheKey,

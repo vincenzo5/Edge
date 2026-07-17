@@ -16,7 +16,7 @@ import {
 } from '@edge/chart-core/indicatorCompute';
 import { resolveIndicatorInputs } from '@edge/chart-core/indicatorInputs';
 import { resolveDrawingStyles } from '@edge/chart-core/drawingStyles';
-import { intervalToMs } from './intervalAdapter';
+import { intervalToMs } from '@edge/chart-core';
 import { getChartColors } from './chartTheme';
 
 import type { PriceAxisAnnotation, LaidOutPriceAxisAnnotation, PriceAxisLineStyle } from '@edge/chart-core/priceAxisTypes';

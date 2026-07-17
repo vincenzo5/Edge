@@ -6,19 +6,14 @@ import {
   getAllIndicators,
   restoreChartState,
   serializeChartState,
+  CHART_TYPE_VALUES,
+  STARTER_INDICATOR_NAMES,
   type SerializedChartState,
 } from "@edge/chart-core";
 import type { ChartToolContext } from "./context";
 
-const CHART_TYPES = [
-  "candle_solid",
-  "candle_stroke",
-  "ohlc",
-  "area",
-  "heikin_ashi",
-] as const;
-
-const STARTER_INDICATORS = ["MA", "EMA", "BOLL", "MACD", "RSI", "VOL"] as const;
+const CHART_TYPES = CHART_TYPE_VALUES;
+const STARTER_INDICATORS = STARTER_INDICATOR_NAMES;
 
 function requireChart(context: ChartToolContext) {
   if (!context.clientSession) {
