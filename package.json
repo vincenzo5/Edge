@@ -46,6 +46,9 @@
     "events:coverage-probe": "npx tsx scripts/events-coverage-probe.mts",
     "perf:chart": "npx tsx scripts/run-chart-perf.mts",
     "perf:market-data": "npx tsx scripts/run-market-data-perf.mts",
+    "pattern-library:seed": "npx tsx scripts/pattern-library-seed.mts",
+    "pattern-library:bakeoff": "npx tsx scripts/pattern-library-bakeoff.mts",
+    "pattern-library:stress": "npx tsx scripts/pattern-library-stress.mts",
     "docs:auto-update": "npx tsx scripts/update-docs-for-diff.mts",
     "hooks:install": "git config core.hooksPath .githooks"
   },

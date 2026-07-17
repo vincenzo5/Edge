@@ -9,6 +9,7 @@ import { RiskSettingsSidebarPanel } from "./panels/RiskSettingsSidebarPanel";
 import { OptionsSidebarPanel } from "./panels/OptionsPanel";
 import { ScreenerSidebarPanel } from "./panels/ScreenerSidebarPanel";
 import { TradeSidebarPanel } from "./panels/TradeSidebarPanel";
+import { PatternsSidebarPanel } from "./panels/PatternsPanel";
 import { CogIcon } from "../chart-chrome/ChartHeaderIcons";
 
 export type SidebarPanelScope = "active-chart" | "app";
@@ -111,6 +112,22 @@ function AccountIcon({ className }: { className?: string }) {
   );
 }
 
+function PatternsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+    >
+      <path d="M4 18V6l4 3 4-5 4 4 4-3v13H4z" />
+      <path d="M8 14h8M8 10h5" />
+    </svg>
+  );
+}
+
 function SettingsIcon({ className }: { className?: string }) {
   return <CogIcon className={className} />;
 }
@@ -142,6 +159,15 @@ export const SIDEBAR_MAIN_PANELS: SidebarPanelDef[] = [
     Panel: ScreenerSidebarPanel,
     supportsPopOut: true,
     floatingDefaults: { width: 1200, height: 700 },
+  },
+  {
+    id: "patterns",
+    label: "Patterns",
+    scope: "app",
+    Icon: PatternsIcon,
+    Panel: PatternsSidebarPanel,
+    supportsPopOut: true,
+    floatingDefaults: { width: 480, height: 560 },
   },
   {
     id: "object-tree",

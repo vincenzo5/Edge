@@ -367,6 +367,8 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Blank chart context menu | **Done** | Reset, copy price, paste, object tree, crosshair lock toggle, templates, bulk remove (incl. combined), settings — [context-menu-reference.md §1](./context-menu-reference.md#1-blank-chart-plot-area) |
 | Drawing overlay context menu | **Done** | Rename, settings, copy, paste, lock, hide, z-order, duplicate, remove — [context-menu-reference.md §2.2](./context-menu-reference.md#22-edge-overlay-menu-today) |
 | Chart / study templates | **Done** | `presetStorage.ts` (`tv-ai:presets:v1`); save chart from blank menu; apply via `TemplatePickerModal`; save study from indicator settings |
+| Pattern Capture Mode | **Done** | **Shift+P** or header **Capture** → per-section start/end clicks (1-bar allowed) → label via **1–N** presets or custom text → Save → `data/pattern-library/records/{id}.json` + frozen SVG; **View in Patterns** after save; `find_similar_setups` retrieval-ready; exclusive mode disables drawing tools |
+| Pattern library browse | **Done** | Right-rail **Patterns** panel lists interactive captures (SVG thumb + section chips) → detail slide-over (full SVG, metadata PATCH) → **Go to chart** (symbol/interval/range + scroll to pattern end); seed records hidden |
 | Price / time axis context menus | **Partial** | Price axis right-click → scale type, invert, scale-price-only, labels/lines submenus, more settings; double-click reset; time axis dedicated menu deferred — [context-menu-reference.md §3–4](./context-menu-reference.md#3-price-scale-y-axis-context-menu) |
 | Old Chart (`Chart.tsx`) | **Legacy removed** | klinecharts wrapper deleted; `ChartCell` uses `EdgeChart` only |
 

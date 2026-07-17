@@ -24,15 +24,21 @@ describe('sidebar registry', () => {
     expect(SIDEBAR_FOOTER_PANELS.map((panel) => panel.id)).toEqual(['settings']);
   });
 
-  it('orders main panels watchlist → options → screener → object-tree → trade → account', () => {
+  it('orders main panels watchlist → options → screener → patterns → object-tree → trade → account', () => {
     expect(SIDEBAR_MAIN_PANELS.map((panel) => panel.id)).toEqual([
       'watchlist',
       'options',
       'screener',
+      'patterns',
       'object-tree',
       'trade',
       'account',
     ]);
+  });
+
+  it('includes patterns panel as app-scoped', () => {
+    expect(SIDEBAR_PANEL_MAP.patterns).toBeDefined();
+    expect(SIDEBAR_PANEL_MAP.patterns.scope).toBe('app');
   });
 
   it('includes trade panel as active-chart scoped', () => {

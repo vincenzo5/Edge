@@ -1,0 +1,293 @@
+{
+  "id": "capture-brk-a-1780407000000",
+  "asOf": "2026-06-02T13:30:00.000Z",
+  "symbol": "BRK-A",
+  "timeframe": "1d",
+  "barWindow": 25,
+  "setupFamilyId": "unclassified",
+  "quality": 3,
+  "decision": "take",
+  "regime": "downtrend",
+  "plan": {
+    "direction": "long",
+    "entry": 707210,
+    "stop": 698343.3571428572,
+    "targets": [
+      724140.5714285715
+    ],
+    "thesis": "setup → pullback → trigger → outcome"
+  },
+  "outcome": {
+    "resolved": false,
+    "win": null,
+    "rMultiple": null,
+    "mfe": null,
+    "mae": null,
+    "holdBars": null
+  },
+  "ohlcv": [
+    {
+      "timestamp": 1777383000000,
+      "open": 715000,
+      "high": 719500,
+      "low": 713779,
+      "close": 717550,
+      "volume": 100
+    },
+    {
+      "timestamp": 1777469400000,
+      "open": 714402,
+      "high": 717000,
+      "low": 712500,
+      "close": 713000,
+      "volume": 100
+    },
+    {
+      "timestamp": 1777555800000,
+      "open": 710000,
+      "high": 716000,
+      "low": 707722,
+      "close": 711900,
+      "volume": 100
+    },
+    {
+      "timestamp": 1777642200000,
+      "open": 715000,
+      "high": 719270,
+      "low": 710300,
+      "close": 710300,
+      "volume": 100
+    },
+    {
+      "timestamp": 1777901400000,
+      "open": 710300,
+      "high": 719500,
+      "low": 701500,
+      "close": 702790,
+      "volume": 200
+    },
+    {
+      "timestamp": 1777987800000,
+      "open": 702888,
+      "high": 703138,
+      "low": 698009,
+      "close": 699965,
+      "volume": 200
+    },
+    {
+      "timestamp": 1778074200000,
+      "open": 701899,
+      "high": 706232,
+      "low": 700000,
+      "close": 705940,
+      "volume": 200
+    },
+    {
+      "timestamp": 1778160600000,
+      "open": 710000,
+      "high": 718000,
+      "low": 708139,
+      "close": 716250,
+      "volume": 400
+    },
+    {
+      "timestamp": 1778247000000,
+      "open": 715000,
+      "high": 720280,
+      "low": 714776,
+      "close": 717387,
+      "volume": 100
+    },
+    {
+      "timestamp": 1778506200000,
+      "open": 716000,
+      "high": 722000,
+      "low": 716000,
+      "close": 721000,
+      "volume": 100
+    },
+    {
+      "timestamp": 1778592600000,
+      "open": 721959,
+      "high": 734000,
+      "low": 720450,
+      "close": 728500,
+      "volume": 200
+    },
+    {
+      "timestamp": 1778679000000,
+      "open": 723255,
+      "high": 730000,
+      "low": 723000,
+      "close": 727500,
+      "volume": 100
+    },
+    {
+      "timestamp": 1778765400000,
+      "open": 728900,
+      "high": 728900,
+      "low": 722700,
+      "close": 727180,
+      "volume": 100
+    },
+    {
+      "timestamp": 1778851800000,
+      "open": 729900,
+      "high": 732850,
+      "low": 722876,
+      "close": 723821,
+      "volume": 100
+    },
+    {
+      "timestamp": 1779111000000,
+      "open": 722500,
+      "high": 733890,
+      "low": 722434,
+      "close": 730000,
+      "volume": 500
+    },
+    {
+      "timestamp": 1779197400000,
+      "open": 728580,
+      "high": 732000,
+      "low": 720351,
+      "close": 720600,
+      "volume": 200
+    },
+    {
+      "timestamp": 1779283800000,
+      "open": 721000,
+      "high": 723483,
+      "low": 717123,
+      "close": 720840,
+      "volume": 300
+    },
+    {
+      "timestamp": 1779370200000,
+      "open": 717750,
+      "high": 720488,
+      "low": 714000,
+      "close": 718387,
+      "volume": 200
+    },
+    {
+      "timestamp": 1779456600000,
+      "open": 722070,
+      "high": 730930,
+      "low": 722070,
+      "close": 728641,
+      "volume": 400
+    },
+    {
+      "timestamp": 1779802200000,
+      "open": 727988,
+      "high": 731722,
+      "low": 724500,
+      "close": 724500,
+      "volume": 100
+    },
+    {
+      "timestamp": 1779888600000,
+      "open": 721935,
+      "high": 728980,
+      "low": 719000,
+      "close": 719000,
+      "volume": 100
+    },
+    {
+      "timestamp": 1779975000000,
+      "open": 718090,
+      "high": 722166,
+      "low": 715660,
+      "close": 715660,
+      "volume": 100
+    },
+    {
+      "timestamp": 1780061400000,
+      "open": 714000,
+      "high": 714250,
+      "low": 708700,
+      "close": 710900,
+      "volume": 200
+    },
+    {
+      "timestamp": 1780320600000,
+      "open": 710900,
+      "high": 710900,
+      "low": 702555,
+      "close": 705161,
+      "volume": 200
+    },
+    {
+      "timestamp": 1780407000000,
+      "open": 707598,
+      "high": 710055,
+      "low": 702576,
+      "close": 707210,
+      "volume": 200
+    }
+  ],
+  "chartStyleId": "edge-frozen-v1",
+  "chartSvgPath": "records/capture-brk-a-1780407000000.svg",
+  "capture": {
+    "patternStart": {
+      "barIndex": 196,
+      "timestamp": 1777383000000
+    },
+    "patternEnd": {
+      "barIndex": 220,
+      "timestamp": 1780407000000
+    },
+    "sections": [
+      {
+        "id": "section-1",
+        "label": "setup",
+        "fromBar": 196,
+        "toBar": 197,
+        "fromTimestamp": 1777383000000,
+        "toTimestamp": 1777469400000,
+        "high": 719500,
+        "low": 712500
+      },
+      {
+        "id": "section-2",
+        "label": "pullback",
+        "fromBar": 198,
+        "toBar": 206,
+        "fromTimestamp": 1777555800000,
+        "toTimestamp": 1778592600000,
+        "high": 734000,
+        "low": 698009
+      },
+      {
+        "id": "section-3",
+        "label": "trigger",
+        "fromBar": 207,
+        "toBar": 209,
+        "fromTimestamp": 1778679000000,
+        "toTimestamp": 1778851800000,
+        "high": 732850,
+        "low": 722700
+      },
+      {
+        "id": "section-4",
+        "label": "outcome",
+        "fromBar": 210,
+        "toBar": 220,
+        "fromTimestamp": 1779111000000,
+        "toTimestamp": 1780407000000,
+        "high": 733890,
+        "low": 702555
+      }
+    ],
+    "paddingBars": {
+      "left": 5,
+      "right": 0
+    },
+    "interval": "1d",
+    "range": "1y",
+    "indicatorsSnapshot": [],
+    "sourceCellId": "cell-0",
+    "capturedAt": "2026-07-17T13:50:20.322Z"
+  }
+}

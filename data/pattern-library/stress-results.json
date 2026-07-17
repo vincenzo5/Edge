@@ -1,0 +1,72 @@
+{
+  "lookAhead": {
+    "total": 100,
+    "violations": [],
+    "pass": true
+  },
+  "styleAblation": [
+    {
+      "recordId": "seed-001",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    },
+    {
+      "recordId": "seed-002",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    },
+    {
+      "recordId": "seed-003",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    },
+    {
+      "recordId": "seed-004",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    },
+    {
+      "recordId": "seed-005",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    },
+    {
+      "recordId": "seed-006",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    },
+    {
+      "recordId": "seed-007",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    },
+    {
+      "recordId": "seed-008",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    },
+    {
+      "recordId": "seed-009",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    },
+    {
+      "recordId": "seed-010",
+      "darkVsLightSimilarity": 1,
+      "retrievalStable": true
+    }
+  ],
+  "bias": {
+    "longAccuracy": 1,
+    "shortAccuracy": 0,
+    "gapPp": 100,
+    "pass": false,
+    "gateMaxPp": 10
+  },
+  "relativeComparison": {
+    "total": 20,
+    "correct": 13,
+    "accuracy": 0.65
+  },
+  "pass": false
+}

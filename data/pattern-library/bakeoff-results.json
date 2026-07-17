@@ -1,0 +1,604 @@
+{
+  "trainCount": 80,
+  "holdoutCount": 20,
+  "cutoffAsOf": "2025-03-23T14:30:00.000Z",
+  "metrics": [
+    {
+      "arm": "few_shot_vlm",
+      "n": 14,
+      "familyAccuracy": 0.21428571428571427,
+      "directionAccuracy": 0.07142857142857142,
+      "directionWilson95": [
+        0.012721886112291636,
+        0.3146926955395781
+      ],
+      "stopWithinHalfAtrRate": 0.07142857142857142,
+      "longShortGapPp": 8.333333333333332,
+      "confidenceSignedR": 0.5724607862938599
+    },
+    {
+      "arm": "retrieval",
+      "n": 14,
+      "familyAccuracy": 0.42857142857142855,
+      "directionAccuracy": 0.8571428571428571,
+      "directionWilson95": [
+        0.600580922361363,
+        0.9599069262620787
+      ],
+      "stopWithinHalfAtrRate": 0,
+      "longShortGapPp": 100,
+      "confidenceSignedR": 0.394452880559053
+    },
+    {
+      "arm": "rules",
+      "n": 14,
+      "familyAccuracy": 0,
+      "directionAccuracy": 0.07142857142857142,
+      "directionWilson95": [
+        0.012721886112291636,
+        0.3146926955395781
+      ],
+      "stopWithinHalfAtrRate": 0.3333333333333333,
+      "longShortGapPp": 8.333333333333332,
+      "confidenceSignedR": 0.583971144832967
+    }
+  ],
+  "predictions": [
+    {
+      "recordId": "seed-081",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "long",
+      "predictedStop": 169.75958810107383,
+      "confidence": 0.511975069806952,
+      "rationale": "Stub VLM fused retrieval (3 shots) with rule hints"
+    },
+    {
+      "recordId": "seed-081",
+      "arm": "retrieval",
+      "predictedFamilyId": "failed_breakdown",
+      "predictedDirection": "long",
+      "predictedStop": 103.66115912377632,
+      "confidence": 0.8000016187435205,
+      "rationale": "Top neighbor: seed-076"
+    },
+    {
+      "recordId": "seed-081",
+      "arm": "rules",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "long",
+      "predictedStop": 79.25106353594344,
+      "confidence": 0.65,
+      "rationale": "Positive slope with shallow pullback near range low"
+    },
+    {
+      "recordId": "seed-082",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "short",
+      "predictedStop": 169.87234202311245,
+      "confidence": 0.507040695085224,
+      "rationale": "Stub VLM fused retrieval (3 shots) with rule hints"
+    },
+    {
+      "recordId": "seed-082",
+      "arm": "retrieval",
+      "predictedFamilyId": "range_fade",
+      "predictedDirection": "long",
+      "predictedStop": 113.10112561490469,
+      "confidence": 0.5999937418119211,
+      "rationale": "Top neighbor: seed-045"
+    },
+    {
+      "recordId": "seed-082",
+      "arm": "rules",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "short",
+      "predictedStop": 196.60665876429633,
+      "confidence": 0.64,
+      "rationale": "Negative slope with shallow rally near range high"
+    },
+    {
+      "recordId": "seed-083",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "reversal_climax",
+      "predictedDirection": "neutral",
+      "predictedStop": 165.9955599698164,
+      "confidence": 0.20013124360983178,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-083",
+      "arm": "retrieval",
+      "predictedFamilyId": "reversal_climax",
+      "predictedDirection": "long",
+      "predictedStop": 141.84846178890137,
+      "confidence": 0.4000032386193753,
+      "rationale": "Top neighbor: seed-078"
+    },
+    {
+      "recordId": "seed-083",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-084",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "neutral",
+      "predictedStop": 162.66035904817136,
+      "confidence": 0.20010128463796983,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-084",
+      "arm": "retrieval",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "long",
+      "predictedStop": 156.79371224337666,
+      "confidence": 0.3999995775166278,
+      "rationale": "Top neighbor: seed-079"
+    },
+    {
+      "recordId": "seed-084",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-085",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "momentum_continuation",
+      "predictedDirection": "neutral",
+      "predictedStop": 165.96714672026485,
+      "confidence": 0.20000637145367964,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-085",
+      "arm": "retrieval",
+      "predictedFamilyId": "momentum_continuation",
+      "predictedDirection": "long",
+      "predictedStop": 153.35422700067724,
+      "confidence": 0.7999932520829373,
+      "rationale": "Top neighbor: seed-059"
+    },
+    {
+      "recordId": "seed-085",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-086",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "momentum_continuation",
+      "predictedDirection": "long",
+      "predictedStop": 175.74328993939815,
+      "confidence": 0.5375111122685684,
+      "rationale": "Stub VLM fused retrieval (3 shots) with rule hints"
+    },
+    {
+      "recordId": "seed-086",
+      "arm": "retrieval",
+      "predictedFamilyId": "breakout_retest",
+      "predictedDirection": "long",
+      "predictedStop": 140.66888449993328,
+      "confidence": 0.9999412968673242,
+      "rationale": "Top neighbor: seed-056"
+    },
+    {
+      "recordId": "seed-086",
+      "arm": "rules",
+      "predictedFamilyId": "momentum_continuation",
+      "predictedDirection": "long",
+      "predictedStop": 218.33201551701399,
+      "confidence": 0.72,
+      "rationale": "Strong impulse with drying volume in uptrend"
+    },
+    {
+      "recordId": "seed-087",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "failed_breakdown",
+      "predictedDirection": "neutral",
+      "predictedStop": 169.85389073263624,
+      "confidence": 0.20113245336764995,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-087",
+      "arm": "retrieval",
+      "predictedFamilyId": "range_fade",
+      "predictedDirection": "long",
+      "predictedStop": 113.09969012293531,
+      "confidence": 0.6000128253486493,
+      "rationale": "Top neighbor: seed-015"
+    },
+    {
+      "recordId": "seed-087",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-088",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "failed_breakdown",
+      "predictedDirection": "neutral",
+      "predictedStop": 169.79303842803958,
+      "confidence": 0.2017202176406592,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-088",
+      "arm": "retrieval",
+      "predictedFamilyId": "failed_breakdown",
+      "predictedDirection": "long",
+      "predictedStop": 90.8991435467169,
+      "confidence": 0.7999444226874611,
+      "rationale": "Top neighbor: seed-027"
+    },
+    {
+      "recordId": "seed-088",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-089",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "reversal_climax",
+      "predictedDirection": "neutral",
+      "predictedStop": 165.99685836912795,
+      "confidence": 0.20011865725929945,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-089",
+      "arm": "retrieval",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "long",
+      "predictedStop": 152.80087787376954,
+      "confidence": 0.3999860520476629,
+      "rationale": "Top neighbor: seed-078"
+    },
+    {
+      "recordId": "seed-089",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-090",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "reversal_climax",
+      "predictedDirection": "neutral",
+      "predictedStop": 166.00953927936743,
+      "confidence": 0.20016957907658228,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-090",
+      "arm": "retrieval",
+      "predictedFamilyId": "momentum_continuation",
+      "predictedDirection": "long",
+      "predictedStop": 102.06987892652025,
+      "confidence": 0.4000013733683382,
+      "rationale": "Top neighbor: seed-023"
+    },
+    {
+      "recordId": "seed-090",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-091",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "momentum_continuation",
+      "predictedDirection": "neutral",
+      "predictedStop": 165.96961545874942,
+      "confidence": 0.20000959205309518,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-091",
+      "arm": "retrieval",
+      "predictedFamilyId": "momentum_continuation",
+      "predictedDirection": "long",
+      "predictedStop": 153.35414561004723,
+      "confidence": 0.7999936419545349,
+      "rationale": "Top neighbor: seed-036"
+    },
+    {
+      "recordId": "seed-091",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-092",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "momentum_continuation",
+      "predictedDirection": "long",
+      "predictedStop": 175.73464599686216,
+      "confidence": 0.5378551328938158,
+      "rationale": "Stub VLM fused retrieval (3 shots) with rule hints"
+    },
+    {
+      "recordId": "seed-092",
+      "arm": "retrieval",
+      "predictedFamilyId": "breakout_retest",
+      "predictedDirection": "long",
+      "predictedStop": 151.0663214130545,
+      "confidence": 0.9998670491259797,
+      "rationale": "Top neighbor: seed-062"
+    },
+    {
+      "recordId": "seed-092",
+      "arm": "rules",
+      "predictedFamilyId": "momentum_continuation",
+      "predictedDirection": "long",
+      "predictedStop": 75.90447626020739,
+      "confidence": 0.72,
+      "rationale": "Strong impulse with drying volume in uptrend"
+    },
+    {
+      "recordId": "seed-093",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "short",
+      "predictedStop": 169.79726424094224,
+      "confidence": 0.5076710775007786,
+      "rationale": "Stub VLM fused retrieval (3 shots) with rule hints"
+    },
+    {
+      "recordId": "seed-093",
+      "arm": "retrieval",
+      "predictedFamilyId": "range_fade",
+      "predictedDirection": "long",
+      "predictedStop": 106.7366046749158,
+      "confidence": 0.5999987308084872,
+      "rationale": "Top neighbor: seed-003"
+    },
+    {
+      "recordId": "seed-093",
+      "arm": "rules",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "short",
+      "predictedStop": 179.22823518164594,
+      "confidence": 0.64,
+      "rationale": "Negative slope with shallow rally near range high"
+    },
+    {
+      "recordId": "seed-094",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "failed_breakdown",
+      "predictedDirection": "neutral",
+      "predictedStop": 169.92280602272723,
+      "confidence": 0.20058053009684382,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-094",
+      "arm": "retrieval",
+      "predictedFamilyId": "range_fade",
+      "predictedDirection": "long",
+      "predictedStop": 103.95882730572887,
+      "confidence": 0.59995161290775,
+      "rationale": "Top neighbor: seed-022"
+    },
+    {
+      "recordId": "seed-094",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-095",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "reversal_climax",
+      "predictedDirection": "neutral",
+      "predictedStop": 165.98686687796143,
+      "confidence": 0.2000888142039304,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-095",
+      "arm": "retrieval",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "long",
+      "predictedStop": 157.86957850161826,
+      "confidence": 0.5999819515519352,
+      "rationale": "Top neighbor: seed-078"
+    },
+    {
+      "recordId": "seed-095",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-096",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "neutral",
+      "predictedStop": 162.66596974406247,
+      "confidence": 0.20000930992479404,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-096",
+      "arm": "retrieval",
+      "predictedFamilyId": "reversal_climax",
+      "predictedDirection": "long",
+      "predictedStop": 156.79935043369957,
+      "confidence": 0.3999771554143921,
+      "rationale": "Top neighbor: seed-025"
+    },
+    {
+      "recordId": "seed-096",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-097",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "breakout_retest",
+      "predictedDirection": "neutral",
+      "predictedStop": 162.67179419565727,
+      "confidence": 0.20014604577209033,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-097",
+      "arm": "retrieval",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "long",
+      "predictedStop": 151.5329684379023,
+      "confidence": 0.399860074245736,
+      "rationale": "Top neighbor: seed-080"
+    },
+    {
+      "recordId": "seed-097",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-098",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "neutral",
+      "predictedStop": 165.9415340280168,
+      "confidence": 0.1999533664416995,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-098",
+      "arm": "retrieval",
+      "predictedFamilyId": "breakout_retest",
+      "predictedDirection": "long",
+      "predictedStop": 146.68334215042654,
+      "confidence": 0.7999414662722677,
+      "rationale": "Top neighbor: seed-020"
+    },
+    {
+      "recordId": "seed-098",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    },
+    {
+      "recordId": "seed-099",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "short",
+      "predictedStop": 169.6300960176971,
+      "confidence": 0.5086804430828055,
+      "rationale": "Stub VLM fused retrieval (3 shots) with rule hints"
+    },
+    {
+      "recordId": "seed-099",
+      "arm": "retrieval",
+      "predictedFamilyId": "range_fade",
+      "predictedDirection": "long",
+      "predictedStop": 126.6822236504387,
+      "confidence": 0.5999769059339409,
+      "rationale": "Top neighbor: seed-016"
+    },
+    {
+      "recordId": "seed-099",
+      "arm": "rules",
+      "predictedFamilyId": "pullback_in_trend",
+      "predictedDirection": "short",
+      "predictedStop": 162.292531131723,
+      "confidence": 0.64,
+      "rationale": "Negative slope with shallow rally near range high"
+    },
+    {
+      "recordId": "seed-100",
+      "arm": "few_shot_vlm",
+      "predictedFamilyId": "failed_breakdown",
+      "predictedDirection": "neutral",
+      "predictedStop": 169.89124854002984,
+      "confidence": 0.2008867530700524,
+      "rationale": "Stub VLM abstains — low confidence on pattern geometry"
+    },
+    {
+      "recordId": "seed-100",
+      "arm": "retrieval",
+      "predictedFamilyId": "range_fade",
+      "predictedDirection": "short",
+      "predictedStop": 103.76598685219587,
+      "confidence": 0.5999634494223987,
+      "rationale": "Top neighbor: seed-022"
+    },
+    {
+      "recordId": "seed-100",
+      "arm": "rules",
+      "predictedFamilyId": null,
+      "predictedDirection": "neutral",
+      "predictedStop": null,
+      "confidence": 0
+    }
+  ],
+  "recommendation": "Favor pattern library + retrieval; use VLM as explainer over neighbors.",
+  "gateResults": [
+    {
+      "arm": "few_shot_vlm",
+      "gates": {
+        "pass": false,
+        "failures": [
+          "Wilson lower 0.013 <= 0.5"
+        ]
+      }
+    },
+    {
+      "arm": "retrieval",
+      "gates": {
+        "pass": false,
+        "failures": [
+          "Long/short gap 100.0pp > 10pp"
+        ]
+      }
+    },
+    {
+      "arm": "rules",
+      "gates": {
+        "pass": false,
+        "failures": [
+          "Wilson lower 0.013 <= 0.5"
+        ]
+      }
+    }
+  ]
+}
