@@ -19,13 +19,13 @@ For V1 targets and gesture specs, see [v1-scope.md](./prereqs/v1-scope.md) and [
 ## Architecture (current)
 
 ```
-StockApp → WorkspaceTabBar
+StockApp → PrimaryChartBrowserTabQuote (document title + favicon)
          → ChartGrid ── ChartDrawingRail (multi-pane; targets active cell)
               │ ChartSyncProvider (linked → crosshair broadcast)
-              └─ ChartCell (min-h-0, viewport-fitting grid)
+              └─ ChartCell (min-h-0, viewport-fitting grid; hooks in chart-cell/)
                           ├─ DrawingToolbar (left rail; single-pane only)
                           └─ chart column (flex-1; chart width excludes rail)
-                                ├─ EdgeChart
+                                ├─ EdgeChart (@edge/chart-react + app wrapper)
                                 │     ├─ ChartLegendBar → PriceLegendLayout (price pane)
                                 │     ├─ PaneLegendBar (indicator legend overlays, sub-panes)
                                 │     ├─ ChartCanvas (price pane)
@@ -36,13 +36,16 @@ StockApp → WorkspaceTabBar
                                 └─ ChartRangeBar (bottom preset bar; same column width as chart)
 ```
 
-- **Engine**: Canvas 2D (`src/lib/chart/canvas.tsx`); `ChartCell` → `EdgeChart` only (legacy klinecharts removed June 2025).
-- **Data**: Yahoo OHLCV via `POST /api/candles` (range load + optional `before` for edge prepend) → `series.ts` normalization.
-- **Input**: Wheel + pinch on `[data-edge-chart]`, rAF-batched (`wheel.ts`, `pinch.ts`); pan momentum in `canvas.tsx`.
-- **Plugins**: Indicators and drawings register through `pluginHost.ts` / registries; toolbar names are aliased to registry keys.
+In-chart workspace tab strip is removed; layout persistence still uses a single active workspace tab. Multi-module tiling lives under `/workspace` (`src/lib/appWorkspace/`).
+
+- **Engine**: Canvas 2D (`packages/chart-react/src/engine/canvas.tsx`; `src/lib/chart/canvas.tsx` is a re-export shim); `ChartCell` → app `EdgeChart` → `@edge/chart-react` only (legacy klinecharts removed June 2025).
+- **Data**: `POST /api/candles` (range load + optional `before` for edge prepend) → app `series.ts` Yahoo fetch wrappers + `@edge/chart-core` transforms (HA/merge/resample).
+- **Input**: Wheel + pinch on `[data-edge-chart]`, rAF-batched (`packages/chart-react` wheel/pinch hooks); pan momentum in package `canvas.tsx`.
+- **Plugins**: Indicators and drawings register through `@edge/chart-core` `pluginHost.ts` / registries; toolbar names are aliased to registry keys.
 - **Multi-pane sync**: Imperative `ChartPaneHandle` registration (`paneHandle.ts`); time window synced across panes without React state on every wheel tick.
 - **Multi-chart sync**: `ChartSyncProvider` in `ChartGrid`; source chart fires `onCrosshairTimestamp` → `broadcast`; peers receive via `ChartSyncBridge` → `setCrosshairFromSync`. Crosshair broadcast gated on `ChartLayout.linkCrosshair`; symbol/range/interval propagation gated on `linkSymbol` / `linkInterval`.
-- **Persistence**: `ChartLayout` + per-cell `CellConfig` in `localStorage` via `layoutStorage.ts` (debounced 500 ms).
+- **Persistence**: `ChartLayout` + per-cell `CellConfig` in `localStorage` via `layoutStorage.ts` (debounced 500 ms); hydrate prunes to one active workspace tab.
+- **Pattern capture**: `usePatternCapture` + header Capture / Shift+P overlay; records under `data/pattern-library/` — see inventory rows below and `src/lib/patternLibrary/ARCHITECTURE.md`.
 
 ---
 
@@ -447,32 +450,30 @@ Run layout/sync tests: `npm test -- --run src/lib/chart/layoutTemplates.test.ts 
 
 ## 12. Key source files
 
+Canonical runtime lives in `@edge/chart-core` / `@edge/chart-react`. Paths under `src/lib/chart/` are mostly re-export shims unless noted as app-owned.
+
 | Area | Path |
 |------|------|
-| React chart host | `src/app/components/EdgeChart.tsx` |
+| App React chart host | `src/app/components/EdgeChart.tsx` |
+| Package React chart shell | `packages/chart-react/src/EdgeChart.tsx` |
 | Pane header controls | `src/app/components/PaneControlBar.tsx` |
 | Indicator settings modal | `src/app/components/IndicatorSettingsModal.tsx` |
 | Context menu | `src/app/components/chartContextMenu.ts`, `ContextMenu.tsx` |
 | OHLCV legend overlay | `src/app/components/ChartLegendBar.tsx` |
 | Pane drag-resize UI | `src/app/components/PaneSeparators.tsx` |
-| Per-pane canvas | `src/lib/chart/canvas.tsx` |
-| Crosshair overlay | `src/lib/chart/CrosshairOverlay.tsx` |
-| Viewport math | `src/lib/chart/viewport.ts` |
-| Wheel input | `src/lib/chart/wheel.ts` |
-| Pinch input | `src/lib/chart/pinch.ts` |
-| Pane sync handles | `src/lib/chart/paneHandle.ts` |
-| Pane layout | `src/lib/chart/panes.ts` |
-| Price scaling | `src/lib/chart/indicatorScale.ts` |
-| Crosshair labels | `src/lib/chart/crosshair.ts` |
-| Legend resolution | `src/lib/chart/legend.ts` |
-| Number formatting | `src/lib/chart/format.ts` |
-| Hit zones / cursors | `src/lib/chart/layout.ts` |
-| Drawing primitives | `src/lib/chart/renderer.ts` |
-| Data pipeline | `src/lib/chart/series.ts` |
-| Contracts | `src/lib/chart/contracts.ts` |
-| Cell UI shell | `src/app/components/ChartCell.tsx` |
+| Per-pane canvas | `packages/chart-react/src/engine/canvas.tsx` |
+| Crosshair overlay | `packages/chart-react` (re-export via `src/lib/chart/CrosshairOverlay.tsx`) |
+| Viewport math | `packages/chart-react/src/engine/viewport.ts` |
+| Wheel / pinch input | `packages/chart-react` (`useChartWheelPinch` + engine gestures) |
+| Pane sync handles | `packages/chart-react/src/engine/paneHandle.ts` |
+| Interval / series transforms | `packages/chart-core/src/{interval,series}.ts` |
+| App candle fetch wrappers | `src/lib/chart/series.ts` (Yahoo `/api/candles`; HA/merge re-export from chart-core) |
+| Contracts | `packages/chart-core/src/contracts.ts` (shim: `src/lib/chart/contracts.ts`) |
+| Cell UI shell + hooks | `src/app/components/ChartCell.tsx`, `src/app/components/chart-cell/` |
+| Pattern capture UI | `chart-chrome/PatternCapture{Overlay,Panel}.tsx`, `chart-cell/usePatternCapture.ts` |
 | Multi-chart grid | `src/app/components/ChartGrid.tsx` |
-| Layout controller | `src/app/components/StockApp.tsx` |
+| Layout controller | `src/app/components/StockApp.tsx` (+ `stock-app/` controllers) |
+| Browser tab live quote | `chart-chrome/PrimaryChartBrowserTabQuote.tsx`, `src/lib/app/browserTabQuote.ts` |
 | Crosshair sync bus | `src/app/components/ChartSyncContext.tsx` |
 | Config types | `src/lib/chartConfig.ts` |
 | Indicator catalog | `src/lib/chart/indicators/catalog.ts` |
