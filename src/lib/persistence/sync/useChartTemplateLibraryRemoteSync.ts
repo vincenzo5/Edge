@@ -1,12 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useMemo } from "react";
 
 import type { PresetEnvelope } from "@/lib/chart/presets/types";
 import { loadPresets, savePresets } from "@/lib/presetStorage";
-import {
-  PRESETS_UPDATED_EVENT,
-} from "@/lib/persistence/sync/presetEvents";
+import { PRESETS_UPDATED_EVENT } from "@/lib/persistence/sync/presetEvents";
 import {
   fetchChartTemplateLibrary,
   presetsFromTemplateSnapshot,
@@ -15,99 +13,73 @@ import {
 } from "@/lib/persistence/client/chartTemplateLibraryClient";
 import {
   getChartTemplateLibrarySyncMetadata,
-  isRemoteNewer,
   setChartTemplateLibrarySyncMetadata,
 } from "@/lib/persistence/sync/syncMetadata";
+import {
+  useRevisionedRemoteSync,
+  type RevisionedRemoteSyncAdapter,
+} from "@/lib/persistence/sync/useRevisionedRemoteSync";
 
 export function useChartTemplateLibraryRemoteSync(): void {
-  const hydratedRef = useRef(false);
-  const syncingRef = useRef(false);
-
   const applyRemotePresets = useCallback((presets: PresetEnvelope[]) => {
     savePresets(presets, { notify: false });
   }, []);
 
-  useEffect(() => {
-    if (hydratedRef.current) return;
-
-    let cancelled = false;
-
-    void (async () => {
-      const remote = await fetchChartTemplateLibrary();
-      if (cancelled) return;
-
-      hydratedRef.current = true;
-      if (!remote) return;
-
-      const localMeta = getChartTemplateLibrarySyncMetadata();
-      const localPresets = loadPresets();
-      const remotePresets = presetsFromTemplateSnapshot(remote.templateSnapshot);
-
-      if (!localMeta) {
-        if (JSON.stringify(localPresets) !== JSON.stringify(remotePresets)) {
-          applyRemotePresets(remotePresets);
-        }
-        setChartTemplateLibrarySyncMetadata({
+  const adapter = useMemo<RevisionedRemoteSyncAdapter<PresetEnvelope[]>>(
+    () => ({
+      fetchRemote: async () => {
+        const remote = await fetchChartTemplateLibrary();
+        if (!remote) return null;
+        return {
           syncRevision: remote.syncRevision,
           updatedAt: remote.updatedAt,
-        });
-        return;
-      }
-
-      if (
-        isRemoteNewer(localMeta, remote.updatedAt, remote.syncRevision) &&
-        JSON.stringify(remotePresets) !== JSON.stringify(localPresets)
-      ) {
-        applyRemotePresets(remotePresets);
-        setChartTemplateLibrarySyncMetadata({
-          syncRevision: remote.syncRevision,
-          updatedAt: remote.updatedAt,
-        });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [applyRemotePresets]);
-
-  useEffect(() => {
-    const syncLocalPresets = () => {
-      if (!hydratedRef.current || syncingRef.current) return;
-
-      syncingRef.current = true;
-      void (async () => {
-        try {
-          const presets = loadPresets();
-          const baseRevision = getChartTemplateLibrarySyncMetadata()?.syncRevision ?? 0;
-          const result = await saveChartTemplateLibraryRemote(presets, baseRevision);
-          if (result.ok) {
-            setChartTemplateLibrarySyncMetadata({
+          snapshot: presetsFromTemplateSnapshot(remote.templateSnapshot),
+        };
+      },
+      saveRemote: async (presets, baseRevision) => {
+        const result = await saveChartTemplateLibraryRemote(presets, baseRevision);
+        if (result.ok) {
+          return {
+            ok: true,
+            record: {
               syncRevision: result.record.syncRevision,
               updatedAt: result.record.updatedAt,
-            });
-          } else if (result.current) {
-            if (result.current.templateSnapshot) {
-              applyRemotePresets(presetsFromTemplateSnapshot(result.current.templateSnapshot));
-            }
-            setChartTemplateLibrarySyncMetadata({
-              syncRevision: result.current.syncRevision,
-              updatedAt: result.current.updatedAt,
-            });
-          }
-        } finally {
-          syncingRef.current = false;
+            },
+          };
         }
-      })();
-    };
+        return {
+          ok: false,
+          current: result.current
+            ? {
+                syncRevision: result.current.syncRevision,
+                updatedAt: result.current.updatedAt,
+                snapshot: result.current.templateSnapshot
+                  ? presetsFromTemplateSnapshot(result.current.templateSnapshot)
+                  : undefined,
+              }
+            : undefined,
+        };
+      },
+      getMeta: getChartTemplateLibrarySyncMetadata,
+      setMeta: setChartTemplateLibrarySyncMetadata,
+    }),
+    [],
+  );
 
-    const onPresetsUpdated = () => {
-      window.setTimeout(syncLocalPresets, 600);
-    };
+  const getState = useCallback(() => loadPresets(), []);
 
+  const subscribe = useCallback((onChange: () => void) => {
+    const onPresetsUpdated = () => onChange();
     window.addEventListener(PRESETS_UPDATED_EVENT, onPresetsUpdated);
     return () => window.removeEventListener(PRESETS_UPDATED_EVENT, onPresetsUpdated);
-  }, [applyRemotePresets]);
+  }, []);
+
+  useRevisionedRemoteSync({
+    adapter,
+    getState,
+    subscribe,
+    onApplyRemoteState: applyRemotePresets,
+  });
 }
 
 export type { ChartTemplateLibraryRemoteRecord };

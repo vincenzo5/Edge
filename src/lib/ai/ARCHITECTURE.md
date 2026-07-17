@@ -81,6 +81,10 @@ When `EDGE_API_KEY` is configured, HTTP/MCP callers must send `X-Edge-Api-Key` (
 |------------------|------------------------|
 | `search_symbols`, `get_candles`, `get_quotes`, `get_fundamentals`, `preview_order`, `place_order` | `set_symbol`, `add_indicator`, `add_drawing`, layout mutators |
 
+## Two Chart-Tool Products
+
+This registry owns **Edge application tools** (`tools/chart.ts`, etc.) against `ToolContext`. The separate `@edge/ai-tools-chart` package exposes similarly named tools on a portable `ChartSessionPort` — it is **not** registered here. Shared enum values (`CHART_TYPE_VALUES`, `STARTER_INDICATOR_NAMES`) come from `@edge/chart-core`; contracts differ. See [docs/ai-tools-architecture.md](../../../docs/ai-tools-architecture.md) § Two AI Chart-Tool Products and [packages/ai-tools-chart/ARCHITECTURE.md](../../../packages/ai-tools-chart/ARCHITECTURE.md).
+
 ## Verification
 
 ```bash

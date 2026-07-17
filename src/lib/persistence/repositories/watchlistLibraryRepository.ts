@@ -6,6 +6,10 @@ import { getDb } from "@/db";
 import { userWatchlistLibrary } from "@/db/schema";
 import { DEFAULT_WATCHLIST_STATE } from "@/lib/watchlist/storage";
 import type { WatchlistSnapshot } from "@/lib/persistence/schemas/watchlistLibrary";
+import {
+  saveRevisionedLibraryRecord,
+  type RevisionedLibraryOps,
+} from "@/lib/persistence/repositories/revisionedLibraryRepository";
 
 export type WatchlistLibraryRecord = {
   schemaVersion: 1;
@@ -82,52 +86,40 @@ async function insertWatchlistLibraryIfAbsent(
   return rows[0] ? toRecord(rows[0]) : null;
 }
 
+const watchlistLibraryOps: RevisionedLibraryOps<
+  WatchlistSnapshot,
+  WatchlistLibraryRecord
+> = {
+  get: getWatchlistLibrary,
+  insertIfAbsent: insertWatchlistLibraryIfAbsent,
+  updateIfRevision: async (userId, watchlistSnapshot, baseRevision, nextRevision) => {
+    const db = getDb();
+    const rows = await db
+      .update(userWatchlistLibrary)
+      .set({
+        watchlistSnapshot,
+        syncRevision: nextRevision,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(userWatchlistLibrary.userId, userId),
+          eq(userWatchlistLibrary.syncRevision, baseRevision),
+        ),
+      )
+      .returning();
+
+    return rows[0] ? toRecord(rows[0]) : null;
+  },
+  createFailedMessage: "Failed to create watchlist library",
+};
+
 export async function saveWatchlistLibrary(
   input: SaveWatchlistLibraryInput,
 ): Promise<SaveWatchlistLibraryResult> {
-  const db = getDb();
-  const existing = await getWatchlistLibrary(input.userId);
-  if (!existing) {
-    const created = await insertWatchlistLibraryIfAbsent(input.userId, input.watchlistSnapshot);
-    if (created) {
-      if (input.baseRevision !== 0) {
-        return { ok: false, code: "conflict", current: created };
-      }
-      return { ok: true, record: created };
-    }
-
-    const current = await getWatchlistLibrary(input.userId);
-    if (!current) {
-      throw new Error("Failed to create watchlist library");
-    }
-
-    return { ok: false, code: "conflict", current };
-  }
-
-  if (existing.syncRevision !== input.baseRevision) {
-    return { ok: false, code: "conflict", current: existing };
-  }
-
-  const rows = await db
-    .update(userWatchlistLibrary)
-    .set({
-      watchlistSnapshot: input.watchlistSnapshot,
-      syncRevision: existing.syncRevision + 1,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(userWatchlistLibrary.userId, input.userId),
-        eq(userWatchlistLibrary.syncRevision, input.baseRevision),
-      ),
-    )
-    .returning();
-
-  const row = rows[0];
-  if (!row) {
-    const current = await getWatchlistLibrary(input.userId);
-    return { ok: false, code: "conflict", current: current ?? existing };
-  }
-
-  return { ok: true, record: toRecord(row) };
+  return saveRevisionedLibraryRecord(watchlistLibraryOps, {
+    userId: input.userId,
+    snapshot: input.watchlistSnapshot,
+    baseRevision: input.baseRevision,
+  });
 }

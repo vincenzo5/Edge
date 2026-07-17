@@ -2,6 +2,25 @@
 
 Edge exposes product features to AI agents through a shared, validated tool registry. Every capability is a typed tool with runtime validation, permission metadata, and a single execution path. The in-app copilot, HTTP API, and MCP server all call the same registry.
 
+## Two AI Chart-Tool Products
+
+Edge maintains **two separate chart-tool surfaces** that share enum values but not execute paths:
+
+| Product | Location | Context | Use when |
+|---------|----------|---------|----------|
+| **Edge application tools** | `src/lib/ai/tools/chart.ts` (+ registry) | `ToolContext` — layout cells, active chart, market data | In-app copilot, HTTP/MCP session bridge against the running app |
+| **Portable chart-session tools** | `@edge/ai-tools-chart` | `ChartSessionPort` — serialized chart state only | Examples, headless agents, package/SDK consumers |
+
+**Same tool name ≠ same contract.** Notably:
+
+- `get_chart_state` — app: `{ cellIndex }` + cell config/overlays; package: `{}` + serialized state
+- `set_chart_type` — app: updates a layout cell; package: mutates session state
+- `summarize_chart` — app workflow tool returns annotations/thesis; package returns compact session counts
+
+Shared schemas: `CHART_TYPE_VALUES` and `STARTER_INDICATOR_NAMES` from `@edge/chart-core` (re-exported in `src/lib/ai/schemas.ts`). Do not merge registries or mechanically unify tool implementations.
+
+See [packages/ai-tools-chart/ARCHITECTURE.md](../packages/ai-tools-chart/ARCHITECTURE.md).
+
 ## Design Principles
 
 1. **One registry, many adapters** — tool definitions live in `src/lib/ai/`; adapters translate agent requests into registry calls.
@@ -75,6 +94,14 @@ AI Agent
 | **Session state** | `get_options_session` | read | — |
 | **Trading** | `preview_order` | write | no |
 | **Trading** | `place_order` | destructive | yes |
+| **Pattern library** | `list_pattern_taxonomy` | read | — |
+| **Pattern library** | `find_similar_setups` | read | — | OHLCV retrieval from active chart; requires client session |
+| **Pattern library** | `pattern_library_stats` | read | — |
+| **Pattern library** | `capture_pattern_setup` | read | — | Draft record from active chart; requires client session |
+| **Pattern library** | `save_pattern_capture` | write | yes | Persist capture record + SVG |
+| **Pattern library** | `get_pattern_capture` | read | — | Load saved capture by id |
+
+See [`src/lib/patternLibrary/ARCHITECTURE.md`](../src/lib/patternLibrary/ARCHITECTURE.md) for hybrid retrieval + bake-off methodology.
 
 ### Supported Indicators (implemented only)
 
@@ -130,7 +157,7 @@ type AiTool<TInput> = {
 | `risk.getRiskSettings()` | `RiskSettingsProvider` |
 | `account.getSnapshot()` | `AccountProvider` |
 | `options.getSession()` | `OptionsSessionProvider` |
-| `marketData` | `YahooMarketDataPort` (server) or `FetchMarketDataPort` (client) |
+| `marketData` | `ServiceMarketDataPort` (server) or `FetchMarketDataPort` (client) |
 | `trading` | `ServiceTradingPort` (HTTP → `TradingService`) or `FetchTradingPort` (in-app → `/api/trading/*`) |
 
 Tools never import React. Context providers assemble a `ToolContext` snapshot at execution time. `preview_order` / `place_order` require a non-null `trading` port; `place_order` is destructive and needs confirmation (plus `liveConfirmation: "LIVE"` for live).

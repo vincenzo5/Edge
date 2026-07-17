@@ -12,7 +12,6 @@ export { defineTool } from "./types";
 export type { ToolContext, AppActions, WatchlistActions, ChartBridgeActions } from "./context";
 
 export {
-  createYahooMarketDataPort,
   createServiceMarketDataPort,
   createFetchMarketDataPort,
   type MarketDataPort,

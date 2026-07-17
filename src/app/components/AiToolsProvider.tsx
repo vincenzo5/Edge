@@ -11,7 +11,7 @@ import {
 import type { ToolContext } from "@/lib/ai/context";
 import { createFetchMarketDataPort } from "@/lib/ai/marketDataPort";
 import { createFetchTradingPort } from "@/lib/ai/tradingPort";
-import { edgeToolRegistry } from "@/lib/ai/tools";
+import { clientToolRegistry } from "@/lib/ai/tools/clientTools";
 import {
   createInAppAiTools,
   type InAppAiTools,
@@ -110,7 +110,7 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
   }, [app, chartBridge, chartActions, watchlist, screener, risk, account, optionsSession]);
 
   const tools = useMemo(
-    () => createInAppAiTools(edgeToolRegistry, getContext),
+    () => createInAppAiTools(clientToolRegistry, getContext),
     [getContext],
   );
 

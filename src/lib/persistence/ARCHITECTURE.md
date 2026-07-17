@@ -4,16 +4,17 @@ Optional Postgres-backed persistence with localStorage fallback. App works witho
 
 ## Responsibility
 
-Sync chart workspaces, watchlist libraries, screener libraries, chart templates, market research notes, and trading journal fills/trades between client and server with optimistic concurrency. Also owns the durable `order_intents` rows used by the trading intent store when Postgres is configured.
+Sync chart workspaces, watchlist libraries, screener libraries, chart templates, market research notes, and trading journal fills/trades between client and server with optimistic concurrency. Also owns the durable `order_intents` rows used by the trading intent store when Postgres is configured, and **broker ledger** tables (`broker_ingest_cursors`, `account_snapshots`, `position_snapshots`) written by server-side ingest — see [broker-ledger-roadmap.md](../../../docs/roadmaps/broker-ledger-roadmap.md).
 
 ## Layer Structure
 
 ```
 Client (React hooks)
   ├── useWorkspaceTabsRemoteSync
-  ├── useWatchlistLibraryRemoteSync
-  ├── useScreenerLibraryRemoteSync
-  └── useChartTemplateLibraryRemoteSync
+  ├── useRevisionedRemoteSync (generic hydrate → debounce → conflict core)
+  ├── useWatchlistLibraryRemoteSync (adapter wrapper)
+  ├── useScreenerLibraryRemoteSync (adapter wrapper)
+  └── useChartTemplateLibraryRemoteSync (subscribe-mode adapter wrapper)
         ↓
 Client API (persistence/client/*.ts)
         ↓
@@ -31,8 +32,10 @@ Drizzle ORM + Postgres
 | `common.ts` | Schema version, sync envelope, error codes, JSON body parsing |
 | `schemas/*.ts` | Zod schemas for workspace, watchlist, screener, templates, notes, journal |
 | `repositories/*.ts` | Database CRUD with revision tracking (includes `journalRepository.ts`, `intentRepository.ts`) |
+| `repositories/revisionedLibraryRepository.ts` | Shared optimistic-revision save orchestration for singleton libraries (watchlist, screener, chart-template); resource repos supply typed `RevisionedLibraryOps` |
 | `repositories/appUserRepository.ts` | Ensure app user rows; `ensureDevAppUser()` for server-side trading intents when no session cookie |
 | `client/*.ts` | Fetch wrappers for API routes (includes `journalClient.ts` with localStorage fallback) |
+| `client/revisionedLibraryClient.ts` | Shared GET/PUT + JSON parse helpers for singleton library routes; typed adapters keep snapshot field names |
 | `sync/*.ts` | React hooks for bidirectional sync; `reconcileChartWorkspaces.ts` archives orphan remote workspaces on tab close |
 | `sync/syncMetadata.ts` | Local revision tracking for conflict detection |
 | `auth/getCurrentUser.ts` | Resolve signed dev session cookie (no auto-create) |
@@ -51,6 +54,7 @@ Drizzle ORM + Postgres
 | Research notes | `/api/me/market-research-notes` | `marketResearchNote.ts` |
 | Trading journal | `/api/me/journal/fills`, `/api/me/journal/trades`, `/api/me/journal/trades/[id]`, `/api/me/journal/trades/rebuild`, `/api/me/journal/import` | `journal.ts` + `journalClient.ts` + `src/lib/journal/ARCHITECTURE.md` |
 | Order intents | No `/api/me/*` route — server-only via `TradingService` / `resolveServerIntentStore()` | Migration `0005_order_intents.sql` + `intentRepository.ts`; consumed by `src/lib/trading/postgresIntentStore.ts` (memory fallback when `DATABASE_URL` unset) |
+| Broker ledger ingest | `/api/cron/brokerage-ingest` (GET/POST); `/api/me/brokerage-ingest/status`; `/api/me/account-snapshots` | Migrations `0006`–`0008`; `brokerIngestRepository.ts`, `accountSnapshotRepository.ts`, `positionSnapshotRepository.ts`; consumed by `src/lib/brokerage/ingest/` |
 
 ## Auth Model
 

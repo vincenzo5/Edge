@@ -6,6 +6,10 @@ import { getDb } from "@/db";
 import { userScreenerLibrary } from "@/db/schema";
 import { DEFAULT_SCREENER_STATE } from "@/lib/screener/screenStorage";
 import type { ScreenerSnapshot } from "@/lib/persistence/schemas/screenerLibrary";
+import {
+  saveRevisionedLibraryRecord,
+  type RevisionedLibraryOps,
+} from "@/lib/persistence/repositories/revisionedLibraryRepository";
 
 export type ScreenerLibraryRecord = {
   schemaVersion: 1;
@@ -82,52 +86,37 @@ async function insertScreenerLibraryIfAbsent(
   return rows[0] ? toRecord(rows[0]) : null;
 }
 
+const screenerLibraryOps: RevisionedLibraryOps<ScreenerSnapshot, ScreenerLibraryRecord> = {
+  get: getScreenerLibrary,
+  insertIfAbsent: insertScreenerLibraryIfAbsent,
+  updateIfRevision: async (userId, screenerSnapshot, baseRevision, nextRevision) => {
+    const db = getDb();
+    const rows = await db
+      .update(userScreenerLibrary)
+      .set({
+        screenerSnapshot,
+        syncRevision: nextRevision,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(userScreenerLibrary.userId, userId),
+          eq(userScreenerLibrary.syncRevision, baseRevision),
+        ),
+      )
+      .returning();
+
+    return rows[0] ? toRecord(rows[0]) : null;
+  },
+  createFailedMessage: "Failed to create screener library",
+};
+
 export async function saveScreenerLibrary(
   input: SaveScreenerLibraryInput,
 ): Promise<SaveScreenerLibraryResult> {
-  const db = getDb();
-  const existing = await getScreenerLibrary(input.userId);
-  if (!existing) {
-    const created = await insertScreenerLibraryIfAbsent(input.userId, input.screenerSnapshot);
-    if (created) {
-      if (input.baseRevision !== 0) {
-        return { ok: false, code: "conflict", current: created };
-      }
-      return { ok: true, record: created };
-    }
-
-    const current = await getScreenerLibrary(input.userId);
-    if (!current) {
-      throw new Error("Failed to create screener library");
-    }
-
-    return { ok: false, code: "conflict", current };
-  }
-
-  if (existing.syncRevision !== input.baseRevision) {
-    return { ok: false, code: "conflict", current: existing };
-  }
-
-  const rows = await db
-    .update(userScreenerLibrary)
-    .set({
-      screenerSnapshot: input.screenerSnapshot,
-      syncRevision: existing.syncRevision + 1,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(userScreenerLibrary.userId, input.userId),
-        eq(userScreenerLibrary.syncRevision, input.baseRevision),
-      ),
-    )
-    .returning();
-
-  const row = rows[0];
-  if (!row) {
-    const current = await getScreenerLibrary(input.userId);
-    return { ok: false, code: "conflict", current: current ?? existing };
-  }
-
-  return { ok: true, record: toRecord(row) };
+  return saveRevisionedLibraryRecord(screenerLibraryOps, {
+    userId: input.userId,
+    snapshot: input.screenerSnapshot,
+    baseRevision: input.baseRevision,
+  });
 }

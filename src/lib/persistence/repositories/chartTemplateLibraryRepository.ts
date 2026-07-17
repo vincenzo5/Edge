@@ -5,6 +5,10 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { chartTemplateLibrary } from "@/db/schema";
 import type { TemplateSnapshot } from "@/lib/persistence/schemas/chartTemplateLibrary";
+import {
+  saveRevisionedLibraryRecord,
+  type RevisionedLibraryOps,
+} from "@/lib/persistence/repositories/revisionedLibraryRepository";
 
 export type ChartTemplateLibraryRecord = {
   schemaVersion: 1;
@@ -88,52 +92,37 @@ async function insertChartTemplateLibraryIfAbsent(
   return rows[0] ? toRecord(rows[0]) : null;
 }
 
+const chartTemplateLibraryOps: RevisionedLibraryOps<TemplateSnapshot, ChartTemplateLibraryRecord> = {
+  get: getChartTemplateLibrary,
+  insertIfAbsent: insertChartTemplateLibraryIfAbsent,
+  updateIfRevision: async (userId, templateSnapshot, baseRevision, nextRevision) => {
+    const db = getDb();
+    const rows = await db
+      .update(chartTemplateLibrary)
+      .set({
+        templateSnapshot,
+        syncRevision: nextRevision,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(chartTemplateLibrary.userId, userId),
+          eq(chartTemplateLibrary.syncRevision, baseRevision),
+        ),
+      )
+      .returning();
+
+    return rows[0] ? toRecord(rows[0]) : null;
+  },
+  createFailedMessage: "Failed to create chart template library",
+};
+
 export async function saveChartTemplateLibrary(
   input: SaveChartTemplateLibraryInput,
 ): Promise<SaveChartTemplateLibraryResult> {
-  const db = getDb();
-  const existing = await getChartTemplateLibrary(input.userId);
-  if (!existing) {
-    const created = await insertChartTemplateLibraryIfAbsent(input.userId, input.templateSnapshot);
-    if (created) {
-      if (input.baseRevision !== 0) {
-        return { ok: false, code: "conflict", current: created };
-      }
-      return { ok: true, record: created };
-    }
-
-    const current = await getChartTemplateLibrary(input.userId);
-    if (!current) {
-      throw new Error("Failed to create chart template library");
-    }
-
-    return { ok: false, code: "conflict", current };
-  }
-
-  if (existing.syncRevision !== input.baseRevision) {
-    return { ok: false, code: "conflict", current: existing };
-  }
-
-  const rows = await db
-    .update(chartTemplateLibrary)
-    .set({
-      templateSnapshot: input.templateSnapshot,
-      syncRevision: existing.syncRevision + 1,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(chartTemplateLibrary.userId, input.userId),
-        eq(chartTemplateLibrary.syncRevision, input.baseRevision),
-      ),
-    )
-    .returning();
-
-  const row = rows[0];
-  if (!row) {
-    const current = await getChartTemplateLibrary(input.userId);
-    return { ok: false, code: "conflict", current: current ?? existing };
-  }
-
-  return { ok: true, record: toRecord(row) };
+  return saveRevisionedLibraryRecord(chartTemplateLibraryOps, {
+    userId: input.userId,
+    snapshot: input.templateSnapshot,
+    baseRevision: input.baseRevision,
+  });
 }

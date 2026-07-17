@@ -1,17 +1,12 @@
 import { z } from "zod";
+import { CHART_TYPE_VALUES, STARTER_INDICATOR_NAMES } from "@edge/chart-core";
 import { LAYOUT_TEMPLATE_IDS } from "@/lib/chartConfig";
 
 export const LAYOUT_IDS = LAYOUT_TEMPLATE_IDS;
 
 /** @deprecated Use LAYOUT_IDS. Legacy grid mode strings still accepted at runtime via migration. */
 export const GRID_MODES = ["1x1", "2x1", "2x2", "3x1", "1x2"] as const;
-export const CHART_TYPES = [
-  "candle_solid",
-  "candle_stroke",
-  "ohlc",
-  "area",
-  "heikin_ashi",
-] as const;
+export const CHART_TYPES = CHART_TYPE_VALUES;
 export const RANGES = [
   "1d",
   "5d",
@@ -37,14 +32,7 @@ export const INTERVALS = [
 ] as const;
 export const THEMES = ["light", "dark"] as const;
 
-export const IMPLEMENTED_INDICATORS = [
-  "MA",
-  "EMA",
-  "BOLL",
-  "MACD",
-  "RSI",
-  "VOL",
-] as const;
+export const IMPLEMENTED_INDICATORS = STARTER_INDICATOR_NAMES;
 
 export const DRAWING_TYPES = [
   "trend_line",

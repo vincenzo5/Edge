@@ -1,7 +1,10 @@
 import type { PresetEnvelope } from "@/lib/chart/presets/types";
 import { SCHEMA_VERSION } from "@/lib/persistence/common";
-import { persistenceFetch } from "@/lib/persistence/client/persistenceFetch";
 import type { TemplateSnapshot } from "@/lib/persistence/schemas/chartTemplateLibrary";
+import {
+  fetchRevisionedLibrary,
+  saveRevisionedLibraryRemote,
+} from "@/lib/persistence/client/revisionedLibraryClient";
 
 export type ChartTemplateLibraryRemoteRecord = {
   schemaVersion: 1;
@@ -22,14 +25,6 @@ export type SaveChartTemplateLibraryRemoteResult =
       >;
     };
 
-async function parseJsonResponse<T>(response: Response): Promise<T | null> {
-  try {
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
 export function templateSnapshotFromPresets(presets: PresetEnvelope[]): TemplateSnapshot {
   return {
     version: 1,
@@ -42,52 +37,26 @@ export function presetsFromTemplateSnapshot(snapshot: TemplateSnapshot): PresetE
 }
 
 export async function fetchChartTemplateLibrary(): Promise<ChartTemplateLibraryRemoteRecord | null> {
-  const response = await persistenceFetch("/api/me/chart-template-library", {
-    method: "GET",
-  });
-
-  if (response.status === 503) return null;
-  if (!response.ok) return null;
-
-  return parseJsonResponse<ChartTemplateLibraryRemoteRecord>(response);
+  return fetchRevisionedLibrary<ChartTemplateLibraryRemoteRecord>(
+    "/api/me/chart-template-library",
+  );
 }
 
 export async function saveChartTemplateLibraryRemote(
   presets: PresetEnvelope[],
   baseRevision: number,
 ): Promise<SaveChartTemplateLibraryRemoteResult> {
-  const response = await persistenceFetch("/api/me/chart-template-library", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
+  return saveRevisionedLibraryRemote<
+    ChartTemplateLibraryRemoteRecord,
+    {
+      schemaVersion: typeof SCHEMA_VERSION;
+      baseRevision: number;
+      templateSnapshot: TemplateSnapshot;
     },
-    body: JSON.stringify({
-      schemaVersion: SCHEMA_VERSION,
-      baseRevision,
-      templateSnapshot: templateSnapshotFromPresets(presets),
-    }),
+    Pick<ChartTemplateLibraryRemoteRecord, "syncRevision" | "updatedAt" | "templateSnapshot">
+  >("/api/me/chart-template-library", {
+    schemaVersion: SCHEMA_VERSION,
+    baseRevision,
+    templateSnapshot: templateSnapshotFromPresets(presets),
   });
-
-  if (response.ok) {
-    const record = await parseJsonResponse<ChartTemplateLibraryRemoteRecord>(response);
-    if (!record) {
-      return { ok: false, status: 500 };
-    }
-    return { ok: true, record };
-  }
-
-  const body = await parseJsonResponse<{
-    code?: string;
-    current?: Pick<
-      ChartTemplateLibraryRemoteRecord,
-      "syncRevision" | "updatedAt" | "templateSnapshot"
-    >;
-  }>(response);
-
-  return {
-    ok: false,
-    status: response.status,
-    code: body?.code,
-    current: body?.current,
-  };
 }

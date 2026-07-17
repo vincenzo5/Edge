@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useMemo } from "react";
 
 import type { WatchlistState } from "@/lib/watchlist/types";
 import {
@@ -9,94 +9,61 @@ import {
 } from "@/lib/persistence/client/watchlistLibraryClient";
 import {
   getWatchlistLibrarySyncMetadata,
-  isRemoteNewer,
   setWatchlistLibrarySyncMetadata,
 } from "@/lib/persistence/sync/syncMetadata";
+import {
+  useRevisionedRemoteSync,
+  type RevisionedRemoteSyncAdapter,
+} from "@/lib/persistence/sync/useRevisionedRemoteSync";
 
 export function useWatchlistLibraryRemoteSync(options: {
   state: WatchlistState;
   hydrated: boolean;
   onApplyRemoteState: (state: WatchlistState) => void;
 }): void {
-  const stateRef = useRef(options.state);
-  const syncingRef = useRef(false);
-  const remoteHydratedRef = useRef(false);
-
-  stateRef.current = options.state;
-
-  const applyRemoteIfNewer = useCallback(async () => {
-    const remote = await fetchWatchlistLibrary();
-    if (!remote) {
-      remoteHydratedRef.current = true;
-      return;
-    }
-
-    const localMeta = getWatchlistLibrarySyncMetadata();
-    if (!localMeta) {
-      setWatchlistLibrarySyncMetadata({
-        syncRevision: remote.syncRevision,
-        updatedAt: remote.updatedAt,
-      });
-      if (JSON.stringify(remote.watchlistSnapshot) !== JSON.stringify(stateRef.current)) {
-        options.onApplyRemoteState(remote.watchlistSnapshot as WatchlistState);
-      }
-      remoteHydratedRef.current = true;
-      return;
-    }
-
-    if (
-      isRemoteNewer(localMeta, remote.updatedAt, remote.syncRevision) &&
-      JSON.stringify(remote.watchlistSnapshot) !== JSON.stringify(stateRef.current)
-    ) {
-      setWatchlistLibrarySyncMetadata({
-        syncRevision: remote.syncRevision,
-        updatedAt: remote.updatedAt,
-      });
-      options.onApplyRemoteState(remote.watchlistSnapshot as WatchlistState);
-    }
-
-    remoteHydratedRef.current = true;
-  }, [options.onApplyRemoteState]);
-
-  useEffect(() => {
-    if (!options.hydrated || remoteHydratedRef.current) return;
-    void applyRemoteIfNewer();
-  }, [options.hydrated, applyRemoteIfNewer]);
-
-  useEffect(() => {
-    if (!options.hydrated || !remoteHydratedRef.current) return;
-
-    const timer = window.setTimeout(() => {
-      if (syncingRef.current) return;
-      syncingRef.current = true;
-
-      void (async () => {
-        try {
-          const result = await saveWatchlistLibraryRemote(
-            stateRef.current,
-            getWatchlistLibrarySyncMetadata()?.syncRevision ?? 0,
-          );
-
-          if (result.ok) {
-            setWatchlistLibrarySyncMetadata({
+  const adapter = useMemo<RevisionedRemoteSyncAdapter<WatchlistState>>(
+    () => ({
+      fetchRemote: async () => {
+        const remote = await fetchWatchlistLibrary();
+        if (!remote) return null;
+        return {
+          syncRevision: remote.syncRevision,
+          updatedAt: remote.updatedAt,
+          snapshot: remote.watchlistSnapshot as WatchlistState,
+        };
+      },
+      saveRemote: async (state, baseRevision) => {
+        const result = await saveWatchlistLibraryRemote(state, baseRevision);
+        if (result.ok) {
+          return {
+            ok: true,
+            record: {
               syncRevision: result.record.syncRevision,
               updatedAt: result.record.updatedAt,
-            });
-          } else if (result.current) {
-            if (result.current.watchlistSnapshot) {
-              options.onApplyRemoteState(result.current.watchlistSnapshot as WatchlistState);
-            }
-            setWatchlistLibrarySyncMetadata({
-              syncRevision: result.current.syncRevision,
-              updatedAt: result.current.updatedAt,
-            });
-          }
-        } finally {
-          syncingRef.current = false;
+            },
+          };
         }
-      })();
-    }, 600);
+        return {
+          ok: false,
+          current: result.current
+            ? {
+                syncRevision: result.current.syncRevision,
+                updatedAt: result.current.updatedAt,
+                snapshot: result.current.watchlistSnapshot as WatchlistState | undefined,
+              }
+            : undefined,
+        };
+      },
+      getMeta: getWatchlistLibrarySyncMetadata,
+      setMeta: setWatchlistLibrarySyncMetadata,
+    }),
+    [],
+  );
 
-    return () => window.clearTimeout(timer);
-  }, [options.hydrated, options.state, options.onApplyRemoteState]);
+  useRevisionedRemoteSync({
+    adapter,
+    state: options.state,
+    hydrated: options.hydrated,
+    onApplyRemoteState: options.onApplyRemoteState,
+  });
 }

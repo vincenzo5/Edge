@@ -1,7 +1,10 @@
 import type { ScreenerState } from "@/lib/screener/types";
 import { SCHEMA_VERSION } from "@/lib/persistence/common";
-import { persistenceFetch } from "@/lib/persistence/client/persistenceFetch";
 import type { ScreenerSnapshot } from "@/lib/persistence/schemas/screenerLibrary";
+import {
+  fetchRevisionedLibrary,
+  saveRevisionedLibraryRemote,
+} from "@/lib/persistence/client/revisionedLibraryClient";
 
 export type ScreenerLibraryRemoteRecord = {
   schemaVersion: 1;
@@ -22,61 +25,25 @@ export type SaveScreenerLibraryRemoteResult =
       >;
     };
 
-async function parseJsonResponse<T>(response: Response): Promise<T | null> {
-  try {
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
 export async function fetchScreenerLibrary(): Promise<ScreenerLibraryRemoteRecord | null> {
-  const response = await persistenceFetch("/api/me/screener-library", {
-    method: "GET",
-  });
-
-  if (response.status === 503) return null;
-  if (!response.ok) return null;
-
-  return parseJsonResponse<ScreenerLibraryRemoteRecord>(response);
+  return fetchRevisionedLibrary<ScreenerLibraryRemoteRecord>("/api/me/screener-library");
 }
 
 export async function saveScreenerLibraryRemote(
   screenerSnapshot: ScreenerState,
   baseRevision: number,
 ): Promise<SaveScreenerLibraryRemoteResult> {
-  const response = await persistenceFetch("/api/me/screener-library", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
+  return saveRevisionedLibraryRemote<
+    ScreenerLibraryRemoteRecord,
+    {
+      schemaVersion: typeof SCHEMA_VERSION;
+      baseRevision: number;
+      screenerSnapshot: ScreenerState;
     },
-    body: JSON.stringify({
-      schemaVersion: SCHEMA_VERSION,
-      baseRevision,
-      screenerSnapshot,
-    }),
+    Pick<ScreenerLibraryRemoteRecord, "syncRevision" | "updatedAt" | "screenerSnapshot">
+  >("/api/me/screener-library", {
+    schemaVersion: SCHEMA_VERSION,
+    baseRevision,
+    screenerSnapshot,
   });
-
-  if (response.ok) {
-    const record = await parseJsonResponse<ScreenerLibraryRemoteRecord>(response);
-    if (!record) {
-      return { ok: false, status: 500 };
-    }
-    return { ok: true, record };
-  }
-
-  const body = await parseJsonResponse<{
-    code?: string;
-    current?: Pick<
-      ScreenerLibraryRemoteRecord,
-      "syncRevision" | "updatedAt" | "screenerSnapshot"
-    >;
-  }>(response);
-
-  return {
-    ok: false,
-    status: response.status,
-    code: body?.code,
-    current: body?.current,
-  };
 }

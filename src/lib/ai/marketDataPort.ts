@@ -1,5 +1,5 @@
 import type { Interval as ChartInterval } from "@/lib/chart/contracts";
-import type { Candle, Range, Interval as YahooInterval } from "@/lib/yahoo";
+import type { Candle, Range } from "@/lib/yahoo";
 import type { FundamentalsSnapshot, QuoteSnapshot } from "@/lib/watchlist/types";
 import type { MarketDataService } from "@/lib/marketData/service/marketDataService";
 import type {
@@ -72,45 +72,6 @@ export function createServiceMarketDataPort(service: MarketDataService): MarketD
       });
       return result.data;
     },
-  };
-}
-
-/** Server-side port backed by yahoo.ts (legacy direct wiring). */
-export function createYahooMarketDataPort(
-  yahoo: {
-    searchSymbols: (q: string, limit?: number) => Promise<StockSearchResult[]>;
-    getChartCandles: (
-      symbol: string,
-      range: Range,
-      interval: YahooInterval,
-    ) => Promise<Candle[]>;
-    getChartCandlesBefore: (
-      symbol: string,
-      before: number,
-      interval?: YahooInterval,
-      barCount?: number,
-    ) => Promise<Candle[]>;
-    getQuoteSnapshots: (symbols: string[]) => Promise<QuoteSnapshot[]>;
-    getFundamentalsSnapshot: (symbol: string) => Promise<FundamentalsSnapshot>;
-  },
-): MarketDataPort {
-  return {
-    searchSymbols: (query, limit) => yahoo.searchSymbols(query, limit),
-    getCandles: async ({ symbol, range, interval, before, barCount }) => {
-      const yahooInterval: YahooInterval = interval === "2h" ? "1h" : interval;
-      if (before != null) {
-        return yahoo.getChartCandlesBefore(symbol, before, yahooInterval, barCount);
-      }
-      return yahoo.getChartCandles(symbol, range, yahooInterval);
-    },
-    getQuotes: (symbols) => yahoo.getQuoteSnapshots(symbols),
-    getFundamentals: (symbol) => yahoo.getFundamentalsSnapshot(symbol),
-    getOptionExpirations: async () => [],
-    getOptionsChain: async () => ({
-      underlying: "",
-      expiration: "",
-      contracts: [],
-    }),
   };
 }
 
