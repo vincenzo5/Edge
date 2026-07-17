@@ -69,6 +69,20 @@ describe("universeDailyStore", () => {
     expect(filtered.map((row) => row.symbol)).toEqual(["AAPL"]);
   });
 
+  it("applyDescriptiveFilters filters by dollar volume (price × volume)", () => {
+    const rows = [
+      { ...descriptor("THIN", "Technology"), price: 10, volume: 50_000 }, // $500k
+      { ...descriptor("OK", "Technology"), price: 10, volume: 300_000 }, // $3M
+      { ...descriptor("CHEAP", "Technology"), price: 4, volume: 1_000_000 }, // $4M but can combine with price filter
+    ];
+    const filtered = applyDescriptiveFilters(rows, {
+      price: { min: 5 },
+      dollarVolume: { min: 2_000_000 },
+      limit: 200,
+    });
+    expect(filtered.map((row) => row.symbol)).toEqual(["OK"]);
+  });
+
   it("formatUtcDate returns YYYY-MM-DD", () => {
     expect(formatUtcDate(new Date("2024-06-03T15:00:00.000Z"))).toBe("2024-06-03");
   });

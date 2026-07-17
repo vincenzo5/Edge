@@ -1,4 +1,3 @@
-import { isTwsGatewayHealthy } from "./health";
 import { emitTwsRecovery } from "./twsRecoveryBus";
 
 const RECOVERY_POLL_INTERVAL_MS = 3_000;
@@ -68,7 +67,7 @@ async function waitForGatewayHealth(onProgress: (message: string) => void): Prom
           health?: { providers?: Array<{ id: string; status?: string; gatewayConnected?: boolean }> };
         };
         const tws = payload.health?.providers?.find((provider) => provider.id === "tws");
-        if (isTwsGatewayHealthy(tws)) {
+        if (tws?.status === "healthy" && tws.gatewayConnected) {
           return true;
         }
       }

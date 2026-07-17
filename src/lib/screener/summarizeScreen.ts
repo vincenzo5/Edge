@@ -32,6 +32,8 @@ function querySummary(query: ScreenQuery): string {
   if (query.price?.min != null) parts.push(`price≥${query.price.min}`);
   if (query.price?.max != null) parts.push(`price≤${query.price.max}`);
   if (query.volume?.min != null) parts.push(`volume≥${query.volume.min}`);
+  if (query.dollarVolume?.min != null) parts.push(`dollarVolume≥${query.dollarVolume.min}`);
+  if (query.dollarVolume?.max != null) parts.push(`dollarVolume≤${query.dollarVolume.max}`);
   if (query.technical) parts.push(`technical=${query.technical.kind}`);
   parts.push(`limit=${query.limit ?? 200}`);
   return parts.join(", ");
@@ -180,7 +182,7 @@ export function buildScreenSummary(input: ScreenSummaryInput): ScreenSummary {
 
 export function resolveScreenName(state: ScreenerState, screenId?: string): string {
   const id = screenId ?? state.activeScreenId;
-  if (!id) return "Active screen";
+  if (!id) return "Untitled screen";
   const saved = state.savedScreens.find((screen) => screen.id === id);
-  return saved?.name ?? "Active screen";
+  return saved?.name ?? "Untitled screen";
 }

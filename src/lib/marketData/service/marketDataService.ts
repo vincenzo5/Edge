@@ -1919,16 +1919,25 @@ export class MarketDataService {
       });
     } else {
       const prefilterStart = Date.now();
-      const result = await this.fmp.runStockScreener(query);
+      // dollarVolume is local-only (price×volume); over-fetch from FMP then trim.
+      const fmpQuery =
+        query.dollarVolume != null ? { ...query, limit: 1000 } : query;
+      const result = await this.fmp.runStockScreener(fmpQuery);
       perf?.record("screener.prefilter", prefilterStart, true, "provider", {
         candidates: result.rows.length,
-        limit: query.limit ?? 200,
+        limit: fmpQuery.limit ?? 200,
         traceId,
       });
-      rows = result.rows;
+      rows =
+        query.dollarVolume != null
+          ? applyDescriptiveFilters(result.rows, {
+              dollarVolume: query.dollarVolume,
+              limit: query.limit ?? 200,
+            })
+          : result.rows;
       warnings = [...result.warnings];
       prefilterMs = Date.now() - prefilterStart;
-      prefilterCount = result.rows.length;
+      prefilterCount = rows.length;
 
       if (query.technical) {
         const range = rangeForTechnicalRule(query.technical);
@@ -1987,6 +1996,9 @@ export class MarketDataService {
         }
         indicatorValues = technical.indicatorValues;
         skippedSymbols = [...skippedSymbols, ...technical.skippedSymbols];
+      } else if (query.dollarVolume != null) {
+        const cap = query.maxResults ?? query.limit ?? 200;
+        if (rows.length > cap) rows = rows.slice(0, cap);
       }
     }
 

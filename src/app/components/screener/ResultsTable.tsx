@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ScreenerColumnId,
   ScreenerIndicatorColumnDef,
@@ -26,7 +26,8 @@ import {
   topHeatMapQuoteSymbols,
 } from "@/lib/screener/screenerHeatMapAdapter";
 import { useMarketDataQuotesForSymbols } from "../MarketDataProvider";
-import { EdgeButton, EdgeEmptyState, EdgeSegmentedTabs } from "../design-system";
+import ChartAnchoredPopover from "../chart-chrome/ChartAnchoredPopover";
+import { EdgeButton, EdgeEmptyState, EdgeMenuItem } from "../design-system";
 import { HeatMapToolbar, HeatMapView } from "../heatmap";
 import { mergeScreenerQuoteOverlay } from "./useScreenerQuoteOverlay";
 import ColumnPicker from "./ColumnPicker";
@@ -52,7 +53,8 @@ type Props = {
   onPageChange: (page: number) => void;
   onColumnsChange?: (columns: ScreenerColumnId[]) => void;
   onResetColumns?: () => void;
-  onLoadChart: (row: ScreenerResultRow) => void;
+  selectedSymbol?: string | null;
+  onSelectRow?: (row: ScreenerResultRow, globalIndex: number) => void;
   onAddToWatchlist: (row: ScreenerResultRow) => void;
   onAddAllToWatchlist?: () => void;
   onCreateWatchlistFromResults?: () => void;
@@ -123,9 +125,76 @@ function formatIndicatorCell(
   return value == null ? "—" : formatNumber(value, 4);
 }
 
+function normalizeRowSymbol(symbol: string): string {
+  return symbol.trim().toUpperCase();
+}
+
 function sortArrow(active: boolean, direction: "asc" | "desc"): string {
   if (!active) return "";
   return direction === "asc" ? " ▲" : " ▼";
+}
+
+type ResultsToolbarMenuItem = {
+  testId: string;
+  label: string;
+  onSelect: () => void;
+};
+
+function ResultsToolbarMenu({
+  label,
+  testId,
+  items,
+}: {
+  label: string;
+  testId: string;
+  items: ResultsToolbarMenuItem[];
+}) {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+
+  if (items.length === 0) return null;
+
+  return (
+    <>
+      <EdgeButton
+        ref={anchorRef}
+        type="button"
+        variant="secondary"
+        active={open}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        data-testid={testId}
+        className="px-2 py-1"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        {label}
+        <span aria-hidden className="text-[10px] text-[var(--edge-text-muted)]">
+          ▾
+        </span>
+      </EdgeButton>
+      <ChartAnchoredPopover
+        open={open}
+        anchorRef={anchorRef}
+        theme="dark"
+        align="end"
+        minWidth={200}
+        className="px-1 py-1"
+        onClose={() => setOpen(false)}
+      >
+        {items.map((item) => (
+          <EdgeMenuItem
+            key={item.testId}
+            testId={item.testId}
+            label={item.label}
+            onClick={() => {
+              item.onSelect();
+              setOpen(false);
+            }}
+          />
+        ))}
+      </ChartAnchoredPopover>
+    </>
+  );
 }
 
 export default function ResultsTable({
@@ -145,7 +214,8 @@ export default function ResultsTable({
   onPageChange,
   onColumnsChange,
   onResetColumns,
-  onLoadChart,
+  selectedSymbol = null,
+  onSelectRow,
   onAddToWatchlist,
   onAddAllToWatchlist,
   onCreateWatchlistFromResults,
@@ -244,72 +314,86 @@ export default function ResultsTable({
     );
   }
 
-  if (!loading && rows.length === 0) {
-    const warningText = warnings.length > 0 ? warnings.join(" ") : undefined;
-    if (!hasRun) {
-      return (
-        <div
-          className="flex min-h-0 flex-1 flex-col justify-center py-6"
-          data-testid="screener-results-never-run"
-        >
-          <p className="text-center text-xs text-[var(--edge-text-secondary)]">
-            Results appear here after you run a screen.
-          </p>
-        </div>
-      );
-    }
+  if (!loading && !hasRun && rows.length === 0) {
     return (
-      <div data-testid="screener-results-empty">
-        <EdgeEmptyState
-          message={warningText ?? "No symbols matched this screen. Adjust filters and run again."}
-        />
-        {onEditFilters ? (
-          <div className="mt-2 flex justify-center">
-            <EdgeButton type="button" data-testid="screener-edit-filters-empty" onClick={onEditFilters}>
-              Edit filters
-            </EdgeButton>
-          </div>
-        ) : null}
+      <div
+        className="flex min-h-0 flex-1 flex-col justify-center py-6"
+        data-testid="screener-results-never-run"
+      >
+        <p className="text-center text-xs text-[var(--edge-text-secondary)]">
+          Results appear here after you run a screen.
+        </p>
       </div>
     );
   }
 
   const phaseSummary = formatScreenerPhaseSummary(phases);
-  const showLiveCaption =
-    !loading &&
-    resultsViewMode === "list" &&
-    pageRowsRaw.length > 0 &&
-    streamSymbols.length > 0;
-  const showHeatMapLiveCaption =
-    !loading &&
-    resultsViewMode === "heatmap" &&
-    sortedRows.length > 0 &&
-    streamSymbols.length > 0;
+  const resultCountLabel = `${rows.length} result${rows.length === 1 ? "" : "s"}`;
+  const liveTooltip =
+    resultsViewMode === "heatmap"
+      ? `Live prices on top ${Math.min(HEAT_MAP_QUOTE_STREAM_CAP, sortedRows.length)} symbols by size.`
+      : `Live prices on first ${Math.min(LIVE_QUOTE_STREAM_CAP, pageRowsRaw.length)} visible rows.`;
+  const showToolbar = !loading && (hasRun || rows.length > 0);
+  const showLiveBadge = showToolbar && rows.length > 0 && streamSymbols.length > 0;
+  const warningText = warnings.length > 0 ? warnings.join(" ") : undefined;
+  const watchlistItems: ResultsToolbarMenuItem[] = [
+    ...(onAddAllToWatchlist
+      ? [
+          {
+            testId: "screener-add-all-watchlist",
+            label: "Add all to watchlist",
+            onSelect: onAddAllToWatchlist,
+          },
+        ]
+      : []),
+    ...(onCreateWatchlistFromResults
+      ? [
+          {
+            testId: "screener-create-watchlist",
+            label: "Create watchlist from results",
+            onSelect: onCreateWatchlistFromResults,
+          },
+        ]
+      : []),
+  ];
+  const exportItems: ResultsToolbarMenuItem[] = [
+    {
+      testId: "screener-export-csv",
+      label: "Export CSV",
+      onSelect: () => {
+        downloadResultsCsv(sortedRows, columns);
+        setExportMessage("CSV downloaded");
+      },
+    },
+    {
+      testId: "screener-copy-symbols",
+      label: "Copy symbols",
+      onSelect: () => {
+        void copySymbolsToClipboard(sortedRows).then((ok) => {
+          setExportMessage(ok ? "Symbols copied" : "Copy failed");
+        });
+      },
+    },
+  ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-testid="screener-results-table">
+    <div
+      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+      data-testid="screener-results-table"
+    >
       {loading ? <ScreenerLoadingPanel label={loadingLabel} /> : null}
-      {!loading && phaseSummary ? (
+      {!loading && warnings.length > 0 ? (
         <div
-          className="px-2 py-1 text-[10px] text-[var(--edge-text-secondary)]"
-          data-testid="screener-phase-summary"
-          role="status"
-        >
-          {phaseSummary}
-        </div>
-      ) : null}
-      {warnings.length > 0 ? (
-        <div
-          className="px-2 py-1 text-[10px] text-[var(--edge-text-secondary)]"
+          className="shrink-0 px-2 py-1 text-[10px] text-[var(--edge-text-secondary)]"
           data-testid="screener-provider-warnings"
           role="status"
         >
           {warnings.join(" ")}
         </div>
       ) : null}
-      {skippedSymbols.length > 0 ? (
+      {!loading && skippedSymbols.length > 0 ? (
         <div
-          className="px-2 py-1 text-[10px] text-[var(--edge-text-secondary)]"
+          className="shrink-0 px-2 py-1 text-[10px] text-[var(--edge-text-secondary)]"
           data-testid="screener-skipped-symbols"
           role="status"
           title={skippedSymbols.join(", ")}
@@ -320,104 +404,108 @@ export default function ResultsTable({
             : `: ${skippedSymbols.slice(0, 8).join(", ")}…`}
         </div>
       ) : null}
-      {showLiveCaption ? (
+
+      {showToolbar ? (
         <div
-          className="px-2 py-1 text-[10px] text-[var(--edge-text-muted)]"
-          data-testid="screener-live-caption"
+          className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-[var(--edge-border-subtle)] px-1 py-1"
+          data-testid="screener-results-toolbar"
         >
-          Live prices on first {Math.min(LIVE_QUOTE_STREAM_CAP, pageRowsRaw.length)} visible rows.
+          {onResultsViewModeChange ? (
+            <select
+              value={resultsViewMode}
+              onChange={(event) =>
+                onResultsViewModeChange(event.target.value as ScreenerResultsViewMode)
+              }
+              className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1.5 py-1 text-[11px] text-[var(--edge-text-primary)]"
+              data-testid="screener-results-view-select"
+              aria-label="Results view"
+            >
+              <option value="list">List</option>
+              <option value="heatmap">Heat map</option>
+            </select>
+          ) : null}
+          <span
+            className="text-[11px] text-[var(--edge-text-secondary)]"
+            data-testid="screener-results-count"
+            title={phaseSummary ?? undefined}
+          >
+            {resultCountLabel}
+          </span>
+          {showLiveBadge ? (
+            <span
+              className="rounded px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--edge-text-muted)]"
+              data-testid="screener-live-badge"
+              title={liveTooltip}
+            >
+              Live
+            </span>
+          ) : null}
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            {onCompareSelected && selectedCompareSymbols.length > 0 ? (
+              <EdgeButton
+                type="button"
+                variant="secondary"
+                data-testid="screener-compare-selected"
+                className="px-2 py-1"
+                onClick={onCompareSelected}
+              >
+                Compare ({selectedCompareSymbols.length})
+              </EdgeButton>
+            ) : null}
+            {rows.length > 0 ? (
+              <ResultsToolbarMenu
+                label="Watchlist"
+                testId="screener-watchlist-menu"
+                items={watchlistItems}
+              />
+            ) : null}
+            {rows.length > 0 ? (
+              <ResultsToolbarMenu
+                label="Export"
+                testId="screener-export-menu"
+                items={exportItems}
+              />
+            ) : null}
+            {onColumnsChange && onResetColumns ? (
+              <ColumnPicker
+                columns={columns}
+                indicatorColumns={indicatorColumns}
+                visibleIndicatorKeys={visibleIndicatorKeys}
+                onColumnsChange={onColumnsChange}
+                onResetColumns={onResetColumns}
+                onToggleIndicatorColumn={toggleIndicatorColumn}
+              />
+            ) : null}
+            {exportMessage ? (
+              <span className="text-[10px] text-[var(--edge-text-secondary)]" role="status">
+                {exportMessage}
+              </span>
+            ) : null}
+          </div>
         </div>
       ) : null}
-      {showHeatMapLiveCaption ? (
-        <div
-          className="px-2 py-1 text-[10px] text-[var(--edge-text-muted)]"
-          data-testid="screener-heatmap-live-caption"
-        >
-          Live prices on top {Math.min(HEAT_MAP_QUOTE_STREAM_CAP, sortedRows.length)} symbols by size.
+
+      {!loading && hasRun && rows.length === 0 ? (
+        <div data-testid="screener-results-empty">
+          <EdgeEmptyState
+            message={warningText ?? "No symbols matched this screen. Adjust filters and run again."}
+          />
+          {onEditFilters ? (
+            <div className="mt-2 flex justify-center">
+              <EdgeButton
+                type="button"
+                variant="secondary"
+                data-testid="screener-edit-filters-empty"
+                onClick={onEditFilters}
+              >
+                Edit filters
+              </EdgeButton>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {!loading && rows.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--edge-border-subtle)] px-2 py-2">
-          {onResultsViewModeChange ? (
-            <div data-testid="screener-results-view-toggle">
-              <EdgeSegmentedTabs
-                segments={[
-                  { id: "list", label: "List" },
-                  { id: "heatmap", label: "Heat map" },
-                ]}
-                value={resultsViewMode}
-                onChange={(id) => onResultsViewModeChange(id as ScreenerResultsViewMode)}
-                className="w-auto shrink-0"
-              />
-            </div>
-          ) : null}
-          {onCompareSelected && selectedCompareSymbols.length > 0 ? (
-            <EdgeButton
-              type="button"
-              data-testid="screener-compare-selected"
-              onClick={onCompareSelected}
-            >
-              Compare selected ({selectedCompareSymbols.length})
-            </EdgeButton>
-          ) : null}
-          {onAddAllToWatchlist ? (
-            <EdgeButton
-              type="button"
-              data-testid="screener-add-all-watchlist"
-              onClick={onAddAllToWatchlist}
-            >
-              Add all to watchlist
-            </EdgeButton>
-          ) : null}
-          {onCreateWatchlistFromResults ? (
-            <EdgeButton
-              type="button"
-              data-testid="screener-create-watchlist"
-              onClick={onCreateWatchlistFromResults}
-            >
-              Create watchlist from results
-            </EdgeButton>
-          ) : null}
-          <EdgeButton
-            type="button"
-            data-testid="screener-export-csv"
-            onClick={() => {
-              downloadResultsCsv(sortedRows, columns);
-              setExportMessage("CSV downloaded");
-            }}
-          >
-            Export CSV
-          </EdgeButton>
-          <EdgeButton
-            type="button"
-            data-testid="screener-copy-symbols"
-            onClick={() => {
-              void copySymbolsToClipboard(sortedRows).then((ok) => {
-                setExportMessage(ok ? "Symbols copied" : "Copy failed");
-              });
-            }}
-          >
-            Copy symbols
-          </EdgeButton>
-          {onColumnsChange && onResetColumns ? (
-            <ColumnPicker
-              columns={columns}
-              indicatorColumns={indicatorColumns}
-              visibleIndicatorKeys={visibleIndicatorKeys}
-              onColumnsChange={onColumnsChange}
-              onResetColumns={onResetColumns}
-              onToggleIndicatorColumn={toggleIndicatorColumn}
-            />
-          ) : null}
-          {exportMessage ? (
-            <span className="text-[10px] text-[var(--edge-text-secondary)]" role="status">
-              {exportMessage}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
       <div className="min-h-0 flex-1 overflow-auto" data-testid="screener-results-scroll">
         {resultsViewMode === "heatmap" && heatMapConfig && onHeatMapConfigChange ? (
           <div className="flex h-full min-h-[280px] flex-col px-2 py-2" data-testid="screener-results-heatmap">
@@ -440,7 +528,12 @@ export default function ResultsTable({
               className="min-h-0 flex-1"
               onLeafClick={(item) => {
                 const row = item.meta as ScreenerResultRow | undefined;
-                if (row) onLoadChart(row);
+                if (row && onSelectRow) {
+                  const index = sortedRows.findIndex(
+                    (entry) => normalizeRowSymbol(entry.symbol) === normalizeRowSymbol(row.symbol),
+                  );
+                  if (index >= 0) onSelectRow(row, index);
+                }
               }}
             />
           </div>
@@ -510,7 +603,7 @@ export default function ResultsTable({
                   </th>
                 );
               })}
-              <th className="px-1.5 py-1 text-right font-normal">Actions</th>
+              <th className="px-1.5 py-1 text-right font-normal">Watchlist</th>
             </tr>
           </thead>
           <tbody>
@@ -542,10 +635,28 @@ export default function ResultsTable({
                     </td>
                   </tr>
                 ))
-              : pageRows.map((row) => (
+              : pageRows.map((row, pageIndex) => {
+              const globalIndex = pageStart + pageIndex;
+              const isSelected =
+                selectedSymbol != null &&
+                normalizeRowSymbol(selectedSymbol) === normalizeRowSymbol(row.symbol);
+              return (
               <tr
                 key={row.symbol}
-                className="border-t border-[var(--edge-border-subtle)] text-xs text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-panel)]"
+                data-testid={`screener-row-${row.symbol}`}
+                tabIndex={onSelectRow ? 0 : undefined}
+                aria-selected={isSelected || undefined}
+                className={`cursor-pointer border-t border-[var(--edge-border-subtle)] text-xs text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-panel)] ${
+                  isSelected ? "bg-[var(--edge-surface-hover)] ring-1 ring-inset ring-[var(--edge-accent-blue)]" : ""
+                }`}
+                onClick={() => onSelectRow?.(row, globalIndex)}
+                onKeyDown={(event) => {
+                  if (!onSelectRow) return;
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectRow(row, globalIndex);
+                  }
+                }}
               >
                 {onToggleCompareSymbol ? (
                   <td className="px-1 py-1 text-center">
@@ -585,17 +696,12 @@ export default function ResultsTable({
                   <div className="flex justify-end gap-1">
                     <button
                       type="button"
-                      data-testid={`screener-load-${row.symbol}`}
-                      className="edge-focus-ring rounded px-1.5 py-0.5 text-[10px] text-[var(--edge-accent-blue)] hover:bg-[var(--edge-surface-panel)]"
-                      onClick={() => onLoadChart(row)}
-                    >
-                      Chart
-                    </button>
-                    <button
-                      type="button"
                       data-testid={`screener-watchlist-${row.symbol}`}
                       className="edge-focus-ring rounded px-1.5 py-0.5 text-[10px] text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-panel)]"
-                      onClick={() => onAddToWatchlist(row)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onAddToWatchlist(row);
+                      }}
                       aria-label={`Add ${row.symbol} to watchlist`}
                     >
                       +
@@ -603,16 +709,18 @@ export default function ResultsTable({
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
         )}
       </div>
+      ) : null}
 
-      {resultsViewMode === "list" ? (
-      <div className="flex items-center justify-between border-t border-[var(--edge-border)] px-2 py-2 text-[10px] text-[var(--edge-text-secondary)]">
+      {!loading && rows.length > 0 && resultsViewMode === "list" ? (
+      <div className="flex shrink-0 items-center justify-between border-t border-[var(--edge-border)] px-2 py-1 text-[10px] text-[var(--edge-text-secondary)]">
         <span>
-          {sortedRows.length} result{sortedRows.length === 1 ? "" : "s"}
+          Page {safePage + 1} / {pageCount}
         </span>
         <div className="flex items-center gap-2">
           <button
@@ -623,9 +731,6 @@ export default function ResultsTable({
           >
             Prev
           </button>
-          <span>
-            Page {safePage + 1} / {pageCount}
-          </span>
           <button
             type="button"
             className="edge-focus-ring rounded px-2 py-0.5 disabled:opacity-40"
@@ -636,11 +741,7 @@ export default function ResultsTable({
           </button>
         </div>
       </div>
-      ) : (
-        <div className="border-t border-[var(--edge-border)] px-2 py-2 text-[10px] text-[var(--edge-text-secondary)]">
-          {sortedRows.length} result{sortedRows.length === 1 ? "" : "s"}
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

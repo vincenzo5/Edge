@@ -22,6 +22,10 @@ export type ScreenerSessionState = {
   filterViewMode: ScreenerFilterViewMode;
   resultsViewMode: ScreenerResultsViewMode;
   heatMapConfig: HeatMapConfig;
+  reviewIndex: number;
+  keepers: string[];
+  skipped: string[];
+  reviewActive: boolean;
 };
 
 export function createDefaultScreenerSession(
@@ -41,5 +45,9 @@ export function createDefaultScreenerSession(
     filterViewMode: "edit",
     resultsViewMode: "list",
     heatMapConfig: DEFAULT_HEAT_MAP_CONFIG,
+    reviewIndex: 0,
+    keepers: [],
+    skipped: [],
+    reviewActive: false,
   };
 }

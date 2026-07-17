@@ -5,6 +5,14 @@ describe("SCREENER_PRESETS", () => {
   it("includes technical presets with expected query shapes", () => {
     const byId = Object.fromEntries(SCREENER_PRESETS.map((preset) => [preset.id, preset]));
 
+    expect(byId["liquid-tradeable"]).toMatchObject({
+      kind: "screener",
+      query: {
+        price: { min: 5 },
+        dollarVolume: { min: 2_000_000 },
+        limit: 200,
+      },
+    });
     expect(byId["rsi-oversold"]).toMatchObject({
       kind: "screener",
       query: {

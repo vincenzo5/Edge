@@ -38,7 +38,7 @@ describe("ResultsTable group actions and export", () => {
         page={0}
         onSortChange={vi.fn()}
         onPageChange={vi.fn()}
-        onLoadChart={vi.fn()}
+        onSelectRow={vi.fn()}
         onAddToWatchlist={vi.fn()}
         selectedCompareSymbols={["AAPL"]}
         onToggleCompareSymbol={vi.fn()}
@@ -60,7 +60,7 @@ describe("ResultsTable group actions and export", () => {
         skippedSymbols={["ANTM", "TWTR", "PXD"]}
         onSortChange={vi.fn()}
         onPageChange={vi.fn()}
-        onLoadChart={vi.fn()}
+        onSelectRow={vi.fn()}
         onAddToWatchlist={vi.fn()}
       />,
     );
@@ -73,7 +73,7 @@ describe("ResultsTable group actions and export", () => {
     );
   });
 
-  it("renders group action buttons and invokes handlers", () => {
+  it("renders watchlist/export menus and invokes handlers", () => {
     const onAddAll = vi.fn();
     const onCreateWatchlist = vi.fn();
 
@@ -84,17 +84,56 @@ describe("ResultsTable group actions and export", () => {
         page={0}
         onSortChange={vi.fn()}
         onPageChange={vi.fn()}
-        onLoadChart={vi.fn()}
+        onSelectRow={vi.fn()}
         onAddToWatchlist={vi.fn()}
         onAddAllToWatchlist={onAddAll}
         onCreateWatchlistFromResults={onCreateWatchlist}
       />,
     );
 
+    expect(screen.getByTestId("screener-results-toolbar")).toBeTruthy();
+    expect(screen.getByTestId("screener-results-count")).toHaveTextContent("1 result");
+    expect(screen.getByTestId("screener-live-badge")).toHaveAttribute(
+      "title",
+      "Live prices on first 1 visible rows.",
+    );
+    expect(screen.queryByTestId("screener-phase-summary")).toBeNull();
+    expect(screen.queryByTestId("screener-live-caption")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("screener-watchlist-menu"));
     fireEvent.click(screen.getByTestId("screener-add-all-watchlist"));
+    fireEvent.click(screen.getByTestId("screener-watchlist-menu"));
     fireEvent.click(screen.getByTestId("screener-create-watchlist"));
     expect(onAddAll).toHaveBeenCalledTimes(1);
     expect(onCreateWatchlist).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTestId("screener-export-menu"));
+    expect(screen.getByTestId("screener-export-csv")).toBeTruthy();
+    expect(screen.getByTestId("screener-copy-symbols")).toBeTruthy();
+  });
+
+  it("hides bulk action menus when there are zero results", () => {
+    render(
+      <ResultsTable
+        rows={[]}
+        sort={{ column: "symbol", direction: "asc" }}
+        page={0}
+        hasRun
+        onSortChange={vi.fn()}
+        onPageChange={vi.fn()}
+        onSelectRow={vi.fn()}
+        onAddToWatchlist={vi.fn()}
+        onAddAllToWatchlist={vi.fn()}
+        onCreateWatchlistFromResults={vi.fn()}
+        onResultsViewModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("screener-results-toolbar")).toBeTruthy();
+    expect(screen.getByTestId("screener-results-count")).toHaveTextContent("0 results");
+    expect(screen.queryByTestId("screener-watchlist-menu")).toBeNull();
+    expect(screen.queryByTestId("screener-export-menu")).toBeNull();
+    expect(screen.getByTestId("screener-results-empty")).toBeTruthy();
   });
 
   it("shows sort arrow on active column header", () => {
@@ -105,7 +144,7 @@ describe("ResultsTable group actions and export", () => {
         page={0}
         onSortChange={vi.fn()}
         onPageChange={vi.fn()}
-        onLoadChart={vi.fn()}
+        onSelectRow={vi.fn()}
         onAddToWatchlist={vi.fn()}
       />,
     );
@@ -122,7 +161,7 @@ describe("ResultsTable group actions and export", () => {
         page={0}
         onSortChange={vi.fn()}
         onPageChange={vi.fn()}
-        onLoadChart={vi.fn()}
+        onSelectRow={vi.fn()}
         onAddToWatchlist={vi.fn()}
       />,
     );
@@ -149,7 +188,7 @@ describe("ResultsTable group actions and export", () => {
         page={0}
         onSortChange={onSortChange}
         onPageChange={vi.fn()}
-        onLoadChart={vi.fn()}
+        onSelectRow={vi.fn()}
         onAddToWatchlist={vi.fn()}
       />,
     );
@@ -167,7 +206,7 @@ describe("ResultsTable group actions and export", () => {
         page={0}
         onSortChange={vi.fn()}
         onPageChange={vi.fn()}
-        onLoadChart={vi.fn()}
+        onSelectRow={vi.fn()}
         onAddToWatchlist={vi.fn()}
         resultsViewMode="heatmap"
         onResultsViewModeChange={vi.fn()}
@@ -181,7 +220,7 @@ describe("ResultsTable group actions and export", () => {
     expect(screen.queryByTestId("screener-sort-symbol")).not.toBeInTheDocument();
   });
 
-  it("switches view mode via segmented tabs", () => {
+  it("switches view mode via compact select", () => {
     const onResultsViewModeChange = vi.fn();
 
     render(
@@ -191,7 +230,7 @@ describe("ResultsTable group actions and export", () => {
         page={0}
         onSortChange={vi.fn()}
         onPageChange={vi.fn()}
-        onLoadChart={vi.fn()}
+        onSelectRow={vi.fn()}
         onAddToWatchlist={vi.fn()}
         resultsViewMode="list"
         onResultsViewModeChange={onResultsViewModeChange}
@@ -200,7 +239,9 @@ describe("ResultsTable group actions and export", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Heat map" }));
+    fireEvent.change(screen.getByTestId("screener-results-view-select"), {
+      target: { value: "heatmap" },
+    });
     expect(onResultsViewModeChange).toHaveBeenCalledWith("heatmap");
   });
 
@@ -240,7 +281,7 @@ describe("ResultsTable group actions and export", () => {
           page={0}
           onSortChange={vi.fn()}
           onPageChange={vi.fn()}
-          onLoadChart={vi.fn()}
+          onSelectRow={vi.fn()}
           onAddToWatchlist={vi.fn()}
           resultsViewMode={resultsViewMode}
           onResultsViewModeChange={setResultsViewMode}
@@ -299,7 +340,7 @@ describe("ResultsTable group actions and export", () => {
         page={0}
         onSortChange={vi.fn()}
         onPageChange={vi.fn()}
-        onLoadChart={vi.fn()}
+        onSelectRow={vi.fn()}
         onAddToWatchlist={vi.fn()}
         resultsViewMode="heatmap"
         onResultsViewModeChange={vi.fn()}

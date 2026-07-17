@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { describe, it, expect, vi, beforeEach, type ComponentProps } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ScreenerDialog from "./ScreenerDialog";
 import { ScreenerProvider } from "./ScreenerProvider";
@@ -51,7 +51,7 @@ vi.mock("@/lib/chartDataFeed/apiScreenerFeed", () => ({
   })),
 }));
 
-function renderDialog(props?: Partial<ComponentProps<typeof ScreenerDialog>>) {
+function renderDialog(props?: Partial<React.ComponentProps<typeof ScreenerDialog>>) {
   return render(
     <WatchlistProvider>
       <ScreenerProvider>
@@ -75,10 +75,10 @@ describe("ScreenerDialog", () => {
     vi.mocked(fetchMarketMoverResults).mockClear();
   });
 
-  it("renders presets and runs a screener preset", async () => {
+  it("renders screens and runs a screener screen", async () => {
     renderDialog();
     expect(screen.getByTestId("screener-dialog")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("screener-preset-large-cap-dividend"));
+    fireEvent.click(screen.getByTestId("screener-screen-large-cap-dividend"));
     expect(await screen.findByTestId("screener-results-table")).toBeTruthy();
     expect(screen.getByText("AAPL")).toBeTruthy();
   });
@@ -90,15 +90,15 @@ describe("ScreenerDialog", () => {
     expect(await screen.findByTestId("screener-results-table")).toBeTruthy();
   });
 
-  it("loads chart action closes dialog", async () => {
+  it("selecting a row closes dialog when chart actions are available", async () => {
     const onClose = vi.fn();
     renderDialog({ onClose });
-    fireEvent.click(screen.getByTestId("screener-preset-gainers"));
-    fireEvent.click(await screen.findByTestId("screener-load-NVDA"));
+    fireEvent.click(screen.getByTestId("screener-screen-gainers"));
+    fireEvent.click(await screen.findByTestId("screener-row-NVDA"));
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("shows two-phase loading label for technical presets", async () => {
+  it("shows two-phase loading label for technical screens", async () => {
     const { fetchScreenerResults } = await import("@/lib/chartDataFeed/apiScreenerFeed");
     let resolveFetch: ((value: Awaited<ReturnType<typeof fetchScreenerResults>>) => void) | undefined;
     vi.mocked(fetchScreenerResults).mockImplementationOnce(
@@ -109,7 +109,7 @@ describe("ScreenerDialog", () => {
     );
 
     renderDialog();
-    fireEvent.click(screen.getByTestId("screener-preset-rsi-oversold"));
+    fireEvent.click(screen.getByTestId("screener-screen-rsi-oversold"));
     expect(screen.getByTestId("screener-loading-label")).toHaveTextContent(
       "Step 1: FMP prefilter → Step 2: Computing technicals…",
     );
@@ -121,9 +121,9 @@ describe("ScreenerDialog", () => {
     await screen.findByTestId("screener-results-empty");
   });
 
-  it("shows technical rule in builder after macd preset", async () => {
+  it("shows technical rule in builder after macd screen", async () => {
     renderDialog();
-    fireEvent.click(screen.getByTestId("screener-preset-macd-bullish"));
+    fireEvent.click(screen.getByTestId("screener-screen-macd-bullish"));
     await screen.findByTestId("screener-results-table");
     fireEvent.click(screen.getByTestId("screener-edit-filters"));
     expect(await screen.findByTestId("screener-technical-rule-rule-technical")).toBeTruthy();
@@ -144,7 +144,7 @@ describe("ScreenerDialog", () => {
     expect(fetchScreenerResults).not.toHaveBeenCalled();
   });
 
-  it("renders phase summary when meta includes screener phases", async () => {
+  it("keeps phase detail on results count tooltip instead of a status line", async () => {
     const { fetchScreenerResults } = await import("@/lib/chartDataFeed/apiScreenerFeed");
     vi.mocked(fetchScreenerResults).mockResolvedValueOnce({
       rows: [
@@ -174,10 +174,14 @@ describe("ScreenerDialog", () => {
     });
 
     renderDialog();
-    fireEvent.click(screen.getByTestId("screener-preset-rsi-oversold"));
-    expect(await screen.findByTestId("screener-phase-summary")).toHaveTextContent(
+    fireEvent.click(screen.getByTestId("screener-screen-rsi-oversold"));
+    const count = await screen.findByTestId("screener-results-count");
+    expect(count).toHaveTextContent("1 result");
+    expect(count).toHaveAttribute(
+      "title",
       "Step 1: 120 prefiltered → Step 2: 1 matched (120 evaluated)",
     );
+    expect(screen.queryByTestId("screener-phase-summary")).toBeNull();
   });
 
   it("runs custom query on Cmd/Ctrl+Enter", async () => {
@@ -189,23 +193,38 @@ describe("ScreenerDialog", () => {
     expect(fetchScreenerResults).toHaveBeenCalled();
   });
 
-  it("renders save controls in modal header", () => {
+  it("keeps Run in modal header and Save in the Screens rail", () => {
     renderDialog();
-    const saveInput = screen.getByTestId("screener-save-name");
-    expect(saveInput.closest("[data-testid='edge-modal-header-actions']")).toBeTruthy();
+    expect(
+      screen.getByTestId("screener-run-button").closest("[data-testid='edge-modal-header-actions']"),
+    ).toBeTruthy();
+    expect(screen.getByTestId("screener-screens-save-slot")).toContainElement(
+      screen.getByTestId("screener-save-open"),
+    );
+    fireEvent.click(screen.getByTestId("screener-save-open"));
+    expect(screen.getByTestId("screener-save-name")).toBeTruthy();
     expect(screen.getByTestId("screener-save-button")).toBeTruthy();
+  });
+
+  it("shows the selected screen name after loading a saved screen", async () => {
+    renderDialog();
+    expect(screen.getByTestId("screener-active-screen-name")).toHaveTextContent("Untitled screen");
+    fireEvent.click(screen.getByTestId("screener-screen-large-cap-dividend"));
+    await screen.findByTestId("screener-results-table");
+    expect(screen.getByTestId("screener-active-screen-name")).toHaveTextContent(/dividend/i);
+    expect(screen.getByTestId("screener-screen-active-row")).toBeTruthy();
   });
 
   it("shows never-run placeholder before first screen run", () => {
     renderDialog();
     expect(screen.getByTestId("screener-results-never-run")).toBeTruthy();
     expect(screen.queryByTestId("screener-results-empty")).toBeNull();
-    expect(screen.getByTestId("screener-never-run-starters")).toBeTruthy();
+    expect(screen.getByTestId("screener-never-run-hint")).toBeTruthy();
   });
 
-  it("enters scan mode with filter chips after a successful preset run", async () => {
+  it("enters scan mode with filter chips after a successful screen run", async () => {
     renderDialog();
-    fireEvent.click(screen.getByTestId("screener-preset-large-cap-dividend"));
+    fireEvent.click(screen.getByTestId("screener-screen-large-cap-dividend"));
     expect(await screen.findByTestId("screener-results-table")).toBeTruthy();
     expect(screen.getByTestId("screener-scan-summary")).toBeTruthy();
     expect(screen.getByTestId("screener-filter-chip-summary")).toBeTruthy();
@@ -214,16 +233,24 @@ describe("ScreenerDialog", () => {
 
   it("restores query builder from scan mode via Edit filters", async () => {
     renderDialog();
-    fireEvent.click(screen.getByTestId("screener-preset-large-cap-dividend"));
+    fireEvent.click(screen.getByTestId("screener-screen-large-cap-dividend"));
     await screen.findByTestId("screener-scan-summary");
     fireEvent.click(screen.getByTestId("screener-edit-filters"));
     expect(screen.getByTestId("screener-query-builder")).toBeTruthy();
     expect(screen.queryByTestId("screener-scan-summary")).toBeNull();
   });
 
-  it("shows limit input beside run button in custom query header", () => {
+  it("shows limit select before run button in custom query header", () => {
     renderDialog();
-    expect(screen.getByTestId("screener-limit-input")).toBeTruthy();
+    const limitSelect = screen.getByTestId("screener-limit-select");
+    expect(limitSelect).toBeTruthy();
+    expect(limitSelect.tagName).toBe("SELECT");
+    expect(Array.from(limitSelect.querySelectorAll("option")).map((o) => o.textContent)).toEqual([
+      "Top 50",
+      "Top 100",
+      "Top 200",
+      "Top 500",
+    ]);
     expect(screen.getByTestId("screener-run-button")).toBeTruthy();
   });
 
@@ -233,16 +260,19 @@ describe("ScreenerDialog", () => {
     expect(screen.getByTestId("screener-run-button")).toBeTruthy();
   });
 
-  it("keeps presets rail separate from scrollable results region after a run", async () => {
+  it("keeps screens rail separate from scrollable results region after a run", async () => {
     renderDialog();
-    fireEvent.click(screen.getByTestId("screener-preset-large-cap-dividend"));
+    fireEvent.click(screen.getByTestId("screener-screen-large-cap-dividend"));
     expect(await screen.findByTestId("screener-results-table")).toBeTruthy();
 
-    const aside = screen.getByTestId("screener-presets-aside");
+    const aside = screen.getByTestId("screener-screens-aside");
     expect(aside.className).toContain("shrink-0");
     expect(aside.className).toContain("self-stretch");
 
     const scrollRegion = screen.getByTestId("screener-results-scroll");
     expect(scrollRegion.className).toContain("overflow-auto");
+    expect(scrollRegion.className).toContain("min-h-0");
+    expect(scrollRegion.className).toContain("flex-1");
+    expect(screen.getByTestId("screener-results-view").className).toContain("overflow-hidden");
   });
 });

@@ -164,6 +164,18 @@ function matchesRange(
   return true;
 }
 
+/** Dollar volume = last price × share volume (null if either leg is missing). */
+export function rowDollarVolume(row: {
+  price: number | null | undefined;
+  volume: number | null | undefined;
+}): number | null {
+  const price = row.price;
+  const volume = row.volume;
+  if (price == null || volume == null) return null;
+  if (!Number.isFinite(price) || !Number.isFinite(volume)) return null;
+  return price * volume;
+}
+
 /** Apply descriptive ScreenQuery filters locally on descriptor rows. */
 export function applyDescriptiveFilters(
   rows: FmpScreenerRow[],
@@ -178,6 +190,7 @@ export function applyDescriptiveFilters(
     if (!matchesRange(row.price, query.price)) return false;
     if (!matchesRange(row.beta, query.beta)) return false;
     if (!matchesRange(row.volume, query.volume)) return false;
+    if (!matchesRange(rowDollarVolume(row), query.dollarVolume)) return false;
     if (!matchesRange(row.dividendYield, query.dividend)) return false;
     return true;
   });

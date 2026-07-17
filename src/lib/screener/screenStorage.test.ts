@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   clearScreenerStorage,
+  ensureStarterScreens,
   DEFAULT_SCREENER_STATE,
   loadScreenerState,
   saveScreenerState,
@@ -10,6 +11,7 @@ import {
   loadSavedScreen,
   MAX_SAVED_SCREENS,
 } from "./screenStorage";
+import { SCREENER_PRESETS } from "./presets";
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -36,11 +38,11 @@ describe("screenStorage", () => {
   });
 
   it("round-trips screener state", () => {
-    const state = {
+    const state = ensureStarterScreens({
       ...DEFAULT_SCREENER_STATE,
       query: { sector: "Technology", limit: 100 },
       sort: { column: "sector" as const, direction: "asc" as const },
-    };
+    });
     saveScreenerState(state);
     expect(loadScreenerState()).toEqual(state);
   });
@@ -76,24 +78,28 @@ describe("screenStorage", () => {
 
   it("returns defaults for malformed JSON", () => {
     localStorageMock.setItem("tv-ai:screener:v1", "{not-json");
-    expect(loadScreenerState()).toEqual(DEFAULT_SCREENER_STATE);
+    const loaded = loadScreenerState();
+    expect(loaded.version).toBe(1);
+    expect(loaded.savedScreens.length).toBe(SCREENER_PRESETS.length);
   });
 
   it("saves, loads, and deletes named screens", () => {
     const saved = upsertSavedScreen(DEFAULT_SCREENER_STATE, {
       id: "screen-1",
       name: "Tech large cap",
+      kind: "screener",
       query: { sector: "Technology", marketCap: { min: 10_000_000_000 }, limit: 50 },
       columns: DEFAULT_SCREENER_STATE.columns,
       createdAt: 1,
       updatedAt: 1,
     });
     saveScreenerState(saved);
-    expect(loadScreenerState().savedScreens).toHaveLength(1);
-    expect(loadSavedScreen(loadScreenerState(), "screen-1").query.sector).toBe("Technology");
-    const deleted = deleteSavedScreen(loadScreenerState(), "screen-1");
+    const loaded = loadScreenerState();
+    expect(loaded.savedScreens.some((screen) => screen.id === "screen-1")).toBe(true);
+    expect(loadSavedScreen(loaded, "screen-1").query.sector).toBe("Technology");
+    const deleted = deleteSavedScreen(loaded, "screen-1");
     saveScreenerState(deleted);
-    expect(loadScreenerState().savedScreens).toHaveLength(0);
+    expect(loadScreenerState().savedScreens.some((screen) => screen.id === "screen-1")).toBe(false);
   });
 
   it("caps saved screens at MAX_SAVED_SCREENS", () => {
@@ -102,6 +108,7 @@ describe("screenStorage", () => {
       state = upsertSavedScreen(state, {
         id: `screen-${i}`,
         name: `Screen ${i}`,
+        kind: "screener",
         query: { limit: 10 },
         columns: state.columns,
         createdAt: i,
@@ -109,5 +116,30 @@ describe("screenStorage", () => {
       });
     }
     expect(state.savedScreens).toHaveLength(MAX_SAVED_SCREENS);
+  });
+
+  it("seeds starter screens when missing", () => {
+    const seeded = ensureStarterScreens(DEFAULT_SCREENER_STATE);
+    expect(seeded.savedScreens.length).toBe(SCREENER_PRESETS.length);
+    expect(seeded.savedScreens.some((screen) => screen.id === "gainers" && screen.isStarter)).toBe(
+      true,
+    );
+  });
+
+  it("does not overwrite existing starter ids on ensure", () => {
+    const custom = upsertSavedScreen(DEFAULT_SCREENER_STATE, {
+      id: "gainers",
+      name: "My custom gainers",
+      kind: "movers",
+      moverKind: "gainers",
+      limit: 25,
+      columns: DEFAULT_SCREENER_STATE.columns,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const seeded = ensureStarterScreens(custom);
+    expect(seeded.savedScreens.find((screen) => screen.id === "gainers")?.name).toBe(
+      "My custom gainers",
+    );
   });
 });

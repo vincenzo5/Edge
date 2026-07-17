@@ -22,6 +22,9 @@ describe("formatQueryRuleSummary", () => {
     expect(formatQueryRuleSummary({ id: "4", field: "volume", min: 500_000 })).toBe(
       "Volume ≥ 500000",
     );
+    expect(formatQueryRuleSummary({ id: "5", field: "dollarVolume", min: 2_000_000 })).toBe(
+      "Dollar volume ≥ 2000000",
+    );
   });
 });
 
@@ -39,6 +42,15 @@ describe("compileScreenQueryFromRules", () => {
       marketCap: { min: 10_000_000_000 },
       isEtf: false,
     });
+  });
+
+  it("round-trips dollarVolume through rulesFromScreenQuery", () => {
+    const query = {
+      price: { min: 5 },
+      dollarVolume: { min: 2_000_000 },
+      limit: 200,
+    };
+    expect(compileScreenQueryFromRules(rulesFromScreenQuery(query), 200)).toEqual(query);
   });
 
   it("round-trips through rulesFromScreenQuery", () => {

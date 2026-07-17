@@ -287,6 +287,8 @@ export const screenQuerySchema = z.object({
   price: numericRangeSchema,
   beta: numericRangeSchema,
   volume: numericRangeSchema,
+  /** Local filter: price × volume (not sent to FMP). */
+  dollarVolume: numericRangeSchema,
   dividend: numericRangeSchema,
   technical: technicalRuleSchema.optional(),
   limit: z.number().int().min(1).max(1000).default(200),

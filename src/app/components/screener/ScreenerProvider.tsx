@@ -15,6 +15,7 @@ import type { ScreenerState, PersistedScreenerSortSpec } from "@/lib/screener/ty
 import {
   DEFAULT_SCREENER_STATE,
   applySortToActiveSavedScreen,
+  ensureStarterScreens,
   loadScreenerState,
   patchScreenerState,
   saveScreenerState,
@@ -68,8 +69,12 @@ export function ScreenerProvider({
   const hydratedRef = useRef(initialState != null);
 
   useEffect(() => {
-    if (initialState != null) return;
-    const loaded = loadScreenerState();
+    if (initialState != null) {
+      const seeded = ensureStarterScreens(initialState);
+      if (seeded !== initialState) setState(seeded);
+      return;
+    }
+    const loaded = ensureStarterScreens(loadScreenerState());
     setState(loaded);
     setSessionState(createDefaultScreenerSession(loaded));
     hydratedRef.current = true;
@@ -77,9 +82,10 @@ export function ScreenerProvider({
   }, [initialState]);
 
   const handleApplyRemoteState = useCallback((remoteState: ScreenerState) => {
-    setState(remoteState);
-    setSessionState(createDefaultScreenerSession(remoteState));
-    saveScreenerState(remoteState);
+    const seeded = ensureStarterScreens(remoteState);
+    setState(seeded);
+    setSessionState(createDefaultScreenerSession(seeded));
+    saveScreenerState(seeded);
   }, []);
 
   useScreenerLibraryRemoteSync({

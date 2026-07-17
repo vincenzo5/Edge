@@ -2,12 +2,13 @@
 
 Single roadmap for the Edge stock screener: filter the full US-listed universe (equities + ETFs) by technical, fundamental, and descriptive criteria, then load results into the chart or watchlists.
 
-**Last updated:** 2026-07-13
+**Last updated:** 2026-07-17
 
-A solo-trader tool for two workflows:
+A solo-trader tool for three workflows:
 
 1. **Find tickers to load into the chart.** Filter the universe, click a row, see it on the active chart cell.
 2. **Build watchlists.** Add a single ticker or a full result group to an existing watchlist or a new one.
+3. **Serial review (dual-window).** Open `/screener` beside `/chart`; keyboard-flip the result queue; Chart follows via `BroadcastChannel` (`edge-screener-review-v1`).
 
 The screener is **not** an alerting engine, a backtester, or a multi-asset scanner. It is a fast, composable filter surface that feeds the existing chart and watchlist workflows.
 
@@ -24,7 +25,7 @@ The screener is **not** an alerting engine, a backtester, or a multi-asset scann
 | Output | Configurable-column table or treemap heat map (List / Heat map toggle); leading-rule default sort, cog column picker, per-saved-screen sort persistence, indicator columns for technical screens; sort, filter-in-results, pagination, export |
 | Per-row actions | Load ticker into chart; add ticker to watchlist |
 | Group actions | Add full result set to existing watchlist; create new watchlist from result set |
-| Surface | Sidebar rail (`screener` panel in `sidebar/registry.tsx`); docked **Expand** (wide panel); optional **Pop out** to floating window via `FloatingPanelHost` / `useFloatingPanel`; legacy header modal via thin `ScreenerDialog` wrapper |
+| Surface | Sidebar rail (`screener` panel in `sidebar/registry.tsx`); docked **Expand** (wide panel); optional **Pop out** to floating window via `FloatingPanelHost` / `useFloatingPanel`; legacy header modal via thin `ScreenerDialog` wrapper; **dedicated app** at `/screener` with Review / Screens / Results / Keepers sub-nav |
 | Saved screens | Named, persistent, reusable (localStorage + optional Postgres) |
 
 ## Architecture Decisions
@@ -69,13 +70,14 @@ Target: first paint < 1s for cached screens, < 3s for fresh complex queries. Suf
 ## UI Surface
 
 - **Entry point:** `screener` icon in `SidebarRail.tsx` (main group between options and object-tree). Opens the docked sidebar panel; **Pop out** in the panel header moves it to a floating window (`FloatingPanelShell` + `FloatingPanelHost`). Presentation state persists in `layout.sidebar.presentation` / `floatingGeometry`.
-- **Shared body:** `ScreenerPanelContent.tsx` renders query builder, saved screens, and results for `variant="sidebar" | "floating" | "modal"`. `ScreenerSessionProvider` holds ephemeral session state (last run, UI collapse) separate from persisted `ScreenerState`.
-- **Legacy modal:** `ScreenerDialog.tsx` is a thin wrapper around `ScreenerPanelContent` (`variant="modal"`) for tests and any header-triggered flows; primary surface is sidebar/floating.
+- **Shared body:** `ScreenerPanelContent.tsx` and workspace `ScreenerTileSurface.tsx` render the same **Option A split-pane**: left **Screens** list (starters seeded as saved screens) + center active query + results table. `ScreenerSessionProvider` holds ephemeral session state (last run, selection index) separate from persisted `ScreenerState`.
+- **Legacy modal:** `ScreenerDialog.tsx` is a thin wrapper around `ScreenerPanelContent` (`variant="modal"`) for tests and any header-triggered flows; primary surface is workspace tile / sidebar / floating.
 - **Layout:**
   - **Width:** Docked screener uses panel-aware max (`90% viewport − rail`, cap 1400px); **Expand / Collapse** in sidebar header; other panels stay at 560px max; leaving screener clamps stored width.
-  - **Left rail (wide):** presets + saved screens. **Narrow (&lt;520px):** horizontal preset chip scroller above query.
-  - **Custom query:** `Run screen` + Limit + `⌘↵`; never-run starter chips; after successful run → **scan mode** (filter chip summary + Edit filters); **edit mode** shows full QueryBuilder.
-  - **Header row:** save-name input + Save button (sidebar/floating); Expand + Pop out on docked screener.
+  - **Left rail (wide):** unified **Screens** list (starter + user saved screens; no separate Presets section). **Narrow (&lt;520px):** screens list hidden; pick from stacked layout.
+  - **Custom query:** `Run screen` + Limit + `⌘↵`; after successful run → **scan mode** (filter chip summary + Edit filters); **edit mode** shows full QueryBuilder.
+  - **Header row:** active screen name + save-name input + Save button; Expand + Pop out on docked screener.
+  - **Results:** click row or ↑/↓ to select symbol and drive sibling chart via `WorkspaceDrive` + `BroadcastChannel` (`useScreenerReviewDrive`); watchlist/compare remain secondary row actions. No separate Review / Keepers / Results sub-nav.
   - **Body:** results table **or** treemap heat map (List / Heat map toggle); Size / Color / Group controls in heat map mode; never-run placeholder distinct from no-match empty state.
 - **Styling:** Edge design tokens and primitives per `src/lib/design-system/ARCHITECTURE.md`.
 - **Heat map view (shipped):** Reusable treemap in `src/lib/heatmap/` + `src/app/components/heatmap/`; screener adapter maps `ScreenerResultRow[]` → `HeatMapItem[]`; session-only `resultsViewMode` + `heatMapConfig` (defaults: size=market cap linear, color=change % ±3%, group=sector; Scale Linear/Log in toolbar); mover presets enriched via universe descriptors; live quotes on top 200 by size. See `src/lib/heatmap/ARCHITECTURE.md`.
@@ -158,7 +160,7 @@ Scope:
    - Caching keyed by `symbol + interval + indicator fingerprint`, mirroring the chart indicator cache.
 2. **Multi-symbol comparison** from a result set — table or radar view comparing selected tickers across chosen metrics.
 3. **AI tool integration** — `summarize_screen` tool in `src/lib/ai/tools/` that produces a thesis summary for a saved screen's result set, routed through the existing tool registry.
-4. **Scheduled re-runs + alerts** — opt-in scheduled re-run of saved screens with notification when new symbols match. Deferred until semantic annotations and alerts infrastructure from `ROADMAP.md` Phase 4 / Phase 5 is in place.
+4. **Scheduled re-runs + alerts** — opt-in scheduled re-run of saved screens with notification when new symbols match. Deferred until alerts infrastructure in [Alerts Roadmap](./alerts-roadmap.md) is in place.
 
 ### Phase 4 — Massive full-universe technical scan
 
@@ -175,6 +177,22 @@ Scope (implemented):
 
 **Baseline before optimization:** [docs/perf/screener-baseline-latest.json](../perf/screener-baseline-latest.json) (cold ~29–51s, 200 candidates, 0% cache hit). Re-run `npm run perf:market-data` with `MASSIVE_API_KEY` for after snapshot.
 
+### Phase 5 — Screener Review app (dual-window controller)
+
+**Status:** Shipped in code — `/screener` module with serial Review home; keyboard flip/keep/skip; `edge-screener-review-v1` BroadcastChannel drives Chart via `ScreenerDriveListener`; chart sidebar screener unchanged.
+
+**Outcome:** Ultrawide workflow: Screener window controls the queue; Chart window displays candles/trade surface.
+
+Scope (implemented):
+
+1. **App module** — `src/app/screener/` routes (Review, Screens, Results, Keepers); `ScreenerModuleShell` mirrors journal pattern; registered in `HomeAppNav` + `lastModule`.
+2. **Review session** — `reviewIndex`, `keepers`, `skipped` on `ScreenerSessionState`; pure reducers in `reviewSession.ts`; Keepers watchlist via `reviewKeepers.ts`.
+3. **Cross-window bridge** — `reviewChannel.ts` (Zod-validated messages); `ScreenerDriveListener` in `StockApp` calls `loadSymbolIntoActiveChart`.
+4. **Review UI** — `ScreenerReviewView` queue + keyboard (↑/↓ or j/k, Space keep, x skip); `useScreenerReviewDrive` publishes symbol changes.
+5. **App pages** — `ScreenerScreensBody`, `ScreenerResultsBody` (Open in Review), `ScreenerKeepersBody`; `ScreenerPanelContent` refactored to thin wrapper.
+
+**Deferred:** Embedded full chart in screener app; AI review tools; filmstrip; cross-window `lastRun` sync.
+
 ## Explicit Deferrals
 
 Intentionally not in scope:
@@ -183,7 +201,7 @@ Intentionally not in scope:
 - Real-time tick-level scanning — refresh cadence stays at the result-page level.
 - Backtesting screener rules over historical windows.
 - Public / community screen sharing.
-- Alerts before the broader alerts infrastructure in `ROADMAP.md` is shipped.
+- Alerts before the broader alerts infrastructure in [Alerts Roadmap](./alerts-roadmap.md) is shipped.
 
 ## Touch Points (when implementation begins)
 

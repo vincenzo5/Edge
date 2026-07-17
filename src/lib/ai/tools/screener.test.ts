@@ -12,6 +12,7 @@ const baseState: ScreenerState = {
     {
       id: "screen-1",
       name: "Tech momentum",
+      kind: "screener",
       query: { limit: 200 },
       columns: ["symbol", "price"],
       createdAt: 1,

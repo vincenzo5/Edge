@@ -10,6 +10,7 @@ const RANGE_FIELDS = new Set<QueryRuleField>([
   "price",
   "beta",
   "volume",
+  "dollarVolume",
   "dividend",
 ]);
 
@@ -21,6 +22,8 @@ const FIELD_TO_COLUMN: Partial<Record<QueryRuleField, ScreenerColumnId>> = {
   price: "price",
   beta: "beta",
   volume: "volume",
+  // No dedicated column; fall back to volume as the closest liquidity signal.
+  dollarVolume: "volume",
   dividend: "dividendYield",
 };
 

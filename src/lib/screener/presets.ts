@@ -23,6 +23,16 @@ export const SCREENER_PRESETS: ScreenerPreset[] = [
   { id: "losers", label: "Losers today", kind: "movers", moverKind: "losers", limit: 50 },
   { id: "actives", label: "Most actives", kind: "movers", moverKind: "actives", limit: 50 },
   {
+    id: "liquid-tradeable",
+    label: "Liquid $5+ ($2M+/day)",
+    kind: "screener",
+    query: {
+      price: { min: 5 },
+      dollarVolume: { min: 2_000_000 },
+      limit: 200,
+    },
+  },
+  {
     id: "large-cap-dividend",
     label: "Large-cap dividend payers",
     kind: "screener",

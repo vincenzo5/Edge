@@ -1,6 +1,8 @@
 import type { SavedScreen, ScreenerColumnId, ScreenerSortSpec, ScreenerState, PersistedScreenerSortSpec } from "./types";
-import { ALL_SCREENER_COLUMN_IDS, DEFAULT_SCREENER_COLUMNS, isScreenerColumnId } from "./types";
+import { ALL_SCREENER_COLUMN_IDS, DEFAULT_SCREENER_COLUMNS, isSavedMoversScreen, isScreenerColumnId } from "./types";
 import type { ScreenQuery } from "./types";
+import { SCREENER_PRESETS, type ScreenerPreset } from "./presets";
+import type { FmpMarketMoverKind } from "@/lib/marketData/contracts/fmp";
 
 const STORAGE_KEY = "tv-ai:screener:v1";
 
@@ -50,26 +52,90 @@ function normalizeQuery(query: unknown): ScreenQuery {
   };
 }
 
-function normalizeSavedScreen(screen: Partial<SavedScreen>): SavedScreen | null {
-  if (!screen.id || !screen.name) return null;
+const MOVER_KINDS = new Set<FmpMarketMoverKind>(["gainers", "losers", "actives"]);
+
+function presetToSavedScreen(preset: ScreenerPreset, now = Date.now()): SavedScreen {
+  const base = {
+    id: preset.id,
+    name: preset.label,
+    columns: DEFAULT_SCREENER_COLUMNS,
+    sort: null,
+    createdAt: now,
+    updatedAt: now,
+    isStarter: true,
+  };
+  if (preset.kind === "movers") {
+    return {
+      ...base,
+      kind: "movers",
+      moverKind: preset.moverKind,
+      limit: preset.limit ?? 50,
+    };
+  }
   return {
-    id: screen.id,
-    name: screen.name,
-    query: normalizeQuery(screen.query),
-    columns: normalizeColumns(screen.columns),
-    sort: normalizeSort(screen.sort),
-    createdAt: typeof screen.createdAt === "number" ? screen.createdAt : Date.now(),
-    updatedAt: typeof screen.updatedAt === "number" ? screen.updatedAt : Date.now(),
+    ...base,
+    kind: "screener",
+    query: preset.query,
   };
 }
 
+/** Upsert missing starter screens by stable id without overwriting user edits. */
+export function ensureStarterScreens(state: ScreenerState): ScreenerState {
+  const existingIds = new Set(state.savedScreens.map((screen) => screen.id));
+  const missing = SCREENER_PRESETS.filter((preset) => !existingIds.has(preset.id)).map((preset) =>
+    presetToSavedScreen(preset),
+  );
+  if (missing.length === 0) return state;
+  const savedScreens = [...missing, ...state.savedScreens].slice(0, MAX_SAVED_SCREENS);
+  return { ...state, savedScreens };
+}
+
+function normalizeMoverKind(value: unknown): FmpMarketMoverKind | null {
+  if (typeof value !== "string") return null;
+  return MOVER_KINDS.has(value as FmpMarketMoverKind) ? (value as FmpMarketMoverKind) : null;
+}
+
+function normalizeSavedScreen(screen: Partial<SavedScreen>): SavedScreen | null {
+  if (!screen.id || !screen.name) return null;
+  const columns = normalizeColumns(screen.columns);
+  const sort = normalizeSort(screen.sort);
+  const createdAt = typeof screen.createdAt === "number" ? screen.createdAt : Date.now();
+  const updatedAt = typeof screen.updatedAt === "number" ? screen.updatedAt : Date.now();
+  const isStarter = screen.isStarter === true;
+  const base = { id: screen.id, name: screen.name, columns, sort, createdAt, updatedAt, isStarter };
+
+  const rawKind = (screen as { kind?: string }).kind;
+  if (rawKind === "movers") {
+    const moverKind = normalizeMoverKind((screen as { moverKind?: unknown }).moverKind);
+    if (!moverKind) return null;
+    const limitRaw = (screen as { limit?: unknown }).limit;
+    const limit =
+      typeof limitRaw === "number" && limitRaw >= 1 && limitRaw <= 1000 ? limitRaw : 50;
+    return { ...base, kind: "movers", moverKind, limit };
+  }
+
+  // Default legacy screens without kind to screener query screens.
+  return {
+    ...base,
+    kind: "screener",
+    query: normalizeQuery((screen as { query?: unknown }).query),
+  };
+}
+
+function activeScreenQuery(screen: SavedScreen): ScreenQuery {
+  if (isSavedMoversScreen(screen)) {
+    return { limit: screen.limit ?? 50 };
+  }
+  return screen.query;
+}
+
 export function loadScreenerState(): ScreenerState {
-  if (typeof window === "undefined") return DEFAULT_SCREENER_STATE;
+  if (typeof window === "undefined") return ensureStarterScreens(DEFAULT_SCREENER_STATE);
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_SCREENER_STATE;
+    if (!raw) return ensureStarterScreens(DEFAULT_SCREENER_STATE);
     const parsed = JSON.parse(raw) as Partial<ScreenerState>;
-    if (parsed.version !== 1) return DEFAULT_SCREENER_STATE;
+    if (parsed.version !== 1) return ensureStarterScreens(DEFAULT_SCREENER_STATE);
 
     const savedScreens = Array.isArray(parsed.savedScreens)
       ? parsed.savedScreens
@@ -84,16 +150,16 @@ export function loadScreenerState(): ScreenerState {
         ? parsed.activeScreenId
         : null;
 
-    return {
+    return ensureStarterScreens({
       version: 1,
       activeScreenId,
       query: normalizeQuery(parsed.query),
       columns: normalizeColumns(parsed.columns),
       sort: normalizeSort(parsed.sort),
       savedScreens,
-    };
+    });
   } catch {
-    return DEFAULT_SCREENER_STATE;
+    return ensureStarterScreens(DEFAULT_SCREENER_STATE);
   }
 }
 
@@ -124,7 +190,7 @@ export function upsertSavedScreen(
   return {
     ...state,
     activeScreenId: screen.id,
-    query: screen.query,
+    query: activeScreenQuery(screen),
     columns: screen.columns,
     sort: screen.sort ?? null,
     savedScreens: next,
@@ -145,10 +211,14 @@ export function loadSavedScreen(state: ScreenerState, screenId: string): Screene
   return {
     ...state,
     activeScreenId: screen.id,
-    query: screen.query,
+    query: activeScreenQuery(screen),
     columns: screen.columns,
     sort: screen.sort ?? null,
   };
+}
+
+export function getSavedScreen(state: ScreenerState, screenId: string): SavedScreen | null {
+  return state.savedScreens.find((entry) => entry.id === screenId) ?? null;
 }
 
 export function patchScreenerState(

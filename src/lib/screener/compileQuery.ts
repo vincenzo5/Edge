@@ -12,6 +12,7 @@ export type QueryRuleField =
   | "price"
   | "beta"
   | "volume"
+  | "dollarVolume"
   | "dividend";
 
 export type QueryRule = {
@@ -46,6 +47,7 @@ export const QUERY_RULE_FIELDS: { id: QueryRuleField; label: string; kind: "text
   { id: "price", label: "Price", kind: "range" },
   { id: "beta", label: "Beta", kind: "range" },
   { id: "volume", label: "Volume", kind: "range" },
+  { id: "dollarVolume", label: "Dollar volume", kind: "range" },
   { id: "dividend", label: "Dividend", kind: "range" },
 ];
 
@@ -347,6 +349,9 @@ function applyRuleToQuery(rule: QueryRule, query: ScreenQuery): void {
     case "volume":
       query.volume = rangeFromRule(rule);
       break;
+    case "dollarVolume":
+      query.dollarVolume = rangeFromRule(rule);
+      break;
     case "dividend":
       query.dividend = rangeFromRule(rule);
       break;
@@ -393,6 +398,7 @@ export function groupFromScreenQuery(query: ScreenQuery): RuleGroup {
   if (query.price) push("price", query.price);
   if (query.beta) push("beta", query.beta);
   if (query.volume) push("volume", query.volume);
+  if (query.dollarVolume) push("dollarVolume", query.dollarVolume);
   if (query.dividend) push("dividend", query.dividend);
 
   if (query.technical) {

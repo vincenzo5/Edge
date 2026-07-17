@@ -1,4 +1,4 @@
-import type { FmpScreenerRow } from "@/lib/marketData/contracts/fmp";
+import type { FmpMarketMoverKind, FmpScreenerRow } from "@/lib/marketData/contracts/fmp";
 import type { ScreenQuery, TechnicalRule } from "@/lib/marketData/schemas/request";
 
 export type ScreenerResultRow = FmpScreenerRow;
@@ -62,15 +62,42 @@ export const DEFAULT_SCREENER_COLUMNS: ScreenerColumnId[] = [
   "beta",
 ];
 
-export type SavedScreen = {
+type SavedScreenBase = {
   id: string;
   name: string;
-  query: ScreenQuery;
   columns: ScreenerColumnId[];
   sort?: PersistedScreenerSortSpec | null;
   createdAt: number;
   updatedAt: number;
+  /** Seeded starter screens — not deletable in UI. */
+  isStarter?: boolean;
 };
+
+export type SavedScreenerScreen = SavedScreenBase & {
+  kind: "screener";
+  query: ScreenQuery;
+};
+
+export type SavedMoversScreen = SavedScreenBase & {
+  kind: "movers";
+  moverKind: FmpMarketMoverKind;
+  limit?: number;
+};
+
+export type SavedScreen = SavedScreenerScreen | SavedMoversScreen;
+
+export function isSavedMoversScreen(screen: SavedScreen): screen is SavedMoversScreen {
+  return screen.kind === "movers";
+}
+
+export function isSavedScreenerScreen(screen: SavedScreen): screen is SavedScreenerScreen {
+  return screen.kind === "screener";
+}
+
+export function savedScreenQueryLimit(screen: SavedScreen): number {
+  if (isSavedMoversScreen(screen)) return screen.limit ?? 50;
+  return screen.query.limit ?? 200;
+}
 
 export type ScreenerState = {
   version: 1;
