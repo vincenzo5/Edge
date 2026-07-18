@@ -12,4 +12,5 @@ Living multi-phase tracks for Edge product areas. Product direction stays in [..
 | Alerts | [alerts-roadmap.md](./alerts-roadmap.md) | Not started — server-side price/drawing/semantic alerts; blocks screener scheduled re-runs |
 | Market news flow | [news-flow-roadmap.md](./news-flow-roadmap.md) | Research captured; Benzinga Basic + EDGAR + gov feeds recommended; not started |
 | TrendSpider competitive | [trendspider-competitive-roadmap.md](./trendspider-competitive-roadmap.md) | Research inventory started; prioritize Adopt/Adapt/Defer/Skip before implementation |
+| Day classification | [day-classification-roadmap.md](./day-classification-roadmap.md) | Schema defined; first propose batch ready for human review |
 | Structural refactor | [refactor-roadmap.md](./refactor-roadmap.md) | Tier A–C **Passing**; Tier D chart runtime + Tier E persistence/AI boundaries queued |
