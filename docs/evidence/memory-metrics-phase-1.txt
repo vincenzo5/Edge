@@ -1,0 +1,37 @@
+# Memory metrics — Phase 1 evidence
+# Date: 2026-07-24
+
+## Scope
+L3 in-page browser metrics (CDP heap + UA-specific memory) on `npm run perf:memory` browser scenarios. No retention policy changes.
+
+## Delivered
+- scripts/memory-baseline-metrics.ts — MB normalization + UA/CDP field mappers
+- scripts/memory-baseline-metrics.test.ts — Vitest coverage
+- scripts/run-memory-baseline.mts — L3 collection via CDP + measureUserAgentSpecificMemory(); app-workspaces seed; server-only stub import
+- scripts/register-server-only-stub.mts — lab script import shim for server-only modules
+- package.json — perf:memory uses server-only stub
+- src/lib/observability/ARCHITECTURE.md — lab L3 paragraph
+- src/app/components/app-workspace/AppWorkspaceShell.tsx — portal workspace header controls (fixes provider boundary for /workspace)
+- docs/roadmaps/memory-metrics-roadmap.md — Phase 1 Passing
+- docs/roadmaps/README.md, docs/ROADMAP.md, docs/perf/market-data-performance.md — status/index updates
+
+## Architecture review
+Self-review Passed — measurement-only L3 fields; explicit UA unavailable without COOP/COEP; no cap/retention changes.
+
+## Focused
+npm test -- --run scripts/memory-baseline-metrics.test.ts
+Test Files  1 passed (1)
+Tests  7 passed (7)
+
+## Collection
+npm run perf:memory
+browser-b1: uaSpecificUnavailableReason=measureUserAgentSpecificMemory not supported; cdpJsHeapUsedSizeMb=194.55; cdpJsHeapTotalSizeMb=270.38; pass=true
+browser-b2: uaSpecificUnavailableReason=measureUserAgentSpecificMemory not supported; cdpJsHeapUsedSizeMb=83.01; cdpJsHeapTotalSizeMb=137.41; pass=true
+browser-b3: cdpJsHeapUsedSizeMb=107.99; cdpJsHeapTotalSizeMb=178.38; pass=true
+node-server-cache-warm: withinDataCacheCap=true; withinHotStoreCap=true; pass=true
+
+## App-level
+N/A — lab harness JSON fields only; no product wiring
+
+## Next
+Phase 2 — tab/renderer process RSS (Task Manager analogue)

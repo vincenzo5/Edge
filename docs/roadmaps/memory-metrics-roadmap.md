@@ -4,7 +4,7 @@ Give operators and agents a **layered, comparable snapshot** of Edge memory — 
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24). Phases 1–6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
+**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phases 2–6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
 
 **Related:** [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md), [memory-baseline-latest.json](../perf/memory-baseline-latest.json), [market-data-performance.md](../perf/market-data-performance.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -213,7 +213,7 @@ Compare future automated L4 to Chrome Task Manager on a **headed** desktop run (
 ### Phase 1 — Richer in-page browser metrics
 
 **Band:** Now  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
 **Outcome:** Baseline captures more than `performance.memory`, still inside the page.
 
@@ -228,7 +228,16 @@ Compare future automated L4 to Chrome Task Manager on a **headed** desktop run (
 
 **Exit evidence:** Focused tests for helpers; `npm run perf:memory` writes new fields; architecture note in chart or observability doc (one paragraph).
 
-**Gate — Phase 1 Passing:** Latest JSON includes L3 (or explicit unavailable) and CDP heap metrics without breaking existing pass flags.
+**Gate — Phase 1 Passing:** Latest JSON includes L3 (or explicit unavailable) and CDP heap metrics without breaking existing pass flags. **Met.**
+
+#### Phase 1 results (2026-07-24)
+
+- `scripts/memory-baseline-metrics.ts` — MB normalization + UA/CDP field mappers with Vitest.
+- `scripts/run-memory-baseline.mts` — L3 collection on browser B1/B2/B3 via CDP + `measureUserAgentSpecificMemory()`.
+- `src/lib/observability/ARCHITECTURE.md` — lab L3 paragraph (UA unavailable without COOP/COEP).
+- Evidence: [memory-metrics-phase-1.txt](../evidence/memory-metrics-phase-1.txt).
+- **Architecture review:** self-review **Passed** — measurement-only; no product retention or header changes.
+- **Next:** Phase 2 — tab/renderer process RSS (Task Manager analogue).
 
 ---
 

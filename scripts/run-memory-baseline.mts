@@ -26,8 +26,9 @@ import {
   clearMarketDataCacheForTests,
   createMarketDataService,
 } from "../src/lib/marketData/service/marketDataService.ts";
-import { clearHotStoreForTests, globalHotStore, hotCandlesKey } from "../src/lib/marketData/hotStore.ts";
-import { globalDataCache } from "../src/lib/marketData/cache/dataCache.ts";
+import { clearHotStoreForTests, globalHotStore } from "../src/lib/marketData/hotStore.ts";
+import { hotCandlesKey } from "../src/lib/marketData/hotStoreConstants.ts";
+import { globalDataCache } from "../src/lib/marketData/cache/serverCacheBackends.ts";
 import {
   DATA_CACHE_MAX_ENTRIES_PER_NAMESPACE,
   HOT_STORE_MAX_ENTRIES,
@@ -39,6 +40,12 @@ import {
 } from "../src/app/components/copilot/selectChatRequestMessages.ts";
 import { createDefaultWorkspaceTabs } from "../src/lib/app/workspaceTabs.ts";
 import { DEFAULT_LAYOUT, type ChartLayout, type CellConfig } from "../src/lib/chartConfig.ts";
+import {
+  normalizeCdpHeapMetrics,
+  normalizeUaSpecificMemory,
+  type CdpHeapFields,
+  type UaSpecificMemoryFields,
+} from "./memory-baseline-metrics.ts";
 
 config({ path: ".env.local" });
 
@@ -51,6 +58,40 @@ const BASE_SYMBOL = "SPY";
 const BASE_INTERVAL = "5m";
 const BASE_RANGE = "1mo";
 const LOAD_MORE_ROUNDS = 10;
+
+const PERF_WORKSPACE_DOC_ID = "perf-memory-doc";
+const PERF_PRIMARY_CHART_TILE_ID = "perf-memory-chart-tile";
+const PERF_ROOT_NODE_ID = "perf-memory-root-node";
+const APP_WORKSPACES_STORAGE_KEY = "tv-ai:app-workspaces:v1";
+const WORKSPACE_TABS_STORAGE_KEY = "tv-ai:workspace-tabs:v1";
+
+function buildPerfAppWorkspacesSeed(): Record<string, unknown> {
+  const now = new Date().toISOString();
+  return {
+    version: 1,
+    activeDocumentId: PERF_WORKSPACE_DOC_ID,
+    documents: [
+      {
+        version: 1,
+        id: PERF_WORKSPACE_DOC_ID,
+        name: "Default",
+        activeTileId: PERF_PRIMARY_CHART_TILE_ID,
+        updatedAt: now,
+        root: {
+          type: "tile",
+          id: PERF_ROOT_NODE_ID,
+          tileId: PERF_PRIMARY_CHART_TILE_ID,
+        },
+        tiles: {
+          [PERF_PRIMARY_CHART_TILE_ID]: {
+            id: PERF_PRIMARY_CHART_TILE_ID,
+            surfaceId: "chart",
+          },
+        },
+      },
+    ],
+  };
+}
 
 type MemoryBaseline = {
   generatedAt: string;
@@ -273,15 +314,21 @@ async function serverReachable(): Promise<boolean> {
 async function seedWorkspace(page: Page, layout: ChartLayout): Promise<void> {
   const tabs = createDefaultWorkspaceTabs(layout);
   await page.addInitScript(
-    ({ tabsJson, workspaceKey }) => {
+    ({ tabsJson, workspacesJson, workspaceKey, workspacesKey }) => {
       localStorage.setItem(workspaceKey, tabsJson);
+      localStorage.setItem(workspacesKey, workspacesJson);
     },
     {
       tabsJson: JSON.stringify(tabs),
-      workspaceKey: "tv-ai:workspace-tabs:v1",
+      workspacesJson: JSON.stringify(buildPerfAppWorkspacesSeed()),
+      workspaceKey: WORKSPACE_TABS_STORAGE_KEY,
+      workspacesKey: APP_WORKSPACES_STORAGE_KEY,
     },
   );
 }
+
+const CHART_READY_SELECTOR =
+  '[data-testid="chart-tile-host"] [data-testid="app-hydration-chart"], [data-testid="chart-tile-host"] canvas, [data-testid="chart-tile-host"] [data-testid="inactive-chart-surface"], [data-testid="app-hydration-chart"], canvas, [data-testid="inactive-chart-surface"]';
 
 async function installEventSourceCounter(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -379,13 +426,61 @@ async function runBrowserLoadMoreWithTrim(
 }
 
 async function bootstrapDevSession(context: Awaited<ReturnType<Awaited<ReturnType<typeof chromium.launch>>["newContext"]>>): Promise<void> {
-  const response = await context.request.post(`${baseUrl}/api/auth/dev-session`, {
-    data: {},
-    headers: { "Content-Type": "application/json" },
-  });
-  if (!response.ok()) {
-    await context.request.get(`${baseUrl}/api/auth/dev-session`);
+  const getRes = await context.request.get(`${baseUrl}/api/auth/dev-session`);
+  const getJson = (await getRes.json()) as { authenticated?: boolean };
+  if (getJson.authenticated) return;
+
+  const passphrase = process.env.EDGE_DEV_SESSION_PASSPHRASE?.trim();
+  if (passphrase) {
+    const response = await context.request.post(`${baseUrl}/api/auth/dev-session`, {
+      data: { passphrase },
+      headers: { "Content-Type": "application/json" },
+    });
+    if (response.ok()) return;
   }
+
+  await context.request.get(`${baseUrl}/api/auth/dev-session`);
+}
+
+async function readUaSpecificMemory(page: Page): Promise<UaSpecificMemoryFields> {
+  const raw = await page.evaluate(async () => {
+    const perf = performance as Performance & {
+      measureUserAgentSpecificMemory?: () => Promise<{ bytes: number }>;
+    };
+    if (typeof perf.measureUserAgentSpecificMemory !== "function") {
+      return { unavailableReason: "measureUserAgentSpecificMemory not supported" };
+    }
+    try {
+      const result = await perf.measureUserAgentSpecificMemory();
+      if (result?.bytes == null || !Number.isFinite(result.bytes)) {
+        return { unavailableReason: "measureUserAgentSpecificMemory returned no bytes" };
+      }
+      return { bytes: result.bytes };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { unavailableReason: message };
+    }
+  });
+  return normalizeUaSpecificMemory(raw);
+}
+
+async function readCdpHeapMetrics(page: Page): Promise<CdpHeapFields> {
+  try {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Performance.enable");
+    const response = await cdp.send("Performance.getMetrics");
+    return normalizeCdpHeapMetrics(response.metrics ?? []);
+  } catch {
+    return {
+      cdpJsHeapUsedSizeMb: null,
+      cdpJsHeapTotalSizeMb: null,
+    };
+  }
+}
+
+async function readBrowserL3Metrics(page: Page): Promise<UaSpecificMemoryFields & CdpHeapFields> {
+  const [ua, cdp] = await Promise.all([readUaSpecificMemory(page), readCdpHeapMetrics(page)]);
+  return { ...ua, ...cdp };
 }
 
 async function readBrowserCellMetrics(page: Page): Promise<Record<string, number | null>> {
@@ -436,7 +531,7 @@ async function measureBrowserScenario(
   await seedWorkspace(page, layout);
 
   await page.goto(`${baseUrl}/workspace`, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  await page.waitForSelector('[data-testid="app-hydration-chart"], canvas, [data-testid="inactive-chart-surface"]', {
+  await page.waitForSelector(CHART_READY_SELECTOR, {
     state: "visible",
     timeout: 60_000,
   });
@@ -475,6 +570,7 @@ async function measureBrowserScenario(
 
   await page.waitForTimeout(1000);
   const metrics = await readBrowserCellMetrics(page);
+  const l3Metrics = await readBrowserL3Metrics(page);
 
   const heapAfter = metrics.jsHeapUsedMb != null ? metrics.jsHeapUsedMb * 1024 * 1024 : null;
   const heapDeltaMb =
@@ -496,6 +592,7 @@ async function measureBrowserScenario(
     heapAfterMb: metrics.jsHeapUsedMb,
     heapDeltaMb,
     ...metrics,
+    ...l3Metrics,
     ...loadMore,
     inactivePolicyPass,
     residentBarPass,
@@ -514,7 +611,7 @@ async function measureLiveTipPressure(page: Page): Promise<Record<string, unknow
   const layout = buildLayout(1, BASE_SYMBOL, BASE_INTERVAL, "1d");
   await seedWorkspace(page, layout);
   await page.goto(`${baseUrl}/workspace`, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  await page.waitForSelector('[data-testid="app-hydration-chart"], canvas', {
+  await page.waitForSelector(CHART_READY_SELECTOR, {
     state: "visible",
     timeout: 60_000,
   });
@@ -533,6 +630,7 @@ async function measureLiveTipPressure(page: Page): Promise<Record<string, unknow
       eventSourceCount: (window as unknown as { __edgeEventSourceCount?: number }).__edgeEventSourceCount ?? 0,
     };
   });
+  const l3Metrics = await readBrowserL3Metrics(page);
 
   const heapAfter = metrics.jsHeapUsedMb != null ? metrics.jsHeapUsedMb * 1024 * 1024 : null;
 
@@ -543,6 +641,7 @@ async function measureLiveTipPressure(page: Page): Promise<Record<string, unknow
     heapAfterMb: metrics.jsHeapUsedMb,
     heapDeltaMb: heapBefore != null && heapAfter != null ? mb(heapAfter - heapBefore) : null,
     eventSourceCount: metrics.eventSourceCount,
+    ...l3Metrics,
     pass: heapBefore == null || heapAfter == null ? null : mb(heapAfter - heapBefore) < 50,
     note:
       LIVE_TIP_SEC >= 300
@@ -630,7 +729,7 @@ async function measurePhase14Walks(page: Page): Promise<Record<string, unknown>>
   const chartLayout = buildLayout(1, BASE_SYMBOL, BASE_INTERVAL, BASE_RANGE);
   await seedWorkspace(page, chartLayout);
   await page.goto(`${baseUrl}/workspace`, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  await page.waitForSelector('[data-testid="app-hydration-chart"], canvas', { timeout: 60_000 });
+  await page.waitForSelector(CHART_READY_SELECTOR, { timeout: 60_000 });
   await page.waitForTimeout(3000);
   const chartOnlyChunks = await page.evaluate(() => {
     const entries = performance.getEntriesByType("resource") as PerformanceResourceTiming[];

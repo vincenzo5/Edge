@@ -1,0 +1,71 @@
+{
+  "generatedAt": "2026-07-24T23:15:19.791Z",
+  "git": {
+    "commit": "636f4b5",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "baseUrl": "http://localhost:3003",
+    "browserAvailable": false,
+    "liveTipSec": 60
+  },
+  "proposedKnobs": {
+    "RESIDENT_BAR_SOFT_MAX": 5000,
+    "sessionStorageBarThreshold": 2000,
+    "sessionStoragePayloadBytesThreshold": 2097152,
+    "dataCacheMaxEntries": 256,
+    "hotStoreMaxEntries": 128,
+    "inactiveCellLiveDefault": false
+  },
+  "scenarios": {
+    "node-simulation-loadMore": {
+      "symbol": "SPY",
+      "interval": "5m",
+      "range": "1mo",
+      "candlesLength": 4527,
+      "sessionStorageBytes": 405289,
+      "approxCandleArrayBytes": 217296,
+      "loadMoreRounds": 10,
+      "pageSize": 500,
+      "trimmedBarsTotal": 0,
+      "withinSoftMax": true,
+      "historyStillLoads": false,
+      "residentBarSoftMax": 5000,
+      "pass": true
+    },
+    "node-server-cache-warm": {
+      "candleFetchCount": 50,
+      "heapUsedBeforeMb": 111.67,
+      "heapUsedAfterMb": 117.7,
+      "rssBeforeMb": 296.53,
+      "rssAfterMb": 360.27,
+      "heapDeltaMb": 6.03,
+      "rssDeltaMb": 63.73,
+      "dataCacheTotalEntries": 50,
+      "dataCacheCandlesNamespaceEntries": 50,
+      "hotStoreEntries": 60,
+      "withinDataCacheCap": true,
+      "withinHotStoreCap": true,
+      "pass": true
+    },
+    "browser-b1-1cell-10x-loadMore": {
+      "skipped": true,
+      "reason": "dev server not reachable"
+    },
+    "browser-b2-8cell-10x-loadMore": {
+      "skipped": true,
+      "reason": "dev server not reachable"
+    },
+    "browser-b3-live-tip": {
+      "skipped": true,
+      "reason": "dev server not reachable"
+    }
+  },
+  "phase14Walks": {
+    "skipped": true,
+    "reason": "dev server not reachable"
+  }
+}
