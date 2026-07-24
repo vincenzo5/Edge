@@ -14,6 +14,8 @@ describe("evaluateApiMiddleware", () => {
   });
 
   it("passes through public routes", () => {
+    vi.stubEnv("EDGE_API_AUTH_MODE", "dev-open");
+    vi.stubEnv("NODE_ENV", "development");
     delete process.env.EDGE_API_KEY;
     const req = new NextRequest("http://localhost/api/candles", { method: "POST" });
     expect(evaluateApiMiddleware(req)).toBeNull();
@@ -31,15 +33,16 @@ describe("evaluateApiMiddleware", () => {
 
   it("returns 429 when rate limit exceeded", () => {
     vi.stubEnv("EDGE_RATE_LIMIT", "1");
+    vi.stubEnv("EDGE_API_AUTH_MODE", "dev-open");
+    vi.stubEnv("NODE_ENV", "development");
+    delete process.env.EDGE_API_KEY;
     const url = "http://localhost/api/market-data/warmup";
-    const init = {
-      method: "POST" as const,
-      headers: { "x-forwarded-for": "203.0.113.6" },
-    };
+    const req = new NextRequest(url, { method: "POST" });
+    Object.defineProperty(req, "ip", { value: "203.0.113.6", configurable: true });
     for (let i = 0; i < 10; i += 1) {
-      expect(evaluateApiMiddleware(new NextRequest(url, init))).toBeNull();
+      expect(evaluateApiMiddleware(req)).toBeNull();
     }
-    const blocked = evaluateApiMiddleware(new NextRequest(url, init));
+    const blocked = evaluateApiMiddleware(req);
     expect(blocked?.status).toBe(429);
   });
 });

@@ -35,15 +35,7 @@ export function resolveRateLimitBucket(pathname: string): RateLimitBucket | null
   return null;
 }
 
-function readClientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0]?.trim() || "unknown";
-  }
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp.trim();
-  return "unknown";
-}
+import { readClientIp, type ClientIpSource } from "./clientIp";
 
 function storeKey(ip: string, bucket: RateLimitBucket): string {
   return `${ip}:${bucket}`;
@@ -57,7 +49,10 @@ export type RateLimitResult =
   | { ok: true; release?: () => void }
   | { ok: false; status: 429; retryAfterSec: number; message: string };
 
-export function checkRateLimit(request: Request, pathname: string): RateLimitResult {
+export function checkRateLimit(
+  request: ClientIpSource,
+  pathname: string,
+): RateLimitResult {
   if (!isRateLimitEnabled()) {
     return { ok: true };
   }

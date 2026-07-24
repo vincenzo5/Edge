@@ -5,8 +5,15 @@ import {
   toPublicErrorMessage,
 } from "./safeErrorResponse";
 
+const appendLocalError = vi.fn();
+
+vi.mock("@/lib/observability/localErrorLog", () => ({
+  appendLocalError: (...args: unknown[]) => appendLocalError(...args),
+}));
+
 describe("safeErrorResponse", () => {
   beforeEach(() => {
+    appendLocalError.mockReset();
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -18,12 +25,24 @@ describe("safeErrorResponse", () => {
   it("returns full error message in development", () => {
     vi.stubEnv("NODE_ENV", "development");
     expect(toPublicErrorMessage(new Error("IBKR timeout"), "Failed")).toBe("IBKR timeout");
+    expect(appendLocalError).toHaveBeenCalledWith({
+      source: "api",
+      message: "IBKR timeout",
+      stack: expect.any(String),
+    });
   });
 
   it("returns fallback in production", () => {
     vi.stubEnv("NODE_ENV", "production");
-    expect(toPublicErrorMessage(new Error("IBKR timeout"), "Failed to fetch")).toBe(
-      "Failed to fetch",
+    expect(
+      toPublicErrorMessage(
+        new Error("IBKR timeout api_key=secret accountId=DU123456"),
+        "Failed to fetch",
+      ),
+    ).toBe("Failed to fetch");
+    expect(console.error).toHaveBeenCalledWith("[api]", "Failed to fetch");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toMatch(
+      /secret|DU123456/,
     );
   });
 

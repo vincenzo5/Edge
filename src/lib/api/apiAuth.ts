@@ -1,3 +1,5 @@
+import { isLoopbackIp, readClientIp, type ClientIpSource } from "./clientIp";
+
 const SENSITIVE_PREFIXES = [
   "/api/brokerage",
   "/api/trading",
@@ -17,26 +19,22 @@ export function isApiKeyAuthEnabled(): boolean {
   return Boolean(process.env.EDGE_API_KEY?.trim());
 }
 
+export function isDevOpenAuthMode(): boolean {
+  return (
+    process.env.EDGE_API_AUTH_MODE?.trim() === "dev-open" &&
+    process.env.NODE_ENV !== "production"
+  );
+}
+
 export function isTrustLocalhostEnabled(): boolean {
   const raw = process.env.EDGE_TRUST_LOCALHOST?.trim().toLowerCase();
   if (raw === "false" || raw === "0") return false;
   return true;
 }
 
-function readClientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0]?.trim() || "unknown";
-  }
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp.trim();
-  return "unknown";
-}
-
-export function isTrustedLocalhost(request: Request): boolean {
+export function isTrustedLocalhost(request: ClientIpSource): boolean {
   if (!isTrustLocalhostEnabled()) return false;
-  const ip = readClientIp(request);
-  return ip === "127.0.0.1" || ip === "::1" || ip === "localhost";
+  return isLoopbackIp(readClientIp(request));
 }
 
 function readApiKeyFromRequest(request: Request): string | null {
@@ -66,14 +64,29 @@ export type ApiAuthResult =
   | { ok: true }
   | { ok: false; status: 401; message: string };
 
-export function verifyApiKey(request: Request, pathname: string): ApiAuthResult {
+export function verifyApiKey(
+  request: ClientIpSource,
+  pathname: string,
+): ApiAuthResult {
   if (!isSensitiveRoute(pathname)) {
     return { ok: true };
   }
 
+  return verifyConfiguredApiKey(request);
+}
+
+export function verifyConfiguredApiKey(request: ClientIpSource): ApiAuthResult {
   const expected = process.env.EDGE_API_KEY?.trim();
   if (!expected) {
-    return { ok: true };
+    if (isDevOpenAuthMode()) {
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      status: 401,
+      message:
+        "API key required. Set EDGE_API_KEY or EDGE_API_AUTH_MODE=dev-open (non-production only).",
+    };
   }
 
   if (isTrustedLocalhost(request)) {
@@ -88,6 +101,6 @@ export function verifyApiKey(request: Request, pathname: string): ApiAuthResult 
   return {
     ok: false,
     status: 401,
-    message: "Missing or invalid API key for sensitive route.",
+    message: "Missing or invalid API key.",
   };
 }
