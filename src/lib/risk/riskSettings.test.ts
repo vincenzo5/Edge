@@ -23,55 +23,24 @@ const FULL_ACCOUNT = accountSummary({
 
 describe("resolveAccountBasisValue", () => {
   it("returns NetLiquidation from account tags", () => {
-    expect(
-      resolveAccountBasisValue(
-        { ...DEFAULT_RISK_SETTINGS, accountBasis: "NetLiquidation" },
-        FULL_ACCOUNT,
-      ),
-    ).toBe(100_000);
+    expect(resolveAccountBasisValue(FULL_ACCOUNT)).toBe(100_000);
   });
 
-  it("returns AvailableFunds from account tags", () => {
-    expect(
-      resolveAccountBasisValue(
-        { ...DEFAULT_RISK_SETTINGS, accountBasis: "AvailableFunds" },
-        FULL_ACCOUNT,
-      ),
-    ).toBe(40_000);
+  it("ignores AvailableFunds and EquityWithLoanValue", () => {
+    expect(resolveAccountBasisValue(FULL_ACCOUNT)).not.toBe(40_000);
+    expect(resolveAccountBasisValue(FULL_ACCOUNT)).not.toBe(95_000);
   });
 
-  it("returns EquityWithLoanValue from account tags", () => {
-    expect(
-      resolveAccountBasisValue(
-        { ...DEFAULT_RISK_SETTINGS, accountBasis: "EquityWithLoanValue" },
-        FULL_ACCOUNT,
-      ),
-    ).toBe(95_000);
+  it("returns null when account is missing", () => {
+    expect(resolveAccountBasisValue(null)).toBeNull();
   });
 
-  it("returns manualCapital when basis is Manual", () => {
+  it("returns null when NetLiquidation tag is missing", () => {
     expect(
       resolveAccountBasisValue(
-        { ...DEFAULT_RISK_SETTINGS, accountBasis: "Manual", manualCapital: 75_000 },
-        null,
-      ),
-    ).toBe(75_000);
-  });
-
-  it("returns null when account is missing for live basis", () => {
-    expect(
-      resolveAccountBasisValue(
-        { ...DEFAULT_RISK_SETTINGS, accountBasis: "NetLiquidation" },
-        null,
-      ),
-    ).toBeNull();
-  });
-
-  it("returns null when manualCapital is zero", () => {
-    expect(
-      resolveAccountBasisValue(
-        { ...DEFAULT_RISK_SETTINGS, accountBasis: "Manual", manualCapital: 0 },
-        null,
+        accountSummary({
+          AvailableFunds: { tag: "AvailableFunds", value: "40000" },
+        }),
       ),
     ).toBeNull();
   });
@@ -79,7 +48,11 @@ describe("resolveAccountBasisValue", () => {
 
 describe("resolveDollarRisk", () => {
   it("computes percent of NetLiquidation", () => {
-    expect(resolveDollarRisk(DEFAULT_RISK_SETTINGS, FULL_ACCOUNT)).toBe(1_000);
+    const settings: RiskSettings = {
+      ...DEFAULT_RISK_SETTINGS,
+      sizingMode: "percent",
+    };
+    expect(resolveDollarRisk(settings, FULL_ACCOUNT)).toBe(1_000);
   });
 
   it("returns absoluteRisk in absolute mode", () => {
@@ -93,19 +66,25 @@ describe("resolveDollarRisk", () => {
   });
 
   it("returns null when account missing in percent mode", () => {
-    expect(resolveDollarRisk(DEFAULT_RISK_SETTINGS, null)).toBeNull();
+    const settings: RiskSettings = {
+      ...DEFAULT_RISK_SETTINGS,
+      sizingMode: "percent",
+    };
+    expect(resolveDollarRisk(settings, null)).toBeNull();
   });
 
-  it("returns null when basis tag is missing", () => {
-    expect(
-      resolveDollarRisk(DEFAULT_RISK_SETTINGS, accountSummary({})),
-    ).toBeNull();
+  it("returns null when NetLiquidation tag is missing", () => {
+    const settings: RiskSettings = {
+      ...DEFAULT_RISK_SETTINGS,
+      sizingMode: "percent",
+    };
+    expect(resolveDollarRisk(settings, accountSummary({}))).toBeNull();
   });
 
   it("handles riskPercent at 100%", () => {
     expect(
       resolveDollarRisk(
-        { ...DEFAULT_RISK_SETTINGS, riskPercent: 100 },
+        { ...DEFAULT_RISK_SETTINGS, sizingMode: "percent", riskPercent: 100 },
         FULL_ACCOUNT,
       ),
     ).toBe(100_000);
@@ -113,16 +92,16 @@ describe("resolveDollarRisk", () => {
 });
 
 describe("toRiskAccount", () => {
-  it("uses live basis capital when available", () => {
+  it("uses NetLiquidation capital when available", () => {
     expect(toRiskAccount(DEFAULT_RISK_SETTINGS, FULL_ACCOUNT)).toEqual({
       capital: 100_000,
       riskPercent: 1,
     });
   });
 
-  it("falls back to manualCapital when basis unavailable", () => {
+  it("returns zero capital when NetLiquidation unavailable", () => {
     expect(toRiskAccount(DEFAULT_RISK_SETTINGS, null)).toEqual({
-      capital: 50_000,
+      capital: 0,
       riskPercent: 1,
     });
   });
@@ -139,10 +118,28 @@ describe("parseRiskSettings", () => {
       sizingMode: "absolute" as const,
       riskPercent: 2,
       absoluteRisk: 500,
-      accountBasis: "AvailableFunds" as const,
-      manualCapital: 10_000,
     };
-    expect(parseRiskSettings(stored)).toEqual(stored);
+    expect(parseRiskSettings(stored)).toEqual({
+      ...stored,
+      showLiquidationLine: true,
+    });
+  });
+
+  it("strips legacy accountBasis and manualCapital", () => {
+    expect(
+      parseRiskSettings({
+        sizingMode: "percent",
+        riskPercent: 2,
+        absoluteRisk: 500,
+        accountBasis: "AvailableFunds",
+        manualCapital: 75_000,
+      }),
+    ).toEqual({
+      sizingMode: "percent",
+      riskPercent: 2,
+      absoluteRisk: 500,
+      showLiquidationLine: true,
+    });
   });
 
   it("rejects invalid riskPercent", () => {

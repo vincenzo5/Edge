@@ -87,12 +87,15 @@ export class BrokerageService {
       throw firstError.reason;
     }
 
+    const summaryValue = summary.status === "fulfilled" ? summary.value : null;
+    const pnlValue = pnl.status === "fulfilled" ? pnl.value : null;
+
     return {
       status: status.status === "fulfilled" ? status.value : null,
-      summary: summary.status === "fulfilled" ? summary.value : null,
+      summary: summaryValue,
       positions:
         positionsResult.status === "fulfilled" ? positionsResult.value.positions : [],
-      pnl: pnl.status === "fulfilled" ? pnl.value : null,
+      pnl: pnlValue ?? summaryValue?.pnl ?? null,
       orders: ordersResult.status === "fulfilled" ? ordersResult.value.orders : [],
       executions:
         tradesResult.status === "fulfilled" ? tradesResult.value.executions : [],
@@ -113,8 +116,12 @@ export class BrokerageService {
     }
   }
 
-  async previewOrder(request: WhatIfRequest): Promise<WhatIfResult> {
-    const client = getBrokerageClient();
+  async previewOrder(
+    request: WhatIfRequest,
+    environment: TradingEnvironment = "paper",
+  ): Promise<WhatIfResult> {
+    const connection = resolveConnectionByEnvironment(environment);
+    const client = getBrokerageClient(connection.connectionId);
     if (!client) {
       throw new BrokerageRequestError(
         "disabled",

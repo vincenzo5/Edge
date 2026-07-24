@@ -18,12 +18,19 @@ import {
   POSITION_SNAPSHOT_INTERVAL_MS,
   shouldCaptureSnapshot,
 } from "@/lib/brokerage/ingest/parseAccountSummary";
+import { resolveIngestAccountId } from "@/lib/brokerage/ingest/resolveIngestAccountId";
 import { parseFlexCsv } from "@/lib/journal/flexImport/parseFlexCsv";
 import {
   fetchFlexStatementCsv,
   readFlexWebServiceConfigFromEnv,
 } from "@/lib/journal/flexImport/flexWebService";
-import { importJournalFillsAndRebuild } from "@/lib/persistence/repositories/journalRepository";
+import { filterTradesByAccount } from "@/lib/journal/filterTradesByAccount";
+import { reconcileJournalOpensWithPositions } from "@/lib/journal/reconcileJournalOpens";
+import {
+  importJournalFillsAndRebuild,
+  listJournalFills,
+  listJournalTrades,
+} from "@/lib/persistence/repositories/journalRepository";
 import {
   getBrokerIngestCursor,
   upsertBrokerIngestCursor,
@@ -37,6 +44,10 @@ import { resolveConnectionByEnvironment } from "@/lib/trading/connectionRegistry
 import type { TradingEnvironment } from "@/lib/trading/types";
 
 const MIN_FLEX_BACKFILL_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** When journal is out of sync, still don't hammer Flex more than once per interval. */
+const FLEX_RECONCILE_INTERVAL_MS = 15 * 60 * 1000;
+const FLEX_FAILURE_BACKOFF_MS = 15 * 60 * 1000;
+const FLEX_LOCKOUT_BACKOFF_MS = 60 * 60 * 1000;
 
 export type BrokerageIngestResult = {
   connectionId: string;
@@ -46,36 +57,42 @@ export type BrokerageIngestResult = {
   duplicates: number;
   flexBackfilled: boolean;
   snapshotsCaptured: boolean;
+  journalInSync: boolean | null;
   error: string | null;
 };
-
-function resolveAccountId(snapshot: BrokerageSnapshot): string | null {
-  const fromSummary = snapshot.summary?.accountId?.trim();
-  if (fromSummary) return fromSummary;
-  const fromStatus = snapshot.status?.accountId?.trim();
-  if (fromStatus) return fromStatus;
-  const managed = snapshot.status?.managedAccounts?.[0]?.trim();
-  return managed || null;
-}
 
 async function maybeFlexGapBackfill(
   userId: string,
   connectionId: string,
   cursorRow: Awaited<ReturnType<typeof getBrokerIngestCursor>>["row"],
   cursor: Awaited<ReturnType<typeof getBrokerIngestCursor>>["cursor"],
+  options: { forceReconcile?: boolean; accountId?: string | null } = {},
 ): Promise<{ backfilled: boolean; error: string | null }> {
   const config = readFlexWebServiceConfigFromEnv();
   if (!config) return { backfilled: false, error: null };
 
-  const lastIngestAt = cursorRow?.lastIngestAt ? new Date(cursorRow.lastIngestAt) : null;
-  if (!shouldAttemptFlexGapBackfill(cursor, lastIngestAt)) {
+  if (!shouldAttemptFlexGapBackfill(cursor, { forceReconcile: options.forceReconcile })) {
     return { backfilled: false, error: null };
+  }
+
+  const lastError = cursorRow?.lastIngestError ?? "";
+  const lastIngestMs = cursorRow?.lastIngestAt ? Date.parse(cursorRow.lastIngestAt) : 0;
+  if (lastError.includes("Flex") && lastIngestMs > 0) {
+    const backoffMs = lastError.includes("1025")
+      ? FLEX_LOCKOUT_BACKOFF_MS
+      : FLEX_FAILURE_BACKOFF_MS;
+    if (Date.now() - lastIngestMs < backoffMs) {
+      return { backfilled: false, error: lastError };
+    }
   }
 
   const lastFlexMs = cursorRow?.lastFlexBackfillAt
     ? Date.parse(cursorRow.lastFlexBackfillAt)
     : 0;
-  if (lastFlexMs > 0 && Date.now() - lastFlexMs < MIN_FLEX_BACKFILL_INTERVAL_MS) {
+  const minInterval = options.forceReconcile
+    ? FLEX_RECONCILE_INTERVAL_MS
+    : MIN_FLEX_BACKFILL_INTERVAL_MS;
+  if (lastFlexMs > 0 && Date.now() - lastFlexMs < minInterval) {
     return { backfilled: false, error: null };
   }
 
@@ -90,7 +107,7 @@ async function maybeFlexGapBackfill(
     }
     await importJournalFillsAndRebuild(userId, parsed.fills);
     await upsertBrokerIngestCursor(userId, connectionId, {
-      accountId: cursorRow?.accountId ?? null,
+      accountId: options.accountId ?? cursorRow?.accountId ?? null,
       cursor,
       lastFlexBackfillAt: new Date(),
       lastIngestError: null,
@@ -106,8 +123,8 @@ async function captureSnapshotsIfDue(
   userId: string,
   connectionId: string,
   snapshot: BrokerageSnapshot,
+  accountId: string | null,
 ): Promise<boolean> {
-  const accountId = resolveAccountId(snapshot);
   if (!accountId) return false;
 
   const nowMs = Date.now();
@@ -138,6 +155,25 @@ async function captureSnapshotsIfDue(
   return captured;
 }
 
+async function evaluateJournalReconcile(
+  userId: string,
+  snapshot: BrokerageSnapshot,
+  accountId: string | null,
+): Promise<boolean | null> {
+  if (!accountId) return null;
+  const [openTrades, fills] = await Promise.all([
+    listJournalTrades(userId, { status: "open", limit: 500 }),
+    listJournalFills(userId),
+  ]);
+  const scopedOpen = filterTradesByAccount(openTrades, fills, accountId);
+  const reconcile = reconcileJournalOpensWithPositions(
+    scopedOpen,
+    snapshot.positions ?? [],
+    accountId,
+  );
+  return reconcile.inSync;
+}
+
 export async function runBrokerageIngestForEnvironment(
   userId: string,
   environment: TradingEnvironment,
@@ -151,6 +187,7 @@ export async function runBrokerageIngestForEnvironment(
     duplicates: 0,
     flexBackfilled: false,
     snapshotsCaptured: false,
+    journalInSync: null,
     error: null,
   };
 
@@ -162,7 +199,7 @@ export async function runBrokerageIngestForEnvironment(
 
   try {
     const snapshot = await getBrokerageService().getSnapshot(environment);
-    const accountId = resolveAccountId(snapshot);
+    const accountId = resolveIngestAccountId(snapshot, environment);
     const fillInputs = executionsToFillInputs(snapshot.executions, "live");
 
     let added = 0;
@@ -178,7 +215,10 @@ export async function runBrokerageIngestForEnvironment(
       userId,
       connection.connectionId,
       snapshot,
+      accountId,
     );
+
+    const journalInSync = await evaluateJournalReconcile(userId, snapshot, accountId);
 
     await upsertBrokerIngestCursor(userId, connection.connectionId, {
       accountId,
@@ -189,12 +229,20 @@ export async function runBrokerageIngestForEnvironment(
 
     let flexBackfilled = false;
     let flexError: string | null = null;
-    if (fillInputs.length === 0) {
+    // Flex query is account-scoped (live). Paper must not share the same token hammer path.
+    const shouldFlex =
+      environment === "live" &&
+      (fillInputs.length === 0 || journalInSync === false);
+    if (shouldFlex) {
       const flex = await maybeFlexGapBackfill(
         userId,
         connection.connectionId,
         row,
         nextCursor,
+        {
+          forceReconcile: journalInSync === false,
+          accountId,
+        },
       );
       flexBackfilled = flex.backfilled;
       flexError = flex.error;
@@ -214,6 +262,7 @@ export async function runBrokerageIngestForEnvironment(
       duplicates,
       flexBackfilled,
       snapshotsCaptured,
+      journalInSync,
       error: flexError,
     };
   } catch (error) {

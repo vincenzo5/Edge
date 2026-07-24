@@ -4,7 +4,7 @@ import type {
   WhatIfRequest,
   WhatIfResult,
 } from "@/lib/marketData/contracts/brokerage";
-import { sidecarAuthHeaders } from "@/lib/marketData/providers/tws/sidecarAuth";
+import { sidecarAuthHeaders, assertSidecarAuthConfigured, resolveSidecarUrl } from "@/lib/marketData/providers/tws/sidecarAuth";
 import {
   BrokerageRequestError,
   createBrokerageClient,
@@ -23,7 +23,14 @@ import {
   resolveConnectionById,
 } from "../connectionRegistry";
 import type { BrokerTradingPort } from "../ports";
-import type { OrderDraft, OrderModifyPatch, OrderPreview, TradingAccount } from "../types";
+import type {
+  BracketPlan,
+  OrderDraft,
+  OrderModifyPatch,
+  OrderPreview,
+  ProtectiveOcoPlan,
+  TradingAccount,
+} from "../types";
 
 type PlaceOrderResponse = {
   order: AccountOrder;
@@ -46,10 +53,11 @@ function parsePositiveMs(raw: string | undefined, fallback: number): number {
 }
 
 function readConfig(): BrokerageClientConfig {
-  const baseUrl = process.env.TWS_SIDECAR_URL?.trim() ?? "http://127.0.0.1:8765";
+  const baseUrl = resolveSidecarUrl(process.env.TWS_SIDECAR_URL);
+  assertSidecarAuthConfigured(baseUrl);
   const timeoutMs = parsePositiveMs(process.env.TWS_SIDECAR_TIMEOUT_MS, 15_000);
   return {
-    baseUrl: baseUrl.replace(/\/$/, ""),
+    baseUrl,
     timeoutMs,
   };
 }
@@ -97,13 +105,16 @@ function mapWhatIfToPreview(result: WhatIfResult): OrderPreview {
 }
 
 function draftToWhatIf(draft: OrderDraft): WhatIfRequest {
+  const orderType =
+    draft.orderType === "TRAIL" || draft.orderType === "TRAIL LIMIT" ? "MKT" : draft.orderType;
   return {
     symbol: draft.symbol.trim().toUpperCase(),
     action: draft.side,
     quantity: draft.quantity,
-    orderType: draft.orderType,
+    orderType,
     limitPrice: draft.limitPrice,
     stopPrice: draft.stopPrice,
+    outsideRth: draft.outsideRth ?? false,
   };
 }
 
@@ -116,9 +127,52 @@ function draftToPlaceBody(draft: OrderDraft, connectionId: string) {
     orderType: draft.orderType,
     limitPrice: draft.limitPrice,
     stopPrice: draft.stopPrice,
+    trailPercent: draft.trailPercent,
     outsideRth: draft.outsideRth ?? false,
     tif: draft.tif,
     orderRef: draft.orderRef,
+    connectionId,
+  };
+}
+
+function stopLegToSidecar(stopLeg: BracketPlan["stopLeg"]) {
+  return {
+    mode: stopLeg.mode,
+    stopPrice: stopLeg.stopPrice,
+    trailAmount: stopLeg.trailAmount,
+    trailPercent: stopLeg.trailPercent,
+  };
+}
+
+function bracketPlanToBody(plan: BracketPlan, connectionId: string, orderRef: string) {
+  const entry = plan.entry;
+  return {
+    accountId: entry.accountId.trim(),
+    symbol: entry.symbol.trim().toUpperCase(),
+    action: entry.side,
+    quantity: entry.quantity,
+    orderType: entry.orderType === "LMT" ? "LMT" : "MKT",
+    limitPrice: entry.limitPrice,
+    stopLeg: stopLegToSidecar(plan.stopLeg),
+    takeProfitPrice: plan.takeProfitPrice,
+    outsideRth: entry.outsideRth ?? false,
+    tif: entry.tif,
+    orderRef,
+    connectionId,
+  };
+}
+
+function protectiveOcoToBody(plan: ProtectiveOcoPlan, connectionId: string, orderRef: string) {
+  return {
+    accountId: plan.accountId.trim(),
+    symbol: plan.symbol.trim().toUpperCase(),
+    action: plan.side,
+    quantity: plan.quantity,
+    stopLeg: stopLegToSidecar(plan.stopLeg),
+    takeProfitPrice: plan.takeProfitPrice,
+    outsideRth: plan.outsideRth ?? false,
+    tif: plan.tif,
+    orderRef,
     connectionId,
   };
 }
@@ -229,6 +283,59 @@ export class IbTwsTradingAdapter implements BrokerTradingPort {
     return {
       order: response.order,
       orderRef,
+    };
+  }
+
+  async placeBracket(
+    plan: BracketPlan,
+    orderRef: string,
+  ): Promise<{
+    entryOrder: AccountOrder;
+    stopOrder: AccountOrder;
+    takeProfitOrder: AccountOrder;
+    orderRef: string;
+  }> {
+    const response = await this.request<{
+      orders: {
+        entryOrder: AccountOrder;
+        stopOrder: AccountOrder;
+        takeProfitOrder: AccountOrder;
+      };
+      orderRef: string;
+    }>("/trading/brackets", {
+      method: "POST",
+      body: bracketPlanToBody(plan, this.connectionId, orderRef),
+    });
+    return {
+      entryOrder: response.orders.entryOrder,
+      stopOrder: response.orders.stopOrder,
+      takeProfitOrder: response.orders.takeProfitOrder,
+      orderRef: response.orderRef,
+    };
+  }
+
+  async placeProtectiveOco(
+    plan: ProtectiveOcoPlan,
+    orderRef: string,
+  ): Promise<{
+    stopOrder: AccountOrder;
+    takeProfitOrder: AccountOrder;
+    orderRef: string;
+  }> {
+    const response = await this.request<{
+      orders: {
+        stopOrder: AccountOrder;
+        takeProfitOrder: AccountOrder;
+      };
+      orderRef: string;
+    }>("/trading/oco", {
+      method: "POST",
+      body: protectiveOcoToBody(plan, this.connectionId, orderRef),
+    });
+    return {
+      stopOrder: response.orders.stopOrder,
+      takeProfitOrder: response.orders.takeProfitOrder,
+      orderRef: response.orderRef,
     };
   }
 

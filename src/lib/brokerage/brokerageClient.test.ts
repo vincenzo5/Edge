@@ -43,7 +43,7 @@ describe("brokerageClient", () => {
     const status = await client.getStatus();
     expect(status.accountId).toBe("DU123");
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8765/account/status",
+      expect.stringMatching(/\/account\/status\?connectionId=/),
       expect.objectContaining({ method: "GET" }),
     );
   });

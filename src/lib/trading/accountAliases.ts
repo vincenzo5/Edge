@@ -23,6 +23,9 @@ export function readAccountAliases(): AccountAliases {
 export function writeAccountAliases(aliases: AccountAliases): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(ACCOUNT_ALIASES_STORAGE_KEY, JSON.stringify(aliases));
+  void import("@/lib/userPreferences/userPreferencesSync").then(({ notifyUserPreferencesChanged }) =>
+    notifyUserPreferencesChanged(),
+  );
 }
 
 export function setAccountAlias(

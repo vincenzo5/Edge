@@ -4,6 +4,7 @@ import {
   getBrokerageStreamUrl,
   probeSidecarLiveness,
 } from "@/lib/brokerage/brokerageClient";
+import { sidecarAuthHeaders } from "@/lib/marketData/providers/tws/sidecarAuth";
 import { brokerageDisabledResponse, brokerageErrorResponse } from "@/lib/brokerage/routeHelpers";
 import { isBrokerageConfigured } from "@/lib/brokerage/brokerageService";
 import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
@@ -55,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
 
       try {
         const res = await fetch(sidecarUrl, {
-          headers: { Accept: "text/event-stream" },
+          headers: sidecarAuthHeaders({ Accept: "text/event-stream" }),
           signal,
         });
         if (!res.ok || !res.body) {

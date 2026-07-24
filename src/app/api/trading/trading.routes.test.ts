@@ -14,6 +14,18 @@ const mockSubmitOrder = vi.fn();
 const mockModifyOrder = vi.fn();
 const mockCancelOrder = vi.fn();
 
+const isPersistenceEnabledMock = vi.fn(() => false);
+const getCurrentUserMock = vi.fn(async () => null);
+
+vi.mock("@/lib/persistence/auth/getCurrentUser", () => ({
+  isPersistenceEnabled: (...args: unknown[]) => isPersistenceEnabledMock(...args),
+  getCurrentUser: (...args: unknown[]) => getCurrentUserMock(...args),
+}));
+
+vi.mock("@/lib/persistence/repositories/appUserRepository", () => ({
+  ensureDevAppUser: vi.fn(async () => "dev-user"),
+}));
+
 vi.mock("@/lib/trading/tradingService", () => ({
   isTradingConfigured: vi.fn(() => true),
   isPaperTradingConfigured: vi.fn(() => true),
@@ -36,6 +48,8 @@ describe("/api/trading routes", () => {
     mockSubmitOrder.mockReset();
     mockModifyOrder.mockReset();
     mockCancelOrder.mockReset();
+    isPersistenceEnabledMock.mockReturnValue(false);
+    getCurrentUserMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -199,5 +213,55 @@ describe("/api/trading routes", () => {
       "paper",
       undefined,
     );
+  });
+
+  it("POST /orders returns 401 when persistence is on and session is missing", async () => {
+    isPersistenceEnabledMock.mockReturnValue(true);
+    getCurrentUserMock.mockResolvedValue(null);
+
+    const req = new NextRequest("http://localhost/api/trading/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        idempotencyKey: "key-1",
+        draft: {
+          accountId: "DUP586813",
+          symbol: "F",
+          side: "BUY",
+          quantity: 1,
+          orderType: "MKT",
+          environment: "paper",
+        },
+      }),
+    });
+    const res = await postOrders(req);
+    expect(res.status).toBe(401);
+    expect(mockSubmitOrder).not.toHaveBeenCalled();
+  });
+
+  it("POST /orders succeeds with persistence session user", async () => {
+    isPersistenceEnabledMock.mockReturnValue(true);
+    getCurrentUserMock.mockResolvedValue({ id: "user-1" });
+    mockSubmitOrder.mockResolvedValue({
+      order: { orderId: 9, permId: 123 },
+      orderRef: "edge-intent-abc",
+      intent: { intentId: "abc", status: "submitted" },
+    });
+
+    const req = new NextRequest("http://localhost/api/trading/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        idempotencyKey: "key-1",
+        draft: {
+          accountId: "DUP586813",
+          symbol: "F",
+          side: "BUY",
+          quantity: 1,
+          orderType: "MKT",
+          environment: "paper",
+        },
+      }),
+    });
+    const res = await postOrders(req);
+    expect(res.status).toBe(200);
   });
 });

@@ -8,7 +8,7 @@ import type {
   WhatIfRequest,
   WhatIfResult,
 } from "../marketData/contracts/brokerage";
-import { sidecarAuthHeaders } from "../marketData/providers/tws/sidecarAuth";
+import { sidecarAuthHeaders, assertSidecarAuthConfigured, resolveSidecarUrl } from "../marketData/providers/tws/sidecarAuth";
 import {
   IB_PAPER_CONNECTION_ID,
   connectionQuery,
@@ -36,10 +36,11 @@ export function isBrokerageConfigured(): boolean {
 }
 
 function readConfig(): BrokerageClientConfig {
-  const baseUrl = process.env.TWS_SIDECAR_URL?.trim() ?? "http://127.0.0.1:8765";
+  const baseUrl = resolveSidecarUrl(process.env.TWS_SIDECAR_URL);
+  assertSidecarAuthConfigured(baseUrl);
   const timeoutMs = parsePositiveMs(process.env.TWS_SIDECAR_TIMEOUT_MS, 15_000);
   return {
-    baseUrl: baseUrl.replace(/\/$/, ""),
+    baseUrl,
     timeoutMs,
   };
 }

@@ -47,15 +47,20 @@ describe("accountPickerOptions", () => {
     expect(tradingAccountKey(sharedIdLive)).toBe("ib-live::DUP586813");
   });
 
+  it("labels accounts as Label (accountId)", () => {
+    expect(accountPickerLabel(paperAccount)).toBe("Paper (DUP586813)");
+    expect(accountPickerLabel(liveAccount)).toBe("Live (U25026894)");
+  });
+
   it("labels offline live accounts", () => {
-    expect(accountPickerLabel(offlineLiveAccount)).toBe("U25026894 (live, offline)");
+    expect(accountPickerLabel(offlineLiveAccount)).toBe("Live (U25026894, offline)");
   });
 
   it("uses alias in picker label when provided", () => {
     const aliases = { "ib-paper::DUP586813": "Paper IRA" };
-    expect(accountPickerLabel(paperAccount, aliases)).toBe("Paper IRA (paper)");
+    expect(accountPickerLabel(paperAccount, aliases)).toBe("Paper IRA (DUP586813)");
     expect(accountPickerLabel(offlineLiveAccount, { "ib-live::U25026894": "Live IRA" })).toBe(
-      "Live IRA (live, offline)",
+      "Live IRA (U25026894, offline)",
     );
   });
 

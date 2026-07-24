@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { OrderDraftSchema, OrderModifyPatchSchema, type OrderDraft, type OrderModifyPatch } from "./types";
+import {
+  BracketPlanSchema,
+  OrderDraftSchema,
+  OrderModifyPatchSchema,
+  ProtectiveOcoPlanSchema,
+  type OrderDraft,
+  type OrderModifyPatch,
+} from "./types";
 import { isTradingEnvironmentConfigured } from "./connectionRegistry";
 
 export class TradingValidationError extends Error {
@@ -108,6 +115,28 @@ export function parseOrderModifyPatch(input: unknown): OrderModifyPatch {
   return parsed.data;
 }
 
+export function parseBracketPlan(input: unknown) {
+  const parsed = BracketPlanSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new TradingValidationError(
+      parsed.error.issues.map((issue) => issue.message).join("; "),
+    );
+  }
+  assertTradingEnabledForEnvironment(parsed.data.entry.environment);
+  return parsed.data;
+}
+
+export function parseProtectiveOcoPlan(input: unknown) {
+  const parsed = ProtectiveOcoPlanSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new TradingValidationError(
+      parsed.error.issues.map((issue) => issue.message).join("; "),
+    );
+  }
+  assertTradingEnabledForEnvironment(parsed.data.environment);
+  return parsed.data;
+}
+
 export function normalizeDraftForHash(draft: OrderDraft): string {
   return JSON.stringify({
     accountId: draft.accountId.trim(),
@@ -117,6 +146,7 @@ export function normalizeDraftForHash(draft: OrderDraft): string {
     orderType: draft.orderType,
     limitPrice: draft.limitPrice ?? null,
     stopPrice: draft.stopPrice ?? null,
+    trailPercent: draft.trailPercent ?? null,
     outsideRth: draft.outsideRth ?? false,
     tif: draft.tif,
     environment: draft.environment,

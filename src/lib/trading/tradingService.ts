@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import "server-only";
 
 import {
@@ -22,14 +23,37 @@ import {
   resetServerIntentStoreForTests,
   type OrderIntentStore,
 } from "./intentStore";
+import {
+  resolveServerPlaybookAutoManageStore,
+  resetServerPlaybookAutoManageStoreForTests,
+  type PatchPlaybookAutoManageInput,
+  type PlaybookAutoManageSettings,
+  type PlaybookAutoManageStore,
+} from "./playbookAutoManageStore";
+import {
+  resolveServerPlaybookInstanceStore,
+  resetServerPlaybookInstanceStoreForTests,
+  createPlaybookInstanceId,
+  type PlaybookInstanceStore,
+} from "./playbookInstanceStore";
+import { createPlaybookInstance, lockPositionPlan } from "./playbook/types";
+import type { PlaybookInstance } from "./playbook/types";
+import { getPlaybookPreset } from "./playbook/presets";
+import { buildManualStopPausePatch } from "./playbook/conflictPolicy";
+import { runPlaybookEvaluation } from "./playbook/runPlaybookEvaluation";
+import type { RuleRuntime } from "./playbook/types";
 import { isReconcilableError, reconcileIntentWithBroker } from "./reconcile";
 import { assertCoveredSell, pdtWarnings } from "./safetyGuards";
 import type { BrokerTradingPort } from "./ports";
 import type {
+  BracketPlan,
+  BracketPlacedResult,
   OrderDraft,
   OrderIntent,
   OrderPreview,
   PlacedOrderResult,
+  ProtectiveOcoPlan,
+  ProtectiveOcoPlacedResult,
   TradingAccount,
   TradingEnvironment,
 } from "./types";
@@ -39,12 +63,15 @@ import {
   assertTradingKillSwitchOff,
   draftsMatchForSubmit,
   isPaperTradingConfigured,
+  parseBracketPlan,
   parseOrderDraft,
   parseOrderModifyPatch,
+  parseProtectiveOcoPlan,
   PREVIEW_INTENT_MAX_AGE_MS,
   TradingKillSwitchError,
   TradingValidationError,
 } from "./validateOrder";
+import { validateBracketGeometry } from "./bracketPlan";
 
 export class TradingReadinessBlockedError extends Error {
   readonly reasons: string[];
@@ -61,9 +88,19 @@ export { TradingKillSwitchError };
 export class TradingService {
   private storeOverride: OrderIntentStore | null;
   private storeCached: OrderIntentStore | null = null;
+  private playbookStoreOverride: PlaybookInstanceStore | null;
+  private playbookStoreCached: PlaybookInstanceStore | null = null;
+  private autoManageStoreOverride: PlaybookAutoManageStore | null;
+  private autoManageStoreCached: PlaybookAutoManageStore | null = null;
 
-  constructor(store?: OrderIntentStore) {
+  constructor(
+    store?: OrderIntentStore,
+    playbookStore?: PlaybookInstanceStore,
+    autoManageStore?: PlaybookAutoManageStore,
+  ) {
     this.storeOverride = store ?? null;
+    this.playbookStoreOverride = playbookStore ?? null;
+    this.autoManageStoreOverride = autoManageStore ?? null;
   }
 
   private async intentStore(): Promise<OrderIntentStore> {
@@ -72,6 +109,22 @@ export class TradingService {
       this.storeCached = await resolveServerIntentStore();
     }
     return this.storeCached;
+  }
+
+  private async playbookStore(): Promise<PlaybookInstanceStore> {
+    if (this.playbookStoreOverride) return this.playbookStoreOverride;
+    if (!this.playbookStoreCached) {
+      this.playbookStoreCached = await resolveServerPlaybookInstanceStore();
+    }
+    return this.playbookStoreCached;
+  }
+
+  private async autoManageStore(): Promise<PlaybookAutoManageStore> {
+    if (this.autoManageStoreOverride) return this.autoManageStoreOverride;
+    if (!this.autoManageStoreCached) {
+      this.autoManageStoreCached = await resolveServerPlaybookAutoManageStore();
+    }
+    return this.autoManageStoreCached;
   }
 
   isTradingEnabled(): boolean {
@@ -271,6 +324,399 @@ export class TradingService {
     }
   }
 
+  async submitBracket(
+    planInput: unknown,
+    idempotencyKey: string,
+    previewIntentId?: string,
+    liveConfirmation?: string,
+    playbookAttach?: {
+      templateId: string;
+      entryPrice: number;
+      initialStop: number;
+    },
+  ): Promise<BracketPlacedResult> {
+    const plan = parseBracketPlan(planInput);
+    const geometryError = validateBracketGeometry(plan);
+    if (geometryError) {
+      throw new TradingValidationError(geometryError);
+    }
+    assertLiveConfirmation(plan.entry.environment, liveConfirmation);
+
+    const store = await this.intentStore();
+    const existing = await store.getByIdempotencyKey(idempotencyKey);
+    if (existing?.status === "submitted" && existing.orderId != null) {
+      const playbookStore = await this.playbookStore();
+      const existingPlaybook =
+        (await playbookStore.getByOrderIntentId(existing.intentId)) ?? undefined;
+      return {
+        entryOrder: {
+          orderId: existing.orderId,
+          permId: existing.permId ?? null,
+          account: plan.entry.accountId,
+          action: plan.entry.side,
+          totalQuantity: plan.entry.quantity,
+          orderType: plan.entry.orderType,
+          status: "Submitted",
+        },
+        stopOrder: {
+          orderId: existing.stopOrderId ?? null,
+          account: plan.entry.accountId,
+          status: "Submitted",
+        },
+        takeProfitOrder: {
+          orderId: existing.takeProfitOrderId ?? null,
+          account: plan.entry.accountId,
+          status: "Submitted",
+        },
+        orderRef: existing.orderRef,
+        intent: existing,
+        playbookInstance: existingPlaybook,
+      };
+    }
+
+    try {
+      this.ensureTradingEnabled(plan.entry.environment);
+      if (previewIntentId) {
+        await this.validatePreviewIntent(plan.entry, previewIntentId);
+      }
+      await this.assertPreTrade(plan.entry);
+      const port = this.portForEnvironment(plan.entry.environment);
+
+      const intent = await store.createIntent(plan.entry, idempotencyKey);
+      const orderRef = intent.orderRef;
+      const entryDraft = { ...plan.entry, orderRef };
+
+      const placed = await port.placeBracket({ ...plan, entry: entryDraft }, orderRef);
+      const updated =
+        (await store.updateIntent(intent.intentId, {
+          status: "submitted",
+          orderId: placed.entryOrder.orderId ?? null,
+          permId: placed.entryOrder.permId ?? null,
+          orderRef: placed.orderRef,
+          bracketStopPrice: plan.stopLeg.stopPrice ?? null,
+          bracketTakeProfitPrice: plan.takeProfitPrice,
+          stopOrderId: placed.stopOrder.orderId ?? null,
+          takeProfitOrderId: placed.takeProfitOrder.orderId ?? null,
+        })) ?? intent;
+
+      appendAudit({
+        action: "submit",
+        outcome: "success",
+        accountId: plan.entry.accountId,
+        intentId: intent.intentId,
+        orderRef: placed.orderRef,
+        detail: "bracket",
+      });
+
+      const attachResult = playbookAttach
+        ? await this.attachPlaybookAfterBracket({
+            templateId: playbookAttach.templateId,
+            entryPrice: playbookAttach.entryPrice,
+            initialStop: playbookAttach.initialStop,
+            plan,
+            intent: updated,
+            orderRef: placed.orderRef,
+          })
+        : {};
+
+      return {
+        entryOrder: placed.entryOrder,
+        stopOrder: placed.stopOrder,
+        takeProfitOrder: placed.takeProfitOrder,
+        orderRef: placed.orderRef,
+        intent: updated,
+        playbookInstance: attachResult.instance,
+        playbookAttachError: attachResult.error,
+      };
+    } catch (error) {
+      this.auditBlockedOrFailed("submit", plan.entry.accountId, error);
+      throw error;
+    }
+  }
+
+  async listPlaybookInstances(
+    accountId: string,
+    options?: { activeOnly?: boolean },
+  ): Promise<PlaybookInstance[]> {
+    const store = await this.playbookStore();
+    return store.listByAccount(accountId, options);
+  }
+
+  async detachPlaybookInstance(instanceId: string): Promise<PlaybookInstance | null> {
+    const store = await this.playbookStore();
+    const existing = await store.getById(instanceId);
+    if (!existing) return null;
+    if (existing.status === "detached" || existing.status === "completed") {
+      return existing;
+    }
+    return store.updateStatus(instanceId, "detached");
+  }
+
+  async pausePlaybookInstance(instanceId: string): Promise<PlaybookInstance | null> {
+    const store = await this.playbookStore();
+    const existing = await store.getById(instanceId);
+    if (!existing) return null;
+    if (existing.status === "detached" || existing.status === "completed") {
+      return existing;
+    }
+    return store.patch(instanceId, { status: "paused" });
+  }
+
+  async resumePlaybookInstance(instanceId: string): Promise<PlaybookInstance | null> {
+    const store = await this.playbookStore();
+    const existing = await store.getById(instanceId);
+    if (!existing) return null;
+    if (existing.status !== "paused") {
+      return existing;
+    }
+    return store.patch(instanceId, { status: "armed" });
+  }
+
+  async skipNextPlaybookRule(instanceId: string): Promise<PlaybookInstance | null> {
+    const store = await this.playbookStore();
+    const existing = await store.getById(instanceId);
+    if (!existing) return null;
+    if (existing.status === "detached" || existing.status === "completed") {
+      return existing;
+    }
+
+    const template = getPlaybookPreset(existing.templateId);
+    if (!template) return existing;
+
+    const sorted = [...template.rules].sort(
+      (a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER),
+    );
+    const nextRule = sorted.find((rule) => {
+      const runtime = existing.ruleRuntimes.find((item) => item.ruleId === rule.id);
+      return runtime?.status === "pending" || runtime?.status === "armed";
+    });
+    if (!nextRule) return existing;
+
+    const ruleRuntimes: RuleRuntime[] = existing.ruleRuntimes.map((item) =>
+      item.ruleId === nextRule.id
+        ? { ...item, status: "skipped", skippedReason: "user_skip" }
+        : item,
+    );
+
+    return store.patch(instanceId, { ruleRuntimes });
+  }
+
+  async evaluatePlaybooks(): Promise<{
+    evaluated: number;
+    fired: number;
+    skipped: number;
+    errors: string[];
+  }> {
+    const autoManage = await this.getPlaybookAutoManageSettings();
+    if (!autoManage.paperEnabled && !(autoManage.liveEnabled && autoManage.liveConsentAt)) {
+      return { evaluated: 0, fired: 0, skipped: 0, errors: [] };
+    }
+    if (autoManage.paperEnabled) {
+      this.ensureTradingEnabled("paper");
+    }
+    if (autoManage.liveEnabled && autoManage.liveConsentAt) {
+      this.ensureTradingEnabled("live");
+    }
+    const playbookStore = await this.playbookStore();
+    const intentStore = await this.intentStore();
+    return runPlaybookEvaluation({
+      tradingService: this,
+      playbookStore,
+      intentStore,
+      autoManage,
+    });
+  }
+
+  async getPlaybookAutoManageSettings(): Promise<PlaybookAutoManageSettings> {
+    const store = await this.autoManageStore();
+    return store.get();
+  }
+
+  async patchPlaybookAutoManageSettings(
+    patch: PatchPlaybookAutoManageInput,
+  ): Promise<PlaybookAutoManageSettings> {
+    const store = await this.autoManageStore();
+    return store.patch(patch);
+  }
+
+  private async pausePlaybooksOnManualStopModify(
+    accountId: string,
+    orderId: number,
+    environment: TradingEnvironment,
+    patchInput: unknown,
+  ): Promise<void> {
+    const patch = parseOrderModifyPatch(patchInput);
+    if (patch.stopPrice == null) return;
+
+    const store = await this.playbookStore();
+    const instances = await store.listActive({ environment });
+    for (const instance of instances) {
+      if (instance.positionPlan.accountId !== accountId) continue;
+      if (instance.stopOrderId !== orderId) continue;
+      if (instance.status === "detached" || instance.status === "completed") continue;
+
+      const template = getPlaybookPreset(instance.templateId);
+      if (!template) continue;
+
+      const pausePatch = buildManualStopPausePatch(instance, template.rules);
+      if (!pausePatch) continue;
+      await store.patch(instance.id, pausePatch);
+    }
+  }
+
+  private async attachPlaybook(args: {
+    templateId: string;
+    entryPrice: number;
+    initialStop: number;
+    symbol: string;
+    accountId: string;
+    side: BracketPlan["entry"]["side"];
+    qty: number;
+    environment: BracketPlan["entry"]["environment"];
+    orderRef: string;
+    status: PlaybookInstance["status"];
+    orderIntentId?: string;
+    stopOrderId?: number | null;
+    filledQty?: number | null;
+  }): Promise<{ instance?: PlaybookInstance; error?: string }> {
+    const template = getPlaybookPreset(args.templateId);
+    if (!template) {
+      return { error: `Unknown management playbook preset: ${args.templateId}` };
+    }
+
+    try {
+      const store = await this.playbookStore();
+      if (args.orderIntentId) {
+        const existing = await store.getByOrderIntentId(args.orderIntentId);
+        if (existing) {
+          return { instance: existing };
+        }
+      } else {
+        const existing = (await store.listByAccount(args.accountId)).find(
+          (item) =>
+            item.orderRef === args.orderRef &&
+            (item.status === "pending_fill" ||
+              item.status === "armed" ||
+              item.status === "paused"),
+        );
+        if (existing) {
+          return { instance: existing };
+        }
+      }
+
+      const positionPlan = lockPositionPlan({
+        symbol: args.symbol,
+        accountId: args.accountId,
+        side: args.side,
+        entry: args.entryPrice,
+        initialStop: args.initialStop,
+        qty: args.qty,
+        environment: args.environment,
+      });
+      const instance = createPlaybookInstance({
+        id: createPlaybookInstanceId(),
+        template,
+        positionPlan,
+        status: args.status,
+        orderIntentId: args.orderIntentId,
+        orderRef: args.orderRef,
+      });
+      const created = await store.create(instance);
+      if (args.stopOrderId != null || args.filledQty != null) {
+        const patched = await store.patch(created.id, {
+          stopOrderId: args.stopOrderId ?? undefined,
+          filledQty: args.filledQty ?? undefined,
+        });
+        return { instance: patched ?? created };
+      }
+      return { instance: created };
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  private async attachPlaybookAfterBracket(args: {
+    templateId: string;
+    entryPrice: number;
+    initialStop: number;
+    plan: BracketPlan;
+    intent: OrderIntent;
+    orderRef: string;
+  }): Promise<{ instance?: PlaybookInstance; error?: string }> {
+    return this.attachPlaybook({
+      templateId: args.templateId,
+      entryPrice: args.entryPrice,
+      initialStop: args.initialStop,
+      symbol: args.plan.entry.symbol,
+      accountId: args.plan.entry.accountId,
+      side: args.plan.entry.side,
+      qty: args.plan.entry.quantity,
+      environment: args.plan.entry.environment,
+      orderRef: args.orderRef,
+      status: "pending_fill",
+      orderIntentId: args.intent.intentId,
+    });
+  }
+
+  async submitProtectiveOco(
+    planInput: unknown,
+    idempotencyKey: string,
+    liveConfirmation?: string,
+    playbookAttach?: {
+      templateId: string;
+      entryPrice: number;
+      initialStop: number;
+    },
+  ): Promise<ProtectiveOcoPlacedResult> {
+    const plan = parseProtectiveOcoPlan(planInput);
+    assertLiveConfirmation(plan.environment, liveConfirmation);
+
+    try {
+      this.ensureTradingEnabled(plan.environment);
+      const port = this.portForEnvironment(plan.environment);
+      const orderRef = plan.orderRef?.trim() || `edge-oco-${randomUUID()}`;
+      const placed = await port.placeProtectiveOco({ ...plan, orderRef }, orderRef);
+
+      appendAudit({
+        action: "submit",
+        outcome: "success",
+        accountId: plan.accountId,
+        orderRef: placed.orderRef,
+        detail: "protective-oco",
+      });
+
+      const attachResult = playbookAttach
+        ? await this.attachPlaybook({
+            templateId: playbookAttach.templateId,
+            entryPrice: playbookAttach.entryPrice,
+            initialStop: playbookAttach.initialStop,
+            symbol: plan.symbol,
+            accountId: plan.accountId,
+            side: plan.side === "SELL" ? "BUY" : "SELL",
+            qty: plan.quantity,
+            environment: plan.environment,
+            orderRef: placed.orderRef,
+            status: "armed",
+            stopOrderId: placed.stopOrder.orderId ?? null,
+            filledQty: plan.quantity,
+          })
+        : {};
+
+      return {
+        stopOrder: placed.stopOrder,
+        takeProfitOrder: placed.takeProfitOrder,
+        orderRef: placed.orderRef,
+        playbookInstance: attachResult.instance,
+        playbookAttachError: attachResult.error,
+      };
+    } catch (error) {
+      this.auditBlockedOrFailed("submit", plan.accountId, error);
+      throw error;
+    }
+  }
+
   async modifyOrder(
     accountId: string,
     orderId: number,
@@ -297,6 +743,7 @@ export class TradingService {
         accountId,
         intentId: intentId ?? undefined,
       });
+      await this.pausePlaybooksOnManualStopModify(accountId, orderId, environment, patchInput);
       return { order: result.order, intent };
     } catch (error) {
       this.auditBlockedOrFailed("modify", accountId, error);
@@ -413,29 +860,32 @@ export class TradingService {
       client.getSummary(),
       getServerMarketDataService().getQuotes([draft.symbol], {
         twsConnectionId: connection.connectionId,
+        respectProviderPreference: false,
+        trustUsage: "trading_decision",
       }),
       client.getPositions(),
     ]);
 
     const quote = quoteResult.data[0];
+    const accountUpdatedAt = Math.max(
+      summary.updatedAt ?? 0,
+      status.summaryUpdatedAt ?? 0,
+    );
     const readiness = evaluateTradingReadiness({
       brokerageConnected: status.connected,
       accountSummary: summary,
-      accountUpdatedAt: Math.max(
-        summary.updatedAt ?? 0,
-        status.summaryUpdatedAt ?? 0,
-        preTradeFetchedAt,
-      ),
+      accountUpdatedAt,
       riskSettings: DEFAULT_RISK_SETTINGS,
       quote: quote
         ? {
             source: quoteResult.source,
-            asOf: quoteResult.receivedAt ?? quoteResult.asOf ?? quote.updatedAt,
+            asOf: quote.updatedAt ?? quoteResult.asOf,
             receivedAt: quoteResult.receivedAt,
             stale: quoteResult.stale,
             warnings: quoteResult.warnings,
           }
         : undefined,
+      now: preTradeFetchedAt,
     });
 
     if (!readiness.ok) {
@@ -479,6 +929,8 @@ export function getTradingService(): TradingService {
 export function resetTradingServiceForTests(): void {
   singletonService = null;
   resetServerIntentStoreForTests();
+  resetServerPlaybookInstanceStoreForTests();
+  resetServerPlaybookAutoManageStoreForTests();
 }
 
 export { isTradingConfigured, isPaperTradingConfigured };

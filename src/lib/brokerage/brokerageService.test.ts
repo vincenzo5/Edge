@@ -44,4 +44,16 @@ describe("BrokerageService", () => {
     expect(mockAwaitSidecarForBrokerage).toHaveBeenCalledOnce();
     expect(mockProbeSidecarLiveness).toHaveBeenCalled();
   });
+
+  it("getSnapshot falls back to summary pnl when pnl endpoint is empty", async () => {
+    mockGetPnL.mockResolvedValueOnce(null);
+    mockGetSummary.mockResolvedValueOnce({
+      tags: {},
+      pnl: { dailyPnL: 42.5, updatedAt: 2 },
+      updatedAt: 2,
+    });
+    const { getBrokerageService } = await import("./brokerageService");
+    const snapshot = await getBrokerageService().getSnapshot("live");
+    expect(snapshot.pnl).toEqual({ dailyPnL: 42.5, updatedAt: 2 });
+  });
 });

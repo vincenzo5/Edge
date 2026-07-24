@@ -35,7 +35,8 @@ describe("/api/brokerage routes", () => {
       updatedAt: 1,
     });
 
-    const res = await getSnapshot();
+    const req = new NextRequest("http://localhost/api/brokerage/snapshot?environment=paper");
+    const res = await getSnapshot(req);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.status.accountId).toBeUndefined();

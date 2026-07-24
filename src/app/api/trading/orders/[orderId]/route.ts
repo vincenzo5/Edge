@@ -8,6 +8,7 @@ import {
   tradingDisabledResponse,
   tradingErrorResponse,
 } from "@/lib/trading/routeHelpers";
+import { requireTradingMutateAuth } from "@/lib/trading/tradingMutateAuth";
 
 export const runtime = "nodejs";
 
@@ -78,6 +79,9 @@ export async function PATCH(
 ): Promise<Response> {
   if (!isTradingConfigured()) return tradingDisabledResponse();
 
+  const auth = await requireTradingMutateAuth(request);
+  if (!auth.ok) return auth.response;
+
   const parsed = await parseOrderRouteParams(request, context);
   if (!parsed.ok) return parsed.response;
 
@@ -116,6 +120,9 @@ export async function DELETE(
   context: RouteContext,
 ): Promise<Response> {
   if (!isTradingConfigured()) return tradingDisabledResponse();
+
+  const auth = await requireTradingMutateAuth(request);
+  if (!auth.ok) return auth.response;
 
   const parsed = await parseOrderRouteParams(request, context);
   if (!parsed.ok) return parsed.response;

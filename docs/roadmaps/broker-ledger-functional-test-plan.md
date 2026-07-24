@@ -269,7 +269,7 @@ curl -sS -b /tmp/edge-cookies.txt -X POST \
 curl -sS -b /tmp/edge-cookies.txt -X POST \
   http://localhost:3003/api/cron/brokerage-ingest | tee /tmp/b5-run2.json
 
-# Optional SQL (docker exec into tv-ai-postgres):
+# Optional SQL (docker exec into edge-postgres):
 # SELECT exec_id, COUNT(*) FROM journal_fills GROUP BY exec_id HAVING COUNT(*) > 1;
 ```
 

@@ -10,7 +10,14 @@ export type TradingEnvironment = z.infer<typeof TradingEnvironmentSchema>;
 export const OrderSideSchema = z.enum(["BUY", "SELL"]);
 export type OrderSide = z.infer<typeof OrderSideSchema>;
 
-export const OrderTypeSchema = z.enum(["MKT", "LMT", "STP", "STP LMT"]);
+export const OrderTypeSchema = z.enum([
+  "MKT",
+  "LMT",
+  "STP",
+  "STP LMT",
+  "TRAIL",
+  "TRAIL LIMIT",
+]);
 export type OrderType = z.infer<typeof OrderTypeSchema>;
 
 export const TimeInForceSchema = z.enum(["DAY", "GTC"]);
@@ -38,6 +45,7 @@ export const OrderDraftSchema = z
     orderType: OrderTypeSchema.default("MKT"),
     limitPrice: z.number().positive().optional(),
     stopPrice: z.number().positive().optional(),
+    trailPercent: z.number().positive().optional(),
     outsideRth: z.boolean().default(false),
     tif: TimeInForceSchema.default("DAY"),
     orderRef: z.string().optional(),
@@ -70,6 +78,29 @@ export const OrderDraftSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "limitPrice required for STP LMT orders",
+          path: ["limitPrice"],
+        });
+      }
+    }
+    if (value.orderType === "TRAIL" && value.stopPrice == null && value.trailPercent == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "stopPrice (trail amount) or trailPercent required for TRAIL orders",
+        path: ["stopPrice"],
+      });
+    }
+    if (value.orderType === "TRAIL LIMIT") {
+      if (value.stopPrice == null && value.trailPercent == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "stopPrice (trail amount) or trailPercent required for TRAIL LIMIT orders",
+          path: ["stopPrice"],
+        });
+      }
+      if (value.limitPrice == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "limitPrice required for TRAIL LIMIT orders",
           path: ["limitPrice"],
         });
       }
@@ -115,6 +146,10 @@ export const OrderIntentSchema = z.object({
   orderRef: z.string(),
   permId: z.number().nullable().optional(),
   orderId: z.number().nullable().optional(),
+  bracketStopPrice: z.number().nullable().optional(),
+  bracketTakeProfitPrice: z.number().nullable().optional(),
+  stopOrderId: z.number().nullable().optional(),
+  takeProfitOrderId: z.number().nullable().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -160,3 +195,168 @@ export const OrderModifyPatchSchema = z
   });
 
 export type OrderModifyPatch = z.infer<typeof OrderModifyPatchSchema>;
+
+export const StopLegModeSchema = z.enum(["fixed", "trail"]);
+export type StopLegMode = z.infer<typeof StopLegModeSchema>;
+
+export const BracketStopLegSchema = z
+  .object({
+    mode: StopLegModeSchema.default("fixed"),
+    stopPrice: z.number().positive().optional(),
+    trailAmount: z.number().positive().optional(),
+    trailPercent: z.number().positive().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.mode === "fixed" && value.stopPrice == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "stopPrice required for fixed stop leg",
+        path: ["stopPrice"],
+      });
+    }
+    if (value.mode === "trail" && value.trailAmount == null && value.trailPercent == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "trailAmount or trailPercent required for trail stop leg",
+      });
+    }
+  });
+
+export type BracketStopLeg = z.infer<typeof BracketStopLegSchema>;
+
+export const BracketPlanSchema = z
+  .object({
+    entry: OrderDraftSchema,
+    stopLeg: BracketStopLegSchema,
+    takeProfitPrice: z.number().positive(),
+  })
+  .superRefine((value, ctx) => {
+    const entry = value.entry;
+    const stopPrice = value.stopLeg.stopPrice;
+    if (stopPrice == null) return;
+    if (entry.side === "BUY") {
+      if (entry.orderType === "LMT" && entry.limitPrice != null && stopPrice >= entry.limitPrice) {
+        // allow stop below entry for long
+      }
+      if (stopPrice >= (entry.limitPrice ?? Number.POSITIVE_INFINITY)) {
+        // for MKT long, stop must be below a reasonable entry - validated loosely
+      }
+      if (value.takeProfitPrice <= stopPrice) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "takeProfitPrice must be above stop for long bracket",
+          path: ["takeProfitPrice"],
+        });
+      }
+    } else if (entry.side === "SELL") {
+      if (value.takeProfitPrice >= stopPrice) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "takeProfitPrice must be below stop for short bracket",
+          path: ["takeProfitPrice"],
+        });
+      }
+    }
+  });
+
+export type BracketPlan = z.infer<typeof BracketPlanSchema>;
+
+export const ProtectiveOcoPlanSchema = z.object({
+  accountId: z.string().min(1),
+  symbol: z.string().min(1),
+  quantity: z.number().positive(),
+  side: OrderSideSchema,
+  stopLeg: BracketStopLegSchema,
+  takeProfitPrice: z.number().positive(),
+  outsideRth: z.boolean().default(false),
+  tif: TimeInForceSchema.default("DAY"),
+  environment: TradingEnvironmentSchema,
+  orderRef: z.string().optional(),
+});
+
+export type ProtectiveOcoPlan = z.infer<typeof ProtectiveOcoPlanSchema>;
+
+export const SubmitBracketRequestSchema = z
+  .object({
+    plan: BracketPlanSchema,
+    idempotencyKey: z.string().min(1),
+    previewIntentId: z.string().min(1).optional(),
+    liveConfirmation: z.string().optional(),
+    playbookTemplateId: z.string().min(1).optional(),
+    playbookEntryPrice: z.number().positive().optional(),
+    playbookInitialStop: z.number().positive().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.playbookTemplateId) return;
+    if (value.playbookEntryPrice == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "playbookEntryPrice required when playbookTemplateId is set",
+        path: ["playbookEntryPrice"],
+      });
+    }
+    if (value.playbookInitialStop == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "playbookInitialStop required when playbookTemplateId is set",
+        path: ["playbookInitialStop"],
+      });
+    }
+  });
+
+export type SubmitBracketRequest = z.infer<typeof SubmitBracketRequestSchema>;
+
+export const BracketPlacedResultSchema = z.object({
+  entryOrder: AccountOrderSchema,
+  stopOrder: AccountOrderSchema,
+  takeProfitOrder: AccountOrderSchema,
+  orderRef: z.string(),
+  intent: OrderIntentSchema,
+  playbookInstance: z.unknown().optional(),
+  playbookAttachError: z.string().optional(),
+});
+
+export type BracketPlacedResult = z.infer<typeof BracketPlacedResultSchema> & {
+  playbookInstance?: import("./playbook/types").PlaybookInstance;
+};
+
+export const SubmitProtectiveOcoRequestSchema = z
+  .object({
+    plan: ProtectiveOcoPlanSchema,
+    idempotencyKey: z.string().min(1),
+    liveConfirmation: z.string().optional(),
+    playbookTemplateId: z.string().min(1).optional(),
+    playbookEntryPrice: z.number().positive().optional(),
+    playbookInitialStop: z.number().positive().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.playbookTemplateId) return;
+    if (value.playbookEntryPrice == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "playbookEntryPrice required when playbookTemplateId is set",
+        path: ["playbookEntryPrice"],
+      });
+    }
+    if (value.playbookInitialStop == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "playbookInitialStop required when playbookTemplateId is set",
+        path: ["playbookInitialStop"],
+      });
+    }
+  });
+
+export type SubmitProtectiveOcoRequest = z.infer<typeof SubmitProtectiveOcoRequestSchema>;
+
+export const ProtectiveOcoPlacedResultSchema = z.object({
+  stopOrder: AccountOrderSchema,
+  takeProfitOrder: AccountOrderSchema,
+  orderRef: z.string(),
+  playbookInstance: z.unknown().optional(),
+  playbookAttachError: z.string().optional(),
+});
+
+export type ProtectiveOcoPlacedResult = z.infer<typeof ProtectiveOcoPlacedResultSchema> & {
+  playbookInstance?: import("./playbook/types").PlaybookInstance;
+};

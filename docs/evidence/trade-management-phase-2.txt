@@ -1,0 +1,18 @@
+Trade management playbook — Phase 2 verification (2026-07-24)
+
+Focused:
+npm test -- --run src/lib/trading/playbook/ src/lib/trading/playbookInstanceStore.test.ts src/app/api/trading/playbooks/playbooks.routes.test.ts src/app/api/cron/playbook-evaluate/route.test.ts
+Test Files  11 passed (11)
+Tests  49 passed (49)
+
+npm test -- --run src/lib/trading/tradingService.test.ts -t "pause, resume"
+Test Files  1 passed (1)
+Tests  1 passed | 14 skipped (15)
+
+Build:
+npm run build
+✓ Compiled successfully in 9.1s
+
+Architecture review: self-review Passed (TradingService-only mutations; separate cron evaluator; Plan/Protect/Manage boundaries)
+
+App-level: paper BE/scale walkthrough deferred

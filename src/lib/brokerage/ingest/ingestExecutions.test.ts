@@ -59,12 +59,37 @@ describe("ingestExecutions", () => {
     ).toBe("a\0b");
   });
 
-  it("detects flex gap when last ingest is stale", () => {
+  it("detects flex gap when last exec time is stale", () => {
+    const stale = new Date(Date.now() - 5 * 60 * 60 * 1000);
+    expect(
+      shouldAttemptFlexGapBackfill({
+        lastExecTime: stale.toISOString(),
+        lastSeenExecIds: ["x"],
+      }),
+    ).toBe(true);
+  });
+
+  it("does not suppress flex gap when ingest polls frequently", () => {
     const stale = new Date(Date.now() - 5 * 60 * 60 * 1000);
     expect(
       shouldAttemptFlexGapBackfill(
         { lastExecTime: stale.toISOString(), lastSeenExecIds: ["x"] },
-        stale,
+        { nowMs: Date.now() },
+      ),
+    ).toBe(true);
+  });
+
+  it("allows cold-start flex when cursor has no exec history", () => {
+    expect(
+      shouldAttemptFlexGapBackfill({ lastExecTime: null, lastSeenExecIds: [] }),
+    ).toBe(true);
+  });
+
+  it("forces flex when reconcile mismatch is reported", () => {
+    expect(
+      shouldAttemptFlexGapBackfill(
+        { lastExecTime: new Date().toISOString(), lastSeenExecIds: ["x"] },
+        { forceReconcile: true },
       ),
     ).toBe(true);
   });

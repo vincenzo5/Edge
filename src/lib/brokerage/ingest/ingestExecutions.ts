@@ -100,15 +100,30 @@ export function filterNewExecutions(
 }
 
 /** True when cursor is stale and Flex backfill may be warranted. */
+export type FlexGapBackfillOptions = {
+  forceReconcile?: boolean;
+  nowMs?: number;
+};
+
 export function shouldAttemptFlexGapBackfill(
   cursor: IngestCursorState,
-  lastIngestAt: Date | null,
-  nowMs: number = Date.now(),
+  options: FlexGapBackfillOptions = {},
 ): boolean {
+  const nowMs = options.nowMs ?? Date.now();
   const gapThresholdMs = 4 * 60 * 60 * 1000;
-  const lastActivityMs = lastIngestAt?.getTime() ?? (cursor.lastExecTime ? Date.parse(cursor.lastExecTime) : 0);
-  if (lastActivityMs <= 0) return false;
-  return nowMs - lastActivityMs >= gapThresholdMs;
+
+  if (options.forceReconcile) return true;
+
+  const lastExecMs = cursor.lastExecTime ? Date.parse(cursor.lastExecTime) : 0;
+
+  // Cold start: no exec history yet — attempt Flex when configured.
+  if (lastExecMs <= 0 && cursor.lastSeenExecIds.length === 0) {
+    return true;
+  }
+
+  if (lastExecMs <= 0) return false;
+
+  return nowMs - lastExecMs >= gapThresholdMs;
 }
 
 export function floorToIntervalMs(timestampMs: number, intervalMs: number): number {

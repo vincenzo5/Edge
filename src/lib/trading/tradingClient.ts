@@ -1,12 +1,19 @@
 import type {
+  BracketPlan,
+  BracketPlacedResult,
   OrderDraft,
   OrderIntent,
   OrderPreview,
   PlacedOrderResult,
+  ProtectiveOcoPlan,
+  ProtectiveOcoPlacedResult,
+  SubmitBracketRequest,
   SubmitOrderRequest,
+  SubmitProtectiveOcoRequest,
   TradingAccount,
   TradingEnvironment,
 } from "./types";
+import type { PlaybookInstance } from "./playbook/types";
 
 export class TradingApiError extends Error {
   readonly status: number;
@@ -92,6 +99,124 @@ export async function submitOrder(
   return parseTradingResponse<PlacedOrderResult>(res);
 }
 
+export async function submitBracket(
+  request: SubmitBracketRequest,
+  baseUrl = "",
+): Promise<BracketPlacedResult> {
+  const res = await fetch(`${baseUrl}/api/trading/brackets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  return parseTradingResponse<BracketPlacedResult>(res);
+}
+
+export async function submitProtectiveOco(
+  request: SubmitProtectiveOcoRequest,
+  baseUrl = "",
+): Promise<ProtectiveOcoPlacedResult> {
+  const res = await fetch(`${baseUrl}/api/trading/oco`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  return parseTradingResponse<ProtectiveOcoPlacedResult>(res);
+}
+
+export async function fetchPlaybookInstances(
+  accountId: string,
+  options?: { activeOnly?: boolean },
+  baseUrl = "",
+): Promise<PlaybookInstance[]> {
+  const params = new URLSearchParams({ accountId });
+  if (options?.activeOnly === false) {
+    params.set("activeOnly", "false");
+  }
+  const res = await fetch(`${baseUrl}/api/trading/playbooks?${params.toString()}`, {
+    cache: "no-store",
+  });
+  const body = await parseTradingResponse<{ instances: PlaybookInstance[] }>(res);
+  return body.instances;
+}
+
+export async function detachPlaybookInstance(
+  instanceId: string,
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  const res = await fetch(`${baseUrl}/api/trading/playbooks/${encodeURIComponent(instanceId)}/detach`, {
+    method: "POST",
+  });
+  const body = await parseTradingResponse<{ instance: PlaybookInstance }>(res);
+  return body.instance;
+}
+
+async function postPlaybookInstanceAction(
+  instanceId: string,
+  action: "pause" | "resume" | "skip",
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  const res = await fetch(
+    `${baseUrl}/api/trading/playbooks/${encodeURIComponent(instanceId)}/${action}`,
+    { method: "POST" },
+  );
+  const body = await parseTradingResponse<{ instance: PlaybookInstance }>(res);
+  return body.instance;
+}
+
+export async function pausePlaybookInstance(
+  instanceId: string,
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  return postPlaybookInstanceAction(instanceId, "pause", baseUrl);
+}
+
+export async function resumePlaybookInstance(
+  instanceId: string,
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  return postPlaybookInstanceAction(instanceId, "resume", baseUrl);
+}
+
+export async function skipNextPlaybookRule(
+  instanceId: string,
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  return postPlaybookInstanceAction(instanceId, "skip", baseUrl);
+}
+
+export type PlaybookAutoManageSettings = {
+  paperEnabled: boolean;
+  liveEnabled: boolean;
+  liveConsentAt?: string;
+};
+
+export async function fetchPlaybookAutoManageSettings(
+  baseUrl = "",
+): Promise<PlaybookAutoManageSettings> {
+  const res = await fetch(`${baseUrl}/api/trading/playbooks/auto-manage`, {
+    cache: "no-store",
+  });
+  const body = await parseTradingResponse<{ settings: PlaybookAutoManageSettings }>(res);
+  return body.settings;
+}
+
+export async function patchPlaybookAutoManageSettings(
+  patch: {
+    paperEnabled?: boolean;
+    liveEnabled?: boolean;
+    liveConfirmation?: string;
+  },
+  baseUrl = "",
+): Promise<PlaybookAutoManageSettings> {
+  const res = await fetch(`${baseUrl}/api/trading/playbooks/auto-manage`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  const body = await parseTradingResponse<{ settings: PlaybookAutoManageSettings }>(res);
+  return body.settings;
+}
+
 export async function cancelOrder(
   orderId: number,
   accountId: string,
@@ -113,4 +238,36 @@ export async function cancelOrder(
     { method: "DELETE" },
   );
   return parseTradingResponse<{ order: unknown; intent?: OrderIntent }>(res);
+}
+
+export async function modifyOrder(
+  orderId: number,
+  accountId: string,
+  patch: Record<string, unknown>,
+  options?: {
+    intentId?: string;
+    environment?: TradingEnvironment;
+    liveConfirmation?: string;
+  },
+  baseUrl = "",
+): Promise<{ order: unknown; intent?: OrderIntent | null }> {
+  const params = new URLSearchParams({ accountId });
+  if (options?.intentId?.trim()) params.set("intentId", options.intentId.trim());
+  if (options?.environment) params.set("environment", options.environment);
+  if (options?.liveConfirmation?.trim()) {
+    params.set("liveConfirmation", options.liveConfirmation.trim());
+  }
+  const body =
+    options?.liveConfirmation?.trim() && !("liveConfirmation" in patch)
+      ? { ...patch, liveConfirmation: options.liveConfirmation.trim() }
+      : patch;
+  const res = await fetch(
+    `${baseUrl}/api/trading/orders/${orderId}?${params.toString()}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  return parseTradingResponse<{ order: unknown; intent?: OrderIntent | null }>(res);
 }

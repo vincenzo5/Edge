@@ -144,6 +144,39 @@ describe("IbTwsTradingAdapter", () => {
     );
   });
 
+  it("passes outsideRth through what-if request mapping", async () => {
+    mockWhatIf.mockResolvedValue({
+      symbol: "F",
+      action: "BUY",
+      quantity: 1,
+      orderType: "LMT",
+      limitPrice: 10,
+      initMarginChange: 0,
+      updatedAt: 1,
+    });
+
+    const adapter = new IbTwsTradingAdapter({
+      baseUrl: "http://127.0.0.1:8765",
+      timeoutMs: 1000,
+    });
+
+    await adapter.preview({
+      accountId: "DUP586813",
+      symbol: "F",
+      side: "BUY",
+      quantity: 1,
+      orderType: "LMT",
+      limitPrice: 10,
+      outsideRth: true,
+      tif: "DAY",
+      environment: "paper",
+    });
+
+    expect(mockWhatIf).toHaveBeenCalledWith(
+      expect.objectContaining({ outsideRth: true }),
+    );
+  });
+
   it("places STP order via sidecar trading endpoint", async () => {
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({

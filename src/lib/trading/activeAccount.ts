@@ -26,11 +26,17 @@ export function writeActiveTradingAccount(account: TradingAccount): void {
     updatedAt: Date.now(),
   };
   window.localStorage.setItem(ACTIVE_TRADING_ACCOUNT_KEY, JSON.stringify(payload));
+  void import("@/lib/userPreferences/userPreferencesSync").then(({ notifyUserPreferencesChanged }) =>
+    notifyUserPreferencesChanged(),
+  );
 }
 
 export function clearActiveTradingAccount(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(ACTIVE_TRADING_ACCOUNT_KEY);
+  void import("@/lib/userPreferences/userPreferencesSync").then(({ notifyUserPreferencesChanged }) =>
+    notifyUserPreferencesChanged(),
+  );
 }
 
 export function resolveTradingAccountId(

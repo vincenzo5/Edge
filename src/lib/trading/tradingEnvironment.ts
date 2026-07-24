@@ -16,4 +16,7 @@ export function readTradingEnvironment(): TradingEnvironment {
 export function writeTradingEnvironment(environment: TradingEnvironment): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(TRADING_ENVIRONMENT_KEY, environment);
+  void import("@/lib/userPreferences/userPreferencesSync").then(({ notifyUserPreferencesChanged }) =>
+    notifyUserPreferencesChanged(),
+  );
 }

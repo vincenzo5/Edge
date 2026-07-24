@@ -161,6 +161,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (sidecarReachable === true) return;
     const timer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       void refresh();
     }, 30_000);
     return () => clearInterval(timer);
@@ -207,10 +208,21 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (sidecarReachable !== true || tradingEnvironment !== "live") return;
     const timer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       void refresh();
     }, 15_000);
     return () => clearInterval(timer);
   }, [sidecarReachable, tradingEnvironment, refresh]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
 
   const positionForSymbol = useCallback(
     (symbol: string) => {

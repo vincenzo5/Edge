@@ -164,7 +164,7 @@ describe("RiskSettingsProvider", () => {
     expect(stored.riskPercent).toBe(2);
   });
 
-  it("falls back to manualCapital in riskAccount when account missing", () => {
+  it("returns zero capital in riskAccount when account missing", () => {
     mockUseAccountOptional.mockReturnValue(null);
 
     let latest: RiskSettingsContextValue | null = null;
@@ -174,6 +174,6 @@ describe("RiskSettingsProvider", () => {
       </RiskSettingsProvider>,
     );
 
-    expect(latest?.riskAccount.capital).toBe(DEFAULT_RISK_SETTINGS.manualCapital);
+    expect(latest?.riskAccount.capital).toBe(0);
   });
 });

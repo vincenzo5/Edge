@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AccountSummary } from "@/lib/marketData/contracts/brokerage";
 import { createIbTwsTradingAdapter } from "./adapters/ibTws";
 import { createMemoryIntentStore } from "./intentStore";
+import { createMemoryPlaybookInstanceStore } from "./playbookInstanceStore";
 import { resetAuditLogForTests, listAudit } from "./auditLog";
 import { TradingKillSwitchError, TradingReadinessBlockedError, TradingService } from "./tradingService";
 import type { BrokerTradingPort } from "./ports";
@@ -63,6 +64,25 @@ function createMockPort(): BrokerTradingPort {
     })),
     modify: vi.fn(async () => ({
       order: { orderId: 10, lmtPrice: 12.5, status: "Submitted" },
+    })),
+    placeBracket: vi.fn(async (_plan, orderRef) => ({
+      entryOrder: {
+        orderId: 11,
+        permId: 456,
+        account: "DUP586813",
+        action: "BUY",
+        totalQuantity: 10,
+        orderType: "MKT",
+        status: "Submitted",
+      },
+      stopOrder: { orderId: 12, account: "DUP586813", status: "Submitted" },
+      takeProfitOrder: { orderId: 13, account: "DUP586813", status: "Submitted" },
+      orderRef: orderRef ?? "edge-bracket-test",
+    })),
+    placeProtectiveOco: vi.fn(async (_plan, orderRef) => ({
+      stopOrder: { orderId: 20, account: "DUP586813", status: "Submitted" },
+      takeProfitOrder: { orderId: 21, account: "DUP586813", status: "Submitted" },
+      orderRef: orderRef ?? "edge-oco-test",
     })),
     listOpenOrders: vi.fn(async () => [
       {
@@ -185,7 +205,11 @@ describe("TradingService", () => {
     );
     expect(retry.intent.intentId).toBe(result.intent.intentId);
     expect(mockPort.place).toHaveBeenCalledOnce();
-    expect(mockGetQuotes).toHaveBeenCalledWith(["F"], { twsConnectionId: "ib-paper" });
+    expect(mockGetQuotes).toHaveBeenCalledWith(["F"], {
+      twsConnectionId: "ib-paper",
+      respectProviderPreference: false,
+      trustUsage: "trading_decision",
+    });
   });
 
   it("requests pre-trade quotes from live connection for live orders", async () => {
@@ -203,7 +227,11 @@ describe("TradingService", () => {
       undefined,
       "LIVE",
     );
-    expect(mockGetQuotes).toHaveBeenCalledWith(["F"], { twsConnectionId: "ib-live" });
+    expect(mockGetQuotes).toHaveBeenCalledWith(["F"], {
+      twsConnectionId: "ib-live",
+      respectProviderPreference: false,
+      trustUsage: "trading_decision",
+    });
   });
 
   it("recovers submit when broker accepted order but place timed out", async () => {
@@ -454,5 +482,126 @@ describe("TradingService", () => {
       },
     ]);
     delete process.env.TWS_LIVE_ACCOUNT_ID;
+  });
+
+  it("creates playbook instance after bracket submit without rolling back Protect", async () => {
+    const store = createMemoryIntentStore();
+    const playbookStore = createMemoryPlaybookInstanceStore();
+    const service = new TradingService(store, playbookStore);
+    const plan = {
+      entry: {
+        accountId: "DUP586813",
+        symbol: "AAPL",
+        side: "BUY" as const,
+        quantity: 10,
+        orderType: "MKT" as const,
+        environment: "paper" as const,
+      },
+      stopLeg: { mode: "fixed" as const, stopPrice: 95 },
+      takeProfitPrice: 110,
+    };
+
+    const result = await service.submitBracket(plan, "idem-bracket-playbook", undefined, undefined, {
+      templateId: "break_even",
+      entryPrice: 100,
+      initialStop: 95,
+    });
+
+    expect(result.playbookInstance?.templateId).toBe("break_even");
+    expect(result.playbookInstance?.status).toBe("pending_fill");
+    expect(result.playbookInstance?.orderIntentId).toBe(result.intent.intentId);
+
+    const listed = await service.listPlaybookInstances("DUP586813", { activeOnly: true });
+    expect(listed).toHaveLength(1);
+  });
+
+  it("detachPlaybookInstance marks instance detached without broker cancel", async () => {
+    const playbookStore = createMemoryPlaybookInstanceStore();
+    const service = new TradingService(createMemoryIntentStore(), playbookStore);
+    const plan = {
+      entry: {
+        accountId: "DUP586813",
+        symbol: "AAPL",
+        side: "BUY" as const,
+        quantity: 10,
+        orderType: "MKT" as const,
+        environment: "paper" as const,
+      },
+      stopLeg: { mode: "fixed" as const, stopPrice: 95 },
+      takeProfitPrice: 110,
+    };
+
+    const placed = await service.submitBracket(plan, "idem-detach", undefined, undefined, {
+      templateId: "break_even",
+      entryPrice: 100,
+      initialStop: 95,
+    });
+    const instanceId = placed.playbookInstance?.id;
+    expect(instanceId).toBeTruthy();
+
+    const detached = await service.detachPlaybookInstance(instanceId!);
+    expect(detached?.status).toBe("detached");
+    expect(mockPort.cancel).not.toHaveBeenCalled();
+  });
+
+  it("pause, resume, and skip next rule on playbook instance", async () => {
+    const playbookStore = createMemoryPlaybookInstanceStore();
+    const service = new TradingService(createMemoryIntentStore(), playbookStore);
+    const plan = {
+      entry: {
+        accountId: "DUP586813",
+        symbol: "AAPL",
+        side: "BUY" as const,
+        quantity: 10,
+        orderType: "MKT" as const,
+        environment: "paper" as const,
+      },
+      stopLeg: { mode: "fixed" as const, stopPrice: 95 },
+      takeProfitPrice: 110,
+    };
+
+    const placed = await service.submitBracket(plan, "idem-playbook-controls", undefined, undefined, {
+      templateId: "break_even",
+      entryPrice: 100,
+      initialStop: 95,
+    });
+    const instanceId = placed.playbookInstance?.id;
+    expect(instanceId).toBeTruthy();
+
+    const paused = await service.pausePlaybookInstance(instanceId!);
+    expect(paused?.status).toBe("paused");
+
+    const resumed = await service.resumePlaybookInstance(instanceId!);
+    expect(resumed?.status).toBe("armed");
+
+    const skipped = await service.skipNextPlaybookRule(instanceId!);
+    expect(skipped?.ruleRuntimes[0]?.status).toBe("skipped");
+    expect(skipped?.ruleRuntimes[0]?.skippedReason).toBe("user_skip");
+  });
+
+  it("creates armed playbook instance after protective OCO submit", async () => {
+    const playbookStore = createMemoryPlaybookInstanceStore();
+    const service = new TradingService(createMemoryIntentStore(), playbookStore);
+    const plan = {
+      accountId: "DUP586813",
+      symbol: "AAPL",
+      quantity: 10,
+      side: "SELL" as const,
+      stopLeg: { mode: "fixed" as const, stopPrice: 95 },
+      takeProfitPrice: 110,
+      environment: "paper" as const,
+    };
+
+    const result = await service.submitProtectiveOco(plan, "idem-oco-playbook", undefined, {
+      templateId: "half_then_be",
+      entryPrice: 100,
+      initialStop: 95,
+    });
+
+    expect(result.playbookInstance?.templateId).toBe("half_then_be");
+    expect(result.playbookInstance?.status).toBe("armed");
+    expect(result.playbookInstance?.stopOrderId).toBe(20);
+    expect(result.playbookInstance?.filledQty).toBe(10);
+    expect(result.playbookInstance?.orderIntentId).toBeUndefined();
   });
 });

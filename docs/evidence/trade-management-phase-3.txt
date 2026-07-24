@@ -1,0 +1,17 @@
+Trade management playbook — Phase 3 verification (2026-07-24)
+
+Focused: npm test -- --run src/lib/trading/playbook src/lib/trading/playbookAutoManageStore.test.ts src/lib/trading/tradingService.test.ts src/app/api/cron/playbook-evaluate src/app/api/trading/playbooks
+Result: Test Files 14 passed (14), Tests 74 passed (74)
+
+Build: npm run build — compile OK
+
+Architecture review: self-review Passed
+
+App-level: paper trail after half-scale + live far-from-market manage deferred
+
+Delivered:
+- attachTrail cancel+TRAIL in executeThen.ts
+- playbookAutoManageStore + migration 0031 + /api/trading/playbooks/auto-manage
+- Live evaluator gates in runPlaybookEvaluation + TradingService.evaluatePlaybooks
+- formatNextManageDistance + Flatten now in OpenRiskPositionsMenu + AccountPanel
+- buildManualStopPausePatch wired in TradingService.modifyOrder

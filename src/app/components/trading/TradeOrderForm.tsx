@@ -3,24 +3,36 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { EdgeButton, EdgeSegmentedTabs } from "../design-system";
+import { fieldClass } from "../design-system/styles";
 import { useAccountOptional } from "../AccountProvider";
 import { useAccountAliasesOptional } from "../AccountAliasesProvider";
+import { useRiskSettingsOptional } from "../RiskSettingsProvider";
 import { isGatewayTradingAccount } from "@/lib/trading/accountPickerOptions";
+import { computeEquityPositionSize } from "@/lib/risk/equityPositionSize";
 import { LIVE_CONFIRMATION_TOKEN, PREVIEW_INTENT_MAX_AGE_MS } from "@/lib/trading/validateOrder";
 import {
   previewOrder,
+  submitBracket,
   submitOrder,
   TradingApiError,
 } from "@/lib/trading/tradingClient";
-import { findTradeForOrderRef } from "@/lib/journal/correlateOrderRef";
-import { fetchJournalFills, fetchJournalTrades } from "@/lib/persistence/client/journalClient";
+import {
+  buildBracketPlanFromLevels,
+  buildFixedStopLeg,
+  buildTrailStopLeg,
+  validateBracketGeometry,
+} from "@/lib/trading/bracketPlan";
 import type {
+  BracketPlan,
+  BracketPlacedResult,
+  BracketStopLeg,
   OrderDraft,
   OrderIntent,
   OrderPreview,
   OrderSide,
   OrderType,
   PlacedOrderResult,
+  StopLegMode,
   TimeInForce,
   TradingEnvironment,
 } from "@/lib/trading/types";
@@ -29,6 +41,18 @@ import {
   atMarketRiskDollars,
   plannedRiskDollars,
 } from "@/lib/trading/positionTradeSetup";
+import { findTradeForOrderRef } from "@/lib/journal/correlateOrderRef";
+import { fetchJournalFills, fetchJournalTrades } from "@/lib/persistence/client/journalClient";
+import {
+  ManagePlaybookPicker,
+  type ManagePresetSelection,
+} from "./ManagePlaybookPicker";
+import { formatManageStepPreview, resolvePlaybookPresetName } from "@/lib/trading/playbook/display";
+import { getPlaybookPreset } from "@/lib/trading/playbook/presets";
+import { planPlaybookSteps } from "@/lib/trading/playbook/planSteps";
+import { lockPositionPlan } from "@/lib/trading/playbook/types";
+
+export type { ManagePresetSelection };
 
 export type TradeOrderFormProps = {
   symbol: string;
@@ -69,6 +93,7 @@ export function buildOrderDraft(args: {
   stopPrice: string;
   tif: TimeInForce;
   environment: TradingEnvironment;
+  outsideRth?: boolean;
 }): OrderDraft {
   const draft: OrderDraft = {
     accountId: args.accountId,
@@ -77,7 +102,7 @@ export function buildOrderDraft(args: {
     quantity: args.quantity,
     orderType: args.orderType,
     environment: args.environment,
-    outsideRth: false,
+    outsideRth: args.outsideRth ?? false,
     tif: args.tif,
   };
   if (args.orderType === "LMT" || args.orderType === "STP LMT") {
@@ -104,6 +129,8 @@ export function TradeOrderForm({
 }: TradeOrderFormProps) {
   const account = useAccountOptional();
   const accountAliases = useAccountAliasesOptional();
+  const riskSettings = useRiskSettingsOptional();
+  const dollarRisk = riskSettings?.dollarRisk ?? null;
   const accountId = account?.activeTradingAccountId ?? "";
   const accountDisplayName = account?.activeTradingAccount
     ? (accountAliases?.displayNameFor(account.activeTradingAccount) ?? accountId)
@@ -118,12 +145,19 @@ export function TradeOrderForm({
   const [limitPrice, setLimitPrice] = useState("");
   const [stopPrice, setStopPrice] = useState("");
   const [tif, setTif] = useState<TimeInForce>("DAY");
+  const [outsideRth, setOutsideRth] = useState(false);
+  const [attachBracket, setAttachBracket] = useState(true);
+  const [managePresetId, setManagePresetId] = useState<ManagePresetSelection>("off");
+  const [stopLegMode, setStopLegMode] = useState<StopLegMode>("fixed");
+  const [trailAmount, setTrailAmount] = useState("");
+  const [trailPercent, setTrailPercent] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<OrderPreview | null>(null);
   const [previewIntent, setPreviewIntent] = useState<OrderIntent | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [placed, setPlaced] = useState<PlacedOrderResult | null>(null);
+  const [placedBracket, setPlacedBracket] = useState<BracketPlacedResult | null>(null);
   const [journalTradeId, setJournalTradeId] = useState<string | null>(null);
   const [liveConfirmText, setLiveConfirmText] = useState("");
 
@@ -141,6 +175,7 @@ export function TradeOrderForm({
       setPreview(null);
       setPreviewIntent(null);
       setPlaced(null);
+      setPlacedBracket(null);
       setJournalTradeId(null);
     }
   }, [symbol, planLevels?.entry, planLevels?.stop, planLevels?.target]);
@@ -159,6 +194,16 @@ export function TradeOrderForm({
       ? atMarketRiskDollars(lastPrice, planLevels.stop, qtyNum, planLevels.direction)
       : null;
 
+  const riskSizedQuantity = useMemo(() => {
+    if (!planLevels || dollarRisk == null) return null;
+    const result = computeEquityPositionSize({
+      entry: planLevels.entry,
+      stop: planLevels.stop,
+      dollarRisk,
+    });
+    return result.ok ? result.shares : null;
+  }, [planLevels, dollarRisk]);
+
   const draft = useMemo(() => {
     if (!gatewayAccountSelected || !accountId || !symbol.trim()) return null;
     const qty = Number.parseFloat(quantity);
@@ -174,6 +219,7 @@ export function TradeOrderForm({
         stopPrice,
         tif,
         environment,
+        outsideRth,
       });
     } catch {
       return null;
@@ -189,7 +235,72 @@ export function TradeOrderForm({
     stopPrice,
     tif,
     environment,
+    outsideRth,
   ]);
+
+  const stopLeg = useMemo((): BracketStopLeg | null => {
+    if (!planLevels) return null;
+    if (stopLegMode === "trail") {
+      const amount = Number.parseFloat(trailAmount);
+      const percent = Number.parseFloat(trailPercent);
+      if (Number.isFinite(amount) && amount > 0) {
+        return buildTrailStopLeg({ trailAmount: amount });
+      }
+      if (Number.isFinite(percent) && percent > 0) {
+        return buildTrailStopLeg({ trailPercent: percent });
+      }
+      return null;
+    }
+    return buildFixedStopLeg(planLevels.stop);
+  }, [planLevels, stopLegMode, trailAmount, trailPercent]);
+
+  const bracketPlan = useMemo((): BracketPlan | null => {
+    if (!draft || !planLevels || !attachBracket || !stopLeg) return null;
+    const plan = buildBracketPlanFromLevels({
+      entry: draft,
+      planLevels,
+      stopLeg,
+    });
+    return validateBracketGeometry(plan) ? null : plan;
+  }, [attachBracket, draft, planLevels, stopLeg]);
+
+  const manageEnabled = attachBracket && managePresetId !== "off";
+
+  const managePreviewPlan = useMemo(() => {
+    if (!planLevels || !draft || !manageEnabled) return null;
+    const entryPrice =
+      draft.orderType === "LMT" && draft.limitPrice != null
+        ? draft.limitPrice
+        : planLevels.entry;
+    return lockPositionPlan({
+      symbol: draft.symbol,
+      accountId: draft.accountId,
+      side: draft.side,
+      entry: entryPrice,
+      initialStop: planLevels.stop,
+      qty: draft.quantity,
+      environment: draft.environment,
+    });
+  }, [draft, manageEnabled, planLevels]);
+
+  const managePreviewSteps = useMemo(() => {
+    if (!managePreviewPlan || managePresetId === "off") return [];
+    const template = getPlaybookPreset(managePresetId);
+    if (!template) return [];
+    return planPlaybookSteps(template, managePreviewPlan);
+  }, [managePreviewPlan, managePresetId]);
+
+  const bracketGeometryError = useMemo(() => {
+    if (!draft || !planLevels || !attachBracket || !stopLeg) return null;
+    return validateBracketGeometry(
+      buildBracketPlanFromLevels({ entry: draft, planLevels, stopLeg }),
+    );
+  }, [attachBracket, draft, planLevels, stopLeg]);
+
+  const handleSizeForRisk = useCallback(() => {
+    if (riskSizedQuantity == null) return;
+    setQuantity(String(riskSizedQuantity));
+  }, [riskSizedQuantity]);
 
   const handlePreview = async () => {
     if (!draft) {
@@ -242,10 +353,37 @@ export function TradeOrderForm({
       setError("Preview refreshed — review and confirm again.");
       return;
     }
+    if (attachBracket && planLevels && !bracketPlan) {
+      setError(bracketGeometryError ?? "Complete bracket stop/TP before submitting.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
     try {
+      if (attachBracket && bracketPlan) {
+        const result = await submitBracket({
+          plan: bracketPlan,
+          idempotencyKey: idempotencyKey || crypto.randomUUID(),
+          previewIntentId: previewIntent.intentId,
+          liveConfirmation:
+            environment === "live" ? LIVE_CONFIRMATION_TOKEN : undefined,
+          ...(manageEnabled && managePreviewPlan
+            ? {
+                playbookTemplateId: managePresetId,
+                playbookEntryPrice: managePreviewPlan.entry,
+                playbookInitialStop: managePreviewPlan.initialStop,
+              }
+            : {}),
+        });
+        setPlacedBracket(result);
+        setPlaced(null);
+        setStep("success");
+        void account?.refresh();
+        void resolveJournalTrade(result.orderRef);
+        return;
+      }
+
       const result = await submitOrder({
         draft,
         idempotencyKey: idempotencyKey || crypto.randomUUID(),
@@ -254,6 +392,7 @@ export function TradeOrderForm({
           environment === "live" ? LIVE_CONFIRMATION_TOKEN : undefined,
       });
       setPlaced(result);
+      setPlacedBracket(null);
       setStep("success");
       void account?.refresh();
       void resolveJournalTrade(result.orderRef);
@@ -362,11 +501,31 @@ export function TradeOrderForm({
               type="number"
               min={1}
               step={1}
-              className="mt-1 w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5"
+              className={`mt-1 ${fieldClass({ density: "standard" })}`}
               value={quantity}
               onChange={(event) => setQuantity(event.target.value)}
             />
           </label>
+
+          {planLevels ? (
+            <EdgeButton
+              type="button"
+              variant="secondary"
+              className="mt-2 w-full"
+              disabled={riskSizedQuantity == null}
+              title={
+                riskSizedQuantity == null
+                  ? dollarRisk == null
+                    ? "Set a risk budget in Risk calculator"
+                    : "Stop is too wide for the current risk budget"
+                  : undefined
+              }
+              onClick={handleSizeForRisk}
+              data-testid="trade-size-for-risk"
+            >
+              Size for risk
+            </EdgeButton>
+          ) : null}
 
           <div className="mt-3">
             <EdgeSegmentedTabs
@@ -386,7 +545,7 @@ export function TradeOrderForm({
                 type="number"
                 min={0}
                 step="0.01"
-                className="mt-1 w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5"
+                className={`mt-1 ${fieldClass({ density: "standard" })}`}
                 value={limitPrice}
                 onChange={(event) => setLimitPrice(event.target.value)}
               />
@@ -404,10 +563,97 @@ export function TradeOrderForm({
             />
           </div>
 
+          <label className="mt-3 flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={outsideRth}
+              onChange={(event) => setOutsideRth(event.target.checked)}
+              data-testid="trade-outside-rth"
+            />
+            <span className="text-[var(--edge-text-secondary)]">
+              Outside regular trading hours
+            </span>
+          </label>
+
+          {planLevels ? (
+            <>
+              <label className="mt-3 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={attachBracket}
+                  onChange={(event) => {
+                    setAttachBracket(event.target.checked);
+                    if (!event.target.checked) {
+                      setManagePresetId("off");
+                    }
+                  }}
+                  data-testid="trade-attach-bracket"
+                />
+                <span className="text-[var(--edge-text-secondary)]">
+                  Attach stop + take profit (bracket)
+                </span>
+              </label>
+
+              {attachBracket ? (
+                <div className="mt-3 space-y-2 rounded border border-[var(--edge-border)] px-2 py-2">
+                  <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                    Stop leg
+                  </div>
+                  <EdgeSegmentedTabs
+                    segments={[
+                      { id: "fixed", label: "Fixed" },
+                      { id: "trail", label: "Trail" },
+                    ]}
+                    value={stopLegMode}
+                    onChange={(value) => setStopLegMode(value as StopLegMode)}
+                  />
+                  {stopLegMode === "trail" ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="block">
+                        <span className="text-[var(--edge-text-secondary)]">Trail $</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          className={`mt-1 ${fieldClass({ density: "standard" })}`}
+                          value={trailAmount}
+                          onChange={(event) => setTrailAmount(event.target.value)}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-[var(--edge-text-secondary)]">Trail %</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.1"
+                          className={`mt-1 ${fieldClass({ density: "standard" })}`}
+                          value={trailPercent}
+                          onChange={(event) => setTrailPercent(event.target.value)}
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {attachBracket ? (
+                <div className="mt-3">
+                  <ManagePlaybookPicker
+                    value={managePresetId}
+                    onChange={setManagePresetId}
+                    positionPlan={managePreviewPlan}
+                  />
+                </div>
+              ) : null}
+            </>
+          ) : null}
+
           <p className="mt-3 text-[var(--edge-text-secondary)]">
             {environment === "live"
               ? "Live stock orders — real money"
-              : "Paper stock orders — entry only (stop/TP shown as plan)"}
+              : planLevels && attachBracket
+                ? "Paper bracket — entry + live stop/TP"
+                : "Paper stock orders — entry only"}
           </p>
 
           <div className="mt-4 flex gap-2">
@@ -432,8 +678,44 @@ export function TradeOrderForm({
             </div>
             <div className="mt-1 text-[var(--edge-text-secondary)]">
               Account {draft.accountId} · {draft.tif} · {draft.environment}
+              {draft.outsideRth ? " · Outside RTH" : ""}
             </div>
           </div>
+          {attachBracket && bracketPlan ? (
+            <div className="mt-2 space-y-1 rounded border border-[var(--edge-border-subtle)] px-2 py-2">
+              <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
+                Bracket legs
+              </div>
+              <div>
+                Entry · {bracketPlan.entry.side} {bracketPlan.entry.quantity}{" "}
+                {bracketPlan.entry.symbol} · {bracketPlan.entry.orderType}
+              </div>
+              <div>
+                Stop ·{" "}
+                {bracketPlan.stopLeg.mode === "trail"
+                  ? bracketPlan.stopLeg.trailAmount != null
+                    ? `TRAIL $${bracketPlan.stopLeg.trailAmount}`
+                    : `TRAIL ${bracketPlan.stopLeg.trailPercent}%`
+                  : `STP ${formatPrice(bracketPlan.stopLeg.stopPrice ?? planLevels?.stop ?? 0)}`}
+              </div>
+              <div>Take profit · LMT {formatPrice(bracketPlan.takeProfitPrice)}</div>
+            </div>
+          ) : null}
+          {manageEnabled && managePreviewSteps.length > 0 ? (
+            <div className="mt-2 space-y-1 rounded border border-[var(--edge-border-subtle)] px-2 py-2">
+              <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
+                Manage with {resolvePlaybookPresetName(managePresetId)}
+              </div>
+              {managePreviewSteps.map((step) => (
+                <div key={step.ruleId}>{formatManageStepPreview(step)}</div>
+              ))}
+            </div>
+          ) : null}
+          {outsideRth ? (
+            <p className="mt-2 text-[var(--edge-warning)]">
+              Outside RTH — liquidity may be thin; fills are not guaranteed.
+            </p>
+          ) : null}
           {environment === "live" ? (
             <p className="mt-2 text-[var(--edge-negative)]">
               Live order — real money. Type {LIVE_CONFIRMATION_TOKEN} below to submit.
@@ -491,20 +773,41 @@ export function TradeOrderForm({
         </div>
       ) : null}
 
-      {step === "success" && placed ? (
+      {step === "success" && (placed || placedBracket) ? (
         <div className="space-y-2 px-3 py-3 text-xs">
-          <p className="text-[var(--edge-text-strong)]">
-            Order {placed.order.orderId ?? "—"} submitted on {draft?.environment ?? "paper"}{" "}
-            account.
-          </p>
-          <div className="rounded border border-[var(--edge-border)] px-3 py-2">
-            <div className="text-[var(--edge-text-secondary)]">Order ref</div>
-            <div className="font-mono text-[11px] break-all">{placed.orderRef}</div>
-          </div>
+          {placedBracket ? (
+            <>
+              <p className="text-[var(--edge-text-strong)]">
+                Bracket submitted on {draft?.environment ?? "paper"} account.
+              </p>
+              <div className="rounded border border-[var(--edge-border)] px-3 py-2 space-y-1">
+                <div>
+                  Entry order {placedBracket.entryOrder.orderId ?? "—"}
+                </div>
+                <div>Stop order {placedBracket.stopOrder.orderId ?? "—"}</div>
+                <div>
+                  Take profit order {placedBracket.takeProfitOrder.orderId ?? "—"}
+                </div>
+                <div className="text-[var(--edge-text-secondary)]">Order ref</div>
+                <div className="font-mono text-[11px] break-all">{placedBracket.orderRef}</div>
+              </div>
+            </>
+          ) : placed ? (
+            <>
+              <p className="text-[var(--edge-text-strong)]">
+                Order {placed.order.orderId ?? "—"} submitted on {draft?.environment ?? "paper"}{" "}
+                account.
+              </p>
+              <div className="rounded border border-[var(--edge-border)] px-3 py-2">
+                <div className="text-[var(--edge-text-secondary)]">Order ref</div>
+                <div className="font-mono text-[11px] break-all">{placed.orderRef}</div>
+              </div>
+            </>
+          ) : null}
           {journalTradeId ? (
             <Link
               href={`/journal/trades?trade=${journalTradeId}`}
-              className="inline-block text-[var(--edge-accent)] hover:underline"
+              className="inline-block text-[var(--edge-accent-blue)] hover:underline"
             >
               View in journal
             </Link>

@@ -2,7 +2,15 @@
 
 Durable IBKR account and execution ledger in Postgres — server-side ingest while Next.js + TWS sidecar are running. Replaces client-only journal fill sync as the source of truth for fills.
 
-**Last updated:** 2026-07-16
+**Last updated:** 2026-07-22
+
+**Status:** Phases 0–4 **Passing** — product complete. Residual Flex/live ingest app-level proof → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 1.
+
+## Live auto-sync (3 layers)
+
+1. **Live catch** — while Next + sidecar up, ingest pulls executions/positions/summary per connection. Live account id uses `TWS_LIVE_ACCOUNT_ID` or live managed account (never paper `TWS_ACCOUNT_ID` pin).
+2. **Flex catch-up** — when `lastExecTime` is stale, cursor is cold, or journal opens ≠ live positions, auto Flex backfill runs when `IB_FLEX_TOKEN` + `IB_FLEX_QUERY_ID` are set.
+3. **Reconcile** — dashboard open positions card reads live IB positions; banner when journal fill history is out of sync.
 
 ## Product Goal
 
@@ -38,7 +46,7 @@ Flex API/CSV → gap backfill → same journal path
 
 - Sidecar → Postgres direct writes
 - 24/7 ingest when Next is down
-- Multi-broker consolidation
+- Multi-broker consolidation — tracked later as [Connections & Providers Roadmap](./connections-providers-roadmap.md) Phase 7
 - Market candle storage in Postgres
 - Production OAuth (dev session + cron secret only)
 - Separate broker order-history archive (Edge `order_intents` covers Edge-placed orders)

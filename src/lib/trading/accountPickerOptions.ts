@@ -29,16 +29,22 @@ export function isGatewayTradingAccount(account: TradingAccount | null | undefin
   );
 }
 
+/** Header picker: `Label (accountId)` — alias when set, else Paper/Live env label. */
 export function accountPickerLabel(
   account: TradingAccount,
   aliases?: AccountAliases | null,
 ): string {
   const displayName = resolveAccountDisplayName(account, aliases);
+  const label =
+    displayName !== account.accountId
+      ? displayName
+      : account.environment === "live"
+        ? "Live"
+        : "Paper";
   if (account.availability === "offline") {
-    return `${displayName} (live, offline)`;
+    return `${label} (${account.accountId}, offline)`;
   }
-  const envLabel = account.environment === "live" ? "live" : "paper";
-  return `${displayName} (${envLabel})`;
+  return `${label} (${account.accountId})`;
 }
 
 export function buildAccountPickerOptions(gatewayAccounts: TradingAccount[]): TradingAccount[] {

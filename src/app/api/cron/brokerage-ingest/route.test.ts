@@ -18,13 +18,18 @@ vi.mock("@/lib/brokerage/ingest/runBrokerageIngest", () => ({
 }));
 
 const isDatabaseConfigured = vi.fn(() => true);
+const getCurrentUser = vi.fn(async () => ({
+  id: "user-1",
+  email: "dev@localhost",
+  displayName: "Dev",
+}));
 
 vi.mock("@/db", () => ({
   isDatabaseConfigured: () => isDatabaseConfigured(),
 }));
 
 vi.mock("@/lib/persistence/auth/getCurrentUser", () => ({
-  getCurrentUser: vi.fn(async () => ({ id: "user-1", email: "dev@localhost", displayName: "Dev" })),
+  getCurrentUser: () => getCurrentUser(),
 }));
 
 vi.mock("@/lib/persistence/repositories/appUserRepository", () => ({
@@ -35,6 +40,11 @@ describe("brokerage-ingest cron route", () => {
   beforeEach(() => {
     runBrokerageIngestAll.mockClear();
     isDatabaseConfigured.mockReturnValue(true);
+    getCurrentUser.mockResolvedValue({
+      id: "user-1",
+      email: "dev@localhost",
+      displayName: "Dev",
+    });
     delete process.env.EDGE_CRON_SECRET;
   });
 
@@ -58,8 +68,17 @@ describe("brokerage-ingest cron route", () => {
     expect(runBrokerageIngestAll).toHaveBeenCalled();
   });
 
+  it("returns 401 for anonymous cron without secret", async () => {
+    getCurrentUser.mockResolvedValue(null);
+    const { POST } = await import("@/app/api/cron/brokerage-ingest/route");
+    const response = await POST(new Request("http://localhost/api/cron/brokerage-ingest", { method: "POST" }));
+    expect(response.status).toBe(401);
+    expect(runBrokerageIngestAll).not.toHaveBeenCalled();
+  });
+
   it("accepts cron secret header", async () => {
     process.env.EDGE_CRON_SECRET = "secret-1";
+    getCurrentUser.mockResolvedValue(null);
     const { POST } = await import("@/app/api/cron/brokerage-ingest/route");
     const response = await POST(
       new Request("http://localhost/api/cron/brokerage-ingest", {

@@ -8,6 +8,7 @@ import {
   getBrokerageService,
   isBrokerageConfigured,
 } from "@/lib/brokerage/brokerageService";
+import { TradingEnvironmentSchema } from "@/lib/trading/types";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,14 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const result = await getBrokerageService().previewOrder(parsed.data);
+    const url = new URL(request.url);
+    const environmentParam = url.searchParams.get("environment") ?? "paper";
+    const environment = TradingEnvironmentSchema.safeParse(environmentParam);
+    if (!environment.success) {
+      return NextResponse.json({ error: "Invalid environment" }, { status: 400 });
+    }
+
+    const result = await getBrokerageService().previewOrder(parsed.data, environment.data);
     return NextResponse.json({ result });
   } catch (error) {
     return brokerageErrorResponse(error);

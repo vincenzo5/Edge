@@ -2,9 +2,9 @@
 
 Single roadmap for **placing and managing stock orders** through Interactive Brokers (first broker), with a broker-neutral foundation for multiple brokers and multiple accounts per broker. Excludes options execution, bracket/OCO orders, and trade ticket UI in early phases.
 
-**Last updated:** 2026-07-13
+**Last updated:** 2026-07-22
 
-**Current focus:** Trade execution reliability track **Passing** (2026-07-13). Phases 0–5 code + API bake complete; operational cleanup and feature backlog remain — see [LLM handoff](#trade-execution-reliability-track--llm-handoff) below.
+**Current focus:** Phases 0–5 **Passing** (single-leg stocks). **Phases 6–9 Passing** (2026-07-22) — outside RTH, brackets+OCA, trailing stop legs, protective OCO. **Open-risk header chrome** shipped (ambient positions chip + popover; Account/Journal deep links). Remaining backlog: options, chart order management, AI bracket tool. Post-fill Manage → [Trade Management Playbook Roadmap](./trade-management-playbook-roadmap.md).
 
 **Phase 5 passed 2026-07-08** — registry (`ib-paper`/`ib-live`), dual sidecar sockets, Paper/Live UI toggle, `liveConfirmation: LIVE` gate.
 
@@ -183,12 +183,23 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, build wh
 
 **Out of scope for Phase 5:** IBKR Web API / Client Portal execution adapter — TWS sidecar only.
 
+## Post–Phase 5 depth track (Phases 6–9)
+
+| Phase | Outcome | Status |
+|-------|---------|--------|
+| **6 — Outside RTH** | Trade ticket toggle; `draftToWhatIf` + place honor `outsideRth` | **Passing** (2026-07-22) |
+| **7 — Brackets + OCA** | `BracketPlan` + `POST /trading/brackets`; Trade setup attach; AccountPanel grouping | **Passing** (2026-07-22) |
+| **8 — Trailing stops** | Fixed/trail stop leg; `TRAIL`/`TRAIL LIMIT` in domain + sidecar | **Passing** (2026-07-22) |
+| **9 — Protective OCO** | `POST /trading/oco`; Account position **Protect with OCO** | **Passing** (2026-07-22) |
+
+**Verification (2026-07-22):** `npm test -- --run src/lib/trading/ src/app/components/trading/ src/app/components/sidebar/panels/AccountPanel.test.tsx` → `Test Files 22 passed (22)`, `Tests 116 passed (116)`; sidecar `Ran 50 tests OK`.
+
 ## Explicit Exclusions (v1)
 
 | Excluded | Reason |
 |----------|--------|
 | Options execution | Separate contract model; journal grouping already handles OPT fills |
-| Bracket / OCO / trailing stops | Complexity; add after single-leg lifecycle is stable |
+| Bracket / OCO / trailing stops | **Shipped** Phases 6–9 (2026-07-22) |
 | AI-initiated trades without confirmation | Violates destructive-tool policy |
 | Yahoo or display-only quotes for submit | `trading_decision` policy requires TWS |
 | IB Client Portal / Web API execution adapter | TWS sidecar is the only execution path |
@@ -288,10 +299,10 @@ Do **not** start until operational items above are closed or explicitly deferred
 
 | Item | Notes |
 |------|-------|
-| Brackets / OCO / trailing stops | After single-leg lifecycle stable |
 | Options execution | Separate contract model |
 | Outside-RTH UI toggle | Only if GTC path unacceptable |
-| Second real broker adapter | Stub exists; not wired in UI |
+| Post-fill Manage playbooks | Separate track — [trade-management-playbook-roadmap.md](./trade-management-playbook-roadmap.md) Phase 0 **Pending** |
+| Second real broker adapter | Stub exists; not wired in UI — **deferred**; Connections Phase 5 is **hosted IB OAuth (Path A)**, not a second broker |
 | Account tracking app-level walkthrough | Parallel track; see `account-tracking-plan.md` |
 
 ### Related docs
@@ -299,6 +310,7 @@ Do **not** start until operational items above are closed or explicitly deferred
 - Harness: [PROJECT-STATUS.md](../PROJECT-STATUS.md) — Current Verified State, Active Work row, Session Log 2026-07-13
 - Architecture: [src/lib/trading/ARCHITECTURE.md](../../src/lib/trading/ARCHITECTURE.md) — Postgres intents, readiness, dual connection
 - Dual Gateway ops: [dual-connection-roadmap.md](./dual-connection-roadmap.md)
+- Trade management playbooks: [trade-management-playbook-roadmap.md](./trade-management-playbook-roadmap.md)
 - IB account data: [ib-api-account-data.md](../ib-api-account-data.md)
 
 ---

@@ -1,5 +1,9 @@
 import type { DataProvenance, DataReadiness } from "@/lib/marketData/trust/dataTrust";
-import { evaluateReadiness, provenanceFromMeta } from "@/lib/marketData/trust/dataTrust";
+import {
+  evaluateReadiness,
+  getDatasetPolicy,
+  provenanceFromMeta,
+} from "@/lib/marketData/trust/dataTrust";
 import type { RiskSettings } from "@/lib/risk/riskSettings";
 import { resolveDollarRisk } from "@/lib/risk/riskSettings";
 import type { AccountSummary } from "@/lib/marketData/contracts/brokerage";
@@ -30,6 +34,10 @@ export type TradingReadinessResult = {
 
 const DEFAULT_ACCOUNT_MAX_AGE_MS = 30_000;
 
+function accountMaxAgeMs(): number {
+  return getDatasetPolicy("account_summary").maxAgeMs ?? DEFAULT_ACCOUNT_MAX_AGE_MS;
+}
+
 function accountProvenance(
   connected: boolean,
   updatedAt: number | undefined,
@@ -53,7 +61,7 @@ export function evaluateTradingReadiness(
 ): TradingReadinessResult {
   const now = input.now ?? Date.now();
   const reasons: string[] = [];
-  const accountMaxAge = input.accountMaxAgeMs ?? DEFAULT_ACCOUNT_MAX_AGE_MS;
+  const accountMaxAge = input.accountMaxAgeMs ?? accountMaxAgeMs();
 
   if (!input.brokerageConnected) {
     reasons.push("Brokerage is not connected");

@@ -64,9 +64,9 @@ export function RiskSettingsProvider({ children }: { children: ReactNode }) {
   const accountConnected = account?.connectionState === "connected";
 
   const value = useMemo<RiskSettingsContextValue>(() => {
-    const accountBasisValue = resolveAccountBasisValue(settings, accountSummary);
+    const accountBasisValue = resolveAccountBasisValue(accountSummary);
     const basisStale =
-      settings.accountBasis !== "Manual" &&
+      settings.sizingMode === "percent" &&
       (!accountConnected || accountBasisValue == null);
     const resolved = resolveDollarRisk(settings, accountSummary);
     if (resolved != null) {

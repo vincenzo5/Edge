@@ -1,6 +1,13 @@
 import { BrokerageRequestError } from "@/lib/brokerage/brokerageClient";
 import type { BrokerTradingPort } from "../ports";
-import type { OrderDraft, OrderModifyPatch, OrderPreview, TradingAccount } from "../types";
+import type {
+  BracketPlan,
+  OrderDraft,
+  OrderModifyPatch,
+  OrderPreview,
+  ProtectiveOcoPlan,
+  TradingAccount,
+} from "../types";
 
 const STUB_MESSAGE = "Stub broker adapter is not configured for trading.";
 
@@ -18,6 +25,14 @@ export class StubTradingAdapter implements BrokerTradingPort {
   }
 
   async place(_draft: OrderDraft): Promise<{ order: never; orderRef: string }> {
+    reject();
+  }
+
+  async placeBracket(_plan: BracketPlan, _orderRef: string): Promise<never> {
+    reject();
+  }
+
+  async placeProtectiveOco(_plan: ProtectiveOcoPlan, _orderRef: string): Promise<never> {
     reject();
   }
 

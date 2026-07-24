@@ -9,7 +9,17 @@ export type OrderIntentStore = {
   updateIntent(
     intentId: string,
     patch: Partial<
-      Pick<OrderIntent, "status" | "permId" | "orderId" | "orderRef">
+      Pick<
+        OrderIntent,
+        | "status"
+        | "permId"
+        | "orderId"
+        | "orderRef"
+        | "bracketStopPrice"
+        | "bracketTakeProfitPrice"
+        | "stopOrderId"
+        | "takeProfitOrderId"
+      >
     >,
   ): Promise<OrderIntent | null>;
 };
