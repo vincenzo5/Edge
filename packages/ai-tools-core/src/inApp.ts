@@ -23,6 +23,9 @@ export function createInAppAiTools<TContext extends BaseToolContext>(
       executeTool(registry, toolName, input, getContext(), {
         permissionMode: options?.permissionMode ?? defaultPermissionMode,
         confirmed: options?.confirmed ?? false,
+        confirmationToken: options?.confirmationToken,
+        verifyConfirmationToken: options?.verifyConfirmationToken,
+        confirmationValidatedByServer: options?.confirmationValidatedByServer,
       }),
   };
 }

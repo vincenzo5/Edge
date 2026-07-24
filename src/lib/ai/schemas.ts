@@ -94,6 +94,7 @@ export const drawingMetadataSchema = z
     source: annotationSourceSchema.optional(),
     rationale: z.string().optional(),
     threadId: z.string().optional(),
+    messageId: z.string().optional(),
     linkGroupId: z.string().optional(),
     playbookId: z.string().optional(),
     fields: z.record(z.string(), z.unknown()).optional(),

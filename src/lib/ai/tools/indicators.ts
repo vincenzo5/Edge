@@ -12,6 +12,7 @@ import {
 } from "@/lib/chartConfig";
 import { getCatalogMeta } from "@/lib/chart/indicators/registry";
 import { getCell, requireApp } from "./_helpers";
+import { sanitizeIndicatorForAi, sanitizeIndicatorsForAi } from "./indicatorSanitizer";
 
 export const listIndicatorsTool = defineTool({
   name: "list_indicators",
@@ -27,7 +28,7 @@ export const listIndicatorsTool = defineTool({
       ok: true,
       data: {
         cellIndex: index,
-        active: cell.indicators,
+        active: sanitizeIndicatorsForAi(cell.indicators),
         supported: [...IMPLEMENTED_INDICATORS],
       },
     };
@@ -56,7 +57,7 @@ export const addIndicatorTool = defineTool({
       ...cell,
       indicators: [...cell.indicators, instance],
     });
-    return { ok: true, data: { cellIndex: index, indicator: instance } };
+    return { ok: true, data: { cellIndex: index, indicator: sanitizeIndicatorForAi(instance) } };
   },
 });
 

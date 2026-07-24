@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   JOB_TIMEOUT_MS,
   SESSION_TTL_MS,
+  assertBridgeAccess,
   completeJob,
   dequeueJob,
   enqueueSessionExecution,
   registerHeartbeat,
+  registerHeartbeatForTests,
   resetSessionBridgeForTests,
   waitForJob,
 } from "./sessionBridgeStore";
@@ -30,7 +32,7 @@ describe("sessionBridge", () => {
   });
 
   it("enqueues and dequeues jobs while session is active", async () => {
-    registerHeartbeat();
+    registerHeartbeatForTests();
 
     const pending = enqueueSessionExecution("get_app_state", {});
     const job = dequeueJob();
@@ -43,7 +45,7 @@ describe("sessionBridge", () => {
   });
 
   it("expires session after TTL", async () => {
-    registerHeartbeat();
+    registerHeartbeatForTests();
     vi.advanceTimersByTime(SESSION_TTL_MS + 1);
 
     expect(dequeueJob()).toBeNull();
@@ -56,7 +58,7 @@ describe("sessionBridge", () => {
   });
 
   it("times out jobs when browser never completes", async () => {
-    registerHeartbeat();
+    registerHeartbeatForTests();
 
     const pending = enqueueSessionExecution("get_app_state", {});
     dequeueJob();
@@ -71,13 +73,79 @@ describe("sessionBridge", () => {
   });
 
   it("notifies poll waiters when a job is enqueued", async () => {
-    registerHeartbeat();
+    const { bridgeSecret } = registerHeartbeatForTests();
 
     const pollPromise = waitForJob(5_000);
-    registerHeartbeat();
+    registerHeartbeat({ sessionId: undefined, bridgeSecret });
 
     void enqueueSessionExecution("get_app_state", {});
 
     await expect(pollPromise).resolves.toMatchObject({ name: "get_app_state" });
+  });
+
+  it("defaults permissionMode to read when not specified", async () => {
+    registerHeartbeatForTests();
+
+    void enqueueSessionExecution("get_app_state", {});
+    const job = dequeueJob();
+
+    expect(job?.permissionMode).toBe("read");
+  });
+
+  it("delivers a job to only one poll waiter", async () => {
+    registerHeartbeatForTests();
+
+    const pollA = waitForJob(5_000);
+    const pollB = waitForJob(5_000);
+
+    void enqueueSessionExecution("get_app_state", {});
+
+    const jobA = await pollA;
+    expect(jobA).toMatchObject({ name: "get_app_state" });
+
+    await vi.advanceTimersByTimeAsync(5_001);
+    const jobB = await pollB;
+    expect(jobB).toBeNull();
+    expect(dequeueJob()).toBeNull();
+  });
+
+  it("mints bridge secret on first heartbeat", () => {
+    const mint = registerHeartbeat({});
+    expect(mint.ok).toBe(true);
+    if (mint.ok) {
+      expect(mint.bridgeSecret).toBeTruthy();
+      expect(mint.sessionId).toBeTruthy();
+    }
+  });
+
+  it("rejects hijack heartbeat without bridge secret", () => {
+    registerHeartbeatForTests();
+    const hijack = registerHeartbeat({});
+    expect(hijack.ok).toBe(false);
+    if (!hijack.ok) {
+      expect(hijack.status).toBe(409);
+    }
+  });
+
+  it("rejects poll/result access without bridge secret", () => {
+    registerHeartbeatForTests();
+    expect(assertBridgeAccess(undefined).ok).toBe(false);
+    expect(assertBridgeAccess("wrong-secret").ok).toBe(false);
+  });
+
+  it("rejects user rebinding on refresh", () => {
+    const mint = registerHeartbeat({ userId: "user-a" });
+    expect(mint.ok).toBe(true);
+    if (!mint.ok) return;
+
+    const refresh = registerHeartbeat({
+      bridgeSecret: mint.bridgeSecret,
+      sessionId: mint.sessionId,
+      userId: "user-b",
+    });
+    expect(refresh.ok).toBe(false);
+    if (!refresh.ok) {
+      expect(refresh.status).toBe(403);
+    }
   });
 });

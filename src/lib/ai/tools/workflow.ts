@@ -5,11 +5,14 @@ import { IMPLEMENTED_INDICATORS, symbolSchema } from "../schemas";
 import { createIndicatorInstance, cellCountFor } from "@/lib/chartConfig";
 import { getActiveWatchlist } from "@/lib/watchlist/storage";
 import {
+  buildAnnotationNarrative,
   buildThesisSummary,
   summarizeAnnotations,
 } from "@/lib/chart/annotationMetadata";
 import type { SerializedDrawing } from "@/lib/chart/contracts";
 import { getCell, requireApp } from "./_helpers";
+import { sanitizeIndicatorsForAi } from "./indicatorSanitizer";
+import { slimDataProvenance } from "../agent/dataProvenance";
 
 const ANNOTATION_ITEM_CAP = 20;
 
@@ -25,6 +28,8 @@ function annotationItemsFromDrawings(drawings: SerializedDrawing[]) {
       source: d.metadata?.source ?? null,
       label: d.label,
       rationale: d.metadata?.rationale,
+      threadId: d.metadata?.threadId ?? null,
+      messageId: d.metadata?.messageId ?? null,
       price: d.points[0]?.value ?? null,
       timestamp: d.points[0]?.timestamp ?? null,
     }));
@@ -50,6 +55,7 @@ export const summarizeChartTool = defineTool({
     const last = recent[recent.length - 1];
     const annotationSummary = summarizeAnnotations(cell.drawings);
     const items = annotationItemsFromDrawings(cell.drawings);
+    const dataProvenance = slimDataProvenance(active?.dataMeta);
 
     return {
       ok: true,
@@ -61,12 +67,7 @@ export const summarizeChartTool = defineTool({
         range: cell.range,
         interval: cell.interval,
         chartType: cell.chartType,
-        indicators: cell.indicators.map((i) => ({
-          id: i.id,
-          name: i.name,
-          pane: i.pane,
-          visible: i.visible,
-        })),
+        indicators: sanitizeIndicatorsForAi(cell.indicators),
         drawingCount: cell.drawings.length,
         overlayCount: active?.overlays.length ?? 0,
         annotations: {
@@ -76,6 +77,7 @@ export const summarizeChartTool = defineTool({
           proposedCount: annotationSummary.proposedCount,
           items,
           thesisSummary: buildThesisSummary(cell.drawings),
+          narrative: buildAnnotationNarrative(cell.drawings),
         },
         recentCandles: recent,
         lastClose: last?.c ?? null,
@@ -83,6 +85,7 @@ export const summarizeChartTool = defineTool({
           recent.length >= 2 && last
             ? last.c - recent[recent.length - 2]!.c
             : null,
+        ...(dataProvenance ? { dataProvenance } : {}),
       },
     };
   },
@@ -145,14 +148,14 @@ export const compareSymbolsTool = defineTool({
 export const prepareChartForAnalysisTool = defineTool({
   name: "prepare_chart_for_analysis",
   description:
-    "Load a symbol and add a standard analysis stack: MA, MACD, RSI, and volume on a daily 1Y chart.",
+    "Load a symbol and add a standard analysis stack: MA, MACD, RSI, and volume on a daily 1Y chart. Clears existing drawings on the target cell — requires user confirmation.",
   inputSchema: z.object({
     symbol: symbolSchema,
     name: z.string().optional(),
     exchange: z.string().optional(),
   }),
   permission: "write",
-  requiresConfirmation: false,
+  requiresConfirmation: true,
   requiresClientSession: true,
   async execute(input, context) {
     const app = requireApp(context);
@@ -232,7 +235,8 @@ export const analyzeWatchlistTool = defineTool({
       return { ok: true, data: { watchlist: list.name, ranked: [] } };
     }
 
-    const quotes = await context.marketData.getQuotes(symbols);
+    const delivery = await context.marketData.getQuotes(symbols);
+    const quotes = delivery.data;
     const ranked = quotes
       .slice()
       .sort(

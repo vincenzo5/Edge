@@ -45,6 +45,8 @@ AI Agent
                     ├── WatchlistContext (watchlist CRUD)
                     ├── ScreenerProvider (saved screens + last run)
                     ├── RiskSettingsProvider / AccountProvider / OptionsSessionProvider
+                    ├── JournalPort (list/get/patch trades via journalClient)
+                    ├── AlertsPort (list/get/create/patch/remove alerts + trigger events via alertClient)
                     ├── MarketDataPort (search, candles, quotes, fundamentals)
                     └── TradingPort (preview / place / cancel via TradingService)
 ```
@@ -72,6 +74,13 @@ AI Agent
 | **Indicators** | `add_indicator` | write | no |
 | **Indicators** | `remove_indicator` | write | no |
 | **Indicators** | `update_indicator` | write | no |
+| **Indicator scripts** | `list_indicator_scripts` | read | — |
+| **Indicator scripts** | `get_indicator_script` | read | — |
+| **Indicator scripts** | `create_indicator_script` | write | no |
+| **Indicator scripts** | `update_indicator_script` | write | no |
+| **Indicator scripts** | `compile_indicator_script` | write | no |
+| **Indicator scripts** | `apply_indicator_script` | write | no |
+| **Indicator scripts** | `delete_indicator_script` | destructive | yes |
 | **Drawings** | `list_drawings` | read | — |
 | **Drawings** | `add_drawing` | write | no |
 | **Drawings** | `update_drawing` | write | no |
@@ -85,15 +94,42 @@ AI Agent
 | **Watchlist** | `clear_watchlist` | destructive | yes |
 | **Watchlist** | `delete_watchlist` | destructive | yes |
 | **Watchlist** | `load_watchlist_symbol` | write | no |
-| **Workflow** | `summarize_chart` | read | — |
+| **Workflow** | `summarize_chart` | read | — | Returns `dataProvenance` when active chart meta is available |
 | **Workflow** | `compare_symbols` | write | no |
-| **Workflow** | `prepare_chart_for_analysis` | write | no |
+| **Workflow** | `prepare_chart_for_analysis` | write | yes | Clears drawings on target cell |
+| **Workflow** | `analyze_watchlist` | read | — | Rank active watchlist by quote change % |
 | **Screener** | `summarize_screen` | read | — |
 | **Session state** | `get_risk_settings` | read | — |
 | **Session state** | `get_account_snapshot` | read | — |
 | **Session state** | `get_options_session` | read | — |
 | **Trading** | `preview_order` | write | no |
 | **Trading** | `place_order` | destructive | yes |
+| **Journal** | `list_journal_trades` | read | — | Requires client session (MCP session bridge) |
+| **Journal** | `get_journal_trade` | read | — |
+| **Journal** | `get_journal_stats` | read | — |
+| **Journal** | `update_journal_trade_review` | write | no |
+| **Journal** | `get_journal_breakdown` | read | — | setup/tag/rating buckets via `computeBreakdownReport` |
+| **Journal** | `get_journal_time_report` | read | — | hour/weekday ET via `computeTimeBreakdownReport` |
+| **Journal** | `get_journal_equity_curve` | read | — | `computeEquityCurve` on scoped closed trades |
+| **Journal** | `get_journal_daily_pnl` | read | — | `computeDailyPnL` on scoped closed trades |
+| **Journal** | `compare_journal_slices` | read | — | presets or custom slices via `computeCompareReport` |
+| **Journal** | `open_journal_trade_on_chart` | write | no | Deep-link + load symbol/interval + goTo open time |
+| **Alerts** | `list_alerts` | read | — | Requires client session |
+| **Alerts** | `get_alert` | read | — |
+| **Alerts** | `create_alert` | write | no |
+| **Alerts** | `update_alert` | write | no |
+| **Alerts** | `dismiss_alert` | write | no | Sets `status: paused` |
+| **Alerts** | `delete_alert` | destructive | yes |
+| **Alerts** | `list_alert_events` | read | — | Last 50 trigger audit rows |
+| **Alerts** | `create_drawing_alert` | write | no | Bind hline/trend/rectangle from active cell |
+| **Alerts** | `create_trade_plan_alerts` | write | no | Entry/stop/target bundle from position drawing |
+| **Alerts** | `create_indicator_alert` | write | no | Indicator level or cross condition |
+| **Alerts** | `create_script_alert` | write | no | Script condition leg (snapshot bridge required) |
+| **Alerts** | `create_watchlist_alert` | write | no | Watchlist-scoped price alert |
+| **Alerts** | `set_screener_notify` | write | no | Saved-screen Notify toggle |
+| **Alerts** | `open_alert_on_chart` | write | no | Load symbol + alerts workspace deep link |
+| **Alerts** | `preview_alert` | read | — | Distance-to-trigger vs quote; no cron |
+| **Alerts** | `suggest_alerts_for_chart` | read | — | Proposals from alertable drawings / trade plan |
 | **Pattern library** | `list_pattern_taxonomy` | read | — |
 | **Pattern library** | `find_similar_setups` | read | — | OHLCV retrieval from active chart; requires client session |
 | **Pattern library** | `pattern_library_stats` | read | — |
@@ -159,10 +195,13 @@ type AiTool<TInput> = {
 | `risk.getRiskSettings()` | `RiskSettingsProvider` |
 | `account.getSnapshot()` | `AccountProvider` |
 | `options.getSession()` | `OptionsSessionProvider` |
+| `scriptLibrary.getState()` / `setState()` | `ScriptLibraryProvider` (My scripts IndexedDB/localStorage) |
 | `marketData` | `ServiceMarketDataPort` (server) or `FetchMarketDataPort` (client) |
 | `trading` | `ServiceTradingPort` (HTTP → `TradingService`) or `FetchTradingPort` (in-app → `/api/trading/*`) |
 
 Tools never import React. Context providers assemble a `ToolContext` snapshot at execution time. `preview_order` / `place_order` require a non-null `trading` port; `place_order` is destructive and needs confirmation (plus `liveConfirmation: "LIVE"` for live).
+
+**My scripts privacy (Phase 5A):** Generic chart tools (`get_chart_state`, `list_indicators`, `summarize_chart`) return script indicator refs (`scriptId`, `revision`, pane, visibility) only — never source. Dedicated `get_indicator_script` / `update_indicator_script` / `compile_indicator_script` tools return source for AI repair. Compile runs client-side via `compileScriptService`; server adapters do not execute arbitrary user source.
 
 ## Permission Model
 
@@ -170,28 +209,30 @@ Tools never import React. Context providers assemble a `ToolContext` snapshot at
 |---|---|
 | `read` | read-only tools |
 | `write` | read + write tools (non-destructive) |
-| `full` | all tools when `confirmed: true` for destructive ops |
+| `full` | all tools when a valid server `confirmationToken` or session-bridge server validation is present for destructive ops |
 
 External agents (HTTP/MCP) default to `read` unless a session grants write access.
 
-When `EDGE_API_KEY` is configured, HTTP/MCP callers must send `X-Edge-Api-Key` (or `Authorization: Bearer …`) for `/api/ai/*` unless the request originates from trusted localhost (`EDGE_TRUST_LOCALHOST`, default true).
+Sensitive routes (`/api/trading`, `/api/brokerage`, `/api/ai`, recovery/warmup/health) **fail closed** when `EDGE_API_KEY` is unset unless `EDGE_API_AUTH_MODE=dev-open` and `NODE_ENV !== "production"`. When a key is configured, HTTP/MCP callers must send `X-Edge-Api-Key` (or `Authorization: Bearer …`) unless the request peer is loopback (`EDGE_TRUST_LOCALHOST`, default true). Client-supplied `X-Forwarded-For` is ignored unless `EDGE_TRUSTED_PROXY_COUNT` is set.
+
+Destructive and `requiresConfirmation` tools require a server-minted HMAC `confirmationToken` (`EDGE_AUTH_SECRET`); bare `confirmed: true` is rejected on execute routes.
 
 ## Serving Adapters
 
 ### In-App Adapter
 
-`AiToolsProvider` wraps the app, builds `ToolContext` from React contexts, and exposes `executeTool(name, input, options)` to a future copilot panel.
+`AiToolsProvider` wraps the app, builds `ToolContext` from React contexts, and exposes `executeTool(name, input, options)` to the Copilot sidebar panel (`src/app/components/copilot/`).
 
 ### HTTP Adapter
 
 - `GET /api/ai/tools` — list tool definitions with JSON Schema
-- `POST /api/ai/tools/execute` — execute a tool by name
+- `POST /api/ai/tools/execute` — execute a tool by name (requires `confirmationToken` for gated tools; rejects bare `confirmed: true`)
 
-Server-side execution supports market-data and trading tools directly (`TradingPort` → `TradingService`). Client-state tools return a `requiresClientSession` error when no browser context is available. Middleware applies optional `EDGE_API_KEY` and in-process rate limits (`EDGE_RATE_LIMIT`) to `/api/ai/*`.
+Server-side execution supports market-data and trading tools directly (`TradingPort` → `TradingService`). Client-state tools return a `requiresClientSession` error when no browser context is available, or may enqueue via `/api/ai/session/execute` when called through the HTTP adapter. Middleware applies fail-closed API key policy and in-process rate limits (`EDGE_RATE_LIMIT`) to `/api/ai/*`.
 
 ### MCP Adapter
 
-`scripts/edge-mcp-server.mts` exposes market-data and tool-definition tools for Cursor and other MCP clients. Stateful chart/layout tools require the in-app session bridge (future WebSocket bridge). When bridging to `/api/ai/session/execute`, the adapter forwards `EDGE_API_KEY` as `X-Edge-Api-Key`.
+`scripts/edge-mcp-server.mts` exposes market-data and tool-definition tools for Cursor and other MCP clients. Stateful chart/layout tools use the in-app session bridge (long-poll heartbeat → poll → execute → result). When bridging to `/api/ai/session/execute`, the adapter forwards `EDGE_API_KEY` as `X-Edge-Api-Key` and passes `confirmationToken` for confirmed destructive tools (minted by the in-app Copilot confirm flow — `EDGE_PERMISSION_MODE=full` alone does not bypass confirmation). Each tool call logs one structured JSON line to stderr (`event: "mcp.tool"`: tool, ok, code, durationMs, bridge) for local debugging — no args/results/secrets. The in-app agent uses the same bridge store in-process (`event: "session.bridge"`).
 
 Add to `.cursor/mcp.json`:
 
@@ -219,8 +260,8 @@ Drawings are evolving from TV-style geometry into a **semantic annotation layer*
 3. Confirmed write tools (symbol, range, indicators, watchlist)
 4. Drawing/viewport bridge via `ActiveChartCommands`
 5. Rich annotation metadata on drawings — **shipped** (see [rich-annotations-vision.md](./chart/rich-annotations-vision.md))
-6. In-app copilot UI (future)
-7. Session bridge for MCP stateful tools (future)
+6. In-app copilot UI — phased in [AI Agent Roadmap](./roadmaps/ai-agent-roadmap.md) (Phase 0 **Passing** — contracts; Phase 1 **Passing** — `POST /api/ai/chat` NDJSON agent route; Phase 2 **Passing** — sidebar Copilot chat shell; Phase 4 **Passing** — confirmed writes + confirm cards)
+7. Session bridge for MCP / in-app agent stateful tools — **Phase 3 Passing** ([ai-agent-roadmap.md](./roadmaps/ai-agent-roadmap.md))
 
 ## File Map
 

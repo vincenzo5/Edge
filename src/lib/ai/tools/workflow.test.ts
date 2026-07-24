@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeChartTool } from "./workflow";
+import { summarizeChartTool, prepareChartForAnalysisTool } from "./workflow";
 import type { ToolContext } from "../context";
 import type { ChartLayout } from "@/lib/chartConfig";
 
@@ -58,6 +58,11 @@ describe("summarizeChartTool annotations", () => {
         getActiveChart: () => ({
           overlays: [],
           chartCommands: { getCandles: () => [] },
+          dataMeta: {
+            source: "yahoo",
+            asOf: 1_700_000_000_000,
+            stale: false,
+          },
         }),
         loadSymbolIntoActiveChart: () => {},
       },
@@ -66,6 +71,10 @@ describe("summarizeChartTool annotations", () => {
       risk: null,
       account: null,
       options: null,
+      scriptLibrary: null,
+      trading: null,
+      journal: null,
+      alerts: null,
       marketData: {
         searchSymbols: async () => [],
         getCandles: async () => [],
@@ -86,5 +95,16 @@ describe("summarizeChartTool annotations", () => {
     expect(result.data.annotations.items).toHaveLength(1);
     expect(result.data.annotations.items[0]?.kind).toBe("thesis");
     expect(result.data.annotations.thesisSummary).toContain("1 active thesis");
+    expect(result.data.dataProvenance).toEqual({
+      source: "yahoo",
+      asOf: 1_700_000_000_000,
+      stale: false,
+    });
+  });
+});
+
+describe("prepareChartForAnalysisTool", () => {
+  it("requires confirmation before clearing drawings", () => {
+    expect(prepareChartForAnalysisTool.requiresConfirmation).toBe(true);
   });
 });

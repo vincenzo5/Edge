@@ -1,16 +1,26 @@
 import { NextResponse } from "next/server";
+import { readBridgeSecretFromRequest, requireBridgeAccess } from "@/lib/ai/bridgeAuth";
 import { completeJob } from "@/lib/ai/sessionBridge";
 import type { ToolResult } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  let body: { jobId?: unknown; result?: unknown };
+  let body: { jobId?: unknown; result?: unknown; bridgeSecret?: unknown };
 
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const bridgeSecret = readBridgeSecretFromRequest(
+    request,
+    typeof body.bridgeSecret === "string" ? body.bridgeSecret : undefined,
+  );
+  const auth = requireBridgeAccess(bridgeSecret);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";

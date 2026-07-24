@@ -17,7 +17,7 @@ export const searchSymbolsTool = defineTool({
       input.query,
       input.limit ?? 8,
     );
-    return { ok: true, data: { results } };
+    return { ok: true, data: { results: results.data }, meta: results.meta };
   },
 });
 
@@ -34,10 +34,11 @@ export const getCandlesTool = defineTool({
   permission: "read",
   requiresConfirmation: false,
   async execute(input, context) {
-    const candles = await context.marketData.getCandles(input);
+    const delivery = await context.marketData.getCandles(input);
     return {
       ok: true,
-      data: { symbol: input.symbol, count: candles.length, candles },
+      data: { symbol: input.symbol, count: delivery.data.length, candles: delivery.data },
+      meta: delivery.meta,
     };
   },
 });
@@ -49,8 +50,8 @@ export const getQuotesTool = defineTool({
   permission: "read",
   requiresConfirmation: false,
   async execute(input, context) {
-    const quotes = await context.marketData.getQuotes(input.symbols);
-    return { ok: true, data: { quotes } };
+    const delivery = await context.marketData.getQuotes(input.symbols);
+    return { ok: true, data: { quotes: delivery.data }, meta: delivery.meta };
   },
 });
 
@@ -61,8 +62,8 @@ export const getFundamentalsTool = defineTool({
   permission: "read",
   requiresConfirmation: false,
   async execute(input, context) {
-    const data = await context.marketData.getFundamentals(input.symbol);
-    return { ok: true, data };
+    const delivery = await context.marketData.getFundamentals(input.symbol);
+    return { ok: true, data: delivery.data, meta: delivery.meta };
   },
 });
 
@@ -78,10 +79,11 @@ export const getOptionsExpirationsTool = defineTool({
   permission: "read",
   requiresConfirmation: false,
   async execute(input, context) {
-    const expirations = await context.marketData.getOptionExpirations(input.underlying);
+    const delivery = await context.marketData.getOptionExpirations(input.underlying);
     return {
       ok: true,
-      data: { underlying: input.underlying, expirations },
+      data: { underlying: input.underlying, expirations: delivery.data },
+      meta: delivery.meta,
     };
   },
 });
@@ -96,10 +98,11 @@ export const getOptionsChainTool = defineTool({
   permission: "read",
   requiresConfirmation: false,
   async execute(input, context) {
-    const chain = await context.marketData.getOptionsChain(
+    const delivery = await context.marketData.getOptionsChain(
       input.underlying,
       input.expiration,
     );
+    const chain = delivery.data;
     return {
       ok: true,
       data: {
@@ -108,6 +111,7 @@ export const getOptionsChainTool = defineTool({
         contractCount: chain.contracts.length,
         chain,
       },
+      meta: delivery.meta,
     };
   },
 });

@@ -11,6 +11,8 @@ import {
 import type { ToolContext } from "@/lib/ai/context";
 import { createFetchMarketDataPort } from "@/lib/ai/marketDataPort";
 import { createFetchTradingPort } from "@/lib/ai/tradingPort";
+import { createFetchJournalPort } from "@/lib/ai/journalPort";
+import { createFetchAlertsPort } from "@/lib/ai/alertsPort";
 import { clientToolRegistry } from "@/lib/ai/tools/clientTools";
 import {
   createInAppAiTools,
@@ -24,6 +26,7 @@ import { useScreenerStateOptional } from "./screener/ScreenerProvider";
 import { useRiskSettingsOptional } from "./RiskSettingsProvider";
 import { useAccountOptional } from "./AccountProvider";
 import { useOptionsSessionOptional } from "./options/OptionsSessionProvider";
+import { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
 import { buildAccountSnapshot } from "@/lib/brokerage/accountSnapshot";
 import type { ExecuteToolOptions, ToolResult } from "@/lib/ai/types";
 
@@ -42,8 +45,11 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
   const risk = useRiskSettingsOptional();
   const account = useAccountOptional();
   const optionsSession = useOptionsSessionOptional();
+  const scriptLibrary = useScriptLibraryOptional();
   const marketDataRef = useRef(createFetchMarketDataPort());
   const tradingRef = useRef(createFetchTradingPort());
+  const journalRef = useRef(createFetchJournalPort());
+  const alertsRef = useRef(createFetchAlertsPort());
 
   const getContext = useCallback((): ToolContext => {
     return {
@@ -104,10 +110,28 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
             }),
           }
         : null,
+      scriptLibrary: scriptLibrary
+        ? {
+            isHydrated: scriptLibrary.isHydrated,
+            getError: scriptLibrary.getError,
+            getState: scriptLibrary.getState,
+            createScript: scriptLibrary.createScript,
+            renameScript: scriptLibrary.renameScript,
+            duplicateScript: scriptLibrary.duplicateScript,
+            deleteScript: scriptLibrary.deleteScript,
+            saveDraft: scriptLibrary.saveDraft,
+            saveRevision: scriptLibrary.saveRevision,
+            getScript: scriptLibrary.getScript,
+            getRevisionSource: scriptLibrary.getRevisionSource,
+            getRevisionManifest: scriptLibrary.getRevisionManifest,
+          }
+        : null,
       marketData: marketDataRef.current,
       trading: tradingRef.current,
+      journal: journalRef.current,
+      alerts: alertsRef.current,
     };
-  }, [app, chartBridge, chartActions, watchlist, screener, risk, account, optionsSession]);
+  }, [app, chartBridge, chartActions, watchlist, screener, risk, account, optionsSession, scriptLibrary]);
 
   const tools = useMemo(
     () => createInAppAiTools(clientToolRegistry, getContext),

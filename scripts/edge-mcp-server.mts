@@ -12,7 +12,11 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { edgeToolRegistry } from "../src/lib/ai/tools/index.ts";
-import { buildMcpToolHandlers, getMcpStartupInfo } from "../src/lib/ai/adapters/mcp.ts";
+import {
+  buildMcpToolHandlers,
+  getMcpStartupInfo,
+  logMcpToolCall,
+} from "../src/lib/ai/adapters/mcp.ts";
 
 const startup = getMcpStartupInfo(edgeToolRegistry);
 console.error(
@@ -38,6 +42,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const handler = handlerMap.get(request.params.name);
   if (!handler) {
+    logMcpToolCall({
+      tool: request.params.name,
+      ok: false,
+      code: "unknown_tool",
+      durationMs: 0,
+      bridge: false,
+    });
     return {
       content: [{ type: "text", text: JSON.stringify({ ok: false, error: "Unknown tool" }) }],
       isError: true,

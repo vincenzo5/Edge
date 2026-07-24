@@ -7,28 +7,34 @@ import {
 } from "./patternLibrary";
 import type { ToolContext } from "../context";
 
-vi.mock("@/lib/patternLibrary", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/patternLibrary")>();
-  const records = actual.generateSeedRecords(10, 1);
-  return {
-    ...actual,
-    loadAllRecords: () => records,
-    libraryStats: () => ({
+vi.mock("@/lib/patternLibrary/patternLibraryStore", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/patternLibrary/patternLibraryStore")>();
+  const { generateSeedRecords } = await import("@/lib/patternLibrary/seedData");
+  const records = generateSeedRecords(10, 1);
+  const store = {
+    loadTaxonomy: async () => actual.createPatternLibraryStore(null).loadTaxonomy(),
+    loadAllRecords: async () => records,
+    libraryStats: async () => ({
       total: 10,
       takes: 6,
       passes: 4,
       byFamily: { pullback_in_trend: 3 },
     }),
   };
+  return {
+    ...actual,
+    resolvePatternLibraryStoreForRequest: async () => store,
+  };
 });
 
 const mockCandles = Array.from({ length: 20 }, (_, i) => ({
-  timestamp: Date.parse("2025-01-01T00:00:00Z") + i * 3600000,
-  open: 100 + i * 0.5,
-  high: 101 + i * 0.5,
-  low: 99 + i * 0.5,
-  close: 100.5 + i * 0.5,
-  volume: 1_000_000,
+  t: Date.parse("2025-01-01T00:00:00Z") + i * 3600000,
+  o: 100 + i * 0.5,
+  h: 101 + i * 0.5,
+  l: 99 + i * 0.5,
+  c: 100.5 + i * 0.5,
+  v: 1_000_000,
 }));
 
 function mockContext(): ToolContext {

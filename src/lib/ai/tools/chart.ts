@@ -13,6 +13,8 @@ import {
 import { LAYOUT_TEMPLATE_IDS, migrateLegacyGridMode } from "@/lib/chartConfig";
 import { getCell, requireApp } from "./_helpers";
 import { buildAppWorkspaceSnapshot } from "@/lib/app/workspaceSnapshot";
+import { sanitizeIndicatorsForAi } from "./indicatorSanitizer";
+import { slimDataProvenance } from "../agent/dataProvenance";
 
 function requireChart(context: ToolContext) {
   if (!context.chart) {
@@ -62,9 +64,18 @@ export const getChartStateTool = defineTool({
       data: {
         cellIndex: index,
         isActive,
-        config: cell,
+        config: {
+          ...cell,
+          indicators: sanitizeIndicatorsForAi(cell.indicators),
+        },
         activeOverlays: isActive ? chart?.overlays ?? [] : [],
         dataWindow: isActive ? chart?.dataWindow ?? null : null,
+        ...(isActive
+          ? (() => {
+              const dataProvenance = slimDataProvenance(chart?.dataMeta);
+              return dataProvenance ? { dataProvenance } : {};
+            })()
+          : {}),
       },
     };
   },
@@ -100,11 +111,12 @@ export const getVisibleCandlesTool = defineTool({
       };
     }
 
-    const candles = await context.marketData.getCandles({
+    const delivery = await context.marketData.getCandles({
       symbol: cell.symbol,
       range: cell.range,
       interval: cell.interval,
     });
+    const candles = delivery.data;
     return {
       ok: true,
       data: {
@@ -113,6 +125,7 @@ export const getVisibleCandlesTool = defineTool({
         count: Math.min(candles.length, limit),
         candles: candles.slice(-limit),
       },
+      meta: delivery.meta,
     };
   },
 });

@@ -42,6 +42,15 @@ export type ToolDefinition = {
 export type ExecuteToolOptions = {
   permissionMode?: PermissionMode;
   confirmed?: boolean;
+  confirmationToken?: string;
+  verifyConfirmationToken?: (
+    token: string,
+    toolName: string,
+    input: unknown,
+    permissionMode: PermissionMode,
+  ) => boolean;
+  /** Internal: set by session bridge after server-side token validation — never from HTTP body. */
+  confirmationValidatedByServer?: boolean;
 };
 
 export type SessionJob = {
@@ -50,6 +59,8 @@ export type SessionJob = {
   input: unknown;
   permissionMode: PermissionMode;
   confirmed: boolean;
+  confirmationToken?: string;
+  confirmationValidatedByServer?: boolean;
   enqueuedAt: number;
 };
 

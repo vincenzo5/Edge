@@ -2,58 +2,46 @@ import { NextResponse } from "next/server";
 import { edgeToolRegistry } from "@/lib/ai/tools";
 import { executeTool } from "@/lib/ai/adapters/execute";
 import { createServerToolContext } from "@/lib/ai/adapters/http";
-import type { PermissionMode } from "@/lib/ai/types";
+import {
+  parseExecuteToolBody,
+  toolExecuteHttpStatus,
+} from "@/lib/ai/adapters/parseExecuteBody";
+import { executeClientSessionTool } from "@/lib/ai/sessionBridgeExecute";
 
 export const runtime = "nodejs";
 
-const VALID_MODES = new Set<PermissionMode>(["read", "write", "full"]);
-
 export async function POST(request: Request) {
-  let body: {
-    name?: unknown;
-    input?: unknown;
-    permissionMode?: unknown;
-    confirmed?: unknown;
-  };
-
+  let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    body = (await request.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const name = typeof body.name === "string" ? body.name : "";
-  if (!name.trim()) {
-    return NextResponse.json({ error: "Missing tool name" }, { status: 400 });
+  const parsed = parseExecuteToolBody(body);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const permissionMode =
-    typeof body.permissionMode === "string" &&
-    VALID_MODES.has(body.permissionMode as PermissionMode)
-      ? (body.permissionMode as PermissionMode)
-      : "read";
+  const { name, input, executeOptions } = parsed.value;
+  const tool = edgeToolRegistry.get(name);
+  if (!tool) {
+    return NextResponse.json(
+      { ok: false, error: `Unknown tool: ${name}`, code: "not_found" },
+      { status: 404 },
+    );
+  }
 
-  const confirmed = body.confirmed === true;
-  const context = createServerToolContext();
+  const result =
+    tool.requiresClientSession === true
+      ? await executeClientSessionTool(name, input, executeOptions, "http")
+      : await executeTool(
+          edgeToolRegistry,
+          name,
+          input,
+          createServerToolContext(),
+          executeOptions,
+        );
 
-  const result = await executeTool(
-    edgeToolRegistry,
-    name,
-    body.input ?? {},
-    context,
-    { permissionMode, confirmed },
-  );
-
-  const status = result.ok
-    ? 200
-    : result.code === "not_found"
-      ? 404
-      : result.code === "validation"
-        ? 400
-        : result.code === "permission_denied" ||
-            result.code === "confirmation_required"
-          ? 403
-          : 422;
-
-  return NextResponse.json(result, { status });
+  return NextResponse.json(result, { status: toolExecuteHttpStatus(result.ok ? undefined : result.code) });
 }

@@ -18,6 +18,19 @@ export {
   type StockSearchResult,
 } from "./marketDataPort";
 
+export {
+  createFetchJournalPort,
+  type JournalPort,
+  type JournalTradeListQuery,
+  type JournalTradeReviewPatch,
+} from "./journalPort";
+
+export {
+  createFetchAlertsPort,
+  type AlertsPort,
+  type AlertPatchInput,
+} from "./alertsPort";
+
 export { ToolRegistry, createToolRegistry } from "./registry";
 export { parseToolInput, schemaToJsonSchema, toToolDefinition } from "./validation";
 export { executeTool, executeTools } from "./adapters/execute";

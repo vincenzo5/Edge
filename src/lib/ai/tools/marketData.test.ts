@@ -36,9 +36,15 @@ describe("marketData options tools", () => {
 
   it("get_options_chain delegates to marketData port", async () => {
     const getOptionsChain = vi.fn().mockResolvedValue({
-      underlying: "AAPL",
-      expiration: "2025-06-20",
-      contracts: [],
+      data: {
+        underlying: "AAPL",
+        expiration: "2025-06-20",
+        contracts: [],
+      },
+      meta: {
+        source: "tws",
+        readiness: { status: "ok", allowedForTradingDecision: false },
+      },
     });
     const result = await getOptionsChainTool.execute(
       { underlying: "AAPL", expiration: "2025-06-20" },

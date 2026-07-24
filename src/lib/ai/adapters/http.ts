@@ -17,6 +17,7 @@ export function createServerToolContext(): ToolContext {
     risk: null,
     account: null,
     options: null,
+    scriptLibrary: null,
     marketData: createServiceMarketDataPort(getServerMarketDataService()),
     trading: createServiceTradingPort({
       listAccounts: () => tradingService.listAccounts(),
@@ -33,5 +34,7 @@ export function createServerToolContext(): ToolContext {
         ),
       resolveDefaultAccountId: (accounts) => resolveTradingAccountId(accounts),
     }),
+    journal: null,
+    alerts: null,
   };
 }

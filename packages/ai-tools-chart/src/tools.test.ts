@@ -71,7 +71,7 @@ describe("@edge/ai-tools-chart", () => {
 
     const ok = await executeTool(registry, "clear_drawings", {}, context, {
       permissionMode: "full",
-      confirmed: true,
+      confirmationValidatedByServer: true,
     });
     expect(ok.ok).toBe(true);
     expect(chart.getState().drawings).toHaveLength(0);

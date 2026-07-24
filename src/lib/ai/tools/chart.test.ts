@@ -52,6 +52,12 @@ function createContext(layout: ChartLayout): ToolContext {
       getActiveChart: () => ({
         overlays: [{ id: "o1" }],
         dataWindow: { kind: "candle" },
+        dataMeta: {
+          source: "yahoo",
+          asOf: 1_700_000_000_000,
+          stale: true,
+          cacheTier: "hot-stale",
+        },
         chartCommands: { getCandles: () => [] },
       }),
       loadSymbolIntoActiveChart: () => {},
@@ -61,6 +67,7 @@ function createContext(layout: ChartLayout): ToolContext {
     risk: null,
     account: null,
     options: null,
+    scriptLibrary: null,
     marketData: {
       searchSymbols: async () => [],
       getCandles: async () => [],
@@ -74,6 +81,8 @@ function createContext(layout: ChartLayout): ToolContext {
       }),
     },
     trading: null,
+    journal: null,
+    alerts: null,
   };
 }
 
@@ -89,9 +98,18 @@ describe("getChartStateTool (app product)", () => {
     expect(result.data).toMatchObject({
       cellIndex: 0,
       isActive: true,
-      config: layout.cells[0],
+      config: {
+        ...layout.cells[0],
+        indicators: [],
+      },
       activeOverlays: [{ id: "o1" }],
       dataWindow: { kind: "candle" },
+      dataProvenance: {
+        source: "yahoo",
+        asOf: 1_700_000_000_000,
+        stale: true,
+        cacheTier: "hot-stale",
+      },
     });
   });
 
@@ -106,7 +124,10 @@ describe("getChartStateTool (app product)", () => {
     expect(result.data).toMatchObject({
       cellIndex: 1,
       isActive: false,
-      config: layout.cells[1],
+      config: {
+        ...layout.cells[1],
+        indicators: [],
+      },
       activeOverlays: [],
       dataWindow: null,
     });

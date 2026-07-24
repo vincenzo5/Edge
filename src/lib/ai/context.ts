@@ -13,6 +13,8 @@ import type { SymbolSelectResult, WatchlistState } from "@/lib/watchlist/types";
 import type { ActiveChartSnapshot } from "@/app/components/ActiveChartContext";
 import type { MarketDataPort } from "./marketDataPort";
 import type { TradingPort } from "./tradingPort";
+import type { JournalPort } from "./journalPort";
+import type { AlertsPort } from "./alertsPort";
 
 export type { BaseToolContext };
 
@@ -44,6 +46,40 @@ import type { ScreenerLastRun, ScreenerState } from "@/lib/screener/types";
 import type { RiskSettings } from "@/lib/risk/riskSettings";
 import type { AccountSnapshot } from "@/lib/brokerage/accountSnapshot";
 import type { OptionsSessionState } from "@/lib/options/optionsSession";
+import type { ScriptCompileResult, ScriptManifest } from "@edge/chart-core";
+import type { ScriptLibraryEntry, ScriptLibraryState } from "@/lib/scriptLibrary/types";
+
+export type ScriptLibraryPort = {
+  isHydrated: () => boolean;
+  getError: () => string | null;
+  getState: () => ScriptLibraryState;
+  createScript: (params?: {
+    displayName?: string;
+    source?: string;
+  }) => Promise<ScriptLibraryEntry>;
+  renameScript: (scriptId: string, displayName: string) => Promise<ScriptLibraryEntry>;
+  duplicateScript: (scriptId: string) => Promise<ScriptLibraryEntry | null>;
+  deleteScript: (scriptId: string) => Promise<void>;
+  saveDraft: (
+    scriptId: string,
+    source: string,
+    dirty?: boolean,
+    manifest?: ScriptManifest,
+  ) => Promise<void>;
+  saveRevision: (
+    scriptId: string,
+    params: { source: string; compile: ScriptCompileResult },
+  ) => Promise<string>;
+  getScript: (scriptId: string) => ScriptLibraryEntry | undefined;
+  getRevisionSource: (
+    scriptId: string,
+    revision: string,
+  ) => import("@/lib/scriptLibrary/types").ScriptRevisionRecord | null;
+  getRevisionManifest: (
+    scriptId: string,
+    revision: string,
+  ) => ScriptManifest | undefined;
+};
 
 export type ScreenerActions = {
   getState: () => ScreenerState;
@@ -79,8 +115,11 @@ export type ToolContext = BaseToolContext & {
   risk: RiskSettingsActions | null;
   account: AccountActions | null;
   options: OptionsSessionActions | null;
+  scriptLibrary: ScriptLibraryPort | null;
   marketData: MarketDataPort;
   trading: TradingPort | null;
+  journal: JournalPort | null;
+  alerts: AlertsPort | null;
 };
 
 export type ChartRangeInput = {

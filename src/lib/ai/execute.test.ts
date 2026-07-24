@@ -13,6 +13,7 @@ function mockContext(overrides: Partial<ToolContext> = {}): ToolContext {
     risk: null,
     account: null,
     options: null,
+    scriptLibrary: null,
     marketData: {
       searchSymbols: vi.fn().mockResolvedValue([{ symbol: "AAPL", name: "Apple", exchange: "NASDAQ" }]),
       getCandles: vi.fn().mockResolvedValue([]),
@@ -26,6 +27,8 @@ function mockContext(overrides: Partial<ToolContext> = {}): ToolContext {
       }),
     },
     trading: null,
+    journal: null,
+    alerts: null,
     ...overrides,
   };
 }
@@ -99,6 +102,18 @@ describe("executeTool", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("permission_denied");
   });
+
+  it("ignores bare confirmed without server validation or token", async () => {
+    const result = await executeTool(
+      edgeToolRegistry,
+      "delete_drawing",
+      { drawingId: "x" },
+      mockContext({ clientSession: true }),
+      { permissionMode: "full", confirmed: true },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("confirmation_required");
+  });
 });
 
 describe("edgeToolRegistry", () => {
@@ -107,10 +122,16 @@ describe("edgeToolRegistry", () => {
     expect(names).toContain("get_app_state");
     expect(names).toContain("search_symbols");
     expect(names).toContain("add_indicator");
+    expect(names).toContain("list_indicator_scripts");
+    expect(names).toContain("delete_indicator_script");
     expect(names).toContain("add_drawing");
     expect(names).toContain("get_watchlists");
     expect(names).toContain("summarize_chart");
     expect(names).toContain("summarize_screen");
-    expect(names.length).toBeGreaterThanOrEqual(30);
+    expect(names).toContain("open_journal_trade_on_chart");
+    expect(names).toContain("list_alerts");
+    expect(names).toContain("create_alert");
+    expect(names).toContain("preview_alert");
+    expect(names.length).toBeGreaterThanOrEqual(40);
   });
 });

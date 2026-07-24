@@ -24,6 +24,39 @@ function requiresClientSession<TContext extends BaseToolContext>(
   return tool.requiresClientSession === true;
 }
 
+function toolNeedsConfirmation<TContext extends BaseToolContext>(
+  tool: AiTool<TContext>,
+): boolean {
+  return tool.requiresConfirmation || tool.permission === "destructive";
+}
+
+function isConfirmationSatisfied<TContext extends BaseToolContext>(
+  tool: AiTool<TContext>,
+  toolName: string,
+  rawInput: unknown,
+  permissionMode: PermissionMode,
+  options: ExecuteToolOptions,
+): boolean {
+  if (!toolNeedsConfirmation(tool)) {
+    return true;
+  }
+
+  if (options.confirmationValidatedByServer) {
+    return true;
+  }
+
+  if (options.confirmationToken && options.verifyConfirmationToken) {
+    return options.verifyConfirmationToken(
+      options.confirmationToken,
+      toolName,
+      rawInput,
+      permissionMode,
+    );
+  }
+
+  return false;
+}
+
 export async function executeTool<TContext extends BaseToolContext>(
   registry: ToolRegistry<TContext>,
   toolName: string,
@@ -32,7 +65,6 @@ export async function executeTool<TContext extends BaseToolContext>(
   options: ExecuteToolOptions = {},
 ): Promise<ToolResult> {
   const permissionMode = options.permissionMode ?? "read";
-  const confirmed = options.confirmed ?? false;
 
   const tool = registry.get(toolName);
   if (!tool) {
@@ -47,7 +79,7 @@ export async function executeTool<TContext extends BaseToolContext>(
     };
   }
 
-  if (tool.requiresConfirmation && !confirmed) {
+  if (!isConfirmationSatisfied(tool, toolName, rawInput, permissionMode, options)) {
     return {
       ok: false,
       error: `Tool "${toolName}" requires user confirmation`,

@@ -1,12 +1,13 @@
 import type { ToolRegistry } from "../registry";
 import { executeTool } from "./execute";
-import { createServerToolContext } from "./http";
 import type {
   ExecuteToolOptions,
   PermissionMode,
   ToolDefinition,
   ToolResult,
 } from "../types";
+import type { ToolContext } from "../context";
+import { createConfirmationVerifier } from "../confirmationToken";
 
 export type McpToolHandler = {
   name: string;
@@ -27,10 +28,14 @@ function resolveMcpOptions(
       ? (envMode as PermissionMode)
       : "read");
 
-  return {
+  const resolved: ExecuteToolOptions = {
     permissionMode,
-    confirmed: options.confirmed ?? false,
+    confirmationToken: options.confirmationToken,
   };
+  if (options.confirmationToken) {
+    resolved.verifyConfirmationToken = createConfirmationVerifier();
+  }
+  return resolved;
 }
 
 function getBridgeAppUrl(): string | null {
@@ -57,7 +62,7 @@ async function forwardToSessionBridge(
         name,
         input: args ?? {},
         permissionMode: options.permissionMode,
-        confirmed: options.confirmed,
+        confirmationToken: options.confirmationToken,
       }),
     });
 
@@ -88,6 +93,40 @@ function toMcpContent(result: ToolResult) {
   };
 }
 
+export type McpToolCallLog = {
+  ts: string;
+  event: "mcp.tool";
+  tool: string;
+  ok: boolean;
+  code?: string;
+  durationMs: number;
+  bridge: boolean;
+};
+
+/** Structured stderr log for local MCP debugging (no args/results/secrets). */
+export function logMcpToolCall(entry: Omit<McpToolCallLog, "ts" | "event">): void {
+  const line: McpToolCallLog = {
+    ts: new Date().toISOString(),
+    event: "mcp.tool",
+    ...entry,
+  };
+  if (line.ok) {
+    delete line.code;
+  }
+  console.error(JSON.stringify(line));
+}
+
+let serverToolContextPromise: Promise<ToolContext> | null = null;
+
+async function getServerToolContext(): Promise<ToolContext> {
+  if (!serverToolContextPromise) {
+    serverToolContextPromise = import("./http").then(({ createServerToolContext }) =>
+      createServerToolContext(),
+    );
+  }
+  return serverToolContextPromise;
+}
+
 /** Build MCP-compatible tool handlers using the shared registry. */
 export function buildMcpToolHandlers(
   registry: ToolRegistry,
@@ -95,7 +134,6 @@ export function buildMcpToolHandlers(
 ): McpToolHandler[] {
   const resolvedOptions = resolveMcpOptions(options);
   const bridgeUrl = getBridgeAppUrl();
-  const context = createServerToolContext();
   const definitions = registry.listDefinitionsForSession(Boolean(bridgeUrl));
 
   return definitions.map((def) => ({
@@ -103,24 +141,43 @@ export function buildMcpToolHandlers(
     description: def.description,
     inputSchema: def.inputSchema,
     handler: async (args: unknown) => {
+      const useBridge = Boolean(def.requiresClientSession && bridgeUrl);
+      const t0 = Date.now();
       let result: ToolResult;
 
-      if (def.requiresClientSession && bridgeUrl) {
-        result = await forwardToSessionBridge(
-          bridgeUrl,
-          def.name,
-          args,
-          resolvedOptions,
-        );
-      } else {
-        result = await executeTool(
-          registry,
-          def.name,
-          args,
-          context,
-          resolvedOptions,
-        );
+      try {
+        if (useBridge) {
+          result = await forwardToSessionBridge(
+            bridgeUrl!,
+            def.name,
+            args,
+            resolvedOptions,
+          );
+        } else {
+          const context = await getServerToolContext();
+          result = await executeTool(
+            registry,
+            def.name,
+            args,
+            context,
+            resolvedOptions,
+          );
+        }
+      } catch (err) {
+        result = {
+          ok: false,
+          error: err instanceof Error ? err.message : "Tool execution failed",
+          code: "execution",
+        };
       }
+
+      logMcpToolCall({
+        tool: def.name,
+        ok: result.ok,
+        code: result.ok ? undefined : result.code,
+        durationMs: Date.now() - t0,
+        bridge: useBridge,
+      });
 
       return toMcpContent(result);
     },

@@ -59,6 +59,10 @@ describe("summarizeScreenTool", () => {
       risk: null,
       account: null,
       options: null,
+      scriptLibrary: null,
+      trading: null,
+      journal: null,
+      alerts: null,
       marketData: {
         searchSymbols: async () => [],
         getCandles: async () => [],
@@ -95,6 +99,10 @@ describe("summarizeScreenTool", () => {
       risk: null,
       account: null,
       options: null,
+      scriptLibrary: null,
+      trading: null,
+      journal: null,
+      alerts: null,
       marketData: {
         searchSymbols: async () => [],
         getCandles: async () => [],

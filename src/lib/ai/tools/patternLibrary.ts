@@ -5,13 +5,7 @@ import {
   rankSimilarSetups,
   predictFromRetrieval,
 } from "@/lib/patternLibrary/retrieval";
-import {
-  loadAllRecords,
-  loadRecord,
-  loadTaxonomy,
-  libraryStats,
-  saveRecord,
-} from "@/lib/patternLibrary/storage";
+import { resolvePatternLibraryStoreForRequest } from "@/lib/patternLibrary/patternLibraryStore";
 import { getCell, requireApp } from "./_helpers";
 import type { PatternRecord } from "@/lib/patternLibrary/types";
 import { patternRecordSchema } from "@/lib/patternLibrary/types";
@@ -81,7 +75,8 @@ export const listPatternTaxonomyTool = defineTool({
   permission: "read",
   requiresConfirmation: false,
   async execute() {
-    const taxonomy = loadTaxonomy();
+    const store = await resolvePatternLibraryStoreForRequest();
+    const taxonomy = await store.loadTaxonomy();
     return {
       ok: true,
       data: {
@@ -121,7 +116,8 @@ export const findSimilarSetupsTool = defineTool({
       throw new Error("Need at least 2 visible candles on the active chart");
     }
 
-    const library = loadAllRecords();
+    const store = await resolvePatternLibraryStoreForRequest();
+    const library = await store.loadAllRecords();
     const topK = input.topK ?? 5;
     const neighbors = rankSimilarSetups(draft, library, topK);
     const prediction = predictFromRetrieval(draft, library, topK);
@@ -172,7 +168,8 @@ export const patternLibraryStatsTool = defineTool({
   permission: "read",
   requiresConfirmation: false,
   async execute() {
-    const stats = libraryStats();
+    const store = await resolvePatternLibraryStoreForRequest();
+    const stats = await store.libraryStats();
     return { ok: true, data: stats };
   },
 });
@@ -198,7 +195,8 @@ export const capturePatternSetupTool = defineTool({
   requiresConfirmation: false,
   requiresClientSession: true,
   async execute(input, context) {
-    const taxonomy = loadTaxonomy();
+    const store = await resolvePatternLibraryStoreForRequest();
+    const taxonomy = await store.loadTaxonomy();
     if (!taxonomy.setupFamilies.some((f) => f.id === input.setupFamilyId)) {
       throw new Error(`Unknown setup family: ${input.setupFamilyId}`);
     }
@@ -265,7 +263,8 @@ export const savePatternCaptureTool = defineTool({
     if (!input.record.capture) {
       throw new Error("Record must include capture metadata");
     }
-    saveRecord(input.record, {
+    const store = await resolvePatternLibraryStoreForRequest();
+    await store.saveRecord(input.record, {
       renderBars: input.renderBars,
       leftPaddingApplied: input.leftPaddingApplied,
     });
@@ -282,7 +281,8 @@ export const getPatternCaptureTool = defineTool({
   permission: "read",
   requiresConfirmation: false,
   async execute(input) {
-    const record = loadRecord(input.id);
+    const store = await resolvePatternLibraryStoreForRequest();
+    const record = await store.loadRecord(input.id);
     if (!record) {
       throw new Error(`Pattern capture not found: ${input.id}`);
     }

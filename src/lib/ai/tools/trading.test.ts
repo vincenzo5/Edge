@@ -85,6 +85,8 @@ function mockContext(trading: TradingPort): ToolContext {
     account: null,
     options: null,
     trading,
+    journal: null,
+    alerts: null,
     marketData: {
       searchSymbols: vi.fn(),
       getCandles: vi.fn(),
@@ -155,7 +157,24 @@ describe("trading AI tools", () => {
     if (!result.ok) expect(result.code).toBe("permission_denied");
   });
 
-  it("submits order when confirmed in full mode", async () => {
+  it("submits order when confirmation is validated server-side in full mode", async () => {
+    const trading = mockTradingPort();
+    const result = await executeTool(
+      registry,
+      "place_order",
+      {
+        draft,
+        idempotencyKey: "key-1",
+        previewIntentId: "intent-1",
+      },
+      mockContext(trading),
+      { permissionMode: "full", confirmationValidatedByServer: true },
+    );
+    expect(result.ok).toBe(true);
+    expect(trading.submitOrder).toHaveBeenCalled();
+  });
+
+  it("rejects bare confirmed without token", async () => {
     const trading = mockTradingPort();
     const result = await executeTool(
       registry,
@@ -168,7 +187,7 @@ describe("trading AI tools", () => {
       mockContext(trading),
       { permissionMode: "full", confirmed: true },
     );
-    expect(result.ok).toBe(true);
-    expect(trading.submitOrder).toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("confirmation_required");
   });
 });

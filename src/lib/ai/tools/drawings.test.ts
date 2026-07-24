@@ -62,6 +62,10 @@ function mockContext(layout: ChartLayout): ToolContext {
     risk: null,
     account: null,
     options: null,
+    scriptLibrary: null,
+    trading: null,
+    journal: null,
+    alerts: null,
     marketData: {
       searchSymbols: vi.fn(),
       getCandles: vi.fn(),
