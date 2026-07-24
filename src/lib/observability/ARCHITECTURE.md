@@ -114,6 +114,17 @@ Market-data trace header `x-edge-md-trace-id` remains scoped to market-data rout
 
 ---
 
+## Durable trading audit (Phase 3)
+
+**Implementation:** [`auditLog.ts`](../trading/auditLog.ts), [`tradingAuditPersist.ts`](../trading/tradingAuditPersist.ts), [`tradingAuditRepository.ts`](../persistence/repositories/tradingAuditRepository.ts), [`GET /api/me/trading-audit`](../../../app/api/me/trading-audit/route.ts), [`report-trading-audit.mts`](../../../scripts/report-trading-audit.mts).
+
+- **Dual-write:** `appendAudit` always updates the in-memory ring; when `DATABASE_URL` is set, fire-and-forget Postgres insert (fail-open — DB errors never block trading).
+- **Schema:** `trading_audit_events` — `at_ms`, `action`, `outcome`, `intent_id`, `order_ref`, `request_id`, bounded redacted `detail`; **no** `account_id` or broker payloads.
+- **Read paths:** `GET /api/me/trading-audit` (`withPersistenceAuth`, `?limit=` capped at 200); `npm run report:trading-audit` (requires Postgres — ring alone is process-local).
+- **Retention:** `EDGE_AUDIT_RETENTION_DAYS` (default **90**); lazy purge on persist and report/CLI.
+
+---
+
 ## Env knobs (sketch)
 
 Documented intent for later phases. Placeholders in [.env.example](../../../.env.example).
@@ -144,7 +155,7 @@ Readiness reuses existing deploy profile knobs — do not invent parallel “obs
 | Process-local SLIs | `src/lib/marketData/state/operationalMetrics.ts` | 30m / 512 samples; not durable |
 | MD trace IDs | `x-edge-md-trace-id` | Market-data scoped only |
 | AI structured stderr | MCP + session bridge | No tool args in logs |
-| Trading audit ring | `src/lib/trading/auditLog.ts` (500 entries) | Lost on restart |
+| Trading audit ring | `src/lib/trading/auditLog.ts` (500 entries) | Process-local ring; **Postgres dual-write** when `DATABASE_URL` set (Phase 3) |
 | Order intents | Postgres `order_intents` | Durable intents; not full audit export |
 | TWS sidecar health | `services/tws-sidecar` `/health` | Optional gate in `/readyz` when `EDGE_READYZ_REQUIRE_TWS=1` |
 | Lab memory scorecard (L3) | `npm run perf:memory` → `memory-baseline-latest.json` | Browser scenarios record CDP `JSHeapUsedSize`/`JSHeapTotalSize` (`cdpJsHeap*Mb`) and best-effort `measureUserAgentSpecificMemory()` (`uaSpecific*` or `uaSpecificUnavailableReason`). UA-specific memory requires cross-origin isolation — Edge does not enable COOP/COEP for this; explicit unavailable is expected. Process RSS (L4) and desk composite remain on [memory-metrics-roadmap.md](../../../docs/roadmaps/memory-metrics-roadmap.md). |
@@ -184,7 +195,7 @@ Audit/error read APIs require existing API auth / operator gates (Security Harde
 | 0 | This doc + CONSTRAINTS + env placeholders (docs only) |
 | 1 | `/healthz`, `/readyz` routes + tests (**Passing**) |
 | 2 | Request ID middleware + JSON access logs (**Passing**) |
-| 3 | Durable trading audit (Postgres) |
+| 3 | Durable trading audit (Postgres) — **implemented** |
 | 4 | Production error sink (Postgres) |
 | 5 | Free alerts + runbook |
 

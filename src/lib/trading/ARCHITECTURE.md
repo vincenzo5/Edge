@@ -20,7 +20,7 @@ src/lib/trading/
   tradingEnvironment.ts # edge:trading:environment localStorage
   validateOrder.ts      # Zod + connection gate + kill switch + live confirm
   safetyGuards.ts       # Short-sale block, PDT warnings
-  auditLog.ts           # Append-only in-memory audit ring
+  auditLog.ts           # In-memory audit ring (500) + Postgres dual-write when DATABASE_URL set
   ports.ts              # BrokerTradingPort interface
   adapters/
     ibTws.ts            # IbTwsTradingAdapter → sidecar /trading/* + /account/*
@@ -171,7 +171,7 @@ Preview expiry: submit with `previewIntentId` must be within **30s** (`PREVIEW_I
 | PDT | Soft warning on preview when `DayTradesRemaining` ≤ 0 |
 | Kill switch | `EDGE_TRADING_KILL_SWITCH=true` blocks all mutations (503) |
 | Live confirm | `liveConfirmation: "LIVE"` on live mutations |
-| Audit log | In-memory ring (500 entries) on preview/submit/modify/cancel/block |
+| Audit log | In-memory ring (500 entries) on preview/submit/modify/cancel/block; **Postgres dual-write** when `DATABASE_URL` set — see [Production observability Phase 3](../../../docs/roadmaps/production-observability-roadmap.md) |
 
 ## Journal Correlation
 
@@ -321,6 +321,8 @@ Full track: [Trade Management Playbook Roadmap](../../../docs/roadmaps/trade-man
 - Second real broker adapter (beyond stub) — [Connections & Providers Roadmap](../../../docs/roadmaps/connections-providers-roadmap.md) Phase 5
 
 **Shipped 2026-07-13:** Postgres-backed `order_intents` table + `resolveServerIntentStore()` when `DATABASE_URL` is set. Handoff for open operational items: [docs/roadmaps/trading-execution-roadmap.md](../../../docs/roadmaps/trading-execution-roadmap.md#trade-execution-reliability-track--llm-handoff).
+
+**Shipped 2026-07-24 (observability Phase 3):** Postgres-backed `trading_audit_events` dual-written from `appendAudit` when `DATABASE_URL` is set; in-memory ring retained for no-DB. Read via `GET /api/me/trading-audit` (session auth) and `npm run report:trading-audit`. Durable rows omit IB `accountId`; `detail` is redacted. Retention default 90 days (`EDGE_AUDIT_RETENTION_DAYS`).
 
 ## Dual connection (Phases A–D)
 

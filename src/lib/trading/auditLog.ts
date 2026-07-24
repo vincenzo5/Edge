@@ -26,14 +26,19 @@ const entries: TradingAuditEntry[] = [];
 
 export function appendAudit(entry: Omit<TradingAuditEntry, "at"> & { at?: number }): void {
   const requestId = getRequestId();
-  entries.push({
+  const normalized: TradingAuditEntry = {
     ...entry,
     at: entry.at ?? Date.now(),
     ...(requestId && !entry.requestId ? { requestId } : {}),
-  });
+  };
+  entries.push(normalized);
   while (entries.length > MAX_ENTRIES) {
     entries.shift();
   }
+
+  void import("./tradingAuditPersist")
+    .then((mod) => mod.persistTradingAudit(normalized))
+    .catch(() => {});
 }
 
 export function listAudit(): readonly TradingAuditEntry[] {

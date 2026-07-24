@@ -1,10 +1,17 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { appendAudit, listAudit, resetAuditLogForTests } from "./auditLog";
 import { runWithRequestId } from "@/lib/observability/requestIdContext";
+
+const persistMock = vi.hoisted(() => ({
+  persistTradingAudit: vi.fn(async () => {}),
+}));
+
+vi.mock("./tradingAuditPersist", () => persistMock);
 
 describe("auditLog", () => {
   beforeEach(() => {
     resetAuditLogForTests();
+    persistMock.persistTradingAudit.mockClear();
   });
 
   it("appends audit entries", () => {
@@ -41,5 +48,20 @@ describe("auditLog", () => {
       });
     });
     expect(listAudit()[0]?.requestId).toBe("audit-req-1");
+  });
+
+  it("schedules durable persist after ring append", async () => {
+    appendAudit({
+      action: "submit",
+      outcome: "success",
+      intentId: "intent-persist",
+    });
+    await vi.waitFor(() => {
+      expect(persistMock.persistTradingAudit).toHaveBeenCalledTimes(1);
+    });
+    expect(persistMock.persistTradingAudit.mock.calls[0]?.[0]).toMatchObject({
+      action: "submit",
+      intentId: "intent-persist",
+    });
   });
 });

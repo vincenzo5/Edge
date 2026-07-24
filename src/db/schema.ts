@@ -594,6 +594,20 @@ export const alertTriggerEvents = pgTable("alert_trigger_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const tradingAuditEvents = pgTable("trading_audit_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  atMs: bigint("at_ms", { mode: "number" }).notNull(),
+  action: text("action").notNull(),
+  outcome: text("outcome").notNull(),
+  intentId: text("intent_id"),
+  orderRef: text("order_ref"),
+  requestId: text("request_id"),
+  detail: text("detail"),
+});
+
 export const userCopilotThreads = pgTable("user_copilot_threads", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
@@ -650,4 +664,5 @@ export const connections = pgTable(
 export type NotificationEventRow = typeof notificationEvents.$inferSelect;
 export type AlertDefinitionRow = typeof alertDefinitions.$inferSelect;
 export type AlertTriggerEventRow = typeof alertTriggerEvents.$inferSelect;
+export type TradingAuditEventRow = typeof tradingAuditEvents.$inferSelect;
 export type ScreenerAlertRow = typeof screenerAlerts.$inferSelect;
