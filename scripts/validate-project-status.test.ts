@@ -40,6 +40,11 @@ describe("validate-project-status helpers", () => {
 
   it("accepts concrete verification evidence", () => {
     expect(hasConcreteVerificationEvidence("**Focused:** 67 tests passed")).toBe(true);
+    expect(
+      hasConcreteVerificationEvidence(
+        "Test Files 4 passed (4), Tests 11 passed (11)",
+      ),
+    ).toBe(true);
     expect(hasConcreteVerificationEvidence("npm run build passed")).toBe(true);
     expect(hasConcreteVerificationEvidence("check:startup passed (26 tests)")).toBe(true);
     expect(

@@ -4,11 +4,24 @@ Apply to **every** plan. Ensures work aligns with the project harness and `docs/
 
 ## Pre-Plan Read
 
-- [ ] [docs/PROJECT-STATUS.md](../PROJECT-STATUS.md) — Current Verified State block read
-- [ ] Active Work table scanned for current **Active** row
-- [ ] Open Task Contract(s) for active or related work read
-- [ ] Recent Session Log entries scanned for context and blockers
+Use **Hot harness read windows** (Plan mode) — slice-read only; do not load the full file or Previous Verified stacks.
+
+- [ ] [docs/PROJECT-STATUS.md](../PROJECT-STATUS.md) — Current Verified State top block only (`Read` ~lines 1–20)
+- [ ] Active Work rows for this track (`Grep` on feature/track name)
+- [ ] Open Task Contract for this track (`Grep` on `## Task Contract — …`)
+- [ ] Session Log only if handoff or blocker pointer (`Read` near `## Session Log`, ~30 lines)
 - [ ] [AGENTS.md](../../AGENTS.md) — WIP=1 and Definition of Done reviewed
+
+## Hot harness read windows
+
+`PROJECT-STATUS.md` is a hot dashboard (~4k lines with history). Prefer `Read` with offset/limit + `Grep` for named rows — not full-file reads.
+
+| Mode | Read | Do not |
+|------|------|--------|
+| **Plan** | Current Verified State top block; Active Work rows for this track; open Task Contract for this track; Session Log only if handoff/blocker | Full file; Previous Verified stacks; Session Log archaeology |
+| **Execute** | Approved plan; Active Work row + open Task Contract for this task; **≤2** status reads (activate + closeout) | Mid-step re-reads; planning checklists; Session Log unless blocker pointer |
+
+Implementing an approved plan → [execute-from-plan-checklist.md](./execute-from-plan-checklist.md) (Execute window above).
 
 ## WIP=1 Discipline
 

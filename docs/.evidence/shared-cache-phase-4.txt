@@ -1,0 +1,18 @@
+Shared cache topology — Phase 4 verification (2026-07-24)
+
+Redis ops profile (docker compose):
+  maxmemory: 268435456
+  maxmemory-policy: noeviction
+  appendonly: no
+  save: (empty — persistence disabled)
+
+Focused:
+  REDIS_URL=redis://localhost:6379 EDGE_TEST_REDIS=1 npm test -- --run src/lib/marketData/cache/cacheParity.test.ts src/lib/marketData/cache/redisKeys.test.ts
+  Test Files  2 passed (2)
+  Tests  18 passed (18)
+
+App-level:
+  Parity suite redis is reachable: true (live Redis ping against compose instance)
+  HTTP health flip deferred — running dev server on :3003 lacks redis backend env; operator staging soak → prod flip is next gate
+
+Architecture review: self-review Passed

@@ -1,0 +1,480 @@
+#!/usr/bin/env npx tsx
+/**
+ * Deterministic harness closeout — evidence-gated Active Work → Passing,
+ * Current Verified State push, optional Session Log + roadmap status.
+ */
+
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import {
+  hasConcreteVerificationEvidence,
+  hasParaphraseOnlyPass,
+  hasPendingVerification,
+  parseActiveWorkRows,
+  sectionBetween,
+  validateProjectStatusContent,
+} from "./validate-project-status.mts";
+
+export type CloseoutOptions = {
+  name: string;
+  evidenceText: string;
+  behavior?: string;
+  files?: string;
+  next?: string;
+  roadmap?: string;
+  sessionLog?: string;
+  trackName?: string;
+  todayIso?: string;
+};
+
+export type CloseoutResult = {
+  statusContent: string;
+  roadmapContent?: string;
+  changed: string[];
+};
+
+const DEFAULT_STATUS_PATH = "docs/PROJECT-STATUS.md";
+
+export function parseArgs(argv: string[]): {
+  name?: string;
+  evidenceFile?: string;
+  behavior?: string;
+  files?: string;
+  next?: string;
+  roadmap?: string;
+  sessionLog?: string;
+  trackName?: string;
+  dryRun: boolean;
+  statusPath: string;
+} {
+  const getFlag = (flag: string): string | undefined => {
+    const index = argv.indexOf(flag);
+    if (index === -1 || index + 1 >= argv.length) return undefined;
+    return argv[index + 1];
+  };
+
+  return {
+    name: getFlag("--name"),
+    evidenceFile: getFlag("--evidence-file"),
+    behavior: getFlag("--behavior"),
+    files: getFlag("--files"),
+    next: getFlag("--next"),
+    roadmap: getFlag("--roadmap"),
+    sessionLog: getFlag("--session-log"),
+    trackName: getFlag("--track-name"),
+    dryRun: argv.includes("--dry-run"),
+    statusPath: getFlag("--status") ?? DEFAULT_STATUS_PATH,
+  };
+}
+
+export function readEvidenceFile(path: string, cwd = process.cwd()): string {
+  const absolute = resolve(cwd, path);
+  return readFileSync(absolute, "utf8").trim();
+}
+
+export function validateEvidenceText(evidenceText: string): string[] {
+  const errors: string[] = [];
+  if (!evidenceText.trim()) {
+    errors.push("evidence file is empty");
+    return errors;
+  }
+  if (hasPendingVerification(evidenceText)) {
+    errors.push("evidence contains pending verification");
+  }
+  if (!hasConcreteVerificationEvidence(evidenceText)) {
+    errors.push(
+      "evidence lacks concrete verification (test count, build result, lint:instructions passed, app-level measurement)",
+    );
+  }
+  if (hasParaphraseOnlyPass(evidenceText)) {
+    errors.push("evidence is paraphrase-only pass wording without concrete result");
+  }
+  return errors;
+}
+
+export function formatEvidenceForCell(evidenceText: string): string {
+  return evidenceText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("; ");
+}
+
+export function parsePhaseFromName(name: string): number | null {
+  const match = name.match(/Phase\s+(\d+)/i);
+  return match ? Number.parseInt(match[1]!, 10) : null;
+}
+
+function splitTableCells(line: string): string[] {
+  return line
+    .split("|")
+    .map((cell) => cell.trim())
+    .filter((_, index, arr) => index > 0 && index < arr.length - 1);
+}
+
+function buildTableRow(cells: [string, string, string, string, string]): string {
+  return `| ${cells.join(" | ")} |`;
+}
+
+export function updateActiveWorkRow(
+  content: string,
+  featureName: string,
+  updates: {
+    state?: string;
+    behavior?: string;
+    evidence?: string;
+    files?: string;
+  },
+): { content: string; found: boolean } {
+  const activeWorkStart = content.indexOf("## Active Work");
+  if (activeWorkStart === -1) {
+    return { content, found: false };
+  }
+
+  const lines = content.split("\n");
+  let found = false;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    if (!line.startsWith("|") || /^\|[\s-:|]+\|$/.test(line.trim())) continue;
+
+    const cells = splitTableCells(line);
+    if (cells.length < 5) continue;
+    if (/^feature$/i.test(cells[0]!)) continue;
+
+    const feature = cells[0]!.replace(/\*\*/g, "").trim();
+    if (feature !== featureName.replace(/\*\*/g, "").trim()) continue;
+
+    const nextCells: [string, string, string, string, string] = [
+      cells[0]!,
+      updates.behavior ?? cells[1]!,
+      updates.state ?? cells[2]!,
+      updates.evidence ?? cells[3]!,
+      updates.files ?? cells[4]!,
+    ];
+    lines[index] = buildTableRow(nextCells);
+    found = true;
+    break;
+  }
+
+  return { content: lines.join("\n"), found };
+}
+
+export function extractCurrentVerifiedBlock(content: string): string {
+  const section = sectionBetween(content, "## Current Verified State");
+  return section.trim();
+}
+
+export function buildCurrentVerifiedStateBlock(options: {
+  name: string;
+  stateSummary: string;
+  evidenceText: string;
+  files?: string;
+  next?: string;
+}): string {
+  const evidenceCell = formatEvidenceForCell(options.evidenceText);
+  const filesLine = options.files?.trim()
+    ? options.files
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map((part) => (part.startsWith("`") ? part : `\`${part}\``))
+        .join(", ")
+    : "see Active Work row";
+
+  return [
+    "## Current Verified State",
+    "",
+    `- **Current task:** ${options.name}.`,
+    `- **State:** **Passing** — ${options.stateSummary}`,
+    `- **Latest verification:** ${evidenceCell}`,
+    `- **Evidence:** ${filesLine}`,
+    `- **Current blocker:** none`,
+    `- **Next best step:** ${options.next?.trim() || "none"}`,
+  ].join("\n");
+}
+
+export function extractPreviousVerifiedHeading(oldBlock: string): string {
+  const match = oldBlock.match(/\*\*Current task:\*\*\s+([^\n.]+)/);
+  return match?.[1]?.trim() ?? "Unknown";
+}
+
+export function replaceCurrentVerifiedState(
+  content: string,
+  newBlock: string,
+  previousName?: string,
+): string {
+  const oldBlock = extractCurrentVerifiedBlock(content);
+  const heading = "## Current Verified State";
+  const start = content.indexOf(heading);
+  if (start === -1) {
+    throw new Error("missing Current Verified State section");
+  }
+
+  const afterHeading = content.slice(start + heading.length);
+  const nextSectionMatch = afterHeading.match(/\n## /);
+  const endOffset =
+    nextSectionMatch?.index !== undefined
+      ? start + heading.length + nextSectionMatch.index
+      : content.length;
+
+  const before = content.slice(0, start);
+  const after = content.slice(endOffset);
+
+  const previousHeadingName = previousName ?? extractPreviousVerifiedHeading(oldBlock);
+  const previousHeading = `## Previous Verified State (${previousHeadingName})`;
+  const previousBlock = [previousHeading, "", oldBlock].join("\n");
+
+  return `${before}${newBlock}\n\n${previousBlock}${after}`.replace(/\n{3,}/g, "\n\n");
+}
+
+export function bumpLastUpdated(content: string, todayIso: string): string {
+  if (/\*\*Last updated:\*\* \d{4}-\d{2}-\d{2}/.test(content)) {
+    return content.replace(
+      /\*\*Last updated:\*\* \d{4}-\d{2}-\d{2}/,
+      `**Last updated:** ${todayIso}`,
+    );
+  }
+  return content;
+}
+
+export function prependSessionLogEntry(
+  content: string,
+  entry: string,
+  todayIso: string,
+): string {
+  const heading = "## Session Log";
+  const start = content.indexOf(heading);
+  if (start === -1) return content;
+
+  const insertAt = start + heading.length;
+  const normalized = entry.trim().startsWith("-")
+    ? entry.trim()
+    : `- **${todayIso} — ${entry.trim()}**`;
+
+  return `${content.slice(0, insertAt)}\n\n${normalized}${content.slice(insertAt)}`;
+}
+
+export function updateRoadmapPhaseStatus(
+  content: string,
+  phaseNumber: number,
+  fromStatus: "Pending" | "Passing" = "Pending",
+): string {
+  const phasePattern = new RegExp(
+    `Phase ${phaseNumber}\\s+\\*\\*${fromStatus}\\*\\*`,
+    "g",
+  );
+  let updated = content.replace(
+    phasePattern,
+    `Phase ${phaseNumber} **Passing**`,
+  );
+
+  const sectionMarker = `### Phase ${phaseNumber} —`;
+  const sectionStart = updated.indexOf(sectionMarker);
+  if (sectionStart !== -1) {
+    const sectionSlice = updated.slice(sectionStart, sectionStart + 400);
+    if (sectionSlice.includes(`Phase ${phaseNumber} **Pending**`)) {
+      updated =
+        updated.slice(0, sectionStart) +
+        sectionSlice.replace(
+          `Phase ${phaseNumber} **Pending**`,
+          `Phase ${phaseNumber} **Passing**`,
+        ) +
+        updated.slice(sectionStart + 400);
+    }
+  }
+
+  return updated;
+}
+
+export function applyCloseout(
+  statusContent: string,
+  options: CloseoutOptions,
+  roadmapContent?: string,
+): CloseoutResult {
+  const todayIso = options.todayIso ?? new Date().toISOString().slice(0, 10);
+  const evidenceCell = formatEvidenceForCell(options.evidenceText);
+  const changed: string[] = [];
+
+  let content = statusContent;
+
+  const activeWorkSection = sectionBetween(content, "## Active Work");
+  const rows = parseActiveWorkRows(activeWorkSection);
+  const targetRow = rows.find(
+    (row) =>
+      row.feature.replace(/\*\*/g, "").trim() ===
+      options.name.replace(/\*\*/g, "").trim(),
+  );
+  if (!targetRow) {
+    throw new Error(`Active Work row not found for "${options.name}"`);
+  }
+
+  const rowUpdate = updateActiveWorkRow(content, options.name, {
+    state: "**Passing**",
+    behavior: options.behavior ?? undefined,
+    evidence: evidenceCell,
+    files: options.files ?? undefined,
+  });
+  if (!rowUpdate.found) {
+    throw new Error(`failed to update Active Work row for "${options.name}"`);
+  }
+  content = rowUpdate.content;
+  changed.push("Active Work row");
+
+  if (options.trackName) {
+    const trackEvidence = `Track complete — ${options.name} **Passing**; ${evidenceCell}`;
+    const trackUpdate = updateActiveWorkRow(content, options.trackName, {
+      state: "**Passing**",
+      evidence: trackEvidence,
+    });
+    if (!trackUpdate.found) {
+      throw new Error(`Active Work track row not found for "${options.trackName}"`);
+    }
+    content = trackUpdate.content;
+    changed.push("track Active Work row");
+  }
+
+  const stateSummary =
+    options.behavior?.trim() ||
+    targetRow.feature.replace(/\*\*/g, "").trim() + " closeout via harness:closeout";
+
+  const newCurrentBlock = buildCurrentVerifiedStateBlock({
+    name: options.name,
+    stateSummary,
+    evidenceText: options.evidenceText,
+    files: options.files,
+    next: options.next,
+  });
+
+  content = replaceCurrentVerifiedState(content, newCurrentBlock);
+  changed.push("Current Verified State");
+
+  content = bumpLastUpdated(content, todayIso);
+  changed.push("Last updated");
+
+  if (options.sessionLog) {
+    content = prependSessionLogEntry(content, options.sessionLog, todayIso);
+    changed.push("Session Log");
+  }
+
+  const validationIssues = validateProjectStatusContent(
+    content,
+    DEFAULT_STATUS_PATH,
+    todayIso,
+  );
+  if (validationIssues.length > 0) {
+    throw new Error(
+      `closeout validation failed:\n${validationIssues.map((issue) => `- ${issue.message}`).join("\n")}`,
+    );
+  }
+
+  let updatedRoadmap: string | undefined;
+  if (roadmapContent) {
+    const phaseNumber = parsePhaseFromName(options.name);
+    if (phaseNumber !== null) {
+      updatedRoadmap = updateRoadmapPhaseStatus(roadmapContent, phaseNumber);
+      changed.push(`roadmap Phase ${phaseNumber}`);
+    } else {
+      updatedRoadmap = roadmapContent;
+    }
+  }
+
+  return {
+    statusContent: content,
+    roadmapContent: updatedRoadmap,
+    changed,
+  };
+}
+
+export function runCloseout(options: {
+  statusPath: string;
+  closeout: CloseoutOptions;
+  roadmapPath?: string;
+  dryRun?: boolean;
+  cwd?: string;
+}): CloseoutResult {
+  const cwd = options.cwd ?? process.cwd();
+  const statusPath = resolve(cwd, options.statusPath);
+  const statusContent = readFileSync(statusPath, "utf8");
+
+  let roadmapContent: string | undefined;
+  if (options.roadmapPath) {
+    roadmapContent = readFileSync(resolve(cwd, options.roadmapPath), "utf8");
+  }
+
+  const result = applyCloseout(statusContent, options.closeout, roadmapContent);
+
+  if (!options.dryRun) {
+    writeFileSync(statusPath, result.statusContent, "utf8");
+    if (options.roadmapPath && result.roadmapContent) {
+      writeFileSync(resolve(cwd, options.roadmapPath), result.roadmapContent, "utf8");
+    }
+  }
+
+  return result;
+}
+
+function main(): void {
+  const parsed = parseArgs(process.argv.slice(2));
+
+  if (!parsed.name || !parsed.evidenceFile) {
+    console.error(
+      "Usage: npm run harness:closeout -- --name \"Feature name\" --evidence-file path [--files ...] [--behavior ...] [--next ...] [--roadmap path] [--track-name ...] [--session-log ...] [--dry-run]",
+    );
+    process.exit(1);
+  }
+
+  let evidenceText: string;
+  try {
+    evidenceText = readEvidenceFile(parsed.evidenceFile);
+  } catch (error) {
+    console.error(
+      `harness:closeout failed to read evidence file: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    process.exit(1);
+  }
+
+  const evidenceErrors = validateEvidenceText(evidenceText);
+  if (evidenceErrors.length > 0) {
+    console.error("harness:closeout blocked — invalid evidence:");
+    for (const message of evidenceErrors) {
+      console.error(`  - ${message}`);
+    }
+    process.exit(1);
+  }
+
+  try {
+    const result = runCloseout({
+      statusPath: parsed.statusPath,
+      closeout: {
+        name: parsed.name,
+        evidenceText,
+        behavior: parsed.behavior,
+        files: parsed.files,
+        next: parsed.next,
+        roadmap: parsed.roadmap,
+        sessionLog: parsed.sessionLog,
+        trackName: parsed.trackName,
+      },
+      roadmapPath: parsed.roadmap,
+      dryRun: parsed.dryRun,
+    });
+
+    const mode = parsed.dryRun ? "dry-run" : "complete";
+    console.log(`harness:closeout ${mode} — updated: ${result.changed.join(", ")}`);
+  } catch (error) {
+    console.error(
+      `harness:closeout failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    process.exit(1);
+  }
+}
+
+const isMain =
+  process.argv[1] !== undefined &&
+  (process.argv[1].endsWith("harness-closeout.mts") ||
+    process.argv[1].endsWith("harness-closeout.mjs"));
+
+if (isMain) {
+  main();
+}

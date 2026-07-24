@@ -21,6 +21,8 @@ export function hasPendingVerification(text: string): boolean {
  */
 export function hasConcreteVerificationEvidence(text: string): boolean {
   if (/\d+\s+tests?\s+passed/i.test(text)) return true;
+  if (/tests?\s+\d+\s+passed/i.test(text)) return true;
+  if (/test\s+files?\s+\d+\s+passed/i.test(text)) return true;
   if (/passed\s*\([^)]*\d+\s+tests?[^)]*\)/i.test(text)) return true;
   if (/npm run build[^\n|]*passed/i.test(text)) return true;
   if (/npm run lint:instructions[^\n|]*passed/i.test(text)) return true;

@@ -25,7 +25,7 @@ If none apply, record **N/A** with the reason. Do not skip the decision silently
 
 ## Reviewer and Status
 
-Record in the plan **Checklist Review** section:
+Record in compact **Intent Classification** or **Checklist Review** (deltas only — do not expand Aligned):
 
 | Field | Values |
 |-------|--------|
@@ -85,3 +85,7 @@ Use the table in [planning-router.md](./planning-router.md) § Area Ownership Qu
 - Do not require human architect sign-off for trivial, single-file changes — **N/A** with reason is valid.
 - Do not add a fifth primary intent — architecture review is cross-cutting only.
 - Do not create duplicate architecture narrative in `docs/CONSTRAINTS.md` unless a proven gap requires it.
+
+## Persistence PR gate (workspace state track)
+
+When a change adds or extends localStorage keys or Postgres user-state columns, verify against the ephemeral allowlist in [persistence/ARCHITECTURE.md](../../src/lib/persistence/ARCHITECTURE.md) § Workspace state persistence and [workspace-state-persistence-roadmap.md](../../docs/roadmaps/workspace-state-persistence-roadmap.md).

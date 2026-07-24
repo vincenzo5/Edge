@@ -1,0 +1,11 @@
+---
+description: Route Plan mode and implement turns to the correct scoped rule — planning uses plan-harness; execute uses execute-from-plan
+alwaysApply: true
+---
+
+# Plan vs Execute Routing
+
+- **Planning** (Plan mode, "plan this", scope/design before coding) → follow [plan-harness-awareness.mdc](./plan-harness-awareness.mdc).
+- **Implementing an approved plan** (implement, execute, ship, build from plan) → follow [execute-from-plan.mdc](./execute-from-plan.mdc).
+
+Do not load both full rules in the same turn. Coding turns must not pay the compact plan template.

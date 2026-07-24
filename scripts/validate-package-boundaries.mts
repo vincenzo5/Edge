@@ -25,6 +25,12 @@ type PackagePolicy = {
 
 const PACKAGE_POLICIES: PackagePolicy[] = [
   {
+    name: "@edge/indicator-runtime",
+    srcDir: join(ROOT, "packages/indicator-runtime/src"),
+    packageJson: join(ROOT, "packages/indicator-runtime/package.json"),
+    allowedWorkspaceDeps: new Set(["@edge/chart-core"]),
+  },
+  {
     name: "@edge/chart-core",
     srcDir: join(ROOT, "packages/chart-core/src"),
     packageJson: join(ROOT, "packages/chart-core/package.json"),
@@ -34,7 +40,7 @@ const PACKAGE_POLICIES: PackagePolicy[] = [
     name: "@edge/chart-react",
     srcDir: join(ROOT, "packages/chart-react/src"),
     packageJson: join(ROOT, "packages/chart-react/package.json"),
-    allowedWorkspaceDeps: new Set(["@edge/chart-core"]),
+    allowedWorkspaceDeps: new Set(["@edge/chart-core", "@edge/indicator-runtime"]),
   },
   {
     name: "@edge/ai-tools-core",
@@ -56,6 +62,7 @@ const EXAMPLE_SCAN_DIRS = [
   join(ROOT, "examples/chart-plugins-basic/src"),
   join(ROOT, "examples/ai-tools-chart-basic/src"),
   join(ROOT, "examples/chart-data-source-basic/src"),
+  join(ROOT, "examples/indicator-runtime-spike/src"),
 ];
 
 const SCAN_DIRS = [
