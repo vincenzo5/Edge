@@ -5,9 +5,6 @@ export type DataProviderId =
   | "fred"
   | "fmp"
   | "massive"
-  | "alphaVantage"
-  | "tradier"
-  | "alpaca"
   | "ibkr"
   | "tws";
 
@@ -91,6 +88,8 @@ export type DataResponseMeta = {
   warnings: string[];
   stale: boolean;
   asOf?: number;
+  /** When the server successfully received/normalized this payload. */
+  receivedAt?: number;
   latencyMs?: number;
   cacheTier?: DataCacheTier;
   traceId?: string;
@@ -113,6 +112,7 @@ export function dataResultToResponseMeta<T>(result: DataResult<T>): DataResponse
     warnings: result.warnings,
     stale: result.stale,
     asOf: result.asOf,
+    receivedAt: result.receivedAt,
     latencyMs: Math.max(0, result.receivedAt - result.requestedAt),
     cacheTier: result.cacheTier,
     traceId: result.traceId,

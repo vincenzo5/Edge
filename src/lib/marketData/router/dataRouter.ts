@@ -13,7 +13,7 @@ export type ProviderPreferences = {
 export const DEFAULT_PROVIDER_PREFERENCES: ProviderPreferences = {
   equity: "yahoo",
   fundamentals: "yahoo",
-  options: "tradier",
+  options: "massive",
   events: "fmp",
   news: "fmp",
   macro: "fred",

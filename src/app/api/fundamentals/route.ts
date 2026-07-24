@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { privateCacheControl } from "@/lib/api/cacheControl";
 import {
+  fundamentalsBatchRequestSchema,
   fundamentalsQuerySchema,
   parseMarketQuery,
+  parseMarketRequest,
 } from "@/lib/marketData/schemas";
 import {
   clearMarketDataCacheForTests,
@@ -25,6 +28,34 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const service = getServerMarketDataService();
     const result = await service.getWatchlistFundamentals(parsed.data.symbol);
+    return NextResponse.json(result.data, {
+      headers: { "Cache-Control": privateCacheControl("fundamentals") },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch fundamentals";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request): Promise<Response> {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = parseMarketRequest(body, fundamentalsBatchRequestSchema);
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.error, details: parsed.details },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const service = getServerMarketDataService();
+    const result = await service.getWatchlistFundamentalsBatch(parsed.data.symbols);
     return NextResponse.json(result.data);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch fundamentals";

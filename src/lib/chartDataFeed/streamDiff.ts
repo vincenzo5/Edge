@@ -31,7 +31,25 @@ export function diffCandlesToStreamEvents(
 
   if (nextLast.t > prevLast.t) {
     const newBars = next.filter((bar) => bar.t > prevLast.t);
-    return newBars.map((candle) => ({ type: 'append', candle, meta }));
+    if (newBars.length === 0) return [];
+
+    // Provider remapped the forming tip (old timestamp gone). Treat the first
+    // newer bar as replace-latest so the chart does not keep identical twins.
+    const prevTipStillPresent = next.some((bar) => bar.t === prevLast.t);
+    if (!prevTipStillPresent) {
+      const [first, ...rest] = newBars;
+      return [
+        { type: 'replace-latest', candle: first!, meta },
+        ...rest.map((candle) => ({ type: 'append' as const, candle, meta })),
+      ];
+    }
+
+    return newBars.map((candle) => ({ type: 'append' as const, candle, meta }));
+  }
+
+  // Short poll page trailing before the chart's last bar — do not snapshot-wipe history.
+  if (nextLast.t < prevLast.t) {
+    return [];
   }
 
   return [{ type: 'snapshot', candles: next, meta }];

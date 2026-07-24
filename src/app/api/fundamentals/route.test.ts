@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { GET, clearFundamentalsCacheForTests } from "./route";
+import { GET, POST, clearFundamentalsCacheForTests } from "./route";
 
 const { getFundamentalsSnapshot } = vi.hoisted(() => ({
   getFundamentalsSnapshot: vi.fn(async (symbol: string) => ({
@@ -54,15 +54,17 @@ describe("/api/fundamentals GET", () => {
     const req = new Request("http://localhost/api/fundamentals?symbol=AAPL");
     const res = await GET(req);
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("private, max-age=21600");
     const json = await res.json();
     expect(json.symbol).toBe("AAPL");
     expect(json.longName).toBe("Apple Inc.");
   });
 
-  it("rejects missing symbol with 400", async () => {
+  it("rejects missing symbol with 400 and omits Cache-Control", async () => {
     const req = new Request("http://localhost/api/fundamentals");
     const res = await GET(req);
     expect(res.status).toBe(400);
+    expect(res.headers.get("Cache-Control")).toBeNull();
   });
 
   it("caches identical requests", async () => {
@@ -128,5 +130,37 @@ describe("/api/fundamentals GET", () => {
     const second = await GET(new Request(url));
     expect(second.status).toBe(200);
     expect(getFundamentalsSnapshot).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("/api/fundamentals POST", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearFundamentalsCacheForTests();
+  });
+
+  it("returns batch fundamentals by symbol without Cache-Control", async () => {
+    const req = new Request("http://localhost/api/fundamentals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols: ["AAPL", "MSFT"] }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBeNull();
+    const json = await res.json();
+    expect(json.bySymbol.AAPL.symbol).toBe("AAPL");
+    expect(json.bySymbol.MSFT.symbol).toBe("MSFT");
+    expect(getFundamentalsSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects empty symbols with 400", async () => {
+    const req = new Request("http://localhost/api/fundamentals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols: [] }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
   });
 });

@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   formatTwsRecoveryPhaseMessage,
   isTwsSidecarControlAllowed,
+  killSidecarPortListener,
   recoverTwsSidecar,
   resetManagedSidecarProcessForTests,
+  resolveSidecarPort,
   EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
 } from "./recover";
 import { twsHealthGate } from "./healthGate";
@@ -511,5 +513,43 @@ describe("recoverTwsSidecar configuration guard", () => {
         isConfigured: () => false,
       }),
     ).rejects.toThrow(/not configured/i);
+  });
+});
+
+describe("resolveSidecarPort", () => {
+  afterEach(() => {
+    delete process.env.TWS_SIDECAR_PORT;
+  });
+
+  it("reads port from base URL", () => {
+    expect(resolveSidecarPort("http://127.0.0.1:8765")).toBe(8765);
+    expect(resolveSidecarPort("http://127.0.0.1:9999/status")).toBe(9999);
+  });
+
+  it("falls back to TWS_SIDECAR_PORT", () => {
+    process.env.TWS_SIDECAR_PORT = "8777";
+    expect(resolveSidecarPort("not-a-url")).toBe(8777);
+  });
+});
+
+describe("killSidecarPortListener", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("SIGTERM listeners on the sidecar port when no managed child exists", async () => {
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true as never);
+    const slept: number[] = [];
+    const killed = await killSidecarPortListener(
+      "http://127.0.0.1:8765",
+      async (ms) => {
+        slept.push(ms);
+      },
+      async () => [4242],
+    );
+
+    expect(killed).toBe(true);
+    expect(kill).toHaveBeenCalledWith(4242, "SIGTERM");
+    expect(slept).toEqual([750]);
   });
 });

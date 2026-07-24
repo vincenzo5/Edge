@@ -79,6 +79,9 @@ export const AccountOrderSchema = z.object({
   secType: z.string().nullable().optional(),
   conId: z.number().nullable().optional(),
   orderRef: z.string().nullable().optional(),
+  parentId: z.number().nullable().optional(),
+  ocaGroup: z.string().nullable().optional(),
+  outsideRth: z.boolean().nullable().optional(),
   updatedAt: z.number().optional(),
 });
 
@@ -137,6 +140,7 @@ export const WhatIfRequestSchema = z.object({
   orderType: z.enum(["LMT", "MKT", "STP", "STP LMT"]).default("LMT"),
   limitPrice: z.number().positive().optional(),
   stopPrice: z.number().positive().optional(),
+  outsideRth: z.boolean().default(false),
 });
 
 export type WhatIfRequest = z.infer<typeof WhatIfRequestSchema>;

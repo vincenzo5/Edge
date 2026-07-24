@@ -1,11 +1,11 @@
 import type { MacroSeries, EconomicRelease } from "../../contracts/macro";
 import { asFiniteNumber, asNonEmptyString } from "../../validation/parseRequest";
+import { FRED_KEYS, getConfigSource } from "../../config";
 
 const FRED_BASE = "https://api.stlouisfed.org/fred";
 
 function fredApiKey(): string | null {
-  const key = process.env.FRED_API_KEY?.trim();
-  return key ? key : null;
+  return getConfigSource().get(FRED_KEYS.apiKey) ?? null;
 }
 
 async function fredGet<T>(path: string, params: Record<string, string>): Promise<T> {

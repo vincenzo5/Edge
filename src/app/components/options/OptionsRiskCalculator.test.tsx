@@ -210,7 +210,7 @@ describe("OptionsRiskCalculator", () => {
     expect(screen.getByTestId("options-calc-payoff-grid")).toBeInTheDocument();
     expect(screen.getByTestId("options-calc-summary")).toBeInTheDocument();
     const strikeSelect = screen.getByTestId(/^options-calc-strike-/);
-    expect(strikeSelect).toHaveValue("105");
+    expect(strikeSelect).toHaveTextContent("105");
   });
 
   it("shows auto contracts badge when max risk sizes a seeded leg", () => {
@@ -257,6 +257,10 @@ describe("OptionsRiskCalculator", () => {
   });
 
   it("lists chain strikes in leg strike select", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
     render(
       <CalculatorHarness
         model={makeModel()}
@@ -268,7 +272,11 @@ describe("OptionsRiskCalculator", () => {
     );
 
     const strikeSelect = screen.getByTestId(/^options-calc-strike-/);
-    expect(strikeSelect.querySelectorAll("option")).toHaveLength(3);
+    const strikeTestId = strikeSelect.getAttribute("data-testid")!;
+    fireEvent.click(strikeSelect);
+    expect(screen.getByTestId(`${strikeTestId}-option-100`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${strikeTestId}-option-105`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${strikeTestId}-option-110`)).toBeInTheDocument();
     expect(screen.getByTestId("options-calc-payoff-grid")).toBeInTheDocument();
   });
 

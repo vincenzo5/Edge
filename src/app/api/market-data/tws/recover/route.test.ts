@@ -36,7 +36,22 @@ vi.mock("@/lib/marketData/providers/tws/finalizeTwsRecovery", () => ({
 }));
 
 vi.mock("@/lib/marketData/providers/tws/recoverySession", () => ({
-  startTwsRecoverySession: vi.fn(),
+  startTwsRecoverySession: vi.fn(() => ({
+    id: "tws-recover-test",
+    revision: { sequence: 1, generatedAt: 1_000, epoch: 1 },
+    startedAt: 1_000,
+    symbols: [],
+    candleRequests: [],
+    finalized: false,
+  })),
+  getTwsRecoverySession: vi.fn(() => ({
+    id: "tws-recover-test",
+    revision: { sequence: 1, generatedAt: 1_000, epoch: 1 },
+    startedAt: 1_000,
+    symbols: [],
+    candleRequests: [],
+    finalized: false,
+  })),
 }));
 
 vi.mock("@/lib/marketData/providers/tws/client", () => ({

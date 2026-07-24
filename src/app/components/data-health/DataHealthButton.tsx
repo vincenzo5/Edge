@@ -2,12 +2,11 @@
 
 import { useRef } from "react";
 import type { Theme } from "@/lib/chartConfig";
-import { buildHealthBadgeLabel } from "@/lib/marketData/health";
 import Tooltip from "../Tooltip";
+import { compactControlClass } from "../design-system/styles";
 import DataHealthMenu from "./DataHealthMenu";
 import HealthSeverityDot, { severityRingClass } from "./HealthSeverityDot";
 import { useDataHealth } from "./DataHealthProvider";
-import { useMarketDataQuotes } from "../MarketDataProvider";
 
 type Props = {
   theme: Theme;
@@ -22,42 +21,24 @@ export default function DataHealthButton({
 }: Props) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const { snapshot, menuOpen, setMenuOpen } = useDataHealth();
-  const marketData = useMarketDataQuotes();
-
-  const chartRow = snapshot.datasets.find((row) => row.kind === "chart");
-  const watchlistRow = snapshot.datasets.find((row) => row.kind === "watchlist");
-
-  const compactLabel = buildHealthBadgeLabel(
-    chartRow,
-    watchlistRow,
-    snapshot.severity,
-    marketData?.quotesTransport,
-  );
-
-  const titleParts = [snapshot.connectionSummary];
-  if (snapshot.recentWarnings.length > 0) {
-    titleParts.push(snapshot.recentWarnings.join("; "));
-  } else if (snapshot.severity !== "healthy") {
-    titleParts.push(`Data health: ${snapshot.severityLabel}`);
-  }
-  const title = titleParts.join(" · ");
+  const projection = snapshot.projection;
 
   return (
     <>
-      <Tooltip content={compactLabel} theme={theme} side="left" portaled>
+      <Tooltip content={projection.tooltip} theme={theme} side="left" portaled>
         <button
           ref={anchorRef}
           type="button"
-          title={title}
-          aria-label={title}
+          title={projection.accessibleLabel}
+          aria-label={projection.accessibleLabel}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           data-testid="chart-data-source-badge"
           onClick={() => setMenuOpen(!menuOpen)}
-          className={`edge-focus-ring inline-flex items-stretch overflow-hidden rounded bg-[var(--edge-surface-panel)] ring-1 transition-colors hover:bg-[var(--edge-surface-hover)] ${severityRingClass(snapshot.severity)} ${menuOpen ? "bg-[var(--edge-surface-hover)]" : ""}`}
+          className={`edge-focus-ring ${compactControlClass()} inline-flex w-[var(--edge-control-height-compact)] items-center justify-center overflow-hidden rounded bg-[var(--edge-surface-panel)] ring-1 transition-colors hover:bg-[var(--edge-surface-hover)] ${severityRingClass(projection.severity)} ${menuOpen ? "bg-[var(--edge-surface-hover)]" : ""}`}
         >
-          <span className="flex items-center px-1.5 py-0.5">
-            <HealthSeverityDot severity={snapshot.severity} size="md" />
+          <span className="flex items-center justify-center">
+            <HealthSeverityDot severity={projection.severity} size="md" />
           </span>
         </button>
       </Tooltip>

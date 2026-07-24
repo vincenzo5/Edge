@@ -18,6 +18,7 @@ import { validateCandles } from '@/lib/chart/series';
 import { applyIntervalResample, resolveFetchInterval } from '@/lib/chart/intervalAdapter';
 import type { StreamTransportFactory, StreamTransportOptions } from './streamTransport';
 import { createStreamTransport } from './streamTransportFactory';
+import { pollRangeForInterval } from './pollStreamAdapter';
 import { shouldIncludeMacroChartEvents } from './macroChartPins';
 import {
   eventMarkersToReferenceLines,
@@ -31,6 +32,14 @@ import {
 } from '@/lib/marketData/telemetry';
 import type { MarketDataPerfPhase } from '@/lib/marketData/telemetry';
 import { readDataConnectionPreference } from '@/lib/marketData/dataConnectionPreference';
+import { readDataProviderPreference } from '@/lib/marketData/dataProviderPreference';
+import {
+  buildClientCacheKey,
+  CLIENT_CACHE_TTL_MS,
+} from '@/lib/marketData/cache/clientCachePolicy';
+import { getOrFetchClientTtl } from '@/lib/marketData/cache/getOrFetchClientTtl';
+import { getSharedClientTtlCache } from '@/lib/marketData/cache/clientTtlCache';
+import { coalesceInFlight } from './coalesceInFlight';
 
 type ApiMetaPayload = Partial<ChartDataMeta> & {
   source?: string;
@@ -158,7 +167,20 @@ function normalizeMeta(partial: ApiMetaPayload | undefined): ChartDataMeta {
   };
 }
 
-async function loadRegistryEvents(request: ChartEventsRequest): Promise<ChartEventMarker[]> {
+function buildRegistryEventsCacheKey(request: ChartEventsRequest): string {
+  const includeMacro = shouldIncludeMacroChartEvents(request.symbol);
+  const families = includeMacro ? 'corporate,filing,macro' : 'corporate,filing';
+  const from = request.from != null ? dateParamFromTimestamp(request.from) : '';
+  const to = request.to != null ? dateParamFromTimestamp(request.to) : '';
+  return buildClientCacheKey('events', [
+    request.symbol.trim().toUpperCase(),
+    from,
+    to,
+    families,
+  ]);
+}
+
+async function fetchRegistryEventsFromApi(request: ChartEventsRequest): Promise<ChartEventMarker[]> {
   const includeMacro = shouldIncludeMacroChartEvents(request.symbol);
   const params = new URLSearchParams({
     symbol: request.symbol,
@@ -191,49 +213,104 @@ async function loadRegistryEvents(request: ChartEventsRequest): Promise<ChartEve
     .filter((event) => !allowed || allowed.has(event.kind));
 }
 
+async function loadRegistryEvents(request: ChartEventsRequest): Promise<ChartEventMarker[]> {
+  const key = buildRegistryEventsCacheKey(request);
+  return getOrFetchClientTtl('events', key, () => fetchRegistryEventsFromApi(request));
+}
+
 async function loadNewsEvents(request: ChartEventsRequest): Promise<ChartEventMarker[]> {
-  const params = new URLSearchParams({ symbol: request.symbol, limit: '20' });
-  const res = await fetch(`/api/news?${params.toString()}`);
-  if (!res.ok) return [];
-  const payload = (await res.json()) as ApiNewsResponse;
-  return (payload.news ?? [])
-    .map((item) => {
-      const timestamp = Date.parse(item.publishedAt);
-      return {
-        id: `news-${item.id}`,
-        kind: 'news' as const,
-        timestamp,
-        title: item.headline,
-        symbol: request.symbol,
-        price: null,
-      };
-    })
-    .filter((event) => Number.isFinite(event.timestamp));
+  const limit = '20';
+  const key = buildClientCacheKey('news', [request.symbol.trim().toUpperCase(), limit]);
+  const cache = getSharedClientTtlCache();
+  const hit = cache.get(key) as ChartEventMarker[] | undefined;
+  if (hit) return hit;
+
+  return coalesceInFlight(key, async () => {
+    const again = cache.get(key) as ChartEventMarker[] | undefined;
+    if (again) return again;
+
+    const params = new URLSearchParams({ symbol: request.symbol, limit });
+    const res = await fetch(`/api/news?${params.toString()}`);
+    if (!res.ok) return [];
+    const payload = (await res.json()) as ApiNewsResponse;
+    const markers = (payload.news ?? [])
+      .map((item) => {
+        const timestamp = Date.parse(item.publishedAt);
+        return {
+          id: `news-${item.id}`,
+          kind: 'news' as const,
+          timestamp,
+          title: item.headline,
+          symbol: request.symbol,
+          price: null,
+        };
+      })
+      .filter((event) => Number.isFinite(event.timestamp));
+    cache.set(key, markers, CLIENT_CACHE_TTL_MS.news);
+    return markers;
+  });
 }
 
 async function loadOptionsExpirationEvents(
   request: ChartEventsRequest,
 ): Promise<ChartEventMarker[]> {
-  const params = new URLSearchParams({ underlying: request.symbol });
-  const res = await fetch(`/api/options/expirations?${params.toString()}`);
-  if (!res.ok) return [];
-  const payload = (await res.json()) as ApiOptionsExpirationsResponse;
-  return (payload.expirations ?? [])
-    .map((expiration) => {
-      const timestamp = Date.parse(`${expiration}T16:00:00.000Z`);
-      return {
-        id: `opt-exp-${request.symbol}-${expiration}`,
-        kind: 'options_expiration' as const,
-        timestamp,
-        title: `Options exp ${expiration}`,
-        symbol: request.symbol,
-        price: null,
-      };
-    })
-    .filter((event) => Number.isFinite(event.timestamp));
+  const key = buildClientCacheKey('options_expirations', [request.symbol.trim().toUpperCase()]);
+  const cache = getSharedClientTtlCache();
+  const hit = cache.get(key) as ChartEventMarker[] | undefined;
+  if (hit) return hit;
+
+  return coalesceInFlight(key, async () => {
+    const again = cache.get(key) as ChartEventMarker[] | undefined;
+    if (again) return again;
+
+    const params = new URLSearchParams({ underlying: request.symbol });
+    const res = await fetch(`/api/options/expirations?${params.toString()}`);
+    if (!res.ok) return [];
+    const payload = (await res.json()) as ApiOptionsExpirationsResponse;
+    const markers = (payload.expirations ?? [])
+      .map((expiration) => {
+        const timestamp = Date.parse(`${expiration}T16:00:00.000Z`);
+        return {
+          id: `opt-exp-${request.symbol}-${expiration}`,
+          kind: 'options_expiration' as const,
+          timestamp,
+          title: `Options exp ${expiration}`,
+          symbol: request.symbol,
+          price: null,
+        };
+      })
+      .filter((event) => Number.isFinite(event.timestamp));
+    cache.set(key, markers, CLIENT_CACHE_TTL_MS.options_expirations);
+    return markers;
+  });
 }
 
 async function postCandles(
+  body: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<ApiCandlesResponse> {
+  if (signal) {
+    return postCandlesRequest(body, signal);
+  }
+  const key = buildCandleCoalesceKey(body);
+  return coalesceInFlight(key, () => postCandlesRequest(body));
+}
+
+function buildCandleCoalesceKey(body: Record<string, unknown>): string {
+  return [
+    'candles',
+    body.symbol,
+    body.interval,
+    body.range ?? '',
+    body.before ?? '',
+    body.barCount ?? '',
+    body.sessionMode ?? 'regular',
+    body.connectionId ?? '',
+    JSON.stringify(body.providerPreference ?? null),
+  ].join('|');
+}
+
+async function postCandlesRequest(
   body: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<ApiCandlesResponse> {
@@ -241,6 +318,7 @@ async function postCandles(
   const traceId = createMarketDataTraceId(scenario);
   const startedAt = Date.now();
   const connectionId = readDataConnectionPreference();
+  const providerPreference = readDataProviderPreference();
   const res = await fetch('/api/candles', {
     method: 'POST',
     headers: {
@@ -250,6 +328,7 @@ async function postCandles(
     body: JSON.stringify({
       ...body,
       ...(connectionId ? { connectionId } : {}),
+      providerPreference,
     }),
     signal,
   });
@@ -281,6 +360,34 @@ async function postCandles(
     });
   }
   return { ...payload, meta: { ...payload.meta, traceId: payload.meta?.traceId ?? traceId } };
+}
+
+async function postQuotes(symbols: string[]): Promise<ApiQuotesResponse> {
+  const connectionId = readDataConnectionPreference();
+  const providerPreference = readDataProviderPreference();
+  const key = ['quotes', ...symbols.slice().sort(), connectionId ?? '', JSON.stringify(providerPreference)].join('|');
+  return coalesceInFlight(key, () => postQuotesRequest(symbols, connectionId, providerPreference));
+}
+
+async function postQuotesRequest(
+  symbols: string[],
+  connectionId: ReturnType<typeof readDataConnectionPreference>,
+  providerPreference: ReturnType<typeof readDataProviderPreference>,
+): Promise<ApiQuotesResponse> {
+  const res = await fetch('/api/quotes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      symbols,
+      ...(connectionId ? { connectionId } : {}),
+      providerPreference,
+    }),
+  });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new Error((payload as { error?: string }).error ?? `Request failed (${res.status})`);
+  }
+  return (await res.json()) as ApiQuotesResponse;
 }
 
 function normalizeCandlePage(
@@ -316,15 +423,35 @@ export function createApiChartDataFeed(
     options.streamTransport?.(options.streamTransportOptions) ??
     createStreamTransport(options.streamTransportOptions);
 
+  async function loadPollCandles(request: ChartCandleRequest): Promise<ChartCandleResult> {
+    const { providerInterval, resampleTo } = resolveFetchInterval(request.interval);
+    const payload = await postCandles({
+      symbol: request.symbol,
+      range: pollRangeForInterval(request.interval),
+      interval: providerInterval,
+      sessionMode: request.sessionMode ?? 'regular',
+    });
+    return normalizeCandlePage(
+      request.symbol,
+      request.interval,
+      payload.candles,
+      normalizeMeta(payload.meta),
+      resampleTo,
+    );
+  }
+
   const feed: import('@edge/chart-core').ChartDataFeed = {
     async loadCandles(request: ChartCandleRequest): Promise<ChartCandleResult> {
       const { providerInterval, resampleTo } = resolveFetchInterval(request.interval);
-      const payload = await postCandles({
-        symbol: request.symbol,
-        range: request.range ?? '1y',
-        interval: providerInterval,
-        sessionMode: request.sessionMode ?? 'regular',
-      });
+      const payload = await postCandles(
+        {
+          symbol: request.symbol,
+          range: request.range ?? '1y',
+          interval: providerInterval,
+          sessionMode: request.sessionMode ?? 'regular',
+        },
+        request.signal,
+      );
       return normalizeCandlePage(
         request.symbol,
         request.interval,
@@ -355,20 +482,7 @@ export function createApiChartDataFeed(
     },
 
     async loadQuotes(request: ChartQuoteRequest): Promise<ChartQuoteResult> {
-      const connectionId = readDataConnectionPreference();
-      const res = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbols: request.symbols,
-          ...(connectionId ? { connectionId } : {}),
-        }),
-      });
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
-        throw new Error((payload as { error?: string }).error ?? `Request failed (${res.status})`);
-      }
-      const payload = (await res.json()) as ApiQuotesResponse;
+      const payload = await postQuotes(request.symbols);
       return {
         quotes: (payload.quotes ?? []).map((q) => ({
           ...q,
@@ -383,13 +497,11 @@ export function createApiChartDataFeed(
       const includeNews = !allowed || allowed.has('news');
       const includeOptions = !allowed || allowed.has('options_expiration');
 
-      const [registryEvents, newsEvents] = await Promise.all([
+      const [registryEvents, newsEvents, optionsEvents] = await Promise.all([
         loadRegistryEvents(request),
         includeNews ? loadNewsEvents(request) : Promise.resolve([]),
+        includeOptions ? loadOptionsExpirationEvents(request) : Promise.resolve([]),
       ]);
-      const optionsEvents = includeOptions
-        ? await loadOptionsExpirationEvents(request)
-        : [];
       const events = mergeOverlayEvents(registryEvents, newsEvents, optionsEvents);
       const filtered = allowed
         ? events.filter((event) => allowed.has(event.kind))
@@ -448,7 +560,7 @@ export function createApiChartDataFeed(
       return transport.subscribeCandles(
         request,
         sink,
-        async () => feed.loadCandles(request),
+        async () => loadPollCandles(request),
       );
     },
 

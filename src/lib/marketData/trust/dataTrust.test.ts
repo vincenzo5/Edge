@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDataResult } from "../contracts/result";
-import { HOT_STALE_MS } from "../hotStore";
+import { HOT_STALE_MS } from "../hotStoreConstants";
 import {
   DATASET_POLICIES,
   buildTrustMeta,
@@ -151,16 +151,29 @@ describe("dataTrust", () => {
     expect(displayFreshnessReason("watchlist_quotes", provenance, now)).toBeNull();
   });
 
-  it("marks watchlist quotes older than 60s as not display fresh", () => {
-    const now = Date.now();
+  it("marks watchlist quotes older than 60s as not display fresh when delivery is stale", () => {
+    // Wed 2025-06-25 14:00 UTC — regular US session
+    const now = Date.UTC(2025, 5, 25, 14, 0, 0);
     const provenance = provenanceFromMeta({
       source: "tws",
       stale: true,
       asOf: now - 90_000,
-      receivedAt: now,
+      receivedAt: now - 90_000,
     });
     expect(isDisplayFresh("watchlist_quotes", provenance, now)).toBe(false);
     expect(displayFreshnessReason("watchlist_quotes", provenance, now)).toMatch(/90s/);
+  });
+
+  it("treats watchlist as display fresh when delivery is recent even if quote timestamps are old", () => {
+    const now = Date.now();
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - 240_000,
+      receivedAt: now,
+    });
+    expect(isDisplayFresh("watchlist_quotes", provenance, now)).toBe(true);
+    expect(displayFreshnessReason("watchlist_quotes", provenance, now)).toBeNull();
   });
 
   it("treats chart candles within hot-stale window as display fresh even when stale flag set", () => {
@@ -177,14 +190,26 @@ describe("dataTrust", () => {
   });
 
   it("marks chart candles older than hot-stale window as not display fresh", () => {
+    const now = Date.UTC(2025, 5, 25, 14, 0, 0);
+    const provenance = provenanceFromMeta({
+      source: "tws",
+      stale: true,
+      asOf: now - HOT_STALE_MS.candles - 1_000,
+      receivedAt: now - HOT_STALE_MS.candles - 1_000,
+    });
+    expect(isDisplayFresh("chart_candles", provenance, now)).toBe(false);
+  });
+
+  it("treats chart candles as display fresh when delivery is recent even if bar asOf is older", () => {
     const now = Date.now();
     const provenance = provenanceFromMeta({
       source: "tws",
       stale: true,
       asOf: now - HOT_STALE_MS.candles - 1_000,
-      receivedAt: now,
+      receivedAt: now - 30_000,
+      cacheTier: "hot-stale",
     });
-    expect(isDisplayFresh("chart_candles", provenance, now)).toBe(false);
+    expect(isDisplayFresh("chart_candles", provenance, now)).toBe(true);
   });
 
   it("treats options chain within hot-stale window as display fresh even when stale flag set", () => {
@@ -212,12 +237,12 @@ describe("dataTrust", () => {
   });
 
   it("marks options chain older than hot-stale window as not display fresh", () => {
-    const now = Date.now();
+    const now = Date.UTC(2025, 5, 25, 14, 0, 0);
     const provenance = provenanceFromMeta({
       source: "tws",
       stale: true,
       asOf: now - HOT_STALE_MS.options_chain - 1_000,
-      receivedAt: now,
+      receivedAt: now - HOT_STALE_MS.options_chain - 1_000,
     });
     expect(isDisplayFresh("options_chain", provenance, now)).toBe(false);
   });

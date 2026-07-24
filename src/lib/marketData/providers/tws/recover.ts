@@ -1,7 +1,9 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { exec, spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
+import { getConfigSource, TWS_KEYS } from "../../config";
 import { twsHealthGate } from "./healthGate";
 import {
   createTwsClient,
@@ -63,6 +65,57 @@ function getSidecarLogPath(): string {
 
 function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const execAsync = promisify(exec);
+
+async function listSidecarListenerPids(port: number): Promise<number[]> {
+  try {
+    const { stdout } = await execAsync(`lsof -tiTCP:${port} -sTCP:LISTEN`);
+    return stdout
+      .trim()
+      .split("\n")
+      .map((row) => Number(row.trim()))
+      .filter((pid) => Number.isFinite(pid) && pid > 0);
+  } catch {
+    return [];
+  }
+}
+
+/** Sidecar HTTP port from base URL or env (matches scripts/tws-sidecar.sh). */
+export function resolveSidecarPort(baseUrl: string): number {
+  try {
+    const parsed = new URL(baseUrl);
+    if (parsed.port) {
+      const port = Number(parsed.port);
+      if (Number.isFinite(port) && port > 0) return port;
+    }
+  } catch {
+    // fall through
+  }
+  const fromEnv = Number(getConfigSource().get(TWS_KEYS.sidecarPort) ?? 8765);
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 8765;
+}
+
+/** Best-effort SIGTERM for standalone sidecars not tracked by Node (TWS_MANAGED=external). */
+export async function killSidecarPortListener(
+  baseUrl: string,
+  sleep: (ms: number) => Promise<void> = defaultSleep,
+  listListenerPids: (port: number) => Promise<number[]> = listSidecarListenerPids,
+): Promise<boolean> {
+  const port = resolveSidecarPort(baseUrl);
+  if (!Number.isFinite(port) || port <= 0) return false;
+  const pids = await listListenerPids(port);
+  if (pids.length === 0) return false;
+  for (const pid of pids) {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      // Process may already be gone.
+    }
+  }
+  await sleep(750);
+  return true;
 }
 
 /** Recovery is available whenever TWS market data is configured. */
@@ -262,6 +315,8 @@ async function defaultRestartSidecar(
     managedSidecarProcess = null;
     managedSidecarInstanceId = null;
     await sleep(750);
+  } else {
+    await killSidecarPortListener(baseUrl, sleep);
   }
 
   await startSidecar();

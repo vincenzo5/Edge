@@ -11,7 +11,11 @@ import MarketDataLatencyDiagnosticsView, {
   formatTelemetryMs,
 } from "./MarketDataLatencyDiagnosticsView";
 
-export default function DataHealthLatencySection() {
+type Props = {
+  nested?: boolean;
+};
+
+export default function DataHealthLatencySection({ nested = false }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const enabled = isMarketDataTelemetryEnabled();
@@ -43,7 +47,7 @@ export default function DataHealthLatencySection() {
   const sessionElapsedMs = Date.now() - snapshot.sessionStartedAt;
 
   return (
-    <div className="mb-3" data-testid="data-health-latency-section">
+    <div className={nested ? "" : "mb-3"} data-testid="data-health-latency-section">
       <button
         type="button"
         className="flex w-full items-center justify-between gap-2 rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] px-2 py-1.5 text-left hover:bg-[var(--edge-surface-hover)]"

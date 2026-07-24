@@ -1,4 +1,5 @@
 import { asFiniteNumber, asNonEmptyString } from "../../validation/parseRequest";
+import { FMP_KEYS, getConfigSource } from "../../config";
 
 export type FmpFetchResult<T> = {
   data: T;
@@ -6,8 +7,7 @@ export type FmpFetchResult<T> = {
 };
 
 export function fmpApiKey(): string | null {
-  const key = process.env.FMP_API_KEY?.trim();
-  return key ? key : null;
+  return getConfigSource().get(FMP_KEYS.apiKey) ?? null;
 }
 
 export const FMP_BASE = "https://financialmodelingprep.com/stable";

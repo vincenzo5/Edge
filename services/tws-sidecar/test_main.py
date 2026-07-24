@@ -98,6 +98,29 @@ class ExecutionMappingTests(unittest.TestCase):
             self.assertEqual(main._account_executions[0]["realizedPNL"], 50.0)
 
 
+class EphemeralAccountIdTests(unittest.TestCase):
+    class _Ib:
+        def __init__(self, managed: list[str]) -> None:
+            self._managed = managed
+
+        def managedAccounts(self) -> list[str]:
+            return self._managed
+
+    def test_ephemeral_uses_live_account_pin_not_paper(self) -> None:
+        with mock.patch.object(main, "TWS_ACCOUNT_ID", "DUP586813"), mock.patch.object(
+            main, "TWS_LIVE_ACCOUNT_ID", "U25026894"
+        ):
+            account_id = main._resolve_ephemeral_account_id(self._Ib(["DUP586813"]))
+        self.assertEqual(account_id, "U25026894")
+
+    def test_ephemeral_falls_back_to_managed_when_live_pin_unset(self) -> None:
+        with mock.patch.object(main, "TWS_ACCOUNT_ID", "DUP586813"), mock.patch.object(
+            main, "TWS_LIVE_ACCOUNT_ID", ""
+        ):
+            account_id = main._resolve_ephemeral_account_id(self._Ib(["U25026894"]))
+        self.assertEqual(account_id, "U25026894")
+
+
 class AccountCacheTests(unittest.TestCase):
     def setUp(self) -> None:
         with main._account_lock:
@@ -151,6 +174,99 @@ class AccountCacheTests(unittest.TestCase):
         self.assertIsNone(rows[0]["marketPrice"])
         self.assertIsNone(rows[0]["unrealizedPNL"])
 
+    def test_merge_ephemeral_position_rows_prefers_portfolio_market_data(self) -> None:
+        portfolio_rows = [
+            {
+                "account": "U123",
+                "contract": {"symbol": "HOOD", "conId": 12345},
+                "position": 700.0,
+                "avgCost": 103.10,
+                "marketPrice": 108.02,
+                "marketValue": 75614.0,
+                "unrealizedPNL": 3441.0,
+                "updatedAt": 2,
+            }
+        ]
+        raw_rows = [
+            {
+                "account": "U123",
+                "contract": {"symbol": "HOOD", "conId": 12345},
+                "position": 700.0,
+                "avgCost": 103.10,
+                "updatedAt": 1,
+            }
+        ]
+        rows = main._merge_ephemeral_position_rows(portfolio_rows, raw_rows)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["marketPrice"], 108.02)
+        self.assertEqual(rows[0]["unrealizedPNL"], 3441.0)
+
+
+class EphemeralPnLTests(unittest.TestCase):
+    def test_ephemeral_pnl_reads_existing_subscription(self) -> None:
+        pnl_obj = mock.MagicMock()
+        pnl_obj.dailyPnL = 125.5
+        pnl_obj.unrealizedPnL = 500.0
+        pnl_obj.realizedPnL = -25.0
+        ib = mock.MagicMock()
+        ib.pnl.return_value = [pnl_obj]
+        with mock.patch.object(main, "_resolve_ephemeral_account_id", return_value="U123"):
+            payload = main._ephemeral_pnl(ib)
+        self.assertEqual(payload["account"], "U123")
+        self.assertEqual(payload["dailyPnL"], 125.5)
+        self.assertEqual(payload["unrealizedPnL"], 500.0)
+        ib.reqPnL.assert_not_called()
+
+    def test_ephemeral_pnl_subscribes_when_missing(self) -> None:
+        pnl_obj = mock.MagicMock()
+        pnl_obj.dailyPnL = 10.0
+        pnl_obj.unrealizedPnL = 20.0
+        pnl_obj.realizedPnL = 0.0
+        ib = mock.MagicMock()
+        ib.pnl.side_effect = [[], [pnl_obj]]
+        with mock.patch.object(main, "_resolve_ephemeral_account_id", return_value="U123"):
+            payload = main._ephemeral_pnl(ib)
+        self.assertEqual(payload["dailyPnL"], 10.0)
+        ib.reqPnL.assert_called_once_with("U123")
+        ib.cancelPnL.assert_called_once_with("U123")
+
+    def test_ephemeral_pnl_persistent_connection_keeps_subscription(self) -> None:
+        pnl_obj = mock.MagicMock()
+        pnl_obj.dailyPnL = 15.0
+        pnl_obj.unrealizedPnL = 30.0
+        pnl_obj.realizedPnL = 0.0
+        ib = mock.MagicMock()
+        ib.pnl.return_value = [pnl_obj]
+        with mock.patch.object(main, "_resolve_ephemeral_account_id", return_value="U123"):
+            with mock.patch.object(main, "_ensure_extra_account_subscriptions") as ensure:
+                payload = main._ephemeral_pnl(ib, main.IB_LIVE_CONNECTION_ID)
+        self.assertEqual(payload["dailyPnL"], 15.0)
+        ensure.assert_called_once_with(ib, main.IB_LIVE_CONNECTION_ID)
+        ib.cancelPnL.assert_not_called()
+
+
+class EphemeralPositionMarketDataTests(unittest.TestCase):
+    def test_seed_ephemeral_position_market_data_fills_missing_pnl(self) -> None:
+        ib = mock.MagicMock()
+        ticker = mock.MagicMock()
+        ticker.last = 25.5
+        ticker.close = None
+        ib.qualifyContracts.return_value = [mock.MagicMock()]
+        ib.reqMktData.return_value = ticker
+        rows = main._seed_ephemeral_position_market_data(
+            ib,
+            [
+                {
+                    "account": "U123",
+                    "contract": {"symbol": "BRUN", "conId": 999},
+                    "position": 1400.0,
+                    "avgCost": 24.91,
+                }
+            ],
+        )
+        self.assertEqual(rows[0]["marketPrice"], 25.5)
+        self.assertEqual(rows[0]["unrealizedPNL"], (25.5 - 24.91) * 1400.0)
+
 
 class HealthEndpointTests(unittest.TestCase):
     def test_health_includes_ownership_fields(self) -> None:
@@ -175,6 +291,11 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(live["port"], main.TWS_LIVE_PORT)
         self.assertIn("gatewayConnected", paper)
         self.assertIn("gatewayConnected", live)
+        for row in (paper, live):
+            self.assertIn("connectionState", row)
+            self.assertIn("observationConfidence", row)
+            self.assertIn("observedAt", row)
+            self.assertIn("subscriptionsLost", row)
 
 
 class SidecarSecretTests(unittest.TestCase):
@@ -540,7 +661,11 @@ class AutoReconnectSupervisorTests(unittest.TestCase):
         _mock_trading: mock.MagicMock,
         mock_reconnect: mock.MagicMock,
     ) -> None:
-        mock_reconnect.return_value = {"gatewayConnected": True}
+        def reconnect_with_worker_loop() -> dict[str, bool]:
+            self.assertFalse(main.asyncio.get_event_loop().is_closed())
+            return {"gatewayConnected": True}
+
+        mock_reconnect.side_effect = reconnect_with_worker_loop
         main._record_ib_error(1100, "Connectivity lost")
         with main._auto_reconnect_lock:
             thread = main._auto_reconnect_thread
@@ -596,6 +721,91 @@ class ConnectionRoutingEndpointTests(unittest.TestCase):
         response = self.client.get("/stream/quotes?symbols=AAPL&connectionId=bogus")
         self.assertEqual(response.status_code, 400)
         self.assertIn("Unknown connectionId", response.json()["detail"])
+
+
+class AccountStatusWarmCacheTests(unittest.TestCase):
+    def setUp(self) -> None:
+        main._ib = None
+        with main._account_lock:
+            main._managed_accounts.clear()
+            main._account_id = ""
+            main._account_subscriptions_active = False
+
+    def test_primary_account_status_uses_warm_cache_without_ib_queue(self) -> None:
+        with main._account_lock:
+            main._managed_accounts[:] = ["DUP586813"]
+            main._account_id = "DUP586813"
+            main._account_subscriptions_active = True
+
+        with mock.patch.object(main, "run_on_ib_thread") as run_on_ib_thread:
+            body = main.account_status(connectionId="ib-paper")
+
+        self.assertEqual(body["managedAccounts"], ["DUP586813"])
+        self.assertEqual(body["accountId"], "DUP586813")
+        run_on_ib_thread.assert_not_called()
+
+
+class HistoricalDataTimeoutTests(unittest.TestCase):
+    def test_historical_timeout_is_below_default_ib_job_wait(self) -> None:
+        self.assertLess(main.HISTORICAL_DATA_TIMEOUT_SEC, main.DEFAULT_IB_JOB_WAIT_SEC)
+
+
+class ContractCharacterizationTests(unittest.TestCase):
+    """Frozen HTTP contract shapes — must pass unchanged through refactor."""
+
+    REQUIRED_HEALTH_KEYS = frozenset(
+        {
+            "ok",
+            "timestamp",
+            "startedAt",
+            "version",
+            "pid",
+            "instanceId",
+            "managedBy",
+            "host",
+            "port",
+            "clientId",
+            "sidecarPort",
+            "capabilities",
+        }
+    )
+
+    REQUIRED_STATUS_KEYS = frozenset(
+        {
+            "configured",
+            "sidecarReachable",
+            "gatewayConnected",
+            "connectionState",
+            "diagnostics",
+            "connections",
+            "warnings",
+        }
+    )
+
+    REQUIRED_CAPABILITY_KEYS = frozenset(
+        {"controlRecovery", "controlReconnect", "streamQuotes", "brokerage"}
+    )
+
+    def test_health_contract_shape(self) -> None:
+        body = main.health()
+        self.assertTrue(set(body.keys()) >= self.REQUIRED_HEALTH_KEYS)
+        caps = body["capabilities"]
+        self.assertTrue(set(caps.keys()) >= self.REQUIRED_CAPABILITY_KEYS)
+
+    def test_status_contract_shape(self) -> None:
+        body = main._status_payload()
+        self.assertTrue(set(body.keys()) >= self.REQUIRED_STATUS_KEYS)
+        diagnostics = body["diagnostics"]
+        self.assertIn("recovery", diagnostics)
+        self.assertIn("workerWedged", diagnostics)
+        self.assertIn("queueDepth", diagnostics)
+
+    def test_connections_map_has_paper_and_live(self) -> None:
+        connections = main._connections_map()
+        self.assertEqual(
+            set(connections.keys()),
+            {main.PRIMARY_CONNECTION_ID, main.IB_LIVE_CONNECTION_ID},
+        )
 
 
 if __name__ == "__main__":

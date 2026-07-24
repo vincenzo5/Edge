@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { HOT_STALE_MS } from "./hotStore";
+import { describe, expect, it, vi } from "vitest";
+import { HOT_STALE_MS } from "./hotStoreConstants";
 import {
   buildChartDatasetRow,
   buildConnectionSummary,
   buildDataPreferenceRow,
   buildDatasetChips,
   buildHealthCaveatSubtitle,
+  buildHealthSessionSubtitle,
   buildHealthSummary,
   buildHealthCompactSummary,
   buildIbSocketRows,
@@ -91,6 +92,65 @@ describe("marketData health", () => {
     expect(deriveOverallSeverity(datasets, providers)).toBe("degraded");
   });
 
+  it("degrades research providers after an old successful delivery", () => {
+    const rows = buildProviderRows({
+      tws: {
+        configured: false,
+        sidecarReachable: false,
+        gatewayConnected: false,
+        warnings: [],
+      },
+      twsGate: {
+        skipUntil: 0,
+        lastFailure: null,
+        failureCount: 0,
+        lastSuccessAt: 0,
+      },
+      fmpConfigured: true,
+      deliveryDiagnostics: [
+        {
+          datasetId: "fmp_profile",
+          source: "fmp",
+          routeAttemptCount: 1,
+          lastSuccessAt: Date.now() - 16 * 60_000,
+          warnings: [],
+        },
+      ],
+    });
+
+    expect(rows.find((row) => row.id === "fmp")?.status).toBe("degraded");
+  });
+
+  it("degrades a provider after a recent terminal delivery failure", () => {
+    const rows = buildProviderRows({
+      tws: {
+        configured: false,
+        sidecarReachable: false,
+        gatewayConnected: false,
+        warnings: [],
+      },
+      twsGate: {
+        skipUntil: 0,
+        lastFailure: null,
+        failureCount: 0,
+        lastSuccessAt: 0,
+      },
+      fmpConfigured: true,
+      deliveryDiagnostics: [
+        {
+          datasetId: "fmp_profile",
+          source: "fmp",
+          routeAttemptCount: 1,
+          lastSuccessAt: Date.now(),
+          lastFailureAt: Date.now(),
+          warnings: [],
+        },
+      ],
+    });
+
+    expect(rows.find((row) => row.id === "fmp")?.status).toBe("degraded");
+  });
+
   it("merges client and server snapshots with summary label", () => {
     const snapshot = mergeHealthSnapshot(
       {
@@ -131,7 +191,7 @@ describe("marketData health", () => {
 
     expect(snapshot.severityLabel).toBe(severityLabel(snapshot.severity));
     expect(snapshot.summary).toContain("TWS");
-    expect(snapshot.datasets).toHaveLength(4);
+    expect(snapshot.datasets).toHaveLength(3);
     expect(snapshot.providers.length).toBeGreaterThan(0);
   });
 
@@ -171,7 +231,7 @@ describe("marketData health", () => {
       "AAPL · 1D",
     );
     const watchlist = buildWatchlistDatasetRow(null, "0 symbols", false, null, "rest");
-    expect(buildHealthCompactSummary(chart, watchlist, "healthy")).toBe("TWS · live");
+    expect(buildHealthCompactSummary(chart, watchlist, "healthy")).toBe("TWS · streaming");
   });
 
   it("builds compact summary for mixed chart and watchlist sources", () => {
@@ -186,7 +246,7 @@ describe("marketData health", () => {
       null,
       "sse",
     );
-    expect(buildHealthCompactSummary(chart, watchlist, "degraded")).toBe("YAHOO/TWS · live");
+    expect(buildHealthCompactSummary(chart, watchlist, "degraded")).toBe("YAHOO/TWS · streaming");
   });
 
   it("builds provisional TWS provider rows from client skip warnings", () => {
@@ -242,6 +302,7 @@ describe("marketData health", () => {
       detail: "Sidecar ok · Gateway disconnected",
       circuitOpen: true,
       circuitReason: "gateway_disconnected",
+      requiresManualRecovery: true,
     };
     expect(twsRecoveryButtonLabel(degraded)).toBe("Reconnect TWS");
     expect(shouldShowTwsRecovery({ ...degraded, status: "healthy" })).toBe(false);
@@ -285,7 +346,7 @@ describe("marketData health", () => {
     expect(reconnecting.find((row) => row.id === "tws")?.detail).toMatch(/Reconnecting/i);
   });
 
-  it("never includes IBKR Client Portal in provider rows", () => {
+  it("includes IBKR Client Portal as disabled when not configured", () => {
     const providers = buildProviderRows({
       tws: {
         configured: true,
@@ -301,7 +362,7 @@ describe("marketData health", () => {
       },
     });
 
-    expect(providers.some((row) => row.id === "ibkr")).toBe(false);
+    expect(providers.find((row) => row.id === "ibkr")?.status).toBe("disabled");
     expect(providers.find((row) => row.id === "tws")?.label).toBe("IB Gateway");
   });
 
@@ -352,7 +413,7 @@ describe("marketData health", () => {
     const summary = buildConnectionSummary([], { connectionRows, dataPreference });
 
     expect(summary.label).toContain("Paper: ok");
-    expect(summary.label).toContain("Live: down");
+    expect(summary.label).toContain("Live: retrying");
     expect(summary.label).toContain("Live data");
     expect(summary.severity).toBe("degraded");
   });
@@ -392,7 +453,7 @@ describe("marketData health", () => {
 
     expect(snapshot.connectionRows).toHaveLength(2);
     expect(snapshot.dataPreference?.label).toBe("Live data");
-    expect(snapshot.connectionSummary).toContain("Live: down");
+    expect(snapshot.connectionSummary).toContain("Live: retrying");
   });
 
   it("classifies transport timeouts as events, not incidents", () => {
@@ -425,8 +486,8 @@ describe("marketData health", () => {
     expect(formatDatasetLine(row, now)).not.toContain("stale");
   });
 
-  it("marks watchlist degraded when quote age exceeds display max", () => {
-    const now = Date.now();
+  it("marks watchlist degraded when delivery age exceeds display max", () => {
+    const now = Date.UTC(2025, 5, 25, 14, 0, 0);
     const row = buildWatchlistDatasetRow(
       {
         source: "tws",
@@ -439,10 +500,52 @@ describe("marketData health", () => {
       null,
       "rest",
       now - 90_000,
+      now - 90_000,
     );
 
     expect(deriveDatasetSeverity(row)).toBe("degraded");
-    expect(buildHealthCaveatSubtitle([row])).toMatch(/90s old/i);
+    expect(buildHealthCaveatSubtitle([row], now)).toMatch(/90s old/i);
+  });
+
+  it("stays healthy when watchlist quote timestamps are old but delivery is fresh", () => {
+    const now = Date.now();
+    const row = buildWatchlistDatasetRow(
+      {
+        source: "tws",
+        asOf: now - 240_000,
+        stale: true,
+        cacheTier: "hot-stale",
+      },
+      "1/1 symbols · rest",
+      false,
+      null,
+      "rest",
+      now - 240_000,
+      now,
+    );
+
+    expect(deriveDatasetSeverity(row)).toBe("healthy");
+    expect(buildHealthCaveatSubtitle([row])).toBeNull();
+  });
+
+  it("shows closed-market session subtitle when delivery is healthy", () => {
+    vi.useFakeTimers();
+    const saturday = new Date("2026-07-18T15:00:00.000Z");
+    vi.setSystemTime(saturday);
+    const now = Date.now();
+    const row = buildWatchlistDatasetRow(
+      { source: "tws", asOf: now - 240_000, stale: false },
+      "1/1 symbols · rest",
+      false,
+      null,
+      "rest",
+      now - 240_000,
+      now,
+    );
+    expect(buildHealthSessionSubtitle([row], "healthy", now)).toBe(
+      "Market closed · quotes current",
+    );
+    vi.useRealTimers();
   });
 
   it("stays healthy when TWS chart hot-stale cache is within display age", () => {
@@ -466,11 +569,12 @@ describe("marketData health", () => {
   });
 
   it("marks chart degraded when candle age exceeds display max", () => {
-    const now = Date.now();
+    const now = Date.UTC(2025, 5, 25, 14, 0, 0);
     const row = buildChartDatasetRow(
       {
         source: "tws",
         asOf: now - HOT_STALE_MS.candles - 60_000,
+        lastUpdateAt: now - HOT_STALE_MS.candles - 60_000,
         stale: true,
         cacheTier: "hot-stale",
       },
@@ -516,11 +620,12 @@ describe("marketData health", () => {
   });
 
   it("marks options chain degraded when age exceeds display max", () => {
-    const now = Date.now();
+    const now = Date.UTC(2025, 5, 25, 14, 0, 0);
     const row = buildOptionsDatasetRow(
       {
         source: "tws",
         asOf: now - HOT_STALE_MS.options_chain - 60_000,
+        lastUpdateAt: now - HOT_STALE_MS.options_chain - 60_000,
         stale: true,
         cacheTier: "hot-stale",
       },
@@ -605,6 +710,7 @@ describe("marketData health", () => {
         null,
         "rest",
         Date.now() - 5_000,
+        Date.now(),
       ),
       buildWatchlistDatasetRow(null, undefined, false, null, "rest"),
     ];
@@ -766,12 +872,62 @@ describe("marketData health", () => {
 
     const chips = buildDatasetChips(row, now);
     expect(chips.map((chip) => chip.label)).toEqual(
-      expect.arrayContaining(["AAPL", "1D", "TWS", "Live", "8s ago", "120ms", "display-only"]),
+      expect.arrayContaining(["AAPL", "1D", "TWS", "Streaming", "8s ago", "120ms", "display-only"]),
     );
   });
 
   it("returns empty chips for not_loaded datasets", () => {
     const row = buildOptionsDatasetRow(null, undefined, undefined);
     expect(buildDatasetChips(row)).toEqual([]);
+  });
+
+  it("does not require manual recovery when circuit bypasses with last-known connected gateway", () => {
+    const now = Date.now();
+    const providers = buildProviderRows({
+      tws: {
+        configured: true,
+        sidecarReachable: true,
+        gatewayConnected: true,
+        observationConfidence: "last_known",
+        observedAt: now - 12_000,
+        circuitBypassed: true,
+        warnings: [],
+      },
+      twsGate: {
+        skipUntil: now + 30_000,
+        lastFailure: "request_timeout",
+        failureCount: 1,
+        lastSuccessAt: now - 12_000,
+      },
+    });
+    const tws = providers.find((row) => row.id === "tws");
+    expect(tws?.detail).toContain("Temporarily bypassed");
+    expect(tws?.detail).not.toContain("Gateway disconnected");
+    expect(tws?.requiresManualRecovery).toBe(false);
+    expect(shouldShowTwsRecovery(tws)).toBe(false);
+  });
+
+  it("keeps last-known paper socket connected during circuit bypass", () => {
+    const now = Date.now();
+    const rows = buildIbSocketRows({
+      configured: true,
+      sidecarReachable: true,
+      gatewayConnected: true,
+      observationConfidence: "last_known",
+      observedAt: now - 15_000,
+      circuitBypassed: true,
+      host: "127.0.0.1",
+      port: 4002,
+      warnings: [],
+      connections: {
+        "ib-paper": {
+          gatewayConnected: true,
+          host: "127.0.0.1",
+          port: 4002,
+        },
+      },
+    });
+    expect(rows[0]?.status).toBe("healthy");
+    expect(rows[0]?.detail).toContain("Last known connected");
   });
 });

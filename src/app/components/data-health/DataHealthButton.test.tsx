@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import * as chartCore from "@edge/chart-core";
 import { ActiveChartProvider } from "../ActiveChartContext";
 import { DataHealthProvider } from "./DataHealthProvider";
 import DataHealthButton from "./DataHealthButton";
@@ -38,6 +39,7 @@ vi.mock("../MarketDataProvider", () => ({
     quotesMeta: {
       source: "tws",
       asOf: Date.now(),
+      lastUpdateAt: Date.now(),
       stale: false,
       cacheTier: "cold",
       warnings: [],
@@ -102,7 +104,7 @@ describe("DataHealthButton", () => {
     await waitFor(() => {
       expect(badge).toHaveAttribute(
         "aria-label",
-        expect.stringMatching(/Connected · IB Gateway ok/i),
+        expect.stringMatching(/Current/i),
       );
     });
 
@@ -110,13 +112,14 @@ describe("DataHealthButton", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Data Health")).toBeTruthy();
-      expect(screen.getByText(/Connected · IB Gateway ok/i)).toBeTruthy();
+      expect(screen.getByText(/Current data/i)).toBeTruthy();
       expect(screen.getByTestId("data-health-dataset-chart")).toBeTruthy();
       expect(screen.getByTestId("data-health-dataset-watchlist")).toBeTruthy();
     });
   });
 
   it("shows healthy badge when chart is hot-stale but display-fresh", async () => {
+    vi.spyOn(chartCore, "classifyUsEquitySession").mockReturnValue("closed");
     chartMetaState.value = {
       source: "tws",
       asOf: Date.now() - 30_000,
@@ -135,25 +138,33 @@ describe("DataHealthButton", () => {
     fireEvent.click(badge);
 
     await waitFor(() => {
-      expect(screen.getByText(/All loaded datasets ready/i)).toBeInTheDocument();
+      expect(screen.getByTestId("data-health-session-subtitle")).toHaveTextContent(
+        /Market closed · quotes current/i,
+      );
     });
   });
 
-  it("shows collapsible latency diagnostics in menu when telemetry enabled", async () => {
+  it("shows collapsible latency diagnostics inside diagnostics when telemetry enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_MARKET_DATA_TELEMETRY", "1");
     renderWithProviders(<DataHealthButton theme="dark" />);
 
     fireEvent.click(screen.getByTestId("chart-data-source-badge"));
 
     await waitFor(() => {
+      expect(screen.getByTestId("data-health-diagnostics-toggle")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("data-health-diagnostics-toggle"));
+
+    await waitFor(() => {
       expect(screen.getByTestId("data-health-latency-section")).toBeInTheDocument();
     });
 
     expect(screen.getByTestId("data-health-latency-toggle")).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByTestId("data-health-latency-diagnostics")).not.toBeInTheDocument();
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 });

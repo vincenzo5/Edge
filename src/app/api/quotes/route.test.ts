@@ -84,6 +84,7 @@ describe("/api/quotes POST", () => {
         allowedForTradingDecision: false,
       },
     });
+    expect(typeof json.meta.receivedAt).toBe("number");
   });
 
   it("rejects missing symbols with 400", async () => {

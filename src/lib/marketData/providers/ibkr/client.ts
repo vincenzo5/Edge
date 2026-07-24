@@ -3,6 +3,11 @@ import { assertIbkrPathAllowed, normalizeIbkrPath } from "./allowlist";
 import { extractOptionMonthsFromSecdef } from "./secdefUtils";
 import { createRequestThrottle } from "./requestThrottle";
 import { asFiniteNumber, asNonEmptyString } from "../../validation/parseRequest";
+import {
+  CONFIG_DEFAULTS,
+  getConfigSource,
+  IBKR_KEYS,
+} from "../../config";
 
 export function parseConid(value: unknown): number | null {
   if (typeof value === "number") return asFiniteNumber(value);
@@ -119,14 +124,15 @@ function getDispatcher(sslVerify: boolean): Agent | undefined {
 }
 
 function readConfig(): IbkrClientConfig & { competeSession: boolean } {
-  const enabled = process.env.IBKR_ENABLED?.trim() === "true";
+  const config = getConfigSource();
+  const enabled = config.get(IBKR_KEYS.enabled) === "true";
   if (!enabled) {
     throw new Error("IBKR_ENABLED is not true");
   }
-  const baseUrl = process.env.IBKR_BASE_URL?.trim() ?? "https://localhost:5000/v1/api";
-  const sslVerify = process.env.IBKR_SSL_VERIFY?.trim() === "true";
-  const readOnly = process.env.IBKR_READ_ONLY?.trim() !== "false";
-  const competeSession = process.env.IBKR_COMPETE_SESSION?.trim() === "true";
+  const baseUrl = config.get(IBKR_KEYS.baseUrl) ?? CONFIG_DEFAULTS.ibkrBaseUrl;
+  const sslVerify = config.get(IBKR_KEYS.sslVerify) !== "false";
+  const readOnly = config.get(IBKR_KEYS.readOnly) !== "false";
+  const competeSession = config.get(IBKR_KEYS.competeSession) === "true";
   return {
     baseUrl: baseUrl.replace(/\/$/, ""),
     sslVerify,
@@ -136,7 +142,7 @@ function readConfig(): IbkrClientConfig & { competeSession: boolean } {
 }
 
 export function isIbkrConfigured(): boolean {
-  return process.env.IBKR_ENABLED?.trim() === "true";
+  return getConfigSource().get(IBKR_KEYS.enabled) === "true";
 }
 
 export function getIbkrClientConfig(): IbkrClientConfig | null {

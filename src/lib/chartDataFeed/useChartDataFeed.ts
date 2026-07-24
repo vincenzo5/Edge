@@ -10,12 +10,14 @@ import type {
   MarketSessionMode,
   Range,
 } from '@edge/chart-core';
-import { applyCandleStreamEvent, mergeCandlesPrepend } from '@edge/chart-core';
+import { applyCandleStreamEvent, intervalToMs, mergeCandlesPrepend, trimResidentBars } from '@edge/chart-core';
 import { recordMarketDataTelemetry, type MarketDataPerfPhase } from '@/lib/marketData/telemetry';
 import {
   buildChartClientCacheKey,
+  patchChartClientCacheHasMore,
   readChartClientCache,
   writeChartClientCache,
+  writeMergedChartClientCache,
 } from './chartClientCache';
 
 export type UseChartDataFeedOptions = {
@@ -63,12 +65,13 @@ function buildMeta(
   },
 ): ChartDataMeta | null {
   if (!base) return null;
+  const lastUpdateAt = extras.lastUpdateAt ?? base.lastUpdateAt ?? base.asOf;
   return {
     ...base,
     streaming: extras.streaming,
     streamError: extras.streamError,
-    lastUpdateAt: extras.lastUpdateAt ?? base.lastUpdateAt ?? base.asOf,
-    stale: extras.stale || base.stale,
+    lastUpdateAt,
+    stale: extras.stale,
   };
 }
 
@@ -122,6 +125,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
   useEffect(() => {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
+    const abortController = new AbortController();
     const generation = ++fetchGenerationRef.current;
     const requestKey = buildChartClientCacheKey({
       symbol,
@@ -193,25 +197,60 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
         case 'snapshot':
         case 'append':
         case 'replace-latest': {
-          const applied = applyCandleStreamEvent(candlesRef.current, event);
+          // Poll primes independently of the chart tip. A replace-latest whose
+          // timestamp is a full bar ahead is a real new bar that arrived while
+          // the chart was loading — apply as append so we do not drop the tip.
+          let applyEvent = event;
+          if (event.type === 'replace-latest') {
+            const chartLast = candlesRef.current[candlesRef.current.length - 1];
+            if (
+              chartLast &&
+              event.candle.t > chartLast.t &&
+              event.candle.t - chartLast.t >= intervalToMs(interval)
+            ) {
+              applyEvent = { type: 'append', candle: event.candle, meta: event.meta };
+            }
+          }
+          const applied = applyCandleStreamEvent(candlesRef.current, applyEvent);
           candlesRef.current = applied.candles;
           setCandles(applied.candles);
+          const now = Date.now();
           const nextMeta = buildMeta(applied.meta ?? event.meta, {
             ...streamStateRef.current,
             stale: false,
             streamError: null,
-            lastUpdateAt: Date.now(),
+            lastUpdateAt: now,
           });
           setMeta(nextMeta);
           streamStateRef.current = {
             ...streamStateRef.current,
             stale: false,
             streamError: null,
-            lastUpdateAt: Date.now(),
+            lastUpdateAt: now,
           };
           setStale(false);
           setStreamError(null);
-          setLastUpdateAt(Date.now());
+          setLastUpdateAt(now);
+          break;
+        }
+        case 'refresh': {
+          const now = Date.now();
+          const nextMeta = buildMeta(event.meta, {
+            ...streamStateRef.current,
+            stale: false,
+            streamError: null,
+            lastUpdateAt: now,
+          });
+          setMeta(nextMeta);
+          streamStateRef.current = {
+            ...streamStateRef.current,
+            stale: false,
+            streamError: null,
+            lastUpdateAt: now,
+          };
+          setStale(false);
+          setStreamError(null);
+          setLastUpdateAt(now);
           break;
         }
         case 'stale':
@@ -249,11 +288,24 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
           interval,
           range,
           sessionMode,
+          signal: abortController.signal,
         });
         if (cancelled || generation !== fetchGenerationRef.current) return;
-        candlesRef.current = result.candles;
-        setCandles(result.candles);
         const loadedAt = Date.now();
+        const resultMeta = result.meta ?? DEFAULT_META;
+        const leftHistory = reloadTriggered ? [] : candlesRef.current;
+        const mergedCandlesRaw =
+          !reloadTriggered && leftHistory.length > 0
+            ? mergeCandlesPrepend(result.candles, leftHistory)
+            : result.candles;
+        const { candles: mergedCandles } = trimResidentBars(mergedCandlesRaw);
+        const mergedHasMore = reloadTriggered
+          ? (result.hasMore ?? result.candles.length > 0)
+          : (result.hasMore ??
+              readChartClientCache(requestKey)?.hasMore ??
+              mergedCandles.length > result.candles.length);
+        candlesRef.current = mergedCandles;
+        setCandles(mergedCandles);
         recordMarketDataTelemetry('chart.candles.firstPaint', {
           traceId: result.meta?.traceId,
           scenario: `chart-load:${symbol}:${interval}:${range ?? '1y'}`,
@@ -277,20 +329,30 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
         setMeta(
           buildMeta(result.meta ?? DEFAULT_META, {
             streaming: false,
-            stale: result.meta?.stale ?? false,
+            stale: false,
             streamError: null,
             lastUpdateAt: loadedAt,
           }),
         );
-        setHasMore(result.hasMore ?? result.candles.length > 0);
-        setStale(result.meta?.stale ?? false);
+        setHasMore(mergedHasMore);
+        setStale(false);
         setRefreshing(false);
-        writeChartClientCache(requestKey, {
-          candles: result.candles,
-          meta: result.meta ?? DEFAULT_META,
-          hasMore: result.hasMore ?? result.candles.length > 0,
-          asOf: loadedAt,
-        });
+        if (reloadTriggered) {
+          writeChartClientCache(requestKey, {
+            candles: mergedCandles,
+            meta: resultMeta,
+            hasMore: mergedHasMore,
+            asOf: loadedAt,
+          });
+        } else {
+          writeMergedChartClientCache(requestKey, {
+            rightEdgeCandles: result.candles,
+            leftHistoryCandles: leftHistory.length > 0 ? leftHistory : undefined,
+            meta: resultMeta,
+            hasMore: mergedHasMore,
+            asOf: loadedAt,
+          });
+        }
 
         if (live && feedRef.current.subscribeCandles) {
           unsubscribe = feedRef.current.subscribeCandles(
@@ -326,6 +388,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
 
     return () => {
       cancelled = true;
+      abortController.abort();
       unsubscribe?.();
       applyStreamState({ streaming: false });
     };
@@ -334,6 +397,13 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
   const loadMore = useCallback(async (beforeTimestampMs: number): Promise<Candle[]> => {
     const loader = feedRef.current.loadMoreCandles;
     if (!loader) return [];
+    const cacheKey = buildChartClientCacheKey({
+      symbol,
+      exchange,
+      interval,
+      range,
+      sessionMode,
+    });
     const result = await loader({
       symbol,
       exchange,
@@ -343,17 +413,26 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
     });
     if (result.candles.length === 0) {
       setHasMore(false);
+      patchChartClientCacheHasMore(cacheKey, false);
       return [];
     }
-    const merged = mergeCandlesPrepend(candlesRef.current, result.candles);
+    const mergedRaw = mergeCandlesPrepend(candlesRef.current, result.candles);
+    const { candles: merged } = trimResidentBars(mergedRaw);
+    const nextHasMore = result.hasMore ?? true;
+    const nextMeta = result.meta ?? meta ?? DEFAULT_META;
+    const asOf = Date.now();
     candlesRef.current = merged;
     setCandles(merged);
-    setMeta(
-      buildMeta(result.meta ?? meta ?? DEFAULT_META, streamStateRef.current),
-    );
-    setHasMore(result.hasMore ?? true);
+    setMeta(buildMeta(nextMeta, streamStateRef.current));
+    setHasMore(nextHasMore);
+    writeChartClientCache(cacheKey, {
+      candles: merged,
+      meta: nextMeta,
+      hasMore: nextHasMore,
+      asOf,
+    });
     return result.candles;
-  }, [symbol, exchange, interval, sessionMode, meta]);
+  }, [symbol, exchange, interval, range, sessionMode, meta]);
 
   return {
     candles,

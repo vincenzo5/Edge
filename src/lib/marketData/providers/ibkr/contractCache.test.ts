@@ -31,4 +31,16 @@ describe("contractCache", () => {
     cache.clear();
     expect(cache.getStock("IBM")).toBeNull();
   });
+
+  it("prefers evicting strikes/optInfo before stock when over cap", () => {
+    const cache = createContractCache({ maxEntries: 2 });
+    cache.setStock({ symbol: "AAPL", conid: 1 });
+    cache.setStrikes(1, "202601", { call: [100], put: [100] });
+    cache.setStrikes(1, "202602", { call: [110], put: [110] });
+
+    expect(cache.getStock("AAPL")?.conid).toBe(1);
+    expect(cache.getStrikes(1, "202601")).toBeNull();
+    expect(cache.getStrikes(1, "202602")).not.toBeNull();
+    expect(cache.size()).toBe(2);
+  });
 });

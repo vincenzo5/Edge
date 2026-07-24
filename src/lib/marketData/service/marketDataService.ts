@@ -27,16 +27,17 @@ import {
   applyDescriptiveFilters,
   ensureScreenerUniverseWarm,
   fetchUniverseDescriptors,
-  getCandlesFromUniverseStore,
+  readUniverseDailyStore,
 } from "../screenerUniverse/universeDailyStore";
+import { createScreenerDailyCandleFetcher } from "../screenerUniverse/resolveScreenerDailyCandles";
 import {
   buildDescriptorMap,
   enrichMoversWithDescriptors,
 } from "../screenerUniverse/enrichMoversWithDescriptors";
-import type { DerivedMetric, DerivedMetricKind } from "../contracts/derived";
+import type { DerivedMetric, DerivedMetricKind, DerivedUpstreamRef } from "../contracts/derived";
 import type { MarketContext } from "../contracts/marketContext";
 import { buildMarketContext } from "../context/buildMarketContext";
-import { latestCompletedTradingDate } from "../marketCalendar";
+import { evaluateDatasetPolicy } from "../trust/policyEvaluator";
 import { createDataResult, type DataCacheTier, type DataResult, type MarketDataPerfPhase } from "../contracts/result";
 import type { WarmupPhaseReport, WarmupReport } from "../telemetry/types";
 import { isMarketDataPerfEnabled } from "../telemetry/isPerfEnabled";
@@ -44,9 +45,11 @@ import { PerfPhaseCollector } from "../telemetry/perfPhases";
 import {
   buildCacheKey,
   cacheTtlMs,
-  globalDataCache,
-  clearMarketDataCacheForTests as clearLegacyDataCacheForTests,
 } from "../cache";
+import {
+  clearMarketDataCacheForTests as clearLegacyDataCacheForTests,
+  globalDataCache,
+} from "../cache/serverCacheBackends";
 import {
   clearHotStoreForTests,
   globalHotStore,
@@ -65,7 +68,6 @@ import { createSecProvider } from "../providers/sec/adapter";
 import { createFredProvider } from "../providers/fred/adapter";
 import { createFmpProvider } from "../providers/fmp/adapter";
 import { createMassiveProvider, type MassiveProvider } from "../providers/massive/adapter";
-import { createTradierOptionsProvider } from "../providers/tradier/adapter";
 import {
   createIbkrProvider,
   type IbkrContractProbe,
@@ -114,6 +116,23 @@ import {
   fundamentalsToWatchlist,
 } from "../validation/mappers";
 import type { QuoteSnapshot, FundamentalsSnapshot as WatchlistFundamentals } from "@/lib/watchlist/types";
+import { RouteCollector } from "../state/routeCollector";
+import {
+  finalizeRouteDelivery,
+  inferFallbackReason,
+  recordTerminalFailureOnReject,
+  recordServiceDelivery,
+} from "../state/serviceInstrumentation";
+import { resetDeliveryRegistryForTests } from "../state/deliveryRegistry";
+import type { DataProviderPreference } from "@/lib/connections/types";
+import type { DataProviderId } from "../contracts/result";
+import {
+  createDefaultDataProviderPreference,
+  mergeProviderOrder,
+  resolveWaterfallOrder,
+  shouldSkipHotCacheSource,
+  type TrustUsage,
+} from "../providerWaterfall";
 
 export type MarketDataServiceDeps = {
   yahoo: YahooFinanceClient;
@@ -140,11 +159,17 @@ function recentIsoDate(offsetDays: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-type MarketDataReadOptions = {
+export type MarketDataReadOptions = {
   traceId?: string;
   perf?: PerfPhaseCollector | null;
   /** TWS sidecar socket for display/trading-scoped market data (ib-paper | ib-live). */
   twsConnectionId?: string;
+  /** Display waterfall order/disable — omitted on trading/brokerage paths. */
+  providerPreference?: DataProviderPreference;
+  /** When false, use default broker-first waterfall (ignores user disable). Default true. */
+  respectProviderPreference?: boolean;
+  /** Trust usage for waterfall disable rules. */
+  trustUsage?: TrustUsage;
 };
 
 function attachPerfMeta<T extends DataResult<unknown>>(
@@ -168,7 +193,6 @@ export class MarketDataService {
   private fred;
   private fmp;
   private massive;
-  private tradier;
   private ibkr;
   private tws;
   private candlesRevalidateKeys = new Set<string>();
@@ -177,6 +201,8 @@ export class MarketDataService {
   private optionsChainRevalidateKeys = new Set<string>();
   private twsGatewayProbeAt = 0;
   private twsGatewayConnected = true;
+  private lastTwsStatusProbe: TwsStatusProbe | null = null;
+  private lastTwsStatusObservedAt = 0;
   private ibkrAuthProbeAt = 0;
   private ibkrAuthenticated = true;
 
@@ -186,9 +212,43 @@ export class MarketDataService {
     this.fred = createFredProvider();
     this.fmp = createFmpProvider();
     this.massive = deps.massive ?? createMassiveProvider();
-    this.tradier = createTradierOptionsProvider();
     this.ibkr = deps.ibkr ?? createIbkrProvider();
     this.tws = deps.tws ?? createTwsProvider();
+  }
+
+  private getConfiguredProviderIds(): Set<DataProviderId> {
+    const configured = new Set<DataProviderId>(["yahoo"]);
+    if (this.tws.isConfigured()) configured.add("tws");
+    if (this.ibkr.isConfigured()) configured.add("ibkr");
+    if (this.massive.isConfigured()) configured.add("massive");
+    if (this.fmp.isConfigured()) configured.add("fmp");
+    if (this.fred.isConfigured()) configured.add("fred");
+    if (this.sec.isConfigured()) configured.add("sec");
+    return configured;
+  }
+
+  private resolveReadWaterfall(
+    capability: "equity_candles" | "equity_quotes" | "options_chain" | "options_expirations",
+    options: Pick<
+      MarketDataReadOptions,
+      "providerPreference" | "respectProviderPreference" | "trustUsage"
+    >,
+  ): DataProviderId[] {
+    const hasUserPreference =
+      options.respectProviderPreference !== false && options.providerPreference != null;
+    const preference = hasUserPreference
+      ? options.providerPreference!
+      : {
+          orderedProviders: mergeProviderOrder([], capability),
+          disabledProviders: [],
+        };
+    return resolveWaterfallOrder({
+      preference,
+      configured: this.getConfiguredProviderIds(),
+      capability,
+      respectPreference: hasUserPreference,
+      usage: options.trustUsage,
+    });
   }
 
   private candlesCacheKey(
@@ -264,6 +324,45 @@ export class MarketDataService {
     ibkrHealthGate.recordFailure(classifyIbkrError(error));
   }
 
+  private storeTwsObservedStatus(status: TwsStatusProbe): TwsStatusProbe {
+    const observedAt = Date.now();
+    const observed: TwsStatusProbe = {
+      ...status,
+      observationConfidence: "observed",
+      observedAt,
+      circuitBypassed: false,
+    };
+    this.lastTwsStatusProbe = observed;
+    this.lastTwsStatusObservedAt = observedAt;
+    this.twsGatewayConnected = status.gatewayConnected;
+    this.twsGatewayProbeAt = observedAt;
+    return observed;
+  }
+
+  private lastKnownTwsStatus(
+    partial: Partial<TwsStatusProbe>,
+    warnings: string[],
+  ): TwsStatusProbe {
+    if (this.lastTwsStatusProbe) {
+      return {
+        ...this.lastTwsStatusProbe,
+        ...partial,
+        observationConfidence: "last_known",
+        observedAt: this.lastTwsStatusObservedAt || this.lastTwsStatusProbe.observedAt,
+        circuitBypassed: partial.circuitBypassed ?? true,
+        warnings: [...new Set([...this.lastTwsStatusProbe.warnings, ...warnings])],
+      };
+    }
+    return {
+      configured: partial.configured ?? true,
+      sidecarReachable: partial.sidecarReachable ?? false,
+      gatewayConnected: partial.gatewayConnected ?? false,
+      observationConfidence: "unknown",
+      circuitBypassed: partial.circuitBypassed ?? true,
+      warnings,
+    };
+  }
+
   /** Proactively open the TWS circuit when Gateway is known disconnected or sidecar wedged. */
   private async ensureTwsGatewayProbe(): Promise<void> {
     if (!this.tws.isConfigured()) return;
@@ -287,9 +386,10 @@ export class MarketDataService {
     if (status.restartRequired || status.diagnostics?.workerWedged) {
       this.twsGatewayConnected = false;
       twsHealthGate.recordFailure("provider_error");
+      this.storeTwsObservedStatus(status);
       return;
     }
-    this.twsGatewayConnected = status.gatewayConnected;
+    this.storeTwsObservedStatus(status);
     if (!status.gatewayConnected) {
       twsHealthGate.recordFailure("gateway_disconnected");
     }
@@ -332,91 +432,12 @@ export class MarketDataService {
     return buildCacheKey(["options-chain", provider, underlying, expiration, windowKey]);
   }
 
-  private async fetchTradierOptionExpirations(
-    underlying: string,
-    requestedAt: number,
-    extraWarnings: string[] = [],
-  ): Promise<DataResult<OptionExpiration[]>> {
-    if (!this.tradier.isConfigured()) {
-      return createDataResult([], "tradier", {
-        requestedAt,
-        warnings: [
-          ...extraWarnings,
-          "TRADIER_ACCESS_TOKEN is not configured",
-        ],
-      });
-    }
-    const sym = underlying.trim().toUpperCase();
-    const cacheKey = this.optionExpirationsCacheKey("tradier", sym);
-    const cached = globalDataCache.read<OptionExpiration[]>("options_expirations", cacheKey);
-    if (cached.hit && cached.value) {
-      return createDataResult(cached.value, "tradier", {
-        requestedAt,
-        asOf: cached.asOf,
-        warnings: extraWarnings,
-      });
-    }
-    const data = await this.tradier.getExpirations(sym);
-    globalDataCache.write(
-      "options_expirations",
-      cacheKey,
-      data,
-      cacheTtlMs("options_expirations"),
-      Date.now(),
-    );
-    return createDataResult(data, "tradier", { requestedAt, warnings: extraWarnings });
-  }
-
-  private async fetchTradierOptionsChain(
-    request: OptionsChainRequest,
-    requestedAt: number,
-    extraWarnings: string[] = [],
-  ): Promise<DataResult<OptionsChainResponse>> {
-    if (!this.tradier.isConfigured()) {
-      return createDataResult(
-        {
-          underlying: request.underlying.toUpperCase(),
-          expiration: request.expiration ?? "",
-          contracts: [],
-        },
-        "tradier",
-        {
-          requestedAt,
-          warnings: [
-            ...extraWarnings,
-            "TRADIER_ACCESS_TOKEN is not configured",
-          ],
-        },
-      );
-    }
-    const underlying = request.underlying.toUpperCase();
-    const expiration = request.expiration ?? "";
-    const cacheKey = this.optionsChainCacheKey("tradier", underlying, expiration);
-    const cached = globalDataCache.read<OptionsChainResponse>("options_chain", cacheKey);
-    if (cached.hit && cached.value) {
-      return createDataResult(cached.value, "tradier", {
-        requestedAt,
-        asOf: cached.asOf,
-        warnings: extraWarnings,
-      });
-    }
-    const data = await this.tradier.getChain(request);
-    globalDataCache.write(
-      "options_chain",
-      cacheKey,
-      data,
-      cacheTtlMs("options_chain"),
-      Date.now(),
-    );
-    return createDataResult(data, "tradier", { requestedAt, warnings: extraWarnings });
-  }
-
   private async fetchYahooCandles(
     request: CandleRequest,
     requestedAt: number,
   ): Promise<DataResult<CandleResponse>> {
     const cacheKey = this.candlesCacheKey("yahoo", request);
-    const cached = globalDataCache.read<CandleResponse>("candles", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<CandleResponse>("candles", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "yahoo", {
         requestedAt,
@@ -424,13 +445,13 @@ export class MarketDataService {
       });
     }
     const data = await this.yahoo.getCandles(request);
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "candles",
       cacheKey,
       data,
       cacheTtlMs("candles", request.interval),
       Date.now(),
-    );
+    ));
     return createDataResult(data, "yahoo", { requestedAt });
   }
 
@@ -440,7 +461,7 @@ export class MarketDataService {
     extraWarnings: string[] = [],
   ): Promise<DataResult<EquityQuote[]>> {
     const cacheKey = this.quotesCacheKey("yahoo", symbols);
-    const cached = globalDataCache.read<EquityQuote[]>("quotes", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<EquityQuote[]>("quotes", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "yahoo", {
         requestedAt,
@@ -449,7 +470,7 @@ export class MarketDataService {
       });
     }
     const data = await this.yahoo.getQuotes(symbols);
-    globalDataCache.write("quotes", cacheKey, data, cacheTtlMs("quotes"), Date.now());
+    await Promise.resolve(globalDataCache.write("quotes", cacheKey, data, cacheTtlMs("quotes"), Date.now()));
     return createDataResult(data, "yahoo", { requestedAt, warnings: extraWarnings });
   }
 
@@ -463,7 +484,7 @@ export class MarketDataService {
       return createDataResult([], "yahoo", { requestedAt });
     }
     const cacheKey = buildCacheKey(["search", trimmed, limit]);
-    const cached = globalDataCache.read<InstrumentSearchResult[]>("search", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<InstrumentSearchResult[]>("search", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "yahoo", {
         requestedAt,
@@ -473,7 +494,7 @@ export class MarketDataService {
       });
     }
     const data = await this.yahoo.searchInstruments(trimmed, limit);
-    globalDataCache.write("search", cacheKey, data, cacheTtlMs("search"), Date.now());
+    await Promise.resolve(globalDataCache.write("search", cacheKey, data, cacheTtlMs("search"), Date.now()));
     return createDataResult(data, "yahoo", { requestedAt });
   }
 
@@ -491,7 +512,7 @@ export class MarketDataService {
       providerName === "tws" ? twsConnectionId : undefined,
     );
     if (!bypassLegacyCache) {
-      const cached = globalDataCache.read<CandleResponse>("candles", cacheKey);
+      const cached = await Promise.resolve(globalDataCache.read<CandleResponse>("candles", cacheKey));
       if (cached.hit && cached.value) {
         return createDataResult(cached.value, providerName, {
           requestedAt,
@@ -506,13 +527,13 @@ export class MarketDataService {
         ? await (provider as TwsProvider).getCandles(request, twsOptions)
         : await provider.getCandles(request);
     if (data && data.candles.length > 0) {
-      globalDataCache.write(
+      await Promise.resolve(globalDataCache.write(
         "candles",
         cacheKey,
         data,
         cacheTtlMs("candles", request.interval),
         Date.now(),
-      );
+      ));
       return createDataResult(data, providerName, { requestedAt });
     }
     return null;
@@ -525,36 +546,52 @@ export class MarketDataService {
     const perf = isMarketDataPerfEnabled() ? new PerfPhaseCollector() : null;
     const key = hotCandlesKey(request);
     const hotStart = Date.now();
-    const hot = globalHotStore.read<CandleResponse>(key);
+    const hot = await Promise.resolve(globalHotStore.read<CandleResponse>(key));
     perf?.record("cache.hot.read", hotStart, true, "cache", {
       hit: hot.hit,
       fresh: hot.fresh,
       servable: hot.servable,
       source: hot.source,
     });
-    const skipHotYahoo =
-      hot.source === "yahoo" && (this.tws.isConfigured() || this.ibkr.isConfigured());
-    if (hot.hit && hot.data && hot.servable && !skipHotYahoo) {
+    const skipHotEntry = shouldSkipHotCacheSource({
+      hotSource: hot.source,
+      preference: options.providerPreference,
+      configured: this.getConfiguredProviderIds(),
+      capability: "equity_candles",
+      respectPreference: options.respectProviderPreference !== false && options.providerPreference != null,
+    });
+    if (hot.hit && hot.data && hot.servable && !skipHotEntry) {
       if (!hot.fresh) {
-        this.scheduleCandlesRevalidate(request, key, options.twsConnectionId);
+        this.scheduleCandlesRevalidate(request, key, options);
       }
       return attachPerfMeta(
-        createDataResult(hot.data, hot.source ?? "mixed", {
-          requestedAt: Date.now(),
-          asOf: hot.asOf,
-          stale: !hot.fresh,
-          warnings: hot.warnings ?? [],
-          cacheTier: hotCacheTier(hot.fresh),
-        }),
+        recordServiceDelivery(
+          createDataResult(hot.data, hot.source ?? "mixed", {
+            requestedAt: Date.now(),
+            asOf: hot.asOf,
+            stale: !hot.fresh,
+            warnings: hot.warnings ?? [],
+            cacheTier: hotCacheTier(hot.fresh),
+          }),
+          "chart_candles",
+          { transport: "cache", traceId: options.traceId },
+        ),
         options.traceId,
         perf,
       );
     }
     const freshStart = Date.now();
-    const result = await this.fetchCandlesFresh(request, {
-      perf,
-      twsConnectionId: options.twsConnectionId,
-    });
+    const result = await recordTerminalFailureOnReject(
+      "chart_candles",
+      () =>
+        this.fetchCandlesFresh(request, {
+          perf,
+          twsConnectionId: options.twsConnectionId,
+          providerPreference: options.providerPreference,
+          respectProviderPreference: options.respectProviderPreference,
+          trustUsage: options.trustUsage,
+        }),
+    );
     perf?.record("service.fetchCandlesFresh", freshStart, true, "service", {
       source: result.source,
       cacheTier: result.cacheTier ?? "cold",
@@ -562,7 +599,11 @@ export class MarketDataService {
     });
     writeHotCandles(request, result.data, result.source, result.warnings);
     return attachPerfMeta(
-      { ...result, cacheTier: result.cacheTier ?? "cold" },
+      recordServiceDelivery(
+        { ...result, cacheTier: result.cacheTier ?? "cold" },
+        "chart_candles",
+        { transport: "request", traceId: options.traceId },
+      ),
       options.traceId,
       perf,
     );
@@ -571,15 +612,34 @@ export class MarketDataService {
   private scheduleCandlesRevalidate(
     request: CandleRequest,
     key: string,
-    twsConnectionId?: string,
+    options: Pick<MarketDataReadOptions, "twsConnectionId" | "providerPreference" | "respectProviderPreference" | "trustUsage"> = {},
   ): void {
     if (this.candlesRevalidateKeys.has(key)) return;
     this.candlesRevalidateKeys.add(key);
-    void this.fetchCandlesFresh(request, { bypassLegacyCache: true, twsConnectionId })
+    void this.fetchCandlesFresh(request, { bypassLegacyCache: true, ...options })
       .then((result) => {
         writeHotCandles(request, result.data, result.source, result.warnings);
+        recordServiceDelivery(result, "chart_candles", { transport: "cache" });
       })
-      .catch(() => {})
+      .catch((error) => {
+        recordServiceDelivery(
+          createDataResult(
+            { symbol: request.symbol, interval: request.interval, candles: [] },
+            "unknown",
+            {
+              requestedAt: Date.now(),
+              warnings: [
+                error instanceof Error
+                  ? `Background candle revalidation failed: ${error.message}`
+                  : "Background candle revalidation failed",
+              ],
+              stale: true,
+            },
+          ),
+          "chart_candles",
+          { transport: "cache" },
+        );
+      })
       .finally(() => {
         this.candlesRevalidateKeys.delete(key);
       });
@@ -591,63 +651,102 @@ export class MarketDataService {
       bypassLegacyCache?: boolean;
       perf?: PerfPhaseCollector | null;
       twsConnectionId?: string;
+      providerPreference?: DataProviderPreference;
+      respectProviderPreference?: boolean;
+      trustUsage?: TrustUsage;
     } = {},
   ): Promise<DataResult<CandleResponse>> {
     const requestedAt = Date.now();
     const providerWarnings: string[] = [];
     const perf = options.perf ?? null;
+    const route = new RouteCollector();
+    const order = this.resolveReadWaterfall("equity_candles", options);
 
     await this.ensureTwsGatewayProbe();
-    const twsDecision = this.twsRoutingDecision("candles");
-    if (twsDecision.shouldTry) {
-      const twsStart = Date.now();
-      try {
-        const twsResult = await this.fetchProviderCandles(
-          "tws",
-          this.tws,
-          request,
-          requestedAt,
-          options.bypassLegacyCache,
-          options.twsConnectionId,
-        );
-        if (twsResult) {
-          perf?.record("provider.tws.candles", twsStart, true, "provider", {
-            source: "tws",
-            barCount: twsResult.data.candles.length,
-          });
-          this.recordTwsSuccess(request.symbol);
-          return twsResult;
-        }
-        perf?.record("provider.tws.candles", twsStart, false, "provider", {
-          reason: "empty",
-        });
-        providerWarnings.push("TWS returned no candles; trying next provider");
-      } catch (error) {
-        perf?.record("provider.tws.candles", twsStart, false, "provider", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        this.recordTwsFailure(error);
-        providerWarnings.push(
-          error instanceof Error
-            ? `TWS candles failed: ${error.message}; trying next provider`
-            : "TWS candles failed; trying next provider",
-        );
-      }
-    } else if (twsDecision.warning) {
-      perf?.push({
-        name: "provider.tws.skipped",
-        ms: 0,
-        ok: false,
-        layer: "provider",
-        detail: { reason: twsDecision.warning },
-      });
-      providerWarnings.push(twsDecision.warning);
-    }
 
-    if (this.ibkr.isConfigured()) {
-      await this.ensureIbkrAuthProbe();
-      const ibkrDecision = this.ibkrRoutingDecision("candles");
-      if (ibkrDecision.shouldTry) {
+    for (const providerId of order) {
+      if (providerId === "yahoo") {
+        const yahooStart = Date.now();
+        const yahooResult = await this.fetchYahooCandles(request, requestedAt);
+        route.recordSuccess("yahoo", yahooStart);
+        perf?.record("provider.yahoo.candles", yahooStart, true, "provider", {
+          source: "yahoo",
+          barCount: yahooResult.data.candles.length,
+          stale: yahooResult.stale,
+        });
+        const result = createDataResult(yahooResult.data, yahooResult.source, {
+          requestedAt,
+          asOf: yahooResult.asOf,
+          stale: yahooResult.stale,
+          warnings: [...providerWarnings, ...yahooResult.warnings],
+        });
+        return finalizeRouteDelivery(result, "chart_candles", route, {
+          fallbackReason:
+            providerWarnings.length > 0
+              ? inferFallbackReason([...providerWarnings, ...yahooResult.warnings])
+              : undefined,
+          transport: "request",
+        });
+      }
+
+      if (providerId === "tws") {
+        const twsDecision = this.twsRoutingDecision("candles");
+        if (!twsDecision.shouldTry) {
+          if (twsDecision.warning) {
+            route.recordSkipped("tws", twsDecision.warning);
+            providerWarnings.push(twsDecision.warning);
+          }
+          continue;
+        }
+        const twsStart = Date.now();
+        try {
+          const twsResult = await this.fetchProviderCandles(
+            "tws",
+            this.tws,
+            request,
+            requestedAt,
+            options.bypassLegacyCache,
+            options.twsConnectionId,
+          );
+          if (twsResult) {
+            perf?.record("provider.tws.candles", twsStart, true, "provider", {
+              source: "tws",
+              barCount: twsResult.data.candles.length,
+            });
+            this.recordTwsSuccess(request.symbol);
+            route.recordSuccess("tws", twsStart);
+            return finalizeRouteDelivery(twsResult, "chart_candles", route, {
+              transport: "request",
+            });
+          }
+          perf?.record("provider.tws.candles", twsStart, false, "provider", { reason: "empty" });
+          route.recordEmpty("tws", twsStart);
+          providerWarnings.push("TWS returned no candles; trying next provider");
+        } catch (error) {
+          perf?.record("provider.tws.candles", twsStart, false, "provider", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          route.recordFailure("tws", twsStart, error);
+          this.recordTwsFailure(error);
+          providerWarnings.push(
+            error instanceof Error
+              ? `TWS candles failed: ${error.message}; trying next provider`
+              : "TWS candles failed; trying next provider",
+          );
+        }
+        continue;
+      }
+
+      if (providerId === "ibkr") {
+        await this.ensureIbkrAuthProbe();
+        const ibkrDecision = this.ibkrRoutingDecision("candles");
+        if (!ibkrDecision.shouldTry) {
+          if (ibkrDecision.warning) {
+            route.recordSkipped("ibkr", ibkrDecision.warning);
+            providerWarnings.push(ibkrDecision.warning);
+          }
+          continue;
+        }
         const ibkrStart = Date.now();
         try {
           const ibkrResult = await this.fetchProviderCandles(
@@ -663,79 +762,47 @@ export class MarketDataService {
               barCount: ibkrResult.data.candles.length,
             });
             this.recordIbkrSuccess();
-            return createDataResult(ibkrResult.data, ibkrResult.source, {
+            route.recordSuccess("ibkr", ibkrStart);
+            const result = createDataResult(ibkrResult.data, ibkrResult.source, {
               requestedAt,
               warnings: providerWarnings,
               phases: ibkrResult.phases,
             });
+            return finalizeRouteDelivery(result, "chart_candles", route, {
+              fallbackReason: inferFallbackReason(providerWarnings),
+              transport: "request",
+            });
           }
-          perf?.record("provider.ibkr.candles", ibkrStart, false, "provider", {
-            reason: "empty",
-          });
-          providerWarnings.push(
-            "IBKR returned no candles; falling back to Yahoo",
-          );
+          perf?.record("provider.ibkr.candles", ibkrStart, false, "provider", { reason: "empty" });
+          route.recordEmpty("ibkr", ibkrStart);
+          providerWarnings.push("IBKR returned no candles; trying next provider");
         } catch (error) {
           perf?.record("provider.ibkr.candles", ibkrStart, false, "provider", {
             error: error instanceof Error ? error.message : String(error),
           });
+          route.recordFailure("ibkr", ibkrStart, error);
           this.recordIbkrFailure(error);
           providerWarnings.push(
             error instanceof Error
-              ? `IBKR candles failed: ${error.message}; falling back to Yahoo`
-              : "IBKR candles failed; falling back to Yahoo",
+              ? `IBKR candles failed: ${error.message}; trying next provider`
+              : "IBKR candles failed; trying next provider",
           );
         }
-      } else if (ibkrDecision.warning) {
-        perf?.push({
-          name: "provider.ibkr.skipped",
-          ms: 0,
-          ok: false,
-          layer: "provider",
-          detail: { reason: ibkrDecision.warning },
-        });
-        providerWarnings.push(ibkrDecision.warning);
       }
-
-      const yahooStart = Date.now();
-      const yahooResult = await this.fetchYahooCandles(request, requestedAt);
-      perf?.record("provider.yahoo.candles", yahooStart, true, "provider", {
-        source: "yahoo",
-        barCount: yahooResult.data.candles.length,
-        stale: yahooResult.stale,
-      });
-      return createDataResult(yahooResult.data, yahooResult.source, {
-        requestedAt,
-        asOf: yahooResult.asOf,
-        stale: yahooResult.stale,
-        warnings: [...providerWarnings, ...yahooResult.warnings],
-      });
-    }
-
-    if (providerWarnings.length > 0) {
-      const yahooStart = Date.now();
-      const yahooResult = await this.fetchYahooCandles(request, requestedAt);
-      perf?.record("provider.yahoo.candles", yahooStart, true, "provider", {
-        source: "yahoo",
-        barCount: yahooResult.data.candles.length,
-        stale: yahooResult.stale,
-      });
-      return createDataResult(yahooResult.data, yahooResult.source, {
-        requestedAt,
-        asOf: yahooResult.asOf,
-        stale: yahooResult.stale,
-        warnings: [...providerWarnings, ...yahooResult.warnings],
-      });
     }
 
     const yahooStart = Date.now();
     const yahooOnly = await this.fetchYahooCandles(request, requestedAt);
+    route.recordSuccess("yahoo", yahooStart);
     perf?.record("provider.yahoo.candles", yahooStart, true, "provider", {
       source: "yahoo",
       barCount: yahooOnly.data.candles.length,
       stale: yahooOnly.stale,
     });
-    return yahooOnly;
+    return finalizeRouteDelivery(yahooOnly, "chart_candles", route, {
+      fallbackReason: inferFallbackReason(providerWarnings),
+      transport: "request",
+    });
   }
 
   /** Legacy API shape for /api/candles and chart fetchers. */
@@ -774,7 +841,7 @@ export class MarketDataService {
       normalized,
       providerName === "tws" ? twsConnectionId : undefined,
     );
-    const cached = globalDataCache.read<EquityQuote[]>("quotes", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<EquityQuote[]>("quotes", cacheKey));
     if (cached.hit && cached.value) {
       return {
         quotes: cached.value,
@@ -796,7 +863,7 @@ export class MarketDataService {
         ? ("mixed" as const)
         : providerName;
     if (batch.quotes.length > 0 && batch.missingSymbols.length === 0) {
-      globalDataCache.write("quotes", cacheKey, batch.quotes, cacheTtlMs("quotes"), Date.now());
+      await Promise.resolve(globalDataCache.write("quotes", cacheKey, batch.quotes, cacheTtlMs("quotes"), Date.now()));
     }
     return {
       quotes: batch.quotes,
@@ -821,17 +888,26 @@ export class MarketDataService {
     let anyStale = false;
     let primarySource: string | null = null;
     const hotWarnings: string[] = [];
+    const staleHotSymbols: string[] = [];
     const hotStart = Date.now();
     let hotHits = 0;
 
     for (const sym of normalized) {
-      const hot = globalHotStore.read<EquityQuote>(hotQuoteKey(sym));
-      const skipHotYahoo =
-        hot.source === "yahoo" && (this.tws.isConfigured() || this.ibkr.isConfigured());
-      if (hot.hit && hot.data && hot.servable && !skipHotYahoo) {
+      const hot = await Promise.resolve(globalHotStore.read<EquityQuote>(hotQuoteKey(sym)));
+      const skipHotEntry = shouldSkipHotCacheSource({
+        hotSource: hot.source,
+        preference: options.providerPreference,
+        configured: this.getConfiguredProviderIds(),
+        capability: "equity_quotes",
+        respectPreference: options.respectProviderPreference !== false && options.providerPreference != null,
+      });
+      if (hot.hit && hot.data && hot.servable && !skipHotEntry) {
         hotHits += 1;
         fromHot.push(hot.data);
-        if (!hot.fresh) anyStale = true;
+        if (!hot.fresh) {
+          anyStale = true;
+          staleHotSymbols.push(sym);
+        }
         if (hot.source) {
           primarySource =
             primarySource == null
@@ -854,16 +930,20 @@ export class MarketDataService {
 
     if (allServable && fromHot.length === normalized.length) {
       if (anyStale) {
-        this.scheduleQuotesRevalidate(normalized, options.twsConnectionId);
+        this.scheduleQuotesRevalidate(normalized, options);
       }
       return attachPerfMeta(
-        createDataResult(fromHot, primarySource ?? "yahoo", {
-          requestedAt,
-          asOf: oldestQuoteUpdatedAt(fromHot),
-          stale: anyStale,
-          warnings: hotWarnings,
-          cacheTier: hotCacheTier(!anyStale),
-        }),
+        recordServiceDelivery(
+          createDataResult(fromHot, primarySource ?? "yahoo", {
+            requestedAt,
+            asOf: oldestQuoteUpdatedAt(fromHot),
+            stale: anyStale,
+            warnings: hotWarnings,
+            cacheTier: hotCacheTier(!anyStale),
+          }),
+          "watchlist_quotes",
+          { transport: "cache", traceId: options.traceId },
+        ),
         options.traceId,
         perf,
       );
@@ -874,7 +954,10 @@ export class MarketDataService {
 
     if (fromHot.length > 0 && missingSymbols.length > 0) {
       const freshStart = Date.now();
-      const fresh = await this.fetchQuotesFresh(missingSymbols, requestedAt, perf, options);
+      const fresh = await recordTerminalFailureOnReject(
+        "watchlist_quotes",
+        () => this.fetchQuotesFresh(missingSymbols, requestedAt, perf, options),
+      );
       perf?.record("service.fetchQuotesFresh", freshStart, true, "service", {
         source: fresh.source,
         quoteCount: fresh.data.length,
@@ -892,29 +975,30 @@ export class MarketDataService {
           ? "mixed"
           : (primarySource ?? fresh.source);
       if (anyStale) {
-        this.scheduleQuotesRevalidate(
-          normalized.filter((sym) => {
-            const hot = globalHotStore.read<EquityQuote>(hotQuoteKey(sym));
-            return hot.hit && !hot.fresh;
-          }),
-          options.twsConnectionId,
-        );
+        this.scheduleQuotesRevalidate(staleHotSymbols, options);
       }
       return attachPerfMeta(
-        createDataResult(merged, mergedSource, {
-          requestedAt,
-          asOf: oldestQuoteUpdatedAt(merged),
-          stale: anyStale,
-          warnings: [...hotWarnings, ...fresh.warnings],
-          cacheTier: hotCacheTier(!anyStale && fresh.cacheTier === "hot-fresh"),
-        }),
+        recordServiceDelivery(
+          createDataResult(merged, mergedSource, {
+            requestedAt,
+            asOf: oldestQuoteUpdatedAt(merged),
+            stale: anyStale,
+            warnings: [...hotWarnings, ...fresh.warnings],
+            cacheTier: hotCacheTier(!anyStale && fresh.cacheTier === "hot-fresh"),
+          }),
+          "watchlist_quotes",
+          { transport: "cache", traceId: options.traceId },
+        ),
         options.traceId,
         perf,
       );
     }
 
     const freshStart = Date.now();
-    const result = await this.fetchQuotesFresh(normalized, requestedAt, perf, options);
+    const result = await recordTerminalFailureOnReject(
+      "watchlist_quotes",
+      () => this.fetchQuotesFresh(normalized, requestedAt, perf, options),
+    );
     perf?.record("service.fetchQuotesFresh", freshStart, true, "service", {
       source: result.source,
       quoteCount: result.data.length,
@@ -922,25 +1006,39 @@ export class MarketDataService {
     for (const quote of result.data) {
       writeHotQuote(quote, result.source, result.warnings);
     }
-    return attachPerfMeta(
-      { ...result, cacheTier: result.cacheTier ?? "cold" },
-      options.traceId,
-      perf,
-    );
+    return attachPerfMeta(result, options.traceId, perf);
   }
 
-  private scheduleQuotesRevalidate(symbols: string[], twsConnectionId?: string): void {
+  private scheduleQuotesRevalidate(
+    symbols: string[],
+    options: Pick<MarketDataReadOptions, "twsConnectionId" | "providerPreference" | "respectProviderPreference" | "trustUsage"> = {},
+  ): void {
     if (symbols.length === 0) return;
-    const key = `${twsConnectionId ?? ""}|${symbols.join(",")}`;
+    const key = `${options.twsConnectionId ?? ""}|${symbols.join(",")}|${JSON.stringify(options.providerPreference ?? null)}`;
     if (this.quotesRevalidateKey === key) return;
     this.quotesRevalidateKey = key;
-    void this.fetchQuotesFresh(symbols, Date.now(), null, { twsConnectionId })
+    void this.fetchQuotesFresh(symbols, Date.now(), null, options)
       .then((result) => {
         for (const quote of result.data) {
           writeHotQuote(quote, result.source, result.warnings);
         }
+        recordServiceDelivery(result, "watchlist_quotes", { transport: "cache" });
       })
-      .catch(() => {})
+      .catch((error) => {
+        recordServiceDelivery(
+          createDataResult([], "unknown", {
+            requestedAt: Date.now(),
+            warnings: [
+              error instanceof Error
+                ? `Background quote revalidation failed: ${error.message}`
+                : "Background quote revalidation failed",
+            ],
+            stale: true,
+          }),
+          "watchlist_quotes",
+          { transport: "cache" },
+        );
+      })
       .finally(() => {
         if (this.quotesRevalidateKey === key) {
           this.quotesRevalidateKey = null;
@@ -952,24 +1050,16 @@ export class MarketDataService {
     normalized: string[],
     requestedAt: number,
     perf: PerfPhaseCollector | null = null,
-    options: Pick<MarketDataReadOptions, "twsConnectionId"> = {},
+    options: Pick<
+      MarketDataReadOptions,
+      "twsConnectionId" | "providerPreference" | "respectProviderPreference" | "trustUsage"
+    > = {},
   ): Promise<DataResult<EquityQuote[]>> {
-
-    if (!this.tws.isConfigured() && !this.ibkr.isConfigured()) {
-      const yahooStart = Date.now();
-      const yahooOnly = await this.fetchYahooQuotes(normalized, requestedAt);
-      perf?.record("provider.yahoo.quotes", yahooStart, true, "provider", {
-        quoteCount: yahooOnly.data.length,
-      });
-      return yahooOnly;
-    }
-
+    const route = new RouteCollector();
+    const order = this.resolveReadWaterfall("equity_quotes", options);
     const providerWarnings: string[] = [];
     const quoteBySymbol = new Map<string, EquityQuote>();
     let primarySource: "tws" | "ibkr" | "yahoo" | "mixed" | null = null;
-
-    await this.ensureTwsGatewayProbe();
-    const twsDecision = this.twsRoutingDecision("quotes");
 
     const mergeBatch = (
       batch: { quotes: EquityQuote[]; missingSymbols: string[]; source: "tws" | "ibkr" | "mixed" },
@@ -979,9 +1069,7 @@ export class MarketDataService {
         quoteBySymbol.set(quote.symbol, quote);
       }
       if (batch.missingSymbols.length > 0) {
-        providerWarnings.push(
-          `${label} could not resolve: ${batch.missingSymbols.join(", ")}`,
-        );
+        providerWarnings.push(`${label} could not resolve: ${batch.missingSymbols.join(", ")}`);
       }
       if (batch.quotes.length > 0) {
         primarySource =
@@ -995,95 +1083,120 @@ export class MarketDataService {
       }
     };
 
-    if (twsDecision.shouldTry) {
-      const twsStart = Date.now();
-      try {
-        const twsBatch = await this.fetchProviderQuotes(
-          "tws",
-          this.tws,
-          normalized,
-          requestedAt,
-          options.twsConnectionId,
-        );
-        if (twsBatch) {
-          if (twsBatch.quotes.length > 0) {
-            this.recordTwsSuccess();
-          }
-          perf?.record("provider.tws.quotes", twsStart, true, "provider", {
-            quoteCount: twsBatch.quotes.length,
-            missing: twsBatch.missingSymbols.length,
-          });
-          mergeBatch(twsBatch, "TWS");
-        } else {
-          perf?.record("provider.tws.quotes", twsStart, false, "provider", {
-            reason: "empty",
-          });
-          providerWarnings.push("TWS returned no quotes; trying next provider");
-        }
-      } catch (error) {
-        perf?.record("provider.tws.quotes", twsStart, false, "provider", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        this.recordTwsFailure(error);
-        providerWarnings.push(
-          error instanceof Error
-            ? `TWS quotes failed: ${error.message}; trying next provider`
-            : "TWS quotes failed; trying next provider",
-        );
-      }
-    } else if (twsDecision.warning) {
-      perf?.push({
-        name: "provider.tws.skipped",
-        ms: 0,
-        ok: false,
-        layer: "provider",
-        detail: { reason: twsDecision.warning },
-      });
-      providerWarnings.push(twsDecision.warning);
-    }
+    await this.ensureTwsGatewayProbe();
 
-    const unresolved = normalized.filter((sym) => !quoteBySymbol.has(sym));
-    await this.ensureIbkrAuthProbe();
-    const ibkrDecision = this.ibkrRoutingDecision("quotes");
-    if (unresolved.length > 0 && this.ibkr.isConfigured() && ibkrDecision.shouldTry) {
-      const ibkrStart = Date.now();
-      try {
-        const ibkrBatch = await this.fetchProviderQuotes("ibkr", this.ibkr, unresolved, requestedAt);
-        if (ibkrBatch) {
-          if (ibkrBatch.quotes.length > 0) {
-            this.recordIbkrSuccess();
-          }
-          perf?.record("provider.ibkr.quotes", ibkrStart, true, "provider", {
-            quoteCount: ibkrBatch.quotes.length,
-            missing: ibkrBatch.missingSymbols.length,
-          });
-          mergeBatch(ibkrBatch, "IBKR");
-        } else {
-          perf?.record("provider.ibkr.quotes", ibkrStart, false, "provider", {
-            reason: "empty",
-          });
-          providerWarnings.push("IBKR returned no quotes for unresolved symbols");
-        }
-      } catch (error) {
-        perf?.record("provider.ibkr.quotes", ibkrStart, false, "provider", {
-          error: error instanceof Error ? error.message : String(error),
+    for (const providerId of order) {
+      const unresolved = normalized.filter((sym) => !quoteBySymbol.has(sym));
+      if (unresolved.length === 0) break;
+
+      if (providerId === "yahoo") {
+        providerWarnings.push(`Filling via Yahoo: ${unresolved.join(", ")}`);
+        const yahooStart = Date.now();
+        const yahooFill = await this.yahoo.getQuotes(unresolved);
+        route.recordSuccess("yahoo", yahooStart);
+        perf?.record("provider.yahoo.quotes", yahooStart, true, "provider", {
+          quoteCount: yahooFill.length,
+          fill: true,
         });
-        this.recordIbkrFailure(error);
-        providerWarnings.push(
-          error instanceof Error
-            ? `IBKR quotes failed: ${error.message}`
-            : "IBKR quotes failed",
-        );
+        for (const quote of yahooFill) {
+          quoteBySymbol.set(quote.symbol, quote);
+        }
+        if (primarySource != null && primarySource !== "yahoo") {
+          primarySource = "mixed";
+        } else {
+          primarySource = "yahoo";
+        }
+        continue;
       }
-    } else if (unresolved.length > 0 && ibkrDecision.warning) {
-      perf?.push({
-        name: "provider.ibkr.skipped",
-        ms: 0,
-        ok: false,
-        layer: "provider",
-        detail: { reason: ibkrDecision.warning },
-      });
-      providerWarnings.push(ibkrDecision.warning);
+
+      if (providerId === "tws") {
+        const twsDecision = this.twsRoutingDecision("quotes");
+        if (!twsDecision.shouldTry) {
+          if (twsDecision.warning) {
+            route.recordSkipped("tws", twsDecision.warning);
+            providerWarnings.push(twsDecision.warning);
+          }
+          continue;
+        }
+        const twsStart = Date.now();
+        try {
+          const twsBatch = await this.fetchProviderQuotes(
+            "tws",
+            this.tws,
+            unresolved,
+            requestedAt,
+            options.twsConnectionId,
+          );
+          if (twsBatch) {
+            if (twsBatch.quotes.length > 0) {
+              this.recordTwsSuccess();
+              route.recordSuccess("tws", twsStart);
+            } else {
+              route.recordEmpty("tws", twsStart);
+            }
+            perf?.record("provider.tws.quotes", twsStart, true, "provider", {
+              quoteCount: twsBatch.quotes.length,
+              missing: twsBatch.missingSymbols.length,
+            });
+            mergeBatch(twsBatch, "TWS");
+          } else {
+            route.recordEmpty("tws", twsStart);
+            providerWarnings.push("TWS returned no quotes; trying next provider");
+          }
+        } catch (error) {
+          route.recordFailure("tws", twsStart, error);
+          this.recordTwsFailure(error);
+          providerWarnings.push(
+            error instanceof Error
+              ? `TWS quotes failed: ${error.message}; trying next provider`
+              : "TWS quotes failed; trying next provider",
+          );
+        }
+        continue;
+      }
+
+      if (providerId === "ibkr") {
+        await this.ensureIbkrAuthProbe();
+        const ibkrDecision = this.ibkrRoutingDecision("quotes");
+        if (!ibkrDecision.shouldTry) {
+          if (ibkrDecision.warning) {
+            route.recordSkipped("ibkr", ibkrDecision.warning);
+            providerWarnings.push(ibkrDecision.warning);
+          }
+          continue;
+        }
+        const ibkrStart = Date.now();
+        try {
+          const ibkrBatch = await this.fetchProviderQuotes(
+            "ibkr",
+            this.ibkr,
+            unresolved,
+            requestedAt,
+          );
+          if (ibkrBatch) {
+            if (ibkrBatch.quotes.length > 0) {
+              this.recordIbkrSuccess();
+              route.recordSuccess("ibkr", ibkrStart);
+            } else {
+              route.recordEmpty("ibkr", ibkrStart);
+            }
+            perf?.record("provider.ibkr.quotes", ibkrStart, true, "provider", {
+              quoteCount: ibkrBatch.quotes.length,
+              missing: ibkrBatch.missingSymbols.length,
+            });
+            mergeBatch(ibkrBatch, "IBKR");
+          } else {
+            route.recordEmpty("ibkr", ibkrStart);
+            providerWarnings.push("IBKR returned no quotes for unresolved symbols");
+          }
+        } catch (error) {
+          route.recordFailure("ibkr", ibkrStart, error);
+          this.recordIbkrFailure(error);
+          providerWarnings.push(
+            error instanceof Error ? `IBKR quotes failed: ${error.message}` : "IBKR quotes failed",
+          );
+        }
+      }
     }
 
     const stillMissing = normalized.filter((sym) => !quoteBySymbol.has(sym));
@@ -1091,10 +1204,7 @@ export class MarketDataService {
       providerWarnings.push(`Filling via Yahoo: ${stillMissing.join(", ")}`);
       const yahooStart = Date.now();
       const yahooFill = await this.yahoo.getQuotes(stillMissing);
-      perf?.record("provider.yahoo.quotes", yahooStart, true, "provider", {
-        quoteCount: yahooFill.length,
-        fill: true,
-      });
+      route.recordSuccess("yahoo", yahooStart);
       for (const quote of yahooFill) {
         quoteBySymbol.set(quote.symbol, quote);
       }
@@ -1110,23 +1220,24 @@ export class MarketDataService {
       .filter((q): q is EquityQuote => q != null);
 
     if (merged.length > 0) {
-      return createDataResult(merged, primarySource ?? "yahoo", {
+      const result = createDataResult(merged, primarySource ?? "yahoo", {
         requestedAt,
         warnings: providerWarnings,
+        skippedSymbols: stillMissing.length > 0 ? stillMissing : undefined,
+      });
+      return finalizeRouteDelivery(result, "watchlist_quotes", route, {
+        fallbackReason: inferFallbackReason(providerWarnings),
+        transport: "request",
       });
     }
 
-    if (this.ibkr.isConfigured() || this.tws.isConfigured()) {
-      const yahooResult = await this.fetchYahooQuotes(normalized, requestedAt, providerWarnings);
-      return createDataResult(yahooResult.data, yahooResult.source, {
-        requestedAt,
-        asOf: yahooResult.asOf,
-        stale: yahooResult.stale,
-        warnings: yahooResult.warnings,
-      });
-    }
-
-    return this.fetchYahooQuotes(normalized, requestedAt);
+    const yahooStart = Date.now();
+    const yahooOnly = await this.fetchYahooQuotes(normalized, requestedAt, providerWarnings);
+    route.recordSuccess("yahoo", yahooStart);
+    return finalizeRouteDelivery(yahooOnly, "watchlist_quotes", route, {
+      fallbackReason: inferFallbackReason(yahooOnly.warnings),
+      transport: "request",
+    });
   }
 
   async getWatchlistQuotes(
@@ -1154,13 +1265,21 @@ export class MarketDataService {
     const requestedAt = Date.now();
     const sym = symbol.trim().toUpperCase();
     const cacheKey = buildCacheKey(["fundamentals", sym]);
-    const cached = globalDataCache.read<FundamentalsSnapshot>("fundamentals", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<FundamentalsSnapshot>("fundamentals", cacheKey));
     if (cached.hit && cached.value) {
-      return createDataResult(cached.value, "yahoo", { requestedAt, asOf: cached.asOf });
+      return recordServiceDelivery(
+        createDataResult(cached.value, "yahoo", { requestedAt, asOf: cached.asOf, cacheTier: "cold" }),
+        "fundamentals_display",
+        { transport: "cache" },
+      );
     }
     const data = await this.yahoo.getFundamentals(sym);
-    globalDataCache.write("fundamentals", cacheKey, data, cacheTtlMs("fundamentals"), Date.now());
-    return createDataResult(data, "yahoo", { requestedAt });
+    await Promise.resolve(globalDataCache.write("fundamentals", cacheKey, data, cacheTtlMs("fundamentals"), Date.now()));
+    return recordServiceDelivery(
+      createDataResult(data, "yahoo", { requestedAt }),
+      "fundamentals_display",
+      { transport: "request" },
+    );
   }
 
   async getWatchlistFundamentals(
@@ -1176,11 +1295,45 @@ export class MarketDataService {
     });
   }
 
+  async getWatchlistFundamentalsBatch(
+    symbols: string[],
+  ): Promise<
+    DataResult<{
+      bySymbol: Record<string, WatchlistFundamentals>;
+      errors: Record<string, string>;
+    }>
+  > {
+    const requestedAt = Date.now();
+    const normalized = [
+      ...new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean)),
+    ];
+    const bySymbol: Record<string, WatchlistFundamentals> = {};
+    const errors: Record<string, string> = {};
+    const concurrency = 6;
+
+    for (let offset = 0; offset < normalized.length; offset += concurrency) {
+      const chunk = normalized.slice(offset, offset + concurrency);
+      await Promise.all(
+        chunk.map(async (symbol) => {
+          try {
+            const result = await this.getWatchlistFundamentals(symbol);
+            bySymbol[symbol] = result.data;
+          } catch (error) {
+            errors[symbol] =
+              error instanceof Error ? error.message : "Failed to fetch fundamentals";
+          }
+        }),
+      );
+    }
+
+    return createDataResult({ bySymbol, errors }, "yahoo", { requestedAt });
+  }
+
   async getMarketContext(symbol: string): Promise<DataResult<MarketContext>> {
     const requestedAt = Date.now();
     const sym = symbol.trim().toUpperCase();
     const cacheKey = buildCacheKey(["market-context", sym]);
-    const cached = globalDataCache.read<MarketContext>("market_context", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<MarketContext>("market_context", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "mixed", {
         requestedAt,
@@ -1270,18 +1423,22 @@ export class MarketDataService {
       warnings,
     });
 
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "market_context",
       cacheKey,
       context,
       cacheTtlMs("market_context"),
       Date.now(),
-    );
+    ));
 
-    return createDataResult(context, source, {
-      requestedAt,
-      warnings: warnings.length > 0 ? warnings : undefined,
-    });
+    return recordServiceDelivery(
+      createDataResult(context, source, {
+        requestedAt,
+        warnings: warnings.length > 0 ? warnings : undefined,
+      }),
+      "market_context",
+      { transport: "request" },
+    );
   }
 
   async getSecCompanyFacts(symbol: string): Promise<DataResult<SecCompanyFacts | null>> {
@@ -1294,12 +1451,12 @@ export class MarketDataService {
     }
     const sym = symbol.trim().toUpperCase();
     const cacheKey = buildCacheKey(["sec-facts", sym]);
-    const cached = globalDataCache.read<SecCompanyFacts | null>("sec", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<SecCompanyFacts | null>("sec", cacheKey));
     if (cached.hit) {
       return createDataResult(cached.value, "sec", { requestedAt, asOf: cached.asOf });
     }
     const data = await this.sec.getCompanyFacts(sym);
-    globalDataCache.write("sec", cacheKey, data, cacheTtlMs("sec"), Date.now());
+    await Promise.resolve(globalDataCache.write("sec", cacheKey, data, cacheTtlMs("sec"), Date.now()));
     return createDataResult(data, "sec", { requestedAt });
   }
 
@@ -1307,13 +1464,17 @@ export class MarketDataService {
     const requestedAt = Date.now();
     const sym = symbol.trim().toUpperCase();
     const cacheKey = buildCacheKey(["sec-filings", sym, limit]);
-    const cached = globalDataCache.read<SecFiling[]>("sec", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<SecFiling[]>("sec", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "sec", { requestedAt, asOf: cached.asOf });
     }
     const data = await this.sec.getRecentFilings(sym, limit);
-    globalDataCache.write("sec", cacheKey, data, cacheTtlMs("sec"), Date.now());
-    return createDataResult(data, "sec", { requestedAt });
+    await Promise.resolve(globalDataCache.write("sec", cacheKey, data, cacheTtlMs("sec"), Date.now()));
+    return recordServiceDelivery(
+      createDataResult(data, "sec", { requestedAt }),
+      "sec_filings_direct",
+      { transport: "request" },
+    );
   }
 
   async getMacroSeries(
@@ -1328,13 +1489,17 @@ export class MarketDataService {
       });
     }
     const cacheKey = buildCacheKey(["macro", seriesId, limit]);
-    const cached = globalDataCache.read<MacroSeries | null>("macro", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<MacroSeries | null>("macro", cacheKey));
     if (cached.hit) {
       return createDataResult(cached.value, "fred", { requestedAt, asOf: cached.asOf });
     }
     const data = await this.fred.getSeries(seriesId, limit);
-    globalDataCache.write("macro", cacheKey, data, cacheTtlMs("macro"), Date.now());
-    return createDataResult(data, "fred", { requestedAt });
+    await Promise.resolve(globalDataCache.write("macro", cacheKey, data, cacheTtlMs("macro"), Date.now()));
+    return recordServiceDelivery(
+      createDataResult(data, "fred", { requestedAt }),
+      "macro_series",
+      { transport: "request" },
+    );
   }
 
   async getMacroReleases(limit = 20): Promise<DataResult<EconomicRelease[]>> {
@@ -1346,12 +1511,12 @@ export class MarketDataService {
       });
     }
     const cacheKey = buildCacheKey(["macro-releases", limit]);
-    const cached = globalDataCache.read<EconomicRelease[]>("macro", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<EconomicRelease[]>("macro", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "fred", { requestedAt, asOf: cached.asOf });
     }
     const data = await this.fred.getReleases(limit);
-    globalDataCache.write("macro", cacheKey, data, cacheTtlMs("macro"), Date.now());
+    await Promise.resolve(globalDataCache.write("macro", cacheKey, data, cacheTtlMs("macro"), Date.now()));
     return createDataResult(data, "fred", { requestedAt });
   }
 
@@ -1378,7 +1543,7 @@ export class MarketDataService {
       query.importance?.join(",") ?? "",
       includeMacro ? "macro" : "",
     ]);
-    const cached = globalDataCache.read<MarketEvent[]>("events", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<MarketEvent[]>("events", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "edge-events", {
         requestedAt,
@@ -1508,12 +1673,16 @@ export class MarketDataService {
     const deduped = dedupeMarketEvents(rawEvents);
     const filtered = filterMarketEvents(deduped, { ...query, families });
 
-    globalDataCache.write("events", cacheKey, filtered, cacheTtlMs("events"), Date.now());
+    await Promise.resolve(globalDataCache.write("events", cacheKey, filtered, cacheTtlMs("events"), Date.now()));
 
     const sources = [...new Set(filtered.map((e) => e.source))];
     const sourceLabel = sources.length === 1 ? sources[0]! : sources.length > 1 ? "edge-events" : "none";
 
-    return createDataResult(filtered, sourceLabel, { requestedAt, warnings });
+    return recordServiceDelivery(
+      createDataResult(filtered, sourceLabel, { requestedAt, warnings }),
+      "events_market",
+      { transport: "request" },
+    );
   }
 
   async getCorporateEvents(args: {
@@ -1553,16 +1722,20 @@ export class MarketDataService {
       });
     }
     const cacheKey = buildCacheKey(["news", args.symbol ?? "all", args.limit ?? 20]);
-    const cached = globalDataCache.read<NewsItem[]>("news", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<NewsItem[]>("news", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "fmp", { requestedAt, asOf: cached.asOf });
     }
     const result = await this.fmp.getNews(args);
-    globalDataCache.write("news", cacheKey, result.news, cacheTtlMs("news"), Date.now());
-    return createDataResult(result.news, "fmp", {
-      requestedAt,
-      warnings: result.warnings,
-    });
+    await Promise.resolve(globalDataCache.write("news", cacheKey, result.news, cacheTtlMs("news"), Date.now()));
+    return recordServiceDelivery(
+      createDataResult(result.news, "fmp", {
+        requestedAt,
+        warnings: result.warnings,
+      }),
+      "news_symbol",
+      { transport: "request" },
+    );
   }
 
   async getFmpCompanyProfile(symbol: string): Promise<DataResult<FmpCompanyProfile | null>> {
@@ -1575,18 +1748,18 @@ export class MarketDataService {
     }
     const sym = symbol.trim().toUpperCase();
     const cacheKey = buildCacheKey(["fmp-profile", sym]);
-    const cached = globalDataCache.read<FmpCompanyProfile | null>("fmp_profile", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<FmpCompanyProfile | null>("fmp_profile", cacheKey));
     if (cached.hit) {
       return createDataResult(cached.value, "fmp", { requestedAt, asOf: cached.asOf });
     }
     const result = await this.fmp.getCompanyProfile(sym);
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "fmp_profile",
       cacheKey,
       result.profile,
       cacheTtlMs("fmp_profile"),
       Date.now(),
-    );
+    ));
     return createDataResult(result.profile, "fmp", {
       requestedAt,
       warnings: result.warnings,
@@ -1609,18 +1782,18 @@ export class MarketDataService {
     const period = args.period ?? "annual";
     const limit = args.limit ?? 4;
     const cacheKey = buildCacheKey(["fmp-estimates", sym, period, limit]);
-    const cached = globalDataCache.read<FmpAnalystEstimate[]>("fmp_estimates", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<FmpAnalystEstimate[]>("fmp_estimates", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "fmp", { requestedAt, asOf: cached.asOf });
     }
     const result = await this.fmp.getAnalystEstimates({ symbol: sym, period, limit });
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "fmp_estimates",
       cacheKey,
       result.estimates,
       cacheTtlMs("fmp_estimates"),
       Date.now(),
-    );
+    ));
     return createDataResult(result.estimates, "fmp", {
       requestedAt,
       warnings: result.warnings,
@@ -1653,18 +1826,18 @@ export class MarketDataService {
       );
     }
     const cacheKey = buildCacheKey(["fmp-financials", sym, period, limit]);
-    const cached = globalDataCache.read<FmpFinancialsBundle>("fmp_financials", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<FmpFinancialsBundle>("fmp_financials", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "fmp", { requestedAt, asOf: cached.asOf });
     }
     const result = await this.fmp.getFinancialsBundle({ symbol: sym, period, limit });
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "fmp_financials",
       cacheKey,
       result.bundle,
       cacheTtlMs("fmp_financials"),
       Date.now(),
-    );
+    ));
     return createDataResult(result.bundle, "fmp", {
       requestedAt,
       warnings: result.warnings,
@@ -1681,18 +1854,18 @@ export class MarketDataService {
     }
     const sym = symbol.trim().toUpperCase();
     const cacheKey = buildCacheKey(["fmp-executives", sym]);
-    const cached = globalDataCache.read<FmpExecutive[]>("fmp_executives", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<FmpExecutive[]>("fmp_executives", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "fmp", { requestedAt, asOf: cached.asOf });
     }
     const result = await this.fmp.getExecutives(sym);
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "fmp_executives",
       cacheKey,
       result.executives,
       cacheTtlMs("fmp_executives"),
       Date.now(),
-    );
+    ));
     return createDataResult(result.executives, "fmp", {
       requestedAt,
       warnings: result.warnings,
@@ -1720,18 +1893,18 @@ export class MarketDataService {
       args.to ?? "",
       args.limit ?? 10,
     ]);
-    const cached = globalDataCache.read<FmpSecFiling[]>("fmp_filings", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<FmpSecFiling[]>("fmp_filings", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "fmp", { requestedAt, asOf: cached.asOf });
     }
     const result = await this.fmp.getSecFilings(args);
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "fmp_filings",
       cacheKey,
       result.filings,
       cacheTtlMs("fmp_filings"),
       Date.now(),
-    );
+    ));
     return createDataResult(result.filings, "fmp", {
       requestedAt,
       warnings: result.warnings,
@@ -1752,7 +1925,7 @@ export class MarketDataService {
     const kind = args.kind ?? "gainers";
     const limit = args.limit ?? 10;
     const cacheKey = buildCacheKey(["fmp-movers", kind, limit]);
-    const cached = globalDataCache.read<FmpMarketMover[]>("fmp_movers", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<FmpMarketMover[]>("fmp_movers", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "fmp", { requestedAt, asOf: cached.asOf });
     }
@@ -1772,13 +1945,13 @@ export class MarketDataService {
     } catch {
       warnings.push("Mover descriptor enrichment failed; fundamentals unavailable");
     }
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "fmp_movers",
       cacheKey,
       movers,
       cacheTtlMs("fmp_movers"),
       Date.now(),
-    );
+    ));
     return createDataResult(movers, "fmp", {
       requestedAt,
       warnings,
@@ -1803,7 +1976,7 @@ export class MarketDataService {
       rows: FmpScreenerRow[];
       indicatorValues?: Record<string, Record<string, number>>;
     };
-    const cached = globalDataCache.read<ScreenerCachePayload>("screener", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<ScreenerCachePayload>("screener", cacheKey));
     if (cached.hit && cached.value) {
       const cachedResult = createDataResult(cached.value.rows, "fmp", {
         requestedAt,
@@ -1817,7 +1990,15 @@ export class MarketDataService {
         cacheHit: true,
         traceId,
       });
-      return attachPerfMeta(cachedResult, traceId, perf);
+      return attachPerfMeta(
+        recordServiceDelivery(
+          cachedResult,
+          query.technical ? "screener_technical" : "screener_descriptive",
+          { transport: "cache", traceId },
+        ),
+        traceId,
+        perf,
+      );
     }
 
     let rows: FmpScreenerRow[];
@@ -1851,51 +2032,29 @@ export class MarketDataService {
       prefilterCount = filtered.length;
 
       const minBars = minCandlesForTechnicalRule(query.technical);
-      const technical = await runTechnicalFilter(
-        filtered,
-        query.technical,
-        async (symbol) => {
-          const fromStore = getCandlesFromUniverseStore(symbol, minBars, store);
-          if (fromStore.found && fromStore.candles.length >= minBars) {
-            return {
-              candles: fromStore.candles,
-              source: "massive-universe",
-              cacheTier: "universe" as const,
-            };
-          }
-          if (fromStore.found && fromStore.candles.length > 0) {
-            return {
-              candles: fromStore.candles,
-              source: "massive-universe",
-              cacheTier: "universe" as const,
-            };
-          }
-          const range = rangeForTechnicalRule(query.technical!);
-          const agg = await this.massive.getAggregates({
-            ticker: symbol,
-            multiplier: 1,
-            timespan: "day",
-            from: range === "1y" ? recentIsoDate(-400) : recentIsoDate(-120),
-            to: latestCompletedTradingDate(),
-            adjusted: true,
-          });
-          if (agg.candles.length > 0) {
-            return {
-              candles: agg.candles,
-              source: "massive",
-              cacheTier: "cold" as const,
-            };
-          }
+      const range = rangeForTechnicalRule(query.technical) as "3mo" | "1y";
+      const candleFetcher = createScreenerDailyCandleFetcher({
+        store,
+        minBars,
+        range,
+        massive: this.massive.isConfigured() ? this.massive : null,
+        recentIsoDate,
+        fetchProviderCandles: async (symbol, candleRange) => {
           const candleResult = await this.getCandles(
-            { symbol, interval: "1d", range },
+            { symbol, interval: "1d", range: candleRange },
             { traceId },
           );
           return {
             candles: candleResult.data.candles,
             source: candleResult.source,
-            cacheTier: candleResult.cacheTier,
+            cacheTier: candleResult.cacheTier ?? "cold",
           };
         },
+      });
+      const technical = await runTechnicalFilter(
+        filtered,
+        query.technical,
+        (symbol) => candleFetcher.fetch(symbol),
         {
           perf,
           traceId,
@@ -1906,6 +2065,9 @@ export class MarketDataService {
           maxResults: query.maxResults,
         },
       );
+      if (candleFetcher.warnings.length > 0) {
+        warnings.push(...candleFetcher.warnings);
+      }
       rows = technical.rows;
       warnings = [...warnings, ...technical.warnings];
       if (!perf) {
@@ -1940,45 +2102,34 @@ export class MarketDataService {
       prefilterCount = rows.length;
 
       if (query.technical) {
-        const range = rangeForTechnicalRule(query.technical);
+        const range = rangeForTechnicalRule(query.technical) as "3mo" | "1y";
+        const minBars = minCandlesForTechnicalRule(query.technical);
+        const fallbackStore = await readUniverseDailyStore();
         const fallbackConcurrency = this.massive.isConfigured()
           ? TECHNICAL_FILTER_MASSIVE_FALLBACK_CONCURRENCY
           : TECHNICAL_FILTER_CONCURRENCY;
-        const technical = await runTechnicalFilter(
-          rows,
-          query.technical,
-          async (symbol) => {
-            if (this.massive.isConfigured()) {
-              const agg = await this.massive.getAggregates({
-                ticker: symbol,
-                multiplier: 1,
-                timespan: "day",
-                from: range === "1y" ? recentIsoDate(-400) : recentIsoDate(-120),
-                to: latestCompletedTradingDate(),
-                adjusted: true,
-              });
-              if (agg.candles.length > 0) {
-                return {
-                  candles: agg.candles,
-                  source: "massive",
-                  cacheTier: "cold" as const,
-                };
-              }
-            }
+        const candleFetcher = createScreenerDailyCandleFetcher({
+          store: fallbackStore,
+          minBars,
+          range,
+          massive: this.massive.isConfigured() ? this.massive : null,
+          recentIsoDate,
+          fetchProviderCandles: async (symbol, candleRange) => {
             const candleResult = await this.getCandles(
-              {
-                symbol,
-                interval: "1d",
-                range,
-              },
+              { symbol, interval: "1d", range: candleRange },
               { traceId },
             );
             return {
               candles: candleResult.data.candles,
               source: candleResult.source,
-              cacheTier: candleResult.cacheTier,
+              cacheTier: candleResult.cacheTier ?? "cold",
             };
           },
+        });
+        const technical = await runTechnicalFilter(
+          rows,
+          query.technical,
+          (symbol) => candleFetcher.fetch(symbol),
           {
             perf,
             traceId,
@@ -1989,6 +2140,9 @@ export class MarketDataService {
             maxResults: query.maxResults,
           },
         );
+        if (candleFetcher.warnings.length > 0) {
+          warnings.push(...candleFetcher.warnings);
+        }
         rows = technical.rows;
         warnings = [...warnings, ...technical.warnings];
         if (!perf) {
@@ -2002,13 +2156,13 @@ export class MarketDataService {
       }
     }
 
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "screener",
       cacheKey,
       { rows, indicatorValues },
       cacheTtlMs("screener"),
       Date.now(),
-    );
+    ));
     perf?.record("screener.total", totalStart, true, "service", {
       rows: rows.length,
       hadTechnical: query.technical != null,
@@ -2022,7 +2176,15 @@ export class MarketDataService {
       skippedSymbols: skippedSymbols.length > 0 ? skippedSymbols : undefined,
       traceId,
     });
-    return attachPerfMeta(dataResult, traceId, perf);
+    return attachPerfMeta(
+      recordServiceDelivery(
+        dataResult,
+        query.technical ? "screener_technical" : "screener_descriptive",
+        { transport: "request", traceId },
+      ),
+      traceId,
+      perf,
+    );
   }
 
   async getOptionExpirations(
@@ -2030,22 +2192,33 @@ export class MarketDataService {
   ): Promise<DataResult<OptionExpiration[]>> {
     const sym = underlying.trim().toUpperCase();
     const key = hotOptionExpirationsKey(sym);
-    const hot = globalHotStore.read<OptionExpiration[]>(key);
+    const hot = await Promise.resolve(globalHotStore.read<OptionExpiration[]>(key));
     if (hot.hit && hot.data && hot.servable) {
       if (!hot.fresh) {
         this.scheduleOptionExpirationsRevalidate(sym, key);
       }
-      return createDataResult(hot.data, hot.source ?? "mixed", {
-        requestedAt: Date.now(),
-        asOf: hot.asOf,
-        stale: !hot.fresh,
-        warnings: hot.warnings ?? [],
-        cacheTier: hotCacheTier(hot.fresh),
-      });
+      return recordServiceDelivery(
+        createDataResult(hot.data, hot.source ?? "mixed", {
+          requestedAt: Date.now(),
+          asOf: hot.asOf,
+          stale: !hot.fresh,
+          warnings: hot.warnings ?? [],
+          cacheTier: hotCacheTier(hot.fresh),
+        }),
+        "options_expirations",
+        { transport: "cache" },
+      );
     }
-    const result = await this.fetchOptionExpirationsFresh(sym);
+    const result = await recordTerminalFailureOnReject(
+      "options_expirations",
+      () => this.fetchOptionExpirationsFresh(sym),
+    );
     writeHotOptionExpirations(sym, result.data, result.source, result.warnings);
-    return { ...result, cacheTier: result.cacheTier ?? "cold" };
+    return recordServiceDelivery(
+      { ...result, cacheTier: result.cacheTier ?? "cold" },
+      "options_expirations",
+      { transport: "request" },
+    );
   }
 
   private scheduleOptionExpirationsRevalidate(underlying: string, key: string): void {
@@ -2068,7 +2241,7 @@ export class MarketDataService {
     if (!this.massive.isConfigured()) return null;
 
     const cacheKey = this.optionExpirationsCacheKey("massive", sym);
-    const cached = globalDataCache.read<OptionExpiration[]>("options_expirations", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<OptionExpiration[]>("options_expirations", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "massive", {
         requestedAt,
@@ -2077,13 +2250,13 @@ export class MarketDataService {
     }
 
     const massiveResult = await this.massive.getOptionExpirationsWithWarnings(sym);
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "options_expirations",
       cacheKey,
       massiveResult.expirations,
       cacheTtlMs("options_expirations"),
       Date.now(),
-    );
+    ));
     return createDataResult(massiveResult.expirations, "massive", {
       requestedAt,
       warnings: massiveResult.warnings,
@@ -2101,7 +2274,7 @@ export class MarketDataService {
     const strikeWindow = request.strikeWindow ?? { mode: "atm" as const, count: 20 };
 
     const cacheKey = this.optionsChainCacheKey("massive", underlying, expiration, strikeWindow);
-    const cached = globalDataCache.read<OptionsChainResponse>("options_chain", cacheKey);
+    const cached = await Promise.resolve(globalDataCache.read<OptionsChainResponse>("options_chain", cacheKey));
     if (cached.hit && cached.value) {
       return createDataResult(cached.value, "massive", {
         requestedAt,
@@ -2114,13 +2287,13 @@ export class MarketDataService {
       expiration,
       strikeWindow,
     });
-    globalDataCache.write(
+    await Promise.resolve(globalDataCache.write(
       "options_chain",
       cacheKey,
       massiveResult.chain,
       cacheTtlMs("options_chain"),
       Date.now(),
-    );
+    ));
     return createDataResult(massiveResult.chain, "massive", {
       requestedAt,
       warnings: massiveResult.warnings,
@@ -2140,10 +2313,10 @@ export class MarketDataService {
       const twsDecision = this.twsRoutingDecision("options");
       if (twsDecision.shouldTry) {
         const twsCacheKey = this.optionExpirationsCacheKey("tws", sym);
-        const twsCached = globalDataCache.read<OptionExpiration[]>(
+        const twsCached = await Promise.resolve(globalDataCache.read<OptionExpiration[]>(
           "options_expirations",
           twsCacheKey,
-        );
+        ));
         if (twsCached.hit && twsCached.value) {
           return createDataResult(twsCached.value, "tws", {
             requestedAt,
@@ -2154,13 +2327,13 @@ export class MarketDataService {
           const twsResult = await this.tws.getOptionExpirationsWithWarnings(sym);
           if (twsResult && twsResult.expirations.length > 0) {
             this.recordTwsSuccess(sym);
-            globalDataCache.write(
+            await Promise.resolve(globalDataCache.write(
               "options_expirations",
               twsCacheKey,
               twsResult.expirations,
               cacheTtlMs("options_expirations"),
               Date.now(),
-            );
+            ));
             return createDataResult(twsResult.expirations, "tws", {
               requestedAt,
               warnings: twsResult.warnings,
@@ -2186,10 +2359,10 @@ export class MarketDataService {
 
     if (this.ibkr.isConfigured()) {
       const ibkrCacheKey = this.optionExpirationsCacheKey("ibkr", sym);
-      const ibkrCached = globalDataCache.read<OptionExpiration[]>(
+      const ibkrCached = await Promise.resolve(globalDataCache.read<OptionExpiration[]>(
         "options_expirations",
         ibkrCacheKey,
-      );
+      ));
       if (ibkrCached.hit && ibkrCached.value) {
         return createDataResult(ibkrCached.value, "ibkr", {
           requestedAt,
@@ -2201,13 +2374,13 @@ export class MarketDataService {
       try {
         const ibkrResult = await this.ibkr.getOptionExpirationsWithWarnings(sym);
         if (ibkrResult && ibkrResult.expirations.length > 0) {
-          globalDataCache.write(
+          await Promise.resolve(globalDataCache.write(
             "options_expirations",
             ibkrCacheKey,
             ibkrResult.expirations,
             cacheTtlMs("options_expirations"),
             Date.now(),
-          );
+          ));
           return createDataResult(ibkrResult.expirations, "ibkr", {
             requestedAt,
             warnings: [...warnings, ...ibkrResult.warnings],
@@ -2233,12 +2406,13 @@ export class MarketDataService {
 
   async getOptionsChain(
     request: OptionsChainRequest,
+    options: MarketDataReadOptions = {},
   ): Promise<DataResult<OptionsChainResponse>> {
     const underlying = request.underlying.trim().toUpperCase();
     const expiration = request.expiration ?? "";
     const strikeWindow = request.strikeWindow ?? { mode: "atm" as const, count: 20 };
     const key = hotOptionsChainKey(underlying, expiration, strikeWindow);
-    const hot = globalHotStore.read<OptionsChainResponse>(key);
+    const hot = await Promise.resolve(globalHotStore.read<OptionsChainResponse>(key));
     if (hot.hit && hot.data && hot.servable) {
       if (!hot.fresh) {
         this.scheduleOptionsChainRevalidate(
@@ -2246,26 +2420,41 @@ export class MarketDataService {
           key,
         );
       }
-      return createDataResult(hot.data, hot.source ?? "mixed", {
-        requestedAt: Date.now(),
-        asOf: hot.asOf,
-        stale: !hot.fresh,
-        warnings: hot.warnings ?? [],
-        cacheTier: hotCacheTier(hot.fresh),
-      });
+      return recordServiceDelivery(
+        createDataResult(hot.data, hot.source ?? "mixed", {
+          requestedAt: Date.now(),
+          asOf: hot.asOf,
+          stale: !hot.fresh,
+          warnings: hot.warnings ?? [],
+          cacheTier: hotCacheTier(hot.fresh),
+        }),
+        "options_chain",
+        { transport: "cache" },
+      );
     }
-    const result = await this.fetchOptionsChainFresh({
-      underlying,
-      expiration,
-      strikeWindow,
-    });
+    const result = await recordTerminalFailureOnReject(
+      "options_chain",
+      () =>
+        this.fetchOptionsChainFresh(
+          {
+            underlying,
+            expiration,
+            strikeWindow,
+          },
+          options,
+        ),
+    );
     writeHotOptionsChain(
       { underlying, expiration, strikeWindow },
       result.data,
       result.source,
       result.warnings,
     );
-    return { ...result, cacheTier: result.cacheTier ?? "cold" };
+    return recordServiceDelivery(
+      { ...result, cacheTier: result.cacheTier ?? "cold" },
+      "options_chain",
+      { transport: "request" },
+    );
   }
 
   private scheduleOptionsChainRevalidate(
@@ -2286,37 +2475,46 @@ export class MarketDataService {
 
   private async fetchOptionsChainFresh(
     request: OptionsChainRequest,
+    readOptions: Pick<
+      MarketDataReadOptions,
+      "providerPreference" | "respectProviderPreference" | "trustUsage"
+    > = {},
   ): Promise<DataResult<OptionsChainResponse>> {
     const requestedAt = Date.now();
     const underlying = request.underlying.trim().toUpperCase();
     const expiration = request.expiration ?? "";
     const strikeWindow = request.strikeWindow ?? { mode: "atm" as const, count: 20 };
-
-    const massiveResult = await this.fetchMassiveOptionsChainFresh(
-      { underlying, expiration, strikeWindow },
-      requestedAt,
-    );
-    if (massiveResult) return massiveResult;
-
+    const order = this.resolveReadWaterfall("options_chain", readOptions);
     const warnings: string[] = [];
 
-    if (this.tws.isConfigured()) {
-      const twsDecision = this.twsRoutingDecision("options");
-      if (twsDecision.shouldTry) {
-        const twsCacheKey = this.optionsChainCacheKey(
-          "tws",
-          underlying,
-          expiration,
-          strikeWindow,
+    for (const providerId of order) {
+      if (providerId === "massive") {
+        const massiveResult = await this.fetchMassiveOptionsChainFresh(
+          { underlying, expiration, strikeWindow },
+          requestedAt,
         );
-        const twsCached = globalDataCache.read<OptionsChainResponse>("options_chain", twsCacheKey);
+        if (massiveResult) return massiveResult;
+        continue;
+      }
+
+      if (providerId === "tws" && this.tws.isConfigured()) {
+        const twsDecision = this.twsRoutingDecision("options");
+        if (!twsDecision.shouldTry) {
+          if (twsDecision.warning) {
+            warnings.push(twsDecision.warning);
+            warnings.push("TWS skipped for options chain; trying next provider");
+          }
+          continue;
+        }
+        const twsCacheKey = this.optionsChainCacheKey("tws", underlying, expiration, strikeWindow);
+        const twsCached = await Promise.resolve(globalDataCache.read<OptionsChainResponse>("options_chain", twsCacheKey));
         if (twsCached.hit && twsCached.value) {
           return createDataResult(twsCached.value, "tws", {
             requestedAt,
             asOf: twsCached.asOf,
+            warnings,
           });
         }
-
         try {
           const twsResult = await this.tws.getOptionsChainWithWarnings({
             underlying,
@@ -2325,21 +2523,21 @@ export class MarketDataService {
           });
           if (twsResult && twsResult.chain.contracts.length > 0) {
             this.recordTwsSuccess(underlying);
-            globalDataCache.write(
+            await Promise.resolve(globalDataCache.write(
               "options_chain",
               twsCacheKey,
               twsResult.chain,
               cacheTtlMs("options_chain"),
               Date.now(),
-            );
+            ));
             return createDataResult(twsResult.chain, "tws", {
               requestedAt,
-              warnings: twsResult.warnings,
+              warnings: [...warnings, ...twsResult.warnings],
             });
           }
           if (twsResult) {
             warnings.push(
-              `TWS returned no contracts for ${underlying} ${expiration}; trying IBKR`,
+              `TWS returned no contracts for ${underlying} ${expiration}; trying next provider`,
             );
             warnings.push(...twsResult.warnings);
           }
@@ -2347,65 +2545,53 @@ export class MarketDataService {
           this.recordTwsFailure(error);
           warnings.push(
             error instanceof Error
-              ? `TWS options chain failed: ${error.message}; trying IBKR`
-              : "TWS options chain failed; trying IBKR",
+              ? `TWS options chain failed: ${error.message}; trying next provider`
+              : "TWS options chain failed; trying next provider",
           );
         }
-      } else if (twsDecision.warning) {
-        warnings.push(twsDecision.warning);
-        warnings.push("TWS skipped for options chain; trying IBKR");
-      }
-    }
-
-    if (this.ibkr.isConfigured()) {
-      const ibkrCacheKey = this.optionsChainCacheKey(
-        "ibkr",
-        underlying,
-        expiration,
-        strikeWindow,
-      );
-      const ibkrCached = globalDataCache.read<OptionsChainResponse>("options_chain", ibkrCacheKey);
-      if (ibkrCached.hit && ibkrCached.value) {
-        return createDataResult(ibkrCached.value, "ibkr", {
-          requestedAt,
-          asOf: ibkrCached.asOf,
-          warnings,
-        });
+        continue;
       }
 
-      try {
-        const ibkrResult = await this.ibkr.getOptionsChainWithWarnings({
-          underlying,
-          expiration,
-          strikeWindow,
-        });
-        if (ibkrResult && ibkrResult.chain.contracts.length > 0) {
-          globalDataCache.write(
-            "options_chain",
-            ibkrCacheKey,
-            ibkrResult.chain,
-            cacheTtlMs("options_chain"),
-            Date.now(),
-          );
-          return createDataResult(ibkrResult.chain, "ibkr", {
+      if (providerId === "ibkr" && this.ibkr.isConfigured()) {
+        const ibkrCacheKey = this.optionsChainCacheKey("ibkr", underlying, expiration, strikeWindow);
+        const ibkrCached = await Promise.resolve(globalDataCache.read<OptionsChainResponse>("options_chain", ibkrCacheKey));
+        if (ibkrCached.hit && ibkrCached.value) {
+          return createDataResult(ibkrCached.value, "ibkr", {
             requestedAt,
-            warnings: [...warnings, ...ibkrResult.warnings],
+            asOf: ibkrCached.asOf,
+            warnings,
           });
         }
-        if (ibkrResult) {
-          throw new Error(
-            `IBKR returned no contracts for ${underlying} ${expiration}`,
-          );
+        try {
+          const ibkrResult = await this.ibkr.getOptionsChainWithWarnings({
+            underlying,
+            expiration,
+            strikeWindow,
+          });
+          if (ibkrResult && ibkrResult.chain.contracts.length > 0) {
+            await Promise.resolve(globalDataCache.write(
+              "options_chain",
+              ibkrCacheKey,
+              ibkrResult.chain,
+              cacheTtlMs("options_chain"),
+              Date.now(),
+            ));
+            return createDataResult(ibkrResult.chain, "ibkr", {
+              requestedAt,
+              warnings: [...warnings, ...ibkrResult.warnings],
+            });
+          }
+          if (ibkrResult) {
+            throw new Error(`IBKR returned no contracts for ${underlying} ${expiration}`);
+          }
+          throw new Error("IBKR options chain failed");
+        } catch (error) {
+          throw error instanceof Error ? error : new Error("IBKR options chain failed");
         }
-        throw new Error("IBKR options chain failed");
-      } catch (error) {
-        throw error instanceof Error
-          ? error
-          : new Error("IBKR options chain failed");
       }
     }
 
-    throw new Error("TWS/IBKR not configured for options chain");
+    throw new Error("No configured provider available for options chain");
   }
 
   async getDerivedMetric(
@@ -2415,10 +2601,35 @@ export class MarketDataService {
     const requestedAt = Date.now();
     const sym = symbol.trim().toUpperCase();
 
+    const upstreamRef = (
+      datasetId: string,
+      result: DataResult<unknown>,
+    ): DerivedUpstreamRef => {
+      const evaluation = evaluateDatasetPolicy({
+        datasetId: datasetId as "watchlist_quotes",
+        receivedAt: result.receivedAt,
+        providerAsOf: result.asOf,
+        transportStale: result.stale,
+        cacheTier: result.cacheTier,
+      });
+      return {
+        datasetId,
+        source: result.source,
+        receivedAt: result.receivedAt,
+        asOf: result.asOf,
+        stale: result.stale,
+        displayFresh: evaluation.displayFresh,
+      };
+    };
+
     if (kind === "rvol") {
       const quoteResult = await this.getQuotes([sym]);
       const quote = quoteResult.data[0];
       const fundamentals = await this.getFundamentals(sym);
+      const upstream: DerivedUpstreamRef[] = [
+        upstreamRef("watchlist_quotes", quoteResult),
+        upstreamRef("fundamentals_display", fundamentals),
+      ];
       const avg = fundamentals.data.averageVolume;
       const current = quote?.volume;
       if (avg == null || current == null || avg <= 0) {
@@ -2427,16 +2638,21 @@ export class MarketDataService {
           warnings: ["Insufficient volume data for RVOL"],
         });
       }
+      const blockedUpstream = upstream.find((row) => row.displayFresh === false);
+      const warnings = blockedUpstream
+        ? [`Upstream ${blockedUpstream.datasetId} is not display-fresh`]
+        : [];
       return createDataResult(
         {
           symbol: sym,
           kind,
           value: current / avg,
-          asOf: Date.now(),
+          asOf: quoteResult.asOf ?? quoteResult.receivedAt,
           source: "edge-derived",
+          upstream,
         },
         "edge-derived",
-        { requestedAt },
+        { requestedAt, warnings },
       );
     }
 
@@ -2446,6 +2662,7 @@ export class MarketDataService {
         range: "5d",
         interval: "1d",
       });
+      const upstream: DerivedUpstreamRef[] = [upstreamRef("chart_candles", candlesResult)];
       const candles = candlesResult.data.candles;
       if (candles.length < 2) {
         return createDataResult(null, "edge-derived", {
@@ -2456,6 +2673,10 @@ export class MarketDataService {
       const prev = candles[candles.length - 2]!;
       const last = candles[candles.length - 1]!;
       const gap = prev.c !== 0 ? ((last.o - prev.c) / prev.c) * 100 : 0;
+      const blockedUpstream = upstream.find((row) => row.displayFresh === false);
+      const warnings = blockedUpstream
+        ? [`Upstream ${blockedUpstream.datasetId} is not display-fresh`]
+        : [];
       return createDataResult(
         {
           symbol: sym,
@@ -2463,9 +2684,10 @@ export class MarketDataService {
           value: gap,
           asOf: last.t,
           source: "edge-derived",
+          upstream,
         },
         "edge-derived",
-        { requestedAt },
+        { requestedAt, warnings },
       );
     }
 
@@ -2581,12 +2803,13 @@ export class MarketDataService {
       const sidecarReachable = lastFailure !== "sidecar_unreachable";
       const skipReason = twsHealthGate.getSkipReason() ?? "TWS circuit open";
       return createDataResult(
-        {
-          configured: true,
-          sidecarReachable,
-          gatewayConnected: false,
-          warnings: [skipReason],
-        },
+        this.lastKnownTwsStatus(
+          {
+            sidecarReachable,
+            circuitBypassed: true,
+          },
+          [skipReason],
+        ),
         "tws",
         { requestedAt, warnings: [skipReason] },
       );
@@ -2594,17 +2817,17 @@ export class MarketDataService {
     const status = await this.tws.probeStatus?.(2_000);
     if (!status?.sidecarReachable) {
       return createDataResult(
-        {
+        this.storeTwsObservedStatus({
           configured: true,
           sidecarReachable: false,
           gatewayConnected: false,
           warnings: ["Sidecar unreachable"],
-        },
+        }),
         "tws",
         { requestedAt, warnings: ["Sidecar unreachable"] },
       );
     }
-    return createDataResult(status, "tws", {
+    return createDataResult(this.storeTwsObservedStatus(status), "tws", {
       requestedAt,
       warnings: status.warnings,
     });
@@ -2699,6 +2922,8 @@ export class MarketDataService {
     twsHealthGate.reset();
     this.twsGatewayProbeAt = 0;
     this.twsGatewayConnected = true;
+    this.lastTwsStatusProbe = null;
+    this.lastTwsStatusObservedAt = 0;
     this.candlesRevalidateKeys.clear();
     this.quotesRevalidateKey = null;
     this.optionExpRevalidateKeys.clear();
@@ -2880,6 +3105,7 @@ export { resetTwsHealthGateForTests, resetIbkrHealthGateForTests, clearHotStoreF
 export function clearMarketDataCacheForTests(): void {
   clearLegacyDataCacheForTests();
   clearHotStoreForTests();
+  resetDeliveryRegistryForTests();
 }
 
 function defaultMacroDateWindow(query: MarketEventsQuery): { from: string; to: string } {

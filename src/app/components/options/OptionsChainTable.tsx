@@ -8,6 +8,7 @@ import {
   isLastOutsideSpread,
 } from "@/lib/options/chainDisplay";
 import { formatOptionPrice, type StrikeRow } from "@/lib/options/optionsClient";
+import { EdgeEmptyState, EdgeSkeletonLine, EdgeStatusRegion } from "../design-system";
 import { ChainLegGreeksPopover } from "./ChainRowGreeksPopover";
 
 function ChainLoadingState({
@@ -22,34 +23,23 @@ function ChainLoadingState({
     : `Loading ${symbol} options chain…`;
 
   return (
-    <div
+    <EdgeStatusRegion
       data-testid="options-chain-loading"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-      className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-md border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)]/40 px-4 py-8"
+      label={label}
+      description="Fetching strikes and quotes from market data…"
+      variant="panel"
+      spinnerSize="md"
     >
-      <div
-        data-testid="options-chain-loading-spinner"
-        className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--edge-border)] border-t-[var(--edge-accent-blue)]"
-        aria-hidden
-      />
-      <div className="text-center">
-        <div className="text-xs font-medium text-[var(--edge-text-strong)]">{label}</div>
-        <div className="mt-1 text-[10px] text-[var(--edge-text-secondary)]">
-          Fetching strikes and quotes from market data…
-        </div>
-      </div>
       <div className="w-full max-w-md space-y-2" aria-hidden>
         {Array.from({ length: 6 }).map((_, index) => (
-          <div
+          <EdgeSkeletonLine
             key={index}
-            className="h-3 animate-pulse rounded bg-[var(--edge-bg-tertiary)]"
-            style={{ width: `${70 + (index % 3) * 10}%` }}
+            className="h-3"
+            width={`${70 + (index % 3) * 10}%`}
           />
         ))}
       </div>
-    </div>
+    </EdgeStatusRegion>
   );
 }
 
@@ -101,9 +91,12 @@ export function OptionsChainTable({
 
   if (chainError) {
     return (
-      <div data-testid="options-chain-error" className="text-[var(--edge-negative)]" role="alert">
-        {chainError}
-      </div>
+      <EdgeEmptyState
+        data-testid="options-chain-error"
+        message={chainError}
+        role="alert"
+        tone="error"
+      />
     );
   }
 
@@ -124,7 +117,7 @@ export function OptionsChainTable({
             type="button"
             data-testid="options-load-all-strikes"
             onClick={onLoadAllStrikes}
-            className="rounded bg-[var(--edge-bg-secondary)] px-2 py-1 text-[10px] text-[var(--edge-text-primary)] hover:bg-[var(--edge-bg-tertiary)]"
+            className="rounded bg-[var(--edge-surface-toolbar)] px-2 py-1 text-[10px] text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)]"
           >
             Load all strikes
           </button>
@@ -153,7 +146,7 @@ export function OptionsChainTable({
               <th className="px-1 py-1 text-left font-medium">Last</th>
               <th
                 data-testid="options-chain-strike-header"
-                className="min-w-[3rem] border-x border-[var(--edge-border)] bg-[var(--edge-bg-secondary)] px-1 py-1 text-center font-medium"
+                className="min-w-[3rem] border-x border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-1 py-1 text-center font-medium"
               >
                 Strike
               </th>
@@ -195,7 +188,7 @@ export function OptionsChainTable({
                   </ChainLegGreeksPopover>
                   <td
                     data-testid={`options-chain-strike-${row.strike}`}
-                    className={`min-w-[3rem] border-x border-[var(--edge-border)] bg-[var(--edge-bg-secondary)] px-1 py-0.5 text-center text-[11px] font-semibold tabular-nums text-[var(--edge-text-strong)] ${rowBand ? "ring-1 ring-inset ring-[var(--edge-accent-blue)]/40" : ""}`}
+                    className={`min-w-[3rem] border-x border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-1 py-0.5 text-center text-[11px] font-semibold tabular-nums text-[var(--edge-text-strong)] ${rowBand ? "ring-1 ring-inset ring-[var(--edge-accent-blue)]/40" : ""}`}
                   >
                     {row.strike}
                   </td>

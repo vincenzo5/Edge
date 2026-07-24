@@ -99,10 +99,6 @@ vi.mock("../providers/fred/adapter", () => ({
   createFredProvider: () => fred,
 }));
 
-vi.mock("../providers/tradier/adapter", () => ({
-  createTradierOptionsProvider: () => ({ isConfigured: () => false }),
-}));
-
 vi.mock("../providers/ibkr/adapter", () => ({
   createIbkrProvider: () => ({ isConfigured: () => false }),
 }));

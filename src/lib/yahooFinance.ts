@@ -93,6 +93,50 @@ function rangeToPeriods(range: Range): { period1: Date; period2: Date } {
   return { period1, period2 };
 }
 
+const MS_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Yahoo Finance intraday chart history caps (documented API limits).
+ * Requests outside these windows fail with "must be within the last N days".
+ * Returns null when the interval has no short history cap for our ranges.
+ */
+export function yahooMaxHistoryMs(interval: Interval): number | null {
+  switch (interval) {
+    case "1m":
+      return 7 * MS_DAY;
+    case "5m":
+    case "15m":
+    case "30m":
+      return 60 * MS_DAY;
+    case "1h":
+      return 730 * MS_DAY;
+    default:
+      return null;
+  }
+}
+
+/** Clamp a Yahoo chart window to the interval's allowed history, or null if empty. */
+export function clampYahooChartPeriod(
+  period1: Date,
+  period2: Date,
+  interval: Interval,
+  nowMs = Date.now(),
+): { period1: Date; period2: Date } | null {
+  const maxMs = yahooMaxHistoryMs(interval);
+  let p1 = period1.getTime();
+  let p2 = period2.getTime();
+  if (!Number.isFinite(p1) || !Number.isFinite(p2) || p1 >= p2) return null;
+
+  if (p2 > nowMs) p2 = nowMs;
+  if (maxMs != null) {
+    const earliest = nowMs - maxMs;
+    if (p2 <= earliest) return null;
+    if (p1 < earliest) p1 = earliest;
+  }
+  if (p1 >= p2) return null;
+  return { period1: new Date(p1), period2: new Date(p2) };
+}
+
 /**
  * Search Yahoo Finance for stocks (equities only). Returns at most `limit`
  * results, filtering out ETFs, mutual funds, indices, crypto, etc.
@@ -142,9 +186,12 @@ export async function getChartCandlesInPeriod(
   period2: Date,
   interval: Interval = "1d",
 ): Promise<Candle[]> {
+  const clamped = clampYahooChartPeriod(period1, period2, interval);
+  if (!clamped) return [];
+
   const result = await yahooFinance.chart(symbol, {
-    period1,
-    period2,
+    period1: clamped.period1,
+    period2: clamped.period2,
     interval,
   });
 
@@ -178,6 +225,11 @@ export async function getChartCandlesBefore(
   const intervalMs = intervalToMs(interval);
   const period2 = new Date(beforeTimestampMs - intervalMs);
   const period1 = new Date(period2.getTime() - barCount * intervalMs);
+  // Outside Yahoo's intraday retention window — nothing to fetch.
+  if (yahooMaxHistoryMs(interval) != null) {
+    const clamped = clampYahooChartPeriod(period1, period2, interval);
+    if (!clamped) return [];
+  }
   return getChartCandlesInPeriod(symbol, period1, period2, interval);
 }
 

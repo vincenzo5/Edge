@@ -237,7 +237,7 @@ export function chainLegHeaderClass(
   if (sideBg) {
     return `${sideBg} text-[var(--edge-text-primary)]`;
   }
-  return "bg-[var(--edge-bg-secondary)] text-[var(--edge-text-primary)]";
+  return "bg-[var(--edge-surface-toolbar)] text-[var(--edge-text-primary)]";
 }
 
 export function chainRowClass(strike: number, spot: number | null): string {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { FundamentalsSnapshot } from "@/lib/watchlist/types";
-import { fetchFundamentals } from "@/lib/watchlist/fundamentalsClient";
+import { fetchFundamentalsBatch } from "@/lib/watchlist/fundamentalsClient";
 
 export function useWatchlistFundamentalsCache(symbols: string[]) {
   const [cache, setCache] = useState<Record<string, FundamentalsSnapshot>>({});
@@ -18,24 +18,13 @@ export function useWatchlistFundamentalsCache(symbols: string[]) {
     const uniqueSymbols = symbolKey.split("\0");
 
     void (async () => {
-      const entries = await Promise.all(
-        uniqueSymbols.map(async (symbol) => {
-          try {
-            const data = await fetchFundamentals(symbol);
-            return [symbol, data] as const;
-          } catch {
-            return null;
-          }
-        }),
-      );
-
-      if (cancelled) return;
-      const next: Record<string, FundamentalsSnapshot> = {};
-      for (const entry of entries) {
-        if (!entry) continue;
-        next[entry[0]] = entry[1];
+      try {
+        const next = await fetchFundamentalsBatch(uniqueSymbols);
+        if (cancelled) return;
+        setCache(next);
+      } catch {
+        if (!cancelled) setCache({});
       }
-      setCache(next);
     })();
 
     return () => {

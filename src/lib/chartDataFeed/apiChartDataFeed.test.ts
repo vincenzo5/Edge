@@ -1,8 +1,18 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createApiChartDataFeed } from './apiChartDataFeed';
+import { resetCoalesceInFlightForTests } from './coalesceInFlight';
+import { clearSharedClientTtlCacheForTests } from '@/lib/marketData/cache/clientTtlCache';
+import { resetClientTtlFetchCoalesceForTests } from '@/lib/marketData/cache/getOrFetchClientTtl';
 
 vi.mock('@/lib/marketData/dataConnectionPreference', () => ({
   readDataConnectionPreference: vi.fn(() => 'ib-live' as const),
+}));
+
+vi.mock('@/lib/marketData/dataProviderPreference', () => ({
+  readDataProviderPreference: vi.fn(() => ({
+    orderedProviders: ['tws', 'ibkr', 'yahoo', 'massive'],
+    disabledProviders: [],
+  })),
 }));
 
 describe('createApiChartDataFeed', () => {
@@ -10,6 +20,9 @@ describe('createApiChartDataFeed', () => {
 
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
+    resetCoalesceInFlightForTests();
+    clearSharedClientTtlCacheForTests();
+    resetClientTtlFetchCoalesceForTests();
   });
 
   afterEach(() => {
@@ -45,6 +58,10 @@ describe('createApiChartDataFeed', () => {
           interval: '1d',
           sessionMode: 'regular',
           connectionId: 'ib-live',
+          providerPreference: {
+            orderedProviders: ['tws', 'ibkr', 'yahoo', 'massive'],
+            disabledProviders: [],
+          },
         }),
       }),
     );
@@ -102,7 +119,14 @@ describe('createApiChartDataFeed', () => {
       '/api/quotes',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ symbols: ['AAPL'], connectionId: 'ib-live' }),
+        body: JSON.stringify({
+          symbols: ['AAPL'],
+          connectionId: 'ib-live',
+          providerPreference: {
+            orderedProviders: ['tws', 'ibkr', 'yahoo', 'massive'],
+            disabledProviders: [],
+          },
+        }),
       }),
     );
   });
@@ -202,6 +226,95 @@ describe('createApiChartDataFeed', () => {
     expect(result.events.some((event) => event.kind === 'options_expiration')).toBe(true);
   });
 
+  it('reuses client TTL cache for repeat overlay loads within session', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ events: [], meta: { source: 'edge-events', warnings: [] } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          news: [
+            {
+              id: 'n1',
+              headline: 'Apple beats',
+              publishedAt: '2026-06-01T12:00:00.000Z',
+            },
+          ],
+          meta: { source: 'fmp', warnings: [] },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          expirations: ['2026-06-20'],
+          meta: { source: 'ibkr', warnings: [] },
+        }),
+      });
+
+    const feed = createApiChartDataFeed();
+    await feed.loadEvents!({ symbol: 'AAPL' });
+    fetchMock.mockClear();
+    await feed.loadEvents!({ symbol: 'AAPL' });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not cache failed news overlay responses', async () => {
+    fetchMock.mockImplementation((url: RequestInfo | URL) => {
+      const href = String(url);
+      if (href.includes('/api/news')) {
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          json: async () => ({ error: 'upstream' }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ events: [], meta: { source: 'edge-events', warnings: [] } }),
+      });
+    });
+
+    const feed = createApiChartDataFeed();
+    const first = await feed.loadEvents!({ symbol: 'AAPL', kinds: ['news'] });
+    expect(first.events).toHaveLength(0);
+    const newsCallsAfterFirst = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes('/api/news'),
+    ).length;
+
+    fetchMock.mockImplementation((url: RequestInfo | URL) => {
+      const href = String(url);
+      if (href.includes('/api/news')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            news: [
+              {
+                id: 'n1',
+                headline: 'Apple beats',
+                publishedAt: '2026-06-01T12:00:00.000Z',
+              },
+            ],
+            meta: { source: 'fmp', warnings: [] },
+          }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ events: [], meta: { source: 'edge-events', warnings: [] } }),
+      });
+    });
+
+    const second = await feed.loadEvents!({ symbol: 'AAPL', kinds: ['news'] });
+    expect(second.events).toHaveLength(1);
+    const newsCallsAfterSecond = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes('/api/news'),
+    ).length;
+    expect(newsCallsAfterSecond).toBe(newsCallsAfterFirst + 1);
+  });
+
   it('parses date-only scheduledAt as noon UTC for daily candle alignment', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -288,6 +401,24 @@ describe('createApiChartDataFeed', () => {
     expect(result.referenceLines?.[0]?.price).toBe(180);
   });
 
+  it('coalesces concurrent identical candle POSTs', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        candles: [{ t: 1000, o: 1, h: 2, l: 0.5, c: 1.5, v: 100 }],
+        meta: { source: 'ibkr', stale: false, warnings: [], asOf: 1234 },
+      }),
+    });
+
+    const feed = createApiChartDataFeed();
+    await Promise.all([
+      feed.loadCandles({ symbol: 'AAPL', interval: '1d', range: '1mo' }),
+      feed.loadCandles({ symbol: 'AAPL', interval: '1d', range: '1mo' }),
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('subscribes to candles via polling without an immediate snapshot', async () => {
     vi.useFakeTimers();
     fetchMock.mockResolvedValue({
@@ -301,12 +432,16 @@ describe('createApiChartDataFeed', () => {
     const feed = createApiChartDataFeed();
     const events: Array<{ type: string }> = [];
     const unsubscribe = feed.subscribeCandles!(
-      { symbol: 'AAPL', interval: '1d', range: '1mo' },
+      { symbol: 'AAPL', interval: '1d', range: '1y' },
       (event) => events.push(event),
     );
 
     await Promise.resolve();
     expect(events).toHaveLength(0);
+
+    const pollBody = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    expect(pollBody.range).toBe('1mo');
+    expect(pollBody.range).not.toBe('1y');
 
     fetchMock.mockResolvedValueOnce({
       ok: true,

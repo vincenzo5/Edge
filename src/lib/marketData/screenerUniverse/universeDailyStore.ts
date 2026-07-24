@@ -1,7 +1,8 @@
 import type { EquityCandle } from "../contracts/equities";
 import type { FmpScreenerRow } from "../contracts/fmp";
 import type { ScreenQuery } from "../schemas/request";
-import { buildCacheKey, globalDataCache } from "../cache/dataCache";
+import { buildCacheKey } from "../cache/dataCache";
+import { globalDataCache } from "../cache/serverCacheBackends";
 import { cacheTtlMs } from "../cache/ttlPolicy";
 import type { PerfPhaseCollector } from "../telemetry/perfPhases";
 import type { MassiveProvider } from "../providers/massive/adapter";
@@ -36,21 +37,49 @@ export function recentTradingDateCandidates(count: number, fromDate = new Date()
   return recentTradingDays(count, fromDate);
 }
 
-export function readUniverseDailyStore(): UniverseDailyStorePayload | null {
-  const cached = globalDataCache.read<UniverseDailyStorePayload>(
-    "universe_daily",
-    UNIVERSE_STORE_CACHE_KEY,
+export async function readUniverseDailyStore(): Promise<UniverseDailyStorePayload | null> {
+  const cached = await Promise.resolve(
+    globalDataCache.read<UniverseDailyStorePayload>(
+      "universe_daily",
+      UNIVERSE_STORE_CACHE_KEY,
+    ),
   );
   return cached.hit && cached.value ? cached.value : null;
 }
 
+/** Drop oldest trading dates beyond configured lookback. */
+export function pruneUniverseDailyStore(
+  store: UniverseDailyStorePayload,
+): UniverseDailyStorePayload {
+  const lookback = massiveUniverseLookbackDays();
+  if (store.tradingDates.length <= lookback) {
+    return store;
+  }
+  const keptDates = store.tradingDates.slice(-lookback);
+  const byDate: Record<string, Record<string, EquityCandle>> = {};
+  for (const dateStr of keptDates) {
+    const dayMap = store.byDate[dateStr];
+    if (dayMap) {
+      byDate[dateStr] = dayMap;
+    }
+  }
+  return {
+    byDate,
+    tradingDates: keptDates,
+    asOf: store.asOf,
+  };
+}
+
 export function writeUniverseDailyStore(payload: UniverseDailyStorePayload): void {
-  globalDataCache.write(
-    "universe_daily",
-    UNIVERSE_STORE_CACHE_KEY,
-    payload,
-    cacheTtlMs("universe_daily"),
-    Date.now(),
+  const pruned = pruneUniverseDailyStore(payload);
+  void Promise.resolve(
+    globalDataCache.write(
+      "universe_daily",
+      UNIVERSE_STORE_CACHE_KEY,
+      pruned,
+      cacheTtlMs("universe_daily"),
+      Date.now(),
+    ),
   );
 }
 
@@ -60,18 +89,28 @@ export function mergeDailyBarsIntoStore(
   bySymbol: Map<string, EquityCandle>,
 ): UniverseDailyStorePayload {
   if (bySymbol.size === 0) return store;
-  const dateMap: Record<string, EquityCandle> = store.byDate[dateStr] ?? {};
+  const existingDateMap = store.byDate[dateStr];
+  const dateMap: Record<string, EquityCandle> = existingDateMap
+    ? { ...existingDateMap }
+    : {};
   for (const [symbol, candle] of bySymbol) {
     dateMap[symbol] = candle;
   }
   const tradingDates = store.tradingDates.includes(dateStr)
     ? store.tradingDates
     : [...store.tradingDates, dateStr].sort();
-  return {
-    byDate: { ...store.byDate, [dateStr]: dateMap },
+  const byDate: Record<string, Record<string, EquityCandle>> = {};
+  for (const [date, map] of Object.entries(store.byDate)) {
+    byDate[date] = date === dateStr ? dateMap : { ...map };
+  }
+  if (!store.byDate[dateStr]) {
+    byDate[dateStr] = dateMap;
+  }
+  return pruneUniverseDailyStore({
+    byDate,
     tradingDates,
     asOf: Date.now(),
-  };
+  });
 }
 
 export function getCandlesFromUniverseStore(
@@ -103,7 +142,9 @@ export async function fetchUniverseDescriptors(
   fmp: FmpProvider,
 ): Promise<{ rows: FmpScreenerRow[]; warnings: string[] }> {
   const cacheKey = buildCacheKey(["descriptors", "us-all"]);
-  const cached = globalDataCache.read<FmpScreenerRow[]>("screener_universe", cacheKey);
+  const cached = await Promise.resolve(
+    globalDataCache.read<FmpScreenerRow[]>("screener_universe", cacheKey),
+  );
   if (cached.hit && cached.value) {
     return { rows: cached.value, warnings: [] };
   }
@@ -131,12 +172,14 @@ export async function fetchUniverseDescriptors(
   }
 
   const rows = [...bySymbol.values()];
-  globalDataCache.write(
-    "screener_universe",
-    cacheKey,
-    rows,
-    cacheTtlMs("screener_universe"),
-    Date.now(),
+  await Promise.resolve(
+    globalDataCache.write(
+      "screener_universe",
+      cacheKey,
+      rows,
+      cacheTtlMs("screener_universe"),
+      Date.now(),
+    ),
   );
   return { rows, warnings };
 }
@@ -209,12 +252,12 @@ export async function ensureScreenerUniverseWarm(args: {
 
   if (!massive.isConfigured()) {
     return {
-      store: readUniverseDailyStore() ?? { byDate: {}, tradingDates: [], asOf: Date.now() },
+      store: (await readUniverseDailyStore()) ?? { byDate: {}, tradingDates: [], asOf: Date.now() },
       warnings: ["MASSIVE_API_KEY is not configured"],
     };
   }
 
-  let store = readUniverseDailyStore() ?? {
+  let store = (await readUniverseDailyStore()) ?? {
     byDate: {},
     tradingDates: [],
     asOf: Date.now(),
@@ -278,7 +321,7 @@ async function backfillUniverseDailyStore(
 }
 
 export function resetUniverseStoreForTests(): void {
-  globalDataCache.delete("universe_daily", UNIVERSE_STORE_CACHE_KEY);
-  globalDataCache.clear("screener_universe");
+  void Promise.resolve(globalDataCache.delete("universe_daily", UNIVERSE_STORE_CACHE_KEY));
+  void Promise.resolve(globalDataCache.clear("screener_universe"));
   backgroundWarmInFlight = false;
 }

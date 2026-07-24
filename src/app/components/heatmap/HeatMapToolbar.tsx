@@ -2,6 +2,7 @@
 
 import type { HeatMapConfig, HeatMapGroupBy, HeatMapColorMetric, HeatMapSizeMetric } from "@/lib/heatmap/types";
 import { DEFAULT_HEAT_MAP_CONFIG } from "@/lib/heatmap/defaults";
+import { EdgeSegmentedTabs, EdgeSelect } from "../design-system";
 
 export const HEAT_MAP_SIZE_OPTIONS: Array<{ id: HeatMapSizeMetric; label: string }> = [
   { id: "marketCap", label: "Market cap" },
@@ -32,10 +33,6 @@ type Props = {
   className?: string;
 };
 
-function selectClassName(): string {
-  return "h-7 rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-2 text-[11px] text-[var(--edge-text-primary)]";
-}
-
 export default function HeatMapToolbar({ config, onChange, className = "" }: Props) {
   const patch = (partial: Partial<HeatMapConfig>) => onChange({ ...config, ...partial });
 
@@ -44,102 +41,89 @@ export default function HeatMapToolbar({ config, onChange, className = "" }: Pro
       className={`flex flex-wrap items-center gap-2 ${className}`.trim()}
       data-testid="heatmap-toolbar"
     >
-      <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
-        Size
-        <select
-          data-testid="heatmap-size-by"
-          className={selectClassName()}
-          value={config.sizeBy.metric}
-          onChange={(event) =>
-            patch({
-              sizeBy: {
-                ...config.sizeBy,
-                metric: event.target.value as HeatMapSizeMetric,
-              },
-            })
-          }
-        >
-          {HEAT_MAP_SIZE_OPTIONS.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <EdgeSelect
+        testId="heatmap-size-by"
+        variant="chip"
+        label="Size"
+        density="compact"
+        value={config.sizeBy.metric}
+        onChange={(metric) =>
+          patch({
+            sizeBy: {
+              ...config.sizeBy,
+              metric: metric as HeatMapSizeMetric,
+            },
+          })
+        }
+        options={HEAT_MAP_SIZE_OPTIONS.map((option) => ({
+          value: option.id,
+          label: option.label,
+        }))}
+        minWidth={140}
+      />
 
       {config.sizeBy.metric !== "equal" ? (
-        <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
-          Scale
-          <select
-            data-testid="heatmap-size-scale"
-            className={selectClassName()}
+        <div data-testid="heatmap-size-scale">
+          <EdgeSegmentedTabs
+            segments={HEAT_MAP_SIZE_SCALE_OPTIONS.map((option) => ({
+              id: option.id,
+              label: option.label,
+            }))}
             value={config.sizeBy.scale}
-            onChange={(event) =>
+            onChange={(scale) =>
               patch({
                 sizeBy: {
                   ...config.sizeBy,
-                  scale: event.target.value as "linear" | "log",
+                  scale: scale as "linear" | "log",
                 },
               })
             }
-          >
-            {HEAT_MAP_SIZE_SCALE_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          />
+        </div>
       ) : null}
 
-      <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
-        Color
-        <select
-          data-testid="heatmap-color-by"
-          className={selectClassName()}
-          value={config.colorBy.metric}
-          onChange={(event) => {
-            const metric = event.target.value as HeatMapColorMetric;
-            patch({
-              colorBy: {
-                ...config.colorBy,
-                metric,
-                scale:
-                  metric === "changePercent"
-                    ? DEFAULT_HEAT_MAP_CONFIG.colorBy.scale
-                    : {
-                        kind: "sequential",
-                        domain: "data",
-                      },
-              },
-            });
-          }}
-        >
-          {HEAT_MAP_COLOR_OPTIONS.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <EdgeSelect
+        testId="heatmap-color-by"
+        variant="chip"
+        label="Color"
+        density="compact"
+        value={config.colorBy.metric}
+        onChange={(metric) => {
+          const nextMetric = metric as HeatMapColorMetric;
+          patch({
+            colorBy: {
+              ...config.colorBy,
+              metric: nextMetric,
+              scale:
+                nextMetric === "changePercent"
+                  ? DEFAULT_HEAT_MAP_CONFIG.colorBy.scale
+                  : {
+                      kind: "sequential",
+                      domain: "data",
+                    },
+            },
+          });
+        }}
+        options={HEAT_MAP_COLOR_OPTIONS.map((option) => ({
+          value: option.id,
+          label: option.label,
+        }))}
+        minWidth={150}
+      />
 
-      <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
-        Group
-        <select
-          data-testid="heatmap-group-by"
-          className={selectClassName()}
-          value={config.groupBy}
-          onChange={(event) =>
-            patch({ groupBy: event.target.value as HeatMapGroupBy })
-          }
-        >
-          {HEAT_MAP_GROUP_OPTIONS.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <EdgeSelect
+        testId="heatmap-group-by"
+        variant="chip"
+        label="Group"
+        density="compact"
+        value={config.groupBy}
+        onChange={(groupBy) => patch({ groupBy: groupBy as HeatMapGroupBy })}
+        options={HEAT_MAP_GROUP_OPTIONS.map((option) => ({
+          value: option.id,
+          label: option.label,
+        }))}
+        minWidth={120}
+      />
     </div>
   );
 }

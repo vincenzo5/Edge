@@ -4,7 +4,7 @@ import { parseMarketRequest, twsRecoverRequestSchema } from "@/lib/marketData/sc
 import { isTwsConfigured } from "@/lib/marketData/providers/tws/client";
 import { recoverTwsSidecar } from "@/lib/marketData/providers/tws/recover";
 import { finalizeTwsRecoveryIfNeeded } from "@/lib/marketData/providers/tws/finalizeTwsRecovery";
-import { startTwsRecoverySession } from "@/lib/marketData/providers/tws/recoverySession";
+import { startTwsRecoverySession, getTwsRecoverySession } from "@/lib/marketData/providers/tws/recoverySession";
 import { getServerMarketDataService } from "@/lib/marketData/service/server";
 
 export const runtime = "nodejs";
@@ -43,6 +43,7 @@ export async function POST(request: Request): Promise<Response> {
     candleRequests,
     optionsSymbol: parsed.data.optionsSymbol,
   });
+  const session = getTwsRecoverySession();
 
   try {
     const result = await recoverTwsSidecar(parsed.data.symbols);
@@ -64,6 +65,8 @@ export async function POST(request: Request): Promise<Response> {
       action: result.action,
       message: result.message,
       recoveryPhase: result.recoveryPhase,
+      sessionId: session?.id,
+      revision: session?.revision,
       status: result.status,
       warmup,
     });

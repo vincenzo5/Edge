@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { EquityCandle } from "../contracts/equities";
 import type { FmpScreenerRow } from "../contracts/fmp";
-import { clearMarketDataCacheForTests } from "../cache/dataCache";
+import { clearMarketDataCacheForTests } from "../cache/serverCacheBackends";
 import {
   applyDescriptiveFilters,
   formatUtcDate,
@@ -40,7 +40,19 @@ describe("universeDailyStore", () => {
     resetUniverseStoreForTests();
   });
 
-  it("merges grouped daily bars and reads symbol history", () => {
+  it("merges grouped daily bars without mutating prior store maps", () => {
+    const priorMap = { AAPL: candle(180, 0) };
+    let store = { byDate: { "2024-06-02": priorMap }, tradingDates: ["2024-06-02"], asOf: Date.now() };
+    store = mergeDailyBarsIntoStore(
+      store,
+      "2024-06-03",
+      new Map([["AAPL", candle(190, 1)]]),
+    );
+    expect(priorMap.AAPL.c).toBe(180);
+    expect(store.byDate["2024-06-02"]).not.toBe(priorMap);
+  });
+
+  it("merges grouped daily bars and reads symbol history", async () => {
     let store = { byDate: {}, tradingDates: [], asOf: Date.now() };
     store = mergeDailyBarsIntoStore(
       store,
@@ -54,10 +66,25 @@ describe("universeDailyStore", () => {
     );
     writeUniverseDailyStore(store);
 
-    const loaded = readUniverseDailyStore();
+    const loaded = await readUniverseDailyStore();
     const { candles, found } = getCandlesFromUniverseStore("AAPL", 2, loaded);
     expect(found).toBe(true);
     expect(candles.map((bar) => bar.c)).toEqual([190, 195]);
+  });
+
+  it("prunes trading dates beyond lookback on write", async () => {
+    const lookback = 2;
+    vi.stubEnv("MASSIVE_UNIVERSE_LOOKBACK_DAYS", String(lookback));
+    let store = { byDate: {}, tradingDates: [], asOf: Date.now() };
+    store = mergeDailyBarsIntoStore(store, "2024-06-01", new Map([["AAPL", candle(1, 1)]]));
+    store = mergeDailyBarsIntoStore(store, "2024-06-02", new Map([["AAPL", candle(2, 2)]]));
+    store = mergeDailyBarsIntoStore(store, "2024-06-03", new Map([["AAPL", candle(3, 3)]]));
+    writeUniverseDailyStore(store);
+
+    const loaded = await readUniverseDailyStore();
+    expect(loaded?.tradingDates).toEqual(["2024-06-02", "2024-06-03"]);
+    expect(loaded?.byDate["2024-06-01"]).toBeUndefined();
+    vi.unstubAllEnvs();
   });
 
   it("applyDescriptiveFilters filters sector locally", () => {

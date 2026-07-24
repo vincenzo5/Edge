@@ -14,34 +14,7 @@ import type { IbkrProvider } from "../providers/ibkr/adapter";
 import type { TwsProvider } from "../providers/tws/adapter";
 import type { MassiveProvider } from "../providers/massive/adapter";
 import { globalHotStore, hotCandlesKey, hotQuoteKey, writeHotCandles, writeHotQuote } from "../hotStore";
-
-const tradierGetExpirations = vi.fn(async () => [
-  { underlying: "AAPL", expiration: "2025-07-18" },
-]);
-const tradierGetChain = vi.fn(async () => ({
-  underlying: "AAPL",
-  expiration: "2025-07-18",
-  contracts: [
-    {
-      contractSymbol: "AAPL250718C00150000",
-      underlying: "AAPL",
-      type: "call" as const,
-      expiration: "2025-07-18",
-      strike: 150,
-      bid: 2,
-      ask: 2.1,
-      updatedAt: Date.now(),
-    },
-  ],
-}));
-
-vi.mock("../providers/tradier/adapter", () => ({
-  createTradierOptionsProvider: () => ({
-    isConfigured: () => true,
-    getExpirations: tradierGetExpirations,
-    getChain: tradierGetChain,
-  }),
-}));
+import { getDeliveryRegistry } from "../state/deliveryRegistry";
 
 const ibkrCandles: CandleResponse = {
   symbol: "AAPL",
@@ -328,6 +301,17 @@ describe("MarketDataService", () => {
     const result = await service.getDerivedMetric("AAPL", "rvol");
     expect(result.data?.kind).toBe("rvol");
     expect(result.data?.value).toBe(1000);
+  });
+
+  it("records upstream lineage and display-fresh flags on derived rvol", async () => {
+    const service = createService();
+    const result = await service.getDerivedMetric("AAPL", "rvol");
+    expect(result.data?.upstream).toHaveLength(2);
+    expect(result.data?.upstream?.[0]?.datasetId).toBe("watchlist_quotes");
+    expect(result.data?.upstream?.[1]?.datasetId).toBe("fundamentals_display");
+    expect(result.data?.upstream?.every((row) => typeof row.displayFresh === "boolean")).toBe(
+      true,
+    );
   });
 
   describe("TWS-first candle routing", () => {
@@ -684,14 +668,49 @@ describe("MarketDataService", () => {
     });
   });
 
-  describe("IBKR-first options routing", () => {
+  describe("display provider preference routing", () => {
+    it("prefers Yahoo for display candles when ordered first", async () => {
+      const ibkr = createMockIbkr();
+      const tws = createMockTws();
+      const service = createService({ ibkr, tws });
+      const result = await service.getCandles(
+        { symbol: "AAPL", range: "1mo", interval: "1d" },
+        {
+          providerPreference: {
+            orderedProviders: ["yahoo", "tws", "ibkr"],
+            disabledProviders: [],
+          },
+        },
+      );
+      expect(result.source).toBe("yahoo");
+      expect(ibkr.getCandles).not.toHaveBeenCalled();
+      expect(tws.getCandles).not.toHaveBeenCalled();
+    });
+
+    it("ignores user broker disable for trading_decision reads", async () => {
+      const ibkr = createMockIbkr();
+      const tws = createUnconfiguredTws();
+      const service = createService({ ibkr, tws });
+      const result = await service.getQuotes(["AAPL"], {
+        providerPreference: {
+          orderedProviders: ["yahoo", "tws", "ibkr"],
+          disabledProviders: ["tws", "ibkr"],
+        },
+        respectProviderPreference: false,
+        trustUsage: "trading_decision",
+      });
+      expect(result.source).toBe("ibkr");
+      expect(yahoo.getQuoteSnapshots).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("IBKR options routing", () => {
     it("returns IBKR option expirations when configured", async () => {
       const ibkr = createMockIbkr();
       const service = createService({ ibkr });
       const result = await service.getOptionExpirations("AAPL");
       expect(result.source).toBe("ibkr");
       expect(result.data[0]?.expiration).toBe("2025-06-20");
-      expect(tradierGetExpirations).not.toHaveBeenCalled();
     });
 
     it("throws when IBKR returns no expirations (no fallback)", async () => {
@@ -705,7 +724,6 @@ describe("MarketDataService", () => {
       await expect(service.getOptionExpirations("AAPL")).rejects.toThrow(
         /IBKR returned no option expirations/i,
       );
-      expect(tradierGetExpirations).not.toHaveBeenCalled();
     });
 
     it("returns IBKR options chain when configured", async () => {
@@ -717,7 +735,6 @@ describe("MarketDataService", () => {
       });
       expect(result.source).toBe("ibkr");
       expect(result.data.contracts[0]?.strike).toBe(150);
-      expect(tradierGetChain).not.toHaveBeenCalled();
     });
 
     it("throws when IBKR chain is empty (no fallback)", async () => {
@@ -731,10 +748,9 @@ describe("MarketDataService", () => {
       await expect(
         service.getOptionsChain({ underlying: "AAPL", expiration: "2025-07-18" }),
       ).rejects.toThrow(/IBKR returned no contracts/i);
-      expect(tradierGetChain).not.toHaveBeenCalled();
     });
 
-    it("uses IBKR cache without invoking Tradier", async () => {
+    it("does not treat an empty IBKR chain as a successful cache fill", async () => {
       const ibkr = createMockIbkr({
         getOptionsChainWithWarnings: vi.fn(async () => ({
           chain: { underlying: "AAPL", expiration: "2025-06-20", contracts: [] },
@@ -745,7 +761,6 @@ describe("MarketDataService", () => {
       await expect(
         service.getOptionsChain({ underlying: "AAPL", expiration: "2025-06-20" }),
       ).rejects.toThrow();
-      expect(tradierGetChain).not.toHaveBeenCalled();
     });
   });
 
@@ -1077,6 +1092,43 @@ describe("MarketDataService", () => {
       });
       expect(order[0]).toBe("MSFT");
       expect(order[1]).toBe("AAPL");
+    });
+  });
+
+  describe("delivery observations", () => {
+    it("records route attempts when TWS is empty and Yahoo serves candles", async () => {
+      const tws = createMockTws({
+        getCandles: vi.fn(async () => ({ ...ibkrCandles, candles: [] })),
+      });
+      const ibkr = createMockIbkr({
+        getCandles: vi.fn(async () => null),
+      });
+      const service = createService({ tws, ibkr });
+      const result = await service.getCandles({
+        symbol: "AAPL",
+        range: "1mo",
+        interval: "1d",
+      });
+      expect(result.source).toBe("yahoo");
+
+      const snapshot = getDeliveryRegistry().getSanitizedSnapshot();
+      const chart = snapshot.datasets.find((row) => row.datasetId === "chart_candles");
+      expect(chart?.source).toBe("yahoo");
+      expect(chart?.routeAttemptCount).toBeGreaterThanOrEqual(2);
+      expect(chart?.provenance).toBe("fallback");
+    });
+
+    it("records hot-cache delivery with cache transport", async () => {
+      const tws = createMockTws();
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      const request = { symbol: "AAPL", range: "1mo", interval: "1d" as const };
+      await service.getCandles(request);
+      await service.getCandles(request);
+
+      const snapshot = getDeliveryRegistry().getSanitizedSnapshot();
+      const chart = snapshot.datasets.find((row) => row.datasetId === "chart_candles");
+      expect(chart?.transport).toBe("cache");
+      expect(chart?.source).toBe("tws");
     });
   });
 });

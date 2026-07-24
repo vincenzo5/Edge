@@ -16,14 +16,20 @@ import {
   DEFAULT_HEAT_MAP_CONFIG,
   DEFAULT_HEAT_MAP_LABEL_THRESHOLDS,
 } from "@/lib/heatmap/defaults";
-import { edgeTokens } from "@/lib/design-system/edge";
+import { getEdgeTokens } from "@/lib/design-system/edge";
+import { useAppThemeOptional } from "../AppThemeProvider";
+import { DEFAULT_PALETTE } from "@/lib/design-system/palettes";
 import { EdgeEmptyState } from "../design-system";
 
-const DEFAULT_PALETTE: HeatMapPalette = {
-  positive: edgeTokens.dark.positive,
-  negative: edgeTokens.dark.negative,
-  neutral: edgeTokens.dark.textSecondary,
-};
+function useHeatMapSemanticPalette(): HeatMapPalette {
+  const appTheme = useAppThemeOptional();
+  const tokens = getEdgeTokens(appTheme?.palette ?? DEFAULT_PALETTE, appTheme?.theme ?? "dark");
+  return {
+    positive: tokens.positive,
+    negative: tokens.negative,
+    neutral: tokens.textSecondary,
+  };
+}
 
 type Props = {
   items: HeatMapItem[];
@@ -34,17 +40,21 @@ type Props = {
   layoutSize?: { width: number; height: number };
 };
 
-function legendStops(config: HeatMapConfig, domain: { min: number; mid: number; max: number }) {
+function legendStops(
+  config: HeatMapConfig,
+  domain: { min: number; mid: number; max: number },
+  semanticPalette: HeatMapPalette,
+) {
   if (config.colorBy.scale.kind === "diverging") {
     return [
-      { label: formatColorValue(domain.min, config.colorBy.metric), color: colorForValue(domain.min, config.colorBy, domain, DEFAULT_PALETTE) },
-      { label: formatColorValue(domain.mid, config.colorBy.metric), color: colorForValue(domain.mid, config.colorBy, domain, DEFAULT_PALETTE) },
-      { label: formatColorValue(domain.max, config.colorBy.metric), color: colorForValue(domain.max, config.colorBy, domain, DEFAULT_PALETTE) },
+      { label: formatColorValue(domain.min, config.colorBy.metric), color: colorForValue(domain.min, config.colorBy, domain, semanticPalette) },
+      { label: formatColorValue(domain.mid, config.colorBy.metric), color: colorForValue(domain.mid, config.colorBy, domain, semanticPalette) },
+      { label: formatColorValue(domain.max, config.colorBy.metric), color: colorForValue(domain.max, config.colorBy, domain, semanticPalette) },
     ];
   }
   return [
-    { label: formatColorValue(domain.min, config.colorBy.metric), color: colorForValue(domain.min, config.colorBy, domain, DEFAULT_PALETTE) },
-    { label: formatColorValue(domain.max, config.colorBy.metric), color: colorForValue(domain.max, config.colorBy, domain, DEFAULT_PALETTE) },
+    { label: formatColorValue(domain.min, config.colorBy.metric), color: colorForValue(domain.min, config.colorBy, domain, semanticPalette) },
+    { label: formatColorValue(domain.max, config.colorBy.metric), color: colorForValue(domain.max, config.colorBy, domain, semanticPalette) },
   ];
 }
 
@@ -88,11 +98,13 @@ function LeafLabel({
 export default function HeatMapView({
   items,
   config = DEFAULT_HEAT_MAP_CONFIG,
-  palette = DEFAULT_PALETTE,
+  palette: paletteOverride,
   onLeafClick,
   className = "",
   layoutSize,
 }: Props) {
+  const semanticPalette = useHeatMapSemanticPalette();
+  const palette = paletteOverride ?? semanticPalette;
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -138,7 +150,7 @@ export default function HeatMapView({
 
   const leaves = useMemo(() => leafRects(rects), [rects]);
   const hoveredRect = rects.find((rect) => rect.id === hoveredId) ?? null;
-  const stops = useMemo(() => legendStops(config, domain), [config, domain]);
+  const stops = useMemo(() => legendStops(config, domain, palette), [config, domain, palette]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent, rect: HeatMapRect) => {

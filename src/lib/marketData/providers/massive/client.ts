@@ -1,16 +1,23 @@
+import {
+  CONFIG_DEFAULTS,
+  getConfigSource,
+  MASSIVE_KEYS,
+} from "../../config";
+
 export type MassiveFetchResult<T> = {
   data: T;
   warnings: string[];
 };
 
 export function massiveApiKey(): string | null {
+  const config = getConfigSource();
   const key =
-    process.env.MASSIVE_API_KEY?.trim() || process.env.POLYGON_API_KEY?.trim();
-  return key ? key : null;
+    config.get(MASSIVE_KEYS.apiKey) ?? config.get(MASSIVE_KEYS.legacyApiKey);
+  return key ?? null;
 }
 
 export function massiveBaseUrl(): string {
-  return process.env.MASSIVE_BASE_URL?.trim() || "https://api.massive.com";
+  return getConfigSource().get(MASSIVE_KEYS.baseUrl) ?? CONFIG_DEFAULTS.massiveBaseUrl;
 }
 
 async function massiveFetchUrl<T>(

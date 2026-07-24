@@ -17,7 +17,7 @@ import {
   type PayoffCell,
   type StrategyLegInput,
 } from "@/lib/risk/optionsStrategyRisk";
-import { EdgeButton } from "../design-system";
+import { EdgeButton, EdgeSelect } from "../design-system";
 import type { OptionsCalculatorState } from "@/lib/options/optionsSession";
 import type { RiskCalculatorSeedLeg } from "@/lib/options/optionsSession";
 import type { OptionsChainModel } from "./useOptionsChainModel";
@@ -46,11 +46,12 @@ function pnlClass(value: number): string {
   return "text-[var(--edge-text-secondary)]";
 }
 
-function heatClass(value: number, maxAbs: number): string {
+function heatColor(value: number, maxAbs: number): string {
   if (maxAbs <= 0) return "";
   const intensity = Math.min(1, Math.abs(value) / maxAbs);
-  if (value > 0) return `rgba(34, 197, 94, ${0.08 + intensity * 0.35})`;
-  if (value < 0) return `rgba(239, 68, 68, ${0.08 + intensity * 0.35})`;
+  const mix = Math.round((0.08 + intensity * 0.35) * 100);
+  if (value > 0) return `color-mix(in srgb, var(--edge-positive) ${mix}%, transparent)`;
+  if (value < 0) return `color-mix(in srgb, var(--edge-negative) ${mix}%, transparent)`;
   return "";
 }
 
@@ -59,7 +60,7 @@ function SourceBadge({ source, stale }: { source?: string; stale?: boolean }) {
   return (
     <span
       data-testid="options-calc-source-badge"
-      className="rounded bg-[var(--edge-bg-secondary)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]"
+      className="rounded bg-[var(--edge-surface-toolbar)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]"
     >
       {source}
       {stale ? " · stale" : ""}
@@ -423,52 +424,61 @@ export function OptionsRiskCalculator({
               <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
                 Entry
               </span>
-              <select
+              <EdgeSelect
+                testId="options-calc-entry-mode"
+                variant="field"
+                density="compact"
                 value={entryPriceMode}
-                onChange={(event) =>
-                  patchCalculator({ entryPriceMode: event.target.value as EntryPriceMode })
+                onChange={(next) =>
+                  patchCalculator({ entryPriceMode: next as EntryPriceMode })
                 }
-                className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
-                data-testid="options-calc-entry-mode"
-              >
-                <option value="mid">Mid</option>
-                <option value="ask">Ask</option>
-                <option value="bid">Bid</option>
-                <option value="last">Last</option>
-              </select>
+                options={[
+                  { value: "mid", label: "Mid" },
+                  { value: "ask", label: "Ask" },
+                  { value: "bid", label: "Bid" },
+                  { value: "last", label: "Last" },
+                ]}
+                className="w-full"
+              />
             </label>
             <label className="text-xs text-[var(--edge-text-secondary)]">
               <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
                 Exit
               </span>
-              <select
+              <EdgeSelect
+                testId="options-calc-exit-mode"
+                variant="field"
+                density="compact"
                 value={exitPriceMode}
-                onChange={(event) =>
-                  patchCalculator({ exitPriceMode: event.target.value as ExitPriceMode })
+                onChange={(next) =>
+                  patchCalculator({ exitPriceMode: next as ExitPriceMode })
                 }
-                className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
-                data-testid="options-calc-exit-mode"
-              >
-                <option value="bid">Bid</option>
-                <option value="mid">Mid</option>
-              </select>
+                options={[
+                  { value: "bid", label: "Bid" },
+                  { value: "mid", label: "Mid" },
+                ]}
+                className="w-full"
+              />
             </label>
             <label className="text-xs text-[var(--edge-text-secondary)]">
               <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
                 IV
               </span>
-              <select
+              <EdgeSelect
+                testId="options-calc-iv-scenario"
+                variant="field"
+                density="compact"
                 value={ivScenario}
-                onChange={(event) =>
-                  patchCalculator({ ivScenario: event.target.value as IvScenario })
+                onChange={(next) =>
+                  patchCalculator({ ivScenario: next as IvScenario })
                 }
-                className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
-                data-testid="options-calc-iv-scenario"
-              >
-                <option value="down">Down</option>
-                <option value="unchanged">Unchanged</option>
-                <option value="up">Up</option>
-              </select>
+                options={[
+                  { value: "down", label: "Down" },
+                  { value: "unchanged", label: "Unchanged" },
+                  { value: "up", label: "Up" },
+                ]}
+                className="w-full"
+              />
             </label>
           </div>
 
@@ -524,50 +534,56 @@ export function OptionsRiskCalculator({
                       <span>Ratio</span>
                     </div>
                     <div className="grid grid-cols-4 gap-1">
-                      <select
+                      <EdgeSelect
+                        variant="field"
+                        density="compact"
                         value={leg.action}
-                        onChange={(event) =>
+                        onChange={(next) =>
                           handleLegChange(leg.id, {
-                            action: event.target.value as "buy" | "sell",
+                            action: next as "buy" | "sell",
                           })
                         }
-                        className="rounded border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)] px-1 py-0.5"
-                      >
-                        <option value="buy">Buy</option>
-                        <option value="sell">Sell</option>
-                      </select>
-                      <select
+                        options={[
+                          { value: "buy", label: "Buy" },
+                          { value: "sell", label: "Sell" },
+                        ]}
+                        minWidth={70}
+                      />
+                      <EdgeSelect
+                        variant="field"
+                        density="compact"
                         value={leg.type}
-                        onChange={(event) =>
+                        onChange={(next) =>
                           handleLegChange(leg.id, {
-                            type: event.target.value as "call" | "put",
+                            type: next as "call" | "put",
                           })
                         }
-                        className="rounded border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)] px-1 py-0.5"
-                      >
-                        <option value="call">Call</option>
-                        <option value="put">Put</option>
-                      </select>
-                      <select
-                        value={leg.strike}
-                        data-testid={`options-calc-strike-${leg.id}`}
-                        onChange={(event) =>
+                        options={[
+                          { value: "call", label: "Call" },
+                          { value: "put", label: "Put" },
+                        ]}
+                        minWidth={70}
+                      />
+                      <EdgeSelect
+                        testId={`options-calc-strike-${leg.id}`}
+                        variant="field"
+                        density="compact"
+                        value={String(leg.strike)}
+                        onChange={(next) =>
                           handleLegChange(leg.id, {
-                            strike: Number.parseFloat(event.target.value),
+                            strike: Number.parseFloat(next),
                           })
                         }
-                        className="rounded border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)] px-1 py-0.5"
-                      >
-                        {strikeOptions.length > 0 ? (
-                          strikeOptions.map((strike) => (
-                            <option key={strike} value={strike}>
-                              {strike}
-                            </option>
-                          ))
-                        ) : (
-                          <option value={leg.strike}>{leg.strike}</option>
-                        )}
-                      </select>
+                        options={
+                          strikeOptions.length > 0
+                            ? strikeOptions.map((strike) => ({
+                                value: String(strike),
+                                label: String(strike),
+                              }))
+                            : [{ value: String(leg.strike), label: String(leg.strike) }]
+                        }
+                        minWidth={80}
+                      />
                       <input
                         type="number"
                         min={1}
@@ -578,7 +594,7 @@ export function OptionsRiskCalculator({
                             quantity: Number.parseInt(event.target.value, 10) || 1,
                           })
                         }
-                        className="rounded border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)] px-1 py-0.5"
+                        className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-1 py-0.5"
                       />
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-2">
@@ -671,7 +687,7 @@ export function OptionsRiskCalculator({
                           <td
                             key={`${price}-${cell.exitDate}`}
                             className={`cursor-pointer px-1 py-1 text-right tabular-nums ${pnlClass(cell.netPnl)}`}
-                            style={{ backgroundColor: heatClass(cell.netPnl, maxAbsPnl) }}
+                            style={{ backgroundColor: heatColor(cell.netPnl, maxAbsPnl) }}
                             onClick={() => setSelectedCell(cell)}
                           >
                             {cell.netPnl >= 0 ? "+" : ""}

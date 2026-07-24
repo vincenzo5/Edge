@@ -76,6 +76,7 @@ function QuoteStatusProbe() {
         {JSON.stringify(marketData?.quotesMeta?.warnings ?? [])}
       </span>
       <span data-testid="quote-asof">{marketData?.quotesMeta?.asOf ?? ""}</span>
+      <span data-testid="quote-last-update">{marketData?.quotesMeta?.lastUpdateAt ?? ""}</span>
     </div>
   );
 }
@@ -184,10 +185,10 @@ describe("MarketDataProvider quotes", () => {
                 regularMarketChange: 1,
                 regularMarketChangePercent: 1,
                 regularMarketVolume: 1000,
-                updatedAt: Date.now(),
+                updatedAt: Date.now() - 240_000,
               },
             ],
-            meta: { source: "yahoo" },
+            meta: { source: "tws", receivedAt: Date.now(), stale: true },
           }),
           { status: 200 },
         );
@@ -213,9 +214,7 @@ describe("MarketDataProvider quotes", () => {
 
     expect(document.querySelector('[data-testid="quote-transport"]')?.textContent).toBe("rest");
     expect(document.querySelector('[data-testid="quote-count"]')?.textContent).toBe("1");
-    expect(document.querySelector('[data-testid="quote-warnings"]')?.textContent).not.toContain(
-      "timeout",
-    );
+    expect(document.querySelector('[data-testid="quote-last-update"]')?.textContent).not.toBe("");
     expect(recordHealthEventMock).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "transport_fallback",
@@ -223,6 +222,19 @@ describe("MarketDataProvider quotes", () => {
         dataset: "watchlist",
       }),
     );
+
+    const quoteCallsBefore = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes("/api/quotes"),
+    ).length;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    const quoteCallsAfter = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes("/api/quotes"),
+    ).length;
+    expect(quoteCallsAfter).toBeGreaterThan(quoteCallsBefore);
   });
 
   it("falls back to REST when SSE disconnects", async () => {
@@ -348,9 +360,9 @@ describe("MarketDataProvider quotes", () => {
     });
   });
 
-  it("schedules silent revalidation when quote age exceeds display threshold", async () => {
+  it("schedules silent revalidation when delivery age exceeds display threshold on SSE", async () => {
     vi.useFakeTimers();
-    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "0");
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "1");
     const updatedAt = Date.now() - 50_000;
     let quoteFetchCount = 0;
     const fetchMock = vi.fn(async (input: RequestInfo) => {
@@ -373,6 +385,7 @@ describe("MarketDataProvider quotes", () => {
               source: "tws",
               stale: quoteFetchCount === 1,
               asOf: quoteFetchCount > 1 ? Date.now() : updatedAt,
+              receivedAt: Date.now(),
             },
           }),
           { status: 200 },
@@ -394,14 +407,33 @@ describe("MarketDataProvider quotes", () => {
     );
 
     await act(async () => {
-      await vi.runAllTimersAsync();
+      await Promise.resolve();
     });
-    expect(quoteFetchCount).toBe(1);
+    expect(MockEventSource.instances.length).toBeGreaterThan(0);
+
+    act(() => {
+      MockEventSource.instances[0]?.onmessage?.({
+        data: JSON.stringify({
+          type: "snapshot",
+          quotes: [
+            {
+              symbol: "AAPL",
+              price: 123,
+              change: 1,
+              changePercent: 1,
+              volume: 1000,
+              updatedAt,
+            },
+          ],
+          meta: { source: "tws", receivedAt: Date.now() - 50_000 },
+        }),
+      } as MessageEvent);
+    });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3_000);
     });
-    expect(quoteFetchCount).toBe(2);
+    expect(quoteFetchCount).toBe(1);
   });
 
   it("maps MarketQuote SSE fields (price / changePercent) into QuoteSnapshot", async () => {

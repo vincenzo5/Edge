@@ -1,4 +1,5 @@
 import type { Candle, ChartDataMeta, Interval, MarketSessionMode, Range } from '@edge/chart-core';
+import { mergeCandlesPrepend, trimResidentBars } from '@edge/chart-core';
 
 export type ChartClientCacheEntry = {
   candles: Candle[];
@@ -23,6 +24,12 @@ export const CHART_CLIENT_CACHE_MAX_AGE_MS = 5 * 60_000;
 
 export const CHART_CLIENT_SESSION_STORAGE_PREFIX = 'edge:chart-cache:v1:';
 
+/** Skip sessionStorage persistence when series exceeds this bar count (Phase 0 frozen knob). */
+export const CHART_CLIENT_SESSION_STORAGE_MAX_BARS = 2_000;
+
+/** Skip sessionStorage persistence when serialized payload exceeds this size (Phase 0 frozen knob). */
+export const CHART_CLIENT_SESSION_STORAGE_MAX_BYTES = 2_000_000;
+
 const store = new Map<string, ChartClientCacheEntry>();
 
 export function buildChartClientCacheKey(parts: ChartClientCacheKeyParts): string {
@@ -35,10 +42,47 @@ export function buildChartClientCacheKey(parts: ChartClientCacheKeyParts): strin
   ].join('|');
 }
 
-function cloneEntry(entry: ChartClientCacheEntry): ChartClientCacheEntry {
+function isFrozen(value: unknown): boolean {
+  return Object.isFrozen(value);
+}
+
+/** Shallow-freeze each candle and the series array. Idempotent when already frozen. */
+export function freezeCandleSeries(candles: Candle[]): Candle[] {
+  if (candles.length === 0) {
+    return Object.freeze(candles) as Candle[];
+  }
+  if (isFrozen(candles)) {
+    return candles as Candle[];
+  }
+  for (const candle of candles) {
+    if (!isFrozen(candle)) {
+      Object.freeze(candle);
+    }
+  }
+  return Object.freeze(candles) as Candle[];
+}
+
+function freezeMeta(meta: ChartDataMeta): ChartDataMeta {
+  if (isFrozen(meta)) {
+    return meta;
+  }
+  return Object.freeze({ ...meta });
+}
+
+function prepareCacheEntry(entry: ChartClientCacheEntry): ChartClientCacheEntry {
   return {
-    candles: structuredClone(entry.candles),
-    meta: structuredClone(entry.meta),
+    candles: freezeCandleSeries(entry.candles),
+    meta: freezeMeta(entry.meta),
+    hasMore: entry.hasMore,
+    asOf: entry.asOf,
+  };
+}
+
+/** Return a read-only view shell; candle/meta refs are shared with the store. */
+function exposeCacheEntry(entry: ChartClientCacheEntry): ChartClientCacheEntry {
+  return {
+    candles: entry.candles,
+    meta: entry.meta,
     hasMore: entry.hasMore,
     asOf: entry.asOf,
   };
@@ -50,6 +94,18 @@ function isEntryFresh(entry: ChartClientCacheEntry): boolean {
 
 function sessionStorageKey(key: string): string {
   return `${CHART_CLIENT_SESSION_STORAGE_PREFIX}${key}`;
+}
+
+function shouldPersistToSessionStorage(entry: ChartClientCacheEntry): boolean {
+  if (entry.candles.length > CHART_CLIENT_SESSION_STORAGE_MAX_BARS) {
+    return false;
+  }
+  try {
+    const serialized = JSON.stringify(entry);
+    return serialized.length <= CHART_CLIENT_SESSION_STORAGE_MAX_BYTES;
+  } catch {
+    return false;
+  }
 }
 
 function readSessionStorageEntry(key: string): ChartClientCacheEntry | null {
@@ -70,6 +126,10 @@ function readSessionStorageEntry(key: string): ChartClientCacheEntry | null {
 
 function writeSessionStorageEntry(key: string, entry: ChartClientCacheEntry): void {
   if (typeof window === 'undefined' || !window.sessionStorage) return;
+  if (!shouldPersistToSessionStorage(entry)) {
+    removeSessionStorageEntry(key);
+    return;
+  }
   try {
     window.sessionStorage.setItem(sessionStorageKey(key), JSON.stringify(entry));
   } catch {
@@ -93,22 +153,69 @@ export function readChartClientCache(key: string): ChartClientCacheEntry | null 
       store.delete(key);
       removeSessionStorageEntry(key);
     } else {
-      return cloneEntry(memory);
+      return exposeCacheEntry(memory);
     }
   }
 
   const fromSession = readSessionStorageEntry(key);
   if (!fromSession) return null;
 
-  store.set(key, cloneEntry(fromSession));
-  return cloneEntry(fromSession);
+  const prepared = prepareCacheEntry(fromSession);
+  store.set(key, prepared);
+  return exposeCacheEntry(prepared);
 }
 
 export function writeChartClientCache(key: string, entry: ChartClientCacheEntry): void {
-  const cloned = cloneEntry(entry);
-  store.set(key, cloned);
-  writeSessionStorageEntry(key, cloned);
+  const { candles } = trimResidentBars(entry.candles);
+  const prepared = prepareCacheEntry({ ...entry, candles });
+  store.set(key, prepared);
+  writeSessionStorageEntry(key, prepared);
   evictOldestIfNeeded();
+}
+
+export type WriteMergedChartClientCacheParams = {
+  /** Newer right-edge snapshot (initial range or refreshed bars). */
+  rightEdgeCandles: Candle[];
+  /** Older bars to prepend (cached history or prepended pages). */
+  leftHistoryCandles?: Candle[];
+  meta: ChartDataMeta;
+  hasMore: boolean;
+  asOf: number;
+};
+
+/** Merge right-edge + left history then persist under one cache key. */
+export function writeMergedChartClientCache(
+  key: string,
+  params: WriteMergedChartClientCacheParams,
+): ChartClientCacheEntry {
+  const merged =
+    params.leftHistoryCandles && params.leftHistoryCandles.length > 0
+      ? mergeCandlesPrepend(params.rightEdgeCandles, params.leftHistoryCandles)
+      : params.rightEdgeCandles;
+  writeChartClientCache(key, {
+    candles: merged,
+    meta: params.meta,
+    hasMore: params.hasMore,
+    asOf: params.asOf,
+  });
+  return readChartClientCache(key) ?? prepareCacheEntry({
+    candles: merged,
+    meta: params.meta,
+    hasMore: params.hasMore,
+    asOf: params.asOf,
+  });
+}
+
+/** Update hasMore on an existing cache entry without replacing candles. */
+export function patchChartClientCacheHasMore(key: string, hasMore: boolean): void {
+  const existing = store.get(key);
+  if (!existing || !isEntryFresh(existing)) return;
+  writeChartClientCache(key, {
+    candles: existing.candles,
+    meta: existing.meta,
+    hasMore,
+    asOf: Date.now(),
+  });
 }
 
 function evictOldestIfNeeded(): void {

@@ -1,4 +1,5 @@
 import { emitTwsRecovery } from "./twsRecoveryBus";
+import { mergeTwsRecoveryRequest } from "./twsRecoveryContext";
 
 const RECOVERY_POLL_INTERVAL_MS = 3_000;
 const RECOVERY_POLL_DEADLINE_MS = 60_000;
@@ -20,10 +21,12 @@ export type TwsRecoveryClientResult = {
   message?: string;
   error?: string;
   recoveryPhase?: string;
+  sessionId?: string;
 };
 
 async function waitForRecoveryConfirmation(
   onProgress: (message: string) => void,
+  expectedSessionId?: string,
 ): Promise<boolean> {
   const deadline = Date.now() + RECOVERY_POLL_DEADLINE_MS;
   while (Date.now() < deadline) {
@@ -35,7 +38,12 @@ async function waitForRecoveryConfirmation(
           message?: string;
           finalized?: boolean;
           recoveryPhase?: string;
+          sessionId?: string;
         };
+        if (expectedSessionId && payload.sessionId && payload.sessionId !== expectedSessionId) {
+          await sleep(RECOVERY_POLL_INTERVAL_MS);
+          continue;
+        }
         if (payload.message) {
           onProgress(payload.message);
         }
@@ -54,8 +62,11 @@ async function waitForRecoveryConfirmation(
   return false;
 }
 
-async function waitForGatewayHealth(onProgress: (message: string) => void): Promise<boolean> {
-  const confirmed = await waitForRecoveryConfirmation(onProgress);
+async function waitForGatewayHealth(
+  onProgress: (message: string) => void,
+  expectedSessionId?: string,
+): Promise<boolean> {
+  const confirmed = await waitForRecoveryConfirmation(onProgress, expectedSessionId);
   if (confirmed) return true;
 
   const deadline = Date.now() + RECOVERY_POLL_DEADLINE_MS;
@@ -83,7 +94,8 @@ async function waitForGatewayHealth(onProgress: (message: string) => void): Prom
 export async function runTwsRecoveryClient(
   request: TwsRecoveryClientRequest = {},
 ): Promise<TwsRecoveryClientResult> {
-  const source = request.source ?? "client";
+  const merged = mergeTwsRecoveryRequest(request);
+  const source = merged.source ?? "client";
   const emitProgress = (message: string) => {
     emitTwsRecovery("progress", { message, source });
   };
@@ -95,9 +107,9 @@ export async function runTwsRecoveryClient(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        symbols: request.symbols ?? [],
-        candleRequests: request.candleRequests ?? [],
-        optionsSymbol: request.optionsSymbol,
+        symbols: merged.symbols ?? [],
+        candleRequests: merged.candleRequests ?? [],
+        optionsSymbol: merged.optionsSymbol,
       }),
     });
     const payload = (await res.json().catch(() => ({}))) as TwsRecoveryClientResult;
@@ -120,7 +132,7 @@ export async function runTwsRecoveryClient(
     }
 
     if (commandState === "timed_out" || commandState === "accepted") {
-      const connected = await waitForGatewayHealth(emitProgress);
+      const connected = await waitForGatewayHealth(emitProgress, payload.sessionId);
       if (connected) {
         const message = "Gateway connected. Market data reloaded.";
         emitTwsRecovery("completed", { message, source });

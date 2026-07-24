@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { SUPPORTED_INTERVALS } from '@edge/chart-core';
 import type { Interval, Range } from '@edge/chart-core';
+import { DataProviderPreferenceSchema } from '@/lib/connections/types';
 import { dataConnectionIdSchema } from '../schemas/request';
 
 const rangeSchema = z.enum([
@@ -35,6 +36,18 @@ export const quoteStreamQuerySchema = z.object({
     )
     .pipe(z.array(z.string().min(1).max(32)).min(1).max(32)),
   connectionId: dataConnectionIdSchema.optional(),
+  providerPreference: z
+    .string()
+    .optional()
+    .transform((value) => {
+      if (!value?.trim()) return undefined;
+      try {
+        return JSON.parse(value) as unknown;
+      } catch {
+        return undefined;
+      }
+    })
+    .pipe(DataProviderPreferenceSchema.optional()),
 });
 
 export type CandleStreamQueryInput = z.infer<typeof candleStreamQuerySchema>;
@@ -53,5 +66,6 @@ export function parseQuoteStreamQuery(searchParams: URLSearchParams) {
   return quoteStreamQuerySchema.safeParse({
     symbols: searchParams.get('symbols') ?? undefined,
     connectionId: searchParams.get('connectionId') ?? undefined,
+    providerPreference: searchParams.get('providerPreference') ?? undefined,
   });
 }

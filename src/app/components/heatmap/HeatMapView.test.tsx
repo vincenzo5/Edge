@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import HeatMapView from "./HeatMapView";
 import HeatMapToolbar from "./HeatMapToolbar";
@@ -82,20 +82,30 @@ describe("HeatMapView", () => {
 });
 
 describe("HeatMapToolbar", () => {
+  beforeEach(() => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("changes size, color, and group config", () => {
     const onChange = vi.fn();
     render(<HeatMapToolbar config={DEFAULT_HEAT_MAP_CONFIG} onChange={onChange} />);
 
-    fireEvent.change(screen.getByTestId("heatmap-group-by"), {
-      target: { value: "none" },
-    });
+    fireEvent.click(screen.getByTestId("heatmap-group-by"));
+    fireEvent.click(screen.getByTestId("heatmap-group-by-option-none"));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ groupBy: "none" }),
     );
 
-    fireEvent.change(screen.getByTestId("heatmap-size-by"), {
-      target: { value: "volume" },
-    });
+    fireEvent.click(screen.getByTestId("heatmap-size-by"));
+    fireEvent.click(screen.getByTestId("heatmap-size-by-option-volume"));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         sizeBy: expect.objectContaining({ metric: "volume", scale: "linear" }),
@@ -108,11 +118,10 @@ describe("HeatMapToolbar", () => {
     render(<HeatMapToolbar config={DEFAULT_HEAT_MAP_CONFIG} onChange={onChange} />);
 
     expect(screen.getByTestId("heatmap-size-scale")).toBeInTheDocument();
-    expect(screen.getByTestId("heatmap-size-scale")).toHaveValue("linear");
+    expect(screen.getByRole("tab", { name: "Linear" })).toHaveAttribute("aria-selected", "true");
 
-    fireEvent.change(screen.getByTestId("heatmap-size-by"), {
-      target: { value: "marketCap" },
-    });
+    fireEvent.click(screen.getByTestId("heatmap-size-by"));
+    fireEvent.click(screen.getByTestId("heatmap-size-by-option-marketCap"));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         sizeBy: expect.objectContaining({ metric: "marketCap", scale: "linear" }),
@@ -120,9 +129,7 @@ describe("HeatMapToolbar", () => {
     );
 
     onChange.mockClear();
-    fireEvent.change(screen.getByTestId("heatmap-size-scale"), {
-      target: { value: "log" },
-    });
+    fireEvent.click(screen.getByRole("tab", { name: "Log" }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         sizeBy: expect.objectContaining({ scale: "log" }),
@@ -146,6 +153,18 @@ describe("HeatMapToolbar", () => {
 });
 
 describe("HeatMapView live config updates", () => {
+  beforeEach(() => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   function StatefulHeatMap({ initialConfig = DEFAULT_HEAT_MAP_CONFIG }: { initialConfig?: HeatMapConfig }) {
     const [config, setConfig] = useState(initialConfig);
     return (
@@ -170,22 +189,19 @@ describe("HeatMapView live config updates", () => {
     const marketCapXom = leafArea("XOM");
     expect(marketCapAapl).toBeGreaterThan(marketCapXom);
 
-    fireEvent.change(screen.getByTestId("heatmap-group-by"), {
-      target: { value: "none" },
-    });
+    fireEvent.click(screen.getByTestId("heatmap-group-by"));
+    fireEvent.click(screen.getByTestId("heatmap-group-by-option-none"));
     expect(screen.queryByTestId("heatmap-group-Technology")).not.toBeInTheDocument();
     expect(screen.getByTestId("heatmap-leaf-AAPL")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByTestId("heatmap-size-by"), {
-      target: { value: "equal" },
-    });
+    fireEvent.click(screen.getByTestId("heatmap-size-by"));
+    fireEvent.click(screen.getByTestId("heatmap-size-by-option-equal"));
     expect(leafArea("AAPL")).toBeCloseTo(leafArea("XOM"), 0);
 
     const beforeTitle = screen.getByTestId("heatmap-leaf-AAPL").getAttribute("title");
-    fireEvent.change(screen.getByTestId("heatmap-color-by"), {
-      target: { value: "volume" },
-    });
-    expect(screen.getByTestId("heatmap-color-by")).toHaveValue("volume");
+    fireEvent.click(screen.getByTestId("heatmap-color-by"));
+    fireEvent.click(screen.getByTestId("heatmap-color-by-option-volume"));
+    expect(screen.getByTestId("heatmap-color-by")).toHaveTextContent("Volume");
     expect(screen.getByTestId("heatmap-leaf-AAPL").getAttribute("title")).not.toBe(beforeTitle);
   });
 });

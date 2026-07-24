@@ -1,6 +1,11 @@
 import { asFiniteNumber } from "../../validation/parseRequest";
-import { sidecarAuthHeaders } from "./sidecarAuth";
+import { sidecarAuthHeaders, assertSidecarAuthConfigured, resolveSidecarUrl } from "./sidecarAuth";
 import { TwsRequestError, classifyTwsError } from "./healthGate";
+import {
+  CONFIG_DEFAULTS,
+  getConfigSource,
+  TWS_KEYS,
+} from "../../config";
 
 export type TwsSidecarCapabilities = {
   controlRecovery?: boolean;
@@ -92,12 +97,26 @@ export type TwsConnectionProbe = {
   port?: number;
   clientId?: number;
   message?: string | null;
+  connectionState?: string;
+  observationConfidence?: "observed" | "last_known" | "inferred" | "unknown";
+  observedAt?: number;
+  subscriptionsLost?: boolean;
+  lastIbErrorCode?: number;
+  lastIbErrorMessage?: string;
 };
+
+export type TwsObservationConfidence = "observed" | "last_known" | "unknown";
 
 export type TwsStatusProbe = {
   configured: boolean;
   sidecarReachable: boolean;
   gatewayConnected: boolean;
+  /** Whether this snapshot came from a live probe or a retained observation. */
+  observationConfidence?: TwsObservationConfidence;
+  /** Timestamp of the underlying connection observation (epoch ms). */
+  observedAt?: number;
+  /** True when routing skipped a fresh probe because the circuit is open. */
+  circuitBypassed?: boolean;
   apiSessionConnected?: boolean;
   gatewaySocketOpen?: boolean;
   connectionState?: TwsConnectionState;
@@ -226,23 +245,26 @@ function timeoutForKind(kind: TwsRequestKind, config: TwsClientConfig): number {
 }
 
 function readConfig(): TwsClientConfig {
-  const enabled = process.env.TWS_ENABLED?.trim() === "true";
+  const config = getConfigSource();
+  const enabled = config.get(TWS_KEYS.enabled) === "true";
   if (!enabled) {
     throw new Error("TWS_ENABLED is not true");
   }
-  const baseUrl = process.env.TWS_SIDECAR_URL?.trim() ?? "http://127.0.0.1:8765";
-  const timeoutMs = parsePositiveMs(process.env.TWS_SIDECAR_TIMEOUT_MS, 15_000);
+  const rawUrl = config.get(TWS_KEYS.sidecarUrl) ?? CONFIG_DEFAULTS.twsSidecarUrl;
+  const baseUrl = resolveSidecarUrl(rawUrl);
+  assertSidecarAuthConfigured(baseUrl);
+  const timeoutMs = parsePositiveMs(config.get(TWS_KEYS.sidecarTimeoutMs), 15_000);
   return {
-    baseUrl: baseUrl.replace(/\/$/, ""),
+    baseUrl,
     timeoutMs,
-    candlesTimeoutMs: parsePositiveMs(process.env.TWS_CANDLES_TIMEOUT_MS, 3_000),
-    quotesTimeoutMs: parsePositiveMs(process.env.TWS_QUOTES_TIMEOUT_MS, 3_000),
-    optionsTimeoutMs: parsePositiveMs(process.env.TWS_OPTIONS_TIMEOUT_MS, timeoutMs),
+    candlesTimeoutMs: parsePositiveMs(config.get(TWS_KEYS.candlesTimeoutMs), 3_000),
+    quotesTimeoutMs: parsePositiveMs(config.get(TWS_KEYS.quotesTimeoutMs), 3_000),
+    optionsTimeoutMs: parsePositiveMs(config.get(TWS_KEYS.optionsTimeoutMs), timeoutMs),
   };
 }
 
 export function isTwsConfigured(): boolean {
-  return process.env.TWS_ENABLED?.trim() === "true";
+  return getConfigSource().get(TWS_KEYS.enabled) === "true";
 }
 
 export function getTwsClientConfig(): TwsClientConfig | null {
@@ -279,6 +301,16 @@ function parseStatusPayload(status: Record<string, unknown>): TwsStatusProbe {
         port: asFiniteNumber(row.port) ?? undefined,
         clientId: asFiniteNumber(row.clientId) ?? undefined,
         message: typeof row.message === "string" ? row.message : row.message === null ? null : undefined,
+        connectionState: typeof row.connectionState === "string" ? row.connectionState : undefined,
+        observationConfidence:
+          typeof row.observationConfidence === "string"
+            ? (row.observationConfidence as TwsStatusProbe["observationConfidence"])
+            : undefined,
+        observedAt: asFiniteNumber(row.observedAt) ?? undefined,
+        subscriptionsLost: typeof row.subscriptionsLost === "boolean" ? row.subscriptionsLost : undefined,
+        lastIbErrorCode: asFiniteNumber(row.lastIbErrorCode) ?? undefined,
+        lastIbErrorMessage:
+          typeof row.lastIbErrorMessage === "string" ? row.lastIbErrorMessage : undefined,
       };
     }
   }

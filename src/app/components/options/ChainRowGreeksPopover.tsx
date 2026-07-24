@@ -260,7 +260,7 @@ export function ChainLegGreeksPopover({
                 type="button"
                 data-testid={`options-analyze-${side}-${strike}`}
                 onClick={() => onAnalyzeContract(contract)}
-                className="w-full rounded bg-[var(--edge-bg-secondary)] px-1.5 py-0.5 text-[10px] text-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10"
+                className="w-full rounded bg-[var(--edge-surface-toolbar)] px-1.5 py-0.5 text-[10px] text-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10"
               >
                 Analyze {side}
               </button>

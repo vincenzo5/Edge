@@ -1,60 +1,30 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import type { Theme } from "@/lib/chartConfig";
-import type { DataHealthDatasetRow, IbSocketHealthRow, ProviderHealthRow } from "@/lib/marketData/health";
-import {
-  buildDatasetChips,
-  buildHealthCaveatSubtitle,
-  shouldShowTwsRecovery,
-  twsRecoveryButtonLabel,
-} from "@/lib/marketData/health";
+import type { DataHealthDatasetRow } from "@/lib/marketData/health";
+import type { ProjectedConnectionRow } from "@/lib/marketData/healthProjection";
 import ChartAnchoredPopover from "../chart-chrome/ChartAnchoredPopover";
 import { menuSectionHeaderClass } from "../chart-chrome/headerStyles";
 import DataHealthDatasetChips from "./DataHealthDatasetChips";
-import DataHealthLatencySection from "./DataHealthLatencySection";
-import HealthSeverityDot, { formatHealthEventAge } from "./HealthSeverityDot";
+import DataHealthDiagnosticsSection from "./DataHealthDiagnosticsSection";
+import HealthSeverityDot from "./HealthSeverityDot";
 import TwsRecoverButton from "./TwsRecoverButton";
 import { useDataHealth } from "./DataHealthProvider";
+import { buildDatasetChips } from "@/lib/marketData/health";
 
 type Props = {
   theme: Theme;
   anchorRef: React.RefObject<HTMLButtonElement | null>;
 };
 
-function providerStatusClass(status: ProviderHealthRow["status"]): string {
-  switch (status) {
-    case "healthy":
-      return "text-[var(--edge-positive)]";
-    case "degraded":
-      return "text-[var(--edge-warning)]";
-    case "offline":
-      return "text-[var(--edge-negative)]";
-    default:
-      return "text-[var(--edge-text-muted)]";
-  }
-}
-
-function ProviderRow({ provider }: { provider: ProviderHealthRow }) {
-  return (
-    <div
-      className="flex items-start justify-between gap-2 text-[10px]"
-      data-testid={`data-health-provider-${provider.id}`}
-    >
-      <span className="font-medium text-[var(--edge-text-primary)]">{provider.label}</span>
-      <span className={`text-right ${providerStatusClass(provider.status)}`}>{provider.detail}</span>
-    </div>
-  );
-}
-
-function ConnectionRow({ row }: { row: IbSocketHealthRow }) {
+function ConnectionRow({ row }: { row: ProjectedConnectionRow }) {
   return (
     <div
       className="flex items-start justify-between gap-2 text-[10px]"
       data-testid={`data-health-connection-${row.id}`}
     >
       <span className="font-medium text-[var(--edge-text-primary)]">{row.label}</span>
-      <span className={`text-right ${providerStatusClass(row.status)}`}>{row.detail}</span>
+      <span className="text-right text-[var(--edge-text-secondary)]">{row.userDetail}</span>
     </div>
   );
 }
@@ -99,49 +69,18 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
     recoverMessage,
     recoverTws,
   } = useDataHealth();
-  const [providersExpanded, setProvidersExpanded] = useState(false);
-  const [showAllProviders, setShowAllProviders] = useState(false);
 
-  const twsProvider = snapshot.providers.find((provider) => provider.id === "tws");
-  const showTwsRecovery = shouldShowTwsRecovery(twsProvider);
-  const caveatSubtitle = buildHealthCaveatSubtitle(snapshot.datasets);
-  const connectionSeverity =
-    snapshot.providers.find((provider) => provider.id === "tws")?.status === "offline"
-      ? "offline"
-      : snapshot.severity;
-
+  const projection = snapshot.projection;
   const showStatusBanner =
-    snapshot.severity !== "healthy" || caveatSubtitle != null;
+    projection.severity !== "healthy" ||
+    projection.caveatSubtitle != null ||
+    projection.sessionSubtitle != null;
   const bannerToneClass =
-    snapshot.severity === "offline"
+    projection.severity === "offline"
       ? "border-[var(--edge-negative)]/30 bg-[var(--edge-negative)]/10"
-      : "border-[var(--edge-warning)]/30 bg-[var(--edge-warning)]/10";
-
-  const unhealthyProviders = useMemo(
-    () => snapshot.providers.filter((provider) => provider.status !== "healthy"),
-    [snapshot.providers],
-  );
-  const providersAutoExpand =
-    snapshot.severity !== "healthy" || unhealthyProviders.length > 0;
-  const providersVisible = providersAutoExpand || providersExpanded;
-  const visibleProviders =
-    providersAutoExpand && !showAllProviders && unhealthyProviders.length > 0
-      ? unhealthyProviders
-      : snapshot.providers;
-  const hiddenHealthyCount = snapshot.providers.length - unhealthyProviders.length;
-
-  const issueItems = useMemo(() => {
-    const items: string[] = [];
-    for (const warning of snapshot.recentWarnings) {
-      items.push(warning);
-    }
-    for (const event of snapshot.recentEvents) {
-      items.push(
-        `${event.message}${event.recovered ? " · recovered" : ""} · ${formatHealthEventAge(event.at)}`,
-      );
-    }
-    return items;
-  }, [snapshot.recentEvents, snapshot.recentWarnings]);
+      : projection.caveatSubtitle != null
+        ? "border-[var(--edge-warning)]/30 bg-[var(--edge-warning)]/10"
+        : "border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)]/40";
 
   return (
     <ChartAnchoredPopover
@@ -161,31 +100,44 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
             data-testid="data-health-status-banner"
           >
             <div className="flex items-center gap-1.5 text-[11px] text-[var(--edge-text-primary)]">
-              <HealthSeverityDot severity={connectionSeverity} size="md" />
-              <span>{snapshot.connectionSummary}</span>
+              <HealthSeverityDot severity={projection.severity} size="md" />
+              <span>{projection.primaryLabel}</span>
             </div>
-            {caveatSubtitle ? (
-              <div className="mt-0.5 text-[10px] text-[var(--edge-warning)]">{caveatSubtitle}</div>
+            <div className="mt-0.5 text-[10px] text-[var(--edge-text-secondary)]">
+              {projection.connectionSummary}
+            </div>
+            {projection.caveatSubtitle ? (
+              <div className="mt-0.5 text-[10px] text-[var(--edge-warning)]">
+                {projection.caveatSubtitle}
+              </div>
+            ) : null}
+            {projection.sessionSubtitle ? (
+              <div
+                className="mt-0.5 text-[10px] text-[var(--edge-text-secondary)]"
+                data-testid="data-health-session-subtitle"
+              >
+                {projection.sessionSubtitle}
+              </div>
             ) : null}
           </div>
         ) : (
           <>
             <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[var(--edge-text-secondary)]">
-              <HealthSeverityDot severity={connectionSeverity} size="md" />
-              <span>{snapshot.connectionSummary}</span>
+              <HealthSeverityDot severity={projection.severity} size="md" />
+              <span>{projection.primaryLabel}</span>
             </div>
             <div className="mt-1 text-[10px] text-[var(--edge-text-secondary)]">
-              All loaded datasets ready
+              {projection.connectionSummary}
             </div>
           </>
         )}
       </div>
 
-      {showTwsRecovery ? (
+      {projection.showRecovery ? (
         <div className="mb-3 space-y-1.5">
           <TwsRecoverButton
             testId="data-health-recover-tws"
-            label={twsRecoveryButtonLabel(twsProvider)}
+            label={projection.recoveryLabel}
             recovering={recoveringTws}
             onClick={() => {
               void recoverTws();
@@ -202,14 +154,24 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
         </div>
       ) : null}
 
-      {snapshot.connectionRows.length > 0 || snapshot.dataPreference ? (
+      <div className="mb-3">
+        <div className={menuSectionHeaderClass(theme)}>Current data</div>
+        <div className="space-y-2">
+          {projection.sections.currentData.map((row) => (
+            <DatasetRow key={row.kind} row={row} />
+          ))}
+        </div>
+      </div>
+
+      {projection.sections.connections.rows.length > 0 ||
+      projection.sections.connections.dataPreference ? (
         <div className="mb-3">
-          <div className={menuSectionHeaderClass(theme)}>Connections</div>
+          <div className={menuSectionHeaderClass(theme)}>Broker connections</div>
           <div className="space-y-1.5">
-            {snapshot.connectionRows.map((row) => (
+            {projection.sections.connections.rows.map((row) => (
               <ConnectionRow key={row.id} row={row} />
             ))}
-            {snapshot.dataPreference ? (
+            {projection.sections.connections.dataPreference ? (
               <div
                 className="flex items-start justify-between gap-2 text-[10px]"
                 data-testid="data-health-connection-preference"
@@ -218,96 +180,42 @@ export default function DataHealthMenu({ theme, anchorRef }: Props) {
                   Chart data preference
                 </span>
                 <span className="text-right text-[var(--edge-text-secondary)]">
-                  {snapshot.dataPreference.label}
+                  {projection.sections.connections.dataPreference.label}
                 </span>
               </div>
             ) : null}
+            <div className="text-[10px] text-[var(--edge-text-muted)]">
+              {projection.sections.connections.preferenceNote}
+            </div>
           </div>
         </div>
       ) : null}
 
-      <div className={menuSectionHeaderClass(theme)}>Datasets</div>
-      <div className="mb-3 space-y-2">
-        {snapshot.datasets.map((row) => (
-          <DatasetRow key={row.kind} row={row} />
-        ))}
-      </div>
-
-      {snapshot.providers.length > 0 || (serverHealthLoading && !serverHealthLoaded) ? (
-        <div className="mb-3">
-          {providersAutoExpand ? (
-            <div className={menuSectionHeaderClass(theme)}>Providers</div>
-          ) : (
-            <button
-              type="button"
-              className={`${menuSectionHeaderClass(theme)} flex w-full items-center gap-1 text-left hover:text-[var(--edge-text-primary)]`}
-              onClick={() => setProvidersExpanded((value) => !value)}
-              aria-expanded={providersVisible}
-              data-testid="data-health-providers-toggle"
-            >
-              <span aria-hidden>{providersVisible ? "▾" : "▸"}</span>
-              <span>Provider details</span>
-            </button>
-          )}
-          {providersVisible ? (
-            <div className="space-y-1.5">
-              {serverHealthLoading && !serverHealthLoaded && snapshot.providers.length === 0 ? (
-                <div
-                  className="text-[10px] text-[var(--edge-text-secondary)]"
-                  data-testid="data-health-providers-loading"
-                >
-                  Loading provider status…
-                </div>
-              ) : null}
-              {visibleProviders.map((provider) => (
-                <ProviderRow key={provider.id} provider={provider} />
-              ))}
-              {providersAutoExpand &&
-              !showAllProviders &&
-              hiddenHealthyCount > 0 &&
-              unhealthyProviders.length > 0 ? (
-                <button
-                  type="button"
-                  className="text-[10px] text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-primary)]"
-                  onClick={() => setShowAllProviders(true)}
-                  data-testid="data-health-show-all-providers"
-                >
-                  Show all providers ({hiddenHealthyCount} more)
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {issueItems.length > 0 ? (
-        <>
-          <div className={menuSectionHeaderClass(theme)}>Issues</div>
-          <ul
-            className="mb-3 space-y-1 text-[10px] text-[var(--edge-text-secondary)]"
-            data-testid="data-health-issues"
+      <div className="mb-3">
+        <div className={menuSectionHeaderClass(theme)}>Recent active incident</div>
+        {projection.sections.activeIncident ? (
+          <div
+            className="rounded-[var(--edge-radius-sm)] border border-[var(--edge-warning)]/30 bg-[var(--edge-warning)]/10 px-2 py-1.5 text-[10px] text-[var(--edge-text-primary)]"
+            data-testid="data-health-active-incident"
           >
-            {issueItems.map((item, index) => (
-              <li key={`${item}-${index}`}>{item}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-
-      <DataHealthLatencySection />
-
-      <div className="mt-1 flex justify-end">
-        <button
-          type="button"
-          className="text-[10px] text-[var(--edge-text-muted)] hover:text-[var(--edge-text-primary)]"
-          onClick={() => {
-            void navigator.clipboard?.writeText(JSON.stringify(snapshot, null, 2));
-          }}
-          data-testid="data-health-copy-json"
-        >
-          Copy health JSON
-        </button>
+            {projection.sections.activeIncident.message}
+          </div>
+        ) : (
+          <div
+            className="text-[10px] text-[var(--edge-text-muted)]"
+            data-testid="data-health-active-incident-empty"
+          >
+            No active incident
+          </div>
+        )}
       </div>
+
+      <DataHealthDiagnosticsSection
+        theme={theme}
+        projection={projection}
+        serverHealthLoading={serverHealthLoading}
+        serverHealthLoaded={serverHealthLoaded}
+      />
     </ChartAnchoredPopover>
   );
 }

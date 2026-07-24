@@ -1,6 +1,14 @@
 import type { IbkrOptionInfoRow, IbkrOptionStrikesResponse, IbkrSecdefSearchRow } from "./client";
+import { CONTRACT_CACHE_MAX_ENTRIES } from "../../cache/cacheBudgets";
+import { evictMapUntilWithinBudget } from "../../cache/cacheEviction";
+import { approxPayloadBytes, prepareServerSnapshot } from "../../cache/immutableSnapshot";
 
-type CacheEntry<T> = { value: T; expiresAt: number };
+type CacheEntry<T> = {
+  value: T;
+  expiresAt: number;
+  touchedAt: number;
+  approxBytes: number;
+};
 
 export type StockContractRecord = {
   symbol: string;
@@ -28,28 +36,55 @@ const TTL_MS = {
   optInfo: 15 * 60 * 1000,
 } as const;
 
-export function createContractCache() {
+/** Prefer evicting high-cardinality strike/optInfo keys before stable stock/secdef rows. */
+function contractCacheEvictionScore(key: string): number {
+  if (key.startsWith("optInfo:") || key.startsWith("strikes:")) return 3;
+  if (key.startsWith("secdef:") || key.startsWith("optMonths:")) return 1;
+  return 0;
+}
+
+export type ContractCacheOptions = {
+  maxEntries?: number;
+};
+
+export function createContractCache(options: ContractCacheOptions = {}) {
+  const maxEntries = options.maxEntries ?? CONTRACT_CACHE_MAX_ENTRIES;
   const stores = new Map<string, CacheEntry<unknown>>();
 
   function read<T>(key: string): T | null {
     const entry = stores.get(key) as CacheEntry<T> | undefined;
-    if (!entry || entry.expiresAt <= Date.now()) {
+    const now = Date.now();
+    if (!entry || entry.expiresAt <= now) {
       if (entry) stores.delete(key);
       return null;
     }
-    return structuredClone(entry.value);
+    entry.touchedAt = now;
+    return entry.value;
   }
 
   function write<T>(key: string, value: T, ttlMs: number): void {
+    const now = Date.now();
+    const stored = prepareServerSnapshot(value);
     stores.set(key, {
-      value: structuredClone(value),
-      expiresAt: Date.now() + ttlMs,
+      value: stored,
+      expiresAt: now + ttlMs,
+      touchedAt: now,
+      approxBytes: approxPayloadBytes(stored),
+    });
+    evictMapUntilWithinBudget(stores, {
+      maxEntries,
+      softBytes: Number.POSITIVE_INFINITY,
+      evictionScore: contractCacheEvictionScore,
     });
   }
 
   return {
     clear(): void {
       stores.clear();
+    },
+
+    size(): number {
+      return stores.size;
     },
 
     getStock(symbol: string): StockContractRecord | null {

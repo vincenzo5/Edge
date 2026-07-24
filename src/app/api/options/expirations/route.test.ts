@@ -3,7 +3,7 @@ import { GET } from "./route";
 
 const getOptionExpirations = vi.fn(async () => ({
   data: [{ underlying: "AAPL", expiration: "2025-06-20" }],
-  source: "tradier",
+  source: "massive",
   requestedAt: Date.now(),
   receivedAt: Date.now(),
   stale: false,
@@ -22,7 +22,7 @@ describe("/api/options/expirations GET", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.expirations).toHaveLength(1);
-    expect(json.meta.source).toBe("tradier");
+    expect(json.meta.source).toBe("massive");
   });
 
   it("returns empty expirations with warnings when service throws", async () => {

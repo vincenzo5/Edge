@@ -26,7 +26,11 @@ import {
 import { resolveQuoteStreamFirstPaintMs } from "@/lib/marketData/quoteStreamPolicy";
 import { recordHealthEvent } from "@/lib/marketData/healthEvents";
 import { getDatasetPolicy, isDisplayFresh, provenanceFromMeta } from "@/lib/marketData/trust/dataTrust";
+import { resolveWatchlistRestPollIntervalMs } from "@/lib/marketData/watchlistDeliveryFreshness";
 import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
+import { useDataProviderPreference } from "@/lib/marketData/useDataProviderPreference";
+import type { DataProviderPreference } from "@/lib/connections/types";
+import { setTwsRecoveryContext } from "@/lib/marketData/twsRecoveryContext";
 
 export type WatchlistQuotesTransport = "rest" | "sse";
 
@@ -70,6 +74,7 @@ type RestQuotesResponse = {
     traceId?: string;
     phases?: unknown[];
     asOf?: number;
+    receivedAt?: number;
     stale?: boolean;
     warnings?: string[];
   };
@@ -80,6 +85,7 @@ async function fetchRestWatchlistQuotes(
   scenario: string,
   traceId: string,
   connectionId?: string,
+  providerPreference?: DataProviderPreference,
 ): Promise<RestQuotesResponse> {
   const res = await fetch("/api/quotes", {
     method: "POST",
@@ -90,6 +96,7 @@ async function fetchRestWatchlistQuotes(
     body: JSON.stringify({
       symbols,
       ...(connectionId ? { connectionId } : {}),
+      ...(providerPreference ? { providerPreference } : {}),
     }),
   });
   if (!res.ok) {
@@ -106,7 +113,7 @@ function applyRestQuotesPayload(
   options: {
     traceId: string;
     scenario: string;
-    transport: WatchlistQuotesTransport | "rest-fallback";
+    transport: WatchlistQuotesTransport | "rest-fallback" | "rest-poll";
     startedAt: number | null;
   },
 ): { next: Map<string, QuoteSnapshot>; firstPaint: boolean } {
@@ -155,12 +162,15 @@ function mergeQuotesMeta(
   meta: RestQuotesResponse["meta"] | undefined,
   prev: Partial<ChartDataMeta> | null | undefined,
   streaming?: boolean,
+  deliveredAt?: number,
 ): Partial<ChartDataMeta> {
   const asOf = oldestQuoteUpdatedAt(quotes.values()) ?? meta?.asOf ?? prev?.asOf ?? Date.now();
+  const lastUpdateAt = deliveredAt ?? meta?.receivedAt ?? prev?.lastUpdateAt ?? Date.now();
   return {
     ...prev,
     ...(meta?.source ? { source: meta.source as ChartDataMeta["source"] } : {}),
     asOf,
+    lastUpdateAt,
     stale: meta?.stale ?? prev?.stale,
     warnings: meta?.warnings ?? prev?.warnings ?? [],
     latencyMs: meta?.latencyMs ?? prev?.latencyMs,
@@ -237,14 +247,16 @@ export function MarketDataProvider({
   const watchlist = useWatchlistActions();
   const screener = useScreenerStateOptional();
   const { preference: dataConnectionPreference } = useDataConnectionPreference();
+  const { preference: dataProviderPreference } = useDataProviderPreference();
   const [quotesBySymbol, setQuotesBySymbol] = useState<Map<string, QuoteSnapshot>>(
     () => new Map(),
   );
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quotesMeta, setQuotesMeta] = useState<Partial<ChartDataMeta> | null>(null);
-  const [quotesTransport, setQuotesTransport] =
-    useState<WatchlistQuotesTransport>("rest");
+  const [quotesTransport, setQuotesTransport] = useState<WatchlistQuotesTransport>(() =>
+    watchlistStreamEnabled() ? "sse" : "rest",
+  );
   const quotesRef = useRef(quotesBySymbol);
   quotesRef.current = quotesBySymbol;
   const quotesFetchStartedRef = useRef<number | null>(null);
@@ -386,40 +398,7 @@ export function MarketDataProvider({
 
     if (!watchlistStreamEnabled()) {
       setQuotesTransport("rest");
-      setQuotesLoading(quotesRef.current.size === 0);
       setQuoteError(null);
-      quotesFirstPaintRef.current = false;
-      quotesFetchStartedRef.current = Date.now();
-      const quoteScenario = `watchlist-quotes:${streamSymbols.length}-symbols`;
-      const quoteTraceId = createMarketDataTraceId(quoteScenario);
-      void fetchRestWatchlistQuotes(
-        streamSymbols,
-        quoteScenario,
-        quoteTraceId,
-        dataConnectionPreference,
-      )
-        .then((payload) => {
-          const { next, firstPaint } = applyRestQuotesPayload(payload, {
-            traceId: quoteTraceId,
-            scenario: quoteScenario,
-            transport: "rest",
-            startedAt: quotesFetchStartedRef.current,
-          });
-          setQuotesBySymbol(next);
-          setQuoteError(null);
-          if (payload.meta || next.size > 0) {
-            setQuotesMeta(mergeQuotesMeta(next, payload.meta, null, false));
-          }
-          if (firstPaint) {
-            quotesFirstPaintRef.current = true;
-          }
-        })
-        .catch((err) => {
-          setQuoteError(err instanceof Error ? err.message : "Failed to load quotes");
-        })
-        .finally(() => {
-          setQuotesLoading(false);
-        });
       return;
     }
 
@@ -439,6 +418,7 @@ export function MarketDataProvider({
     const params = new URLSearchParams({
       symbols: streamSymbols.join(","),
       connectionId: dataConnectionPreference,
+      providerPreference: JSON.stringify(dataProviderPreference),
     });
     const source = new EventSource(`/api/stream/quotes?${params.toString()}`);
     let cancelled = false;
@@ -450,49 +430,13 @@ export function MarketDataProvider({
       source.close();
       setQuotesTransport("rest");
       setQuoteError(null);
-      const fallbackScenario = `watchlist-quotes-rest-fallback:${streamSymbols.length}-symbols`;
-      const fallbackTraceId = createMarketDataTraceId(fallbackScenario);
-      void fetchRestWatchlistQuotes(
-        streamSymbols,
-        fallbackScenario,
-        fallbackTraceId,
-        dataConnectionPreference,
-      )
-        .then((payload) => {
-          if (cancelled) return;
-          const { next, firstPaint } = applyRestQuotesPayload(payload, {
-            traceId: fallbackTraceId,
-            scenario: fallbackScenario,
-            transport: "rest-fallback",
-            startedAt: quotesFetchStartedRef.current,
-          });
-          setQuotesBySymbol(next);
-          recordHealthEvent({
-            kind: "transport_fallback",
-            message: reason,
-            recovered: true,
-            dataset: "watchlist",
-          });
-          setQuotesMeta((prev) => mergeQuotesMeta(next, payload.meta, prev, false));
-          if (firstPaint) {
-            quotesFirstPaintRef.current = true;
-          }
-        })
-        .catch((err) => {
-          if (cancelled) return;
-          recordHealthEvent({
-            kind: "stream_error",
-            message: err instanceof Error ? err.message : reason,
-            recovered: false,
-            dataset: "watchlist",
-          });
-          setQuoteError(err instanceof Error ? err.message : reason);
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setQuotesLoading(false);
-          }
-        });
+      setQuotesLoading(quotesRef.current.size === 0);
+      recordHealthEvent({
+        kind: "transport_fallback",
+        message: reason,
+        recovered: true,
+        dataset: "watchlist",
+      });
     };
 
     const firstPaintDeadlineMs = resolveQuoteStreamFirstPaintMs(quotesRef.current.size > 0);
@@ -512,6 +456,8 @@ export function MarketDataProvider({
             warnings?: string[];
             cacheTier?: string;
             asOf?: number;
+            receivedAt?: number;
+            lastUpdateAt?: number;
           };
         };
         if (event.type === "error") {
@@ -522,6 +468,14 @@ export function MarketDataProvider({
           }
           return;
         }
+        if (event.type === "refresh") {
+          const deliveredAt = event.meta?.lastUpdateAt ?? event.meta?.receivedAt ?? Date.now();
+          setQuotesMeta((prev) =>
+            mergeQuotesMeta(quotesRef.current, event.meta, prev, true, deliveredAt),
+          );
+          setQuoteError(null);
+          return;
+        }
         if (event.type === "snapshot" || event.type === "update") {
           const rows =
             event.quotes
@@ -529,6 +483,7 @@ export function MarketDataProvider({
               .filter((row): row is QuoteSnapshot => row != null) ?? [];
           if (rows.length === 0) return;
           window.clearTimeout(firstPaintTimer);
+          const deliveredAt = event.meta?.receivedAt ?? Date.now();
           const next = new Map(quotesRef.current);
           for (const row of rows) {
             next.set(row.symbol, row);
@@ -559,7 +514,7 @@ export function MarketDataProvider({
           setQuotesLoading(false);
           setQuoteError(null);
           setQuotesMeta((prev) =>
-            mergeQuotesMeta(next, event.meta, prev, true),
+            mergeQuotesMeta(next, event.meta, prev, true, deliveredAt),
           );
         }
       } catch {
@@ -576,7 +531,88 @@ export function MarketDataProvider({
       window.clearTimeout(firstPaintTimer);
       source.close();
     };
-  }, [streamKey, streamSymbols, reloadToken, dataConnectionPreference]);
+  }, [streamKey, streamSymbols, reloadToken, dataConnectionPreference, dataProviderPreference]);
+
+  useEffect(() => {
+    if (streamSymbols.length === 0 || quotesTransport !== "rest") return;
+
+    let cancelled = false;
+    let inFlight = false;
+    let timer: number | null = null;
+
+    const scheduleNext = () => {
+      if (cancelled) return;
+      timer = window.setTimeout(() => {
+        void runFetch(`watchlist-quotes-rest-poll:${streamSymbols.length}-symbols`, "rest-poll");
+      }, resolveWatchlistRestPollIntervalMs());
+    };
+
+    const runFetch = async (
+      scenario: string,
+      transport: WatchlistQuotesTransport | "rest-fallback" | "rest-poll",
+    ) => {
+      if (cancelled || inFlight) {
+        scheduleNext();
+        return;
+      }
+      inFlight = true;
+      const traceId = createMarketDataTraceId(scenario);
+      if (quotesRef.current.size === 0) {
+        setQuotesLoading(true);
+      }
+      try {
+        const payload = await fetchRestWatchlistQuotes(
+          streamSymbols,
+          scenario,
+          traceId,
+          dataConnectionPreference,
+          dataProviderPreference,
+        );
+        if (cancelled) return;
+        const deliveredAt = payload.meta?.receivedAt ?? Date.now();
+        const { next, firstPaint } = applyRestQuotesPayload(payload, {
+          traceId,
+          scenario,
+          transport,
+          startedAt: quotesFetchStartedRef.current,
+        });
+        if (next.size > 0) {
+          setQuotesBySymbol(next);
+          setQuoteError(null);
+          setQuotesMeta((prev) => mergeQuotesMeta(next, payload.meta, prev, false, deliveredAt));
+          if (firstPaint) {
+            quotesFirstPaintRef.current = true;
+          }
+        }
+      } catch (err) {
+        if (cancelled) return;
+        if (quotesRef.current.size === 0) {
+          recordHealthEvent({
+            kind: "stream_error",
+            message: err instanceof Error ? err.message : "Failed to load quotes",
+            recovered: false,
+            dataset: "watchlist",
+          });
+          setQuoteError(err instanceof Error ? err.message : "Failed to load quotes");
+        }
+      } finally {
+        inFlight = false;
+        if (!cancelled) {
+          setQuotesLoading(false);
+          scheduleNext();
+        }
+      }
+    };
+
+    quotesFirstPaintRef.current = false;
+    quotesFetchStartedRef.current = Date.now();
+    void runFetch(`watchlist-quotes:${streamSymbols.length}-symbols`, "rest");
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [streamKey, streamSymbols, quotesTransport, reloadToken, dataConnectionPreference, dataProviderPreference]);
 
   useEffect(() => {
     silentRevalidateKeyRef.current = null;
@@ -584,25 +620,27 @@ export function MarketDataProvider({
 
   useEffect(() => {
     if (streamSymbols.length === 0 || quotesLoading) return;
+    if (quotesTransport === "rest") return;
     if (quotesBySymbol.size < streamSymbols.length) return;
 
-    const asOf = oldestQuoteUpdatedAt(quotesBySymbol.values()) ?? quotesMeta?.asOf;
-    if (asOf == null || !quotesMeta?.source) return;
+    const deliveryAt = quotesMeta?.lastUpdateAt;
+    if (deliveryAt == null || !quotesMeta?.source) return;
 
     const provenance = provenanceFromMeta({
       source: quotesMeta.source,
-      asOf,
+      asOf: quotesMeta.asOf,
+      receivedAt: deliveryAt,
       stale: quotesMeta.stale,
       warnings: quotesMeta.warnings ?? [],
       cacheTier: quotesMeta.cacheTier,
     });
     const maxDisplayAgeMs = getDatasetPolicy("watchlist_quotes").maxDisplayAgeMs ?? 60_000;
-    const ageMs = Date.now() - asOf;
+    const ageMs = Date.now() - deliveryAt;
     const needsRefresh =
       !isDisplayFresh("watchlist_quotes", provenance) || ageMs > maxDisplayAgeMs * 0.8;
     if (!needsRefresh) return;
 
-    const revalidateKey = `${streamKey}:${Math.floor(asOf / 1_000)}`;
+    const revalidateKey = `${streamKey}:${Math.floor(deliveryAt / 1_000)}`;
     if (silentRevalidateKeyRef.current === revalidateKey) return;
 
     const timer = window.setTimeout(() => {
@@ -614,6 +652,7 @@ export function MarketDataProvider({
         scenario,
         traceId,
         dataConnectionPreference,
+        dataProviderPreference,
       )
         .then((payload) => {
           if (!payload.quotes?.length) return;
@@ -623,7 +662,10 @@ export function MarketDataProvider({
             next.set(symbol, { ...quote, symbol });
           }
           setQuotesBySymbol(next);
-          setQuotesMeta((prev) => mergeQuotesMeta(next, payload.meta, prev, prev?.streaming));
+          const deliveredAt = payload.meta?.receivedAt ?? Date.now();
+          setQuotesMeta((prev) =>
+            mergeQuotesMeta(next, payload.meta, prev, prev?.streaming, deliveredAt),
+          );
         })
         .catch(() => {
           silentRevalidateKeyRef.current = null;
@@ -633,7 +675,15 @@ export function MarketDataProvider({
     return () => {
       window.clearTimeout(timer);
     };
-  }, [streamSymbols, streamKey, quotesBySymbol, quotesLoading, quotesMeta, dataConnectionPreference]);
+  }, [streamSymbols, streamKey, quotesBySymbol, quotesLoading, quotesMeta, dataConnectionPreference, dataProviderPreference]);
+
+  useEffect(() => {
+    setTwsRecoveryContext({
+      symbols: symbolUniverse,
+      candleRequests,
+      optionsSymbol: activeSymbol ?? undefined,
+    });
+  }, [symbolUniverse, candleRequests, activeSymbol]);
 
   const value = useMemo(
     (): MarketDataContextValue => ({

@@ -1,5 +1,6 @@
 import type { DataCacheTier, DataResult } from "../contracts/result";
-import { HOT_STALE_MS } from "../hotStore";
+import { HOT_STALE_MS } from "../hotStoreConstants";
+import { evaluateDatasetPolicy, isPolicyDisplayFresh } from "./policyEvaluator";
 
 /** What the consumer is allowed to use the data for. */
 export type DataUsage =
@@ -23,7 +24,7 @@ export type DatasetKind =
 export type DataProvenance = {
   source: string;
   asOf?: number;
-  receivedAt: number;
+  receivedAt?: number;
   stale: boolean;
   warnings: string[];
   cacheTier?: DataCacheTier;
@@ -95,6 +96,7 @@ export const DATASET_POLICIES: Record<DatasetKind, DatasetPolicy> = {
     fallbackAllowed: false,
     tradingDecisionAllowed: true,
     tradingSources: ["tws"],
+    maxAgeMs: 30_000,
   },
   positions: {
     dataset: "positions",
@@ -102,6 +104,7 @@ export const DATASET_POLICIES: Record<DatasetKind, DatasetPolicy> = {
     fallbackAllowed: false,
     tradingDecisionAllowed: true,
     tradingSources: ["tws"],
+    maxAgeMs: 30_000,
   },
   orders: {
     dataset: "orders",
@@ -159,11 +162,10 @@ export function provenanceFromMeta(meta: {
   cacheTier?: DataCacheTier;
   receivedAt?: number;
 }): DataProvenance {
-  const now = Date.now();
   return {
     source: meta.source ?? "unknown",
     asOf: meta.asOf,
-    receivedAt: meta.receivedAt ?? meta.asOf ?? now,
+    receivedAt: meta.receivedAt ?? meta.asOf,
     stale: meta.stale ?? false,
     warnings: meta.warnings ?? [],
     cacheTier: meta.cacheTier,
@@ -173,7 +175,60 @@ export function provenanceFromMeta(meta: {
 
 export function quoteAgeMs(provenance: DataProvenance, now = Date.now()): number {
   const anchor = provenance.asOf ?? provenance.receivedAt;
+  if (anchor == null) return Number.POSITIVE_INFINITY;
   return Math.max(0, now - anchor);
+}
+
+/** Watchlist transport delivery age — always anchored on successful receipt time. */
+export function watchlistDeliveryAgeMs(provenance: DataProvenance, now = Date.now()): number {
+  if (provenance.receivedAt == null) return Number.POSITIVE_INFINITY;
+  return Math.max(0, now - provenance.receivedAt);
+}
+
+function displayAgeMs(
+  dataset: DatasetKind,
+  provenance: DataProvenance,
+  now = Date.now(),
+): number {
+  if (dataset === "watchlist_quotes") {
+    return watchlistDeliveryAgeMs(provenance, now);
+  }
+  if (dataset === "chart_candles") {
+    return chartDeliveryAgeMs(provenance, now);
+  }
+  return quoteAgeMs(provenance, now);
+}
+
+/** Chart delivery age anchored on successful receipt/refresh time. */
+export function chartDeliveryAgeMs(provenance: DataProvenance, now = Date.now()): number {
+  if (provenance.receivedAt == null) return Number.POSITIVE_INFINITY;
+  return Math.max(0, now - provenance.receivedAt);
+}
+
+/** Whether active chart meta is display-fresh under chart_candles policy. */
+export function isChartMetaDisplayFresh(
+  meta: {
+    source?: string;
+    asOf?: number;
+    stale?: boolean;
+    warnings?: string[];
+    cacheTier?: DataCacheTier;
+    lastUpdateAt?: number;
+  } | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (!meta?.source) return true;
+  return isPolicyDisplayFresh(
+    "chart_candles",
+    {
+      source: meta.source,
+      asOf: meta.asOf,
+      receivedAt: meta.lastUpdateAt ?? meta.asOf,
+      stale: meta.stale,
+      cacheTier: meta.cacheTier,
+    },
+    now,
+  );
 }
 
 /** Whether quote age is within the dataset display freshness window. */
@@ -182,9 +237,17 @@ export function isDisplayFresh(
   provenance: DataProvenance,
   now = Date.now(),
 ): boolean {
-  const policy = getDatasetPolicy(dataset);
-  if (policy.maxDisplayAgeMs == null) return !provenance.stale;
-  return quoteAgeMs(provenance, now) <= policy.maxDisplayAgeMs;
+  return isPolicyDisplayFresh(
+    dataset,
+    {
+      source: provenance.source,
+      asOf: provenance.asOf,
+      stale: provenance.stale,
+      receivedAt: provenance.receivedAt,
+      cacheTier: provenance.cacheTier,
+    },
+    now,
+  );
 }
 
 /** Human-readable reason when display freshness fails, or null when fresh. */
@@ -193,14 +256,18 @@ export function displayFreshnessReason(
   provenance: DataProvenance,
   now = Date.now(),
 ): string | null {
-  const policy = getDatasetPolicy(dataset);
-  if (policy.maxDisplayAgeMs == null) {
-    return provenance.stale ? "Data is marked stale" : null;
-  }
-  const ageMs = quoteAgeMs(provenance, now);
-  if (ageMs <= policy.maxDisplayAgeMs) return null;
-  const ageSec = Math.round(ageMs / 1000);
-  return `Quote age ${ageSec}s exceeds display max ${Math.round(policy.maxDisplayAgeMs / 1000)}s`;
+  const evaluation = evaluateDatasetPolicy({
+    datasetId: dataset,
+    receivedAt: provenance.receivedAt,
+    providerAsOf: provenance.asOf,
+    transportStale: provenance.stale,
+    cacheTier: provenance.cacheTier,
+    now,
+  });
+  if (evaluation.displayFresh) return null;
+  if (evaluation.reasons.length > 0) return evaluation.reasons[0] ?? null;
+  const ageSec = Math.round(evaluation.freshnessAgeMs / 1000);
+  return `Delivery age ${ageSec}s exceeds display max ${Math.round(evaluation.maxFreshnessMs / 1000)}s`;
 }
 
 function tradingDecisionReasons(
@@ -225,6 +292,9 @@ function tradingDecisionReasons(
     }
   }
   if (policy.maxAgeMs != null) {
+    if (provenance.asOf == null && provenance.receivedAt == null) {
+      reasons.push("Missing timestamp anchor");
+    }
     const age = quoteAgeMs(provenance, now);
     if (age > policy.maxAgeMs) {
       reasons.push(`Quote age ${age}ms exceeds max ${policy.maxAgeMs}ms`);

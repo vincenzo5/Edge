@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   mapYahooCandles,
   mapYahooQuotes,
-  mapRawTradierOption,
 } from "./adapter";
 
 describe("yahoo adapter mappers", () => {
@@ -33,25 +32,5 @@ describe("yahoo adapter mappers", () => {
       },
     ]);
     expect(quotes[0]?.price).toBe(100);
-  });
-});
-
-describe("tradier option mapper", () => {
-  it("maps tradier option rows with greeks", () => {
-    const mapped = mapRawTradierOption(
-      {
-        symbol: "AAPL250620C00150000",
-        option_type: "call",
-        strike: 150,
-        bid: 1,
-        ask: 1.2,
-        greeks: { delta: 0.5, mid_iv: 0.25 },
-      },
-      "AAPL",
-      "2025-06-20",
-    );
-    expect(mapped?.type).toBe("call");
-    expect(mapped?.delta).toBe(0.5);
-    expect(mapped?.impliedVolatility).toBe(0.25);
   });
 });

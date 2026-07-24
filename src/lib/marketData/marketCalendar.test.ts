@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isUsMarketClosed,
+  isNyseFullDayHoliday,
   latestCompletedTradingDate,
   recentTradingDays,
 } from "./marketCalendar";
@@ -45,5 +46,16 @@ describe("marketCalendar", () => {
       "2026-06-25",
       "2026-06-24",
     ]);
+  });
+
+  it("returns Friday on NYSE holiday weekday", () => {
+    expect(latestCompletedTradingDate(new Date("2026-07-03T21:00:00.000Z"))).toBe(
+      "2026-07-02",
+    );
+  });
+
+  it("detects NYSE full-day holiday", () => {
+    expect(isNyseFullDayHoliday(new Date("2026-07-03T15:00:00.000Z"))).toBe(true);
+    expect(isNyseFullDayHoliday(new Date("2026-07-02T15:00:00.000Z"))).toBe(false);
   });
 });

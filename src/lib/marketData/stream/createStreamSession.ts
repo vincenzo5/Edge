@@ -17,6 +17,7 @@ import {
 import type { CandleStreamQueryInput, QuoteStreamQueryInput } from './streamQuerySchemas';
 import { createIbkrSmdQuoteStreamSession } from './ibkrQuoteStreamSession';
 import { createTwsQuoteStreamSession } from './twsQuoteStreamSession';
+import { recordDeliveryFromResult } from '../state/deliveryRegistry';
 
 export type StreamSession = {
   start(onEvent: (payload: string) => void): void;
@@ -78,6 +79,23 @@ export function createCandleStreamSession(
           lastCandles = event.candles;
         }
         onEvent(JSON.stringify(event satisfies ChartCandleStreamEvent));
+      }
+
+      if (events.length === 0) {
+        onEvent(
+          JSON.stringify({
+            type: 'refresh',
+            meta: {
+              ...meta,
+              lastUpdateAt: Date.now(),
+              stale: false,
+              streaming: true,
+            },
+          } satisfies ChartCandleStreamEvent),
+        );
+        recordDeliveryFromResult(result, 'chart_candles', {
+          transport: 'streaming',
+        });
       }
 
       if (meta.stale) {
@@ -163,20 +181,25 @@ function createPollQuoteStreamSession(
   let primed = false;
   let failureCount = 0;
 
+  let lastQuotesSignature: string | null = null;
+
   const poll = async (onEvent: (payload: string) => void) => {
     if (stopped) return;
     try {
       const result = await service.getQuotes(query.symbols, {
         twsConnectionId: query.connectionId,
+        providerPreference: query.providerPreference,
       });
       if (stopped) return;
       failureCount = 0;
 
       const meta = normalizeChartMeta(dataResultToResponseMeta(result));
       const quotes = result.data.map(equityQuoteToMarketQuote);
+      const quotesSignature = JSON.stringify(quotes);
 
       if (!primed) {
         primed = true;
+        lastQuotesSignature = quotesSignature;
         onEvent(
           JSON.stringify({
             type: 'snapshot',
@@ -184,9 +207,31 @@ function createPollQuoteStreamSession(
             meta,
           } satisfies ChartQuoteStreamEvent),
         );
+        recordDeliveryFromResult(result, 'watchlist_quotes', {
+          transport: 'polling',
+        });
         return;
       }
 
+      if (quotesSignature === lastQuotesSignature) {
+        onEvent(
+          JSON.stringify({
+            type: 'refresh',
+            meta: {
+              ...meta,
+              lastUpdateAt: Date.now(),
+              stale: false,
+              streaming: true,
+            },
+          } satisfies ChartQuoteStreamEvent),
+        );
+        recordDeliveryFromResult(result, 'watchlist_quotes', {
+          transport: 'polling',
+        });
+        return;
+      }
+
+      lastQuotesSignature = quotesSignature;
       onEvent(
         JSON.stringify({
           type: 'update',

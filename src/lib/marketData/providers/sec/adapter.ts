@@ -1,10 +1,13 @@
 import type { SecCompanyFacts, SecFiling } from "../../contracts/fundamentals";
 import { asNonEmptyString } from "../../validation/parseRequest";
+import { CONFIG_DEFAULTS, getConfigSource, SEC_KEYS } from "../../config";
 
 const SEC_TICKERS_URL =
   "https://www.sec.gov/files/company_tickers.json";
-const SEC_USER_AGENT =
-  process.env.SEC_USER_AGENT ?? "EdgeChart/1.0 (contact@example.com)";
+
+function secUserAgent(): string {
+  return getConfigSource().get(SEC_KEYS.userAgent) ?? CONFIG_DEFAULTS.secUserAgent;
+}
 
 type TickerEntry = { cik_str: number; ticker: string; title: string };
 
@@ -17,7 +20,7 @@ async function loadTickerMap(): Promise<Map<string, TickerEntry>> {
     return tickerCache;
   }
   const res = await fetch(SEC_TICKERS_URL, {
-    headers: { "User-Agent": SEC_USER_AGENT, Accept: "application/json" },
+    headers: { "User-Agent": secUserAgent(), Accept: "application/json" },
   });
   if (!res.ok) {
     throw new Error(`SEC ticker map failed (${res.status})`);
@@ -54,7 +57,7 @@ export function createSecProvider() {
       if (!resolved) return null;
       const url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${resolved.cik}.json`;
       const res = await fetch(url, {
-        headers: { "User-Agent": SEC_USER_AGENT, Accept: "application/json" },
+        headers: { "User-Agent": secUserAgent(), Accept: "application/json" },
       });
       if (res.status === 404) return null;
       if (!res.ok) {
@@ -74,7 +77,7 @@ export function createSecProvider() {
       if (!resolved) return [];
       const url = `https://data.sec.gov/submissions/CIK${resolved.cik}.json`;
       const res = await fetch(url, {
-        headers: { "User-Agent": SEC_USER_AGENT, Accept: "application/json" },
+        headers: { "User-Agent": secUserAgent(), Accept: "application/json" },
       });
       if (!res.ok) {
         throw new Error(`SEC submissions failed (${res.status})`);

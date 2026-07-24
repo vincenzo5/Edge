@@ -91,10 +91,6 @@ vi.mock("../providers/massive/adapter", () => ({
   createMassiveProvider: () => ({ isConfigured: () => false }),
 }));
 
-vi.mock("../providers/tradier/adapter", () => ({
-  createTradierOptionsProvider: () => ({ isConfigured: () => false }),
-}));
-
 vi.mock("../providers/sec/adapter", () => ({
   createSecProvider: () => ({
     isConfigured: () => true,

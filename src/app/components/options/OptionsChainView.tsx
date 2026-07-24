@@ -13,6 +13,7 @@ import {
 } from "@/lib/risk/createRiskRulerPreset";
 import { OPTION_SETUP_TYPES } from "@edge/chart-core";
 import EdgeIconButton from "../design-system/EdgeIconButton";
+import EdgeSelect from "../design-system/EdgeSelect";
 import { headerButtonClass, segmentedTabClass } from "../design-system/styles";
 import { OptionsChainTable } from "./OptionsChainTable";
 import type { OptionsChainModel } from "./useOptionsChainModel";
@@ -22,7 +23,7 @@ function SourceBadge({ source, stale }: { source?: string; stale?: boolean }) {
   return (
     <span
       data-testid="options-source-badge"
-      className="rounded bg-[var(--edge-bg-secondary)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]"
+      className="rounded bg-[var(--edge-surface-toolbar)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]"
     >
       {source}
       {stale ? " · stale" : ""}
@@ -115,7 +116,7 @@ function ExpirationTabs({
     >
       {canScrollLeft && (
         <EdgeIconButton
-          size="sm"
+          size="compact"
           aria-label="Scroll expirations left"
           data-testid="options-exp-scroll-left"
           onClick={() => scrollByAmount(-120)}
@@ -164,7 +165,7 @@ function ExpirationTabs({
       </div>
       {canScrollRight && (
         <EdgeIconButton
-          size="sm"
+          size="compact"
           aria-label="Scroll expirations right"
           data-testid="options-exp-scroll-right"
           onClick={() => scrollByAmount(120)}
@@ -179,7 +180,7 @@ function ExpirationTabs({
 }
 
 const RISK_PRESET_BUTTON_CLASS =
-  "rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1.5 text-[10px] font-medium text-[var(--edge-text-primary)] shadow-sm transition-colors hover:border-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10 hover:text-[var(--edge-accent-blue)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--edge-accent-blue)] disabled:cursor-not-allowed disabled:border-[var(--edge-border)] disabled:bg-[var(--edge-bg-secondary)] disabled:text-[var(--edge-text-muted)] disabled:opacity-60 disabled:shadow-none";
+  "rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1.5 text-[10px] font-medium text-[var(--edge-text-primary)] shadow-sm transition-colors hover:border-[var(--edge-accent-blue)] hover:bg-[var(--edge-accent-blue)]/10 hover:text-[var(--edge-accent-blue)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--edge-accent-blue)] disabled:cursor-not-allowed disabled:border-[var(--edge-border)] disabled:bg-[var(--edge-surface-toolbar)] disabled:text-[var(--edge-text-muted)] disabled:opacity-60 disabled:shadow-none";
 
 function RiskRulerPresets({
   model,
@@ -259,29 +260,24 @@ function PinControls({ model }: { model: OptionsChainModel }) {
         Pin
       </button>
       {expirations.length > 1 && (
-        <select
-          data-testid="options-pin-add-select"
+        <EdgeSelect
+          testId="options-pin-add-select"
+          variant="chip"
           aria-label="Pin another expiration"
-          defaultValue=""
-          onChange={(event) => {
-            const value = event.target.value;
-            if (value) {
-              pinExpiration(value);
-              event.target.value = "";
-            }
-          }}
-          className="max-w-[7rem] rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1.5 py-1 text-[10px] text-[var(--edge-text-primary)]"
-        >
-          <option value="">+ pin</option>
-          {expirations
+          density="compact"
+          value=""
+          placeholder="+ pin"
+          onChange={(exp) => pinExpiration(exp)}
+          options={expirations
             .filter((exp) => exp !== primaryExpiration)
             .filter((exp) => !isExpirationPinned(exp))
-            .map((exp) => (
-              <option key={exp} value={exp}>
-                {formatExpirationTabLabel(exp)}
-              </option>
-            ))}
-        </select>
+            .map((exp) => ({
+              value: exp,
+              label: formatExpirationTabLabel(exp),
+            }))}
+          minWidth={120}
+          className="max-w-[7rem] text-[10px]"
+        />
       )}
     </div>
   );
@@ -336,7 +332,7 @@ function OptionsChainHeader({
           role={variant === "dialog" ? "status" : undefined}
           className={
             variant === "dialog"
-              ? "rounded-md border border-[var(--edge-border)] bg-[var(--edge-bg-secondary)]/40 px-3 py-2 text-[var(--edge-text-secondary)]"
+              ? "rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)]/40 px-3 py-2 text-[var(--edge-text-secondary)]"
               : "text-[var(--edge-text-secondary)]"
           }
         >

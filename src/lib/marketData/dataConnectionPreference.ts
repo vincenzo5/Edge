@@ -40,6 +40,9 @@ export function writeDataConnectionPreference(connectionId: DataConnectionId): v
   try {
     window.localStorage.setItem(DATA_CONNECTION_PREFERENCE_KEY, connectionId);
     notifyDataConnectionPreferenceChange(connectionId);
+    void import("@/lib/userPreferences/userPreferencesSync").then(({ notifyUserPreferencesChanged }) =>
+      notifyUserPreferencesChanged(),
+    );
   } catch {
     // Ignore quota / privacy mode failures.
   }

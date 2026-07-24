@@ -58,3 +58,13 @@ export function cacheTtlMs(namespace: CacheNamespace, interval?: Interval): numb
   }
   return CACHE_TTL_MS[namespace];
 }
+
+export {
+  CONTRACT_CACHE_MAX_ENTRIES,
+  DATA_CACHE_MAX_ENTRIES_PER_NAMESPACE,
+  DATA_CACHE_SOFT_BYTE_BUDGET_DEFAULT_NS,
+  DATA_CACHE_SOFT_BYTE_BUDGET_LARGE_NS,
+  HOT_STORE_MAX_ENTRIES,
+  HOT_STORE_SOFT_BYTE_BUDGET,
+  dataCacheSoftByteBudget,
+} from "./cacheBudgets";

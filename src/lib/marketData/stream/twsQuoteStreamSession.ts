@@ -107,6 +107,7 @@ export function createTwsQuoteStreamSession(
     try {
       const result = await service.getQuotes(query.symbols, {
         twsConnectionId: query.connectionId,
+        providerPreference: query.providerPreference,
       });
       if (stopped) return;
       failureCount = 0;

@@ -13,10 +13,14 @@ import {
 import type { ChartDataMeta } from "@edge/chart-core";
 import {
   mergeHealthSnapshot,
+  mergeMonotonicServerHealth,
+  buildConnectionSupervision,
   shouldShowTwsRecovery,
+  type ConnectionSupervisorSnapshot,
   type DataHealthSnapshot,
   type ServerHealthPayload,
 } from "@/lib/marketData/health";
+import { withHealthProjection, type DataHealthView } from "@/lib/marketData/healthProjection";
 import type { DatasetKind } from "@/lib/marketData/trust/dataTrust";
 import {
   getHealthEvents,
@@ -26,11 +30,16 @@ import {
 } from "@/lib/marketData/healthEvents";
 import { subscribeTwsRecovery } from "@/lib/marketData/twsRecoveryBus";
 import { runTwsRecoveryClient } from "@/lib/marketData/twsRecoveryClient";
+import { setTwsRecoveryContext } from "@/lib/marketData/twsRecoveryContext";
 import { useActiveChart } from "../ActiveChartContext";
 import { useMarketDataQuotes } from "../MarketDataProvider";
 import { useAccountOptional } from "../AccountProvider";
 import { useAccountAliasesOptional } from "../AccountAliasesProvider";
 import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
+import type { DemandDatasetInput } from "@/lib/marketData/healthDatasets";
+import { buildBrokerageSubdatasetInputs } from "@/lib/brokerage/brokerageDelivery";
+import { usePersistenceSyncHealth } from "@/lib/persistence/sync/usePersistenceSyncHealth";
+import { useRegisterScreenerHealthDemand } from "./useDatasetHealthRegistration";
 
 type OptionsHealthMeta = Partial<ChartDataMeta> | null;
 
@@ -38,7 +47,7 @@ const HEALTH_POLL_HEALTHY_MS = 30_000;
 const HEALTH_POLL_DEGRADED_MS = 5_000;
 
 type DataHealthContextValue = {
-  snapshot: DataHealthSnapshot;
+  snapshot: DataHealthView;
   menuOpen: boolean;
   setMenuOpen: (open: boolean) => void;
   serverHealthLoading: boolean;
@@ -49,6 +58,7 @@ type DataHealthContextValue = {
     detail?: string,
     trustDataset?: DatasetKind,
   ) => void;
+  registerDatasetDemand: (input: DemandDatasetInput) => void;
   recoveringTws: boolean;
   recoverMessage: string | null;
   recoverTws: () => Promise<void>;
@@ -72,7 +82,11 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
   const [serverHealthLoading, setServerHealthLoading] = useState(false);
   const [healthEvents, setHealthEvents] = useState<HealthEvent[]>(() => getHealthEvents());
   const [brokerIngestDetail, setBrokerIngestDetail] = useState<string | null>(null);
+  const [brokerIngestError, setBrokerIngestError] = useState<string | null>(null);
+  const [demandDatasets, setDemandDatasets] = useState<Record<string, DemandDatasetInput>>({});
   const recoveryRunRef = useRef(0);
+  const healthFetchGenerationRef = useRef(0);
+  const supervisionRef = useRef<ConnectionSupervisorSnapshot | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +97,11 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
         const body = (await res.json()) as {
           cursors?: Array<{ lastIngestAt?: string | null; lastIngestError?: string | null }>;
         };
-        const latest = body.cursors?.find((row) => row.lastIngestAt)?.lastIngestAt;
+        const latestCursor = body.cursors?.find((row) => row.lastIngestAt || row.lastIngestError);
+        if (latestCursor?.lastIngestError) {
+          setBrokerIngestError("Ledger ingest error");
+        }
+        const latest = latestCursor?.lastIngestAt;
         if (!latest || cancelled) return;
         const ageMs = Date.now() - Date.parse(latest);
         const ageMin = Math.max(0, Math.round(ageMs / 60_000));
@@ -102,6 +120,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
 
   const refreshServerHealth = useCallback(
     async (options?: { recovery?: boolean }): Promise<ServerHealthPayload | null> => {
+      const generation = ++healthFetchGenerationRef.current;
       setServerHealthLoading(true);
       try {
         const url = options?.recovery
@@ -111,13 +130,21 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
         if (!res.ok) return null;
         const payload = (await res.json()) as { health?: ServerHealthPayload };
         if (payload.health) {
-          setServerHealth(payload.health);
+          if (generation !== healthFetchGenerationRef.current) {
+            return payload.health;
+          }
+          setServerHealth((prev) => {
+            if (!payload.health) return prev;
+            return mergeMonotonicServerHealth(prev, payload.health);
+          });
           return payload.health;
         }
       } catch {
         // Keep last known server health.
       } finally {
-        setServerHealthLoading(false);
+        if (generation === healthFetchGenerationRef.current) {
+          setServerHealthLoading(false);
+        }
       }
       return null;
     },
@@ -199,6 +226,18 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(timer);
   }, [menuOpen, refreshServerHealth]);
 
+  const registerDatasetDemand = useCallback((input: DemandDatasetInput) => {
+    setDemandDatasets((prev) => {
+      const next = { ...prev };
+      if (input.active === false) {
+        delete next[input.datasetId];
+        return next;
+      }
+      next[input.datasetId] = input;
+      return next;
+    });
+  }, []);
+
   const registerOptionsMeta = useCallback(
     (meta: OptionsHealthMeta, detail?: string, trustDataset?: DatasetKind) => {
       setOptionsMeta(meta);
@@ -224,6 +263,11 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
       candleRequests: marketData?.recoveryCandleRequests ?? [],
       optionsSymbol: marketData?.recoveryOptionsSymbol ?? undefined,
     });
+    setTwsRecoveryContext({
+      symbols,
+      candleRequests: marketData?.recoveryCandleRequests ?? [],
+      optionsSymbol: marketData?.recoveryOptionsSymbol ?? undefined,
+    });
     if (runId !== recoveryRunRef.current) return;
     if (!result.ok && result.message) {
       setRecoverMessage(result.message);
@@ -234,6 +278,8 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     marketData?.recoveryOptionsSymbol,
     marketData?.recoverySymbols,
   ]);
+
+  const persistenceSync = usePersistenceSyncHealth();
 
   const snapshot = useMemo(() => {
     const chartSymbol = activeChart?.config.symbol?.trim().toUpperCase();
@@ -248,35 +294,82 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
           watchlistAsOf == null ? quote.updatedAt : Math.min(watchlistAsOf, quote.updatedAt);
       }
     }
+    const watchlistDeliveryAt = marketData?.quotesMeta?.lastUpdateAt;
 
-    return mergeHealthSnapshot(
+    const previousSupervision = supervisionRef.current;
+    const nextSupervision = buildConnectionSupervision(serverHealth, previousSupervision, {
+      dataConnectionPreference,
+    });
+    if (nextSupervision) {
+      supervisionRef.current = nextSupervision;
+    }
+
+    return withHealthProjection(
+      mergeHealthSnapshot(
+        {
+          chartMeta: activeChart?.dataMeta,
+          chartDetail:
+            chartSymbol && chartInterval ? `${chartSymbol} · ${chartInterval.toUpperCase()}` : chartSymbol,
+          watchlistMeta: marketData?.quotesMeta,
+          watchlistAsOf,
+          watchlistDeliveryAt,
+          watchlistDetail:
+            watchlistTotal > 0 ? `${quoteCount}/${watchlistTotal} symbols` : undefined,
+          watchlistLoading: marketData?.quotesLoading,
+          watchlistError: marketData?.quoteError,
+          watchlistTransport: marketData?.quotesTransport,
+          optionsMeta,
+          optionsDetail,
+          optionsTrustDataset,
+          chartStreamTransport: process.env.NEXT_PUBLIC_STREAM_TRANSPORT ?? "polling",
+          accountDisabled: account?.disabled,
+          accountConnectionState: account?.connectionState,
+          accountDetail: account?.activeTradingAccount
+            ? `${accountAliases?.displayNameFor(account.activeTradingAccount) ?? account.status?.accountId ?? account.activeTradingAccount.accountId} · ${account.positions.length} positions${brokerIngestDetail ? ` · ${brokerIngestDetail}` : ""}`
+            : account?.status?.accountId
+              ? `${account.status.accountId} · ${account.positions.length} positions${brokerIngestDetail ? ` · ${brokerIngestDetail}` : ""}`
+              : account?.connectionState,
+          accountError: account?.error,
+          dataConnectionPreference,
+          demandDatasets: Object.values(demandDatasets),
+          brokerageSubdatasets: buildBrokerageSubdatasetInputs({
+            snapshot:
+              account && !account.disabled
+                ? {
+                    status: account.status,
+                    summary: account.summary,
+                    positions: account.positions,
+                    pnl: account.pnl,
+                    orders: account.orders,
+                    executions: account.executions,
+                    updatedAt: Date.now(),
+                  }
+                : null,
+            disabled: account?.disabled,
+            ingestDetail: brokerIngestDetail,
+            ingestError: brokerIngestError,
+          }),
+          preTrade: account?.disabled
+            ? undefined
+            : {
+                active: Boolean(account?.activeTradingAccount && account?.connectionState === "connected"),
+                blocked: true,
+                reasons: ["Connection only — quote readiness not verified"],
+                connectionLabel: account?.activeTradingAccount?.environment,
+              },
+          persistenceSync,
+        },
+        serverHealth,
+        healthEvents,
+        {
+          previous: previousSupervision,
+          next: nextSupervision,
+        },
+      ),
       {
-        chartMeta: activeChart?.dataMeta,
-        chartDetail:
-          chartSymbol && chartInterval ? `${chartSymbol} · ${chartInterval.toUpperCase()}` : chartSymbol,
-        watchlistMeta: marketData?.quotesMeta,
-        watchlistAsOf,
-        watchlistDetail:
-          watchlistTotal > 0 ? `${quoteCount}/${watchlistTotal} symbols` : undefined,
-        watchlistLoading: marketData?.quotesLoading,
-        watchlistError: marketData?.quoteError,
         watchlistTransport: marketData?.quotesTransport,
-        optionsMeta,
-        optionsDetail,
-        optionsTrustDataset,
-        chartStreamTransport: process.env.NEXT_PUBLIC_STREAM_TRANSPORT ?? "polling",
-        accountDisabled: account?.disabled,
-        accountConnectionState: account?.connectionState,
-        accountDetail: account?.activeTradingAccount
-          ? `${accountAliases?.displayNameFor(account.activeTradingAccount) ?? account.status?.accountId ?? account.activeTradingAccount.accountId} · ${account.positions.length} positions${brokerIngestDetail ? ` · ${brokerIngestDetail}` : ""}`
-          : account?.status?.accountId
-            ? `${account.status.accountId} · ${account.positions.length} positions${brokerIngestDetail ? ` · ${brokerIngestDetail}` : ""}`
-            : account?.connectionState,
-        accountError: account?.error,
-        dataConnectionPreference,
+        deliveryDiagnostics: serverHealth?.deliveryDiagnostics,
       },
-      serverHealth,
-      healthEvents,
     );
   }, [
     activeChart?.config.interval,
@@ -299,6 +392,9 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     account?.status?.accountId,
     accountAliases,
     brokerIngestDetail,
+    brokerIngestError,
+    demandDatasets,
+    persistenceSync,
     dataConnectionPreference,
     serverHealth,
     healthEvents,
@@ -313,6 +409,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
       serverHealthLoaded: serverHealth != null,
       refreshServerHealth,
       registerOptionsMeta,
+      registerDatasetDemand,
       recoveringTws,
       recoverMessage,
       recoverTws,
@@ -324,13 +421,24 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
       serverHealthLoading,
       refreshServerHealth,
       registerOptionsMeta,
+      registerDatasetDemand,
       recoveringTws,
       recoverMessage,
       recoverTws,
     ],
   );
 
-  return <DataHealthContext.Provider value={value}>{children}</DataHealthContext.Provider>;
+  return (
+    <DataHealthContext.Provider value={value}>
+      <DataHealthDemandBridge />
+      {children}
+    </DataHealthContext.Provider>
+  );
+}
+
+function DataHealthDemandBridge(): null {
+  useRegisterScreenerHealthDemand();
+  return null;
 }
 
 export function useDataHealth(): DataHealthContextValue {

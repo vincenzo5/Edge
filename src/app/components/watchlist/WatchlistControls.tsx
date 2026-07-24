@@ -7,6 +7,7 @@ import type {
 } from "@/lib/watchlist/types";
 import { WATCHLIST_COLUMN_LABELS } from "@/lib/watchlist/types";
 import { toggleFilterTag, toggleVisibleColumn } from "@/lib/watchlist/viewModel";
+import { annotationTextClass, chipClass, compactControlClass } from "../design-system/styles";
 
 type Props = {
   viewPrefs: WatchlistViewPrefs;
@@ -24,6 +25,10 @@ const OPTIONAL_COLUMNS: WatchlistColumnId[] = [
   "volume",
   "marketCap",
 ];
+
+function controlChipClass(active: boolean): string {
+  return `edge-focus-ring rounded-[var(--edge-radius-xs)] px-1.5 ${compactControlClass()} ${annotationTextClass()} ${chipClass(active)}`;
+}
 
 export default function WatchlistControls({
   viewPrefs,
@@ -43,11 +48,7 @@ export default function WatchlistControls({
             data-testid={`watchlist-group-${mode.id}`}
             aria-pressed={viewPrefs.groupMode === mode.id}
             onClick={() => onViewPrefsChange({ groupMode: mode.id })}
-            className={`edge-focus-ring rounded-[var(--edge-radius-xs)] px-1.5 py-0.5 text-[10px] ${
-              viewPrefs.groupMode === mode.id
-                ? "bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]"
-                : "text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)]"
-            }`}
+            className={controlChipClass(viewPrefs.groupMode === mode.id)}
           >
             {mode.label}
           </button>
@@ -66,11 +67,7 @@ export default function WatchlistControls({
                   visibleColumns: toggleVisibleColumn(viewPrefs.visibleColumns, column),
                 })
               }
-              className={`edge-focus-ring rounded-[var(--edge-radius-xs)] px-1.5 py-0.5 text-[10px] ${
-                active
-                  ? "bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]"
-                  : "text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)]"
-              }`}
+              className={controlChipClass(active)}
             >
               {WATCHLIST_COLUMN_LABELS[column]}
             </button>
@@ -80,7 +77,7 @@ export default function WatchlistControls({
 
       {allTags.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1">
-          <span className="text-[10px] text-[var(--edge-text-muted)]">Filter</span>
+          <span className={`${annotationTextClass()} text-[var(--edge-text-muted)]`}>Filter</span>
           {allTags.map((tag) => {
             const active = viewPrefs.filterTags.includes(tag);
             return (
@@ -94,7 +91,7 @@ export default function WatchlistControls({
                     filterTags: toggleFilterTag(viewPrefs.filterTags, tag),
                   })
                 }
-                className={`edge-focus-ring rounded-[var(--edge-radius-xs)] px-1.5 py-0.5 text-[10px] ${
+                className={`edge-focus-ring rounded-[var(--edge-radius-xs)] px-1.5 ${compactControlClass()} ${annotationTextClass()} ${
                   active
                     ? "bg-[color-mix(in_srgb,var(--edge-accent-blue)_18%,transparent)] text-[var(--edge-accent-blue)]"
                     : "text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)]"

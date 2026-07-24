@@ -56,9 +56,10 @@ describe("/api/market-data/context GET", () => {
     vi.clearAllMocks();
   });
 
-  it("returns market context with meta", async () => {
+  it("returns market context with meta and Cache-Control", async () => {
     const res = await GET(new Request("http://localhost/api/market-data/context?symbol=AAPL"));
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("private, max-age=21600");
     const json = await res.json();
     expect(json.context.symbol).toBe("AAPL");
     expect(json.context.tradableGroups).toHaveLength(1);
@@ -66,8 +67,9 @@ describe("/api/market-data/context GET", () => {
     expect(getMarketContext).toHaveBeenCalledWith("AAPL");
   });
 
-  it("rejects missing symbol", async () => {
+  it("rejects missing symbol without Cache-Control", async () => {
     const res = await GET(new Request("http://localhost/api/market-data/context"));
     expect(res.status).toBe(400);
+    expect(res.headers.get("Cache-Control")).toBeNull();
   });
 });

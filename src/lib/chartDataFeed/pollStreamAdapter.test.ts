@@ -4,6 +4,7 @@ import {
   createPollingCandleSubscription,
   createPollingQuoteSubscription,
   MAX_POLL_FAILURES_BEFORE_STALE,
+  pollRangeForInterval,
 } from './pollStreamAdapter';
 import type { ChartCandleStreamEvent, ChartQuoteStreamEvent } from '@edge/chart-core';
 
@@ -19,6 +20,12 @@ describe('pollStreamAdapter', () => {
   it('derives interval-aware poll cadence', () => {
     expect(candlePollIntervalMs('1m')).toBe(15_000);
     expect(candlePollIntervalMs('1d')).toBe(120_000);
+  });
+
+  it('derives short poll ranges by interval', () => {
+    expect(pollRangeForInterval('1m')).toBe('1d');
+    expect(pollRangeForInterval('1h')).toBe('5d');
+    expect(pollRangeForInterval('1d')).toBe('1mo');
   });
 
   it('primes candle polling without emitting an initial snapshot', async () => {
@@ -68,6 +75,30 @@ describe('pollStreamAdapter', () => {
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(1000);
     expect(events.some((event) => event.type === 'append')).toBe(true);
+    unsubscribe();
+  });
+
+  it('emits refresh when unchanged candles still deliver successfully', async () => {
+    const events: ChartCandleStreamEvent[] = [];
+    const candle = { t: 1000, o: 1, h: 2, l: 0.5, c: 1.5 };
+    const loadLatest = vi
+      .fn()
+      .mockResolvedValueOnce({
+        candles: [candle],
+        meta: { source: 'yahoo', asOf: 1000, stale: false, warnings: [] },
+      })
+      .mockResolvedValueOnce({
+        candles: [candle],
+        meta: { source: 'yahoo', asOf: 1000, stale: true, warnings: [] },
+      });
+
+    const unsubscribe = createPollingCandleSubscription(loadLatest, 1000, (event) => {
+      events.push(event);
+    });
+
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(events.some((event) => event.type === 'refresh')).toBe(true);
     unsubscribe();
   });
 

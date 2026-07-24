@@ -2,6 +2,7 @@
 
 import type { FundamentalsSnapshot } from "@/lib/watchlist/types";
 import { toneTextClass } from "@/lib/design-system/edge";
+import { normalizeExternalHref } from "@/lib/security/safeHref";
 
 function formatLargeNumber(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -83,6 +84,7 @@ export default function SymbolDetailsPanel({
       : toneTextClass("neutral");
 
   const currency = data.currency ?? "USD";
+  const websiteHref = normalizeExternalHref(data.website);
 
   return (
     <div data-testid="symbol-details-panel" className="px-2 py-2 text-xs">
@@ -137,12 +139,12 @@ export default function SymbolDetailsPanel({
             {formatLargeNumber(data.averageVolume)}
           </dd>
         </div>
-        {data.website && (
+        {websiteHref && data.website && (
           <div className="flex justify-between gap-2">
             <dt className="text-[var(--edge-text-muted)]">Website</dt>
             <dd>
               <a
-                href={data.website.startsWith("http") ? data.website : `https://${data.website}`}
+                href={websiteHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--edge-accent-blue)] hover:underline"

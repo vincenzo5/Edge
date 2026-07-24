@@ -11,7 +11,7 @@ import type {
   ChartReferenceLine,
 } from '@edge/chart-core';
 import { CHART_EVENT_OVERLAY_KINDS } from '@edge/chart-core';
-import { mergeAnnotationMarkers } from './overlayMappers';
+import { mergeAnnotationMarkers, eventMarkersToReferenceLines } from './overlayMappers';
 
 const DEFAULT_EVENT_KINDS: ChartEventKind[] = [...CHART_EVENT_OVERLAY_KINDS];
 
@@ -94,26 +94,34 @@ export function useChartOverlays(
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const [eventsResult, referenceResult, annotationsResult] = await Promise.all([
-            feedRef.current.loadOverlays!({ symbol, channel: 'events', kinds: eventKinds }),
-            feedRef.current.loadOverlays!({ symbol, channel: 'referenceLines', kinds: eventKinds }),
-            feedRef.current.loadOverlays!({ symbol, channel: 'annotations' }),
-          ]);
+          let eventsResult: ChartOverlayResult;
+          if (feedRef.current.loadEvents) {
+            const loaded = await feedRef.current.loadEvents({ symbol, kinds: eventKinds });
+            eventsResult = {
+              channel: 'events',
+              events: loaded.events,
+              meta: loaded.meta,
+            };
+          } else {
+            eventsResult = await feedRef.current.loadOverlays!({
+              symbol,
+              channel: 'events',
+              kinds: eventKinds,
+            });
+          }
           if (cancelled) return;
 
           const allowedKinds = new Set(eventKinds);
           const events = (eventsResult.events ?? []).filter((event) =>
             allowedKinds.has(event.kind),
           );
+          const referenceLines = eventMarkersToReferenceLines(events);
 
           setState({
             events,
-            referenceLines: referenceResult.referenceLines ?? [],
-            annotations: mergeAnnotationMarkers(
-              annotationsResult.annotations ?? [],
-              localAnnotations,
-            ),
-            meta: eventsResult.meta ?? referenceResult.meta ?? annotationsResult.meta ?? null,
+            referenceLines,
+            annotations: mergeAnnotationMarkers([], localAnnotations),
+            meta: eventsResult.meta ?? null,
             loading: false,
           });
         } catch {

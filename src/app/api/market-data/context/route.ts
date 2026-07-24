@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { privateCacheControl } from "@/lib/api/cacheControl";
 import {
   marketContextQuerySchema,
   parseMarketQuery,
@@ -20,17 +21,22 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const service = getServerMarketDataService();
     const result = await service.getMarketContext(parsed.data.symbol);
-    return NextResponse.json({
-      context: result.data,
-      meta: {
-        source: result.source,
-        requestedAt: result.requestedAt,
-        receivedAt: result.receivedAt,
-        asOf: result.asOf,
-        stale: result.stale,
-        warnings: result.warnings ?? [],
+    return NextResponse.json(
+      {
+        context: result.data,
+        meta: {
+          source: result.source,
+          requestedAt: result.requestedAt,
+          receivedAt: result.receivedAt,
+          asOf: result.asOf,
+          stale: result.stale,
+          warnings: result.warnings ?? [],
+        },
       },
-    });
+      {
+        headers: { "Cache-Control": privateCacheControl("market_context") },
+      },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch market context";
     return NextResponse.json({ error: message }, { status: 500 });

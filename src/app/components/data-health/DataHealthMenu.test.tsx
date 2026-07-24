@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import * as chartCore from "@edge/chart-core";
 import { ActiveChartProvider } from "../ActiveChartContext";
 import { DataHealthProvider } from "./DataHealthProvider";
 import DataHealthButton from "./DataHealthButton";
@@ -38,6 +39,7 @@ vi.mock("../MarketDataProvider", () => ({
     quotesMeta: {
       source: "tws",
       asOf: Date.now() - 5_000,
+      lastUpdateAt: Date.now(),
       stale: true,
       cacheTier: "hot-stale",
       latencyMs: 1411,
@@ -101,20 +103,30 @@ describe("DataHealthMenu readiness UX", () => {
   });
 
   it("shows healthy state with recent events after recovered SSE fallback", async () => {
+    vi.spyOn(chartCore, "classifyUsEquitySession").mockReturnValue("closed");
     renderWithProviders(<DataHealthButton theme="dark" />);
 
     fireEvent.click(screen.getByTestId("chart-data-source-badge"));
 
     await waitFor(() => {
-      expect(screen.getByText(/All loaded datasets ready/i)).toBeInTheDocument();
-      expect(screen.getByText(/Issues/i)).toBeInTheDocument();
-      expect(screen.getByTestId("data-health-issues")).toHaveTextContent(/timeout/i);
-      expect(screen.getByTestId("data-health-issues")).toHaveTextContent(/recovered/i);
+      expect(screen.getByTestId("data-health-session-subtitle")).toHaveTextContent(
+        /Market closed · quotes current/i,
+      );
+      expect(screen.getByText(/Diagnostics/i)).toBeInTheDocument();
+      expect(screen.getByTestId("data-health-active-incident-empty")).toBeInTheDocument();
       expect(screen.getByTestId("data-health-dataset-watchlist")).toHaveTextContent(/TWS/i);
+    });
+
+    fireEvent.click(screen.getByTestId("data-health-diagnostics-toggle"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("data-health-recovered-events")).toHaveTextContent(/timeout/i);
+      expect(screen.getByTestId("data-health-recovered-events")).toHaveTextContent(/recovered/i);
     });
   });
 
   it("shows chart OK without stale caveat when hot-stale but display-fresh", async () => {
+    vi.spyOn(chartCore, "classifyUsEquitySession").mockReturnValue("closed");
     chartMetaState.value = {
       source: "tws",
       asOf: Date.now() - 30_000,
@@ -128,11 +140,17 @@ describe("DataHealthMenu readiness UX", () => {
     fireEvent.click(screen.getByTestId("chart-data-source-badge"));
 
     await waitFor(() => {
-      expect(screen.getByText(/All loaded datasets ready/i)).toBeInTheDocument();
+      expect(screen.getByTestId("data-health-session-subtitle")).toHaveTextContent(
+        /Market closed · quotes current/i,
+      );
       expect(screen.getByTestId("data-health-dataset-chart")).toHaveTextContent(/AAPL/i);
       expect(screen.getByTestId("data-health-dataset-chart")).toHaveTextContent(/8s ago|30s ago|just now/i);
     });
 
     expect(screen.queryByText(/Active Chart data is stale/i)).not.toBeInTheDocument();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 });

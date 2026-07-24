@@ -47,6 +47,7 @@ export async function POST(request: Request): Promise<Response> {
     const result = await service.getWatchlistQuotes(parsed.data.symbols, {
       traceId,
       twsConnectionId: parsed.data.connectionId,
+      providerPreference: parsed.data.providerPreference,
     });
     perfContext.collector.record("api.service.getWatchlistQuotes", serviceStartedAt, true, "api", {
       source: result.source,

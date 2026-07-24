@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Interval, Range } from "@/lib/chart/contracts";
+import { DataProviderPreferenceSchema } from "@/lib/connections/types";
 import { SUPPORTED_INTERVALS } from "@edge/chart-core/data-source";
 
 export const MARKET_RANGES = [
@@ -36,6 +37,8 @@ export const marketSessionModeSchema = z.enum(["regular", "extended"]);
 
 export const dataConnectionIdSchema = z.enum(["ib-paper", "ib-live"]);
 
+export const providerPreferenceRequestSchema = DataProviderPreferenceSchema.optional();
+
 export const candlesRequestSchema = z
   .object({
     symbol: marketSymbolSchema,
@@ -45,6 +48,7 @@ export const candlesRequestSchema = z
     barCount: z.number().int().min(1).max(500).optional(),
     sessionMode: marketSessionModeSchema.optional().default("regular"),
     connectionId: dataConnectionIdSchema.optional(),
+    providerPreference: providerPreferenceRequestSchema,
   })
   .superRefine((val, ctx) => {
     if (val.before == null && val.range == null) {
@@ -67,10 +71,15 @@ export const searchRequestSchema = z.object({
 export const quotesRequestSchema = z.object({
   symbols: marketSymbolsSchema,
   connectionId: dataConnectionIdSchema.optional(),
+  providerPreference: providerPreferenceRequestSchema,
 });
 
 export const fundamentalsQuerySchema = z.object({
   symbol: marketSymbolSchema,
+});
+
+export const fundamentalsBatchRequestSchema = z.object({
+  symbols: marketSymbolsSchema,
 });
 
 export const optionExpirationDateSchema = z
@@ -334,6 +343,7 @@ export type CandlesRequest = z.infer<typeof candlesRequestSchema>;
 export type SearchRequest = z.infer<typeof searchRequestSchema>;
 export type QuotesRequest = z.infer<typeof quotesRequestSchema>;
 export type FundamentalsQuery = z.infer<typeof fundamentalsQuerySchema>;
+export type FundamentalsBatchRequest = z.infer<typeof fundamentalsBatchRequestSchema>;
 export type MarketContextQuery = z.infer<typeof marketContextQuerySchema>;
 export type TechnicalRule = z.infer<typeof technicalRuleSchema>;
 export type IndicatorTechnicalRule = z.infer<typeof indicatorTechnicalRuleSchema>;

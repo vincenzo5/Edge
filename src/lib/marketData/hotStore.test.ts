@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import {
   HotStore,
   hotCandlesKey,
@@ -37,6 +37,43 @@ describe("HotStore", () => {
     store.write("k", { value: 3 }, { source: "yahoo", freshMs: 0, staleMs: 0 });
     const read = store.read<{ value: number }>("k");
     expect(read.hit).toBe(false);
+  });
+
+  it("preserves SWR semantics for retained keys after cold eviction of other keys", () => {
+    vi.useFakeTimers();
+    const store = new HotStore({ maxEntries: 2 });
+    store.write("keep", { value: 1 }, { source: "tws", freshMs: 0, staleMs: 60_000 });
+    vi.advanceTimersByTime(1);
+    store.write("drop", { value: 2 }, { source: "tws", freshMs: 0, staleMs: 60_000 });
+    vi.advanceTimersByTime(1);
+    store.read("keep");
+    vi.advanceTimersByTime(1);
+    store.write("new", { value: 3 }, { source: "tws", freshMs: 0, staleMs: 60_000 });
+
+    const kept = store.read<{ value: number }>("keep");
+    expect(kept.hit).toBe(true);
+    expect(kept.servable).toBe(true);
+    expect(kept.fresh).toBe(false);
+    expect(store.read("drop").hit).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("evicts least-recently-touched entries when over cap", () => {
+    vi.useFakeTimers();
+    const store = new HotStore({ maxEntries: 2 });
+    store.write("a", { value: 1 }, { source: "tws", freshMs: 1000, staleMs: 5000 });
+    vi.advanceTimersByTime(1);
+    store.write("b", { value: 2 }, { source: "tws", freshMs: 1000, staleMs: 5000 });
+    vi.advanceTimersByTime(1);
+    store.read("a");
+    vi.advanceTimersByTime(1);
+    store.write("c", { value: 3 }, { source: "tws", freshMs: 1000, staleMs: 5000 });
+
+    expect(store.read("a").hit).toBe(true);
+    expect(store.read("b").hit).toBe(false);
+    expect(store.read("c").hit).toBe(true);
+    expect(store.size()).toBe(2);
+    vi.useRealTimers();
   });
 
   it("writes per-symbol quote keys", () => {

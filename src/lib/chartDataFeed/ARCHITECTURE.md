@@ -23,6 +23,7 @@ Pluggable transport behind `subscribeCandles` / `subscribeQuotes`. Both implemen
 | `append` | New bar closed |
 | `replace-latest` | In-progress bar updated |
 | `update` | Quote batch refresh |
+| `refresh` | Successful delivery with unchanged quotes (metadata-only heartbeat) |
 | `stale` | Data no longer trustworthy |
 | `error` | Recoverable or fatal stream error |
 | `reconnect` | Reserved for future push reconnects |
@@ -30,7 +31,9 @@ Pluggable transport behind `subscribeCandles` / `subscribeQuotes`. Both implemen
 ### Polling (default)
 
 - Client polls REST endpoints on interval-aware cadence (`pollStreamAdapter.ts`).
-- Diffing via shared `streamDiff.ts`.
+- Live candle polls use a **short poll range** (`pollRangeForInterval`) — not the chart display range — so a 1y chart does not re-download 1y every poll tick.
+- Initial paint and scroll-back still use full `loadCandles` / `loadMoreCandles`.
+- Diffing via shared `streamDiff.ts`; short trailing poll pages that end before the chart last bar emit no snapshot wipe. When the provider remaps the forming tip (old timestamp disappears, newer tip appears), emit `replace-latest` instead of `append` so the chart does not keep duplicate identical bars.
 - No server connection beyond normal REST.
 
 ### Server-proxied SSE (opt-in)
@@ -63,9 +66,14 @@ createApiChartDataFeed({
 ## Fallback Rules
 
 1. **Transport mode**: `polling` unless `NEXT_PUBLIC_STREAM_TRANSPORT=server-proxied` or options override.
-2. **Provider routing** (unchanged): IBKR when enabled → Yahoo/Tradier fallback; warnings in `meta`. REST candle/quote responses also carry trust metadata (`meta.usage`, `meta.readiness`) from `marketData/trust/enrichResponseMeta.ts` — display/analysis fallbacks are labeled `display-only` and are not trading-safe.
+2. **Provider routing** (unchanged): TWS/IBKR when configured → Yahoo fallback for equities; Massive/TWS/IBKR for options; warnings in `meta`. REST candle/quote responses also carry trust metadata (`meta.usage`, `meta.readiness`) from `marketData/trust/enrichResponseMeta.ts` — display/analysis fallbacks are labeled `display-only` and are not trading-safe.
 3. **SSE unavailable** (SSR/tests): server-proxied transport emits non-recoverable error; chart keeps last REST snapshot.
 4. **Stream failures**: After 3 consecutive poll failures, emit `stale` (client polling and server SSE sessions).
+5. **Unchanged successful polls**: When a poll returns the same candle series, emit `refresh` so `useChartDataFeed` advances `lastUpdateAt` and clears transport stale/error without replacing candles.
+
+## Display freshness
+
+Chart overlay stale badges and Data Health chart rows share one delivery-age policy via `isChartMetaDisplayFresh()` / `chartDeliveryAgeMs()` in `src/lib/marketData/trust/dataTrust.ts`. Display freshness uses **delivery time** (`ChartDataMeta.lastUpdateAt` / `receivedAt`), not bar `asOf`. Provider/cache `stale` flags remain for diagnostics.
 
 ## TWS display connection preference
 
@@ -80,14 +88,39 @@ createApiChartDataFeed({
 | Key | `symbol\|exchange\|interval\|range\|sessionMode` via `buildChartClientCacheKey` |
 | Bounds | 20 entries (LRU by `asOf`), 5 min max age; persisted in `sessionStorage` for hard reload |
 | First paint | Cached entry → `loading: false`, `refreshing: true`, `stale: true` |
-| Refresh | Always fetches in background; full replace on success (never merge with cached series) |
-| `reloadKey` bump | Bypasses cache (force fresh load); overwrites cache on success |
+| Refresh | Always fetches in background; merges fresh right edge with cached/prepended left history on success |
+| `loadMore` | Prepends older pages into the same cache key via `mergeCandlesPrepend`; empty page sets `hasMore: false` |
+| `reloadKey` bump | Bypasses cache paint (force fresh load); full replace on success without merging prior prepended history |
 | Errors | If cached paint occurred, candles stay visible with `stale: true` |
-| Out of scope | `loadMore` prepended history is not cached |
 
 History pagination (`loadMoreCandles`) requests **500 bars** per page by default (`HISTORY_FETCH_BAR_COUNT` in `@edge/chart-core`). `@edge/chart-react` prefetches older pages with a 50% visible-window lookahead, one background page after initial paint, and at most one queued follow-up while a fetch is in flight.
 
-Only the initial `loadCandles` snapshot is cached. Stream subscription still starts after the background fetch completes (unchanged).
+Initial `loadCandles` and prepended `loadMore` pages share one cache entry under the same key. Stream subscription still starts after the background fetch completes (unchanged). Stream tip updates remain React-only (not written to cache on every tick).
+
+## Memory retention contract (Phase 0)
+
+Full track: [Memory Efficiency Roadmap](../../../docs/roadmaps/memory-efficiency-roadmap.md). Baselines: [docs/perf/memory-baseline-latest.json](../../../docs/perf/memory-baseline-latest.json).
+
+| Knob | Frozen default | Notes |
+|------|----------------|-------|
+| `RESIDENT_BAR_SOFT_MAX` | **5_000** | Phase 1 **shipped** — trims oldest bars after merge/prefetch when exceeded; preserve live tip |
+| History page size | **500** (`HISTORY_FETCH_BAR_COUNT`) | Unchanged; do not prefetch past soft max once Phase 1 ships |
+| Inactive cell `live` | **`false`** when `!isActive` or non-primary chart tile (Phase 2 **shipped**) | Active cell on primary tile only; journal trade fork uses explicit `live={true}` override |
+| Inactive cell engine | **Unmounted** when `!(isActive \|\| liveProp === true)` (Phase 11 **shipped**) | `ChartCell` keeps shell + `InactiveChartSurface`; flush viewport/drawings to `CellConfig` before teardown; remount paints from `chartClientCache` + restores layout sketch |
+| sessionStorage gate | skip when `candles.length > 2_000` or payload ≳ **2 MB** | Phase 3 **shipped** — memory cache still works |
+| Cache entry LRU | 20 entries / 5 min | Entry-count bounded; resident trim + immutable shared refs |
+
+**Clone rule (Phase 3 shipped):** `readChartClientCache` returns shared frozen `Candle[]` refs (no deep clone on hit). `writeChartClientCache` freezes trimmed series at the store boundary; feed merge/tip helpers allocate new arrays before write.
+
+**Logout (Phase 1 + 8 shipped):** `clearChartClientCache()` and `clearHeikinAshiCache()` run with `clearEphemeralMarketDataCaches()` on session identity reset.
+
+**Lazy tiles (Phase 8 shipped):** `SurfaceHost` dynamically imports Journal / Screener / Scripts / Copilot / Alerts tile surfaces; chart tile stays static. Screener + Copilot sidebar panels are also code-split.
+
+Server-side byte/LRU budgets for `DataCache` / `HotStore` are documented in [marketData/ARCHITECTURE.md](../marketData/ARCHITECTURE.md) memory contract.
+
+**General client TTL (Phase 1):** Search, fundamentals, overlays, and market context reuse `ClientTtlCache` via `getOrFetchClientTtl` / per-loader cache in `apiChartDataFeed.ts`. Candles remain on `chartClientCache.ts` only — see [marketData/ARCHITECTURE.md](../marketData/ARCHITECTURE.md) client cache section.
+
+`postCandles` / `postQuotes` coalesce identical in-flight REST requests via `coalesceInFlight.ts`. Loads with an explicit `AbortSignal` bypass coalesce so symbol/range changes can cancel stale fetches.
 
 ## Key Files
 
@@ -98,6 +131,7 @@ Only the initial `loadCandles` snapshot is cached. Stream subscription still sta
 | `serverProxiedStreamTransport.ts` | EventSource client |
 | `streamDiff.ts` | Shared candle diff → stream events |
 | `apiChartDataFeed.ts` | ChartDataFeed wiring |
+| `coalesceInFlight.ts` | In-flight dedupe for identical candle/quote POSTs |
 | `chartClientCache.ts` | Session SWR memo for `useChartDataFeed` |
 | `useChartDataFeed.ts` | React hook: cache paint + background refresh + stream subscription |
 | `src/lib/marketData/stream/` | Server SSE sessions + IBKR smd quote adapter |

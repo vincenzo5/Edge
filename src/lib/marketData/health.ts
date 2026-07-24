@@ -1,4 +1,5 @@
 import type { ChartDataMeta } from "@edge/chart-core";
+import { classifyUsEquitySession } from "@edge/chart-core";
 import type { DataCacheTier } from "./contracts/result";
 import {
   dataConnectionLabel,
@@ -17,11 +18,46 @@ import {
   isFallbackSource,
   provenanceFromMeta,
   quoteAgeMs,
+  watchlistDeliveryAgeMs,
 } from "./trust/dataTrust";
+import { closedMarketHealthySubtitle } from "./watchlistDeliveryFreshness";
+import type { SanitizedDatasetState } from "./state/deliveryRegistry";
+import { lookupDataset } from "./state/catalog";
+import type { OperationalReliabilityReport } from "./state/operationalMetrics";
+import {
+  buildBrokerageSubdatasetRow,
+  buildDemandRowsFromInputs,
+  buildPersistenceSyncRow,
+  buildPreTradeDatasetRow,
+  filterVisibleCurrentDataRows,
+  mergeDeliveryDiagnosticsIntoRows,
+} from "./healthDatasets";
+import {
+  shouldAcceptSnapshot,
+  type SnapshotRevision,
+} from "./state/revision";
+import {
+  displaySocketsToIbRows,
+  reduceConnectionSupervisor,
+  type ConnectionSupervisorSnapshot,
+} from "./state/connectionSupervisor";
+import { ibkrHealthGate } from "./providers/ibkr/healthGate";
+import { getBrokerageHealthGateSnapshot } from "../brokerage/brokerageHealthGate";
+import { getTwsRecoverySession } from "./providers/tws/recoverySession";
 
 export type DataHealthSeverity = "healthy" | "degraded" | "offline" | "unknown";
 
-export type DataHealthDatasetKind = "chart" | "watchlist" | "options" | "account";
+export type DataHealthDatasetKind =
+  | "chart"
+  | "watchlist"
+  | "options"
+  | "account"
+  | "screener"
+  | "research"
+  | "fundamentals"
+  | "brokerage_detail"
+  | "pre_trade"
+  | "cloud_sync";
 
 export type DataHealthDatasetStatus = "loaded" | "loading" | "unavailable" | "not_loaded";
 
@@ -29,6 +65,8 @@ export type DatasetReadinessLabel = "ok" | "caveat" | "blocked" | "unavailable" 
 
 export type DataHealthDatasetRow = {
   kind: DataHealthDatasetKind;
+  /** Phase 7 catalog id for extended dataset rows. */
+  datasetId?: import("./state/catalog").DatasetId;
   label: string;
   detail?: string;
   source?: string;
@@ -37,6 +75,8 @@ export type DataHealthDatasetRow = {
   streaming?: boolean;
   latencyMs?: number;
   asOf?: number;
+  /** Successful quote-delivery timestamp for watchlist transport freshness. */
+  receivedAt?: number;
   status: DataHealthDatasetStatus;
   warnings: string[];
   usage?: DataUsage;
@@ -51,13 +91,15 @@ export type DataHealthDatasetRow = {
 export type ProviderHealthStatus = "healthy" | "degraded" | "offline" | "disabled";
 
 export type ProviderHealthRow = {
-  id: "tws" | "yahoo" | "fmp" | "fred" | "sec";
+  id: "tws" | "yahoo" | "fmp" | "fred" | "sec" | "massive" | "ibkr";
   label: string;
   configured: boolean;
   status: ProviderHealthStatus;
   detail: string;
   circuitOpen?: boolean;
   circuitReason?: string | null;
+  /** When false, bypass/retry is automatic and manual reconnect should stay hidden. */
+  requiresManualRecovery?: boolean;
 };
 
 export type IbSocketHealthRow = {
@@ -80,12 +122,23 @@ export type HealthGateSnapshot = {
   lastSuccessAt: number;
 };
 
+export type ServerCacheHealthPayload = {
+  kind: "memory" | "redis";
+  degraded: boolean;
+  lastPingOk: boolean | null;
+  lastPingAt: number | null;
+};
+
 export type ServerHealthPayload = {
   generatedAt: number;
+  revision?: SnapshotRevision;
   providers: ProviderHealthRow[];
   recentWarnings: string[];
+  cache: ServerCacheHealthPayload;
   lifecycle?: string;
   twsStatus?: TwsStatusProbe;
+  deliveryDiagnostics?: SanitizedDatasetState[];
+  operationalReliability?: OperationalReliabilityReport;
 };
 
 export type ClientHealthInputs = {
@@ -97,6 +150,7 @@ export type ClientHealthInputs = {
   watchlistError?: string | null;
   watchlistTransport?: "rest" | "sse";
   watchlistAsOf?: number;
+  watchlistDeliveryAt?: number;
   optionsMeta?: Partial<ChartDataMeta> | null;
   optionsDetail?: string;
   optionsTrustDataset?: DatasetKind;
@@ -106,6 +160,10 @@ export type ClientHealthInputs = {
   accountDetail?: string;
   accountError?: string | null;
   dataConnectionPreference?: DataConnectionId | null;
+  demandDatasets?: import("./healthDatasets").DemandDatasetInput[];
+  brokerageSubdatasets?: import("./healthDatasets").BrokerageSubdatasetInput[];
+  preTrade?: import("./healthDatasets").PreTradeHealthInput;
+  persistenceSync?: import("./healthDatasets").PersistenceSyncHealthInput;
 };
 
 export type DataHealthSnapshot = {
@@ -120,7 +178,19 @@ export type DataHealthSnapshot = {
   recentWarnings: string[];
   recentEvents: HealthEvent[];
   generatedAt: number;
+  revision?: SnapshotRevision;
+  deliveryDiagnostics?: SanitizedDatasetState[];
 };
+
+/** Monotonic merge for server health polls — rejects older revisions and generatedAt. */
+export function mergeMonotonicServerHealth(
+  previous: ServerHealthPayload | null,
+  incoming: ServerHealthPayload,
+): ServerHealthPayload {
+  if (!previous) return incoming;
+  if (shouldAcceptSnapshot(incoming, previous)) return incoming;
+  return previous;
+}
 
 const FALLBACK_SOURCES = new Set(["yahoo", "mixed"]);
 
@@ -129,6 +199,7 @@ const TRANSPORT_EVENT_WARNING =
 
 const INCIDENT_WARNING =
   /fallback|fill|skipped|trying next provider|TWS temporarily skipped|unavailable|error/i;
+const RESEARCH_PROVIDER_MAX_DELIVERY_AGE_MS = 15 * 60_000;
 
 export function classifyHealthWarning(warning: string): "incident" | "event" {
   const trimmed = warning.trim();
@@ -142,6 +213,8 @@ function incidentWarnings(warnings: string[]): string[] {
   return warnings.filter((warning) => classifyHealthWarning(warning) === "incident");
 }
 
+export { incidentWarnings };
+
 function hasPartialSymbolCoverage(detail: string | undefined): boolean {
   if (!detail) return false;
   const match = detail.match(/(\d+)\/(\d+)\s*symbols?/i);
@@ -152,10 +225,21 @@ function hasPartialSymbolCoverage(detail: string | undefined): boolean {
 }
 
 export function resolveTrustDataset(row: DataHealthDatasetRow): DatasetKind {
-  if (row.kind === "options" && row.trustDataset) {
+  if (row.trustDataset) {
     return row.trustDataset;
   }
-  return datasetKindFromHealthKind(row.kind);
+  if (row.datasetId) {
+    const def = lookupDataset(row.datasetId);
+    if (def?.policyKind) return def.policyKind;
+  }
+  if (row.kind === "options") {
+    return "options_chain";
+  }
+  if (row.kind === "chart") return "chart_candles";
+  if (row.kind === "watchlist") return "watchlist_quotes";
+  if (row.kind === "account" || row.kind === "brokerage_detail") return "account_summary";
+  if (row.kind === "pre_trade") return "pre_trade_quote";
+  return "chart_candles";
 }
 
 function rowProvenance(row: DataHealthDatasetRow): ReturnType<typeof provenanceFromMeta> {
@@ -165,6 +249,7 @@ function rowProvenance(row: DataHealthDatasetRow): ReturnType<typeof provenanceF
     warnings: incidentWarnings(row.warnings),
     cacheTier: row.cacheTier,
     asOf: row.asOf,
+    receivedAt: row.receivedAt,
   });
 }
 
@@ -184,7 +269,7 @@ function hasDisplayAgePolicy(row: DataHealthDatasetRow): boolean {
   return getDatasetPolicy(resolveTrustDataset(row)).maxDisplayAgeMs != null;
 }
 
-function attachTrustFields(
+export function attachTrustFields(
   kind: DataHealthDatasetKind,
   row: DataHealthDatasetRow,
 ): DataHealthDatasetRow {
@@ -201,6 +286,7 @@ function attachTrustFields(
       warnings: warningsForTrust,
       cacheTier: row.cacheTier,
       asOf: row.asOf,
+      receivedAt: row.receivedAt,
     }),
   );
   const enriched: DataHealthDatasetRow = {
@@ -275,6 +361,7 @@ export function buildChartDatasetRow(
     streaming: meta.streaming,
     latencyMs: meta.latencyMs,
     asOf: meta.asOf,
+    receivedAt: meta.lastUpdateAt ?? meta.asOf,
     status: meta.streamError ? "unavailable" : "loaded",
     warnings: [
       ...(meta.warnings ?? []),
@@ -290,6 +377,7 @@ export function buildWatchlistDatasetRow(
   error: string | null | undefined,
   transport: "rest" | "sse" | undefined,
   watchlistAsOf?: number,
+  watchlistDeliveryAt?: number,
 ): DataHealthDatasetRow {
   if (loading && !meta?.source) {
     return {
@@ -326,6 +414,7 @@ export function buildWatchlistDatasetRow(
     cacheTier: meta.cacheTier,
     stale: meta.stale,
     asOf: watchlistAsOf ?? meta.asOf,
+    receivedAt: watchlistDeliveryAt ?? meta.lastUpdateAt,
     streaming: transport === "sse" || meta.streaming,
     latencyMs: meta.latencyMs,
     status: "loaded",
@@ -355,6 +444,7 @@ export function buildOptionsDatasetRow(
     cacheTier: meta.cacheTier,
     stale: meta.stale,
     asOf: meta.asOf,
+    receivedAt: meta.lastUpdateAt ?? meta.asOf,
     streaming: meta.streaming,
     latencyMs: meta.latencyMs,
     status: meta.warnings?.length ? "unavailable" : "loaded",
@@ -416,15 +506,106 @@ export function buildAccountDatasetRow(args: {
   };
 }
 
+function formatObservationAge(observedAt: number | undefined, now = Date.now()): string | null {
+  if (observedAt == null) return null;
+  const ageSec = Math.max(0, Math.round((now - observedAt) / 1_000));
+  if (ageSec < 60) return `${ageSec}s ago`;
+  return `${Math.round(ageSec / 60)}m ago`;
+}
+
+function formatCircuitBypassDetail(
+  gate: HealthGateSnapshot,
+  tws: TwsStatusProbe,
+  now = Date.now(),
+): string {
+  const reason = gate.lastFailure ?? "circuit open";
+  const retryInSec = Math.max(0, Math.ceil((gate.skipUntil - now) / 1_000));
+  const parts = [`Temporarily bypassed · ${reason}`];
+  if (retryInSec > 0) parts.push(`retry in ~${retryInSec}s`);
+  const ageLabel = formatObservationAge(tws.observedAt, now);
+  if (ageLabel && tws.observationConfidence === "last_known") {
+    parts.push(`last observed ${ageLabel}`);
+  }
+  return parts.join(" · ");
+}
+
+function twsRequiresManualRecovery(tws: TwsStatusProbe, circuitOpen: boolean): boolean {
+  if (!tws.configured) return false;
+  if (!tws.sidecarReachable) return true;
+  if (tws.restartRequired || tws.diagnostics?.workerWedged) return true;
+  if (tws.connectionState === "client_id_stuck") return true;
+  if (circuitOpen) {
+    if (tws.observationConfidence === "last_known" && tws.gatewayConnected) return false;
+    if (tws.observationConfidence === "observed" && !tws.gatewayConnected) return true;
+    return false;
+  }
+  if (tws.reconnectInProgress || tws.diagnostics?.recovery?.phase === "reconnecting") {
+    return false;
+  }
+  if (tws.subscriptionsLost) return false;
+  if (tws.sidecarReachable && !tws.gatewayConnected && tws.observationConfidence === "observed") {
+    return true;
+  }
+  return false;
+}
+
 export function buildProviderRows(args: {
   tws: TwsStatusProbe;
   twsGate: HealthGateSnapshot;
   fmpConfigured?: boolean;
   fredConfigured?: boolean;
   secConfigured?: boolean;
+  massiveConfigured?: boolean;
+  ibkrConfigured?: boolean;
+  deliveryDiagnostics?: SanitizedDatasetState[];
 }): ProviderHealthRow[] {
   const now = Date.now();
   const twsCircuitOpen = args.twsGate.skipUntil > now;
+  const diagBySource = new Map<string, SanitizedDatasetState[]>();
+  for (const row of args.deliveryDiagnostics ?? []) {
+    const list = diagBySource.get(row.source) ?? [];
+    list.push(row);
+    diagBySource.set(row.source, list);
+  }
+
+  function researchProviderStatus(
+    providerId: "fmp" | "fred" | "sec" | "yahoo" | "massive" | "ibkr",
+    configured: boolean,
+    fallbackDetail: string,
+  ): { status: ProviderHealthStatus; detail: string } {
+    if (!configured) return { status: "disabled", detail: "Not configured" };
+    const rows = diagBySource.get(providerId) ?? [];
+    if (!rows.length) {
+      return { status: "degraded", detail: `${fallbackDetail} · no recent delivery` };
+    }
+    const latest = rows.reduce((acc, row) =>
+      (row.lastSuccessAt ?? 0) > (acc.lastSuccessAt ?? 0) ? row : acc,
+    );
+    const ageSec =
+      latest.lastSuccessAt != null
+        ? Math.max(0, Math.round((now - latest.lastSuccessAt) / 1_000))
+        : null;
+    const hasWarnings = latest.warnings.length > 0;
+    const latestFailureAt = rows.reduce(
+      (latestAt, row) => Math.max(latestAt, row.lastFailureAt ?? 0),
+      0,
+    );
+    const hasRecentFailure =
+      latestFailureAt > 0 && now - latestFailureAt <= RESEARCH_PROVIDER_MAX_DELIVERY_AGE_MS;
+    const deliveryTooOld =
+      latest.lastSuccessAt == null ||
+      now - latest.lastSuccessAt > RESEARCH_PROVIDER_MAX_DELIVERY_AGE_MS;
+    return {
+      status:
+        hasWarnings || hasRecentFailure || deliveryTooOld ? "degraded" : "healthy",
+      detail:
+        hasRecentFailure
+          ? `${fallbackDetail} · recent delivery failure`
+          : ageSec != null
+            ? `${fallbackDetail} · last delivery ${ageSec}s ago`
+          : `${fallbackDetail} · recent delivery observed`,
+    };
+  }
 
   const twsStatus: ProviderHealthStatus = !args.tws.configured
     ? "disabled"
@@ -443,7 +624,7 @@ export function buildProviderRows(args: {
   const twsDetail = !args.tws.configured
     ? "Not configured"
     : twsCircuitOpen
-      ? (args.twsGate.lastFailure ?? "circuit open")
+      ? formatCircuitBypassDetail(args.twsGate, args.tws, now)
       : !args.tws.sidecarReachable
         ? "Sidecar unreachable"
         : args.tws.connectionState === "client_id_stuck" || args.tws.restartRequired
@@ -457,7 +638,11 @@ export function buildProviderRows(args: {
                 ? `Reconnecting${args.tws.host && args.tws.port ? ` · ${args.tws.host}:${args.tws.port}` : ""}`
                 : args.tws.sidecarReachable && args.tws.gatewayConnected
                   ? "Sidecar ok · Gateway connected"
-                  : "Sidecar ok · Gateway disconnected";
+                  : args.tws.observationConfidence === "observed"
+                    ? "Sidecar ok · Gateway disconnected"
+                    : "Sidecar ok · Connection unknown";
+
+  const requiresManualRecovery = twsRequiresManualRecovery(args.tws, twsCircuitOpen);
 
   return [
     {
@@ -468,34 +653,43 @@ export function buildProviderRows(args: {
       detail: twsDetail,
       circuitOpen: twsCircuitOpen,
       circuitReason: twsCircuitOpen ? args.twsGate.lastFailure : null,
+      requiresManualRecovery,
     },
     {
       id: "yahoo",
       label: "Yahoo",
       configured: true,
-      status: "healthy",
-      detail: "Fallback available",
+      ...researchProviderStatus("yahoo", true, "Fallback available"),
     },
     {
       id: "fmp",
       label: "FMP",
       configured: args.fmpConfigured ?? false,
-      status: args.fmpConfigured ? "healthy" : "disabled",
-      detail: args.fmpConfigured ? "Configured" : "Not configured",
+      ...researchProviderStatus("fmp", args.fmpConfigured ?? false, "Configured"),
     },
     {
       id: "fred",
       label: "FRED",
       configured: args.fredConfigured ?? false,
-      status: args.fredConfigured ? "healthy" : "disabled",
-      detail: args.fredConfigured ? "Configured" : "Not configured",
+      ...researchProviderStatus("fred", args.fredConfigured ?? false, "Configured"),
     },
     {
       id: "sec",
       label: "SEC",
       configured: args.secConfigured ?? false,
-      status: args.secConfigured ? "healthy" : "disabled",
-      detail: args.secConfigured ? "Configured" : "Not configured",
+      ...researchProviderStatus("sec", args.secConfigured ?? false, "Configured"),
+    },
+    {
+      id: "massive",
+      label: "Massive",
+      configured: args.massiveConfigured ?? false,
+      ...researchProviderStatus("massive", args.massiveConfigured ?? false, "Configured"),
+    },
+    {
+      id: "ibkr",
+      label: "IBKR Client Portal",
+      configured: args.ibkrConfigured ?? false,
+      ...researchProviderStatus("ibkr", args.ibkrConfigured ?? false, "Fallback path"),
     },
   ];
 }
@@ -571,13 +765,25 @@ export function deriveDatasetSeverity(row: DataHealthDatasetRow): DataHealthSeve
   return "healthy";
 }
 
-function socketEndpointDetail(probe: TwsConnectionProbe | undefined, fallbackHost?: string, fallbackPort?: number): string {
-  if (probe?.gatewayConnected) {
-    const host = probe.host ?? fallbackHost ?? "127.0.0.1";
-    const port = probe.port ?? fallbackPort;
-    return port != null ? `Connected · ${host}:${port}` : "Connected";
+function socketEndpointDetail(
+  probe: TwsConnectionProbe | undefined,
+  fallbackHost?: string,
+  fallbackPort?: number,
+  options?: { connected?: boolean; observedAt?: number; lastKnown?: boolean },
+): string {
+  const connected = options?.connected ?? probe?.gatewayConnected ?? false;
+  if (connected) {
+    const host = probe?.host ?? fallbackHost ?? "127.0.0.1";
+    const port = probe?.port ?? fallbackPort;
+    const endpoint = port != null ? `${host}:${port}` : host;
+    const ageLabel = formatObservationAge(options?.observedAt);
+    if (options?.lastKnown && ageLabel) {
+      return `Last known connected · ${endpoint} · ${ageLabel}`;
+    }
+    return port != null ? `Connected · ${endpoint}` : "Connected";
   }
   if (probe?.message) return probe.message;
+  if (options?.lastKnown) return "Connection unknown · bypass active";
   return "Gateway disconnected";
 }
 
@@ -585,8 +791,12 @@ function socketStatus(
   probe: TwsConnectionProbe | undefined,
   fallbackConnected: boolean | undefined,
   sidecarReachable: boolean,
+  options?: { lastKnownConnected?: boolean },
 ): ProviderHealthStatus {
-  const connected = probe?.gatewayConnected ?? fallbackConnected ?? false;
+  const connected =
+    probe?.gatewayConnected ??
+    (options?.lastKnownConnected ? true : fallbackConnected) ??
+    false;
   if (connected) return "healthy";
   if (!sidecarReachable) return "offline";
   return "degraded";
@@ -596,21 +806,37 @@ export function buildIbSocketRows(tws: TwsStatusProbe): IbSocketHealthRow[] {
   const paperProbe = tws.connections?.["ib-paper"];
   const liveProbe = tws.connections?.["ib-live"];
   const sidecarReachable = tws.sidecarReachable;
+  const lastKnownConnected =
+    tws.circuitBypassed === true &&
+    tws.observationConfidence === "last_known" &&
+    tws.gatewayConnected;
 
   return [
     {
       id: "tws-paper",
       connectionId: "ib-paper",
       label: "Paper Gateway",
-      status: socketStatus(paperProbe, tws.gatewayConnected, sidecarReachable),
-      detail: socketEndpointDetail(paperProbe, tws.host, tws.port),
+      status: socketStatus(paperProbe, tws.gatewayConnected, sidecarReachable, {
+        lastKnownConnected,
+      }),
+      detail: socketEndpointDetail(paperProbe, tws.host, tws.port, {
+        connected: paperProbe?.gatewayConnected ?? (lastKnownConnected ? true : tws.gatewayConnected),
+        observedAt: tws.observedAt,
+        lastKnown: lastKnownConnected,
+      }),
     },
     {
       id: "tws-live",
       connectionId: "ib-live",
       label: "Live Gateway",
-      status: socketStatus(liveProbe, false, sidecarReachable),
-      detail: socketEndpointDetail(liveProbe, tws.host, liveProbe?.port ?? 4001),
+      status: socketStatus(liveProbe, false, sidecarReachable, {
+        lastKnownConnected: lastKnownConnected && !!liveProbe?.gatewayConnected,
+      }),
+      detail: socketEndpointDetail(liveProbe, tws.host, liveProbe?.port ?? 4001, {
+        connected: liveProbe?.gatewayConnected ?? false,
+        observedAt: tws.observedAt,
+        lastKnown: lastKnownConnected && !!liveProbe?.gatewayConnected,
+      }),
     },
   ];
 }
@@ -632,7 +858,7 @@ function connectionShortStatus(status: ProviderHealthStatus): string {
     case "offline":
       return "offline";
     case "degraded":
-      return "down";
+      return "retrying";
     default:
       return "unknown";
   }
@@ -755,7 +981,7 @@ export function buildHealthSummary(
 
   if (chartSource && watchlistSource && chartSource !== watchlistSource) {
     const parts = [`Chart: ${chartSource}`, `Quotes: ${watchlistSource}`];
-    if (watchlistRow?.streaming || chartRow?.streaming) parts.push("live");
+    if (watchlistRow?.streaming || chartRow?.streaming) parts.push("streaming");
     else if (severity === "degraded") parts.push("mixed");
     return parts.join(" · ");
   }
@@ -764,9 +990,9 @@ export function buildHealthSummary(
   const primaryRow = chartSource ? chartRow : watchlistRow;
   const label = chartSource ? "Chart" : "Quotes";
   const parts = [`${label}: ${source}`];
-  if (primaryRow?.streaming) parts.push("live");
+  if (primaryRow?.streaming) parts.push("streaming");
   else if (primaryRow && !isDatasetDisplayFresh(primaryRow)) {
-    parts.push("stale");
+    parts.push("aging");
   } else if (severity === "degraded" && FALLBACK_SOURCES.has(primaryRow?.source ?? "")) {
     parts.push("fallback");
   }
@@ -832,9 +1058,10 @@ export function buildProvisionalProviderRows(
       label: "IB Gateway",
       configured: true,
       status: sidecarUnreachable ? "offline" : "degraded",
-      detail: reason,
+      detail: sidecarUnreachable ? reason : `Temporarily bypassed · ${reason}`,
       circuitOpen: true,
       circuitReason: reason,
+      requiresManualRecovery: sidecarUnreachable,
     },
     {
       id: "yahoo",
@@ -848,6 +1075,7 @@ export function buildProvisionalProviderRows(
 
 export function buildHealthCaveatSubtitle(
   datasets: DataHealthDatasetRow[],
+  now = Date.now(),
 ): string | null {
   for (const row of datasets) {
     if (row.severity !== "degraded" || row.status !== "loaded") continue;
@@ -857,9 +1085,13 @@ export function buildHealthCaveatSubtitle(
     if (row.kind === "chart" && isFallbackSource(row.source, incidentWarnings(row.warnings))) {
       return "Chart on fallback source";
     }
-    if (hasDisplayAgePolicy(row) && row.asOf != null && !isDatasetDisplayFresh(row)) {
+    if (hasDisplayAgePolicy(row) && !isDatasetDisplayFresh(row, now)) {
       const provenance = rowProvenance(row);
-      const ageSec = Math.round(quoteAgeMs(provenance) / 1_000);
+      const ageSec = Math.round(
+        (row.kind === "watchlist"
+          ? watchlistDeliveryAgeMs(provenance, now)
+          : quoteAgeMs(provenance, now)) / 1_000,
+      );
       if (row.kind === "watchlist") {
         return `Watchlist quotes ${ageSec}s old`;
       }
@@ -880,10 +1112,27 @@ export function buildHealthCaveatSubtitle(
   return null;
 }
 
+/** Neutral closed-market copy when watchlist delivery is healthy. */
+export function buildHealthSessionSubtitle(
+  datasets: DataHealthDatasetRow[],
+  severity: DataHealthSeverity,
+  now = Date.now(),
+): string | null {
+  if (severity !== "healthy") return null;
+  if (classifyUsEquitySession(now) !== "closed") return null;
+  const watchlist = datasets.find((row) => row.kind === "watchlist");
+  if (watchlist?.status !== "loaded" || watchlist.severity !== "healthy") return null;
+  return closedMarketHealthySubtitle();
+}
+
 export function mergeHealthSnapshot(
   client: ClientHealthInputs,
   server: ServerHealthPayload | null,
   recentEvents: HealthEvent[] = [],
+  supervision?: {
+    previous: ConnectionSupervisorSnapshot | null;
+    next: ConnectionSupervisorSnapshot | null;
+  },
 ): DataHealthSnapshot {
   const chart = buildChartDatasetRow(client.chartMeta, client.chartDetail);
   const watchlist = buildWatchlistDatasetRow(
@@ -893,6 +1142,7 @@ export function mergeHealthSnapshot(
     client.watchlistError,
     client.watchlistTransport,
     client.watchlistAsOf,
+    client.watchlistDeliveryAt,
   );
   const options = buildOptionsDatasetRow(
     client.optionsMeta,
@@ -906,8 +1156,18 @@ export function mergeHealthSnapshot(
     error: client.accountError,
   });
 
-  const datasets = [chart, watchlist, options, account].map((row) =>
-    row.severity ? row : enrichDatasetRow(row),
+  const extendedRows = [
+    ...buildDemandRowsFromInputs(client.demandDatasets),
+    ...(client.brokerageSubdatasets ?? []).map((row) => buildBrokerageSubdatasetRow(row)),
+    buildPreTradeDatasetRow(client.preTrade),
+    buildPersistenceSyncRow(client.persistenceSync),
+  ].filter((row): row is DataHealthDatasetRow => row != null);
+
+  const datasets = filterVisibleCurrentDataRows(
+    mergeDeliveryDiagnosticsIntoRows(
+      [chart, watchlist, options, account, ...extendedRows],
+      server?.deliveryDiagnostics,
+    ).map((row) => (row.severity ? row : enrichDatasetRow(row))),
   );
   const provisionalProviders = server?.providers?.length
     ? null
@@ -916,22 +1176,26 @@ export function mergeHealthSnapshot(
     ? server.providers
     : (provisionalProviders ?? []);
   const connectionRows =
-    server?.twsStatus?.configured === false
-      ? []
-      : server?.twsStatus
-        ? buildIbSocketRows(server.twsStatus)
-        : [];
+    supervision?.next?.displaySockets?.length
+      ? displaySocketsToIbRows(supervision.next.displaySockets)
+      : server?.twsStatus?.configured === false
+        ? []
+        : server?.twsStatus
+          ? buildIbSocketRows(server.twsStatus)
+          : [];
   const dataPreference = buildDataPreferenceRow(client.dataConnectionPreference);
   const recentWarnings = collectIncidentWarnings(
     datasets,
     providers,
     server?.recentWarnings ?? [],
   );
+  const connection = supervision?.next
+    ? supervision.next.connectionSummary
+    : buildConnectionSummary(providers, {
+        connectionRows,
+        dataPreference,
+      });
   const severity = deriveOverallSeverity(datasets, providers, {
-    connectionRows,
-    dataPreference,
-  });
-  const connection = buildConnectionSummary(providers, {
     connectionRows,
     dataPreference,
   });
@@ -948,8 +1212,41 @@ export function mergeHealthSnapshot(
     recentWarnings,
     recentEvents,
     generatedAt: server?.generatedAt ?? Date.now(),
+    revision: server?.revision,
+    deliveryDiagnostics: server?.deliveryDiagnostics,
   };
 }
+
+export function buildConnectionSupervision(
+  server: ServerHealthPayload | null,
+  previous: ConnectionSupervisorSnapshot | null,
+  options: {
+    dataConnectionPreference?: DataConnectionId | null;
+    twsGate?: HealthGateSnapshot;
+  } = {},
+): ConnectionSupervisorSnapshot | null {
+  if (!server?.twsStatus) return previous;
+  return reduceConnectionSupervisor(previous, {
+    tws: server.twsStatus,
+    twsGate: options.twsGate ?? { skipUntil: 0, lastFailure: null, failureCount: 0, lastSuccessAt: 0 },
+    ibkrGate: ibkrHealthGate.snapshot(),
+    brokerageGate: getBrokerageHealthGateSnapshot(),
+    dataPreferenceLabel: options.dataConnectionPreference
+      ? dataConnectionLabel(options.dataConnectionPreference)
+      : undefined,
+    recovery: getTwsRecoverySession()
+      ? {
+          sessionId: getTwsRecoverySession()?.id,
+          phase: getTwsRecoverySession()?.lastPhase,
+          updatedAt: getTwsRecoverySession()?.phaseUpdatedAt,
+        }
+      : undefined,
+    revision: server.revision,
+    generatedAt: server.generatedAt,
+  });
+}
+
+export type { ConnectionSupervisorSnapshot };
 
 export function formatDatasetLine(row: DataHealthDatasetRow, now = Date.now()): string {
   const parts: string[] = [];
@@ -996,7 +1293,7 @@ export function buildDatasetChips(row: DataHealthDatasetRow, now = Date.now()): 
     chips.push({ label: upperSource(row.source), tone: "default" });
   }
   if (row.streaming) {
-    chips.push({ label: "Live", tone: "positive" });
+    chips.push({ label: "Streaming", tone: "positive" });
   }
   const displayFresh = isDatasetDisplayFresh(row, now);
   if (row.asOf != null && hasDisplayAgePolicy(row)) {
@@ -1029,11 +1326,15 @@ export function exportHealthJson(snapshot: DataHealthSnapshot): string {
 
 export function shouldShowTwsRecovery(provider: ProviderHealthRow | undefined): boolean {
   if (!provider?.configured) return false;
+  if (provider.status === "healthy") return false;
+  if (provider.requiresManualRecovery === false) return false;
+  if (provider.requiresManualRecovery === true) return true;
   return provider.status === "degraded" || provider.status === "offline";
 }
 
 export function twsRecoveryButtonLabel(provider: ProviderHealthRow | undefined): string {
   if (!provider?.configured) return "Recover TWS";
+  if (provider.requiresManualRecovery === false) return "Recover TWS";
   if (provider.detail.toLowerCase().includes("unreachable")) {
     return "Start TWS sidecar";
   }
@@ -1044,7 +1345,6 @@ export function twsRecoveryButtonLabel(provider: ProviderHealthRow | undefined):
     return "Restart sidecar";
   }
   if (
-    provider.circuitOpen ||
     provider.detail.toLowerCase().includes("gateway disconnected") ||
     provider.detail.toLowerCase().includes("not connected")
   ) {

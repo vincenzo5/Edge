@@ -3,6 +3,7 @@ import type {
   ChartCandleStreamSink,
   ChartQuoteStreamSink,
   Interval,
+  Range,
 } from '@edge/chart-core';
 import {
   applyCandleAppend,
@@ -19,6 +20,26 @@ type PollQuoteLoader = () => Promise<{
   quotes: import('@edge/chart-core').MarketQuote[];
   meta: import('@edge/chart-core').ChartDataMeta;
 }>;
+
+/** Short Yahoo range for live poll — avoids re-fetching the chart display range (often 1y). */
+export function pollRangeForInterval(interval: Interval): Range {
+  switch (interval) {
+    case '1m':
+    case '5m':
+      return '1d';
+    case '15m':
+    case '30m':
+    case '1h':
+    case '2h':
+      return '5d';
+    case '1d':
+    case '1wk':
+    case '1mo':
+      return '1mo';
+    default:
+      return '5d';
+  }
+}
 
 export function candlePollIntervalMs(interval: Interval): number {
   switch (interval) {
@@ -83,6 +104,14 @@ export function createPollingCandleSubscription(
         sink(event);
       }
       if (events.length === 0) {
+        sink({
+          type: 'refresh',
+          meta: {
+            ...result.meta,
+            lastUpdateAt: Date.now(),
+            stale: false,
+          },
+        });
         return;
       }
 

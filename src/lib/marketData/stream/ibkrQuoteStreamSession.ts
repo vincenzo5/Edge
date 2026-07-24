@@ -41,7 +41,9 @@ export function createIbkrSmdQuoteStreamSession(
   const pollFallback = async (onEvent: (payload: string) => void, primed: boolean) => {
     if (stopped) return;
     try {
-      const result = await service.getQuotes(query.symbols);
+      const result = await service.getQuotes(query.symbols, {
+        providerPreference: query.providerPreference,
+      });
       if (stopped) return;
       failureCount = 0;
       const meta = normalizeChartMeta(dataResultToResponseMeta(result));

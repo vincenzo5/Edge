@@ -61,6 +61,8 @@ export async function GET(): Promise<Response> {
     message,
     finalized,
     recoveryPhase: session?.lastPhase,
+    sessionId: session?.id,
+    revision: session?.revision,
     status,
     warmup,
   });
