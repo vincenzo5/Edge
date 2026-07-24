@@ -1,0 +1,36 @@
+App-level verification Wave 2 — Phase 4 (2026-07-24)
+URL: http://localhost:3003
+
+App-level: 4.1 Redis health flip — memory boot cache.kind=memory degraded=false lastPingOk=null; redis backend (EDGE_MARKET_DATA_CACHE_BACKEND=redis REDIS_URL=redis://localhost:6379 npm run redis:up) cache.kind=redis degraded=false lastPingOk=true; secretHits=0 on /api/market-data/health JSON
+App-level: 4.2 Journal import dialog — journal-import-open → journal-import-dialog; journal-import-help-toggle expanded 3 steps; drop flex-trades-stk.csv → journal-import-success summary "Imported 2 fills · 0 duplicates · 14 trades"; journal-import-done closed dialog
+App-level: 4.3 Journal import + sync chrome — journal-import-open toolbar drop CSV → import complete; journal-sync-fills click → sync completed (fast path; aria-busy=null disabled=false idle SyncIcon)
+App-level: 4.4 MCP alert tools — session-bridge sessionId=0ef8ab2d-471d-424b-925e-959cf7018ebb; list_alerts ok=true count=0; create_alert permissionMode=write ok=true alertId=19066481-3b21-40d8-982d-94e638d55691 symbol=AAPL
+App-level: 4.5 Calm header on fault — tws sidecar_unreachable; app-header-connection-incident="Broker disconnected"; app-header-recover-tws="Reconnect"; app-market-data-picker chip="IB Gateway (Paper)"; secretHits=[] (no API/env dump)
+4.6 Skipped: optional MCP stderr mcp.tool line — not required for phase exit
+
+4.1 Redis health flip
+- memory boot: GET /api/market-data/health → cache {"kind":"memory","degraded":false,"lastPingOk":null,"lastPingAt":null}
+- redis backend: edge-redis Up; GET /api/market-data/health → cache {"kind":"redis","degraded":false,"lastPingOk":true,"lastPingAt":1784926030380}
+- Fix landed: health route awaits ensureServerCacheBackendsInitialized before snapshot
+
+4.2 Journal import dialog
+- journal-import-open → journal-import-dialog visible
+- journal-import-help-toggle → journal-import-help 3 li steps (Flex Queries export copy)
+- drop flex-trades-stk.csv (MSFT legs) → "Import complete Imported 2 fills · 0 duplicates · 14 trades"
+- journal-import-done → dialog closed
+
+4.3 Journal import + sync chrome
+- journal-import-open toolbar → CSV drop → success → Done
+- journal-sync-fills click → syncNow completed; button returned idle (no sustained aria-busy; sync fast)
+
+4.4 MCP alert tools
+- Browser workspace heartbeat minted bridge secret
+- POST /api/ai/session/execute list_alerts → ok=true
+- POST /api/ai/session/execute create_alert (cross_above AAPL @200) permissionMode=write → ok=true alertId=19066481-3b21-40d8-982d-94e638d55691
+
+4.5 Calm header on fault
+- Live fault: tws provider degraded sidecar_unreachable (health probe)
+- Header: app-header-connection-incident + Reconnect CTA; feed chip IB Gateway (Paper); no REDIS_URL/OPENROUTER/EDGE_AUTH in page text
+
+Focused (bug fix from 4.1):
+- npm test -- --run src/app/api/market-data/health/route.test.ts → Test Files 1 passed (1), Tests 7 passed (7)

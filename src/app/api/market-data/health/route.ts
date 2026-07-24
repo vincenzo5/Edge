@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonErrorResponse } from "@/lib/api/safeErrorResponse";
 import { getServerCacheHealthSnapshot } from "@/lib/marketData/cache/serverCacheHealth";
+import { ensureServerCacheBackendsInitialized } from "@/lib/marketData/cache/serverCacheBackends";
 import {
   buildProviderRows,
   collectRecentWarnings,
@@ -87,6 +88,7 @@ function sanitizePublicTwsStatus(status: TwsStatusProbe): TwsStatusProbe {
 
 export async function GET(request: Request): Promise<Response> {
   try {
+    await ensureServerCacheBackendsInitialized();
     const service = getServerMarketDataService();
     const recoveryActive = getTwsRecoverySession() != null;
     const url = new URL(request.url);
