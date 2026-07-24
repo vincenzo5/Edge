@@ -13,6 +13,7 @@
     "check:examples": "npm run build:packages && npm run check -w @edge/example-chart-core-basic && npm run check -w @edge/example-chart-react-basic && npm run check -w @edge/example-chart-plugins-basic && npm run check -w @edge/example-ai-tools-chart-basic && npm run check -w @edge/example-chart-data-source-basic && npm run check -w @edge/example-chart-perf-harness && npm run check -w @edge/example-indicator-runtime-spike",
     "check:startup": "npm run lint:instructions && npm test -- --run src/test/startup.test.ts src/app/components/chartContextMenu.test.ts src/app/components/chartCopyMenu.test.ts",
     "lint:package-boundaries": "npx tsx scripts/validate-package-boundaries.mts",
+    "lint:app-lib-boundaries": "npx tsx scripts/validate-app-lib-boundaries.mts",
     "lint:data-state-contracts": "npx tsx scripts/validate-data-state-contracts.mts",
     "typecheck:packages": "npm run typecheck -w @edge/chart-core && npm run typecheck -w @edge/chart-react && npm run typecheck -w @edge/indicator-runtime && npm run typecheck -w @edge/ai-tools-core && npm run typecheck -w @edge/ai-tools-chart",
     "build:packages": "npm run build -w @edge/chart-core && npm run build -w @edge/chart-react && npm run build -w @edge/indicator-runtime && npm run build -w @edge/ai-tools-core && npm run build -w @edge/ai-tools-chart",

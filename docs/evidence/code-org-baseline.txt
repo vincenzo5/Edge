@@ -1,0 +1,53 @@
+Code organization — Phase 0 baseline
+Captured: 2026-07-24
+Track: docs/roadmaps/code-organization-roadmap.md
+
+## lib → app production imports (7 files, 8 import lines)
+
+src/lib/ai/context.ts:13
+  import type { ActiveChartSnapshot } from "@/app/components/ActiveChartContext";
+
+src/lib/ai/tools/_helpers.ts:1
+  import type { ActiveChartSnapshot } from "@/app/components/ActiveChartContext";
+
+src/lib/persistence/client/copilotThreadsClient.ts:2
+  import type { CopilotMessage } from "@/app/components/copilot/useCopilotThread";
+
+src/lib/copilot/copilotThreadRedact.ts:5
+  from "@/app/components/copilot/useCopilotThread";
+
+src/lib/marketData/search/searchClient.ts:1
+  import type { SymbolSearchResult } from "@/app/components/design-system/symbol-search/types";
+
+src/lib/screener/useScreenerSessionModel.ts:35
+  import { useScreenerState } from "@/app/components/screener/ScreenerProvider";
+
+src/lib/screener/useScreenerSessionModel.ts:36
+  import { SCREENER_PAGE_SIZE } from "@/app/components/screener/ResultsTable";
+
+src/lib/scriptLibrary/ScriptLibraryMountGate.tsx:13
+  import { useAppWorkspace } from "@/app/components/app-workspace/AppWorkspaceContext";
+
+Allowlist (Phase 0 gate): same 7 files — fail on any new production file with @/app/ imports.
+
+## Size budgets (shell targets; enforced Phase 4)
+
+| File | Baseline LOC | Target LOC |
+|------|-------------:|-----------:|
+| src/lib/marketData/service/marketDataService.ts | 3120 | ≤ ~800 shell + extracted modules |
+| src/app/components/ChartCell.tsx | 1202 | ≤ ~400 shell |
+
+## Components root (maxdepth 1)
+
+Count: 87 *.ts/tsx files at src/app/components/
+Policy: composition/providers only — no new feature bodies at root (Phase 3).
+
+## Chart shims (src/lib/chart maxdepth 1)
+
+Count: 94 *.ts/tsx files
+Note: pure re-export vs adapter classification deferred to Phase 5.
+
+## Boundary gates
+
+- packages: npm run lint:package-boundaries (existing)
+- app-lib: npm run lint:app-lib-boundaries (Phase 0 allowlist; Phase 1 fail-closed)

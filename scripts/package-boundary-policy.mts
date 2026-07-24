@@ -57,3 +57,45 @@ export function closedAppImportIssues(
   }
   return issues;
 }
+
+/** Production files in src/lib known to import src/app (Phase 0 allowlist; cleared in Phase 1). */
+export const PHASE0_LIB_TO_APP_ALLOWLIST = new Set([
+  "src/lib/ai/context.ts",
+  "src/lib/ai/tools/_helpers.ts",
+  "src/lib/persistence/client/copilotThreadsClient.ts",
+  "src/lib/copilot/copilotThreadRedact.ts",
+  "src/lib/marketData/search/searchClient.ts",
+  "src/lib/screener/useScreenerSessionModel.ts",
+  "src/lib/scriptLibrary/ScriptLibraryMountGate.tsx",
+]);
+
+const LIB_TO_APP_CHECKS: Array<{ test: (specifier: string) => boolean; reason: string }> = [
+  { test: (s) => s.startsWith("@/app/"), reason: "imports app layer via @/app alias" },
+  { test: (s) => /\/src\/app\//.test(s), reason: "imports app layer via absolute path" },
+];
+
+export function libToAppImportIssues(file: string, content: string): BoundaryIssue[] {
+  const issues: BoundaryIssue[] = [];
+  for (const { specifier, line } of extractImportSpecifiers(content)) {
+    for (const { test, reason } of LIB_TO_APP_CHECKS) {
+      if (test(specifier)) {
+        issues.push({ file, reason, line });
+      }
+    }
+  }
+  return issues;
+}
+
+export function libToAppBoundaryViolations(
+  files: Array<{ relPath: string; content: string }>,
+  allowlist: Set<string> = PHASE0_LIB_TO_APP_ALLOWLIST
+): BoundaryIssue[] {
+  const violations: BoundaryIssue[] = [];
+  for (const { relPath, content } of files) {
+    const issues = libToAppImportIssues(relPath, content);
+    if (issues.length === 0) continue;
+    if (allowlist.has(relPath)) continue;
+    violations.push(...issues);
+  }
+  return violations;
+}

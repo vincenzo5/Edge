@@ -2,9 +2,9 @@ import {
   clearComputeCache,
   computeCacheKey,
   getComputedSeries,
-} from "../../../packages/chart-core/src/indicatorCompute";
-import { resolveIndicatorInputs } from "../../../packages/chart-core/src/indicatorInputs";
-import { getAllIndicators } from "../../../packages/chart-core/src/indicators/registry";
+} from "@edge/chart-core/indicatorCompute";
+import { resolveIndicatorInputs } from "@edge/chart-core/indicatorInputs";
+import { getAllIndicators } from "@edge/chart-core/indicators/registry";
 import { generateCandles } from "./generateCandles.js";
 import { measureDuration } from "./metrics.js";
 import { MICRO_CANDLE_COUNTS } from "./scenarios.js";

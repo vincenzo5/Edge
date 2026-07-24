@@ -62,6 +62,7 @@ const EXAMPLE_SCAN_DIRS = [
   join(ROOT, "examples/chart-plugins-basic/src"),
   join(ROOT, "examples/ai-tools-chart-basic/src"),
   join(ROOT, "examples/chart-data-source-basic/src"),
+  join(ROOT, "examples/chart-perf-harness/src"),
   join(ROOT, "examples/indicator-runtime-spike/src"),
 ];
 

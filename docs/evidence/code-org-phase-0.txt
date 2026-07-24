@@ -1,0 +1,25 @@
+Code organization — Phase 0 verification (2026-07-24)
+
+Focused:
+npm test -- --run src/test/app-lib-boundaries.test.ts src/test/package-boundaries.test.ts
+→ Test Files  2 passed (2)
+→ Tests  6 passed (6)
+
+Boundary:
+npm run lint:app-lib-boundaries
+→ App-lib boundary scan: 7 import(s) in 6 allowlisted file(s); 0 new violation(s).
+→ App-lib boundary validation passed (Phase 0 allowlist mode).
+
+npm run lint:package-boundaries
+→ Package boundary validation passed.
+
+Architecture review: self-review Passed (policy only; no product behavior change)
+App-level: N/A
+
+Delivered:
+- docs/evidence/code-org-baseline.txt (inventory + size budgets)
+- scripts/validate-app-lib-boundaries.mts + package-boundary-policy helpers
+- src/test/app-lib-boundaries.test.ts
+- npm run lint:app-lib-boundaries
+- AGENTS.md Work Boundaries layering pointer
+- examples/chart-perf-harness in package boundary scan (+ microbench @edge imports)
