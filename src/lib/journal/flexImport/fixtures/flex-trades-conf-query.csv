@@ -1,0 +1,3 @@
+"HEADER","CONF","ClientAccountID","Symbol","Date/Time","Price","Commission","Quantity","OrderID","ExecID","OrderReference","Buy/Sell"
+"DATA","CONF","U25026894","AAPL","20260624;093542","296.06","-2.2593672","-200","5346740818","00013d66.6a3bba0c.01.01","","SELL"
+"DATA","CONF","U25026894","AAPL","20260625;094155","279.925","-1.0003","100","5352490580","00015e71.6a3d4a43.01.01","67124685","BUY"

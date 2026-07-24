@@ -1,10 +1,23 @@
-import { describe, expect, it, vi } from "vitest";
+/** @vitest-environment jsdom */
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import JournalScopeBar from "./JournalScopeBar";
 import { EMPTY_JOURNAL_FILTERS } from "@/lib/journal/journalStats";
 
 describe("JournalScopeBar", () => {
+  beforeEach(() => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("calls onWindowChange when period preset changes", () => {
     const onWindowChange = vi.fn();
     render(
@@ -17,7 +30,8 @@ describe("JournalScopeBar", () => {
       />,
     );
 
-    fireEvent.change(screen.getByTestId("journal-period-select"), { target: { value: "7d" } });
+    fireEvent.click(screen.getByTestId("journal-period-select"));
+    fireEvent.click(screen.getByTestId("journal-period-select-option-7d"));
     expect(onWindowChange).toHaveBeenCalledWith("7d");
   });
 
@@ -33,7 +47,9 @@ describe("JournalScopeBar", () => {
       />,
     );
 
-    fireEvent.change(screen.getByTestId("journal-filter-symbol"), { target: { value: "aapl" } });
+    expect(screen.queryByText("Symbol")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Exact symbol")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Exact symbol filter"), { target: { value: "aapl" } });
     expect(onChange).toHaveBeenCalledWith({ ...EMPTY_JOURNAL_FILTERS, symbol: "AAPL" });
   });
 
@@ -96,7 +112,8 @@ describe("JournalScopeBar", () => {
       />,
     );
 
-    fireEvent.change(screen.getByTestId("journal-period-select"), { target: { value: "custom" } });
+    fireEvent.click(screen.getByTestId("journal-period-select"));
+    fireEvent.click(screen.getByTestId("journal-period-select-option-custom"));
     expect(screen.getByTestId("journal-filter-drawer-panel")).toBeInTheDocument();
   });
 

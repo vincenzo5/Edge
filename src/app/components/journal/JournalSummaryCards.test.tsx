@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import JournalSummaryCards from "./JournalSummaryCards";
+import { TileDensityOverrideProvider } from "@/app/components/app-workspace/TileDensityContext";
 import type { JournalStats } from "@/lib/journal/journalStats";
 
 const stats: JournalStats = {
@@ -25,9 +26,15 @@ const accountEquity = 125_430;
 function renderCards(
   statsOverrides: Partial<JournalStats> = {},
   equity: number | null = accountEquity,
+  density: { mode: "compact" | "standard" | "wide"; width: number } = {
+    mode: "wide",
+    width: 1200,
+  },
 ) {
   return render(
-    <JournalSummaryCards stats={{ ...stats, ...statsOverrides }} accountEquity={equity} />,
+    <TileDensityOverrideProvider mode={density.mode} width={density.width}>
+      <JournalSummaryCards stats={{ ...stats, ...statsOverrides }} accountEquity={equity} />
+    </TileDensityOverrideProvider>,
   );
 }
 
@@ -40,9 +47,9 @@ describe("JournalSummaryCards", () => {
     vi.useRealTimers();
   });
 
-  it("renders Avg win/loss trade hero card with expectancy and compact bar labels", () => {
+  it("renders Avg win/loss hero card with expectancy and compact bar labels", () => {
     renderCards();
-    expect(screen.getByText("Avg win/loss trade")).toBeInTheDocument();
+    expect(screen.getByText("Avg win/loss")).toBeInTheDocument();
     expect(screen.queryByText("Expectancy")).not.toBeInTheDocument();
     expect(screen.queryByText("Avg win")).not.toBeInTheDocument();
     expect(screen.queryByText("Avg loss")).not.toBeInTheDocument();
@@ -67,10 +74,10 @@ describe("JournalSummaryCards", () => {
     expect(value.className).toContain("text-[var(--edge-negative)]");
   });
 
-  it("shows Avg win/loss trade help tooltip after hover delay", () => {
+  it("shows Avg win/loss help tooltip after hover delay", () => {
     renderCards();
 
-    fireEvent.mouseEnter(screen.getByLabelText("Avg win/loss trade help"));
+    fireEvent.mouseEnter(screen.getByLabelText("Avg win/loss help"));
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 
     act(() => {
@@ -78,7 +85,7 @@ describe("JournalSummaryCards", () => {
     });
 
     expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "The average profit on all winning and losing trades.",
+      "The average profit on all winning and losing trades (avg win/loss trade).",
     );
   });
 
@@ -160,6 +167,48 @@ describe("JournalSummaryCards", () => {
     expect(pnlSuffix.className).toContain("text-[var(--edge-positive)]");
     expect(screen.getByTestId("journal-net-pnl-closed-count")).toHaveTextContent("8 trades");
     expect(screen.getByTestId("journal-account-equity-card").className).toContain("md:col-span-2");
+  });
+
+  it("flashes green when account equity increases", () => {
+    const { rerender } = renderCards({}, accountEquity);
+
+    expect(screen.getByTestId("journal-account-equity-value")).not.toHaveAttribute("data-flash");
+
+    rerender(
+      <TileDensityOverrideProvider mode="wide" width={1200}>
+        <JournalSummaryCards stats={stats} accountEquity={accountEquity + 100} />
+      </TileDensityOverrideProvider>,
+    );
+
+    const equityValue = screen.getByTestId("journal-account-equity-value");
+    expect(equityValue).toHaveAttribute("data-flash", "up");
+    expect(equityValue.className).toContain("text-[var(--edge-positive)]");
+
+    act(() => {
+      vi.advanceTimersByTime(2_000);
+    });
+
+    expect(equityValue).not.toHaveAttribute("data-flash");
+    expect(equityValue.className).toContain("text-[var(--edge-text-strong)]");
+  });
+
+  it("flashes red when account equity decreases", () => {
+    const { rerender } = renderCards({}, accountEquity);
+
+    rerender(
+      <TileDensityOverrideProvider mode="wide" width={1200}>
+        <JournalSummaryCards stats={stats} accountEquity={accountEquity - 50} />
+      </TileDensityOverrideProvider>,
+    );
+
+    const equityValue = screen.getByTestId("journal-account-equity-value");
+    expect(equityValue).toHaveAttribute("data-flash", "down");
+    expect(equityValue.className).toContain("text-[var(--edge-negative)]");
+  });
+
+  it("does not flash on first equity paint", () => {
+    renderCards({}, accountEquity);
+    expect(screen.getByTestId("journal-account-equity-value")).not.toHaveAttribute("data-flash");
   });
 
   it("renders negative Net P&L suffix with negative tone", () => {

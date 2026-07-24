@@ -65,4 +65,29 @@ describe("parseFlexCsv", () => {
       realizedPNL: 1611.370017,
     });
   });
+
+  it("parses live Flex CONF query Date/Time headers (not DateTime)", () => {
+    const csv = readFileSync(
+      join(process.cwd(), "src/lib/journal/flexImport/fixtures/flex-trades-conf-query.csv"),
+      "utf8",
+    );
+    const parsed = parseFlexCsv(csv);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.skipped).toBe(0);
+    expect(parsed.fills).toHaveLength(2);
+
+    const sell = parsed.fills.find((fill) => fill.execId === "00013d66.6a3bba0c.01.01");
+    expect(sell).toMatchObject({
+      side: "SLD",
+      quantity: 200,
+      price: 296.06,
+      commission: -2.2593672,
+      account: "U25026894",
+    });
+    expect(sell?.fillTime.startsWith("2026-06-24")).toBe(true);
+    expect(sell?.realizedPNL).toBeNull();
+
+    const buy = parsed.fills.find((fill) => fill.execId === "00015e71.6a3d4a43.01.01");
+    expect(buy?.fillTime.startsWith("2026-06-25")).toBe(true);
+  });
 });

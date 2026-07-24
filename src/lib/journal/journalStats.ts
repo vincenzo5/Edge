@@ -1,4 +1,5 @@
 import type { JournalSetup, JournalTradeStatus } from "@/lib/journal/types";
+import { computeAggregateRStats, type PlannedRiskTradeInput } from "@/lib/journal/rMultiple";
 
 export type JournalStatsWindow = "today" | "7d" | "30d" | "all";
 
@@ -14,7 +15,14 @@ export type JournalReportTradeInput = JournalStatsTradeInput & {
   symbol?: string;
   tags?: string[];
   setup?: JournalSetup | null;
+  rating?: number | null;
+  ignored?: boolean;
+  plannedRiskMode?: PlannedRiskTradeInput["plannedRiskMode"];
+  plannedRiskValue?: number | null;
+  plannedRiskUsd?: number | null;
 };
+
+export type JournalFilterRating = "all" | "unrated" | 1 | 2 | 3 | 4 | 5;
 
 export type JournalFilterOutcome = "all" | "win" | "loss";
 
@@ -27,12 +35,15 @@ export type JournalFilters = {
   closedFrom?: string;
   closedTo?: string;
   closedDate?: string;
+  rating?: JournalFilterRating;
+  includeIgnored?: boolean;
 };
 
 export const EMPTY_JOURNAL_FILTERS: JournalFilters = {
   status: "all",
   setup: "all",
   outcome: "all",
+  rating: "all",
 };
 
 export type JournalStats = {
@@ -54,6 +65,15 @@ export type JournalStats = {
 export type DailyPnLRow = {
   date: string;
   netPnL: number;
+  tradeCount: number;
+  winCount: number;
+  lossCount: number;
+};
+
+export type CalendarMonthSummary = {
+  netPnL: number;
+  winDays: number;
+  lossDays: number;
   tradeCount: number;
 };
 
@@ -86,6 +106,30 @@ export type BreakdownRow = {
   netPnL: number;
   profitFactor: number | null;
 };
+
+export type CompareSlice = Partial<JournalFilters> & {
+  ratingMin?: number;
+  ratingMax?: number;
+};
+
+export type CompareSliceStats = {
+  label: string;
+  stats: JournalStats;
+  tradeCount: number;
+  avgR: number | null;
+  tradeCountWithR: number;
+};
+
+export type CompareReportResult = {
+  sliceA: CompareSliceStats;
+  sliceB: CompareSliceStats;
+};
+
+export type ComparePresetId =
+  | "wins_vs_losses"
+  | "last30_vs_prior30"
+  | "high_vs_low_rating"
+  | "custom";
 
 export type TimeBucketDimension = "hour" | "weekday";
 
@@ -157,6 +201,8 @@ export type CalendarMonthCell = {
   inMonth: boolean;
   netPnL: number | null;
   tradeCount: number;
+  winCount: number;
+  lossCount: number;
 };
 
 export type CalendarMonth = {
@@ -164,6 +210,8 @@ export type CalendarMonth = {
   month: number;
   cells: CalendarMonthCell[];
 };
+
+export const CALENDAR_WEEKDAY_COLUMNS = 5;
 
 function windowStart(window: JournalStatsWindow, now = Date.now()): number {
   const dayMs = 86_400_000;
@@ -227,6 +275,15 @@ export function matchesJournalFilters(
     if (!(trade.tags ?? []).includes(filters.tag.trim())) return false;
   }
 
+  const ratingFilter = filters.rating ?? "all";
+  if (ratingFilter !== "all") {
+    if (ratingFilter === "unrated") {
+      if ((trade.rating ?? null) != null) return false;
+    } else if ((trade.rating ?? null) !== ratingFilter) {
+      return false;
+    }
+  }
+
   const outcome = filters.outcome ?? "all";
   if (outcome !== "all") {
     if (trade.status !== "closed") return false;
@@ -241,6 +298,10 @@ export function matchesJournalFilters(
   } else {
     if (filters.closedFrom && (!closedDate || closedDate < filters.closedFrom)) return false;
     if (filters.closedTo && (!closedDate || closedDate > filters.closedTo)) return false;
+  }
+
+  if (trade.ignored === true && filters.includeIgnored !== true) {
+    return false;
   }
 
   return true;
@@ -347,9 +408,20 @@ export function computeDailyPnL(trades: JournalStatsTradeInput[]): DailyPnLRow[]
   for (const trade of trades) {
     if (trade.status !== "closed" || !trade.closedAt) continue;
     const date = trade.closedAt.slice(0, 10);
-    const row = byDate.get(date) ?? { date, netPnL: 0, tradeCount: 0 };
-    row.netPnL += tradeNetPnL(trade);
+    const pnl = tradeNetPnL(trade);
+    const row =
+      byDate.get(date) ??
+      ({
+        date,
+        netPnL: 0,
+        tradeCount: 0,
+        winCount: 0,
+        lossCount: 0,
+      } satisfies DailyPnLRow);
+    row.netPnL += pnl;
     row.tradeCount += 1;
+    if (pnl > 0) row.winCount += 1;
+    else if (pnl < 0) row.lossCount += 1;
     byDate.set(date, row);
   }
   return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
@@ -436,7 +508,7 @@ function statsForBucket(trades: JournalReportTradeInput[]): Omit<BreakdownRow, "
 
 export function computeBreakdownReport(
   trades: JournalReportTradeInput[],
-  dimension: "setup" | "tag",
+  dimension: "setup" | "tag" | "rating",
 ): BreakdownRow[] {
   const closed = trades.filter((trade) => trade.status === "closed");
   const buckets = new Map<string, JournalReportTradeInput[]>();
@@ -444,6 +516,16 @@ export function computeBreakdownReport(
   if (dimension === "setup") {
     for (const trade of closed) {
       const bucket = trade.setup ?? "(no setup)";
+      const list = buckets.get(bucket) ?? [];
+      list.push(trade);
+      buckets.set(bucket, list);
+    }
+  } else if (dimension === "rating") {
+    for (const trade of closed) {
+      const bucket =
+        trade.rating != null && trade.rating >= 1 && trade.rating <= 5
+          ? String(trade.rating)
+          : "(unrated)";
       const list = buckets.get(bucket) ?? [];
       list.push(trade);
       buckets.set(bucket, list);
@@ -470,13 +552,205 @@ export function computeBreakdownReport(
       bucket,
       ...statsForBucket(bucketTrades),
     }))
-    .sort((a, b) => b.netPnL - a.netPnL);
+    .sort((a, b) => {
+      if (dimension === "rating") {
+        const rank = (value: string) => {
+          if (value === "(unrated)") return 99;
+          const parsed = Number.parseInt(value, 10);
+          return Number.isFinite(parsed) ? parsed : 98;
+        };
+        return rank(a.bucket) - rank(b.bucket);
+      }
+      return b.netPnL - a.netPnL;
+    });
+}
+
+function formatIsoDateFromMs(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+export function buildComparePresetSlices(
+  preset: ComparePresetId,
+  now = Date.now(),
+): { sliceA: CompareSlice; sliceB: CompareSlice; labelA: string; labelB: string } {
+  const dayMs = 86_400_000;
+  switch (preset) {
+    case "wins_vs_losses":
+      return {
+        sliceA: { outcome: "win" },
+        sliceB: { outcome: "loss" },
+        labelA: "Wins",
+        labelB: "Losses",
+      };
+    case "last30_vs_prior30":
+      return {
+        sliceA: {
+          closedFrom: formatIsoDateFromMs(now - 30 * dayMs),
+          closedTo: formatIsoDateFromMs(now),
+        },
+        sliceB: {
+          closedFrom: formatIsoDateFromMs(now - 60 * dayMs),
+          closedTo: formatIsoDateFromMs(now - 30 * dayMs),
+        },
+        labelA: "Last 30 days",
+        labelB: "Prior 30 days",
+      };
+    case "high_vs_low_rating":
+      return {
+        sliceA: { ratingMin: 4 },
+        sliceB: { ratingMax: 2 },
+        labelA: "Rating 4–5",
+        labelB: "Rating 1–2",
+      };
+    default:
+      return {
+        sliceA: { outcome: "win" },
+        sliceB: { outcome: "loss" },
+        labelA: "Slice A",
+        labelB: "Slice B",
+      };
+  }
+}
+
+export function applyCompareSlice(
+  baseTrades: JournalReportTradeInput[],
+  slice: CompareSlice,
+): JournalReportTradeInput[] {
+  const { ratingMin, ratingMax, ...filters } = slice;
+  let trades = filterJournalTrades(baseTrades, {
+    ...EMPTY_JOURNAL_FILTERS,
+    ...filters,
+  }).filter((trade) => trade.status === "closed");
+
+  if (ratingMin != null) {
+    trades = trades.filter((trade) => (trade.rating ?? 0) >= ratingMin);
+  }
+  if (ratingMax != null) {
+    trades = trades.filter((trade) => {
+      const rating = trade.rating;
+      return rating != null && rating <= ratingMax;
+    });
+  }
+
+  return trades;
+}
+
+export function computeCompareReport(
+  baseTrades: JournalReportTradeInput[],
+  sliceA: CompareSlice,
+  sliceB: CompareSlice,
+  labels: { a: string; b: string },
+): CompareReportResult {
+  const tradesA = applyCompareSlice(baseTrades, sliceA);
+  const tradesB = applyCompareSlice(baseTrades, sliceB);
+  const statsA = computeJournalStats(tradesA, "all");
+  const statsB = computeJournalStats(tradesB, "all");
+  const aggregateA = computeAggregateRStats(tradesA);
+  const aggregateB = computeAggregateRStats(tradesB);
+
+  return {
+    sliceA: {
+      label: labels.a,
+      stats: statsA,
+      tradeCount: tradesA.length,
+      avgR: aggregateA.avgR,
+      tradeCountWithR: aggregateA.tradeCountWithR,
+    },
+    sliceB: {
+      label: labels.b,
+      stats: statsB,
+      tradeCount: tradesB.length,
+      avgR: aggregateB.avgR,
+      tradeCountWithR: aggregateB.tradeCountWithR,
+    },
+  };
 }
 
 function formatIsoDate(year: number, month: number, day: number): string {
   const mm = String(month + 1).padStart(2, "0");
   const dd = String(day).padStart(2, "0");
   return `${year}-${mm}-${dd}`;
+}
+
+function isWeekday(date: Date): boolean {
+  const day = date.getDay();
+  return day >= 1 && day <= 5;
+}
+
+function startOfWeekMonday(date: Date): Date {
+  const copy = new Date(date);
+  const day = copy.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  copy.setDate(copy.getDate() + offset);
+  return copy;
+}
+
+function endOfWeekFriday(date: Date): Date {
+  const copy = new Date(date);
+  const day = copy.getDay();
+  const offset = day === 0 ? -2 : day === 6 ? -1 : 5 - day;
+  copy.setDate(copy.getDate() + offset);
+  return copy;
+}
+
+function calendarCellFromRow(
+  date: string,
+  year: number,
+  month: number,
+  row: DailyPnLRow | undefined,
+): CalendarMonthCell {
+  const inMonth = date.startsWith(formatIsoDate(year, month, 1).slice(0, 7));
+  return {
+    date,
+    inMonth,
+    netPnL: row?.netPnL ?? null,
+    tradeCount: row?.tradeCount ?? 0,
+    winCount: row?.winCount ?? 0,
+    lossCount: row?.lossCount ?? 0,
+  };
+}
+
+export function calendarHeatIntensity(netPnL: number | null, maxAbs: number): number {
+  if (netPnL == null || netPnL === 0 || maxAbs <= 0) return 0;
+  return Math.min(1, Math.abs(netPnL) / maxAbs);
+}
+
+export function calendarMaxAbsPnL(cells: CalendarMonthCell[]): number {
+  let max = 0;
+  for (const cell of cells) {
+    if (!cell.inMonth || cell.netPnL == null) continue;
+    max = Math.max(max, Math.abs(cell.netPnL));
+  }
+  return max;
+}
+
+export function computeCalendarMonthSummary(
+  dailyRows: DailyPnLRow[],
+  year: number,
+  month: number,
+): CalendarMonthSummary {
+  const monthPrefix = formatIsoDate(year, month, 1).slice(0, 7);
+  const inMonth = dailyRows.filter((row) => row.date.startsWith(monthPrefix));
+  let netPnL = 0;
+  let winDays = 0;
+  let lossDays = 0;
+  let tradeCount = 0;
+  for (const row of inMonth) {
+    netPnL += row.netPnL;
+    tradeCount += row.tradeCount;
+    if (row.netPnL > 0) winDays += 1;
+    else if (row.netPnL < 0) lossDays += 1;
+  }
+  return { netPnL, winDays, lossDays, tradeCount };
+}
+
+export function computeCalendarWeekTotals(cells: CalendarMonthCell[]): number[] {
+  const totals: number[] = [];
+  for (let i = 0; i < cells.length; i += CALENDAR_WEEKDAY_COLUMNS) {
+    const row = cells.slice(i, i + CALENDAR_WEEKDAY_COLUMNS);
+    totals.push(row.reduce((sum, cell) => sum + (cell.netPnL ?? 0), 0));
+  }
+  return totals;
 }
 
 export function buildCalendarMonth(
@@ -487,43 +761,17 @@ export function buildCalendarMonth(
   const byDate = new Map(dailyRows.map((row) => [row.date, row]));
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  const startOffset = firstDay.getDay();
-  const daysInMonth = lastDay.getDate();
+  const rangeStart = startOfWeekMonday(firstDay);
+  const rangeEnd = endOfWeekFriday(lastDay);
 
   const cells: CalendarMonthCell[] = [];
-
-  for (let i = 0; i < startOffset; i += 1) {
-    const date = new Date(year, month, 1 - (startOffset - i));
-    cells.push({
-      date: formatIsoDate(date.getFullYear(), date.getMonth(), date.getDate()),
-      inMonth: false,
-      netPnL: null,
-      tradeCount: 0,
-    });
-  }
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const date = formatIsoDate(year, month, day);
-    const row = byDate.get(date);
-    cells.push({
-      date,
-      inMonth: true,
-      netPnL: row?.netPnL ?? null,
-      tradeCount: row?.tradeCount ?? 0,
-    });
-  }
-
-  while (cells.length % 7 !== 0) {
-    const lastCell = cells[cells.length - 1];
-    const lastDate = new Date(`${lastCell.date}T12:00:00`);
-    const next = new Date(lastDate);
-    next.setDate(next.getDate() + 1);
-    cells.push({
-      date: formatIsoDate(next.getFullYear(), next.getMonth(), next.getDate()),
-      inMonth: false,
-      netPnL: null,
-      tradeCount: 0,
-    });
+  const cursor = new Date(rangeStart);
+  while (cursor <= rangeEnd) {
+    if (isWeekday(cursor)) {
+      const date = formatIsoDate(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+      cells.push(calendarCellFromRow(date, year, month, byDate.get(date)));
+    }
+    cursor.setDate(cursor.getDate() + 1);
   }
 
   return { year, month, cells };

@@ -8,13 +8,23 @@ import JournalTradesTableControls from "@/app/components/journal/JournalTradesTa
 import JournalTradeDetailDrawer from "@/app/components/journal/JournalTradeDetailDrawer";
 import JournalScopeBar from "@/app/components/journal/JournalScopeBar";
 import JournalModuleHeader from "@/app/components/journal/JournalModuleHeader";
+import JournalViewTabs from "@/app/components/journal/JournalViewTabs";
 import JournalContentGate from "@/app/components/journal/JournalContentGate";
+import {
+  JournalTileActions,
+  JournalTileTitle,
+} from "@/app/components/app-workspace/JournalTileChrome";
+import { useJournalTileViewOptional } from "@/app/components/app-workspace/JournalTileViewContext";
 import { useJournalTrades } from "@/app/components/journal/JournalTradesProvider";
-import { defaultTradesScopeState } from "@/lib/journal/journalFilterHelpers";
+import {
+  countActiveJournalFilters,
+  defaultTradesScopeState,
+} from "@/lib/journal/journalFilterHelpers";
 import {
   computeJournalStats,
   EMPTY_JOURNAL_FILTERS,
   filterJournalTrades,
+  filterOpenJournalTrades,
   scopeClosedTradesForReporting,
   scopeTradesForTradesView,
   type JournalFilters,
@@ -22,53 +32,62 @@ import {
   type JournalStatsWindow,
 } from "@/lib/journal/journalStats";
 import {
-  buildVisibleColumnsSet,
-  DEFAULT_JOURNAL_TRADES_PAGE_SIZE,
   DEFAULT_JOURNAL_TRADES_TABLE_SORT,
   defaultJournalTradesTablePrefs,
-  paginateJournalTrades,
   readJournalTradesTablePrefs,
   sortJournalTrades,
   writeJournalTradesTablePrefs,
   type JournalTradesTableColumnId,
-  type JournalTradesTableDensity,
   type JournalTradesTableSort,
 } from "@/lib/journal/journalTradesTableControls";
 import { parseSummaryTagNumber } from "@/lib/marketData/contracts/brokerage";
+import { resolveLiveUnrealizedPnL } from "@/lib/journal/reconcileJournalOpens";
 
-export default function JournalTradesView() {
+type Props = {
+  variant?: "trades" | "open";
+};
+
+export default function JournalTradesView({ variant = "trades" }: Props) {
+  const isOpenView = variant === "open";
+  const scopeMode = isOpenView ? "open" : "trades";
   const account = useAccountOptional();
+  const tileView = useJournalTileViewOptional();
   const { loading, allTrades, loadTrades, setAllTrades } = useJournalTrades();
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [filters, setFilters] = useState<JournalFilters>(EMPTY_JOURNAL_FILTERS);
   const [window, setWindow] = useState<JournalStatsWindow>("all");
   const [sort, setSort] = useState<JournalTradesTableSort>(DEFAULT_JOURNAL_TRADES_TABLE_SORT);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_JOURNAL_TRADES_PAGE_SIZE);
   const [visibleColumns, setVisibleColumns] = useState<JournalTradesTableColumnId[]>(
     defaultJournalTradesTablePrefs().visibleColumns,
   );
-  const [density, setDensity] = useState<JournalTradesTableDensity>("compact");
+  const [columnOrder, setColumnOrder] = useState<JournalTradesTableColumnId[]>(
+    defaultJournalTradesTablePrefs().columnOrder,
+  );
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   useEffect(() => {
     const prefs = readJournalTradesTablePrefs();
     setVisibleColumns(prefs.visibleColumns);
-    setDensity(prefs.density);
-    setPageSize(prefs.pageSize);
+    setColumnOrder(prefs.columnOrder);
     setPrefsLoaded(true);
   }, []);
 
   useEffect(() => {
     if (!prefsLoaded) return;
-    writeJournalTradesTablePrefs({ visibleColumns, density, pageSize });
-  }, [prefsLoaded, visibleColumns, density, pageSize]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [filters, window, sort, pageSize]);
+    const prefs = readJournalTradesTablePrefs();
+    writeJournalTradesTablePrefs({
+      visibleColumns,
+      columnOrder,
+      pageSize: prefs.pageSize,
+    });
+  }, [prefsLoaded, visibleColumns, columnOrder]);
 
   const reportTrades = allTrades as JournalReportTradeInput[];
+
+  const listFilters = useMemo(
+    (): JournalFilters => ({ ...filters, includeIgnored: true }),
+    [filters],
+  );
 
   const filteredTrades = useMemo(
     () => filterJournalTrades(reportTrades, filters),
@@ -90,19 +109,16 @@ export default function JournalTradesView() {
   }, [scopedClosedTrades, filteredTrades]);
 
   const scopedTrades = useMemo(() => {
-    const scoped = scopeTradesForTradesView(reportTrades, filters, window);
+    const scoped = isOpenView
+      ? filterOpenJournalTrades(reportTrades, listFilters)
+      : scopeTradesForTradesView(reportTrades, listFilters, window);
     const scopedSet = new Set(scoped);
     return allTrades.filter((trade) => scopedSet.has(trade as JournalReportTradeInput));
-  }, [allTrades, reportTrades, filters, window]);
+  }, [allTrades, reportTrades, listFilters, window, isOpenView]);
 
   const sortedTrades = useMemo(
     () => sortJournalTrades(scopedTrades, sort),
     [scopedTrades, sort],
-  );
-
-  const pageResult = useMemo(
-    () => paginateJournalTrades(sortedTrades, { page, pageSize }),
-    [sortedTrades, page, pageSize],
   );
 
   const selectedTrade = sortedTrades.find((trade) => trade.id === selectedTradeId) ?? null;
@@ -110,14 +126,41 @@ export default function JournalTradesView() {
   const emptyVariant = useMemo(() => {
     if (loading) return "none" as const;
     if (allTrades.length === 0) return "no-trades" as const;
-    if (scopedTrades.length === 0) return "filtered" as const;
+    if (scopedTrades.length === 0) {
+      if (
+        isOpenView &&
+        countActiveJournalFilters(filters, { mode: "open" }) === 0
+      ) {
+        return "no-open" as const;
+      }
+      return "filtered" as const;
+    }
     return "none" as const;
-  }, [loading, allTrades.length, scopedTrades.length]);
+  }, [loading, allTrades.length, scopedTrades.length, isOpenView, filters]);
 
   const accountEquity = parseSummaryTagNumber(
     account?.summary?.tags ?? {},
     "NetLiquidation",
   );
+
+  const liveUnrealizedByTradeId = useMemo(() => {
+    if (!isOpenView) return {};
+    const positions = account?.positions ?? [];
+    const accountId = account?.activeTradingAccountId ?? null;
+    const map: Record<string, number | null> = {};
+    for (const trade of scopedTrades) {
+      if (trade.status !== "open") continue;
+      map[trade.id] = resolveLiveUnrealizedPnL(trade, positions, accountId);
+    }
+    return map;
+  }, [isOpenView, scopedTrades, account?.positions, account?.activeTradingAccountId]);
+
+  const tableVisibleColumns = useMemo((): JournalTradesTableColumnId[] => {
+    if (!isOpenView || visibleColumns.includes("netPnL")) {
+      return visibleColumns;
+    }
+    return [...visibleColumns, "netPnL"];
+  }, [isOpenView, visibleColumns]);
 
   function handleClearFilters() {
     const defaults = defaultTradesScopeState();
@@ -127,40 +170,49 @@ export default function JournalTradesView() {
 
   return (
     <>
-      <JournalModuleHeader title="Trades" onImported={() => void loadTrades()} sticky>
+      <JournalModuleHeader
+        sticky
+        title={tileView ? <JournalTileTitle /> : undefined}
+        leading={<JournalViewTabs />}
+        trailing={tileView ? <JournalTileActions /> : undefined}
+      >
         <JournalScopeBar
-          mode="trades"
+          mode={scopeMode}
           filters={filters}
           onChange={setFilters}
           window={window}
           onWindowChange={setWindow}
         />
       </JournalModuleHeader>
-      <main className="min-h-0 flex-1 overflow-y-auto p-4" data-testid="journal-trades-view">
+      <main
+        className="flex min-h-0 flex-1 flex-col overflow-hidden p-4"
+        data-testid={isOpenView ? "journal-open-positions-view" : "journal-trades-view"}
+      >
         <JournalContentGate variant="trades" onImported={() => void loadTrades()}>
           <JournalSummaryCards stats={stats} accountEquity={accountEquity} />
-          <div className="mt-4">
+          <div className="mt-4 flex min-h-0 flex-1 flex-col">
             {emptyVariant === "none" ? (
               <JournalTradesTableControls
-                meta={pageResult.meta}
-                visibleColumns={visibleColumns}
-                density={density}
+                meta={{ total: sortedTrades.length }}
+                visibleColumns={tableVisibleColumns}
+                columnOrder={columnOrder}
                 onVisibleColumnsChange={setVisibleColumns}
-                onDensityChange={setDensity}
-                onPageSizeChange={setPageSize}
-                onPageChange={setPage}
+                onColumnOrderChange={setColumnOrder}
               />
             ) : null}
             <JournalTradesTable
-              trades={pageResult.items}
+              trades={sortedTrades}
               selectedTradeId={selectedTradeId}
               onSelectTrade={setSelectedTradeId}
               sort={sort}
               onSortChange={setSort}
-              visibleColumns={buildVisibleColumnsSet(visibleColumns)}
-              density={density}
+              visibleColumns={tableVisibleColumns}
+              columnOrder={columnOrder}
+              onColumnOrderChange={setColumnOrder}
               emptyVariant={emptyVariant}
               onClearFilters={handleClearFilters}
+              openPositionsMode={isOpenView}
+              liveUnrealizedByTradeId={liveUnrealizedByTradeId}
             />
           </div>
         </JournalContentGate>

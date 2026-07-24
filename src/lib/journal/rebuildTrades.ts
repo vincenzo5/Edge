@@ -1,5 +1,7 @@
 import type { JournalFill, JournalTrade } from "@/lib/journal/types";
+import { buildTradeIdRemap } from "@/lib/journal/preserveTradeAttachments";
 import { rebuildTradesFromFills } from "@/lib/journal/tradeGrouping";
+import { tradeExecIdsKey } from "@/lib/journal/tradeExecIdsKey";
 
 export type RebuildTradesResult = {
   trades: JournalTrade[];
@@ -13,32 +15,43 @@ export type RebuildTradesResult = {
       | "plannedRiskMode"
       | "plannedRiskValue"
       | "plannedRiskUsd"
+      | "rating"
+      | "ignored"
+      | "mfeUsd"
+      | "mfaUsd"
+      | "excursionInterval"
+      | "excursionComputedAt"
     >
   >;
 };
+
+type PreservedReview = Pick<
+  JournalTrade,
+  | "tags"
+  | "setup"
+  | "reviewNote"
+  | "plannedRiskMode"
+  | "plannedRiskValue"
+  | "plannedRiskUsd"
+  | "rating"
+  | "ignored"
+  | "mfeUsd"
+  | "mfaUsd"
+  | "excursionInterval"
+  | "excursionComputedAt"
+>;
 
 export function rebuildTrades(
   fills: JournalFill[],
   previousTrades: JournalTrade[] = [],
 ): RebuildTradesResult {
-  const preservedMetadata = new Map<
-    string,
-    Pick<
-      JournalTrade,
-      | "tags"
-      | "setup"
-      | "reviewNote"
-      | "plannedRiskMode"
-      | "plannedRiskValue"
-      | "plannedRiskUsd"
-    >
-  >();
-  const preservedIds = new Map<string, string>();
+  const preservedMetadata = new Map<string, PreservedReview>();
+  const previousById = new Map<string, JournalTrade>();
 
   for (const trade of previousTrades) {
-    const key = trade.fillExecIds.slice().sort().join("|");
+    previousById.set(trade.id, trade);
+    const key = tradeExecIdsKey(trade.fillExecIds);
     if (!key) continue;
-    preservedIds.set(key, trade.id);
     preservedMetadata.set(key, {
       tags: trade.tags,
       setup: trade.setup,
@@ -46,24 +59,62 @@ export function rebuildTrades(
       plannedRiskMode: trade.plannedRiskMode,
       plannedRiskValue: trade.plannedRiskValue,
       plannedRiskUsd: trade.plannedRiskUsd,
+      rating: trade.rating,
+      ignored: trade.ignored,
+      mfeUsd: trade.mfeUsd,
+      mfaUsd: trade.mfaUsd,
+      excursionInterval: trade.excursionInterval,
+      excursionComputedAt: trade.excursionComputedAt,
     });
   }
 
   const grouped = rebuildTradesFromFills(fills);
+  const tradeIdRemap = buildTradeIdRemap(previousTrades, grouped);
+  // Invert: new provisional id → previous id (when remapped).
+  const previousIdByGroupedId = new Map<string, string>();
+  for (const [previousId, nextId] of tradeIdRemap) {
+    previousIdByGroupedId.set(nextId, previousId);
+  }
+
   const trades = grouped.map((trade) => {
-    const key = trade.fillExecIds.slice().sort().join("|");
-    const preserved = preservedMetadata.get(key);
-    const preservedId = preservedIds.get(key);
-    if (!preserved && !preservedId) return trade;
+    const key = tradeExecIdsKey(trade.fillExecIds);
+    const previousId = previousIdByGroupedId.get(trade.id);
+    const preservedFromKey = key ? preservedMetadata.get(key) : undefined;
+    const preservedFromPrevious = previousId ? previousById.get(previousId) : undefined;
+    const preserved = preservedFromKey ??
+      (preservedFromPrevious
+        ? {
+            tags: preservedFromPrevious.tags,
+            setup: preservedFromPrevious.setup,
+            reviewNote: preservedFromPrevious.reviewNote,
+            plannedRiskMode: preservedFromPrevious.plannedRiskMode,
+            plannedRiskValue: preservedFromPrevious.plannedRiskValue,
+            plannedRiskUsd: preservedFromPrevious.plannedRiskUsd,
+            rating: preservedFromPrevious.rating,
+            ignored: preservedFromPrevious.ignored,
+            mfeUsd: preservedFromPrevious.mfeUsd,
+            mfaUsd: preservedFromPrevious.mfaUsd,
+            excursionInterval: preservedFromPrevious.excursionInterval,
+            excursionComputedAt: preservedFromPrevious.excursionComputedAt,
+          }
+        : undefined);
+
+    if (!preserved && !previousId) return trade;
     return {
       ...trade,
-      id: preservedId ?? trade.id,
+      id: previousId ?? trade.id,
       tags: preserved?.tags ?? trade.tags,
       setup: preserved?.setup ?? trade.setup,
       reviewNote: preserved?.reviewNote ?? trade.reviewNote,
       plannedRiskMode: preserved?.plannedRiskMode ?? trade.plannedRiskMode,
       plannedRiskValue: preserved?.plannedRiskValue ?? trade.plannedRiskValue,
       plannedRiskUsd: preserved?.plannedRiskUsd ?? trade.plannedRiskUsd,
+      rating: preserved?.rating ?? trade.rating,
+      ignored: preserved?.ignored ?? trade.ignored,
+      mfeUsd: preserved?.mfeUsd ?? trade.mfeUsd,
+      mfaUsd: preserved?.mfaUsd ?? trade.mfaUsd,
+      excursionInterval: preserved?.excursionInterval ?? trade.excursionInterval,
+      excursionComputedAt: preserved?.excursionComputedAt ?? trade.excursionComputedAt,
     };
   });
 

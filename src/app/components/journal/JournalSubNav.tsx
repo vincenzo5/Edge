@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { href: "/journal/dashboard", label: "Dashboard", testId: "journal-subnav-dashboard" },
   { href: "/journal/trades", label: "Trades", testId: "journal-subnav-trades" },
-  { href: "/journal/settings", label: "Settings", testId: "journal-subnav-settings" },
+  { href: "/journal/open", label: "Open Positions", testId: "journal-subnav-open" },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {

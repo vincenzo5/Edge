@@ -33,6 +33,8 @@ const COLUMN_ALIASES: Record<string, keyof ParsedFlexRow> = {
   expiry: "expiry",
   "trade date/time": "fillTime",
   "trade datetime": "fillTime",
+  /** IB Flex CONF / Activity exports use "Date/Time" (not "DateTime"). */
+  "date/time": "fillTime",
   datetime: "fillTime",
   date: "fillTime",
   time: "fillTime",

@@ -7,17 +7,15 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("JournalSubNav", () => {
-  it("renders dashboard, trades, and settings links", () => {
+  it("renders dashboard, trades, and open positions links without settings", () => {
     render(<JournalSubNav />);
     expect(screen.getByTestId("journal-subnav-dashboard")).toHaveAttribute(
       "href",
       "/journal/dashboard",
     );
     expect(screen.getByTestId("journal-subnav-trades")).toHaveAttribute("href", "/journal/trades");
-    expect(screen.getByTestId("journal-subnav-settings")).toHaveAttribute(
-      "href",
-      "/journal/settings",
-    );
+    expect(screen.getByTestId("journal-subnav-open")).toHaveAttribute("href", "/journal/open");
+    expect(screen.queryByTestId("journal-subnav-settings")).not.toBeInTheDocument();
   });
 
   it("marks dashboard active on dashboard route", () => {

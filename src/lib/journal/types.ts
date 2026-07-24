@@ -46,6 +46,10 @@ export type JournalSetup =
 
 export type PlannedRiskMode = "usd" | "pct";
 
+export type JournalTradeRating = 1 | 2 | 3 | 4 | 5;
+
+export const JOURNAL_RATING_VALUES: JournalTradeRating[] = [1, 2, 3, 4, 5];
+
 export type JournalTradeFillLink = {
   execId: string;
   role: "open" | "close";
@@ -74,6 +78,12 @@ export type JournalTrade = {
   plannedRiskMode?: PlannedRiskMode | null;
   plannedRiskValue?: number | null;
   plannedRiskUsd?: number | null;
+  rating?: JournalTradeRating | null;
+  ignored?: boolean;
+  mfeUsd?: number | null;
+  mfaUsd?: number | null;
+  excursionInterval?: "1m" | "5m" | null;
+  excursionComputedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -92,6 +102,12 @@ export type JournalImportResult = {
 };
 
 export const JOURNAL_LOCAL_STORAGE_KEY = "edge.journal.v1";
+export const JOURNAL_SCREENSHOTS_IDB_NAME = "edge.journal.screenshots.v1";
+export const JOURNAL_SCREENSHOTS_IDB_STORE = "screenshots";
+export const JOURNAL_CHART_SNAPSHOTS_IDB_NAME = "edge.journal.chartSnapshots.v1";
+export const JOURNAL_CHART_SNAPSHOTS_IDB_STORE = "chartSnapshots";
+
+export type JournalScreenshotSource = "upload" | "paste" | "chart_capture";
 
 export const JOURNAL_SETUP_VALUES: JournalSetup[] = [
   "breakout",

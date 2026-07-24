@@ -8,18 +8,60 @@ describe("JournalCalendar", () => {
     vi.useRealTimers();
   });
 
+  const seededRow = {
+    date: "2026-06-01",
+    netPnL: 150,
+    tradeCount: 2,
+    winCount: 2,
+    lossCount: 0,
+  };
+
   it("renders daily P&L for seeded day", () => {
     render(
       <JournalCalendar
         year={2026}
         month={5}
-        dailyRows={[{ date: "2026-06-01", netPnL: 150, tradeCount: 2 }]}
+        dailyRows={[seededRow]}
         onDayClick={vi.fn()}
         onMonthChange={vi.fn()}
       />,
     );
     expect(screen.getByTestId("journal-calendar-day-2026-06-01")).toHaveTextContent("$150");
     expect(screen.getByTestId("journal-calendar-day-2026-06-01")).toHaveTextContent("2 trades");
+    expect(screen.getByTestId("journal-calendar-day-2026-06-01")).toHaveTextContent("100%");
+  });
+
+  it("uses Mon-Fri grid with week column", () => {
+    render(
+      <JournalCalendar
+        year={2026}
+        month={5}
+        dailyRows={[seededRow]}
+        onDayClick={vi.fn()}
+        onMonthChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("journal-calendar-grid")).toHaveClass("grid-cols-6");
+    expect(screen.getByText("Mon")).toBeInTheDocument();
+    expect(screen.getByText("Week")).toBeInTheDocument();
+    expect(screen.queryByText("Sat")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sun")).not.toBeInTheDocument();
+    expect(screen.getByTestId("journal-calendar-week-0")).toHaveTextContent("$150");
+  });
+
+  it("shows month summary rollup", () => {
+    render(
+      <JournalCalendar
+        year={2026}
+        month={5}
+        dailyRows={[seededRow]}
+        onDayClick={vi.fn()}
+        onMonthChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("journal-calendar-month-summary")).toHaveTextContent("+$150");
+    expect(screen.getByTestId("journal-calendar-month-summary")).toHaveTextContent("1W / 0L");
+    expect(screen.getByTestId("journal-calendar-month-summary")).toHaveTextContent("2 trades");
   });
 
   it("uses full-height flex layout for calendar grid", () => {
@@ -43,7 +85,7 @@ describe("JournalCalendar", () => {
       <JournalCalendar
         year={2026}
         month={5}
-        dailyRows={[{ date: "2026-06-01", netPnL: 150, tradeCount: 2 }]}
+        dailyRows={[seededRow]}
         onDayClick={onDayClick}
         onMonthChange={vi.fn()}
       />,
@@ -58,7 +100,7 @@ describe("JournalCalendar", () => {
       <JournalCalendar
         year={2026}
         month={5}
-        dailyRows={[{ date: "2026-06-01", netPnL: 150, tradeCount: 2 }]}
+        dailyRows={[seededRow]}
         onDayClick={onDayClick}
         onMonthChange={vi.fn()}
       />,
@@ -87,18 +129,21 @@ describe("JournalCalendar", () => {
     expect(onMonthChange).toHaveBeenCalledWith(2026, 6);
   });
 
-  it("shows P&L for days with trades", () => {
+  it("marks today and selected day chrome", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T12:00:00"));
     render(
       <JournalCalendar
         year={2026}
         month={5}
-        dailyRows={[{ date: "2026-06-01", netPnL: 150, tradeCount: 2 }]}
+        dailyRows={[seededRow, { date: "2026-06-02", netPnL: 20, tradeCount: 1, winCount: 1, lossCount: 0 }]}
+        selectedDate="2026-06-02"
         onDayClick={vi.fn()}
         onMonthChange={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("journal-calendar-day-2026-06-01")).toHaveTextContent("$150");
-    expect(screen.getByTestId("journal-calendar-day-2026-06-01")).toHaveTextContent("2 trades");
+    expect(screen.getByTestId("journal-calendar-day-2026-06-01")).toHaveAttribute("data-today", "true");
+    expect(screen.getByTestId("journal-calendar-day-2026-06-02")).toHaveAttribute("data-selected", "true");
   });
 
   describe("This Month navigation", () => {

@@ -1,46 +1,39 @@
 "use client";
 
 import type { ReactNode } from "react";
-import JournalImportDialog from "@/app/components/journal/JournalImportDialog";
-import { useJournalSync } from "@/app/components/journal/JournalSyncProvider";
 
 type Props = {
-  title: string;
-  showActions?: boolean;
-  onImported?: () => void;
   children?: ReactNode;
+  /** Leftmost label (e.g. Journal title button). */
+  title?: ReactNode;
+  /** Nav after title (e.g. Dashboard / Trades / Open Positions tabs). */
+  leading?: ReactNode;
+  /** Far-right utilities (e.g. sync / import / settings). */
+  trailing?: ReactNode;
   sticky?: boolean;
 };
 
+/**
+ * Single-row journal chrome:
+ * `[ title ] [ tabs ] …… [ filters ] [ actions ]`
+ */
 export default function JournalModuleHeader({
-  title,
-  showActions = true,
-  onImported,
   children,
+  title,
+  leading,
+  trailing,
   sticky = false,
 }: Props) {
-  const { syncing, syncNow } = useJournalSync();
-  const hasTrailing = children != null || showActions;
-
   return (
     <header
-      className={`flex shrink-0 items-center justify-between gap-4 border-b border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-4 py-2${hasTrailing ? " min-h-12" : " h-12"}${sticky ? " sticky top-0 z-10" : ""}`}
+      className={`flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-3 py-2 min-h-12${sticky ? " sticky top-0 z-10" : ""}`}
+      data-testid="journal-module-header"
     >
-      <h1 className="shrink-0 text-sm font-semibold text-[var(--edge-text-strong)]">{title}</h1>
-      <div className="flex min-w-0 flex-1 flex-wrap items-end justify-end gap-2">
+      {title ? <div className="shrink-0">{title}</div> : null}
+      {leading ? <div className="shrink-0">{leading}</div> : null}
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
         {children}
-        {showActions ? (
-          <>
-            <button
-              type="button"
-              className="text-xs text-[var(--edge-accent-blue)] hover:underline"
-              onClick={() => void syncNow()}
-            >
-              {syncing ? "Syncing…" : "Sync fills"}
-            </button>
-            <JournalImportDialog onImported={() => onImported?.()} />
-          </>
-        ) : null}
+        {trailing ? <div className="shrink-0">{trailing}</div> : null}
       </div>
     </header>
   );

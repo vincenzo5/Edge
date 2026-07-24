@@ -89,4 +89,17 @@ describe("filterTradesByAccount", () => {
 
     expect(filterTradesByAccount(trades, fills, "U25026894")).toEqual([trades[0]]);
   });
+
+  it("filters using a compact execId to account map", () => {
+    const trades = [
+      baseTrade({ id: "trade-1", fillExecIds: ["exec-1"] }),
+      baseTrade({ id: "trade-2", fillExecIds: ["exec-2"] }),
+    ];
+    const accountMap = new Map<string, string | null>([
+      ["exec-1", "DU123"],
+      ["exec-2", "DU456"],
+    ]);
+
+    expect(filterTradesByAccount(trades, accountMap, "DU123")).toEqual([trades[0]]);
+  });
 });

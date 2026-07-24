@@ -1,13 +1,14 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { JournalFillResponse, JournalTradeResponse } from "@/lib/persistence/schemas/journal";
+import type { JournalTradeResponse } from "@/lib/persistence/schemas/journal";
 
-const fetchJournalTrades = vi.fn(async () => [] as JournalTradeResponse[]);
-const fetchJournalFills = vi.fn(async () => [] as JournalFillResponse[]);
+const fetchJournalProviderTrades = vi.fn(async () => [] as JournalTradeResponse[]);
+const fetchJournalFillAccountIndex = vi.fn(async () => new Map<string, string | null>());
 
 vi.mock("@/lib/persistence/client/journalClient", () => ({
-  fetchJournalTrades: (...args: unknown[]) => fetchJournalTrades(...args),
-  fetchJournalFills: (...args: unknown[]) => fetchJournalFills(...args),
+  fetchJournalProviderTrades: (...args: unknown[]) => fetchJournalProviderTrades(...args),
+  fetchJournalFillAccountIndex: (...args: unknown[]) => fetchJournalFillAccountIndex(...args),
+  invalidateJournalPersistenceCache: vi.fn(),
 }));
 
 vi.mock("@/app/components/journal/JournalSyncProvider", () => ({
@@ -48,11 +49,11 @@ function TradesProbe() {
 
 describe("JournalTradesProvider account nesting", () => {
   beforeEach(() => {
-    fetchJournalTrades.mockReset();
-    fetchJournalFills.mockReset();
+    fetchJournalProviderTrades.mockReset();
+    fetchJournalFillAccountIndex.mockReset();
     window.localStorage.clear();
 
-    fetchJournalTrades.mockResolvedValue([
+    fetchJournalProviderTrades.mockResolvedValue([
       {
         id: "trade-1",
         status: "closed",
@@ -78,32 +79,12 @@ describe("JournalTradesProvider account nesting", () => {
         updatedAt: "2026-07-01T16:00:00.000Z",
       },
     ]);
-    fetchJournalFills.mockResolvedValue([
-      {
-        id: "fill-1",
-        execId: "exec-1",
-        fillTime: "2026-07-01T13:30:00.000Z",
-        side: "BOT",
-        quantity: 1,
-        price: 100,
-        contract: { symbol: "AAPL", secType: "STK" },
-        source: "live",
-        createdAt: "2026-07-01T13:30:00.000Z",
-        account: "DU123",
-      },
-      {
-        id: "fill-2",
-        execId: "exec-2",
-        fillTime: "2026-07-01T13:30:00.000Z",
-        side: "BOT",
-        quantity: 1,
-        price: 100,
-        contract: { symbol: "MSFT", secType: "STK" },
-        source: "live",
-        createdAt: "2026-07-01T13:30:00.000Z",
-        account: "DU456",
-      },
-    ]);
+    fetchJournalFillAccountIndex.mockResolvedValue(
+      new Map([
+        ["exec-1", "DU123"],
+        ["exec-2", "DU456"],
+      ]),
+    );
 
     window.localStorage.setItem(
       "edge:trading:activeAccount",

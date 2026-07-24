@@ -1,7 +1,9 @@
 "use client";
 
 import type { EdgeTone } from "@/lib/design-system/edge";
-import { toneTextClass } from "@/lib/design-system/edge";
+import { EdgeMetricTile } from "@/app/components/design-system";
+import { useTileDensity } from "@/app/components/app-workspace/TileDensityContext";
+import { journalMetricGridClass } from "@/lib/responsive/tileDensity";
 
 export type JournalMetricItem = {
   label: string;
@@ -16,22 +18,21 @@ type Props = {
 };
 
 export default function JournalMetricGrid({ metrics, testId = "journal-metric-grid" }: Props) {
+  const { mode } = useTileDensity();
+
   return (
     <div
       data-testid={testId}
-      className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4"
+      className={journalMetricGridClass(mode)}
     >
       {metrics.map((metric) => (
-        <div key={metric.label} data-testid={metric.testId ?? `${testId}-${metric.label}`}>
-          <div className="text-[10px] text-[var(--edge-text-secondary)]">{metric.label}</div>
-          <div
-            className={`mt-0.5 text-sm font-semibold tabular-nums text-[var(--edge-text-strong)] ${
-              metric.tone ? toneTextClass(metric.tone) : ""
-            }`}
-          >
-            {metric.value}
-          </div>
-        </div>
+        <EdgeMetricTile
+          key={metric.label}
+          label={metric.label}
+          value={metric.value}
+          tone={metric.tone}
+          data-testid={metric.testId ?? `${testId}-${metric.label}`}
+        />
       ))}
     </div>
   );

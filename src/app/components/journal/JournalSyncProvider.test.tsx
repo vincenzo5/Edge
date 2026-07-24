@@ -1,5 +1,5 @@
 import { act, render, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/app/components/AccountProvider", () => ({
   useAccountOptional: vi.fn(() => null),
@@ -22,11 +22,15 @@ function SyncProbe() {
 describe("JournalSyncProvider", () => {
   beforeEach(() => {
     vi.mocked(useAccountOptional).mockReturnValue(null);
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
         Response.json({
-          results: [{ connectionId: "ib-paper", added: 0, duplicates: 0 }],
+          results: [{ connectionId: "ib-paper", skipped: false, added: 0, duplicates: 1 }],
         }),
       ),
     );
@@ -45,6 +49,67 @@ describe("JournalSyncProvider", () => {
         cache: "no-store",
       });
     });
+  });
+
+  it("does not bump lastSyncedAt on no-op ingest", async () => {
+    const { getByTestId } = render(
+      <JournalSyncProvider>
+        <SyncProbe />
+      </JournalSyncProvider>,
+    );
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
+
+    expect(getByTestId("journal-sync-probe").getAttribute("data-last-synced-at")).toBe("none");
+  });
+
+  it("bumps lastSyncedAt when ingest adds fills", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      Response.json({
+        results: [{ connectionId: "ib-paper", skipped: false, added: 2, duplicates: 0 }],
+      }),
+    );
+
+    const { getByTestId } = render(
+      <JournalSyncProvider>
+        <SyncProbe />
+      </JournalSyncProvider>,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("journal-sync-probe").getAttribute("data-last-synced-at")).not.toBe(
+        "none",
+      );
+    });
+  });
+
+  it("skips interval ingest while document is hidden", async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+
+    render(
+      <JournalSyncProvider>
+        <SyncProbe />
+      </JournalSyncProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 
   it("re-triggers server ingest when execution count changes", async () => {

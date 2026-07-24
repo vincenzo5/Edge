@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { EdgeButton } from "@/app/components/design-system";
+import {
+  CompactSearchFieldShell,
+  EdgeButton,
+  EdgeFilterChip,
+  EdgeSelect,
+  compactSearchFieldClass,
+} from "@/app/components/design-system";
 import JournalFilterDrawer from "@/app/components/journal/JournalFilterDrawer";
 import {
   buildJournalFilterChips,
@@ -21,11 +27,6 @@ type Props = {
   window: JournalStatsWindow;
   onWindowChange: (window: JournalStatsWindow) => void;
 };
-
-const PERIOD_SELECT_OPTIONS: { value: JournalStatsWindow | "custom"; label: string }[] = [
-  ...PERIOD_PRESETS.map((preset) => ({ value: preset.id, label: preset.label })),
-  { value: "custom", label: "Custom range…" },
-];
 
 export default function JournalScopeBar({
   mode,
@@ -56,6 +57,8 @@ export default function JournalScopeBar({
     onWindowChange(defaults.window);
   }
 
+  const scopeDefaults = mode === "dashboard" ? defaultJournalScopeState() : defaultTradesScopeState();
+
   function handleApplyDrawer(next: JournalFilters) {
     onChange(next);
   }
@@ -64,7 +67,7 @@ export default function JournalScopeBar({
     onChange({ ...filters, ...clearPatch });
   }
 
-  const defaultWindow = (mode === "dashboard" ? defaultJournalScopeState() : defaultTradesScopeState()).window;
+  const defaultWindow = scopeDefaults.window;
   const showClearAll =
     activeCount > 0 ||
     isCustomDateRange(filters) ||
@@ -88,14 +91,14 @@ export default function JournalScopeBar({
             {activeCount > 0 ? `Filters (${activeCount})` : "Filters"}
           </EdgeButton>
           {showClearAll ? (
-            <button
+            <EdgeButton
               type="button"
+              variant="link"
               data-testid="journal-scope-clear-all"
-              className="text-xs text-[var(--edge-accent-blue)] hover:underline"
               onClick={handleClearAll}
             >
               Clear all
-            </button>
+            </EdgeButton>
           ) : null}
         </div>
         {chips.length > 0 ? (
@@ -104,16 +107,13 @@ export default function JournalScopeBar({
             className="flex flex-wrap items-center justify-end gap-1.5"
           >
             {chips.map((chip) => (
-              <button
+              <EdgeFilterChip
                 key={chip.id}
-                type="button"
+                label={chip.label}
+                variant="dismissible"
                 data-testid={`journal-filter-chip-${chip.id}`}
-                className="inline-flex items-center gap-1 rounded-full border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-0.5 text-[10px] text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)]"
-                onClick={() => handleRemoveChip(chip.clearPatch)}
-              >
-                <span>{chip.label}</span>
-                <span aria-hidden>×</span>
-              </button>
+                onDismiss={() => handleRemoveChip(chip.clearPatch)}
+              />
             ))}
           </div>
         ) : null}
@@ -138,21 +138,32 @@ function PeriodSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="inline-flex items-center gap-1.5 text-xs text-[var(--edge-text-secondary)]">
-      <span>Period</span>
-      <select
-        data-testid="journal-period-select"
-        className="rounded border border-[var(--edge-border)] bg-transparent px-2 py-1 text-xs text-[var(--edge-text-primary)]"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {PERIOD_SELECT_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <EdgeSelect
+      testId="journal-period-select"
+      variant="chip"
+      label="Period"
+      density="compact"
+      value={value}
+      onChange={onChange}
+      sections={[
+        {
+          label: "Quick ranges",
+          options: PERIOD_PRESETS.map((preset) => ({
+            value: preset.id,
+            label: preset.label,
+          })),
+        },
+        {
+          options: [
+            {
+              value: "custom",
+              label: "Custom range…",
+              description: "Pick dates",
+            },
+          ],
+        },
+      ]}
+    />
   );
 }
 
@@ -164,16 +175,16 @@ function SymbolSearch({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="inline-flex items-center gap-1.5 text-xs text-[var(--edge-text-secondary)]">
-      <span aria-hidden>🔍</span>
+    <CompactSearchFieldShell>
       <input
         data-testid="journal-filter-symbol"
         type="text"
-        placeholder="Search symbol…"
-        className="w-28 rounded border border-[var(--edge-border)] bg-transparent px-2 py-1 text-xs text-[var(--edge-text-primary)] sm:w-36"
+        aria-label="Exact symbol filter"
+        placeholder="Exact symbol"
+        className={compactSearchFieldClass()}
         value={value}
         onChange={(event) => onChange(event.target.value.toUpperCase())}
       />
-    </label>
+    </CompactSearchFieldShell>
   );
 }

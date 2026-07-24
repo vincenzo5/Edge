@@ -107,6 +107,126 @@ describe("tradeGrouping", () => {
     expect(trades[0].totalCommission).toBe(2);
     expect(trades[0].netPnL).toBe(18);
   });
+
+  it("treats Flex negative commissions as cost (not fake wins)", () => {
+    const trades = groupFillsIntoTrades([
+      fill({ execId: "1", side: "BOT", quantity: 10, price: 10, commission: -1 }),
+      fill({
+        execId: "2",
+        side: "SLD",
+        quantity: 10,
+        price: 12,
+        commission: -1,
+        realizedPNL: 20,
+      }),
+    ]);
+    expect(trades[0].totalCommission).toBe(2);
+    expect(trades[0].grossPnL).toBe(20);
+    expect(trades[0].netPnL).toBe(18);
+  });
+
+  it("derives gross P&L from entry/exit prices when realizedPNL is missing", () => {
+    const trades = groupFillsIntoTrades([
+      fill({
+        execId: "1",
+        side: "BOT",
+        quantity: 100,
+        price: 10,
+        commission: -1,
+        fillTime: "2026-06-01T13:30:00.000Z",
+      }),
+      fill({
+        execId: "2",
+        side: "SLD",
+        quantity: 100,
+        price: 12,
+        commission: -1,
+        fillTime: "2026-06-02T13:30:00.000Z",
+      }),
+    ]);
+    expect(trades[0].status).toBe("closed");
+    expect(trades[0].grossPnL).toBe(200);
+    expect(trades[0].totalCommission).toBe(2);
+    expect(trades[0].netPnL).toBe(198);
+    expect(trades[0].openedAt.startsWith("2026-06-01")).toBe(true);
+  });
+
+  it("merges Flex STK buys (no conId) with live sells (same symbol conId) into one closed trade", () => {
+    const trades = groupFillsIntoTrades([
+      fill({
+        execId: "flex-1",
+        side: "BOT",
+        quantity: 100,
+        price: 24.9,
+        source: "flex_csv",
+        fillTime: "2026-07-20T13:31:00.000Z",
+        contract: { symbol: "BRUN", secType: "STK", conId: null },
+      }),
+      fill({
+        execId: "flex-2",
+        side: "BOT",
+        quantity: 1300,
+        price: 24.95,
+        source: "flex_csv",
+        fillTime: "2026-07-20T13:33:00.000Z",
+        contract: { symbol: "BRUN", secType: "STK" },
+      }),
+      fill({
+        execId: "live-1",
+        side: "SLD",
+        quantity: 400,
+        price: 24.05,
+        source: "live",
+        fillTime: "2026-07-22T19:46:32.000Z",
+        realizedPNL: -340,
+        contract: { symbol: "BRUN", secType: "STK", conId: 881547637 },
+      }),
+      fill({
+        execId: "live-2",
+        side: "SLD",
+        quantity: 1000,
+        price: 24.05,
+        source: "live",
+        fillTime: "2026-07-22T19:46:32.000Z",
+        realizedPNL: -850,
+        contract: { symbol: "BRUN", secType: "STK", conId: 881547637 },
+      }),
+    ]);
+    const brun = trades.filter((trade) => trade.symbol === "BRUN");
+    expect(brun).toHaveLength(1);
+    expect(brun[0].status).toBe("closed");
+    expect(brun[0].direction).toBe("long");
+    expect(brun[0].fillExecIds).toEqual(["flex-1", "flex-2", "live-1", "live-2"]);
+    expect(brun[0].grossPnL).toBe(-1190);
+  });
+
+  it("does not alias STK fills when the same symbol has multiple conIds", () => {
+    const trades = groupFillsIntoTrades([
+      fill({
+        execId: "a",
+        side: "BOT",
+        quantity: 10,
+        price: 1,
+        contract: { symbol: "XYZ", secType: "STK", conId: 1 },
+      }),
+      fill({
+        execId: "b",
+        side: "BOT",
+        quantity: 10,
+        price: 1,
+        contract: { symbol: "XYZ", secType: "STK", conId: 2 },
+      }),
+      fill({
+        execId: "c",
+        side: "SLD",
+        quantity: 10,
+        price: 2,
+        contract: { symbol: "XYZ", secType: "STK" },
+      }),
+    ]);
+    // Symbol-only sell must not merge into either conId bucket when ambiguous.
+    expect(trades.filter((trade) => trade.symbol === "XYZ")).toHaveLength(3);
+  });
 });
 
 describe("parseFlexCsv fixtures", () => {

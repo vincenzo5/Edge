@@ -70,6 +70,12 @@ export function patchLocalJournalTrade(
       | "plannedRiskMode"
       | "plannedRiskValue"
       | "plannedRiskUsd"
+      | "rating"
+      | "ignored"
+      | "mfeUsd"
+      | "mfaUsd"
+      | "excursionInterval"
+      | "excursionComputedAt"
     >
   >,
 ): JournalTrade | null {

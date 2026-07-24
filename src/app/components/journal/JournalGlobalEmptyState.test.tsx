@@ -25,7 +25,7 @@ describe("JournalGlobalEmptyState", () => {
     expect(
       screen.getByText("No trades yet. Import Flex CSV history or sync live IBKR fills."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Sync fills")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sync fills" })).toBeInTheDocument();
     expect(screen.getByTestId("journal-import-dialog")).toBeInTheDocument();
   });
 });

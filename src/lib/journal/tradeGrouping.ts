@@ -18,15 +18,59 @@ function sortFills(fills: JournalFill[]): JournalFill[] {
   return [...fills].sort((a, b) => Date.parse(a.fillTime) - Date.parse(b.fillTime));
 }
 
-function conIdKey(fill: JournalFill): string {
-  if (fill.contract.conId != null) return String(fill.contract.conId);
+function fallbackContractKey(fill: JournalFill): string {
   return [
-    fill.contract.symbol ?? "",
-    fill.contract.secType ?? "",
+    (fill.contract.symbol ?? "").toUpperCase(),
+    (fill.contract.secType ?? "").toUpperCase(),
     fill.contract.strike ?? "",
     fill.contract.right ?? "",
     fill.contract.lastTradeDateOrContractMonth ?? "",
   ].join("|");
+}
+
+function conIdKey(fill: JournalFill): string {
+  if (fill.contract.conId != null) return String(fill.contract.conId);
+  return fallbackContractKey(fill);
+}
+
+/**
+ * Flex CSV fills often lack `conId` while live/sidecar fills include it.
+ * Without aliasing, the same STK symbol splits into two FIFO buckets
+ * (symbol-only vs conId) — e.g. Flex buys stay "open long" and live sells
+ * open a fake short.
+ *
+ * When a symbol has exactly one known STK conId among fills, map symbol-only
+ * STK fills onto that conId. Ambiguous multi-conId symbols stay unaliased.
+ */
+function buildStkConIdAliases(fills: JournalFill[]): Map<string, string> {
+  const conIdsBySymbol = new Map<string, Set<string>>();
+  for (const fill of fills) {
+    const secType = (fill.contract.secType ?? "STK").toUpperCase();
+    if (secType !== "STK" || fill.contract.conId == null) continue;
+    const symbol = underlyingSymbol(fill);
+    const set = conIdsBySymbol.get(symbol) ?? new Set<string>();
+    set.add(String(fill.contract.conId));
+    conIdsBySymbol.set(symbol, set);
+  }
+
+  const aliases = new Map<string, string>();
+  for (const [symbol, conIds] of conIdsBySymbol) {
+    if (conIds.size !== 1) continue;
+    const conId = [...conIds][0]!;
+    aliases.set(`${symbol}|STK|||`, conId);
+  }
+  return aliases;
+}
+
+function fifoBucketKey(fill: JournalFill, stkAliases: Map<string, string>): string {
+  if (fill.contract.conId != null) return String(fill.contract.conId);
+  const fallback = fallbackContractKey(fill);
+  const secType = (fill.contract.secType ?? "STK").toUpperCase();
+  if (secType === "STK") {
+    const alias = stkAliases.get(fallback);
+    if (alias) return alias;
+  }
+  return fallback;
 }
 
 function underlyingSymbol(fill: JournalFill): string {
@@ -109,6 +153,26 @@ function buildSpreadEvents(fills: JournalFill[]): SpreadEvent[] {
   return events.sort((a, b) => a.at - b.at);
 }
 
+/** IB Flex commissions are negative costs; live sidecar commissions are positive. */
+function commissionCost(totalCommission: number): number {
+  return Math.abs(totalCommission);
+}
+
+function priceBasedGrossPnL(
+  direction: JournalTrade["direction"],
+  entryValue: number,
+  entryQty: number,
+  exitValue: number,
+  exitQty: number,
+): number | null {
+  if (entryQty <= 0 || exitQty <= 0) return null;
+  const qty = Math.min(entryQty, exitQty);
+  const avgEntry = entryValue / entryQty;
+  const avgExit = exitValue / exitQty;
+  const gross = direction === "long" ? (avgExit - avgEntry) * qty : (avgEntry - avgExit) * qty;
+  return Number.isFinite(gross) ? gross : null;
+}
+
 function finalizeTrade(
   trade: JournalTrade,
   entryValue: number,
@@ -117,22 +181,37 @@ function finalizeTrade(
   exitQty: number,
   grossPnL: number,
   totalCommission: number,
+  realizedPnLObserved: boolean,
 ): JournalTrade {
+  const fromPrices =
+    !realizedPnLObserved && trade.status === "closed"
+      ? priceBasedGrossPnL(trade.direction, entryValue, entryQty, exitValue, exitQty)
+      : null;
+  const resolvedGross = realizedPnLObserved
+    ? grossPnL
+    : (fromPrices ?? (grossPnL !== 0 ? grossPnL : null));
+  const cost = commissionCost(totalCommission);
+  const hasGross = resolvedGross != null;
+  const hasCost = cost > 0;
+
   return {
     ...trade,
     avgEntry: entryQty > 0 ? entryValue / entryQty : trade.avgEntry ?? null,
     avgExit: exitQty > 0 ? exitValue / exitQty : trade.avgExit ?? null,
-    grossPnL: grossPnL !== 0 ? grossPnL : trade.grossPnL ?? null,
+    grossPnL: hasGross ? resolvedGross : trade.grossPnL ?? null,
     netPnL:
-      grossPnL !== 0 || totalCommission !== 0 ? grossPnL - totalCommission : trade.netPnL ?? null,
-    totalCommission: totalCommission > 0 ? totalCommission : trade.totalCommission ?? null,
+      hasGross || hasCost
+        ? (resolvedGross ?? 0) - cost
+        : trade.netPnL ?? null,
+    totalCommission: hasCost ? cost : trade.totalCommission ?? null,
   };
 }
 
 function processSingleLegFifo(fills: JournalFill[]): JournalTrade[] {
+  const stkAliases = buildStkConIdAliases(fills);
   const byConId = new Map<string, JournalFill[]>();
   for (const fill of fills) {
-    const key = conIdKey(fill);
+    const key = fifoBucketKey(fill, stkAliases);
     const list = byConId.get(key) ?? [];
     list.push(fill);
     byConId.set(key, list);
@@ -149,6 +228,7 @@ function processSingleLegFifo(fills: JournalFill[]): JournalTrade[] {
     let exitQty = 0;
     let grossPnL = 0;
     let totalCommission = 0;
+    let realizedPnLObserved = false;
     const fillExecIds: string[] = [];
     const fillLinks: JournalTradeFillLink[] = [];
 
@@ -157,7 +237,10 @@ function processSingleLegFifo(fills: JournalFill[]): JournalTrade[] {
       const signed = signedQuantity(fill);
       net += signed;
       totalCommission += fill.commission ?? 0;
-      if (fill.realizedPNL != null) grossPnL += fill.realizedPNL;
+      if (fill.realizedPNL != null) {
+        grossPnL += fill.realizedPNL;
+        realizedPnLObserved = true;
+      }
 
       fillExecIds.push(fill.execId);
       fillLinks.push({
@@ -203,12 +286,22 @@ function processSingleLegFifo(fills: JournalFill[]): JournalTrade[] {
         trade.status = "closed";
         trade.closedAt = fill.fillTime;
         trades.push(
-          finalizeTrade(trade, entryValue, entryQty, exitValue, exitQty, grossPnL, totalCommission),
+          finalizeTrade(
+            trade,
+            entryValue,
+            entryQty,
+            exitValue,
+            exitQty,
+            grossPnL,
+            totalCommission,
+            realizedPnLObserved,
+          ),
         );
         trade = null;
         entryValue = entryQty = exitValue = exitQty = 0;
         grossPnL = 0;
         totalCommission = 0;
+        realizedPnLObserved = false;
         fillExecIds.length = 0;
         fillLinks.length = 0;
       }
@@ -216,7 +309,16 @@ function processSingleLegFifo(fills: JournalFill[]): JournalTrade[] {
 
     if (trade && net !== 0) {
       trades.push(
-        finalizeTrade(trade, entryValue, entryQty, exitValue, exitQty, grossPnL, totalCommission),
+        finalizeTrade(
+          trade,
+          entryValue,
+          entryQty,
+          exitValue,
+          exitQty,
+          grossPnL,
+          totalCommission,
+          realizedPnLObserved,
+        ),
       );
     }
   }
@@ -242,7 +344,9 @@ function processSpreadEvents(events: SpreadEvent[]): JournalTrade[] {
     const grossLegQty = [...legTotals.values()].reduce((sum, qty) => sum + Math.abs(qty), 0);
     const netDirection =
       [...legTotals.values()].reduce((sum, qty) => sum + qty, 0) >= 0 ? "long" : "short";
-    const totalCommission = event.fills.reduce((sum, fill) => sum + (fill.commission ?? 0), 0);
+    const rawCommission = event.fills.reduce((sum, fill) => sum + (fill.commission ?? 0), 0);
+    const cost = commissionCost(rawCommission);
+    const realizedObserved = event.fills.some((fill) => fill.realizedPNL != null);
     const grossPnL = event.fills.reduce((sum, fill) => sum + (fill.realizedPNL ?? 0), 0);
     const fillExecIds = event.fills.map((fill) => fill.execId);
     const fillLinks = event.fills.map((fill) => ({ execId: fill.execId, role: "open" as const }));
@@ -260,9 +364,12 @@ function processSpreadEvents(events: SpreadEvent[]): JournalTrade[] {
         legs,
         fillExecIds,
         fillLinks,
-        totalCommission,
-        grossPnL: grossPnL !== 0 ? grossPnL : null,
-        netPnL: grossPnL !== 0 || totalCommission !== 0 ? grossPnL - totalCommission : null,
+        totalCommission: cost > 0 ? cost : null,
+        grossPnL: realizedObserved && grossPnL !== 0 ? grossPnL : null,
+        netPnL:
+          (realizedObserved && grossPnL !== 0) || cost > 0
+            ? (realizedObserved ? grossPnL : 0) - cost
+            : null,
       };
       openSpreads.set(event.key, trade);
       trades.push(trade);
@@ -276,8 +383,10 @@ function processSpreadEvents(events: SpreadEvent[]): JournalTrade[] {
       ...(existing.fillLinks ?? []),
       ...event.fills.map((fill) => ({ execId: fill.execId, role: "close" as const })),
     ];
-    existing.grossPnL = (existing.grossPnL ?? 0) + grossPnL;
-    existing.totalCommission = (existing.totalCommission ?? 0) + totalCommission;
+    const priorGross = existing.grossPnL ?? 0;
+    const nextGross = priorGross + (realizedObserved ? grossPnL : 0);
+    existing.grossPnL = realizedObserved || priorGross !== 0 ? nextGross : existing.grossPnL;
+    existing.totalCommission = (existing.totalCommission ?? 0) + cost;
     existing.netPnL = (existing.grossPnL ?? 0) - (existing.totalCommission ?? 0);
     openSpreads.delete(event.key);
   }

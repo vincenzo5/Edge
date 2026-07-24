@@ -2,7 +2,11 @@
 
 import { EdgeSlideOver } from "@/app/components/design-system";
 import JournalTradeDetail from "@/app/components/journal/JournalTradeDetail";
-import { journalTradeDetailTitle } from "@/app/components/journal/journalTradeDetailTitle";
+import JournalTradeDetailHeaderTitle from "@/app/components/journal/JournalTradeDetailHeaderTitle";
+import {
+  journalTradeDetailAriaLabel,
+  journalTradeDetailSubtitle,
+} from "@/app/components/journal/journalTradeDetailTitle";
 import type { JournalTradeResponse } from "@/lib/persistence/schemas/journal";
 
 type Props = {
@@ -14,13 +18,12 @@ type Props = {
 export default function JournalTradeDetailDrawer({ trade, onClose, onUpdated }: Props) {
   if (!trade) return null;
 
-  const { title, subtitle } = journalTradeDetailTitle(trade);
-
   return (
     <EdgeSlideOver
       open
-      title={title}
-      subtitle={subtitle}
+      title={<JournalTradeDetailHeaderTitle trade={trade} />}
+      ariaLabel={journalTradeDetailAriaLabel(trade)}
+      subtitle={journalTradeDetailSubtitle(trade)}
       onClose={onClose}
       testId="journal-trade-detail-drawer"
     >

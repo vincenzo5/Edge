@@ -1,12 +1,13 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const fetchJournalTrades = vi.fn(async () => [] as never[]);
-const fetchJournalFills = vi.fn(async () => [] as never[]);
+const fetchJournalProviderTrades = vi.fn(async () => [] as never[]);
+const fetchJournalFillAccountIndex = vi.fn(async () => new Map<string, string | null>());
 
 vi.mock("@/lib/persistence/client/journalClient", () => ({
-  fetchJournalTrades: (...args: unknown[]) => fetchJournalTrades(...args),
-  fetchJournalFills: (...args: unknown[]) => fetchJournalFills(...args),
+  fetchJournalProviderTrades: (...args: unknown[]) => fetchJournalProviderTrades(...args),
+  fetchJournalFillAccountIndex: (...args: unknown[]) => fetchJournalFillAccountIndex(...args),
+  invalidateJournalPersistenceCache: vi.fn(),
 }));
 
 vi.mock("@/app/components/AccountProvider", () => ({
@@ -43,23 +44,12 @@ function TradesProbe() {
 
 describe("JournalTradesProvider", () => {
   beforeEach(() => {
-    fetchJournalTrades.mockReset();
-    fetchJournalFills.mockReset();
-    fetchJournalTrades.mockResolvedValue([]);
-    fetchJournalFills.mockResolvedValue([
-      {
-        id: "fill-1",
-        execId: "e1",
-        fillTime: "2026-07-01T13:30:00.000Z",
-        side: "BOT",
-        quantity: 1,
-        price: 100,
-        contract: { symbol: "AAPL", secType: "STK" },
-        source: "live",
-        createdAt: "2026-07-01T13:30:00.000Z",
-        account: "DU123",
-      },
-    ]);
+    fetchJournalProviderTrades.mockReset();
+    fetchJournalFillAccountIndex.mockReset();
+    fetchJournalProviderTrades.mockResolvedValue([]);
+    fetchJournalFillAccountIndex.mockResolvedValue(
+      new Map([["e1", "DU123"]]),
+    );
   });
 
   it("starts loading and clears loading after initial fetch", async () => {
@@ -77,7 +67,7 @@ describe("JournalTradesProvider", () => {
   });
 
   it("sets error when initial fetch fails", async () => {
-    fetchJournalTrades.mockRejectedValueOnce(new Error("network"));
+    fetchJournalProviderTrades.mockRejectedValueOnce(new Error("network"));
 
     render(
       <JournalTradesProvider>
@@ -94,8 +84,8 @@ describe("JournalTradesProvider", () => {
   });
 
   it("clears error after successful retry", async () => {
-    fetchJournalTrades.mockRejectedValueOnce(new Error("network"));
-    fetchJournalTrades.mockResolvedValueOnce([
+    fetchJournalProviderTrades.mockRejectedValueOnce(new Error("network"));
+    fetchJournalProviderTrades.mockResolvedValueOnce([
       {
         id: "t1",
         status: "closed",
@@ -138,7 +128,7 @@ describe("JournalTradesProvider", () => {
   });
 
   it("does not set loading during background refresh when trades are cached", async () => {
-    fetchJournalTrades.mockResolvedValueOnce([
+    fetchJournalProviderTrades.mockResolvedValueOnce([
       {
         id: "t1",
         status: "closed",
@@ -168,7 +158,7 @@ describe("JournalTradesProvider", () => {
       expect(screen.getByTestId("journal-trades-probe")).toHaveAttribute("data-count", "1");
     });
 
-    fetchJournalTrades.mockResolvedValueOnce([
+    fetchJournalProviderTrades.mockResolvedValueOnce([
       {
         id: "t1",
         status: "closed",
@@ -193,6 +183,33 @@ describe("JournalTradesProvider", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("journal-trades-background")).toHaveAttribute("data-loading", "false");
+    });
+  });
+
+  it("requests compact fill account index for loaded trades only", async () => {
+    fetchJournalProviderTrades.mockResolvedValueOnce([
+      {
+        id: "t1",
+        status: "closed",
+        direction: "long",
+        symbol: "AAPL",
+        secType: "STK",
+        openedAt: "2026-07-01T13:30:00.000Z",
+        closedAt: "2026-07-01T16:00:00.000Z",
+        fillExecIds: ["e1", "e2"],
+        createdAt: "2026-07-01T13:30:00.000Z",
+        updatedAt: "2026-07-01T16:00:00.000Z",
+      },
+    ] as never[]);
+
+    render(
+      <JournalTradesProvider>
+        <TradesProbe />
+      </JournalTradesProvider>,
+    );
+
+    await waitFor(() => {
+      expect(fetchJournalFillAccountIndex).toHaveBeenCalledWith(["e1", "e2"]);
     });
   });
 });

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { EdgeButton, EdgeSlideOver } from "@/app/components/design-system";
+import { EdgeButton, EdgeSelect, EdgeSlideOver } from "@/app/components/design-system";
+import { fieldClass, labeledFieldClass } from "@/app/components/design-system/styles";
 import type { JournalFilterHelpersMode } from "@/lib/journal/journalFilterHelpers";
 import { EMPTY_JOURNAL_FILTERS, type JournalFilters } from "@/lib/journal/journalStats";
 import { JOURNAL_SETUP_VALUES } from "@/lib/journal/types";
@@ -49,67 +50,88 @@ export default function JournalFilterDrawer({ open, mode, filters, onClose, onAp
     >
       <div className="flex flex-col gap-4">
         {mode === "trades" ? (
-          <Field label="Status">
-            <select
-              data-testid="journal-filter-drawer-status"
-              className="w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5 text-sm"
-              value={draft.status ?? "all"}
-              onChange={(event) =>
-                patch({ status: event.target.value as JournalFilters["status"] })
-              }
-            >
-              <option value="all">All statuses</option>
-              <option value="open">Open</option>
-              <option value="closed">Closed</option>
-            </select>
-          </Field>
+          <EdgeSelect
+            testId="journal-filter-drawer-status"
+            variant="field"
+            density="standard"
+            label="Status"
+            value={draft.status ?? "all"}
+            onChange={(next) => patch({ status: next as JournalFilters["status"] })}
+            options={[
+              { value: "all", label: "All statuses" },
+              { value: "open", label: "Open" },
+              { value: "closed", label: "Closed" },
+            ]}
+          />
         ) : null}
 
-        <Field label="Setup">
-          <select
-            data-testid="journal-filter-drawer-setup"
-            className="w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5 text-sm"
-            value={draft.setup ?? "all"}
-            onChange={(event) =>
-              patch({
-                setup: event.target.value === "all" ? "all" : (event.target.value as JournalFilters["setup"]),
-              })
-            }
-          >
-            <option value="all">All setups</option>
-            {JOURNAL_SETUP_VALUES.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <EdgeSelect
+          testId="journal-filter-drawer-setup"
+          variant="field"
+          density="standard"
+          label="Setup"
+          value={draft.setup ?? "all"}
+          onChange={(next) =>
+            patch({
+              setup: next === "all" ? "all" : (next as JournalFilters["setup"]),
+            })
+          }
+          options={[
+            { value: "all", label: "All setups" },
+            ...JOURNAL_SETUP_VALUES.map((value) => ({ value, label: value })),
+          ]}
+        />
 
         <Field label="Tag">
           <input
             data-testid="journal-filter-drawer-tag"
             type="text"
             placeholder="Tag name"
-            className="w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5 text-sm"
+            className={fieldClass({ density: "standard" })}
             value={draft.tag ?? ""}
             onChange={(event) => patch({ tag: event.target.value || undefined })}
           />
         </Field>
 
-        <Field label="Outcome">
-          <select
-            data-testid="journal-filter-drawer-outcome"
-            className="w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5 text-sm"
-            value={draft.outcome ?? "all"}
-            onChange={(event) =>
-              patch({ outcome: event.target.value as JournalFilters["outcome"] })
-            }
-          >
-            <option value="all">All outcomes</option>
-            <option value="win">Wins</option>
-            <option value="loss">Losses</option>
-          </select>
-        </Field>
+        <EdgeSelect
+          testId="journal-filter-drawer-outcome"
+          variant="field"
+          density="standard"
+          label="Outcome"
+          value={draft.outcome ?? "all"}
+          onChange={(next) => patch({ outcome: next as JournalFilters["outcome"] })}
+          options={[
+            { value: "all", label: "All outcomes" },
+            { value: "win", label: "Wins" },
+            { value: "loss", label: "Losses" },
+          ]}
+        />
+
+        <EdgeSelect
+          testId="journal-filter-drawer-rating"
+          variant="field"
+          density="standard"
+          label="Rating"
+          value={String(draft.rating ?? "all")}
+          onChange={(next) =>
+            patch({
+              rating:
+                next === "all"
+                  ? "all"
+                  : next === "unrated"
+                    ? "unrated"
+                    : (Number.parseInt(next, 10) as JournalFilters["rating"]),
+            })
+          }
+          options={[
+            { value: "all", label: "All ratings" },
+            { value: "unrated", label: "Unrated" },
+            ...([1, 2, 3, 4, 5] as const).map((value) => ({
+              value: String(value),
+              label: `${value} star${value === 1 ? "" : "s"}`,
+            })),
+          ]}
+        />
 
         <div className="border-t border-[var(--edge-border-subtle)] pt-4">
           <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--edge-text-secondary)]">
@@ -120,7 +142,7 @@ export default function JournalFilterDrawer({ open, mode, filters, onClose, onAp
               <input
                 data-testid="journal-filter-drawer-closed-from"
                 type="date"
-                className="w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5 text-sm"
+                className={fieldClass({ density: "standard" })}
                 value={draft.closedFrom ?? ""}
                 onChange={(event) =>
                   patch({ closedFrom: event.target.value || undefined, closedDate: undefined })
@@ -131,7 +153,7 @@ export default function JournalFilterDrawer({ open, mode, filters, onClose, onAp
               <input
                 data-testid="journal-filter-drawer-closed-to"
                 type="date"
-                className="w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5 text-sm"
+                className={fieldClass({ density: "standard" })}
                 value={draft.closedTo ?? ""}
                 onChange={(event) =>
                   patch({ closedTo: event.target.value || undefined, closedDate: undefined })
@@ -167,9 +189,9 @@ export default function JournalFilterDrawer({ open, mode, filters, onClose, onAp
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="block text-xs">
-      <span className="text-[var(--edge-text-secondary)]">{label}</span>
-      <div className="mt-1">{children}</div>
+    <label className={`${labeledFieldClass()} flex-col items-stretch gap-1`}>
+      <span>{label}</span>
+      {children}
     </label>
   );
 }

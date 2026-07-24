@@ -2,7 +2,9 @@
 
 Single roadmap for Edge trading journal **reporting and review** — TradeZella-inspired, scoped to IBKR ingestion and Edge chart integration. Excludes trade replay, AI insights, community, prop-firm sync, backtesting, strategies/playbooks, session notebooks, and multi-broker / multi-account consolidation.
 
-**Last updated:** 2026-07-07
+**Last updated:** 2026-07-22
+
+**Status:** v1 + Tiers 1–3 **Passing** (2026-07-22). Deferred app-level walks → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 6 (Wave 1, complete); import dialog / sync chrome residual → [app-level-verification-wave-2-roadmap.md](./app-level-verification-wave-2-roadmap.md) Phase 4.
 
 ## Product Goal
 
@@ -92,18 +94,27 @@ Focused tests for time bucketing, R-multiple math, deep-link params; build; app-
 
 ### Tier 3 — Review depth & advanced execution metrics
 
+**Status:** **Passing** (2026-07-22) — rating, compare reports, and STK MFE/MFA shipped; screenshots/chart forks shipped earlier.
+
 **Outcome:** Richer per-trade review and comparative analytics without new ingestion sources.
 
-| # | Feature | Description | Primary touch points |
-|---|---------|-------------|----------------------|
-| 3.1 | **Trade rating scale** | e.g. 1–5 or A–F quality grade per trade; filterable | Field on `JournalTrade`; detail UI; tag-report-style breakdown by rating |
-| 3.2 | **Screenshots** | Attach one or more images to a trade review | Storage: URL/blob refs in trade metadata or separate table; upload UI in detail panel |
-| 3.3 | **Compare reports** | Side-by-side stats for two slices (e.g. wins vs losses, tag A vs tag B, last 30d vs prior 30d) | `journalStats.ts` compare helper; `JournalCompareReport.tsx` |
-| 3.4 | **MFE / MFA** | Max favorable / adverse excursion during trade window | Requires intraday price path for `[openedAt, closedAt]` via `/api/candles` or cached bars; store computed MFE/MFA on trade |
+| # | Feature | Description | Status |
+|---|---------|-------------|--------|
+| 3.1 | **Trade rating scale** | 1–5 quality grade per trade; filterable; breakdown by rating | **Shipped** |
+| 3.2 | **Screenshots** | Attach one or more images to a trade review | **Shipped** |
+| 3.2b | **Trade chart forks** | Attach editable live chart fork to journal trade | **Shipped** |
+| 3.3 | **Compare reports** | Side-by-side stats for two slices (presets + scoped closed trades) | **Shipped** — `computeCompareReport`, `JournalCompareReport` |
+| 3.4 | **MFE / MFA** | Max favorable / adverse excursion during trade window | **Shipped** — STK v1 via `/api/candles` 1m/5m; persisted on trade |
 
 **Verification (Tier 3):**
 
-Unit tests for compare slices and MFE/MFA oracle on fixture candles; build when schema/API changes; app-level — attach screenshot persists; compare report matches filtered subsets.
+```bash
+npm test -- --run src/lib/journal src/app/components/journal
+```
+
+**Latest result:** `Test Files 55 passed (55)`, `Tests 306 passed (306)` (2026-07-22).
+
+**Post–Tier 3 (2026-07-23):** **Ignore from stats** — per-trade `ignored` flag excludes round-trips from KPIs/calendar/equity/reports while keeping fills and trades-list visibility. See [Journal Architecture](../../src/lib/journal/ARCHITECTURE.md) § Ignore from stats.
 
 ## Still Deferred (not on roadmap)
 
@@ -111,7 +122,14 @@ Items from v1 architecture notes that remain **unscheduled**:
 
 - Assignment / exercise-specific journal events
 - Sidebar journal panel (home hub panel exists; full sidebar rail panel does not)
-- AI journal tools (registry tools for summarize/review — separate from Zella-style agents)
+
+## AI journal tools (registry)
+
+**Phase 1 (MVP) — Shipped:** `list_journal_trades`, `get_journal_trade`, `get_journal_stats`, `update_journal_trade_review` via `JournalPort` + session bridge. See `src/lib/ai/tools/journal.ts`.
+
+**Phase 2 — Shipped:** `get_journal_breakdown`, `get_journal_time_report`, `get_journal_equity_curve`, `get_journal_daily_pnl`, `compare_journal_slices`, `open_journal_trade_on_chart` (reuse `journalStats` + `chartDeepLink`; no new REST APIs).
+
+Explicitly out of scope: Zella-style auto-tagging / session-review agents; Flex import / rebuild / screenshot tools over MCP.
 
 ## Architecture Decisions
 

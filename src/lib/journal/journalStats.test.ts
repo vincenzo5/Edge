@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCalendarMonth,
+  calendarHeatIntensity,
+  calendarMaxAbsPnL,
+  applyCompareSlice,
+  buildComparePresetSlices,
+  computeCalendarMonthSummary,
+  computeCalendarWeekTotals,
   computeBreakdownReport,
+  computeCompareReport,
   computeDailyPnL,
   computeDaySummaryStats,
   computeEquityCurve,
@@ -33,6 +40,8 @@ const closedTrade = (
   netPnL: overrides.netPnL,
   tags: overrides.tags,
   setup: overrides.setup,
+  rating: overrides.rating,
+  ignored: overrides.ignored,
 });
 
 describe("journalStats", () => {
@@ -63,8 +72,8 @@ describe("journalStats", () => {
         closedTrade({ netPnL: -20, closedAt: "2026-06-02T16:00:00.000Z" }),
       ]);
       expect(rows).toEqual([
-        { date: "2026-06-02", netPnL: -20, tradeCount: 1 },
-        { date: "2026-06-01", netPnL: 150, tradeCount: 2 },
+        { date: "2026-06-02", netPnL: -20, tradeCount: 1, winCount: 0, lossCount: 1 },
+        { date: "2026-06-01", netPnL: 150, tradeCount: 2, winCount: 2, lossCount: 0 },
       ]);
     });
 
@@ -136,6 +145,16 @@ describe("journalStats", () => {
         }),
       ).toHaveLength(1);
       expect(filterJournalTrades(trades, { closedDate: "2026-06-02" })).toHaveLength(1);
+    });
+
+    it("filters by rating", () => {
+      const ratedTrades: JournalReportTradeInput[] = [
+        { ...closedTrade({ netPnL: 100, closedAt: "2026-06-01T16:00:00.000Z" }), rating: 5 },
+        { ...closedTrade({ netPnL: -50, closedAt: "2026-06-02T16:00:00.000Z" }), rating: 2 },
+        { ...closedTrade({ netPnL: 10, closedAt: "2026-06-03T16:00:00.000Z" }), rating: null },
+      ];
+      expect(filterJournalTrades(ratedTrades, { rating: 5 })).toHaveLength(1);
+      expect(filterJournalTrades(ratedTrades, { rating: "unrated" })).toHaveLength(1);
     });
 
     it("combines filters with AND semantics", () => {
@@ -262,6 +281,45 @@ describe("journalStats", () => {
       expect(byBucket.b).toBe(1);
       expect(byBucket["(untagged)"]).toBe(1);
     });
+
+    it("groups by rating with unrated bucket", () => {
+      const rows = computeBreakdownReport(
+        [
+          closedTrade({ netPnL: 100, closedAt: "2026-06-01T16:00:00.000Z", rating: 5 }),
+          closedTrade({ netPnL: -20, closedAt: "2026-06-02T16:00:00.000Z", rating: null }),
+        ],
+        "rating",
+      );
+      expect(rows.map((row) => row.bucket)).toEqual(["5", "(unrated)"]);
+    });
+  });
+
+  describe("computeCompareReport", () => {
+    it("compares wins vs losses slices", () => {
+      const trades: JournalReportTradeInput[] = [
+        closedTrade({ netPnL: 100, closedAt: "2026-06-01T16:00:00.000Z" }),
+        closedTrade({ netPnL: -50, closedAt: "2026-06-02T16:00:00.000Z" }),
+      ];
+      const { sliceA, sliceB } = buildComparePresetSlices("wins_vs_losses");
+      const report = computeCompareReport(trades, sliceA, sliceB, {
+        a: "Wins",
+        b: "Losses",
+      });
+      expect(report.sliceA.tradeCount).toBe(1);
+      expect(report.sliceB.tradeCount).toBe(1);
+      expect(report.sliceA.stats.netPnL).toBe(100);
+      expect(report.sliceB.stats.netPnL).toBe(-50);
+    });
+
+    it("filters rating min/max in applyCompareSlice", () => {
+      const trades: JournalReportTradeInput[] = [
+        { ...closedTrade({ netPnL: 100, closedAt: "2026-06-01T16:00:00.000Z" }), rating: 5 },
+        { ...closedTrade({ netPnL: -20, closedAt: "2026-06-02T16:00:00.000Z" }), rating: 2 },
+        { ...closedTrade({ netPnL: 10, closedAt: "2026-06-03T16:00:00.000Z" }), rating: null },
+      ];
+      expect(applyCompareSlice(trades, { ratingMin: 4 })).toHaveLength(1);
+      expect(applyCompareSlice(trades, { ratingMax: 2 })).toHaveLength(1);
+    });
   });
 
   describe("computeTimeBreakdownReport", () => {
@@ -293,18 +351,56 @@ describe("journalStats", () => {
   });
 
   describe("buildCalendarMonth", () => {
-    it("pads month grid and maps daily rows", () => {
+    it("builds Mon-Fri weekday grid with week rows", () => {
       const month = buildCalendarMonth(2026, 5, [
-        { date: "2026-06-01", netPnL: 100, tradeCount: 2 },
-        { date: "2026-06-15", netPnL: -50, tradeCount: 1 },
+        { date: "2026-06-01", netPnL: 100, tradeCount: 2, winCount: 2, lossCount: 0 },
+        { date: "2026-06-15", netPnL: -50, tradeCount: 1, winCount: 0, lossCount: 1 },
       ]);
       expect(month.year).toBe(2026);
       expect(month.month).toBe(5);
-      expect(month.cells[0].inMonth).toBe(false);
+      expect(month.cells.length % 5).toBe(0);
       const june1 = month.cells.find((cell) => cell.date === "2026-06-01");
       expect(june1?.netPnL).toBe(100);
       expect(june1?.tradeCount).toBe(2);
-      expect(month.cells.filter((cell) => cell.inMonth)).toHaveLength(30);
+      expect(june1?.inMonth).toBe(true);
+      expect(month.cells.some((cell) => cell.date === "2026-06-06")).toBe(false);
+      expect(month.cells.some((cell) => cell.date === "2026-06-07")).toBe(false);
+      expect(month.cells.filter((cell) => cell.inMonth)).toHaveLength(22);
+    });
+  });
+
+  describe("calendar helpers", () => {
+    const cells = buildCalendarMonth(2026, 5, [
+      { date: "2026-06-01", netPnL: 100, tradeCount: 1, winCount: 1, lossCount: 0 },
+      { date: "2026-06-02", netPnL: -40, tradeCount: 1, winCount: 0, lossCount: 1 },
+      { date: "2026-06-03", netPnL: 200, tradeCount: 1, winCount: 1, lossCount: 0 },
+    ]).cells;
+
+    it("computes month summary including weekend-only days", () => {
+      const summary = computeCalendarMonthSummary(
+        [
+          { date: "2026-06-01", netPnL: 100, tradeCount: 1, winCount: 1, lossCount: 0 },
+          { date: "2026-06-06", netPnL: 50, tradeCount: 1, winCount: 1, lossCount: 0 },
+        ],
+        2026,
+        5,
+      );
+      expect(summary.netPnL).toBe(150);
+      expect(summary.winDays).toBe(2);
+      expect(summary.tradeCount).toBe(2);
+    });
+
+    it("computes week totals per Mon-Fri row", () => {
+      const totals = computeCalendarWeekTotals(cells);
+      expect(totals[0]).toBe(260);
+    });
+
+    it("scales heat intensity by month max abs P&L", () => {
+      const maxAbs = calendarMaxAbsPnL(cells);
+      expect(maxAbs).toBe(200);
+      expect(calendarHeatIntensity(200, maxAbs)).toBe(1);
+      expect(calendarHeatIntensity(100, maxAbs)).toBe(0.5);
+      expect(calendarHeatIntensity(0, maxAbs)).toBe(0);
     });
   });
 
@@ -430,6 +526,30 @@ describe("journalStats", () => {
       expect(trades).toHaveLength(2);
       expect(trades.some((trade) => trade.status === "open")).toBe(true);
       expect(trades.some((trade) => trade.netPnL === 100)).toBe(true);
+    });
+  });
+
+  describe("ignored trades", () => {
+    const trades = [
+      closedTrade({ id: "included", netPnL: 100, closedAt: "2026-06-01T16:00:00.000Z" }),
+      closedTrade({
+        id: "ignored",
+        symbol: "BBD",
+        netPnL: -25,
+        closedAt: "2026-06-02T16:00:00.000Z",
+        ignored: true,
+      }),
+    ];
+
+    it("excludes ignored trades from scoped reporting by default", () => {
+      const scoped = scopeClosedTradesForReporting(trades, {}, "all");
+      expect(scoped.map((trade) => trade.id)).toEqual(["included"]);
+      expect(computeJournalStats(scoped, "all").netPnL).toBe(100);
+    });
+
+    it("includes ignored trades when includeIgnored is true", () => {
+      const scoped = scopeTradesForTradesView(trades, { includeIgnored: true }, "all");
+      expect(scoped.map((trade) => trade.id).sort()).toEqual(["ignored", "included"]);
     });
   });
 

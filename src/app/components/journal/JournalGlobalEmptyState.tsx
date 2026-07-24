@@ -1,6 +1,8 @@
 "use client";
 
-import { EdgeEmptyState } from "@/app/components/design-system";
+import { SyncIcon } from "@/app/components/chart-chrome/ChartHeaderIcons";
+import { EdgeEmptyState, EdgeIconButton, EdgeSpinner } from "@/app/components/design-system";
+import Tooltip from "@/app/components/Tooltip";
 import JournalImportDialog from "@/app/components/journal/JournalImportDialog";
 import { useJournalSync } from "@/app/components/journal/JournalSyncProvider";
 import { JOURNAL_GLOBAL_EMPTY_MESSAGE } from "@/lib/journal/journalEmptyCopy";
@@ -17,14 +19,23 @@ export default function JournalGlobalEmptyState({ onImported }: Props) {
       <EdgeEmptyState
         message={JOURNAL_GLOBAL_EMPTY_MESSAGE}
         action={
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              className="text-xs text-[var(--edge-accent-blue)] hover:underline"
-              onClick={() => void syncNow()}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Tooltip
+              content={syncing ? "Syncing fills…" : "Sync fills"}
+              theme="dark"
+              side="bottom"
+              portaled
             >
-              {syncing ? "Syncing…" : "Sync fills"}
-            </button>
+              <EdgeIconButton
+                aria-label={syncing ? "Syncing fills" : "Sync fills"}
+                aria-busy={syncing || undefined}
+                data-testid="journal-sync-fills"
+                disabled={syncing}
+                onClick={() => void syncNow()}
+              >
+                {syncing ? <EdgeSpinner size="sm" /> : <SyncIcon size={16} />}
+              </EdgeIconButton>
+            </Tooltip>
             <JournalImportDialog onImported={() => onImported?.()} />
           </div>
         }

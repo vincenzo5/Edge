@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -16,40 +14,12 @@ import { parseChartDeepLinkParams } from "@/lib/journal/chartDeepLink";
 import { buildJournalExecutionMarkers } from "@/lib/journal/journalExecutionMarkers";
 import type { JournalFill, JournalTrade } from "@/lib/journal/types";
 import { fetchJournalFills, fetchJournalTrades } from "@/lib/persistence/client/journalClient";
+import {
+  JournalChartOverlayContext,
+  type JournalChartOverlayState,
+} from "./journalChartOverlayContext";
 
-type JournalChartOverlayState = {
-  tradeId: string | null;
-  tradeSymbol: string | null;
-  gotoMs: number | null;
-  markers: ChartAnnotationChannelMarker[];
-  loading: boolean;
-  consumeGoto: () => number | null;
-};
-
-const JournalChartOverlayContext = createContext<JournalChartOverlayState>({
-  tradeId: null,
-  tradeSymbol: null,
-  gotoMs: null,
-  markers: [],
-  loading: false,
-  consumeGoto: () => null,
-});
-
-export function useJournalChartOverlay(symbol: string): {
-  markers: ChartAnnotationChannelMarker[];
-  gotoMs: number | null;
-  consumeGoto: () => number | null;
-} {
-  const ctx = useContext(JournalChartOverlayContext);
-  const normalized = symbol.toUpperCase();
-  const active =
-    ctx.tradeSymbol != null && ctx.tradeSymbol.toUpperCase() === normalized;
-  return {
-    markers: active ? ctx.markers : [],
-    gotoMs: active ? ctx.gotoMs : null,
-    consumeGoto: ctx.consumeGoto,
-  };
-}
+export { useJournalChartOverlay } from "./journalChartOverlayContext";
 
 export function JournalChartOverlayProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
@@ -111,7 +81,7 @@ export function JournalChartOverlayProvider({ children }: { children: ReactNode 
     return value;
   }, [gotoMs]);
 
-  const value = useMemo(
+  const value = useMemo<JournalChartOverlayState>(
     () => ({
       tradeId,
       tradeSymbol,
@@ -128,20 +98,4 @@ export function JournalChartOverlayProvider({ children }: { children: ReactNode 
       {children}
     </JournalChartOverlayContext.Provider>
   );
-}
-
-export function useChartDeepLinkBootstrap(
-  hydrated: boolean,
-  onApply: (params: NonNullable<ReturnType<typeof parseChartDeepLinkParams>>) => void,
-): void {
-  const searchParams = useSearchParams();
-  const deepLink = useMemo(
-    () => parseChartDeepLinkParams(searchParams),
-    [searchParams],
-  );
-
-  useEffect(() => {
-    if (!hydrated || !deepLink) return;
-    onApply(deepLink);
-  }, [hydrated, deepLink, onApply]);
 }

@@ -37,8 +37,6 @@ export type JournalTradesTableSort = {
   direction: JournalTradesTableSortDirection;
 };
 
-export type JournalTradesTableDensity = "compact" | "comfortable";
-
 export type JournalTradesTableColumnDef = {
   id: JournalTradesTableColumnId;
   label: string;
@@ -74,16 +72,24 @@ export const JOURNAL_TRADES_TABLE_COLUMNS: JournalTradesTableColumnDef[] = [
   { id: "chart", label: "Chart", defaultVisible: true, sortable: false, toggleable: false },
 ];
 
-const STORAGE_KEY = "edge.journal.tradesTable.v1";
+export const JOURNAL_TRADES_TABLE_STORAGE_KEY = "edge.journal.tradesTable.v1";
+
+const STORAGE_KEY = JOURNAL_TRADES_TABLE_STORAGE_KEY;
 
 export type JournalTradesTablePrefs = {
   visibleColumns: JournalTradesTableColumnId[];
-  density: JournalTradesTableDensity;
+  columnOrder: JournalTradesTableColumnId[];
   pageSize: number;
 };
 
-export type JournalTradesPaginationMeta = {
+export const DEFAULT_JOURNAL_TRADES_COLUMN_ORDER: JournalTradesTableColumnId[] =
+  JOURNAL_TRADES_TABLE_COLUMNS.map((col) => col.id);
+
+export type JournalTradesResultMeta = {
   total: number;
+};
+
+export type JournalTradesPaginationMeta = JournalTradesResultMeta & {
   page: number;
   pageSize: number;
   pageCount: number;
@@ -101,9 +107,96 @@ const OUTCOME_SORT_ORDER = { open: 0, win: 1, breakeven: 2, loss: 3 } as const;
 export function defaultJournalTradesTablePrefs(): JournalTradesTablePrefs {
   return {
     visibleColumns: JOURNAL_TRADES_TABLE_COLUMNS.filter((col) => col.defaultVisible).map((col) => col.id),
-    density: "compact",
+    columnOrder: [...DEFAULT_JOURNAL_TRADES_COLUMN_ORDER],
     pageSize: DEFAULT_JOURNAL_TRADES_PAGE_SIZE,
   };
+}
+
+function normalizeJournalTradesColumnOrder(
+  order: JournalTradesTableColumnId[] | undefined,
+): JournalTradesTableColumnId[] {
+  const catalogIds = DEFAULT_JOURNAL_TRADES_COLUMN_ORDER;
+  const validIds = new Set(catalogIds);
+  const normalized: JournalTradesTableColumnId[] = [];
+  const seen = new Set<JournalTradesTableColumnId>();
+
+  for (const id of order ?? []) {
+    if (!validIds.has(id) || seen.has(id)) continue;
+    normalized.push(id);
+    seen.add(id);
+  }
+
+  for (const id of catalogIds) {
+    if (!seen.has(id)) normalized.push(id);
+  }
+
+  return normalized;
+}
+
+export function resolveOrderedVisibleColumns(
+  columnOrder: JournalTradesTableColumnId[],
+  visibleColumns: JournalTradesTableColumnId[],
+): JournalTradesTableColumnId[] {
+  const visible = buildVisibleColumnsSet(visibleColumns);
+  const ordered = normalizeJournalTradesColumnOrder(columnOrder).filter((id) => visible.has(id));
+  if (!ordered.includes("chart")) ordered.push("chart");
+  return ordered;
+}
+
+export function resolveOrderedVisibleColumnDefs(
+  columnOrder: JournalTradesTableColumnId[],
+  visibleColumns: JournalTradesTableColumnId[],
+): JournalTradesTableColumnDef[] {
+  const orderedIds = resolveOrderedVisibleColumns(columnOrder, visibleColumns);
+  const defsById = new Map(JOURNAL_TRADES_TABLE_COLUMNS.map((col) => [col.id, col]));
+  return orderedIds
+    .map((id) => defsById.get(id))
+    .filter((col): col is JournalTradesTableColumnDef => col != null);
+}
+
+export function reorderJournalTradesTableColumns(
+  order: JournalTradesTableColumnId[],
+  fromIndex: number,
+  toIndex: number,
+): JournalTradesTableColumnId[] {
+  if (fromIndex === toIndex) return order;
+  const next = [...order];
+  const [moved] = next.splice(fromIndex, 1);
+  if (moved == null) return order;
+  next.splice(toIndex, 0, moved);
+  return normalizeJournalTradesColumnOrder(next);
+}
+
+export function reorderJournalTradesToggleableColumns(
+  columnOrder: JournalTradesTableColumnId[],
+  fromIndex: number,
+  toIndex: number,
+): JournalTradesTableColumnId[] {
+  const toggleable = columnOrder.filter(
+    (id) => JOURNAL_TRADES_TABLE_COLUMNS.find((col) => col.id === id)?.toggleable,
+  );
+  const nonToggleable = columnOrder.filter(
+    (id) => !JOURNAL_TRADES_TABLE_COLUMNS.find((col) => col.id === id)?.toggleable,
+  );
+  const reorderedToggleable = reorderJournalTradesTableColumns(toggleable, fromIndex, toIndex);
+  return normalizeJournalTradesColumnOrder([...reorderedToggleable, ...nonToggleable]);
+}
+
+export function reorderJournalTradesVisibleColumns(
+  columnOrder: JournalTradesTableColumnId[],
+  visibleColumns: JournalTradesTableColumnId[],
+  fromIndex: number,
+  toIndex: number,
+): JournalTradesTableColumnId[] {
+  const visibleOrdered = resolveOrderedVisibleColumns(columnOrder, visibleColumns);
+  const reorderedVisible = reorderJournalTradesTableColumns(visibleOrdered, fromIndex, toIndex);
+  const visibleSet = buildVisibleColumnsSet(visibleColumns);
+  let visibleIdx = 0;
+  return normalizeJournalTradesColumnOrder(
+    normalizeJournalTradesColumnOrder(columnOrder).map((id) =>
+      visibleSet.has(id) ? reorderedVisible[visibleIdx++]! : id,
+    ),
+  );
 }
 
 export function buildVisibleColumnsSet(columnIds: JournalTradesTableColumnId[]): Set<JournalTradesTableColumnId> {
@@ -119,12 +212,18 @@ export function readJournalTradesTablePrefs(): JournalTradesTablePrefs {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaults;
-    const parsed = JSON.parse(raw) as Partial<JournalTradesTablePrefs>;
+    const parsed = JSON.parse(raw) as Partial<JournalTradesTablePrefs> & { density?: string };
     const validIds = new Set(JOURNAL_TRADES_TABLE_COLUMNS.map((col) => col.id));
     const visibleColumns = Array.isArray(parsed.visibleColumns)
       ? parsed.visibleColumns.filter((id): id is JournalTradesTableColumnId => validIds.has(id as JournalTradesTableColumnId))
       : defaults.visibleColumns;
-    const density = parsed.density === "comfortable" ? "comfortable" : "compact";
+    const columnOrder = normalizeJournalTradesColumnOrder(
+      Array.isArray(parsed.columnOrder)
+        ? parsed.columnOrder.filter((id): id is JournalTradesTableColumnId =>
+            validIds.has(id as JournalTradesTableColumnId),
+          )
+        : defaults.columnOrder,
+    );
     const pageSize = JOURNAL_TRADES_PAGE_SIZE_OPTIONS.includes(
       parsed.pageSize as (typeof JOURNAL_TRADES_PAGE_SIZE_OPTIONS)[number],
     )
@@ -132,7 +231,7 @@ export function readJournalTradesTablePrefs(): JournalTradesTablePrefs {
       : defaults.pageSize;
     return {
       visibleColumns: visibleColumns.length > 0 ? visibleColumns : defaults.visibleColumns,
-      density,
+      columnOrder,
       pageSize,
     };
   } catch {
@@ -144,6 +243,9 @@ export function writeJournalTradesTablePrefs(prefs: JournalTradesTablePrefs): vo
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    void import("@/lib/userPreferences/userPreferencesSync").then(({ notifyUserPreferencesChanged }) =>
+      notifyUserPreferencesChanged(),
+    );
   } catch {
     // ignore quota / private mode
   }
@@ -266,12 +368,9 @@ export function paginateJournalTrades<T>(
   };
 }
 
-export function formatJournalTradesResultLabel(meta: JournalTradesPaginationMeta): string {
+export function formatJournalTradesResultLabel(meta: JournalTradesResultMeta): string {
   if (meta.total === 0) return "No trades";
-  if (meta.total <= meta.pageSize) {
-    return `${meta.total} trade${meta.total === 1 ? "" : "s"}`;
-  }
-  return `Showing ${meta.from}–${meta.to} of ${meta.total} trades`;
+  return `${meta.total} trade${meta.total === 1 ? "" : "s"}`;
 }
 
 export function hasActiveJournalScope(
@@ -290,6 +389,7 @@ export function hasActiveJournalScope(
 export function toggleJournalTradesTableColumn(
   visibleColumns: JournalTradesTableColumnId[],
   columnId: JournalTradesTableColumnId,
+  columnOrder: JournalTradesTableColumnId[] = DEFAULT_JOURNAL_TRADES_COLUMN_ORDER,
 ): JournalTradesTableColumnId[] {
   const column = JOURNAL_TRADES_TABLE_COLUMNS.find((col) => col.id === columnId);
   if (!column?.toggleable) return visibleColumns;
@@ -301,7 +401,7 @@ export function toggleJournalTradesTableColumn(
     set.add(columnId);
   }
   set.add("chart");
-  return JOURNAL_TRADES_TABLE_COLUMNS.filter((col) => set.has(col.id)).map((col) => col.id);
+  return resolveOrderedVisibleColumns(columnOrder, [...set]);
 }
 
 export function sortAriaValue(

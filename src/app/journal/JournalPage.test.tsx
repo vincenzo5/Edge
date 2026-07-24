@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({
@@ -78,6 +78,25 @@ function mockJournalTrades(overrides: {
   };
 }
 
+const accountState = vi.hoisted(() => ({
+  value: {
+    activeTradingAccountId: "U25026894",
+    positions: [
+      {
+        account: "U25026894",
+        contract: { symbol: "SPY", secType: "STK", conId: 756733 },
+        position: 10,
+        avgCost: 450.25,
+      },
+    ],
+    summary: { tags: {} },
+  },
+}));
+
+vi.mock("@/app/components/AccountProvider", () => ({
+  useAccountOptional: () => accountState.value,
+}));
+
 vi.mock("@/app/components/journal/JournalSyncProvider", () => ({
   useJournalSync: () => ({
     lastSyncedAt: null,
@@ -96,23 +115,68 @@ import { useJournalTrades } from "@/app/components/journal/JournalTradesProvider
 
 describe("JournalDashboardView", () => {
   beforeEach(() => {
+    accountState.value = {
+      activeTradingAccountId: "U25026894",
+      positions: [
+        {
+          account: "U25026894",
+          contract: { symbol: "SPY", secType: "STK", conId: 756733 },
+          position: 10,
+          avgCost: 450.25,
+        },
+      ],
+      summary: { tags: {} },
+    };
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
     vi.clearAllMocks();
     vi.mocked(useJournalTrades).mockReturnValue(mockJournalTrades());
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("renders dashboard with calendar, equity chart, and summary cards", () => {
     render(<JournalDashboardView />);
     expect(screen.getByTestId("journal-dashboard-view")).toBeInTheDocument();
-    expect(screen.getByText("Avg win/loss trade")).toBeInTheDocument();
+    expect(screen.getByText("Avg win/loss")).toBeInTheDocument();
     expect(screen.getByTestId("journal-calendar")).toBeInTheDocument();
     expect(screen.getByTestId("journal-equity-chart")).toBeInTheDocument();
     expect(screen.queryByTestId("journal-trade-table")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("journal-breakdown-row-breakout")).not.toBeInTheDocument();
+    expect(screen.getByTestId("journal-breakdown-report")).toBeInTheDocument();
+    expect(screen.getByTestId("journal-breakdown-row-breakout")).toBeInTheDocument();
+  });
+
+  it("does not render the legacy out-of-sync content banner", () => {
+    accountState.value = {
+      activeTradingAccountId: "U25026894",
+      positions: [],
+      summary: { tags: {} },
+    };
+
+    render(<JournalDashboardView />);
+    expect(screen.queryByTestId("journal-out-of-sync-banner")).not.toBeInTheDocument();
+  });
+
+  it("shows history sync chip in standalone dashboard header when out of sync", () => {
+    accountState.value = {
+      activeTradingAccountId: "U25026894",
+      positions: [],
+      summary: { tags: {} },
+    };
+
+    render(<JournalDashboardView />);
+    expect(screen.getByTestId("journal-history-sync-chip")).toHaveTextContent("History lagging");
   });
 
   it("renders scope bar in sticky dashboard header without sync or import actions", () => {
     render(<JournalDashboardView />);
-    const header = screen.getByText("Dashboard").closest("header");
+    const header = screen.getByTestId("journal-scope-bar").closest("header");
     expect(header).not.toBeNull();
     expect(header!.className).toContain("sticky");
     expect(screen.getByTestId("journal-scope-bar")).toBeInTheDocument();
@@ -130,15 +194,14 @@ describe("JournalDashboardView", () => {
     render(<JournalDashboardView />);
     expect(screen.getByTestId("journal-recent-trades-card-row-t1")).toBeInTheDocument();
     expect(screen.getByTestId("journal-recent-trades-card-row-t2")).toBeInTheDocument();
-    expect(screen.getByTestId("journal-open-positions-card-row-t3")).toBeInTheDocument();
+    expect(screen.getByTestId("journal-open-positions-card-row-SPY")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByTestId("journal-period-select"), { target: { value: "today" } });
+    fireEvent.click(screen.getByTestId("journal-period-select"));
+    fireEvent.click(screen.getByTestId("journal-period-select-option-today"));
 
     expect(screen.queryByTestId("journal-recent-trades-card-row-t1")).not.toBeInTheDocument();
     expect(screen.getByTestId("journal-recent-trades-card-row-t2")).toBeInTheDocument();
-    expect(screen.getByTestId("journal-open-positions-card-row-t3")).toBeInTheDocument();
-
-    vi.useRealTimers();
+    expect(screen.getByTestId("journal-open-positions-card-row-SPY")).toBeInTheDocument();
   });
 
   it("renders recent trades and open positions list cards", () => {
@@ -146,7 +209,7 @@ describe("JournalDashboardView", () => {
     expect(screen.getByTestId("journal-recent-trades-card")).toBeInTheDocument();
     expect(screen.getByTestId("journal-open-positions-card")).toBeInTheDocument();
     expect(screen.getByTestId("journal-recent-trades-card-row-t1")).toBeInTheDocument();
-    expect(screen.getByTestId("journal-open-positions-card-row-t3")).toBeInTheDocument();
+    expect(screen.getByTestId("journal-open-positions-card-row-SPY")).toBeInTheDocument();
   });
 
   it("opens trade detail drawer from recent trades card row", () => {
@@ -230,9 +293,73 @@ describe("JournalDashboardView", () => {
 });
 
 describe("JournalTradesView", () => {
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
   beforeEach(() => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      if (this.getAttribute("data-testid") === "journal-trades-table") {
+        return {
+          width: 800,
+          height: 400,
+          top: 0,
+          left: 0,
+          bottom: 400,
+          right: 800,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return originalGetBoundingClientRect.call(this);
+    };
+    class MockResizeObserver {
+      private callback: ResizeObserverCallback;
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+      }
+
+      observe(target: Element) {
+        const rect = target.getBoundingClientRect();
+        this.callback(
+          [
+            {
+              target,
+              contentRect: {
+                width: rect.width,
+                height: rect.height,
+                top: 0,
+                left: 0,
+                bottom: rect.height,
+                right: rect.width,
+                x: 0,
+                y: 0,
+                toJSON: () => ({}),
+              },
+            } as ResizeObserverEntry,
+          ],
+          this,
+        );
+      }
+
+      unobserve() {}
+
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.clearAllMocks();
     vi.mocked(useJournalTrades).mockReturnValue(mockJournalTrades());
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
   });
 
   it("shows loading skeleton on trades page when fetching", () => {
@@ -255,7 +382,7 @@ describe("JournalTradesView", () => {
 
   it("renders scope bar in sticky trades header", async () => {
     render(<JournalTradesView />);
-    const header = screen.getByText("Trades").closest("header");
+    const header = screen.getByTestId("journal-scope-bar").closest("header");
     expect(header).not.toBeNull();
     expect(header!.className).toContain("sticky");
     expect(screen.getByTestId("journal-scope-bar")).toBeInTheDocument();
@@ -270,7 +397,7 @@ describe("JournalTradesView", () => {
     expect(screen.getByText("Account equity")).toBeInTheDocument();
     expect(screen.getByText("Trade win %")).toBeInTheDocument();
     expect(screen.getByText("Profit factor")).toBeInTheDocument();
-    expect(screen.getByText("Avg win/loss trade")).toBeInTheDocument();
+    expect(screen.getByText("Avg win/loss")).toBeInTheDocument();
     await screen.findByTestId("journal-trades-table");
   });
 
@@ -329,7 +456,7 @@ describe("JournalTradesView", () => {
     expect(await screen.findByTestId("journal-trades-table")).toBeInTheDocument();
   });
 
-  it("paginates trades and updates result count", async () => {
+  it("virtualizes large trade lists and shows total result count", async () => {
     const manyTrades = Array.from({ length: 30 }, (_, index) => ({
       id: `bulk-${index}`,
       status: "closed" as const,
@@ -350,16 +477,10 @@ describe("JournalTradesView", () => {
 
     render(<JournalTradesView />);
     await screen.findByTestId("journal-trades-table-controls");
-    fireEvent.change(screen.getByTestId("journal-trades-page-size"), { target: { value: "25" } });
-    expect(screen.getByTestId("journal-trades-result-count")).toHaveTextContent(
-      "Showing 1–25 of 30 trades",
-    );
-    expect(screen.getAllByRole("row").length - 1).toBe(25);
-    fireEvent.click(screen.getByTestId("journal-trades-page-next"));
-    expect(screen.getByTestId("journal-trades-result-count")).toHaveTextContent(
-      "Showing 26–30 of 30 trades",
-    );
-    expect(screen.getAllByRole("row").length - 1).toBe(5);
+    expect(screen.getByTestId("journal-trades-result-count")).toHaveTextContent("30 trades");
+    const rows = screen.getAllByTestId(/^journal-trades-row-/);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThan(30);
   });
 
   it("hides a column via the columns popover", async () => {
@@ -367,15 +488,7 @@ describe("JournalTradesView", () => {
     const table = await screen.findByTestId("journal-trades-table");
     expect(table).toHaveTextContent("Setup");
     fireEvent.click(screen.getByTestId("journal-trades-columns-trigger"));
-    fireEvent.click(screen.getByTestId("journal-trades-column-setup"));
+    fireEvent.click(screen.getByTestId("journal-trades-column-setup").querySelector("input")!);
     expect(table).not.toHaveTextContent("Setup");
-  });
-
-  it("switches table density via toolbar control", async () => {
-    render(<JournalTradesView />);
-    const table = await screen.findByTestId("journal-trades-table");
-    expect(table).toHaveAttribute("data-density", "compact");
-    fireEvent.click(screen.getByRole("tab", { name: "Comfortable" }));
-    expect(table).toHaveAttribute("data-density", "comfortable");
   });
 });

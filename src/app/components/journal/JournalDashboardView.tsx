@@ -8,18 +8,32 @@ import JournalScopeBar from "@/app/components/journal/JournalScopeBar";
 import JournalCalendar from "@/app/components/journal/JournalCalendar";
 import JournalDaySummaryModal from "@/app/components/journal/JournalDaySummaryModal";
 import JournalEquityChart from "@/app/components/journal/JournalEquityChart";
+import JournalBreakdownReport from "@/app/components/journal/JournalBreakdownReport";
+import JournalCompareReport from "@/app/components/journal/JournalCompareReport";
+import JournalTimeReport from "@/app/components/journal/JournalTimeReport";
 import JournalModuleHeader from "@/app/components/journal/JournalModuleHeader";
 import JournalTradeListCard from "@/app/components/journal/JournalTradeListCard";
+import JournalLivePositionsCard from "@/app/components/journal/JournalLivePositionsCard";
 import JournalContentGate from "@/app/components/journal/JournalContentGate";
+import JournalHistorySyncChip from "@/app/components/journal/JournalHistorySyncChip";
+import JournalViewTabs from "@/app/components/journal/JournalViewTabs";
+import {
+  JournalTileActions,
+  JournalTileTitle,
+} from "@/app/components/app-workspace/JournalTileChrome";
+import { useJournalTileViewOptional } from "@/app/components/app-workspace/JournalTileViewContext";
+import { useTileDensity } from "@/app/components/app-workspace/TileDensityContext";
+import { journalDashboardSectionGridClass } from "@/lib/responsive/tileDensity";
 import { useJournalTrades } from "@/app/components/journal/JournalTradesProvider";
 import {
   filterTradesClosedOnDate,
   computeDailyPnL,
   computeEquityCurve,
   computeJournalStats,
+  computeBreakdownReport,
+  computeTimeBreakdownReport,
   EMPTY_JOURNAL_FILTERS,
   filterJournalTrades,
-  filterOpenJournalTrades,
   scopeClosedTradesForReporting,
   type JournalFilters,
   type JournalStatsWindow,
@@ -35,6 +49,8 @@ function currentCalendarMonth(): { year: number; month: number } {
 
 export default function JournalDashboardView() {
   const account = useAccountOptional();
+  const tileView = useJournalTileViewOptional();
+  const { mode } = useTileDensity();
   const { allTrades, loadTrades, setAllTrades } = useJournalTrades();
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [window, setWindow] = useState<JournalStatsWindow>(defaultJournalScopeState().window);
@@ -75,6 +91,28 @@ export default function JournalDashboardView() {
 
   const equityPoints = useMemo(() => computeEquityCurve(scopedClosedTrades), [scopedClosedTrades]);
 
+  const setupBreakdownRows = useMemo(
+    () => computeBreakdownReport(scopedClosedTrades, "setup"),
+    [scopedClosedTrades],
+  );
+  const tagBreakdownRows = useMemo(
+    () => computeBreakdownReport(scopedClosedTrades, "tag"),
+    [scopedClosedTrades],
+  );
+  const ratingBreakdownRows = useMemo(
+    () => computeBreakdownReport(scopedClosedTrades, "rating"),
+    [scopedClosedTrades],
+  );
+
+  const hourBreakdownRows = useMemo(
+    () => computeTimeBreakdownReport(scopedClosedTrades, "hour"),
+    [scopedClosedTrades],
+  );
+  const weekdayBreakdownRows = useMemo(
+    () => computeTimeBreakdownReport(scopedClosedTrades, "weekday"),
+    [scopedClosedTrades],
+  );
+
   const recentClosedTrades = useMemo(() => {
     const scopedSet = new Set(scopedClosedTrades);
     return allTrades
@@ -86,15 +124,12 @@ export default function JournalDashboardView() {
       .sort((a, b) => b.closedAt!.localeCompare(a.closedAt!));
   }, [allTrades, scopedClosedTrades]);
 
-  const openTrades = useMemo(() => {
-    const openScoped = filterOpenJournalTrades(reportTrades, filters);
-    const openSet = new Set(openScoped);
-    return allTrades
-      .filter(
-        (trade) => trade.status === "open" && openSet.has(trade as JournalReportTradeInput),
-      )
-      .sort((a, b) => b.openedAt.localeCompare(a.openedAt));
-  }, [allTrades, reportTrades, filters]);
+  const livePositionsForAccount = useMemo(() => {
+    const accountId = account?.activeTradingAccountId?.trim();
+    const positions = account?.positions ?? [];
+    if (!accountId) return positions;
+    return positions.filter((row) => (row.account?.trim() ?? "") === accountId);
+  }, [account?.activeTradingAccountId, account?.positions]);
 
   const daySummaryTrades = useMemo(() => {
     if (!daySummaryDate) return [];
@@ -112,7 +147,13 @@ export default function JournalDashboardView() {
 
   return (
     <>
-      <JournalModuleHeader title="Dashboard" showActions={false} sticky>
+      <JournalModuleHeader
+        sticky
+        title={tileView ? <JournalTileTitle /> : undefined}
+        leading={<JournalViewTabs />}
+        trailing={tileView ? <JournalTileActions /> : undefined}
+      >
+        {tileView == null ? <JournalHistorySyncChip /> : null}
         <JournalScopeBar
           mode="dashboard"
           filters={filters}
@@ -126,12 +167,13 @@ export default function JournalDashboardView() {
           <div>
             <JournalSummaryCards stats={stats} accountEquity={accountEquity} />
           </div>
-          <div className="mt-4 grid min-h-96 gap-4 lg:grid-cols-2 lg:items-stretch">
+          <div className={journalDashboardSectionGridClass(mode, "min-h-96")}>
             <div className="h-full min-h-0">
               <JournalCalendar
                 year={calendarMonth.year}
                 month={calendarMonth.month}
                 dailyRows={calendarDailyRows}
+                selectedDate={daySummaryDate}
                 onDayClick={setDaySummaryDate}
                 onMonthChange={(year, month) => setCalendarMonth({ year, month })}
               />
@@ -140,7 +182,16 @@ export default function JournalDashboardView() {
               <JournalEquityChart points={equityPoints} />
             </div>
           </div>
-          <div className="mt-4 grid min-h-80 gap-4 lg:grid-cols-2 lg:items-stretch">
+          <JournalBreakdownReport
+            setupRows={setupBreakdownRows}
+            tagRows={tagBreakdownRows}
+            ratingRows={ratingBreakdownRows}
+          />
+          <div className={journalDashboardSectionGridClass(mode, "min-h-72")}>
+            <JournalCompareReport baseTrades={scopedClosedTrades} />
+            <JournalTimeReport hourRows={hourBreakdownRows} weekdayRows={weekdayBreakdownRows} />
+          </div>
+          <div className={journalDashboardSectionGridClass(mode, "min-h-80")}>
             <JournalTradeListCard
               title="Recent trades"
               testId="journal-recent-trades-card"
@@ -148,13 +199,7 @@ export default function JournalDashboardView() {
               trades={recentClosedTrades}
               onSelectTrade={setSelectedTradeId}
             />
-            <JournalTradeListCard
-              title="Open positions"
-              testId="journal-open-positions-card"
-              variant="open"
-              trades={openTrades}
-              onSelectTrade={setSelectedTradeId}
-            />
+            <JournalLivePositionsCard positions={livePositionsForAccount} />
           </div>
         </JournalContentGate>
       </main>

@@ -1,7 +1,7 @@
 import type { JournalFilters, JournalStatsWindow } from "@/lib/journal/journalStats";
 import { EMPTY_JOURNAL_FILTERS } from "@/lib/journal/journalStats";
 
-export type JournalFilterHelpersMode = "dashboard" | "trades";
+export type JournalFilterHelpersMode = "dashboard" | "trades" | "open";
 
 export type JournalFilterChip = {
   id: string;
@@ -87,6 +87,15 @@ export function buildJournalFilterChips(
       id: "outcome",
       label: outcome === "win" ? "Wins" : "Losses",
       clearPatch: { outcome: "all" },
+    });
+  }
+
+  const rating = filters.rating ?? "all";
+  if (rating !== "all") {
+    chips.push({
+      id: "rating",
+      label: rating === "unrated" ? "Unrated" : `Rating ${rating}`,
+      clearPatch: { rating: "all" },
     });
   }
 

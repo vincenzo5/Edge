@@ -21,11 +21,12 @@ function formatPercent(value: number | null): string {
 type Props = {
   setupRows: BreakdownRow[];
   tagRows: BreakdownRow[];
+  ratingRows: BreakdownRow[];
 };
 
-export default function JournalBreakdownReport({ setupRows, tagRows }: Props) {
-  const [tab, setTab] = useState<"setup" | "tag">("setup");
-  const rows = tab === "setup" ? setupRows : tagRows;
+export default function JournalBreakdownReport({ setupRows, tagRows, ratingRows }: Props) {
+  const [tab, setTab] = useState<"setup" | "tag" | "rating">("setup");
+  const rows = tab === "setup" ? setupRows : tab === "tag" ? tagRows : ratingRows;
 
   return (
     <section
@@ -40,6 +41,9 @@ export default function JournalBreakdownReport({ setupRows, tagRows }: Props) {
           </TabButton>
           <TabButton active={tab === "tag"} onClick={() => setTab("tag")} testId="journal-breakdown-tags">
             Tags
+          </TabButton>
+          <TabButton active={tab === "rating"} onClick={() => setTab("rating")} testId="journal-breakdown-rating">
+            Rating
           </TabButton>
         </div>
       </div>

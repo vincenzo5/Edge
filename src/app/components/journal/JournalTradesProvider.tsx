@@ -12,10 +12,16 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import type { JournalFillResponse, JournalTradeResponse } from "@/lib/persistence/schemas/journal";
-import { fetchJournalTrades, fetchJournalFills } from "@/lib/persistence/client/journalClient";
+import type { JournalTradeResponse } from "@/lib/persistence/schemas/journal";
+import {
+  fetchJournalFillAccountIndex,
+  fetchJournalProviderTrades,
+  invalidateJournalPersistenceCache,
+} from "@/lib/persistence/client/journalClient";
 import { useJournalSync } from "@/app/components/journal/JournalSyncProvider";
 import { useAccountOptional } from "@/app/components/AccountProvider";
+import { collectFillExecIds } from "@/lib/journal/journalProviderLoad";
+import { JOURNAL_PROVIDER_TRADE_LIMIT } from "@/lib/journal/journalProviderConstants";
 import { filterTradesByAccount } from "@/lib/journal/filterTradesByAccount";
 
 const LOAD_TRADES_ERROR_MESSAGE = "Could not load journal trades. Check your connection and try again.";
@@ -37,14 +43,16 @@ export function JournalTradesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rawTrades, setRawTrades] = useState<JournalTradeResponse[]>([]);
-  const [fills, setFills] = useState<JournalFillResponse[]>([]);
+  const [fillAccountByExecId, setFillAccountByExecId] = useState<
+    ReadonlyMap<string, string | null>
+  >(() => new Map());
   const hasTradesRef = useRef(false);
 
   hasTradesRef.current = rawTrades.length > 0;
 
   const allTrades = useMemo(
-    () => filterTradesByAccount(rawTrades, fills, account?.activeTradingAccountId),
-    [rawTrades, fills, account?.activeTradingAccountId],
+    () => filterTradesByAccount(rawTrades, fillAccountByExecId, account?.activeTradingAccountId),
+    [rawTrades, fillAccountByExecId, account?.activeTradingAccountId],
   );
 
   const loadTrades = useCallback(async (background = false) => {
@@ -52,12 +60,14 @@ export function JournalTradesProvider({ children }: { children: ReactNode }) {
       setLoading(true);
     }
     try {
-      const [tradesResult, fillsResult] = await Promise.all([
-        fetchJournalTrades(),
-        fetchJournalFills(),
-      ]);
-      setRawTrades(tradesResult);
-      setFills(fillsResult);
+      const tradesResult = await fetchJournalProviderTrades();
+      const boundedTrades =
+        tradesResult.length > JOURNAL_PROVIDER_TRADE_LIMIT
+          ? tradesResult.slice(0, JOURNAL_PROVIDER_TRADE_LIMIT)
+          : tradesResult;
+      const accountIndex = await fetchJournalFillAccountIndex(collectFillExecIds(boundedTrades));
+      setRawTrades(boundedTrades);
+      setFillAccountByExecId(accountIndex);
       setError(null);
     } catch {
       if (!hasTradesRef.current) {
@@ -79,6 +89,7 @@ export function JournalTradesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (lastSyncedAt == null) return;
+    invalidateJournalPersistenceCache();
     void loadTrades(true);
   }, [lastSyncedAt, loadTrades]);
 

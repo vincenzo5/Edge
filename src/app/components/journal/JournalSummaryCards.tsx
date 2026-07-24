@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Tooltip from "@/app/components/Tooltip";
+import { useTileDensity } from "@/app/components/app-workspace/TileDensityContext";
 import { toneTextClass, type EdgeTone } from "@/lib/design-system/edge";
+import {
+  journalHeroCardSpanClass,
+  journalSummaryGridClass,
+} from "@/lib/responsive/tileDensity";
 import type { JournalStats } from "@/lib/journal/journalStats";
 
 const ACCOUNT_EQUITY_HELP =
@@ -18,7 +23,9 @@ const PROFIT_FACTOR_HELP =
   "Total profits divided by total losses. A profit factor above 1.0 indicates a profitable trading system.";
 
 const AVG_WIN_LOSS_HELP =
-  "The average profit on all winning and losing trades.";
+  "The average profit on all winning and losing trades (avg win/loss trade).";
+
+const EQUITY_FLASH_MS = 2_000;
 
 const GAUGE_SIZE = 88;
 const GAUGE_CX = GAUGE_SIZE / 2;
@@ -234,29 +241,36 @@ type Props = {
 };
 
 export default function JournalSummaryCards({ stats, accountEquity }: Props) {
+  const { mode } = useTileDensity();
+  const heroSpan = journalHeroCardSpanClass(mode);
+
   return (
     <section data-testid="journal-summary-cards">
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-8">
+      <div className={journalSummaryGridClass(mode)}>
         <AccountEquityMetricCard
           accountEquity={accountEquity}
           netPnL={stats.netPnL}
           closedCount={stats.closedCount}
+          heroSpan={heroSpan}
         />
         <WinRateMetricCard
           winRate={stats.winRate}
           winCount={stats.winCount}
           lossCount={stats.lossCount}
           closedCount={stats.closedCount}
+          heroSpan={heroSpan}
         />
         <ProfitFactorMetricCard
           profitFactor={stats.profitFactor}
           totalProfit={stats.totalProfit}
           totalLoss={stats.totalLoss}
+          heroSpan={heroSpan}
         />
         <AvgWinLossMetricCard
           expectancy={stats.expectancy}
           avgWin={stats.avgWin}
           avgLoss={stats.avgLoss}
+          heroSpan={heroSpan}
         />
       </div>
     </section>
@@ -280,16 +294,18 @@ function MetricHelpIcon({ content, ariaLabel }: { content: string; ariaLabel: st
 function HeroMetricCardShell({
   testId,
   hoverPill,
+  heroSpan = "md:col-span-2",
   children,
 }: {
   testId: string;
   hoverPill?: ReactNode;
+  heroSpan?: string;
   children: ReactNode;
 }) {
   return (
     <div
       data-testid={testId}
-      className="group relative rounded-xl border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] p-4 md:col-span-2"
+      className={`group relative rounded-xl border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] p-4 ${heroSpan}`.trim()}
     >
       {hoverPill}
       {children}
@@ -324,6 +340,7 @@ function HeroMetricCardLayout({
   helpAriaLabel,
   headerTrailing,
   value,
+  secondary,
   visual,
 }: {
   label: string;
@@ -331,19 +348,23 @@ function HeroMetricCardLayout({
   helpAriaLabel: string;
   headerTrailing?: ReactNode;
   value: ReactNode;
+  secondary?: ReactNode;
   visual?: ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex h-4 items-center gap-1 text-sm leading-none text-[var(--edge-text-secondary)]">
-          <span>{label}</span>
-          <MetricHelpIcon content={helpContent} ariaLabel={helpAriaLabel} />
-          {headerTrailing}
-        </div>
-        <div className="mt-1">{value}</div>
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex min-w-0 items-center gap-1 text-sm leading-none text-[var(--edge-text-secondary)]">
+        <span className="truncate">{label}</span>
+        <MetricHelpIcon content={helpContent} ariaLabel={helpAriaLabel} />
+        {headerTrailing ? <div className="ml-auto shrink-0">{headerTrailing}</div> : null}
       </div>
-      {visual ? <div className="shrink-0 self-start">{visual}</div> : null}
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="min-w-0">{value}</div>
+          {secondary ? <div className="mt-1 min-w-0">{secondary}</div> : null}
+        </div>
+        {visual ? <div className="shrink-0 self-center">{visual}</div> : null}
+      </div>
     </div>
   );
 }
@@ -352,14 +373,65 @@ function AccountEquityMetricCard({
   accountEquity,
   netPnL,
   closedCount,
+  heroSpan,
 }: {
   accountEquity: number | null;
   netPnL: number;
   closedCount: number;
+  heroSpan: string;
 }) {
+  const prevEquityRef = useRef<number | null>(null);
+  const equityInitializedRef = useRef(false);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [flashTone, setFlashTone] = useState<EdgeTone | null>(null);
+
+  useEffect(() => {
+    if (accountEquity == null) {
+      prevEquityRef.current = null;
+      equityInitializedRef.current = false;
+      setFlashTone(null);
+      return;
+    }
+
+    const previous = prevEquityRef.current;
+    if (!equityInitializedRef.current) {
+      equityInitializedRef.current = true;
+      prevEquityRef.current = accountEquity;
+      return;
+    }
+
+    if (previous != null && Math.abs(accountEquity - previous) >= 0.01) {
+      setFlashTone(accountEquity > previous ? "positive" : "negative");
+      if (flashTimerRef.current != null) {
+        clearTimeout(flashTimerRef.current);
+      }
+      flashTimerRef.current = setTimeout(() => {
+        setFlashTone(null);
+        flashTimerRef.current = null;
+      }, EQUITY_FLASH_MS);
+    }
+
+    prevEquityRef.current = accountEquity;
+  }, [accountEquity]);
+
+  useEffect(
+    () => () => {
+      if (flashTimerRef.current != null) {
+        clearTimeout(flashTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const equityToneClass =
+    flashTone != null ? toneTextClass(flashTone) : "text-[var(--edge-text-strong)]";
+  const equityFlash =
+    flashTone === "positive" ? "up" : flashTone === "negative" ? "down" : undefined;
+
   return (
     <HeroMetricCardShell
       testId="journal-account-equity-card"
+      heroSpan={heroSpan}
       hoverPill={
         <HeroHoverPill testId="journal-account-equity-hover-pill" visible={false}>
           Total Trades
@@ -373,29 +445,30 @@ function AccountEquityMetricCard({
         headerTrailing={
           <span
             data-testid="journal-net-pnl-closed-count"
-            className="ml-auto text-xs tabular-nums text-[var(--edge-text-muted)]"
+            className="text-xs tabular-nums text-[var(--edge-text-muted)]"
           >
             {tradeCountLabel(closedCount, "trade", "trades")}
           </span>
         }
         value={
-          <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
+          <span
+            data-testid="journal-account-equity-value"
+            data-flash={equityFlash}
+            className={`text-2xl font-semibold tabular-nums transition-colors duration-[2000ms] motion-reduce:transition-none ${equityToneClass}`}
+          >
+            {formatMoney(accountEquity ?? 0, accountEquity == null)}
+          </span>
+        }
+        secondary={
+          <span className="flex min-w-0 flex-wrap items-center gap-1">
             <span
-              data-testid="journal-account-equity-value"
-              className="text-2xl font-semibold tabular-nums text-[var(--edge-text-strong)]"
+              data-testid="journal-net-pnl-suffix"
+              className={`text-sm font-medium tabular-nums ${toneTextClass(pnlTone(netPnL))}`}
             >
-              {formatMoney(accountEquity ?? 0, accountEquity == null)}
+              {formatCompactMoney(netPnL)}
             </span>
-            <span className="flex items-center gap-1">
-              <span
-                data-testid="journal-net-pnl-suffix"
-                className={`text-base font-medium tabular-nums ${toneTextClass(pnlTone(netPnL))}`}
-              >
-                {formatMoney(netPnL)}
-              </span>
-              <MetricHelpIcon content={NET_PNL_HELP} ariaLabel="Net P&L help" />
-            </span>
-          </div>
+            <MetricHelpIcon content={NET_PNL_HELP} ariaLabel="Net P&L help" />
+          </span>
         }
       />
     </HeroMetricCardShell>
@@ -519,11 +592,13 @@ function WinRateMetricCard({
   winCount,
   lossCount,
   closedCount,
+  heroSpan,
 }: {
   winRate: number | null;
   winCount: number;
   lossCount: number;
   closedCount: number;
+  heroSpan: string;
 }) {
   const breakevenCount = Math.max(0, closedCount - winCount - lossCount);
   const [hoveredSegment, setHoveredSegment] = useState<OutcomeSegment | null>(null);
@@ -540,6 +615,7 @@ function WinRateMetricCard({
   return (
     <HeroMetricCardShell
       testId="journal-win-rate-card"
+      heroSpan={heroSpan}
       hoverPill={
         <HeroHoverPill
           testId="journal-win-rate-hover-pill"
@@ -669,10 +745,12 @@ function ProfitFactorMetricCard({
   profitFactor,
   totalProfit,
   totalLoss,
+  heroSpan,
 }: {
   profitFactor: number | null;
   totalProfit: number;
   totalLoss: number;
+  heroSpan: string;
 }) {
   const [hoveredSegment, setHoveredSegment] = useState<ProfitFactorSegment | null>(null);
 
@@ -684,6 +762,7 @@ function ProfitFactorMetricCard({
   return (
     <HeroMetricCardShell
       testId="journal-profit-factor-card"
+      heroSpan={heroSpan}
       hoverPill={
         <HeroHoverPill
           testId="journal-profit-factor-hover-pill"
@@ -731,7 +810,7 @@ function AvgWinLossBar({
   const { winPct, lossPct, hasData } = buildAvgWinLossBarWidths(avgWin, avgLoss);
 
   return (
-    <div data-testid="journal-avg-win-loss-bar" className="w-full min-w-[7rem] max-w-[9rem]">
+    <div data-testid="journal-avg-win-loss-bar" className="w-full min-w-0">
       <div className="flex h-2.5 overflow-hidden rounded-full bg-[var(--edge-border)]">
         {hasData && winPct > 0 && (
           <div
@@ -752,16 +831,16 @@ function AvgWinLossBar({
           />
         )}
       </div>
-      <div className="relative mt-1 min-h-[1rem] w-full text-[10px] tabular-nums">
+      <div className="mt-1 flex w-full items-center justify-between gap-2 text-[10px] tabular-nums">
         <span
           data-testid="journal-avg-win-loss-label-win"
-          className="absolute left-0 text-[var(--edge-positive)]"
+          className="text-[var(--edge-positive)]"
         >
           {formatCompactMoney(avgWin)}
         </span>
         <span
           data-testid="journal-avg-win-loss-label-loss"
-          className="absolute right-0 text-right text-[var(--edge-negative)]"
+          className="text-right text-[var(--edge-negative)]"
         >
           {formatCompactMoney(avgLoss)}
         </span>
@@ -774,10 +853,12 @@ function AvgWinLossMetricCard({
   expectancy,
   avgWin,
   avgLoss,
+  heroSpan,
 }: {
   expectancy: number | null;
   avgWin: number | null;
   avgLoss: number | null;
+  heroSpan: string;
 }) {
   const [hoveredSegment, setHoveredSegment] = useState<AvgWinLossSegment | null>(null);
 
@@ -792,6 +873,7 @@ function AvgWinLossMetricCard({
   return (
     <HeroMetricCardShell
       testId="journal-avg-win-loss-card"
+      heroSpan={heroSpan}
       hoverPill={
         <HeroHoverPill
           testId="journal-avg-win-loss-hover-pill"
@@ -802,9 +884,9 @@ function AvgWinLossMetricCard({
       }
     >
       <HeroMetricCardLayout
-        label="Avg win/loss trade"
+        label="Avg win/loss"
         helpContent={AVG_WIN_LOSS_HELP}
-        helpAriaLabel="Avg win/loss trade help"
+        helpAriaLabel="Avg win/loss help"
         value={
           <div
             data-testid="journal-avg-win-loss-expectancy"
@@ -813,7 +895,7 @@ function AvgWinLossMetricCard({
             {formatMoney(expectancy ?? 0, expectancy == null)}
           </div>
         }
-        visual={
+        secondary={
           <AvgWinLossBar
             avgWin={avgWin}
             avgLoss={avgLoss}

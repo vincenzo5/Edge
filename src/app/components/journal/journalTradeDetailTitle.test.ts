@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { journalTradeDetailTitle } from "./journalTradeDetailTitle";
+import {
+  journalTradeDetailAriaLabel,
+  journalTradeDetailSubtitle,
+  journalTradeDetailTitle,
+  journalTradeDetailTitleText,
+} from "./journalTradeDetailTitle";
 import type { JournalTradeResponse } from "@/lib/persistence/schemas/journal";
 
 const trade: JournalTradeResponse = {
@@ -20,10 +25,18 @@ const trade: JournalTradeResponse = {
 };
 
 describe("journalTradeDetailTitle", () => {
-  it("builds slide-over title and subtitle", () => {
+  it("builds slide-over title and humanized subtitle", () => {
+    expect(journalTradeDetailTitleText(trade)).toBe("AAPL · STK · closed");
+    expect(journalTradeDetailSubtitle(trade)).toContain("Opened");
+    expect(journalTradeDetailSubtitle(trade)).toContain("Closed");
+    expect(journalTradeDetailSubtitle(trade)).toContain("ET");
     expect(journalTradeDetailTitle(trade)).toEqual({
       title: "AAPL · STK · closed",
-      subtitle: "Opened 2026-07-01T13:30:00 · Closed 2026-07-01T16:00:00",
+      subtitle: journalTradeDetailSubtitle(trade),
     });
+  });
+
+  it("builds aria label for slide-over", () => {
+    expect(journalTradeDetailAriaLabel(trade)).toBe("AAPL STK closed trade");
   });
 });

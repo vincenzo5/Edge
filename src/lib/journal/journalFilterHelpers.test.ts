@@ -48,4 +48,9 @@ describe("journalFilterHelpers", () => {
     const filters = { ...EMPTY_JOURNAL_FILTERS, status: "closed" as const };
     expect(countActiveJournalFilters(filters, { mode: "dashboard" })).toBe(0);
   });
+
+  it("ignores status in open mode", () => {
+    const filters = { ...EMPTY_JOURNAL_FILTERS, status: "open" as const };
+    expect(countActiveJournalFilters(filters, { mode: "open" })).toBe(0);
+  });
 });

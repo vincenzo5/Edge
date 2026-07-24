@@ -1,10 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+/** @vitest-environment jsdom */
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import JournalFilterDrawer from "./JournalFilterDrawer";
 import { EMPTY_JOURNAL_FILTERS } from "@/lib/journal/journalStats";
 
 describe("JournalFilterDrawer", () => {
+  beforeEach(() => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+  });
+
   it("renders panel when open", () => {
     render(
       <JournalFilterDrawer
@@ -30,9 +39,8 @@ describe("JournalFilterDrawer", () => {
       />,
     );
 
-    fireEvent.change(screen.getByTestId("journal-filter-drawer-setup"), {
-      target: { value: "breakout" },
-    });
+    fireEvent.click(screen.getByTestId("journal-filter-drawer-setup"));
+    fireEvent.click(screen.getByTestId("journal-filter-drawer-setup-option-breakout"));
     expect(onApply).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("journal-filter-drawer-apply"));
@@ -52,9 +60,8 @@ describe("JournalFilterDrawer", () => {
       />,
     );
 
-    fireEvent.change(screen.getByTestId("journal-filter-drawer-setup"), {
-      target: { value: "breakout" },
-    });
+    fireEvent.click(screen.getByTestId("journal-filter-drawer-setup"));
+    fireEvent.click(screen.getByTestId("journal-filter-drawer-setup-option-breakout"));
     fireEvent.click(screen.getByTestId("journal-filter-drawer-backdrop"));
     expect(onClose).toHaveBeenCalled();
     expect(onApply).not.toHaveBeenCalled();
@@ -96,7 +103,7 @@ describe("JournalFilterDrawer", () => {
     );
 
     fireEvent.click(screen.getByTestId("journal-filter-drawer-clear"));
-    expect(screen.getByTestId("journal-filter-drawer-setup")).toHaveValue("all");
+    expect(screen.getByTestId("journal-filter-drawer-setup")).toHaveTextContent("All setups");
     expect(screen.getByTestId("journal-filter-drawer-tag")).toHaveValue("");
   });
 });

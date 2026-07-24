@@ -6,85 +6,53 @@ import { defaultJournalTradesTablePrefs } from "@/lib/journal/journalTradesTable
 describe("JournalTradesTableControls", () => {
   const defaults = defaultJournalTradesTablePrefs();
 
+  function renderControls(
+    overrides: Partial<Parameters<typeof JournalTradesTableControls>[0]> = {},
+  ) {
+    return render(
+      <JournalTradesTableControls
+        meta={{ total: 47 }}
+        visibleColumns={defaults.visibleColumns}
+        columnOrder={defaults.columnOrder}
+        onVisibleColumnsChange={vi.fn()}
+        onColumnOrderChange={vi.fn()}
+        {...overrides}
+      />,
+    );
+  }
+
   it("shows result count label", () => {
-    render(
-      <JournalTradesTableControls
-        meta={{ total: 47, page: 1, pageSize: 25, pageCount: 2, from: 1, to: 25 }}
-        visibleColumns={defaults.visibleColumns}
-        density="compact"
-        onVisibleColumnsChange={vi.fn()}
-        onDensityChange={vi.fn()}
-        onPageSizeChange={vi.fn()}
-        onPageChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByTestId("journal-trades-result-count")).toHaveTextContent(
-      "Showing 1–25 of 47 trades",
-    );
+    renderControls();
+    expect(screen.getByTestId("journal-trades-result-count")).toHaveTextContent("47 trades");
   });
 
-  it("shows pagination when total exceeds page size", () => {
-    render(
-      <JournalTradesTableControls
-        meta={{ total: 60, page: 2, pageSize: 25, pageCount: 3, from: 26, to: 50 }}
-        visibleColumns={defaults.visibleColumns}
-        density="compact"
-        onVisibleColumnsChange={vi.fn()}
-        onDensityChange={vi.fn()}
-        onPageSizeChange={vi.fn()}
-        onPageChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByTestId("journal-trades-page-prev")).toBeInTheDocument();
-    expect(screen.getByTestId("journal-trades-page-indicator")).toHaveTextContent("2 / 3");
+  it("shows singular trade label", () => {
+    renderControls({ meta: { total: 1 } });
+    expect(screen.getByTestId("journal-trades-result-count")).toHaveTextContent("1 trade");
   });
 
-  it("hides pagination when all rows fit one page", () => {
-    render(
-      <JournalTradesTableControls
-        meta={{ total: 12, page: 1, pageSize: 50, pageCount: 1, from: 1, to: 12 }}
-        visibleColumns={defaults.visibleColumns}
-        density="compact"
-        onVisibleColumnsChange={vi.fn()}
-        onDensityChange={vi.fn()}
-        onPageSizeChange={vi.fn()}
-        onPageChange={vi.fn()}
-      />,
-    );
+  it("does not render pagination controls", () => {
+    renderControls({ meta: { total: 120 } });
     expect(screen.queryByTestId("journal-trades-page-prev")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("journal-trades-page-size")).not.toBeInTheDocument();
   });
 
-  it("calls onPageChange when next is clicked", () => {
-    const onPageChange = vi.fn();
-    render(
-      <JournalTradesTableControls
-        meta={{ total: 60, page: 1, pageSize: 25, pageCount: 3, from: 1, to: 25 }}
-        visibleColumns={defaults.visibleColumns}
-        density="compact"
-        onVisibleColumnsChange={vi.fn()}
-        onDensityChange={vi.fn()}
-        onPageSizeChange={vi.fn()}
-        onPageChange={onPageChange}
-      />,
-    );
-    fireEvent.click(screen.getByTestId("journal-trades-page-next"));
-    expect(onPageChange).toHaveBeenCalledWith(2);
+  it("does not render density segmented tabs", () => {
+    renderControls();
+    expect(screen.queryByTestId("journal-trades-density")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Comfortable" })).not.toBeInTheDocument();
   });
 
-  it("calls onDensityChange from segmented tabs", () => {
-    const onDensityChange = vi.fn();
-    render(
-      <JournalTradesTableControls
-        meta={{ total: 5, page: 1, pageSize: 50, pageCount: 1, from: 1, to: 5 }}
-        visibleColumns={defaults.visibleColumns}
-        density="compact"
-        onVisibleColumnsChange={vi.fn()}
-        onDensityChange={onDensityChange}
-        onPageSizeChange={vi.fn()}
-        onPageChange={vi.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByRole("tab", { name: "Comfortable" }));
-    expect(onDensityChange).toHaveBeenCalledWith("comfortable");
+  it("calls onColumnOrderChange when a column is reordered", () => {
+    const onColumnOrderChange = vi.fn();
+    renderControls({ onColumnOrderChange });
+    fireEvent.click(screen.getByTestId("journal-trades-columns-trigger"));
+    const setupRow = screen.getByTestId("journal-trades-column-setup").closest("[draggable='true']");
+    expect(setupRow).not.toBeNull();
+    fireEvent.dragStart(setupRow!, { dataTransfer: { effectAllowed: "move", setData: vi.fn() } });
+    const symbolRow = screen.getByTestId("journal-trades-column-symbol").closest("[draggable='true']");
+    fireEvent.dragOver(symbolRow!, { preventDefault: vi.fn(), dataTransfer: { dropEffect: "move" } });
+    fireEvent.drop(symbolRow!, { preventDefault: vi.fn() });
+    expect(onColumnOrderChange).toHaveBeenCalled();
   });
 });

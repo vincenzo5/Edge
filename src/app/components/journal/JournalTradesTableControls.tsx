@@ -1,51 +1,64 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { EdgeButton, EdgeSegmentedTabs } from "@/app/components/design-system";
+import { useRef, useState } from "react";
 import {
+  ColumnPickerPopover,
+  EdgeButton,
+} from "@/app/components/design-system";
+import {
+  defaultJournalTradesTablePrefs,
   formatJournalTradesResultLabel,
-  JOURNAL_TRADES_PAGE_SIZE_OPTIONS,
   JOURNAL_TRADES_TABLE_COLUMNS,
-  type JournalTradesPaginationMeta,
+  reorderJournalTradesToggleableColumns,
+  toggleJournalTradesTableColumn,
+  type JournalTradesResultMeta,
   type JournalTradesTableColumnId,
-  type JournalTradesTableDensity,
 } from "@/lib/journal/journalTradesTableControls";
 
 type Props = {
-  meta: JournalTradesPaginationMeta;
+  meta: JournalTradesResultMeta;
   visibleColumns: JournalTradesTableColumnId[];
-  density: JournalTradesTableDensity;
+  columnOrder: JournalTradesTableColumnId[];
   onVisibleColumnsChange: (columns: JournalTradesTableColumnId[]) => void;
-  onDensityChange: (density: JournalTradesTableDensity) => void;
-  onPageSizeChange: (pageSize: number) => void;
-  onPageChange: (page: number) => void;
+  onColumnOrderChange: (order: JournalTradesTableColumnId[]) => void;
 };
 
 export default function JournalTradesTableControls({
   meta,
   visibleColumns,
-  density,
+  columnOrder,
   onVisibleColumnsChange,
-  onDensityChange,
-  onPageSizeChange,
-  onPageChange,
+  onColumnOrderChange,
 }: Props) {
   const [columnsOpen, setColumnsOpen] = useState(false);
-  const columnsRef = useRef<HTMLDivElement>(null);
+  const columnsTriggerRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!columnsOpen) return;
-    function handlePointerDown(event: MouseEvent) {
-      if (!columnsRef.current?.contains(event.target as Node)) {
-        setColumnsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [columnsOpen]);
+  const toggleableColumnIds = columnOrder.filter(
+    (id) => JOURNAL_TRADES_TABLE_COLUMNS.find((col) => col.id === id)?.toggleable,
+  );
+  const toggleableColumns = toggleableColumnIds
+    .map((id) => JOURNAL_TRADES_TABLE_COLUMNS.find((col) => col.id === id))
+    .filter((col): col is NonNullable<typeof col> => col != null);
 
-  const showPagination = meta.total > meta.pageSize;
-  const toggleableColumns = JOURNAL_TRADES_TABLE_COLUMNS.filter((col) => col.toggleable);
+  const handleColumnToggle = (_sectionId: string, columnId: string) => {
+    onVisibleColumnsChange(
+      toggleJournalTradesTableColumn(
+        visibleColumns,
+        columnId as JournalTradesTableColumnId,
+        columnOrder,
+      ),
+    );
+  };
+
+  const handleColumnReorder = (_sectionId: string, fromIndex: number, toIndex: number) => {
+    onColumnOrderChange(reorderJournalTradesToggleableColumns(columnOrder, fromIndex, toIndex));
+  };
+
+  const handleResetColumns = () => {
+    const defaults = defaultJournalTradesTablePrefs();
+    onVisibleColumnsChange(defaults.visibleColumns);
+    onColumnOrderChange(defaults.columnOrder);
+  };
 
   return (
     <div
@@ -60,106 +73,40 @@ export default function JournalTradesTableControls({
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div ref={columnsRef} className="relative">
-          <EdgeButton
-            variant="chrome"
-            data-testid="journal-trades-columns-trigger"
-            onClick={() => setColumnsOpen((open) => !open)}
-          >
-            Columns
-          </EdgeButton>
-          {columnsOpen ? (
-            <div
-              data-testid="journal-trades-columns-popover"
-              className="edge-popover absolute right-0 z-20 mt-1 min-w-[10rem] rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] p-2 shadow-lg"
-            >
-              <ul className="flex flex-col gap-1">
-                {toggleableColumns.map((column) => {
-                  const checked = visibleColumns.includes(column.id);
-                  return (
-                    <li key={column.id}>
-                      <label className="flex cursor-pointer items-center gap-2 px-1 py-0.5 text-xs text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)]">
-                        <input
-                          type="checkbox"
-                          data-testid={`journal-trades-column-${column.id}`}
-                          checked={checked}
-                          onChange={() => {
-                            const set = new Set(visibleColumns);
-                            if (set.has(column.id)) {
-                              if (set.size > 2) set.delete(column.id);
-                            } else {
-                              set.add(column.id);
-                            }
-                            set.add("chart");
-                            const ordered = JOURNAL_TRADES_TABLE_COLUMNS.filter((col) =>
-                              set.has(col.id),
-                            ).map((col) => col.id);
-                            onVisibleColumnsChange(ordered);
-                          }}
-                        />
-                        <span>{column.label}</span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-
-        <div data-testid="journal-trades-density">
-          <EdgeSegmentedTabs
-            segments={[
-              { id: "compact", label: "Compact" },
-              { id: "comfortable", label: "Comfortable" },
-            ]}
-            value={density}
-            onChange={(id) => onDensityChange(id as JournalTradesTableDensity)}
-          />
-        </div>
-
-        <label className="inline-flex items-center gap-1.5 text-xs text-[var(--edge-text-secondary)]">
-          <span>Rows</span>
-          <select
-            data-testid="journal-trades-page-size"
-            className="rounded border border-[var(--edge-border)] bg-transparent px-2 py-1 text-xs text-[var(--edge-text-primary)]"
-            value={meta.pageSize}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
-          >
-            {JOURNAL_TRADES_PAGE_SIZE_OPTIONS.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {showPagination ? (
-          <div className="flex items-center gap-1">
-            <EdgeButton
-              variant="chrome"
-              data-testid="journal-trades-page-prev"
-              disabled={meta.page <= 1}
-              onClick={() => onPageChange(meta.page - 1)}
-            >
-              Prev
-            </EdgeButton>
-            <span
-              data-testid="journal-trades-page-indicator"
-              className="px-1 text-xs text-[var(--edge-text-secondary)]"
-            >
-              {meta.page} / {meta.pageCount}
-            </span>
-            <EdgeButton
-              variant="chrome"
-              data-testid="journal-trades-page-next"
-              disabled={meta.page >= meta.pageCount}
-              onClick={() => onPageChange(meta.page + 1)}
-            >
-              Next
-            </EdgeButton>
-          </div>
-        ) : null}
+        <EdgeButton
+          ref={columnsTriggerRef}
+          variant="chrome"
+          data-testid="journal-trades-columns-trigger"
+          aria-expanded={columnsOpen}
+          onClick={() => setColumnsOpen((open) => !open)}
+        >
+          Columns
+        </EdgeButton>
+        <ColumnPickerPopover
+          open={columnsOpen}
+          anchorRef={columnsTriggerRef}
+          onClose={() => setColumnsOpen(false)}
+          align="end"
+          minWidth={200}
+          className="p-2"
+          reorderable
+          sections={[
+            {
+              id: "columns",
+              label: "",
+              items: toggleableColumns.map((column) => ({
+                id: column.id,
+                label: column.label,
+                checked: visibleColumns.includes(column.id),
+                disabled: visibleColumns.includes(column.id) && visibleColumns.length <= 2,
+                testId: `journal-trades-column-${column.id}`,
+              })),
+            },
+          ]}
+          onToggle={handleColumnToggle}
+          onReorder={handleColumnReorder}
+          onReset={handleResetColumns}
+        />
       </div>
     </div>
   );
