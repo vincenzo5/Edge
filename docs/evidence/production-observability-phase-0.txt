@@ -1,0 +1,29 @@
+# Production observability — Phase 0 evidence
+# Date: 2026-07-24
+
+## Scope
+Docs-only — free-stack contract, probe semantics/auth, env placeholders, baseline inventory.
+No runtime code changes.
+
+## Delivered
+- src/lib/observability/ARCHITECTURE.md — probe contract, env knobs, baseline, deferrals
+- docs/CONSTRAINTS.md — Observability section (free-stack MUST NOT)
+- .env.example — EDGE_REQUEST_ID_HEADER, EDGE_READYZ_REQUIRE_TWS, retention placeholders
+- docs/roadmaps/production-observability-roadmap.md — Phase 0 pointers; removed missing canvas link
+- src/lib/marketData/ARCHITECTURE.md — production successor link (pre-existing in WIP)
+
+## Cross-links
+- ARCHITECTURE ↔ production-observability-roadmap.md ↔ market-data Local observability — verified
+
+## Architecture review
+Self-review Passed — docs-only; probe contract frozen for Phase 1.
+
+## App-level
+N/A (no runtime change)
+
+## Next
+Phase 1 — implement GET /healthz and GET /readyz
+
+## Verification (2026-07-24)
+- npm run lint:instructions → Instruction architecture validation passed.
+- npm run lint:roadmap-status → OK (at closeout)

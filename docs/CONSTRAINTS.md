@@ -71,12 +71,20 @@ Prefer encoding one-off lessons as tests instead of permanent narrative constrai
 - **MUST** require persistence session cookie (or `EDGE_TRADING_SERVICE_SECRET` header/Bearer) for mutating `/api/trading/*` order routes when Postgres is configured; read-only brokerage/status routes remain API-key-only; when persistence is disabled (`dev:lite`), API key alone is sufficient for paper mutations.
 - **MUST** validate same-user ownership before linking foreign keys: research-note `chartWorkspaceId`, journal snapshot `screenshotId`, alert trigger `notificationId` (app-layer checks via existing scoped getters).
 - **MUST** allowlist notification and UI link `href` values to `http:`, `https:`, and app-relative `/…` paths only; reject `javascript:`, `data:`, protocol-relative `//…`, and other schemes at schema/emit/render boundaries.
-- **MUST** send enforced `Content-Security-Policy` on app routes via Next headers; document residual exceptions (`unsafe-inline` for Next/theme bootstrap, `wasm-unsafe-eval` for indicator QuickJS, `blob:` for snapshots/workers). **MUST** send `Strict-Transport-Security` only when `NODE_ENV=production`.
+- **MUST** send enforced `Content-Security-Policy` on app routes via Next headers; document residual exceptions (`unsafe-inline` for Next/theme bootstrap, `wasm-unsafe-eval` for indicator QuickJS, `blob:` for snapshots/workers; **dev-only** `unsafe-eval` for React/Next call-stack reconstruction). **MUST** send `Strict-Transport-Security` only when `NODE_ENV=production`.
 - **MUST** default `IBKR_SSL_VERIFY` to on (TLS certificate verification); set `IBKR_SSL_VERIFY=false` only for local self-signed IBKR Gateway certs.
 - **MUST** require `TWS_SIDECAR_SECRET` when `TWS_SIDECAR_URL` hostname is not loopback (`127.0.0.1`, `localhost`, `::1`); loopback plaintext HTTP remains the default local exception.
 - **MUST** enforce server-side max age on signed persistence session cookies (`iat` + optional `jti`; browser `Max-Age` matches server TTL, currently 14 days); reject legacy unsigned or expired cookies.
 - **MUST** treat rotating `EDGE_AUTH_SECRET` as global logout for all signed session cookies.
 - **MUST** keep untrusted workspace snapshots out of the Copilot system prompt; strip client-supplied `system` chat roles at orchestration; tool permission checks and confirmation tokens remain the hard boundary for destructive actions (prompt isolation reduces but does not eliminate LLM social-engineering risk).
+
+## Observability
+
+*Applies when:* production ops surfaces (probes, structured logs, durable audit/errors, alerts) or extending `src/lib/observability/`. *Source:* [Production Observability Roadmap](./roadmaps/production-observability-roadmap.md) free-stack track. *Remove when:* superseded by an equivalent enforced contract.
+
+- **MUST NOT** add paid observability SaaS (Sentry, Datadog, PagerDuty, paid OTel backends, etc.) as **required** dependencies for production ops in this repo.
+- **MUST** reuse `redactDiagnostic` / `safeErrorResponse` on ops surfaces; never log or persist tool args, tokens, IB account IDs, or raw provider payloads.
+- **MUST** keep `/healthz` and `/readyz` cheap and secret-free in JSON responses when implemented — no connection strings, stacks, or internal URLs in probe bodies.
 
 ## Testing
 

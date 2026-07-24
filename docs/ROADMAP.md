@@ -280,6 +280,7 @@ Living feature tracks (phase detail in each file):
 - ~~[Memory efficiency](./roadmaps/memory-efficiency-roadmap.md)~~ — Phases 0–14 **Passing** (track complete; Phase 12 adapters)
 - [Shared cache topology](./roadmaps/shared-cache-topology-roadmap.md) — Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance coordination)
 - ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete
+- [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0 **Passing**; Phases 1–5 **Pending** (probes, structured logs, durable audit/errors, free alerts; no paid SaaS)
 - ~~[Plan → execute token efficiency](./roadmaps/plan-execute-token-efficiency-roadmap.md)~~ — Phase 0–6 **Passing** (track complete)
 
 Broader product backlog (not feature-track owned):
@@ -304,6 +305,7 @@ These are intentionally not near-term roadmap items:
 - Volume footprint, TPO, and session profile.
 - Public package release work for the internal chart/AI packages.
 - Broad cross-device collaboration / CRDT sync. Desk shell, per-tile charts, and user prefs cloud sync are phased in [Workspace State Persistence Roadmap](./roadmaps/workspace-state-persistence-roadmap.md); libraries/journal/scripts/alerts already use optional Postgres.
+- Paid observability SaaS (Sentry, Datadog, PagerDuty, etc.). Production ops use the free stack in [Production Observability Roadmap](./roadmaps/production-observability-roadmap.md).
 
 ## Source Docs
 
@@ -328,6 +330,7 @@ These are intentionally not near-term roadmap items:
 - [Data Serving Efficiency Roadmap](./roadmaps/data-serving-efficiency-roadmap.md) - **Complete** — client cache reuse, poll hygiene, home remote truth, screener/AI serving cost; Redis multi-instance skipped.
 - [Memory Efficiency Roadmap](./roadmaps/memory-efficiency-roadmap.md) - Phases 0–14 **Passing** (track complete; Redis shared cache optional behind `EDGE_MARKET_DATA_CACHE_BACKEND=redis`).
 - [Plan → Execute Token Efficiency Roadmap](./roadmaps/plan-execute-token-efficiency-roadmap.md) - Phase 0–6 **Passing** (track complete).
+- [Production Observability Roadmap](./roadmaps/production-observability-roadmap.md) - free-stack probes, logs, durable audit/errors, and alerts (no paid SaaS).
 - [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md) - sync/series consolidation and chart/app coordinator decomposition.
 - [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md) - follow-on structure: `lib`↛`app`, god-module budgets, components migration, chart shim sunset, harness hygiene.
 - [Chart Performance Baseline](./perf/chart-baseline-latest.json) - latest harness output from `npm run perf:chart`.
