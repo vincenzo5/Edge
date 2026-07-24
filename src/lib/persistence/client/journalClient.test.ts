@@ -4,12 +4,33 @@ import { clearLocalJournalSnapshot, upsertLocalJournalFills } from "@/lib/journa
 import type { JournalFill } from "@/lib/journal/types";
 
 const persistenceFetch = vi.fn();
+const localStores = vi.hoisted(() => ({
+  addScreenshot: vi.fn(),
+  addChartSnapshot: vi.fn(),
+}));
 
 vi.mock("@/lib/persistence/client/persistenceFetch", () => ({
   persistenceFetch: (...args: unknown[]) => persistenceFetch(...args),
 }));
 
-import { fetchJournalTrades, importJournalCsvRemote } from "@/lib/persistence/client/journalClient";
+vi.mock("@/lib/journal/localScreenshotStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/journal/localScreenshotStore")>()),
+  addLocalJournalTradeScreenshot: localStores.addScreenshot,
+  migrateLocalJournalTradeScreenshots: vi.fn(async () => 0),
+}));
+
+vi.mock("@/lib/journal/localChartSnapshotStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/journal/localChartSnapshotStore")>()),
+  addLocalJournalTradeChartSnapshot: localStores.addChartSnapshot,
+  migrateLocalJournalTradeChartSnapshots: vi.fn(async () => 0),
+}));
+
+import {
+  createJournalTradeChartSnapshotRemote,
+  fetchJournalTrades,
+  importJournalCsvRemote,
+  uploadJournalTradeScreenshot,
+} from "@/lib/persistence/client/journalClient";
 
 const historicalFill = (execId: string): JournalFill => ({
   execId,
@@ -35,9 +56,11 @@ describe("journalClient sync", () => {
   beforeEach(() => {
     clearLocalJournalSnapshot();
     persistenceFetch.mockReset();
+    localStores.addScreenshot.mockReset();
+    localStores.addChartSnapshot.mockReset();
   });
 
-  it("merges remote live fills with local CSV history instead of replacing it", async () => {
+  it("merges remote live fills with local CSV history and returns server trade ids", async () => {
     upsertLocalJournalFills([
       historicalFill("hist-1"),
       {
@@ -53,17 +76,74 @@ describe("journalClient sync", () => {
       if (path === "/api/me/journal/fills" && init?.method !== "POST") {
         return new Response(JSON.stringify({ fills: [liveFill()] }), { status: 200 });
       }
-      if (path === "/api/me/journal/trades") {
-        return new Response(JSON.stringify({ trades: [{ id: "remote-only", symbol: "HOOD" }] }), {
-          status: 200,
-        });
+      if (path.startsWith("/api/me/journal/trades")) {
+        return new Response(
+          JSON.stringify({
+            trades: [
+              {
+                id: "server-aapl",
+                status: "closed",
+                direction: "long",
+                symbol: "AAPL",
+                secType: "STK",
+                openedAt: "2026-06-01T13:30:00.000Z",
+                closedAt: "2026-06-02T13:30:00.000Z",
+                fillExecIds: ["hist-1", "hist-2"],
+                tags: [],
+                setup: null,
+                reviewNote: null,
+                createdAt: "2026-06-01T13:30:00.000Z",
+                updatedAt: "2026-06-02T13:30:00.000Z",
+              },
+              {
+                id: "server-hood",
+                status: "open",
+                direction: "long",
+                symbol: "HOOD",
+                secType: "STK",
+                openedAt: "2026-07-06T13:30:00.000Z",
+                closedAt: null,
+                fillExecIds: ["live-1"],
+                tags: [],
+                setup: null,
+                reviewNote: null,
+                createdAt: "2026-07-06T13:30:00.000Z",
+                updatedAt: "2026-07-06T13:30:00.000Z",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
       }
       return new Response(null, { status: 503 });
     });
 
     const trades = await fetchJournalTrades();
+    expect(trades.some((trade) => trade.symbol === "AAPL" && trade.id === "server-aapl")).toBe(
+      true,
+    );
+    expect(trades.some((trade) => trade.symbol === "HOOD" && trade.id === "server-hood")).toBe(
+      true,
+    );
+  });
+
+  it("falls back to local rebuilt trades when persistence returns 503", async () => {
+    upsertLocalJournalFills([
+      historicalFill("hist-1"),
+      {
+        ...historicalFill("hist-2"),
+        side: "SLD",
+        fillTime: "2026-06-02T13:30:00.000Z",
+        price: 155,
+        realizedPNL: 500,
+      },
+    ]);
+
+    persistenceFetch.mockResolvedValue(new Response(null, { status: 503 }));
+
+    const trades = await fetchJournalTrades();
     expect(trades.some((trade) => trade.symbol === "AAPL")).toBe(true);
-    expect(trades.some((trade) => trade.symbol === "HOOD")).toBe(true);
+    expect(trades.every((trade) => trade.id !== "server-aapl")).toBe(true);
   });
 
   it("mirrors CSV import locally even when import API succeeds", async () => {
@@ -90,6 +170,30 @@ describe("journalClient sync", () => {
       if (path === "/api/me/journal/fills") {
         return new Response(JSON.stringify({ fills: [] }), { status: 200 });
       }
+      if (path.startsWith("/api/me/journal/trades")) {
+        return new Response(
+          JSON.stringify({
+            trades: [
+              {
+                id: "server-aapl",
+                status: "closed",
+                direction: "long",
+                symbol: "AAPL",
+                secType: "STK",
+                openedAt: "2026-06-01T13:30:00.000Z",
+                closedAt: "2026-06-02T13:30:00.000Z",
+                fillExecIds: ["csv-1", "csv-2"],
+                tags: [],
+                setup: null,
+                reviewNote: null,
+                createdAt: "2026-06-01T13:30:00.000Z",
+                updatedAt: "2026-06-02T13:30:00.000Z",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
       if (path === "/api/me/journal/fills" && init?.method === "POST") {
         return new Response(
           JSON.stringify({ imported: 2, duplicates: 0, skipped: 0, tradesRebuilt: 1, fills: [] }),
@@ -104,5 +208,64 @@ describe("journalClient sync", () => {
 
     const trades = await fetchJournalTrades();
     expect(trades.some((trade) => trade.symbol === "AAPL" && trade.status === "closed")).toBe(true);
+  });
+
+  it("surfaces API validation details for chart snapshot creation", async () => {
+    persistenceFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Invalid request body",
+          code: "validation",
+          details: {
+            fieldErrors: {
+              cellConfig: ["Invalid range"],
+            },
+          },
+        }),
+        { status: 400 },
+      ),
+    );
+
+    await expect(
+      createJournalTradeChartSnapshotRemote("trade-1", {
+        cellConfig: {
+          symbol: "BRUN",
+          range: "2y",
+          interval: "1d",
+          chartType: "candle_solid",
+          indicators: [],
+          drawings: [],
+        },
+      }),
+    ).rejects.toThrow("Invalid request body: cellConfig: Invalid range");
+  });
+
+  it("uses local stores when screenshot and chart snapshot APIs return 503", async () => {
+    const screenshot = { id: "local-shot" };
+    const snapshot = { id: "local-snapshot" };
+    localStores.addScreenshot.mockResolvedValueOnce(screenshot);
+    localStores.addChartSnapshot.mockResolvedValueOnce(snapshot);
+    persistenceFetch
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    await expect(
+      uploadJournalTradeScreenshot(
+        "trade-1",
+        new Blob([Uint8Array.from([1])], { type: "image/png" }),
+      ),
+    ).resolves.toBe(screenshot);
+    await expect(
+      createJournalTradeChartSnapshotRemote("trade-1", {
+        cellConfig: {
+          symbol: "BRUN",
+          range: "2y",
+          interval: "1d",
+          chartType: "candle_solid",
+          indicators: [],
+          drawings: [],
+        },
+      }),
+    ).resolves.toBe(snapshot);
   });
 });

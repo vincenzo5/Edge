@@ -116,6 +116,7 @@ describe("useRevisionedRemoteSync (react-state mode)", () => {
       expect(mocks.fetchRemote).toHaveBeenCalled();
     });
 
+    onApplyRemoteState.mockClear();
     vi.useFakeTimers();
     rerender({ state: { items: ["changed"] } });
 
@@ -148,6 +149,7 @@ describe("useRevisionedRemoteSync (react-state mode)", () => {
       expect(mocks.fetchRemote).toHaveBeenCalled();
     });
 
+    onApplyRemoteState.mockClear();
     vi.useFakeTimers();
     rerender({ state: { items: ["push-me"] } });
 
@@ -162,7 +164,62 @@ describe("useRevisionedRemoteSync (react-state mode)", () => {
     });
   });
 
-  it("applies remote snapshot and metadata on conflict response", async () => {
+  it("retries push with updated revision on conflict before applying remote snapshot", async () => {
+    mocks.getMeta.mockReturnValue({
+      syncRevision: 1,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    mocks.saveRemote
+      .mockResolvedValueOnce({
+        ok: false,
+        current: {
+          syncRevision: 4,
+          updatedAt: "2026-01-04T00:00:00.000Z",
+          snapshot: remoteSnapshot,
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        record: {
+          syncRevision: 5,
+          updatedAt: "2026-01-05T00:00:00.000Z",
+        },
+      });
+    const onApplyRemoteState = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ state }) =>
+        useRevisionedRemoteSync({
+          adapter: createAdapter(),
+          state,
+          hydrated: true,
+          onApplyRemoteState,
+        }),
+      { initialProps: { state: localSnapshot } },
+    );
+
+    await waitFor(() => {
+      expect(mocks.fetchRemote).toHaveBeenCalled();
+    });
+
+    onApplyRemoteState.mockClear();
+    vi.useFakeTimers();
+    rerender({ state: { items: ["conflict"] } });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+
+    expect(mocks.saveRemote).toHaveBeenCalledTimes(2);
+    expect(mocks.saveRemote).toHaveBeenLastCalledWith({ items: ["conflict"] }, 4);
+    expect(onApplyRemoteState).not.toHaveBeenCalled();
+    expect(mocks.setMeta).toHaveBeenLastCalledWith({
+      syncRevision: 5,
+      updatedAt: "2026-01-05T00:00:00.000Z",
+    });
+  });
+
+  it("applies remote snapshot when conflict retry also fails", async () => {
     mocks.getMeta.mockReturnValue({
       syncRevision: 1,
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -192,6 +249,7 @@ describe("useRevisionedRemoteSync (react-state mode)", () => {
       expect(mocks.fetchRemote).toHaveBeenCalled();
     });
 
+    onApplyRemoteState.mockClear();
     vi.useFakeTimers();
     rerender({ state: { items: ["conflict"] } });
 
@@ -199,6 +257,7 @@ describe("useRevisionedRemoteSync (react-state mode)", () => {
       await vi.advanceTimersByTimeAsync(600);
     });
 
+    expect(mocks.saveRemote).toHaveBeenCalledTimes(2);
     expect(onApplyRemoteState).toHaveBeenCalledWith(remoteSnapshot);
     expect(mocks.setMeta).toHaveBeenCalledWith({
       syncRevision: 4,
@@ -281,6 +340,7 @@ describe("useRevisionedRemoteSync (subscribe mode)", () => {
       expect(mocks.fetchRemote).toHaveBeenCalled();
     });
 
+    onApplyRemoteState.mockClear();
     vi.useFakeTimers();
     act(() => {
       listener?.();

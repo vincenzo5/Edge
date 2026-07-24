@@ -4,6 +4,7 @@ import {
   clearDevSession,
   establishDevSession,
   isDevPassphraseRequired,
+  isOpenDevSessionAllowed,
 } from "@/lib/persistence/auth/devSession";
 import { getCurrentUser, isPersistenceEnabled } from "@/lib/persistence/auth/getCurrentUser";
 
@@ -11,7 +12,7 @@ export const runtime = "nodejs";
 
 async function resolveDevSessionUser() {
   let user = await getCurrentUser();
-  if (user || isDevPassphraseRequired()) {
+  if (user || isDevPassphraseRequired() || !isOpenDevSessionAllowed()) {
     return user;
   }
   return establishDevSession({ bootstrap: true });

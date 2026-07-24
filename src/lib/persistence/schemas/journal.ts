@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { BrokerageContractSchema } from "@/lib/marketData/contracts/brokerage";
 import { JOURNAL_SETUP_VALUES } from "@/lib/journal/types";
+import { cellConfigSchema } from "@/lib/persistence/schemas/chartWorkspace";
 
 export const journalFillSourceSchema = z.enum(["live", "flex_csv", "flex_api"]);
 
@@ -68,6 +69,12 @@ export const journalTradeResponseSchema = z.object({
   plannedRiskMode: z.enum(["usd", "pct"]).nullable().optional(),
   plannedRiskValue: z.number().finite().positive().nullable().optional(),
   plannedRiskUsd: z.number().finite().positive().nullable().optional(),
+  rating: z.number().int().min(1).max(5).nullable().optional(),
+  ignored: z.boolean().optional(),
+  mfeUsd: z.number().finite().nonnegative().nullable().optional(),
+  mfaUsd: z.number().finite().nonnegative().nullable().optional(),
+  excursionInterval: z.enum(["1m", "5m"]).nullable().optional(),
+  excursionComputedAt: z.string().datetime({ offset: true }).nullable().optional(),
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }),
 });
@@ -79,6 +86,12 @@ export const journalTradePatchSchema = z
     reviewNote: z.string().trim().max(10000).nullable().optional(),
     plannedRiskMode: z.enum(["usd", "pct"]).nullable().optional(),
     plannedRiskValue: z.number().finite().positive().nullable().optional(),
+    rating: z.number().int().min(1).max(5).nullable().optional(),
+    ignored: z.boolean().optional(),
+    mfeUsd: z.number().finite().nonnegative().nullable().optional(),
+    mfaUsd: z.number().finite().nonnegative().nullable().optional(),
+    excursionInterval: z.enum(["1m", "5m"]).nullable().optional(),
+    excursionComputedAt: z.string().datetime({ offset: true }).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required",
@@ -94,7 +107,91 @@ export const journalTradeListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(200),
 });
 
+export const journalFillAccountIndexQuerySchema = z.object({
+  execIds: z.array(z.string().trim().min(1)).max(5000),
+});
+
+export const journalFillAccountIndexEntrySchema = z.object({
+  execId: z.string(),
+  account: z.string().nullable(),
+});
+
+export type JournalFillAccountIndexEntry = z.infer<typeof journalFillAccountIndexEntrySchema>;
+
 export type JournalFillInput = z.infer<typeof journalFillInputSchema>;
 export type JournalFillResponse = z.infer<typeof journalFillResponseSchema>;
 export type JournalTradeResponse = z.infer<typeof journalTradeResponseSchema>;
 export type JournalTradePatch = z.infer<typeof journalTradePatchSchema>;
+
+export const journalScreenshotSourceSchema = z.enum(["upload", "paste", "chart_capture"]);
+
+export const journalScreenshotResponseSchema = z.object({
+  id: z.string().uuid(),
+  tradeId: z.string().uuid(),
+  sortIndex: z.number().int().nonnegative(),
+  caption: z.string().max(500).nullable().optional(),
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+  byteSize: z.number().int().positive(),
+  width: z.number().int().positive().nullable().optional(),
+  height: z.number().int().positive().nullable().optional(),
+  source: journalScreenshotSourceSchema,
+  createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
+});
+
+export const journalScreenshotPatchSchema = z
+  .object({
+    caption: z.string().trim().max(500).nullable().optional(),
+    sortIndex: z.number().int().nonnegative().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required",
+  });
+
+export type JournalScreenshotResponse = z.infer<typeof journalScreenshotResponseSchema>;
+export type JournalScreenshotPatch = z.infer<typeof journalScreenshotPatchSchema>;
+
+export const journalTradePlanLevelsSchema = z.object({
+  direction: z.enum(["long", "short"]),
+  side: z.enum(["BUY", "SELL"]),
+  entry: z.number().finite(),
+  stop: z.number().finite(),
+  target: z.number().finite(),
+  riskRewardRatio: z.number().finite().nullable(),
+});
+
+export const journalChartSnapshotResponseSchema = z.object({
+  id: z.string().uuid(),
+  tradeId: z.string().uuid(),
+  sortIndex: z.number().int().nonnegative(),
+  label: z.string().max(120).nullable().optional(),
+  symbol: z.string(),
+  interval: z.string(),
+  cellConfig: cellConfigSchema,
+  planLevels: journalTradePlanLevelsSchema.nullable().optional(),
+  screenshotId: z.string().uuid().nullable().optional(),
+  createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
+});
+
+export const journalChartSnapshotCreateSchema = z.object({
+  cellConfig: cellConfigSchema,
+  label: z.string().trim().max(120).nullable().optional(),
+  planLevels: journalTradePlanLevelsSchema.nullable().optional(),
+  screenshotId: z.string().uuid().nullable().optional(),
+});
+
+export const journalChartSnapshotPatchSchema = z
+  .object({
+    cellConfig: cellConfigSchema.optional(),
+    label: z.string().trim().max(120).nullable().optional(),
+    resetToOriginal: z.literal(true).optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required",
+  });
+
+export type JournalChartSnapshotResponse = z.infer<typeof journalChartSnapshotResponseSchema>;
+export type JournalChartSnapshotCreate = z.infer<typeof journalChartSnapshotCreateSchema>;
+export type JournalChartSnapshotPatch = z.infer<typeof journalChartSnapshotPatchSchema>;
+export type JournalTradePlanLevels = z.infer<typeof journalTradePlanLevelsSchema>;

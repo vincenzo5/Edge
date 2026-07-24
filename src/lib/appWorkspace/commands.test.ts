@@ -17,6 +17,7 @@ import {
   setActiveTile,
   splitTile,
   updateTileSurfaceState,
+  updateTileChartWorkspaceId,
 } from "./commands";
 import { resetAppWorkspaceIdCounterForTests } from "./ids";
 import { parseAppWorkspacesState } from "./schema";
@@ -102,6 +103,17 @@ describe("appWorkspace commands", () => {
     expect(result.doc).toBe(before);
   });
 
+  it("applySurfaceFocusOrOpen opens scripts tile with selected script", () => {
+    let doc = createDefaultDocument();
+    const result = applySurfaceFocusOrOpen(doc, "scripts", {
+      surfaceState: { selectedScriptId: "script-abc" },
+    });
+    expect(result.openedNew).toBe(true);
+    expect(result.changed).toBe(true);
+    const scriptsTile = Object.values(result.doc.tiles).find((tile) => tile.surfaceId === "scripts");
+    expect(scriptsTile?.surfaceState?.selectedScriptId).toBe("script-abc");
+  });
+
   it("moves tile to another edge", () => {
     let doc = createDefaultDocument();
     const chartTileId = doc.activeTileId!;
@@ -154,6 +166,40 @@ describe("appWorkspace commands", () => {
     const parsed = parseAppWorkspacesState(state);
     expect(parsed).not.toBeNull();
     expect(parsed!.documents[0]!.tiles).toEqual(state.documents[0]!.tiles);
+  });
+
+  it("round-trips alerts tiles through schema parse and storage", () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(APP_WORKSPACES_STORAGE_KEY);
+    }
+
+    let state = createDefaultWorkspacesState();
+    let doc = applyLayoutPreset(getActiveFromState(state), "three-cols");
+    const tileIds = Object.keys(doc.tiles);
+    expect(tileIds).toHaveLength(3);
+    doc = assignTileSurface(doc, tileIds[0]!, "chart");
+    doc = assignTileSurface(doc, tileIds[1]!, "screener");
+    doc = assignTileSurface(doc, tileIds[2]!, "alerts", {
+      selectedAlertId: "alert-1",
+      alertPrefill: {
+        symbol: "AAPL",
+        operator: "cross_above",
+        price: 200,
+      },
+    });
+    state = saveDocument(state, doc);
+
+    const parsed = parseAppWorkspacesState(state);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.documents[0]!.tiles[tileIds[2]!]?.surfaceId).toBe("alerts");
+    expect(parsed!.documents[0]!.tiles[tileIds[2]!]?.surfaceState?.selectedAlertId).toBe(
+      "alert-1",
+    );
+
+    saveAppWorkspacesState(state);
+    const loaded = loadAppWorkspacesState();
+    expect(Object.keys(getActiveFromState(loaded).tiles)).toHaveLength(3);
+    expect(getActiveFromState(loaded).tiles[tileIds[2]!]?.surfaceId).toBe("alerts");
   });
 
   it("creates a new workspace document and activates it", () => {
@@ -216,6 +262,13 @@ describe("appWorkspace commands", () => {
     doc = assignTileSurface(doc, tileId, "journal");
     expect(doc.tiles[tileId]?.surfaceId).toBe("journal");
     expect(doc.tiles[tileId]?.surfaceState).toBeUndefined();
+  });
+
+  it("updates chartWorkspaceId on chart tiles", () => {
+    let doc = createDefaultDocument();
+    const tileId = doc.activeTileId!;
+    doc = updateTileChartWorkspaceId(doc, tileId, "550e8400-e29b-41d4-a716-446655440000");
+    expect(doc.tiles[tileId]?.chartWorkspaceId).toBe("550e8400-e29b-41d4-a716-446655440000");
   });
 });
 

@@ -26,4 +26,14 @@ describe("ModuleToWorkspaceRedirect", () => {
       expect(replace).toHaveBeenCalledWith(buildWorkspaceDeepLink({ surface: "screener" }));
     });
   });
+
+  it("redirects screener screens ingress with screenerView", async () => {
+    replace.mockReset();
+    render(<ModuleToWorkspaceRedirect surface="screener" screenerView="screens" />);
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith(
+        buildWorkspaceDeepLink({ surface: "screener", screenerView: "screens" }),
+      );
+    });
+  });
 });

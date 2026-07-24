@@ -12,6 +12,14 @@ describe("chartWorkspace schemas", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("accepts every valid CellConfig range, including 2y", () => {
+    const parsed = chartLayoutSnapshotSchema.safeParse({
+      ...DEFAULT_LAYOUT,
+      cells: [{ ...DEFAULT_LAYOUT.cells[0], range: "2y" }],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
   it("rejects empty cells", () => {
     const parsed = chartLayoutSnapshotSchema.safeParse({
       ...DEFAULT_LAYOUT,
@@ -125,5 +133,34 @@ describe("chartWorkspace schemas", () => {
       },
     });
     expect(parsed.success).toBe(true);
+  });
+
+  it("preserves script indicator identity fields", () => {
+    const parsed = chartLayoutSnapshotSchema.safeParse({
+      ...DEFAULT_LAYOUT,
+      cells: [
+        {
+          ...DEFAULT_LAYOUT.cells[0],
+          indicators: [
+            {
+              id: "script-1",
+              kind: "script",
+              scriptId: "line-midpoint",
+              revision: "golden-v1",
+              name: "__script_line_midpoint",
+              pane: "main",
+              visible: true,
+            },
+          ],
+        },
+      ],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      const ind = parsed.data.cells[0]?.indicators[0];
+      expect(ind?.kind).toBe("script");
+      expect(ind?.scriptId).toBe("line-midpoint");
+      expect(ind?.revision).toBe("golden-v1");
+    }
   });
 });

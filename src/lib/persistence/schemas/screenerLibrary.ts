@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { screenQuerySchema } from "@/lib/marketData/schemas/request";
 import { writeRequestBaseSchema } from "@/lib/persistence/common";
-import { MAX_SAVED_SCREENS } from "@/lib/screener/screenStorage";
+import { MAX_RECENT_SCREENS, MAX_SAVED_SCREENS } from "@/lib/screener/screenStorage";
 
 const screenerColumnIdSchema = z.enum([
   "symbol",
@@ -49,6 +49,13 @@ const savedScreenSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
+const screenerReviewResumeSchema = z.object({
+  reviewIndex: z.number().int().nonnegative(),
+  keepers: z.array(z.string()),
+  reviewActive: z.boolean(),
+  queryFingerprint: z.string().min(1),
+});
+
 export const screenerSnapshotSchema = z
   .object({
     version: z.literal(1),
@@ -57,6 +64,8 @@ export const screenerSnapshotSchema = z
     columns: z.array(screenerColumnIdSchema).min(1),
     sort: screenerSortSchema,
     savedScreens: z.array(savedScreenSchema).max(MAX_SAVED_SCREENS),
+    recentScreenIds: z.array(z.string()).max(MAX_RECENT_SCREENS).optional(),
+    reviewResume: screenerReviewResumeSchema.nullable().optional(),
   })
   .superRefine((value, ctx) => {
     if (

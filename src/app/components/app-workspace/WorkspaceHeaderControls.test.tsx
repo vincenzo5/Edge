@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import WorkspaceHeaderControls from "./WorkspaceHeaderControls";
@@ -23,6 +23,17 @@ describe("WorkspaceHeaderControls", () => {
     expect(screen.queryByTestId("workspace-name-input")).not.toBeInTheDocument();
     expect(screen.queryByTestId("workspace-doc-select")).not.toBeInTheDocument();
     expect(screen.queryByTestId("workspace-duplicate")).not.toBeInTheDocument();
+  });
+
+  it("shows Done (no Save) in edit mode", () => {
+    render(
+      <AppWorkspaceProvider>
+        <WorkspaceHeaderControls />
+      </AppWorkspaceProvider>,
+    );
+    fireEvent.click(screen.getByTestId("workspace-layout-edit"));
+    expect(screen.getByTestId("workspace-layout-done")).toHaveTextContent("Done");
+    expect(screen.queryByTestId("workspace-layout-save")).not.toBeInTheDocument();
   });
 
   it("toggles to Done in edit mode", () => {

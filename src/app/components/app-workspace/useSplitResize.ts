@@ -8,6 +8,11 @@ function clampFraction(value: number): number {
   return Math.min(1 - MIN_FRACTION, Math.max(MIN_FRACTION, value));
 }
 
+function toSplitSizes(firstRaw: number): [number, number] {
+  const first = clampFraction(firstRaw);
+  return [first, Number((1 - first).toFixed(6))];
+}
+
 type Options = {
   direction: "row" | "column";
   sizes: [number, number];
@@ -38,7 +43,9 @@ export function useSplitResize({
       startCoordRef.current = direction === "row" ? event.clientX : event.clientY;
       startSizesRef.current = sizes;
       latestSizesRef.current = sizes;
-      event.currentTarget.setPointerCapture(event.pointerId);
+      if (typeof event.currentTarget.setPointerCapture === "function") {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
       document.body.style.cursor = direction === "row" ? "col-resize" : "row-resize";
       document.body.style.userSelect = "none";
     },
@@ -61,9 +68,7 @@ export function useSplitResize({
 
       const current = direction === "row" ? event.clientX : event.clientY;
       const delta = (current - startCoordRef.current) / containerSizeRef.current;
-      const first = clampFraction(startSizesRef.current[0] + delta);
-      const second = 1 - first;
-      latestSizesRef.current = [first, second];
+      latestSizesRef.current = toSplitSizes(startSizesRef.current[0] + delta);
       onSizesPreview(latestSizesRef.current);
     },
     [direction, onSizesPreview],
@@ -73,7 +78,10 @@ export function useSplitResize({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!draggingRef.current) return;
       if (pointerIdRef.current != null && event.pointerId !== pointerIdRef.current) return;
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      if (
+        typeof event.currentTarget.hasPointerCapture === "function" &&
+        event.currentTarget.hasPointerCapture(event.pointerId)
+      ) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
       endDrag();

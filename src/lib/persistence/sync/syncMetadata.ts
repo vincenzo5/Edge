@@ -9,6 +9,9 @@ const KEYS = {
   watchlistLibrary: "tv-ai:sync:watchlist-library:v1",
   chartTemplateLibrary: "tv-ai:sync:chart-template-library:v1",
   screenerLibrary: "tv-ai:sync:screener-library:v1",
+  scriptLibrary: "tv-ai:sync:script-library:v1",
+  appWorkspaces: "tv-ai:sync:app-workspaces:v1",
+  userPreferences: "tv-ai:sync:user-preferences:v1",
 } as const;
 
 function readMetadata(key: string): SyncMetadata | null {
@@ -65,6 +68,30 @@ export function getScreenerLibrarySyncMetadata(): SyncMetadata | null {
 
 export function setScreenerLibrarySyncMetadata(metadata: SyncMetadata): void {
   writeMetadata(KEYS.screenerLibrary, metadata);
+}
+
+export function getScriptLibrarySyncMetadata(): SyncMetadata | null {
+  return readMetadata(KEYS.scriptLibrary);
+}
+
+export function setScriptLibrarySyncMetadata(metadata: SyncMetadata): void {
+  writeMetadata(KEYS.scriptLibrary, metadata);
+}
+
+export function getAppWorkspacesSyncMetadata(): SyncMetadata | null {
+  return readMetadata(KEYS.appWorkspaces);
+}
+
+export function setAppWorkspacesSyncMetadata(metadata: SyncMetadata): void {
+  writeMetadata(KEYS.appWorkspaces, metadata);
+}
+
+export function getUserPreferencesSyncMetadata(): SyncMetadata | null {
+  return readMetadata(KEYS.userPreferences);
+}
+
+export function setUserPreferencesSyncMetadata(metadata: SyncMetadata): void {
+  writeMetadata(KEYS.userPreferences, metadata);
 }
 
 export function isRemoteNewer(

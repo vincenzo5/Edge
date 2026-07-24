@@ -4,6 +4,8 @@ import { useEffect, type ReactNode } from "react";
 
 import AppModuleShell from "@/app/components/home/AppModuleShell";
 import ModuleRouteTracker from "@/app/components/home/ModuleRouteTracker";
+import { ActiveChartProvider } from "@/app/components/ActiveChartContext";
+import { ScriptLibraryMountGate } from "@/lib/scriptLibrary/ScriptLibraryMountGate";
 import { AppWorkspaceProvider, useAppWorkspace } from "./AppWorkspaceContext";
 import LayoutTreeView from "./LayoutTreeView";
 import WorkspaceBrowserTabQuote from "./WorkspaceBrowserTabQuote";
@@ -26,25 +28,27 @@ function WorkspaceBody() {
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col p-2">
-      <LayoutTreeView />
-    </div>
+    <ActiveChartProvider>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <LayoutTreeView />
+      </div>
+    </ActiveChartProvider>
   );
 }
 
 function WorkspaceEscListener() {
-  const { layoutEditMode, setLayoutEditMode } = useAppWorkspace();
+  const { layoutEditMode, requestExitLayoutEdit } = useAppWorkspace();
 
   useEffect(() => {
     if (layoutEditMode !== "edit") return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setLayoutEditMode("use");
+        requestExitLayoutEdit();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [layoutEditMode, setLayoutEditMode]);
+  }, [layoutEditMode, requestExitLayoutEdit]);
 
   return null;
 }
@@ -67,9 +71,11 @@ function WorkspaceChrome({ children }: { children?: ReactNode }) {
 export default function AppWorkspaceShell({ children }: Props) {
   return (
     <AppWorkspaceProvider>
-      <WorkspaceDriveProvider>
-        <WorkspaceChrome>{children}</WorkspaceChrome>
-      </WorkspaceDriveProvider>
+      <ScriptLibraryMountGate>
+        <WorkspaceDriveProvider>
+          <WorkspaceChrome>{children}</WorkspaceChrome>
+        </WorkspaceDriveProvider>
+      </ScriptLibraryMountGate>
     </AppWorkspaceProvider>
   );
 }

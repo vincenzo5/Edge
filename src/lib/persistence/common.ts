@@ -63,6 +63,17 @@ export function parseJsonBody<T>(
   };
 }
 
+export class PersistenceOwnershipError extends Error {
+  constructor(message = "Referenced resource is not owned by the user.") {
+    super(message);
+    this.name = "PersistenceOwnershipError";
+  }
+}
+
+export function isPersistenceOwnershipError(error: unknown): error is PersistenceOwnershipError {
+  return error instanceof PersistenceOwnershipError;
+}
+
 export function isPersistenceDatabaseUnavailable(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const errorWithCode = error as Error & { code?: string; cause?: unknown; errors?: unknown[] };

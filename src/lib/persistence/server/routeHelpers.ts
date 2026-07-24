@@ -1,7 +1,11 @@
 import "server-only";
 
 import { isDatabaseConfigured } from "@/db";
-import { establishDevSession, isDevPassphraseRequired } from "@/lib/persistence/auth/devSession";
+import {
+  establishDevSession,
+  isDevPassphraseRequired,
+  isOpenDevSessionAllowed,
+} from "@/lib/persistence/auth/devSession";
 import { AuthSecretMissingError } from "@/lib/persistence/auth/devSessionCookie";
 import { getCurrentUser } from "@/lib/persistence/auth/getCurrentUser";
 import { persistenceError, isPersistenceDatabaseUnavailable } from "@/lib/persistence/common";
@@ -13,7 +17,7 @@ function hasDatabaseUnavailableCause(error: unknown): boolean {
 
 async function resolvePersistenceUser() {
   let user = await getCurrentUser();
-  if (user || isDevPassphraseRequired()) {
+  if (user || isDevPassphraseRequired() || !isOpenDevSessionAllowed()) {
     return user;
   }
 

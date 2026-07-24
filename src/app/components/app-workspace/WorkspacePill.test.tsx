@@ -22,6 +22,21 @@ describe("WorkspacePill", () => {
     expect(screen.getByTestId("workspace-pill")).toHaveTextContent("Default");
   });
 
+  it("renders border-legend workspace label on the trigger outline", () => {
+    render(
+      <AppWorkspaceProvider>
+        <WorkspacePill />
+      </AppWorkspaceProvider>,
+    );
+
+    const trigger = screen.getByTestId("workspace-pill");
+    const labelId = trigger.getAttribute("aria-labelledby");
+    expect(labelId).toBeTruthy();
+    const label = document.getElementById(labelId!);
+    expect(label).toHaveTextContent("Workspace");
+    expect(label?.className).toContain("-translate-y-1/2");
+  });
+
   it("opens menu with workspace list and actions", () => {
     render(
       <AppWorkspaceProvider>

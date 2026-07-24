@@ -31,4 +31,16 @@ describe("WorkspaceLayoutPresetPicker", () => {
     expect(screen.getByTestId("tile-count")).toHaveTextContent("2");
     expect(screen.queryByTestId("workspace-layout-preset-menu")).not.toBeInTheDocument();
   });
+
+  it("applies trade-desk workflow preset with three panes", () => {
+    render(
+      <AppWorkspaceProvider>
+        <TileCountProbe />
+        <WorkspaceLayoutPresetPicker />
+      </AppWorkspaceProvider>,
+    );
+    fireEvent.click(screen.getByTestId("workspace-layout-preset-trigger"));
+    fireEvent.click(screen.getByTestId("workspace-layout-preset-trade-desk"));
+    expect(screen.getByTestId("tile-count")).toHaveTextContent("3");
+  });
 });

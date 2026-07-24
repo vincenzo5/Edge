@@ -13,17 +13,19 @@ import {
   updateTabRemote,
   type WorkspaceTabsState,
 } from "@/lib/app/workspaceTabs";
+import { layoutContentFingerprint } from "./layoutContentFingerprint";
 import { mergeRemoteConflictLayout } from "./mergeRemoteConflictLayout";
 
 /** Stable key for the active tab layout — excludes remote sync metadata. */
 export function workspaceActiveContentKey(tabs: WorkspaceTabsState): string {
   const active = getActiveTab(tabs);
-  return `${active.id}\0${active.title}\0${JSON.stringify(active.layout)}`;
+  return `${active.id}\0${active.title}\0${layoutContentFingerprint(active.layout)}`;
 }
 
 async function persistActiveTab(
   tabs: WorkspaceTabsState,
   getLatestTabs: () => WorkspaceTabsState,
+  onRemoteResourceCreated?: (resourceId: string) => void,
 ): Promise<WorkspaceTabsState | null> {
   const active = getActiveTab(tabs);
 
@@ -33,6 +35,7 @@ async function persistActiveTab(
       chartLayoutSnapshot: active.layout,
     });
     if (!created) return null;
+    onRemoteResourceCreated?.(created.id);
     const latestTabs = getLatestTabs();
     const latestActive = getActiveTab(latestTabs);
     return updateTabRemote(latestTabs, latestActive.id, {
@@ -114,6 +117,7 @@ export function useWorkspaceTabsRemoteSync(options: {
     tabs: WorkspaceTabsState,
     applyOptions?: ApplyWorkspaceTabsOptions,
   ) => void;
+  onRemoteResourceCreated?: (resourceId: string) => void;
 }): { flushActiveTabSave: () => Promise<void> } {
   const tabsRef = useRef(options.workspaceTabs);
   const syncingRef = useRef(false);
@@ -147,7 +151,11 @@ export function useWorkspaceTabsRemoteSync(options: {
 
     syncingRef.current = true;
     try {
-      const next = await persistActiveTab(tabsRef.current, () => tabsRef.current);
+      const next = await persistActiveTab(
+        tabsRef.current,
+        () => tabsRef.current,
+        options.onRemoteResourceCreated,
+      );
       if (next) {
         applyPersistResult(next);
       }
@@ -203,7 +211,11 @@ export function useWorkspaceTabsRemoteSync(options: {
 
       void (async () => {
         try {
-          const next = await persistActiveTab(tabsRef.current, () => tabsRef.current);
+          const next = await persistActiveTab(
+        tabsRef.current,
+        () => tabsRef.current,
+        options.onRemoteResourceCreated,
+      );
           if (next) {
             applyPersistResult(next);
           }

@@ -4,9 +4,11 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { marketResearchNotes } from "@/db/schema";
+import { PersistenceOwnershipError } from "@/lib/persistence/common";
 import type {
   MarketResearchNoteResponse,
 } from "@/lib/persistence/schemas/marketResearchNote";
+import { getChartWorkspaceById } from "@/lib/persistence/repositories/chartWorkspaceRepository";
 
 export type CreateMarketResearchNoteInput = {
   userId: string;
@@ -67,9 +69,22 @@ export async function listMarketResearchNotes(
   return rows.map(toResponse);
 }
 
+async function assertOwnedChartWorkspace(
+  userId: string,
+  chartWorkspaceId: string | null | undefined,
+): Promise<void> {
+  if (!chartWorkspaceId) return;
+  const workspace = await getChartWorkspaceById(userId, chartWorkspaceId);
+  if (!workspace) {
+    throw new PersistenceOwnershipError("Chart workspace not found or not owned by the user.");
+  }
+}
+
 export async function createMarketResearchNote(
   input: CreateMarketResearchNoteInput,
 ): Promise<MarketResearchNoteResponse> {
+  await assertOwnedChartWorkspace(input.userId, input.chartWorkspaceId);
+
   const db = getDb();
   const rows = await db
     .insert(marketResearchNotes)
@@ -108,6 +123,10 @@ export async function patchMarketResearchNote(
   const db = getDb();
   const existing = await getMarketResearchNoteById(input.userId, input.noteId);
   if (!existing) return null;
+
+  if (input.chartWorkspaceId !== undefined) {
+    await assertOwnedChartWorkspace(input.userId, input.chartWorkspaceId);
+  }
 
   const rows = await db
     .update(marketResearchNotes)

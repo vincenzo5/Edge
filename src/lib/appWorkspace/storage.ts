@@ -68,12 +68,13 @@ export function loadAppWorkspacesState(): AppWorkspacesState {
   return createDefaultWorkspacesState();
 }
 
-export function saveAppWorkspacesState(state: AppWorkspacesState): void {
-  if (typeof window === "undefined") return;
+export function saveAppWorkspacesState(state: AppWorkspacesState): boolean {
+  if (typeof window === "undefined") return false;
   try {
     window.localStorage.setItem(APP_WORKSPACES_STORAGE_KEY, JSON.stringify(state));
+    return true;
   } catch {
-    // ignore quota / private mode
+    return false;
   }
 }
 

@@ -1,20 +1,54 @@
 "use client";
 
-import { Suspense } from "react";
+import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 
 import StockApp from "@/app/components/StockApp";
-import { JournalChartOverlayProvider } from "@/app/components/journal/JournalChartOverlayProvider";
+import { useAppWorkspace } from "./AppWorkspaceContext";
+import ChartTileBoardActions from "./ChartTileBoardActions";
+import type { ChartTileHostBindingContract } from "@/lib/appWorkspace/chartTileBindingSketch";
 
-type Props = {
-  isPrimaryChart?: boolean;
-};
+const JournalChartOverlayProvider = dynamic(
+  () =>
+    import("@/app/components/journal/JournalChartOverlayProvider").then(
+      (mod) => mod.JournalChartOverlayProvider,
+    ),
+  { ssr: false },
+);
 
-export default function ChartTileHost({ isPrimaryChart = false }: Props) {
+type Props = ChartTileHostBindingContract;
+
+export default function ChartTileHost({
+  tileId,
+  isPrimaryChartTile,
+  chartWorkspaceId,
+}: Props) {
+  const { updateTileChartWorkspaceId } = useAppWorkspace();
+  const searchParams = useSearchParams();
+  const needsJournalOverlay = Boolean(searchParams.get("journalTrade")?.trim());
+
+  const stockApp = (
+    <StockApp
+      isPrimaryChart={isPrimaryChartTile}
+      chartTileBinding={{ tileId, isPrimaryChartTile, chartWorkspaceId }}
+      onChartWorkspaceIdCreated={(resourceId) =>
+        updateTileChartWorkspaceId(tileId, resourceId)
+      }
+    />
+  );
+
   return (
-    <div data-testid="chart-tile-host" className="h-full min-h-0 overflow-hidden">
-      <JournalChartOverlayProvider>
-        <StockApp isPrimaryChart={isPrimaryChart} />
-      </JournalChartOverlayProvider>
+    <div data-testid="chart-tile-host" className="relative h-full min-h-0 overflow-hidden">
+      <ChartTileBoardActions
+        tileId={tileId}
+        isPrimaryChartTile={isPrimaryChartTile}
+        chartWorkspaceId={chartWorkspaceId}
+      />
+      {needsJournalOverlay ? (
+        <JournalChartOverlayProvider>{stockApp}</JournalChartOverlayProvider>
+      ) : (
+        stockApp
+      )}
     </div>
   );
 }

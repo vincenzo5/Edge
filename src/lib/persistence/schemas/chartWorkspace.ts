@@ -3,7 +3,6 @@ import { z } from "zod";
 import {
   migrateLayoutSync,
   INTERVALS,
-  RANGES,
   CHART_TYPES,
   LAYOUT_TEMPLATE_IDS,
   resolveLayoutIdForSnapshot,
@@ -11,14 +10,19 @@ import {
   type LegacySidebarPanelId,
   type SidebarPanelId,
 } from "@/lib/chartConfig";
+import { MARKET_RANGES } from "@/lib/marketData/schemas/request";
 import { migrateSidebarWidth } from "@/lib/responsive/sidebarWidth";
 import {
   normalizeFloatingGeometry,
   normalizePanelPresentation,
 } from "@/lib/sidebar/floatingPanelGeometry";
 import { writeRequestBaseSchema, SCHEMA_VERSION } from "@/lib/persistence/common";
+import {
+  parseViewportPersistSketch,
+  viewportPersistSketchSchema,
+} from "@/lib/chart/viewportPersistSketch";
 
-const rangeValues = RANGES.map((r) => r.value) as [string, ...string[]];
+const rangeValues = MARKET_RANGES;
 const intervalValues = INTERVALS.map((i) => i.value) as [string, ...string[]];
 const chartTypeValues = CHART_TYPES.map((c) => c.value) as [string, ...string[]];
 const layoutIdValues = LAYOUT_TEMPLATE_IDS;
@@ -47,6 +51,9 @@ const indicatorConfigSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   pane: z.enum(["main", "sub"]),
+  kind: z.enum(["builtin", "script"]).optional(),
+  scriptId: z.string().min(1).optional(),
+  revision: z.string().min(1).optional(),
   params: z.record(z.string(), z.number()).optional(),
   inputs: z.record(z.string(), z.unknown()).optional(),
   styles: z.record(z.string(), z.unknown()).optional(),
@@ -68,7 +75,14 @@ const cellConfigSchema = z.object({
   maximizedPane: z.string().nullable().optional(),
   paneHeights: z.record(z.string(), z.number()).optional(),
   chartSettings: z.record(z.string(), z.unknown()).optional(),
+  mainSeriesVisible: z.boolean().optional(),
+  viewport: z.preprocess(
+    (value) => parseViewportPersistSketch(value) ?? undefined,
+    viewportPersistSketchSchema.optional(),
+  ),
 });
+
+export { cellConfigSchema };
 
 const SIDEBAR_PANEL_ID_VALUES = [
   "object-tree",
@@ -79,6 +93,8 @@ const SIDEBAR_PANEL_ID_VALUES = [
   "screener",
   "trade",
   "patterns",
+  "day-profiles",
+  "copilot",
 ] as const satisfies readonly SidebarPanelId[];
 
 function migrateLegacySidebarPanelId(

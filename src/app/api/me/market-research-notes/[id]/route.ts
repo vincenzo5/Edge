@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { parseJsonBody, persistenceError } from "@/lib/persistence/common";
+import { parseJsonBody, persistenceError, isPersistenceOwnershipError } from "@/lib/persistence/common";
 import { marketResearchNotePatchSchema } from "@/lib/persistence/schemas/marketResearchNote";
 import {
   getMarketResearchNoteById,
@@ -35,22 +35,29 @@ export async function PATCH(request: Request, context: RouteContext) {
       return persistenceError(404, "not_found", "Research note not found.");
     }
 
-    const note = await patchMarketResearchNote({
-      userId,
-      noteId: id,
-      chartWorkspaceId: parsed.data.chartWorkspaceId,
-      symbol: parsed.data.symbol,
-      chartInterval: parsed.data.chartInterval,
-      researchNoteType: parsed.data.researchNoteType,
-      chartDrawingSnapshot: parsed.data.chartDrawingSnapshot,
-      researchThesis: parsed.data.researchThesis,
-      archived: parsed.data.archived,
-    });
+    try {
+      const note = await patchMarketResearchNote({
+        userId,
+        noteId: id,
+        chartWorkspaceId: parsed.data.chartWorkspaceId,
+        symbol: parsed.data.symbol,
+        chartInterval: parsed.data.chartInterval,
+        researchNoteType: parsed.data.researchNoteType,
+        chartDrawingSnapshot: parsed.data.chartDrawingSnapshot,
+        researchThesis: parsed.data.researchThesis,
+        archived: parsed.data.archived,
+      });
 
-    if (!note) {
-      return persistenceError(404, "not_found", "Research note not found.");
+      if (!note) {
+        return persistenceError(404, "not_found", "Research note not found.");
+      }
+
+      return NextResponse.json(note);
+    } catch (error) {
+      if (isPersistenceOwnershipError(error)) {
+        return persistenceError(400, "validation", error.message);
+      }
+      throw error;
     }
-
-    return NextResponse.json(note);
   });
 }

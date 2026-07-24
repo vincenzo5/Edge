@@ -13,7 +13,7 @@ vi.mock("@/lib/persistence/client/chartWorkspaceClient", () => ({
   archiveChartWorkspaceRemote: mocks.archiveChartWorkspaceRemote,
 }));
 
-import { reconcileChartWorkspacesAfterTabClose } from "./reconcileChartWorkspaces";
+import { reconcileChartWorkspacesAfterTabClose, reconcileChartWorkspacesAfterTileClose } from "./reconcileChartWorkspaces";
 
 describe("reconcileChartWorkspacesAfterTabClose", () => {
   beforeEach(() => {
@@ -124,5 +124,33 @@ describe("reconcileChartWorkspacesAfterTabClose", () => {
     expect(result.archived).toEqual(["ws-2"]);
     expect(mocks.archiveChartWorkspaceRemote).toHaveBeenCalledWith("ws-2");
     expect(mocks.archiveChartWorkspaceRemote).not.toHaveBeenCalledWith("ws-1");
+  });
+});
+
+describe("reconcileChartWorkspacesAfterTileClose", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("localStorage", {
+      store: {} as Record<string, string>,
+      getItem(key: string) {
+        return this.store[key] ?? null;
+      },
+      setItem(key: string, value: string) {
+        this.store[key] = value;
+      },
+      removeItem(key: string) {
+        delete this.store[key];
+      },
+    });
+  });
+
+  it("dismisses and archives the closed tile remote", async () => {
+    mocks.archiveChartWorkspaceRemote.mockResolvedValue(true);
+
+    const result = await reconcileChartWorkspacesAfterTileClose("ws-tile");
+
+    expect(result.archived).toEqual(["ws-tile"]);
+    expect(mocks.archiveChartWorkspaceRemote).toHaveBeenCalledWith("ws-tile");
+    expect(localStorage.getItem(DISMISSED_REMOTE_WORKSPACES_KEY)).toContain("ws-tile");
   });
 });

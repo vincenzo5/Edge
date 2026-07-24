@@ -11,7 +11,8 @@ function mergeSidebarPrefs(local: SidebarPrefs | undefined, remote: SidebarPrefs
 
   return {
     ...remoteSidebar,
-    activePanel: localSidebar.activePanel ?? remoteSidebar.activePanel ?? null,
+    // Prefer local including explicit null (closed). `??` would reopen a remote panel after the user closes it.
+    activePanel: localSidebar.activePanel,
     width: localSidebar.width ?? remoteSidebar.width,
     presentation: localSidebar.presentation ?? remoteSidebar.presentation,
     floatingGeometry: localSidebar.floatingGeometry ?? remoteSidebar.floatingGeometry,

@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import EdgeBorderLabeledControl from "../design-system/EdgeBorderLabeledControl";
 import EdgeMenuItem from "../design-system/EdgeMenuItem";
 import EdgeMenuSectionHeader from "../design-system/EdgeMenuSectionHeader";
+import { bodyTextClass, headerChipClass } from "../design-system/styles";
 import { useAppWorkspace } from "./AppWorkspaceContext";
 
 type MenuView = "list" | "rename";
@@ -25,6 +27,7 @@ export default function WorkspacePill() {
   const [menuStyle, setMenuStyle] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const labelId = useId();
 
   const close = useCallback(() => {
     setOpen(false);
@@ -122,7 +125,7 @@ export default function WorkspacePill() {
           data-testid="workspace-pill-menu"
           role="menu"
           aria-label="Workspace menu"
-          className="surface-popover fixed z-[210] min-w-[12rem] rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] py-1 shadow-lg"
+          className="edge-popover fixed z-[210] min-w-[12rem] rounded-[var(--edge-radius-lg)] border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] py-1 shadow-[var(--edge-shadow-popover)]"
           style={{ top: menuStyle.top, left: menuStyle.left }}
         >
           {menuView === "rename" ? (
@@ -132,7 +135,7 @@ export default function WorkspacePill() {
                 ref={renameInputRef}
                 aria-label="Workspace name"
                 data-testid="workspace-rename-input"
-                className="mt-1 w-full rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface)] px-2 py-1 text-xs text-[var(--edge-text-primary)]"
+                className="mt-1 w-full rounded-[var(--edge-radius-sm)] border border-[var(--edge-border-subtle)] bg-transparent px-[var(--edge-space-2)] py-[var(--edge-space-1)] text-[var(--edge-text-primary)] edge-type-body"
                 value={renameDraft}
                 onChange={(e) => setRenameDraft(e.target.value)}
                 onBlur={commitRename}
@@ -153,7 +156,7 @@ export default function WorkspacePill() {
                     role="menuitemradio"
                     aria-checked={isActive}
                     data-testid={`workspace-pill-option-${doc.id}`}
-                    className={`edge-focus-ring flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-[var(--edge-surface-hover)] ${
+                    className={`edge-focus-ring flex w-full min-h-[var(--edge-control-height-compact)] items-center gap-[var(--edge-space-2)] px-[var(--edge-space-3)] text-left ${bodyTextClass()} hover:bg-[var(--edge-surface-hover)] ${
                       isActive
                         ? "bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]"
                         : "text-[var(--edge-text-primary)]"
@@ -163,7 +166,7 @@ export default function WorkspacePill() {
                     <span
                       aria-hidden
                       className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                        isActive ? "bg-[var(--edge-accent)]" : "bg-transparent"
+                        isActive ? "bg-[var(--edge-accent-blue)]" : "bg-transparent"
                       }`}
                     />
                     <span className="truncate">{doc.name}</span>
@@ -188,33 +191,36 @@ export default function WorkspacePill() {
 
   return (
     <div className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        data-testid="workspace-pill"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="edge-focus-ring flex max-w-[14rem] items-center gap-1 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface)] px-2 py-0.5 text-xs text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)]"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="min-w-0 flex-1 truncate text-left">{activeDocument.name}</span>
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 10 10"
-          fill="none"
-          aria-hidden
-          className={`shrink-0 text-[var(--edge-text-secondary)] transition-transform ${open ? "rotate-180" : ""}`}
+      <EdgeBorderLabeledControl label="Workspace" labelId={labelId} labelSurface="toolbar">
+        <button
+          ref={triggerRef}
+          type="button"
+          data-testid="workspace-pill"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-labelledby={labelId}
+          className={`edge-focus-ring ${headerChipClass()} max-w-[14rem] border-[var(--edge-border-subtle)] bg-transparent`}
+          onClick={() => setOpen((value) => !value)}
         >
-          <path
-            d="M2 3.5L5 6.5L8 3.5"
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          <span className="min-w-0 flex-1 truncate text-left">{activeDocument.name}</span>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="none"
+            aria-hidden
+            className={`shrink-0 text-[var(--edge-text-secondary)] transition-transform ${open ? "rotate-180" : ""}`}
+          >
+            <path
+              d="M2 3.5L5 6.5L8 3.5"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </EdgeBorderLabeledControl>
       {mounted && menu ? createPortal(menu, document.body) : null}
     </div>
   );

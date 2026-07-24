@@ -22,6 +22,7 @@ vi.mock("@/db", () => ({
 import {
   establishDevSession,
   isDevPassphraseRequired,
+  isOpenDevSessionAllowed,
   validateDevPassphrase,
 } from "./devSession";
 
@@ -29,6 +30,8 @@ describe("devSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.EDGE_AUTH_SECRET = "test-auth-secret";
+    process.env.EDGE_ALLOW_OPEN_DEV_SESSION = "1";
+    vi.stubEnv("NODE_ENV", "development");
     delete process.env.EDGE_DEV_PASSPHRASE;
 
     dbMocks.select.mockReturnValue({
@@ -64,10 +67,27 @@ describe("devSession", () => {
     expect(validateDevPassphrase("wrong")).toBe(false);
   });
 
-  it("bootstraps a dev session when passphrase is not required", async () => {
+  it("bootstraps a dev session when open dev session is allowed", async () => {
+    expect(isOpenDevSessionAllowed()).toBe(true);
     const user = await establishDevSession({ bootstrap: true });
     expect(user?.id).toBe("22222222-2222-2222-2222-222222222222");
     expect(cookieStore.set).toHaveBeenCalled();
+  });
+
+  it("rejects bootstrap when open dev session is not allowed", async () => {
+    delete process.env.EDGE_ALLOW_OPEN_DEV_SESSION;
+    expect(isOpenDevSessionAllowed()).toBe(false);
+    const user = await establishDevSession({ bootstrap: true });
+    expect(user).toBeNull();
+    expect(cookieStore.set).not.toHaveBeenCalled();
+  });
+
+  it("rejects bootstrap in production even when open dev session env is set", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.EDGE_ALLOW_OPEN_DEV_SESSION = "1";
+    expect(isOpenDevSessionAllowed()).toBe(false);
+    const user = await establishDevSession({ bootstrap: true });
+    expect(user).toBeNull();
   });
 
   it("rejects bootstrap when passphrase is required", async () => {

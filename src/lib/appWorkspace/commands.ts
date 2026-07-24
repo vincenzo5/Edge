@@ -191,6 +191,23 @@ export function openSurface(
   });
 }
 
+export function updateTileChartWorkspaceId(
+  doc: AppWorkspaceDocument,
+  tileId: string,
+  chartWorkspaceId: string | undefined,
+): AppWorkspaceDocument {
+  const tile = doc.tiles[tileId];
+  if (!tile) return doc;
+  if (tile.chartWorkspaceId === chartWorkspaceId) return doc;
+  return touchDocument({
+    ...doc,
+    tiles: {
+      ...doc.tiles,
+      [tileId]: { ...tile, chartWorkspaceId },
+    },
+  });
+}
+
 export function updateTileSurfaceState(
   doc: AppWorkspaceDocument,
   tileId: string,

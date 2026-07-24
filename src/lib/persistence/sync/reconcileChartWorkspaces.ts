@@ -64,3 +64,19 @@ export async function reconcileChartWorkspacesAfterTabClose(
 
   return { archived, failed };
 }
+
+/** Archive and dismiss a chart-workspace remote when a chart tile is closed. */
+export async function reconcileChartWorkspacesAfterTileClose(
+  closedRemoteId: string,
+): Promise<ReconcileChartWorkspacesResult> {
+  const trimmed = closedRemoteId.trim();
+  if (!trimmed) {
+    return { archived: [], failed: [] };
+  }
+
+  recordDismissedRemoteWorkspace(trimmed);
+  const ok = await archiveChartWorkspaceRemote(trimmed);
+  return ok
+    ? { archived: [trimmed], failed: [] }
+    : { archived: [], failed: [trimmed] };
+}

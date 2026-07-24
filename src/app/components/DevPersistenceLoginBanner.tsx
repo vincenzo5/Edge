@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { clearEphemeralMarketDataCaches } from "@/lib/marketData/cache/clearEphemeralMarketDataCaches";
 
 type SessionStatus = {
   persistenceEnabled: boolean;
@@ -47,6 +48,7 @@ export function DevPersistenceLoginBanner() {
         setError("Invalid passphrase.");
         return;
       }
+      clearEphemeralMarketDataCaches();
       setStatus((current) =>
         current ? { ...current, authenticated: true, passphraseRequired: true } : current,
       );
@@ -59,25 +61,25 @@ export function DevPersistenceLoginBanner() {
   }
 
   return (
-    <div className="border-b border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] px-4 py-2 text-sm text-[var(--edge-text-secondary)]">
+    <div className="border-b border-[var(--edge-border-subtle)] bg-[var(--edge-surface-popover)] px-4 py-2 text-sm text-[var(--edge-text-secondary)]">
       <form className="mx-auto flex max-w-3xl flex-wrap items-center gap-2" onSubmit={onSubmit}>
         <span>Cloud sync requires a dev session passphrase.</span>
         <input
           type="password"
           value={passphrase}
           onChange={(event) => setPassphrase(event.target.value)}
-          className="min-w-[12rem] rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-base)] px-2 py-1 text-[var(--edge-text-primary)]"
+          className="min-w-[12rem] rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] px-2 py-1 text-[var(--edge-text-primary)]"
           placeholder="Dev passphrase"
           autoComplete="current-password"
         />
         <button
           type="submit"
           disabled={submitting || passphrase.trim() === ""}
-          className="rounded bg-[var(--edge-accent-primary)] px-3 py-1 text-[var(--edge-text-on-accent)] disabled:opacity-50"
+          className="rounded bg-[var(--edge-accent-blue-fill)] px-3 py-1 text-[var(--edge-text-on-accent)] disabled:opacity-50"
         >
           Unlock sync
         </button>
-        {error ? <span className="text-[var(--edge-text-danger)]">{error}</span> : null}
+        {error ? <span className="text-[var(--edge-negative)]">{error}</span> : null}
       </form>
     </div>
   );

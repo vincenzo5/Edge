@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     displayName: "Dev User",
   })),
   isDevPassphraseRequired: vi.fn(() => false),
+  isOpenDevSessionAllowed: vi.fn(() => true),
 }));
 
 vi.mock("@/db", () => ({
@@ -22,6 +23,7 @@ vi.mock("@/lib/persistence/auth/getCurrentUser", () => ({
 vi.mock("@/lib/persistence/auth/devSession", () => ({
   establishDevSession: mocks.establishDevSession,
   isDevPassphraseRequired: mocks.isDevPassphraseRequired,
+  isOpenDevSessionAllowed: mocks.isOpenDevSessionAllowed,
 }));
 
 import { withPersistenceAuth } from "./routeHelpers";
@@ -32,6 +34,7 @@ describe("withPersistenceAuth", () => {
     mocks.isDatabaseConfigured.mockReturnValue(true);
     mocks.getCurrentUser.mockResolvedValue(null);
     mocks.isDevPassphraseRequired.mockReturnValue(false);
+    mocks.isOpenDevSessionAllowed.mockReturnValue(true);
     mocks.establishDevSession.mockResolvedValue({
       id: "user-1",
       email: "dev@localhost",
@@ -51,6 +54,16 @@ describe("withPersistenceAuth", () => {
 
     const result = await withPersistenceAuth(async () => ({ ok: true }));
 
+    expect(result).toBeInstanceOf(Response);
+    expect((result as Response).status).toBe(401);
+  });
+
+  it("does not bootstrap when open dev session is not allowed", async () => {
+    mocks.isOpenDevSessionAllowed.mockReturnValue(false);
+
+    const result = await withPersistenceAuth(async () => ({ ok: true }));
+
+    expect(mocks.establishDevSession).not.toHaveBeenCalled();
     expect(result).toBeInstanceOf(Response);
     expect((result as Response).status).toBe(401);
   });

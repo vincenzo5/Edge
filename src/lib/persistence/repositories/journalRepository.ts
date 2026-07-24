@@ -3,11 +3,22 @@ import "server-only";
 import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 
 import { getDb } from "@/db";
-import { journalFills, journalTradeFills, journalTrades } from "@/db/schema";
+import {
+  journalFills,
+  journalTradeChartSnapshots,
+  journalTradeFills,
+  journalTradeScreenshots,
+  journalTrades,
+} from "@/db/schema";
+import {
+  buildTradeIdRemap,
+  remapAttachmentTradeId,
+} from "@/lib/journal/preserveTradeAttachments";
 import { rebuildTrades } from "@/lib/journal/rebuildTrades";
 import { computePlannedRiskUsd } from "@/lib/journal/rMultiple";
 import type { JournalFill, JournalImportResult, JournalTrade } from "@/lib/journal/types";
 import type {
+  JournalFillAccountIndexEntry,
   JournalFillInput,
   JournalFillResponse,
   JournalTradePatch,
@@ -60,6 +71,12 @@ function tradeToResponse(row: typeof journalTrades.$inferSelect, fillExecIds: st
     plannedRiskMode: row.plannedRiskMode as JournalTradeResponse["plannedRiskMode"],
     plannedRiskValue: row.plannedRiskValue,
     plannedRiskUsd: row.plannedRiskUsd,
+    rating: row.rating as JournalTradeResponse["rating"],
+    ignored: row.ignored ?? false,
+    mfeUsd: row.mfeUsd,
+    mfaUsd: row.mfaUsd,
+    excursionInterval: row.excursionInterval as JournalTradeResponse["excursionInterval"],
+    excursionComputedAt: row.excursionComputedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -95,6 +112,25 @@ export async function listJournalFills(userId: string): Promise<JournalFillRespo
     .where(eq(journalFills.userId, userId))
     .orderBy(desc(journalFills.fillTime));
   return rows.map(fillToResponse);
+}
+
+export async function listJournalFillAccountIndex(
+  userId: string,
+  execIds: string[],
+): Promise<JournalFillAccountIndexEntry[]> {
+  if (execIds.length === 0) return [];
+  const db = getDb();
+  const rows = await db
+    .select({
+      execId: journalFills.execId,
+      account: journalFills.account,
+    })
+    .from(journalFills)
+    .where(and(eq(journalFills.userId, userId), inArray(journalFills.execId, execIds)));
+  return rows.map((row) => ({
+    execId: row.execId,
+    account: row.account?.trim() ?? null,
+  }));
 }
 
 export async function upsertJournalFills(
@@ -247,6 +283,24 @@ export async function patchJournalTrade(
       plannedRiskMode: nextMode ?? null,
       plannedRiskValue: nextValue ?? null,
       plannedRiskUsd: nextPlannedRiskUsd,
+      rating: patch.rating !== undefined ? patch.rating : existing.rating ?? null,
+      ignored: patch.ignored !== undefined ? patch.ignored : existing.ignored ?? false,
+      mfeUsd: patch.mfeUsd !== undefined ? patch.mfeUsd : existing.mfeUsd ?? null,
+      mfaUsd: patch.mfaUsd !== undefined ? patch.mfaUsd : existing.mfaUsd ?? null,
+      excursionInterval:
+        patch.excursionInterval !== undefined
+          ? patch.excursionInterval
+          : existing.excursionInterval ?? null,
+      excursionComputedAt:
+        patch.excursionComputedAt !== undefined
+          ? patch.excursionComputedAt != null
+            ? new Date(patch.excursionComputedAt)
+            : null
+          : patch.mfeUsd !== undefined || patch.mfaUsd !== undefined
+            ? new Date()
+            : existing.excursionComputedAt
+              ? new Date(existing.excursionComputedAt)
+              : null,
       updatedAt: new Date(),
     })
     .where(and(eq(journalTrades.id, tradeId), eq(journalTrades.userId, userId)))
@@ -287,6 +341,20 @@ export async function rebuildJournalTrades(userId: string): Promise<JournalImpor
 
   const previousTrades = await listJournalTrades(userId, { limit: 5000 });
   const { trades } = rebuildTrades(fills, previousTrades as JournalTrade[]);
+  const tradeIdRemap = buildTradeIdRemap(
+    previousTrades as JournalTrade[],
+    trades,
+  );
+
+  // Snapshot attachments before delete — trade DELETE CASCADE would wipe them.
+  const screenshotRows = await db
+    .select()
+    .from(journalTradeScreenshots)
+    .where(eq(journalTradeScreenshots.userId, userId));
+  const chartSnapshotRows = await db
+    .select()
+    .from(journalTradeChartSnapshots)
+    .where(eq(journalTradeChartSnapshots.userId, userId));
 
   const existingTradeRows = await db
     .select({ id: journalTrades.id })
@@ -323,6 +391,14 @@ export async function rebuildJournalTrades(userId: string): Promise<JournalImpor
         plannedRiskMode: trade.plannedRiskMode ?? null,
         plannedRiskValue: trade.plannedRiskValue ?? null,
         plannedRiskUsd: trade.plannedRiskUsd ?? null,
+        rating: trade.rating ?? null,
+        ignored: trade.ignored ?? false,
+        mfeUsd: trade.mfeUsd ?? null,
+        mfaUsd: trade.mfaUsd ?? null,
+        excursionInterval: trade.excursionInterval ?? null,
+        excursionComputedAt: trade.excursionComputedAt
+          ? new Date(trade.excursionComputedAt)
+          : null,
       })
       .returning();
 
@@ -345,6 +421,25 @@ export async function rebuildJournalTrades(userId: string): Promise<JournalImpor
         role,
       });
     }
+  }
+
+  // Restore screenshots first so chart-snapshot screenshot_id FKs still resolve.
+  for (const shot of screenshotRows) {
+    const nextTradeId = remapAttachmentTradeId(shot.tradeId, tradeIdRemap);
+    if (!nextTradeId) continue;
+    await db.insert(journalTradeScreenshots).values({
+      ...shot,
+      tradeId: nextTradeId,
+    });
+  }
+
+  for (const snapshot of chartSnapshotRows) {
+    const nextTradeId = remapAttachmentTradeId(snapshot.tradeId, tradeIdRemap);
+    if (!nextTradeId) continue;
+    await db.insert(journalTradeChartSnapshots).values({
+      ...snapshot,
+      tradeId: nextTradeId,
+    });
   }
 
   return {

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
 import { createDefaultWorkspaceTabs } from "@/lib/app/workspaceTabs";
+import { workspaceActiveContentKey } from "./useWorkspaceTabsRemoteSync";
 
 const mocks = vi.hoisted(() => ({
   createChartWorkspaceRemote: vi.fn(),
@@ -22,6 +23,14 @@ import {
 describe("useWorkspaceTabsRemoteSync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("workspaceActiveContentKey is stable when layout reference is unchanged", () => {
+    const tabs = createDefaultWorkspaceTabs();
+    const first = workspaceActiveContentKey(tabs);
+    const second = workspaceActiveContentKey(tabs);
+    expect(second).toBe(first);
+    expect(first.includes("\0")).toBe(true);
   });
 
   it("creates remote workspace when active tab has no remote id", async () => {

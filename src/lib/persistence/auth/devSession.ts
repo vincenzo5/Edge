@@ -19,6 +19,12 @@ export function isDevPassphraseRequired(): boolean {
   return Boolean(process.env.EDGE_DEV_PASSPHRASE?.trim());
 }
 
+export function isOpenDevSessionAllowed(): boolean {
+  const raw = process.env.EDGE_ALLOW_OPEN_DEV_SESSION?.trim().toLowerCase();
+  const enabled = raw === "1" || raw === "true";
+  return enabled && process.env.NODE_ENV !== "production";
+}
+
 function readDevPassphrase(): string | null {
   const value = process.env.EDGE_DEV_PASSPHRASE?.trim();
   return value || null;
@@ -79,6 +85,10 @@ export async function establishDevSession(
     return null;
   }
 
+  if (input.bootstrap && !isOpenDevSessionAllowed()) {
+    return null;
+  }
+
   if (isDevPassphraseRequired()) {
     if (input.bootstrap) {
       return null;
@@ -112,7 +122,7 @@ export async function ensurePersistenceSession(): Promise<void> {
   if (!isPersistenceEnabled()) {
     return;
   }
-  if (isDevPassphraseRequired()) {
+  if (isDevPassphraseRequired() || !isOpenDevSessionAllowed()) {
     return;
   }
   const cookieStore = await cookies();

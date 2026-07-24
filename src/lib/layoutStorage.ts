@@ -1,7 +1,6 @@
 import type { ChartLayout } from "./chartConfig";
 import {
   migrateChartLayout,
-  mergeChartSettings,
   migrateCellIndicators,
   coerceTheme,
   DEFAULT_LAYOUT,
@@ -13,6 +12,7 @@ import {
   type SidebarPrefs,
   type FloatingPanelGeometry,
 } from "./chartConfig";
+import { stripLegacyFactoryTimeZoneOnLoad } from "./chart/chartSettings";
 import { migrateSidebarWidth } from "./responsive/sidebarWidth";
 import {
   normalizeFloatingGeometry,
@@ -40,7 +40,7 @@ export function loadLayout(): ChartLayout {
         paneOrder: Array.isArray(c.paneOrder) ? c.paneOrder : undefined,
         collapsedPanes: Array.isArray(c.collapsedPanes) ? c.collapsedPanes : undefined,
         maximizedPane: c.maximizedPane ?? null,
-        chartSettings: mergeChartSettings(c.chartSettings),
+        chartSettings: stripLegacyFactoryTimeZoneOnLoad(c.chartSettings),
       }),
     );
     const sync = migrateChartLayout({ ...parsed, version: 1, cells } as ChartLayout);
@@ -64,6 +64,9 @@ export function loadLayout(): ChartLayout {
   }
 }
 
+/**
+ * @deprecated Test seeder only — production writes use `saveWorkspaceTabs` (`tv-ai:workspace-tabs:v1`).
+ */
 export function saveLayout(layout: ChartLayout): void {
   if (typeof window === "undefined") return;
   try {
@@ -82,6 +85,8 @@ const VALID_SIDEBAR_PANELS = new Set<SidebarPanelId>([
   "screener",
   "trade",
   "patterns",
+  "day-profiles",
+  "copilot",
 ]);
 
 function migrateLegacySidebarPanelId(
@@ -138,6 +143,9 @@ function normalizeFloatingGeometryMap(
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+/**
+ * @deprecated Test helper only — production clears use workspace-tabs storage.
+ */
 export function clearLayout(): void {
   if (typeof window === "undefined") return;
   try {

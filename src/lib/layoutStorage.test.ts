@@ -69,6 +69,24 @@ describe('loadLayout sidebar prefs', () => {
     expect(merged.canvas.crosshairMode).toBe('dot');
   });
 
+  it('strips legacy UTC on load and inherits app default on merge', () => {
+    saveLayout({
+      ...DEFAULT_LAYOUT,
+      cells: [
+        {
+          ...DEFAULT_LAYOUT.cells[0],
+          chartSettings: { symbol: { timeZone: 'UTC' } },
+        },
+      ],
+    });
+    const loaded = loadLayout();
+    expect(loaded.cells[0].chartSettings?.symbol?.timeZone).toBeUndefined();
+    const merged = mergeChartSettings(loaded.cells[0].chartSettings, {
+      defaultTimeZone: 'America/New_York',
+    });
+    expect(merged.symbol.timeZone).toBe('America/New_York');
+  });
+
   it('round-trips chartSettings timeZone', () => {
     saveLayout({
       ...DEFAULT_LAYOUT,

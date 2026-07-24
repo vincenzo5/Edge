@@ -21,16 +21,16 @@ describe("mergeRemoteConflictLayout", () => {
     expect(merged.sidebar?.activePanel).toBe("watchlist");
   });
 
-  it("uses remote sidebar activePanel when local is null", () => {
+  it("preserves local closed activePanel over remote open panel", () => {
     const local = {
       ...DEFAULT_LAYOUT,
       sidebar: { activePanel: null },
     };
     const remote = {
       ...DEFAULT_LAYOUT,
-      sidebar: { activePanel: "options" as const },
+      sidebar: { activePanel: "trade" as const },
     };
 
-    expect(mergeRemoteConflictLayout(local, remote).sidebar?.activePanel).toBe("options");
+    expect(mergeRemoteConflictLayout(local, remote).sidebar?.activePanel).toBeNull();
   });
 });

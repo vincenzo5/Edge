@@ -62,21 +62,30 @@ export default function SplitPane({
         {first}
       </div>
       <div
-        role="separator"
-        aria-orientation={isRow ? "vertical" : "horizontal"}
-        data-testid={`split-handle-${splitId}`}
-        className={`shrink-0 bg-[var(--edge-border-subtle)] ${
-          isRow ? "w-px cursor-col-resize" : "h-px cursor-row-resize"
+        className={`relative shrink-0 bg-[var(--edge-border-subtle)] ${
+          isRow ? "w-px" : "h-px"
         }`}
-        onPointerDown={(event) => {
-          const rect = containerRef.current?.getBoundingClientRect();
-          const size = rect ? (isRow ? rect.width : rect.height) : 1;
-          beginDrag(event, size);
-        }}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerCancel}
-      />
+      >
+        <div
+          role="separator"
+          aria-orientation={isRow ? "vertical" : "horizontal"}
+          aria-label="Resize panels"
+          data-testid={`split-handle-${splitId}`}
+          className={`absolute z-20 touch-none hover:bg-[var(--edge-accent-blue)] focus-visible:bg-[var(--edge-accent-blue)] focus-visible:outline-none ${
+            isRow
+              ? "inset-y-0 left-1/2 w-2 -translate-x-1/2 cursor-col-resize"
+              : "inset-x-0 top-1/2 h-2 -translate-y-1/2 cursor-row-resize"
+          }`}
+          onPointerDown={(event) => {
+            const rect = containerRef.current?.getBoundingClientRect();
+            const size = rect ? (isRow ? rect.width : rect.height) : 1;
+            beginDrag(event, size);
+          }}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+        />
+      </div>
       <div
         className="h-full min-h-0 min-w-0 overflow-hidden"
         style={{ flex: `${displaySizes[1]} 1 0%` }}

@@ -13,6 +13,23 @@ describe("screenerLibraryWriteSchema", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("accepts a valid screener snapshot write with review resume", () => {
+    const parsed = screenerLibraryWriteSchema.safeParse({
+      schemaVersion: 1,
+      baseRevision: 0,
+      screenerSnapshot: {
+        ...DEFAULT_SCREENER_STATE,
+        reviewResume: {
+          reviewIndex: 2,
+          keepers: ["AAPL"],
+          reviewActive: true,
+          queryFingerprint: "abc123",
+        },
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
   it("rejects activeScreenId that does not exist in savedScreens", () => {
     const parsed = screenerLibraryWriteSchema.safeParse({
       schemaVersion: 1,

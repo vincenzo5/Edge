@@ -5,14 +5,27 @@ import type { ReactNode } from "react";
 import type { AssignableSurfaceId } from "@/lib/appWorkspace/commands";
 import type { SurfaceId } from "@/lib/appWorkspace/types";
 
+import { EdgeSelect } from "@/app/components/design-system";
+import { TileDensityProvider } from "./TileDensityContext";
+
 const SURFACE_LABELS: Record<SurfaceId, string> = {
   chart: "Chart",
   screener: "Screener",
   journal: "Journal",
+  scripts: "Scripts",
+  alerts: "Alerts",
+  copilot: "Copilot",
   placeholder: "Panel",
 };
 
-const REASSIGNABLE_SURFACES: AssignableSurfaceId[] = ["chart", "screener", "journal"];
+const REASSIGNABLE_SURFACES: AssignableSurfaceId[] = [
+  "chart",
+  "screener",
+  "journal",
+  "scripts",
+  "alerts",
+  "copilot",
+];
 
 type Props = {
   tileId: string;
@@ -44,14 +57,14 @@ export default function TileFrame({
   return (
     <div
       data-testid={`tile-frame-${tileId}`}
+      data-workspace-tile-id={tileId}
       data-surface={surfaceId}
       data-edit-mode={editMode ? "true" : "false"}
-      className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden ${
+      data-active={active ? "true" : "false"}
+      className={`relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden ${
         editMode
-          ? `border ${active ? "border-[var(--edge-accent)]" : "border-[var(--edge-border-subtle)]"}`
-          : active
-            ? "ring-1 ring-inset ring-[var(--edge-accent)]"
-            : ""
+          ? `border ${active ? "border-[var(--edge-accent-blue)]" : "border-[var(--edge-border-subtle)]"}`
+          : ""
       }`}
       onPointerDown={onFocus}
     >
@@ -59,25 +72,25 @@ export default function TileFrame({
         <div
           {...dragHandleProps}
           data-testid={`tile-header-${tileId}`}
-          className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-[var(--edge-border-subtle)] bg-[var(--edge-surface-raised)] px-2"
+          className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-[var(--edge-border-subtle)] bg-[var(--edge-surface-toolbar)] px-2"
         >
           {showReassign ? (
-            <select
-              aria-label={`Change surface for ${SURFACE_LABELS[surfaceId]} tile`}
-              data-testid={`tile-reassign-${tileId}`}
-              className="min-w-0 max-w-[7rem] truncate rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface)] px-1 py-0.5 text-xs text-[var(--edge-text-secondary)]"
-              value={surfaceId}
-              onClick={(event) => event.stopPropagation()}
-              onChange={(event) =>
-                onReassign(event.target.value as AssignableSurfaceId)
-              }
-            >
-              {REASSIGNABLE_SURFACES.map((id) => (
-                <option key={id} value={id}>
-                  {SURFACE_LABELS[id]}
-                </option>
-              ))}
-            </select>
+            <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+              <EdgeSelect
+                testId={`tile-reassign-${tileId}`}
+                variant="chip"
+                density="compact"
+                aria-label={`Change surface for ${SURFACE_LABELS[surfaceId]} tile`}
+                value={surfaceId}
+                onChange={(next) => onReassign(next as AssignableSurfaceId)}
+                options={REASSIGNABLE_SURFACES.map((id) => ({
+                  value: id,
+                  label: SURFACE_LABELS[id],
+                }))}
+                className="max-w-[7rem] text-xs"
+                minWidth={110}
+              />
+            </div>
           ) : (
             <span className="truncate text-xs font-medium text-[var(--edge-text-secondary)]">
               {SURFACE_LABELS[surfaceId]}
@@ -99,7 +112,15 @@ export default function TileFrame({
           ) : null}
         </div>
       ) : null}
-      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+      <TileDensityProvider>{children}</TileDensityProvider>
+      {/* Overlay ring paints above opaque surfaces (e.g. chart canvas) that cover inset box-shadow. */}
+      {!editMode && active ? (
+        <div
+          aria-hidden
+          data-testid={`tile-active-ring-${tileId}`}
+          className="pointer-events-none absolute inset-0 z-20 ring-1 ring-inset ring-[var(--edge-accent-blue)]"
+        />
+      ) : null}
     </div>
   );
 }

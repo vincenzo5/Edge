@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { isRemoteNewer } from "@/lib/persistence/sync/syncMetadata";
+import { reportPersistenceSyncState } from "@/lib/persistence/sync/persistenceSyncHealth";
 
 export type SyncMeta = {
   syncRevision: number;
@@ -29,6 +30,7 @@ type ReactStateSyncOptions<TState> = {
   state: TState;
   hydrated: boolean;
   onApplyRemoteState: (state: TState) => void;
+  skipInitialHydrate?: boolean;
 };
 
 type SubscribeSyncOptions<TState> = {
@@ -103,18 +105,34 @@ async function pushLocalState<TState>(options: {
       syncRevision: result.record.syncRevision,
       updatedAt: result.record.updatedAt,
     });
+    reportPersistenceSyncState({ conflict: false, error: false, lastError: null });
     return;
   }
 
   if (result.current) {
-    if (result.current.snapshot) {
-      onApplyRemoteState(result.current.snapshot);
-    }
+    reportPersistenceSyncState({ conflict: true, error: false, lastError: null });
     adapter.setMeta({
       syncRevision: result.current.syncRevision,
       updatedAt: result.current.updatedAt,
     });
+
+    const retry = await adapter.saveRemote(getLocalState(), result.current.syncRevision);
+    if (retry.ok) {
+      adapter.setMeta({
+        syncRevision: retry.record.syncRevision,
+        updatedAt: retry.record.updatedAt,
+      });
+      reportPersistenceSyncState({ conflict: false, error: false, lastError: null });
+      return;
+    }
+
+    if (result.current.snapshot) {
+      onApplyRemoteState(result.current.snapshot);
+    }
+    return;
   }
+
+  reportPersistenceSyncState({ error: true, lastError: "Cloud sync push failed" });
 }
 
 export function useRevisionedRemoteSync<TState>(
@@ -136,7 +154,7 @@ export function useRevisionedRemoteSync<TState>(
 function useRevisionedRemoteSyncReactState<TState>(
   options: ReactStateSyncOptions<TState>,
 ): void {
-  const { adapter, hydrated, onApplyRemoteState } = options;
+  const { adapter, hydrated, onApplyRemoteState, skipInitialHydrate = false } = options;
   const stateRef = useRef(options.state);
   const syncingRef = useRef(false);
   const remoteHydratedRef = useRef(false);
@@ -155,8 +173,12 @@ function useRevisionedRemoteSyncReactState<TState>(
 
   useEffect(() => {
     if (!hydrated || remoteHydratedRef.current) return;
+    if (skipInitialHydrate) {
+      remoteHydratedRef.current = true;
+      return;
+    }
     void applyRemoteIfNewer();
-  }, [hydrated, applyRemoteIfNewer]);
+  }, [hydrated, applyRemoteIfNewer, skipInitialHydrate]);
 
   useEffect(() => {
     if (!hydrated || !remoteHydratedRef.current) return;

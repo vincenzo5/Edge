@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { parseJsonBody, persistenceError } from "@/lib/persistence/common";
+import { parseJsonBody, persistenceError, isPersistenceOwnershipError } from "@/lib/persistence/common";
 import { marketResearchNoteCreateSchema } from "@/lib/persistence/schemas/marketResearchNote";
 import {
   createMarketResearchNote,
@@ -34,16 +34,23 @@ export async function POST(request: Request) {
       return persistenceError(400, "validation", parsed.error, { details: parsed.details });
     }
 
-    const note = await createMarketResearchNote({
-      userId,
-      chartWorkspaceId: parsed.data.chartWorkspaceId,
-      symbol: parsed.data.symbol,
-      chartInterval: parsed.data.chartInterval,
-      researchNoteType: parsed.data.researchNoteType,
-      chartDrawingSnapshot: parsed.data.chartDrawingSnapshot ?? null,
-      researchThesis: parsed.data.researchThesis,
-    });
+    try {
+      const note = await createMarketResearchNote({
+        userId,
+        chartWorkspaceId: parsed.data.chartWorkspaceId,
+        symbol: parsed.data.symbol,
+        chartInterval: parsed.data.chartInterval,
+        researchNoteType: parsed.data.researchNoteType,
+        chartDrawingSnapshot: parsed.data.chartDrawingSnapshot ?? null,
+        researchThesis: parsed.data.researchThesis,
+      });
 
-    return NextResponse.json(note, { status: 201 });
+      return NextResponse.json(note, { status: 201 });
+    } catch (error) {
+      if (isPersistenceOwnershipError(error)) {
+        return persistenceError(400, "validation", error.message);
+      }
+      throw error;
+    }
   });
 }

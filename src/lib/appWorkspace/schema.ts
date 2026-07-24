@@ -1,15 +1,45 @@
 import { z } from "zod";
 
-export const surfaceIdSchema = z.enum(["chart", "screener", "journal", "placeholder"]);
+import { ALERT_DRAWING_KINDS, ALERT_OPERATORS } from "@/lib/persistence/schemas/alerts";
+
+export const surfaceIdSchema = z.enum([
+  "chart",
+  "screener",
+  "journal",
+  "scripts",
+  "alerts",
+  "copilot",
+  "placeholder",
+]);
 
 export const tileSurfaceStateSchema = z.object({
   screenerView: z.enum(["review", "screens", "results", "keepers"]).optional(),
-  journalView: z.enum(["dashboard", "trades", "settings"]).optional(),
+  journalView: z.enum(["dashboard", "trades", "open", "settings"]).optional(),
+  selectedScriptId: z.string().min(1).optional(),
+  selectedAlertId: z.string().min(1).optional(),
+  alertPrefill: z
+    .object({
+      symbol: z.string().min(1),
+      operator: z.enum(ALERT_OPERATORS),
+      price: z.number().finite(),
+      message: z.string().optional(),
+      drawingId: z.string().min(1).optional(),
+      drawingKind: z.enum(ALERT_DRAWING_KINDS).optional(),
+      priceHigh: z.number().finite().optional(),
+      tlT0: z.number().finite().optional(),
+      tlV0: z.number().finite().optional(),
+      tlT1: z.number().finite().optional(),
+      tlV1: z.number().finite().optional(),
+      tlExtendLeft: z.boolean().optional(),
+      tlExtendRight: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const tileInstanceSchema = z.object({
   id: z.string().min(1),
   surfaceId: surfaceIdSchema,
+  chartWorkspaceId: z.string().uuid().optional(),
   surfaceState: tileSurfaceStateSchema.optional(),
 });
 

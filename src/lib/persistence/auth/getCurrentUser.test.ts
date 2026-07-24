@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSignedUserCookieValue } from "./devSessionCookie";
+import { createSignedUserCookieValue, SESSION_MAX_AGE_SEC } from "./devSessionCookie";
 
 const cookieStore = vi.hoisted(() => ({
   get: vi.fn(),
@@ -91,5 +91,20 @@ describe("getCurrentUser", () => {
   it("returns null when no cookie is present", async () => {
     cookieStore.get.mockReturnValue(undefined);
     expect(await getCurrentUser()).toBeNull();
+  });
+
+  it("returns null for expired signed cookies", async () => {
+    const userId = "11111111-1111-1111-1111-111111111111";
+    const expiredAt = Date.now() - (SESSION_MAX_AGE_SEC + 60) * 1000;
+    cookieStore.get.mockReturnValue({
+      value: createSignedUserCookieValue(userId, {
+        secret: "test-auth-secret",
+        now: expiredAt,
+        jti: "00000000-0000-0000-0000-000000000003",
+      }),
+    });
+
+    expect(await getCurrentUser()).toBeNull();
+    expect(dbMocks.insert).not.toHaveBeenCalled();
   });
 });

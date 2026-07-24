@@ -1,4 +1,11 @@
-export type SurfaceId = "chart" | "screener" | "journal" | "placeholder";
+export type SurfaceId =
+  | "chart"
+  | "screener"
+  | "journal"
+  | "scripts"
+  | "alerts"
+  | "copilot"
+  | "placeholder";
 
 export type SplitDirection = "row" | "column";
 
@@ -6,12 +13,37 @@ export type DropEdge = "left" | "right" | "top" | "bottom" | "center";
 
 export type TileSurfaceState = {
   screenerView?: "review" | "screens" | "results" | "keepers";
-  journalView?: "dashboard" | "trades" | "settings";
+  journalView?: "dashboard" | "trades" | "open" | "settings";
+  selectedScriptId?: string;
+  selectedAlertId?: string;
+  alertPrefill?: {
+    symbol: string;
+    operator:
+      | "cross_above"
+      | "cross_below"
+      | "touch_above"
+      | "touch_below"
+      | "enter_zone"
+      | "exit_zone";
+    price: number;
+    message?: string;
+    drawingId?: string;
+    drawingKind?: "horizontal_line" | "trend_line" | "rectangle";
+    priceHigh?: number;
+    tlT0?: number;
+    tlV0?: number;
+    tlT1?: number;
+    tlV1?: number;
+    tlExtendLeft?: boolean;
+    tlExtendRight?: boolean;
+  };
 };
 
 export type TileInstance = {
   id: string;
   surfaceId: SurfaceId;
+  /** Postgres chart-workspace resource id when synced (Phase 1). */
+  chartWorkspaceId?: string;
   surfaceState?: TileSurfaceState;
 };
 

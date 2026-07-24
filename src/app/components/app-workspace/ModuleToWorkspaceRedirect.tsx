@@ -8,14 +8,18 @@ import {
   type WorkspaceDeepLinkParams,
 } from "@/lib/appWorkspace/deepLinks";
 
-type Props = Pick<WorkspaceDeepLinkParams, "surface" | "journalView">;
+type Props = Pick<WorkspaceDeepLinkParams, "surface" | "journalView" | "screenerView">;
 
-export default function ModuleToWorkspaceRedirect({ surface, journalView }: Props) {
+export default function ModuleToWorkspaceRedirect({
+  surface,
+  journalView,
+  screenerView,
+}: Props) {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(buildWorkspaceDeepLink({ surface, journalView }));
-  }, [journalView, router, surface]);
+    router.replace(buildWorkspaceDeepLink({ surface, journalView, screenerView }));
+  }, [journalView, router, screenerView, surface]);
 
   return null;
 }

@@ -19,11 +19,8 @@ describe("journal schemas", () => {
     expect(parsed.success).toBe(true);
   });
 
-  it("validates trade patch with planned risk", () => {
-    const parsed = journalTradePatchSchema.safeParse({
-      plannedRiskMode: "usd",
-      plannedRiskValue: 500,
-    });
+  it("validates trade patch with ignored flag", () => {
+    const parsed = journalTradePatchSchema.safeParse({ ignored: true });
     expect(parsed.success).toBe(true);
   });
 });
