@@ -27,7 +27,7 @@ import {
 } from "@/lib/screener/screenerHeatMapAdapter";
 import { useMarketDataQuotesForSymbols } from "../MarketDataProvider";
 import ChartAnchoredPopover from "../chart-chrome/ChartAnchoredPopover";
-import { EdgeButton, EdgeEmptyState, EdgeMenuItem } from "../design-system";
+import { EdgeButton, EdgeEmptyState, EdgeMenuItem, EdgeSegmentedTabs, EdgeStatusRegion } from "../design-system";
 import { HeatMapToolbar, HeatMapView } from "../heatmap";
 import { mergeScreenerQuoteOverlay } from "./useScreenerQuoteOverlay";
 import ColumnPicker from "./ColumnPicker";
@@ -309,7 +309,7 @@ export default function ResultsTable({
   if (error) {
     return (
       <div data-testid="screener-results-error">
-        <EdgeEmptyState message={error} />
+        <EdgeEmptyState message={error} role="alert" tone="error" />
       </div>
     );
   }
@@ -411,18 +411,15 @@ export default function ResultsTable({
           data-testid="screener-results-toolbar"
         >
           {onResultsViewModeChange ? (
-            <select
+            <EdgeSegmentedTabs
+              segments={[
+                { id: "list", label: "List" },
+                { id: "heatmap", label: "Heat map" },
+              ]}
               value={resultsViewMode}
-              onChange={(event) =>
-                onResultsViewModeChange(event.target.value as ScreenerResultsViewMode)
-              }
-              className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1.5 py-1 text-[11px] text-[var(--edge-text-primary)]"
-              data-testid="screener-results-view-select"
-              aria-label="Results view"
-            >
-              <option value="list">List</option>
-              <option value="heatmap">Heat map</option>
-            </select>
+              onChange={(id) => onResultsViewModeChange(id as ScreenerResultsViewMode)}
+              className="shrink-0"
+            />
           ) : null}
           <span
             className="text-[11px] text-[var(--edge-text-secondary)]"
@@ -608,33 +605,7 @@ export default function ResultsTable({
           </thead>
           <tbody>
             {loading && pageRows.length === 0
-              ? Array.from({ length: 8 }).map((_, rowIndex) => (
-                  <tr
-                    key={`skeleton-${rowIndex}`}
-                    className="border-t border-[var(--edge-border-subtle)]"
-                    aria-hidden
-                  >
-                    {onToggleCompareSymbol ? (
-                      <td className="px-1 py-1" aria-hidden />
-                    ) : null}
-                    {columns.map((column, colIndex) => (
-                      <td key={`skeleton-${rowIndex}-${column}`} className="px-1.5 py-1.5">
-                        <div
-                          className="h-3 animate-pulse rounded bg-[var(--edge-bg-tertiary)]"
-                          style={{ width: `${55 + ((rowIndex + colIndex) % 4) * 12}%` }}
-                        />
-                      </td>
-                    ))}
-                    {activeIndicatorColumns.map((column) => (
-                      <td key={`skeleton-${rowIndex}-${column.key}`} className="px-1.5 py-1.5">
-                        <div className="ml-auto h-3 w-10 animate-pulse rounded bg-[var(--edge-bg-tertiary)]" />
-                      </td>
-                    ))}
-                    <td className="px-1.5 py-1.5">
-                      <div className="ml-auto h-3 w-10 animate-pulse rounded bg-[var(--edge-bg-tertiary)]" />
-                    </td>
-                  </tr>
-                ))
+              ? null
               : pageRows.map((row, pageIndex) => {
               const globalIndex = pageStart + pageIndex;
               const isSelected =
@@ -769,36 +740,23 @@ function ScreenerLoadingPanel({ label }: { label: string }) {
   }, []);
 
   return (
-    <div
-      className="flex items-center gap-3 border-b border-[var(--edge-border-subtle)] px-3 py-2.5"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
+    <EdgeStatusRegion
       data-testid="screener-loading-panel"
-    >
-      <div
-        className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[var(--edge-border)] border-t-[var(--edge-accent-blue)]"
-        aria-hidden
-      />
-      <div className="min-w-0 flex-1">
+      label={label}
+      description={
+        label.includes("technical")
+          ? "Fetching prefilter candidates, then computing per-symbol technicals. This can take a while."
+          : "Fetching results from market data…"
+      }
+      variant="banner"
+      trailing={
         <div
-          className="truncate text-xs font-medium text-[var(--edge-text-strong)]"
-          data-testid="screener-loading-label"
+          className="rounded bg-[var(--edge-surface-panel)] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--edge-text-secondary)]"
+          data-testid="screener-loading-elapsed"
         >
-          {label}
+          {formatElapsed(elapsed)}
         </div>
-        <div className="mt-0.5 text-[10px] text-[var(--edge-text-muted)]">
-          {label.includes("technical")
-            ? "Fetching prefilter candidates, then computing per-symbol technicals. This can take a while."
-            : "Fetching results from market data…"}
-        </div>
-      </div>
-      <div
-        className="shrink-0 rounded bg-[var(--edge-surface-panel)] px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--edge-text-secondary)]"
-        data-testid="screener-loading-elapsed"
-      >
-        {formatElapsed(elapsed)}
-      </div>
-    </div>
+      }
+    />
   );
 }

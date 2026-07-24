@@ -1,4 +1,12 @@
-import type { SavedScreen, ScreenerColumnId, ScreenerSortSpec, ScreenerState, PersistedScreenerSortSpec } from "./types";
+import type {
+  SavedScreen,
+  ScreenerColumnId,
+  ScreenerReviewResume,
+  ScreenerSortSpec,
+  ScreenerState,
+  PersistedScreenerSortSpec,
+} from "./types";
+import { clearReviewResume, sanitizeReviewResumeOnLoad } from "./reviewResume";
 import { ALL_SCREENER_COLUMN_IDS, DEFAULT_SCREENER_COLUMNS, isSavedMoversScreen, isScreenerColumnId } from "./types";
 import type { ScreenQuery } from "./types";
 import { SCREENER_PRESETS, type ScreenerPreset } from "./presets";
@@ -7,6 +15,7 @@ import type { FmpMarketMoverKind } from "@/lib/marketData/contracts/fmp";
 const STORAGE_KEY = "tv-ai:screener:v1";
 
 export const MAX_SAVED_SCREENS = 50;
+export const MAX_RECENT_SCREENS = 8;
 
 export const DEFAULT_SCREENER_STATE: ScreenerState = {
   version: 1,
@@ -15,7 +24,56 @@ export const DEFAULT_SCREENER_STATE: ScreenerState = {
   columns: DEFAULT_SCREENER_COLUMNS,
   sort: null,
   savedScreens: [],
+  recentScreenIds: [],
+  reviewResume: null,
 };
+
+function normalizeReviewResume(value: unknown): ScreenerReviewResume | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Partial<ScreenerReviewResume>;
+  if (typeof raw.reviewIndex !== "number" || raw.reviewIndex < 0) return null;
+  if (typeof raw.reviewActive !== "boolean") return null;
+  if (typeof raw.queryFingerprint !== "string" || raw.queryFingerprint.length === 0) return null;
+  if (!Array.isArray(raw.keepers)) return null;
+  const keepers = raw.keepers
+    .filter((symbol): symbol is string => typeof symbol === "string")
+    .map((symbol) => symbol.trim().toUpperCase())
+    .filter(Boolean);
+  return {
+    reviewIndex: raw.reviewIndex,
+    keepers,
+    reviewActive: raw.reviewActive,
+    queryFingerprint: raw.queryFingerprint,
+  };
+}
+
+function normalizeRecentScreenIds(
+  value: unknown,
+  savedScreens: SavedScreen[],
+): string[] {
+  if (!Array.isArray(value)) return [];
+  const validIds = new Set(savedScreens.map((screen) => screen.id));
+  const seen = new Set<string>();
+  const next: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    if (!validIds.has(entry) || seen.has(entry)) continue;
+    seen.add(entry);
+    next.push(entry);
+    if (next.length >= MAX_RECENT_SCREENS) break;
+  }
+  return next;
+}
+
+/** Prepend a loaded/saved screen id to the recent list (deduped, capped). */
+export function recordRecentScreen(state: ScreenerState, screenId: string): ScreenerState {
+  if (!state.savedScreens.some((screen) => screen.id === screenId)) return state;
+  const without = (state.recentScreenIds ?? []).filter((id) => id !== screenId);
+  return {
+    ...state,
+    recentScreenIds: [screenId, ...without].slice(0, MAX_RECENT_SCREENS),
+  };
+}
 
 const ALLOWED_COLUMNS = new Set<ScreenerColumnId>(ALL_SCREENER_COLUMN_IDS);
 
@@ -150,14 +208,18 @@ export function loadScreenerState(): ScreenerState {
         ? parsed.activeScreenId
         : null;
 
-    return ensureStarterScreens({
-      version: 1,
-      activeScreenId,
-      query: normalizeQuery(parsed.query),
-      columns: normalizeColumns(parsed.columns),
-      sort: normalizeSort(parsed.sort),
-      savedScreens,
-    });
+    return sanitizeReviewResumeOnLoad(
+      ensureStarterScreens({
+        version: 1,
+        activeScreenId,
+        query: normalizeQuery(parsed.query),
+        columns: normalizeColumns(parsed.columns),
+        sort: normalizeSort(parsed.sort),
+        savedScreens,
+        recentScreenIds: normalizeRecentScreenIds(parsed.recentScreenIds, savedScreens),
+        reviewResume: normalizeReviewResume(parsed.reviewResume),
+      }),
+    );
   } catch {
     return ensureStarterScreens(DEFAULT_SCREENER_STATE);
   }
@@ -181,20 +243,48 @@ export function clearScreenerStorage(): void {
   }
 }
 
+/** Save or update the active custom screen with a display name and compiled query. */
+export function saveNamedScreen(
+  state: ScreenerState,
+  name: string,
+  query: ScreenQuery,
+): ScreenerState {
+  const trimmed = name.trim();
+  if (!trimmed) return state;
+  const existing =
+    state.activeScreenId != null ? getSavedScreen(state, state.activeScreenId) : null;
+  const reuseExisting = existing != null && !existing.isStarter;
+  const now = Date.now();
+  const screen: SavedScreen = {
+    id: reuseExisting ? existing.id : `screen-${now}`,
+    name: trimmed,
+    kind: "screener",
+    query,
+    columns: state.columns,
+    sort: state.sort ?? null,
+    createdAt: reuseExisting ? existing.createdAt : now,
+    updatedAt: now,
+  };
+  return upsertSavedScreen(state, screen);
+}
+
 export function upsertSavedScreen(
   state: ScreenerState,
   screen: SavedScreen,
 ): ScreenerState {
   const without = state.savedScreens.filter((entry) => entry.id !== screen.id);
   const next = [screen, ...without].slice(0, MAX_SAVED_SCREENS);
-  return {
-    ...state,
-    activeScreenId: screen.id,
-    query: activeScreenQuery(screen),
-    columns: screen.columns,
-    sort: screen.sort ?? null,
-    savedScreens: next,
-  };
+  return recordRecentScreen(
+    {
+      ...state,
+      activeScreenId: screen.id,
+      query: activeScreenQuery(screen),
+      columns: screen.columns,
+      sort: screen.sort ?? null,
+      savedScreens: next,
+    },
+    screen.id,
+  );
 }
 
 export function deleteSavedScreen(state: ScreenerState, screenId: string): ScreenerState {
@@ -202,19 +292,23 @@ export function deleteSavedScreen(state: ScreenerState, screenId: string): Scree
     ...state,
     activeScreenId: state.activeScreenId === screenId ? null : state.activeScreenId,
     savedScreens: state.savedScreens.filter((screen) => screen.id !== screenId),
+    recentScreenIds: (state.recentScreenIds ?? []).filter((id) => id !== screenId),
   };
 }
 
 export function loadSavedScreen(state: ScreenerState, screenId: string): ScreenerState {
   const screen = state.savedScreens.find((entry) => entry.id === screenId);
   if (!screen) return state;
-  return {
-    ...state,
-    activeScreenId: screen.id,
-    query: activeScreenQuery(screen),
-    columns: screen.columns,
-    sort: screen.sort ?? null,
-  };
+  return recordRecentScreen(
+    {
+      ...state,
+      activeScreenId: screen.id,
+      query: activeScreenQuery(screen),
+      columns: screen.columns,
+      sort: screen.sort ?? null,
+    },
+    screen.id,
+  );
 }
 
 export function getSavedScreen(state: ScreenerState, screenId: string): SavedScreen | null {
@@ -236,13 +330,19 @@ export function patchScreenerState(
     }
   }
 
-  return {
+  const queryChanged = patch.query != null;
+  const activeScreenChanged = patch.activeScreenId !== undefined;
+  const fingerprintInputsChanged = queryChanged || activeScreenChanged || patch.sort !== undefined;
+
+  const next: ScreenerState = {
     ...state,
     ...patch,
     query: patch.query ? normalizeQuery(patch.query) : state.query,
     columns: patch.columns ? normalizeColumns(patch.columns) : state.columns,
     sort: nextSort,
   };
+
+  return fingerprintInputsChanged ? clearReviewResume(next) : next;
 }
 
 export function ensureColumnVisible(

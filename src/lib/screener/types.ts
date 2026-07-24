@@ -99,6 +99,13 @@ export function savedScreenQueryLimit(screen: SavedScreen): number {
   return screen.query.limit ?? 200;
 }
 
+export type ScreenerReviewResume = {
+  reviewIndex: number;
+  keepers: string[];
+  reviewActive: boolean;
+  queryFingerprint: string;
+};
+
 export type ScreenerState = {
   version: 1;
   activeScreenId: string | null;
@@ -106,6 +113,10 @@ export type ScreenerState = {
   columns: ScreenerColumnId[];
   sort?: PersistedScreenerSortSpec | null;
   savedScreens: SavedScreen[];
+  /** Recently loaded/saved screen ids (most recent first). */
+  recentScreenIds?: string[];
+  /** Mid-review progress — not result rows. Phase 5 workflow resume. */
+  reviewResume?: ScreenerReviewResume | null;
 };
 
 export type ScreenerIndicatorColumnDef = {

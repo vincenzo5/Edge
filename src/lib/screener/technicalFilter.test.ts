@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { FmpScreenerRow } from "@/lib/marketData/contracts/fmp";
 import type { EquityCandle } from "@/lib/marketData/contracts/equities";
-import { clearMarketDataCacheForTests } from "@/lib/marketData/cache/dataCache";
+import { clearMarketDataCacheForTests } from "@/lib/marketData/cache/serverCacheBackends";
 import { PerfPhaseCollector } from "@/lib/marketData/telemetry/perfPhases";
 import {
   runTechnicalFilter,
@@ -63,6 +63,8 @@ describe("runTechnicalFilter", () => {
       matched: 1,
       candleCacheHits: 0,
       indicatorCacheHits: 0,
+      candleHitRate: 0,
+      indicatorHitRate: 0,
       concurrency: 6,
     });
   });
@@ -86,6 +88,8 @@ describe("runTechnicalFilter", () => {
       matched: TECHNICAL_FILTER_MAX_CANDIDATES,
       candleCacheHits: 0,
       indicatorCacheHits: 0,
+      candleHitRate: 0,
+      indicatorHitRate: 0,
       concurrency: 6,
     });
     expect(getCandles).toHaveBeenCalledTimes(TECHNICAL_FILTER_MAX_CANDIDATES);
@@ -205,7 +209,11 @@ describe("runTechnicalFilter", () => {
     );
 
     const aggregate = perf.toArray().find((phase) => phase.name === "screener.technical.aggregate");
-    expect(aggregate?.detail).toMatchObject({ candleCacheHits: 1 });
+    expect(aggregate?.detail).toMatchObject({
+      candleCacheHits: 1,
+      candleHitRate: 1,
+      indicatorHitRate: 0,
+    });
   });
 
   it("returns indicatorValues sidecar for matched rows", async () => {
@@ -260,5 +268,27 @@ describe("runTechnicalFilter", () => {
     await runTechnicalFilter([row("AAPL")], rule, getCandles);
 
     expect(getCandles).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports indicator hit rate when technical cache reuses evaluation", async () => {
+    const candles = Array.from({ length: FIFTY_TWO_WEEK_LOOKBACK }, (_, index) => ({
+      t: index,
+      o: 100,
+      h: 100,
+      l: 99,
+      c: 97,
+      v: 1,
+    }));
+    const getCandles = vi.fn(async () => candles);
+    const rule = { kind: "rsi" as const, period: 14, max: 30 };
+
+    await runTechnicalFilter([row("AAPL")], rule, getCandles);
+    const second = await runTechnicalFilter([row("AAPL")], rule, getCandles);
+
+    expect(second.phaseMeta.phases[1]?.detail).toMatchObject({
+      scanned: 1,
+      indicatorCacheHits: 1,
+      indicatorHitRate: 1,
+    });
   });
 });

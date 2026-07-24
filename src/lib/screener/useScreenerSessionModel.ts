@@ -17,18 +17,21 @@ import {
   groupFromScreenQuery,
   loadSavedScreen,
   patchScreenerState,
-  upsertSavedScreen,
+  saveNamedScreen,
+  saveScreenerState,
   validateScreenQueryTechnical,
   type SavedScreen,
   isSavedMoversScreen,
   type ScreenerMeta,
   type ScreenerResultRow,
   type ScreenerSortSpec,
+  type ScreenerState,
   isTechnicalScreenQuery,
   isScreenerColumnId,
 } from "@/lib/screener";
 import type { ScreenerSessionState } from "@/lib/screener/screenerSession";
 import { topHeatMapQuoteSymbols } from "@/lib/screener/screenerHeatMapAdapter";
+import { isReviewResumeValid, clampReviewIndex } from "@/lib/screener/reviewResume";
 import { useScreenerState } from "@/app/components/screener/ScreenerProvider";
 import { SCREENER_PAGE_SIZE } from "@/app/components/screener/ResultsTable";
 
@@ -138,15 +141,20 @@ export function useScreenerSessionModel(active: boolean) {
   const applyRunResult = useCallback(
     (
       result: { rows: ScreenerResultRow[]; meta: ScreenerMeta },
-      options?: { resetSortFromRoot?: typeof queryRoot },
+      options?: { resetSortFromRoot?: typeof queryRoot; preserveReviewProgress?: boolean },
     ) => {
       clearCompareSelection();
+      const preserveReview =
+        options?.preserveReviewProgress === true && isReviewResumeValid(state);
       patchSession({
         lastRun: result,
         compareSelection: [],
         filterViewMode: result.rows.length > 0 ? "scan" : "edit",
-        reviewIndex: 0,
-        reviewActive: result.rows.length > 0,
+        reviewIndex: preserveReview
+          ? clampReviewIndex(session.reviewIndex, result.rows.length)
+          : 0,
+        reviewActive: preserveReview ? session.reviewActive : result.rows.length > 0,
+        keepers: preserveReview ? session.keepers : [],
       });
 
       if (options?.resetSortFromRoot) {
@@ -165,7 +173,7 @@ export function useScreenerSessionModel(active: boolean) {
         patchSession({ displaySort: { column: indicatorKey, direction: "desc" } });
       }
     },
-    [clearCompareSelection, patchSession, setState],
+    [clearCompareSelection, patchSession, setState, session, state],
   );
 
   const runSavedScreen = useCallback(
@@ -195,7 +203,10 @@ export function useScreenerSessionModel(active: boolean) {
         patchSession({ loadingTechnical: isTechnicalScreenQuery(screen.query) });
         const nextRoot = groupFromScreenQuery(screen.query);
         const result = await fetchScreenerResults(screen.query);
-        applyRunResult(result, { resetSortFromRoot: nextRoot });
+        applyRunResult(result, {
+          resetSortFromRoot: nextRoot,
+          preserveReviewProgress: isReviewResumeValid(nextState) && session.reviewActive,
+        });
       } catch (err) {
         patchSession({
           lastRun: null,
@@ -205,7 +216,7 @@ export function useScreenerSessionModel(active: boolean) {
         patchSession({ loading: false, loadingTechnical: false });
       }
     },
-    [applyRunResult, patchSession, setState, state],
+    [applyRunResult, patchSession, session.reviewActive, setState, state],
   );
 
   /** @deprecated Use runSavedScreen */
@@ -227,7 +238,10 @@ export function useScreenerSessionModel(active: boolean) {
     setState((prev) => patchScreenerState(prev, { activeScreenId: null, query }));
     try {
       const result = await fetchScreenerResults(query);
-      applyRunResult(result, { resetSortFromRoot: queryRoot });
+      applyRunResult(result, {
+        resetSortFromRoot: queryRoot,
+        preserveReviewProgress: isReviewResumeValid(state) && session.reviewActive,
+      });
     } catch (err) {
       patchSession({
         lastRun: null,
@@ -236,12 +250,14 @@ export function useScreenerSessionModel(active: boolean) {
     } finally {
       patchSession({ loading: false, loadingTechnical: false });
     }
-  }, [queryRoot, limit, setState, applyRunResult, patchSession]);
+  }, [queryRoot, limit, setState, applyRunResult, patchSession, session.reviewActive, state]);
 
   useEffect(() => {
     if (!active) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey)) return;
+      if (loading) return;
       const target = event.target;
       if (target instanceof HTMLElement) {
         if (target.tagName === "TEXTAREA" || target.isContentEditable) return;
@@ -251,7 +267,7 @@ export function useScreenerSessionModel(active: boolean) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [active, runCustomQuery]);
+  }, [active, loading, runCustomQuery]);
 
   const handleSaveScreen = useCallback(
     (saveName: string) => {
@@ -263,20 +279,20 @@ export function useScreenerSessionModel(active: boolean) {
         patchSession({ error: validation.errors[0] ?? "Invalid technical rule" });
         return false;
       }
-      const screen: SavedScreen = {
-        id: `screen-${Date.now()}`,
-        name,
-        kind: "screener",
-        query,
-        columns: state.columns,
-        sort: state.sort ?? null,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      setState((prev) => upsertSavedScreen(prev, screen));
+      let nextState: ScreenerState | undefined;
+      setState((prev) => {
+        nextState = saveNamedScreen(prev, name, query);
+        return nextState;
+      });
+      if (!nextState) return false;
+      saveScreenerState(nextState);
+      patchSession({
+        error: null,
+        queryDraft: groupFromScreenQuery(nextState.query),
+      });
       return true;
     },
-    [queryRoot, limit, state.columns, state.sort, setState, patchSession],
+    [queryRoot, limit, setState, patchSession],
   );
 
   const handleLoadSavedScreen = useCallback(

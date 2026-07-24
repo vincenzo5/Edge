@@ -9,7 +9,9 @@ import {
   upsertSavedScreen,
   deleteSavedScreen,
   loadSavedScreen,
+  recordRecentScreen,
   MAX_SAVED_SCREENS,
+  MAX_RECENT_SCREENS,
 } from "./screenStorage";
 import { SCREENER_PRESETS } from "./presets";
 
@@ -141,5 +143,32 @@ describe("screenStorage", () => {
     expect(seeded.savedScreens.find((screen) => screen.id === "gainers")?.name).toBe(
       "My custom gainers",
     );
+  });
+
+  it("records and normalizes recent screen ids", () => {
+    const seeded = ensureStarterScreens(DEFAULT_SCREENER_STATE);
+    const saved = upsertSavedScreen(seeded, {
+      id: "screen-1",
+      name: "Tech large cap",
+      kind: "screener",
+      query: { sector: "Technology", limit: 50 },
+      columns: DEFAULT_SCREENER_STATE.columns,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const loaded = loadSavedScreen(saved, "gainers");
+    expect(loaded.recentScreenIds?.[0]).toBe("gainers");
+    saveScreenerState(loaded);
+    const roundTrip = loadScreenerState();
+    expect(roundTrip.recentScreenIds?.[0]).toBe("gainers");
+
+    let withMany = loaded;
+    for (const screen of loaded.savedScreens.slice(0, MAX_RECENT_SCREENS + 2)) {
+      withMany = recordRecentScreen(withMany, screen.id);
+    }
+    expect((withMany.recentScreenIds ?? []).length).toBeLessThanOrEqual(MAX_RECENT_SCREENS);
+
+    const deleted = deleteSavedScreen(withMany, "gainers");
+    expect(deleted.recentScreenIds).not.toContain("gainers");
   });
 });

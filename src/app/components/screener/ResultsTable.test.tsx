@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { useState } from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ResultsTable from "./ResultsTable";
 import type { ScreenerResultRow } from "@/lib/screener/types";
@@ -11,6 +11,18 @@ import type { ScreenerResultsViewMode } from "@/lib/screener/screenerSession";
 vi.mock("../MarketDataProvider", () => ({
   useMarketDataQuotesForSymbols: () => ({ quotes: [], loading: false, error: null }),
 }));
+
+beforeEach(() => {
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+    cb(0);
+    return 0;
+  });
+  vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const sampleRow: ScreenerResultRow = {
   symbol: "AAPL",
@@ -239,9 +251,7 @@ describe("ResultsTable group actions and export", () => {
       />,
     );
 
-    fireEvent.change(screen.getByTestId("screener-results-view-select"), {
-      target: { value: "heatmap" },
-    });
+    fireEvent.click(screen.getByRole("tab", { name: "Heat map" }));
     expect(onResultsViewModeChange).toHaveBeenCalledWith("heatmap");
   });
 
@@ -309,20 +319,17 @@ describe("ResultsTable group actions and export", () => {
     expect(screen.getByTestId("heatmap-group-Technology")).toBeInTheDocument();
     expect(screen.getByTestId("heatmap-group-Energy")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByTestId("heatmap-group-by"), {
-      target: { value: "none" },
-    });
+    fireEvent.click(screen.getByTestId("heatmap-group-by"));
+    fireEvent.click(screen.getByTestId("heatmap-group-by-option-none"));
     expect(screen.queryByTestId("heatmap-group-Technology")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByTestId("heatmap-size-by"), {
-      target: { value: "equal" },
-    });
-    expect(screen.getByTestId("heatmap-size-by")).toHaveValue("equal");
+    fireEvent.click(screen.getByTestId("heatmap-size-by"));
+    fireEvent.click(screen.getByTestId("heatmap-size-by-option-equal"));
+    expect(screen.getByTestId("heatmap-size-by")).toHaveTextContent("Equal");
 
-    fireEvent.change(screen.getByTestId("heatmap-color-by"), {
-      target: { value: "volume" },
-    });
-    expect(screen.getByTestId("heatmap-color-by")).toHaveValue("volume");
+    fireEvent.click(screen.getByTestId("heatmap-color-by"));
+    fireEvent.click(screen.getByTestId("heatmap-color-by-option-volume"));
+    expect(screen.getByTestId("heatmap-color-by")).toHaveTextContent("Volume");
     expect(screen.getByTestId("heatmap-leaf-AAPL").getAttribute("title")).toMatch(/1\.0M|1000000|1,000,000/i);
   });
 

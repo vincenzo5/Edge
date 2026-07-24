@@ -30,6 +30,13 @@ import {
   validateIndicatorRule,
 } from "@/lib/screener/validateIndicatorRule";
 import { getAllIndicators } from "@edge/chart-core";
+import {
+  annotationTextClass,
+  fieldClass,
+  headerIconButtonClass,
+  linkActionClass,
+} from "../design-system/styles";
+import { EdgeSelect, EdgeSegmentedTabs } from "../design-system";
 
 type Props = {
   root: RuleGroup;
@@ -183,7 +190,7 @@ function RuleSummaryRow({
       ) : (
         <button
           type="button"
-          className="edge-focus-ring w-4 shrink-0 text-[10px] text-[var(--edge-text-muted)]"
+          className={`${headerIconButtonClass("dark")} shrink-0 text-[var(--edge-text-muted)]`}
           onClick={onToggle}
           aria-label={expanded ? "Collapse rule" : "Expand rule"}
           aria-expanded={expanded}
@@ -195,7 +202,7 @@ function RuleSummaryRow({
       <span className="min-w-0 flex-1 truncate text-xs text-[var(--edge-text-primary)]">{summary}</span>
       <button
         type="button"
-        className="edge-focus-ring shrink-0 rounded px-1.5 py-0.5 text-xs text-[var(--edge-negative)] hover:bg-[var(--edge-surface-popover)]"
+        className={`${headerIconButtonClass("dark")} shrink-0 text-[var(--edge-negative)]`}
         onClick={onRemove}
         aria-label={removeLabel}
       >
@@ -285,24 +292,24 @@ function TechnicalRuleEditor({
             <span className="rounded bg-[var(--edge-surface-popover)] px-2 py-1 text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
               Technical
             </span>
-            <select
+            <EdgeSelect
+              testId={`screener-technical-indicator-${rule.id}`}
+              variant="field"
+              density="compact"
+              label="Indicator"
               value={technical.indicator}
-              onChange={(event) => onChange(buildIndicatorRuleFromPlugin(event.target.value))}
-              className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
-              data-testid={`screener-technical-indicator-${rule.id}`}
-            >
-              {Object.entries(implementedCatalog).map(([category, entries]) =>
-                entries.length === 0 ? null : (
-                  <optgroup key={category} label={category}>
-                    {entries.map((entry) => (
-                      <option key={entry.name} value={entry.name}>
-                        {entry.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ),
-              )}
-            </select>
+              onChange={(next) => onChange(buildIndicatorRuleFromPlugin(next))}
+              sections={Object.entries(implementedCatalog)
+                .filter(([, entries]) => entries.length > 0)
+                .map(([category, entries]) => ({
+                  label: category,
+                  options: entries.map((entry) => ({
+                    value: entry.name,
+                    label: entry.name,
+                  })),
+                }))}
+              minWidth={140}
+            />
           </div>
 
           {Object.entries(inputSchema).length > 0 ? (
@@ -322,7 +329,7 @@ function TechnicalRuleEditor({
                           : def.default
                       }
                       onChange={(event) => patchInput(key, Number(event.target.value))}
-                      className="edge-focus-ring w-20 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
+                      className={`${fieldClass({ density: "compact" })} w-20`}
                       data-testid={`screener-technical-input-${key}-${rule.id}`}
                     />
                   ) : null}
@@ -335,38 +342,38 @@ function TechnicalRuleEditor({
                     />
                   ) : null}
                   {def.kind === "enum" ? (
-                    <select
-                      value={
+                    <EdgeSelect
+                      variant="field"
+                      density="compact"
+                      value={String(
                         typeof technical.inputs?.[key] === "string"
                           ? technical.inputs[key]
-                          : def.default
-                      }
-                      onChange={(event) => patchInput(key, event.target.value)}
-                      className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
-                    >
-                      {def.options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                          : def.default,
+                      )}
+                      onChange={(next) => patchInput(key, next)}
+                      options={def.options.map((option) => ({
+                        value: String(option.value),
+                        label: option.label,
+                      }))}
+                      minWidth={100}
+                    />
                   ) : null}
                   {def.kind === "source" ? (
-                    <select
-                      value={
+                    <EdgeSelect
+                      variant="field"
+                      density="compact"
+                      value={String(
                         typeof technical.inputs?.[key] === "string"
                           ? technical.inputs[key]
-                          : def.default
-                      }
-                      onChange={(event) => patchInput(key, event.target.value)}
-                      className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
-                    >
-                      {PRICE_SOURCES.map((source) => (
-                        <option key={source} value={source}>
-                          {source}
-                        </option>
-                      ))}
-                    </select>
+                          : def.default,
+                      )}
+                      onChange={(next) => patchInput(key, next)}
+                      options={PRICE_SOURCES.map((source) => ({
+                        value: source,
+                        label: source,
+                      }))}
+                      minWidth={100}
+                    />
                   ) : null}
                 </label>
               ))}
@@ -374,45 +381,42 @@ function TechnicalRuleEditor({
           ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <EdgeSelect
+              testId={`screener-technical-series-${rule.id}`}
+              variant="field"
+              density="compact"
+              label="Series"
               value={technical.series}
-              onChange={(event) => patchIndicator({ series: event.target.value })}
-              className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
-              data-testid={`screener-technical-series-${rule.id}`}
-            >
-              {seriesOptions.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <select
+              onChange={(next) => patchIndicator({ series: next })}
+              options={seriesOptions.map((option) => ({
+                value: option.key,
+                label: option.label,
+              }))}
+              minWidth={120}
+            />
+            <EdgeSelect
+              variant="field"
+              density="compact"
+              label="Bar"
               value={technical.bar}
-              onChange={(event) =>
-                patchIndicator({ bar: event.target.value as IndicatorTechnicalRule["bar"] })
+              onChange={(next) =>
+                patchIndicator({ bar: next as IndicatorTechnicalRule["bar"] })
               }
-              className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
-            >
-              {BARS.map((bar) => (
-                <option key={bar} value={bar}>
-                  {bar}
-                </option>
-              ))}
-            </select>
-            <select
+              options={BARS.map((bar) => ({ value: bar, label: bar }))}
+              minWidth={90}
+            />
+            <EdgeSelect
+              testId={`screener-technical-op-${rule.id}`}
+              variant="field"
+              density="compact"
+              aria-label="Operator"
               value={technical.op}
-              onChange={(event) =>
-                patchIndicator({ op: event.target.value as IndicatorTechnicalRule["op"] })
+              onChange={(next) =>
+                patchIndicator({ op: next as IndicatorTechnicalRule["op"] })
               }
-              className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
-              data-testid={`screener-technical-op-${rule.id}`}
-            >
-              {OPS.map((op) => (
-                <option key={op} value={op}>
-                  {op}
-                </option>
-              ))}
-            </select>
+              options={OPS.map((op) => ({ value: op, label: op }))}
+              minWidth={90}
+            />
             <input
               type="number"
               value={technical.threshold}
@@ -477,24 +481,25 @@ function RuleEditor({
       />
       {expanded ? (
         <div className="flex flex-wrap items-center gap-2 border-b border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] px-2 py-2">
-          <select
+          <EdgeSelect
+            variant="field"
+            density="compact"
+            label="Field"
             value={rule.field}
-            onChange={(event) =>
+            onChange={(next) =>
               onChange({
-                field: event.target.value as QueryRuleField,
+                field: next as QueryRuleField,
                 value: undefined,
                 min: undefined,
                 max: undefined,
               })
             }
-            className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
-          >
-            {QUERY_RULE_FIELDS.map((field) => (
-              <option key={field.id} value={field.id}>
-                {field.label}
-              </option>
-            ))}
-          </select>
+            options={QUERY_RULE_FIELDS.map((field) => ({
+              value: field.id,
+              label: field.label,
+            }))}
+            minWidth={140}
+          />
 
           {meta.kind === "text" ? (
             <input
@@ -507,15 +512,19 @@ function RuleEditor({
           ) : null}
 
           {meta.kind === "boolean" ? (
-            <select
+            <EdgeSelect
+              variant="field"
+              density="compact"
+              aria-label="Boolean value"
               value={rule.value === true ? "true" : rule.value === false ? "false" : ""}
-              onChange={(event) => onChange({ value: event.target.value === "true" })}
-              className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
-            >
-              <option value="">Select…</option>
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
+              placeholder="Select…"
+              onChange={(next) => onChange({ value: next === "true" })}
+              options={[
+                { value: "true", label: "Yes" },
+                { value: "false", label: "No" },
+              ]}
+              minWidth={100}
+            />
           ) : null}
 
           {meta.kind === "range" ? (
@@ -582,20 +591,19 @@ function GroupEditor({
             {expanded ? "▼" : "▶"}
           </button>
           <span className="text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">OR group</span>
-          <select
+          <EdgeSegmentedTabs
+            segments={[
+              { id: "and", label: "AND" },
+              { id: "or", label: "OR" },
+            ]}
             value={group.combinator}
-            onChange={(event) =>
+            onChange={(next) =>
               onChange({
                 ...group,
-                combinator: event.target.value as "and" | "or",
+                combinator: next as "and" | "or",
               })
             }
-            className="edge-focus-ring rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
-            data-testid={`screener-group-combinator-${group.id}`}
-          >
-            <option value="and">AND</option>
-            <option value="or">OR</option>
-          </select>
+          />
           <button
             type="button"
             className="edge-focus-ring ml-auto rounded px-2 py-0.5 text-xs text-[var(--edge-negative)]"
@@ -740,11 +748,11 @@ export default function QueryBuilder({ root, onRootChange }: Props) {
   return (
     <div className="space-y-2" data-testid="screener-query-builder">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">Rules</span>
+        <span className={`${annotationTextClass()} uppercase tracking-wide text-[var(--edge-text-muted)]`}>Rules</span>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="edge-focus-ring text-[10px] text-[var(--edge-accent-blue)] hover:underline"
+            className={linkActionClass()}
             onClick={expandAll}
             data-testid="screener-expand-all"
           >
@@ -752,7 +760,7 @@ export default function QueryBuilder({ root, onRootChange }: Props) {
           </button>
           <button
             type="button"
-            className="edge-focus-ring text-[10px] text-[var(--edge-accent-blue)] hover:underline"
+            className={linkActionClass()}
             onClick={collapseAll}
             data-testid="screener-collapse-all"
           >
@@ -777,7 +785,7 @@ export default function QueryBuilder({ root, onRootChange }: Props) {
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="edge-focus-ring rounded px-2 py-1 text-xs text-[var(--edge-accent-blue)] hover:bg-[var(--edge-surface-panel)]"
+          className={linkActionClass()}
           onClick={addRule}
           data-testid="screener-add-rule"
         >
@@ -785,7 +793,7 @@ export default function QueryBuilder({ root, onRootChange }: Props) {
         </button>
         <button
           type="button"
-          className="edge-focus-ring rounded px-2 py-1 text-xs text-[var(--edge-accent-blue)] hover:bg-[var(--edge-surface-panel)] disabled:cursor-not-allowed disabled:opacity-50"
+          className={linkActionClass()}
           onClick={addTechnicalRule}
           disabled={hasTechnical}
           data-testid="screener-add-technical-rule"
@@ -794,7 +802,7 @@ export default function QueryBuilder({ root, onRootChange }: Props) {
         </button>
         <button
           type="button"
-          className="edge-focus-ring rounded px-2 py-1 text-xs text-[var(--edge-accent-blue)] hover:bg-[var(--edge-surface-panel)]"
+          className={linkActionClass()}
           onClick={addGroup}
           data-testid="screener-add-group"
         >

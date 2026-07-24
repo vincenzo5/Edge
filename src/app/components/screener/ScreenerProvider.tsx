@@ -24,6 +24,11 @@ import {
   createDefaultScreenerSession,
   type ScreenerSessionState,
 } from "@/lib/screener/screenerSession";
+import {
+  applyReviewResumeToSession,
+  sanitizeReviewResumeOnLoad,
+  syncReviewResumeOntoState,
+} from "@/lib/screener/reviewResume";
 import { useScreenerLibraryRemoteSync } from "@/lib/persistence/sync/useScreenerLibraryRemoteSync";
 
 export type ScreenerContextValue = {
@@ -67,24 +72,34 @@ export function ScreenerProvider({
   );
   const [hydrated, setHydrated] = useState(initialState != null);
   const hydratedRef = useRef(initialState != null);
+  const reviewSnapshotRef = useRef("");
 
   useEffect(() => {
     if (initialState != null) {
-      const seeded = ensureStarterScreens(initialState);
+      const seeded = sanitizeReviewResumeOnLoad(ensureStarterScreens(initialState));
       if (seeded !== initialState) setState(seeded);
+      setSessionState((prev) =>
+        applyReviewResumeToSession(seeded, prev ?? createDefaultScreenerSession(seeded)),
+      );
       return;
     }
-    const loaded = ensureStarterScreens(loadScreenerState());
+    const loaded = sanitizeReviewResumeOnLoad(ensureStarterScreens(loadScreenerState()));
     setState(loaded);
-    setSessionState(createDefaultScreenerSession(loaded));
+    setSessionState(applyReviewResumeToSession(loaded, createDefaultScreenerSession(loaded)));
     hydratedRef.current = true;
     setHydrated(true);
   }, [initialState]);
 
   const handleApplyRemoteState = useCallback((remoteState: ScreenerState) => {
-    const seeded = ensureStarterScreens(remoteState);
+    const seeded = sanitizeReviewResumeOnLoad(ensureStarterScreens(remoteState));
     setState(seeded);
-    setSessionState(createDefaultScreenerSession(seeded));
+    const nextSession = applyReviewResumeToSession(seeded, createDefaultScreenerSession(seeded));
+    setSessionState(nextSession);
+    reviewSnapshotRef.current = JSON.stringify({
+      reviewIndex: nextSession.reviewIndex,
+      keepers: nextSession.keepers,
+      reviewActive: nextSession.reviewActive,
+    });
     saveScreenerState(seeded);
   }, []);
 
@@ -99,6 +114,18 @@ export function ScreenerProvider({
     const timer = window.setTimeout(() => saveScreenerState(state), 300);
     return () => window.clearTimeout(timer);
   }, [state]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const snapshot = JSON.stringify({
+      reviewIndex: session.reviewIndex,
+      keepers: session.keepers,
+      reviewActive: session.reviewActive,
+    });
+    if (snapshot === reviewSnapshotRef.current) return;
+    reviewSnapshotRef.current = snapshot;
+    setState((prev) => syncReviewResumeOntoState(prev, session));
+  }, [session.reviewIndex, session.keepers, session.reviewActive]);
 
   const setStateUpdater = useCallback(
     (updater: (prev: ScreenerState) => ScreenerState) => {

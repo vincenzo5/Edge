@@ -67,6 +67,11 @@ function renderDialog(props?: Partial<React.ComponentProps<typeof ScreenerDialog
 
 describe("ScreenerDialog", () => {
   beforeEach(async () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
     window.localStorage.clear();
     const { fetchScreenerResults, fetchMarketMoverResults } = await import(
       "@/lib/chartDataFeed/apiScreenerFeed"
@@ -110,7 +115,7 @@ describe("ScreenerDialog", () => {
 
     renderDialog();
     fireEvent.click(screen.getByTestId("screener-screen-rsi-oversold"));
-    expect(screen.getByTestId("screener-loading-label")).toHaveTextContent(
+    expect(screen.getByTestId("screener-loading-panel-label")).toHaveTextContent(
       "Step 1: FMP prefilter → Step 2: Computing technicals…",
     );
 
@@ -128,17 +133,18 @@ describe("ScreenerDialog", () => {
     fireEvent.click(screen.getByTestId("screener-edit-filters"));
     expect(await screen.findByTestId("screener-technical-rule-rule-technical")).toBeTruthy();
     fireEvent.click(screen.getByTestId("screener-rule-toggle-rule-technical"));
-    expect(screen.getByTestId("screener-technical-indicator-rule-technical")).toHaveValue("MACD");
+    expect(screen.getByTestId("screener-technical-indicator-rule-technical")).toHaveTextContent("MACD");
   });
 
   it("blocks run when technical rule is invalid", async () => {
     const { fetchScreenerResults } = await import("@/lib/chartDataFeed/apiScreenerFeed");
     renderDialog();
     fireEvent.click(screen.getByTestId("screener-add-technical-rule"));
-    const indicatorSelect = await screen.findByTestId(/screener-technical-indicator-/);
-    fireEvent.change(indicatorSelect, { target: { value: "MACD" } });
-    const seriesSelect = screen.getByTestId(/screener-technical-series-/);
-    fireEvent.change(seriesSelect, { target: { value: "rsi" } });
+    const ruleEl = await screen.findByTestId(/screener-technical-rule-/);
+    const ruleId = ruleEl.getAttribute("data-testid")!.replace("screener-technical-rule-", "");
+    fireEvent.change(screen.getByTestId(`screener-technical-input-period-${ruleId}`), {
+      target: { value: "1" },
+    });
     fireEvent.click(screen.getByTestId("screener-run-button"));
     expect(await screen.findByTestId("screener-results-error")).toBeTruthy();
     expect(fetchScreenerResults).not.toHaveBeenCalled();
@@ -244,20 +250,20 @@ describe("ScreenerDialog", () => {
     renderDialog();
     const limitSelect = screen.getByTestId("screener-limit-select");
     expect(limitSelect).toBeTruthy();
-    expect(limitSelect.tagName).toBe("SELECT");
-    expect(Array.from(limitSelect.querySelectorAll("option")).map((o) => o.textContent)).toEqual([
-      "Top 50",
-      "Top 100",
-      "Top 200",
-      "Top 500",
-    ]);
+    expect(limitSelect).toHaveTextContent("200");
+    fireEvent.click(limitSelect);
+    expect(screen.getByTestId("screener-limit-select-option-50")).toHaveTextContent("50");
+    expect(screen.getByTestId("screener-limit-select-option-500")).toHaveTextContent("500");
     expect(screen.getByTestId("screener-run-button")).toBeTruthy();
   });
 
-  it("shows run shortcut hint in custom query header", () => {
+  it("shows run shortcut hint inside the Run button", () => {
     renderDialog();
-    expect(screen.getByTestId("screener-run-shortcut-hint")).toHaveTextContent("⌘↵");
-    expect(screen.getByTestId("screener-run-button")).toBeTruthy();
+    const runButton = screen.getByTestId("screener-run-button");
+    const hint = screen.getByTestId("screener-run-shortcut-hint");
+    expect(hint).toHaveTextContent("⌘↵");
+    expect(runButton).toContainElement(hint);
+    expect(runButton).toHaveAttribute("aria-keyshortcuts", "Meta+Enter Control+Enter");
   });
 
   it("keeps screens rail separate from scrollable results region after a run", async () => {

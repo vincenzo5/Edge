@@ -2,7 +2,8 @@ import type { FmpScreenerRow } from "@/lib/marketData/contracts/fmp";
 import type { EquityCandle } from "@/lib/marketData/contracts/equities";
 import type { DataCacheTier } from "@/lib/marketData/contracts/result";
 import type { MarketDataPerfPhase } from "@/lib/marketData/contracts/result";
-import { buildCacheKey, globalDataCache } from "@/lib/marketData/cache/dataCache";
+import { buildCacheKey } from "@/lib/marketData/cache/dataCache";
+import { globalDataCache } from "@/lib/marketData/cache/serverCacheBackends";
 import { cacheTtlMs } from "@/lib/marketData/cache/ttlPolicy";
 import type { TechnicalRule } from "@/lib/marketData/schemas/request";
 import type { PerfPhaseCollector } from "@/lib/marketData/telemetry/perfPhases";
@@ -16,6 +17,8 @@ export const TECHNICAL_FILTER_MAX_CANDIDATES = 200;
 export const TECHNICAL_FILTER_CONCURRENCY = 6;
 export const TECHNICAL_FILTER_UNIVERSE_CONCURRENCY = 16;
 export const TECHNICAL_FILTER_MASSIVE_FALLBACK_CONCURRENCY = 20;
+/** Max provider candle/aggregate fetches per technical run when universe_daily misses. */
+export const TECHNICAL_FILTER_PROVIDER_MISS_BUDGET = 50;
 
 export type TechnicalFilterPhaseMeta = {
   phases: MarketDataPerfPhase[];
@@ -104,17 +107,19 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-function readTechnicalCache(
+async function readTechnicalCache(
   symbol: string,
   rule: TechnicalRule,
   candles: EquityCandle[],
-): TechnicalCacheEntry | null {
+): Promise<TechnicalCacheEntry | null> {
   const cacheKey = buildCacheKey([
     symbol,
     "1d",
     technicalCacheFingerprint(rule, candles),
   ]);
-  const cached = globalDataCache.read<TechnicalCacheEntry>("screener_technical", cacheKey);
+  const cached = await Promise.resolve(
+    globalDataCache.read<TechnicalCacheEntry>("screener_technical", cacheKey),
+  );
   return cached.hit && cached.value != null ? cached.value : null;
 }
 
@@ -129,12 +134,14 @@ function writeTechnicalCache(
     "1d",
     technicalCacheFingerprint(rule, candles),
   ]);
-  globalDataCache.write(
-    "screener_technical",
-    cacheKey,
-    entry,
-    cacheTtlMs("screener_technical"),
-    Date.now(),
+  void Promise.resolve(
+    globalDataCache.write(
+      "screener_technical",
+      cacheKey,
+      entry,
+      cacheTtlMs("screener_technical"),
+      Date.now(),
+    ),
   );
 }
 
@@ -245,7 +252,7 @@ export async function runTechnicalFilter(
       }
 
       const computeStart = Date.now();
-      const cached = readTechnicalCache(row.symbol, rule, candles);
+      const cached = await readTechnicalCache(row.symbol, rule, candles);
       if (cached != null) {
         indicatorCacheHits += 1;
         perf?.record("screener.technical.compute", computeStart, true, "service", {
@@ -316,12 +323,17 @@ export async function runTechnicalFilter(
     .slice(0, maxResults ?? undefined);
   const technicalMs = Date.now() - technicalStart;
 
+  const candleHitRate = scannedCount > 0 ? candleCacheHits / scannedCount : 0;
+  const indicatorHitRate = scannedCount > 0 ? indicatorCacheHits / scannedCount : 0;
+
   perf?.record("screener.technical.aggregate", technicalStart, true, "service", {
     candidates: pool.length,
     scanned: scannedCount,
     matched: rows.length,
     candleCacheHits,
     indicatorCacheHits,
+    candleHitRate,
+    indicatorHitRate,
     concurrency,
     earlyExit: maxResults != null ? earlyExit : undefined,
     traceId,
@@ -352,6 +364,8 @@ export async function runTechnicalFilter(
             matched: rows.length,
             candleCacheHits,
             indicatorCacheHits,
+            candleHitRate,
+            indicatorHitRate,
             concurrency,
             ...(maxResults != null ? { earlyExit } : {}),
           },

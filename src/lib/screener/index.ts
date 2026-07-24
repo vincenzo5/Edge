@@ -4,7 +4,6 @@ export * from "./screenStorage";
 export * from "./compileQuery";
 export * from "./validateIndicatorRule";
 export * from "./technicalMath";
-export * from "./technicalFilter";
 export * from "./exportResults";
 export * from "./summarizeScreen";
 export * from "./deriveDefaultSort";
