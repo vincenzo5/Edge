@@ -1,11 +1,5 @@
-import ModulePlaceholderPage from "../components/home/ModulePlaceholderPage";
+import ResearchBoard from "../components/research/ResearchBoard";
 
 export default function ResearchPage() {
-  return (
-    <ModulePlaceholderPage
-      module="research"
-      title="Research"
-      description="Research notes UI is coming soon. Your saved notes remain available from the home hub."
-    />
-  );
+  return <ResearchBoard />;
 }

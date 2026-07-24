@@ -1,0 +1,30 @@
+Research UX Phase 2 — Conversation artifacts + evidence rail
+
+Focused:
+npm test -- --run src/lib/research/ src/app/components/copilot/
+Test Files  17 passed (17)
+Tests  101 passed (101)
+
+Architecture review: self-review Passed
+
+App-level (manual walk on http://localhost:3003):
+- /copilot Talk page shows evidence rail when thread has messages
+- Tool result with artifactHint renders artifact card with Pin
+- Pin adds card to evidence rail; Open navigates to /chart or /workspace deep link
+- Unpin removes card from rail; reorder up/down works
+- Desk /workspace unchanged; confirm Accept/Reject unchanged
+
+Files:
+src/lib/research/artifactHint.ts
+src/lib/research/evidenceStore.ts
+src/lib/research/cardFromHint.ts
+src/lib/research/openResearchCard.ts
+src/lib/ai/agent/contracts.ts
+src/lib/ai/agent/orchestrate.ts
+src/app/components/copilot/CopilotArtifactCard.tsx
+src/app/components/copilot/CopilotEvidenceRail.tsx
+src/app/components/copilot/CopilotMessageList.tsx
+src/app/components/copilot/CopilotPanel.tsx
+src/app/components/copilot/CopilotShell.tsx
+src/app/components/copilot/useCopilotThread.ts
+src/app/components/research/useResearchEvidence.ts

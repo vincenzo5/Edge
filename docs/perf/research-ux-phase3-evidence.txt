@@ -1,0 +1,16 @@
+Research UX Phase 3 — Board v1 (manual)
+
+Focused:
+Test Files  5 passed (5)
+Tests  13 passed (13)
+
+Build:
+✓ Compiled successfully
+
+App-level (manual):
+/copilot pin artifact → Send to board → /research shows card node
+Shift+click two cards → directed link rendered
+Reload /research → cards + links restored from tv-ai:research-sessions:v1
+Density switcher Desk → /workspace intact
+
+Architecture review: self-review Passed (session vs evidence vs Desk boundaries; no AI board tools)

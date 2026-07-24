@@ -1,0 +1,18 @@
+Research UX Phase 4 verification (2026-07-24)
+
+Focused:
+npm test -- --run src/lib/research src/app/components/research
+Test Files  8 passed (8)
+Tests  42 passed (42)
+
+Build:
+npm run build
+✓ Compiled successfully
+
+App-level (manual):
+/research — 3+ chart cards; focus one → peers show inactive placeholder (data-chart-mounted=false)
+Promote chart card → /workspace?symbol=…&interval=… with Desk tile binding on session card
+Desk chart tile — Send to board → /research card with symbol + deskTileId
+Density switcher Desk → /workspace intact
+
+Architecture review: self-review Passed (Session ≠ Desk; one live board chart; no AI board tools)
