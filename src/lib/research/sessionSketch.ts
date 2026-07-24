@@ -1,13 +1,12 @@
 import { z } from "zod";
 
 /**
- * Phase 0 contract sketch — not wired to production hydrate paths.
- * Phase 6 implements persistence against these shapes.
+ * Phase 0 contract sketch — local + cloud persistence use these shapes (Phase 6).
  */
 
 export const RESEARCH_SESSION_SKETCH_VERSION = 1 as const;
 
-/** Reserved localStorage key — unused until Phase 6 persistence. */
+/** Local + cloud research session storage key (Phase 3 local; Phase 6 multi-session + cloud sync). */
 export const RESEARCH_SESSIONS_STORAGE_KEY = "tv-ai:research-sessions:v1";
 
 export const researchCardSourceSchema = z.enum(["user", "ai"]);

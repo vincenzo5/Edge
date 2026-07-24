@@ -243,6 +243,13 @@ export const WORKSPACE_STATE_STORAGE_INVENTORY: StorageKeyInventoryEntry[] = [
     postgres: true,
     notes: "Copilot thread history; ai-agent Phase 6 via /api/me/copilot-threads",
   },
+  {
+    key: "tv-ai:research-sessions:v1",
+    owner: "src/lib/research/boardSessionStore.ts",
+    phase: "baseline",
+    postgres: true,
+    notes: "Research Session board state; research-ux Phase 6 via /api/me/research-sessions",
+  },
 ];
 
 export function inventoryEntryForKey(key: string): StorageKeyInventoryEntry | undefined {

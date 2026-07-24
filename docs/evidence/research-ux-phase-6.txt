@@ -1,0 +1,18 @@
+Research UX Phase 6 verification (2026-07-24)
+
+Focused:
+npm test -- --run src/lib/research src/lib/persistence/client/researchSessionsClient src/app/api/me/research-sessions src/app/components/research
+Test Files  14 passed (14)
+Tests  57 passed (57)
+
+Build:
+npm run build — ✓ Compiled successfully
+
+Architecture review: self-review Passed
+
+App-level (deferred):
+- Build board → reload → cards/links restored
+- Rename/new/delete session
+- Cloud hydrate after clear local
+- Desk /workspace layout unchanged
+- Open Talk from session with threadIds[0]

@@ -608,6 +608,24 @@ export const userCopilotThreads = pgTable("user_copilot_threads", {
   archivedAt: timestamp("archived_at", { withTimezone: true }),
 });
 
+export const userResearchSessions = pgTable("user_research_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  title: text("title").notNull().default("Research session"),
+  schemaVersion: integer("schema_version").notNull().default(1),
+  question: text("question"),
+  cards: jsonb("cards").notNull().default([]),
+  links: jsonb("links").notNull().default([]),
+  threadIds: jsonb("thread_ids").notNull().default([]),
+  reel: jsonb("reel").notNull().default([]),
+  syncRevision: integer("sync_revision").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+});
+
 export const connections = pgTable(
   "connections",
   {

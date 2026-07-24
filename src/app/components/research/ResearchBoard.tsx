@@ -9,13 +9,28 @@ import AppModuleShell from "../home/AppModuleShell";
 import ModuleRouteTracker from "../home/ModuleRouteTracker";
 import { useResearchEvidence } from "./useResearchEvidence";
 import BoardCanvas from "./BoardCanvas";
+import ResearchBoardSessionRail from "./ResearchBoardSessionRail";
 import { useResearchBoardSession } from "./useResearchBoardSession";
 
 export default function ResearchBoard() {
   const router = useRouter();
   const { cards: evidenceCards } = useResearchEvidence();
-  const { cards, links, moveCard, removeCard, linkCards, unlink, importFromEvidence } =
-    useResearchBoardSession();
+  const {
+    session,
+    summaries,
+    cards,
+    links,
+    primaryThreadId,
+    moveCard,
+    removeCard,
+    linkCards,
+    unlink,
+    importFromEvidence,
+    newSession,
+    switchSession,
+    renameSession,
+    deleteSession,
+  } = useResearchBoardSession();
 
   const handleImportEvidence = () => {
     const pinned = listEvidenceCards();
@@ -31,41 +46,69 @@ export default function ResearchBoard() {
     router.push(result.href);
   };
 
+  const handleOpenTalk = (threadId: string) => {
+    router.push(`/copilot?threadId=${encodeURIComponent(threadId)}`);
+  };
+
   return (
     <AppModuleShell testId="research-board-page">
       <ModuleRouteTracker module="research" />
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-4">
-        <div>
-          <h1 className="text-sm font-semibold text-[var(--edge-text-strong)]">Board</h1>
-          <p className="text-[10px] text-[var(--edge-text-tertiary)]">
-            {cards.length} card{cards.length === 1 ? "" : "s"}
-            {links.length > 0 ? ` · ${links.length} link${links.length === 1 ? "" : "s"}` : ""}
-          </p>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <ResearchBoardSessionRail
+          sessionId={session.id}
+          sessions={summaries}
+          primaryThreadId={primaryThreadId}
+          onNewSession={() => {
+            void newSession();
+          }}
+          onSwitchSession={(sessionId) => {
+            void switchSession(sessionId);
+          }}
+          onRenameSession={(sessionId, title) => {
+            void renameSession(sessionId, title);
+          }}
+          onDeleteSession={(sessionId) => {
+            void deleteSession(sessionId);
+          }}
+          onOpenTalk={handleOpenTalk}
+        />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <header className="flex h-12 shrink-0 items-center justify-between border-b border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-4">
+            <div>
+              <h1 className="text-sm font-semibold text-[var(--edge-text-strong)]">
+                {session.title}
+              </h1>
+              <p className="text-[10px] text-[var(--edge-text-tertiary)]">
+                {cards.length} card{cards.length === 1 ? "" : "s"}
+                {links.length > 0 ? ` · ${links.length} link${links.length === 1 ? "" : "s"}` : ""}
+              </p>
+            </div>
+            {cards.length > 0 ? (
+              <button
+                type="button"
+                data-testid="research-board-import-evidence-toolbar"
+                className="rounded px-2 py-1 text-xs text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-raised)]"
+                onClick={handleImportEvidence}
+              >
+                Import from evidence
+              </button>
+            ) : null}
+          </header>
+          <BoardCanvas
+            cards={cards}
+            links={links}
+            evidenceCount={evidenceCards.length}
+            onMoveCard={moveCard}
+            onRemoveCard={removeCard}
+            onLinkCards={(from, to) => {
+              linkCards(from, to);
+            }}
+            onRemoveLink={unlink}
+            onImportEvidence={handleImportEvidence}
+            onPromoteCard={handlePromoteCard}
+          />
         </div>
-        {cards.length > 0 ? (
-          <button
-            type="button"
-            data-testid="research-board-import-evidence-toolbar"
-            className="rounded px-2 py-1 text-xs text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-raised)]"
-            onClick={handleImportEvidence}
-          >
-            Import from evidence
-          </button>
-        ) : null}
-      </header>
-      <BoardCanvas
-        cards={cards}
-        links={links}
-        evidenceCount={evidenceCards.length}
-        onMoveCard={moveCard}
-        onRemoveCard={removeCard}
-        onLinkCards={(from, to) => {
-          linkCards(from, to);
-        }}
-        onRemoveLink={unlink}
-        onImportEvidence={handleImportEvidence}
-        onPromoteCard={handlePromoteCard}
-      />
+      </div>
     </AppModuleShell>
   );
 }

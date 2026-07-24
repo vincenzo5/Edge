@@ -73,7 +73,7 @@ Stream contract: optional `artifactHint` on NDJSON `tool-result` events — in-m
 
 | File / component | Purpose |
 |------------------|---------|
-| `boardSessionStore.ts` | Active Research Session in `tv-ai:research-sessions:v1` (single session, Phase 3) |
+| `boardSessionStore.ts` | Active Research Session in `tv-ai:research-sessions:v1` (multi-session + cloud sync, Phase 6) |
 | `useResearchBoardSession.ts` | React subscribe hook for board cards/links |
 | `ResearchBoard.tsx` | Board shell at `/research` |
 | `BoardCanvas.tsx` | Pan/zoom surface, card drag, Shift+click linking |
@@ -81,11 +81,11 @@ Stream contract: optional `artifactHint` on NDJSON `tool-result` events — in-m
 | `BoardLinksLayer.tsx` | SVG directed edges between cards |
 | `BoardEmptyState.tsx` | Empty board CTAs (Talk, import evidence, Desk) |
 
-Evidence → Board: `CopilotEvidenceRail` **Send to board** copies pinned cards into the session store (evidence rail unchanged). Session store is separate from evidence scratch (`tv-ai:research-evidence:v1`). Cloud multi-session sync is Phase 6.
+Evidence → Board: `CopilotEvidenceRail` **Send to board** copies pinned cards into the session store (evidence rail unchanged). Session store is separate from evidence scratch (`tv-ai:research-evidence:v1`). Cloud multi-session sync ships in Phase 6.
 
 **Card types (v1):** `chart`, `screener`, `note`, `journalDraft`, `aiCallout`, `deskLink`. `news` deferred.
 
-**Storage keys:** Phase 2 scratch `tv-ai:research-evidence:v1`; Phase 3+ session `tv-ai:research-sessions:v1` (local single session until Phase 6 list/cloud).
+**Storage keys:** Phase 2 scratch `tv-ai:research-evidence:v1`; Phase 3+ session `tv-ai:research-sessions:v1` (multi-session local + optional cloud).
 
 ## Phase 4 modules
 
@@ -114,6 +114,21 @@ Evidence → Board: `CopilotEvidenceRail` **Send to board** copies pinned cards 
 **Confirm policy:** `arrange_research_cards` and `remove_research_card` require user confirmation. Adds/links/focus apply immediately with `source: ai`.
 
 **ToolContext:** `context.research` is wired in `AiToolsProvider` when `app` session is present; null on HTTP server context.
+
+## Phase 6 modules
+
+| File | Purpose |
+|------|---------|
+| `boardSessionStore.ts` | Multi-session local doc in `tv-ai:research-sessions:v1` (max 50); list/create/rename/delete/switch |
+| `researchSessionsClient.ts` | Local-first dual-write to `/api/me/research-sessions` with OCC |
+| `researchSessionsRepository.ts` | Postgres `user_research_sessions` CRUD |
+| `ResearchBoardSessionRail.tsx` | Board chrome session list + Open Talk linkage |
+| `useResearchBoardSession.ts` | Hydrate + debounced cloud save hook |
+| `CopilotThreadUrlFocus.tsx` | `/copilot?threadId=` deep link → switch Copilot thread |
+
+**Thread linkage:** Session stores `threadIds[]` only (not message bodies). Board **Open Talk** navigates to `/copilot?threadId=` for `threadIds[0]`.
+
+**Desk boundary:** Session persistence never writes workspace tile layout.
 
 ## Integration boundaries
 

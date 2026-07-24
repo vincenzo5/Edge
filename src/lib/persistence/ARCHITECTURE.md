@@ -53,7 +53,7 @@ Drizzle ORM + Postgres
 | Chart templates | `/api/me/chart-template-library` | `chartTemplateLibrary.ts` |
 | My scripts | `/api/me/scripts` (GET list, POST create), `/api/me/scripts/import`, `/api/me/scripts/[scriptId]` (GET, PATCH, DELETE), `/api/me/scripts/[scriptId]/revisions` (POST), `/api/me/scripts/[scriptId]/revisions/[revision]` (GET) | `scripts.ts` + `scriptsRepository.ts` |
 | Research notes | `/api/me/market-research-notes` | `marketResearchNote.ts` |
-| Research sessions | **Planned Phase 6** — `/api/me/research-sessions` | `src/lib/research/sessionSketch.ts` (Phase 0 contract only) |
+| Research sessions | `/api/me/research-sessions` | `src/lib/research/sessionSketch.ts`, `boardSessionStore.ts`, `researchSessionsClient.ts` |
 | Broker connections | `/api/me/connections` (GET list), `/api/me/connections/[id]` (GET, PATCH), `/api/me/connections/[id]/reconnect`, `/api/me/connections/[id]/disconnect` | `connections.ts` + `connectionsRepository.ts` + `src/lib/connections/ARCHITECTURE.md` |
 | Trading journal | `/api/me/journal/fills`, `/api/me/journal/trades`, `/api/me/journal/trades/[id]`, `/api/me/journal/trades/rebuild`, `/api/me/journal/import` | `journal.ts` + `journalClient.ts` + `src/lib/journal/ARCHITECTURE.md` |
 | Order intents | No `/api/me/*` route — server-only via `TradingService` / `resolveServerIntentStore()` | Migration `0005_order_intents.sql` + `intentRepository.ts`; consumed by `src/lib/trading/postgresIntentStore.ts` (memory fallback when `DATABASE_URL` unset) |
@@ -137,7 +137,7 @@ npm test -- --run src/app/api/me/
 - [docs/CONSTRAINTS.md](../../../docs/CONSTRAINTS.md) — security and persistence rules
 - [src/lib/trading/ARCHITECTURE.md](../trading/ARCHITECTURE.md) — Postgres intent store consumer (`resolveServerIntentStore`)
 - [docs/roadmaps/workspace-state-persistence-roadmap.md](../../../docs/roadmaps/workspace-state-persistence-roadmap.md) — per-tile charts, app-workspace cloud sync, user prefs, viewport restore
-- [src/lib/research/ARCHITECTURE.md](../research/ARCHITECTURE.md) — Research Session contracts (Phase 0); cloud API planned Phase 6 (`/api/me/research-sessions`)
+- [src/lib/research/ARCHITECTURE.md](../research/ARCHITECTURE.md) — Research Session contracts + cloud API (`/api/me/research-sessions`)
 
 ## Workspace state persistence (Phase 0–5 shipped)
 
