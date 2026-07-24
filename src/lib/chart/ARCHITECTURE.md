@@ -173,11 +173,14 @@ Interaction smoothness is tracked separately from memory retention and market-da
 |--------|---------|----------------------------------------|
 | **Frame time p50 / p95** | One chart update while panning / scrubbing / ticking | p50 **< 16 ms**; p95 **< 33 ms** (crosshair + tip-tick) |
 | **Crosshair cost** | Extra work when only the crosshair moves | Series layers blit/skip; no `'data'` full rebuild |
+| **Drawing interaction** | Hover/select/drag on drawings | Series layers blit/skip; `'drawings'` / `'selection'` do not bust series cache (Phase 1) |
 | **Tip tick cost** | Work when the latest bar updates | Fingerprint/lookup ≪ compute; tip path O(period)-class for builtins |
 | **React wakeups / quote** | Components re-rendering per quote frame | Inactive chart cells **0**; active cell only if it needs that symbol |
 | **Cold load time** | First useful candles | Out of scope for interaction gates (provider-bound) |
 
 **Baselines:** `npm run perf:chart` writes [docs/perf/chart-baseline-latest.json](../../../docs/perf/chart-baseline-latest.json) (full harness) and [docs/perf/runtime-interaction-baseline-latest.json](../../../docs/perf/runtime-interaction-baseline-latest.json) (tagged interaction scenarios). Stress scenarios use 100k bars; resident-typical scenarios use ~5k.
+
+**Invalidation (Phase 1):** `SERIES_INVALIDATING` in `packages/chart-react/src/engine/renderScheduler.ts` covers `data|size|theme|settings` only. Drawing hover/select/drag requests `'drawings'` / `'selection'`; crosshair requests `'crosshair'`. Those overlay reasons redraw the drawings/axes layers but reuse the series OffscreenCanvas via `canReuseSeriesCache`.
 
 **React wakeups protocol (Phase 0+):** Use React DevTools Profiler on multi-cell layouts during quote ticks for another symbol, or wrap components with `createRenderCounter` from `src/test/reactRenderCounter.ts` in Vitest. Passing criterion for Phase 2: inactive `ChartCell` render count **0** per foreign-symbol quote frame.
 

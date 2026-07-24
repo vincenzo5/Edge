@@ -43,8 +43,6 @@ export const SERIES_INVALIDATING: ReadonlySet<DrawInvalidationReason> = new Set(
   'size',
   'theme',
   'settings',
-  'drawings',
-  'selection',
 ]);
 
 /** Coalesce draw requests and track invalidation reasons for layered rendering. */
@@ -100,7 +98,8 @@ export function isCheapInteraction(reasons: ReadonlySet<DrawInvalidationReason>)
     if (
       reason !== 'viewport' &&
       reason !== 'crosshair' &&
-      reason !== 'selection'
+      reason !== 'selection' &&
+      reason !== 'drawings'
     ) {
       return false;
     }

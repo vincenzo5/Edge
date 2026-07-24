@@ -11,6 +11,7 @@ import {
 } from './layers';
 import {
   BACKGROUND_INVALIDATING,
+  SERIES_INVALIDATING,
   canReuseBackgroundCache,
   canReuseLayerCache,
   canReuseSeriesCache,
@@ -72,6 +73,28 @@ describe('layer invalidation metadata', () => {
     expect(canReuseSeriesCache(new Set(['viewport']))).toBe(false);
     expect(canReuseSeriesCache(new Set(['viewport', 'crosshair']))).toBe(false);
     expect(canReuseSeriesCache(new Set(['data']))).toBe(false);
+  });
+
+  it('allows series cache reuse for drawing hover and selection', () => {
+    expect(canReuseSeriesCache(new Set(['drawings']))).toBe(true);
+    expect(canReuseSeriesCache(new Set(['selection']))).toBe(true);
+    expect(canReuseSeriesCache(new Set(['drawings', 'selection']))).toBe(true);
+  });
+
+  it('keeps series layer invalidation aligned with SERIES_INVALIDATING', () => {
+    for (const id of ['candles', 'indicators', 'scriptObjects'] as const) {
+      const layer = STANDARD_CHART_LAYERS.find((entry) => entry.id === id);
+      expect(layer?.invalidatingReasons).toEqual(SERIES_INVALIDATING);
+    }
+  });
+
+  it('still invalidates drawings layer on drawing and selection changes', () => {
+    const drawings = STANDARD_CHART_LAYERS.find((layer) => layer.id === 'drawings');
+    expect(drawings?.invalidatingReasons.has('drawings')).toBe(true);
+    expect(drawings?.invalidatingReasons.has('selection')).toBe(true);
+    expect(canReuseLayerCache(drawings!.invalidatingReasons, new Set(['drawings']))).toBe(false);
+    expect(canReuseLayerCache(drawings!.invalidatingReasons, new Set(['selection']))).toBe(false);
+    expect(canReuseLayerCache(drawings!.invalidatingReasons, new Set(['crosshair']))).toBe(true);
   });
 
   it('creates candles layer with explicit backend metadata', () => {

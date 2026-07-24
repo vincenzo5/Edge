@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   RenderScheduler,
   BACKGROUND_INVALIDATING,
+  SERIES_INVALIDATING,
   canReuseBackgroundCache,
   canReuseLayerCache,
+  canReuseSeriesCache,
   isCheapInteraction,
 } from './renderScheduler';
 import { STANDARD_CHART_LAYERS } from './layers';
@@ -57,8 +59,25 @@ describe('invalidation helpers', () => {
   it('detects cheap interaction reasons', () => {
     expect(isCheapInteraction(new Set(['viewport']))).toBe(true);
     expect(isCheapInteraction(new Set(['viewport', 'crosshair']))).toBe(true);
+    expect(isCheapInteraction(new Set(['selection']))).toBe(true);
+    expect(isCheapInteraction(new Set(['drawings']))).toBe(true);
+    expect(isCheapInteraction(new Set(['drawings', 'selection', 'crosshair']))).toBe(true);
     expect(isCheapInteraction(new Set(['data']))).toBe(false);
     expect(isCheapInteraction(new Set(['viewport', 'data']))).toBe(false);
+    expect(isCheapInteraction(new Set(['drawings', 'data']))).toBe(false);
+  });
+
+  it('reuses series cache for overlay-only invalidation', () => {
+    expect(canReuseSeriesCache(new Set(['crosshair']))).toBe(true);
+    expect(canReuseSeriesCache(new Set(['selection']))).toBe(true);
+    expect(canReuseSeriesCache(new Set(['drawings']))).toBe(true);
+    expect(canReuseSeriesCache(new Set(['drawings', 'selection']))).toBe(true);
+    expect(canReuseSeriesCache(new Set(['viewport']))).toBe(false);
+    expect(canReuseSeriesCache(new Set(['data']))).toBe(false);
+  });
+
+  it('keeps series invalidation limited to data and chrome settings', () => {
+    expect([...SERIES_INVALIDATING].sort()).toEqual(['data', 'settings', 'size', 'theme']);
   });
 
   it('reuses background cache for selection-only invalidation', () => {
