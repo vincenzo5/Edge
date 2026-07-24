@@ -4,7 +4,7 @@ Phased closure of **app-level** proofs deferred after Wave 1 ([app-level-verific
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (inventory); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing**. Wave 1 remains closed; memory walks closed by [memory-efficiency-roadmap.md](./memory-efficiency-roadmap.md) Phase 14.
+**Status:** Phase 0 **Passing** (inventory); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24). **Track complete.** Wave 1 remains closed; memory walks closed by [memory-efficiency-roadmap.md](./memory-efficiency-roadmap.md) Phase 14.
 
 **Related:** [Project Status](../PROJECT-STATUS.md), [Testing Verification Checklist](../checklists/testing-verification-checklist.md), [Feature Roadmaps index](./README.md), [Wave 1](./app-level-verification-roadmap.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -178,7 +178,7 @@ Mark **Skipped** only with a one-line reason.
 
 ### Phase 4 — Ops residuals (Redis, journal import, MCP, calm header)
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
 **Outcome:** Small leftover ops/UI proofs that do not need a dedicated product track.
 

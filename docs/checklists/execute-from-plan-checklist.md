@@ -83,6 +83,7 @@ Walk [session-exit-checklist.md](./session-exit-checklist.md). Prefer evidence-g
 ```bash
 npm run harness:closeout -- --name "…" --evidence-file path [--files …] [--roadmap …] [--session-log …]
 ```
+Closeout demotes Current → Previous Verified and archives overflow beyond 10 blocks to `docs/status-archive/`.
 
 - [ ] Active Work → **Passing** with quoted evidence + Files column (via helper or manual)
 - [ ] Current Verified State block updated

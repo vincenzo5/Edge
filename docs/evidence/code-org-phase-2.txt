@@ -1,0 +1,21 @@
+Code organization Phase 2 — Harness & index hygiene (2026-07-24)
+
+Focused:
+- npm run lint:instructions → Instruction architecture validation passed.
+- npm test -- --run scripts/harness-closeout.test.ts scripts/harness-archive.test.ts scripts/check-roadmap-status.test.ts → Test Files 3 passed (3), Tests 22 passed (22)
+- npm run roadmaps:status-check → OK — README table matches track Status lines
+
+Spot-check:
+- wc -l docs/PROJECT-STATUS.md → 306 (from ~4519)
+- rg -c '^## Previous Verified State' docs/PROJECT-STATUS.md → 0 (legacy stacks archived; closeout archives displaced Current)
+
+Architecture review: N/A (docs/harness)
+App-level: N/A
+
+Delivered:
+- One-time prune: Previous Verified, Active Work Passing rows, Task Contracts, Session Log → docs/status-archive/2026-07.md
+- scripts/harness-archive.mts + tests; harness:closeout archives displaced Current + prunes Previous overflow
+- Retention policy: N=10 keep window documented in PROJECT-STATUS, status-archive README, harness checklist
+- AGENTS Repo Layout refreshed (packages, marketData, trading/journal, design-system split)
+- ROADMAP + roadmaps/README index sync; roadmaps:status-check wired
+- trade-management-playbook track status corrected (Phase 8 open — rule editor)

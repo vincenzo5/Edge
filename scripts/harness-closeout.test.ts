@@ -127,7 +127,7 @@ describe("harness-closeout helpers", () => {
     expect(extractPreviousVerifiedHeading(oldBlock)).toBe("Example — Phase 1");
   });
 
-  it("replaces Current Verified State and pushes previous block", () => {
+  it("replaces Current Verified State in place without stacking Previous in hot file", () => {
     const newBlock = buildCurrentVerifiedStateBlock({
       name: "Example — Phase 1",
       stateSummary: "done",
@@ -135,9 +135,29 @@ describe("harness-closeout helpers", () => {
       files: "src/example.ts",
     });
     const updated = replaceCurrentVerifiedState(FIXTURE_STATUS, newBlock);
-    expect(updated).toContain("## Previous Verified State (Example — Phase 1)");
+    expect(updated).not.toContain("## Previous Verified State (Example — Phase 1)");
     expect(updated).toContain("**Current task:** Example — Phase 1.");
     expect(updated).toContain("## Previous Verified State (Example — Phase 0)");
+  });
+
+  it("archives displaced Current Verified State when archivePath is set", () => {
+    const dir = mkdtempSync(join(tmpdir(), "harness-closeout-archive-"));
+    const archivePath = join(dir, "2026-07.md");
+    const newBlock = buildCurrentVerifiedStateBlock({
+      name: "Example — Phase 1",
+      stateSummary: "done",
+      evidenceText: "**Focused:** 10 tests passed",
+      files: "src/example.ts",
+    });
+    const updated = replaceCurrentVerifiedState(FIXTURE_STATUS, newBlock, {
+      archivePath,
+      todayIso: "2026-07-24",
+      previousName: "Example — Phase 1",
+    });
+    expect(updated).not.toContain("## Previous Verified State (Example — Phase 1)");
+    const archive = readEvidenceFile(archivePath, dir);
+    expect(archive).toContain("Previous Verified State (Example — Phase 1)");
+    expect(archive).toContain("**Current task:** Example — Phase 1.");
   });
 
   it("prepends Session Log entry", () => {

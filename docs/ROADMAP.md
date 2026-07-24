@@ -25,8 +25,8 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 | IBKR provider | Shipped in main routing | IBKR-first candles and quotes in `MarketDataService` with Yahoo fallback; probe routes remain for diagnostics. Requires daily Gateway login for live IBKR data. |
 | AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data and trading tools (`preview_order` / `place_order`) run server-side; stateful chart, watchlist, screener, risk, account, and options session tools require an app session. |
 | Semantic annotations | Phase A shipped | Drawings can carry thesis, invalidation, target, and note metadata; AI drawing tools can read/write/filter metadata. |
-| Alerts | Shipped foundation (Phase 0–4) | Price/drawing/indicator/script-condition alerts, trade-plan bundles, screener match notifications, watchlist-wide scope, 2-leg AND/OR. External delivery (email/push/webhook) deferred. Semantic kind alerts + AI create deferred. Cron walks closed in Wave 1; MCP alert tools → [Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md) Phase 4. |
-| Copilot UI | Shipped (Grok parity) | Functional agent Phases 0–8 + Grok UX parity Phases 0–5 **Passing** ([AI Agent](./roadmaps/ai-agent-roadmap.md), [Grok Copilot UX Parity](./roadmaps/grok-copilot-parity-roadmap.md)). Light-theme Copilot tokens deferred. Deferred agent/chrome walks → [Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md) Phases 1–2. |
+| Alerts | Shipped foundation (Phase 0–4) | Price/drawing/indicator/script-condition alerts, trade-plan bundles, screener match notifications, watchlist-wide scope, 2-leg AND/OR. External delivery (email/push/webhook) deferred. Semantic kind alerts + AI create deferred. Cron walks closed in Wave 1; MCP alert tools closed on [Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md) Phase 4. |
+| Copilot UI | Shipped (Grok parity) | Functional agent Phases 0–8 + Grok UX parity Phases 0–5 **Passing** ([AI Agent](./roadmaps/ai-agent-roadmap.md), [Grok Copilot UX Parity](./roadmaps/grok-copilot-parity-roadmap.md)). Light-theme Copilot tokens deferred. Agent/chrome walks closed on [Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md) Phases 1–2. |
 
 ## Roadmap Phases
 
@@ -247,11 +247,9 @@ Guardrails:
 
 - [AI Agent / In-App Copilot Roadmap](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing** (contracts → OpenRouter agent → chat shell → session bridge → confirmed writes → chart↔chat → thread persistence → model picker → workflows).
 - [Grok Copilot UX Parity Roadmap](./roadmaps/grok-copilot-parity-roadmap.md) — Copilot shell/composer match **grok.com**; Phases 0–5 **Passing** (track complete).
-- [Research UX Roadmap](./roadmaps/research-ux-roadmap.md) — AI-first research desk: Talk / Board / Desk densities; pinable artifacts; Research Board; session reel; **tiled Desk kept forever**. Phases 0–7 **Passing**.
+- [Research UX Roadmap](./roadmaps/research-ux-roadmap.md) — AI-first research desk: Talk / Board / Desk densities; pinable artifacts; Research Board; session reel; research-default entry. Phases 0–8 **Passing** (track complete); **tiled Desk kept forever**.
 
-Future work (research shell + residual agent polish):
-
-- Research Session + Board as durable thesis workspace; Copilot artifacts pin to evidence/board; opt-in research-default entry.
+Future work (residual agent polish — research shell track complete):
 - No response modes — models only. Keep workspace-native tools, confirm gates, and OpenRouter allowlist — do not clone SuperGrok/Companions/Imagine as requirements.
 - Do **not** remove `/workspace` tiling; Desk stays a first-class density beside Talk and Board.
 
@@ -260,29 +258,29 @@ Future work (research shell + residual agent polish):
 **Authoritative priority:** [Project Status](./PROJECT-STATUS.md) — Current Verified State and Active Work.
 
 **Verification queue (shipped work, deferred walks):**
-- [App-level verification Wave 1](./roadmaps/app-level-verification-roadmap.md) — Phases 0–8 **Passing** (2026-07-22) — track complete.
-- [App-level verification Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md) — Phase 0 **Passing** (2026-07-24); Phases 1–4 **Pending** (Copilot agent, Grok chrome, Connections prefs, Redis/journal/MCP ops).
+- ~~[App-level verification Wave 1](./roadmaps/app-level-verification-roadmap.md)~~ — Phases 0–8 **Passing** (2026-07-22) — track complete.
+- ~~[App-level verification Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md)~~ — Phases 0–4 **Passing** (2026-07-24) — track complete.
 
 Living feature tracks (phase detail in each file):
 
 - [Trading execution](./roadmaps/trading-execution-roadmap.md) — Phases 0–5 + **6–9 Passing**; options backlog
 - [Trade management playbook](./roadmaps/trade-management-playbook-roadmap.md) — Phase 0–7 **Passing**; Phase 8 **Pending** (rule editor)
 - [Dual connection](./roadmaps/dual-connection-roadmap.md) — Phases A–D product complete; ops proof on Wave 1 Phase 1
-- [Connections & providers](./roadmaps/connections-providers-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (hosted IB OAuth); Settings/prefs walks → Wave 2 Phase 3
+- [Connections & providers](./roadmaps/connections-providers-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (hosted IB OAuth); Settings/prefs walks closed on Wave 2 Phase 3
 - [Stock screener](./roadmaps/screener-roadmap.md) — Phases 1–5 shipped; product deferrals remain
-- [Trading journal](./roadmaps/journal-roadmap.md) — Tier 3 **Passing** (rating, compare, MFE/MFA) backlog
-- [Alerts](./roadmaps/alerts-roadmap.md) — Phases 0–4 **Passing**; external delivery / semantic AI deferred
-- [AI agent / in-app copilot](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing**; deferred walks → Wave 2 Phase 1
-- [Grok Copilot UX parity](./roadmaps/grok-copilot-parity-roadmap.md) — Phases 0–5 **Passing** (track complete); chrome walks → Wave 2 Phase 2
-- [Research UX (AI-first desk)](./roadmaps/research-ux-roadmap.md) — Phases 0–7 **Passing**; Desk tiling retained
+- [Trading journal](./roadmaps/journal-roadmap.md) — Tier 3 **Passing** (rating, compare, MFE/MFA); import chrome closed on Wave 2 Phase 4
+- [Alerts](./roadmaps/alerts-roadmap.md) — Phases 0–4 **Passing**; external delivery / semantic AI deferred; MCP tools closed on Wave 2 Phase 4
+- [AI agent / in-app copilot](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing**; agent walks closed on Wave 2 Phase 1
+- [Grok Copilot UX parity](./roadmaps/grok-copilot-parity-roadmap.md) — Phases 0–5 **Passing** (track complete); chrome walks closed on Wave 2 Phase 2
+- ~~[Research UX (AI-first desk)](./roadmaps/research-ux-roadmap.md)~~ — Phases 0–8 **Passing** (track complete); Desk tiling retained
 - [TypeScript indicator scripting](./roadmaps/typescript-indicator-scripting-roadmap.md) — Phases 0–5B + Scripts tile **Passing**
 - [Script depth](./roadmaps/script-depth-roadmap.md) — Phases 0–5 **Passing** — track complete
 - ~~[Workspace state persistence](./roadmaps/workspace-state-persistence-roadmap.md)~~ — **Complete**
 - ~~[Data serving & caching efficiency](./roadmaps/data-serving-efficiency-roadmap.md)~~ — **Complete** (Phases 0–6 **Passing**; Phase 7 Redis **Skipped** — prod topology → [shared-cache-topology-roadmap.md](./roadmaps/shared-cache-topology-roadmap.md))
-- [Memory efficiency](./roadmaps/memory-efficiency-roadmap.md) — Phases 0–14 **Passing** (track complete; Phase 12 adapters)
-- [Shared cache topology](./roadmaps/shared-cache-topology-roadmap.md) — Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Pending** (health backend kind; prod N=1)
-- [Security hardening](./roadmaps/security-hardening-roadmap.md) — Phases 0–6 **Passing** (2026-07-24); track complete
-- [Plan → execute token efficiency](./roadmaps/plan-execute-token-efficiency-roadmap.md) — Phase 0–6 **Passing** (track complete)
+- ~~[Memory efficiency](./roadmaps/memory-efficiency-roadmap.md)~~ — Phases 0–14 **Passing** (track complete; Phase 12 adapters)
+- [Shared cache topology](./roadmaps/shared-cache-topology-roadmap.md) — Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance coordination)
+- ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete
+- ~~[Plan → execute token efficiency](./roadmaps/plan-execute-token-efficiency-roadmap.md)~~ — Phase 0–6 **Passing** (track complete)
 
 Broader product backlog (not feature-track owned):
 
@@ -290,9 +288,9 @@ Broader product backlog (not feature-track owned):
 - Advanced market-context overlays — earnings, dividends, filings, news, options expirations, semantic AI annotations
 - TrendSpider competitive review — inventory started; prioritize Adopt/Adapt/Defer/Skip → [TrendSpider Competitive Roadmap](./roadmaps/trendspider-competitive-roadmap.md)
 - News flow — research captured; implementation not started → [News Flow Roadmap](./roadmaps/news-flow-roadmap.md)
-- Day classification — Phase 1 manual labels **Passing** (2026-07-22); Phase 2 cohort browse **Passing** (2026-07-22); Phase 3 rules assist partial → [Day Classification Roadmap](./roadmaps/day-classification-roadmap.md)
-- ~~Structural refactor~~ — Tiers A–E **Passing** → [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md)
-- Code organization — Phase 0 **Passing** (2026-07-24); Phase 1 **Pending** (layering, god modules, UI tree, chart shims, harness) → [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md)
+- ~~Day classification~~ — Phases 1–3 **Passing** (2026-07-23) → [Day Classification Roadmap](./roadmaps/day-classification-roadmap.md)
+- ~~Structural refactor~~ — Tiers A–E **Passing** → [Structural Refactor Roadmap](./refactor-roadmap.md)
+- Code organization — Phase 0–2 **Passing** (2026-07-24); Phase 3 **Pending** (components tree, god modules, chart shims) → [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md)
 
 ## Explicit Deferrals
 

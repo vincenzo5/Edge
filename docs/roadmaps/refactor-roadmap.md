@@ -6,6 +6,8 @@ Single roadmap for consolidating duplicated sync/series logic and decomposing ov
 
 **Status:** Tier A (dead code) **Passing**. Tier B **Passing** (2026-07-17). Tier C **Passing** (2026-07-17). Tier D **Passing** (2026-07-17). Tier E **Passing** (2026-07-17) — E1 revisioned repo/client helpers; E2 AI chart-tool product split. **Track complete.** No deferred app-level verification debt.
 
+**Follow-on:** Regrowth and layering debt (lib→app imports, `ChartCell`/`marketDataService` size, components-root migration, chart shims, harness bloat) → [Code Organization Roadmap](./code-organization-roadmap.md).
+
 **Related:** [Refactor Planning Checklist](../checklists/refactor-planning-checklist.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Persistence Architecture](../../src/lib/persistence/ARCHITECTURE.md), [Design System Architecture](../../src/lib/design-system/ARCHITECTURE.md), [AI Tools Architecture](../ai-tools-architecture.md), [Project Status](../PROJECT-STATUS.md), [Edge Roadmap](../ROADMAP.md).
 
 ---

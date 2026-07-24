@@ -6,6 +6,7 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { appendToStatusArchive, prunePreviousVerifiedBlocks } from "./harness-archive.mts";
 import {
   hasConcreteVerificationEvidence,
   hasParaphraseOnlyPass,
@@ -202,7 +203,11 @@ export function extractPreviousVerifiedHeading(oldBlock: string): string {
 export function replaceCurrentVerifiedState(
   content: string,
   newBlock: string,
-  previousName?: string,
+  options?: {
+    previousName?: string;
+    archivePath?: string;
+    todayIso?: string;
+  },
 ): string {
   const oldBlock = extractCurrentVerifiedBlock(content);
   const heading = "## Current Verified State";
@@ -221,11 +226,18 @@ export function replaceCurrentVerifiedState(
   const before = content.slice(0, start);
   const after = content.slice(endOffset);
 
-  const previousHeadingName = previousName ?? extractPreviousVerifiedHeading(oldBlock);
-  const previousHeading = `## Previous Verified State (${previousHeadingName})`;
-  const previousBlock = [previousHeading, "", oldBlock].join("\n");
+  if (options?.archivePath && oldBlock.trim()) {
+    const previousHeadingName =
+      options.previousName ?? extractPreviousVerifiedHeading(oldBlock);
+    appendToStatusArchive(
+      options.archivePath,
+      `Previous Verified State (${previousHeadingName})`,
+      oldBlock,
+      options.todayIso ?? new Date().toISOString().slice(0, 10),
+    );
+  }
 
-  return `${before}${newBlock}\n\n${previousBlock}${after}`.replace(/\n{3,}/g, "\n\n");
+  return `${before}${newBlock}${after}`.replace(/\n{3,}/g, "\n\n");
 }
 
 export function bumpLastUpdated(content: string, todayIso: string): string {
@@ -346,8 +358,28 @@ export function applyCloseout(
     next: options.next,
   });
 
-  content = replaceCurrentVerifiedState(content, newCurrentBlock);
+  const archivePath = resolve(
+    process.cwd(),
+    `docs/status-archive/${todayIso.slice(0, 7)}.md`,
+  );
+  content = replaceCurrentVerifiedState(content, newCurrentBlock, {
+    previousName: options.name,
+    archivePath,
+    todayIso,
+  });
   changed.push("Current Verified State");
+  if (extractCurrentVerifiedBlock(statusContent).trim()) {
+    changed.push("status archive");
+  }
+
+  const pruned = prunePreviousVerifiedBlocks(content, {
+    archivePath,
+    todayIso,
+  });
+  content = pruned.content;
+  if (pruned.archivedCount > 0) {
+    changed.push(`archived ${pruned.archivedCount} Previous Verified block(s)`);
+  }
 
   content = bumpLastUpdated(content, todayIso);
   changed.push("Last updated");

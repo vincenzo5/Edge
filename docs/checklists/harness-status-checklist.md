@@ -90,12 +90,13 @@ After significant work, update the top block with:
 - [ ] **Current blocker** — none or explicit
 - [ ] **Next best step** — single concrete action
 - [ ] **Last updated** — today's date (YYYY-MM-DD)
-- [ ] Do **not** add a new `## Previous Verified State` section — replace the current block in place
+- [ ] On closeout, displaced Current → `status-archive/`; legacy Previous Verified ≤10 (overflow auto-pruned)
 
 ## Retention / Archive
 
 `PROJECT-STATUS.md` is a hot dashboard. Full history: [docs/status-archive/](../status-archive/).
 
+- [ ] Previous Verified keeps ≤10 most recent blocks; older → monthly `status-archive/YYYY-MM.md` (auto on `harness:closeout`)
 - [ ] Active Work keeps Active/Pending/Blocked + ≤10 recent Passing rows
 - [ ] Completed Task Contracts moved to `status-archive/` (or deleted if Session Log already has evidence)
 - [ ] Session Log keeps ~15 recent entries; older → monthly `status-archive/YYYY-MM.md`

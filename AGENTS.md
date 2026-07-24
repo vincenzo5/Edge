@@ -27,17 +27,7 @@ npm run check:startup      # fast readiness gate
 npm run dev                # Postgres (Docker) + migrate + dev on http://localhost:3003
 ```
 
-Optional: `scripts/init.sh` (add `--full` for full check). Copy `.env.example` → `.env.local` and set `EDGE_AUTH_SECRET` before first `npm run dev`.
-
-```bash
-npm run dev:lite           # app only, no Postgres (localStorage fallback)
-npm run db:up              # start Postgres only (optional)
-npm run redis:up           # optional local Redis (EDGE_MARKET_DATA_CACHE_BACKEND=redis); staging/prod require redis — see shared-cache-topology-roadmap.md
-npm run db:migrate         # apply migrations (requires DATABASE_URL)
-npm run mcp:edge           # MCP server for external agents
-```
-
-Cloud sync requires `DATABASE_URL` and `EDGE_AUTH_SECRET` in `.env.local`. `npm run dev` starts the Docker Postgres container, waits, migrates, then the app. Stop Postgres with `npm run db:down` when finished.
+Optional: `scripts/init.sh` (add `--full` for full check). Copy `.env.example` → `.env.local` and set `EDGE_AUTH_SECRET` before first `npm run dev`. Cloud sync requires `DATABASE_URL` and `EDGE_AUTH_SECRET` in `.env.local`.
 
 ## Verify
 
@@ -83,13 +73,15 @@ Run the smallest verification tier that matches the change; use `npm run check` 
 
 | Path | Purpose |
 |------|---------|
-| `src/app/components/` | React UI — `StockApp`, `ChartCell`, `EdgeChart`, sidebars |
-| `src/lib/design-system/` | Edge tokens, CSS variables, UI primitives for app chrome |
-| `src/lib/ai/` | Shared AI tool registry, adapters, session bridge |
-| `src/lib/persistence/` | Schemas, repositories, client sync, dev auth |
-| `src/app/api/` | REST routes — candles, AI tools, persistence |
-| `docs/chart/` | Chart feature inventory, specs, context-menu reference |
-| `docs/PROJECT-STATUS.md` | Current work and shipped foundations |
+| `packages/` | `@edge/chart-core`, `@edge/chart-react`, `@edge/ai-tools-*`, `@edge/indicator-runtime` |
+| `src/app/components/` | React UI — `StockApp`, `ChartCell`, feature folders, sidebars |
+| `src/app/components/design-system/` | `Edge*` primitives; tokens in `src/lib/design-system/` |
+| `src/lib/chart/` | App chart adapters (runtime in `@edge/chart-*` packages) |
+| `src/lib/marketData/` | Market data service, search, cache, health |
+| `src/lib/trading/`, `src/lib/journal/` | Orders, playbooks, broker adapters; trade journal |
+| `src/lib/ai/`, `src/lib/persistence/` | AI tool registry; Drizzle schemas + client sync |
+| `src/app/api/` | REST — candles, AI tools, persistence |
+| `docs/chart/`, `docs/PROJECT-STATUS.md` | Feature inventory; hot harness (`docs/status-archive/` history) |
 
 ## Key Docs (read when relevant)
 
@@ -123,7 +115,7 @@ See [docs/CONSTRAINTS.md](docs/CONSTRAINTS.md) for the full list. Critical rules
 This file is a router, not an encyclopedia. Keep it under 150 lines.
 
 - **Global rules only here** — add to this file only non-negotiable constraints that apply to every task.
-- **Scoped guidance → topic docs** — chart, AI, persistence, design system, and feature details belong in the docs above.
+- **Scoped guidance → topic docs** — chart, AI, persistence, design system details belong in the docs above.
 - **Scoped guidance → Cursor rules/skills** — visual asset production uses `.cursor/rules/visual-assets.mdc` and `.cursor/skills/`.
 - **Historical lessons → tests** — encode one-off bug fixes as Vitest cases instead of permanent narrative notes.
 - **Before adding a rule** — ask whether it belongs in a topic doc, a test, or code comments instead.
@@ -132,7 +124,7 @@ Run `npm run lint:instructions` to verify entry-file size and rule scoping.
 
 ## Session Continuity
 
-For long-running or interrupted work, update `docs/PROJECT-STATUS.md` before handing off: current state, completed work, known blockers, verification run/result, and next concrete action. On execute closeout, prefer `npm run harness:closeout -- --name "…" --evidence-file …` (same evidence gate as `docs:auto-update` harness lane).
+For long-running or interrupted work, update `docs/PROJECT-STATUS.md` before handing off. On execute closeout: `npm run harness:closeout -- --name "…" --evidence-file …` (archives Previous Verified overflow to `docs/status-archive/`).
 
 Record durable architecture decisions in the closest architecture doc rather than a separate decision log unless decisions begin accumulating across multiple areas.
 
@@ -146,4 +138,4 @@ When a change touches chart architecture, AI tool contracts, persistence schemas
 - Design system → `src/lib/design-system/ARCHITECTURE.md`
 - Current status → `docs/PROJECT-STATUS.md`
 
-Optional pre-push automation: `npm run hooks:install` then set `CURSOR_API_KEY` in `.env.local`. The hook runs `npm run docs:auto-update` against unpushed diffs; harness updates require `--evidence-file`.
+Optional pre-push: `npm run hooks:install` + `CURSOR_API_KEY` in `.env.local` → `npm run docs:auto-update` on unpushed diffs.

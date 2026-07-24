@@ -4,7 +4,7 @@ Phased track for **automated post-fill trade management** — reusable rule reci
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24); Phase 6 **Passing** (2026-07-24); Phase 7 **Passing** (2026-07-24); Phase 8 **Passing** (2026-07-24). **Track complete.**
+**Status:** Phase 0–7 **Passing** (2026-07-24); Phase 8 **Pending** — rule editor.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (brackets / OCO / trail — **Protect**), [Alerts](./alerts-roadmap.md) (trade-plan bundles — **notify only**), [Journal](./journal-roadmap.md) (review; strategy docs deferred), [AI Agent](./ai-agent-roadmap.md) (annotation “playbooks” Phase D — **different concept**), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
