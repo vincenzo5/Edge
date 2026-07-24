@@ -1,4 +1,4 @@
-import type { Interval } from './contracts';
+import type { Interval } from '@edge/chart-core/contracts';
 import type { Interval as YahooInterval } from '@/lib/yahoo';
 
 export type FetchIntervalResolution = {

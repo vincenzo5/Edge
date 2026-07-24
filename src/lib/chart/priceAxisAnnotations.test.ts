@@ -6,11 +6,11 @@ import {
   formatAnnotationPrice,
   formatBarCountdown,
   layoutPriceAxisAnnotations,
-} from './priceAxisAnnotations';
-import { linearScaleContext } from './priceScaleTransform';
-import { mergeChartSettings } from './chartSettings';
-import type { Candle, VisibleRange, IndicatorConfig, SerializedDrawing } from './contracts';
-import '@/lib/chart/indicators/registry';
+} from '@edge/chart-react/engine/priceAxisAnnotations';
+import { linearScaleContext } from '@edge/chart-core/priceScaleTransform';
+import { mergeChartSettings } from '@edge/chart-react/engine/chartSettings';
+import type { Candle, VisibleRange, IndicatorConfig, SerializedDrawing } from '@edge/chart-core/contracts';
+import '@edge/chart-core/indicators/registry';
 
 const candles: Candle[] = [
   { t: 1_700_000_000_000, o: 10, h: 12, l: 9, c: 11 },

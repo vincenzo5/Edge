@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import type { Theme } from '@/lib/chart/contracts';
+import type { Theme } from '@edge/chart-core/contracts';
 
 const SHOW_DELAY_MS = 400;
 const VIEWPORT_PADDING_PX = 8;

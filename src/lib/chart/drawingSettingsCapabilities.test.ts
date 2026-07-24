@@ -3,7 +3,7 @@ import {
   dashPresetFromArray,
   drawingSettingsCapabilities,
   LINE_DASH_PRESETS,
-} from './drawingSettingsCapabilities';
+} from '@edge/chart-core/drawingSettingsCapabilities';
 
 describe('drawingSettingsCapabilities', () => {
   it('enables extend for trend_line and ray only', () => {

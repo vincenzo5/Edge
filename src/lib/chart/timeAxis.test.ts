@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import type { Candle, VisibleRange } from './contracts';
+import type { Candle, VisibleRange } from '@edge/chart-core/contracts';
 import {
   computeTimeAxisTicks,
   formatCrosshairTime,
   pickTickUnit,
   visibleTimeBounds,
-} from './timeAxis';
-import { PRICE_AXIS_WIDTH } from './layout';
+} from '@edge/chart-core/timeAxis';
+import { PRICE_AXIS_WIDTH } from '@edge/chart-core/layout';
 
 const MS_DAY = 86_400_000;
 const MS_HOUR = 3_600_000;

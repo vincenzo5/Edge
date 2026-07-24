@@ -6,8 +6,8 @@ import {
   mergeMetadata,
   normalizeMetadata,
   summarizeAnnotations,
-} from "@/lib/chart/annotationMetadata";
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+} from "@edge/chart-core/annotationMetadata";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 
 const baseDrawing = (overrides: Partial<SerializedDrawing> = {}): SerializedDrawing => ({
   id: "d1",

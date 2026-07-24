@@ -1,4 +1,4 @@
-import type { Candle, Range, Interval } from './contracts';
+import type { Candle, Range, Interval } from '@edge/chart-core/contracts';
 import type { ChartType } from '@/lib/chartConfig';
 import {
   applyIntervalResample,

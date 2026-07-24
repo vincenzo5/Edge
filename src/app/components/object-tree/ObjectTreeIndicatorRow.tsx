@@ -1,4 +1,4 @@
-import type { IndicatorConfig } from "@/lib/chart/contracts";
+import type { IndicatorConfig } from "@edge/chart-core/contracts";
 import {
   EyeIcon,
   EyeOffIcon,

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { Theme } from '@/lib/chart/contracts';
-import type { ChartTimeZone } from '@/lib/chart/timeZone';
-import { buildTimeZoneMenuOptions } from '@/lib/chart/timeZone';
+import type { Theme } from '@edge/chart-core/contracts';
+import type { ChartTimeZone } from '@edge/chart-core/timeZone';
+import { buildTimeZoneMenuOptions } from '@edge/chart-core/timeZone';
 import { menuItemClass, popoverPanelClass } from '../design-system/styles';
 import { clampMenuPosition } from '../ContextMenu';
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { BOTTOM_RANGE_PRESETS } from './rangePresets';
-import { intervalForRange, rangeForManualInterval, resolveCellFetchRange } from './rangeInterval';
+import { BOTTOM_RANGE_PRESETS } from '@edge/chart-react/engine/rangePresets';
+import { intervalForRange, rangeForManualInterval, resolveCellFetchRange } from '@edge/chart-react/engine/rangeInterval';
 
 describe('intervalForRange', () => {
   it('maps short presets to intraday intervals', () => {

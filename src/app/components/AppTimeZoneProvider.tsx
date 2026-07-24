@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { ChartTimeZone } from "@/lib/chart/timeZone";
+import type { ChartTimeZone } from "@edge/chart-core/timeZone";
 import {
   detectBrowserTimeZone,
   migrateAppTimeZoneIfNeeded,

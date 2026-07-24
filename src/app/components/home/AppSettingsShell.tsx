@@ -7,7 +7,7 @@ import { labeledFieldClass } from "../design-system/styles";
 import EdgeSlideOver from "../design-system/EdgeSlideOver";
 import { useAppTimeZone } from "../AppTimeZoneProvider";
 import { useAppTheme } from "../AppThemeProvider";
-import { buildTimeZoneMenuOptions, type ChartTimeZone } from "@/lib/chart/timeZone";
+import { buildTimeZoneMenuOptions, type ChartTimeZone } from "@edge/chart-core/timeZone";
 import {
   PALETTES,
   PALETTE_DESCRIPTIONS,

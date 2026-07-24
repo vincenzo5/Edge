@@ -8,7 +8,7 @@ import {
   resolveHoverCursor,
   plotWidth,
   plotHeight,
-} from './layout';
+} from '@edge/chart-core/layout';
 
 const WIDTH = 800;
 const HEIGHT = 400;

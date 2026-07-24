@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import type { PriceScaleSide } from "@/lib/chart/layout";
+import type { PriceScaleSide } from "@edge/chart-core/layout";
 import { useRouter } from "next/navigation";
 import { resolveGroupSelections } from "../drawing/DrawingToolbar";
 import { useTradeDrawingBinding } from "./useTradeDrawingBinding";
@@ -25,10 +25,10 @@ import {
   type RequiredChartSettings,
   type ToolbarPrefs,
 } from "@/lib/chartConfig";
-import type { DrawingStyles } from "@/lib/chart/contracts";
-import type { Range } from "@/lib/chart/contracts";
-import type { ChartTimeZone } from "@/lib/chart/timeZone";
-import { applyRangePresetSelect } from "@/lib/chart/rangePresetTransition";
+import type { DrawingStyles } from "@edge/chart-core/contracts";
+import type { Range } from "@edge/chart-core/contracts";
+import type { ChartTimeZone } from "@edge/chart-core/timeZone";
+import { applyRangePresetSelect } from "@edge/chart-react/engine/rangePresetTransition";
 import { injectScriptFixtures, isScriptFixtureDevEnabled } from "@/lib/chart/scriptFixtureDev";
 import { buildAlertPrefillFromDrawing } from "@/lib/alerts/drawingAlertGeometry";
 import { buildAlertPrefillWorkspaceLink } from "@/lib/alerts/openAlertPrefill";

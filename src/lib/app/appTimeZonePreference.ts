@@ -2,7 +2,7 @@ import {
   DEFAULT_CHART_TIMEZONE,
   normalizeChartTimeZone,
   type ChartTimeZone,
-} from "@/lib/chart/timeZone";
+} from "@edge/chart-core/timeZone";
 
 export const APP_TIMEZONE_PREFERENCE_KEY = "edge:app:timeZone:v1";
 

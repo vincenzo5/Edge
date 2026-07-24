@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatAxisTime } from './time';
+import { formatAxisTime } from '@edge/chart-core/time';
 import { toTimestampMs } from './series';
 
 // Local noon avoids UTC/local date boundary issues in assertions.

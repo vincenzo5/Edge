@@ -1,7 +1,7 @@
 "use client";
 
 import type { Theme } from "@/lib/chartConfig";
-import { PRICE_AXIS_WIDTH } from "@/lib/chart/layout";
+import { PRICE_AXIS_WIDTH } from "@edge/chart-core/layout";
 import ChartOverlayDataHealthRow from "./ChartOverlayDataHealthRow";
 import ChartFeedStatusBadge, {
   type ChartFeedStatusBadgeProps,

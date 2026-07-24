@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { vol } from './vol';
-import { createViewport } from '../viewport';
+import { vol } from '@edge/chart-core/indicators/vol';
+import { createViewport } from '@edge/chart-react/engine/viewport';
 
 const candles = [
   { t: 0, o: 10, h: 11, l: 9, c: 10.5, v: 1000 },

@@ -10,12 +10,12 @@ import {
   finishPlacingIfComplete,
   isDoubleClickFinish,
   supportsDoubleClickFinish,
-} from './drawingController';
-import { createViewport } from './viewport';
-import { parallelChannel } from './drawings/channels';
-import { updateTwoPointPreview, appendPointPreview } from './drawings/drawingUtils';
-import type { Candle, SerializedDrawing } from './contracts';
-import type { DrawingPlugin } from './plugin-api';
+} from '@edge/chart-core/drawingController';
+import { createViewport } from '@edge/chart-react/engine/viewport';
+import { parallelChannel } from '@edge/chart-core/drawings/channels';
+import { updateTwoPointPreview, appendPointPreview } from '@edge/chart-core/drawings/drawingUtils';
+import type { Candle, SerializedDrawing } from '@edge/chart-core/contracts';
+import type { DrawingPlugin } from '@edge/chart-core/plugin-api';
 
 const candles: Candle[] = [
   { t: 1000, o: 100, h: 110, l: 90, c: 105 },

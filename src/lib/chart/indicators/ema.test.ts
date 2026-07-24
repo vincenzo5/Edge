@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { emaPlugin } from './ema';
-import { ema, sma } from './math';
+import { emaPlugin } from '@edge/chart-core/indicators/ema';
+import { ema, sma } from '@edge/chart-core/indicators/math';
 
 describe('EMA indicator', () => {
   it('compute matches math.ema', () => {

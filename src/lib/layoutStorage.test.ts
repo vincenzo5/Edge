@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { migrateCellIndicators, legacyIndicatorKey, DEFAULT_LAYOUT, type CellConfig } from '@/lib/chartConfig';
-import { mergeChartSettings } from '@/lib/chart/chartSettings';
+import { mergeChartSettings } from '@edge/chart-react/engine/chartSettings';
 import { loadLayout, saveLayout } from '@/lib/layoutStorage';
 
 const localStorageMock = (() => {

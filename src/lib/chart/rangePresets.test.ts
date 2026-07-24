@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Candle } from './contracts';
+import type { Candle } from '@edge/chart-core/contracts';
 import {
   BOTTOM_RANGE_PRESETS,
   DAILY_DEFAULT_VISIBLE_DAYS,
@@ -10,8 +10,8 @@ import {
   getSessionViewport,
   rangeCutoffMs,
   rangePresetLabel,
-} from './rangePresets';
-import { getDefaultViewport } from './viewport';
+} from '@edge/chart-react/engine/rangePresets';
+import { getDefaultViewport } from '@edge/chart-react/engine/viewport';
 
 const MS_DAY = 86_400_000;
 

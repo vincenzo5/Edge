@@ -1,5 +1,5 @@
 import { cloneCellConfig, type CellConfig } from "@/lib/chartConfig";
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import {
   isPositionDrawingName,
   positionOrderLevelsFromDrawing,

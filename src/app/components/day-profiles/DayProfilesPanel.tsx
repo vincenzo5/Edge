@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { EdgeEmptyState, EdgeSpinner } from "@/app/components/design-system";
 import { useAppActions } from "@/app/components/AppActionsContext";
-import { rangeForManualInterval } from "@/lib/chart/rangeInterval";
+import { rangeForManualInterval } from "@edge/chart-react/engine/rangeInterval";
 import { fetchDayProfiles } from "@/lib/dayProfiles/client";
 import {
   EMPTY_DAY_PROFILES_UI_FILTERS,

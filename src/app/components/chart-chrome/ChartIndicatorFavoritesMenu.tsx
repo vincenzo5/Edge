@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type { Theme } from '@/lib/chartConfig';
-import { getCatalogEntry } from '@/lib/chart/indicators/registry';
+import { getCatalogEntry } from '@edge/chart-core/indicators/registry';
 import ChartAnchoredPopover from './ChartAnchoredPopover';
 import ChartHeaderButton from './ChartHeaderButton';
 import ChartMenuItemRow from './ChartMenuItemRow';

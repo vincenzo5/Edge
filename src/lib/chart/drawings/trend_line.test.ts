@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { createViewport } from '../viewport';
-import type { Candle } from '../contracts';
-import { trendLine } from './trend_line';
-import { horizontalLine } from './hline';
-import { rectangle } from './rect';
+import { createViewport } from '@edge/chart-react/engine/viewport';
+import type { Candle } from '@edge/chart-core/contracts';
+import { trendLine } from '@edge/chart-core/drawings/trend_line';
+import { horizontalLine } from '@edge/chart-core/drawings/hline';
+import { rectangle } from '@edge/chart-core/drawings/rect';
 
 const candles: Candle[] = [
   { t: 1000, o: 100, h: 110, l: 90, c: 105 },

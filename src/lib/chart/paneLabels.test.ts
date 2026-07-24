@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolvePaneLabel } from './paneLabels';
-import type { IndicatorConfig } from './contracts';
+import { resolvePaneLabel } from '@edge/chart-core/paneLabels';
+import type { IndicatorConfig } from '@edge/chart-core/contracts';
 
 const indicators: IndicatorConfig[] = [
   { id: 'rsi1', name: 'RSI', pane: 'sub', params: { period: 14 }, visible: true },

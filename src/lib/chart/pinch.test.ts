@@ -3,7 +3,7 @@ import {
   pinchDistance,
   zoomFactorForPinchRatio,
   resolvePinchAction,
-} from './pinch';
+} from '@edge/chart-core/pinch';
 
 describe('pinchDistance', () => {
   it('returns zero for identical points', () => {

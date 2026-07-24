@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import {
   atMarketRiskDollars,
   isPositionDrawingName,

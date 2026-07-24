@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { ma } from './ma';
-import { sma } from './math';
+import { ma } from '@edge/chart-core/indicators/ma';
+import { sma } from '@edge/chart-core/indicators/math';
 
 describe('ma plugin', () => {
   it('compute matches hand-calculated SMA', () => {

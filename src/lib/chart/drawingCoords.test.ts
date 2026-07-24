@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { attachViewportHelpers, createViewport } from './viewport';
-import type { Candle, IndicatorConfig } from './contracts';
-import { IndicatorRegistry } from './pluginHost';
-import { resolveIndicatorInputs } from './indicatorInputs';
-import { plotHeight, plotWidth } from './layout';
+import { attachViewportHelpers, createViewport } from '@edge/chart-react/engine/viewport';
+import type { Candle, IndicatorConfig } from '@edge/chart-core/contracts';
+import { IndicatorRegistry } from '@edge/chart-core/pluginHost';
+import { resolveIndicatorInputs } from '@edge/chart-core/indicatorInputs';
+import { plotHeight, plotWidth } from '@edge/chart-core/layout';
 import {
   clampPlot,
   plotToPoint,
@@ -13,7 +13,7 @@ import {
   yForPricePlot,
   snapToOhlc,
   MAGNET_THRESHOLD_PX,
-} from './drawingCoords';
+} from '@edge/chart-core/drawingCoords';
 
 const candles: Candle[] = [
   { t: 1000, o: 100, h: 110, l: 90, c: 105 },

@@ -8,12 +8,12 @@ import {
   useState,
   type RefObject,
 } from "react";
-import type { Candle } from "@/lib/chart/contracts";
+import type { Candle } from "@edge/chart-core/contracts";
 import type { ChartDataMeta } from "@edge/chart-core";
 import type { MarketSessionKind } from "@edge/chart-core";
 import { resolveMarketSession, sessionStatusLabel } from "@edge/chart-core";
 import { resolveChartLiveQuotePrice } from "@/lib/chart/resolveChartLiveQuotePrice";
-import { buildCandleSessionKey } from "@/lib/chart/rangePresetTransition";
+import { buildCandleSessionKey } from "@edge/chart-react/engine/rangePresetTransition";
 import type { CellConfig } from "@/lib/chartConfig";
 import type { ChartHandle } from "./EdgeChart";
 import type { useMarketDataQuotes } from "../MarketDataProvider";

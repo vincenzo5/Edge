@@ -15,8 +15,8 @@ import {
   type SnapshotAction,
   type SnapshotCaptureOptions,
 } from "@/lib/chart/chartSnapshot";
-import type { GoToRequest } from "@/lib/chart/goTo";
-import type { Candle } from "@/lib/chart/contracts";
+import type { GoToRequest } from "@edge/chart-react/engine/goTo";
+import type { Candle } from "@edge/chart-core/contracts";
 import type { SerializedDrawing } from "@/lib/chartConfig";
 import type { DrawingToolName } from "../chart-icons/toolGroups";
 import type { CellConfig, PriceScaleType, ToolbarPrefs, TrackedOverlay } from "@/lib/chartConfig";

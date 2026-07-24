@@ -1,5 +1,5 @@
 import type { DataResult } from "@/lib/marketData/contracts/result";
-import type { Interval as ChartInterval } from "@/lib/chart/contracts";
+import type { Interval as ChartInterval } from "@edge/chart-core/contracts";
 import type { Candle, Range } from "@/lib/yahoo";
 import type { FundamentalsSnapshot, QuoteSnapshot } from "@/lib/watchlist/types";
 import type { MarketDataService } from "@/lib/marketData/service/marketDataService";

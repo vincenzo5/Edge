@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ChartType, LayoutTemplateId, Theme, LayoutSyncPrefs } from '@/lib/chartConfig';
-import type { Interval } from '@/lib/chart/contracts';
+import type { Interval } from '@edge/chart-core/contracts';
 import { loadIndicatorFavorites } from '@/lib/chart/indicatorFavorites';
 import { resolveHeaderDensity, type HeaderDensity } from '@/lib/responsive/responsiveLayout';
 import { useElementSize } from '@/lib/responsive/useElementSize';

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { rsi } from './rsi';
-import { computeRsi } from './math';
+import { rsi } from '@edge/chart-core/indicators/rsi';
+import { computeRsi } from '@edge/chart-core/indicators/math';
 
 describe('rsi plugin', () => {
   it('compute stays within 0-100 after warmup', () => {

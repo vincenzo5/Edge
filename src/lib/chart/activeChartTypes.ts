@@ -1,7 +1,7 @@
 import type { CellConfig, Theme, TrackedOverlay, SerializedDrawing } from "@/lib/chartConfig";
-import type { Candle, DrawingStyles } from "@/lib/chart/contracts";
+import type { Candle, DrawingStyles } from "@edge/chart-core/contracts";
 import type { ChartDataMeta } from "@edge/chart-core";
-import type { GoToRequest, GoToResult } from "@/lib/chart/goTo";
+import type { GoToRequest, GoToResult } from "@edge/chart-react/engine/goTo";
 import type { SnapshotAction, SnapshotCaptureOptions } from "@/lib/chart/chartSnapshot";
 import type { DataWindowProps } from "@/lib/chart/dataWindow";
 

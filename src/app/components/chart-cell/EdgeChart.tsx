@@ -23,10 +23,10 @@ import type { Candle, ChartDataMeta, ChartAnnotationChannelMarker } from '@edge/
 import type { CellConfig, Theme, TrackedOverlay, SerializedDrawing } from '@/lib/chartConfig';
 import { DEFAULT_PALETTE, type PaletteId } from '@/lib/design-system/palettes';
 import { mergeChartSettings } from '@/lib/chartConfig';
-import type { ChartTimeZone } from '@/lib/chart/timeZone';
+import type { ChartTimeZone } from '@edge/chart-core/timeZone';
 import { isChartMetaDisplayFresh } from '@/lib/marketData/trust/dataTrust';
-import { buildCandleSessionKey } from '@/lib/chart/rangePresetTransition';
-import { resolveCellFetchRange } from '@/lib/chart/rangeInterval';
+import { buildCandleSessionKey } from '@edge/chart-react/engine/rangePresetTransition';
+import { resolveCellFetchRange } from '@edge/chart-react/engine/rangeInterval';
 import { cellConfigToChartState } from '@/lib/chart/stateMapping';
 import {
   captureChartElement,

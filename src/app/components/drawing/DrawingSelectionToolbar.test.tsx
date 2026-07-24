@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import DrawingSelectionToolbar from './DrawingSelectionToolbar';
-import type { SerializedDrawing } from '@/lib/chart/contracts';
+import type { SerializedDrawing } from '@edge/chart-core/contracts';
 
 const drawing: SerializedDrawing = {
   id: 'd1',

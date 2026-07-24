@@ -3,7 +3,7 @@ import {
   normalizeWheelDelta,
   resolveWheelAction,
   zoomFactorForDelta,
-} from './wheel';
+} from '@edge/chart-core/wheel';
 
 describe('normalizeWheelDelta', () => {
   it('scales line-mode deltas to pixels', () => {

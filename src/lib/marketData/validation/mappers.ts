@@ -1,4 +1,4 @@
-import type { Interval } from "@/lib/chart/contracts";
+import type { Interval } from "@edge/chart-core/contracts";
 import type { MarketQuote } from "@edge/chart-core";
 import type { EquityCandle, EquityQuote } from "../contracts/equities";
 import type { FundamentalsSnapshot } from "../contracts/fundamentals";

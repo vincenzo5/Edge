@@ -3,7 +3,7 @@ import {
   plotLeftOffset,
   plotWidth,
   type PriceScaleSide,
-} from "@/lib/chart/layout";
+} from "@edge/chart-core/layout";
 
 export const DEFAULT_LEFT_PADDING = 5;
 export const DEFAULT_RIGHT_PADDING = 0;

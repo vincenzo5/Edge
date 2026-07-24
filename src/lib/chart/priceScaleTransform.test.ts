@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Candle } from './contracts';
+import type { Candle } from '@edge/chart-core/contracts';
 import {
   buildPriceScaleContext,
   computeScaleRange,
@@ -9,7 +9,7 @@ import {
   scaleAxisMinorTicks,
   scaleAxisTicks,
   toScaleCoord,
-} from './priceScaleTransform';
+} from '@edge/chart-core/priceScaleTransform';
 
 const candles: Candle[] = [
   { t: 1, o: 100, h: 105, l: 98, c: 102, v: 1000 },

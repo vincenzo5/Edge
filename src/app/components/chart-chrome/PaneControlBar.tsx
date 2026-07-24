@@ -2,8 +2,8 @@
 
 import type { ReactNode } from 'react';
 import type { Theme } from '@/lib/chartConfig';
-import { PANE_COLLAPSED_HEIGHT } from '@/lib/chart/panes';
-import { PRICE_AXIS_WIDTH } from '@/lib/chart/layout';
+import { PANE_COLLAPSED_HEIGHT } from '@edge/chart-core/panes';
+import { PRICE_AXIS_WIDTH } from '@edge/chart-core/layout';
 import Tooltip from '../Tooltip';
 import {
   PaneCollapseIcon,

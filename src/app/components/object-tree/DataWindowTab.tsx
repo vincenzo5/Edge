@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { getCatalogEntry } from "@/lib/chart/indicators/registry";
-import { resolveIndicatorLegend, resolvePriceLegend } from "@/lib/chart/legend";
-import { mergeChartSettings, patchChartSettings } from "@/lib/chart/chartSettings";
+import { getCatalogEntry } from "@edge/chart-core/indicators/registry";
+import { resolveIndicatorLegend, resolvePriceLegend } from "@edge/chart-react/engine/legend";
+import { mergeChartSettings, patchChartSettings } from "@edge/chart-react/engine/chartSettings";
 import type { CellConfig } from "@/lib/chartConfig";
-import { IndicatorRegistry } from "@/lib/chart/pluginHost";
-import { formatCrosshairTime } from "@/lib/chart/timeAxis";
+import { IndicatorRegistry } from "@edge/chart-core/pluginHost";
+import { formatCrosshairTime } from "@edge/chart-core/timeAxis";
 import { formatObjectTreeSymbolLine } from "@/lib/chart/objectTreeModel";
 import type { ActiveChartDataWindowActions } from "../ActiveChartContext";
 import {

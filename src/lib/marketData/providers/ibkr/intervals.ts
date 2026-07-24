@@ -1,4 +1,4 @@
-import type { Interval, Range } from "@/lib/chart/contracts";
+import type { Interval, Range } from "@edge/chart-core/contracts";
 
 /** Map Edge chart interval to IBKR history `bar` parameter. */
 export function mapIbkrBar(interval: Interval): string {

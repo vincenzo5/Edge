@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildChartCopyItems } from "./chartCopyMenu";
-import type { Candle } from "@/lib/chart/contracts";
+import type { Candle } from "@edge/chart-core/contracts";
 
 const baseInput = {
   valueLabel: null as string | null,

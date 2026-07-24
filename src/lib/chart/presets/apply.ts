@@ -6,8 +6,8 @@ import {
   serializeChartSettings,
   stripLegacyFactoryTimeZoneOnLoad,
 } from '@/lib/chartConfig';
-import { getIndicator } from '../indicators/registry';
-import { resolveIndicatorInputs } from '../indicatorInputs';
+import { getIndicator } from '@edge/chart-core/indicators/registry';
+import { resolveIndicatorInputs } from '@edge/chart-core/indicatorInputs';
 import type { ChartTemplatePayload, StudyTemplatePayload } from './types';
 import { isStudyPayloadValid } from './validate';
 

@@ -6,19 +6,19 @@ import type {
   DrawingStyles,
   SerializedDrawing,
   Theme,
-} from "@/lib/chart/contracts";
+} from "@edge/chart-core/contracts";
 import {
   ANNOTATION_KIND_FULL_LABELS,
   ANNOTATION_KINDS,
   type AnnotationKind,
-} from "@/lib/chart/annotationMetadata";
-import { resolveDrawingStyles } from "@/lib/chart/drawingStyles";
+} from "@edge/chart-core/annotationMetadata";
+import { resolveDrawingStyles } from "@edge/chart-core/drawingStyles";
 import {
   dashPresetFromArray,
   drawingSettingsCapabilities,
   LINE_DASH_PRESETS,
   type LineDashPreset,
-} from "@/lib/chart/drawingSettingsCapabilities";
+} from "@edge/chart-core/drawingSettingsCapabilities";
 import type { DrawingScreenBounds } from "../chart-cell/EdgeChart";
 import {
   resolveDrawingToolbarPosition,

@@ -1,4 +1,4 @@
-import type { Interval } from "@/lib/chart/contracts";
+import type { Interval } from "@edge/chart-core/contracts";
 import { DEFAULT_CELL, type CellConfig } from "@/lib/chartConfig";
 
 import type { ResearchCardSketch } from "./sessionSketch";

@@ -24,7 +24,7 @@ import {
   resolveCaptureDotLayout,
   type CaptureViewport,
 } from "@/lib/patternCapture/slice";
-import type { PriceScaleSide } from "@/lib/chart/layout";
+import type { PriceScaleSide } from "@edge/chart-core/layout";
 import type { OhlcvBar } from "@/lib/patternLibrary/types";
 import type { CellConfig } from "@/lib/chartConfig";
 import type { usePatternLibraryOptional } from "../pattern-library/PatternLibraryContext";

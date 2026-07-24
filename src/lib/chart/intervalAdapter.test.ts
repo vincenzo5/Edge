@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Candle } from './contracts';
+import type { Candle } from '@edge/chart-core/contracts';
 import {
   applyIntervalResample,
   resolveFetchInterval,

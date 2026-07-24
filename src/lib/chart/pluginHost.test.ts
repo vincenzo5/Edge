@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DrawingRegistry } from "@edge/chart-core/pluginHost";
-import { serializeAll } from "./pluginHost";
-import type { SerializedDrawing } from "./contracts";
+import { serializeAll } from "@edge/chart-core/pluginHost";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 
 describe("DrawingRegistry aliases", () => {
   it("resolves shortPosition toolbar name to short_position plugin", () => {

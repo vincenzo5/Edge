@@ -11,14 +11,14 @@ import {
   drawingStylePatchSchema,
   metadataFilterSchema,
 } from "../schemas";
-import { baseDrawing } from "@/lib/chart/drawings/drawingUtils";
-import type { DrawingStyles } from "@/lib/chart/contracts";
+import { baseDrawing } from "@edge/chart-core/drawings/drawingUtils";
+import type { DrawingStyles } from "@edge/chart-core/contracts";
 import {
   filterDrawingsByMetadata,
   mergeMetadata,
   normalizeMetadata,
   summarizeAnnotations,
-} from "@/lib/chart/annotationMetadata";
+} from "@edge/chart-core/annotationMetadata";
 import { getCell, requireActiveChart, requireApp } from "./_helpers";
 
 function mapStylePatch(

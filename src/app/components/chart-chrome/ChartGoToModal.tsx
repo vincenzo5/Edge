@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Interval, Theme } from '@/lib/chart/contracts';
-import type { GoToRequest, GoToResult } from '@/lib/chart/goTo';
+import type { Interval, Theme } from '@edge/chart-core/contracts';
+import type { GoToRequest, GoToResult } from '@edge/chart-react/engine/goTo';
 import { EdgeButton, EdgeModalShell, EdgeSegmentedTabs } from '../design-system';
 import { fieldClass } from '../design-system/styles';
 

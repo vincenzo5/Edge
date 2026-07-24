@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { IndicatorConfig, LineStyleOverride } from "@/lib/chartConfig";
-import { IndicatorRegistry } from "@/lib/chart/pluginHost";
-import type { InputValue, IndicatorPlugin, ParamDef } from "@/lib/chart/plugin-api";
+import { IndicatorRegistry } from "@edge/chart-core/pluginHost";
+import type { InputValue, IndicatorPlugin, ParamDef } from "@edge/chart-core/plugin-api";
 import {
   clampInputValue,
   getInputSchema,
   resolveIndicatorInputs,
-} from "@/lib/chart/indicatorInputs";
-import { resolveOutputColor } from "@/lib/chart/indicatorCompute";
+} from "@edge/chart-core/indicatorInputs";
+import { resolveOutputColor } from "@edge/chart-core/indicatorCompute";
 import { manifestPlotToSeriesOutput } from "@edge/chart-core";
 import { dispatchScriptAlertPrefill } from "@/lib/alerts/openAlertPrefill";
 import { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";

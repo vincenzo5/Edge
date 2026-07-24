@@ -1,6 +1,6 @@
 "use client";
 
-import type { Interval, Range } from "@/lib/chart/contracts";
+import type { Interval, Range } from "@edge/chart-core/contracts";
 import { INTERVALS } from "@/lib/chartConfig";
 import { EdgeStatusRegion } from "../design-system";
 import SkeletonCandleBars from "./SkeletonCandleBars";

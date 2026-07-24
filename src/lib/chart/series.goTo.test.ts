@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { Candle } from './contracts';
+import type { Candle } from '@edge/chart-core/contracts';
 import { ensureCandlesCover, mergeCandlesPrepend } from './series';
 
 const DAY = 86_400_000;

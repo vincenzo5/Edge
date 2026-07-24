@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { ChartHandle } from "./EdgeChart";
 import type { CellConfig, TrackedOverlay } from "@/lib/chartConfig";
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import { syncAlertsWithDrawingChanges } from "@/lib/alerts/drawingAlertSync";
 import { syncPlaybookStopOnDrawingChange } from "@/lib/trading/playbook/playbookStopSync";
 import type { PlaybookInstance } from "@/lib/trading/playbook/types";

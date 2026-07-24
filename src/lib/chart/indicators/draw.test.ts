@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { VisibleRange } from '../contracts';
-import type { IndicatorPlugin } from '../plugin-api';
-import { drawFromOutputs, drawIndicator } from './draw';
+import type { VisibleRange } from '@edge/chart-core/contracts';
+import type { IndicatorPlugin } from '@edge/chart-core/plugin-api';
+import { drawFromOutputs, drawIndicator } from '@edge/chart-core/indicators/draw';
 
 function mockVp(): VisibleRange {
   return {

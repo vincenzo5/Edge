@@ -8,8 +8,8 @@ import {
   buildAnnotationNarrative,
   buildThesisSummary,
   summarizeAnnotations,
-} from "@/lib/chart/annotationMetadata";
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+} from "@edge/chart-core/annotationMetadata";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import { getCell, requireApp } from "./_helpers";
 import { sanitizeIndicatorsForAi } from "./indicatorSanitizer";
 import { slimDataProvenance } from "../agent/dataProvenance";

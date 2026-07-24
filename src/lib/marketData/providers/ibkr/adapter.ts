@@ -1,4 +1,4 @@
-import type { Interval, Range } from "@/lib/chart/contracts";
+import type { Interval, Range } from "@edge/chart-core/contracts";
 import type { CandleRequest, CandleResponse, EquityQuote } from "../../contracts/equities";
 import type {
   OptionExpiration,

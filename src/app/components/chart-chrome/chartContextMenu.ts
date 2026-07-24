@@ -7,7 +7,7 @@ import type {
   PriceScaleType,
   RequiredChartSettings,
   SymbolPriceLabelMode,
-} from "@/lib/chart/chartSettings";
+} from "@edge/chart-react/engine/chartSettings";
 import { getShortcutLabel } from "@/lib/shortcuts/formatShortcutLabel";
 
 export type ChartContextMenuState = {

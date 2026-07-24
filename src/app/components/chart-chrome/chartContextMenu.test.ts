@@ -5,7 +5,7 @@ import {
   type ChartContextMenuActions,
 } from "./chartContextMenu";
 import type { ChartCopyItem } from "./chartCopyMenu";
-import { mergeChartSettings } from "@/lib/chart/chartSettings";
+import { mergeChartSettings } from "@edge/chart-react/engine/chartSettings";
 import { getShortcutLabel } from "@/lib/shortcuts/formatShortcutLabel";
 
 function mockActions(): ChartContextMenuActions {

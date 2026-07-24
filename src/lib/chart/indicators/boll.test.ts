@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { boll } from './boll';
-import { computeBollinger } from './math';
+import { boll } from '@edge/chart-core/indicators/boll';
+import { computeBollinger } from '@edge/chart-core/indicators/math';
 
 describe('boll plugin', () => {
   it('compute produces upper/middle/lower bands', () => {

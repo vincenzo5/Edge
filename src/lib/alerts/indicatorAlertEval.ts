@@ -10,7 +10,7 @@ import type {
   AlertSymbolStateEntry,
 } from "@/lib/persistence/schemas/alerts";
 import type { EquityCandle } from "@/lib/marketData/contracts/equities";
-import type { Range } from "@/lib/chart/contracts";
+import type { Range } from "@edge/chart-core/contracts";
 import type { IndicatorTechnicalRule } from "@/lib/marketData/schemas/request";
 import {
   evaluateIndicatorRule,

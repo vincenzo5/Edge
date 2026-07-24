@@ -1,4 +1,4 @@
-import type { Interval, Range } from "@/lib/chart/contracts";
+import type { Interval, Range } from "@edge/chart-core/contracts";
 
 /** Map Edge chart interval to TWS/IB historical bar size. */
 export function mapTwsBarSize(interval: Interval): string {

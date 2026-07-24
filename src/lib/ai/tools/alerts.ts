@@ -42,7 +42,7 @@ import {
   positionOrderLevelsFromDrawing,
 } from "@/lib/trading/positionTradeSetup";
 import { upsertScreenerAlertForScreen } from "@/lib/screener/screenerAlertClient";
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import { cellIndexSchema } from "../schemas";
 import { getCell, requireApp } from "./_helpers";
 

@@ -18,7 +18,7 @@ import {
   type PriceScaleType,
   type TrackedOverlay,
 } from "@/lib/chartConfig";
-import type { Candle } from "@/lib/chart/contracts";
+import type { Candle } from "@edge/chart-core/contracts";
 import type { useSidebarOptional } from "../SidebarContext";
 import type { useTradeSetupBindingOptional } from "../trading/TradeSetupBindingContext";
 

@@ -1,4 +1,4 @@
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import type {
   AlertDefinitionResponse,
   AlertDrawingKind,

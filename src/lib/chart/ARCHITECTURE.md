@@ -30,15 +30,17 @@ Data path: `POST /api/candles` → `series.ts` → `@edge/chart-react` `EdgeChar
 
 **Range & viewport session:** Manual interval picks use `rangeForManualInterval()`. Initial visible window comes from `getSessionViewport()` — active bottom-bar presets use calendar cutoffs; no preset + daily interval shows ~270 calendar days (`getCalendarWindowViewport`); weekly/monthly show the full fetched window. When the candle session changes (symbol/range/interval), `viewportRevision` triggers `resetAllPaneViewports()` so pan/zoom does not carry stale state across bar sizes. Within the same session, true history prepends keep shifted indices; if candle length grows while the viewport is no longer at the live edge (typical cache→fresh replace), the price pane rebuilds via `getSessionViewport()` instead of keeping stale indices. When the user leaves the default fit, optional `CellConfig.viewport` is debounced into the chart workspace snapshot and restored after candles load for the same session; **Reset chart view** and session-field changes clear the snapshot (`useViewportPersistSync`).
 
-## Canonical vs compatibility paths
+## Canonical vs app adapter paths
 
-| Layer | Canonical location | App compatibility shim |
-|-------|-------------------|------------------------|
-| Pure chart logic | `packages/chart-core/src/` (includes `interval.ts`, `series.ts` transforms) | `src/lib/chart/*` re-exports to `@edge/chart-core` |
-| React chart runtime | `packages/chart-react/src/` | `src/lib/chart/{canvas,viewport,renderer,chartSettings,legend,goTo,...}.ts` re-export to `@edge/chart-react/engine/*` |
-| App-only helpers | `src/lib/chart/{series,chartSnapshot,chartClipboard,stateMapping,...}.ts` — `series.ts` keeps Yahoo `/api/candles` fetch wrappers; HA/merge/resample/cover re-export from `@edge/chart-core` | — |
+| Layer | Canonical location | App adapters (`src/lib/chart/`) |
+|-------|-------------------|----------------------------------|
+| Pure chart logic | `packages/chart-core/src/` — import `@edge/chart-core` or subpaths (`/contracts`, `/drawings`, …) | **None** — pure re-export shims removed (code-org Phase 5, 2026-07-24) |
+| React chart runtime | `packages/chart-react/src/` — import `@edge/chart-react` or `@edge/chart-react/engine/*` | **None** — engine shims removed |
+| App-only glue | — | `series.ts` (Yahoo `/api/candles`), `chartSnapshot.ts`, `chartClipboard.ts`, `stateMapping.ts`, `layoutTemplates.ts`, `presets/*`, `activeChartTypes.ts`, `objectTreeModel.ts`, … — see [code-org-phase-5 evidence](../../../docs/evidence/code-org-phase-5.txt) |
 
-Runtime chart rendering uses `@edge/chart-react` only. Do not edit duplicate implementations under `src/lib/chart/` — change package sources and keep shims as re-exports.
+**Import policy:** New code imports `@edge/chart-core` / `@edge/chart-react` directly. Do not add pure `export * from '@edge/…'` files under `src/lib/chart/` — `npm run lint:chart-shims` fails closed.
+
+Runtime chart rendering uses `@edge/chart-react` only. Edit package sources under `packages/chart-*`; keep app-specific fetch/persistence/UI mapping in the adapter list above.
 
 ## Key Modules
 
@@ -159,7 +161,8 @@ Package path: `packages/chart-react/src/engine/webgl/`.
 ## Boundaries
 
 - **UI layer** (`src/app/components/EdgeChart.tsx`, `ChartCell.tsx`): wires React state, toolbars, context menus.
-- **Engine layer** (`packages/chart-react/`, `packages/chart-core/`): pure chart logic; `src/lib/chart/` is compatibility re-exports only.
+- **Engine layer** (`packages/chart-react/`, `packages/chart-core/`): pure chart logic; import `@edge/chart-*` directly.
+- **App adapters** (`src/lib/chart/`): feed glue, persistence mapping, layout templates — not re-exports (Phase 5).
 - **Config layer** (`src/lib/chartConfig.ts`): layout schema, defaults, link propagation.
 
 ## Verification

@@ -11,7 +11,7 @@ import {
   transformCandlesForChartType,
   PREFETCH_START_INDEX_THRESHOLD,
 } from './series';
-import type { Candle } from './contracts';
+import type { Candle } from '@edge/chart-core/contracts';
 
 describe('toTimestampMs', () => {
   it('converts Unix seconds to milliseconds', () => {

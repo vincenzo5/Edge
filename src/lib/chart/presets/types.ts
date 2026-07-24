@@ -1,6 +1,6 @@
 import type { CellConfig } from '@/lib/chartConfig';
-import type { ChartSettings } from '@/lib/chart/chartSettings';
-import type { IndicatorConfig } from '@/lib/chart/contracts';
+import type { ChartSettings } from '@edge/chart-react/engine/chartSettings';
+import type { IndicatorConfig } from '@edge/chart-core/contracts';
 
 export type StudyTemplatePayload = Pick<
   IndicatorConfig,

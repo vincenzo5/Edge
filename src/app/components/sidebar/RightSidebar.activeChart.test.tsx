@@ -9,7 +9,7 @@ import {
 } from '../ActiveChartContext';
 import { DEFAULT_CELL } from '@/lib/chartConfig';
 import { makeDrawingCommandsMock, makeDataWindowActionsMock, makeUICommandsMock, toActiveChartRegistration } from '@/test/activeChartMocks';
-import type { Candle } from '@/lib/chart/contracts';
+import type { Candle } from '@edge/chart-core/contracts';
 
 const candles: Candle[] = [
   { t: 1, o: 10, h: 12, l: 9, c: 11, v: 1000 },

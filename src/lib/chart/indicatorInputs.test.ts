@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import type { IndicatorConfig } from './contracts';
-import type { IndicatorPlugin } from './plugin-api';
+import type { IndicatorConfig } from '@edge/chart-core/contracts';
+import type { IndicatorPlugin } from '@edge/chart-core/plugin-api';
 import {
   clampInputValue,
   defaultInputsFromSchema,
   getInputSchema,
   resolveIndicatorInputs,
-} from './indicatorInputs';
+} from '@edge/chart-core/indicatorInputs';
 
 const sourcePlugin: IndicatorPlugin = {
   name: 'SourceTest',

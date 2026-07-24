@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Interval, Range } from "@/lib/chart/contracts";
+import type { Interval, Range } from "@edge/chart-core/contracts";
 import { DataProviderPreferenceSchema } from "@/lib/connections/types";
 import { SUPPORTED_INTERVALS } from "@edge/chart-core/data-source";
 

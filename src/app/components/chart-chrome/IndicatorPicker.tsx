@@ -6,8 +6,8 @@ import {
   getCatalogByCategory,
   INDICATOR_CATEGORIES,
   type CatalogEntry,
-} from "@/lib/chart/indicators/registry";
-import type { IndicatorCategory } from "@/lib/chart/plugin-api";
+} from "@edge/chart-core/indicators/registry";
+import type { IndicatorCategory } from "@edge/chart-core/plugin-api";
 import {
   isIndicatorFavorite,
   toggleIndicatorFavorite,

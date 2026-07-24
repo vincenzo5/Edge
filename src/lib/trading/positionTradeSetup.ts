@@ -1,6 +1,6 @@
 import { boxFromPoints } from "@edge/chart-core";
 import type { RiskDirection } from "@edge/chart-core";
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import type { OrderSide } from "./types";
 
 export const POSITION_DRAWING_NAMES = ["long_position", "short_position"] as const;

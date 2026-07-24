@@ -1,7 +1,7 @@
 'use client';
 
 import type { ChartType, IndicatorConfig, Theme } from '@/lib/chartConfig';
-import type { Interval } from '@/lib/chart/contracts';
+import type { Interval } from '@edge/chart-core/contracts';
 import SearchBar from '../SearchBar';
 import ChartHeaderDivider from './ChartHeaderDivider';
 import ChartHeaderButton from './ChartHeaderButton';

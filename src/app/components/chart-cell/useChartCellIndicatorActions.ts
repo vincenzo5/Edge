@@ -7,8 +7,8 @@ import {
   type CellConfig,
   type IndicatorConfig,
 } from "@/lib/chartConfig";
-import { defaultInputsFromSchema } from "@/lib/chart/indicatorInputs";
-import type { IndicatorPlugin } from "@/lib/chart/plugin-api";
+import { defaultInputsFromSchema } from "@edge/chart-core/indicatorInputs";
+import type { IndicatorPlugin } from "@edge/chart-core/plugin-api";
 import type { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
 import type { useOptionalAppWorkspace } from "../app-workspace/AppWorkspaceContext";
 

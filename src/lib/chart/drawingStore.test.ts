@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { DrawingStore } from './drawingStore';
-import type { SerializedDrawing } from './contracts';
+import { DrawingStore } from '@edge/chart-core/drawingStore';
+import type { SerializedDrawing } from '@edge/chart-core/contracts';
 
 const sample: SerializedDrawing = {
   id: 'd1',

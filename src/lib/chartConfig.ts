@@ -1,7 +1,7 @@
 import type { Range } from "./yahoo";
-import type { Interval } from "./chart/contracts";
-import type { IndicatorConfig, SerializedDrawing } from "./chart/contracts";
-import type { ChartSettings } from "./chart/chartSettings";
+import type { Interval } from "@edge/chart-core/contracts";
+import type { IndicatorConfig, SerializedDrawing } from "@edge/chart-core/contracts";
+import type { ChartSettings } from "@edge/chart-react/engine/chartSettings";
 import type { ViewportPersistSketch } from "./chart/viewportPersistSketch";
 import {
   DEFAULT_CHART_SETTINGS,
@@ -11,10 +11,10 @@ import {
   persistChartSettings,
   serializeChartSettings,
   stripLegacyFactoryTimeZoneOnLoad,
-} from "./chart/chartSettings";
+} from "@edge/chart-react/engine/chartSettings";
 
 export type { Range, Interval };
-export type { IndicatorConfig, SerializedDrawing, DrawingStyles, TrackedOverlay, LineStyleOverride } from "./chart/contracts";
+export type { IndicatorConfig, SerializedDrawing, DrawingStyles, TrackedOverlay, LineStyleOverride } from "@edge/chart-core/contracts";
 export type {
   ChartSettings,
   GroupedChartSettings,
@@ -30,7 +30,7 @@ export type {
   GridLineMode,
   ButtonVisibility,
   PricePrecision,
-} from "./chart/chartSettings";
+} from "@edge/chart-react/engine/chartSettings";
 export {
   DEFAULT_CHART_SETTINGS,
   mergeChartSettings,
@@ -40,8 +40,8 @@ export {
   serializeChartSettings,
   stripLegacyFactoryTimeZoneOnLoad,
 };
-import { defaultInputsFromSchema } from "./chart/indicatorInputs";
-import { getIndicator } from "./chart/indicators/registry";
+import { defaultInputsFromSchema } from "@edge/chart-core/indicatorInputs";
+import { getIndicator } from "@edge/chart-core/indicators/registry";
 
 export type ChartType =
   | "candle_solid"

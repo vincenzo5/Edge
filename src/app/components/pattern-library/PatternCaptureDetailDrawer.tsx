@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Interval } from "@/lib/chart/contracts";
+import type { Interval } from "@edge/chart-core/contracts";
 import type { Range } from "@/lib/yahoo";
 import type { PatternRecord } from "@/lib/patternLibrary/types";
 import type { SetupQuality } from "@/lib/patternLibrary/types";
-import { rangeForManualInterval } from "@/lib/chart/rangeInterval";
+import { rangeForManualInterval } from "@edge/chart-react/engine/rangeInterval";
 import { EdgeButton, EdgeSlideOver, EdgeSelect } from "@/app/components/design-system";
 import { invalidatePatternLibraryRecordsCache } from "@/lib/persistence/client/patternLibraryRecordsClient";
 import { useAppActions } from "../AppActionsContext";

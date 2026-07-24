@@ -4,7 +4,7 @@ import type { CellConfig } from '@/lib/chartConfig';
 import {
   migrateChartSettings,
   stripLegacyFactoryTimeZoneOnLoad,
-} from '@/lib/chart/chartSettings';
+} from '@edge/chart-react/engine/chartSettings';
 
 export function cellConfigToChartState(cell: CellConfig): SerializedChartState {
   return serializeChartState({

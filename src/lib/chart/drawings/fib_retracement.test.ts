@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fibLevelPrice, FIB_LEVELS } from './fib_retracement';
+import { fibLevelPrice, FIB_LEVELS } from '@edge/chart-core/drawings/fib_retracement';
 
 describe('fib_retracement', () => {
   it('computes 0.618 level between anchors', () => {

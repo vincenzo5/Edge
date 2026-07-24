@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createViewport } from '../viewport';
-import type { Candle, SerializedDrawing } from '../contracts';
+import { createViewport } from '@edge/chart-react/engine/viewport';
+import type { Candle, SerializedDrawing } from '@edge/chart-core/contracts';
 import {
   ruler,
   formatRulerPriceLabels,
@@ -9,7 +9,7 @@ import {
   rulerBarCount,
   sumRulerVolume,
 } from '@edge/chart-core/drawings/ruler';
-import { HIT_TOLERANCE_PX } from './primitives';
+import { HIT_TOLERANCE_PX } from '@edge/chart-core/drawings/primitives';
 
 const candles: Candle[] = [
   { t: 1_000, o: 100, h: 110, l: 90, c: 105, v: 1_000_000 },

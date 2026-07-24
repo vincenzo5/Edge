@@ -16,7 +16,7 @@ import {
   makeUICommandsMock,
   toActiveChartRegistration,
 } from '@/test/activeChartMocks';
-import type { Candle } from '@/lib/chart/contracts';
+import type { Candle } from '@edge/chart-core/contracts';
 import { AppActionsProvider } from '../../AppActionsContext';
 import type { ChartLayout } from '@/lib/chartConfig';
 

@@ -1,6 +1,6 @@
-export type { IndicatorCategory, ParamDef } from './chart/plugin-api';
-export type { IndicatorMeta } from './chart/indicators/catalog';
-export type { CatalogEntry } from './chart/indicators/registry';
+export type { IndicatorCategory, ParamDef } from '@edge/chart-core/plugin-api';
+export type { IndicatorMeta } from '@edge/chart-core/indicators/catalog';
+export type { CatalogEntry } from '@edge/chart-core/indicators/registry';
 export {
   getCatalog,
   getCatalogByCategory,
@@ -9,9 +9,9 @@ export {
   isMainPane,
   INDICATOR_CATALOG,
   INDICATOR_CATEGORIES,
-} from './chart/indicators/registry';
+} from '@edge/chart-core/indicators/registry';
 
-import { getCatalog } from './chart/indicators/registry';
+import { getCatalog } from '@edge/chart-core/indicators/registry';
 import type { IndicatorConfig } from './chartConfig';
 
 /** Flat catalog metadata (backward compatibility). */

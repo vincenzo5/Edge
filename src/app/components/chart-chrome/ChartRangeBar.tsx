@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { Range, Theme } from '@/lib/chart/contracts';
-import type { ChartTimeZone } from '@/lib/chart/timeZone';
-import { formatClockAbbreviation, formatClockLabel } from '@/lib/chart/timeZone';
-import { BOTTOM_RANGE_PRESETS, rangePresetLabel } from '@/lib/chart/rangePresets';
+import type { Range, Theme } from '@edge/chart-core/contracts';
+import type { ChartTimeZone } from '@edge/chart-core/timeZone';
+import { formatClockAbbreviation, formatClockLabel } from '@edge/chart-core/timeZone';
+import { BOTTOM_RANGE_PRESETS, rangePresetLabel } from '@edge/chart-react/engine/rangePresets';
 import { useElementSize } from '@/lib/responsive/useElementSize';
 import {
   bodyTextClass,

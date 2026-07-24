@@ -13,7 +13,7 @@ import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import MarketContextBreadcrumb from "../chart-chrome/MarketContextBreadcrumb";
 import PatternCapturePanel from "../chart-chrome/PatternCapturePanel";
 import PatternCaptureOverlay from "../chart-chrome/PatternCaptureOverlay";
-import type { Candle, DrawingStyles, SerializedDrawing } from "@/lib/chart/contracts";
+import type { Candle, DrawingStyles, SerializedDrawing } from "@edge/chart-core/contracts";
 import type { ChartAnnotationChannelMarker, ChartDataMeta } from "@edge/chart-core";
 import type { MarketSessionKind } from "@edge/chart-core";
 import type {
@@ -23,15 +23,15 @@ import type {
   ToolbarPrefs,
   TrackedOverlay,
 } from "@/lib/chartConfig";
-import type { Range } from "@/lib/chart/contracts";
-import type { ChartTimeZone } from "@/lib/chart/timeZone";
+import type { Range } from "@edge/chart-core/contracts";
+import type { ChartTimeZone } from "@edge/chart-core/timeZone";
 import type { DrawingToolName } from "../chart-icons/toolGroups";
 import type { PriceAxisAnnotation } from "@edge/chart-core/priceAxisTypes";
 import type { RailMode } from "@/lib/responsive/responsiveLayout";
 import type { PaletteId } from "@/lib/design-system/palettes";
-import type { PriceScaleSide } from "@/lib/chart/layout";
-import type { InputValue } from "@/lib/chart/plugin-api";
-import type { LineStyleOverride } from "@/lib/chart/contracts";
+import type { PriceScaleSide } from "@edge/chart-core/layout";
+import type { InputValue } from "@edge/chart-core/plugin-api";
+import type { LineStyleOverride } from "@edge/chart-core/contracts";
 import type { PresetEnvelope } from "@/lib/chart/presets/types";
 import type { usePatternCapture } from "./usePatternCapture";
 import type { useCellCrosshair } from "./useCellCrosshair";

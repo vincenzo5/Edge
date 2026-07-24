@@ -17,8 +17,8 @@ import {
   type RequiredChartSettings,
   type TrackedOverlay,
 } from "@/lib/chartConfig";
-import type { DrawingStyles } from "@/lib/chart/contracts";
-import type { ChartTimeZone } from "@/lib/chart/timeZone";
+import type { DrawingStyles } from "@edge/chart-core/contracts";
+import type { ChartTimeZone } from "@edge/chart-core/timeZone";
 
 type Params = {
   chartRef: RefObject<ChartHandle | null>;
@@ -102,8 +102,8 @@ export function useChartCellModalState({
     (
       id: string,
       patch: {
-        inputs?: Record<string, import("@/lib/chart/plugin-api").InputValue>;
-        styles?: Record<string, import("@/lib/chart/contracts").LineStyleOverride>;
+        inputs?: Record<string, import("@edge/chart-core/plugin-api").InputValue>;
+        styles?: Record<string, import("@edge/chart-core/contracts").LineStyleOverride>;
       },
     ) => {
       onConfigChange({

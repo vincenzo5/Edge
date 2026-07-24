@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { formatObjectTreeLabel } from "@/lib/chart/annotationMetadata";
+import { formatObjectTreeLabel } from "@edge/chart-core/annotationMetadata";
 import type { ObjectTreeDrawingRow } from "@/lib/chart/objectTreeModel";
 import {
   EyeIcon,

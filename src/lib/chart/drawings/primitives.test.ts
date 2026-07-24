@@ -5,7 +5,7 @@ import {
   distanceToSegment,
   pointInRect,
   HIT_TOLERANCE_PX,
-} from './primitives';
+} from '@edge/chart-core/drawings/primitives';
 
 describe('primitives', () => {
   it('distanceToSegment on line is zero', () => {

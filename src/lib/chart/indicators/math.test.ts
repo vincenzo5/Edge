@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeMacd, computeRsi, ema, mergeRanges, sma, stddev, symmetricRangeAroundZero } from './math';
+import { computeMacd, computeRsi, ema, mergeRanges, sma, stddev, symmetricRangeAroundZero } from '@edge/chart-core/indicators/math';
 
 describe('indicator math', () => {
   it('computes SMA with warmup period', () => {

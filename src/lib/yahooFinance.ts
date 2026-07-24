@@ -1,6 +1,6 @@
 import YahooFinance from "yahoo-finance2";
 
-import type { Interval as ChartInterval } from "./chart/contracts";
+import type { Interval as ChartInterval } from "@edge/chart-core/contracts";
 
 // v3 changed the default export from a singleton to a class that must be
 // instantiated before use. See docs/UPGRADING.md (v2 -> v3).

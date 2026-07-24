@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { IndicatorPlugin } from './plugin-api';
-import type { Candle, IndicatorConfig } from './contracts';
+import type { IndicatorPlugin } from '@edge/chart-core/plugin-api';
+import type { Candle, IndicatorConfig } from '@edge/chart-core/contracts';
 import {
   clearComputeCache,
   computeCacheKey,
@@ -12,9 +12,9 @@ import {
   legendFromOutputs,
   resolveOutputColor,
   resolveSeriesStyle,
-} from './indicatorCompute';
+} from '@edge/chart-core/indicatorCompute';
 import { applyCandleReplaceLatest } from '@edge/chart-core';
-import { ma } from './indicators/ma';
+import { ma } from '@edge/chart-core/indicators/ma';
 
 const candles: Candle[] = [
   { t: 1, o: 10, h: 12, l: 9, c: 11, v: 1000 },

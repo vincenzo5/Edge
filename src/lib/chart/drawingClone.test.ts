@@ -4,8 +4,8 @@ import {
   cloneDrawingsForPaste,
   DUPLICATE_ANCHOR,
   toClipboardItem,
-} from './drawingClone';
-import type { SerializedDrawing } from './contracts';
+} from '@edge/chart-core/drawingClone';
+import type { SerializedDrawing } from '@edge/chart-core/contracts';
 
 const base: SerializedDrawing = {
   id: 'd1',

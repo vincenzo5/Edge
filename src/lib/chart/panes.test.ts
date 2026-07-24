@@ -5,7 +5,7 @@ import {
   computePaneBoundaries,
   MIN_PRICE_HEIGHT,
   PANE_SEPARATOR_HEIGHT,
-} from './panes';
+} from '@edge/chart-core/panes';
 
 describe('createInitialLayout', () => {
   it('gives price pane full container height when no sub-panes', () => {

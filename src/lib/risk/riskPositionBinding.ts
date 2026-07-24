@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import { isPositionDrawingName } from "@/lib/trading/positionTradeSetup";
 
 export const RISK_POSITION_BIND_STORAGE_KEY = "edge.riskPositionBind.v1";

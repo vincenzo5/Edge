@@ -10,7 +10,7 @@ import {
   createIndicatorInstance,
   type IndicatorConfig,
 } from "@/lib/chartConfig";
-import { getCatalogMeta } from "@/lib/chart/indicators/registry";
+import { getCatalogMeta } from "@edge/chart-core/indicators/registry";
 import { getCell, requireApp } from "./_helpers";
 import { sanitizeIndicatorForAi, sanitizeIndicatorsForAi } from "./indicatorSanitizer";
 

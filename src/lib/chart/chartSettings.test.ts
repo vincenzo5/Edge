@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeChartSettings } from './chartSettings';
+import { mergeChartSettings } from '@edge/chart-react/engine/chartSettings';
 
 describe('app chartSettings re-export', () => {
   it('keeps event overlay defaults quiet for dense feeds', () => {

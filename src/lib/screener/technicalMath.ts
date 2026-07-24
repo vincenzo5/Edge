@@ -3,7 +3,7 @@ import { resolveIndicatorInputs } from "@edge/chart-core/indicatorInputs";
 import { getIndicator, isIndicatorImplemented } from "@edge/chart-core/indicators";
 import { closes, computeRsi, highest, sma } from "@edge/chart-core/indicators/math";
 import type { EquityCandle } from "@/lib/marketData/contracts/equities";
-import type { Range } from "@/lib/chart/contracts";
+import type { Range } from "@edge/chart-core/contracts";
 import type {
   IndicatorTechnicalRule,
   IndicatorRuleTransform,

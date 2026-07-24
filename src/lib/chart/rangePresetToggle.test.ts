@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_CHART_RANGE, DEFAULT_CELL, pickLinkFields } from '@/lib/chartConfig';
-import { applyRangePresetSelect } from '@/lib/chart/rangePresetTransition';
+import { applyRangePresetSelect } from '@edge/chart-react/engine/rangePresetTransition';
 
 describe('range preset toggle behavior', () => {
   it('default landing view has no active preset', () => {

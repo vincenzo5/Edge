@@ -1,6 +1,6 @@
 import type { ResolvedScriptSource } from "@edge/chart-core";
-import { defaultInputsFromSchema } from "@/lib/chart/indicatorInputs";
-import type { IndicatorPlugin } from "@/lib/chart/plugin-api";
+import { defaultInputsFromSchema } from "@edge/chart-core/indicatorInputs";
+import type { IndicatorPlugin } from "@edge/chart-core/plugin-api";
 import type { ScriptLibraryState } from "./types";
 import { getRevisionSource, getScript } from "./repository";
 

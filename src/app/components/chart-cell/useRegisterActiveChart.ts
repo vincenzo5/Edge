@@ -3,7 +3,7 @@
 import { useEffect, useMemo, type RefObject } from "react";
 import type { ChartHandle } from "./EdgeChart";
 import type { useActiveChartBridge } from "../ActiveChartContext";
-import type { Candle } from "@/lib/chart/contracts";
+import type { Candle } from "@edge/chart-core/contracts";
 import type { ChartDataMeta } from "@edge/chart-core";
 import type {
   CellConfig,
@@ -20,7 +20,7 @@ import type {
   ActiveChartOverlayActions,
   ActiveChartUICommands,
 } from "../ActiveChartContext";
-import { getCatalogMeta } from "@/lib/chart/indicators/catalog";
+import { getCatalogMeta } from "@edge/chart-core/indicators/catalog";
 
 type Params = {
   activeChartBridge: ReturnType<typeof useActiveChartBridge>;

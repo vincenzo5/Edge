@@ -2,8 +2,8 @@
 
 import { useCallback, useRef, useState } from 'react';
 import type { Theme } from '@/lib/chartConfig';
-import type { PaneBoundary } from '@/lib/chart/panes';
-import { PANE_SEPARATOR_HEIGHT, PANE_SEPARATOR_HIT } from '@/lib/chart/panes';
+import type { PaneBoundary } from '@edge/chart-core/panes';
+import { PANE_SEPARATOR_HEIGHT, PANE_SEPARATOR_HIT } from '@edge/chart-core/panes';
 
 type Props = {
   boundaries: PaneBoundary[];

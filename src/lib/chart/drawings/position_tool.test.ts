@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createViewport } from '../viewport';
-import type { Candle } from '../contracts';
+import { createViewport } from '@edge/chart-react/engine/viewport';
+import type { Candle } from '@edge/chart-core/contracts';
 import { longPosition } from '@edge/chart-core/drawings/long_position';
 import { shouldShowPositionLabels } from '@edge/chart-core/drawings/position_tool';
 import { shortPosition } from '@edge/chart-core/drawings/short_position';

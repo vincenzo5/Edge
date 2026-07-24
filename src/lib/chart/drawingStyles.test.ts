@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { defaultStylesForTool, mergeStyles, resolveDrawingStyles } from './drawingStyles';
-import { extendSegmentEndpoints } from './drawings/primitives';
-import type { SerializedDrawing } from './contracts';
+import { defaultStylesForTool, mergeStyles, resolveDrawingStyles } from '@edge/chart-core/drawingStyles';
+import { extendSegmentEndpoints } from '@edge/chart-core/drawings/primitives';
+import type { SerializedDrawing } from '@edge/chart-core/contracts';
 
 describe('drawingStyles', () => {
   it('mergeStyles shallow merges patches', () => {

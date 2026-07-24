@@ -3,7 +3,7 @@
 import type { PatternSection } from "@/lib/patternLibrary/types";
 import { SECTION_BAND_COLORS } from "@/lib/patternLibrary/renderChart";
 import { barBandStyle, type CaptureViewport } from "@/lib/patternCapture/slice";
-import type { PriceScaleSide } from "@/lib/chart/layout";
+import type { PriceScaleSide } from "@edge/chart-core/layout";
 import type { CaptureAnchor, CapturePhase } from "@/lib/patternCapture/fsm";
 
 type Props = {

@@ -4,7 +4,7 @@ import {
   applyRangePresetSelect,
   buildCandleSessionKey,
   resolveViewportRevision,
-} from './rangePresetTransition';
+} from '@edge/chart-react/engine/rangePresetTransition';
 
 describe('applyRangePresetSelect', () => {
   it('selecting a preset sets range, interval, and rangePreset', () => {

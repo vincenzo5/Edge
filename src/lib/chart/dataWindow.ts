@@ -1,5 +1,5 @@
-import type { IndicatorConfig } from "@/lib/chart/contracts";
-import type { Candle, Theme } from "@/lib/chart/contracts";
+import type { IndicatorConfig } from "@edge/chart-core/contracts";
+import type { Candle, Theme } from "@edge/chart-core/contracts";
 import type { CellConfig } from "@/lib/chartConfig";
 
 export type DataWindowProps = {

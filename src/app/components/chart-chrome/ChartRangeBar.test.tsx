@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ChartRangeBar from './ChartRangeBar';
-import { BOTTOM_RANGE_PRESETS } from '@/lib/chart/rangePresets';
-import { rangePresetLabel } from '@/lib/chart/rangePresets';
+import { BOTTOM_RANGE_PRESETS } from '@edge/chart-react/engine/rangePresets';
+import { rangePresetLabel } from '@edge/chart-react/engine/rangePresets';
 
 describe('ChartRangeBar timezone clock', () => {
   beforeEach(() => {

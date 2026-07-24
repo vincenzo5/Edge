@@ -1,7 +1,7 @@
-import type { IndicatorConfig } from './contracts';
-import type { DrawingClipboardItem } from './drawingClone';
-import { toClipboardItem } from './drawingClone';
-import type { SerializedDrawing } from './contracts';
+import type { IndicatorConfig } from '@edge/chart-core/contracts';
+import type { DrawingClipboardItem } from '@edge/chart-core/drawingClone';
+import { toClipboardItem } from '@edge/chart-core/drawingClone';
+import type { SerializedDrawing } from '@edge/chart-core/contracts';
 import type { StudyTemplatePayload } from './presets/types';
 
 export type ClipboardPayload =

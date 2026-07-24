@@ -12,7 +12,7 @@ import {
   type SidebarPrefs,
   type FloatingPanelGeometry,
 } from "./chartConfig";
-import { stripLegacyFactoryTimeZoneOnLoad } from "./chart/chartSettings";
+import { stripLegacyFactoryTimeZoneOnLoad } from "@edge/chart-react/engine/chartSettings";
 import { migrateSidebarWidth } from "./responsive/sidebarWidth";
 import {
   normalizeFloatingGeometry,

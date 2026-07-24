@@ -17,8 +17,8 @@ import {
   type Theme,
   type ToolbarPrefs,
 } from "@/lib/chartConfig";
-import type { Interval } from "@/lib/chart/contracts";
-import { rangeForManualInterval } from "@/lib/chart/rangeInterval";
+import type { Interval } from "@edge/chart-core/contracts";
+import { rangeForManualInterval } from "@edge/chart-react/engine/rangeInterval";
 import { useChartDeepLinkBootstrap } from "@/app/components/journal/useChartDeepLinkBootstrap";
 import type { ChartDeepLinkParams } from "@/lib/journal/chartDeepLink";
 import { recordRecentSymbol, seedRecentSymbols } from "@/lib/app/recentSymbols";

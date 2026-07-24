@@ -5,11 +5,11 @@ import {
   CHART_TYPE_MENU,
   intervalShortLabel,
 } from "@/lib/chart/chartHeaderMetadata";
-import { rangePresetLabel } from "@/lib/chart/rangePresets";
+import { rangePresetLabel } from "@edge/chart-react/engine/rangePresets";
 import {
   resolveChartTimeZone,
   type ChartTimeZone,
-} from "@/lib/chart/timeZone";
+} from "@edge/chart-core/timeZone";
 
 export type ChartCopyItem = {
   id: string;

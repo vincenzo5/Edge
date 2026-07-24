@@ -9,8 +9,8 @@ import DrawingRenameModal from "../drawing/DrawingRenameModal";
 import TemplatePickerModal from "../chart-chrome/TemplatePickerModal";
 import BarReplay from "../chart-chrome/BarReplay";
 import type { ChartHandle } from "./EdgeChart";
-import type { DrawingStyles } from "@/lib/chart/contracts";
-import type { GoToRequest } from "@/lib/chart/goTo";
+import type { DrawingStyles } from "@edge/chart-core/contracts";
+import type { GoToRequest } from "@edge/chart-react/engine/goTo";
 import type {
   CellConfig,
   IndicatorConfig,
@@ -18,7 +18,7 @@ import type {
   SerializedDrawing,
   Theme,
 } from "@/lib/chartConfig";
-import type { ChartTimeZone } from "@/lib/chart/timeZone";
+import type { ChartTimeZone } from "@edge/chart-core/timeZone";
 import type { PresetEnvelope } from "@/lib/chart/presets/types";
 
 type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
@@ -46,8 +46,8 @@ type Props = {
   onIndicatorParamsSave: (
     id: string,
     patch: {
-      inputs?: Record<string, import("@/lib/chart/plugin-api").InputValue>;
-      styles?: Record<string, import("@/lib/chart/contracts").LineStyleOverride>;
+      inputs?: Record<string, import("@edge/chart-core/plugin-api").InputValue>;
+      styles?: Record<string, import("@edge/chart-core/contracts").LineStyleOverride>;
     },
   ) => void;
   onSaveStudyTemplate?: () => void;

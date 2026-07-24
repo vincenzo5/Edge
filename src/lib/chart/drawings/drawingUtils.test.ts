@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rectCornerPlots, updateRectFromCorner, baseDrawing } from './drawingUtils';
+import { rectCornerPlots, updateRectFromCorner, baseDrawing } from '@edge/chart-core/drawings/drawingUtils';
 
 describe('rect corner helpers', () => {
   it('rectCornerPlots returns four corners', () => {

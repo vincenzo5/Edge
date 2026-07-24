@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import { clearLocalAlertsForTests, createLocalAlert } from "@/lib/alerts/localAlertStore";
 import { syncAlertsWithDrawingChanges } from "@/lib/alerts/drawingAlertSync";
 

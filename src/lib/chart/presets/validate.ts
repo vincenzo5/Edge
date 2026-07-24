@@ -1,4 +1,4 @@
-import { getCatalogEntry } from '../indicators/registry';
+import { getCatalogEntry } from '@edge/chart-core/indicators/registry';
 import type { StudyTemplatePayload } from './types';
 
 export function isStudyPayloadValid(payload: StudyTemplatePayload): boolean {

@@ -8,7 +8,7 @@ import {
   normalizeChartTimeZone,
   resolveChartTimeZone,
   resolveEffectiveChartTimeZone,
-} from './timeZone';
+} from '@edge/chart-core/timeZone';
 
 describe('normalizeChartTimeZone', () => {
   it('defaults invalid values to UTC', () => {

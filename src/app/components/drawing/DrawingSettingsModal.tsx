@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DrawingStyles, SerializedDrawing, Theme } from "@/lib/chart/contracts";
-import { resolveDrawingStyles } from "@/lib/chart/drawingStyles";
+import type { DrawingStyles, SerializedDrawing, Theme } from "@edge/chart-core/contracts";
+import { resolveDrawingStyles } from "@edge/chart-core/drawingStyles";
 import {
   dashPresetFromArray,
   drawingSettingsCapabilities,
   LINE_DASH_PRESETS,
   type LineDashPreset,
-} from "@/lib/chart/drawingSettingsCapabilities";
+} from "@edge/chart-core/drawingSettingsCapabilities";
 import { EdgeButton, EdgeModalShell, EdgeSelect } from "../design-system";
 import { fieldClass } from "../design-system/styles";
 

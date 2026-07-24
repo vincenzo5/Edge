@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Theme } from '@/lib/chart/contracts';
+import type { Theme } from '@edge/chart-core/contracts';
 import EdgeButton from '../design-system/EdgeButton';
 import EdgeModalShell from '../design-system/EdgeModalShell';
 import { fieldClass, labeledFieldClass } from '../design-system/styles';

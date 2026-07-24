@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createViewport, attachViewportHelpers } from './viewport';
-import { TIME_AXIS_HEIGHT } from './layout';
+import { createViewport, attachViewportHelpers } from '@edge/chart-react/engine/viewport';
+import { TIME_AXIS_HEIGHT } from '@edge/chart-core/layout';
 import {
   formatCrosshairValue,
   priceForPlotY,
@@ -8,12 +8,12 @@ import {
   findDataIndexForTimestamp,
   clampIndexToViewport,
   crosshairStatesEqual,
-} from './crosshair';
-import { snapPlotXToCandle } from './drawingCoords';
-import { registerIndicator } from './indicators/registry';
-import { clearComputeCache } from './indicatorCompute';
-import type { Candle } from './contracts';
-import type { IndicatorPlugin } from './plugin-api';
+} from '@edge/chart-core/crosshair';
+import { snapPlotXToCandle } from '@edge/chart-core/drawingCoords';
+import { registerIndicator } from '@edge/chart-core/indicators/registry';
+import { clearComputeCache } from '@edge/chart-core/indicatorCompute';
+import type { Candle } from '@edge/chart-core/contracts';
+import type { IndicatorPlugin } from '@edge/chart-core/plugin-api';
 
 const sample: Candle[] = [
   { t: 1, o: 10, h: 12, l: 9, c: 11 },

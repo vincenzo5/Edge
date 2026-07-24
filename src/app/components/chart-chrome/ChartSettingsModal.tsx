@@ -24,7 +24,7 @@ import {
 import { getChartColors } from "@/lib/chart/chartTheme";
 import { DEFAULT_PALETTE } from "@/lib/design-system/palettes";
 import { useAppThemeOptional } from "@/app/components/AppThemeProvider";
-import { buildTimeZoneMenuOptions, type ChartTimeZone } from "@/lib/chart/timeZone";
+import { buildTimeZoneMenuOptions, type ChartTimeZone } from "@edge/chart-core/timeZone";
 import EdgeToggle from "@/app/components/design-system/EdgeToggle";
 import EdgeButton from "@/app/components/design-system/EdgeButton";
 import EdgeMenuItem from "@/app/components/design-system/EdgeMenuItem";

@@ -12,9 +12,9 @@ import {
   createDraftFromPoint,
   advancePlacing,
   isInstantTool,
-} from './drawingController';
-import { createViewport } from './viewport';
-import type { Candle } from './contracts';
+} from '@edge/chart-core/drawingController';
+import { createViewport } from '@edge/chart-react/engine/viewport';
+import type { Candle } from '@edge/chart-core/contracts';
 
 const candles: Candle[] = [
   { t: 1000, o: 100, h: 110, l: 90, c: 105 },

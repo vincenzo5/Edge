@@ -7,7 +7,7 @@ import {
   positionDrawingIds,
   saveRiskPositionBindToStorage,
 } from "./riskPositionBinding";
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 
 function positionDrawing(id: string, name: "long_position" | "short_position"): SerializedDrawing {
   return {

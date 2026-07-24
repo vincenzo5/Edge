@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { hitTestAll } from './pluginHost';
-import { createViewport } from './viewport';
-import type { Candle, SerializedDrawing } from './contracts';
-import { trendLine } from './drawings/trend_line';
-import { pointToPlot, yForPricePlot } from './drawingCoords';
+import { hitTestAll } from '@edge/chart-core/pluginHost';
+import { createViewport } from '@edge/chart-react/engine/viewport';
+import type { Candle, SerializedDrawing } from '@edge/chart-core/contracts';
+import { trendLine } from '@edge/chart-core/drawings/trend_line';
+import { pointToPlot, yForPricePlot } from '@edge/chart-core/drawingCoords';
 
 const candles: Candle[] = [
   { t: 1000, o: 100, h: 110, l: 90, c: 105 },

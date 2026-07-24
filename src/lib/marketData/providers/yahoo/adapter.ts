@@ -1,4 +1,4 @@
-import type { Interval as ChartInterval } from "@/lib/chart/contracts";
+import type { Interval as ChartInterval } from "@edge/chart-core/contracts";
 import type { Interval as YahooInterval, Range as YahooRange } from "@/lib/yahooFinance";
 import type { EquityCandle, EquityQuote } from "../../contracts/equities";
 import type { FundamentalsSnapshot } from "../../contracts/fundamentals";

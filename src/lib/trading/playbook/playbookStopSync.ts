@@ -1,4 +1,4 @@
-import type { SerializedDrawing } from "@/lib/chart/contracts";
+import type { SerializedDrawing } from "@edge/chart-core/contracts";
 import { LIVE_CONFIRMATION_TOKEN } from "@/lib/trading/validateOrder";
 import {
   isPositionDrawingName,

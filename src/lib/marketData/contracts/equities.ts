@@ -1,4 +1,4 @@
-import type { Interval, Range } from "@/lib/chart/contracts";
+import type { Interval, Range } from "@edge/chart-core/contracts";
 import type { MarketSessionMode } from "@edge/chart-core";
 
 /** Chart-boundary candle: Unix epoch milliseconds (UTC). */

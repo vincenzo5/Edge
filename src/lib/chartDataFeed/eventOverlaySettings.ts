@@ -3,7 +3,7 @@ import {
   mergeChartSettings,
   type ChartSettings,
   type RequiredChartSettings,
-} from '@/lib/chart/chartSettings';
+} from '@edge/chart-react/engine/chartSettings';
 import { shouldIncludeMacroChartEvents } from './macroChartPins';
 
 /** Derive enabled event overlay kinds from chart settings and symbol context. */

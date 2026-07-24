@@ -3,7 +3,7 @@ import { resolveInitialAppPalette } from "@/lib/app/appPalettePreference";
 import { resolveInitialAppTimeZone } from "@/lib/app/appTimeZonePreference";
 import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
 import { DEFAULT_PALETTE } from "@/lib/design-system/palettes";
-import { DEFAULT_CHART_TIMEZONE } from "@/lib/chart/timeZone";
+import { DEFAULT_CHART_TIMEZONE } from "@edge/chart-core/timeZone";
 import {
   defaultJournalTradesTablePrefs,
   readJournalTradesTablePrefs,

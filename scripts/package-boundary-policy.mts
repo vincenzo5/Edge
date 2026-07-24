@@ -91,3 +91,61 @@ export function libToAppBoundaryViolations(
   }
   return violations;
 }
+
+/** Phase 5: only app adapters may live under src/lib/chart — no pure @edge re-exports. */
+export const CHART_ADAPTER_ALLOWLIST = new Set([
+  "src/lib/chart/series.ts",
+  "src/lib/chart/intervalAdapter.ts",
+  "src/lib/chart/scriptSeriesResolver.ts",
+  "src/lib/chart/resolveChartLiveQuotePrice.ts",
+  "src/lib/chart/chartSnapshot.ts",
+  "src/lib/chart/viewportPersistSketch.ts",
+  "src/lib/chart/stateMapping.ts",
+  "src/lib/chart/chartClipboard.ts",
+  "src/lib/chart/layoutTemplates.ts",
+  "src/lib/chart/layoutTemplateGrid.ts",
+  "src/lib/chart/presets/apply.ts",
+  "src/lib/chart/presets/types.ts",
+  "src/lib/chart/presets/validate.ts",
+  "src/lib/chart/activeChartTypes.ts",
+  "src/lib/chart/objectTreeModel.ts",
+  "src/lib/chart/chartHeaderMetadata.ts",
+  "src/lib/chart/dataWindow.ts",
+  "src/lib/chart/indicatorFavorites.ts",
+  "src/lib/chart/chartTheme.ts",
+  "src/lib/chart/scriptFixtureDev.ts",
+]);
+
+const PURE_SHIM_RE =
+  /^\s*\/\*\*[\s\S]*?\*\/\s*\nexport (?:\*|\{ default \}) from ['"]@edge\/chart-(?:core|react)/m;
+
+export function chartShimIssues(file: string, content: string): BoundaryIssue[] {
+  if (!file.startsWith("src/lib/chart/")) return [];
+  if (!/\.(ts|tsx)$/.test(file)) return [];
+  if (/\.(test|spec)\.(ts|tsx)$/.test(file)) return [];
+  if (CHART_ADAPTER_ALLOWLIST.has(file)) return [];
+  if (PURE_SHIM_RE.test(content)) {
+    return [
+      {
+        file,
+        reason: "pure @edge chart re-export shim — import @edge/chart-core or @edge/chart-react directly",
+      },
+    ];
+  }
+  return [
+    {
+      file,
+      reason: "unexpected src/lib/chart module — add to CHART_ADAPTER_ALLOWLIST or move to packages",
+    },
+  ];
+}
+
+export function chartShimBoundaryViolations(
+  files: Array<{ relPath: string; content: string }>
+): BoundaryIssue[] {
+  const violations: BoundaryIssue[] = [];
+  for (const { relPath, content } of files) {
+    violations.push(...chartShimIssues(relPath, content));
+  }
+  return violations;
+}

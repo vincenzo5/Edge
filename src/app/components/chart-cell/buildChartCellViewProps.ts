@@ -3,7 +3,7 @@ import type { ChartHandle } from "./EdgeChart";
 import type { ChartCellViewProps } from "./ChartCellView";
 import type { ChartAnnotationChannelMarker } from "@edge/chart-core";
 import type { CellConfig, ToolbarPrefs } from "@/lib/chartConfig";
-import type { ChartTimeZone } from "@/lib/chart/timeZone";
+import type { ChartTimeZone } from "@edge/chart-core/timeZone";
 import type { PaletteId } from "@/lib/design-system/palettes";
 import type { RailMode } from "@/lib/responsive/responsiveLayout";
 import type { useChartCellModalState, useChartCellModalSelection } from "./useChartCellModalState";

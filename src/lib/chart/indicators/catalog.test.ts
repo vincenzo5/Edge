@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCatalog, INDICATOR_CATALOG } from './registry';
+import { getCatalog, INDICATOR_CATALOG } from '@edge/chart-core/indicators/registry';
 
 describe('indicator catalog', () => {
   it('lists 30 catalog entries', () => {
