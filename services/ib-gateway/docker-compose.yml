@@ -1,10 +1,20 @@
 # IB Gateway — separate live + paper containers (no shared-display 2FA race).
 # Copy services/ib-gateway/.env.example → services/ib-gateway/.env and set credentials.
 # Start: npm run ib:gateway:up  |  Stop: npm run ib:gateway:down
+#
+# Soft restart (weekdays): AUTO_RESTART_TIME keeps the session without 2FA.
+# Cold restart (Sundays): TWS_COLD_RESTART forces full login + 2FA — required by IBKR.
+# jts.ini TimeZone must match AUTO_RESTART_TIME's intended zone (persisted volumes
+# ignore TIME_ZONE env once jts.ini exists).
 x-ib-gateway-common: &ib-gateway-common
   image: ghcr.io/gnzsnz/ib-gateway:stable
   restart: unless-stopped
   environment: &ib-gateway-env
+    TIME_ZONE: "${TIME_ZONE:-America/New_York}"
+    TZ: "${TZ:-America/New_York}"
+    AUTO_RESTART_TIME: "${AUTO_RESTART_TIME:-11:45 PM}"
+    AUTO_LOGOFF_TIME: "${AUTO_LOGOFF_TIME:-}"
+    TWS_COLD_RESTART: "${TWS_COLD_RESTART:-08:00}"
     EXISTING_SESSION_DETECTED_ACTION: ${EXISTING_SESSION_DETECTED_ACTION:-primary}
     READ_ONLY_API: ${READ_ONLY_API:-no}
     TWS_ACCEPT_INCOMING: ${TWS_ACCEPT_INCOMING:-accept}
@@ -29,6 +39,8 @@ services:
       - ./tws_settings_live:/home/ibgateway/tws_settings
     ports:
       - "127.0.0.1:4001:4003"
+      # 5900 often taken by macOS Screen Sharing — use 5901 for live VNC
+      - "127.0.0.1:5901:5900"
 
   ib-gateway-paper:
     <<: *ib-gateway-common
@@ -43,3 +55,4 @@ services:
       - ./tws_settings_paper:/home/ibgateway/tws_settings
     ports:
       - "127.0.0.1:4002:4004"
+      - "127.0.0.1:5902:5900"

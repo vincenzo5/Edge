@@ -16,6 +16,9 @@ node_modules/
 /build
 /packages/*/dist
 
+# local diagnostics
+.edge/
+
 # misc
 .DS_Store
 *.pem
@@ -43,6 +46,12 @@ services/ib-gateway/tws_settings_paper/
 
 # vercel
 .vercel
+
+# user journal screenshot blobs (metadata in Postgres)
+data/journal-screenshots/
+
+# Copilot attachment blobs (metadata in Postgres)
+data/copilot-attachments/
 
 # typescript
 *.tsbuildinfo

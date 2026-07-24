@@ -1,7 +1,9 @@
+name: edge
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: tv-ai-postgres
+    container_name: edge-postgres
     restart: unless-stopped
     ports:
       - "5432:5432"
@@ -10,7 +12,25 @@ services:
       POSTGRES_PASSWORD: tvai
       POSTGRES_DB: tvai
     volumes:
-      - tv_ai_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: edge-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    # Ephemeral market-data cache — app-owned LRU in redisEviction.ts (not allkeys-lru).
+    command:
+      - redis-server
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+      - --save
+      - ""
+      - --appendonly
+      - no
 
 volumes:
-  tv_ai_postgres_data:
+  postgres_data:

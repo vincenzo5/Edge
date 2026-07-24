@@ -1,23 +1,11 @@
-/** @type {import('next').NextConfig} */
-const securityHeaders = [
-  { key: "X-Frame-Options", value: "DENY" },
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  {
-    key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
-  },
-];
+import { buildSecurityHeaderRoutes } from "./src/lib/security/httpHeaders.mjs";
 
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@edge/chart-core', '@edge/chart-react', '@edge/ai-tools-core'],
+  transpilePackages: ['@edge/chart-core', '@edge/chart-react', '@edge/ai-tools-core', '@edge/indicator-runtime'],
+  serverExternalPackages: ['ioredis'],
   async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: securityHeaders,
-      },
-    ];
+    return buildSecurityHeaderRoutes(process.env.NODE_ENV === "production");
   },
 };
 
