@@ -1,40 +1,51 @@
 ---
-description: Make every plan aware of the project harness, route to intent checklists, and ensure docs/PROJECT-STATUS.md stays current
-alwaysApply: true
+description: Plan mode and "plan this" asks — harness awareness, intent checklists, compact plan sections (Intent Classification, Checklist Review, Proposed Plan, Verification Plan, Harness Update)
+alwaysApply: false
 ---
 
 # Plan Mode — Harness Awareness
 
 When generating any plan (especially in Plan mode):
 
-1. **Read the harness first**  
-   Before writing the plan, review the current state in `docs/PROJECT-STATUS.md` (particularly "Current Verified State", "Active Work", "Session Log", and any open Task Contract). Also reference `AGENTS.md` for the overall harness contract.
+## Must do (behavior unchanged)
 
-2. **Route through the planning checklists**  
-   Read `docs/checklists/planning-router.md` and apply the checklist(s) it routes to:
-   - Classify intent: Feature, Refactor, Bugfix, or Testing (primary + optional secondary).
-   - Always apply `docs/checklists/harness-status-checklist.md`.
-   - Always evaluate `docs/checklists/architecture-review-checklist.md` — state `Architecture review: N/A` (with reason) or `Required` (reviewer, result).
-   - Apply the intent-specific checklist from `docs/checklists/`.
-   - Include a **Checklist Review** section reporting architecture review status, aligned items, missing inputs, misalignments, risks, and recommendations before the implementation steps.
+1. **Read the harness first** — hot windows in [harness-status-checklist.md](../docs/checklists/harness-status-checklist.md): Current Verified State top block; Active Work + Task Contract for this track (`Grep`); Session Log only if handoff/blocker; + `AGENTS.md`.
+2. **Route through checklists** — Read `docs/checklists/planning-router.md`; apply `docs/checklists/harness-status-checklist.md`, `docs/checklists/architecture-review-checklist.md`, and the routed intent checklist. Walk checklists internally; do not transcribe them into the plan.
+3. **Keep harness current** — WIP=1; Active Work row with Behavior, State, quoted completion evidence, Files; Task Contract / Session Log when cross-session or cross-component.
+4. **Definition of Done** — Quote **actual command output** before **Passing** (test count line, build exit, app-level numbers/ms/`meta.source:`), not "tests pass."
+5. **Execution discipline** — Update harness as the final execution step. Implementing an approved plan → follow [execute-from-plan.mdc](./execute-from-plan.mdc); do not re-walk planning checklists. Do not auto-launch explore/`Task` when the roadmap or plan already names files — discovery stays opt-in (see execute rule Explore policy).
 
-3. **Every plan must keep the harness current**  
-   The plan MUST explicitly include steps to:
-   - Update or add a row in the **Active Work** table (one item only may be **Active** at a time).
-   - Record: Feature name, Behavior, State, Completion evidence / latest result, and Files.
-   - Append a **Session Log** entry if this is long-running or cross-session work.
-   - Create or update a **Task Contract** when the work is long-running or crosses multiple components.
-   - Respect WIP=1 and Definition of Done (completion evidence must pass before marking **Passing**).
+## Must write (compact plan output)
 
-4. **Plan output requirement**  
-   Every plan must contain these sections:
-   - **Intent Classification** — primary/secondary intent and checklist files used
-   - **Checklist Review** — architecture review status (N/A or Required); aligned, missing, misalignments, risks, recommendations
-   - **Proposed Plan** — concise implementation steps
-   - **Verification Plan** — focused/build/app-level/full tiers per `docs/checklists/testing-verification-checklist.md`
-   - **Harness Update** — exact rows/sections in `docs/PROJECT-STATUS.md` and resulting state
+Required sections in order:
 
-   Completion evidence in harness updates must quote **actual command output** (test count line, build exit, or app-level measurement with numbers/ms/`meta.source:`), not a paraphrase like "tests pass."
+```md
+## Intent Classification
+- Primary / Secondary. Arch: N/A (reason) | Required (reviewer, Pending|Passed|Blocked).
+- Assumptions: only non-obvious deltas (omit checklist file lists).
 
-5. **Execution discipline**  
-   When the plan is later executed, the harness state must be updated as the final step so the next agent or developer can see the current verified state without verbal context.
+## Checklist Review
+- Missing / Misalignments / Risks / Decisions — deltas only.
+- MUST NOT dump Aligned essays, checklist link lists, or roadmap restatements.
+
+## Proposed Plan
+- Numbered steps with concrete files. Link roadmaps instead of restating prior phases.
+- Mermaid only when topology ≠ the step list.
+- Frontmatter todos: 5–8 words; body owns detail (no triple copy).
+
+## Verification Plan
+- Only tiers that apply, as commands/one-liners (Focused required when code changes).
+- Omit "Build/Full not required…" essays.
+
+## Harness Update
+- One line: Activate <name>; WIP=1; on Passing quote evidence; Task Contract/Session Log if cross-session; Commit: yes | skip (reason).
+```
+
+## Do not drop
+
+- Architecture review decision line (N/A reason or Required + reviewer)
+- Focused verify command when code changes
+- App-level tier when UI+state, API+persist, or AI+app boundaries cross
+- Harness activate + Passing-with-quoted-evidence
+- Concrete files in Proposed Plan for non-trivial work
+- Commit line (`yes` default; `skip` only with reason)

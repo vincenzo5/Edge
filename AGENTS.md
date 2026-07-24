@@ -19,7 +19,7 @@ Edge is a custom financial charting app built on a Canvas 2D engine (`EdgeChart`
 
 ## Initialize (every fresh session)
 
-Before feature work, read [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md) (Startup Readiness + Active Work), then:
+Before feature work, slice-read [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md) per [harness-status-checklist.md](docs/checklists/harness-status-checklist.md) hot windows (Plan vs Execute), then:
 
 ```bash
 npm run setup              # install from lockfile
@@ -32,6 +32,7 @@ Optional: `scripts/init.sh` (add `--full` for full check). Copy `.env.example` �
 ```bash
 npm run dev:lite           # app only, no Postgres (localStorage fallback)
 npm run db:up              # start Postgres only (optional)
+npm run redis:up           # optional local Redis (EDGE_MARKET_DATA_CACHE_BACKEND=redis); staging/prod require redis — see shared-cache-topology-roadmap.md
 npm run db:migrate         # apply migrations (requires DATABASE_URL)
 npm run mcp:edge           # MCP server for external agents
 ```
@@ -54,7 +55,7 @@ npm run check
 
 ## Work Boundaries
 
-Default to WIP=1: keep only one task actively in progress. Do not start adjacent refactors, polish, or follow-up features until the current task has executable completion evidence.
+Default to WIP=1: keep only one task actively in progress. Do not start adjacent refactors, polish, or follow-up features until the current task has executable completion evidence. Planning → [plan-harness-awareness.mdc](.cursor/rules/plan-harness-awareness.mdc); implementing an approved plan → [execute-from-plan-checklist.md](docs/checklists/execute-from-plan-checklist.md) (skip planning checklists). Large plan sessions (~15–20+ tool calls) → fresh execute via `/handoff` + plan path.
 
 A task is done only when its focused verification passes or a blocker is recorded in `docs/PROJECT-STATUS.md`.
 
@@ -72,7 +73,7 @@ For long-running or cross-component work, write a Task Contract in `docs/PROJECT
 
 ## Session Exit
 
-Before handing off, leave a clean state: update `docs/PROJECT-STATUS.md`, record verification results, note blockers, remove temporary/debug artifacts you created, and make the next action explicit.
+Before handing off, leave a clean state: update `docs/PROJECT-STATUS.md`, record verification results, note blockers, remove temporary/debug artifacts you created, and make the next action explicit. On execute-from-plan closeout, after **Passing** with quoted evidence, create one git commit for the task (skip if no changes or plan says `Commit: skip`).
 
 Run the smallest verification tier that matches the change; use `npm run check` for broad/shared behavior before merge.
 
@@ -94,7 +95,7 @@ Load topic docs on demand — do not read everything for every task.
 
 | Doc | Read when |
 |-----|-----------|
-| [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md) | Planning work, checking shipped vs active vs deferred |
+| [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md) | Planning work, checking shipped vs active vs deferred — hot windows in [harness-status-checklist.md](docs/checklists/harness-status-checklist.md) |
 | [docs/ROADMAP.md](docs/ROADMAP.md) + [docs/roadmaps/](docs/roadmaps/README.md) | Product direction, phase index, and feature-track phasing |
 | [docs/CONSTRAINTS.md](docs/CONSTRAINTS.md) | Before any change — hard rules (MUST / MUST NOT) |
 | [src/lib/design-system/ARCHITECTURE.md](src/lib/design-system/ARCHITECTURE.md) | Styling app chrome — tokens, `Edge*` primitives, menus, modals, sidebars |
@@ -129,7 +130,7 @@ Run `npm run lint:instructions` to verify entry-file size and rule scoping.
 
 ## Session Continuity
 
-For long-running or interrupted work, update `docs/PROJECT-STATUS.md` before handing off: current state, completed work, known blockers, verification run/result, and next concrete action.
+For long-running or interrupted work, update `docs/PROJECT-STATUS.md` before handing off: current state, completed work, known blockers, verification run/result, and next concrete action. On execute closeout, prefer `npm run harness:closeout -- --name "…" --evidence-file …` (same evidence gate as `docs:auto-update` harness lane).
 
 Record durable architecture decisions in the closest architecture doc rather than a separate decision log unless decisions begin accumulating across multiple areas.
 

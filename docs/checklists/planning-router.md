@@ -10,7 +10,7 @@ Use this doc whenever generating a plan in Plan mode or when the user asks to pl
 
 Before classifying intent, read:
 
-1. [docs/PROJECT-STATUS.md](../PROJECT-STATUS.md) — Current Verified State, Active Work, Task Contracts, Session Log
+1. [docs/PROJECT-STATUS.md](../PROJECT-STATUS.md) — hot windows per [harness-status-checklist.md](./harness-status-checklist.md): Current Verified State top block; Active Work + Task Contract for this track; Session Log only if handoff/blocker
 2. [AGENTS.md](../../AGENTS.md) — harness contract, WIP=1, Definition of Done
 3. [docs/CONSTRAINTS.md](../CONSTRAINTS.md) — hard rules for the affected area
 
@@ -20,10 +20,12 @@ Then apply [harness-status-checklist.md](./harness-status-checklist.md) for ever
 
 After selecting the primary intent checklist, **always** evaluate [architecture-review-checklist.md](./architecture-review-checklist.md).
 
-Every plan must state in **Checklist Review**:
+Every plan must record the architecture decision in **Intent Classification** or **Checklist Review** (compact form):
 
-- **Architecture review: N/A** — with a short reason, or
-- **Architecture review: Required** — with reviewer type (`architect agent` | `human` | `self-review`) and result (`Pending` | `Passed` | `Blocked`)
+- **Arch: N/A** — short reason, or
+- **Arch: Required** — reviewer (`architect agent` | `human` | `self-review`) and result (`Pending` | `Passed` | `Blocked`)
+
+Do not expand into an Aligned essay — checklist walk is for the planner, not the plan output.
 
 Apply the full architecture checklist when work touches any trigger in that doc (package boundaries, shared state, API/provider/persistence contracts, chart runtime, cross-component flows, public exports, new abstractions, performance-sensitive paths, migration/compatibility).
 
@@ -57,52 +59,70 @@ If intent is unclear:
 
 ## Required Plan Sections
 
-Every plan MUST include these sections in order:
+Walk selected checklists internally. Every plan MUST include these sections in order (compact output):
 
 ### 1. Intent Classification
 
 ```md
 ## Intent Classification
-- Primary: Feature | Refactor | Bugfix | Testing
-- Secondary: (optional)
-- Checklists applied: docs/checklists/...
-- Assumptions: (if any)
+- Primary / Secondary. Arch: N/A (reason) | Required (reviewer, Pending|Passed|Blocked).
+- Assumptions: only non-obvious deltas (omit checklist file lists).
 ```
 
 ### 2. Checklist Review
 
-Walk the selected checklist(s) and report:
+Deltas only — do not skip silently; omit sections with nothing to report:
 
-- **Architecture review** — `N/A` (reason) or `Required` (reviewer, result, deferred risks)
-- **Aligned** — requirements already satisfied or clearly addressed in the plan
 - **Missing** — inputs, evidence, or decisions not yet defined
 - **Misalignments** — conflicts with constraints, harness state, or stated intent
-- **Risks** — areas likely to break shared behavior
-- **Recommendations** — scope changes, sequencing, or verification upgrades before implementation
+- **Risks / Decisions** — non-obvious breakage or scope choices
 
-Do not skip items silently. If an item is N/A, say why.
+**MUST NOT:** Aligned essays, checklist link lists, roadmap restatements, Recommendations boilerplate.
 
 ### 3. Proposed Plan
 
-Concise, actionable implementation steps.
+Numbered steps with concrete files. Link roadmaps instead of restating prior phases. Mermaid only when topology ≠ the step list. Frontmatter todos: 5–8 words; body owns detail.
 
 ### 4. Verification Plan
 
-Use [testing-verification-checklist.md](./testing-verification-checklist.md) to pick tiers:
+Use [testing-verification-checklist.md](./testing-verification-checklist.md) to pick tiers internally. Write only tiers that apply:
 
-- **Focused** — targeted Vitest for changed area
+- **Focused** — `npm test -- --run <paths>` (required when code changes)
 - **Build** — `npm run build` or `npm run build:packages`
 - **App-level** — manual/browser flow on `localhost:3003`
 - **Full** — `npm run check`
 
+Omit "not required" tier essays.
+
 ### 5. Harness Update
 
-State exactly what will change in `docs/PROJECT-STATUS.md`:
+One line: Activate `<name>`; WIP=1; on Passing quote evidence; Task Contract / Session Log if cross-session; `Commit: yes` (default) or `Commit: skip (reason)`.
 
-- Active Work row (add/update/state)
-- Task Contract (create/update/clear)
-- Session Log entry (yes/no)
-- Current Verified State block after completion
+### Do not drop
+
+Architecture decision; focused command when code changes; app-level when UI+state / API+persist / AI+app cross; harness activate + quoted evidence; concrete files for non-trivial work.
+
+### Compact example
+
+```md
+## Intent Classification
+- Primary: Feature. Arch: Required (self-review, Pending).
+
+## Checklist Review
+- Missing: `/api/me/foo` route not defined.
+- Risk: dual source of truth if header and Settings diverge.
+
+## Proposed Plan
+1. Add schema + repo in `src/lib/persistence/`.
+2. Wire Settings to `useFooList`.
+
+## Verification Plan
+- Focused: `npm test -- --run src/lib/persistence src/app/api/me/foo`
+- App-level: Settings → edit label → reload preserves
+
+## Harness Update
+Activate Foo Phase 1; Passing with quoted Vitest counts; Commit: yes.
+```
 
 ### Lightweight plan (contained bugfix only)
 
@@ -127,7 +147,12 @@ Use only when **none** of these apply: shared state, API contract, persistence s
 | Persistence | `src/lib/persistence/`, `/api/me/*` | `src/lib/persistence/ARCHITECTURE.md` |
 | API routes | `src/app/api/` | closest area architecture doc |
 
+## Implementing an approved plan
+
+When the user asks to implement (not plan), use [execute-from-plan-checklist.md](./execute-from-plan-checklist.md) and [execute-from-plan.mdc](../../.cursor/rules/execute-from-plan.mdc) — do not re-walk this router or intent checklists.
+
 ## Non-Goals
 
 - Do not create a second planning Cursor rule — routing is enforced through [plan-harness-awareness.mdc](../../.cursor/rules/plan-harness-awareness.mdc).
+- [execute-from-plan.mdc](../../.cursor/rules/execute-from-plan.mdc) is the implement path, not a second planning rule.
 - Do not start implementation in the planning response unless the user explicitly asks to execute.

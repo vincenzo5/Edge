@@ -27,6 +27,7 @@ Walk this checklist as the **last step** before ending your turn when:
 
 ## Agent-Honor Items (not machine-validated)
 
+- [ ] **Execute-from-plan:** after Active Work is **Passing** with quoted evidence, create one git commit for task changes (skip if no changes or plan says `Commit: skip`; never secrets / `.env.local`)
 - [ ] `.env.local` or local config changes flagged for user revert when not committed
 - [ ] Todos closed; no `in_progress` items left open
 - [ ] Temporary/debug artifacts removed
