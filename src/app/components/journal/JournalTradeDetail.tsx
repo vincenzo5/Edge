@@ -43,6 +43,19 @@ function formatFillSide(side: string): string {
   return normalized;
 }
 
+function formatRuleRuntimeStatus(status: string): string {
+  if (status === "fired") return "Fired";
+  if (status === "skipped") return "Skipped";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "armed") return "Armed";
+  return "Pending";
+}
+
+function formatRuleRuntimeTime(iso?: string | null): string {
+  if (!iso) return "—";
+  return formatTradeCloseTime(iso, FILL_TIME_ZONE);
+}
+
 function filterTradeFills(fills: JournalFillResponse[], trade: JournalTradeResponse): JournalFillResponse[] {
   const execIds = new Set(trade.fillExecIds);
   return fills
@@ -409,6 +422,56 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
             ))}
           </ul>
         </div>
+      ) : null}
+
+      {trade.managePlaybook ? (
+        <section data-testid="journal-trade-manage">
+          <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+            Manage
+          </div>
+          <div className="mt-2 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
+            <div className="text-sm font-semibold text-[var(--edge-text-strong)]">
+              {trade.managePlaybook.templateName}
+            </div>
+            <p
+              className="mt-1 text-xs text-[var(--edge-text-secondary)]"
+              data-testid="journal-trade-manage-adherence"
+            >
+              {trade.managePlaybook.firedRuleCount} of {trade.managePlaybook.plannedRuleCount} rules
+              fired
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full text-xs">
+                <thead className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                  <tr>
+                    <th className="px-2 py-1 text-left font-medium">Rule</th>
+                    <th className="px-2 py-1 text-left font-medium">Status</th>
+                    <th className="px-2 py-1 text-left font-medium">Fired</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trade.managePlaybook.ruleTimeline.map((runtime) => (
+                    <tr
+                      key={runtime.ruleId}
+                      className="border-t border-[var(--edge-border-subtle)]"
+                      data-testid={`journal-trade-manage-rule-${runtime.ruleId}`}
+                    >
+                      <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
+                        {runtime.ruleId}
+                      </td>
+                      <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
+                        {formatRuleRuntimeStatus(runtime.status)}
+                      </td>
+                      <td className="px-2 py-1.5 tabular-nums text-[var(--edge-text-secondary)]">
+                        {formatRuleRuntimeTime(runtime.firedAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       ) : null}
 
       <section className="space-y-3" data-testid="journal-trade-review">

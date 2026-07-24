@@ -260,7 +260,22 @@ Position drawing stop drag → syncPlaybookStopOnDrawingChange → modifyOrder +
 Shared ManagePlaybookPicker on Trade ticket + Protect with OCO forms
 ```
 
-API: `GET /api/trading/playbooks`, `POST /api/trading/playbooks/[id]/{detach,pause,resume,skip}`, `GET|PATCH /api/trading/playbooks/auto-manage` (mutate auth parity). Cron: `GET|POST /api/cron/playbook-evaluate` (cron auth; in-process TradingService).
+Phase 5 — template library + journal link (shipped):
+
+```
+playbookTemplateStore + playbook_templates (Postgres + memory/local fallback)
+  → GET|POST /api/trading/playbooks/templates
+  → PATCH|DELETE /api/trading/playbooks/templates/[id]
+  → POST /api/trading/playbooks/templates/[id]/duplicate
+Attach snapshots templateSnapshot on PlaybookInstance (immutable recipe for armed instances)
+  → resolvePlaybookTemplateFromInstance for eval/display/manageLevels
+Rule fire / detach / complete → syncManagePlaybookToJournal
+  → journal_trades.manage_playbook jsonb (template name + ruleTimeline + adherence counts)
+  → JournalTradeDetail Manage section (read-only)
+ManagePlaybookPicker lists presets + user templates with Duplicate / Rename / Delete
+```
+
+API: `GET /api/trading/playbooks`, `POST /api/trading/playbooks/[id]/{detach,pause,resume,skip}`, `GET|PATCH /api/trading/playbooks/auto-manage`, `GET|POST /api/trading/playbooks/templates`, `PATCH|DELETE /api/trading/playbooks/templates/[id]`, `POST /api/trading/playbooks/templates/[id]/duplicate` (mutate auth parity). Cron: `GET|POST /api/cron/playbook-evaluate` (cron auth; in-process TradingService).
 
 UI copy: **Manage with…** / **Management playbook** — not bare “Playbook” (distinct from AI annotation playbooks).
 

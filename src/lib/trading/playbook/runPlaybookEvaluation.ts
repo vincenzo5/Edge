@@ -24,7 +24,8 @@ import {
   resolveEntryOrderId,
   ruleRequirementsMet,
 } from "./evaluateWhen";
-import { getPlaybookPreset } from "./presets";
+import { resolvePlaybookTemplateFromInstance } from "./resolveTemplate";
+import { syncManagePlaybookToJournal } from "./journalRecipe";
 import { resolveEffectiveFilledQty, resolveReduceQtyFromFilled } from "./reduceQty";
 import { resolveProtectiveStopOrderId } from "./resolveStopOrder";
 import type { PlaybookInstance, PlaybookRule, RuleRuntime } from "./types";
@@ -136,7 +137,7 @@ async function evaluateSingleInstance(args: {
 
   const liveConfirmation = resolvePlaybookLiveConfirmation(autoManage, environment);
 
-  const template = getPlaybookPreset(instance.templateId);
+  const template = resolvePlaybookTemplateFromInstance(instance);
   if (!template) {
     errors.push(`Unknown template ${instance.templateId} for ${instance.id}`);
     return { fired, skipped, errors };
@@ -245,6 +246,7 @@ async function evaluateSingleInstance(args: {
           }),
           ...(stopOrderId != null ? { stopOrderId } : {}),
         })) ?? instance;
+      await syncPlaybookJournalInstance(instance);
 
       if (rule.then.kind === "reduceQty") {
         const qty = resolveReduceQtyFromFilled(rule.then, filledQty);
@@ -272,10 +274,23 @@ async function evaluateSingleInstance(args: {
   }
 
   if (instanceIsComplete({ ...instance, ruleRuntimes: instance.ruleRuntimes }, rules)) {
-    await playbookStore.patch(instance.id, { status: "completed" });
+    instance = (await playbookStore.patch(instance.id, { status: "completed" })) ?? instance;
+    await syncPlaybookJournalInstance(instance);
   }
 
   return { fired, skipped, errors };
+}
+
+async function syncPlaybookJournalInstance(instance: PlaybookInstance): Promise<void> {
+  try {
+    const { ensureDevAppUser } = await import(
+      "@/lib/persistence/repositories/appUserRepository"
+    );
+    const userId = await ensureDevAppUser();
+    await syncManagePlaybookToJournal(userId, instance);
+  } catch {
+    // Best-effort journal sync during evaluation.
+  }
 }
 
 function resolveEvaluationEnvironments(

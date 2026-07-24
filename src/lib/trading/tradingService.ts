@@ -36,9 +36,19 @@ import {
   createPlaybookInstanceId,
   type PlaybookInstanceStore,
 } from "./playbookInstanceStore";
+import {
+  resolveServerPlaybookTemplateStore,
+  resetServerPlaybookTemplateStoreForTests,
+  CreatePlaybookTemplateSchema,
+  PatchPlaybookTemplateSchema,
+  type CreatePlaybookTemplateInput,
+  type PatchPlaybookTemplateInput,
+  type PlaybookTemplateStore,
+} from "./playbookTemplateStore";
 import { createPlaybookInstance, lockPositionPlan } from "./playbook/types";
-import type { PlaybookInstance } from "./playbook/types";
-import { getPlaybookPreset } from "./playbook/presets";
+import type { PlaybookInstance, PlaybookTemplate } from "./playbook/types";
+import { resolvePlaybookTemplate, resolvePlaybookTemplateFromInstance } from "./playbook/resolveTemplate";
+import { syncManagePlaybookToJournal } from "./playbook/journalRecipe";
 import { buildManualStopPausePatch } from "./playbook/conflictPolicy";
 import { runPlaybookEvaluation } from "./playbook/runPlaybookEvaluation";
 import type { RuleRuntime } from "./playbook/types";
@@ -92,15 +102,19 @@ export class TradingService {
   private playbookStoreCached: PlaybookInstanceStore | null = null;
   private autoManageStoreOverride: PlaybookAutoManageStore | null;
   private autoManageStoreCached: PlaybookAutoManageStore | null = null;
+  private templateStoreOverride: PlaybookTemplateStore | null;
+  private templateStoreCached: PlaybookTemplateStore | null = null;
 
   constructor(
     store?: OrderIntentStore,
     playbookStore?: PlaybookInstanceStore,
     autoManageStore?: PlaybookAutoManageStore,
+    templateStore?: PlaybookTemplateStore,
   ) {
     this.storeOverride = store ?? null;
     this.playbookStoreOverride = playbookStore ?? null;
     this.autoManageStoreOverride = autoManageStore ?? null;
+    this.templateStoreOverride = templateStore ?? null;
   }
 
   private async intentStore(): Promise<OrderIntentStore> {
@@ -125,6 +139,38 @@ export class TradingService {
       this.autoManageStoreCached = await resolveServerPlaybookAutoManageStore();
     }
     return this.autoManageStoreCached;
+  }
+
+  private async templateStore(): Promise<PlaybookTemplateStore> {
+    if (this.templateStoreOverride) return this.templateStoreOverride;
+    if (!this.templateStoreCached) {
+      this.templateStoreCached = await resolveServerPlaybookTemplateStore();
+    }
+    return this.templateStoreCached;
+  }
+
+  private async resolveTemplateForId(
+    templateId: string,
+    snapshot?: PlaybookTemplate,
+  ): Promise<PlaybookTemplate | null> {
+    if (snapshot) return snapshot;
+    const store = await this.templateStore();
+    return resolvePlaybookTemplate(templateId, {
+      listUserTemplates: () => store.list(),
+    });
+  }
+
+  private async syncPlaybookJournal(instance: PlaybookInstance | null | undefined): Promise<void> {
+    if (!instance) return;
+    try {
+      const { ensureDevAppUser } = await import(
+        "@/lib/persistence/repositories/appUserRepository"
+      );
+      const userId = await ensureDevAppUser();
+      await syncManagePlaybookToJournal(userId, instance);
+    } catch {
+      // Journal sync is best-effort when DB/user context is unavailable.
+    }
   }
 
   isTradingEnabled(): boolean {
@@ -449,7 +495,9 @@ export class TradingService {
     if (existing.status === "detached" || existing.status === "completed") {
       return existing;
     }
-    return store.updateStatus(instanceId, "detached");
+    const detached = await store.updateStatus(instanceId, "detached");
+    await this.syncPlaybookJournal(detached);
+    return detached;
   }
 
   async pausePlaybookInstance(instanceId: string): Promise<PlaybookInstance | null> {
@@ -480,7 +528,7 @@ export class TradingService {
       return existing;
     }
 
-    const template = getPlaybookPreset(existing.templateId);
+    const template = resolvePlaybookTemplateFromInstance(existing);
     if (!template) return existing;
 
     const sorted = [...template.rules].sort(
@@ -539,6 +587,38 @@ export class TradingService {
     return store.patch(patch);
   }
 
+  async listPlaybookTemplates(): Promise<PlaybookTemplate[]> {
+    const store = await this.templateStore();
+    return store.list();
+  }
+
+  async createPlaybookTemplate(
+    input: CreatePlaybookTemplateInput,
+  ): Promise<PlaybookTemplate> {
+    const parsed = CreatePlaybookTemplateSchema.parse(input);
+    const store = await this.templateStore();
+    return store.create(parsed);
+  }
+
+  async patchPlaybookTemplate(
+    templateId: string,
+    patch: PatchPlaybookTemplateInput,
+  ): Promise<PlaybookTemplate | null> {
+    const parsed = PatchPlaybookTemplateSchema.parse(patch);
+    const store = await this.templateStore();
+    return store.patch(templateId, parsed);
+  }
+
+  async duplicatePlaybookTemplate(templateId: string): Promise<PlaybookTemplate | null> {
+    const store = await this.templateStore();
+    return store.duplicate(templateId);
+  }
+
+  async deletePlaybookTemplate(templateId: string): Promise<boolean> {
+    const store = await this.templateStore();
+    return store.delete(templateId);
+  }
+
   private async pausePlaybooksOnManualStopModify(
     accountId: string,
     orderId: number,
@@ -555,7 +635,7 @@ export class TradingService {
       if (instance.stopOrderId !== orderId) continue;
       if (instance.status === "detached" || instance.status === "completed") continue;
 
-      const template = getPlaybookPreset(instance.templateId);
+      const template = resolvePlaybookTemplateFromInstance(instance);
       if (!template) continue;
 
       const pausePatch = buildManualStopPausePatch(instance, template.rules);
@@ -579,9 +659,9 @@ export class TradingService {
     stopOrderId?: number | null;
     filledQty?: number | null;
   }): Promise<{ instance?: PlaybookInstance; error?: string }> {
-    const template = getPlaybookPreset(args.templateId);
+    const template = await this.resolveTemplateForId(args.templateId);
     if (!template) {
-      return { error: `Unknown management playbook preset: ${args.templateId}` };
+      return { error: `Unknown management playbook template: ${args.templateId}` };
     }
 
     try {
@@ -931,6 +1011,7 @@ export function resetTradingServiceForTests(): void {
   resetServerIntentStoreForTests();
   resetServerPlaybookInstanceStoreForTests();
   resetServerPlaybookAutoManageStoreForTests();
+  resetServerPlaybookTemplateStoreForTests();
 }
 
 export { isTradingConfigured, isPaperTradingConfigured };

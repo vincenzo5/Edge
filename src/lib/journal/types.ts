@@ -1,4 +1,5 @@
 import type { BrokerageContract } from "@/lib/marketData/contracts/brokerage";
+import type { ManagePlaybookJournal } from "@/lib/persistence/schemas/journal";
 
 export type JournalFillSource = "live" | "flex_csv" | "flex_api";
 
@@ -84,6 +85,7 @@ export type JournalTrade = {
   mfaUsd?: number | null;
   excursionInterval?: "1m" | "5m" | null;
   excursionComputedAt?: string | null;
+  managePlaybook?: ManagePlaybookJournal | null;
   createdAt?: string;
   updatedAt?: string;
 };

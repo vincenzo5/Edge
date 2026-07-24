@@ -23,7 +23,9 @@ import type {
   JournalFillResponse,
   JournalTradePatch,
   JournalTradeResponse,
+  ManagePlaybookJournal,
 } from "@/lib/persistence/schemas/journal";
+import { managePlaybookJournalSchema } from "@/lib/persistence/schemas/journal";
 
 function fillToResponse(row: typeof journalFills.$inferSelect): JournalFillResponse {
   return {
@@ -77,9 +79,16 @@ function tradeToResponse(row: typeof journalTrades.$inferSelect, fillExecIds: st
     mfaUsd: row.mfaUsd,
     excursionInterval: row.excursionInterval as JournalTradeResponse["excursionInterval"],
     excursionComputedAt: row.excursionComputedAt?.toISOString() ?? null,
+    managePlaybook: parseManagePlaybook(row.managePlaybook),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+function parseManagePlaybook(value: unknown): ManagePlaybookJournal | null {
+  if (value == null) return null;
+  const parsed = managePlaybookJournalSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 function inputToRow(userId: string, input: JournalFillInput) {
@@ -310,6 +319,28 @@ export async function patchJournalTrade(
   return tradeToResponse(row, existing.fillExecIds);
 }
 
+export async function patchJournalTradeManagePlaybook(
+  userId: string,
+  tradeId: string,
+  managePlaybook: ManagePlaybookJournal,
+): Promise<JournalTradeResponse | null> {
+  const existing = await getJournalTradeById(userId, tradeId);
+  if (!existing) return null;
+
+  const db = getDb();
+  const rows = await db
+    .update(journalTrades)
+    .set({
+      managePlaybook,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(journalTrades.id, tradeId), eq(journalTrades.userId, userId)))
+    .returning();
+  const row = rows[0];
+  if (!row) return null;
+  return tradeToResponse(row, existing.fillExecIds);
+}
+
 export async function rebuildJournalTrades(userId: string): Promise<JournalImportResult> {
   const db = getDb();
   const fillRows = await db
@@ -399,6 +430,7 @@ export async function rebuildJournalTrades(userId: string): Promise<JournalImpor
         excursionComputedAt: trade.excursionComputedAt
           ? new Date(trade.excursionComputedAt)
           : null,
+        managePlaybook: trade.managePlaybook ?? null,
       })
       .returning();
 

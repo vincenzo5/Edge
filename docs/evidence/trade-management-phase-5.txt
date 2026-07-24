@@ -1,0 +1,17 @@
+Trade management playbook — Phase 5 verification (2026-07-24)
+
+Focused: npm test -- --run src/lib/trading/playbook src/lib/trading/playbookTemplateStore.test.ts src/lib/trading/tradingService.test.ts src/app/api/trading/playbooks src/lib/journal/rebuildTrades.test.ts src/app/components/journal/JournalTradeDetail.test.tsx
+Result: Test Files 21 passed (21), Tests 103 passed (103)
+
+Build: npm run build — ✓ Compiled successfully
+
+Architecture review: self-review Passed
+
+App-level: save template → attach → fire → journal Manage section deferred
+
+Delivered:
+- templateSnapshot on PlaybookInstance + resolvePlaybookTemplateFromInstance
+- playbookTemplateStore + migration 0033 + templates CRUD API
+- ManagePlaybookPicker user template library (duplicate/rename/delete)
+- journal_trades.manage_playbook + syncManagePlaybookToJournal + rebuild preserve
+- JournalTradeDetail Manage section with adherence + rule timeline

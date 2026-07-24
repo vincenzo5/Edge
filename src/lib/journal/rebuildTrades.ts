@@ -21,6 +21,7 @@ export type RebuildTradesResult = {
       | "mfaUsd"
       | "excursionInterval"
       | "excursionComputedAt"
+      | "managePlaybook"
     >
   >;
 };
@@ -39,6 +40,7 @@ type PreservedReview = Pick<
   | "mfaUsd"
   | "excursionInterval"
   | "excursionComputedAt"
+  | "managePlaybook"
 >;
 
 export function rebuildTrades(
@@ -65,6 +67,7 @@ export function rebuildTrades(
       mfaUsd: trade.mfaUsd,
       excursionInterval: trade.excursionInterval,
       excursionComputedAt: trade.excursionComputedAt,
+      managePlaybook: trade.managePlaybook,
     });
   }
 
@@ -96,6 +99,7 @@ export function rebuildTrades(
             mfaUsd: preservedFromPrevious.mfaUsd,
             excursionInterval: preservedFromPrevious.excursionInterval,
             excursionComputedAt: preservedFromPrevious.excursionComputedAt,
+            managePlaybook: preservedFromPrevious.managePlaybook,
           }
         : undefined);
 
@@ -115,6 +119,7 @@ export function rebuildTrades(
       mfaUsd: preserved?.mfaUsd ?? trade.mfaUsd,
       excursionInterval: preserved?.excursionInterval ?? trade.excursionInterval,
       excursionComputedAt: preserved?.excursionComputedAt ?? trade.excursionComputedAt,
+      managePlaybook: preserved?.managePlaybook ?? trade.managePlaybook,
     };
   });
 

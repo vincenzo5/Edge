@@ -1,5 +1,6 @@
 import type { PlaybookInstance, PlaybookRule } from "./types";
 import { getPlaybookPreset } from "./presets";
+import { resolvePlaybookTemplateFromInstance } from "./resolveTemplate";
 import { priceAtMultipleOfR } from "./types";
 
 export function formatPlaybookStatusToken(status: PlaybookInstance["status"]): string {
@@ -11,8 +12,12 @@ export function resolvePlaybookPresetName(templateId: string): string {
   return getPlaybookPreset(templateId)?.name ?? templateId;
 }
 
+export function resolvePlaybookTemplateName(instance: PlaybookInstance): string {
+  return resolvePlaybookTemplateFromInstance(instance)?.name ?? instance.templateId;
+}
+
 export function formatPlaybookManageLabel(instance: PlaybookInstance): string {
-  const presetName = resolvePlaybookPresetName(instance.templateId);
+  const presetName = resolvePlaybookTemplateName(instance);
   return `Manage: ${presetName} · ${formatPlaybookStatusToken(instance.status)}`;
 }
 
@@ -23,7 +28,7 @@ function sortedRules(rules: PlaybookRule[]): PlaybookRule[] {
 }
 
 export function resolveNextManageRule(instance: PlaybookInstance): PlaybookRule | null {
-  const template = getPlaybookPreset(instance.templateId);
+  const template = resolvePlaybookTemplateFromInstance(instance);
   if (!template) return null;
   return (
     sortedRules(template.rules).find((rule) => {

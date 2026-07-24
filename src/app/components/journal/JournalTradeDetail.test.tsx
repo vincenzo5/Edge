@@ -132,4 +132,36 @@ describe("JournalTradeDetail", () => {
       expect(onUpdated).toHaveBeenCalledWith(expect.objectContaining({ ignored: true }));
     });
   });
+
+  it("renders manage playbook timeline when present", async () => {
+    render(
+      <JournalTradeDetail
+        trade={{
+          ...trade,
+          managePlaybook: {
+            templateId: "break_even",
+            templateName: "Break-even",
+            instanceId: "inst-1",
+            plannedRuleCount: 1,
+            firedRuleCount: 1,
+            ruleTimeline: [
+              {
+                ruleId: "be-at-1r",
+                status: "fired",
+                firedAt: "2026-07-24T12:00:00.000Z",
+              },
+            ],
+          },
+        }}
+        onUpdated={vi.fn()}
+        embedded
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-manage")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("journal-trade-manage-adherence")).toHaveTextContent("1 of 1");
+    expect(screen.getByTestId("journal-trade-manage-rule-be-at-1r")).toHaveTextContent("Fired");
+  });
 });

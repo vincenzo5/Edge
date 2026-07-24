@@ -4,7 +4,7 @@ Phased track for **automated post-fill trade management** — reusable rule reci
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24).
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (brackets / OCO / trail — **Protect**), [Alerts](./alerts-roadmap.md) (trade-plan bundles — **notify only**), [Journal](./journal-roadmap.md) (review; strategy docs deferred), [AI Agent](./ai-agent-roadmap.md) (annotation “playbooks” Phase D — **different concept**), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -248,7 +248,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, an Activ
 | 5.3 | Simple adherence stats (optional): planned vs fired |
 | 5.4 | AI tools (optional): `preview_playbook` / attach with confirmation — registry only |
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
+
+**Verification:** **Focused:** playbook template store + resolve/snapshot + journal recipe + templates API + journal UI tests; **Build:** compile OK; **Architecture review:** self-review **Passed**; **App-level:** save template → attach → journal Manage section deferred
 
 **Note:** This is **execution recipe** persistence — not journal strategy documents excluded in the journal roadmap.
 

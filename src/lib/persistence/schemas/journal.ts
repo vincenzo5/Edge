@@ -3,6 +3,7 @@ import { z } from "zod";
 import { BrokerageContractSchema } from "@/lib/marketData/contracts/brokerage";
 import { JOURNAL_SETUP_VALUES } from "@/lib/journal/types";
 import { cellConfigSchema } from "@/lib/persistence/schemas/chartWorkspace";
+import { RuleRuntimeSchema } from "@/lib/trading/playbook/types";
 
 export const journalFillSourceSchema = z.enum(["live", "flex_csv", "flex_api"]);
 
@@ -47,6 +48,17 @@ export const journalTradeLegSchema = z.object({
   netQuantity: z.number().nullable().optional(),
 });
 
+export const managePlaybookJournalSchema = z.object({
+  templateId: z.string().min(1),
+  templateName: z.string().min(1),
+  instanceId: z.string().min(1),
+  ruleTimeline: z.array(RuleRuntimeSchema),
+  plannedRuleCount: z.number().int().nonnegative(),
+  firedRuleCount: z.number().int().nonnegative(),
+});
+
+export type ManagePlaybookJournal = z.infer<typeof managePlaybookJournalSchema>;
+
 export const journalTradeResponseSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(["open", "closed"]),
@@ -75,6 +87,7 @@ export const journalTradeResponseSchema = z.object({
   mfaUsd: z.number().finite().nonnegative().nullable().optional(),
   excursionInterval: z.enum(["1m", "5m"]).nullable().optional(),
   excursionComputedAt: z.string().datetime({ offset: true }).nullable().optional(),
+  managePlaybook: managePlaybookJournalSchema.nullable().optional(),
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }),
 });

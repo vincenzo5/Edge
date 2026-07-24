@@ -194,6 +194,8 @@ export type PlaybookInstanceStatus = z.infer<typeof PlaybookInstanceStatusSchema
 export const PlaybookInstanceSchema = z.object({
   id: z.string().min(1),
   templateId: z.string().min(1),
+  /** Frozen recipe at attach — survives user template edits/deletes. */
+  templateSnapshot: PlaybookTemplateSchema.optional(),
   positionPlan: PositionPlanSchema,
   status: PlaybookInstanceStatusSchema,
   ruleRuntimes: z.array(RuleRuntimeSchema),
@@ -222,6 +224,7 @@ export function createPlaybookInstance(args: {
   return PlaybookInstanceSchema.parse({
     id: args.id,
     templateId: args.template.id,
+    templateSnapshot: args.template,
     positionPlan: args.positionPlan,
     status: args.status ?? "pending_fill",
     ruleRuntimes: args.template.rules.map((rule) => ({

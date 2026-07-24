@@ -1,6 +1,6 @@
 import type { PriceAxisAnnotation } from "@edge/chart-core/priceAxisTypes";
 
-import { getPlaybookPreset } from "./presets";
+import { resolvePlaybookTemplateFromInstance } from "./resolveTemplate";
 import { planPlaybookSteps } from "./planSteps";
 import type { ManageStep, PlaybookInstance } from "./types";
 
@@ -52,7 +52,7 @@ function pendingStepMarkers(instance: PlaybookInstance, steps: ManageStep[]): Ma
 /** Pure helper: armed/paused instance → pending manage level markers for chart axis. */
 export function manageLevelsFromInstance(instance: PlaybookInstance): ManageLevelMarker[] {
   if (!ACTIVE_MANAGE_STATUSES.has(instance.status)) return [];
-  const template = getPlaybookPreset(instance.templateId);
+  const template = resolvePlaybookTemplateFromInstance(instance);
   if (!template) return [];
   const steps = planPlaybookSteps(template, instance.positionPlan);
   return pendingStepMarkers(instance, steps);

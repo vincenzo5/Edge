@@ -243,6 +243,7 @@ export const journalTrades = pgTable("journal_trades", {
   excursionInterval: text("excursion_interval"),
   excursionComputedAt: timestamp("excursion_computed_at", { withTimezone: true }),
   ignored: boolean("ignored").notNull().default(false),
+  managePlaybook: jsonb("manage_playbook"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -365,6 +366,7 @@ export const playbookInstances = pgTable("playbook_instances", {
     .notNull()
     .references(() => appUsers.id, { onDelete: "cascade" }),
   templateId: text("template_id").notNull(),
+  templateSnapshot: jsonb("template_snapshot"),
   status: text("status").notNull(),
   positionPlan: jsonb("position_plan").notNull(),
   ruleRuntimes: jsonb("rule_runtimes").notNull(),
@@ -375,6 +377,22 @@ export const playbookInstances = pgTable("playbook_instances", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const playbookTemplates = pgTable(
+  "playbook_templates",
+  {
+    id: text("id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    rules: jsonb("rules").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.id] })],
+);
 
 export const playbookAutoManage = pgTable("playbook_auto_manage", {
   userId: uuid("user_id")
@@ -472,6 +490,7 @@ export type CopilotAttachment = typeof copilotAttachments.$inferSelect;
 export type JournalTradeChartSnapshot = typeof journalTradeChartSnapshots.$inferSelect;
 export type OrderIntentRow = typeof orderIntents.$inferSelect;
 export type PlaybookInstanceRow = typeof playbookInstances.$inferSelect;
+export type PlaybookTemplateRow = typeof playbookTemplates.$inferSelect;
 export type PlaybookAutoManageRow = typeof playbookAutoManage.$inferSelect;
 export type BrokerIngestCursor = typeof brokerIngestCursors.$inferSelect;
 export type AccountSnapshotRow = typeof accountSnapshots.$inferSelect;

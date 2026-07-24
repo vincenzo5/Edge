@@ -3,7 +3,7 @@ import { LIVE_CONFIRMATION_TOKEN } from "../validateOrder";
 import type { OrderDraft, PlacedOrderResult, TradingEnvironment } from "../types";
 
 import { buildTrailOrderDraft, resolveAttachTrailRule } from "./attachTrail";
-import { getPlaybookPreset } from "./presets";
+import { resolvePlaybookTemplateFromInstance } from "./resolveTemplate";
 import { resolveReduceQtyFromFilled } from "./reduceQty";
 import type { PlaybookInstance, PlaybookRule } from "./types";
 
@@ -235,7 +235,7 @@ export async function executePlaybookThen(
     }
   }
 
-  const template = getPlaybookPreset(instance.templateId);
+  const template = resolvePlaybookTemplateFromInstance(instance);
   const matched = template?.rules.find((item) => item.id === rule.id);
   const kind = matched?.then.kind ?? rule.then.kind;
   return {

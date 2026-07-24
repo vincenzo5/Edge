@@ -103,4 +103,36 @@ describe("rebuildTrades", () => {
     expect(trades[0].ignored).toBe(true);
     expect(trades[0].id).toBe("old");
   });
+
+  it("preserves managePlaybook from previous trades", () => {
+    const fills = [
+      baseFill({ execId: "1", side: "BOT", quantity: 10, price: 10 }),
+      baseFill({ execId: "2", side: "SLD", quantity: 10, price: 12 }),
+    ];
+    const previous: JournalTrade[] = [
+      {
+        id: "old",
+        status: "closed",
+        direction: "long",
+        symbol: "AAPL",
+        secType: "STK",
+        openedAt: fills[0].fillTime,
+        closedAt: fills[1].fillTime,
+        fillExecIds: ["1", "2"],
+        managePlaybook: {
+          templateId: "break_even",
+          templateName: "Break-even",
+          instanceId: "inst-1",
+          ruleTimeline: [
+            { ruleId: "be-at-1r", status: "fired", firedAt: "2026-07-24T12:00:00.000Z" },
+          ],
+          plannedRuleCount: 1,
+          firedRuleCount: 1,
+        },
+      },
+    ];
+    const { trades } = rebuildTrades(fills, previous);
+    expect(trades[0].managePlaybook?.templateName).toBe("Break-even");
+    expect(trades[0].managePlaybook?.firedRuleCount).toBe(1);
+  });
 });

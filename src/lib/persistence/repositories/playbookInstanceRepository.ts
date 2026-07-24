@@ -7,8 +7,10 @@ import { playbookInstances } from "@/db/schema";
 import type {
   PlaybookInstance,
   PlaybookInstanceStatus,
+  PlaybookTemplate,
   RuleRuntime,
 } from "@/lib/trading/playbook/types";
+import { PlaybookTemplateSchema } from "@/lib/trading/playbook/types";
 import type { TradingEnvironment } from "@/lib/trading/types";
 
 export type PlaybookInstancePatch = {
@@ -23,9 +25,17 @@ const ACTIVE_STATUSES: PlaybookInstanceStatus[] = ["pending_fill", "armed", "pau
 function rowToInstance(row: typeof playbookInstances.$inferSelect): PlaybookInstance {
   const filledQtyRaw = row.filledQty;
   const filledQty = filledQtyRaw == null ? undefined : Number(filledQtyRaw);
+  const snapshotRaw = row.templateSnapshot;
+  const templateSnapshot =
+    snapshotRaw != null
+      ? (PlaybookTemplateSchema.safeParse(snapshotRaw).success
+          ? PlaybookTemplateSchema.parse(snapshotRaw)
+          : undefined)
+      : undefined;
   return {
     id: row.id,
     templateId: row.templateId,
+    templateSnapshot,
     positionPlan: row.positionPlan as PlaybookInstance["positionPlan"],
     status: row.status as PlaybookInstanceStatus,
     ruleRuntimes: row.ruleRuntimes as PlaybookInstance["ruleRuntimes"],
@@ -78,6 +88,7 @@ export async function insertPlaybookInstance(
     id: instance.id,
     userId,
     templateId: instance.templateId,
+    templateSnapshot: instance.templateSnapshot ?? null,
     status: instance.status,
     positionPlan: instance.positionPlan,
     ruleRuntimes: instance.ruleRuntimes,
