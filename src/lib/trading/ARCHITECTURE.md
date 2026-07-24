@@ -275,6 +275,16 @@ Rule fire / detach / complete → syncManagePlaybookToJournal
 ManagePlaybookPicker lists presets + user templates with Duplicate / Rename / Delete
 ```
 
+Phase 6 — notify twin at manage levels (shipped):
+
+```
+ManagePlaybookPicker opt-in "Notify at manage levels" → playbookNotifyAtManageLevels on bracket/OCO submit
+  → TradingService.attachPlaybook → buildManageNotifyAlertInputs (planPlaybookSteps price levels)
+  → createAlertDefinition per level (shared bundleId; notify-only — no alert-evaluate order mutation)
+  → PlaybookInstance.alertBundleId persisted (migration 0036)
+Detach playbook → expireAlertsForBundleId (best-effort cleanup)
+```
+
 API: `GET /api/trading/playbooks`, `POST /api/trading/playbooks/[id]/{detach,pause,resume,skip}`, `GET|PATCH /api/trading/playbooks/auto-manage`, `GET|POST /api/trading/playbooks/templates`, `PATCH|DELETE /api/trading/playbooks/templates/[id]`, `POST /api/trading/playbooks/templates/[id]/duplicate` (mutate auth parity). Cron: `GET|POST /api/cron/playbook-evaluate` (cron auth; in-process TradingService).
 
 UI copy: **Manage with…** / **Management playbook** — not bare “Playbook” (distinct from AI annotation playbooks).

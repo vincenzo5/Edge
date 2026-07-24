@@ -154,6 +154,16 @@ export async function expireAlertsForDrawingId(drawingId: string): Promise<void>
   await patchAlertsByDrawingId(drawingId, { status: "expired" });
 }
 
+export async function expireAlertsForBundleId(bundleId: string): Promise<number> {
+  const alerts = await fetchAlerts();
+  const bound = alerts.filter(
+    (alert) => alert.bundleId === bundleId && alert.status !== "expired",
+  );
+  if (bound.length === 0) return 0;
+  await Promise.all(bound.map((alert) => patchAlert(alert.id, { status: "expired" })));
+  return bound.length;
+}
+
 export type PostAlertSnapshotInput = {
   symbol: string;
   satisfied: boolean;

@@ -18,6 +18,7 @@ export type PlaybookInstancePatch = {
   ruleRuntimes?: RuleRuntime[];
   stopOrderId?: number | null;
   filledQty?: number | null;
+  alertBundleId?: string | null;
 };
 
 const ACTIVE_STATUSES: PlaybookInstanceStatus[] = ["pending_fill", "armed", "paused"];
@@ -43,6 +44,7 @@ function rowToInstance(row: typeof playbookInstances.$inferSelect): PlaybookInst
     orderRef: row.orderRef ?? undefined,
     stopOrderId: row.stopOrderId ?? undefined,
     filledQty: filledQty != null && Number.isFinite(filledQty) ? filledQty : undefined,
+    alertBundleId: row.alertBundleId ?? undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -96,6 +98,7 @@ export async function insertPlaybookInstance(
     orderRef: instance.orderRef ?? null,
     stopOrderId: instance.stopOrderId ?? null,
     filledQty: instance.filledQty ?? null,
+    alertBundleId: instance.alertBundleId ?? null,
     createdAt: new Date(instance.createdAt),
     updatedAt: new Date(instance.updatedAt),
   });
@@ -119,6 +122,7 @@ export async function patchPlaybookInstance(
       ...(patch.ruleRuntimes != null ? { ruleRuntimes: patch.ruleRuntimes } : {}),
       ...(patch.stopOrderId !== undefined ? { stopOrderId: patch.stopOrderId } : {}),
       ...(patch.filledQty !== undefined ? { filledQty: patch.filledQty } : {}),
+      ...(patch.alertBundleId !== undefined ? { alertBundleId: patch.alertBundleId } : {}),
       updatedAt: new Date(updatedAt),
     })
     .where(and(eq(playbookInstances.userId, userId), eq(playbookInstances.id, id)));
@@ -135,6 +139,9 @@ export async function patchPlaybookInstance(
               ? patch.filledQty
               : undefined,
         }
+      : {}),
+    ...(patch.alertBundleId !== undefined
+      ? { alertBundleId: patch.alertBundleId ?? undefined }
       : {}),
     updatedAt,
   };

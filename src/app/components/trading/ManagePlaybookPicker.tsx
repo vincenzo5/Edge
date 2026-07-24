@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { fieldClass } from "../design-system/styles";
 import { EdgeButton } from "../design-system";
 import { formatManageStepPreview } from "@/lib/trading/playbook/display";
+import { formatManageNotifySummary } from "@/lib/trading/playbook/manageNotifyAlerts";
 import { planPlaybookSteps } from "@/lib/trading/playbook/planSteps";
 import {
   PLAYBOOK_PRESET_LIST,
@@ -18,6 +19,8 @@ export type ManagePlaybookPickerProps = {
   value: ManagePresetSelection;
   onChange: (value: ManagePresetSelection) => void;
   positionPlan: PositionPlan | null;
+  notifyAtManageLevels?: boolean;
+  onNotifyChange?: (enabled: boolean) => void;
   disabled?: boolean;
   testId?: string;
 };
@@ -39,6 +42,8 @@ export function ManagePlaybookPicker({
   value,
   onChange,
   positionPlan,
+  notifyAtManageLevels = false,
+  onNotifyChange,
   disabled = false,
   testId = "trade-manage-preset",
 }: ManagePlaybookPickerProps) {
@@ -72,6 +77,11 @@ export function ManagePlaybookPicker({
     if (!positionPlan || !selectedTemplate) return [];
     return planPlaybookSteps(selectedTemplate, positionPlan);
   }, [positionPlan, selectedTemplate]);
+
+  const notifySummary = useMemo(
+    () => (previewSteps.length > 0 ? formatManageNotifySummary(previewSteps) : ""),
+    [previewSteps],
+  );
 
   const selectedIsUserTemplate =
     value !== "off" && typeof value === "string" && isUserPlaybookTemplateId(value);
@@ -193,6 +203,26 @@ export function ManagePlaybookPicker({
                 Delete
               </EdgeButton>
             </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {manageEnabled && onNotifyChange ? (
+        <div className="space-y-1" data-testid="trade-manage-notify">
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={notifyAtManageLevels}
+              onChange={(event) => onNotifyChange(event.target.checked)}
+              disabled={disabled || libraryBusy}
+              data-testid="trade-manage-notify-toggle"
+            />
+            <span className="text-[var(--edge-text-secondary)]">
+              Notify at manage levels
+            </span>
+          </label>
+          {notifyAtManageLevels && notifySummary ? (
+            <p className="text-[var(--edge-text-secondary)]">{notifySummary}</p>
           ) : null}
         </div>
       ) : null}

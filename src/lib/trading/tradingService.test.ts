@@ -121,6 +121,23 @@ vi.mock("@/lib/marketData/service/server", () => ({
   })),
 }));
 
+const mockCreateAlertDefinition = vi.fn(async (_userId: string, input: { bundleId?: string }) => ({
+  id: "alert-test-id",
+  bundleId: input.bundleId ?? null,
+  status: "active",
+}));
+
+const mockExpireAlertsForBundleId = vi.fn(async () => 1);
+
+vi.mock("@/lib/persistence/repositories/appUserRepository", () => ({
+  ensureDevAppUser: vi.fn(async () => "user-test-id"),
+}));
+
+vi.mock("@/lib/persistence/repositories/alertRepository", () => ({
+  createAlertDefinition: (...args: unknown[]) => mockCreateAlertDefinition(...args),
+  expireAlertsForBundleId: (...args: unknown[]) => mockExpireAlertsForBundleId(...args),
+}));
+
 describe("TradingService", () => {
   beforeEach(() => {
     mockPort = createMockPort();
@@ -141,6 +158,8 @@ describe("TradingService", () => {
       stale: false,
       warnings: [],
     });
+    mockCreateAlertDefinition.mockClear();
+    mockExpireAlertsForBundleId.mockClear();
   });
 
   it("blocks submit when readiness fails", async () => {
@@ -603,5 +622,67 @@ describe("TradingService", () => {
     expect(result.playbookInstance?.stopOrderId).toBe(20);
     expect(result.playbookInstance?.filledQty).toBe(10);
     expect(result.playbookInstance?.orderIntentId).toBeUndefined();
+  });
+
+  it("creates notify alert bundle when notifyAtManageLevels is enabled", async () => {
+    const playbookStore = createMemoryPlaybookInstanceStore();
+    const service = new TradingService(createMemoryIntentStore(), playbookStore);
+    const plan = {
+      entry: {
+        accountId: "DUP586813",
+        symbol: "AAPL",
+        side: "BUY" as const,
+        quantity: 10,
+        orderType: "MKT" as const,
+        environment: "paper" as const,
+      },
+      stopLeg: { mode: "fixed" as const, stopPrice: 95 },
+      takeProfitPrice: 110,
+    };
+
+    const result = await service.submitBracket(plan, "idem-bracket-notify", undefined, undefined, {
+      templateId: "break_even",
+      entryPrice: 100,
+      initialStop: 95,
+      notifyAtManageLevels: true,
+    });
+
+    expect(result.playbookInstance?.alertBundleId).toBeTruthy();
+    expect(mockCreateAlertDefinition).toHaveBeenCalledTimes(1);
+    expect(mockCreateAlertDefinition.mock.calls[0]?.[1]).toMatchObject({
+      symbol: "AAPL",
+      operator: "cross_above",
+      price: 105,
+      bundleId: result.playbookInstance?.alertBundleId,
+    });
+  });
+
+  it("expires notify alerts when detaching playbook with alertBundleId", async () => {
+    const playbookStore = createMemoryPlaybookInstanceStore();
+    const service = new TradingService(createMemoryIntentStore(), playbookStore);
+    const plan = {
+      entry: {
+        accountId: "DUP586813",
+        symbol: "AAPL",
+        side: "BUY" as const,
+        quantity: 10,
+        orderType: "MKT" as const,
+        environment: "paper" as const,
+      },
+      stopLeg: { mode: "fixed" as const, stopPrice: 95 },
+      takeProfitPrice: 110,
+    };
+
+    const placed = await service.submitBracket(plan, "idem-detach-notify", undefined, undefined, {
+      templateId: "break_even",
+      entryPrice: 100,
+      initialStop: 95,
+      notifyAtManageLevels: true,
+    });
+    const bundleId = placed.playbookInstance?.alertBundleId;
+    expect(bundleId).toBeTruthy();
+
+    await service.detachPlaybookInstance(placed.playbookInstance!.id);
+    expect(mockExpireAlertsForBundleId).toHaveBeenCalledWith("user-test-id", bundleId);
   });
 });

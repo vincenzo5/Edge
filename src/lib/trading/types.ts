@@ -285,6 +285,7 @@ export const SubmitBracketRequestSchema = z
     playbookTemplateId: z.string().min(1).optional(),
     playbookEntryPrice: z.number().positive().optional(),
     playbookInitialStop: z.number().positive().optional(),
+    playbookNotifyAtManageLevels: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (!value.playbookTemplateId) return;
@@ -328,6 +329,7 @@ export const SubmitProtectiveOcoRequestSchema = z
     playbookTemplateId: z.string().min(1).optional(),
     playbookEntryPrice: z.number().positive().optional(),
     playbookInitialStop: z.number().positive().optional(),
+    playbookNotifyAtManageLevels: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (!value.playbookTemplateId) return;

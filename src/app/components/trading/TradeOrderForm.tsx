@@ -148,6 +148,7 @@ export function TradeOrderForm({
   const [outsideRth, setOutsideRth] = useState(false);
   const [attachBracket, setAttachBracket] = useState(true);
   const [managePresetId, setManagePresetId] = useState<ManagePresetSelection>("off");
+  const [manageNotifyAtManageLevels, setManageNotifyAtManageLevels] = useState(false);
   const [stopLegMode, setStopLegMode] = useState<StopLegMode>("fixed");
   const [trailAmount, setTrailAmount] = useState("");
   const [trailPercent, setTrailPercent] = useState("");
@@ -373,6 +374,7 @@ export function TradeOrderForm({
                 playbookTemplateId: managePresetId,
                 playbookEntryPrice: managePreviewPlan.entry,
                 playbookInitialStop: managePreviewPlan.initialStop,
+                playbookNotifyAtManageLevels: manageNotifyAtManageLevels,
               }
             : {}),
         });
@@ -642,6 +644,8 @@ export function TradeOrderForm({
                     value={managePresetId}
                     onChange={setManagePresetId}
                     positionPlan={managePreviewPlan}
+                    notifyAtManageLevels={manageNotifyAtManageLevels}
+                    onNotifyChange={setManageNotifyAtManageLevels}
                   />
                 </div>
               ) : null}

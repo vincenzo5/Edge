@@ -205,6 +205,8 @@ export const PlaybookInstanceSchema = z.object({
   stopOrderId: z.number().int().positive().nullable().optional(),
   /** Filled entry qty observed at arm time — basis for scale-out fractions. */
   filledQty: z.number().positive().nullable().optional(),
+  /** Notify-only alert bundle linked at attach (Phase 6). */
+  alertBundleId: z.string().uuid().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

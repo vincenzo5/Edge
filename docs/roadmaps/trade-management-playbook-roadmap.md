@@ -4,7 +4,7 @@ Phased track for **automated post-fill trade management** — reusable rule reci
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24).
+**Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24); Phase 6 **Passing** (2026-07-24); Phase 7–8 **Pending**.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (brackets / OCO / trail — **Protect**), [Alerts](./alerts-roadmap.md) (trade-plan bundles — **notify only**), [Journal](./journal-roadmap.md) (review; strategy docs deferred), [AI Agent](./ai-agent-roadmap.md) (annotation “playbooks” Phase D — **different concept**), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -229,7 +229,7 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, an Activ
 | 4.1 | Protect with OCO + Manage attach on open position |
 | 4.2 | Chart markers / labels for BE / scale levels (reuse position drawing roles where possible) |
 | 4.3 | Drag stop on chart → modify broker stop + pause conflicting rules |
-| 4.4 | Optional: create trade-plan **alerts** as notify twin of manage levels (still notify-only) |
+| 4.4 | ~~Optional notify twin~~ → **Phase 6** |
 
 **Status:** **Passing** (2026-07-24)
 
@@ -246,13 +246,75 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, an Activ
 | 5.1 | Save / rename / duplicate templates (prefs or Postgres) |
 | 5.2 | Journal open/closed trade: playbook name + rule fire timeline |
 | 5.3 | Simple adherence stats (optional): planned vs fired |
-| 5.4 | AI tools (optional): `preview_playbook` / attach with confirmation — registry only |
+| 5.4 | ~~AI tools~~ → **Phase 7** |
 
 **Status:** **Passing** (2026-07-24)
 
 **Verification:** **Focused:** playbook template store + resolve/snapshot + journal recipe + templates API + journal UI tests; **Build:** compile OK; **Architecture review:** self-review **Passed**; **App-level:** save template → attach → journal Manage section deferred
 
 **Note:** This is **execution recipe** persistence — not journal strategy documents excluded in the journal roadmap.
+
+---
+
+### Phase 6 — Trade-plan alert notify twin
+
+**Outcome:** Optional notify-only alerts at Manage levels (BE, scale, trail triggers) when attaching a playbook — separate from order mutation; alerts never auto-exit.
+
+| # | Deliverable |
+|---|-------------|
+| 6.1 | Attach opt-in: create trade-plan alert bundle from `planPlaybookSteps` levels (ticket + Protective OCO + chart paths) |
+| 6.2 | Link bundle / alert ids to `PlaybookInstance` metadata for detach/cleanup |
+| 6.3 | Alerts remain notify-only — no changes to alert-evaluate order execution |
+| 6.4 | UI: checkbox or toggle on Manage attach (“Notify at manage levels”) with plain-English summary |
+
+**Status:** **Passing** (2026-07-24)
+
+**Verification:** **Focused:** Test Files 21 passed (21), Tests 104 passed (104); **Build:** `npm run build` — ✓ Compiled successfully; **Architecture review:** self-review **Passed**; **App-level:** attach Manage + notify → notification at level (no order from alert cron) deferred
+
+**Note:** Fulfills deferred Phase 4.4 optional deliverable.
+
+---
+
+### Phase 7 — AI playbook tools
+
+**Outcome:** Copilot can preview and attach management playbooks through the shared AI registry with explicit confirmation — no direct React state mutation.
+
+| # | Deliverable |
+|---|-------------|
+| 7.1 | `preview_playbook` — describe preset/user template + planned steps from `PositionPlan` / chart context |
+| 7.2 | Attach tool (e.g. `attach_playbook` or extend trade tools) with confirmation gate; routes through `TradingService` |
+| 7.3 | Tool contracts in `src/lib/ai/` + rows in [ai-tools-architecture.md](../ai-tools-architecture.md) |
+| 7.4 | Registry permissions aligned with `place_order` / live posture |
+
+**Status:** **Pending**
+
+**Depends on:** Phase 5 template library; [AI Agent roadmap](./ai-agent-roadmap.md) tool patterns.
+
+**Verification:** **Focused:** registry + adapter tests; **Build:** compile OK; **Architecture review:** self-review; **App-level:** Copilot preview → confirm attach on paper ticket
+
+**Note:** Fulfills deferred Phase 5.4 optional deliverable.
+
+---
+
+### Phase 8 — Full rule editor
+
+**Outcome:** User can author and edit custom management recipes (when/then rules) in the UI — not only duplicate/rename presets.
+
+| # | Deliverable |
+|---|-------------|
+| 8.1 | Structured editor for `PlaybookRule` fields: `when` (price/R/time kinds shipped in v1), `then`, `once`, `requires`, `priority` |
+| 8.2 | Live preview via `planPlaybookSteps` + validation through `PlaybookTemplateSchema` / `PlaybookRuleSchema` |
+| 8.3 | Save/update user templates via existing `playbookTemplateStore` + templates API |
+| 8.4 | ManagePlaybookPicker entry: “Edit template…” for `user_*` ids; block editing builtins (duplicate instead) |
+| 8.5 | Instance safety unchanged — armed instances keep `templateSnapshot`; edits apply to future attaches only |
+
+**Status:** **Pending**
+
+**Depends on:** Phase 5 template library.
+
+**Verification:** **Focused:** editor validation + save round-trip tests; **Build:** compile OK; **Architecture review:** self-review; **App-level:** create custom template → attach → manager respects edited rules on paper
+
+**Out of scope for Phase 8:** indicator/script `when`, options legs, scale-in rules (see exclusions below).
 
 ---
 
@@ -278,7 +340,8 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, an Activ
 - Risk sizing / position drawings for Plan levels (read)
 - Open-risk header chrome for ambient status
 - Postgres optional for durable instances (mirror `order_intents` pattern)
-- Alerts track **not** a hard dependency (notify twin is optional Phase 4)
+- Alerts track **Passing** — required for Phase 6 notify twin; not required for Phases 0–5
+- AI agent tool patterns — required for Phase 7
 
 ---
 
@@ -310,14 +373,17 @@ Exact parameters tunable per attach; presets are starting points.
 
 ## Near-term execution order
 
-1. Phase 0 — contracts + presets (safe to start when harness WIP=1 is free)
-2. Phase 1 — ticket attach + persist (visible product, still no auto-mutate)
-3. Phase 2 — paper manager BE + scale (core value)
-4. Phase 3 — trail + live gates
-5. Phase 4 — chart / OCO parity
-6. Phase 5 — library + journal
+1. Phase 0 — contracts + presets ✓
+2. Phase 1 — ticket attach + persist ✓
+3. Phase 2 — paper manager BE + scale ✓
+4. Phase 3 — trail + live gates ✓
+5. Phase 4 — chart / OCO parity ✓
+6. Phase 5 — library + journal ✓
+7. **Phase 6** — trade-plan alert notify twin
+8. **Phase 7** — AI playbook tools
+9. **Phase 8** — full rule editor
 
-Do not start Phase 2 until Phase 1 instances are durable and visible on open-risk chrome.
+Do not start Phase 6 until Phase 5 **Passing** (met). Execute Phases 6–8 one at a time (WIP=1).
 
 ---
 

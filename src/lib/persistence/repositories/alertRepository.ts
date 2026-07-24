@@ -404,6 +404,26 @@ export async function expireAlertsPastDue(now = new Date()): Promise<number> {
   return rows.length;
 }
 
+export async function expireAlertsForBundleId(
+  userId: string,
+  bundleId: string,
+  now = new Date(),
+): Promise<number> {
+  const db = getDb();
+  const rows = await db
+    .update(alertDefinitions)
+    .set({ status: "expired", updatedAt: now })
+    .where(
+      and(
+        eq(alertDefinitions.userId, userId),
+        eq(alertDefinitions.bundleId, bundleId),
+        inArray(alertDefinitions.status, ["active", "paused"]),
+      ),
+    )
+    .returning({ id: alertDefinitions.id });
+  return rows.length;
+}
+
 export async function applyAlertScriptSnapshot(
   userId: string,
   alertId: string,

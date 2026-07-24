@@ -49,6 +49,7 @@ import { createPlaybookInstance, lockPositionPlan } from "./playbook/types";
 import type { PlaybookInstance, PlaybookTemplate } from "./playbook/types";
 import { resolvePlaybookTemplate, resolvePlaybookTemplateFromInstance } from "./playbook/resolveTemplate";
 import { syncManagePlaybookToJournal } from "./playbook/journalRecipe";
+import { buildManageNotifyAlertInputs } from "./playbook/manageNotifyAlerts";
 import { buildManualStopPausePatch } from "./playbook/conflictPolicy";
 import { runPlaybookEvaluation } from "./playbook/runPlaybookEvaluation";
 import type { RuleRuntime } from "./playbook/types";
@@ -170,6 +171,51 @@ export class TradingService {
       await syncManagePlaybookToJournal(userId, instance);
     } catch {
       // Journal sync is best-effort when DB/user context is unavailable.
+    }
+  }
+
+  private async attachManageNotifyAlerts(
+    instance: PlaybookInstance,
+    template: PlaybookTemplate,
+  ): Promise<PlaybookInstance> {
+    const { bundleId, alerts } = buildManageNotifyAlertInputs({
+      template,
+      positionPlan: instance.positionPlan,
+    });
+    if (alerts.length === 0) {
+      return instance;
+    }
+    try {
+      const { ensureDevAppUser } = await import(
+        "@/lib/persistence/repositories/appUserRepository"
+      );
+      const { createAlertDefinition } = await import(
+        "@/lib/persistence/repositories/alertRepository"
+      );
+      const userId = await ensureDevAppUser();
+      for (const alertInput of alerts) {
+        await createAlertDefinition(userId, alertInput);
+      }
+      const store = await this.playbookStore();
+      return (await store.patch(instance.id, { alertBundleId: bundleId })) ?? instance;
+    } catch {
+      return instance;
+    }
+  }
+
+  private async expireManageNotifyAlerts(bundleId: string | undefined): Promise<void> {
+    if (!bundleId) return;
+    try {
+      const { ensureDevAppUser } = await import(
+        "@/lib/persistence/repositories/appUserRepository"
+      );
+      const { expireAlertsForBundleId } = await import(
+        "@/lib/persistence/repositories/alertRepository"
+      );
+      const userId = await ensureDevAppUser();
+      await expireAlertsForBundleId(userId, bundleId);
+    } catch {
+      // Notify cleanup is best-effort when DB/user context is unavailable.
     }
   }
 
@@ -379,6 +425,7 @@ export class TradingService {
       templateId: string;
       entryPrice: number;
       initialStop: number;
+      notifyAtManageLevels?: boolean;
     },
   ): Promise<BracketPlacedResult> {
     const plan = parseBracketPlan(planInput);
@@ -459,6 +506,7 @@ export class TradingService {
             templateId: playbookAttach.templateId,
             entryPrice: playbookAttach.entryPrice,
             initialStop: playbookAttach.initialStop,
+            notifyAtManageLevels: playbookAttach.notifyAtManageLevels,
             plan,
             intent: updated,
             orderRef: placed.orderRef,
@@ -495,6 +543,7 @@ export class TradingService {
     if (existing.status === "detached" || existing.status === "completed") {
       return existing;
     }
+    await this.expireManageNotifyAlerts(existing.alertBundleId);
     const detached = await store.updateStatus(instanceId, "detached");
     await this.syncPlaybookJournal(detached);
     return detached;
@@ -658,6 +707,7 @@ export class TradingService {
     orderIntentId?: string;
     stopOrderId?: number | null;
     filledQty?: number | null;
+    notifyAtManageLevels?: boolean;
   }): Promise<{ instance?: PlaybookInstance; error?: string }> {
     const template = await this.resolveTemplateForId(args.templateId);
     if (!template) {
@@ -702,14 +752,18 @@ export class TradingService {
         orderRef: args.orderRef,
       });
       const created = await store.create(instance);
+      let result = created;
       if (args.stopOrderId != null || args.filledQty != null) {
-        const patched = await store.patch(created.id, {
-          stopOrderId: args.stopOrderId ?? undefined,
-          filledQty: args.filledQty ?? undefined,
-        });
-        return { instance: patched ?? created };
+        result =
+          (await store.patch(created.id, {
+            stopOrderId: args.stopOrderId ?? undefined,
+            filledQty: args.filledQty ?? undefined,
+          })) ?? created;
       }
-      return { instance: created };
+      if (args.notifyAtManageLevels) {
+        result = await this.attachManageNotifyAlerts(result, template);
+      }
+      return { instance: result };
     } catch (error) {
       return {
         error: error instanceof Error ? error.message : String(error),
@@ -721,6 +775,7 @@ export class TradingService {
     templateId: string;
     entryPrice: number;
     initialStop: number;
+    notifyAtManageLevels?: boolean;
     plan: BracketPlan;
     intent: OrderIntent;
     orderRef: string;
@@ -729,6 +784,7 @@ export class TradingService {
       templateId: args.templateId,
       entryPrice: args.entryPrice,
       initialStop: args.initialStop,
+      notifyAtManageLevels: args.notifyAtManageLevels,
       symbol: args.plan.entry.symbol,
       accountId: args.plan.entry.accountId,
       side: args.plan.entry.side,
@@ -748,6 +804,7 @@ export class TradingService {
       templateId: string;
       entryPrice: number;
       initialStop: number;
+      notifyAtManageLevels?: boolean;
     },
   ): Promise<ProtectiveOcoPlacedResult> {
     const plan = parseProtectiveOcoPlan(planInput);
@@ -772,6 +829,7 @@ export class TradingService {
             templateId: playbookAttach.templateId,
             entryPrice: playbookAttach.entryPrice,
             initialStop: playbookAttach.initialStop,
+            notifyAtManageLevels: playbookAttach.notifyAtManageLevels,
             symbol: plan.symbol,
             accountId: plan.accountId,
             side: plan.side === "SELL" ? "BUY" : "SELL",

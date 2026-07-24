@@ -64,6 +64,7 @@ export function ProtectiveOcoForm({
   const [trailPercent, setTrailPercent] = useState("");
   const [outsideRth, setOutsideRth] = useState(false);
   const [managePresetId, setManagePresetId] = useState<ManagePresetSelection>("off");
+  const [manageNotifyAtManageLevels, setManageNotifyAtManageLevels] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -150,6 +151,7 @@ export function ProtectiveOcoForm({
               playbookTemplateId: managePresetId,
               playbookEntryPrice: managePreviewPlan.entry,
               playbookInitialStop: managePreviewPlan.initialStop,
+              playbookNotifyAtManageLevels: manageNotifyAtManageLevels,
             }
           : {}),
       });
@@ -246,6 +248,8 @@ export function ProtectiveOcoForm({
         value={managePresetId}
         onChange={setManagePresetId}
         positionPlan={managePreviewPlan}
+        notifyAtManageLevels={manageNotifyAtManageLevels}
+        onNotifyChange={setManageNotifyAtManageLevels}
         testId="protective-oco-manage-preset"
       />
       <label className="flex items-center gap-2">

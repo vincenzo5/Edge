@@ -12,6 +12,7 @@ export type PlaybookInstancePatch = {
   ruleRuntimes?: RuleRuntime[];
   stopOrderId?: number | null;
   filledQty?: number | null;
+  alertBundleId?: string | null;
 };
 
 export type PlaybookInstanceStore = {
@@ -45,6 +46,9 @@ function applyPlaybookPatch(
               ? patch.filledQty
               : undefined,
         }
+      : {}),
+    ...(patch.alertBundleId !== undefined
+      ? { alertBundleId: patch.alertBundleId ?? undefined }
       : {}),
     updatedAt,
   };

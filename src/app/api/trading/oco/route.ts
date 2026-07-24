@@ -43,6 +43,7 @@ export async function POST(request: Request): Promise<Response> {
             templateId: parsed.data.playbookTemplateId,
             entryPrice: parsed.data.playbookEntryPrice,
             initialStop: parsed.data.playbookInitialStop,
+            notifyAtManageLevels: parsed.data.playbookNotifyAtManageLevels,
           }
         : undefined;
 

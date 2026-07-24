@@ -242,6 +242,33 @@ export function deleteLocalAlert(alertId: string): boolean {
   return true;
 }
 
+export function expireLocalAlertsForDrawingId(drawingId: string): void {
+  const state = readState();
+  let changed = false;
+  for (const alert of state.alerts) {
+    if (alert.drawingId === drawingId && alert.status !== "expired") {
+      alert.status = "expired";
+      alert.updatedAt = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (changed) writeState(state);
+}
+
+export function expireLocalAlertsForBundleId(bundleId: string): number {
+  const state = readState();
+  let count = 0;
+  for (const alert of state.alerts) {
+    if (alert.bundleId === bundleId && alert.status !== "expired") {
+      alert.status = "expired";
+      alert.updatedAt = new Date().toISOString();
+      count += 1;
+    }
+  }
+  if (count > 0) writeState(state);
+  return count;
+}
+
 export function clearLocalAlertsForTests(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);

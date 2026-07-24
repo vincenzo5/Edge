@@ -1,0 +1,17 @@
+Trade management playbook — Phase 6 verification (2026-07-24)
+
+Focused: npm test -- --run src/lib/trading/playbook src/lib/trading/tradingService.test.ts src/lib/trading/playbookInstanceStore.test.ts src/app/api/trading/playbooks src/lib/alerts/tradePlanAlerts.test.ts
+Result: Test Files 21 passed (21), Tests 104 passed (104)
+
+Build: npm run build — ✓ Compiled successfully
+
+Architecture review: self-review Passed
+
+App-level: attach Manage + notify → notification at level (no order from alert cron) deferred
+
+Delivered:
+- manageNotifyAlerts.ts + buildManageNotifyAlertInputs
+- PlaybookInstance.alertBundleId + migration 0036
+- expireAlertsForBundleId (repo + alertClient)
+- TradingService attach/detach notify bundle wiring
+- ManagePlaybookPicker notify toggle + TradeOrderForm/ProtectiveOcoForm payloads

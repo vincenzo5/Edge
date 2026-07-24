@@ -374,6 +374,7 @@ export const playbookInstances = pgTable("playbook_instances", {
   orderRef: text("order_ref"),
   stopOrderId: integer("stop_order_id"),
   filledQty: integer("filled_qty"),
+  alertBundleId: uuid("alert_bundle_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
