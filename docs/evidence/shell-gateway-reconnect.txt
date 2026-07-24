@@ -1,0 +1,21 @@
+# Shell gateway reconnect chrome — evidence
+# Date: 2026-07-24
+
+## Focused
+npm test -- --run src/app/components/home/AppTopHeader.test.tsx src/lib/marketData/healthProjection.test.ts
+
+ Test Files  2 passed (2)
+      Tests  31 passed (31)
+
+## Delivered
+- chromeConnectionFromHealth() in src/lib/marketData/healthProjection.ts
+- useShellBrokerConnectionChrome hook polls /api/market-data/health on all AppModuleShell routes
+- AppTopHeader renders Broker disconnected/reconnecting + Reconnect inline (Talk/Board/Desk)
+- Removed workspace-only AppHeaderConnectionIncident portal from AppProviders
+- Updated src/lib/marketData/ARCHITECTURE.md
+
+## Architecture review
+Self-review Passed — header reconnect owned by AppTopHeader; DataHealthProvider stays workspace-scoped for chart/menu.
+
+## App-level
+Deferred — requires live IB Gateway fault on /copilot and /research; focused tests cover chrome derivation and header wiring.

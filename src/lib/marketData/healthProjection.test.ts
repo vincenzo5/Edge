@@ -5,7 +5,7 @@ import {
   buildWatchlistDatasetRow,
   mergeHealthSnapshot,
 } from "./health";
-import { buildDataHealthProjection, withHealthProjection } from "./healthProjection";
+import { buildDataHealthProjection, chromeConnectionFromHealth, withHealthProjection } from "./healthProjection";
 
 function healthySnapshot() {
   return withHealthProjection(
@@ -467,5 +467,49 @@ describe("buildDataHealthProjection", () => {
     expect(snapshot.projection.sections.currentData).toHaveLength(3);
     expect(chart.status).toBe("loaded");
     expect(watchlist.status).toBe("loaded");
+  });
+
+  it("derives shell header chrome from server health only", () => {
+    const chrome = chromeConnectionFromHealth(
+      {
+        generatedAt: Date.now(),
+        providers: buildProviderRows({
+          tws: {
+            configured: true,
+            sidecarReachable: false,
+            gatewayConnected: false,
+            warnings: [],
+          },
+          twsGate: {
+            skipUntil: 0,
+            lastFailure: "sidecar_unreachable",
+            failureCount: 1,
+            lastSuccessAt: 0,
+          },
+        }),
+        recentWarnings: [],
+        cache: { kind: "memory", degraded: false, lastPingOk: null, lastPingAt: null },
+        twsStatus: {
+          configured: true,
+          sidecarReachable: false,
+          gatewayConnected: false,
+          host: "127.0.0.1",
+          port: 8765,
+          warnings: [],
+          connections: {
+            "ib-paper": {
+              gatewayConnected: false,
+              host: "127.0.0.1",
+              port: 4002,
+            },
+          },
+        },
+      },
+      "ib-paper",
+    );
+
+    expect(chrome.chromeIncidentLabel).toBe("Broker disconnected");
+    expect(chrome.chromeRecoveryLabel).toBe("Reconnect");
+    expect(chrome.showRecovery).toBe(true);
   });
 });

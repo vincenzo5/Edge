@@ -3,6 +3,7 @@ import type { SanitizedDatasetState } from "./state/deliveryRegistry";
 import type { DataIncident } from "./state/incidents";
 import { mergeIncidents, projectWarningsToIncidents } from "./state/incidents";
 import type { HealthEvent } from "./healthEvents";
+import type { DataConnectionId } from "./dataConnectionPreference";
 import {
   buildHealthBadgeLabel,
   buildHealthCaveatSubtitle,
@@ -11,6 +12,7 @@ import {
   deriveDatasetSeverity,
   incidentWarnings,
   isDatasetDisplayFresh,
+  mergeHealthSnapshot,
   shouldShowTwsRecovery,
   twsRecoveryButtonLabel,
   type DataHealthDatasetRow,
@@ -19,6 +21,7 @@ import {
   type DataPreferenceHealthRow,
   type IbSocketHealthRow,
   type ProviderHealthRow,
+  type ServerHealthPayload,
 } from "./health";
 import { isFallbackSource } from "./trust/dataTrust";
 
@@ -472,4 +475,21 @@ export function buildDataHealthProjection(
       incidentHistory,
     },
   };
+}
+
+export type ShellBrokerConnectionChrome = Pick<
+  HealthUserProjection,
+  "chromeIncidentLabel" | "chromeRecoveryLabel" | "showRecovery"
+>;
+
+/** Server-health-only chrome labels for AppModuleShell header (Talk/Board/Desk). */
+export function chromeConnectionFromHealth(
+  health: ServerHealthPayload,
+  dataConnectionPreference?: DataConnectionId | null,
+): ShellBrokerConnectionChrome {
+  const snapshot = withHealthProjection(
+    mergeHealthSnapshot({ dataConnectionPreference: dataConnectionPreference ?? undefined }, health),
+  );
+  const { chromeIncidentLabel, chromeRecoveryLabel, showRecovery } = snapshot.projection;
+  return { chromeIncidentLabel, chromeRecoveryLabel, showRecovery };
 }

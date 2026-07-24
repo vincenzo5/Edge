@@ -29,9 +29,11 @@ import OpenRiskPositionsMenu from "./OpenRiskPositionsMenu";
 import { useAppChromeActions } from "./AppChromeActionsProvider";
 import { useAppTheme } from "../AppThemeProvider";
 import { MoonIcon, SettingsIcon, SunIcon } from "../chart-chrome/ChartHeaderIcons";
-import { HEADER_CONNECTION_SLOT_ID } from "./AppHeaderConnectionIncident";
 import { runTwsRecoveryClient } from "@/lib/marketData/twsRecoveryClient";
 import DensitySwitcher from "../research/DensitySwitcher";
+import TwsRecoverButton from "../data-health/TwsRecoverButton";
+import { annotationTextClass } from "../design-system/styles";
+import { useShellBrokerConnectionChrome } from "./useShellBrokerConnectionChrome";
 
 type Props = {
   centerSlot?: React.ReactNode;
@@ -66,6 +68,7 @@ export default function AppTopHeader({ centerSlot }: Props) {
     openNotificationsMenu,
     closeNotificationsMenu,
   } = useAppChromeActions();
+  const brokerChrome = useShellBrokerConnectionChrome();
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
@@ -116,6 +119,10 @@ export default function AppTopHeader({ centerSlot }: Props) {
 
   const recoverTwsFromSettings = useCallback(async () => {
     await runTwsRecoveryClient({ source: "settings", symbols: [], candleRequests: [] });
+  }, []);
+
+  const recoverTwsFromHeader = useCallback(async () => {
+    await runTwsRecoveryClient({ source: "data-health", symbols: [], candleRequests: [] });
   }, []);
 
   const liveGatewayOnline = useMemo(
@@ -209,7 +216,35 @@ export default function AppTopHeader({ centerSlot }: Props) {
           className="relative flex min-w-0 items-center gap-2"
           data-testid="app-header-secondary-cluster"
         >
-          <div id={HEADER_CONNECTION_SLOT_ID} data-testid="app-header-connection-slot" />
+          {brokerChrome.chromeIncidentLabel ? (
+            <div className="flex items-center gap-2" role="status" data-testid="app-header-connection-slot">
+              <span
+                className={`${annotationTextClass()} text-[var(--edge-text-secondary)]`}
+                data-testid="app-header-connection-incident"
+              >
+                {brokerChrome.chromeIncidentLabel}
+              </span>
+              {brokerChrome.showRecovery && brokerChrome.chromeRecoveryLabel ? (
+                <TwsRecoverButton
+                  compact
+                  testId="app-header-recover-tws"
+                  label={brokerChrome.chromeRecoveryLabel}
+                  recovering={recoveringTws}
+                  onClick={() => {
+                    void recoverTwsFromHeader();
+                  }}
+                />
+              ) : null}
+              {recoverMessage ? (
+                <span
+                  className={`max-w-[12rem] ${annotationTextClass()}`}
+                  data-testid="app-header-recover-message"
+                >
+                  {recoverMessage}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           <MarketDataConnectionMenu
             open={marketDataMenuOpen}
             onOpenChange={(next) => {

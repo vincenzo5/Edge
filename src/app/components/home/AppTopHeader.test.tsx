@@ -141,6 +141,22 @@ vi.mock("@/lib/trading/tradingClient", () => ({
 
 import { fetchTradingAccounts, TradingApiError } from "@/lib/trading/tradingClient";
 
+const mockRunTwsRecoveryClient = vi.fn().mockResolvedValue({ ok: true });
+
+let shellBrokerChrome = {
+  chromeIncidentLabel: null as string | null,
+  chromeRecoveryLabel: null as "Reconnect" | null,
+  showRecovery: false,
+};
+
+vi.mock("@/lib/marketData/twsRecoveryClient", () => ({
+  runTwsRecoveryClient: (...args: unknown[]) => mockRunTwsRecoveryClient(...args),
+}));
+
+vi.mock("./useShellBrokerConnectionChrome", () => ({
+  useShellBrokerConnectionChrome: () => shellBrokerChrome,
+}));
+
 function renderHeader(ui: React.ReactNode = <AppTopHeader />) {
   return render(
     <AppThemeProvider>
@@ -167,6 +183,12 @@ describe("AppTopHeader", () => {
     usePathnameMock.mockReturnValue("/home");
     vi.mocked(fetchTradingAccounts).mockClear();
     vi.spyOn(lastModule, "recordLastModule").mockImplementation(() => {});
+    shellBrokerChrome = {
+      chromeIncidentLabel: null,
+      chromeRecoveryLabel: null,
+      showRecovery: false,
+    };
+    mockRunTwsRecoveryClient.mockClear();
   });
 
   it("renders logo home link and account picker without journal-only rows", async () => {
@@ -322,8 +344,60 @@ describe("AppTopHeader", () => {
     });
   });
 
-  it("reserves a portal slot for connection incident chrome", () => {
+  it("renders calm broker incident and reconnect on Talk routes when gateway is down", async () => {
+    usePathnameMock.mockReturnValue("/copilot");
+    shellBrokerChrome = {
+      chromeIncidentLabel: "Broker disconnected",
+      chromeRecoveryLabel: "Reconnect",
+      showRecovery: true,
+    };
+
     renderHeader();
-    expect(screen.getByTestId("app-header-connection-slot")).toBeInTheDocument();
+
+    expect(screen.getByTestId("app-header-connection-incident")).toHaveTextContent(
+      "Broker disconnected",
+    );
+    expect(screen.getByTestId("app-header-recover-tws")).toHaveTextContent("Reconnect");
+
+    fireEvent.click(screen.getByTestId("app-header-recover-tws"));
+    expect(mockRunTwsRecoveryClient).toHaveBeenCalledWith({
+      source: "data-health",
+      symbols: [],
+      candleRequests: [],
+    });
+  });
+
+  it("renders reconnecting incident without recover CTA", () => {
+    shellBrokerChrome = {
+      chromeIncidentLabel: "Broker reconnecting",
+      chromeRecoveryLabel: null,
+      showRecovery: false,
+    };
+
+    renderHeader();
+
+    expect(screen.getByTestId("app-header-connection-incident")).toHaveTextContent(
+      "Broker reconnecting",
+    );
+    expect(screen.queryByTestId("app-header-recover-tws")).toBeNull();
+  });
+
+  it("hides connection incident chrome when broker is healthy", () => {
+    renderHeader();
+    expect(screen.queryByTestId("app-header-connection-slot")).toBeNull();
+  });
+
+  it("shows disabled account picker when no accounts are available", async () => {
+    vi.mocked(fetchTradingAccounts).mockResolvedValueOnce({
+      accounts: [],
+      defaultAccountId: null,
+    });
+
+    renderHeader();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app-account-picker")).toBeDisabled();
+    });
+    expect(screen.getByTestId("app-account-picker")).toHaveTextContent("No accounts");
   });
 });

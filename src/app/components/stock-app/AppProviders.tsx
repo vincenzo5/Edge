@@ -12,7 +12,6 @@ import { WorkspaceScriptApplyBridge } from "../app-workspace/WorkspaceScriptAppl
 import { MarketDataProvider } from "../MarketDataProvider";
 import { RiskSettingsProvider } from "../RiskSettingsProvider";
 import { DataHealthProvider } from "../data-health";
-import AppHeaderConnectionIncident from "../home/AppHeaderConnectionIncident";
 import { AiToolsProvider } from "../AiToolsProvider";
 import AiSessionBridge from "../AiSessionBridge";
 import { CopilotProvider } from "../copilot/CopilotContext";
@@ -128,7 +127,6 @@ export function AppProviders({
                                 <SidebarPanelWidthProvider value={sidebarPanelWidthContext}>
                                     <OptionsSessionProvider>
                                       <DataHealthProvider>
-                                        <AppHeaderConnectionIncident />
                                         <ShortcutUIProvider>
                                           <OpenRiskShortcutRegistration />
                                           <ShortcutOverlaysHost />
