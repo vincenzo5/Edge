@@ -9,6 +9,7 @@ export const DESTRUCTIVE_TOOL_NAMES = new Set([
   "delete_watchlist",
   "clear_watchlist",
   "place_order",
+  "attach_playbook",
   "save_pattern_capture",
 ]);
 
@@ -19,6 +20,9 @@ export function toolNeedsConfirmGate(tool: AiTool): boolean {
 export function buildConfirmReason(tool: AiTool): string {
   if (tool.name === "place_order") {
     return "Submit this order? Live orders also require liveConfirmation: LIVE in the tool input — never assume silent execution.";
+  }
+  if (tool.name === "attach_playbook") {
+    return "Attach this management playbook? It will arm post-fill manage rules through TradingService. Live attach requires liveConfirmation: LIVE — never assume silent execution.";
   }
   if (tool.permission === "destructive") {
     return `Confirm destructive action: ${tool.name}`;

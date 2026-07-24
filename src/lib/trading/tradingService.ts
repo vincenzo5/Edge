@@ -46,7 +46,8 @@ import {
   type PlaybookTemplateStore,
 } from "./playbookTemplateStore";
 import { createPlaybookInstance, lockPositionPlan } from "./playbook/types";
-import type { PlaybookInstance, PlaybookTemplate } from "./playbook/types";
+import type { ManageStep, PlaybookInstance, PlaybookTemplate, PositionPlan } from "./playbook/types";
+import { planPlaybookSteps } from "./playbook/planSteps";
 import { resolvePlaybookTemplate, resolvePlaybookTemplateFromInstance } from "./playbook/resolveTemplate";
 import { syncManagePlaybookToJournal } from "./playbook/journalRecipe";
 import { buildManageNotifyAlertInputs } from "./playbook/manageNotifyAlerts";
@@ -77,6 +78,8 @@ import {
   parseBracketPlan,
   parseOrderDraft,
   parseOrderModifyPatch,
+  parseAttachManagementPlaybookRequest,
+  parsePreviewPlaybookRequest,
   parseProtectiveOcoPlan,
   PREVIEW_INTENT_MAX_AGE_MS,
   TradingKillSwitchError,
@@ -641,6 +644,87 @@ export class TradingService {
     return store.list();
   }
 
+  async previewPlaybook(input: unknown): Promise<{
+    template: Pick<PlaybookTemplate, "id" | "name" | "description"> & { ruleCount: number };
+    positionPlan: PositionPlan;
+    steps: ManageStep[];
+  }> {
+    const parsed = parsePreviewPlaybookRequest(input);
+    const template = await this.resolveTemplateForId(parsed.templateId);
+    if (!template) {
+      throw new TradingValidationError(
+        `Unknown management playbook template: ${parsed.templateId}`,
+      );
+    }
+    const positionPlan = lockPositionPlan({
+      symbol: parsed.symbol,
+      accountId: parsed.accountId,
+      side: parsed.side,
+      entry: parsed.entry,
+      initialStop: parsed.initialStop,
+      qty: parsed.qty,
+      environment: parsed.environment,
+    });
+    return {
+      template: {
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        ruleCount: template.rules.length,
+      },
+      positionPlan,
+      steps: planPlaybookSteps(template, positionPlan),
+    };
+  }
+
+  async attachManagementPlaybook(
+    input: unknown,
+    liveConfirmation?: string,
+  ): Promise<PlaybookInstance> {
+    const parsed = parseAttachManagementPlaybookRequest(input);
+    assertLiveConfirmation(parsed.environment, liveConfirmation ?? parsed.liveConfirmation);
+    this.ensureTradingEnabled(parsed.environment);
+
+    const status =
+      parsed.status ??
+      (parsed.orderIntentId != null && parsed.stopOrderId == null ? "pending_fill" : "armed");
+    const orderRef = parsed.orderRef?.trim() || `edge-playbook-${randomUUID()}`;
+
+    const result = await this.attachManagementPlaybookInternal({
+      templateId: parsed.templateId,
+      entryPrice: parsed.entryPrice,
+      initialStop: parsed.initialStop,
+      notifyAtManageLevels: parsed.notifyAtManageLevels,
+      symbol: parsed.symbol,
+      accountId: parsed.accountId,
+      side: parsed.side,
+      qty: parsed.qty,
+      environment: parsed.environment,
+      orderRef,
+      status,
+      orderIntentId: parsed.orderIntentId,
+      stopOrderId: parsed.stopOrderId ?? null,
+      filledQty: parsed.filledQty ?? null,
+    });
+
+    if (result.error) {
+      throw new TradingValidationError(result.error);
+    }
+    if (!result.instance) {
+      throw new TradingValidationError("Playbook attach failed");
+    }
+
+    appendAudit({
+      action: "submit",
+      outcome: "success",
+      accountId: parsed.accountId,
+      orderRef,
+      detail: `attach-playbook:${parsed.templateId}`,
+    });
+
+    return result.instance;
+  }
+
   async createPlaybookTemplate(
     input: CreatePlaybookTemplateInput,
   ): Promise<PlaybookTemplate> {
@@ -693,7 +777,7 @@ export class TradingService {
     }
   }
 
-  private async attachPlaybook(args: {
+  private async attachManagementPlaybookInternal(args: {
     templateId: string;
     entryPrice: number;
     initialStop: number;
@@ -780,7 +864,7 @@ export class TradingService {
     intent: OrderIntent;
     orderRef: string;
   }): Promise<{ instance?: PlaybookInstance; error?: string }> {
-    return this.attachPlaybook({
+    return this.attachManagementPlaybookInternal({
       templateId: args.templateId,
       entryPrice: args.entryPrice,
       initialStop: args.initialStop,
@@ -825,7 +909,7 @@ export class TradingService {
       });
 
       const attachResult = playbookAttach
-        ? await this.attachPlaybook({
+        ? await this.attachManagementPlaybookInternal({
             templateId: playbookAttach.templateId,
             entryPrice: playbookAttach.entryPrice,
             initialStop: playbookAttach.initialStop,

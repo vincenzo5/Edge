@@ -1,12 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { GET as getPlaybooks } from "@/app/api/trading/playbooks/route";
+import { POST as previewPlaybookRoute } from "@/app/api/trading/playbooks/preview/route";
+import { POST as attachPlaybookRoute } from "@/app/api/trading/playbooks/attach/route";
 import { POST as detachPlaybook } from "@/app/api/trading/playbooks/[id]/detach/route";
 import { POST as pausePlaybook } from "@/app/api/trading/playbooks/[id]/pause/route";
 import { POST as resumePlaybook } from "@/app/api/trading/playbooks/[id]/resume/route";
 import { POST as skipPlaybook } from "@/app/api/trading/playbooks/[id]/skip/route";
 
 const mockListPlaybookInstances = vi.fn();
+const mockPreviewPlaybook = vi.fn();
+const mockAttachManagementPlaybook = vi.fn();
 const mockDetachPlaybookInstance = vi.fn();
 const mockPausePlaybookInstance = vi.fn();
 const mockResumePlaybookInstance = vi.fn();
@@ -28,6 +32,8 @@ vi.mock("@/lib/trading/tradingService", () => ({
   isTradingConfigured: vi.fn(() => true),
   getTradingService: vi.fn(() => ({
     listPlaybookInstances: mockListPlaybookInstances,
+    previewPlaybook: mockPreviewPlaybook,
+    attachManagementPlaybook: mockAttachManagementPlaybook,
     detachPlaybookInstance: mockDetachPlaybookInstance,
     pausePlaybookInstance: mockPausePlaybookInstance,
     resumePlaybookInstance: mockResumePlaybookInstance,
@@ -38,6 +44,8 @@ vi.mock("@/lib/trading/tradingService", () => ({
 describe("/api/trading/playbooks routes", () => {
   beforeEach(() => {
     mockListPlaybookInstances.mockReset();
+    mockPreviewPlaybook.mockReset();
+    mockAttachManagementPlaybook.mockReset();
     mockDetachPlaybookInstance.mockReset();
     mockPausePlaybookInstance.mockReset();
     mockResumePlaybookInstance.mockReset();
@@ -62,6 +70,61 @@ describe("/api/trading/playbooks routes", () => {
     const body = await res.json();
     expect(body.instances).toHaveLength(1);
     expect(mockListPlaybookInstances).toHaveBeenCalledWith("DUP586813", { activeOnly: true });
+  });
+
+  it("POST /playbooks/preview returns planned steps", async () => {
+    mockPreviewPlaybook.mockResolvedValue({
+      template: { id: "break_even", name: "Break-even", description: "BE", ruleCount: 1 },
+      positionPlan: { symbol: "AAPL" },
+      steps: [{ ruleId: "be-at-1r" }],
+    });
+
+    const res = await previewPlaybookRoute(
+      new Request("http://localhost/api/trading/playbooks/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          templateId: "break_even",
+          accountId: "DUP586813",
+          symbol: "AAPL",
+          side: "BUY",
+          entry: 100,
+          initialStop: 95,
+          qty: 10,
+          environment: "paper",
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.preview.steps).toHaveLength(1);
+  });
+
+  it("POST /playbooks/attach creates instance", async () => {
+    mockAttachManagementPlaybook.mockResolvedValue({
+      id: "inst-1",
+      templateId: "break_even",
+      status: "armed",
+    });
+
+    const res = await attachPlaybookRoute(
+      new Request("http://localhost/api/trading/playbooks/attach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          templateId: "break_even",
+          accountId: "DUP586813",
+          symbol: "AAPL",
+          side: "BUY",
+          entryPrice: 100,
+          initialStop: 95,
+          qty: 10,
+          environment: "paper",
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).instance.status).toBe("armed");
   });
 
   it("POST /playbooks/:id/detach marks instance detached", async () => {

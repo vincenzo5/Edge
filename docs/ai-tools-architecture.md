@@ -104,6 +104,8 @@ AI Agent
 | **Session state** | `get_options_session` | read | — |
 | **Trading** | `preview_order` | write | no |
 | **Trading** | `place_order` | destructive | yes |
+| **Trading** | `preview_playbook` | write | no |
+| **Trading** | `attach_playbook` | destructive | yes |
 | **Journal** | `list_journal_trades` | read | — | Requires client session (MCP session bridge) |
 | **Journal** | `get_journal_trade` | read | — |
 | **Journal** | `get_journal_stats` | read | — |
@@ -205,7 +207,7 @@ type AiTool<TInput> = {
 | `marketData` | `ServiceMarketDataPort` (server) or `FetchMarketDataPort` (client) |
 | `trading` | `ServiceTradingPort` (HTTP → `TradingService`) or `FetchTradingPort` (in-app → `/api/trading/*`) |
 
-Tools never import React. Context providers assemble a `ToolContext` snapshot at execution time. `preview_order` / `place_order` require a non-null `trading` port; `place_order` is destructive and needs confirmation (plus `liveConfirmation: "LIVE"` for live).
+Tools never import React. Context providers assemble a `ToolContext` snapshot at execution time. `preview_order` / `place_order` require a non-null `trading` port; `place_order` and `attach_playbook` are destructive and need confirmation (plus `liveConfirmation: "LIVE"` for live). `preview_playbook` is read-only planning — no broker mutation.
 
 **My scripts privacy (Phase 5A):** Generic chart tools (`get_chart_state`, `list_indicators`, `summarize_chart`) return script indicator refs (`scriptId`, `revision`, pane, visibility) only — never source. Dedicated `get_indicator_script` / `update_indicator_script` / `compile_indicator_script` tools return source for AI repair. Compile runs client-side via `compileScriptService`; server adapters do not execute arbitrary user source.
 

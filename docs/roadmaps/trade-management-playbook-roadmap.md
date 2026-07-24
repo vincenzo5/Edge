@@ -4,7 +4,7 @@ Phased track for **automated post-fill trade management** — reusable rule reci
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24); Phase 6 **Passing** (2026-07-24); Phase 7–8 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24); Phase 6 **Passing** (2026-07-24); Phase 7 **Passing** (2026-07-24); Phase 8 **Pending**.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (brackets / OCO / trail — **Protect**), [Alerts](./alerts-roadmap.md) (trade-plan bundles — **notify only**), [Journal](./journal-roadmap.md) (review; strategy docs deferred), [AI Agent](./ai-agent-roadmap.md) (annotation “playbooks” Phase D — **different concept**), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -286,11 +286,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, an Activ
 | 7.3 | Tool contracts in `src/lib/ai/` + rows in [ai-tools-architecture.md](../ai-tools-architecture.md) |
 | 7.4 | Registry permissions aligned with `place_order` / live posture |
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
-**Depends on:** Phase 5 template library; [AI Agent roadmap](./ai-agent-roadmap.md) tool patterns.
-
-**Verification:** **Focused:** registry + adapter tests; **Build:** compile OK; **Architecture review:** self-review; **App-level:** Copilot preview → confirm attach on paper ticket
+**Verification:** **Focused:** registry + adapter + service + route tests — Test Files 5 passed (5), Tests 49 passed (49); **Build:** `npm run build` — ✓ Compiled successfully; **Architecture review:** self-review **Passed**; **App-level:** Copilot preview → confirm attach on paper ticket deferred
 
 **Note:** Fulfills deferred Phase 5.4 optional deliverable.
 
@@ -379,8 +377,8 @@ Exact parameters tunable per attach; presets are starting points.
 4. Phase 3 — trail + live gates ✓
 5. Phase 4 — chart / OCO parity ✓
 6. Phase 5 — library + journal ✓
-7. **Phase 6** — trade-plan alert notify twin
-8. **Phase 7** — AI playbook tools
+7. **Phase 6** — trade-plan alert notify twin ✓
+8. **Phase 7** — AI playbook tools ✓
 9. **Phase 8** — full rule editor
 
 Do not start Phase 6 until Phase 5 **Passing** (met). Execute Phases 6–8 one at a time (WIP=1).

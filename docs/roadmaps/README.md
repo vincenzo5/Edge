@@ -11,7 +11,7 @@ Living multi-phase tracks for Edge product areas. Product direction stays in [..
 | Stock screener | [screener-roadmap.md](./screener-roadmap.md) | Phases 1–5 **shipped**; product deferrals remain; app-level walks → Wave 1 Phase 5 |
 | Trading journal | [journal-roadmap.md](./journal-roadmap.md) | v1 + Tiers 1–3 **Passing** (2026-07-22); app-level walks → Wave 1 Phase 6; import chrome → Wave 2 Phase 4 |
 | Trading execution | [trading-execution-roadmap.md](./trading-execution-roadmap.md) | Phases 0–5 + **6–9 Passing** (2026-07-22); options backlog; ops walks → Wave 1 Phase 1 + 4 |
-| Trade management playbook | [trade-management-playbook-roadmap.md](./trade-management-playbook-roadmap.md) | Phase 0–6 **Passing** (2026-07-24); Phase 7–8 **Pending** — AI tools, rule editor |
+| Trade management playbook | [trade-management-playbook-roadmap.md](./trade-management-playbook-roadmap.md) | Phase 0–7 **Passing** (2026-07-24); Phase 8 **Pending** — rule editor |
 | Dual connection | [dual-connection-roadmap.md](./dual-connection-roadmap.md) | Phases A–D **product complete**; both-Gateway ops proof → Wave 1 Phase 1 |
 | Connections & providers | [connections-providers-roadmap.md](./connections-providers-roadmap.md) | Phase 0–4 **Passing**; Phase 5 **Pending** (hosted IB OAuth); Settings/prefs walks → Wave 2 Phase 3 |
 | Broker ledger + sync | [broker-ledger-roadmap.md](./broker-ledger-roadmap.md) · [functional test plan](./broker-ledger-functional-test-plan.md) | Phases 0–4 **Passing**; Flex/live residual → Wave 1 Phase 1 |

@@ -53,10 +53,27 @@ describe("confirmGate", () => {
     expect(buildConfirmReason(tool)).toMatch(/LIVE/i);
   });
 
+  it("builds attach_playbook reason mentioning LIVE gate", () => {
+    const tool = defineTool({
+      name: "attach_playbook",
+      description: "attach",
+      inputSchema: z.object({}),
+      permission: "destructive",
+      requiresConfirmation: true,
+      execute: async () => ({ ok: true, data: {} }),
+    });
+    expect(buildConfirmReason(tool)).toMatch(/LIVE/i);
+    expect(buildConfirmReason(tool)).toMatch(/management playbook/i);
+  });
+
   it("resolves full mode for destructive tool names", () => {
     expect(resolveConfirmExecuteOptions("place_order", "destructive", "token-1")).toEqual({
       permissionMode: "full",
       confirmationToken: "token-1",
+    });
+    expect(resolveConfirmExecuteOptions("attach_playbook", "destructive", "token-3")).toEqual({
+      permissionMode: "full",
+      confirmationToken: "token-3",
     });
     expect(resolveConfirmExecuteOptions("create_alert", "write", "token-2")).toEqual({
       permissionMode: "write",

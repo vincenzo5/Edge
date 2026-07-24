@@ -32,6 +32,9 @@ export function createServerToolContext(): ToolContext {
           environment ?? "paper",
           liveConfirmation,
         ),
+      previewPlaybook: (request) => tradingService.previewPlaybook(request),
+      attachPlaybook: (request, liveConfirmation) =>
+        tradingService.attachManagementPlaybook(request, liveConfirmation),
       resolveDefaultAccountId: (accounts) => resolveTradingAccountId(accounts),
     }),
     journal: null,

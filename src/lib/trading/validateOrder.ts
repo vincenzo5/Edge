@@ -1,11 +1,15 @@
 import { z } from "zod";
 import {
+  AttachManagementPlaybookRequestSchema,
   BracketPlanSchema,
   OrderDraftSchema,
   OrderModifyPatchSchema,
+  PreviewPlaybookRequestSchema,
   ProtectiveOcoPlanSchema,
+  type AttachManagementPlaybookRequest,
   type OrderDraft,
   type OrderModifyPatch,
+  type PreviewPlaybookRequest,
 } from "./types";
 import { isTradingEnvironmentConfigured } from "./connectionRegistry";
 
@@ -128,6 +132,30 @@ export function parseBracketPlan(input: unknown) {
 
 export function parseProtectiveOcoPlan(input: unknown) {
   const parsed = ProtectiveOcoPlanSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new TradingValidationError(
+      parsed.error.issues.map((issue) => issue.message).join("; "),
+    );
+  }
+  assertTradingEnabledForEnvironment(parsed.data.environment);
+  return parsed.data;
+}
+
+export function parsePreviewPlaybookRequest(input: unknown): PreviewPlaybookRequest {
+  const parsed = PreviewPlaybookRequestSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new TradingValidationError(
+      parsed.error.issues.map((issue) => issue.message).join("; "),
+    );
+  }
+  assertTradingEnabledForEnvironment(parsed.data.environment);
+  return parsed.data;
+}
+
+export function parseAttachManagementPlaybookRequest(
+  input: unknown,
+): AttachManagementPlaybookRequest {
+  const parsed = AttachManagementPlaybookRequestSchema.safeParse(input);
   if (!parsed.success) {
     throw new TradingValidationError(
       parsed.error.issues.map((issue) => issue.message).join("; "),

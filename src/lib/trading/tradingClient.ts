@@ -12,8 +12,10 @@ import type {
   SubmitProtectiveOcoRequest,
   TradingAccount,
   TradingEnvironment,
+  AttachManagementPlaybookRequest,
+  PreviewPlaybookRequest,
 } from "./types";
-import type { PlaybookInstance } from "./playbook/types";
+import type { ManageStep, PlaybookInstance, PositionPlan } from "./playbook/types";
 
 export class TradingApiError extends Error {
   readonly status: number;
@@ -137,6 +139,42 @@ export async function fetchPlaybookInstances(
   });
   const body = await parseTradingResponse<{ instances: PlaybookInstance[] }>(res);
   return body.instances;
+}
+
+export async function previewPlaybook(
+  request: PreviewPlaybookRequest,
+  baseUrl = "",
+): Promise<{
+  template: { id: string; name: string; description: string; ruleCount: number };
+  positionPlan: PositionPlan;
+  steps: ManageStep[];
+}> {
+  const res = await fetch(`${baseUrl}/api/trading/playbooks/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const body = await parseTradingResponse<{
+    preview: {
+      template: { id: string; name: string; description: string; ruleCount: number };
+      positionPlan: PositionPlan;
+      steps: ManageStep[];
+    };
+  }>(res);
+  return body.preview;
+}
+
+export async function attachManagementPlaybook(
+  request: AttachManagementPlaybookRequest,
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  const res = await fetch(`${baseUrl}/api/trading/playbooks/attach`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const body = await parseTradingResponse<{ instance: PlaybookInstance }>(res);
+  return body.instance;
 }
 
 export async function detachPlaybookInstance(

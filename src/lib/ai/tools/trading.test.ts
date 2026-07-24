@@ -71,6 +71,42 @@ function mockTradingPort(): TradingPort {
       },
     }),
     cancelOrder: vi.fn(),
+    previewPlaybook: vi.fn().mockResolvedValue({
+      template: {
+        id: "break_even",
+        name: "Break-even",
+        description: "Move stop to entry at +1R.",
+        ruleCount: 1,
+      },
+      positionPlan: {
+        symbol: "AAPL",
+        accountId: "DUP586813",
+        side: "BUY",
+        entry: 100,
+        initialStop: 95,
+        qty: 10,
+        rUnit: 5,
+        environment: "paper",
+        lockedAt: new Date().toISOString(),
+      },
+      steps: [
+        {
+          ruleId: "be-at-1r",
+          label: "Break-even at +1R",
+          when: { kind: "multipleOfR", multiple: 1 },
+          then: { kind: "modifyStop", breakEven: true },
+          triggerPrice: 105,
+          stopPrice: 100,
+        },
+      ],
+    }),
+    attachPlaybook: vi.fn().mockResolvedValue({
+      id: "inst-playbook-1",
+      templateId: "break_even",
+      status: "armed",
+      orderRef: "edge-playbook-1",
+      orderIntentId: null,
+    }),
   };
 }
 
@@ -190,5 +226,99 @@ describe("trading AI tools", () => {
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("confirmation_required");
+  });
+
+  it("previews playbook via trading port", async () => {
+    const trading = mockTradingPort();
+    const result = await executeTool(
+      registry,
+      "preview_playbook",
+      {
+        templateId: "break_even",
+        symbol: "AAPL",
+        side: "BUY",
+        entry: 100,
+        initialStop: 95,
+        qty: 10,
+        environment: "paper",
+      },
+      mockContext(trading),
+      { permissionMode: "write" },
+    );
+    expect(result.ok).toBe(true);
+    expect(trading.previewPlaybook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: "break_even",
+        accountId: "DUP586813",
+        entry: 100,
+      }),
+    );
+  });
+
+  it("requires confirmation for attach_playbook", async () => {
+    const trading = mockTradingPort();
+    const result = await executeTool(
+      registry,
+      "attach_playbook",
+      {
+        templateId: "break_even",
+        symbol: "AAPL",
+        side: "BUY",
+        entryPrice: 100,
+        initialStop: 95,
+        qty: 10,
+        environment: "paper",
+        stopOrderId: 42,
+        filledQty: 10,
+      },
+      mockContext(trading),
+      { permissionMode: "full", confirmed: false },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("confirmation_required");
+  });
+
+  it("denies attach_playbook in write permission mode", async () => {
+    const trading = mockTradingPort();
+    const result = await executeTool(
+      registry,
+      "attach_playbook",
+      {
+        templateId: "break_even",
+        symbol: "AAPL",
+        side: "BUY",
+        entryPrice: 100,
+        initialStop: 95,
+        qty: 10,
+        environment: "paper",
+      },
+      mockContext(trading),
+      { permissionMode: "write", confirmed: true },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("permission_denied");
+  });
+
+  it("attaches playbook when confirmation is validated server-side in full mode", async () => {
+    const trading = mockTradingPort();
+    const result = await executeTool(
+      registry,
+      "attach_playbook",
+      {
+        templateId: "break_even",
+        symbol: "AAPL",
+        side: "BUY",
+        entryPrice: 100,
+        initialStop: 95,
+        qty: 10,
+        environment: "paper",
+        stopOrderId: 42,
+        filledQty: 10,
+      },
+      mockContext(trading),
+      { permissionMode: "full", confirmationValidatedByServer: true },
+    );
+    expect(result.ok).toBe(true);
+    expect(trading.attachPlaybook).toHaveBeenCalled();
   });
 });

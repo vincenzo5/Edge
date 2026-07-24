@@ -2,9 +2,11 @@ import { z } from "zod";
 import { defineTool } from "../types";
 import type { ToolContext } from "../context";
 import {
+  AttachManagementPlaybookRequestSchema,
   OrderDraftSchema,
   OrderSideSchema,
   OrderTypeSchema,
+  PreviewPlaybookRequestSchema,
   TimeInForceSchema,
   TradingEnvironmentSchema,
 } from "@/lib/trading/types";
@@ -29,6 +31,14 @@ const placeOrderInputSchema = z.object({
   idempotencyKey: z.string().min(1),
   previewIntentId: z.string().min(1),
   liveConfirmation: z.string().optional(),
+});
+
+const previewPlaybookInputSchema = PreviewPlaybookRequestSchema.extend({
+  accountId: z.string().min(1).optional(),
+});
+
+const attachPlaybookInputSchema = AttachManagementPlaybookRequestSchema.extend({
+  accountId: z.string().min(1).optional(),
 });
 
 function requireTrading(context: ToolContext) {
@@ -103,7 +113,7 @@ export const placeOrderTool = defineTool({
       data: {
         orderId: result.order.orderId ?? null,
         permId: result.order.permId ?? null,
-        orderRef: result.orderRef,
+        orderRef: result.order.orderRef,
         status: result.order.status ?? null,
         intentId: result.intent.intentId,
       },
@@ -111,4 +121,66 @@ export const placeOrderTool = defineTool({
   },
 });
 
-export const tradingTools = [previewOrderTool, placeOrderTool];
+export const previewPlaybookTool = defineTool({
+  name: "preview_playbook",
+  description:
+    "Preview a management playbook template against locked entry/stop geometry. Returns planned manage steps (break-even, scale, trail) without attaching or mutating broker orders.",
+  inputSchema: previewPlaybookInputSchema,
+  permission: "write",
+  requiresConfirmation: false,
+  requiresClientSession: false,
+  async execute(input, context) {
+    const trading = requireTrading(context);
+    const accountId = await resolveAccountId(context, input.accountId);
+    const preview = await trading.previewPlaybook({
+      templateId: input.templateId,
+      accountId,
+      symbol: input.symbol,
+      side: input.side,
+      entry: input.entry,
+      initialStop: input.initialStop,
+      qty: input.qty,
+      environment: input.environment ?? "paper",
+    });
+    return {
+      ok: true,
+      data: preview,
+    };
+  },
+});
+
+export const attachPlaybookTool = defineTool({
+  name: "attach_playbook",
+  description:
+    "Attach a management playbook to a position plan. Requires explicit user confirmation. Live attach requires liveConfirmation: LIVE. Use preview_playbook first to show planned steps.",
+  inputSchema: attachPlaybookInputSchema,
+  permission: "destructive",
+  requiresConfirmation: true,
+  requiresClientSession: false,
+  async execute(input, context) {
+    const trading = requireTrading(context);
+    const accountId = await resolveAccountId(context, input.accountId);
+    const instance = await trading.attachPlaybook({
+      ...input,
+      accountId,
+      environment: input.environment ?? "paper",
+    });
+    return {
+      ok: true,
+      data: {
+        instanceId: instance.id,
+        templateId: instance.templateId,
+        status: instance.status,
+        orderRef: instance.orderRef ?? null,
+        orderIntentId: instance.orderIntentId ?? null,
+      },
+    };
+  },
+});
+
+export const tradingTools = [
+  previewOrderTool,
+  placeOrderTool,
+  previewPlaybookTool,
+  attachPlaybookTool,
+];

@@ -80,18 +80,18 @@ Each `tools/call` through [`adapters/mcp.ts`](adapters/mcp.ts) writes one JSON l
 
 - Tools MUST NOT import React — use `ToolContext` facades only.
 - All inputs MUST pass Zod validation before execution.
-- Destructive tools (`delete_drawing`, `clear_watchlist`, `delete_watchlist`, `delete_indicator_script`, `delete_alert`, `remove_research_card`, `place_order`) require confirmation.
+- Destructive tools (`delete_drawing`, `clear_watchlist`, `delete_watchlist`, `delete_indicator_script`, `delete_alert`, `remove_research_card`, `place_order`, `attach_playbook`) require confirmation.
 - Server-side tools (market data, trading, pattern library disk I/O) run without browser session; client-state tools return `requiresClientSession` error when no session.
 - My scripts: seven `*_indicator_script` tools use `ScriptLibraryPort` (never React). Generic chart tools sanitize script instances to refs only; source is returned only from dedicated script tools. Compile is client-side only.
 - When `layout.linkSymbol` or `layout.linkInterval` is on, matching fields propagate to peer cells; crosshair sync uses `layout.linkCrosshair`; drawing sync uses `layout.linkDrawings`.
-- Trading tools use `TradingPort` only — never call brokerage or React account state directly. Live `place_order` requires `liveConfirmation: "LIVE"`.
+- Trading tools use `TradingPort` only — never call brokerage or React account state directly. Live `place_order` and live `attach_playbook` require `liveConfirmation: "LIVE"`.
 - Pattern library tools that touch the filesystem (`save_pattern_capture`, taxonomy/stats reads from disk) stay in `patternLibraryTools` and are **not** registered in `CLIENT_AI_TOOLS`.
 
 ## Server vs Client Split
 
 | Runs server-side | Requires client session |
 |------------------|------------------------|
-| `search_symbols`, `get_candles`, `get_quotes`, `get_fundamentals`, `preview_order`, `place_order`, pattern library disk tools | `set_symbol`, `add_indicator`, `add_drawing`, `*_indicator_script`, layout mutators, `find_similar_setups` / `capture_pattern_setup` (active chart), journal tools, alert tools (`list/get/create/update/dismiss/delete`, high-level create, open/preview/suggest) |
+| `search_symbols`, `get_candles`, `get_quotes`, `get_fundamentals`, `preview_order`, `place_order`, `preview_playbook`, `attach_playbook`, pattern library disk tools | `set_symbol`, `add_indicator`, `add_drawing`, `*_indicator_script`, layout mutators, `find_similar_setups` / `capture_pattern_setup` (active chart), journal tools, alert tools (`list/get/create/update/dismiss/delete`, high-level create, open/preview/suggest) |
 
 ## Two Chart-Tool Products
 

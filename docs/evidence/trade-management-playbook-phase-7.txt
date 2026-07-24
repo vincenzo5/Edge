@@ -1,0 +1,21 @@
+Trade management playbook — Phase 7 verification (2026-07-24)
+
+Focused:
+npm test -- --run src/lib/ai/tools/trading.test.ts src/lib/ai/agent/confirmGate.test.ts src/lib/trading/tradingService.test.ts src/app/api/trading/playbooks
+
+Result: Test Files 5 passed (5), Tests 49 passed (49)
+
+Build:
+npm run build
+✓ Compiled successfully
+
+Architecture review: self-review Passed
+
+App-level: Copilot preview → confirm attach on paper ticket — deferred
+
+Delivered:
+- TradingService.previewPlaybook + attachManagementPlaybook (public attach path)
+- POST /api/trading/playbooks/preview + /attach
+- tradingClient + TradingPort previewPlaybook / attachPlaybook
+- AI tools preview_playbook + attach_playbook (confirm gate + LIVE)
+- confirmGate, CONSTRAINTS, ai-tools-architecture, trading/ARCHITECTURE docs

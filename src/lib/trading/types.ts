@@ -362,3 +362,38 @@ export const ProtectiveOcoPlacedResultSchema = z.object({
 export type ProtectiveOcoPlacedResult = z.infer<typeof ProtectiveOcoPlacedResultSchema> & {
   playbookInstance?: import("./playbook/types").PlaybookInstance;
 };
+
+export const PreviewPlaybookRequestSchema = z.object({
+  templateId: z.string().min(1),
+  accountId: z.string().min(1),
+  symbol: z.string().min(1),
+  side: OrderSideSchema,
+  entry: z.number().positive(),
+  initialStop: z.number().positive(),
+  qty: z.number().positive(),
+  environment: TradingEnvironmentSchema.default("paper"),
+});
+
+export type PreviewPlaybookRequest = z.infer<typeof PreviewPlaybookRequestSchema>;
+
+export const AttachManagementPlaybookRequestSchema = z.object({
+  templateId: z.string().min(1),
+  accountId: z.string().min(1),
+  symbol: z.string().min(1),
+  side: OrderSideSchema,
+  entryPrice: z.number().positive(),
+  initialStop: z.number().positive(),
+  qty: z.number().positive(),
+  environment: TradingEnvironmentSchema.default("paper"),
+  orderRef: z.string().optional(),
+  status: z.enum(["pending_fill", "armed"]).optional(),
+  orderIntentId: z.string().min(1).optional(),
+  stopOrderId: z.number().int().positive().optional(),
+  filledQty: z.number().positive().optional(),
+  notifyAtManageLevels: z.boolean().optional(),
+  liveConfirmation: z.string().optional(),
+});
+
+export type AttachManagementPlaybookRequest = z.infer<
+  typeof AttachManagementPlaybookRequestSchema
+>;

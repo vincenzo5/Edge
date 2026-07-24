@@ -183,6 +183,8 @@ Outbound `orderRef` is `edge-intent-{intentId}`. See `correlateOrderRef.ts`.
 |------|------------|--------------|-------|
 | `preview_order` | write | no | Respects `environment` input (default paper) |
 | `place_order` | destructive | **yes** | Requires `previewIntentId`; live needs `liveConfirmation` |
+| `preview_playbook` | write | no | Pure planner — `planPlaybookSteps` from template + locked entry/stop |
+| `attach_playbook` | destructive | **yes** | Routes through `TradingService.attachManagementPlaybook`; live needs `liveConfirmation` |
 
 ## Verification
 
@@ -285,7 +287,16 @@ ManagePlaybookPicker opt-in "Notify at manage levels" → playbookNotifyAtManage
 Detach playbook → expireAlertsForBundleId (best-effort cleanup)
 ```
 
-API: `GET /api/trading/playbooks`, `POST /api/trading/playbooks/[id]/{detach,pause,resume,skip}`, `GET|PATCH /api/trading/playbooks/auto-manage`, `GET|POST /api/trading/playbooks/templates`, `PATCH|DELETE /api/trading/playbooks/templates/[id]`, `POST /api/trading/playbooks/templates/[id]/duplicate` (mutate auth parity). Cron: `GET|POST /api/cron/playbook-evaluate` (cron auth; in-process TradingService).
+Phase 7 — AI playbook tools (shipped):
+
+```
+Copilot preview_playbook → TradingPort.previewPlaybook → TradingService.previewPlaybook
+Copilot attach_playbook (confirm gate) → TradingPort.attachPlaybook → attachManagementPlaybook
+  → playbookInstanceStore create (armed or pending_fill; idempotent by orderIntentId/orderRef)
+API: POST /api/trading/playbooks/preview, POST /api/trading/playbooks/attach
+```
+
+API: `GET /api/trading/playbooks`, `POST /api/trading/playbooks/preview`, `POST /api/trading/playbooks/attach`, `POST /api/trading/playbooks/[id]/{detach,pause,resume,skip}`, `GET|PATCH /api/trading/playbooks/auto-manage`, `GET|POST /api/trading/playbooks/templates`, `PATCH|DELETE /api/trading/playbooks/templates/[id]`, `POST /api/trading/playbooks/templates/[id]/duplicate` (mutate auth parity). Cron: `GET|POST /api/cron/playbook-evaluate` (cron auth; in-process TradingService).
 
 UI copy: **Manage with…** / **Management playbook** — not bare “Playbook” (distinct from AI annotation playbooks).
 

@@ -534,6 +534,50 @@ describe("TradingService", () => {
     expect(listed).toHaveLength(1);
   });
 
+  it("previewPlaybook returns planned steps without persisting instance", async () => {
+    const playbookStore = createMemoryPlaybookInstanceStore();
+    const service = new TradingService(createMemoryIntentStore(), playbookStore);
+
+    const preview = await service.previewPlaybook({
+      templateId: "break_even",
+      accountId: "DUP586813",
+      symbol: "AAPL",
+      side: "BUY",
+      entry: 100,
+      initialStop: 95,
+      qty: 10,
+      environment: "paper",
+    });
+
+    expect(preview.template.id).toBe("break_even");
+    expect(preview.steps).toHaveLength(1);
+    expect(preview.steps[0]?.triggerPrice).toBe(105);
+    expect(await service.listPlaybookInstances("DUP586813")).toHaveLength(0);
+  });
+
+  it("attachManagementPlaybook creates armed instance for open position", async () => {
+    const playbookStore = createMemoryPlaybookInstanceStore();
+    const service = new TradingService(createMemoryIntentStore(), playbookStore);
+
+    const instance = await service.attachManagementPlaybook({
+      templateId: "break_even",
+      accountId: "DUP586813",
+      symbol: "AAPL",
+      side: "BUY",
+      entryPrice: 100,
+      initialStop: 95,
+      qty: 10,
+      environment: "paper",
+      stopOrderId: 42,
+      filledQty: 10,
+    });
+
+    expect(instance.status).toBe("armed");
+    expect(instance.stopOrderId).toBe(42);
+    expect(instance.filledQty).toBe(10);
+    expect(await service.listPlaybookInstances("DUP586813", { activeOnly: true })).toHaveLength(1);
+  });
+
   it("detachPlaybookInstance marks instance detached without broker cancel", async () => {
     const playbookStore = createMemoryPlaybookInstanceStore();
     const service = new TradingService(createMemoryIntentStore(), playbookStore);
