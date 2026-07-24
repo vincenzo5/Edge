@@ -1,0 +1,1178 @@
+{
+  "generatedAt": "2026-07-18T15:27:58.192Z",
+  "baseUrl": "http://localhost:3003",
+  "git": {
+    "commit": "798e921",
+    "branch": "main"
+  },
+  "audits": [
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 661,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 548,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 550,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 908,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "M",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "394.86",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "398.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "389.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "393.82",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-7.28 (-1.82%)",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-change"
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 929,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "M",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "394.86",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "398.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "389.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "393.82",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-7.28 (-1.82%)",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-change"
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 928,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "M",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "394.86",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "398.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "389.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "393.82",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-7.28 (-1.82%)",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-change"
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 1165,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Connecting · request_timeout",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "M",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Connecting · request_timeout",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "394.86",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "398.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "389.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "393.82",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-7.28 (-1.82%)",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "SPAN",
+          "text": "⌘↵",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-run-shortcut-hint"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 1197,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "M",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "P",
+          "text": "Screens",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "394.86",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "398.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "389.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "393.82",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-7.28 (-1.82%)",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "SPAN",
+          "text": "⌘↵",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-run-shortcut-hint"
+        },
+        {
+          "tag": "P",
+          "text": "Screens",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 1168,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "M",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "P",
+          "text": "Screens",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: down · Live: down · Data: Paper data",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "394.86",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "398.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "389.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "393.82",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-7.28 (-1.82%)",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "SPAN",
+          "text": "⌘↵",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-run-shortcut-hint"
+        },
+        {
+          "tag": "P",
+          "text": "Screens",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 1148,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 1140,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 1154,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "M",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "394.86",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "398.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "389.39",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "393.82",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-7.28 (-1.82%)",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-change"
+        }
+      ],
+      "captureError": null
+    }
+  ],
+  "captures": [
+    {
+      "id": "home",
+      "filename": "home-1024.webp",
+      "width": 1024,
+      "path": "docs/assets/ux-polish/phase-0/home-1024.webp"
+    },
+    {
+      "id": "home",
+      "filename": "home-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/home-1440.webp"
+    },
+    {
+      "id": "home",
+      "filename": "home-1920.webp",
+      "width": 1920,
+      "path": "docs/assets/ux-polish/phase-0/home-1920.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1024.webp",
+      "width": 1024,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1024.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1440.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1920.webp",
+      "width": 1920,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1920.webp"
+    },
+    {
+      "id": "workspace-screener-empty",
+      "filename": "workspace-screener-empty-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-screener-empty-1440.webp"
+    },
+    {
+      "id": "workspace-journal-empty",
+      "filename": "workspace-journal-empty-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-journal-empty-1440.webp"
+    },
+    {
+      "id": "workspace-journal-import-modal",
+      "filename": "workspace-journal-import-modal-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-journal-import-modal-1440.webp"
+    },
+    {
+      "id": "workspace-chart-type-popover",
+      "filename": "workspace-chart-type-popover-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-type-popover-1440.webp"
+    }
+  ],
+  "sourceColorAudit": {
+    "rawHexFileCount": 8,
+    "tailwindPaletteFileCount": 0,
+    "samplePaths": [
+      "src/app/components/StockApp.test.tsx",
+      "src/app/components/EdgeChart.drawing.test.tsx",
+      "src/app/components/IndicatorSettingsModal.tsx",
+      "src/app/components/chart-icons/iconPaths.ts",
+      "src/app/components/DrawingSelectionToolbar.test.tsx"
+    ]
+  },
+  "summary": {
+    "auditCount": 12,
+    "auditTarget": 12,
+    "captureCount": 10,
+    "captureTarget": 10,
+    "failures": []
+  }
+}

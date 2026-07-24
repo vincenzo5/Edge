@@ -1,0 +1,362 @@
+{
+  "generatedAt": "2026-07-18T02:12:48.372Z",
+  "baseUrl": "http://localhost:3003",
+  "git": {
+    "commit": "798e921",
+    "branch": "main"
+  },
+  "audits": [
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.waitForSelector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"journal-global-empty\"]') to be visible\n"
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.waitForSelector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"journal-global-empty\"]') to be visible\n"
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 0,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 0,
+        "bodyScrollWidth": 0,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": "page.waitForSelector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"journal-global-empty\"]') to be visible\n"
+    }
+  ],
+  "captures": [
+    {
+      "id": "home",
+      "filename": "home-1024.webp",
+      "width": 1024,
+      "path": "docs/assets/ux-polish/phase-0/home-1024.webp"
+    },
+    {
+      "id": "home",
+      "filename": "home-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/home-1440.webp"
+    },
+    {
+      "id": "home",
+      "filename": "home-1920.webp",
+      "width": 1920,
+      "path": "docs/assets/ux-polish/phase-0/home-1920.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1024.webp",
+      "width": 1024,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1024.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1440.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1920.webp",
+      "width": 1920,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1920.webp"
+    },
+    {
+      "id": "workspace-screener-empty",
+      "filename": "workspace-screener-empty-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-screener-empty-1440.webp"
+    },
+    {
+      "id": "workspace-journal-empty",
+      "filename": "workspace-journal-empty-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-journal-empty-1440.webp"
+    },
+    {
+      "id": "workspace-journal-import-modal",
+      "filename": "workspace-journal-import-modal-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-journal-import-modal-1440.webp"
+    },
+    {
+      "id": "workspace-chart-type-popover",
+      "filename": "workspace-chart-type-popover-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-type-popover-1440.webp"
+    }
+  ],
+  "sourceColorAudit": {
+    "rawHexFileCount": 8,
+    "tailwindPaletteFileCount": 5,
+    "samplePaths": [
+      "src/app/components/StockApp.test.tsx",
+      "src/app/components/DrawingSelectionToolbar.tsx",
+      "src/app/components/IndicatorSettingsModal.tsx",
+      "src/app/components/DrawingSelectionToolbar.test.tsx",
+      "src/app/components/chart-icons/iconPaths.ts",
+      "src/app/components/chart-chrome/ChartSnapshotMenu.tsx",
+      "src/app/components/DrawingRenameModal.tsx",
+      "src/app/components/object-tree/ObjectTreeDrawingRow.tsx",
+      "src/app/components/ChartSettingsModal.tsx"
+    ]
+  },
+  "summary": {
+    "auditCount": 0,
+    "auditTarget": 12,
+    "captureCount": 7,
+    "captureTarget": 10,
+    "failures": [
+      "home@1024: page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+      "home@1440: page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+      "home@1920: page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+      "workspace-chart@1024: page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+      "workspace-chart@1440: page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+      "workspace-chart@1920: page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+      "workspace-screener@1024: page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+      "workspace-screener@1440: page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+      "workspace-screener@1920: page.evaluate: ReferenceError: __name is not defined\n    at eval (eval at evaluate (:303:30), <anonymous>:1:404)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+      "workspace-journal@1024: page.waitForSelector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"journal-global-empty\"]') to be visible\n",
+      "workspace-journal@1440: page.waitForSelector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"journal-global-empty\"]') to be visible\n",
+      "workspace-journal@1920: page.waitForSelector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"journal-global-empty\"]') to be visible\n",
+      "workspace-screener-empty-1440.webp: page.waitForSelector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"screener-results-empty\"]') to be visible\n",
+      "workspace-journal-empty-1440.webp: page.waitForSelector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"journal-global-empty\"]') to be visible\n",
+      "workspace-journal-import-modal-1440.webp: page.waitForSelector: Timeout 60000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"journal-global-empty\"]') to be visible\n"
+    ]
+  }
+}

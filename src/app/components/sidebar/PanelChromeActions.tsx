@@ -20,7 +20,7 @@ export function PanelPopOutButton({
       type="button"
       data-testid="panel-pop-out"
       onClick={presentation.popOut}
-      size="sm"
+      size="compact"
       className={className}
       aria-label={label}
       title={label}
@@ -45,7 +45,7 @@ export function PanelExpandButton({
       type="button"
       data-testid={widthCtx.isExpanded ? "panel-collapse" : "panel-expand"}
       onClick={widthCtx.isExpanded ? widthCtx.collapse : widthCtx.expand}
-      size="sm"
+      size="compact"
       className={className}
       aria-label={label}
       title={label}

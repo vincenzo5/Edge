@@ -27,6 +27,8 @@ function formatKey(key: string, mac: boolean): string {
       return mac ? "⌦" : "Delete";
     case "escape":
       return "Esc";
+    case "/":
+      return "/";
     default:
       return key.length === 1 ? key.toUpperCase() : key;
   }
@@ -34,7 +36,16 @@ function formatKey(key: string, mac: boolean): string {
 
 /** Static key bindings used for display labels across the app. */
 export const SHORTCUT_BINDINGS: Record<ShortcutId, KeyBinding[]> = {
-  quickSearch: [{ mod: true, key: "k" }],
+  openCommandPalette: [{ mod: true, key: "k" }],
+  changeSymbol: [{ key: "/" }],
+  openIndicators: [{ mod: true, key: "i" }],
+  toggleTheme: [{ alt: true, shift: true, key: "t" }],
+  toggleAccount: [{ alt: true, shift: true, key: "a" }],
+  toggleSettings: [{ alt: true, key: "," }],
+  toggleOptions: [{ alt: true, shift: true, key: "o" }],
+  toggleScreenerPanel: [{ alt: true, shift: true, key: "s" }],
+  toggleTradePanel: [],
+  togglePatternsPanel: [{ alt: true, shift: true, key: "p" }],
   undo: [{ mod: true, key: "z" }],
   redo: [{ mod: true, shift: true, key: "z" }],
   copyDrawing: [{ mod: true, key: "c" }],
@@ -42,7 +53,7 @@ export const SHORTCUT_BINDINGS: Record<ShortcutId, KeyBinding[]> = {
   deleteDrawing: [{ key: "backspace" }, { key: "delete" }],
   duplicateDrawing: [{ mod: true, key: "d" }],
   renameDrawing: [{ key: "f2" }],
-  lockDrawing: [{ alt: true, key: "l" }],
+  lockDrawing: [{ alt: true, shift: true, key: "l" }],
   goToDate: [{ alt: true, key: "g" }],
   resetChartView: [{ alt: true, key: "r" }],
   snapshotDownload: [{ mod: true, alt: true, key: "s" }],
@@ -50,6 +61,8 @@ export const SHORTCUT_BINDINGS: Record<ShortcutId, KeyBinding[]> = {
   fullscreen: [{ shift: true, key: "f" }],
   toggleObjectTree: [{ alt: true, key: "o" }],
   toggleWatchlist: [{ alt: true, key: "w" }],
+  toggleCopilot: [{ alt: true, shift: true, key: "c" }],
+  openPositions: [],
   toggleLinkedLayout: [{ alt: true, key: "l" }],
   activateCell1: [{ alt: true, key: "1" }],
   activateCell2: [{ alt: true, key: "2" }],

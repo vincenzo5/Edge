@@ -17,10 +17,10 @@ describe('sidebar registry', () => {
     expect(SIDEBAR_PANEL_MAP['account'].scope).toBe('app');
   });
 
-  it('includes settings panel as app-scoped footer entry', () => {
+  it('includes risk settings as an app-scoped footer entry', () => {
     expect(SIDEBAR_PANEL_MAP['settings']).toBeDefined();
     expect(SIDEBAR_PANEL_MAP['settings'].scope).toBe('app');
-    expect(SIDEBAR_PANEL_MAP['settings'].label).toBe('Settings');
+    expect(SIDEBAR_PANEL_MAP['settings'].label).toBe('Risk calculator');
     expect(SIDEBAR_FOOTER_PANELS.map((panel) => panel.id)).toEqual(['settings']);
   });
 

@@ -1,14 +1,23 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { FloatingPanelGeometry, SidebarPanelId, SidebarPrefs } from "@/lib/chartConfig";
 import {
   defaultFloatingGeometry,
   getPanelPresentation,
 } from "@/lib/sidebar/floatingPanelGeometry";
-import { ScreenerPanelContent } from "../screener/ScreenerPanelContent";
 import FloatingPanelShell from "./FloatingPanelShell";
+import SidebarPanelLoading from "./SidebarPanelLoading";
 import { SIDEBAR_PANEL_MAP } from "./registry";
 import { OptionsFloatingPanel } from "./panels/OptionsFloatingPanel";
+
+const ScreenerPanelContent = dynamic(
+  () => import("../screener/ScreenerPanelContent").then((module) => ({ default: module.ScreenerPanelContent })),
+  {
+    ssr: false,
+    loading: () => <SidebarPanelLoading label="Stock screener" />,
+  },
+);
 
 type Props = {
   activePanel: SidebarPanelId | null;

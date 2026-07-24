@@ -77,5 +77,20 @@ describe("lastModule", () => {
       const record = createLastModuleRecord("research", nowMs - 1000);
       expect(resolveRootRedirectTarget(record, nowMs)).toBe("/home");
     });
+
+    it("maps copilot module to home", () => {
+      const record = createLastModuleRecord("copilot", nowMs - 1000);
+      expect(resolveRootRedirectTarget(record, nowMs)).toBe("/home");
+    });
+  });
+
+  describe("readLastModuleRecord", () => {
+    it("parses copilot module", () => {
+      const raw = JSON.stringify(createLastModuleRecord("copilot", nowMs));
+      expect(readLastModuleRecord(raw)).toEqual({
+        module: "copilot",
+        updatedAt: "2026-07-05T12:00:00.000Z",
+      });
+    });
   });
 });

@@ -11,7 +11,6 @@ describe('SidebarRail responsive modes', () => {
         activePanel={null}
         railMode="compact"
         onTogglePanel={vi.fn()}
-        onThemeChange={vi.fn()}
       />,
     );
 

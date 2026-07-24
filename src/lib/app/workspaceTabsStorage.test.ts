@@ -8,6 +8,7 @@ import {
   loadWorkspaceTabs,
   migrateLayoutToWorkspaceTabs,
   recordDismissedRemoteWorkspace,
+  resolveWorkspaceTabsStorageKey,
   saveWorkspaceTabs,
   WORKSPACE_TABS_STORAGE_KEY,
 } from "./workspaceTabsStorage";
@@ -35,7 +36,7 @@ describe("workspaceTabsStorage", () => {
     localStorage.removeItem(LEGACY_SYNC_KEY);
   });
 
-  it("migrates legacy layout into default tab", () => {
+  it("migrates legacy layout into default tab for primary binding", () => {
     const layout = {
       ...DEFAULT_LAYOUT,
       cells: [{ ...DEFAULT_LAYOUT.cells[0]!, symbol: "TSLA" }],
@@ -50,7 +51,7 @@ describe("workspaceTabsStorage", () => {
       }),
     );
 
-    const tabs = loadWorkspaceTabs();
+    const tabs = loadWorkspaceTabs({ tileId: "tile-primary", isPrimaryChartTile: true });
     expect(tabs.tabs).toHaveLength(1);
     expect(tabs.tabs[0]?.layout.cells[0]?.symbol).toBe("TSLA");
     expect(tabs.tabs[0]?.remote).toEqual({
@@ -60,7 +61,7 @@ describe("workspaceTabsStorage", () => {
     });
   });
 
-  it("round-trips workspace tabs storage", () => {
+  it("round-trips workspace tabs storage on legacy key", () => {
     const state = createDefaultWorkspaceTabs();
     saveWorkspaceTabs(state);
 
@@ -69,10 +70,50 @@ describe("workspaceTabsStorage", () => {
     expect(localStorage.getItem(WORKSPACE_TABS_STORAGE_KEY)).toBeTruthy();
   });
 
-  it("detects persisted workspace tabs in localStorage", () => {
+  it("scopes secondary chart tiles to per-tile storage keys", () => {
+    const primary = createDefaultWorkspaceTabs();
+    primary.tabs[0]!.layout.cells[0]!.symbol = "AAPL";
+    saveWorkspaceTabs(primary, { tileId: "tile-primary", isPrimaryChartTile: true });
+
+    const secondary = createDefaultWorkspaceTabs();
+    secondary.tabs[0]!.layout.cells[0]!.symbol = "MSFT";
+    saveWorkspaceTabs(secondary, { tileId: "tile-secondary", isPrimaryChartTile: false });
+
+    expect(resolveWorkspaceTabsStorageKey({ tileId: "tile-secondary", isPrimaryChartTile: false })).toBe(
+      "tv-ai:workspace-tabs:v1:tile:tile-secondary",
+    );
+
+    const loadedPrimary = loadWorkspaceTabs({ tileId: "tile-primary", isPrimaryChartTile: true });
+    const loadedSecondary = loadWorkspaceTabs({
+      tileId: "tile-secondary",
+      isPrimaryChartTile: false,
+    });
+
+    expect(loadedPrimary.tabs[0]?.layout.cells[0]?.symbol).toBe("AAPL");
+    expect(loadedSecondary.tabs[0]?.layout.cells[0]?.symbol).toBe("MSFT");
+  });
+
+  it("returns fresh defaults for non-primary tiles without scoped storage", () => {
+    const tabs = loadWorkspaceTabs({ tileId: "tile-new", isPrimaryChartTile: false });
+    expect(tabs.tabs).toHaveLength(1);
+    expect(tabs.tabs[0]?.title).toBe("Default");
+    expect(tabs.tabs[0]?.layout.cells[0]?.symbol).toBe("AAPL");
+  });
+
+  it("detects persisted workspace tabs per binding", () => {
     expect(hasPersistedWorkspaceTabs()).toBe(false);
     saveWorkspaceTabs(createDefaultWorkspaceTabs());
     expect(hasPersistedWorkspaceTabs()).toBe(true);
+    expect(
+      hasPersistedWorkspaceTabs({ tileId: "tile-secondary", isPrimaryChartTile: false }),
+    ).toBe(false);
+    saveWorkspaceTabs(createDefaultWorkspaceTabs(), {
+      tileId: "tile-secondary",
+      isPrimaryChartTile: false,
+    });
+    expect(
+      hasPersistedWorkspaceTabs({ tileId: "tile-secondary", isPrimaryChartTile: false }),
+    ).toBe(true);
   });
 
   it("tracks dismissed remote workspaces locally", () => {
@@ -100,5 +141,16 @@ describe("workspaceTabsStorage", () => {
 
     const tabs = migrateLayoutToWorkspaceTabs(DEFAULT_LAYOUT);
     expect(tabs.tabs[0]?.remote?.resourceId).toBe("ws-abc");
+  });
+
+  it("clears scoped storage for a tile binding", () => {
+    saveWorkspaceTabs(createDefaultWorkspaceTabs(), {
+      tileId: "tile-secondary",
+      isPrimaryChartTile: false,
+    });
+    clearWorkspaceTabs({ tileId: "tile-secondary", isPrimaryChartTile: false });
+    expect(
+      hasPersistedWorkspaceTabs({ tileId: "tile-secondary", isPrimaryChartTile: false }),
+    ).toBe(false);
   });
 });

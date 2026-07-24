@@ -5,6 +5,7 @@ import Link from "next/link";
 import { fetchMarketResearchNotes } from "@/lib/persistence/client/marketResearchNotesClient";
 import type { MarketResearchNoteResponse } from "@/lib/persistence/schemas/marketResearchNote";
 import { EdgeEmptyState, EdgePanelHeader, EdgeSpinner } from "../design-system";
+import { linkActionClass } from "../design-system/styles";
 
 const MAX_NOTES = 5;
 
@@ -39,7 +40,7 @@ export default function HomeResearchPanel() {
           <Link
             href="/research"
             data-testid="home-research-open"
-            className="text-xs text-[var(--edge-accent-blue)] hover:underline"
+            className={linkActionClass()}
           >
             Open
           </Link>

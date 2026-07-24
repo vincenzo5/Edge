@@ -12,6 +12,7 @@ import {
   computeScreenerExpandedSidebarWidth,
   clampSidebarWidthOnPanelLeave,
 } from "@/lib/responsive/sidebarWidth";
+import { chartOverlayRightInsetPx } from "@/lib/responsive/chartOverlayInset";
 import {
   LAYOUT_DIMENSIONS,
   RESPONSIVE_BREAKPOINTS,
@@ -31,6 +32,7 @@ type Args = {
 
 export function useStockAppSidebarController({ layout, setLayout, hydratedRef }: Args) {
   const [screenerPanelExpanded, setScreenerPanelExpanded] = useState(false);
+  const [widthPreview, setWidthPreview] = useState<number | null>(null);
   const screenerPreExpandWidthRef = useRef<number | null>(null);
   const responsive = useResponsiveLayout();
   const activePanel = layout.sidebar?.activePanel ?? null;
@@ -223,9 +225,22 @@ export function useStockAppSidebarController({ layout, setLayout, hydratedRef }:
     handleSidebarWidthChange(restore);
   }, [handleSidebarWidthChange]);
 
+  const displayPanelWidth = widthPreview ?? sidebarPanelWidth;
+  const overlayInsetPx = chartOverlayRightInsetPx({
+    activePanel,
+    isFloating: isPanelFloating,
+    panelWidth: displayPanelWidth,
+  });
+
+  useEffect(() => {
+    setWidthPreview(null);
+  }, [sidebarPanelWidth, activePanel, isPanelFloating]);
+
   const sidebarPanelWidthContext = useMemo(
     () => ({
       panelWidth: sidebarPanelWidth,
+      overlayInsetPx,
+      setWidthPreview,
       viewportWidth: responsive.viewportWidth,
       isExpanded: screenerPanelExpanded,
       canExpand: activePanel === "screener" && !isPanelFloating,
@@ -237,6 +252,7 @@ export function useStockAppSidebarController({ layout, setLayout, hydratedRef }:
       handleScreenerCollapse,
       handleScreenerExpand,
       isPanelFloating,
+      overlayInsetPx,
       responsive.viewportWidth,
       screenerPanelExpanded,
       sidebarPanelWidth,

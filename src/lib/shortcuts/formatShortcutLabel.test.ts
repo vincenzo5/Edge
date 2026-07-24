@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { getShortcutLabel, SHORTCUT_BINDINGS } from "./formatShortcutLabel";
+import type { ShortcutId } from "./shortcutTypes";
 
 describe("formatShortcutLabel", () => {
   beforeEach(() => {
@@ -13,13 +14,24 @@ describe("formatShortcutLabel", () => {
   it("formats mac shortcuts with symbols", () => {
     expect(getShortcutLabel("undo")).toBe("⌘ Z");
     expect(getShortcutLabel("redo")).toBe("⌘ ⇧ Z");
-    expect(getShortcutLabel("quickSearch")).toBe("⌘ K");
+    expect(getShortcutLabel("openCommandPalette")).toBe("⌘ K");
+    expect(getShortcutLabel("changeSymbol")).toBe("/");
     expect(getShortcutLabel("snapshotDownload")).toBe("⌥ ⌘ S");
+    expect(getShortcutLabel("lockDrawing")).toBe("⌥ ⇧ L");
   });
 
   it("includes every shortcut id in bindings", () => {
     const ids = [
-      "quickSearch",
+      "openCommandPalette",
+      "changeSymbol",
+      "openIndicators",
+      "toggleTheme",
+      "toggleAccount",
+      "toggleSettings",
+      "toggleOptions",
+      "toggleScreenerPanel",
+      "toggleTradePanel",
+      "togglePatternsPanel",
       "undo",
       "redo",
       "copyDrawing",
@@ -44,11 +56,13 @@ describe("formatShortcutLabel", () => {
       "patternCaptureToggle",
       "patternCaptureUndo",
       "patternCaptureSave",
-    ] as const;
+    ] as const satisfies readonly ShortcutId[];
 
     for (const id of ids) {
-      expect(SHORTCUT_BINDINGS[id].length).toBeGreaterThan(0);
-      expect(getShortcutLabel(id)).not.toBe("");
+      expect(SHORTCUT_BINDINGS[id]).toBeDefined();
+      if (SHORTCUT_BINDINGS[id].length > 0) {
+        expect(getShortcutLabel(id)).not.toBe("");
+      }
     }
   });
 });

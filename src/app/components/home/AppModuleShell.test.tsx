@@ -10,6 +10,10 @@ vi.mock("../AccountProvider", () => ({
   AccountProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("../AppThemeProvider", () => ({
+  AppThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock("../AccountAliasesProvider", () => ({
   AccountAliasesProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

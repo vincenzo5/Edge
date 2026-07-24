@@ -36,16 +36,20 @@ export default async function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t='dark';" +
-              "var raw=localStorage.getItem('tv-ai:workspace-tabs:v1');" +
+              "try{var t='dark';var p='midnight';" +
+              "var appTheme=localStorage.getItem('edge:app:theme:v1');" +
+              "if(appTheme==='light'||appTheme==='dark'){t=appTheme;}" +
+              "else{var raw=localStorage.getItem('tv-ai:workspace-tabs:v1');" +
               "if(raw){var parsed=JSON.parse(raw);" +
               "var tab=(parsed.tabs||[]).find(function(x){return x.id===parsed.activeTabId;})||(parsed.tabs||[])[0];" +
               "var theme=tab&&tab.layout&&tab.layout.theme;" +
               "if(theme==='light'||theme==='dark')t=theme;}" +
               "if(t==='dark'){var legacy=localStorage.getItem('tv-ai:layout:v1');" +
-              "if(legacy){var lp=JSON.parse(legacy);if(lp&&(lp.theme==='light'||lp.theme==='dark'))t=lp.theme;}}" +
-              "var el=document.documentElement;el.classList.remove('light','dark');el.classList.add(t);}" +
-              "catch(e){var el=document.documentElement;el.classList.remove('light','dark');el.classList.add('dark');}",
+              "if(legacy){var lp=JSON.parse(legacy);if(lp&&(lp.theme==='light'||lp.theme==='dark'))t=lp.theme;}}}" +
+              "var appPalette=localStorage.getItem('edge:app:palette:v1');" +
+              "if(appPalette==='midnight'||appPalette==='graphite'||appPalette==='slate'){p=appPalette;}" +
+              "var el=document.documentElement;el.classList.remove('light','dark');el.classList.add(t);el.dataset.palette=p;}" +
+              "catch(e){var el=document.documentElement;el.classList.remove('light','dark');el.classList.add('dark');el.dataset.palette='midnight';}",
           }}
         />
       </head>

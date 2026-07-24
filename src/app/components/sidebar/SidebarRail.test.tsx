@@ -3,15 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import SidebarRail from './SidebarRail';
 
 describe('SidebarRail', () => {
-  const onThemeChange = vi.fn();
-
-  it('renders the icon rail in the specified order', () => {
+  it('renders the icon rail in the specified order without a theme toggle', () => {
     render(
       <SidebarRail
         theme="dark"
         activePanel={null}
         onTogglePanel={vi.fn()}
-        onThemeChange={onThemeChange}
       />,
     );
 
@@ -22,7 +19,9 @@ describe('SidebarRail', () => {
       'watchlist',
       'options',
       'screener',
+      'patterns',
       'object-tree',
+      'trade',
       'account',
       'settings',
     ];
@@ -30,26 +29,8 @@ describe('SidebarRail', () => {
       expect(screen.getByTestId(`sidebar-rail-${id}`)).toBeInTheDocument();
     }
 
-    expect(screen.getByTestId('sidebar-rail-theme-toggle')).toBeInTheDocument();
-    expect(screen.getByTestId('sidebar-rail-theme-toggle').compareDocumentPosition(
-      screen.getByTestId('sidebar-rail-settings'),
-    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-
-    expect(screen.getByTestId('sidebar-rail-watchlist').compareDocumentPosition(
-      screen.getByTestId('sidebar-rail-options'),
-    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(screen.getByTestId('sidebar-rail-options').compareDocumentPosition(
-      screen.getByTestId('sidebar-rail-screener'),
-    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(screen.getByTestId('sidebar-rail-screener').compareDocumentPosition(
-      screen.getByTestId('sidebar-rail-object-tree'),
-    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(screen.getByTestId('sidebar-rail-object-tree').compareDocumentPosition(
-      screen.getByTestId('sidebar-rail-account'),
-    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(screen.getByTestId('sidebar-rail-account').compareDocumentPosition(
-      screen.getByTestId('sidebar-rail-settings'),
-    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.queryByTestId('sidebar-rail-theme-toggle')).not.toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-rail-settings')).toHaveAttribute('aria-label', 'Risk calculator');
   });
 
   it('opens the object tree panel when rail icon is clicked', () => {
@@ -60,27 +41,10 @@ describe('SidebarRail', () => {
         theme="dark"
         activePanel={null}
         onTogglePanel={onTogglePanel}
-        onThemeChange={onThemeChange}
       />,
     );
 
     fireEvent.click(screen.getByTestId('sidebar-rail-object-tree'));
     expect(onTogglePanel).toHaveBeenCalledWith('object-tree');
-  });
-
-  it('toggles theme from the footer rail button', () => {
-    onThemeChange.mockClear();
-
-    render(
-      <SidebarRail
-        theme="dark"
-        activePanel={null}
-        onTogglePanel={vi.fn()}
-        onThemeChange={onThemeChange}
-      />,
-    );
-
-    fireEvent.click(screen.getByTestId('sidebar-rail-theme-toggle'));
-    expect(onThemeChange).toHaveBeenCalledWith('light');
   });
 });

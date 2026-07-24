@@ -21,6 +21,8 @@ export const FLOATING_PANEL_DEFAULTS: Record<
   settings: { width: 480, height: 400, x: 48, y: 48 },
   trade: { width: 400, height: 520, x: 48, y: 48 },
   patterns: { width: 480, height: 560, x: 48, y: 48 },
+  "day-profiles": { width: 480, height: 560, x: 48, y: 48 },
+  copilot: { width: 420, height: 640, x: 48, y: 48 },
 };
 
 export function getPanelPresentation(

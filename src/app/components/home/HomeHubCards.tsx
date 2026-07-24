@@ -2,8 +2,23 @@
 
 import Link from "next/link";
 import { recordLastModule } from "@/lib/app/lastModule";
+import { panelTitleClass } from "../design-system/styles";
 
 const MODULES = [
+  {
+    module: "copilot" as const,
+    href: "/copilot",
+    title: "Talk",
+    description: "Ask Copilot and build research with AI-first conversation.",
+    testId: "home-hub-copilot",
+  },
+  {
+    module: "research" as const,
+    href: "/research",
+    title: "Board",
+    description: "Open the research board shell — spatial cards arrive in a later phase.",
+    testId: "home-hub-research",
+  },
   {
     module: "chart" as const,
     href: "/chart",
@@ -25,21 +40,12 @@ const MODULES = [
     description: "Run screens and review results in a dedicated workflow.",
     testId: "home-hub-screener",
   },
-  {
-    module: "research" as const,
-    href: "/research",
-    title: "Research",
-    description: "Thesis notes linked to symbols and charts.",
-    testId: "home-hub-research",
-  },
 ];
 
 export default function HomeHubCards() {
   return (
     <section data-testid="home-hub-cards">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--edge-text-muted)]">
-        Modules
-      </h2>
+      <h2 className={`mb-3 ${panelTitleClass()} uppercase tracking-wide`}>Modules</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {MODULES.map((item) => (
           <Link

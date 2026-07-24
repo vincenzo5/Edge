@@ -1,6 +1,7 @@
 "use client";
 
-import { type ComponentProps } from "react";
+import { type ComponentProps, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import ChartGrid from "./ChartGrid";
 import RightSidebar from "./sidebar/RightSidebar";
 import SidebarRail from "./sidebar/SidebarRail";
@@ -13,14 +14,28 @@ import { useStockAppBootstrap } from "./stock-app/useStockAppBootstrap";
 import { useStockAppSidebarController } from "./stock-app/useStockAppSidebarController";
 import { useStockAppLayoutController } from "./stock-app/useStockAppLayoutController";
 import { AppProviders } from "./stock-app/AppProviders";
+import { useAppTheme } from "./AppThemeProvider";
+import { buildAlertPrefillWorkspaceLink } from "@/lib/alerts/openAlertPrefill";
+import {
+  layoutHasScriptIndicators,
+  useScriptLibraryAutoMountFromLayout,
+} from "@/lib/scriptLibrary";
+import type { ChartTileBootstrapBinding } from "@/lib/app/bootstrap/chartTileBootstrapBinding";
 
 type Props = {
   /** When true, publishes live quote to the browser tab title. */
   isPrimaryChart?: boolean;
+  chartTileBinding?: ChartTileBootstrapBinding;
+  onChartWorkspaceIdCreated?: (resourceId: string) => void;
 };
 
-export default function StockApp({ isPrimaryChart = true }: Props) {
-  const bootstrap = useStockAppBootstrap();
+export default function StockApp({
+  isPrimaryChart = true,
+  chartTileBinding,
+  onChartWorkspaceIdCreated,
+}: Props) {
+  const { theme, palette } = useAppTheme();
+  const bootstrap = useStockAppBootstrap({ chartTileBinding, onChartWorkspaceIdCreated });
   const sidebar = useStockAppSidebarController({
     layout: bootstrap.layout,
     setLayout: bootstrap.setLayout,
@@ -36,6 +51,11 @@ export default function StockApp({ isPrimaryChart = true }: Props) {
     hydratedRef: bootstrap.hydratedRef,
     handleSidebarPanelChange: sidebar.handleSidebarPanelChange,
   });
+
+  useScriptLibraryAutoMountFromLayout(
+    bootstrap.hydrated,
+    layoutHasScriptIndicators(bootstrap.layout),
+  );
 
   if (!bootstrap.hydrated) {
     return <AppHydrationShell />;
@@ -54,6 +74,7 @@ export default function StockApp({ isPrimaryChart = true }: Props) {
       sidebarPanelWidthContext={sidebar.sidebarPanelWidthContext}
       onSidebarPanelChange={sidebar.handleSidebarPanelChange}
       onSymbolSelect={layoutController.handleSymbolSelect}
+      addScriptIndicatorToActiveChart={layoutController.addScriptIndicatorToActiveChart}
       isPrimaryChart={isPrimaryChart}
     >
       <ChartHeaderBarWithTrade
@@ -64,7 +85,7 @@ export default function StockApp({ isPrimaryChart = true }: Props) {
           linkInterval: bootstrap.layout.linkInterval,
           linkCrosshair: bootstrap.layout.linkCrosshair,
           linkDrawings: bootstrap.layout.linkDrawings,
-          theme: bootstrap.layout.theme,
+          theme,
         }}
         workspaceActions={{
           onRenameLayout: layoutController.handleTabRename,
@@ -97,9 +118,11 @@ export default function StockApp({ isPrimaryChart = true }: Props) {
               layoutId={bootstrap.layout.layoutId}
               linkCrosshair={bootstrap.layout.linkCrosshair}
               linkDrawings={bootstrap.layout.linkDrawings}
-              theme={bootstrap.layout.theme}
+              theme={theme}
+              palette={palette}
               cells={layoutController.cells}
               activeCellIndex={layoutController.activeCellIndex}
+              isPrimaryChart={isPrimaryChart}
               toolbarPrefs={bootstrap.layout.toolbarPrefs ?? DEFAULT_TOOLBAR_PREFS}
               railMode={sidebar.responsive.railMode}
               symbolNav={{
@@ -133,20 +156,32 @@ export default function StockApp({ isPrimaryChart = true }: Props) {
           </div>
         </div>
         <SidebarRail
-          theme={bootstrap.layout.theme}
+          theme={theme}
           activePanel={sidebar.activePanel}
           railMode={sidebar.responsive.railMode}
           onTogglePanel={sidebar.handleSidebarToggle}
-          onThemeChange={layoutController.handleThemeChange}
         />
       </div>
     </AppProviders>
   );
 }
 
-type ChartHeaderBarWithTradeProps = Omit<ComponentProps<typeof ChartHeaderBar>, "onOpenTrade">;
+type ChartHeaderBarWithTradeProps = Omit<ComponentProps<typeof ChartHeaderBar>, "onOpenTrade" | "onOpenAlert">;
 
 function ChartHeaderBarWithTrade(props: ChartHeaderBarWithTradeProps) {
   const { openTradePanel } = useTradeSetupBinding();
-  return <ChartHeaderBar {...props} onOpenTrade={openTradePanel} />;
+  const router = useRouter();
+  const onOpenAlert = useCallback(() => {
+    const symbol = props.chart.symbol.trim().toUpperCase();
+    if (!symbol) return;
+    router.push(
+      buildAlertPrefillWorkspaceLink({
+        symbol,
+        operator: "cross_above",
+        price: 0,
+      }),
+    );
+  }, [props.chart.symbol, router]);
+
+  return <ChartHeaderBar {...props} onOpenTrade={openTradePanel} onOpenAlert={onOpenAlert} />;
 }

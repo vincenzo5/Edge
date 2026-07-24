@@ -1,35 +1,92 @@
-import type { SnapshotAction } from "@/lib/chart/chartSnapshot";
 import { SHORTCUT_BINDINGS } from "@/lib/shortcuts/formatShortcutLabel";
 import type { ShortcutCommand } from "@/lib/shortcuts/shortcutTypes";
 import type { AppActionsContextValue } from "@/app/components/AppActionsContext";
 import type { ActiveChartSnapshot } from "@/app/components/ActiveChartContext";
-import type { QuickSearchHandlers } from "./ShortcutUIContext";
-import { cellCountFor } from "@/lib/chartConfig";
+import type { OverlayHandlers } from "./ShortcutUIContext";
+import { cellCountFor, type SidebarPanelId } from "@/lib/chartConfig";
 
 export type ShortcutCommandDeps = {
   appActions: AppActionsContextValue | null;
   activeChart: ActiveChartSnapshot | null;
-  quickSearch: QuickSearchHandlers | null;
+  commandPalette: OverlayHandlers | null;
+  symbolSearch: OverlayHandlers | null;
+  toggleTheme: (() => void) | null;
+  openPositionsMenu: OverlayHandlers | null;
+  hasOpenPositions: (() => boolean) | null;
 };
 
 function bindings(id: keyof typeof SHORTCUT_BINDINGS) {
   return SHORTCUT_BINDINGS[id];
 }
 
+function toggleSidebarPanel(
+  appActions: AppActionsContextValue,
+  panel: SidebarPanelId,
+): void {
+  const current = appActions.getLayout().sidebar?.activePanel ?? null;
+  appActions.setSidebarPanel(current === panel ? null : panel);
+}
+
 export function buildShortcutCommands(deps: ShortcutCommandDeps): ShortcutCommand[] {
-  const { appActions, activeChart, quickSearch } = deps;
+  const {
+    appActions,
+    activeChart,
+    commandPalette,
+    symbolSearch,
+    toggleTheme,
+    openPositionsMenu,
+    hasOpenPositions,
+  } = deps;
   const chart = activeChart?.chartCommands;
   const drawing = activeChart?.drawingCommands;
   const ui = activeChart?.uiCommands;
 
   const commands: ShortcutCommand[] = [];
 
-  if (quickSearch) {
+  if (commandPalette) {
     commands.push({
-      id: "quickSearch",
+      id: "openCommandPalette",
       scope: "app",
-      keys: bindings("quickSearch"),
-      run: () => quickSearch.open(),
+      keys: bindings("openCommandPalette"),
+      run: () => commandPalette.open(),
+    });
+  }
+
+  if (symbolSearch) {
+    commands.push({
+      id: "changeSymbol",
+      scope: "app",
+      keys: bindings("changeSymbol"),
+      enabled: () => !commandPalette?.isOpen(),
+      run: () => symbolSearch.open(),
+    });
+  }
+
+  if (toggleTheme) {
+    commands.push({
+      id: "toggleTheme",
+      scope: "app",
+      keys: bindings("toggleTheme"),
+      run: () => toggleTheme(),
+    });
+  }
+
+  if (openPositionsMenu) {
+    commands.push({
+      id: "openPositions",
+      scope: "app",
+      keys: bindings("openPositions"),
+      enabled: () => (hasOpenPositions ? hasOpenPositions() : true),
+      run: () => openPositionsMenu.open(),
+    });
+  }
+
+  if (activeChart) {
+    commands.push({
+      id: "openIndicators",
+      scope: "chart",
+      keys: bindings("openIndicators"),
+      run: () => activeChart.openIndicatorPicker(),
     });
   }
 
@@ -158,19 +215,55 @@ export function buildShortcutCommands(deps: ShortcutCommandDeps): ShortcutComman
         id: "toggleObjectTree",
         scope: "app",
         keys: bindings("toggleObjectTree"),
-        run: () => {
-          const current = layout.sidebar?.activePanel ?? null;
-          appActions.setSidebarPanel(current === "object-tree" ? null : "object-tree");
-        },
+        run: () => toggleSidebarPanel(appActions, "object-tree"),
       },
       {
         id: "toggleWatchlist",
         scope: "app",
         keys: bindings("toggleWatchlist"),
-        run: () => {
-          const current = layout.sidebar?.activePanel ?? null;
-          appActions.setSidebarPanel(current === "watchlist" ? null : "watchlist");
-        },
+        run: () => toggleSidebarPanel(appActions, "watchlist"),
+      },
+      {
+        id: "toggleCopilot",
+        scope: "app",
+        keys: bindings("toggleCopilot"),
+        run: () => toggleSidebarPanel(appActions, "copilot"),
+      },
+      {
+        id: "toggleAccount",
+        scope: "app",
+        keys: bindings("toggleAccount"),
+        run: () => toggleSidebarPanel(appActions, "account"),
+      },
+      {
+        id: "toggleSettings",
+        scope: "app",
+        keys: bindings("toggleSettings"),
+        run: () => toggleSidebarPanel(appActions, "settings"),
+      },
+      {
+        id: "toggleOptions",
+        scope: "app",
+        keys: bindings("toggleOptions"),
+        run: () => toggleSidebarPanel(appActions, "options"),
+      },
+      {
+        id: "toggleScreenerPanel",
+        scope: "app",
+        keys: bindings("toggleScreenerPanel"),
+        run: () => toggleSidebarPanel(appActions, "screener"),
+      },
+      {
+        id: "toggleTradePanel",
+        scope: "app",
+        keys: bindings("toggleTradePanel"),
+        run: () => toggleSidebarPanel(appActions, "trade"),
+      },
+      {
+        id: "togglePatternsPanel",
+        scope: "app",
+        keys: bindings("togglePatternsPanel"),
+        run: () => toggleSidebarPanel(appActions, "patterns"),
       },
       {
         id: "toggleLinkedLayout",
@@ -226,7 +319,9 @@ export function buildShortcutCommands(deps: ShortcutCommandDeps): ShortcutComman
     id: "fullscreen",
     scope: "app",
     keys: bindings("fullscreen"),
-    enabled: () => typeof document !== "undefined" && typeof document.documentElement.requestFullscreen === "function",
+    enabled: () =>
+      typeof document !== "undefined" &&
+      typeof document.documentElement.requestFullscreen === "function",
     run: () => {
       if (typeof document === "undefined") return;
       if (document.fullscreenElement) {
@@ -238,4 +333,16 @@ export function buildShortcutCommands(deps: ShortcutCommandDeps): ShortcutComman
   });
 
   return commands;
+}
+
+/** Commands exposed in the palette (includes palette-only entries without key bindings). */
+export function buildPaletteCommands(deps: ShortcutCommandDeps): ShortcutCommand[] {
+  return buildShortcutCommands(deps);
+}
+
+export function findCommandById(
+  commands: ShortcutCommand[],
+  id: ShortcutCommand["id"],
+): ShortcutCommand | undefined {
+  return commands.find((command) => command.id === id);
 }

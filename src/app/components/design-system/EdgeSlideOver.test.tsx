@@ -23,6 +23,23 @@ describe("EdgeSlideOver", () => {
     expect(screen.queryByTestId("edge-slide-over-panel")).not.toBeInTheDocument();
   });
 
+  it("uses ariaLabel when title is not a plain string", () => {
+    render(
+      <EdgeSlideOver
+        open
+        title={<span>Rich title</span>}
+        ariaLabel="Trade detail panel"
+        onClose={vi.fn()}
+      >
+        <div>Panel body</div>
+      </EdgeSlideOver>,
+    );
+    expect(screen.getByTestId("edge-slide-over-panel")).toHaveAttribute(
+      "aria-label",
+      "Trade detail panel",
+    );
+  });
+
   it("calls onClose from backdrop, close button, and Escape", () => {
     const onClose = vi.fn();
     render(
@@ -37,7 +54,7 @@ describe("EdgeSlideOver", () => {
     fireEvent.click(screen.getByTestId("edge-slide-over-close"));
     expect(onClose).toHaveBeenCalledTimes(2);
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(3);
   });
 });

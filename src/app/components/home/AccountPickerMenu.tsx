@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import EdgeBorderLabeledControl from "../design-system/EdgeBorderLabeledControl";
 import EdgeIconButton from "../design-system/EdgeIconButton";
+import { headerChipClass, bodyTextClass } from "../design-system/styles";
 import { SettingsIcon } from "../chart-chrome/ChartHeaderIcons";
 import {
   accountPickerLabel,
@@ -18,6 +20,8 @@ type Props = {
   loading: boolean;
   onSelectAccount: (account: TradingAccount) => void;
   onSetAlias: (account: TradingAccount, alias: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export default function AccountPickerMenu({
@@ -27,10 +31,27 @@ export default function AccountPickerMenu({
   loading,
   onSelectAccount,
   onSetAlias,
+  open: openProp,
+  onOpenChange,
 }: Props) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const labelId = useId();
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : internalOpen;
+
+  const setOpen = useCallback(
+    (next: boolean | ((value: boolean) => boolean)) => {
+      const resolved = typeof next === "function" ? next(open) : next;
+      if (isControlled) {
+        onOpenChange?.(resolved);
+      } else {
+        setInternalOpen(resolved);
+      }
+    },
+    [isControlled, onOpenChange, open],
+  );
 
   const selectedKey = selectedAccount ? tradingAccountKey(selectedAccount) : "";
   const selectedLabel = selectedAccount
@@ -74,34 +95,37 @@ export default function AccountPickerMenu({
 
   return (
     <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        id="app-account-picker"
-        data-testid="app-account-picker"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        disabled={loading || accounts.length === 0}
-        className="edge-focus-ring flex max-w-[14rem] items-center gap-1 rounded border border-[var(--edge-border)] bg-transparent px-2 py-1 text-xs text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="min-w-0 flex-1 truncate text-left">{selectedLabel}</span>
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 10 10"
-          fill="none"
-          aria-hidden
-          className={`shrink-0 text-[var(--edge-text-secondary)] transition-transform ${open ? "rotate-180" : ""}`}
+      <EdgeBorderLabeledControl label="Account" labelId={labelId} labelSurface="toolbar">
+        <button
+          type="button"
+          id="app-account-picker"
+          data-testid="app-account-picker"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-labelledby={labelId}
+          disabled={loading || accounts.length === 0}
+          className={`edge-focus-ring ${headerChipClass(loading || accounts.length === 0)} max-w-[14rem] bg-transparent`}
+          onClick={() => setOpen((value) => !value)}
         >
-          <path
-            d="M2 3.5L5 6.5L8 3.5"
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          <span className="min-w-0 flex-1 truncate text-left">{selectedLabel}</span>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="none"
+            aria-hidden
+            className={`shrink-0 text-[var(--edge-text-secondary)] transition-transform ${open ? "rotate-180" : ""}`}
+          >
+            <path
+              d="M2 3.5L5 6.5L8 3.5"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </EdgeBorderLabeledControl>
 
       {open ? (
         <div
@@ -121,7 +145,7 @@ export default function AccountPickerMenu({
                   role="option"
                   aria-selected={isSelected}
                   data-testid={`app-account-picker-option-${key}`}
-                  className={`edge-focus-ring flex w-full items-center px-3 py-1.5 text-left text-xs hover:bg-[var(--edge-surface-hover)] ${
+                  className={`edge-focus-ring flex w-full min-h-[var(--edge-control-height-compact)] items-center px-[var(--edge-space-3)] text-left ${bodyTextClass()} hover:bg-[var(--edge-surface-hover)] ${
                     isSelected
                       ? "bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]"
                       : "text-[var(--edge-text-primary)]"
@@ -149,7 +173,7 @@ export default function AccountPickerMenu({
               <div className="flex w-full justify-center py-1">
                 <EdgeIconButton
                   theme="dark"
-                  size="sm"
+                  size="compact"
                   aria-label="Account display settings"
                   data-testid="app-account-aliases-settings"
                   onClick={() => setSettingsOpen(true)}

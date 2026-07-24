@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { HomeWorkspaceSummary } from "@/lib/app/buildHomeWorkspaceSummaries";
 import { EdgeButton } from "../design-system";
+import { panelTitleClass } from "../design-system/styles";
 
 type Props = {
   summary: HomeWorkspaceSummary | null;
@@ -27,7 +28,7 @@ export default function HomeContinueCard({ summary, loaded }: Props) {
         data-testid="home-continue-card"
         className="rounded-[var(--edge-radius-md)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] p-4"
       >
-        <h2 className="text-sm font-semibold text-[var(--edge-text-strong)]">Continue</h2>
+        <h2 className={panelTitleClass(true)}>Continue</h2>
         <p className="mt-2 text-sm text-[var(--edge-text-secondary)]">No workspace found.</p>
         <Link href="/chart" className="mt-4 inline-block">
           <EdgeButton variant="primary">Open charts</EdgeButton>
@@ -41,9 +42,7 @@ export default function HomeContinueCard({ summary, loaded }: Props) {
       data-testid="home-continue-card"
       className="rounded-[var(--edge-radius-md)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] p-4"
     >
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--edge-text-muted)]">
-        Continue
-      </h2>
+      <h2 className={`${panelTitleClass()} uppercase tracking-wide`}>Continue</h2>
       <p className="mt-2 text-base font-semibold text-[var(--edge-text-strong)]">
         {summary.title}
       </p>

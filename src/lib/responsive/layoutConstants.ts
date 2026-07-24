@@ -11,6 +11,17 @@ export const SCREENER_SIDEBAR_WIDTH_VIEWPORT_RATIO = 0.9;
 /** Below this width the screener stacks presets as horizontal chips instead of a left column. */
 export const SCREENER_NARROW_LAYOUT_THRESHOLD = 520;
 
+/** Tile content width thresholds for compact / standard / wide density modes. */
+export const TILE_DENSITY_BREAKPOINTS = {
+  /** Same as screener narrow — collapse nested rails and single-column cards. */
+  compact: SCREENER_NARROW_LAYOUT_THRESHOLD,
+  /** Two-column metric grids; side columns allowed where useful. */
+  standard: 900,
+} as const;
+
+/** Hysteresis band when dragging workspace splitters (matches home shell). */
+export const TILE_DENSITY_HYSTERESIS = 24;
+
 export const LAYOUT_DIMENSIONS = {
   sidebarPanelWidth: 300,
   sidebarPanelWidthMin: 260,

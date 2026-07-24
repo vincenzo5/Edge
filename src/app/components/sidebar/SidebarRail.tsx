@@ -4,6 +4,8 @@ import type { CSSProperties } from "react";
 import type { SidebarPanelId, Theme } from "@/lib/chartConfig";
 import type { RailMode } from "@/lib/responsive/responsiveLayout";
 import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
+import { countOpenPositions } from "@/lib/trading/openRiskSummary";
+import { useAccountOptional } from "../AccountProvider";
 import Tooltip from "../Tooltip";
 import {
   iconRailButtonClass,
@@ -12,14 +14,12 @@ import {
   toolbarButtonStateClass,
 } from "../chart-icons/toolbarButtonStyles";
 import { SIDEBAR_FOOTER_PANELS, SIDEBAR_MAIN_PANELS, type SidebarPanelDef } from "./registry";
-import { MoonIcon, SunIcon } from "../chart-chrome/ChartHeaderIcons";
 
 type Props = {
   theme: Theme;
   activePanel: SidebarPanelId | null;
   railMode?: RailMode;
   onTogglePanel: (id: SidebarPanelId) => void;
-  onThemeChange: (theme: Theme) => void;
 };
 
 function RailButton({
@@ -27,12 +27,14 @@ function RailButton({
   theme,
   active,
   compact,
+  badgeCount,
   onTogglePanel,
 }: {
   panel: SidebarPanelDef;
   theme: Theme;
   active: boolean;
   compact: boolean;
+  badgeCount?: number;
   onTogglePanel: (id: SidebarPanelId) => void;
 }) {
   const Icon = panel.Icon;
@@ -47,7 +49,17 @@ function RailButton({
         data-active={active ? "true" : "false"}
         className={`${iconRailButtonClass(compact)} ${toolbarButtonStateClass(active)}`}
       >
-        <Icon className={iconRailIconClass(compact)} />
+        <span className="relative inline-flex">
+          <Icon className={iconRailIconClass(compact)} />
+          {badgeCount != null && badgeCount > 0 ? (
+            <span
+              data-testid={`sidebar-rail-${panel.id}-badge`}
+              className="absolute -right-1 -top-1 inline-flex min-h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--edge-accent-blue)] px-0.5 text-[9px] font-semibold leading-none text-white"
+            >
+              {badgeCount > 9 ? "9+" : badgeCount}
+            </span>
+          ) : null}
+        </span>
       </button>
     </Tooltip>
   );
@@ -58,14 +70,14 @@ export default function SidebarRail({
   activePanel,
   railMode = "full",
   onTogglePanel,
-  onThemeChange,
 }: Props) {
   const compact = railMode === "compact";
+  const account = useAccountOptional();
+  const openPositionCount = account ? countOpenPositions(account.positions) : 0;
   const railWidth =
     railMode === "compact"
       ? LAYOUT_DIMENSIONS.compactSidebarRailWidth
       : LAYOUT_DIMENSIONS.sidebarRailWidth;
-  const themeLabel = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
 
   return (
     <div
@@ -93,21 +105,6 @@ export default function SidebarRail({
       </div>
       <div className="min-h-2 flex-1" aria-hidden />
       <div className="flex flex-col items-stretch gap-0.5">
-        <Tooltip content={themeLabel} theme={theme} side="left" portaled>
-          <button
-            type="button"
-            data-testid="sidebar-rail-theme-toggle"
-            aria-label={themeLabel}
-            onClick={() => onThemeChange(theme === "dark" ? "light" : "dark")}
-            className={iconRailButtonClass(compact)}
-          >
-            {theme === "dark" ? (
-              <SunIcon className={iconRailIconClass(compact)} />
-            ) : (
-              <MoonIcon className={iconRailIconClass(compact)} />
-            )}
-          </button>
-        </Tooltip>
         {SIDEBAR_FOOTER_PANELS.map((panel) => (
           <RailButton
             key={panel.id}
@@ -115,6 +112,7 @@ export default function SidebarRail({
             theme={theme}
             active={activePanel === panel.id}
             compact={compact}
+            badgeCount={panel.id === "account" ? openPositionCount : undefined}
             onTogglePanel={onTogglePanel}
           />
         ))}

@@ -1,4 +1,11 @@
-export type AppModule = "home" | "chart" | "journal" | "research" | "screener" | "workspace";
+export type AppModule =
+  | "home"
+  | "chart"
+  | "journal"
+  | "research"
+  | "screener"
+  | "workspace"
+  | "copilot";
 
 export const LAST_MODULE_STORAGE_KEY = "tv-ai:last-module:v1";
 export const LAST_MODULE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -20,7 +27,8 @@ export function readLastModuleRecord(raw: string | null): LastModuleRecord | nul
       parsed.module !== "journal" &&
       parsed.module !== "research" &&
       parsed.module !== "screener" &&
-      parsed.module !== "workspace"
+      parsed.module !== "workspace" &&
+      parsed.module !== "copilot"
     ) {
       return null;
     }

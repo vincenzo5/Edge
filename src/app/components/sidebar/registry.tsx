@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 import type { SidebarPanelId } from "@/lib/chartConfig";
 import { ObjectTreePanel } from "./panels/ObjectTreePanel";
@@ -7,10 +8,27 @@ import { WatchlistSidebarPanel } from "./panels/WatchlistPanel";
 import { AccountSidebarPanel } from "./panels/AccountSidebarPanel";
 import { RiskSettingsSidebarPanel } from "./panels/RiskSettingsSidebarPanel";
 import { OptionsSidebarPanel } from "./panels/OptionsPanel";
-import { ScreenerSidebarPanel } from "./panels/ScreenerSidebarPanel";
 import { TradeSidebarPanel } from "./panels/TradeSidebarPanel";
 import { PatternsSidebarPanel } from "./panels/PatternsPanel";
-import { CogIcon } from "../chart-chrome/ChartHeaderIcons";
+import { DayProfilesSidebarPanel } from "./panels/DayProfilesPanel";
+import SidebarPanelLoading from "./SidebarPanelLoading";
+import { CalculatorIcon } from "../chart-chrome/ChartHeaderIcons";
+
+const ScreenerSidebarPanel = dynamic(
+  () => import("./panels/ScreenerSidebarPanel").then((module) => ({ default: module.ScreenerSidebarPanel })),
+  {
+    ssr: false,
+    loading: () => <SidebarPanelLoading label="Stock screener" />,
+  },
+);
+
+const CopilotSidebarPanel = dynamic(
+  () => import("./panels/CopilotSidebarPanel").then((module) => ({ default: module.CopilotSidebarPanel })),
+  {
+    ssr: false,
+    loading: () => <SidebarPanelLoading label="Copilot" />,
+  },
+);
 
 export type SidebarPanelScope = "active-chart" | "app";
 
@@ -128,8 +146,40 @@ function PatternsIcon({ className }: { className?: string }) {
   );
 }
 
-function SettingsIcon({ className }: { className?: string }) {
-  return <CogIcon className={className} />;
+function DayProfilesIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+    >
+      <rect x="4" y="5" width="16" height="16" rx="1.5" />
+      <path d="M4 10h16M8 5V8M16 5V8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CopilotIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+    >
+      <path d="M12 3a7 7 0 0 1 7 7v2.5a2.5 2.5 0 0 1-2.5 2.5H14v2.5l-3-2.5H7.5A2.5 2.5 0 0 1 5 12.5V10a7 7 0 0 1 7-7z" />
+      <path d="M9 10h6M9 13h4" />
+    </svg>
+  );
+}
+
+function RiskSettingsIcon({ className }: { className?: string }) {
+  return <CalculatorIcon className={className} />;
 }
 
 export const SIDEBAR_MAIN_PANELS: SidebarPanelDef[] = [
@@ -161,11 +211,29 @@ export const SIDEBAR_MAIN_PANELS: SidebarPanelDef[] = [
     floatingDefaults: { width: 1200, height: 700 },
   },
   {
+    id: "copilot",
+    label: "Copilot",
+    scope: "app",
+    Icon: CopilotIcon,
+    Panel: CopilotSidebarPanel,
+    supportsPopOut: true,
+    floatingDefaults: { width: 420, height: 640 },
+  },
+  {
     id: "patterns",
     label: "Patterns",
     scope: "app",
     Icon: PatternsIcon,
     Panel: PatternsSidebarPanel,
+    supportsPopOut: true,
+    floatingDefaults: { width: 480, height: 560 },
+  },
+  {
+    id: "day-profiles",
+    label: "Days",
+    scope: "app",
+    Icon: DayProfilesIcon,
+    Panel: DayProfilesSidebarPanel,
     supportsPopOut: true,
     floatingDefaults: { width: 480, height: 560 },
   },
@@ -201,9 +269,9 @@ export const SIDEBAR_MAIN_PANELS: SidebarPanelDef[] = [
 export const SIDEBAR_FOOTER_PANELS: SidebarPanelDef[] = [
   {
     id: "settings",
-    label: "Settings",
+    label: "Risk calculator",
     scope: "app",
-    Icon: SettingsIcon,
+    Icon: RiskSettingsIcon,
     Panel: RiskSettingsSidebarPanel,
     supportsPopOut: true,
     floatingDefaults: { width: 480, height: 400 },

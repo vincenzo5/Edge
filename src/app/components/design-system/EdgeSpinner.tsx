@@ -1,12 +1,13 @@
 "use client";
 
 type Props = {
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
   className?: string;
   "data-testid"?: string;
 };
 
 const sizeClass: Record<NonNullable<Props["size"]>, string> = {
+  xs: "h-3 w-3 border",
   sm: "h-4 w-4 border",
   md: "h-8 w-8 border-2",
 };

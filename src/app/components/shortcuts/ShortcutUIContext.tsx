@@ -6,34 +6,125 @@ import {
   useContext,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 
-export type QuickSearchHandlers = {
+export type OverlayHandlers = {
   open: () => void;
   close: () => void;
   isOpen: () => boolean;
 };
 
 type ShortcutUIContextValue = {
-  registerQuickSearch: (handlers: QuickSearchHandlers | null) => void;
-  getQuickSearch: () => QuickSearchHandlers | null;
+  registerCommandPalette: (handlers: OverlayHandlers | null) => void;
+  getCommandPalette: () => OverlayHandlers | null;
+  registerSymbolSearch: (handlers: OverlayHandlers | null) => void;
+  getSymbolSearch: () => OverlayHandlers | null;
+  registerThemeToggle: (handler: (() => void) | null) => void;
+  getThemeToggle: () => (() => void) | null;
+  registerOpenPositionsMenu: (handlers: OverlayHandlers | null) => void;
+  getOpenPositionsMenu: () => OverlayHandlers | null;
+  registerOpenPositionsAvailability: (handler: (() => boolean) | null) => void;
+  getOpenPositionsAvailability: () => (() => boolean) | null;
+  /** Bumps when overlay handlers register so palette rebuilds command list. */
+  registrationVersion: number;
 };
 
 const ShortcutUIContext = createContext<ShortcutUIContextValue | null>(null);
 
 export function ShortcutUIProvider({ children }: { children: ReactNode }) {
-  const quickSearchRef = useRef<QuickSearchHandlers | null>(null);
+  const commandPaletteRef = useRef<OverlayHandlers | null>(null);
+  const symbolSearchRef = useRef<OverlayHandlers | null>(null);
+  const themeToggleRef = useRef<(() => void) | null>(null);
+  const openPositionsMenuRef = useRef<OverlayHandlers | null>(null);
+  const openPositionsAvailabilityRef = useRef<(() => boolean) | null>(null);
+  const [registrationVersion, setRegistrationVersion] = useState(0);
 
-  const registerQuickSearch = useCallback((handlers: QuickSearchHandlers | null) => {
-    quickSearchRef.current = handlers;
+  const bumpRegistration = useCallback(() => {
+    setRegistrationVersion((version) => version + 1);
   }, []);
 
-  const getQuickSearch = useCallback(() => quickSearchRef.current, []);
+  const registerCommandPalette = useCallback(
+    (handlers: OverlayHandlers | null) => {
+      commandPaletteRef.current = handlers;
+      bumpRegistration();
+    },
+    [bumpRegistration],
+  );
+
+  const getCommandPalette = useCallback(() => commandPaletteRef.current, []);
+
+  const registerSymbolSearch = useCallback(
+    (handlers: OverlayHandlers | null) => {
+      symbolSearchRef.current = handlers;
+      bumpRegistration();
+    },
+    [bumpRegistration],
+  );
+
+  const getSymbolSearch = useCallback(() => symbolSearchRef.current, []);
+
+  const registerThemeToggle = useCallback(
+    (handler: (() => void) | null) => {
+      themeToggleRef.current = handler;
+      bumpRegistration();
+    },
+    [bumpRegistration],
+  );
+
+  const getThemeToggle = useCallback(() => themeToggleRef.current, []);
+
+  const registerOpenPositionsMenu = useCallback(
+    (handlers: OverlayHandlers | null) => {
+      openPositionsMenuRef.current = handlers;
+      bumpRegistration();
+    },
+    [bumpRegistration],
+  );
+
+  const getOpenPositionsMenu = useCallback(() => openPositionsMenuRef.current, []);
+
+  const registerOpenPositionsAvailability = useCallback(
+    (handler: (() => boolean) | null) => {
+      openPositionsAvailabilityRef.current = handler;
+      bumpRegistration();
+    },
+    [bumpRegistration],
+  );
+
+  const getOpenPositionsAvailability = useCallback(
+    () => openPositionsAvailabilityRef.current,
+    [],
+  );
 
   const value = useMemo(
-    () => ({ registerQuickSearch, getQuickSearch }),
-    [registerQuickSearch, getQuickSearch],
+    () => ({
+      registerCommandPalette,
+      getCommandPalette,
+      registerSymbolSearch,
+      getSymbolSearch,
+      registerThemeToggle,
+      getThemeToggle,
+      registerOpenPositionsMenu,
+      getOpenPositionsMenu,
+      registerOpenPositionsAvailability,
+      getOpenPositionsAvailability,
+      registrationVersion,
+    }),
+    [
+      registerCommandPalette,
+      getCommandPalette,
+      registerSymbolSearch,
+      getSymbolSearch,
+      registerThemeToggle,
+      getThemeToggle,
+      registerOpenPositionsMenu,
+      getOpenPositionsMenu,
+      registerOpenPositionsAvailability,
+      getOpenPositionsAvailability,
+      registrationVersion,
+    ],
   );
 
   return (

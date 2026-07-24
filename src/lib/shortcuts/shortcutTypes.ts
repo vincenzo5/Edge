@@ -1,7 +1,16 @@
 export type ShortcutScope = "app" | "chart" | "drawing" | "modal";
 
 export type ShortcutId =
-  | "quickSearch"
+  | "openCommandPalette"
+  | "changeSymbol"
+  | "openIndicators"
+  | "toggleTheme"
+  | "toggleAccount"
+  | "toggleSettings"
+  | "toggleOptions"
+  | "toggleScreenerPanel"
+  | "toggleTradePanel"
+  | "togglePatternsPanel"
   | "undo"
   | "redo"
   | "copyDrawing"
@@ -17,6 +26,8 @@ export type ShortcutId =
   | "fullscreen"
   | "toggleObjectTree"
   | "toggleWatchlist"
+  | "toggleCopilot"
+  | "openPositions"
   | "toggleLinkedLayout"
   | "activateCell1"
   | "activateCell2"
@@ -26,6 +37,15 @@ export type ShortcutId =
   | "patternCaptureToggle"
   | "patternCaptureUndo"
   | "patternCaptureSave";
+
+export type CommandCategory =
+  | "navigation"
+  | "chart"
+  | "drawings"
+  | "panels"
+  | "layout"
+  | "view"
+  | "capture";
 
 export type KeyBinding = {
   /** Primary modifier: Meta on macOS, Ctrl elsewhere */
@@ -48,4 +68,11 @@ export type NormalizedShortcut = {
   alt: boolean;
   shift: boolean;
   key: string;
+};
+
+export type CommandCatalogEntry = {
+  id: ShortcutId;
+  label: string;
+  category: CommandCategory;
+  keywords?: string[];
 };

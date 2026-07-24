@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import type { FloatingPanelGeometry, SidebarPanelId } from "@/lib/chartConfig";
 import { PanelDockIcon } from "../chart-chrome/ChartHeaderIcons";
 import EdgeIconButton from "../design-system/EdgeIconButton";
+import { panelTitleClass } from "../design-system/styles";
 import { useFloatingPanel } from "./useFloatingPanel";
 
 type Props = {
@@ -78,7 +79,7 @@ export default function FloatingPanelShell({
           <span className="text-[var(--edge-text-muted)]" aria-hidden>
             ⠿
           </span>
-          <span className="truncate text-xs font-semibold text-[var(--edge-text-strong)]">
+          <span className={`truncate ${panelTitleClass(true)}`}>
             {title}
           </span>
           {headerActions ? <div data-no-drag>{headerActions}</div> : null}
@@ -89,22 +90,23 @@ export default function FloatingPanelShell({
               type="button"
               data-testid={`${testId ?? `floating-panel-${panelId}`}-dock`}
               onClick={onDock}
-              size="sm"
+              size="compact"
               aria-label={`Dock ${title}`}
               title="Dock"
             >
               <PanelDockIcon size={14} />
             </EdgeIconButton>
           ) : null}
-          <button
+          <EdgeIconButton
             type="button"
             data-testid={`${testId ?? `floating-panel-${panelId}`}-close`}
             onClick={onClose}
-            className="edge-icon-button edge-focus-ring rounded px-2 py-1 text-lg leading-none text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-primary)]"
+            size="compact"
             aria-label={`Close ${title}`}
+            title={`Close ${title}`}
           >
             ×
-          </button>
+          </EdgeIconButton>
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>

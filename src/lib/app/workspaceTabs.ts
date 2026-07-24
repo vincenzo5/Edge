@@ -4,6 +4,7 @@ import {
   type ChartLayout,
 } from "@/lib/chartConfig";
 import { isRemoteNewer } from "@/lib/persistence/sync/syncMetadata";
+import { layoutsContentEqual } from "@/lib/persistence/sync/layoutContentFingerprint";
 import type { ChartWorkspaceRemoteSummary } from "@/lib/persistence/client/chartWorkspaceClient";
 
 export const MAX_WORKSPACE_TABS = 12;
@@ -62,8 +63,8 @@ export function createDefaultWorkspaceTabs(
       {
         id,
         title: "Default",
-        layout,
-        ...(remote ? { remote } : {}),
+        layout: structuredClone(layout),
+        ...(remote ? { remote: { ...remote } } : {}),
       },
     ],
   };
@@ -235,11 +236,14 @@ export function mergeRemoteWorkspaces(
 
   const hasAnyRemote = local.tabs.some((tab) => tab.remote?.resourceId);
   if (!hasAnyRemote && local.tabs.length === 1 && activeRemotes.length === 1) {
+    if (!adoptOrphans) {
+      return { state: local, changed: false };
+    }
     const remote = activeRemotes[0]!;
     const remoteLayout = remote.chartLayoutSnapshot as ChartLayout;
     const tab = local.tabs[0]!;
     if (
-      JSON.stringify(remoteLayout) === JSON.stringify(tab.layout) &&
+      layoutsContentEqual(remoteLayout, tab.layout) &&
       tab.title === remote.workspaceName
     ) {
       return {
@@ -296,7 +300,7 @@ export function mergeRemoteWorkspaces(
 
     if (
       isRemoteNewer(localMeta, remote.updatedAt, remote.syncRevision) &&
-      JSON.stringify(remoteLayout) !== JSON.stringify(tab.layout)
+      !layoutsContentEqual(remoteLayout, tab.layout)
     ) {
       changed = true;
       return {

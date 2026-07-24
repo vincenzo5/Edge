@@ -118,6 +118,15 @@ vi.mock("./watchlist/WatchlistContext", async (importOriginal) => {
 });
 
 import StockApp from "./StockApp";
+import { AppThemeProvider } from "./AppThemeProvider";
+
+function renderStockApp() {
+  return render(
+    <AppThemeProvider>
+      <StockApp />
+    </AppThemeProvider>,
+  );
+}
 
 describe("StockApp bootstrap", () => {
   beforeEach(() => {
@@ -150,7 +159,7 @@ describe("StockApp bootstrap", () => {
         }),
     );
 
-    render(<StockApp />);
+    renderStockApp();
     expect(screen.getByTestId("app-hydration-shell")).toBeInTheDocument();
 
     await waitFor(() => {
@@ -160,7 +169,7 @@ describe("StockApp bootstrap", () => {
   });
 
   it("passes preloaded watchlist state to WatchlistProvider", async () => {
-    render(<StockApp />);
+    renderStockApp();
 
     await waitFor(() => {
       expect(screen.getByTestId("chart-grid")).toBeInTheDocument();
@@ -173,7 +182,7 @@ describe("StockApp bootstrap", () => {
   it("hydrates from local fallback when bootstrap rejects", async () => {
     bootstrapMock.resolveAppBootstrap.mockRejectedValue(new Error("bootstrap failed"));
 
-    render(<StockApp />);
+    renderStockApp();
     expect(screen.getByTestId("app-hydration-shell")).toBeInTheDocument();
 
     await waitFor(() => {

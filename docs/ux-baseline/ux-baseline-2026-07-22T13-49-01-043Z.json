@@ -1,0 +1,2114 @@
+{
+  "generatedAt": "2026-07-22T13:49:01.043Z",
+  "baseUrl": "http://localhost:3003",
+  "git": {
+    "commit": "798e921",
+    "branch": "main"
+  },
+  "audits": [
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 741,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 555,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 550,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 1064,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "AAPL",
+          "width": 112,
+          "height": 28,
+          "minSize": 28,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Workspace",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Period",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Limit",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 1377,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "AAPL",
+          "width": 112,
+          "height": 28,
+          "minSize": 28,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Workspace",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Period",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Limit",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 1055,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "AAPL",
+          "width": 112,
+          "height": 28,
+          "minSize": 28,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Workspace",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Period",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Limit",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 1322,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "AAPL",
+          "width": 112,
+          "height": 28,
+          "minSize": 28,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Workspace",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Period",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Limit",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 1315,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "AAPL",
+          "width": 112,
+          "height": 28,
+          "minSize": 28,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Prev",
+          "width": 43.3,
+          "height": 26,
+          "minSize": 26,
+          "testId": "journal-calendar-prev"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Next",
+          "width": 44.2,
+          "height": 26,
+          "minSize": 26,
+          "testId": "journal-calendar-next"
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": "journal-equity-help"
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Workspace",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Period",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "4",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-win-rate-badge-win"
+        },
+        {
+          "tag": "SPAN",
+          "text": "0",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-win-rate-badge-breakeven"
+        },
+        {
+          "tag": "SPAN",
+          "text": "5",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-win-rate-badge-loss"
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "$5.45K",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-avg-win-loss-label-win"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-$1.86K",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-avg-win-loss-label-loss"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "28",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-06-28"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "29",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-06-29"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "30",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-06-30"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "01-$3,6401 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-01"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "02$5,7881 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-02"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "03",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-03"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "04",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-04"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "05",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-05"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "06-$561 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-06"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "07",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-07"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "08",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-08"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "09",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-09"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "10",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-10"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "11",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-11"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "12",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-12"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13-$3,1891 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-13"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "14",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-14"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "15",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-15"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "16-$2,2981 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-16"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "17",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-17"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "18",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-18"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "19",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-19"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "20",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-20"
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "9 trades",
+          "ratio": 3.51,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(17, 24, 39)",
+          "testId": "journal-net-pnl-closed-count"
+        },
+        {
+          "tag": "P",
+          "text": "Recent",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 1643,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "AAPL",
+          "width": 112,
+          "height": 28,
+          "minSize": 28,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Prev",
+          "width": 43.3,
+          "height": 26,
+          "minSize": 26,
+          "testId": "journal-calendar-prev"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Next",
+          "width": 44.2,
+          "height": 26,
+          "minSize": 26,
+          "testId": "journal-calendar-next"
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "width": 14,
+          "height": 14,
+          "minSize": 14,
+          "testId": "journal-equity-help"
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Workspace",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Period",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "4",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-win-rate-badge-win"
+        },
+        {
+          "tag": "SPAN",
+          "text": "0",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-win-rate-badge-breakeven"
+        },
+        {
+          "tag": "SPAN",
+          "text": "5",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-win-rate-badge-loss"
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "i",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "$5.45K",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-avg-win-loss-label-win"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-$1.86K",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-avg-win-loss-label-loss"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "28",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-06-28"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "29",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-06-29"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "30",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-06-30"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "01-$3,6401 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-01"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "02$5,7881 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-02"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "03",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-03"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "04",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-04"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "05",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-05"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "06-$561 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-06"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "07",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-07"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "08",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-08"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "09",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-09"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "10",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-10"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "11",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-11"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "12",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-12"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13-$3,1891 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-13"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "14",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-14"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "15",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-15"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "16-$2,2981 trades",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-16"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "17",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-17"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "18",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-18"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "19",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "journal-calendar-day-2026-07-19"
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "327.88",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "325.69",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "327.04",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "-0.7 (-0.21%)",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "SPAN",
+          "text": "9 trades",
+          "ratio": 3.51,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(17, 24, 39)",
+          "testId": "journal-net-pnl-closed-count"
+        },
+        {
+          "tag": "P",
+          "text": "Recent",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 1677,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "AAPL",
+          "width": 112,
+          "height": 28,
+          "minSize": 28,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Workspace",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Period",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Limit",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "P",
+          "text": "Recent",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▶",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "P",
+          "text": "Preset rule (read-only)",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "P",
+          "text": "Recent",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 1673,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "AAPL",
+          "width": 112,
+          "height": 28,
+          "minSize": 28,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Workspace",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Period",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Limit",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "P",
+          "text": "Recent",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▶",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "P",
+          "text": "Preset rule (read-only)",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "P",
+          "text": "Recent",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 1682,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "AAPL",
+          "width": 112,
+          "height": 28,
+          "minSize": 28,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Workspace",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Data",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Account",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Period",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Limit",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "P",
+          "text": "Recent",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▶",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "P",
+          "text": "Preset rule (read-only)",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "P",
+          "text": "Recent",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    }
+  ],
+  "captures": [
+    {
+      "id": "home",
+      "filename": "home-1024.webp",
+      "width": 1024,
+      "path": "docs/assets/ux-polish/phase-0/home-1024.webp"
+    },
+    {
+      "id": "home",
+      "filename": "home-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/home-1440.webp"
+    },
+    {
+      "id": "home",
+      "filename": "home-1920.webp",
+      "width": 1920,
+      "path": "docs/assets/ux-polish/phase-0/home-1920.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1024.webp",
+      "width": 1024,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1024.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1440.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1920.webp",
+      "width": 1920,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1920.webp"
+    },
+    {
+      "id": "workspace-screener-empty",
+      "filename": "workspace-screener-empty-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-screener-empty-1440.webp"
+    },
+    {
+      "id": "workspace-journal-empty",
+      "filename": "workspace-journal-empty-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-journal-empty-1440.webp"
+    },
+    {
+      "id": "workspace-journal-import-modal",
+      "filename": "workspace-journal-import-modal-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-journal-import-modal-1440.webp"
+    },
+    {
+      "id": "workspace-chart-type-popover",
+      "filename": "workspace-chart-type-popover-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-type-popover-1440.webp"
+    }
+  ],
+  "sourceColorAudit": {
+    "rawHexFileCount": 8,
+    "tailwindPaletteFileCount": 0,
+    "samplePaths": [
+      "src/app/components/StockApp.test.tsx",
+      "src/app/components/chart-icons/iconPaths.ts",
+      "src/app/components/DrawingSelectionToolbar.test.tsx",
+      "src/app/components/IndicatorSettingsModal.tsx",
+      "src/app/components/DrawingSelectionToolbar.tsx"
+    ]
+  },
+  "summary": {
+    "auditCount": 12,
+    "auditTarget": 12,
+    "captureCount": 10,
+    "captureTarget": 10,
+    "failures": []
+  }
+}

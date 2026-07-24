@@ -14,6 +14,7 @@ describe('SearchBar', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
+        ok: true,
         json: async () => ({ results }),
       })),
     );
@@ -28,13 +29,15 @@ describe('SearchBar', () => {
     const onSelect = vi.fn();
     render(<SearchBar compact initial="IONQ" theme="dark" onSelect={onSelect} />);
 
-    fireEvent.focus(screen.getByTestId('symbol-search-input'));
+    fireEvent.click(screen.getByTestId('symbol-search-input'));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
     expect(screen.getByRole('dialog', { name: 'Symbol search' })).toBeTruthy();
-    expect(screen.getByTestId('symbol-search-modal-input')).toHaveValue('IONQ');
+    const input = screen.getByTestId('symbol-search-modal-input');
+    expect(input).toHaveValue('IONQ');
+    expect(input).toHaveFocus();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300);

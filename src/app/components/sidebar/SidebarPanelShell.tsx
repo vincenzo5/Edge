@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { SidebarMode } from "@/lib/responsive/responsiveLayout";
 import SidebarResizeHandle from "./SidebarResizeHandle";
+import { useSidebarPanelWidth } from "./SidebarPanelWidthContext";
 
 type Props = {
   panelId: string;
@@ -25,6 +26,7 @@ export default function SidebarPanelShell({
   resizeMinWidth,
   children,
 }: Props) {
+  const setWidthPreview = useSidebarPanelWidth()?.setWidthPreview;
   const [draftWidth, setDraftWidth] = useState<number | null>(null);
   const displayWidth = draftWidth ?? width;
 
@@ -32,16 +34,21 @@ export default function SidebarPanelShell({
     setDraftWidth(null);
   }, [width]);
 
-  const handleWidthPreview = useCallback((nextWidth: number) => {
-    setDraftWidth(nextWidth);
-  }, []);
+  const handleWidthPreview = useCallback(
+    (nextWidth: number) => {
+      setDraftWidth(nextWidth);
+      setWidthPreview?.(nextWidth);
+    },
+    [setWidthPreview],
+  );
 
   const handleWidthCommit = useCallback(
     (nextWidth: number) => {
       setDraftWidth(null);
+      setWidthPreview?.(null);
       onWidthChange?.(nextWidth);
     },
-    [onWidthChange],
+    [onWidthChange, setWidthPreview],
   );
 
   useEffect(() => {

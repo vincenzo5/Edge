@@ -1,32 +1,47 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { slideOverBackdropClass, slideOverPanelClass } from "./styles";
+import { useFocusTrap } from "./useFocusTrap";
 
 type Props = {
   open: boolean;
-  title: string;
+  title: ReactNode;
+  ariaLabel?: string;
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
   headerActions?: ReactNode;
   testId?: string;
   width?: "third" | "half";
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
 };
+
+function resolveAriaLabel(title: ReactNode, ariaLabel?: string): string {
+  if (ariaLabel?.trim()) return ariaLabel.trim();
+  if (typeof title === "string") return title;
+  return "Panel";
+}
 
 export default function EdgeSlideOver({
   open,
   title,
+  ariaLabel,
   subtitle,
   onClose,
   children,
   headerActions,
   testId = "edge-slide-over",
   width = "third",
+  returnFocusRef,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dialogLabel = resolveAriaLabel(title, ariaLabel);
+
+  useFocusTrap(open, panelRef, { onEscape: onClose, returnFocusRef });
 
   useEffect(() => {
     setMounted(true);
@@ -71,9 +86,10 @@ export default function EdgeSlideOver({
         onClick={onClose}
       />
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={dialogLabel}
         data-testid={`${testId}-panel`}
         className={`${slideOverPanelClass(width)} ${visible ? "translate-x-0" : "translate-x-full"}`}
         onMouseDown={(event) => event.stopPropagation()}

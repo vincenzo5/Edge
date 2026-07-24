@@ -90,27 +90,51 @@ function makeActiveChart(
   };
 }
 
-describe("buildShortcutCommands", () => {
-  it("wires quick search to UI handlers", () => {
-    const open = vi.fn();
-    const commands = buildShortcutCommands({
-      appActions: null,
-      activeChart: null,
-      quickSearch: { open, close: vi.fn(), isOpen: () => false },
-    });
+function makeDeps(overrides: Partial<Parameters<typeof buildShortcutCommands>[0]> = {}) {
+  return {
+    appActions: null,
+    activeChart: null,
+    commandPalette: null,
+    symbolSearch: null,
+    toggleTheme: null,
+    ...overrides,
+  };
+}
 
-    const quickSearch = commands.find((command) => command.id === "quickSearch");
-    quickSearch?.run();
+describe("buildShortcutCommands", () => {
+  it("wires command palette to UI handlers", () => {
+    const open = vi.fn();
+    const commands = buildShortcutCommands(
+      makeDeps({
+        commandPalette: { open, close: vi.fn(), isOpen: () => false },
+      }),
+    );
+
+    const palette = commands.find((command) => command.id === "openCommandPalette");
+    palette?.run();
+    expect(open).toHaveBeenCalledOnce();
+  });
+
+  it("wires symbol search to UI handlers", () => {
+    const open = vi.fn();
+    const commands = buildShortcutCommands(
+      makeDeps({
+        symbolSearch: { open, close: vi.fn(), isOpen: () => false },
+      }),
+    );
+
+    commands.find((command) => command.id === "changeSymbol")?.run();
     expect(open).toHaveBeenCalledOnce();
   });
 
   it("routes undo through active chart header commands", () => {
     const activeChart = makeActiveChart();
-    const commands = buildShortcutCommands({
-      appActions: makeAppActions(),
-      activeChart,
-      quickSearch: null,
-    });
+    const commands = buildShortcutCommands(
+      makeDeps({
+        appActions: makeAppActions(),
+        activeChart,
+      }),
+    );
 
     commands.find((command) => command.id === "undo")?.run();
     expect(activeChart.headerCommands.undo).toHaveBeenCalledOnce();
@@ -118,11 +142,12 @@ describe("buildShortcutCommands", () => {
 
   it("routes drawing delete through drawing commands", () => {
     const activeChart = makeActiveChart();
-    const commands = buildShortcutCommands({
-      appActions: makeAppActions(),
-      activeChart,
-      quickSearch: null,
-    });
+    const commands = buildShortcutCommands(
+      makeDeps({
+        appActions: makeAppActions(),
+        activeChart,
+      }),
+    );
 
     commands.find((command) => command.id === "deleteDrawing")?.run();
     expect(activeChart.drawingCommands.deleteSelected).toHaveBeenCalledOnce();
@@ -130,13 +155,39 @@ describe("buildShortcutCommands", () => {
 
   it("toggles sidebar panels from app actions", () => {
     const appActions = makeAppActions();
-    const commands = buildShortcutCommands({
-      appActions,
-      activeChart: makeActiveChart(),
-      quickSearch: null,
-    });
+    const commands = buildShortcutCommands(
+      makeDeps({
+        appActions,
+        activeChart: makeActiveChart(),
+      }),
+    );
 
     commands.find((command) => command.id === "toggleWatchlist")?.run();
     expect(appActions.setSidebarPanel).toHaveBeenCalledWith("watchlist");
+
+    commands.find((command) => command.id === "toggleCopilot")?.run();
+    expect(appActions.setSidebarPanel).toHaveBeenCalledWith("copilot");
+  });
+
+  it("opens indicators through active chart", () => {
+    const activeChart = makeActiveChart();
+    const commands = buildShortcutCommands(
+      makeDeps({
+        activeChart,
+      }),
+    );
+
+    commands.find((command) => command.id === "openIndicators")?.run();
+    expect(activeChart.openIndicatorPicker).toHaveBeenCalledOnce();
+  });
+
+  it("uses alt-shift-l for lock drawing", () => {
+    const commands = buildShortcutCommands(
+      makeDeps({
+        activeChart: makeActiveChart(),
+      }),
+    );
+    const lock = commands.find((command) => command.id === "lockDrawing");
+    expect(lock?.keys).toEqual([{ alt: true, shift: true, key: "l" }]);
   });
 });

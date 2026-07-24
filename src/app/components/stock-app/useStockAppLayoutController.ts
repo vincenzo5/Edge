@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   DEFAULT_CELL,
   DEFAULT_TOOLBAR_PREFS,
   applyLinkPropagation,
   applyLayoutTemplateChange,
   cellCountFor,
+  createScriptIndicatorInstance,
   type CellConfig,
   type ChartLayout,
   type ChartType,
@@ -18,10 +19,12 @@ import {
 } from "@/lib/chartConfig";
 import type { Interval } from "@/lib/chart/contracts";
 import { rangeForManualInterval } from "@/lib/chart/rangeInterval";
-import { useChartDeepLinkBootstrap } from "@/app/components/journal/JournalChartOverlayProvider";
+import { useChartDeepLinkBootstrap } from "@/app/components/journal/useChartDeepLinkBootstrap";
 import type { ChartDeepLinkParams } from "@/lib/journal/chartDeepLink";
+import { recordRecentSymbol, seedRecentSymbols } from "@/lib/app/recentSymbols";
 import { renameTab, type WorkspaceTabsState } from "@/lib/app/workspaceTabs";
 import { buildAppActions } from "../AppActionsContext";
+import { useAppThemeOptional } from "../AppThemeProvider";
 import { useSymbolNavigationHistory } from "../chart-chrome/useSymbolNavigationHistory";
 import type { MutableRefObject } from "react";
 
@@ -46,6 +49,8 @@ export function useStockAppLayoutController({
   hydratedRef,
   handleSidebarPanelChange,
 }: Args) {
+  const appTheme = useAppThemeOptional();
+
   const applyCellUpdate = useCallback(
     (index: number, next: CellConfig) => {
       setLayout((prev) => applyLinkPropagation(prev, index, next));
@@ -107,6 +112,31 @@ export function useStockAppLayoutController({
     [activeCellIndex, activeCell, applyCellUpdate],
   );
 
+  const applyChartSymbol = useCallback(
+    (result: { symbol: string; name: string; exchange: string }) => {
+      recordRecentSymbol(result);
+      patchActiveCell({
+        symbol: result.symbol,
+        symbolName: result.name,
+        exchange: result.exchange,
+      });
+    },
+    [patchActiveCell],
+  );
+
+  useEffect(() => {
+    if (!hydrated) return;
+    seedRecentSymbols(
+      cells
+        .filter((cell) => cell.symbol.trim())
+        .map((cell) => ({
+          symbol: cell.symbol,
+          name: cell.symbolName ?? cell.symbol,
+          exchange: cell.exchange ?? "",
+        })),
+    );
+  }, [cells, hydrated]);
+
   const handleChartDeepLink = useCallback(
     (params: ChartDeepLinkParams) => {
       if (!params.symbol) return;
@@ -125,8 +155,15 @@ export function useStockAppLayoutController({
         params.interval && validIntervals.has(params.interval)
           ? params.interval
           : undefined;
+      recordRecentSymbol({
+        symbol: params.symbol,
+        name: params.symbol,
+        exchange: "",
+      });
       patchActiveCell({
         symbol: params.symbol,
+        symbolName: params.symbol,
+        exchange: "",
         ...(interval
           ? {
               interval,
@@ -143,34 +180,50 @@ export function useStockAppLayoutController({
 
   const handleSymbolSelect = useCallback(
     (result: { symbol: string; name: string; exchange: string }) => {
+      applyChartSymbol(result);
+    },
+    [applyChartSymbol],
+  );
+
+  const addScriptIndicatorToActiveChart = useCallback(
+    (params: {
+      scriptId: string;
+      revision: string;
+      name: string;
+      pane: "main" | "sub";
+    }) => {
+      const existing = activeCell.indicators.find(
+        (ind) => ind.kind === "script" && ind.scriptId === params.scriptId,
+      );
+      if (existing) {
+        patchActiveCell({
+          indicators: activeCell.indicators.map((ind) =>
+            ind.id === existing.id ? { ...ind, revision: params.revision, pane: params.pane } : ind,
+          ),
+        });
+        return;
+      }
       patchActiveCell({
-        symbol: result.symbol,
-        symbolName: result.name,
-        exchange: result.exchange,
+        indicators: [
+          ...activeCell.indicators,
+          createScriptIndicatorInstance(params),
+        ],
       });
     },
-    [patchActiveCell],
+    [activeCell.indicators, patchActiveCell],
   );
 
   const handleSymbolBack = useCallback(() => {
     const previous = symbolHistory.navigate(activeCellIndex, "back");
     if (!previous) return;
-    patchActiveCell({
-      symbol: previous.symbol,
-      symbolName: previous.name,
-      exchange: previous.exchange,
-    });
-  }, [activeCellIndex, patchActiveCell, symbolHistory]);
+    applyChartSymbol(previous);
+  }, [activeCellIndex, applyChartSymbol, symbolHistory]);
 
   const handleSymbolForward = useCallback(() => {
     const next = symbolHistory.navigate(activeCellIndex, "forward");
     if (!next) return;
-    patchActiveCell({
-      symbol: next.symbol,
-      symbolName: next.name,
-      exchange: next.exchange,
-    });
-  }, [activeCellIndex, patchActiveCell, symbolHistory]);
+    applyChartSymbol(next);
+  }, [activeCellIndex, applyChartSymbol, symbolHistory]);
 
   const handleIntervalChange = useCallback(
     (interval: Interval) => {
@@ -190,11 +243,11 @@ export function useStockAppLayoutController({
     [patchActiveCell],
   );
 
-  const handleThemeChange = useCallback(
+  const handleAppThemeChange = useCallback(
     (theme: Theme) => {
-      setLayout((prev) => ({ ...prev, theme }));
+      appTheme?.setTheme(theme);
     },
-    [setLayout],
+    [appTheme],
   );
 
   const handleTabRename = useCallback(() => {
@@ -214,7 +267,7 @@ export function useStockAppLayoutController({
         setLayoutId: handleLayoutChange,
         setGridMode: handleLayoutChange,
         setLayoutSync: handleLayoutSyncChange,
-        setTheme: handleThemeChange,
+        setTheme: handleAppThemeChange,
         setSidebarPanel: handleSidebarPanelChange,
       }),
     [
@@ -224,7 +277,7 @@ export function useStockAppLayoutController({
       handleActiveCellChange,
       handleLayoutChange,
       handleLayoutSyncChange,
-      handleThemeChange,
+      handleAppThemeChange,
       handleSidebarPanelChange,
     ],
   );
@@ -240,11 +293,12 @@ export function useStockAppLayoutController({
     handleToolbarPrefsChange,
     symbolHistory,
     handleSymbolSelect,
+    addScriptIndicatorToActiveChart,
     handleSymbolBack,
     handleSymbolForward,
     handleIntervalChange,
     handleChartTypeChange,
-    handleThemeChange,
+    handleAppThemeChange,
     handleTabRename,
     appActions,
   };

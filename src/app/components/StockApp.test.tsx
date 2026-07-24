@@ -7,8 +7,12 @@ import {
   resetWorkspaceTabIdCounterForTests,
 } from '@/lib/app/workspaceTabs';
 import { clearBrowserTabQuote } from '@/lib/app/browserTabQuote';
+import { APP_THEME_PREFERENCE_KEY } from '@/lib/app/appThemePreference';
 import { WORKSPACE_TABS_STORAGE_KEY } from '@/lib/app/workspaceTabsStorage';
 import StockApp from './StockApp';
+import { AppThemeProvider } from './AppThemeProvider';
+import { AppChromeActionsProvider } from './home/AppChromeActionsProvider';
+import { ScriptLibraryProvider } from '@/lib/scriptLibrary/ScriptLibraryContext';
 
 const reconcileMock = vi.hoisted(() => ({
   reconcileChartWorkspacesAfterTabClose: vi.fn(async () => ({ archived: [], failed: [] })),
@@ -74,6 +78,11 @@ vi.mock('@/lib/persistence/sync/reconcileChartWorkspaces', () => ({
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
 }));
 
 let flushHydrationFrame: (() => void) | null = null;
@@ -98,6 +107,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function renderStockApp(ui: React.ReactElement = <StockApp />) {
+  return render(
+    <AppThemeProvider>
+      <AppChromeActionsProvider>
+        <ScriptLibraryProvider>{ui}</ScriptLibraryProvider>
+      </AppChromeActionsProvider>
+    </AppThemeProvider>,
+  );
+}
+
 describe('StockApp', () => {
   beforeEach(() => {
     resetWorkspaceTabIdCounterForTests();
@@ -109,7 +128,7 @@ describe('StockApp', () => {
   });
 
   it('shows hydration shell before layout is restored', async () => {
-    render(<StockApp />);
+    renderStockApp();
     expect(screen.getByTestId('app-hydration-shell')).toBeInTheDocument();
     expect(screen.queryByTestId('chart-cell-0')).toBeNull();
 
@@ -122,7 +141,7 @@ describe('StockApp', () => {
   });
 
   it('renders a single chart header, chart grid, and sidebar rail after hydration', async () => {
-    render(<StockApp />);
+    renderStockApp();
     flushHydration();
 
     await waitFor(() => {
@@ -137,7 +156,7 @@ describe('StockApp', () => {
 
   it('applies theme class to html element after hydration', async () => {
     document.documentElement.classList.add('custom-root-class');
-    render(<StockApp />);
+    renderStockApp();
     flushHydration();
     await waitFor(() => {
       expect(document.documentElement.classList.contains('dark')).toBe(true);
@@ -145,13 +164,10 @@ describe('StockApp', () => {
     expect(document.documentElement.classList.contains('custom-root-class')).toBe(true);
   });
 
-  it('applies persisted light theme and removes dark class', async () => {
+  it('applies persisted light theme from app preference and removes dark class', async () => {
     document.documentElement.classList.add('dark', 'custom-root-class');
-    localStorageMock.setItem(
-      'tv-ai:layout:v1',
-      JSON.stringify({ ...DEFAULT_LAYOUT, theme: 'light' }),
-    );
-    render(<StockApp />);
+    localStorageMock.setItem(APP_THEME_PREFERENCE_KEY, 'light');
+    renderStockApp();
     flushHydration();
     await waitFor(() => {
       expect(document.documentElement.classList.contains('light')).toBe(true);
@@ -160,12 +176,23 @@ describe('StockApp', () => {
     expect(document.documentElement.classList.contains('custom-root-class')).toBe(true);
   });
 
-  it('falls back to dark for invalid persisted theme without adding invalid class', async () => {
+  it('migrates legacy layout theme when app preference is missing', async () => {
+    document.documentElement.classList.add('dark', 'custom-root-class');
     localStorageMock.setItem(
       'tv-ai:layout:v1',
-      JSON.stringify({ ...DEFAULT_LAYOUT, theme: 'neon' }),
+      JSON.stringify({ ...DEFAULT_LAYOUT, theme: 'light' }),
     );
-    render(<StockApp />);
+    renderStockApp();
+    flushHydration();
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains('light')).toBe(true);
+      expect(localStorageMock.getItem(APP_THEME_PREFERENCE_KEY)).toBe('light');
+    });
+  });
+
+  it('falls back to dark for invalid persisted theme without adding invalid class', async () => {
+    localStorageMock.setItem(APP_THEME_PREFERENCE_KEY, 'neon');
+    renderStockApp();
     flushHydration();
     await waitFor(() => {
       expect(document.documentElement.classList.contains('dark')).toBe(true);
@@ -189,7 +216,7 @@ describe('StockApp', () => {
       }),
     );
 
-    render(<StockApp />);
+    renderStockApp();
     flushHydration();
 
     await waitFor(() => {
@@ -216,17 +243,17 @@ describe('StockApp', () => {
       }),
     );
 
-    render(<StockApp />);
+    renderStockApp();
     flushHydration();
 
     await waitFor(() => {
-      expect(screen.getByTestId('symbol-search-input')).toHaveValue('AAPL');
+      expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('AAPL');
     });
 
     fireEvent.pointerDown(screen.getByTestId('chart-cell-1'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('symbol-search-input')).toHaveValue('MSFT');
+      expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('MSFT');
     });
   });
 
@@ -239,20 +266,20 @@ describe('StockApp', () => {
       }),
     );
 
-    render(<StockApp />);
+    renderStockApp();
     expect(screen.getByTestId('app-hydration-shell')).toBeInTheDocument();
     expect(screen.queryByTestId('symbol-search-input')).toBeNull();
 
     flushHydration();
 
     await waitFor(() => {
-      expect(screen.getByTestId('symbol-search-input')).toHaveValue('MSFT');
+      expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('MSFT');
     });
-    expect(screen.queryByTestId('symbol-search-input')).not.toHaveValue('AAPL');
+    expect(screen.queryByTestId('symbol-search-input')).not.toHaveTextContent('AAPL');
   });
 
   it('does not render workspace tab bar after hydration', async () => {
-    render(<StockApp />);
+    renderStockApp();
     flushHydration();
 
     await waitFor(() => {
@@ -270,7 +297,7 @@ describe('StockApp', () => {
       },
     ];
 
-    render(<StockApp isPrimaryChart />);
+    renderStockApp(<StockApp isPrimaryChart />);
     flushHydration();
 
     await waitFor(() => {
@@ -302,7 +329,7 @@ describe('StockApp', () => {
     });
     localStorageMock.setItem(WORKSPACE_TABS_STORAGE_KEY, JSON.stringify(tabs));
 
-    render(<StockApp />);
+    renderStockApp();
     flushHydration();
 
     await waitFor(() => {
@@ -329,11 +356,11 @@ describe('StockApp', () => {
     });
     localStorageMock.setItem(WORKSPACE_TABS_STORAGE_KEY, JSON.stringify(tabs));
 
-    render(<StockApp />);
+    renderStockApp();
     flushHydration();
 
     await waitFor(() => {
-      expect(screen.getByTestId('symbol-search-input')).toHaveValue('XLF');
+      expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('XLF');
     });
     expect(screen.queryByTestId('chart-cell-1')).toBeNull();
 
@@ -343,6 +370,6 @@ describe('StockApp', () => {
     await waitFor(() => {
       expect(screen.getByTestId('chart-cell-1')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('symbol-search-input')).toHaveValue('XLF');
+    expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('XLF');
   });
 });

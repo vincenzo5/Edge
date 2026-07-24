@@ -5,6 +5,7 @@ import Link from "next/link";
 import { fetchJournalTrades } from "@/lib/persistence/client/journalClient";
 import type { JournalTradeResponse } from "@/lib/persistence/schemas/journal";
 import { EdgeEmptyState, EdgePanelHeader, EdgeSpinner } from "../design-system";
+import { linkActionClass } from "../design-system/styles";
 
 const MAX_TRADES = 5;
 
@@ -45,7 +46,7 @@ export default function HomeJournalPanel() {
           <Link
             href="/journal"
             data-testid="home-journal-open"
-            className="text-xs text-[var(--edge-accent-blue)] hover:underline"
+            className={linkActionClass()}
           >
             Open
           </Link>

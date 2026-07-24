@@ -22,6 +22,11 @@ vi.mock("../../AccountAliasesProvider", () => ({
 
 vi.mock("@/lib/trading/tradingClient", () => ({
   cancelOrder: vi.fn().mockResolvedValue({ order: { status: "Cancelled" } }),
+  previewOrder: vi.fn().mockResolvedValue({
+    preview: { warnings: [], updatedAt: Date.now() },
+    intent: { intentId: "intent-1", updatedAt: Date.now() },
+  }),
+  submitOrder: vi.fn().mockResolvedValue({ orderId: 99 }),
   TradingApiError: class TradingApiError extends Error {
     status = 500;
   },
@@ -29,7 +34,7 @@ vi.mock("@/lib/trading/tradingClient", () => ({
 
 import { useAccount } from "../../AccountProvider";
 import { useAccountAliases } from "../../AccountAliasesProvider";
-import { cancelOrder } from "@/lib/trading/tradingClient";
+import { cancelOrder, previewOrder, submitOrder } from "@/lib/trading/tradingClient";
 
 const mockUseAccount = vi.mocked(useAccount);
 const mockUseAccountAliases = vi.mocked(useAccountAliases);
@@ -58,7 +63,7 @@ function connectedAccount(overrides: Partial<ReturnType<typeof useAccount>> = {}
         BuyingPower: { tag: "BuyingPower", value: "50000" },
         AvailableFunds: { tag: "AvailableFunds", value: "40000" },
         ExcessLiquidity: { tag: "ExcessLiquidity", value: "30000" },
-        InitMarginReq: { tag: "InitMarginReq", value: "50000" },
+        InitMarginReq: { tag: "InitMarginReq", value: "60000" },
         MaintMarginReq: { tag: "MaintMarginReq", value: "45000" },
         DayTradesRemaining: { tag: "DayTradesRemaining", value: "3" },
       },
@@ -127,10 +132,22 @@ describe("AccountPanel", () => {
   });
 
   it("renders summary and positions when connected", () => {
-    mockUseAccount.mockReturnValue(connectedAccount());
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccount: {
+          broker: "ib",
+          connectionId: "ib-paper",
+          accountId: "DU123",
+          environment: "paper",
+          availability: "online",
+        },
+        activeTradingAccountId: "DU123",
+      }),
+    );
 
     renderPanel();
-    expect(screen.getByText("DU123")).toBeInTheDocument();
+    expect(screen.getByTestId("account-panel-title")).toHaveTextContent("Paper");
+    expect(screen.getByTestId("account-panel-subtitle")).toHaveTextContent("DU123");
     expect(screen.getByText("AAPL")).toBeInTheDocument();
     expect(screen.queryByText(/Preview only/i)).not.toBeInTheDocument();
   });
@@ -155,7 +172,8 @@ describe("AccountPanel", () => {
     });
 
     renderPanel();
-    expect(screen.getByText("Paper IRA")).toBeInTheDocument();
+    expect(screen.getByTestId("account-panel-title")).toHaveTextContent("Paper IRA");
+    expect(screen.getByTestId("account-panel-subtitle")).toHaveTextContent("DU123 · Paper");
   });
 
   it("renders refresh icon button with accessible label", () => {
@@ -164,11 +182,12 @@ describe("AccountPanel", () => {
     expect(screen.getByRole("button", { name: "Refresh account" })).toBeInTheDocument();
   });
 
-  it("renders help icons for metric tiles", () => {
+  it("renders margin utilization summary instead of flat margin tiles", () => {
     mockUseAccount.mockReturnValue(connectedAccount());
     renderPanel();
-    const helpIcons = screen.getAllByLabelText("Help");
-    expect(helpIcons.length).toBeGreaterThanOrEqual(6);
+    expect(screen.getByTestId("account-margin-summary")).toBeInTheDocument();
+    expect(screen.getByTestId("account-margin-status")).toHaveTextContent("60% used · Getting tight");
+    expect(screen.queryByLabelText("Init margin help")).not.toBeInTheDocument();
   });
 
   it("shows day trades in net liquidation card", () => {
@@ -178,10 +197,11 @@ describe("AccountPanel", () => {
     expect(screen.getByText("3")).toBeInTheDocument();
   });
 
-  it("computes leverage from init margin and net liquidation", () => {
+  it("shows leverage in margin details when expanded", () => {
     mockUseAccount.mockReturnValue(connectedAccount());
     renderPanel();
-    expect(screen.getByText("0.50")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("account-margin-details-toggle"));
+    expect(screen.getByText("0.60")).toBeInTheDocument();
   });
 
   it("color-codes positive position PnL", () => {
@@ -295,6 +315,15 @@ describe("AccountPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Today's fills" }));
     expect(screen.getByText(/AAPL · BOT 5 @ 150/)).toBeInTheDocument();
     expect(screen.queryByText(/AAPL · BUY 10 · LMT/)).not.toBeInTheDocument();
+  });
+
+  it("scopes scrolling to the orders list with a stable gutter", () => {
+    mockUseAccount.mockReturnValue(connectedAccount());
+    renderPanel();
+    const scroll = screen.getByTestId("account-orders-scroll");
+    expect(scroll.className).toContain("edge-overlay-scroll");
+    expect(scroll.parentElement?.className).toMatch(/flex-1/);
+    expect(scroll.parentElement?.className).toMatch(/overflow-hidden/);
   });
 
   it("hides cancelled orders from Open orders and shows them in Order history", () => {
@@ -415,5 +444,154 @@ describe("AccountPanel", () => {
     mockUseAccount.mockReturnValue(connectedAccount());
     renderPanel();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("opens close position modal from row Close action", async () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccount: {
+          broker: "ib",
+          connectionId: "ib-paper",
+          accountId: "DU123",
+          environment: "paper",
+          availability: "online",
+        },
+        activeTradingAccountId: "DU123",
+      }),
+    );
+    renderPanel();
+
+    fireEvent.click(screen.getByTestId("position-close-AAPL"));
+    await waitFor(() => {
+      expect(previewOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          symbol: "AAPL",
+          side: "SELL",
+          quantity: 10,
+          orderType: "MKT",
+        }),
+      );
+    });
+    expect(screen.getByTestId("close-position-modal")).toBeInTheDocument();
+  });
+
+  it("closes a live position with Confirm close only (no LIVE typing)", async () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccount: {
+          broker: "ib",
+          connectionId: "ib-live",
+          accountId: "U25026894",
+          environment: "live",
+          availability: "online",
+        },
+        activeTradingAccountId: "U25026894",
+        tradingEnvironment: "live",
+      }),
+    );
+    renderPanel();
+
+    fireEvent.click(screen.getByTestId("position-close-AAPL"));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Confirm close" })).toBeEnabled();
+    });
+    expect(screen.queryByTestId("close-position-live-confirm")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Type LIVE/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm close" }));
+    await waitFor(() => {
+      expect(submitOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          liveConfirmation: "LIVE",
+          previewIntentId: "intent-1",
+        }),
+      );
+    });
+  });
+
+  it("opens position context menu on right click", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccountId: "DU123",
+      }),
+    );
+    renderPanel();
+
+    fireEvent.contextMenu(screen.getByText("AAPL"));
+    expect(screen.getByRole("menu", { name: "Position actions" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Close position" })).toBeInTheDocument();
+  });
+
+  it("shows condensed connection status without poll cadence text", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccount: {
+          broker: "ib",
+          connectionId: "ib-live",
+          accountId: "U25026894",
+          environment: "live",
+          availability: "online",
+        },
+        tradingEnvironment: "live",
+      }),
+    );
+    renderPanel();
+    const status = screen.getByTestId("account-panel-status");
+    expect(status).toHaveTextContent(/Connected · updated just now/);
+    expect(status.textContent).not.toContain("updates every 15s");
+  });
+
+  it("flashes daily PnL green when value increases", () => {
+    mockUseAccount.mockReturnValue(connectedAccount({ pnl: { dailyPnL: 100 } }));
+    const { rerender } = renderPanel();
+    expect(screen.getByTestId("account-daily-pnl")).not.toHaveAttribute("data-flash");
+
+    mockUseAccount.mockReturnValue(connectedAccount({ pnl: { dailyPnL: 150 } }));
+    rerender(
+      <ChartActionsProvider activeCellSymbol="AAPL" loadSymbolIntoActiveChart={vi.fn()}>
+        <AccountPanel />
+      </ChartActionsProvider>,
+    );
+    expect(screen.getByTestId("account-daily-pnl")).toHaveAttribute("data-flash", "up");
+  });
+
+  it("flashes position PnL red when value decreases", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        positions: [
+          {
+            contract: { symbol: "AAPL", conId: 1 },
+            position: 10,
+            avgCost: 150,
+            marketPrice: 155,
+            marketValue: 1550,
+            unrealizedPNL: 50,
+          },
+        ],
+      }),
+    );
+    const { rerender } = renderPanel();
+    expect(screen.getByTestId("position-pnl-AAPL")).not.toHaveAttribute("data-flash");
+
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        positions: [
+          {
+            contract: { symbol: "AAPL", conId: 1 },
+            position: 10,
+            avgCost: 150,
+            marketPrice: 150,
+            marketValue: 1500,
+            unrealizedPNL: 0,
+          },
+        ],
+      }),
+    );
+    rerender(
+      <ChartActionsProvider activeCellSymbol="AAPL" loadSymbolIntoActiveChart={vi.fn()}>
+        <AccountPanel />
+      </ChartActionsProvider>,
+    );
+    expect(screen.getByTestId("position-pnl-AAPL")).toHaveAttribute("data-flash", "down");
   });
 });

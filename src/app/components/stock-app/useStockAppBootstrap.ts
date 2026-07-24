@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { applyThemeToRoot } from "@/lib/chartConfig";
-import { saveWorkspaceTabs } from "@/lib/app/workspaceTabsStorage";
+import {
+  saveWorkspaceTabs,
+  type WorkspaceTabsStorageBinding,
+} from "@/lib/app/workspaceTabsStorage";
 import {
   createDefaultWorkspaceTabs,
   getActiveLayout,
@@ -17,6 +19,8 @@ import {
 } from "@/lib/persistence/sync/useWorkspaceTabsRemoteSync";
 import { resolveAppBootstrap, type AppBootstrapResult } from "@/lib/app/bootstrap/resolveAppBootstrap";
 import { loadLocalAppState } from "@/lib/app/bootstrap/loadLocalAppState";
+import type { ChartTileBootstrapBinding } from "@/lib/app/bootstrap/chartTileBootstrapBinding";
+import { resolveChartTileBootstrapBinding } from "@/lib/app/bootstrap/chartTileBootstrapBinding";
 import type { WatchlistState } from "@/lib/watchlist/types";
 import type { ScreenerState } from "@/lib/screener/types";
 import type { ScreenerSessionState } from "@/lib/screener/screenerSession";
@@ -25,7 +29,30 @@ import { useChartTemplateLibraryRemoteSync } from "@/lib/persistence/sync/useCha
 import { useWorkspaceTabsRemoteSync } from "@/lib/persistence/sync/useWorkspaceTabsRemoteSync";
 import type { ChartLayout } from "@/lib/chartConfig";
 
-export function useStockAppBootstrap() {
+export type UseStockAppBootstrapOptions = {
+  chartTileBinding?: ChartTileBootstrapBinding;
+  onChartWorkspaceIdCreated?: (resourceId: string) => void;
+};
+
+export function useStockAppBootstrap(options: UseStockAppBootstrapOptions = {}) {
+  const binding = useMemo(
+    () => resolveChartTileBootstrapBinding(options.chartTileBinding),
+    [
+      options.chartTileBinding?.tileId,
+      options.chartTileBinding?.isPrimaryChartTile,
+      options.chartTileBinding?.chartWorkspaceId,
+    ],
+  );
+  const storageBinding = useMemo(
+    (): WorkspaceTabsStorageBinding => ({
+      tileId: binding.tileId,
+      isPrimaryChartTile: binding.isPrimaryChartTile,
+    }),
+    [binding.tileId, binding.isPrimaryChartTile],
+  );
+  const onChartWorkspaceIdCreatedRef = useRef(options.onChartWorkspaceIdCreated);
+  onChartWorkspaceIdCreatedRef.current = options.onChartWorkspaceIdCreated;
+
   const [workspaceTabs, setWorkspaceTabs] = useState<WorkspaceTabsState>(() =>
     createDefaultWorkspaceTabs(),
   );
@@ -54,25 +81,27 @@ export function useStockAppBootstrap() {
     [],
   );
 
-  const applyBootstrapResult = useCallback((result: AppBootstrapResult) => {
-    const prunedTabs = pruneToSingleActiveTab(result.workspaceTabs);
-    workspaceTabsRef.current = prunedTabs;
-    setWorkspaceTabs(prunedTabs);
-    saveWorkspaceTabs(prunedTabs);
-    setWatchlistBootstrap(result.watchlist);
-    setScreenerBootstrap(result.screener);
-    setScreenerSessionBootstrap(result.screenerSession);
-    setBootstrapRemoteApplied(result.remoteApplied);
-    setBootstrapRemotePending(result.remotePending);
-    finishRemoteWorkspaceMergeRef.current = result.finishRemoteWorkspaceMerge;
-    applyThemeToRoot(getActiveLayout(prunedTabs).theme);
-    hydratedRef.current = true;
-    setHydrated(true);
-  }, []);
+  const applyBootstrapResult = useCallback(
+    (result: AppBootstrapResult) => {
+      const prunedTabs = pruneToSingleActiveTab(result.workspaceTabs);
+      workspaceTabsRef.current = prunedTabs;
+      setWorkspaceTabs(prunedTabs);
+      saveWorkspaceTabs(prunedTabs, storageBinding);
+      setWatchlistBootstrap(result.watchlist);
+      setScreenerBootstrap(result.screener);
+      setScreenerSessionBootstrap(result.screenerSession);
+      setBootstrapRemoteApplied(result.remoteApplied);
+      setBootstrapRemotePending(result.remotePending);
+      finishRemoteWorkspaceMergeRef.current = result.finishRemoteWorkspaceMerge;
+      hydratedRef.current = true;
+      setHydrated(true);
+    },
+    [storageBinding],
+  );
 
   const hydrateFromLocalFallback = useCallback(() => {
     try {
-      const local = loadLocalAppState();
+      const local = loadLocalAppState({ chartTileBinding: binding });
       applyBootstrapResult({
         workspaceTabs: local.workspaceTabs,
         watchlist: local.watchlist,
@@ -85,11 +114,11 @@ export function useStockAppBootstrap() {
       hydratedRef.current = true;
       setHydrated(true);
     }
-  }, [applyBootstrapResult]);
+  }, [applyBootstrapResult, binding]);
 
   useEffect(() => {
     let cancelled = false;
-    void resolveAppBootstrap()
+    void resolveAppBootstrap({ chartTileBinding: binding })
       .then((result) => {
         if (cancelled) return;
         try {
@@ -108,7 +137,7 @@ export function useStockAppBootstrap() {
     return () => {
       cancelled = true;
     };
-  }, [applyBootstrapResult, hydrateFromLocalFallback]);
+  }, [applyBootstrapResult, binding, hydrateFromLocalFallback]);
 
   const handleApplyWorkspaceTabs = useCallback(
     (incoming: WorkspaceTabsState, applyOptions?: ApplyWorkspaceTabsOptions) => {
@@ -117,17 +146,21 @@ export function useStockAppBootstrap() {
           mergeWorkspaceTabsApply(current, incoming, applyOptions),
         );
         workspaceTabsRef.current = next;
-        saveWorkspaceTabs(next);
+        saveWorkspaceTabs(next, storageBinding);
         return next;
       });
     },
-    [],
+    [storageBinding],
   );
 
   const finishRemoteWorkspaceMerge = useCallback(async () => {
     const finish = finishRemoteWorkspaceMergeRef.current;
     if (!finish) return null;
     return finish();
+  }, []);
+
+  const handleRemoteResourceCreated = useCallback((resourceId: string) => {
+    onChartWorkspaceIdCreatedRef.current?.(resourceId);
   }, []);
 
   const { flushActiveTabSave } = useWorkspaceTabsRemoteSync({
@@ -137,6 +170,7 @@ export function useStockAppBootstrap() {
     bootstrapRemotePending,
     finishRemoteWorkspaceMerge: bootstrapRemotePending ? finishRemoteWorkspaceMerge : undefined,
     onApplyWorkspaceTabs: handleApplyWorkspaceTabs,
+    onRemoteResourceCreated: handleRemoteResourceCreated,
   });
 
   useEffect(() => {
@@ -147,14 +181,9 @@ export function useStockAppBootstrap() {
 
   useEffect(() => {
     if (!hydratedRef.current) return;
-    applyThemeToRoot(layout.theme);
-  }, [layout.theme, hydrated]);
-
-  useEffect(() => {
-    if (!hydratedRef.current) return;
-    const t = setTimeout(() => saveWorkspaceTabs(workspaceTabs), 500);
+    const t = setTimeout(() => saveWorkspaceTabs(workspaceTabs, storageBinding), 500);
     return () => clearTimeout(t);
-  }, [workspaceTabs]);
+  }, [workspaceTabs, storageBinding]);
 
   return {
     workspaceTabs,

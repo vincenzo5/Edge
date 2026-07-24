@@ -14,6 +14,8 @@ const SIDEBAR_PANEL_IDS: SidebarPanelId[] = [
   "settings",
   "trade",
   "patterns",
+  "day-profiles",
+  "copilot",
 ];
 
 const LEGACY_PANEL_WIDTH_KEYS: LegacySidebarPanelId[] = [

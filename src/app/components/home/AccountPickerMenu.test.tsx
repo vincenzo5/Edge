@@ -43,7 +43,9 @@ describe("AccountPickerMenu", () => {
     fireEvent.click(screen.getByTestId("app-account-picker"));
     expect(screen.getByTestId("app-account-picker-menu")).toBeInTheDocument();
     expect(screen.getByTestId("app-account-picker-option-ib-paper::DUP586813")).toBeInTheDocument();
-    expect(screen.getByTestId("app-account-aliases-settings")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("app-account-aliases-settings").querySelector('[data-edge-icon="settings"]'),
+    ).toBeInTheDocument();
   });
 
   it("selects account from custom menu", () => {
@@ -93,10 +95,10 @@ describe("AccountPickerMenu", () => {
       />,
     );
 
-    expect(screen.getByTestId("app-account-picker")).toHaveTextContent("Paper IRA (paper)");
+    expect(screen.getByTestId("app-account-picker")).toHaveTextContent("Paper IRA (DUP586813)");
     fireEvent.click(screen.getByTestId("app-account-picker"));
     expect(screen.getByTestId("app-account-picker-option-ib-paper::DUP586813")).toHaveTextContent(
-      "Paper IRA (paper)",
+      "Paper IRA (DUP586813)",
     );
   });
 });

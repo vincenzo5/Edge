@@ -1,6 +1,10 @@
 import type { ChartLayout } from "@/lib/chartConfig";
 import { migrateChartLayout } from "@/lib/chartConfig";
 import { loadLayout } from "@/lib/layoutStorage";
+import {
+  resolveWorkspaceTabsMigrationKey,
+  type ChartTileHostBindingContract,
+} from "@/lib/appWorkspace/chartTileBindingSketch";
 import { getChartWorkspaceSyncMetadata } from "@/lib/persistence/sync/syncMetadata";
 import {
   createDefaultWorkspaceTabs,
@@ -10,6 +14,16 @@ import {
 
 export const WORKSPACE_TABS_STORAGE_KEY = "tv-ai:workspace-tabs:v1";
 export const DISMISSED_REMOTE_WORKSPACES_KEY = "tv-ai:workspace-tabs:dismissed-remotes:v1";
+
+/** Tile-scoped localStorage binding for workspace-tabs (Phase 1). */
+export type WorkspaceTabsStorageBinding = Pick<
+  ChartTileHostBindingContract,
+  "tileId" | "isPrimaryChartTile"
+>;
+
+export function resolveWorkspaceTabsStorageKey(binding: WorkspaceTabsStorageBinding): string {
+  return resolveWorkspaceTabsMigrationKey(binding.tileId, binding.isPrimaryChartTile);
+}
 
 function readLegacyRemoteMetadata(): WorkspaceTabRemote | undefined {
   const meta = getChartWorkspaceSyncMetadata();
@@ -56,48 +70,61 @@ export function migrateLayoutToWorkspaceTabs(layout: ChartLayout): WorkspaceTabs
   return createDefaultWorkspaceTabs(layout, remote);
 }
 
-export function loadWorkspaceTabs(): WorkspaceTabsState {
+export function loadWorkspaceTabs(binding?: WorkspaceTabsStorageBinding): WorkspaceTabsState {
   if (typeof window === "undefined") {
     return createDefaultWorkspaceTabs();
   }
 
+  const storageKey = binding ? resolveWorkspaceTabsStorageKey(binding) : WORKSPACE_TABS_STORAGE_KEY;
+
   try {
-    const raw = window.localStorage.getItem(WORKSPACE_TABS_STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<WorkspaceTabsState>;
       const normalized = normalizeTabsState(parsed);
       if (normalized) return normalized;
     }
   } catch {
-    // fall through to migration
+    // fall through to migration / defaults
   }
 
-  const layout = loadLayout();
-  return migrateLayoutToWorkspaceTabs(layout);
+  // Legacy layout migration applies only to the primary chart tile (legacy global key).
+  if (!binding || binding.isPrimaryChartTile) {
+    const layout = loadLayout();
+    return migrateLayoutToWorkspaceTabs(layout);
+  }
+
+  return createDefaultWorkspaceTabs();
 }
 
-export function saveWorkspaceTabs(state: WorkspaceTabsState): void {
+export function saveWorkspaceTabs(
+  state: WorkspaceTabsState,
+  binding?: WorkspaceTabsStorageBinding,
+): void {
   if (typeof window === "undefined") return;
+  const storageKey = binding ? resolveWorkspaceTabsStorageKey(binding) : WORKSPACE_TABS_STORAGE_KEY;
   try {
-    window.localStorage.setItem(WORKSPACE_TABS_STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(storageKey, JSON.stringify(state));
   } catch {
     // Storage may be full or disabled; ignore.
   }
 }
 
-export function hasPersistedWorkspaceTabs(): boolean {
+export function hasPersistedWorkspaceTabs(binding?: WorkspaceTabsStorageBinding): boolean {
   if (typeof window === "undefined") return false;
+  const storageKey = binding ? resolveWorkspaceTabsStorageKey(binding) : WORKSPACE_TABS_STORAGE_KEY;
   try {
-    return window.localStorage.getItem(WORKSPACE_TABS_STORAGE_KEY) != null;
+    return window.localStorage.getItem(storageKey) != null;
   } catch {
     return false;
   }
 }
 
-export function clearWorkspaceTabs(): void {
+export function clearWorkspaceTabs(binding?: WorkspaceTabsStorageBinding): void {
   if (typeof window === "undefined") return;
+  const storageKey = binding ? resolveWorkspaceTabsStorageKey(binding) : WORKSPACE_TABS_STORAGE_KEY;
   try {
-    window.localStorage.removeItem(WORKSPACE_TABS_STORAGE_KEY);
+    window.localStorage.removeItem(storageKey);
   } catch {
     // ignore
   }

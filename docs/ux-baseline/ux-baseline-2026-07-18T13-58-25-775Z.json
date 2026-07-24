@@ -1,0 +1,4516 @@
+{
+  "generatedAt": "2026-07-18T13:58:25.775Z",
+  "baseUrl": "http://localhost:3003",
+  "git": {
+    "commit": "798e921",
+    "branch": "main"
+  },
+  "audits": [
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 673,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 545,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "text": "Journal",
+          "width": 260.4,
+          "height": 28,
+          "minSize": 28,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Research",
+          "width": 260.4,
+          "height": 28,
+          "minSize": 28,
+          "testId": null
+        },
+        {
+          "tag": "A",
+          "text": "Open",
+          "width": 30.5,
+          "height": 16,
+          "minSize": 16,
+          "testId": "home-journal-open"
+        }
+      ],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "home",
+      "requestedPath": "/home",
+      "finalUrl": "http://localhost:3003/home",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"home-shell\"]",
+      "readyMs": 543,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "A",
+          "text": "Open",
+          "width": 30.5,
+          "height": 16,
+          "minSize": 16,
+          "testId": "home-journal-open"
+        },
+        {
+          "tag": "A",
+          "text": "Open",
+          "width": 30.5,
+          "height": 16,
+          "minSize": 16,
+          "testId": "home-research-open"
+        }
+      ],
+      "smallText": [],
+      "contrastIssues": [],
+      "captureError": null
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 898,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 167,
+          "height": 26,
+          "minSize": 26,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "D",
+          "width": 24.8,
+          "height": 32,
+          "minSize": 24.8,
+          "testId": "chart-interval-trigger"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "width": 105.4,
+          "height": 19,
+          "minSize": 19,
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 14,
+          "minSize": 14,
+          "testId": "chart-data-source-badge"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "width": 25.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "width": 28.9,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "width": 29,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "width": 34.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "width": 24.8,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "width": 26.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "width": 25.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 22,
+          "minSize": 22,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:06 UTC",
+          "width": 91.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Save",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "331.98",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "334.99",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "333.74",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "+0.48 (+0.14%)",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:06 UTC",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 924,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 167,
+          "height": 26,
+          "minSize": 26,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "D",
+          "width": 24.8,
+          "height": 32,
+          "minSize": 24.8,
+          "testId": "chart-interval-trigger"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "width": 105.4,
+          "height": 19,
+          "minSize": 19,
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 14,
+          "minSize": 14,
+          "testId": "chart-data-source-badge"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "width": 25.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "width": 28.9,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "width": 29,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "width": 34.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "width": 24.8,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "width": 26.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "width": 25.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 22,
+          "minSize": 22,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:07 UTC",
+          "width": 91.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Save",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "331.98",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "334.99",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "333.74",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "+0.48 (+0.14%)",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:07 UTC",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-chart",
+      "requestedPath": "/workspace",
+      "finalUrl": "http://localhost:3003/workspace",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"chart-tile-host\"]",
+      "readyMs": 928,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 167,
+          "height": 26,
+          "minSize": 26,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "D",
+          "width": 24.8,
+          "height": 32,
+          "minSize": 24.8,
+          "testId": "chart-interval-trigger"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "width": 105.4,
+          "height": 19,
+          "minSize": 19,
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 14,
+          "minSize": 14,
+          "testId": "chart-data-source-badge"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "width": 25.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "width": 28.9,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "width": 29,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "width": 34.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "width": 24.8,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "width": 26.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "width": 25.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 22,
+          "minSize": 22,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:08 UTC",
+          "width": 91.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Save",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "331.98",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "334.99",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "333.74",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "+0.48 (+0.14%)",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:08 UTC",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 1173,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 167,
+          "height": 26,
+          "minSize": 26,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "D",
+          "width": 24.8,
+          "height": 32,
+          "minSize": 24.8,
+          "testId": "chart-interval-trigger"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "width": 105.4,
+          "height": 19,
+          "minSize": 19,
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 14,
+          "minSize": 14,
+          "testId": "chart-data-source-badge"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "width": 25.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "width": 28.9,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "width": 29,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "width": 34.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "width": 24.8,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "width": 26.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "width": 25.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 22,
+          "minSize": 22,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "8:09 UTC",
+          "width": 65,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "SELECT",
+          "text": "Top 50Top 100Top 200Top 500",
+          "width": 85,
+          "height": 31,
+          "minSize": 31,
+          "testId": "screener-limit-select"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Gainers today",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-gainers"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Losers today",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-losers"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Most actives",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-actives"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Liquid $5+ ($2M+/day)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-liquid-tradeable"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Large-cap dividend payers",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-large-cap-dividend"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "High-beta momentum",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-high-beta-momentum"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Small-cap under $5",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-small-cap-under-5"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "RSI oversold (≤30)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-rsi-oversold"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "RSI overbought (≥70)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-rsi-overbought"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Golden cross (SMA50 > SMA200)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-golden-cross"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Near 52-week high (≤5%)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-near-52wk-high"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "MACD bullish (hist > 0)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-macd-bullish"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Bollinger %B overbought (>0.8)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-boll-pctb-overbought"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "RSI oversold via indicator (≤30)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-rsi-indicator"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Expand all",
+          "width": 49.4,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-expand-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Collapse all",
+          "width": 55.5,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-collapse-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "width": 16,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-rule-toggle-rule-0"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "✕",
+          "width": 21.2,
+          "height": 20,
+          "minSize": 20,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "width": 16,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-rule-toggle-rule-1"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "✕",
+          "width": 21.2,
+          "height": 20,
+          "minSize": 20,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Add rule",
+          "width": 63.3,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-add-rule"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Add technical rule",
+          "width": 117.9,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-add-technical-rule"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Add OR group",
+          "width": 95.5,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-add-group"
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Save",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "331.98",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "334.99",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "333.74",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "+0.48 (+0.14%)",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "8:09 UTC",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "⌘↵",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-run-shortcut-hint"
+        },
+        {
+          "tag": "H3",
+          "text": "Screens",
+          "fontSizePx": 10,
+          "role": "title",
+          "testId": null
+        },
+        {
+          "tag": "H3",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "title",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Expand all",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-expand-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Collapse all",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-collapse-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-rule-toggle-rule-0"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-rule-toggle-rule-1"
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "⌘↵",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-run-shortcut-hint"
+        },
+        {
+          "tag": "H3",
+          "text": "Screens",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "H3",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-rule-toggle-rule-0"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-rule-toggle-rule-1"
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 1197,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 167,
+          "height": 26,
+          "minSize": 26,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "D",
+          "width": 24.8,
+          "height": 32,
+          "minSize": 24.8,
+          "testId": "chart-interval-trigger"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "width": 105.4,
+          "height": 19,
+          "minSize": 19,
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 14,
+          "minSize": 14,
+          "testId": "chart-data-source-badge"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "width": 25.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "width": 28.9,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "width": 29,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "width": 34.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "width": 24.8,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "width": 26.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "width": 25.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 22,
+          "minSize": 22,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:10 UTC",
+          "width": 91.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "SELECT",
+          "text": "Top 50Top 100Top 200Top 500",
+          "width": 85,
+          "height": 31,
+          "minSize": 31,
+          "testId": "screener-limit-select"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Gainers today",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-gainers"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Losers today",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-losers"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Most actives",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-actives"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Liquid $5+ ($2M+/day)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-liquid-tradeable"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Large-cap dividend payers",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-large-cap-dividend"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "High-beta momentum",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-high-beta-momentum"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Small-cap under $5",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-small-cap-under-5"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "RSI oversold (≤30)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-rsi-oversold"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "RSI overbought (≥70)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-rsi-overbought"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Golden cross (SMA50 > SMA200)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-golden-cross"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Near 52-week high (≤5%)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-near-52wk-high"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "MACD bullish (hist > 0)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-macd-bullish"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Bollinger %B overbought (>0.8)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-boll-pctb-overbought"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "RSI oversold via indicator (≤30)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-rsi-indicator"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Expand all",
+          "width": 49.4,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-expand-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Collapse all",
+          "width": 55.5,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-collapse-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "width": 16,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-rule-toggle-rule-0"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "✕",
+          "width": 21.2,
+          "height": 20,
+          "minSize": 20,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "width": 16,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-rule-toggle-rule-1"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "✕",
+          "width": 21.2,
+          "height": 20,
+          "minSize": 20,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Add rule",
+          "width": 63.3,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-add-rule"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Add technical rule",
+          "width": 117.9,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-add-technical-rule"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Add OR group",
+          "width": 95.5,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-add-group"
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Save",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "331.98",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "334.99",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "333.74",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "+0.48 (+0.14%)",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:10 UTC",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "⌘↵",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-run-shortcut-hint"
+        },
+        {
+          "tag": "H3",
+          "text": "Screens",
+          "fontSizePx": 10,
+          "role": "title",
+          "testId": null
+        },
+        {
+          "tag": "H3",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "title",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Expand all",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-expand-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Collapse all",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-collapse-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-rule-toggle-rule-0"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-rule-toggle-rule-1"
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "⌘↵",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-run-shortcut-hint"
+        },
+        {
+          "tag": "H3",
+          "text": "Screens",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "H3",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-rule-toggle-rule-0"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-rule-toggle-rule-1"
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-screener",
+      "requestedPath": "/workspace?surface=screener",
+      "finalUrl": "http://localhost:3003/workspace?surface=screener",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"screener-tile-surface\"]",
+      "readyMs": 972,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 167,
+          "height": 26,
+          "minSize": 26,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "D",
+          "width": 24.8,
+          "height": 32,
+          "minSize": 24.8,
+          "testId": "chart-interval-trigger"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "width": 105.4,
+          "height": 19,
+          "minSize": 19,
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 14,
+          "minSize": 14,
+          "testId": "chart-data-source-badge"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "width": 25.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "width": 28.9,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "width": 29,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "width": 34.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "width": 24.8,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "width": 26.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "width": 25.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 22,
+          "minSize": 22,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:11 UTC",
+          "width": 91.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "SELECT",
+          "text": "Top 50Top 100Top 200Top 500",
+          "width": 85,
+          "height": 31,
+          "minSize": 31,
+          "testId": "screener-limit-select"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Gainers today",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-gainers"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Losers today",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-losers"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Most actives",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-actives"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Liquid $5+ ($2M+/day)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-liquid-tradeable"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Large-cap dividend payers",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-large-cap-dividend"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "High-beta momentum",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-high-beta-momentum"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Small-cap under $5",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-small-cap-under-5"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "RSI oversold (≤30)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-rsi-oversold"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "RSI overbought (≥70)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-rsi-overbought"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Golden cross (SMA50 > SMA200)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-golden-cross"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Near 52-week high (≤5%)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-near-52wk-high"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "MACD bullish (hist > 0)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-macd-bullish"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Bollinger %B overbought (>0.8)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-boll-pctb-overbought"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "RSI oversold via indicator (≤30)",
+          "width": 137,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-screen-rsi-indicator"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Expand all",
+          "width": 49.4,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-expand-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Collapse all",
+          "width": 55.5,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-collapse-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "width": 16,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-rule-toggle-rule-0"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "✕",
+          "width": 21.2,
+          "height": 20,
+          "minSize": 20,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "width": 16,
+          "height": 15,
+          "minSize": 15,
+          "testId": "screener-rule-toggle-rule-1"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "✕",
+          "width": 21.2,
+          "height": 20,
+          "minSize": 20,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Add rule",
+          "width": 63.3,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-add-rule"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Add technical rule",
+          "width": 117.9,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-add-technical-rule"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Add OR group",
+          "width": 95.5,
+          "height": 24,
+          "minSize": 24,
+          "testId": "screener-add-group"
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Save",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "331.98",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "334.99",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "333.74",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "+0.48 (+0.14%)",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:11 UTC",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "⌘↵",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-run-shortcut-hint"
+        },
+        {
+          "tag": "H3",
+          "text": "Screens",
+          "fontSizePx": 10,
+          "role": "title",
+          "testId": null
+        },
+        {
+          "tag": "H3",
+          "text": "Custom query",
+          "fontSizePx": 10,
+          "role": "title",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Expand all",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-expand-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Collapse all",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-collapse-all"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-rule-toggle-rule-0"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "screener-rule-toggle-rule-1"
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "⌘↵",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-run-shortcut-hint"
+        },
+        {
+          "tag": "H3",
+          "text": "Screens",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "H3",
+          "text": "Custom query",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "Rules",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-rule-toggle-rule-0"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "▶",
+          "ratio": 3.92,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(8, 10, 15)",
+          "testId": "screener-rule-toggle-rule-1"
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1024,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 1142,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1024,
+        "docScrollWidth": 1024,
+        "bodyScrollWidth": 1024,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 167,
+          "height": 26,
+          "minSize": 26,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "D",
+          "width": 24.8,
+          "height": 32,
+          "minSize": 24.8,
+          "testId": "chart-interval-trigger"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "width": 105.4,
+          "height": 19,
+          "minSize": 19,
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 14,
+          "minSize": 14,
+          "testId": "chart-data-source-badge"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "width": 25.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "width": 28.9,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "width": 29,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "width": 34.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "width": 24.8,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "width": 26.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "width": 25.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 22,
+          "minSize": 22,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "8:12 UTC",
+          "width": 65,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "SELECT",
+          "text": "Today7D30DAll timeCustom range…",
+          "width": 128,
+          "height": 27,
+          "minSize": 27,
+          "testId": "journal-period-select"
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 144,
+          "height": 26,
+          "minSize": 26,
+          "testId": "journal-filter-symbol"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Save",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "331.98",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "334.99",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "333.74",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "+0.48 (+0.14%)",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "8:12 UTC",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1440,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 1129,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1440,
+        "docScrollWidth": 1440,
+        "bodyScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 167,
+          "height": 26,
+          "minSize": 26,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "D",
+          "width": 24.8,
+          "height": 32,
+          "minSize": 24.8,
+          "testId": "chart-interval-trigger"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "width": 105.4,
+          "height": 19,
+          "minSize": 19,
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 14,
+          "minSize": 14,
+          "testId": "chart-data-source-badge"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "width": 25.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "width": 28.9,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "width": 29,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "width": 34.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "width": 24.8,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "width": 26.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "width": 25.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 22,
+          "minSize": 22,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:13 UTC",
+          "width": 91.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "SELECT",
+          "text": "Today7D30DAll timeCustom range…",
+          "width": 128,
+          "height": 27,
+          "minSize": 27,
+          "testId": "journal-period-select"
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 144,
+          "height": 26,
+          "minSize": 26,
+          "testId": "journal-filter-symbol"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Save",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "331.98",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "334.99",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "333.74",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "+0.48 (+0.14%)",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:13 UTC",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    },
+    {
+      "id": "workspace-journal",
+      "requestedPath": "/workspace?surface=journal&journalView=dashboard",
+      "finalUrl": "http://localhost:3003/workspace?surface=journal&journalView=dashboard",
+      "width": 1920,
+      "height": 900,
+      "readySelector": "[data-testid=\"journal-global-empty\"]",
+      "readyMs": 1149,
+      "layoutEditModeVisible": false,
+      "overflow": {
+        "innerWidth": 1920,
+        "docScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "horizontalOverflow": false,
+        "overflowPx": 0
+      },
+      "smallTargets": [
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 167,
+          "height": 26,
+          "minSize": 26,
+          "testId": "symbol-search-input"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "D",
+          "width": 24.8,
+          "height": 32,
+          "minSize": 24.8,
+          "testId": "chart-interval-trigger"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "width": 105.4,
+          "height": 19,
+          "minSize": 19,
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 14,
+          "minSize": 14,
+          "testId": "chart-data-source-badge"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "width": 25.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "width": 27.2,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "width": 28.9,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "width": 29,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "width": 34.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "width": 24.8,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "width": 26.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "width": 25.7,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "width": 22,
+          "height": 22,
+          "minSize": 22,
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:15 UTC",
+          "width": 91.5,
+          "height": 20.5,
+          "minSize": 20.5,
+          "testId": null
+        },
+        {
+          "tag": "SELECT",
+          "text": "Today7D30DAll timeCustom range…",
+          "width": 128,
+          "height": 27,
+          "minSize": 27,
+          "testId": "journal-period-select"
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "width": 144,
+          "height": 26,
+          "minSize": 26,
+          "testId": "journal-filter-symbol"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Syncing…",
+          "width": 54.8,
+          "height": 16,
+          "minSize": 16,
+          "testId": null
+        }
+      ],
+      "smallText": [
+        {
+          "tag": "SPAN",
+          "text": "Save",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "▸",
+          "fontSizePx": 9,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Start TWS sidecar",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-recover-tws"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "A",
+          "fontSizePx": 10,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "331.98",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-O"
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "334.99",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-H"
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "329",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-L"
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "333.74",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-value-C"
+        },
+        {
+          "tag": "SPAN",
+          "text": "+0.48 (+0.14%)",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": "price-legend-change"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5D",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "3M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "6M",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "YTD",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "1Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "5Y",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "All",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        },
+        {
+          "tag": "BUTTON",
+          "text": "13:58:15 UTC",
+          "fontSizePx": 11,
+          "role": "body",
+          "testId": null
+        }
+      ],
+      "contrastIssues": [
+        {
+          "tag": "SPAN",
+          "text": "Paper: offline · Live: offline · Data: Paper dat",
+          "ratio": 4.33,
+          "required": 4.5,
+          "foreground": "rgb(255, 93, 115)",
+          "background": "rgb(39, 50, 71)",
+          "testId": "chart-overlay-connection-summary"
+        },
+        {
+          "tag": "SPAN",
+          "text": "O",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "H",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "L",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        },
+        {
+          "tag": "SPAN",
+          "text": "C",
+          "ratio": 2.55,
+          "required": 4.5,
+          "foreground": "rgb(96, 112, 134)",
+          "background": "rgb(39, 50, 71)",
+          "testId": null
+        }
+      ],
+      "captureError": null
+    }
+  ],
+  "captures": [
+    {
+      "id": "home",
+      "filename": "home-1024.webp",
+      "width": 1024,
+      "path": "docs/assets/ux-polish/phase-0/home-1024.webp"
+    },
+    {
+      "id": "home",
+      "filename": "home-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/home-1440.webp"
+    },
+    {
+      "id": "home",
+      "filename": "home-1920.webp",
+      "width": 1920,
+      "path": "docs/assets/ux-polish/phase-0/home-1920.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1024.webp",
+      "width": 1024,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1024.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1440.webp"
+    },
+    {
+      "id": "workspace-chart",
+      "filename": "workspace-chart-1920.webp",
+      "width": 1920,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-1920.webp"
+    },
+    {
+      "id": "workspace-screener-empty",
+      "filename": "workspace-screener-empty-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-screener-empty-1440.webp"
+    },
+    {
+      "id": "workspace-journal-empty",
+      "filename": "workspace-journal-empty-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-journal-empty-1440.webp"
+    },
+    {
+      "id": "workspace-journal-import-modal",
+      "filename": "workspace-journal-import-modal-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-journal-import-modal-1440.webp"
+    },
+    {
+      "id": "workspace-chart-type-popover",
+      "filename": "workspace-chart-type-popover-1440.webp",
+      "width": 1440,
+      "path": "docs/assets/ux-polish/phase-0/workspace-chart-type-popover-1440.webp"
+    }
+  ],
+  "sourceColorAudit": {
+    "rawHexFileCount": 8,
+    "tailwindPaletteFileCount": 5,
+    "samplePaths": [
+      "src/app/components/StockApp.test.tsx",
+      "src/app/components/IndicatorSettingsModal.tsx",
+      "src/app/components/chart-icons/iconPaths.ts",
+      "src/app/components/ChartSettingsModal.tsx",
+      "src/app/components/DrawingSelectionToolbar.test.tsx",
+      "src/app/components/DrawingRenameModal.tsx",
+      "src/app/components/chart-chrome/ChartSnapshotMenu.tsx",
+      "src/app/components/DrawingSelectionToolbar.tsx",
+      "src/app/components/object-tree/ObjectTreeDrawingRow.tsx"
+    ]
+  },
+  "summary": {
+    "auditCount": 12,
+    "auditTarget": 12,
+    "captureCount": 10,
+    "captureTarget": 10,
+    "failures": []
+  }
+}

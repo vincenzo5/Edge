@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { HomeLayoutMode } from "@/lib/app/homeLayout";
 import type { HomeWorkspaceSummary } from "@/lib/app/buildHomeWorkspaceSummaries";
+import { panelTitleClass } from "../design-system/styles";
 
 type Props = {
   summaries: HomeWorkspaceSummary[];
@@ -26,9 +27,7 @@ export default function HomeWorkspaceCards({ summaries, layoutMode }: Props) {
 
   return (
     <section data-testid="home-workspace-cards">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--edge-text-muted)]">
-        Recent workspaces
-      </h2>
+      <h2 className={`mb-3 ${panelTitleClass()} uppercase tracking-wide`}>Recent workspaces</h2>
       <div className={gridClassForMode(layoutMode)}>
         {summaries.map((summary) => (
           <Link

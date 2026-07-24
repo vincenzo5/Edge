@@ -1,5 +1,7 @@
 "use client";
 
+import { annotationTextClass } from "./styles";
+
 type Props = {
   label: string;
   collapsed?: boolean;
@@ -15,7 +17,7 @@ export default function EdgeMenuSectionHeader({ label, collapsed, onToggle }: Pr
         className="edge-section-header edge-focus-ring flex w-full items-center justify-between"
       >
         <span>{label}</span>
-        <span className="text-[10px] opacity-70">{collapsed ? "▾" : "▴"}</span>
+        <span className={`${annotationTextClass()} opacity-70`}>{collapsed ? "▾" : "▴"}</span>
       </button>
     );
   }

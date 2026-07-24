@@ -13,7 +13,13 @@ import {
   mergeRemoteWorkspaces,
   type WorkspaceTabsState,
 } from "../workspaceTabs";
-import { loadDismissedRemoteWorkspaceIds, hasPersistedWorkspaceTabs } from "../workspaceTabsStorage";
+import {
+  hasPersistedWorkspaceTabs,
+  loadDismissedRemoteWorkspaceIds,
+  type WorkspaceTabsStorageBinding,
+} from "../workspaceTabsStorage";
+import type { ChartTileBootstrapBinding } from "./chartTileBootstrapBinding";
+import { resolveChartTileBootstrapBinding } from "./chartTileBootstrapBinding";
 import { loadLocalAppState, type LocalAppState } from "./loadLocalAppState";
 
 export const REMOTE_BOOTSTRAP_TIMEOUT_MS = 500;
@@ -29,11 +35,16 @@ export type AppBootstrapResult = {
   finishRemoteWorkspaceMerge?: () => Promise<WorkspaceTabsState | null>;
 };
 
+export type ResolveAppBootstrapOptions = {
+  chartTileBinding?: ChartTileBootstrapBinding;
+};
+
 export type ResolveAppBootstrapDeps = {
-  loadLocal?: () => LocalAppState;
+  loadLocal?: (options?: { chartTileBinding?: ChartTileBootstrapBinding }) => LocalAppState;
   fetchRemoteList?: () => Promise<ChartWorkspaceRemoteSummary[] | null>;
   remoteTimeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
+  chartTileBinding?: ChartTileBootstrapBinding;
 };
 
 function sleepDefault(ms: number): Promise<void> {
@@ -58,13 +69,36 @@ function buildResult(
   };
 }
 
+function storageBinding(binding: ChartTileBootstrapBinding): WorkspaceTabsStorageBinding {
+  return {
+    tileId: binding.tileId,
+    isPrimaryChartTile: binding.isPrimaryChartTile,
+  };
+}
+
+function resolveAdoptOrphans(binding: ChartTileBootstrapBinding): boolean {
+  if (!binding.isPrimaryChartTile) return false;
+  if (binding.chartWorkspaceId) return false;
+  return !hasPersistedWorkspaceTabs(storageBinding(binding));
+}
+
+function filterRemotesForBinding(
+  remotes: ChartWorkspaceRemoteSummary[],
+  binding: ChartTileBootstrapBinding,
+): ChartWorkspaceRemoteSummary[] {
+  if (!binding.chartWorkspaceId) return remotes;
+  return remotes.filter((remote) => remote.id === binding.chartWorkspaceId);
+}
+
 function applyRemoteMerge(
   localTabs: WorkspaceTabsState,
   remotes: ChartWorkspaceRemoteSummary[],
+  binding: ChartTileBootstrapBinding,
 ): { tabs: WorkspaceTabsState; changed: boolean } {
-  const { state, changed } = mergeRemoteWorkspaces(localTabs, remotes, {
+  const filtered = filterRemotesForBinding(remotes, binding);
+  const { state, changed } = mergeRemoteWorkspaces(localTabs, filtered, {
     dismissedRemoteIds: loadDismissedRemoteWorkspaceIds(),
-    adoptOrphans: !hasPersistedWorkspaceTabs(),
+    adoptOrphans: resolveAdoptOrphans(binding),
   });
   return { tabs: state, changed };
 }
@@ -72,12 +106,16 @@ function applyRemoteMerge(
 export async function resolveAppBootstrap(
   deps: ResolveAppBootstrapDeps = {},
 ): Promise<AppBootstrapResult> {
-  const loadLocal = deps.loadLocal ?? loadLocalAppState;
+  const binding = resolveChartTileBootstrapBinding(deps.chartTileBinding);
+  const loadLocal =
+    deps.loadLocal ??
+    ((options?: { chartTileBinding?: ChartTileBootstrapBinding }) =>
+      loadLocalAppState(options));
   const fetchRemoteList = deps.fetchRemoteList ?? fetchChartWorkspaces;
   const remoteTimeoutMs = deps.remoteTimeoutMs ?? REMOTE_BOOTSTRAP_TIMEOUT_MS;
   const sleep = deps.sleep ?? sleepDefault;
 
-  const local = loadLocal();
+  const local = loadLocal({ chartTileBinding: binding });
 
   let remoteFetchPromise: Promise<ChartWorkspaceRemoteSummary[] | null> | null = null;
 
@@ -102,8 +140,8 @@ export async function resolveAppBootstrap(
     const finishRemoteWorkspaceMerge = async (): Promise<WorkspaceTabsState | null> => {
       const remotes = await startRemoteFetch();
       if (!remotes || remotes.length === 0) return null;
-      const freshLocal = loadLocal();
-      const { tabs, changed } = applyRemoteMerge(freshLocal.workspaceTabs, remotes);
+      const freshLocal = loadLocal({ chartTileBinding: binding });
+      const { tabs, changed } = applyRemoteMerge(freshLocal.workspaceTabs, remotes, binding);
       return changed ? tabs : null;
     };
 
@@ -115,7 +153,7 @@ export async function resolveAppBootstrap(
   }
 
   try {
-    const { tabs, changed } = applyRemoteMerge(local.workspaceTabs, remoteResult);
+    const { tabs, changed } = applyRemoteMerge(local.workspaceTabs, remoteResult, binding);
     return buildResult(local, tabs, changed, false);
   } catch {
     return buildResult(local, local.workspaceTabs, false, false);
