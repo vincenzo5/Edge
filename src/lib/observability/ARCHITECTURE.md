@@ -35,9 +35,11 @@ Postgres/Redis hosting is application infrastructure, not observability SaaS.
 
 ---
 
-## Probe contract (Phase 1 implements)
+## Probe contract (Phase 1)
 
 Cheap machine probes — distinct from rich human health at `/api/market-data/health` and the Data Health UI.
+
+**Implementation:** `src/app/healthz/route.ts`, `src/app/readyz/route.ts`, `src/lib/observability/readiness.ts`, `src/db/index.ts` (`pingDatabase`). Routes live outside `/api/*` so middleware does not auth-gate or rate-limit them.
 
 ### `GET /healthz` — liveness
 
@@ -65,7 +67,16 @@ Cheap machine probes — distinct from rich human health at `/api/market-data/he
 | `/healthz` | Process alive |
 | `/readyz` | Required deps for deploy profile |
 | `/api/market-data/health` | Rich market-data / provider / recovery diagnostics (operator UI) |
-| `services/tws-sidecar` `/health` | Sidecar process only — folded into app `/readyz` in Phase 1 when required |
+| `services/tws-sidecar` `/health` | Sidecar process only — folded into app `/readyz` when `EDGE_READYZ_REQUIRE_TWS=1` |
+
+### Orchestrator healthchecks (Docker / Kubernetes)
+
+| Probe | Use for | Example |
+|-------|---------|---------|
+| `GET /healthz` | Liveness — process up, no dep fan-out | Docker `HEALTHCHECK CMD curl -fsS http://127.0.0.1:3003/healthz` |
+| `GET /readyz` | Readiness — required deps for deploy profile | K8s `readinessProbe.httpGet.path: /readyz` |
+
+Use `/healthz` for restart-on-hang; use `/readyz` to remove traffic when Postgres, required Redis, or required TWS sidecar is down. Do not point orchestrators at `/api/market-data/health` (auth-gated, heavy).
 
 ---
 
@@ -86,10 +97,11 @@ Readiness reuses existing deploy profile knobs — do not invent parallel “obs
 
 ---
 
-## Current baseline (pre–Phase 1)
+## Current baseline
 
 | Piece | Location | Notes |
 |-------|----------|-------|
+| Liveness / readiness | `/healthz`, `/readyz`, `readiness.ts` | Public, secret-free JSON; fixed reason codes on 503 |
 | Redaction | `src/lib/api/redactDiagnostic.ts`, `safeErrorResponse.ts` | Reuse on all ops surfaces |
 | Local errors | `localErrorLog*.ts`, `reportLocalError.ts`, `/api/dev/local-errors` | Prod **404**; gitignored `.edge/error-log.jsonl` |
 | Client reporter | `src/app/components/observability/LocalErrorReporter.tsx` | Non-prod ingest |
@@ -99,7 +111,7 @@ Readiness reuses existing deploy profile knobs — do not invent parallel “obs
 | AI structured stderr | MCP + session bridge | No tool args in logs |
 | Trading audit ring | `src/lib/trading/auditLog.ts` (500 entries) | Lost on restart |
 | Order intents | Postgres `order_intents` | Durable intents; not full audit export |
-| TWS sidecar health | `services/tws-sidecar` `/health` | Not yet in app `/readyz` |
+| TWS sidecar health | `services/tws-sidecar` `/health` | Optional gate in `/readyz` when `EDGE_READYZ_REQUIRE_TWS=1` |
 
 Inventory also recorded in the roadmap [Current baseline](../../../docs/roadmaps/production-observability-roadmap.md#current-baseline-what-already-works) table.
 
@@ -134,7 +146,7 @@ Audit/error read APIs require existing API auth / operator gates (Security Harde
 | Phase | Delivers |
 |-------|----------|
 | 0 | This doc + CONSTRAINTS + env placeholders (docs only) |
-| 1 | `/healthz`, `/readyz` routes + tests |
+| 1 | `/healthz`, `/readyz` routes + tests (**Passing**) |
 | 2 | Request ID middleware + JSON access logs |
 | 3 | Durable trading audit (Postgres) |
 | 4 | Production error sink (Postgres) |

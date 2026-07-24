@@ -33,6 +33,20 @@ export function getDb() {
   return dbInstance;
 }
 
+/** Cheap connectivity ping when DATABASE_URL is set. */
+export async function pingDatabase(): Promise<boolean> {
+  if (!isDatabaseConfigured()) {
+    return true;
+  }
+  try {
+    getDb();
+    const result = await pool!.query("SELECT 1 AS ok");
+    return result.rowCount === 1;
+  } catch {
+    return false;
+  }
+}
+
 /** Test helper — close pool between integration tests. */
 export async function closeDbForTests(): Promise<void> {
   if (pool) {

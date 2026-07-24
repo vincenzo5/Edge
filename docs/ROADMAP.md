@@ -65,6 +65,7 @@ Stage 1 - Measurement and constraints:
 - Measure initial render time, pan/zoom FPS, crosshair latency, memory use, indicator recompute cost, and multi-pane redraw cost.
 - Use the results to decide whether the first bottleneck is renderer fill rate, data structures, indicator math, React state churn, hit-testing, or API/data loading.
 - **Initial baseline (2026-06-24):** 100k + six indicators mount ~1.8s; pan/zoom sample p95 ~894ms with 80% dropped frames; indicator cache-key fingerprint on 100k candles ~243ms (similar to cold compute), pointing to cache-key/compute and interaction repaint as first optimization targets.
+- **Interaction optimization track:** [Runtime Interaction Performance Roadmap](./roadmaps/runtime-performance-roadmap.md) — Phases 0–8 **Pending** (metric contract → false invalidation → React fan-out → revision/tip compute → drawings → pan/zoom → list virtualization → layout fan-out → CI budgets).
 
 Stage 2 - Declarative indicator platform:
 
@@ -278,9 +279,10 @@ Living feature tracks (phase detail in each file):
 - ~~[Workspace state persistence](./roadmaps/workspace-state-persistence-roadmap.md)~~ — **Complete**
 - ~~[Data serving & caching efficiency](./roadmaps/data-serving-efficiency-roadmap.md)~~ — **Complete** (Phases 0–6 **Passing**; Phase 7 Redis **Skipped** — prod topology → [shared-cache-topology-roadmap.md](./roadmaps/shared-cache-topology-roadmap.md))
 - ~~[Memory efficiency](./roadmaps/memory-efficiency-roadmap.md)~~ — Phases 0–14 **Passing** (track complete; Phase 12 adapters)
+- [Runtime interaction performance](./roadmaps/runtime-performance-roadmap.md) — Phase 0–8 **Pending** (frame time, crosshair cost, tip tick, React wakeups; CI budgets in Phase 8)
 - [Shared cache topology](./roadmaps/shared-cache-topology-roadmap.md) — Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance coordination)
 - ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete
-- [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0 **Passing**; Phases 1–5 **Pending** (probes, structured logs, durable audit/errors, free alerts; no paid SaaS)
+- [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0–1 **Passing**; Phases 2–5 **Pending** (structured logs, durable audit/errors, free alerts; no paid SaaS)
 - ~~[Plan → execute token efficiency](./roadmaps/plan-execute-token-efficiency-roadmap.md)~~ — Phase 0–6 **Passing** (track complete)
 
 Broader product backlog (not feature-track owned):
@@ -329,6 +331,7 @@ These are intentionally not near-term roadmap items:
 - [Workspace State Persistence Roadmap](./roadmaps/workspace-state-persistence-roadmap.md) - per-tile charts, app-workspace sync, prefs, viewport, workflow resume.
 - [Data Serving Efficiency Roadmap](./roadmaps/data-serving-efficiency-roadmap.md) - **Complete** — client cache reuse, poll hygiene, home remote truth, screener/AI serving cost; Redis multi-instance skipped.
 - [Memory Efficiency Roadmap](./roadmaps/memory-efficiency-roadmap.md) - Phases 0–14 **Passing** (track complete; Redis shared cache optional behind `EDGE_MARKET_DATA_CACHE_BACKEND=redis`).
+- [Runtime Interaction Performance Roadmap](./roadmaps/runtime-performance-roadmap.md) - frame time, crosshair cost, tip tick, React wakeups; CI budgets after interaction fixes.
 - [Plan → Execute Token Efficiency Roadmap](./roadmaps/plan-execute-token-efficiency-roadmap.md) - Phase 0–6 **Passing** (track complete).
 - [Production Observability Roadmap](./roadmaps/production-observability-roadmap.md) - free-stack probes, logs, durable audit/errors, and alerts (no paid SaaS).
 - [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md) - sync/series consolidation and chart/app coordinator decomposition.

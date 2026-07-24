@@ -1,0 +1,35 @@
+# Production observability — Phase 1 evidence
+# Date: 2026-07-24
+
+## Scope
+Implement GET /healthz and GET /readyz per frozen Phase 0 probe contract.
+
+## Delivered
+- src/lib/observability/readiness.ts — gated Postgres/Redis/TWS checks with fixed reason codes
+- src/db/index.ts — pingDatabase()
+- src/app/healthz/route.ts — liveness (200, no deps)
+- src/app/readyz/route.ts — readiness (200/503)
+- Tests: readiness.test.ts, healthz/route.test.ts, readyz/route.test.ts
+- src/lib/observability/ARCHITECTURE.md — Phase 1 implemented + Docker/K8s healthcheck note
+- docs/roadmaps/production-observability-roadmap.md — Phase 1 Passing
+
+## Architecture review
+Self-review Passed — public probes outside /api/*; secret-free JSON; reuses isRedisRequired/pingRedis/createTwsClient.probeLiveness.
+
+## Verification (2026-07-24)
+Focused:
+npm test -- --run src/lib/observability/readiness.test.ts src/app/healthz/route.test.ts src/app/readyz/route.test.ts
+Test Files  3 passed (3)
+Tests  9 passed (9)
+
+Build:
+npm run build
+✓ Compiled successfully in 9.0s
+
+App-level / ops:
+curl -sS http://localhost:3003/healthz → {"ok":true} HTTP 200
+curl -sS http://localhost:3003/readyz → {"ok":true} HTTP 200
+No postgres://, redis://, DATABASE_URL, or REDIS_URL in probe JSON.
+
+## Next
+Phase 2 — request ID middleware + JSON access logs
