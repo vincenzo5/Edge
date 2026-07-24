@@ -48,10 +48,17 @@ describe('rangeForManualInterval', () => {
     expect(rangeForManualInterval('1wk')).toBe('5y');
   });
 
-  it('uses one-year history for daily and intraday bars', () => {
+  it('uses Yahoo-safe history for short intraday bars', () => {
+    expect(rangeForManualInterval('1m')).toBe('5d');
+    expect(rangeForManualInterval('5m')).toBe('1mo');
+    expect(rangeForManualInterval('15m')).toBe('1mo');
+    expect(rangeForManualInterval('30m')).toBe('1mo');
+  });
+
+  it('uses one-year history for daily and hourly bars', () => {
     expect(rangeForManualInterval('1d')).toBe('1y');
     expect(rangeForManualInterval('1h')).toBe('1y');
-    expect(rangeForManualInterval('5m')).toBe('1y');
+    expect(rangeForManualInterval('2h')).toBe('1y');
   });
 });
 

@@ -21,7 +21,13 @@ export type OverlayClipboardHandlers = {
 
 export type OverlayContextMenuOptions = {
   onTradeSetup?: () => void;
+  onAddAlert?: () => void;
+  onAddTradePlanAlerts?: () => void;
 };
+
+export function isAlertableOverlayName(name: string): boolean {
+  return name === "horizontal_line" || name === "trend_line" || name === "rectangle";
+}
 
 export function buildOverlayContextMenuItems(
   overlay: TrackedOverlay,
@@ -31,6 +37,18 @@ export function buildOverlayContextMenuItems(
   clipboard: OverlayClipboardHandlers,
   options?: OverlayContextMenuOptions,
 ): ContextMenuItem[] {
+  const tradePlanItem: ContextMenuItem[] =
+    options?.onAddTradePlanAlerts && isPositionDrawingName(overlay.name)
+      ? [
+          {
+            id: "add-trade-plan-alerts",
+            label: "Add trade plan alerts…",
+            action: options.onAddTradePlanAlerts,
+            dividerAfter: true,
+          },
+        ]
+      : [];
+
   const tradeItem: ContextMenuItem[] =
     options?.onTradeSetup && isPositionDrawingName(overlay.name)
       ? [
@@ -38,6 +56,19 @@ export function buildOverlayContextMenuItems(
             id: "trade-setup",
             label: "Trade setup…",
             action: options.onTradeSetup,
+            dividerAfter: tradePlanItem.length === 0,
+          },
+          ...tradePlanItem,
+        ]
+      : tradePlanItem;
+
+  const alertItem: ContextMenuItem[] =
+    options?.onAddAlert && isAlertableOverlayName(overlay.name)
+      ? [
+          {
+            id: "add-alert-drawing",
+            label: "Add alert on drawing…",
+            action: options.onAddAlert,
             dividerAfter: true,
           },
         ]
@@ -45,6 +76,7 @@ export function buildOverlayContextMenuItems(
 
   return [
     ...tradeItem,
+    ...alertItem,
     {
       id: "rename",
       label: "Rename",

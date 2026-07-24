@@ -207,12 +207,12 @@ export default function DrawingToolGroup({
         id={menuId}
         role="menu"
         aria-label={group.label}
-        className="min-w-[200px] overflow-hidden rounded border border-[#1e222d] bg-[#131722] py-1 shadow-lg"
+        className="min-w-[200px] overflow-hidden rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] py-1 shadow-[var(--edge-shadow-popover)]"
         style={flyoutStyle ?? { visibility: "hidden" }}
         onMouseEnter={clearCloseTimer}
         onMouseLeave={scheduleClose}
       >
-        <div className="border-b border-[#1e222d] px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[#787b86]">
+        <div className="border-b border-[var(--edge-border)] px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--edge-text-secondary)]">
           {group.label}
         </div>
         {group.tools.map((tool) => {
@@ -235,11 +235,11 @@ export default function DrawingToolGroup({
                 onClick={() => handleSelect(tool.name)}
                 className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
                   isActive
-                    ? "bg-[#2a2e39] text-[#d1d4dc]"
-                    : "text-[#d1d4dc] hover:bg-[#1e222d]"
+                    ? "bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]"
+                    : "text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)]"
                 }`}
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center text-[#787b86]">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center text-[var(--edge-text-secondary)]">
                   <Icon size={22} />
                 </span>
                 <span>{tool.label}</span>

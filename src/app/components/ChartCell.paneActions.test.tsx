@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { forwardRef, useImperativeHandle } from 'react';
 import ChartCell from './ChartCell';
+import { AppTimeZoneProvider } from './AppTimeZoneProvider';
 import {
   DEFAULT_CELL,
   DEFAULT_TOOLBAR_PREFS,
@@ -68,7 +69,8 @@ const multiPaneConfig: CellConfig = {
 function renderCell(config: CellConfig = multiPaneConfig) {
   const onConfigChange = vi.fn();
   render(
-    <ChartCell
+    <AppTimeZoneProvider>
+      <ChartCell
       chartId="test-chart"
       config={config}
       theme="dark"
@@ -77,7 +79,8 @@ function renderCell(config: CellConfig = multiPaneConfig) {
       toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
       onConfigChange={onConfigChange}
       onToolbarPrefsChange={vi.fn()}
-    />,
+    />
+    </AppTimeZoneProvider>,
   );
   return { onConfigChange };
 }

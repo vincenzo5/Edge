@@ -3,6 +3,7 @@ import { attachViewportHelpers, createViewport } from './viewport';
 import type { Candle, IndicatorConfig } from './contracts';
 import { IndicatorRegistry } from './pluginHost';
 import { resolveIndicatorInputs } from './indicatorInputs';
+import { plotHeight, plotWidth } from './layout';
 import {
   clampPlot,
   plotToPoint,
@@ -27,8 +28,8 @@ function makeVp(width = 800, height = 400) {
 describe('drawingCoords', () => {
   it('clampPlot keeps coords inside plot area', () => {
     const c = clampPlot(900, 500, 800, 400, true);
-    expect(c.x).toBeLessThanOrEqual(750);
-    expect(c.y).toBeLessThanOrEqual(370);
+    expect(c.x).toBe(plotWidth(800));
+    expect(c.y).toBe(plotHeight(400, true));
     expect(c.x).toBeGreaterThanOrEqual(0);
     expect(c.y).toBeGreaterThanOrEqual(0);
   });

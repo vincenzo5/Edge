@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import EdgeButton from "./design-system/EdgeButton";
+import EdgeSelect from "./design-system/EdgeSelect";
 
 type Props = {
   total: number;
@@ -113,17 +114,19 @@ export default function BarReplay({ total, onVisibleChange, disabled }: Props) {
           <span className="text-xs text-[var(--edge-text-muted)]">
             {index} / {total}
           </span>
-          <select
-            value={speedIdx}
-            onChange={(e) => setSpeedIdx(Number(e.target.value))}
-            className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1 text-xs text-[var(--edge-text-primary)]"
-          >
-            {SPEEDS.map((s, i) => (
-              <option key={s.label} value={i}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          <EdgeSelect
+            testId="bar-replay-speed"
+            variant="chip"
+            density="compact"
+            value={String(speedIdx)}
+            onChange={(next) => setSpeedIdx(Number(next))}
+            options={SPEEDS.map((speed, index) => ({
+              value: String(index),
+              label: speed.label,
+            }))}
+            minWidth={90}
+            aria-label="Replay speed"
+          />
         </>
       )}
     </div>

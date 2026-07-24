@@ -23,6 +23,8 @@ import type { DrawingScreenBounds } from "./EdgeChart";
 import {
   resolveDrawingToolbarPosition,
 } from "./drawingSelectionToolbarPosition";
+import { SettingsIcon } from "./chart-chrome/ChartHeaderIcons";
+import EdgeSelect from "./design-system/EdgeSelect";
 
 type Props = {
   theme: Theme;
@@ -36,6 +38,7 @@ type Props = {
   onMetadataChange: (patch: DrawingMetadata) => void;
   onAcceptProposal: () => void;
   onDismissProposal: () => void;
+  onOpenInChat?: () => void;
   onOpenSettings: () => void;
   onToggleLock: () => void;
   onDelete: () => void;
@@ -74,6 +77,7 @@ export default function DrawingSelectionToolbar({
   onMetadataChange,
   onAcceptProposal,
   onDismissProposal,
+  onOpenInChat,
   onOpenSettings,
   onToggleLock,
   onDelete,
@@ -89,9 +93,8 @@ export default function DrawingSelectionToolbar({
   const metadata = drawing.metadata;
   const isAiProposal =
     metadata?.source === "ai" && metadata?.status === "proposed";
+  const isAiSuggested = metadata?.source === "ai";
   const showRationale = Boolean(metadata?.kind);
-  const selectClass = `h-7 max-w-[7.5rem] rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1 text-xs text-[var(--edge-text-primary)]`;
-
   useEffect(() => {
     const el = toolbarRef.current;
     if (!el) return;
@@ -159,7 +162,7 @@ export default function DrawingSelectionToolbar({
       ref={toolbarRef}
       role="toolbar"
       aria-label="Drawing tools"
-      className="pointer-events-auto absolute z-30 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-1 py-0.5 text-[var(--edge-text-primary)] shadow-lg"
+      className="pointer-events-auto absolute z-30 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-1 py-0.5 text-[var(--edge-text-primary)] shadow-[var(--edge-shadow-popover)]"
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
@@ -178,12 +181,13 @@ export default function DrawingSelectionToolbar({
 
       <div className="mx-0.5 h-5 w-px bg-[var(--edge-border-strong)]" />
 
-      <select
+      <EdgeSelect
+        variant="chip"
+        density="compact"
         aria-label="Annotation kind"
-        title="Annotation kind"
         value={metadata?.kind ?? ""}
-        onChange={(e) => {
-          const value = e.target.value;
+        placeholder="No kind"
+        onChange={(value) => {
           if (!value) {
             onMetadataChange({ kind: undefined });
             return;
@@ -194,15 +198,13 @@ export default function DrawingSelectionToolbar({
             status: metadata?.status === "proposed" ? "proposed" : "active",
           });
         }}
-        className={selectClass}
-      >
-        <option value="">No kind</option>
-        {ANNOTATION_KINDS.map((kind) => (
-          <option key={kind} value={kind}>
-            {ANNOTATION_KIND_FULL_LABELS[kind]}
-          </option>
-        ))}
-      </select>
+        options={ANNOTATION_KINDS.map((kind) => ({
+          value: kind,
+          label: ANNOTATION_KIND_FULL_LABELS[kind],
+        }))}
+        className="max-w-[7.5rem] text-xs"
+        minWidth={120}
+      />
 
       {showRationale && (
         <input
@@ -219,11 +221,32 @@ export default function DrawingSelectionToolbar({
         />
       )}
 
+      {isAiSuggested && (
+        <span
+          data-testid="drawing-ai-suggested"
+          className="rounded border border-[var(--edge-border)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--edge-text-tertiary)]"
+        >
+          AI suggested
+        </span>
+      )}
+
+      {isAiSuggested && onOpenInChat ? (
+        <button
+          type="button"
+          className={`${btnClass} text-[var(--edge-accent)]`}
+          title="Open in chat"
+          aria-label="Open in chat"
+          onClick={onOpenInChat}
+        >
+          Chat
+        </button>
+      ) : null}
+
       {isAiProposal && (
         <>
           <button
             type="button"
-            className={`${btnClass} text-[#00FF88] hover:text-[#00FF88]/80`}
+            className={`${btnClass} text-[var(--edge-positive)] hover:text-[color-mix(in_srgb,var(--edge-positive)_80%,transparent)]`}
             title="Accept AI proposal"
             aria-label="Accept AI proposal"
             onClick={onAcceptProposal}
@@ -232,7 +255,7 @@ export default function DrawingSelectionToolbar({
           </button>
           <button
             type="button"
-            className={`${btnClass} text-orange-400 hover:text-orange-300`}
+            className={`${btnClass} text-[var(--edge-warning)] hover:text-[color-mix(in_srgb,var(--edge-warning)_80%,transparent)]`}
             title="Dismiss AI proposal"
             aria-label="Dismiss AI proposal"
             onClick={onDismissProposal}
@@ -258,43 +281,43 @@ export default function DrawingSelectionToolbar({
             />
           </label>
 
-          <select
+          <EdgeSelect
+            variant="chip"
+            density="compact"
             aria-label="Line width"
-            title="Line width"
-            value={styles.lineWidth ?? 1.5}
-            onChange={(e) => onStyleChange({ lineWidth: Number(e.target.value) })}
-            className={`h-7 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1 text-xs text-[var(--edge-text-primary)]`}
-          >
-            {LINE_WIDTHS.map((w) => (
-              <option key={w} value={w}>
-                {w}px
-              </option>
-            ))}
-          </select>
+            value={String(styles.lineWidth ?? 1.5)}
+            onChange={(next) => onStyleChange({ lineWidth: Number(next) })}
+            options={LINE_WIDTHS.map((width) => ({
+              value: String(width),
+              label: `${width}px`,
+            }))}
+            className="text-xs"
+            minWidth={70}
+          />
         </>
       )}
 
       {caps.showDash && (
-        <select
+        <EdgeSelect
+          variant="chip"
+          density="compact"
           aria-label="Line style"
-          title="Line style"
           value={dashPreset}
-          onChange={(e) => setDash(e.target.value as LineDashPreset)}
-          className={`h-7 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-1 text-xs text-[var(--edge-text-primary)]`}
-        >
-          <option value="solid">Solid</option>
-          <option value="dashed">Dashed</option>
-          <option value="dotted">Dotted</option>
-        </select>
+          onChange={(next) => setDash(next as LineDashPreset)}
+          options={[
+            { value: "solid", label: "Solid" },
+            { value: "dashed", label: "Dashed" },
+            { value: "dotted", label: "Dotted" },
+          ]}
+          className="text-xs"
+          minWidth={80}
+        />
       )}
 
       <div className="mx-0.5 h-5 w-px bg-[var(--edge-border-strong)]" />
 
       <button type="button" className={btnClass} title="Settings" aria-label="Settings" onClick={onOpenSettings}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-        </svg>
+        <SettingsIcon size={14} />
       </button>
 
       <button
@@ -317,7 +340,7 @@ export default function DrawingSelectionToolbar({
         )}
       </button>
 
-      <button type="button" className={`${btnClass} text-red-400 hover:text-red-300`} title="Delete" aria-label="Delete drawing" onClick={onDelete}>
+      <button type="button" className={`${btnClass} text-[var(--edge-negative)] hover:text-[color-mix(in_srgb,var(--edge-negative)_80%,transparent)]`} title="Delete" aria-label="Delete drawing" onClick={onDelete}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />
         </svg>

@@ -17,6 +17,7 @@ import {
   type CaptureState,
 } from "@/lib/patternCapture/fsm";
 import { buildPatternRecordFromCapture } from "@/lib/patternCapture/buildRecord";
+import { invalidatePatternLibraryRecordsCache } from "@/lib/persistence/client/patternLibraryRecordsClient";
 import { SECTION_LABEL_PRESETS } from "@/lib/patternCapture/presets";
 import {
   barIndexFromClientX,
@@ -174,6 +175,7 @@ export function usePatternCapture({
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(payload?.error ?? "Save failed");
       }
+      invalidatePatternLibraryRecordsCache();
       setCaptureSaveMessage(`Saved ${built.record.id}`);
       setCaptureSavedRecordId(built.record.id);
       dispatchCapture({ type: "SAVE_SUCCESS" });

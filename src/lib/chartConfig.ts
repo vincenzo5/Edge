@@ -2,12 +2,15 @@ import type { Range } from "./yahoo";
 import type { Interval } from "./chart/contracts";
 import type { IndicatorConfig, SerializedDrawing } from "./chart/contracts";
 import type { ChartSettings } from "./chart/chartSettings";
+import type { ViewportPersistSketch } from "./chart/viewportPersistSketch";
 import {
   DEFAULT_CHART_SETTINGS,
   mergeChartSettings,
   migrateChartSettings,
   patchChartSettings,
+  persistChartSettings,
   serializeChartSettings,
+  stripLegacyFactoryTimeZoneOnLoad,
 } from "./chart/chartSettings";
 
 export type { Range, Interval };
@@ -33,7 +36,9 @@ export {
   mergeChartSettings,
   migrateChartSettings,
   patchChartSettings,
+  persistChartSettings,
   serializeChartSettings,
+  stripLegacyFactoryTimeZoneOnLoad,
 };
 import { defaultInputsFromSchema } from "./chart/indicatorInputs";
 import { getIndicator } from "./chart/indicators/registry";
@@ -44,6 +49,10 @@ export type ChartType =
   | "ohlc"
   | "area"
   | "heikin_ashi";
+
+import type { PaletteId } from "@edge/chart-core";
+import { DEFAULT_PALETTE, coercePaletteId } from "@/lib/design-system/palettes";
+import { setActiveChartPalette } from "@edge/chart-core";
 
 export type Theme = "light" | "dark";
 
@@ -114,7 +123,9 @@ export type SidebarPanelId =
   | "options"
   | "screener"
   | "trade"
-  | "patterns";
+  | "patterns"
+  | "day-profiles"
+  | "copilot";
 
 /** Legacy persisted panel ids migrated on load. */
 export type LegacySidebarPanelId = SidebarPanelId | "risk";
@@ -165,6 +176,8 @@ export type CellConfig = {
   chartSettings?: ChartSettings;
   /** When false, main candle series is hidden on the price pane. Default visible. */
   mainSeriesVisible?: boolean;
+  /** Persisted zoom/pan when modified; cleared on session change or reset chart view. */
+  viewport?: ViewportPersistSketch;
 };
 
 export type LayoutSyncPrefs = {
@@ -363,6 +376,24 @@ export function applyThemeToRoot(theme: Theme): void {
   document.documentElement.classList.add(theme);
 }
 
+/** Apply light/dark mode and named palette to `<html>` and chart runtime. */
+export function applyAppearanceToRoot(
+  theme: Theme,
+  palette: PaletteId = DEFAULT_PALETTE,
+): void {
+  applyThemeToRoot(theme);
+  if (typeof document === "undefined") return;
+  document.documentElement.dataset.palette = palette;
+  setActiveChartPalette(palette);
+}
+
+export function coercePalette(
+  value: unknown,
+  fallback: PaletteId = DEFAULT_PALETTE,
+): PaletteId {
+  return coercePaletteId(value, fallback);
+}
+
 export const RANGES: Array<{ label: string; value: Range }> = [
   { label: "1D", value: "1d" },
   { label: "5D", value: "5d" },
@@ -437,6 +468,25 @@ export function createIndicatorInstance(
     name,
     pane,
     inputs,
+    visible: true,
+  };
+}
+
+export function createScriptIndicatorInstance(params: {
+  scriptId: string;
+  revision: string;
+  name: string;
+  pane: "main" | "sub";
+  inputs?: IndicatorConfig["inputs"];
+}): IndicatorConfig {
+  return {
+    id: generateIndicatorId(),
+    kind: "script",
+    scriptId: params.scriptId,
+    revision: params.revision,
+    name: params.name,
+    pane: params.pane,
+    inputs: params.inputs,
     visible: true,
   };
 }
@@ -576,7 +626,7 @@ export function cloneCellConfig(
     collapsedPanes,
     maximizedPane,
     paneHeights,
-    chartSettings: mergeChartSettings(source.chartSettings),
+    chartSettings: source.chartSettings,
     mainSeriesVisible: source.mainSeriesVisible,
   };
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import type { ChartDataMeta } from "@edge/chart-core";
 import type { Theme } from "@/lib/chartConfig";
 import { PRICE_AXIS_WIDTH } from "@/lib/chart/layout";
 import ChartOverlayDataHealthRow from "./ChartOverlayDataHealthRow";
@@ -53,20 +52,13 @@ export default function ChartOverlayStatusStack({
       style={{ right: overlayRightPx }}
       data-testid="chart-overlay-status-stack"
     >
-      <ChartFeedStatusBadge
-        embedded
-        error={error}
-        streamError={streamError}
-        stale={stale}
-        refreshing={refreshing}
-        source={source}
-        onRetry={onRetry}
-        showRetry={showRetry}
-      />
       <ChartOverlayDataHealthRow
         theme={theme}
         marketSessionLabel={marketSessionLabel}
         showMarketStatus={showMarketStatus}
+        chartFeed={{ error, streamError, stale, refreshing, source }}
+        showChartRetry={showRetry}
+        onChartRetry={onRetry}
       />
     </div>
   );

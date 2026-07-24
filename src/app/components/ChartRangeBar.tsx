@@ -3,9 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Range, Theme } from '@/lib/chart/contracts';
 import type { ChartTimeZone } from '@/lib/chart/timeZone';
-import { formatClockLabel } from '@/lib/chart/timeZone';
+import { formatClockAbbreviation, formatClockLabel } from '@/lib/chart/timeZone';
 import { BOTTOM_RANGE_PRESETS, rangePresetLabel } from '@/lib/chart/rangePresets';
 import { useElementSize } from '@/lib/responsive/useElementSize';
+import {
+  bodyTextClass,
+  compactControlClass,
+  headerDividerClass,
+  metadataTextClass,
+} from './design-system/styles';
 import ChartTimeZoneMenu from './ChartTimeZoneMenu';
 
 type Props = {
@@ -19,7 +25,14 @@ type Props = {
   onTimeZoneChange: (timeZone: ChartTimeZone) => void;
 };
 
-const CLOCK_PLACEHOLDER = '--:--:-- UTC';
+const CLOCK_PLACEHOLDER_TIME = '--:--:--';
+
+function clockPlaceholder(
+  timeZone: ChartTimeZone,
+  exchange?: string | null,
+): string {
+  return `${CLOCK_PLACEHOLDER_TIME} ${formatClockAbbreviation(timeZone, exchange)}`;
+}
 
 function useNow(intervalMs = 1000): Date | null {
   const [now, setNow] = useState<Date | null>(null);
@@ -65,7 +78,6 @@ export default function ChartRangeBar({
   onGoToClick,
   onTimeZoneChange,
 }: Props) {
-  void theme;
   const now = useNow();
   const clockRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -73,20 +85,22 @@ export default function ChartRangeBar({
   const compactClock = barSize.width > 0 && barSize.width < 420;
   const clockLabel = now
     ? formatClockLabel(timeZone, exchange, now)
-    : CLOCK_PLACEHOLDER;
+    : clockPlaceholder(timeZone, exchange);
   const displayClockLabel = compactClock && clockLabel.length > 8
     ? clockLabel.slice(-8)
     : clockLabel;
+
+  const pillBaseClass = `${compactControlClass()} edge-focus-ring min-w-[var(--edge-control-height-compact)] justify-center rounded-[var(--edge-radius-xs)] px-2 ${bodyTextClass()} font-medium transition-colors`;
+  const barHeightClass = compact ? 'h-8' : 'h-9';
 
   return (
     <>
       <div
         ref={barRef}
-        className={`flex min-w-0 shrink-0 items-center gap-0.5 overflow-x-auto border-t px-2 ${
-          compact ? 'h-6 text-[10px]' : 'h-7 text-[11px]'
-        } border-[var(--edge-border-subtle)] bg-[var(--edge-surface-toolbar)] text-[var(--edge-text-secondary)]`}
+        className={`flex min-w-0 shrink-0 items-center gap-1 overflow-x-auto border-t px-2 ${barHeightClass} ${metadataTextClass()} border-[var(--edge-border-subtle)] bg-[var(--edge-surface-toolbar)]`}
         role="toolbar"
         aria-label="Chart range"
+        data-testid="chart-range-bar"
       >
         <div className="flex min-w-max items-center gap-0.5">
         {BOTTOM_RANGE_PRESETS.map((preset) => {
@@ -96,12 +110,13 @@ export default function ChartRangeBar({
               key={preset}
               type="button"
               onClick={() => onRangeSelect(preset)}
-              className={`rounded-[var(--edge-radius-xs)] px-1.5 py-0.5 font-medium transition-colors ${
+              className={`${pillBaseClass} ${
                 active
                   ? 'bg-[var(--edge-surface-active)] font-semibold text-[var(--edge-text-strong)]'
-                  : 'hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]'
+                  : 'text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]'
               }`}
               aria-pressed={active}
+              data-testid={`chart-range-preset-${preset}`}
             >
               {rangePresetLabel(preset)}
             </button>
@@ -111,15 +126,16 @@ export default function ChartRangeBar({
         {onGoToClick && (
           <>
             <span
-              className="mx-1 h-4 w-px shrink-0 bg-[var(--edge-border)]"
+              className={headerDividerClass(theme)}
               aria-hidden
             />
             <button
               type="button"
               onClick={onGoToClick}
-              className="rounded p-1 transition-colors hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]"
+              className={`${compactControlClass()} edge-focus-ring inline-flex w-[var(--edge-control-height-compact)] items-center justify-center rounded-[var(--edge-radius-xs)] transition-colors hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]`}
               aria-label="Go to date"
               title="Go to date"
+              data-testid="chart-range-go-to"
             >
               <GoToCalendarIcon />
             </button>
@@ -131,13 +147,14 @@ export default function ChartRangeBar({
           ref={clockRef}
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          className={`ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono tabular-nums transition-colors ${
-            'hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]'
-          } ${menuOpen ? 'bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]' : ''}`}
+          className={`${pillBaseClass} ml-auto shrink-0 font-mono tabular-nums hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)] ${
+            menuOpen ? 'bg-[var(--edge-surface-active)] text-[var(--edge-text-strong)]' : ''
+          }`}
           aria-label={`Chart timezone: ${clockLabel}. Click to change.`}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           title="Change timezone"
+          data-testid="chart-range-clock"
         >
           {displayClockLabel}
         </button>

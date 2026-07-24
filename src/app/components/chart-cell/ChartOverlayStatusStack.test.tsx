@@ -116,7 +116,7 @@ describe("ChartOverlayStatusStack", () => {
     expect(screen.queryByTestId("chart-feed-status-badge")).toBeNull();
   });
 
-  it("stacks feed status badge above data health when stale", () => {
+  it("uses unified projection overlay when stale and not display-fresh", () => {
     renderStack(
       <ChartOverlayStatusStack
         theme="dark"
@@ -129,7 +129,7 @@ describe("ChartOverlayStatusStack", () => {
       />,
     );
 
-    expect(screen.getByTestId("chart-feed-status-stale")).toHaveTextContent(/Stale data · tws/);
+    expect(screen.queryByTestId("chart-feed-status-badge")).toBeNull();
     expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
   });
 
@@ -186,7 +186,7 @@ describe("ChartOverlayStatusStack", () => {
     expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
   });
 
-  it("shows inline reconnect when TWS recovery is needed", async () => {
+  it("does not show recover CTA on chart overlay when TWS recovery is needed", async () => {
     renderStack(
       <ChartOverlayStatusStack
         theme="dark"
@@ -200,10 +200,10 @@ describe("ChartOverlayStatusStack", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("chart-overlay-recover-tws")).toBeInTheDocument();
+      expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("chart-overlay-recover-tws")).toHaveTextContent("Reconnect TWS");
-    expect(screen.getByTestId("chart-data-source-badge")).toBeInTheDocument();
+    expect(screen.queryByTestId("chart-overlay-recover-tws")).toBeNull();
+    expect(screen.queryByTestId("chart-overlay-connection-summary")).toBeNull();
   });
 
   it("hides inline reconnect when TWS is healthy", async () => {

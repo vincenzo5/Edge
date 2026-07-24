@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
 import ChartDrawingRail from './ChartDrawingRail';
 import {
@@ -113,7 +113,7 @@ describe('ChartDrawingRail', () => {
     expect(screen.getByLabelText('Cursor')).toHaveAttribute('disabled');
   });
 
-  it('calls selectTool on the active chart when a tool is chosen', () => {
+  it('calls selectTool on the active chart when a tool is chosen', async () => {
     const selectTool = vi.fn();
     const snapshot = makeSnapshot({
       drawingToolbarActions: makeDrawingToolbarActionsMock({ selectTool }),
@@ -130,7 +130,13 @@ describe('ChartDrawingRail', () => {
       </ActiveChartProvider>,
     );
 
-    fireEvent.click(screen.getByLabelText('Lines — Trend Line'));
+    const toolButton = await waitFor(() => {
+      const button = screen.getByLabelText('Lines — Trend Line');
+      expect(button).not.toBeDisabled();
+      return button;
+    });
+    fireEvent.click(toolButton);
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Trend Line' }));
 
     expect(selectTool).toHaveBeenCalledWith('straightLine');
   });

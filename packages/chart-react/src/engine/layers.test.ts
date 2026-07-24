@@ -25,6 +25,7 @@ describe('LayerRegistry', () => {
       'grid',
       'candles',
       'indicators',
+      'scriptObjects',
       'drawings',
       'axes',
     ]);
@@ -62,12 +63,14 @@ describe('layer invalidation metadata', () => {
     const background = STANDARD_CHART_LAYERS.find((layer) => layer.id === 'background');
     expect(background?.invalidatingReasons).toEqual(BACKGROUND_INVALIDATING);
     expect(canReuseBackgroundCache(new Set(['selection']))).toBe(true);
-    expect(canReuseBackgroundCache(new Set(['viewport']))).toBe(false);
+    expect(canReuseBackgroundCache(new Set(['viewport']))).toBe(true);
     expect(canReuseLayerCache(background!.invalidatingReasons, new Set(['selection']))).toBe(true);
   });
 
-  it('allows series cache reuse for viewport-only invalidation', () => {
-    expect(canReuseSeriesCache(new Set(['viewport']))).toBe(true);
+  it('allows series cache reuse for crosshair-only invalidation', () => {
+    expect(canReuseSeriesCache(new Set(['crosshair']))).toBe(true);
+    expect(canReuseSeriesCache(new Set(['viewport']))).toBe(false);
+    expect(canReuseSeriesCache(new Set(['viewport', 'crosshair']))).toBe(false);
     expect(canReuseSeriesCache(new Set(['data']))).toBe(false);
   });
 

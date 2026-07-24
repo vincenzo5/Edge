@@ -29,6 +29,14 @@ export function intervalForRange(range: Range): Interval {
 /** Fetch range paired with a manually selected interval (header dropdown). */
 export function rangeForManualInterval(interval: Interval): Range {
   switch (interval) {
+    case '1m':
+      // Yahoo retains ~7 days of 1m bars.
+      return '5d';
+    case '5m':
+    case '15m':
+    case '30m':
+      // Prefer 1mo under Yahoo's ~60d cap; yahooFinance also clamps oversized windows.
+      return '1mo';
     case '1wk':
       return '5y';
     case '1mo':

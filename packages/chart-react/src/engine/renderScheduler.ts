@@ -35,7 +35,6 @@ export const BACKGROUND_INVALIDATING: ReadonlySet<DrawInvalidationReason> = new 
   'size',
   'theme',
   'settings',
-  'viewport',
 ]);
 
 /** Invalidation reasons for series/indicator layers — keep in sync with layers.ts. */
@@ -126,13 +125,15 @@ export function canReuseBackgroundCache(reasons: ReadonlySet<DrawInvalidationRea
   return canReuseLayerCache(BACKGROUND_INVALIDATING, reasons);
 }
 
-/** True when series + indicator layers can be reused (viewport-only pan). */
+/** Series bitmap invalidation — viewport pans rebuild pixel-space geometry. */
+export const SERIES_CACHE_INVALIDATING: ReadonlySet<DrawInvalidationReason> = new Set([
+  ...SERIES_INVALIDATING,
+  'viewport',
+]);
+
+/** True when candles/indicators/scriptObjects OffscreenCanvas can be blitted (crosshair-only). */
 export function canReuseSeriesCache(reasons: ReadonlySet<DrawInvalidationReason>): boolean {
-  if (reasons.size === 0) return true;
-  for (const reason of reasons) {
-    if (SERIES_INVALIDATING.has(reason)) return false;
-  }
-  return reasons.has('viewport') || reasons.has('crosshair');
+  return canReuseLayerCache(SERIES_CACHE_INVALIDATING, reasons);
 }
 
 export function measurePhase<T>(run: () => T): { result: T; durationMs: number } {

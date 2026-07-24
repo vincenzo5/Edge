@@ -1,7 +1,10 @@
 import type { SerializedChartState } from '@edge/chart-core';
 import { serializeChartState } from '@edge/chart-core';
 import type { CellConfig } from '@/lib/chartConfig';
-import { mergeChartSettings, migrateChartSettings, serializeChartSettings } from '@/lib/chart/chartSettings';
+import {
+  migrateChartSettings,
+  stripLegacyFactoryTimeZoneOnLoad,
+} from '@/lib/chart/chartSettings';
 
 export function cellConfigToChartState(cell: CellConfig): SerializedChartState {
   return serializeChartState({
@@ -12,8 +15,9 @@ export function cellConfigToChartState(cell: CellConfig): SerializedChartState {
     collapsedPanes: cell.collapsedPanes,
     maximizedPane: cell.maximizedPane ?? null,
     paneHeights: cell.paneHeights,
+    // Pass through raw settings — do not merge/serialize defaults (bakes factory UTC).
     chartSettings: cell.chartSettings
-      ? serializeChartSettings(mergeChartSettings(cell.chartSettings))
+      ? migrateChartSettings(cell.chartSettings)
       : undefined,
     mainSeriesVisible: cell.mainSeriesVisible,
   });
@@ -33,7 +37,7 @@ export function chartStateToCellConfig(
     maximizedPane: state.maximizedPane ?? null,
     paneHeights: state.paneHeights,
     chartSettings: state.chartSettings
-      ? migrateChartSettings(state.chartSettings)
+      ? stripLegacyFactoryTimeZoneOnLoad(migrateChartSettings(state.chartSettings))
       : base.chartSettings,
     mainSeriesVisible: state.mainSeriesVisible,
   };

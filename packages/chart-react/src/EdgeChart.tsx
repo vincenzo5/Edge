@@ -31,6 +31,7 @@ import { useCrosshairCoordinator } from './useCrosshairCoordinator';
 import { useChartWheelPinch } from './useChartWheelPinch';
 import { usePaneLayoutController } from './usePaneLayoutController';
 import { useEventDetailController } from './useEventDetailController';
+import { useScriptResultCoordinator } from './useScriptResultCoordinator';
 
 export type {
   EdgeChartProps,
@@ -47,6 +48,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     candles: candlesProp,
     state,
     theme,
+    palette,
     visibleCount = null,
     loading = false,
     error = null,
@@ -62,6 +64,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     range = '1y',
     rangePreset = null,
     sessionKey: sessionKeyProp,
+    chartId,
     onStateChange,
     onLoadOlderCandles,
     onRangePresetClear,
@@ -85,11 +88,17 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     eventMarkers = [],
     referenceLines = [],
     annotationMarkers = [],
+    extraPriceAxisAnnotations = [],
     suppressCrosshair: suppressCrosshairProp = false,
     selectedEventBadgeId: selectedEventBadgeIdProp = null,
     onEventBadgeClick,
     onEventBadgeHover,
     onEventBadgeMore,
+    onViewportChange,
+    scriptSourceResolver,
+    seriesContext,
+    seriesResolver,
+    onScriptResultReady,
   } = props;
 
   const onCrosshairTimestampRef = useRef(onCrosshairTimestamp);
@@ -103,6 +112,9 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
 
   const onStateChangeRef = useRef(onStateChange);
   onStateChangeRef.current = onStateChange;
+
+  const onViewportChangeRef = useRef(onViewportChange);
+  onViewportChangeRef.current = onViewportChange;
 
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const paneHandlesRef = useRef<Map<string, ChartPaneHandle>>(new Map());
@@ -156,6 +168,17 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     markUserTimePan,
   } = candleSession;
 
+  const scriptSessionKey = sessionKeyProp ?? candleSessionKey ?? chartId ?? 'edge-chart';
+  const { provider: scriptResultProvider } = useScriptResultCoordinator({
+    sessionKey: scriptSessionKey,
+    indicators: state.indicators,
+    candles: displayCandles,
+    scriptSourceResolver,
+    seriesContext: seriesContext ?? null,
+    seriesResolver: seriesResolver ?? null,
+    onScriptResultReady,
+  });
+
   const crosshairCoordinator = useCrosshairCoordinator({
     candlesRef,
     paneHandlesRef,
@@ -186,6 +209,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     paneOrder,
     onPaneHeightsChange,
     paneSegmentsRef,
+    indicatorResultProvider: scriptResultProvider,
   });
 
   const drawing = useDrawingController({
@@ -239,13 +263,23 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     mainIndicators,
     hasMultiplePanes,
     registerPane,
-    handleViewport,
+    handleViewport: handleViewportBase,
     handleSeparatorResize,
     handleSeparatorResizeEnd,
     buildIndicatorLegendSections,
     dragHeightsRef,
     setDims,
   } = paneLayout;
+
+  const handleViewport = useCallback(
+    (vp: VisibleRange, paneId: string) => {
+      handleViewportBase(vp, paneId);
+      if (paneId === 'price') {
+        onViewportChangeRef.current?.();
+      }
+    },
+    [handleViewportBase],
+  );
 
   syncSiblingsRef.current = paneLayout.syncSiblings;
 
@@ -297,9 +331,10 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
   }, []);
 
   const suppressCrosshair = hideCrosshair || suppressCrosshairProp;
+  const defaultTimeZone = props.defaultTimeZone;
   const chartSettings = useMemo(
-    () => mergeChartSettings(state.chartSettings),
-    [state.chartSettings],
+    () => mergeChartSettings(state.chartSettings, { defaultTimeZone }),
+    [state.chartSettings, defaultTimeZone],
   );
   const showCrosshairOverlay = chartSettings.canvas.showCrosshair && !suppressCrosshair;
 
@@ -408,6 +443,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                     candles={displayCandles}
                     chartType={state.chartType}
                     theme={theme}
+                    palette={palette}
                     visibleCount={visibleCount}
                     width={dims.width}
                     height={pane.height}
@@ -436,11 +472,13 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                     eventMarkers={eventMarkers}
                     referenceLines={referenceLines}
                     annotationMarkers={annotationMarkers}
+                    extraPriceAxisAnnotations={extraPriceAxisAnnotations}
                     livePrice={livePrice}
                     liveMarketSession={liveMarketSession}
                     selectedEventBadgeId={eventDetail.effectiveSelectedEventBadgeId}
                     onEventBadgeClick={eventDetail.handleEventBadgeClick}
                     onEventBadgeHover={eventDetail.handleEventBadgeHover}
+                    indicatorResultProvider={scriptResultProvider}
                   />
                 )}
               </div>
@@ -501,6 +539,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                   candles={displayCandles}
                   chartType={state.chartType}
                   theme={theme}
+                  palette={palette}
                   visibleCount={visibleCount}
                   width={dims.width}
                   height={pane.height}
@@ -520,6 +559,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                   activeTool={activeTool}
                   onCrosshairMove={handleCrosshairMove}
                   onViewportChange={handleViewport}
+                  indicatorResultProvider={scriptResultProvider}
                 />
               )}
             </div>

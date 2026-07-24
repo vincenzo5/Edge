@@ -21,10 +21,10 @@ function OhlcCell({
 }) {
   return (
     <span className="inline-flex items-baseline gap-0.5">
-      <span className="text-[11px] font-medium text-[var(--edge-text-muted)]">{label}</span>
+      <span className="text-[length:var(--edge-text-metadata-size)] font-medium text-[var(--edge-text-secondary)]">{label}</span>
       <span
         data-testid={`price-legend-value-${label}`}
-        className="font-mono tabular-nums text-[11px]"
+        className="font-mono tabular-nums text-[length:var(--edge-text-body-size)]"
         style={{ color: valueColor }}
       >
         {value}
@@ -90,7 +90,7 @@ export default function PriceLegendLayout({
             {layout.change ? (
               <span
                 data-testid="price-legend-change"
-                className="font-mono tabular-nums text-[11px]"
+                className="font-mono tabular-nums text-[length:var(--edge-text-body-size)]"
                 style={{ color: layout.valueColor }}
               >
                 {layout.change}

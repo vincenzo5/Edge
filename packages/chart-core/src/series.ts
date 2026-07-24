@@ -1,5 +1,6 @@
 import type { Candle } from './contracts';
 import type { ChartCandleStreamEvent, ChartDataMeta } from './dataSource';
+import { getCachedHeikinAshi, setCachedHeikinAshi } from './heikinAshiCache';
 
 export type ChartType =
   | 'candle_solid'
@@ -8,9 +9,13 @@ export type ChartType =
   | 'area'
   | 'heikin_ashi';
 
-/** Heikin Ashi transform (pure). */
+/** Heikin Ashi transform (pure). Results are cached by length + OHLCV fingerprint. */
 export function toHeikinAshi(candles: Candle[]): Candle[] {
   if (candles.length === 0) return [];
+  const cached = getCachedHeikinAshi(candles);
+  if (cached) {
+    return cached as Candle[];
+  }
   const out: Candle[] = [];
   let prevHA: Candle | null = null;
   for (const c of candles) {
@@ -22,7 +27,7 @@ export function toHeikinAshi(candles: Candle[]): Candle[] {
     out.push(ha);
     prevHA = ha;
   }
-  return out;
+  return setCachedHeikinAshi(candles, out) as Candle[];
 }
 
 /** Apply visible slice (e.g. Bar Replay). */
@@ -74,15 +79,18 @@ export function applyCandleAppend(existing: Candle[], candle: Candle): Candle[] 
   return mergeCandlesByTimestamp(existing, [candle]);
 }
 
-/** Replace the latest bar, append when newer, or patch an existing timestamp. */
+/**
+ * Replace the latest bar (including when the provider remaps its timestamp),
+ * patch an older timestamp, or fall back to a timestamp merge.
+ *
+ * Callers that need to keep a real newer closed bar when the stream tip is
+ * ahead of the chart tip should emit `append` instead (see useChartDataFeed).
+ */
 export function applyCandleReplaceLatest(existing: Candle[], candle: Candle): Candle[] {
   if (existing.length === 0) return [candle];
   const last = existing[existing.length - 1]!;
-  if (candle.t === last.t) {
+  if (candle.t >= last.t) {
     return [...existing.slice(0, -1), candle];
-  }
-  if (candle.t > last.t) {
-    return [...existing, candle];
   }
   const index = existing.findIndex((entry) => entry.t === candle.t);
   if (index >= 0) {
@@ -110,6 +118,7 @@ export function applyCandleStreamEvent(
       return { candles: applyCandleAppend(existing, event.candle), meta: event.meta };
     case 'replace-latest':
       return { candles: applyCandleReplaceLatest(existing, event.candle), meta: event.meta };
+    case 'refresh':
     case 'stale':
     case 'reconnect':
     case 'error':
@@ -123,6 +132,29 @@ export {
   PREFETCH_START_INDEX_THRESHOLD,
   shouldPrefetchEdge,
 } from './historyPrefetch';
+
+/** Max OHLCV bars kept resident per chart session after merge/prefetch (memory efficiency Phase 1). */
+export const RESIDENT_BAR_SOFT_MAX = 5_000;
+
+export type TrimResidentBarsResult = {
+  candles: Candle[];
+  removed: number;
+};
+
+/** Drop oldest bars when over soft max; keeps the newest window (live tip preserved). */
+export function trimResidentBars(
+  candles: Candle[],
+  softMax = RESIDENT_BAR_SOFT_MAX,
+): TrimResidentBarsResult {
+  if (candles.length <= softMax) {
+    return { candles, removed: 0 };
+  }
+  const removed = candles.length - softMax;
+  return {
+    candles: candles.slice(removed),
+    removed,
+  };
+}
 
 export type EnsureCandlesCoverResult = {
   candles: Candle[];

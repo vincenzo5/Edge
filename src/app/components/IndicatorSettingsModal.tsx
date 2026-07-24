@@ -3,14 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { IndicatorConfig, LineStyleOverride } from "@/lib/chartConfig";
 import { IndicatorRegistry } from "@/lib/chart/pluginHost";
-import type { InputValue, ParamDef } from "@/lib/chart/plugin-api";
+import type { InputValue, IndicatorPlugin, ParamDef } from "@/lib/chart/plugin-api";
 import {
   clampInputValue,
   getInputSchema,
   resolveIndicatorInputs,
 } from "@/lib/chart/indicatorInputs";
 import { resolveOutputColor } from "@/lib/chart/indicatorCompute";
-import { EdgeButton, EdgeModalShell, EdgeSegmentedTabs } from "./design-system";
+import { manifestPlotToSeriesOutput } from "@edge/chart-core";
+import { dispatchScriptAlertPrefill } from "@/lib/alerts/openAlertPrefill";
+import { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
+import { EdgeButton, EdgeModalShell, EdgeSegmentedTabs, EdgeSelect } from "./design-system";
+import { fieldClass as fieldClassHelper } from "./design-system/styles";
 
 type Tab = "inputs" | "style";
 
@@ -18,6 +22,7 @@ type Props = {
   open: boolean;
   indicator: IndicatorConfig | null;
   theme?: "light" | "dark";
+  symbol?: string;
   onClose: () => void;
   onSave: (
     id: string,
@@ -26,8 +31,7 @@ type Props = {
   onSaveAsTemplate?: () => void;
 };
 
-const fieldClass =
-  "rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-sm text-[var(--edge-text-primary)]";
+const inputClass = fieldClassHelper({ density: "compact" });
 
 const labelClass = "text-[var(--edge-text-secondary)]";
 
@@ -39,11 +43,41 @@ export default function IndicatorSettingsModal({
   open,
   indicator,
   theme = "dark",
+  symbol,
   onClose,
   onSave,
   onSaveAsTemplate,
 }: Props) {
-  const plugin = indicator ? IndicatorRegistry.get(indicator.name) : undefined;
+  const scriptLibrary = useScriptLibraryOptional();
+
+  const scriptManifest = useMemo(() => {
+    if (!indicator?.scriptId || !indicator.revision) return undefined;
+    return scriptLibrary?.getRevisionManifest(indicator.scriptId, indicator.revision);
+  }, [indicator, scriptLibrary]);
+
+  const scriptPlugin = useMemo((): IndicatorPlugin | undefined => {
+    if (!indicator?.scriptId || !indicator.revision) return undefined;
+    const manifest = scriptLibrary?.getRevisionManifest(indicator.scriptId, indicator.revision);
+    if (!manifest) return undefined;
+    return {
+      name: indicator.name,
+      category: "Other",
+      description: manifest.name,
+      pane: manifest.pane,
+      inputSchema: manifest.inputs,
+      outputs: Object.entries(manifest.plots).map(([plotId, plot]) =>
+        manifestPlotToSeriesOutput(plotId, plot, plotId),
+      ),
+    };
+  }, [indicator, scriptLibrary]);
+
+  const plugin = useMemo(() => {
+    if (!indicator) return undefined;
+    if (indicator.kind === "script" || indicator.scriptId) {
+      return scriptPlugin;
+    }
+    return IndicatorRegistry.get(indicator.name);
+  }, [indicator, scriptPlugin]);
   const schema = plugin ? getInputSchema(plugin) : undefined;
 
   const initialInputs = useMemo(() => {
@@ -70,6 +104,11 @@ export default function IndicatorSettingsModal({
 
   const hasInputs = Boolean(schema && Object.keys(schema).length > 0);
   const hasStyles = styleOutputs.length > 0;
+  const scriptAlerts = useMemo(
+    () => Object.entries(scriptManifest?.alerts ?? {}),
+    [scriptManifest?.alerts],
+  );
+  const hasScriptAlerts = scriptAlerts.length > 0;
 
   const [inputValues, setInputValues] = useState<Record<string, InputValue>>(initialInputs);
   const [styleValues, setStyleValues] = useState<Record<string, LineStyleOverride>>(initialStyles);
@@ -113,12 +152,12 @@ export default function IndicatorSettingsModal({
     return null;
   }
 
-  if (!hasInputs && !hasStyles) return null;
+  if (!hasInputs && !hasStyles && !hasScriptAlerts) return null;
 
   return (
     <EdgeModalShell
       open={open}
-      title={`${indicator.name} Settings`}
+      title={`${plugin?.description ?? indicator.name} Settings`}
       onClose={onClose}
       maxWidth="sm"
       align="center"
@@ -174,7 +213,7 @@ export default function IndicatorSettingsModal({
                         setInputValues((prev) => ({ ...prev, [key]: parsed }));
                       }
                     }}
-                    className={`${fieldClass} font-mono`}
+                    className={`${inputClass} font-mono`}
                   />
                 )}
                 {def.kind === "boolean" && (
@@ -188,34 +227,32 @@ export default function IndicatorSettingsModal({
                   />
                 )}
                 {def.kind === "enum" && (
-                  <select
+                  <EdgeSelect
+                    variant="field"
+                    density="compact"
                     value={String(inputValues[key] ?? def.default)}
-                    onChange={(e) =>
-                      setInputValues((prev) => ({ ...prev, [key]: e.target.value }))
-                    }
-                    className={fieldClass}
-                  >
-                    {def.options.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(next) => setInputValues((prev) => ({ ...prev, [key]: next }))}
+                    options={def.options.map((opt) => ({
+                      value: String(opt.value),
+                      label: opt.label,
+                    }))}
+                    className="w-full font-mono"
+                  />
                 )}
                 {def.kind === "source" && (
-                  <select
+                  <EdgeSelect
+                    variant="field"
+                    density="compact"
                     value={String(inputValues[key] ?? def.default)}
-                    onChange={(e) =>
-                      setInputValues((prev) => ({ ...prev, [key]: e.target.value }))
-                    }
-                    className={fieldClass}
-                  >
-                    {(["close", "open", "high", "low", "hlc3", "ohlcv"] as const).map((src) => (
-                      <option key={src} value={src}>
-                        {src.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(next) => setInputValues((prev) => ({ ...prev, [key]: next }))}
+                    options={(["close", "open", "high", "low", "hlc3", "ohlcv"] as const).map(
+                      (src) => ({
+                        value: src,
+                        label: src.toUpperCase(),
+                      }),
+                    )}
+                    className="w-full font-mono"
+                  />
                 )}
               </label>
             ))}
@@ -263,7 +300,7 @@ export default function IndicatorSettingsModal({
                             }));
                           }
                         }}
-                        className={`${fieldClass} w-full font-mono`}
+                        className={`${inputClass} w-full font-mono`}
                       />
                     </label>
                   </div>
@@ -272,6 +309,40 @@ export default function IndicatorSettingsModal({
             })}
           </div>
         )}
+
+        {hasScriptAlerts ? (
+          <div className="space-y-2 border-t border-[var(--edge-border)] pt-3">
+            <p className={labelClass}>Script alert conditions</p>
+            {scriptAlerts.map(([conditionId, def]) => (
+              <div
+                key={conditionId}
+                className="flex items-center justify-between gap-2 rounded-[var(--edge-radius-sm)] border border-[var(--edge-border-subtle)] px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-[var(--edge-text-primary)]">{def.title}</p>
+                  <p className="truncate text-xs text-[var(--edge-text-muted)]">{conditionId}</p>
+                </div>
+                <EdgeButton
+                  variant="secondary"
+                  disabled={!symbol || !indicator?.scriptId || !indicator.revision}
+                  onClick={() => {
+                    if (!symbol || !indicator?.scriptId || !indicator.revision) return;
+                    dispatchScriptAlertPrefill({
+                      symbol,
+                      scriptId: indicator.scriptId,
+                      revision: indicator.revision,
+                      conditionId,
+                      title: def.title,
+                    });
+                    onClose();
+                  }}
+                >
+                  Create alert…
+                </EdgeButton>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </EdgeModalShell>
   );

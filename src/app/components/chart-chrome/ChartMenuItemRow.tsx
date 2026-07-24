@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import type { Theme } from '@/lib/chartConfig';
-import { menuItemClass } from './headerStyles';
+import EdgeMenuItem from '../design-system/EdgeMenuItem';
 
 type Props = {
   theme: Theme;
@@ -15,6 +15,7 @@ type Props = {
   onClick?: () => void;
 };
 
+/** Thin chart adapter over shared `EdgeMenuItem`. */
 export default function ChartMenuItemRow({
   theme,
   label,
@@ -26,20 +27,15 @@ export default function ChartMenuItemRow({
   onClick,
 }: Props) {
   return (
-    <button
-      type="button"
-      role="menuitem"
-      aria-disabled={disabled}
-      title={disabled ? disabledReason : undefined}
+    <EdgeMenuItem
+      theme={theme}
+      label={label}
+      selected={selected}
       disabled={disabled}
-      onClick={() => {
-        if (!disabled && onClick) onClick();
-      }}
-      className={menuItemClass(theme, selected, disabled)}
-    >
-      {icon ? <span className="inline-flex w-5 shrink-0 items-center justify-center">{icon}</span> : null}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {trailing}
-    </button>
+      disabledReason={disabledReason}
+      icon={icon}
+      trailing={trailing}
+      onClick={onClick}
+    />
   );
 }

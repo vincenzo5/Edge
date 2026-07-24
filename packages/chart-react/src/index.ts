@@ -7,6 +7,7 @@ export type {
   ChartHandle,
   IndicatorKey,
   DrawingScreenBounds,
+  ScriptResultReadyEvent,
   GoToRequest,
   GoToResult,
   CrosshairMoveEvent,
@@ -15,6 +16,8 @@ export type {
   Theme,
   Candle,
 } from './types';
+
+export type { ViewportPersistSnapshot } from './engine/paneHandle';
 
 export { indicatorKey, parseIndicatorKey, legacyParseIndicatorKey } from './indicatorKey';
 

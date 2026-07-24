@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MarketContext } from "@/lib/marketData/contracts/marketContext";
+import { fetchMarketContext } from "@/lib/marketData/context/marketContextClient";
 import type { Theme } from "@/lib/chartConfig";
 import type { SymbolSelectResult } from "@/lib/watchlist/types";
 import Tooltip from "../Tooltip";
+import { metadataTextClass, compactControlClass } from "../design-system/styles";
 import {
   buildContextDisplayModel,
   chipTooltipTitle,
@@ -20,10 +22,10 @@ type Props = {
 };
 
 const chipClass =
-  "edge-focus-ring cursor-pointer shrink-0 rounded-[var(--edge-radius-xs)] border border-[var(--edge-border-subtle)] bg-transparent px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums text-[var(--edge-text-secondary)] hover:border-[var(--edge-border)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]";
+  `edge-focus-ring cursor-pointer shrink-0 rounded-[var(--edge-radius-xs)] border border-[var(--edge-border-subtle)] bg-transparent px-2 ${compactControlClass()} ${metadataTextClass()} font-mono font-medium tabular-nums hover:border-[var(--edge-border)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]`;
 
 const overflowTriggerClass =
-  "edge-focus-ring shrink-0 rounded-[var(--edge-radius-xs)] border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--edge-text-muted)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]";
+  `edge-focus-ring shrink-0 rounded-[var(--edge-radius-xs)] border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] px-2 ${compactControlClass()} ${metadataTextClass()} font-medium hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-strong)]`;
 
 function ContextChipButton({
   chip,
@@ -73,17 +75,10 @@ export default function MarketContextBreadcrumb({
     setLoading(true);
     setError(null);
 
-    fetch(`/api/market-data/context?symbol=${encodeURIComponent(sym)}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error ?? `Market context request failed (${res.status})`);
-        }
-        return res.json() as Promise<{ context: MarketContext }>;
-      })
-      .then((body) => {
+    void fetchMarketContext(sym)
+      .then((nextContext) => {
         if (!cancelled) {
-          setContext(body.context);
+          setContext(nextContext);
           setLoading(false);
         }
       })
@@ -138,7 +133,7 @@ export default function MarketContextBreadcrumb({
       {loading ? (
         <span
           data-testid="market-context-loading"
-          className="rounded-[var(--edge-radius-sm)] bg-[var(--edge-surface-panel)] px-2 py-0.5 text-[10px] text-[var(--edge-text-muted)]"
+          className={`rounded-[var(--edge-radius-sm)] bg-[var(--edge-surface-panel)] px-2 py-0.5 ${metadataTextClass()}`}
         >
           Context…
         </span>
@@ -149,7 +144,7 @@ export default function MarketContextBreadcrumb({
           {display.classification ? (
             <span
               data-testid="market-context-classification"
-              className="max-w-[240px] truncate text-[10px] font-medium text-[var(--edge-text-muted)]"
+              className={`max-w-[240px] truncate ${metadataTextClass()} font-medium`}
             >
               {display.classification}
             </span>
@@ -205,7 +200,7 @@ export default function MarketContextBreadcrumb({
       {!loading && error && !display?.classification && display?.chips.length === 0 ? (
         <span
           data-testid="market-context-error"
-          className="text-[10px] text-[var(--edge-negative)]"
+          className={`${metadataTextClass()} text-[var(--edge-negative)]`}
         >
           {error}
         </span>

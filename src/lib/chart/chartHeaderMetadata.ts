@@ -199,11 +199,11 @@ export const HEADER_ACTIONS: HeaderActionDescriptor[] = [
   { id: 'indicators', label: 'Indicators', implemented: true },
   { id: 'indicatorFavorites', label: 'Favorite indicators', implemented: true },
   { id: 'templates', label: 'Templates', implemented: true },
-  { id: 'alert', label: 'Alert', implemented: false, disabledReason: 'Alerts coming soon' },
+  { id: 'alert', label: 'Alert', implemented: true },
   { id: 'replay', label: 'Replay', implemented: true },
   { id: 'undo', label: 'Undo', implemented: true, shortcutId: 'undo' },
   { id: 'redo', label: 'Redo', implemented: true, shortcutId: 'redo' },
-  { id: 'search', label: 'Quick search', implemented: true, shortcutId: 'quickSearch' },
+  { id: 'search', label: 'Commands', implemented: true, shortcutId: 'openCommandPalette' },
   { id: 'settings', label: 'Settings', implemented: true },
   { id: 'fullscreen', label: 'Fullscreen mode', implemented: true, shortcutId: 'fullscreen' },
   {

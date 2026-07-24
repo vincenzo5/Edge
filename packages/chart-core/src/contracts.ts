@@ -28,6 +28,11 @@ export type IndicatorConfig = {
   id: string;
   name: string;
   pane: 'main' | 'sub';
+  /** Built-in registry name vs user script instance. Defaults to built-in when omitted. */
+  kind?: 'builtin' | 'script';
+  /** User script identity — populated on script instances (Phase 2). */
+  scriptId?: string;
+  revision?: string;
   /** Legacy numeric params — read fallback; prefer `inputs` on write. */
   params?: Record<string, number>;
   inputs?: Record<string, import('./plugin-api').InputValue>;
@@ -91,6 +96,12 @@ export type CellConfig = {
 };
 
 export type Theme = 'light' | 'dark';
+
+export const PALETTES = ['midnight', 'graphite', 'slate'] as const;
+
+export type PaletteId = (typeof PALETTES)[number];
+
+export const DEFAULT_PALETTE: PaletteId = 'midnight';
 
 export type GridMode = string;
 

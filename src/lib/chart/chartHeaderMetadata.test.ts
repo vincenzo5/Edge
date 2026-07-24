@@ -51,6 +51,6 @@ describe('chartHeaderMetadata', () => {
   it('marks quick search as implemented with shortcut', () => {
     const search = HEADER_ACTIONS.find((a) => a.id === 'search');
     expect(search?.implemented).toBe(true);
-    expect(headerActionShortcut(search!)).toBe(getShortcutLabel('quickSearch'));
+    expect(headerActionShortcut(search!)).toBe(getShortcutLabel('openCommandPalette'));
   });
 });

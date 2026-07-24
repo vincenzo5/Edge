@@ -6,7 +6,8 @@ export type PriceAxisAnnotationSource =
   | 'countdown'
   | 'bidAsk'
   | 'highLow'
-  | 'prePost';
+  | 'prePost'
+  | 'manage';
 
 export type PriceAxisLineStyle = 'hidden' | 'solid' | 'dashed';
 

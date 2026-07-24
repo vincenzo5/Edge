@@ -19,13 +19,14 @@ import type {
   Range,
   SerializedDrawing,
   Theme,
+  PaletteId,
   TrackedOverlay,
   VisibleRange,
 } from '@edge/chart-core';
 import type { SerializedChartState } from '@edge/chart-core';
 import type { GoToRequest, GoToResult } from './engine/goTo';
 import type { DrawingClipboardItem, PasteAnchor } from '@edge/chart-core/drawingClone';
-import type { ChartSettings } from './engine/chartSettings';
+import type { ChartSettings, ChartTimeZone } from './engine/chartSettings';
 import type { EventBadgeGroup } from './engine/eventBadges';
 
 export type { GoToRequest, GoToResult };
@@ -61,6 +62,7 @@ export type EdgeChartHandle = {
   restoreDrawings: (data: SerializedDrawing[]) => void;
   getVisibleRange: () => VisibleRange | null;
   setVisibleRange: (startIndex: number, endIndex: number) => void;
+  applyViewportSnapshot: (snapshot: import('./engine/paneHandle').ViewportPersistSnapshot) => boolean;
   onCrosshair: (cb: (timestamp: number | null) => void) => () => void;
   setCrosshairFromSync: (timestamp: number | null) => void;
   getTrackedOverlays: () => TrackedOverlay[];
@@ -107,12 +109,20 @@ export type EdgeChartHandle = {
 /** @deprecated Use EdgeChartHandle */
 export type ChartHandle = EdgeChartHandle;
 
+export type ScriptResultReadyEvent = {
+  instance: import('@edge/chart-core').IndicatorConfig;
+  manifest: import('@edge/chart-core').ScriptManifest;
+  series: Record<string, Array<number | null>>;
+  candles: Candle[];
+};
+
 export type EdgeChartProps = {
   /** Caller-provided OHLCV series — no network fetch inside the public component. */
   candles: Candle[];
   /** Serializable chart state (indicators, drawings, panes, settings). */
   state: SerializedChartState;
   theme: Theme;
+  palette?: PaletteId;
   chartId?: string;
   visibleCount?: number | null;
   loading?: boolean;
@@ -176,6 +186,8 @@ export type EdgeChartProps = {
   referenceLines?: import('@edge/chart-core').ChartReferenceLine[];
   /** Semantic annotation channel markers (thesis, invalidation, target, etc.). */
   annotationMarkers?: import('@edge/chart-core').ChartAnnotationChannelMarker[];
+  /** Read-only manage playbook price-axis markers (BE / scale levels). */
+  extraPriceAxisAnnotations?: import('@edge/chart-core/priceAxisTypes').PriceAxisAnnotation[];
   /** Selected bottom-axis event badge (shows guide line + detail card). */
   selectedEventBadgeId?: string | null;
   /** Fired when user clicks an event badge on the price pane. */
@@ -187,6 +199,18 @@ export type EdgeChartProps = {
   onEventBadgeHover?: (group: EventBadgeGroup | null) => void;
   /** Fired when user clicks "More events" in the detail card. */
   onEventBadgeMore?: (group: EventBadgeGroup) => void;
+  /** Fired after price-pane viewport mutations (pan/zoom/scale/restore). */
+  onViewportChange?: () => void;
+  /** Optional resolver for user-authored script sources (library); fixtures remain fallback. */
+  scriptSourceResolver?: import('@edge/chart-core').ScriptSourceResolver | null;
+  /** Chart context for script request.series MTF/MS resolution. */
+  seriesContext?: import('@edge/chart-core').ScriptSeriesContext | null;
+  /** Host-provided fetcher for secondary script series. */
+  seriesResolver?: import('@edge/chart-core').ScriptSeriesResolver | null;
+  /** Fired when a script instance produces a ready result (for alert snapshot bridges). */
+  onScriptResultReady?: (event: ScriptResultReadyEvent) => void;
+  /** App default timezone — charts inherit when per-chart setting is unset. */
+  defaultTimeZone?: ChartTimeZone;
 };
 
 export type { CrosshairMoveEvent, CrosshairState, SerializedChartState, Theme, Candle };

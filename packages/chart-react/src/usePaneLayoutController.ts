@@ -31,6 +31,7 @@ export type PaneLayoutControllerDeps = {
   paneOrder?: string[];
   onPaneHeightsChange?: (heights: Record<string, number>) => void;
   paneSegmentsRef: MutableRefObject<PaneSegment[]>;
+  indicatorResultProvider?: import('./engine/indicatorResultProvider').IndicatorResultProvider | null;
 };
 
 export type PaneLayoutController = {
@@ -71,6 +72,7 @@ export function usePaneLayoutController(deps: PaneLayoutControllerDeps): PaneLay
     paneOrder,
     onPaneHeightsChange,
     paneSegmentsRef,
+    indicatorResultProvider = null,
   } = deps;
 
   const [dims, setDims] = useState<{ width: number; height: number }>({ width: 800, height: 400 });
@@ -174,6 +176,7 @@ export function usePaneLayoutController(deps: PaneLayoutControllerDeps): PaneLay
         crosshairDataIndex,
         theme,
         state.chartSettings,
+        indicatorResultProvider,
       );
       if (!sections) return null;
       if (indicatorHasSettings(ind.name)) {
@@ -181,7 +184,7 @@ export function usePaneLayoutController(deps: PaneLayoutControllerDeps): PaneLay
       }
       return sections;
     },
-    [crosshairDataIndex, displayCandles, state.chartSettings, theme],
+    [crosshairDataIndex, displayCandles, state.chartSettings, theme, indicatorResultProvider],
   );
 
   useEffect(() => {

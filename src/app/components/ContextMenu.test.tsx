@@ -73,7 +73,7 @@ describe('ContextMenu', () => {
       />,
     );
 
-    const button = screen.getByRole('button', { name: 'Reset chart view' });
+    const button = screen.getByRole('menuitem', { name: 'Reset chart view' });
     const menu = button.closest('.fixed') as HTMLElement;
     expect(menu).toBeTruthy();
 
@@ -105,7 +105,63 @@ describe('ContextMenu', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset chart view' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reset chart view' }));
     expect(action).not.toHaveBeenCalled();
+  });
+
+  it('closes after a leaf action succeeds', () => {
+    const action = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <ContextMenu
+        open
+        position={{ x: 10, y: 10 }}
+        items={[{ id: 'save', label: 'Save layout', action }]}
+        onClose={onClose}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Save layout' }));
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders section header rows for grouped menu sections', () => {
+    render(
+      <ContextMenu
+        open
+        position={{ x: 10, y: 10 }}
+        items={[
+          { id: 'settings', label: 'Settings', action: vi.fn() },
+          { id: 'section', label: 'Change panel', sectionHeader: true, action: vi.fn() },
+          { id: 'chart', label: 'Chart', action: vi.fn() },
+        ]}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Change panel')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Change panel' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Chart' })).toBeInTheDocument();
+  });
+
+  it('supports arrow key navigation between items', () => {
+    render(
+      <ContextMenu
+        open
+        position={{ x: 10, y: 10 }}
+        items={[
+          { id: 'one', label: 'First item', action: vi.fn() },
+          { id: 'two', label: 'Second item', action: vi.fn() },
+        ]}
+        onClose={() => {}}
+      />,
+    );
+
+    const first = screen.getByRole('menuitem', { name: 'First item' });
+    const second = screen.getByRole('menuitem', { name: 'Second item' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(second);
   });
 });

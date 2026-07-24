@@ -57,6 +57,22 @@ describe("buildOverlayContextMenuItems", () => {
     expect(items.some((item) => item.id === "trade-setup")).toBe(false);
   });
 
+  it("includes Add trade plan alerts for position drawings when handler provided", () => {
+    const onAddTradePlanAlerts = vi.fn();
+    const items = buildOverlayContextMenuItems(
+      overlayBase,
+      noopActions,
+      vi.fn(),
+      vi.fn(),
+      noopClipboard,
+      { onAddTradePlanAlerts },
+    );
+    expect(items.some((item) => item.id === "add-trade-plan-alerts")).toBe(true);
+    const item = items.find((entry) => entry.id === "add-trade-plan-alerts");
+    item?.action?.();
+    expect(onAddTradePlanAlerts).toHaveBeenCalled();
+  });
+
   it("omits Trade setup when handler not provided", () => {
     const items = buildOverlayContextMenuItems(
       overlayBase,

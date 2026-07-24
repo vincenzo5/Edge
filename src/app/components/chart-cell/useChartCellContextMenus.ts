@@ -43,6 +43,8 @@ type Params = {
   latestCrosshairPlotXRef: RefObject<number | null>;
   sidebar: ReturnType<typeof useSidebarOptional>;
   tradeBinding: ReturnType<typeof useTradeSetupBindingOptional>;
+  onOpenAlertFromDrawing?: (overlayId: string) => void;
+  onAddTradePlanAlerts?: (overlayId: string) => void;
   setContextMenu: React.Dispatch<React.SetStateAction<ContextMenuState>>;
   setChartSettingsSection: React.Dispatch<
     React.SetStateAction<"symbol" | "status" | "scales" | "canvas" | "trading">
@@ -70,6 +72,7 @@ type Params = {
   };
   openRenameOverlay: (id: string) => void;
   applyPriceScaleType: (type: PriceScaleType) => void;
+  onResetChartView?: () => void;
 };
 
 export function useChartCellContextMenus({
@@ -83,6 +86,8 @@ export function useChartCellContextMenus({
   latestCrosshairPlotXRef,
   sidebar,
   tradeBinding,
+  onOpenAlertFromDrawing,
+  onAddTradePlanAlerts,
   setContextMenu,
   setChartSettingsSection,
   setChartSettingsOpen,
@@ -98,6 +103,7 @@ export function useChartCellContextMenus({
   overlayActions,
   openRenameOverlay,
   applyPriceScaleType,
+  onResetChartView,
 }: Params) {
   const handleOverlayRightClick = useCallback(
     (overlay: TrackedOverlay, pos: { x: number; y: number }) => {
@@ -131,6 +137,18 @@ export function useChartCellContextMenus({
                   setContextMenu(null);
                 }
               : undefined,
+            onAddAlert: onOpenAlertFromDrawing
+              ? () => {
+                  onOpenAlertFromDrawing(overlay.id);
+                  setContextMenu(null);
+                }
+              : undefined,
+            onAddTradePlanAlerts: onAddTradePlanAlerts
+              ? () => {
+                  void onAddTradePlanAlerts(overlay.id);
+                  setContextMenu(null);
+                }
+              : undefined,
           },
         ),
       });
@@ -140,6 +158,8 @@ export function useChartCellContextMenus({
       handlePasteDrawings,
       openRenameOverlay,
       tradeBinding,
+      onOpenAlertFromDrawing,
+      onAddTradePlanAlerts,
       chartId,
       config.symbol,
       chartRef,
@@ -180,7 +200,11 @@ export function useChartCellContextMenus({
         },
         {
           resetView: () => {
-            chartRef.current?.resetChartView();
+            if (onResetChartView) {
+              onResetChartView();
+            } else {
+              chartRef.current?.resetChartView();
+            }
             setContextMenu(null);
           },
           copyText: (text) => {
@@ -253,6 +277,7 @@ export function useChartCellContextMenus({
       setChartSettingsSection,
       setChartSettingsOpen,
       setGoToOpen,
+      onResetChartView,
     ],
   );
 

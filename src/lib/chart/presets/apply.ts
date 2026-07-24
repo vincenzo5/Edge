@@ -3,6 +3,8 @@ import {
   PRICE_PANE_KEY,
   createIndicatorInstance,
   mergeChartSettings,
+  serializeChartSettings,
+  stripLegacyFactoryTimeZoneOnLoad,
 } from '@/lib/chartConfig';
 import { getIndicator } from '../indicators/registry';
 import { resolveIndicatorInputs } from '../indicatorInputs';
@@ -115,7 +117,9 @@ export function applyChartTemplate(
     cell: {
       ...cell,
       chartType: payload.chartType,
-      chartSettings: mergeChartSettings(payload.chartSettings),
+      chartSettings: stripLegacyFactoryTimeZoneOnLoad(
+        serializeChartSettings(mergeChartSettings(payload.chartSettings)),
+      ),
       indicators,
       paneOrder,
       collapsedPanes,

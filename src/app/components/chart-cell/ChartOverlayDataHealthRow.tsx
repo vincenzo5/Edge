@@ -1,57 +1,69 @@
 "use client";
 
+import { useMemo } from "react";
 import type { Theme } from "@/lib/chartConfig";
-import { shouldShowTwsRecovery, twsRecoveryButtonLabel } from "@/lib/marketData/health";
+import { buildDataHealthProjection, type ChartFeedOverlay } from "@/lib/marketData/healthProjection";
 import DataHealthButton from "../data-health/DataHealthButton";
-import TwsRecoverButton from "../data-health/TwsRecoverButton";
 import { useDataHealth } from "../data-health/DataHealthProvider";
 
 type Props = {
   theme: Theme;
   marketSessionLabel?: string | null;
   showMarketStatus?: boolean;
+  chartFeed?: ChartFeedOverlay;
+  showChartRetry?: boolean;
+  onChartRetry?: () => void;
 };
 
-/** Chart top-right row: inline reconnect + Data Health badge. */
+function overlayToneClass(tone: "error" | "warning" | "muted"): string {
+  switch (tone) {
+    case "error":
+      return "text-[var(--edge-negative)] ring-[var(--edge-negative)]/30";
+    case "warning":
+      return "text-[var(--edge-warning)] ring-[var(--edge-warning)]/30";
+    default:
+      return "text-[var(--edge-text-muted)] ring-[var(--edge-border)]";
+  }
+}
+
+/** Chart top-right row: feed status chip + Data Health badge (no recover CTA). */
 export default function ChartOverlayDataHealthRow({
   theme,
   marketSessionLabel = null,
   showMarketStatus = true,
+  chartFeed,
+  showChartRetry = false,
+  onChartRetry,
 }: Props) {
-  const { snapshot, recoveringTws, recoverMessage, recoverTws } = useDataHealth();
-  const twsProvider = snapshot.providers.find((provider) => provider.id === "tws");
-  const showTwsRecovery = shouldShowTwsRecovery(twsProvider);
+  const { snapshot } = useDataHealth();
+
+  const projection = useMemo(() => {
+    if (!chartFeed) return snapshot.projection;
+    return buildDataHealthProjection(snapshot, { chartFeed });
+  }, [chartFeed, snapshot]);
 
   return (
     <div
       className="pointer-events-auto flex max-w-[18rem] flex-col items-end gap-1"
       data-testid="chart-overlay-status-row"
     >
-      {showTwsRecovery ? (
-        <div className="flex flex-col items-end gap-0.5">
-          <TwsRecoverButton
-            compact
-            testId="chart-overlay-recover-tws"
-            label={twsRecoveryButtonLabel(twsProvider)}
-            recovering={recoveringTws}
-            onClick={() => {
-              void recoverTws();
-            }}
-          />
-          {recoverMessage ? (
-            <span
-              className="max-w-[18rem] text-right text-[10px] text-[var(--edge-text-secondary)]"
-              data-testid="chart-overlay-recover-message"
+      {projection.overlayFeedStatus ? (
+        <div className="pointer-events-none flex max-w-[14rem] items-center gap-2">
+          <span
+            data-testid={projection.overlayFeedStatus.testId}
+            className={`rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ${overlayToneClass(projection.overlayFeedStatus.tone)}`}
+          >
+            {projection.overlayFeedStatus.label}
+          </span>
+          {showChartRetry && onChartRetry ? (
+            <button
+              type="button"
+              data-testid="chart-feed-status-retry"
+              onClick={onChartRetry}
+              className="edge-focus-ring pointer-events-auto rounded px-2 py-0.5 text-[10px] font-medium text-[var(--edge-text-primary)] ring-1 ring-[var(--edge-border)]"
             >
-              {recoverMessage}
-            </span>
-          ) : snapshot.connectionSummary ? (
-            <span
-              className="max-w-[18rem] text-right text-[10px] text-[var(--edge-negative)]"
-              data-testid="chart-overlay-connection-summary"
-            >
-              {snapshot.connectionSummary}
-            </span>
+              Retry
+            </button>
           ) : null}
         </div>
       ) : null}

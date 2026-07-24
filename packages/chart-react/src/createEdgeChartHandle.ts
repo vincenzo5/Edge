@@ -84,6 +84,15 @@ export function createEdgeChartHandle(deps: CreateEdgeChartHandleDeps): EdgeChar
         syncSiblingsRef.current(navigated.startIndex, navigated.endIndex, 'price');
       }
     },
+    applyViewportSnapshot: (snapshot) => {
+      const priceHandle = paneHandlesRef.current?.get('price');
+      const applied = priceHandle?.applyViewportSnapshot?.(snapshot);
+      if (applied) {
+        syncSiblingsRef.current(applied.startIndex, applied.endIndex, 'price');
+        return true;
+      }
+      return false;
+    },
     zoomIn: () => {
       const priceHandle = paneHandlesRef.current?.get('price');
       const el = chartAreaRef.current;

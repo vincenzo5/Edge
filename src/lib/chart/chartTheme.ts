@@ -1,6 +1,7 @@
-import type { Theme } from './contracts';
-import { edgeChartColors } from '@/lib/design-system/edge';
+import type { PaletteId, Theme } from './contracts';
+import { DEFAULT_PALETTE } from './contracts';
+import { getEdgeChartColors } from '@/lib/design-system/edge';
 
-export function getChartColors(theme: Theme) {
-  return edgeChartColors[theme];
+export function getChartColors(theme: Theme, palette: PaletteId = DEFAULT_PALETTE) {
+  return getEdgeChartColors(palette, theme);
 }

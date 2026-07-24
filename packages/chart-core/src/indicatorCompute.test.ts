@@ -1,6 +1,14 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import type { Candle } from './contracts';
-import { clearComputeCache, getComputedSeries } from './indicatorCompute';
+import {
+  clearComputeCache,
+  computeCacheKey,
+  computeTipStableCacheKey,
+  candleTipRevisionFromSeries,
+  getComputeCacheEntryCount,
+  getComputedSeries,
+} from './indicatorCompute';
+import { applyCandleReplaceLatest } from './series';
 import { ma } from './indicators/ma';
 
 const candles: Candle[] = [
@@ -28,5 +36,34 @@ describe('indicator compute cache', () => {
 
     expect(first?.ma.at(-1)).toBe(25);
     expect(next?.ma.at(-1)).toBe(125);
+  });
+
+  it('uses tip-stable identity without tip revision in cache key', () => {
+    const key = computeCacheKey('MACD', { fast: 12 }, candles);
+    expect(key).toBe(computeTipStableCacheKey('MACD', { fast: 12 }, candles));
+    expect(key).not.toContain(candleTipRevisionFromSeries(candles));
+  });
+
+  it('does not grow cache entry count on repeated tip replace-latest ticks', () => {
+    let series = [...candles];
+    getComputedSeries(ma, series, { period: 2 });
+    expect(getComputeCacheEntryCount()).toBe(1);
+
+    for (let i = 0; i < 20; i += 1) {
+      const last = series[series.length - 1]!;
+      series = applyCandleReplaceLatest(series, {
+        ...last,
+        c: last.c + 0.1 * (i + 1),
+        h: Math.max(last.h, last.c + 0.1 * (i + 1)),
+      });
+      getComputedSeries(ma, series, { period: 2 });
+      expect(getComputeCacheEntryCount()).toBe(1);
+    }
+  });
+
+  it('creates a new cache slot when candle count changes', () => {
+    getComputedSeries(ma, candles, { period: 2 });
+    getComputedSeries(ma, candles.slice(0, 2), { period: 2 });
+    expect(getComputeCacheEntryCount()).toBe(2);
   });
 });

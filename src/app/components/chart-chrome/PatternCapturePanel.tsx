@@ -71,7 +71,7 @@ export default function PatternCapturePanel({
 
   return (
     <div
-      className="pointer-events-auto absolute bottom-3 left-1/2 z-30 w-[min(420px,calc(100%-24px))] -translate-x-1/2 rounded-md border border-[var(--edge-border-strong)] bg-[var(--edge-surface-elevated)] p-3 shadow-lg"
+      className="pointer-events-auto absolute bottom-3 left-1/2 z-30 w-[min(420px,calc(100%-24px))] -translate-x-1/2 rounded-md border border-[var(--edge-border-strong)] bg-[var(--edge-surface-popover)] p-3 shadow-lg"
       data-testid="pattern-capture-panel"
     >
       <div className="mb-2 flex items-start justify-between gap-2">
@@ -93,7 +93,7 @@ export default function PatternCapturePanel({
           {sections.map((section) => (
             <span
               key={section.id}
-              className="rounded px-1.5 py-0.5 text-xs bg-[var(--edge-surface-muted)] text-[var(--edge-text-secondary)]"
+              className="rounded px-1.5 py-0.5 text-xs bg-[var(--edge-surface-active)] text-[var(--edge-text-secondary)]"
             >
               {section.label}
             </span>
@@ -126,7 +126,7 @@ export default function PatternCapturePanel({
               }
             }}
             placeholder="Type a label or press 1–N"
-            className="w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-chart)] px-2 py-1.5 text-sm text-[var(--edge-text-primary)] outline-none focus:border-[var(--edge-accent)]"
+            className="w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-chart)] px-2 py-1.5 text-sm text-[var(--edge-text-primary)] outline-none focus:border-[var(--edge-accent-blue)]"
             autoFocus
           />
           <div className="flex flex-wrap gap-1">
@@ -135,7 +135,7 @@ export default function PatternCapturePanel({
                 key={preset}
                 type="button"
                 onClick={() => onPickPreset(index + 1)}
-                className="rounded px-1.5 py-0.5 text-xs bg-[var(--edge-surface-muted)] text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)]"
+                className="rounded px-1.5 py-0.5 text-xs bg-[var(--edge-surface-active)] text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)]"
               >
                 <span className="mr-1 font-mono tabular-nums text-[var(--edge-text-muted)]">
                   {index + 1}
@@ -151,7 +151,7 @@ export default function PatternCapturePanel({
       ) : null}
 
       {error ? (
-        <div className="mb-2 text-xs text-[var(--edge-danger)]">{error}</div>
+        <div className="mb-2 text-xs text-[var(--edge-negative)]">{error}</div>
       ) : null}
       {saveMessage ? (
         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-[var(--edge-success)]">

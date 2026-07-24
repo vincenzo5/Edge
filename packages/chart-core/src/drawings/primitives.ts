@@ -236,9 +236,10 @@ export function drawControlPoints(
   selected: boolean
 ) {
   if (!selected || points.length === 0) return;
-  const fill = theme === 'dark' ? '#131722' : '#ffffff';
-  const stroke = '#2962FF';
-  const outerRing = theme === 'dark' ? 'rgba(41, 98, 255, 0.35)' : 'rgba(41, 98, 255, 0.25)';
+  const fill = theme === 'dark' ? '#000000' : '#ffffff';
+  const stroke = theme === 'dark' ? '#6c8cff' : '#2962ff';
+  const outerRing =
+    theme === 'dark' ? 'rgba(108, 140, 255, 0.35)' : 'rgba(41, 98, 255, 0.25)';
 
   for (const p of points) {
     ctx.beginPath();

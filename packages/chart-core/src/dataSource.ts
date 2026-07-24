@@ -116,7 +116,6 @@ export type MarketDataSource = {
 export type ChartDataSourceId =
   | 'ibkr'
   | 'yahoo'
-  | 'tradier'
   | 'fmp'
   | 'sec'
   | 'fred'
@@ -154,6 +153,8 @@ export type ChartDataMeta = {
 
 export type ChartCandleRequest = CandleRequest & {
   exchange?: string;
+  /** Abort in-flight REST load when chart inputs change. */
+  signal?: AbortSignal;
 };
 
 export type ChartCandleResult = CandleResponse & {
@@ -268,6 +269,7 @@ export type ChartCandleStreamEvent =
   | { type: 'snapshot'; candles: Candle[]; meta: ChartDataMeta }
   | { type: 'append'; candle: Candle; meta: ChartDataMeta }
   | { type: 'replace-latest'; candle: Candle; meta: ChartDataMeta }
+  | { type: 'refresh'; meta: ChartDataMeta }
   | { type: 'stale'; reason: string; meta: ChartDataMeta }
   | { type: 'reconnect'; attempt: number; meta?: ChartDataMeta }
   | { type: 'error'; message: string; recoverable: boolean; meta?: ChartDataMeta };
@@ -276,6 +278,7 @@ export type ChartCandleStreamEvent =
 export type ChartQuoteStreamEvent =
   | { type: 'snapshot'; quotes: MarketQuote[]; meta: ChartDataMeta }
   | { type: 'update'; quotes: MarketQuote[]; meta: ChartDataMeta }
+  | { type: 'refresh'; meta: ChartDataMeta }
   | { type: 'stale'; reason: string; meta: ChartDataMeta }
   | { type: 'error'; message: string; recoverable: boolean; meta?: ChartDataMeta };
 

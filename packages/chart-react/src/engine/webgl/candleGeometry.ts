@@ -1,6 +1,7 @@
 import type { Candle, Theme, VisibleRange } from '@edge/chart-core';
 import { plotWidth } from '@edge/chart-core/layout';
 import type { RequiredChartSettings } from '../chartSettings';
+import type { GeometryBufferPool } from './geometryBufferPool';
 
 export type CandleChartType =
   | 'candle_solid'
@@ -66,6 +67,7 @@ export function buildCandleGeometry(
   chartType: CandleChartType,
   settings: RequiredChartSettings,
   theme: Theme,
+  pool?: GeometryBufferPool,
 ): CandleGeometryBatch {
   const batch = createEmptyBatch();
   const visibleSpan = vp.endIndex - vp.startIndex;
@@ -107,8 +109,8 @@ export function buildCandleGeometry(
       areaFill.push(vp.xForIndex(lastDataIdx), bottomY);
       areaFill.push(vp.xForIndex(firstDataIdx), bottomY);
     }
-    batch.areaFill = toFill(areaFill);
-    batch.areaStroke = toLine(areaStroke);
+    batch.areaFill = toFill(areaFill, pool, 'areaFill');
+    batch.areaStroke = toLine(areaStroke, pool, 'areaStroke');
     return batch;
   }
 
@@ -146,12 +148,12 @@ export function buildCandleGeometry(
     pushRect(target, x, yBodyTop, barWidth, bodyH);
   }
 
-  batch.bodiesUp = toFill(bodyUp);
-  batch.bodiesDown = toFill(bodyDown);
-  batch.wicksUp = toLine(wickUp);
-  batch.wicksDown = toLine(wickDown);
-  batch.ohlcUp = toLine(ohlcUp);
-  batch.ohlcDown = toLine(ohlcDown);
+  batch.bodiesUp = toFill(bodyUp, pool, 'bodiesUp');
+  batch.bodiesDown = toFill(bodyDown, pool, 'bodiesDown');
+  batch.wicksUp = toLine(wickUp, pool, 'wicksUp');
+  batch.wicksDown = toLine(wickDown, pool, 'wicksDown');
+  batch.ohlcUp = toLine(ohlcUp, pool, 'ohlcUp');
+  batch.ohlcDown = toLine(ohlcDown, pool, 'ohlcDown');
   return batch;
 }
 
@@ -166,14 +168,16 @@ function pushRect(out: number[], x: number, y: number, w: number, h: number): vo
   );
 }
 
-function toFill(values: number[]): FillGeometry {
+function toFill(values: number[], pool?: GeometryBufferPool, key?: string): FillGeometry {
   if (values.length === 0) return { ...EMPTY_FILL };
-  return { vertices: new Float32Array(values), vertexCount: values.length / 2 };
+  const vertices = pool && key ? pool.fromNumbers(key, values) : new Float32Array(values);
+  return { vertices, vertexCount: values.length / 2 };
 }
 
-function toLine(values: number[]): LineGeometry {
+function toLine(values: number[], pool?: GeometryBufferPool, key?: string): LineGeometry {
   if (values.length === 0) return { ...EMPTY_LINE };
-  return { vertices: new Float32Array(values), vertexCount: values.length / 2 };
+  const vertices = pool && key ? pool.fromNumbers(key, values) : new Float32Array(values);
+  return { vertices, vertexCount: values.length / 2 };
 }
 
 /** Chart types the WebGL path renders; stroke-only bodies stay on Canvas. */

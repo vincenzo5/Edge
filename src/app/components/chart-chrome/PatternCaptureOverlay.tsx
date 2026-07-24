@@ -44,13 +44,13 @@ export default function PatternCaptureOverlay({
             return (
               <div
                 key={section.id}
-                className="absolute top-0 bottom-8 bg-[var(--edge-accent)]/8"
+                className="absolute top-0 bottom-8 bg-[var(--edge-accent-blue)]/8"
                 style={{
                   ...style,
                   backgroundColor: SECTION_BAND_COLORS[index % SECTION_BAND_COLORS.length],
                 }}
               >
-                <span className="absolute left-1 top-1 rounded bg-[var(--edge-surface-elevated)]/90 px-1.5 py-0.5 text-[10px] text-[var(--edge-text-primary)]">
+                <span className="absolute left-1 top-1 rounded bg-[var(--edge-surface-popover)]/90 px-1.5 py-0.5 text-[10px] text-[var(--edge-text-primary)]">
                   {section.label}
                 </span>
               </div>
@@ -60,7 +60,7 @@ export default function PatternCaptureOverlay({
 
       {visibleRange && band && phase === "labeling" && pendingStart && pendingEnd ? (
         <div
-          className="absolute top-0 bottom-8 bg-[var(--edge-accent)]/12"
+          className="absolute top-0 bottom-8 bg-[var(--edge-accent-blue)]/12"
           style={band(pendingStart.barIndex, pendingEnd.barIndex)}
         />
       ) : null}
@@ -72,7 +72,7 @@ export default function PatternCaptureOverlay({
       hoverBarIndex != null &&
       hoverBarIndex >= pendingStart.barIndex ? (
         <div
-          className="absolute top-0 bottom-8 bg-[var(--edge-accent)]/8"
+          className="absolute top-0 bottom-8 bg-[var(--edge-accent-blue)]/8"
           style={band(pendingStart.barIndex, hoverBarIndex)}
         />
       ) : null}
@@ -80,7 +80,7 @@ export default function PatternCaptureOverlay({
       {clickDots.map((anchor, index) => (
         <div
           key={`dot-${index}-${anchor.barIndex}-${anchor.timestamp}`}
-          className="absolute z-10 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-[var(--edge-surface-elevated)] bg-[var(--edge-accent)]"
+          className="absolute z-10 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-[var(--edge-surface-popover)] bg-[var(--edge-accent-blue)]"
           style={{ left: `${anchor.markerLeftPct}%`, top: anchor.markerTopPx }}
           data-testid="pattern-capture-click-dot"
         />

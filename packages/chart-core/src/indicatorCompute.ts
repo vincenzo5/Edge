@@ -4,7 +4,17 @@ import type { LegendValueEntry, SeriesColor, SeriesOutput } from './legend/types
 import { resolveIndicatorInputs, stableStringifyInputs } from './indicatorInputs';
 
 const MAX_CACHE_ENTRIES = 64;
-const computeCache = new Map<string, Record<string, number[]>>();
+/** Soft approximate byte budget for builtin compute cache entries (series array lengths × 8). */
+export const COMPUTE_CACHE_SOFT_BYTES = 16 * 1024 * 1024;
+
+type ComputeCacheEntry = {
+  tipRevision: string;
+  data: Record<string, number[]>;
+  touchedAt: number;
+  approxBytes: number;
+};
+
+const computeCache = new Map<string, ComputeCacheEntry>();
 
 function updateHash(hash: number, value: number | undefined): number {
   const part = `${value ?? ''};`;
@@ -16,31 +26,116 @@ function updateHash(hash: number, value: number | undefined): number {
   return next;
 }
 
+function hashCandleFields(hash: number, candle: Candle): number {
+  let next = updateHash(hash, candle.t);
+  next = updateHash(next, candle.o);
+  next = updateHash(next, candle.h);
+  next = updateHash(next, candle.l);
+  next = updateHash(next, candle.c);
+  next = updateHash(next, candle.v);
+  return next;
+}
+
+/** Full-series OHLCV fingerprint — use when value-sensitive identity is required. */
 export function candleValueFingerprint(candles: Candle[]): string {
   let hash = 2166136261;
   for (const candle of candles) {
-    hash = updateHash(hash, candle.t);
-    hash = updateHash(hash, candle.o);
-    hash = updateHash(hash, candle.h);
-    hash = updateHash(hash, candle.l);
-    hash = updateHash(hash, candle.c);
-    hash = updateHash(hash, candle.v);
+    hash = hashCandleFields(hash, candle);
   }
   return (hash >>> 0).toString(36);
 }
 
-export function computeCacheKey(
+/** Hash of all candles except the live tip bar — stable under tip replace-latest. */
+export function candleBodyFingerprint(candles: Candle[]): string {
+  if (candles.length <= 1) return '0';
+  let hash = 2166136261;
+  for (let i = 0; i < candles.length - 1; i += 1) {
+    hash = hashCandleFields(hash, candles[i]!);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+export function candleTipRevision(candle: Candle): string {
+  let hash = 2166136261;
+  hash = hashCandleFields(hash, candle);
+  return (hash >>> 0).toString(36);
+}
+
+export function candleTipRevisionFromSeries(candles: Candle[]): string {
+  const last = candles.at(-1);
+  if (!last) return '0';
+  return candleTipRevision(last);
+}
+
+/** Tip-stable cache identity — excludes tip OHLC so live ticks reuse one slot. */
+export function computeTipStableCacheKey(
   name: string,
   inputs: ResolvedInputs,
   candles: Candle[],
 ): string {
   const firstT = candles[0]?.t ?? 0;
   const lastT = candles.at(-1)?.t ?? 0;
-  return `${name}|${stableStringifyInputs(inputs)}|${candles.length}|${firstT}|${lastT}|${candleValueFingerprint(candles)}`;
+  return `${name}|${stableStringifyInputs(inputs)}|${candles.length}|${firstT}|${lastT}|${candleBodyFingerprint(candles)}`;
+}
+
+/** Alias for tip-stable identity (legacy name). */
+export function computeCacheKey(
+  name: string,
+  inputs: ResolvedInputs,
+  candles: Candle[],
+): string {
+  return computeTipStableCacheKey(name, inputs, candles);
+}
+
+function approxSeriesBytes(data: Record<string, number[]>): number {
+  let sum = 0;
+  for (const arr of Object.values(data)) {
+    sum += arr.length * 8;
+  }
+  return sum;
+}
+
+function totalComputeCacheBytes(): number {
+  let sum = 0;
+  for (const entry of computeCache.values()) {
+    sum += entry.approxBytes;
+  }
+  return sum;
+}
+
+function evictComputeCacheUntilWithinBudget(): void {
+  while (
+    computeCache.size > MAX_CACHE_ENTRIES ||
+    totalComputeCacheBytes() > COMPUTE_CACHE_SOFT_BYTES
+  ) {
+    let victimKey: string | null = null;
+    let victimTouch = Infinity;
+    let victimBytes = -Infinity;
+
+    for (const [key, entry] of computeCache) {
+      const shouldEvict =
+        victimKey == null ||
+        entry.touchedAt < victimTouch ||
+        (entry.touchedAt === victimTouch && entry.approxBytes > victimBytes);
+      if (shouldEvict) {
+        victimKey = key;
+        victimTouch = entry.touchedAt;
+        victimBytes = entry.approxBytes;
+      }
+    }
+
+    if (victimKey == null) break;
+    computeCache.delete(victimKey);
+  }
 }
 
 export function clearComputeCache(): void {
   computeCache.clear();
+}
+
+/** Test helper — current builtin compute cache entry count. */
+export function getComputeCacheEntryCount(): number {
+  return computeCache.size;
 }
 
 export function getComputedSeries(
@@ -55,16 +150,23 @@ export function getComputedSeries(
     inputs ??
     (instance ? resolveIndicatorInputs(plugin, instance) : ({} as ResolvedInputs));
 
-  const key = computeCacheKey(plugin.name, resolved, candles);
+  const key = computeTipStableCacheKey(plugin.name, resolved, candles);
+  const tipRevision = candleTipRevisionFromSeries(candles);
   const hit = computeCache.get(key);
-  if (hit) return hit;
+  if (hit && hit.tipRevision === tipRevision) {
+    hit.touchedAt = Date.now();
+    return hit.data;
+  }
 
   const data = plugin.compute(candles, resolved);
-  if (computeCache.size >= MAX_CACHE_ENTRIES) {
-    const oldest = computeCache.keys().next().value;
-    if (oldest) computeCache.delete(oldest);
-  }
-  computeCache.set(key, data);
+  const now = Date.now();
+  computeCache.set(key, {
+    tipRevision,
+    data,
+    touchedAt: now,
+    approxBytes: approxSeriesBytes(data),
+  });
+  evictComputeCacheUntilWithinBudget();
   return data;
 }
 
@@ -121,11 +223,12 @@ export function legendFromOutputs(
   candles: Candle[],
   instance: IndicatorConfig,
   theme: Theme,
+  dataOverride?: Record<string, number[]> | null,
 ): LegendValueEntry[] | null {
   if (!plugin.outputs?.length) return null;
 
   const inputs = resolveIndicatorInputs(plugin, instance);
-  const data = getComputedSeries(plugin, candles, inputs);
+  const data = dataOverride ?? getComputedSeries(plugin, candles, inputs);
   if (!data) return null;
 
   const firstSeries = Object.values(data)[0];

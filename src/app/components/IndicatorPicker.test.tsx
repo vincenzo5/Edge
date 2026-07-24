@@ -29,7 +29,7 @@ describe('IndicatorPicker', () => {
     );
 
     expect(screen.getByText('Indicators, metrics, and strategies')).toBeTruthy();
-    expect(screen.getByTestId('indicator-search')).toBeTruthy();
+    expect(screen.getByLabelText('Search indicators')).toBeTruthy();
     expect(screen.getByText('Technicals')).toBeTruthy();
   });
 

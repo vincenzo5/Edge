@@ -1,18 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import EdgeChart, { type ChartHandle } from "./EdgeChart";
 import DrawingToolbar, { resolveGroupSelections } from "./DrawingToolbar";
 import DrawingSelectionToolbar from "./DrawingSelectionToolbar";
 import ChartRangeBar from "./ChartRangeBar";
 import ChartCellDialogs from "./chart-cell/ChartCellDialogs";
 import ChartErrorBoundary from "./chart-cell/ChartErrorBoundary";
+import InactiveChartSurface from "./chart-cell/InactiveChartSurface";
 import ChartSyncBridge from "./chart-cell/ChartSyncBridge";
-import { useJournalChartOverlay } from "./journal/JournalChartOverlayProvider";
+import { useJournalChartOverlay } from "./journal/journalChartOverlayContext";
 import { usePatternChartGoto, usePatternLibraryOptional } from "./pattern-library/PatternLibraryContext";
 import { useDrawingLayoutSync } from "./chart-cell/useDrawingLayoutSync";
+import { useViewportPersistSync } from "./chart-cell/useViewportPersistSync";
 import { useRegisterActiveChart } from "./chart-cell/useRegisterActiveChart";
 import { useTradeDrawingBinding } from "./chart-cell/useTradeDrawingBinding";
+import { useRiskDrawingBinding } from "./chart-cell/useRiskDrawingBinding";
 import { usePaneLayoutActions } from "./chart-cell/usePaneLayoutActions";
 import { useJournalPatternGoto } from "./chart-cell/useJournalPatternGoto";
 import { usePatternCapture } from "./chart-cell/usePatternCapture";
@@ -25,15 +29,20 @@ import { useChartSync } from "./ChartSyncContext";
 import { useActiveChartBridge } from "./ActiveChartContext";
 import { useMarketDataQuotes } from "./MarketDataProvider";
 import { useSidebarOptional } from "./SidebarContext";
+import { useCopilot } from "./copilot/CopilotContext";
 import type { Candle, DrawingStyles } from "@/lib/chart/contracts";
-import type { ChartDataMeta } from "@edge/chart-core";
+import { resolveChartLiveQuotePrice } from "@/lib/chart/resolveChartLiveQuotePrice";
+import type { ChartDataMeta, ChartAnnotationChannelMarker } from "@edge/chart-core";
 import type { MarketSessionKind } from "@edge/chart-core";
 import { resolveMarketSession, sessionStatusLabel } from "@edge/chart-core";
 import {
   createIndicatorInstance,
+  createScriptIndicatorInstance,
   mergeChartSettings,
+  migrateChartSettings,
   patchChartSettings,
-  serializeChartSettings,
+  persistChartSettings,
+  stripLegacyFactoryTimeZoneOnLoad,
   type CellConfig,
   type RequiredChartSettings,
   type IndicatorConfig,
@@ -41,9 +50,29 @@ import {
 } from "@/lib/chartConfig";
 import type { Range } from "@/lib/chart/contracts";
 import type { ChartTimeZone } from "@/lib/chart/timeZone";
-import { applyRangePresetSelect } from "@/lib/chart/rangePresetTransition";
+import { applyRangePresetSelect, buildCandleSessionKey } from "@/lib/chart/rangePresetTransition";
 import type { DrawingToolName } from "./chart-icons/toolGroups";
 import { useTradeSetupBindingOptional } from "./trading/TradeSetupBindingContext";
+import { useRiskPositionBindingOptional } from "./risk/RiskPositionBindingContext";
+import { injectScriptFixtures, isScriptFixtureDevEnabled } from "@/lib/chart/scriptFixtureDev";
+import { defaultInputsFromSchema } from "@/lib/chart/indicatorInputs";
+import type { IndicatorPlugin } from "@/lib/chart/plugin-api";
+import { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
+import { useScriptLibraryMountRequest } from "@/lib/scriptLibrary/ScriptLibraryMountGate";
+import { useOptionalAppWorkspace } from "./app-workspace/AppWorkspaceContext";
+import { useAppTimeZone } from "./AppTimeZoneProvider";
+import { buildAlertPrefillFromDrawing } from "@/lib/alerts/drawingAlertGeometry";
+import { buildAlertPrefillWorkspaceLink } from "@/lib/alerts/openAlertPrefill";
+import { createTradePlanAlerts } from "@/lib/alerts/tradePlanAlerts";
+import { useAccountOptional } from "./AccountProvider";
+import { usePlaybookInstances } from "./trading/usePlaybookInstances";
+import {
+  manageLevelsForSymbol,
+  manageLevelsToPriceAxisAnnotations,
+} from "@/lib/trading/playbook/manageLevels";
+import { positionOrderLevelsFromDrawing } from "@/lib/trading/positionTradeSetup";
+import type { PriceAxisAnnotation } from "@edge/chart-core/priceAxisTypes";
+import { buildWorkspaceDeepLink } from "@/lib/appWorkspace/deepLinks";
 import MarketContextBreadcrumb from "./chart-chrome/MarketContextBreadcrumb";
 import PatternCapturePanel from "./chart-chrome/PatternCapturePanel";
 import PatternCaptureOverlay from "./chart-chrome/PatternCaptureOverlay";
@@ -51,6 +80,7 @@ import type { PriceScaleSide } from "@/lib/chart/layout";
 import type { ChartSymbolNav } from "./ChartGrid";
 import type { SymbolSelectResult } from "@/lib/watchlist/types";
 import type { RailMode } from "@/lib/responsive/responsiveLayout";
+import { DEFAULT_PALETTE, type PaletteId } from "@/lib/design-system/palettes";
 
 const EMPTY_CONTEXT_MENU_ITEMS: ContextMenuItem[] = [];
 
@@ -58,9 +88,12 @@ type Props = {
   chartId: string;
   config: CellConfig;
   theme: "light" | "dark";
+  palette?: PaletteId;
   compact?: boolean;
   railMode?: RailMode;
   isActive?: boolean;
+  /** Candle stream subscription; defaults to isActive when unset. */
+  live?: boolean;
   showDrawingRail?: boolean;
   toolbarPrefs: ToolbarPrefs;
   symbolNav?: ChartSymbolNav;
@@ -68,15 +101,19 @@ type Props = {
   onConfigChange: (next: CellConfig) => void;
   onToolbarPrefsChange: (next: ToolbarPrefs) => void;
   onCandleCount?: (n: number) => void;
+  /** When set, replaces journal overlay markers from URL deep-link. */
+  journalAnnotationMarkersOverride?: ChartAnnotationChannelMarker[];
 };
 
 export default function ChartCell({
   chartId,
   config,
   theme,
+  palette = DEFAULT_PALETTE,
   compact = false,
   railMode = "full",
   isActive = true,
+  live: liveProp,
   showDrawingRail = true,
   toolbarPrefs,
   symbolNav,
@@ -84,16 +121,54 @@ export default function ChartCell({
   onConfigChange,
   onToolbarPrefsChange,
   onCandleCount,
+  journalAnnotationMarkersOverride,
 }: Props) {
+  const live = liveProp ?? isActive;
+  /** Phase 11: unmount chart engine when inactive unless explicit live override (journal fork). */
+  const mountChartEngine = isActive || liveProp === true;
+  const [chartEngineGeneration, setChartEngineGeneration] = useState(0);
+  const mountChartEngineRef = useRef(mountChartEngine);
+  const lastChartHandleRef = useRef<ChartHandle | null>(null);
   const chartRef = useRef<ChartHandle>(null);
   const tradeBinding = useTradeSetupBindingOptional();
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const riskBinding = useRiskPositionBindingOptional();
+  const account = useAccountOptional();
+  const tradingAccountId = account?.activeTradingAccountId ?? "";
+  const tradingEnvironment = account?.tradingEnvironment ?? "paper";
+  const { instances: playbookInstances } = usePlaybookInstances(tradingAccountId || null);
+  const managePriceAxisAnnotations = useMemo((): PriceAxisAnnotation[] => {
+    if (!tradingAccountId) return [];
+    return manageLevelsToPriceAxisAnnotations(
+      manageLevelsForSymbol(playbookInstances, config.symbol),
+    );
+  }, [config.symbol, playbookInstances, tradingAccountId]);
+  const playbookSync = useMemo(
+    () =>
+      tradingAccountId
+        ? {
+            symbol: config.symbol,
+            accountId: tradingAccountId,
+            environment: tradingEnvironment,
+            instances: playbookInstances,
+          }
+        : null,
+    [config.symbol, playbookInstances, tradingAccountId, tradingEnvironment],
+  );
+  const [pickerOpen, setPickerOpenState] = useState(false);
+  const requestScriptLibrary = useScriptLibraryMountRequest();
+  const setPickerOpen = useCallback(
+    (open: boolean) => {
+      if (open) requestScriptLibrary();
+      setPickerOpenState(open);
+    },
+    [requestScriptLibrary],
+  );
   const [chartRetryKey, setChartRetryKey] = useState(0);
   const [visibleCount, setVisibleCount] = useState<number | null>(null);
   const [candleCount, setCandleCount] = useState(0);
   const displayCandlesRef = useRef<Candle[]>([]);
   const [candlesRevision, setCandlesRevision] = useState(0);
-  const resetAppliedForSymbolRef = useRef<string | null>(null);
+  const prevSymbolRef = useRef<string | null>(null);
   const [lastCandleTimestamp, setLastCandleTimestamp] = useState<number | null>(null);
   const [settingsIndicatorId, setSettingsIndicatorId] = useState<string | null>(null);
   const [settingsOverlayId, setSettingsOverlayId] = useState<string | null>(null);
@@ -126,14 +201,19 @@ export default function ChartCell({
   const activeChartBridge = useActiveChartBridge();
   const marketData = useMarketDataQuotes();
   const sidebar = useSidebarOptional();
+  const copilot = useCopilot();
   const {
-    markers: journalMarkers,
+    markers: journalOverlayMarkers,
     gotoMs: journalGotoMs,
     consumeGoto: consumeJournalGoto,
   } = useJournalChartOverlay(config.symbol);
+  const journalMarkers = journalAnnotationMarkersOverride ?? journalOverlayMarkers;
   const { gotoMs: patternGotoMs, consumeGoto: consumePatternGoto } =
     usePatternChartGoto(config.symbol);
   const patternLibrary = usePatternLibraryOptional();
+  const scriptLibrary = useScriptLibraryOptional();
+  const workspace = useOptionalAppWorkspace();
+  const router = useRouter();
 
   const magnet = toolbarPrefs.magnet ?? false;
   const keepDrawing = toolbarPrefs.keepDrawing ?? false;
@@ -150,6 +230,7 @@ export default function ChartCell({
     overlaysDirtyRef,
     suppressDrawingPersistRef,
     lastAppliedDrawingsRef,
+    flushDrawingsPersist,
   } = useDrawingLayoutSync({
     chartRef,
     config,
@@ -159,16 +240,68 @@ export default function ChartCell({
     sync,
     setSelectedOverlayId,
     setHistoryRevision,
+    chartEngineGeneration,
+    playbookSync,
   });
 
-  useTradeDrawingBinding({ chartRef, chartId, overlays, tradeBinding });
+  const candleSessionKey = useMemo(
+    () => buildCandleSessionKey(config.symbol, config.range, config.interval),
+    [config.symbol, config.range, config.interval],
+  );
+
+  const { markViewportDirty, clearPersistedViewport, flushViewportPersist } =
+    useViewportPersistSync({
+      chartRef,
+      config,
+      onConfigChange,
+      candleCount,
+      sessionKey: candleSessionKey,
+      chartEngineGeneration,
+    });
+
+  useLayoutEffect(() => {
+    if (mountChartEngine) {
+      lastChartHandleRef.current = chartRef.current;
+    }
+  });
+
+  useLayoutEffect(() => {
+    const wasMounted = mountChartEngineRef.current;
+    if (wasMounted && !mountChartEngine) {
+      const chart = lastChartHandleRef.current;
+      flushDrawingsPersist(chart);
+      flushViewportPersist(chart);
+      lastChartHandleRef.current = null;
+    }
+    if (!wasMounted && mountChartEngine) {
+      setChartEngineGeneration((generation) => generation + 1);
+    }
+    mountChartEngineRef.current = mountChartEngine;
+  }, [mountChartEngine, flushDrawingsPersist, flushViewportPersist]);
 
   const update = useCallback(
     (patch: Partial<CellConfig>) => {
-      onConfigChange({ ...config, ...patch });
+      const next = { ...config, ...patch };
+      const sessionChanged =
+        (patch.symbol !== undefined && patch.symbol !== config.symbol) ||
+        (patch.interval !== undefined && patch.interval !== config.interval) ||
+        (patch.range !== undefined && patch.range !== config.range) ||
+        (patch.rangePreset !== undefined && patch.rangePreset !== config.rangePreset);
+      if (sessionChanged) {
+        next.viewport = undefined;
+      }
+      onConfigChange(next);
     },
     [config, onConfigChange],
   );
+
+  const handleResetChartView = useCallback(() => {
+    chartRef.current?.resetChartView();
+    clearPersistedViewport();
+  }, [clearPersistedViewport]);
+
+  useTradeDrawingBinding({ chartRef, chartId, overlays, tradeBinding });
+  useRiskDrawingBinding({ chartRef, chartId, overlays, isActive, riskBinding });
 
   const {
     handleCollapsePane,
@@ -206,9 +339,34 @@ export default function ChartCell({
     }
   }, [replayActive]);
 
+  const scriptFixtureInjectedRef = useRef(false);
+  useEffect(() => {
+    if (scriptFixtureInjectedRef.current || !isScriptFixtureDevEnabled()) return;
+    scriptFixtureInjectedRef.current = true;
+    const next = injectScriptFixtures(config);
+    if (next !== config) {
+      onConfigChange(next);
+    }
+  }, [config, onConfigChange]);
+
+  const { timeZone: appTimeZone } = useAppTimeZone();
+  const strippedFactoryTzRef = useRef(false);
+
+  // One-time: clear baked factory UTC so the clock inherits the app default.
+  useEffect(() => {
+    if (strippedFactoryTzRef.current) return;
+    strippedFactoryTzRef.current = true;
+    const rawTz = migrateChartSettings(config.chartSettings).symbol?.timeZone;
+    if (rawTz !== "UTC") return;
+    onConfigChange({
+      ...config,
+      chartSettings: stripLegacyFactoryTimeZoneOnLoad(config.chartSettings),
+    });
+  }, [config, onConfigChange]);
+
   const chartSettingsMerged = useMemo(
-    () => mergeChartSettings(config.chartSettings),
-    [config.chartSettings],
+    () => mergeChartSettings(config.chartSettings, { defaultTimeZone: appTimeZone }),
+    [config.chartSettings, appTimeZone],
   );
 
   const priceScaleSide: PriceScaleSide =
@@ -289,6 +447,7 @@ export default function ChartCell({
     setRenameOverlayId,
     onToolbarPrefsChange,
     onConfigChange,
+    onResetChartView: handleResetChartView,
   });
 
   const {
@@ -309,6 +468,37 @@ export default function ChartCell({
     setTemplatePickerOpen,
   });
 
+  const handleOpenAlertFromDrawing = useCallback(
+    (overlayId: string) => {
+      const symbol = config.symbol.trim().toUpperCase();
+      if (!symbol) return;
+      const drawings = chartRef.current?.serializeDrawings() ?? [];
+      const drawing = drawings.find((entry) => entry.id === overlayId);
+      if (!drawing) return;
+      const quote = marketData?.quotesBySymbol.get(symbol) ?? null;
+      const quotePrice = quote?.regularMarketPrice ?? null;
+      const prefill = buildAlertPrefillFromDrawing({ symbol, drawing, quotePrice });
+      if (!prefill) return;
+      router.push(buildAlertPrefillWorkspaceLink(prefill));
+    },
+    [config.symbol, marketData?.quotesBySymbol, router],
+  );
+
+  const handleAddTradePlanAlerts = useCallback(
+    async (overlayId: string) => {
+      const symbol = config.symbol.trim().toUpperCase();
+      if (!symbol) return;
+      const drawings = chartRef.current?.serializeDrawings() ?? [];
+      const drawing = drawings.find((entry) => entry.id === overlayId);
+      if (!drawing?.id) return;
+      const levels = positionOrderLevelsFromDrawing(drawing);
+      if (!levels) return;
+      await createTradePlanAlerts({ symbol, drawingId: drawing.id, levels });
+      router.push(buildWorkspaceDeepLink({ surface: "alerts" }));
+    },
+    [config.symbol, router],
+  );
+
   const { handleOverlayRightClick, handleChartContextMenu, handlePriceScaleContextMenu } =
     useChartCellContextMenus({
       chartRef,
@@ -321,6 +511,8 @@ export default function ChartCell({
       latestCrosshairPlotXRef,
       sidebar,
       tradeBinding,
+      onOpenAlertFromDrawing: handleOpenAlertFromDrawing,
+      onAddTradePlanAlerts: handleAddTradePlanAlerts,
       setContextMenu,
       setChartSettingsSection,
       setChartSettingsOpen,
@@ -337,6 +529,7 @@ export default function ChartCell({
       overlayActions,
       openRenameOverlay,
       applyPriceScaleType,
+      onResetChartView: handleResetChartView,
     });
 
   const canUndo =
@@ -351,7 +544,7 @@ export default function ChartCell({
 
   const handleRangeSelect = useCallback(
     (range: Range) => {
-      onConfigChange(applyRangePresetSelect(config, range));
+      onConfigChange({ ...applyRangePresetSelect(config, range), viewport: undefined });
     },
     [config, onConfigChange],
   );
@@ -375,6 +568,56 @@ export default function ChartCell({
       });
     },
     [config.indicators, update],
+  );
+
+  const addScriptIndicator = useCallback(
+    (params: {
+      scriptId: string;
+      revision: string;
+      name: string;
+      pane: "main" | "sub";
+    }) => {
+      const manifest = scriptLibrary?.getRevisionManifest(params.scriptId, params.revision);
+      const inputs = manifest
+        ? defaultInputsFromSchema({ inputSchema: manifest.inputs } as IndicatorPlugin)
+        : undefined;
+      update({
+        indicators: [
+          ...config.indicators,
+          createScriptIndicatorInstance({ ...params, inputs }),
+        ],
+      });
+      setPickerOpen(false);
+    },
+    [config.indicators, scriptLibrary, update],
+  );
+
+
+  const openScriptsTile = useCallback(
+    (scriptId?: string) => {
+      workspace?.focusOrOpenSurface("scripts", {
+        region: "right",
+        surfaceState: scriptId ? { selectedScriptId: scriptId } : undefined,
+      });
+    },
+    [workspace],
+  );
+
+  const handleNewScript = useCallback(() => {
+    requestScriptLibrary();
+    if (!scriptLibrary) return;
+    void scriptLibrary.createScript().then((entry) => {
+      setPickerOpen(false);
+      openScriptsTile(entry.scriptId);
+    });
+  }, [openScriptsTile, requestScriptLibrary, scriptLibrary]);
+
+  const handleEditScript = useCallback(
+    (scriptId: string) => {
+      setPickerOpen(false);
+      openScriptsTile(scriptId);
+    },
+    [openScriptsTile],
   );
 
   const removeIndicator = useCallback(
@@ -406,24 +649,14 @@ export default function ChartCell({
 
   useEffect(() => {
     if (!isActive || candleCount === 0) return;
-    if (resetAppliedForSymbolRef.current === config.symbol) return;
 
-    const symbol = config.symbol;
-    let cancelled = false;
-    const applyReset = () => {
-      if (cancelled || resetAppliedForSymbolRef.current === symbol) return;
-      chartRef.current?.resetChartView();
-      chartRef.current?.resetPriceScaleWindow();
-      resetAppliedForSymbolRef.current = symbol;
-    };
+    const prevSymbol = prevSymbolRef.current;
+    prevSymbolRef.current = config.symbol;
 
-    requestAnimationFrame(() => {
-      requestAnimationFrame(applyReset);
-    });
+    if (prevSymbol === null || prevSymbol === config.symbol) return;
 
-    return () => {
-      cancelled = true;
-    };
+    chartRef.current?.resetChartView();
+    chartRef.current?.resetPriceScaleWindow();
   }, [config.symbol, candleCount, isActive]);
 
   const handleLegendAction = useCallback((actionId: string) => {
@@ -458,14 +691,14 @@ export default function ChartCell({
 
   const handleChartSettingsSave = useCallback(
     (next: RequiredChartSettings) => {
-      const prevMerged = mergeChartSettings(config.chartSettings);
-      const serialized = serializeChartSettings(next);
+      const prevMerged = mergeChartSettings(config.chartSettings, { defaultTimeZone: appTimeZone });
+      const serialized = persistChartSettings(next, { defaultTimeZone: appTimeZone });
       onConfigChange({ ...config, chartSettings: serialized });
       if (next.scales.priceScaleType !== prevMerged.scales.priceScaleType) {
         chartRef.current?.resetPriceScaleWindow(next);
       }
     },
-    [config, onConfigChange],
+    [config, onConfigChange, appTimeZone],
   );
 
   const settingsIndicator = useMemo(
@@ -643,7 +876,10 @@ export default function ChartCell({
 
   const liveQuote =
     marketData?.quotesBySymbol.get(config.symbol.trim().toUpperCase()) ?? null;
-  const liveQuotePrice = liveQuote?.regularMarketPrice ?? null;
+  const liveQuotePrice =
+    marketData != null
+      ? resolveChartLiveQuotePrice(config.symbol, marketData.quotesBySymbol)
+      : null;
   const liveMarketSession: MarketSessionKind | null = liveQuote
     ? resolveMarketSession({
         atMs: liveQuote.updatedAt,
@@ -726,44 +962,54 @@ export default function ChartCell({
             ref={chartOverlayRef}
           >
             <ChartErrorBoundary resetKey={chartRetryKey} onRetry={handleChartRetry}>
-              <EdgeChart
-                key={chartRetryKey}
-                ref={chartRef}
-                config={config}
-                theme={theme}
-                compact={compact}
-                visibleCount={visibleCount}
-                chartId={chartId}
-                reloadKey={chartReloadKey}
-                onRetry={handleChartRetry}
-                livePrice={liveQuotePrice}
-                liveMarketSession={liveMarketSession}
-                marketSessionLabel={marketSessionLabel}
-                legendContextSlot={legendContextSlot}
-                showDataHealthBadge={isActive}
-                journalAnnotationMarkers={journalMarkers}
-                onCrosshairTimestamp={handleCrosshairFire}
-                onCrosshairMove={handleCrosshairMove}
-                suppressCrosshair={contextMenu != null}
-                onLegendAction={handleLegendAction}
-                onDrawingDisarmed={handleDrawingDisarmed}
-                onConfigChange={onConfigChange}
-                onOverlayRightClick={handleOverlayRightClick}
-                onChartContextMenu={handleChartContextMenu}
-                onPriceScaleContextMenu={handlePriceScaleContextMenu}
-                onRemoveIndicator={removeIndicator}
-                onCollapseIndicator={handleCollapsePane}
-                onMaximizeIndicator={handleMaximizePane}
-                onMoveIndicatorUp={handleMovePaneUp}
-                onMoveIndicatorDown={handleMovePaneDown}
-                onPaneHeightsChange={handlePaneHeightsChange}
-                onDataLoaded={handleDataLoaded}
-                onDataMetaChange={handleDataMetaChange}
-                onCandlesChange={handleCandlesChange}
-                collapsedKeys={collapsedKeys}
-                maximizedKey={maximizedKey}
-                paneOrder={paneOrder}
-              />
+              {mountChartEngine ? (
+                <EdgeChart
+                  key={chartRetryKey}
+                  ref={chartRef}
+                  config={config}
+                  theme={theme}
+                  palette={palette}
+                  compact={compact}
+                  visibleCount={visibleCount}
+                  chartId={chartId}
+                  reloadKey={chartReloadKey}
+                  onRetry={handleChartRetry}
+                  defaultTimeZone={appTimeZone}
+                  live={live}
+                  livePrice={liveQuotePrice}
+                  liveMarketSession={liveMarketSession}
+                  marketSessionLabel={marketSessionLabel}
+                  legendContextSlot={legendContextSlot}
+                  showDataHealthBadge={isActive}
+                  journalAnnotationMarkers={journalMarkers}
+                  onCrosshairTimestamp={handleCrosshairFire}
+                  onCrosshairMove={handleCrosshairMove}
+                  suppressCrosshair={contextMenu != null}
+                  onLegendAction={handleLegendAction}
+                  onDrawingDisarmed={handleDrawingDisarmed}
+                  onConfigChange={onConfigChange}
+                  onOverlayRightClick={handleOverlayRightClick}
+                  onChartContextMenu={handleChartContextMenu}
+                  onPriceScaleContextMenu={handlePriceScaleContextMenu}
+                  onRemoveIndicator={removeIndicator}
+                  onCollapseIndicator={handleCollapsePane}
+                  onMaximizeIndicator={handleMaximizePane}
+                  onMoveIndicatorUp={handleMovePaneUp}
+                  onMoveIndicatorDown={handleMovePaneDown}
+                  onPaneHeightsChange={handlePaneHeightsChange}
+                  onDataLoaded={handleDataLoaded}
+                  onDataMetaChange={handleDataMetaChange}
+                  onCandlesChange={handleCandlesChange}
+                  scriptSourceResolver={scriptLibrary?.resolver}
+                  collapsedKeys={collapsedKeys}
+                  maximizedKey={maximizedKey}
+                  paneOrder={paneOrder}
+                  onViewportChange={markViewportDirty}
+                  extraPriceAxisAnnotations={managePriceAxisAnnotations}
+                />
+              ) : (
+                <InactiveChartSurface symbol={config.symbol} />
+              )}
             </ChartErrorBoundary>
             {isActive && captureActive ? (
               <>
@@ -831,7 +1077,7 @@ export default function ChartCell({
                 }}
                 onAcceptProposal={() => {
                   chartRef.current?.updateDrawingMetadata(selectedOverlayId, {
-                    status: "active",
+                    status: "accepted",
                     source: selectedDrawing.metadata?.source ?? "ai",
                   });
                   overlaysDirtyRef.current = true;
@@ -842,6 +1088,17 @@ export default function ChartCell({
                   });
                   overlaysDirtyRef.current = true;
                 }}
+                onOpenInChat={
+                  selectedDrawing.metadata?.source === "ai"
+                    ? () => {
+                        copilot?.openAnnotationInChat({
+                          messageId: selectedDrawing.metadata?.messageId,
+                          threadId: selectedDrawing.metadata?.threadId,
+                          rationale: selectedDrawing.metadata?.rationale,
+                        });
+                      }
+                    : undefined
+                }
                 onOpenSettings={() => setSettingsOverlayId(selectedOverlayId)}
                 onToggleLock={() => {
                   chartRef.current?.setOverlayLocked(
@@ -882,6 +1139,9 @@ export default function ChartCell({
         pickerOpen={pickerOpen}
         onPickerClose={() => setPickerOpen(false)}
         onAddIndicator={addIndicator}
+        onAddScript={addScriptIndicator}
+        onEditScript={handleEditScript}
+        onNewScript={handleNewScript}
         settingsIndicator={settingsIndicator}
         settingsIndicatorId={settingsIndicatorId}
         onSettingsIndicatorClose={() => setSettingsIndicatorId(null)}
@@ -895,6 +1155,7 @@ export default function ChartCell({
         onDrawingStylesSave={handleDrawingStylesSave}
         chartSettingsOpen={chartSettingsOpen}
         chartSettingsSection={chartSettingsSection}
+        defaultTimeZone={appTimeZone}
         onChartSettingsClose={() => setChartSettingsOpen(false)}
         onChartSettingsSave={handleChartSettingsSave}
         chartTemplates={chartTemplates}
@@ -928,12 +1189,14 @@ export default function ChartCell({
         onClose={() => setContextMenu(null)}
       />
 
-      <ChartSyncBridge
-        chartRef={chartRef}
-        chartId={chartId}
-        suppressDrawingPersistRef={suppressDrawingPersistRef}
-        lastAppliedDrawingsRef={lastAppliedDrawingsRef}
-      />
+      {mountChartEngine ? (
+        <ChartSyncBridge
+          chartRef={chartRef}
+          chartId={chartId}
+          suppressDrawingPersistRef={suppressDrawingPersistRef}
+          lastAppliedDrawingsRef={lastAppliedDrawingsRef}
+        />
+      ) : null}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { PriceScaleSide } from '@edge/chart-core/layout';
 import { plotHeight, plotLeftOffset, plotWidth } from '@edge/chart-core/layout';
 import type { FillGeometry, LineGeometry } from './candleGeometry';
 import { buildIndicatorDrawBatches, type IndicatorDrawBatch } from './indicatorGeometry';
+import { createGeometryBufferPool } from './geometryBufferPool';
 import { colorToRgba, createWebGL2Context, linkProgram, type GL2 } from './webglContext';
 
 const VERT_SRC = `#version 300 es
@@ -51,6 +52,7 @@ export class IndicatorWebGLRenderer {
   private width = 0;
   private height = 0;
   private lastBatchCount = 0;
+  private geometryPool = createGeometryBufferPool();
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -102,6 +104,7 @@ export class IndicatorWebGLRenderer {
     this.fillBuffer = null;
     this.lineBuffer = null;
     this.lastBatchCount = 0;
+    this.geometryPool.clear();
   }
 
   drawInto(
@@ -115,13 +118,14 @@ export class IndicatorWebGLRenderer {
       width: number;
       height: number;
       priceScaleSide: PriceScaleSide;
+      resultProvider?: import('../indicatorResultProvider').IndicatorResultProvider | null;
     },
   ): boolean {
     if (!this.isReady()) return false;
 
-    const { indicators, candles, vp, theme, effectiveShowTimeAxis, width, height, priceScaleSide } =
+    const { indicators, candles, vp, theme, effectiveShowTimeAxis, width, height, priceScaleSide, resultProvider } =
       params;
-    const batches = buildIndicatorDrawBatches(indicators, candles, vp, theme);
+    const batches = buildIndicatorDrawBatches(indicators, candles, vp, theme, resultProvider, this.geometryPool);
     if (batches.length === 0) return false;
 
     this.resize(width, height);

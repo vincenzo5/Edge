@@ -48,6 +48,7 @@ type Params = {
   setRenameOverlayId: React.Dispatch<React.SetStateAction<string | null>>;
   onToolbarPrefsChange: (next: ToolbarPrefs) => void;
   onConfigChange: (next: CellConfig) => void;
+  onResetChartView?: () => void;
 };
 
 export function useDrawingToolbarCommands({
@@ -67,6 +68,7 @@ export function useDrawingToolbarCommands({
   setRenameOverlayId,
   onToolbarPrefsChange,
   onConfigChange,
+  onResetChartView,
 }: Params) {
   const pasteDrawingsRef = useRef<() => void>(() => {});
 
@@ -247,7 +249,13 @@ export function useDrawingToolbarCommands({
         chartRef.current?.goTo(req) ??
         Promise.resolve({ ok: false as const, reason: "no_chart" as const }),
       zoomIn: () => chartRef.current?.zoomIn(),
-      resetChartView: () => chartRef.current?.resetChartView(),
+      resetChartView: () => {
+        if (onResetChartView) {
+          onResetChartView();
+          return;
+        }
+        chartRef.current?.resetChartView();
+      },
       getCandles: () => chartRef.current?.getCandles() ?? ([] as Candle[]),
       selectDrawing: (id: string | null) => chartRef.current?.selectDrawing(id),
       getSelectedDrawingId: () => chartRef.current?.getSelectedDrawingId() ?? null,
@@ -265,7 +273,7 @@ export function useDrawingToolbarCommands({
         return chart.captureSnapshot(opts);
       },
     }),
-    [chartRef, setHistoryRevision],
+    [chartRef, setHistoryRevision, onResetChartView],
   );
 
   const drawingToolbarActions = useCallback(

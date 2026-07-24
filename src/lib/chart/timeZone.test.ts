@@ -4,8 +4,10 @@ import {
   exchangeToTimeZone,
   formatClockLabel,
   formatTimeZoneMenuLabel,
+  isLegacyFactoryTimeZone,
   normalizeChartTimeZone,
   resolveChartTimeZone,
+  resolveEffectiveChartTimeZone,
 } from './timeZone';
 
 describe('normalizeChartTimeZone', () => {
@@ -27,6 +29,29 @@ describe('resolveChartTimeZone', () => {
     expect(resolveChartTimeZone('UTC')).toBe('UTC');
     expect(resolveChartTimeZone('exchange', 'NASDAQ')).toBe('America/New_York');
     expect(resolveChartTimeZone('America/Chicago')).toBe('America/Chicago');
+  });
+});
+
+describe('resolveEffectiveChartTimeZone', () => {
+  it('inherits app default when raw setting is unset', () => {
+    expect(resolveEffectiveChartTimeZone(undefined, 'America/New_York')).toBe(
+      'America/New_York',
+    );
+  });
+
+  it('preserves explicit overrides including UTC', () => {
+    expect(resolveEffectiveChartTimeZone('UTC', 'America/New_York')).toBe('UTC');
+    expect(resolveEffectiveChartTimeZone('Europe/London', 'America/New_York')).toBe(
+      'Europe/London',
+    );
+  });
+});
+
+describe('isLegacyFactoryTimeZone', () => {
+  it('treats missing and UTC as legacy factory defaults', () => {
+    expect(isLegacyFactoryTimeZone(undefined)).toBe(true);
+    expect(isLegacyFactoryTimeZone('UTC')).toBe(true);
+    expect(isLegacyFactoryTimeZone('America/Chicago')).toBe(false);
   });
 });
 

@@ -152,7 +152,7 @@ export default function EventDetailCard({
         zIndex: 40,
         borderRadius: 8,
         border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
-        background: isDark ? '#1e222d' : '#ffffff',
+        background: isDark ? '#172033' : '#ffffff',
         boxShadow: isDark
           ? '0 8px 24px rgba(0,0,0,0.45)'
           : '0 8px 24px rgba(0,0,0,0.12)',
@@ -192,7 +192,7 @@ export default function EventDetailCard({
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: isDark ? '#d1d4dc' : '#131722',
+              color: isDark ? '#dce4f0' : '#131722',
             }}
           >
             {group.events.length > 1
@@ -202,7 +202,7 @@ export default function EventDetailCard({
           <div
             style={{
               fontSize: 11,
-              color: isDark ? '#787b86' : '#6a6d78',
+              color: isDark ? '#9aa8bc' : '#6a6d78',
               marginTop: 2,
             }}
           >
@@ -223,7 +223,7 @@ export default function EventDetailCard({
             <div
               style={{
                 fontSize: 11,
-                color: isDark ? '#787b86' : '#6a6d78',
+                color: isDark ? '#9aa8bc' : '#6a6d78',
                 marginBottom: 4,
               }}
             >
@@ -233,7 +233,7 @@ export default function EventDetailCard({
               style={{
                 fontSize: 13,
                 lineHeight: 1.35,
-                color: isDark ? '#d1d4dc' : '#131722',
+                color: isDark ? '#dce4f0' : '#131722',
               }}
             >
               {event.title}
@@ -253,7 +253,7 @@ export default function EventDetailCard({
             border: 'none',
             borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
             background: 'transparent',
-            color: isDark ? '#2962ff' : '#1e53e5',
+            color: isDark ? '#6c8cff' : '#1e53e5',
             fontSize: 13,
             fontWeight: 500,
             cursor: 'pointer',

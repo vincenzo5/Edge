@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { forwardRef, useImperativeHandle } from 'react';
 import ChartCell from './ChartCell';
+import { AppTimeZoneProvider } from './AppTimeZoneProvider';
 import { DEFAULT_CELL, DEFAULT_TOOLBAR_PREFS } from '@/lib/chartConfig';
 
 vi.mock('./EdgeChart', () => ({
@@ -68,7 +69,8 @@ describe('ChartCell legend context slot', () => {
 
   it('renders market context breadcrumb in the legend slot and nav arrows in the leading slot when symbol is set', async () => {
     render(
-      <ChartCell
+      <AppTimeZoneProvider>
+        <ChartCell
         chartId="test-chart"
         config={DEFAULT_CELL}
         theme="dark"
@@ -76,7 +78,8 @@ describe('ChartCell legend context slot', () => {
         toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
         onConfigChange={vi.fn()}
         onToolbarPrefsChange={vi.fn()}
-      />,
+      />
+      </AppTimeZoneProvider>,
     );
 
     await waitFor(() => {
@@ -90,7 +93,8 @@ describe('ChartCell legend context slot', () => {
 
   it('keeps symbol nav arrows out of the legend leading slot when symbolNav is provided', async () => {
     render(
-      <ChartCell
+      <AppTimeZoneProvider>
+        <ChartCell
         chartId="test-chart"
         config={DEFAULT_CELL}
         theme="dark"
@@ -105,7 +109,8 @@ describe('ChartCell legend context slot', () => {
         }}
         onConfigChange={vi.fn()}
         onToolbarPrefsChange={vi.fn()}
-      />,
+      />
+      </AppTimeZoneProvider>,
     );
 
     await waitFor(() => {
@@ -119,7 +124,8 @@ describe('ChartCell legend context slot', () => {
 
   it('does not render breadcrumb when symbol is empty', async () => {
     render(
-      <ChartCell
+      <AppTimeZoneProvider>
+        <ChartCell
         chartId="test-chart"
         config={{ ...DEFAULT_CELL, symbol: '' }}
         theme="dark"
@@ -127,7 +133,8 @@ describe('ChartCell legend context slot', () => {
         toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
         onConfigChange={vi.fn()}
         onToolbarPrefsChange={vi.fn()}
-      />,
+      />
+      </AppTimeZoneProvider>,
     );
 
     await waitFor(() => {

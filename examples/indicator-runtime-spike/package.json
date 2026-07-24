@@ -1,0 +1,17 @@
+{
+  "name": "@edge/example-indicator-runtime-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run build",
+    "spike": "npx tsx src/spike.mts"
+  },
+  "dependencies": {
+    "@edge/chart-core": "*",
+    "@edge/indicator-runtime": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29"
+  }
+}

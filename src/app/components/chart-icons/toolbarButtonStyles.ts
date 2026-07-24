@@ -30,6 +30,6 @@ export function iconRailIconSize(compact: boolean): number {
 
 export function toolbarButtonStateClass(active?: boolean): string {
   return active
-    ? "bg-[var(--edge-surface-hover)] text-[var(--edge-text-rail-active)]"
+    ? "bg-[var(--edge-surface-active)] text-[var(--edge-accent-blue)]"
     : "text-[var(--edge-text-rail)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-rail-active)]";
 }

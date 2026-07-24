@@ -23,6 +23,13 @@ const baseLayout: PriceLegendLayoutModel = {
 };
 
 describe('PriceLegendLayout', () => {
+  it('uses secondary text color for OHLC labels', () => {
+    render(<PriceLegendLayout layout={baseLayout} />);
+
+    const label = screen.getByTestId('price-legend-value-O').previousElementSibling;
+    expect(label).toHaveClass('text-[var(--edge-text-secondary)]');
+  });
+
   it('renders inline OHLC group with change', () => {
     render(<PriceLegendLayout layout={baseLayout} />);
 

@@ -9,7 +9,8 @@ import {
   LINE_DASH_PRESETS,
   type LineDashPreset,
 } from "@/lib/chart/drawingSettingsCapabilities";
-import { EdgeButton, EdgeModalShell } from "./design-system";
+import { EdgeButton, EdgeModalShell, EdgeSelect } from "./design-system";
+import { fieldClass } from "./design-system/styles";
 
 type Props = {
   open: boolean;
@@ -19,10 +20,8 @@ type Props = {
   onSave: (id: string, patch: Partial<DrawingStyles>) => void;
 };
 
-const fieldClass =
-  "rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-sm text-[var(--edge-text-primary)]";
-
 const labelClass = "text-[var(--edge-text-secondary)]";
+const inputClass = fieldClass({ density: "compact" });
 
 export default function DrawingSettingsModal({
   open,
@@ -168,7 +167,7 @@ export default function DrawingSettingsModal({
                   const parsed = Number(e.target.value);
                   if (Number.isFinite(parsed)) setLineWidth(parsed);
                 }}
-                className={fieldClass}
+                className={inputClass}
               />
             </label>
           </>
@@ -177,15 +176,18 @@ export default function DrawingSettingsModal({
         {caps.showDash && (
           <label className="flex flex-col gap-1 text-sm">
             <span className={labelClass}>Line style</span>
-            <select
+            <EdgeSelect
+              variant="field"
+              density="compact"
               value={dashPreset}
-              onChange={(e) => setDashPreset(e.target.value as LineDashPreset)}
-              className={fieldClass}
-            >
-              <option value="solid">Solid</option>
-              <option value="dashed">Dashed</option>
-              <option value="dotted">Dotted</option>
-            </select>
+              onChange={(next) => setDashPreset(next as LineDashPreset)}
+              options={[
+                { value: "solid", label: "Solid" },
+                { value: "dashed", label: "Dashed" },
+                { value: "dotted", label: "Dotted" },
+              ]}
+              className="w-full"
+            />
           </label>
         )}
 
@@ -246,7 +248,7 @@ export default function DrawingSettingsModal({
                 type="text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                className={fieldClass}
+                className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
@@ -261,7 +263,7 @@ export default function DrawingSettingsModal({
                   const parsed = Number(e.target.value);
                   if (Number.isFinite(parsed)) setFontSize(parsed);
                 }}
-                className={fieldClass}
+                className={inputClass}
               />
             </label>
           </>

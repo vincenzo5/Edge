@@ -11,6 +11,7 @@ import {
   type FillGeometry,
   type LineGeometry,
 } from './candleGeometry';
+import { createGeometryBufferPool, type GeometryBufferPool } from './geometryBufferPool';
 import {
   colorToRgba,
   createWebGL2Context,
@@ -64,6 +65,7 @@ export class CandleWebGLRenderer {
   private width = 0;
   private height = 0;
   private cachedCandleCount = -1;
+  private geometryPool = createGeometryBufferPool();
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -119,6 +121,7 @@ export class CandleWebGLRenderer {
     this.fillBuffer = null;
     this.lineBuffer = null;
     this.cachedCandleCount = -1;
+    this.geometryPool.clear();
   }
 
   /** Render candles to the offscreen WebGL canvas, then composite into the pane 2D context. */
@@ -169,6 +172,7 @@ export class CandleWebGLRenderer {
       chartType as CandleChartType,
       chartSettings,
       theme,
+      this.geometryPool,
     );
     const colors = resolveSymbolColors(chartSettings.symbol, theme);
 

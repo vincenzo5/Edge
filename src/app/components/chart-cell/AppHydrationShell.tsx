@@ -1,19 +1,6 @@
 import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
 import { EdgeSkeletonLine, EdgeSpinner } from "../design-system";
-
-function SkeletonCandleBars({ count = 6 }: { count?: number }) {
-  return (
-    <div className="w-full max-w-md space-y-2" aria-hidden>
-      {Array.from({ length: count }).map((_, index) => (
-        <EdgeSkeletonLine
-          key={index}
-          className="h-3"
-          width={`${70 + (index % 3) * 10}%`}
-        />
-      ))}
-    </div>
-  );
-}
+import SkeletonCandleBars from "./SkeletonCandleBars";
 
 export default function AppHydrationShell() {
   const railWidth = LAYOUT_DIMENSIONS.sidebarRailWidth;

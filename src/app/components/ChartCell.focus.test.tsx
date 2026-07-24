@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { forwardRef, useImperativeHandle } from 'react';
 import ChartCell from './ChartCell';
+import { AppTimeZoneProvider } from './AppTimeZoneProvider';
 import {
   DEFAULT_CELL,
   DEFAULT_TOOLBAR_PREFS,
@@ -49,16 +50,18 @@ describe('ChartCell focus', () => {
 
   it('disarms drawing when isActive becomes false', async () => {
     const { rerender, getByTestId } = render(
-      <ChartCell
-        chartId="test-chart"
-        config={DEFAULT_CELL}
-        theme="dark"
-        compact
-        isActive
-        toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
-        onConfigChange={vi.fn()}
-        onToolbarPrefsChange={vi.fn()}
-      />,
+      <AppTimeZoneProvider>
+        <ChartCell
+          chartId="test-chart"
+          config={DEFAULT_CELL}
+          theme="dark"
+          compact
+          isActive
+          toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+          onConfigChange={vi.fn()}
+          onToolbarPrefsChange={vi.fn()}
+        />
+      </AppTimeZoneProvider>,
     );
 
     await waitFor(() => expect(getByTestId('edge-chart-mock')).toBeInTheDocument());
@@ -66,17 +69,19 @@ describe('ChartCell focus', () => {
     stopDrawing.mockClear();
 
     rerender(
-      <ChartCell
-        chartId="test-chart"
-        config={DEFAULT_CELL}
-        theme="dark"
-        compact
-        isActive={false}
-        showDrawingRail={false}
-        toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
-        onConfigChange={vi.fn()}
-        onToolbarPrefsChange={vi.fn()}
-      />,
+      <AppTimeZoneProvider>
+        <ChartCell
+          chartId="test-chart"
+          config={DEFAULT_CELL}
+          theme="dark"
+          compact
+          isActive={false}
+          showDrawingRail={false}
+          toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+          onConfigChange={vi.fn()}
+          onToolbarPrefsChange={vi.fn()}
+        />
+      </AppTimeZoneProvider>,
     );
 
     expect(stopDrawing).toHaveBeenCalledTimes(1);

@@ -7,12 +7,21 @@ import type { PriceScaleType } from '@edge/chart-core/priceScaleTransform';
 import { getChartColors } from './chartTheme';
 import {
   DEFAULT_CHART_TIMEZONE,
-  normalizeChartTimeZone,
+  isLegacyFactoryTimeZone,
+  resolveEffectiveChartTimeZone,
   type ChartTimeZone,
 } from '@edge/chart-core/timeZone';
 
 export type { ChartTimeZone } from '@edge/chart-core/timeZone';
-export { DEFAULT_CHART_TIMEZONE } from '@edge/chart-core/timeZone';
+export {
+  DEFAULT_CHART_TIMEZONE,
+  isLegacyFactoryTimeZone,
+  resolveEffectiveChartTimeZone,
+} from '@edge/chart-core/timeZone';
+
+export type MergeChartSettingsOptions = {
+  defaultTimeZone?: ChartTimeZone;
+};
 
 export type { CrosshairMode } from '@edge/chart-core/crosshairMode';
 export type { PriceScaleType } from '@edge/chart-core/priceScaleTransform';
@@ -402,8 +411,37 @@ export function migrateChartSettings(partial?: ChartSettings | null): GroupedCha
   return grouped;
 }
 
+function omitSymbolTimeZone(partial: ChartSettings): ChartSettings | undefined {
+  const symbol = partial.symbol;
+  if (!symbol?.timeZone) {
+    return Object.keys(partial).length > 0 ? partial : undefined;
+  }
+  const { timeZone: _removed, ...symbolRest } = symbol;
+  const next: ChartSettings = { ...partial };
+  if (Object.keys(symbolRest).length > 0) {
+    next.symbol = symbolRest;
+  } else {
+    delete next.symbol;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+/** Strip legacy factory UTC on layout load so charts inherit the app default. */
+export function stripLegacyFactoryTimeZoneOnLoad(
+  partial?: ChartSettings | null,
+): ChartSettings | undefined {
+  if (!partial) return undefined;
+  const migrated = migrateChartSettings(partial);
+  const symbol = migrated.symbol;
+  if (!symbol?.timeZone || !isLegacyFactoryTimeZone(symbol.timeZone)) {
+    return Object.keys(migrated).length > 0 ? migrated : undefined;
+  }
+  return omitSymbolTimeZone(migrated);
+}
+
 export function mergeChartSettings(
   partial?: ChartSettings | null,
+  opts?: MergeChartSettingsOptions,
 ): RequiredChartSettings {
   const migrated = migrateChartSettings(partial);
   const symbol = deepMergeSection(DEFAULT_SYMBOL, migrated.symbol);
@@ -412,11 +450,12 @@ export function mergeChartSettings(
   const canvas = deepMergeSection(DEFAULT_CANVAS, migrated.canvas);
   const trading = deepMergeSection(DEFAULT_TRADING, migrated.trading);
   const events = deepMergeSection(DEFAULT_EVENTS, migrated.events);
+  const rawTimeZone = migrated.symbol?.timeZone;
 
   return {
     symbol: {
       ...symbol,
-      timeZone: normalizeChartTimeZone(symbol.timeZone),
+      timeZone: resolveEffectiveChartTimeZone(rawTimeZone, opts?.defaultTimeZone),
     },
     statusLine: {
       ...statusLine,
@@ -471,6 +510,27 @@ export function serializeChartSettings(
     trading: { ...settings.trading },
     events: { ...settings.events },
   };
+}
+
+/**
+ * Persist merged settings without baking an inherited timezone as a per-chart override.
+ * Omits `symbol.timeZone` when it matches the app default (charts keep inheriting).
+ */
+export function persistChartSettings(
+  settings: RequiredChartSettings,
+  opts?: MergeChartSettingsOptions,
+): GroupedChartSettings {
+  const serialized = serializeChartSettings(settings);
+  const tz = serialized.symbol?.timeZone;
+  if (
+    tz != null &&
+    opts?.defaultTimeZone != null &&
+    resolveEffectiveChartTimeZone(tz) ===
+      resolveEffectiveChartTimeZone(opts.defaultTimeZone)
+  ) {
+    return (omitSymbolTimeZone(serialized) ?? {}) as GroupedChartSettings;
+  }
+  return serialized;
 }
 
 function clamp(value: number, min: number, max: number): number {

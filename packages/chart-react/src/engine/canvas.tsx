@@ -5,6 +5,7 @@ import type {
   Candle,
   VisibleRange,
   Theme,
+  PaletteId,
   SerializedDrawing,
   IndicatorConfig,
   Interval,
@@ -14,6 +15,7 @@ import type {
   ChartReferenceLine,
   ChartAnnotationChannelMarker,
 } from '@edge/chart-core';
+import { DEFAULT_PALETTE } from '@edge/chart-core';
 import type { ChartSettings } from './chartSettings';
 import { mergeChartSettings } from './chartSettings';
 import type { RegisterPane } from './paneHandle';
@@ -24,6 +26,7 @@ import type { DrawInvalidationReason } from './renderScheduler';
 import { RenderScheduler } from './renderScheduler';
 import type { EventBadgeGroup } from './eventBadges';
 import type { ActiveGesture } from './paneGesture';
+import type { IndicatorResultProvider } from './indicatorResultProvider';
 import { useViewportLifecycle } from './useViewportLifecycle';
 import { useCanvasRenderer } from './useCanvasRenderer';
 import { useCanvasCursor, useCanvasCursorRefs } from './useCanvasCursor';
@@ -33,6 +36,7 @@ type Props = {
   candles: Candle[];
   chartType: string;
   theme: Theme;
+  palette?: PaletteId;
   visibleCount?: number | null;
   width: number;
   height: number;
@@ -76,12 +80,15 @@ type Props = {
     pos: { clientX: number; clientY: number; plotX: number; plotY: number },
   ) => void;
   onEventBadgeHover?: (group: EventBadgeGroup | null) => void;
+  indicatorResultProvider?: IndicatorResultProvider | null;
+  extraPriceAxisAnnotations?: import('@edge/chart-core/priceAxisTypes').PriceAxisAnnotation[];
 };
 
 export default function ChartCanvas({
   candles,
   chartType,
   theme,
+  palette = DEFAULT_PALETTE,
   width,
   height,
   drawings = [],
@@ -114,6 +121,8 @@ export default function ChartCanvas({
   selectedEventBadgeId = null,
   onEventBadgeClick,
   onEventBadgeHover,
+  indicatorResultProvider = null,
+  extraPriceAxisAnnotations = [],
 }: Props) {
   const chartSettings = mergeChartSettings(chartSettingsProp);
   const chartSettingsRef = useRef(chartSettings);
@@ -190,6 +199,7 @@ export default function ChartCanvas({
       isDraggingRef,
       schedulerRef,
       onUserTimePanRef,
+      indicatorResultProvider,
     });
 
   const { requestDraw, drawNow } = useCanvasRenderer({
@@ -198,6 +208,7 @@ export default function ChartCanvas({
     candles,
     chartType,
     theme,
+    palette,
     width,
     height,
     drawings,
@@ -223,7 +234,14 @@ export default function ChartCanvas({
     eventBadgeGroupsRef,
     drawRef,
     schedulerRef,
+    indicatorResultProvider,
+    extraPriceAxisAnnotations,
   });
+
+  useEffect(() => {
+    if (!indicatorResultProvider) return;
+    return indicatorResultProvider.subscribe(() => requestDraw('data'));
+  }, [indicatorResultProvider, requestDraw]);
 
   const {
     isPlotBody,

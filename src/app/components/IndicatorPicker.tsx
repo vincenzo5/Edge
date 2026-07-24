@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { IndicatorConfig, Theme } from "@/lib/chartConfig";
 import {
   getCatalogByCategory,
@@ -12,7 +12,14 @@ import {
   isIndicatorFavorite,
   toggleIndicatorFavorite,
 } from "@/lib/chart/indicatorFavorites";
-import { EdgeModalShell, EdgeSearchInput, segmentedTabClass } from "./design-system";
+import { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
+import { useScriptLibraryMountRequest } from "@/lib/scriptLibrary/ScriptLibraryMountGate";
+import {
+  countScriptUsage,
+  isSupportedScriptVersion,
+} from "@/lib/scriptLibrary";
+import { scriptInstanceNameForScript } from "@/lib/scriptLibrary/types";
+import { EdgeButton, EdgeModalShell, EdgeSearchInput, segmentedTabClass } from "./design-system";
 
 type SidebarSection =
   | "favorites"
@@ -30,6 +37,14 @@ type Props = {
   active: IndicatorConfig[];
   theme?: Theme;
   onAdd: (indicator: Pick<IndicatorConfig, "name" | "pane">) => void;
+  onAddScript?: (params: {
+    scriptId: string;
+    revision: string;
+    name: string;
+    pane: "main" | "sub";
+  }) => void;
+  onEditScript?: (scriptId: string) => void;
+  onNewScript?: () => void;
   onClose: () => void;
 };
 
@@ -40,7 +55,7 @@ const SIDEBAR: {
   implemented: boolean;
 }[] = [
   { id: "favorites", label: "Favorites", group: "personal", implemented: true },
-  { id: "my-scripts", label: "My scripts", group: "personal", implemented: false },
+  { id: "my-scripts", label: "My scripts", group: "personal", implemented: true },
   { id: "purchased", label: "Purchased", group: "personal", implemented: false },
   { id: "technicals", label: "Technicals", group: "built-in", implemented: true },
   { id: "fundamentals", label: "Fundamentals", group: "built-in", implemented: false },
@@ -50,14 +65,32 @@ const SIDEBAR: {
   { id: "store", label: "Store", group: "community", implemented: false },
 ];
 
-export default function IndicatorPicker({ open, active, theme = "dark", onAdd, onClose }: Props) {
+export default function IndicatorPicker({
+  open,
+  active,
+  theme = "dark",
+  onAdd,
+  onAddScript,
+  onEditScript,
+  onNewScript,
+  onClose,
+}: Props) {
   void theme;
+  const scriptLibrary = useScriptLibraryOptional();
+  const requestScriptLibrary = useScriptLibraryMountRequest();
   const grouped = useMemo(() => getCatalogByCategory(), []);
   const [section, setSection] = useState<SidebarSection>("technicals");
   const [query, setQuery] = useState("");
   const [favoriteRevision, setFavoriteRevision] = useState(0);
 
+  useEffect(() => {
+    if (!open) return;
+    requestScriptLibrary();
+  }, [open, requestScriptLibrary]);
+
   const instanceCount = (name: string) => active.filter((a) => a.name === name).length;
+
+  const scriptInstanceCount = (scriptId: string) => countScriptUsage(active, scriptId);
 
   const allEntries = INDICATOR_CATEGORIES.flatMap((c) => grouped[c as IndicatorCategory]);
 
@@ -83,7 +116,34 @@ export default function IndicatorPicker({ open, active, theme = "dark", onAdd, o
     return entries;
   })();
 
+  const filteredScripts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const scripts = scriptLibrary?.scripts ?? [];
+    if (!q) return scripts;
+    return scripts.filter((script) => script.displayName.toLowerCase().includes(q));
+  }, [query, scriptLibrary?.scripts]);
+
   void favoriteRevision;
+
+  const handleDeleteScript = (scriptId: string, displayName: string) => {
+    if (!scriptLibrary) return;
+    const usage = scriptInstanceCount(scriptId);
+    const message =
+      usage > 0
+        ? `"${displayName}" is used on ${usage} chart instance(s). Delete anyway? Charts will show a missing-revision error.`
+        : `Delete "${displayName}"?`;
+    if (!window.confirm(message)) return;
+    void scriptLibrary.deleteScript(scriptId).catch(() => {
+      window.alert("Failed to delete script.");
+    });
+  };
+
+  const handleDuplicateScript = (scriptId: string) => {
+    if (!scriptLibrary) return;
+    void scriptLibrary.duplicateScript(scriptId).then((copy) => {
+      if (copy) onEditScript?.(copy.scriptId);
+    });
+  };
 
   const renderRow = (ind: CatalogEntry) => {
     const pane = ind.defaultPane;
@@ -130,6 +190,80 @@ export default function IndicatorPicker({ open, active, theme = "dark", onAdd, o
     );
   };
 
+  const renderScriptRow = (script: (typeof filteredScripts)[number]) => {
+    const headRevision = script.headRevision;
+    const headRecord = headRevision
+      ? script.revisions.find((rev) => rev.revision === headRevision)
+      : undefined;
+    const canAdd =
+      Boolean(headRevision) &&
+      headRecord &&
+      isSupportedScriptVersion(headRecord.languageVersion, headRecord.sdkVersion);
+    const pane = headRecord?.manifest?.pane ?? "main";
+    const count = scriptInstanceCount(script.scriptId);
+
+    return (
+      <tr key={script.scriptId} className="border-b border-[var(--edge-border)]">
+        <td className="px-3 py-2" />
+        <td className="px-3 py-2">
+          {canAdd ? (
+            <button
+              type="button"
+              onClick={() =>
+                onAddScript?.({
+                  scriptId: script.scriptId,
+                  revision: headRevision!,
+                  name: scriptInstanceNameForScript(script.scriptId),
+                  pane,
+                })
+              }
+              className="text-left font-medium text-[var(--edge-text-primary)] hover:underline"
+              aria-label={`Add ${script.displayName} to chart`}
+            >
+              {script.displayName}
+            </button>
+          ) : (
+            <span className="font-medium text-[var(--edge-text-primary)]">{script.displayName}</span>
+          )}
+          <div className="text-xs text-[var(--edge-text-muted)]">
+            {headRevision ? `Revision ${headRevision}` : "Draft only — Run and Save to add"}
+          </div>
+        </td>
+        <td className="px-3 py-2">
+          <div className="flex flex-wrap gap-1">
+            <button
+              type="button"
+              className="text-xs text-[var(--edge-accent-blue)] hover:underline"
+              onClick={() => onEditScript?.(script.scriptId)}
+              aria-label={`Edit script ${script.displayName}`}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className="text-xs text-[var(--edge-text-secondary)] hover:underline"
+              onClick={() => handleDuplicateScript(script.scriptId)}
+              aria-label={`Duplicate script ${script.displayName}`}
+            >
+              Duplicate
+            </button>
+            <button
+              type="button"
+              className="text-xs text-[var(--edge-negative)] hover:underline"
+              onClick={() => handleDeleteScript(script.scriptId, script.displayName)}
+              aria-label={`Delete script ${script.displayName}`}
+            >
+              Delete
+            </button>
+          </div>
+        </td>
+        <td className="px-3 py-2 text-right text-xs tabular-nums text-[var(--edge-text-secondary)]">
+          {count > 0 ? count : "—"}
+        </td>
+      </tr>
+    );
+  };
+
   const sidebarGroups = ["personal", "built-in", "community"] as const;
 
   return (
@@ -147,6 +281,7 @@ export default function IndicatorPicker({ open, active, theme = "dark", onAdd, o
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search"
+          aria-label="Search indicators"
           data-testid="indicator-search"
         />
       </div>
@@ -176,6 +311,43 @@ export default function IndicatorPicker({ open, active, theme = "dark", onAdd, o
         <div className="min-w-0 flex-1 overflow-y-auto">
           {!SIDEBAR.find((s) => s.id === section)?.implemented ? (
             <p className="px-4 py-8 text-center text-sm text-[var(--edge-text-secondary)]">Coming soon</p>
+          ) : section === "my-scripts" ? (
+            <div className="p-4">
+              {scriptLibrary?.error ? (
+                <div className="mb-3 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] p-3 text-sm text-[var(--edge-text-secondary)]">
+                  {scriptLibrary.error}
+                  <button
+                    type="button"
+                    className="ml-2 text-[var(--edge-accent-blue)] hover:underline"
+                    onClick={() => scriptLibrary.dismissError()}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              ) : null}
+              <div className="mb-3 flex justify-end">
+                <EdgeButton type="button" onClick={() => onNewScript?.()}>
+                  New script
+                </EdgeButton>
+              </div>
+              {filteredScripts.length === 0 ? (
+                <p className="py-8 text-center text-sm text-[var(--edge-text-secondary)]">
+                  No saved scripts yet
+                </p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--edge-border)] text-left text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                      <th className="w-8 px-3 py-2" />
+                      <th className="px-3 py-2">Name</th>
+                      <th className="px-3 py-2">Actions</th>
+                      <th className="px-3 py-2 text-right">Active</th>
+                    </tr>
+                  </thead>
+                  <tbody>{filteredScripts.map(renderScriptRow)}</tbody>
+                </table>
+              )}
+            </div>
           ) : filteredEntries.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-[var(--edge-text-secondary)]">
               {section === "favorites" ? "No favorite indicators yet" : "No indicators found"}

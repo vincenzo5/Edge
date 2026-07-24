@@ -10,7 +10,7 @@ import {
 } from '../ActiveChartContext';
 import { DEFAULT_CELL } from '@/lib/chartConfig';
 import { makeDrawingCommandsMock, makeDataWindowActionsMock, makeUICommandsMock, toActiveChartRegistration } from '@/test/activeChartMocks';
-import { ShortcutUIProvider } from '../shortcuts/ShortcutUIContext';
+import { ShortcutUIProvider, useShortcutUI } from '../shortcuts/ShortcutUIContext';
 import { DataHealthProvider } from '../data-health';
 
 vi.mock('../MarketDataProvider', () => ({
@@ -76,10 +76,28 @@ vi.mock('./ChartFullscreenButton', () => ({
   default: () => <button type="button" data-testid="fullscreen-trigger" />,
 }));
 
-vi.mock('./ChartQuickSearchModal', () => ({
-  default: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="quick-search-modal" /> : null,
-}));
+const openCommandPalette = vi.fn();
+
+function RegisterShortcutHandlers() {
+  const { registerCommandPalette, registerSymbolSearch } = useShortcutUI();
+  useEffect(() => {
+    registerCommandPalette({
+      open: openCommandPalette,
+      close: vi.fn(),
+      isOpen: () => false,
+    });
+    registerSymbolSearch({
+      open: vi.fn(),
+      close: vi.fn(),
+      isOpen: () => false,
+    });
+    return () => {
+      registerCommandPalette(null);
+      registerSymbolSearch(null);
+    };
+  }, [registerCommandPalette, registerSymbolSearch]);
+  return null;
+}
 
 const overlayActions = {
   remove: vi.fn(),
@@ -205,6 +223,7 @@ function renderHeader(
     <ShortcutUIProvider>
       <ActiveChartProvider>
         <DataHealthProvider>
+          <RegisterShortcutHandlers />
           <RegisterActiveChart snapshot={snap} />
           <ChartHeaderBar {...baseProps} density={density} symbolNav={symbolNav} />
         </DataHealthProvider>
@@ -216,12 +235,16 @@ function renderHeader(
 describe('ChartHeaderBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    openCommandPalette.mockClear();
   });
 
   it('renders a single chart header toolbar with layout and action controls', () => {
     renderHeader();
 
     expect(screen.getByRole('toolbar', { name: 'Chart header' })).toBeTruthy();
+    expect(screen.getByTestId('chart-header-instrument-cluster')).toBeTruthy();
+    expect(screen.getByTestId('chart-header-studies-cluster')).toBeTruthy();
+    expect(screen.getByTestId('chart-header-actions-cluster')).toBeTruthy();
     expect(screen.getByTestId('layout-setup-trigger')).toBeTruthy();
     expect(screen.getByTestId('layout-manage-trigger')).toBeTruthy();
     expect(screen.getByTestId('symbol-search-input')).toHaveTextContent('AAPL');
@@ -230,16 +253,17 @@ describe('ChartHeaderBar', () => {
     expect(screen.getByTestId('indicators-trigger')).toBeTruthy();
     expect(screen.getByTestId('settings-trigger')).toBeTruthy();
     expect(screen.queryByTestId('theme-toggle-trigger')).toBeNull();
-    expect(screen.getByTestId('quick-search-trigger')).toBeTruthy();
+    expect(screen.getByTestId('command-palette-trigger')).toBeTruthy();
     expect(screen.getByTestId('fullscreen-trigger')).toBeTruthy();
     expect(screen.getByTestId('snapshot-trigger')).toBeTruthy();
     expect(screen.getByTestId('replay-trigger')).toBeTruthy();
     expect(screen.getByTestId('undo-trigger')).toBeTruthy();
     expect(screen.getByTestId('redo-trigger')).toBeTruthy();
-
-    expect(screen.getByTestId('layout-manage-trigger').nextElementSibling).toContainElement(
-      screen.getByTestId('quick-search-trigger'),
-    );
+    expect(screen.queryByRole('button', { name: 'Alert' })).toBeNull();
+    expect(screen.getByTestId('header-more-trigger')).toBeTruthy();
+    expect(
+      screen.getByTestId('chart-header-actions-cluster').querySelector('[data-testid="command-palette-trigger"]'),
+    ).toBeTruthy();
   });
 
   it('wires interval and chart type changes', () => {
@@ -273,12 +297,11 @@ describe('ChartHeaderBar', () => {
     expect(onForward).not.toHaveBeenCalled();
   });
 
-  it('opens quick search modal', () => {
+  it('opens command palette from header button', () => {
     renderHeader();
 
-    expect(screen.queryByTestId('quick-search-modal')).toBeNull();
-    fireEvent.click(screen.getByTestId('quick-search-trigger'));
-    expect(screen.getByTestId('quick-search-modal')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('command-palette-trigger'));
+    expect(openCommandPalette).toHaveBeenCalledOnce();
   });
 
   it('disables chart commands when no active chart is registered', () => {
@@ -313,6 +336,14 @@ describe('ChartHeaderBar', () => {
 
     fireEvent.click(screen.getByTestId('undo-trigger'));
     expect(snapshot.headerCommands.undo).toHaveBeenCalled();
+  });
+
+  it('routes disabled Alert and Publish through More menu at full density', () => {
+    renderHeader(makeSnapshot(), 'full');
+
+    fireEvent.click(screen.getByTestId('header-more-trigger'));
+    expect(screen.getByTestId('header-more-alert')).toBeTruthy();
+    expect(screen.getByTestId('header-more-publish')).toBeTruthy();
   });
 
   it('shows More menu and hides tertiary controls in compact density', () => {

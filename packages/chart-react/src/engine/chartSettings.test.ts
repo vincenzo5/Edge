@@ -4,7 +4,9 @@ import {
   mergeChartSettings,
   migrateChartSettings,
   patchChartSettings,
+  persistChartSettings,
   serializeChartSettings,
+  stripLegacyFactoryTimeZoneOnLoad,
 } from './chartSettings';
 
 describe('mergeChartSettings', () => {
@@ -35,6 +37,30 @@ describe('mergeChartSettings', () => {
     expect(mergeChartSettings({ symbol: { timeZone: 'America/Chicago' } }).symbol.timeZone).toBe(
       'America/Chicago',
     );
+  });
+
+  it('inherits defaultTimeZone when raw setting is unset', () => {
+    expect(
+      mergeChartSettings(undefined, { defaultTimeZone: 'America/New_York' }).symbol.timeZone,
+    ).toBe('America/New_York');
+    expect(
+      mergeChartSettings({ symbol: {} }, { defaultTimeZone: 'America/New_York' }).symbol.timeZone,
+    ).toBe('America/New_York');
+  });
+
+  it('keeps explicit per-chart timezone over app default', () => {
+    expect(
+      mergeChartSettings(
+        { symbol: { timeZone: 'Europe/London' } },
+        { defaultTimeZone: 'America/New_York' },
+      ).symbol.timeZone,
+    ).toBe('Europe/London');
+    expect(
+      mergeChartSettings(
+        { symbol: { timeZone: 'UTC' } },
+        { defaultTimeZone: 'America/New_York' },
+      ).symbol.timeZone,
+    ).toBe('UTC');
   });
 
   it('migrates legacy flat settings', () => {
@@ -80,8 +106,48 @@ describe('serializeChartSettings', () => {
   });
 });
 
+describe('persistChartSettings', () => {
+  it('omits timezone when it matches the app default', () => {
+    const merged = mergeChartSettings(undefined, {
+      defaultTimeZone: 'America/New_York',
+    });
+    const persisted = persistChartSettings(merged, {
+      defaultTimeZone: 'America/New_York',
+    });
+    expect(persisted.symbol?.timeZone).toBeUndefined();
+  });
+
+  it('keeps an explicit per-chart timezone that differs from the app default', () => {
+    const merged = mergeChartSettings(
+      { symbol: { timeZone: 'Europe/London' } },
+      { defaultTimeZone: 'America/New_York' },
+    );
+    const persisted = persistChartSettings(merged, {
+      defaultTimeZone: 'America/New_York',
+    });
+    expect(persisted.symbol?.timeZone).toBe('Europe/London');
+  });
+});
+
 describe('migrateChartSettings', () => {
   it('returns empty object for undefined', () => {
     expect(migrateChartSettings()).toEqual({});
+  });
+});
+
+describe('stripLegacyFactoryTimeZoneOnLoad', () => {
+  it('removes legacy factory UTC from persisted settings', () => {
+    expect(stripLegacyFactoryTimeZoneOnLoad({ symbol: { timeZone: 'UTC' } })).toEqual({});
+    expect(
+      stripLegacyFactoryTimeZoneOnLoad({
+        symbol: { timeZone: 'UTC', sessionMode: 'extended' },
+      }),
+    ).toEqual({ symbol: { sessionMode: 'extended' } });
+  });
+
+  it('preserves explicit non-UTC overrides', () => {
+    expect(
+      stripLegacyFactoryTimeZoneOnLoad({ symbol: { timeZone: 'America/Chicago' } }),
+    ).toEqual({ symbol: { timeZone: 'America/Chicago' } });
   });
 });

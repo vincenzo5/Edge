@@ -1,10 +1,280 @@
 import type { Candle, IndicatorConfig, Theme, VisibleRange } from '../contracts';
 import type { IndicatorPlugin, ResolvedSeriesStyle } from '../plugin-api';
-import type { SeriesOutput } from '../legend/types';
+import type { MarkerLocation, MarkerShape, SeriesOutput } from '../legend/types';
+import {
+  compactScriptBgcolorSegments,
+  evaluateScriptColorRules,
+  isTruthyScriptSignal,
+} from '../scriptContracts';
 import { getComputedSeries, resolveSeriesStyle, resolveOutputColor } from '../indicatorCompute';
 import { resolveIndicatorInputs } from '../indicatorInputs';
 import { plotWidth } from '../layout';
 import { getChartColors as getColors } from '../themeTokens';
+
+export function drawSteplineSeries(
+  ctx: CanvasRenderingContext2D,
+  values: number[],
+  vp: VisibleRange,
+  color: string,
+  width = 1.5,
+): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  let started = false;
+  let lastX = 0;
+  let lastY = 0;
+  for (let i = Math.floor(vp.startIndex); i < Math.ceil(vp.endIndex); i++) {
+    if (i < 0 || i >= values.length) continue;
+    const v = values[i];
+    if (!Number.isFinite(v)) continue;
+    const x = vp.xForIndex(i);
+    const y = vp.yForPrice(v);
+    if (!started) {
+      ctx.moveTo(x, y);
+      started = true;
+      lastX = x;
+      lastY = y;
+      continue;
+    }
+    ctx.lineTo(x, lastY);
+    ctx.lineTo(x, y);
+    lastX = x;
+    lastY = y;
+  }
+  if (started) ctx.stroke();
+}
+
+export function drawAreaSeries(
+  ctx: CanvasRenderingContext2D,
+  values: number[],
+  vp: VisibleRange,
+  color: string,
+  width = 1.5,
+  baselinePrice = 0,
+): void {
+  const start = Math.max(0, Math.floor(vp.startIndex));
+  const end = Math.min(values.length, Math.ceil(vp.endIndex));
+  if (end <= start) return;
+
+  const baselineY = vp.yForPrice(baselinePrice);
+  ctx.fillStyle = color.includes('rgba') ? color : `${color}33`;
+  ctx.beginPath();
+  let started = false;
+  for (let i = start; i < end; i++) {
+    const v = values[i];
+    if (!Number.isFinite(v)) continue;
+    const x = vp.xForIndex(i);
+    const y = vp.yForPrice(v);
+    if (!started) {
+      ctx.moveTo(x, baselineY);
+      ctx.lineTo(x, y);
+      started = true;
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  if (!started) return;
+  ctx.lineTo(vp.xForIndex(end - 1), baselineY);
+  ctx.closePath();
+  ctx.fill();
+  drawLineSeries(ctx, values, vp, color, width);
+}
+
+export function drawPointSeries(
+  ctx: CanvasRenderingContext2D,
+  values: number[],
+  vp: VisibleRange,
+  color: string,
+  mode: 'circles' | 'crosses',
+  radius = 3,
+): void {
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  for (let i = Math.floor(vp.startIndex); i < Math.ceil(vp.endIndex); i++) {
+    if (i < 0 || i >= values.length) continue;
+    const v = values[i];
+    if (!Number.isFinite(v)) continue;
+    const x = vp.xForIndex(i);
+    const y = vp.yForPrice(v);
+    if (mode === 'circles') {
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - radius, y - radius);
+    ctx.lineTo(x + radius, y + radius);
+    ctx.moveTo(x + radius, y - radius);
+    ctx.lineTo(x - radius, y + radius);
+    ctx.stroke();
+  }
+}
+
+export function drawColumnSeries(
+  ctx: CanvasRenderingContext2D,
+  values: number[],
+  vp: VisibleRange,
+  theme: Theme,
+  zeroPrice = 0,
+  colorFn: (theme: Theme, value: number | null) => string = histogramColor,
+): void {
+  const span = vp.endIndex - vp.startIndex;
+  if (span <= 0) return;
+  const barW = Math.max(1, (plotWidth(vp.width) / span) * 0.7);
+  const zeroY = vp.yForPrice(zeroPrice);
+
+  for (let i = Math.floor(vp.startIndex); i < Math.ceil(vp.endIndex); i++) {
+    if (i < 0 || i >= values.length) continue;
+    const v = values[i];
+    if (!Number.isFinite(v)) continue;
+    const x = vp.xForIndex(i);
+    const y = vp.yForPrice(v);
+    ctx.fillStyle = colorFn(theme, v);
+    const top = Math.min(zeroY, y);
+    const h = Math.max(1, Math.abs(y - zeroY));
+    ctx.fillRect(x - barW / 2, top, barW, h);
+  }
+}
+
+function markerAnchorY(
+  location: MarkerLocation,
+  value: number,
+  candle: Candle | undefined,
+  vp: VisibleRange,
+): number {
+  if (location === 'absolute') return vp.yForPrice(value);
+  if (!candle) return vp.yForPrice(value);
+  if (location === 'aboveBar') return vp.yForPrice(candle.h) - 8;
+  return vp.yForPrice(candle.l) + 8;
+}
+
+function drawMarkerShape(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  shape: MarkerShape,
+  size: number,
+  color: string,
+): void {
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  const half = size / 2;
+
+  switch (shape) {
+    case 'circle':
+      ctx.beginPath();
+      ctx.arc(x, y, half, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    case 'square':
+      ctx.fillRect(x - half, y - half, size, size);
+      return;
+    case 'cross':
+      ctx.beginPath();
+      ctx.moveTo(x - half, y - half);
+      ctx.lineTo(x + half, y + half);
+      ctx.moveTo(x + half, y - half);
+      ctx.lineTo(x - half, y + half);
+      ctx.stroke();
+      return;
+    case 'triangleUp':
+      ctx.beginPath();
+      ctx.moveTo(x, y - half);
+      ctx.lineTo(x + half, y + half);
+      ctx.lineTo(x - half, y + half);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'triangleDown':
+      ctx.beginPath();
+      ctx.moveTo(x, y + half);
+      ctx.lineTo(x + half, y - half);
+      ctx.lineTo(x - half, y - half);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'arrowUp':
+      ctx.beginPath();
+      ctx.moveTo(x, y - half);
+      ctx.lineTo(x + half, y);
+      ctx.lineTo(x - half, y);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    case 'arrowDown':
+      ctx.beginPath();
+      ctx.moveTo(x, y + half);
+      ctx.lineTo(x + half, y);
+      ctx.lineTo(x - half, y);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    default:
+      return;
+  }
+}
+
+export function drawMarkerSeries(
+  ctx: CanvasRenderingContext2D,
+  values: number[],
+  vp: VisibleRange,
+  candles: Candle[] | undefined,
+  shape: MarkerShape,
+  location: MarkerLocation,
+  color: string,
+  size = 8,
+): void {
+  for (let i = Math.floor(vp.startIndex); i < Math.ceil(vp.endIndex); i++) {
+    if (i < 0 || i >= values.length) continue;
+    const value = values[i];
+    if (!isTruthyScriptSignal(value)) continue;
+    const x = vp.xForIndex(i);
+    const y = markerAnchorY(location, value as number, candles?.[i], vp);
+    drawMarkerShape(ctx, x, y, shape, size, color);
+  }
+}
+
+export function drawBgcolorBands(
+  ctx: CanvasRenderingContext2D,
+  values: number[],
+  vp: VisibleRange,
+  fallbackColor: string,
+  colorRules: import('../scriptContracts').ScriptColorRule[] | undefined,
+  opacity = 0.12,
+): void {
+  const segments = compactScriptBgcolorSegments(
+    values,
+    (_index, value) => evaluateScriptColorRules(colorRules, value, fallbackColor),
+    vp.startIndex,
+    vp.endIndex,
+  );
+  const prevAlpha = ctx.globalAlpha;
+  ctx.globalAlpha = opacity;
+  for (const segment of segments) {
+    const span = vp.endIndex - vp.startIndex;
+    const barW = span > 0 ? plotWidth(vp.width) / span : plotWidth(vp.width);
+    const x0 = vp.xForIndex(segment.start) - barW / 2;
+    const x1 = vp.xForIndex(Math.max(segment.start, segment.end - 1)) + barW / 2;
+    ctx.fillStyle = segment.color;
+    ctx.fillRect(Math.min(x0, x1), 0, Math.max(barW, Math.abs(x1 - x0)), vp.height);
+  }
+  ctx.globalAlpha = prevAlpha;
+}
+
+export function resolveScriptBarColors(
+  values: Array<number | null>,
+  fallbackColor: string,
+  colorRules: import('../scriptContracts').ScriptColorRule[] | undefined,
+): Array<string | null> {
+  return values.map((value) => {
+    if (!isTruthyScriptSignal(value)) return null;
+    return evaluateScriptColorRules(colorRules, value, fallbackColor);
+  });
+}
 
 export function drawLineSeries(
   ctx: CanvasRenderingContext2D,
@@ -249,6 +519,22 @@ export function drawFromOutputs(
   const drawnFills = new Set<string>();
 
   for (const out of outputs) {
+    if (out.plot !== 'bgcolor') continue;
+    const values = data[out.key];
+    if (!values) continue;
+    const style = resolvedStyles.get(out.id) ?? resolveSeriesStyle(out, instance, plugin, theme, null);
+    if (!style.visible) continue;
+    drawBgcolorBands(
+      ctx,
+      values,
+      vp,
+      style.color,
+      out.colorRules,
+      out.opacity ?? 0.12,
+    );
+  }
+
+  for (const out of outputs) {
     if (!out.fillBetween) continue;
     const fillKey = `${out.id}:${out.fillBetween}`;
     if (drawnFills.has(fillKey)) continue;
@@ -279,6 +565,24 @@ export function drawFromOutputs(
     const values = data[out.key];
     if (!values) continue;
 
+    if (plot === 'bgcolor' || plot === 'barcolor') {
+      continue;
+    }
+
+    if (plot === 'marker') {
+      drawMarkerSeries(
+        ctx,
+        values,
+        vp,
+        candles,
+        out.markerShape ?? 'circle',
+        out.markerLocation ?? 'absolute',
+        style.color,
+        out.markerSize ?? 8,
+      );
+      continue;
+    }
+
     if (plot === 'hline') {
       const at = out.hlineAt ?? 0;
       drawHorizontalGuide(ctx, vp, at, style.color, style.lineWidth);
@@ -287,17 +591,68 @@ export function drawFromOutputs(
 
     if (plot === 'histogram') {
       const colorFn =
-        instance.styles?.[out.id]?.color != null
-          ? (_theme: Theme, _value: number | null) => style.color
-          : typeof out.color === 'function'
-            ? out.color
-            : (_theme: Theme, _value: number | null) => style.color;
-      drawHistogramSeries(ctx, values, vp, theme, 0, colorFn);
+        out.colorRules?.length
+          ? (_theme: Theme, value: number | null) =>
+              evaluateScriptColorRules(out.colorRules, value, style.color)
+          : instance.styles?.[out.id]?.color != null
+            ? (_theme: Theme, _value: number | null) => style.color
+            : typeof out.color === 'function'
+              ? out.color
+              : (_theme: Theme, _value: number | null) => style.color;
+      if (out.style === 'columns') {
+        drawColumnSeries(ctx, values, vp, theme, 0, colorFn);
+      } else {
+        drawHistogramSeries(ctx, values, vp, theme, 0, colorFn);
+      }
       continue;
     }
 
     if (plot === 'columns') {
       if (candles) drawVolumeBars(ctx, candles, vp, theme);
+      continue;
+    }
+
+    const seriesStyle = out.style ?? 'line';
+    if (seriesStyle === 'stepline') {
+      drawSteplineSeries(ctx, values, vp, style.color, style.lineWidth);
+      continue;
+    }
+    if (seriesStyle === 'area') {
+      drawAreaSeries(ctx, values, vp, style.color, style.lineWidth, 0);
+      continue;
+    }
+    if (seriesStyle === 'circles' || seriesStyle === 'crosses') {
+      drawPointSeries(ctx, values, vp, style.color, seriesStyle, 3);
+      continue;
+    }
+    if (seriesStyle === 'columns') {
+      drawColumnSeries(
+        ctx,
+        values,
+        vp,
+        theme,
+        0,
+        out.colorRules?.length
+          ? (_theme: Theme, value: number | null) =>
+              evaluateScriptColorRules(out.colorRules, value, style.color)
+          : (_theme: Theme, _value: number | null) => style.color,
+      );
+      continue;
+    }
+
+    if (out.colorRules?.length) {
+      for (let i = Math.floor(vp.startIndex); i < Math.ceil(vp.endIndex) - 1; i++) {
+        if (i < 0 || i + 1 >= values.length) continue;
+        const v0 = values[i];
+        const v1 = values[i + 1];
+        if (!Number.isFinite(v0) || !Number.isFinite(v1)) continue;
+        ctx.strokeStyle = evaluateScriptColorRules(out.colorRules, v0, style.color);
+        ctx.lineWidth = style.lineWidth;
+        ctx.beginPath();
+        ctx.moveTo(vp.xForIndex(i), vp.yForPrice(v0));
+        ctx.lineTo(vp.xForIndex(i + 1), vp.yForPrice(v1));
+        ctx.stroke();
+      }
       continue;
     }
 
@@ -312,9 +667,10 @@ export function drawIndicator(
   candles: Candle[],
   vp: VisibleRange,
   theme: Theme,
+  precomputedData?: Record<string, number[]> | null,
 ): void {
   const inputs = resolveIndicatorInputs(plugin, instance);
-  const data = getComputedSeries(plugin, candles, inputs);
+  const data = precomputedData ?? getComputedSeries(plugin, candles, inputs);
 
   const midIndex = Math.min(
     candles.length - 1,

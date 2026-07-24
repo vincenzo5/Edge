@@ -1,7 +1,7 @@
 'use client';
 
 import type { Theme } from '@/lib/chartConfig';
-import { menuSectionHeaderClass } from './headerStyles';
+import EdgeMenuSectionHeader from '../design-system/EdgeMenuSectionHeader';
 
 type Props = {
   theme: Theme;
@@ -10,23 +10,14 @@ type Props = {
   onToggle?: () => void;
 };
 
+/** Thin chart adapter over shared `EdgeMenuSectionHeader`. */
 export default function ChartMenuSectionHeader({
-  theme,
+  theme: _theme,
   label,
   collapsed,
   onToggle,
 }: Props) {
-  if (onToggle) {
-    return (
-      <button
-        type="button"
-        onClick={onToggle}
-        className={`flex w-full items-center justify-between ${menuSectionHeaderClass(theme)} hover:opacity-80`}
-      >
-        <span>{label}</span>
-        <span aria-hidden>{collapsed ? '▾' : '▴'}</span>
-      </button>
-    );
-  }
-  return <div className={menuSectionHeaderClass(theme)}>{label}</div>;
+  return (
+    <EdgeMenuSectionHeader label={label} collapsed={collapsed} onToggle={onToggle} />
+  );
 }

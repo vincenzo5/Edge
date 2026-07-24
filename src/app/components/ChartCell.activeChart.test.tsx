@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { forwardRef, useImperativeHandle } from 'react';
 import ChartCell from './ChartCell';
+import { AppTimeZoneProvider } from './AppTimeZoneProvider';
 import { ActiveChartProvider, useActiveChart } from './ActiveChartContext';
 import { SidebarProvider } from './SidebarContext';
 import {
@@ -52,21 +53,23 @@ function SnapshotReader({ onSnapshot }: { onSnapshot: (id: string | undefined) =
 function renderChartCell(isActive: boolean) {
   const onSnapshot = vi.fn();
   const view = render(
-    <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
-      <ActiveChartProvider>
-        <ChartCell
-          chartId="cell-0"
-          config={DEFAULT_CELL}
-          theme="dark"
-          compact
-          isActive={isActive}
-          toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
-          onConfigChange={vi.fn()}
-          onToolbarPrefsChange={vi.fn()}
-        />
-        <SnapshotReader onSnapshot={onSnapshot} />
-      </ActiveChartProvider>
-    </SidebarProvider>,
+    <AppTimeZoneProvider>
+      <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
+        <ActiveChartProvider>
+          <ChartCell
+            chartId="cell-0"
+            config={DEFAULT_CELL}
+            theme="dark"
+            compact
+            isActive={isActive}
+            toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+            onConfigChange={vi.fn()}
+            onToolbarPrefsChange={vi.fn()}
+          />
+          <SnapshotReader onSnapshot={onSnapshot} />
+        </ActiveChartProvider>
+      </SidebarProvider>
+    </AppTimeZoneProvider>,
   );
   return { ...view, onSnapshot };
 }
@@ -92,21 +95,23 @@ describe('ChartCell active chart bridge', () => {
     });
 
     rerender(
-      <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
-        <ActiveChartProvider>
-          <ChartCell
-            chartId="cell-0"
-            config={DEFAULT_CELL}
-            theme="dark"
-            compact
-            isActive={false}
-            toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
-            onConfigChange={vi.fn()}
-            onToolbarPrefsChange={vi.fn()}
-          />
-          <SnapshotReader onSnapshot={onSnapshot} />
-        </ActiveChartProvider>
-      </SidebarProvider>,
+      <AppTimeZoneProvider>
+        <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
+          <ActiveChartProvider>
+            <ChartCell
+              chartId="cell-0"
+              config={DEFAULT_CELL}
+              theme="dark"
+              compact
+              isActive={false}
+              toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+              onConfigChange={vi.fn()}
+              onToolbarPrefsChange={vi.fn()}
+            />
+            <SnapshotReader onSnapshot={onSnapshot} />
+          </ActiveChartProvider>
+        </SidebarProvider>
+      </AppTimeZoneProvider>,
     );
 
     await waitFor(() => {

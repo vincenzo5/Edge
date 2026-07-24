@@ -20,12 +20,16 @@ import {
   withPriceScaleContext,
   ensureRightMarginBars,
   applyPriceScaleLayout,
+  clampTimeWindow,
+  MIN_CANDLES,
 } from './viewport';
+import type { ViewportPersistSnapshot } from './paneHandle';
 import { applyPanePriceScale, resetPanePriceScale } from './indicatorScale';
 import { getSessionViewport } from './rangePresets';
 import type { RegisterPane } from './paneHandle';
 import type { DrawInvalidationReason } from './renderScheduler';
 import type { RenderScheduler } from './renderScheduler';
+import type { IndicatorResultProvider } from './indicatorResultProvider';
 
 type ViewportLifecycleParams = {
   candles: Candle[];
@@ -47,6 +51,7 @@ type ViewportLifecycleParams = {
   vpRef: RefObject<VisibleRange | null>;
   isDraggingRef: RefObject<boolean>;
   schedulerRef: RefObject<RenderScheduler | null>;
+  indicatorResultProvider?: IndicatorResultProvider | null;
   onUserTimePanRef: RefObject<(() => void) | undefined>;
 };
 
@@ -71,6 +76,7 @@ export function useViewportLifecycle({
   isDraggingRef,
   schedulerRef,
   onUserTimePanRef,
+  indicatorResultProvider = null,
 }: ViewportLifecycleParams) {
   const priceScaleSide = resolvePriceScaleSide(chartSettings.scales.priceScalePlacement);
   const prevDimsRef = useRef({ width: 0, height: 0 });
@@ -95,8 +101,8 @@ export function useViewportLifecycle({
 
   const fitPriceScale = useCallback(
     (vp: VisibleRange) =>
-      applyPanePriceScale(vp, candles, paneId, indicators, chartSettings, livePrice),
-    [candles, paneId, indicators, chartSettings, livePrice],
+      applyPanePriceScale(vp, candles, paneId, indicators, chartSettings, livePrice, indicatorResultProvider),
+    [candles, paneId, indicators, chartSettings, livePrice, indicatorResultProvider],
   );
 
   const fitPriceScaleIfAuto = useCallback(
@@ -268,6 +274,45 @@ export function useViewportLifecycle({
       return next;
     };
 
+    const applyViewportSnapshot = (
+      snapshot: ViewportPersistSnapshot,
+    ): VisibleRange | null => {
+      if (!vpRef.current || candles.length === 0 || paneId !== 'price') return null;
+      const clamped = clampTimeWindow(
+        snapshot.startIndex,
+        snapshot.endIndex,
+        candles.length,
+        true,
+      );
+      if (clamped.end - clamped.start < MIN_CANDLES) return null;
+
+      let next = {
+        ...vpRef.current,
+        startIndex: clamped.start,
+        endIndex: clamped.end,
+      } as VisibleRange;
+      next = attachViewportHelpers(next, candles.length);
+
+      if (snapshot.priceScaleMode === 'manual') {
+        next = attachViewportHelpers(
+          {
+            ...next,
+            priceMin: snapshot.priceMin,
+            priceMax: snapshot.priceMax,
+            priceScaleMode: 'manual',
+          },
+          candles.length,
+        );
+      } else {
+        next = fitPriceScaleIfAuto(next);
+      }
+
+      vpRef.current = next;
+      drawRef.current?.('viewport');
+      emitViewport(next);
+      return next;
+    };
+
     const applyWheelAction = (action: WheelAction, anchorX: number): VisibleRange | null => {
       if (!vpRef.current || candles.length === 0) return null;
       let vp = vpRef.current;
@@ -359,6 +404,7 @@ export function useViewportLifecycle({
       paneId,
       syncTimeWindow,
       navigateToViewport,
+      applyViewportSnapshot: paneId === 'price' ? applyViewportSnapshot : undefined,
       applyWheelAction,
       getViewport: () => vpRef.current,
       resetViewport,

@@ -63,7 +63,7 @@ describe('invalidation helpers', () => {
 
   it('reuses background cache for selection-only invalidation', () => {
     expect(canReuseBackgroundCache(new Set(['selection']))).toBe(true);
-    expect(canReuseBackgroundCache(new Set(['viewport']))).toBe(false);
+    expect(canReuseBackgroundCache(new Set(['viewport']))).toBe(true);
     expect(canReuseBackgroundCache(new Set(['size']))).toBe(false);
   });
 

@@ -15,6 +15,7 @@ export type DrawingMetadata = {
   source?: AnnotationSource;
   rationale?: string;
   threadId?: string;
+  messageId?: string;
   linkGroupId?: string;
   playbookId?: string;
   fields?: Record<string, unknown>;
@@ -204,6 +205,28 @@ export function buildThesisSummary(drawings: SerializedDrawing[]): string | unde
   }
 
   return parts.length > 0 ? parts.join(", ") : undefined;
+}
+
+const NARRATIVE_ITEM_CAP = 10;
+
+export function buildAnnotationNarrative(
+  drawings: SerializedDrawing[],
+): string | undefined {
+  const withKind = drawings.filter((d) => d.metadata?.kind);
+  if (withKind.length === 0) return undefined;
+
+  const lines = withKind.slice(0, NARRATIVE_ITEM_CAP).map((drawing) => {
+    const metadata = drawing.metadata!;
+    const kind = metadata.kind!;
+    const status = metadata.status ?? "active";
+    const rationale = metadata.rationale?.trim();
+    if (rationale) {
+      return `${kind} (${status}): ${rationale}`;
+    }
+    return `${kind} (${status})`;
+  });
+
+  return lines.join("; ");
 }
 
 export function formatObjectTreeLabel(

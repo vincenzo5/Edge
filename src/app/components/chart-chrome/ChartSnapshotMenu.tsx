@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Theme } from '@/lib/chartConfig';
 import { useActiveChart } from '../ActiveChartContext';
+import AttachJournalTradeModal from '../journal/AttachJournalTradeModal';
 import {
   buildSnapshotFilename,
   prepareSnapshotTab,
@@ -31,6 +32,7 @@ export default function ChartSnapshotMenu({ theme }: Props) {
   const activeChart = useActiveChart();
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,6 +119,19 @@ export default function ChartSnapshotMenu({ theme }: Props) {
         />
         <ChartMenuItemRow
           theme={theme}
+          label="Attach to journal trade…"
+          icon={<LinkIcon size={14} />}
+          disabled={actionDisabled}
+          disabledReason={
+            pending ? 'Capturing…' : canCapture ? undefined : 'Chart is still loading'
+          }
+          onClick={() => {
+            setOpen(false);
+            setAttachOpen(true);
+          }}
+        />
+        <ChartMenuItemRow
+          theme={theme}
           label="Copy link"
           icon={<LinkIcon size={14} />}
           trailing={<span className="opacity-50">⌥ S</span>}
@@ -142,12 +157,13 @@ export default function ChartSnapshotMenu({ theme }: Props) {
         {error ? (
           <div
             role="alert"
-            className="border-t border-[var(--edge-border-strong)] px-3 py-2 text-xs text-red-400"
+            className="border-t border-[var(--edge-border-strong)] px-3 py-2 text-xs text-[var(--edge-negative)]"
           >
             {error}
           </div>
         ) : null}
       </ChartAnchoredPopover>
+      <AttachJournalTradeModal open={attachOpen} onClose={() => setAttachOpen(false)} />
     </>
   );
 }

@@ -5,7 +5,7 @@ import ChartLoadingOverlay from "./ChartLoadingOverlay";
 describe("ChartLoadingOverlay", () => {
   it("renders symbol-aware loading label", () => {
     render(<ChartLoadingOverlay symbol="nvda" interval="1d" range="1y" />);
-    expect(screen.getByTestId("chart-loading-label")).toHaveTextContent(
+    expect(screen.getByTestId("chart-loading-overlay-label")).toHaveTextContent(
       "Loading NVDA · 1D…",
     );
   });
@@ -20,7 +20,8 @@ describe("ChartLoadingOverlay", () => {
 
   it("renders spinner and skeleton bars", () => {
     render(<ChartLoadingOverlay symbol="MSFT" interval="1h" />);
-    expect(screen.getByTestId("chart-loading-spinner")).toBeInTheDocument();
+    expect(screen.getByTestId("chart-loading-overlay-spinner")).toBeInTheDocument();
+    expect(screen.getByTestId("skeleton-candle-bars")).toBeInTheDocument();
     expect(screen.getByText("Fetching market data…")).toBeInTheDocument();
   });
 });

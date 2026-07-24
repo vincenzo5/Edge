@@ -7,6 +7,7 @@ import {
   copyBlobToClipboard,
   downloadBlob,
   openBlobInNewTab,
+  prepareChartElementForCapture,
   prepareSnapshotTab,
   SnapshotCaptureError,
   validateBlob,
@@ -144,9 +145,84 @@ describe('chartSnapshot output helpers', () => {
   });
 });
 
+describe('prepareChartElementForCapture', () => {
+  it('clears overlay inset padding when the chart is too narrow', async () => {
+    const host = document.createElement('div');
+    host.dataset.testid = 'chart-grid-host';
+    host.style.paddingRight = '336px';
+    const root = document.createElement('div');
+    host.appendChild(root);
+    document.body.appendChild(host);
+
+    vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 49,
+      height: 900,
+      top: 0,
+      left: 0,
+      bottom: 900,
+      right: 49,
+      toJSON: () => ({}),
+    });
+
+    const restore = await prepareChartElementForCapture(root);
+    expect(host.style.paddingRight).toBe('0px');
+    restore();
+    expect(host.style.paddingRight).toBe('336px');
+    host.remove();
+  });
+
+  it('restores overlay inset after temporarily clearing it', async () => {
+    const host = document.createElement('div');
+    host.dataset.testid = 'chart-grid-host';
+    host.style.paddingRight = '336px';
+    const root = document.createElement('div');
+    host.appendChild(root);
+
+    vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 300,
+      top: 0,
+      left: 0,
+      bottom: 300,
+      right: 400,
+      toJSON: () => ({}),
+    });
+
+    const restore = await prepareChartElementForCapture(root);
+    expect(host.style.paddingRight).toBe('0px');
+    restore();
+    expect(host.style.paddingRight).toBe('336px');
+  });
+
+});
+
 describe('captureChartElement', () => {
   beforeEach(() => {
     mockedToBlob.mockReset();
+  });
+
+  it('rejects captures that stay too narrow after overlay expand', async () => {
+    const root = document.createElement('div');
+    vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 80,
+      height: 900,
+      top: 0,
+      left: 0,
+      bottom: 900,
+      right: 80,
+      toJSON: () => ({}),
+    });
+
+    await expect(captureChartElement(root, { candleCount: 10 })).rejects.toMatchObject({
+      reason: 'too_narrow',
+    });
+    expect(mockedToBlob).not.toHaveBeenCalled();
   });
 
   it('restores crosshair visibility when capture throws', async () => {

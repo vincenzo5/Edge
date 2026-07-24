@@ -164,6 +164,7 @@ export function drawCandles(
   theme: Theme,
   chartType: 'candle_solid' | 'candle_stroke' | 'ohlc' | 'area' | 'heikin_ashi',
   settings: RequiredChartSettings,
+  barColors?: Array<string | null> | null,
 ) {
   const colors = resolveSymbolColors(settings.symbol, theme);
   const c = getColors(theme);
@@ -208,12 +209,13 @@ export function drawCandles(
     const candle = candles[idx];
     if (!candle) continue;
     const prev = idx > 0 ? candles[idx - 1] : null;
+    const scriptBarColor = barColors?.[idx] ?? null;
     const isUp = settings.symbol.colorBarsByPreviousClose && prev
       ? candle.c >= prev.c
       : candle.c >= candle.o;
-    const bodyColor = isUp ? colors.up : colors.down;
-    const wickColor = isUp ? colors.wickUp : colors.wickDown;
-    const borderColor = isUp ? colors.borderUp : colors.borderDown;
+    const bodyColor = scriptBarColor ?? (isUp ? colors.up : colors.down);
+    const wickColor = scriptBarColor ?? (isUp ? colors.wickUp : colors.wickDown);
+    const borderColor = scriptBarColor ?? (isUp ? colors.borderUp : colors.borderDown);
 
     const x = vp.xForIndex(idx);
     const yHigh = vp.yForPrice(candle.h);
@@ -438,7 +440,7 @@ function drawPriceAxisBadge(
   } else {
     ctx.fillRect(rectX, rectY, badgeW, badgeH);
   }
-  ctx.fillStyle = theme === 'dark' ? '#f0f3fa' : c.axisBg;
+  ctx.fillStyle = theme === 'dark' ? '#f3f6fc' : c.axisBg;
   ctx.fillText(text, textX, textY);
 }
 
@@ -499,6 +501,8 @@ export type DrawPriceAxisAnnotationsInput = {
   nowMs?: number;
   livePrice?: number | null;
   liveMarketSession?: import('@edge/chart-core').MarketSessionKind | null;
+  resultProvider?: import('./indicatorResultProvider').IndicatorResultProvider | null;
+  extraPriceAxisAnnotations?: import('@edge/chart-core/priceAxisTypes').PriceAxisAnnotation[];
 };
 
 export function drawPriceAxisAnnotations(input: DrawPriceAxisAnnotationsInput): void {
@@ -518,6 +522,7 @@ export function drawPriceAxisAnnotations(input: DrawPriceAxisAnnotationsInput): 
     nowMs,
     livePrice,
     liveMarketSession,
+    resultProvider,
   } = input;
 
   const side = resolvePriceScaleSide(settings.scales.priceScalePlacement);
@@ -537,6 +542,8 @@ export function drawPriceAxisAnnotations(input: DrawPriceAxisAnnotationsInput): 
     nowMs,
     livePrice,
     liveMarketSession,
+    resultProvider: input.resultProvider,
+    extraAnnotations: input.extraPriceAxisAnnotations,
   });
   const laidOut = filterVisibleAnnotations(
     layoutPriceAxisAnnotations(raw, vp, settings, ph),

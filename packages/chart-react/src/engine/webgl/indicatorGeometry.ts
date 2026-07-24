@@ -1,9 +1,9 @@
 import type { Candle, IndicatorConfig, Theme, VisibleRange } from '@edge/chart-core';
-import { IndicatorRegistry } from '@edge/chart-core';
 import type { IndicatorPlugin } from '@edge/chart-core/plugin-api';
-import { getComputedSeries, resolveSeriesStyle } from '@edge/chart-core/indicatorCompute';
-import { resolveIndicatorInputs } from '@edge/chart-core/indicatorInputs';
+import { resolveSeriesStyle } from '@edge/chart-core/indicatorCompute';
+import { resolveIndicatorResultProvider, resolveIndicatorPlugin, type IndicatorResultProvider } from '../indicatorResultProvider';
 import type { FillGeometry, LineGeometry } from './candleGeometry';
+import type { GeometryBufferPool } from './geometryBufferPool';
 import { buildHistogramGeometry, buildLineGeometry } from './seriesGeometry';
 
 export type IndicatorLineBatch = {
@@ -24,10 +24,12 @@ export type IndicatorDrawBatch = IndicatorLineBatch | IndicatorHistogramBatch;
 /** True when the indicator can render via declarative WebGL batches (no custom draw()). */
 export function isWebGLCompatibleIndicator(plugin: IndicatorPlugin): boolean {
   if (plugin.draw) return false;
-  if (!plugin.outputs?.length || !plugin.compute) return false;
+  if (!plugin.outputs?.length) return false;
   return plugin.outputs.every((out) => {
     const plot = out.plot ?? 'line';
     if (out.fillBetween) return false;
+    if (plot === 'marker' || plot === 'bgcolor' || plot === 'barcolor') return false;
+    if (out.style && out.style !== 'line') return false;
     return plot === 'line' || plot === 'histogram';
   });
 }
@@ -39,6 +41,7 @@ function batchesForOutputs(
   vp: VisibleRange,
   theme: Theme,
   data: Record<string, number[]>,
+  pool?: GeometryBufferPool,
 ): IndicatorDrawBatch[] {
   const outputs = plugin.outputs ?? [];
   const midIndex = Math.min(
@@ -64,7 +67,7 @@ function batchesForOutputs(
     if (plot === 'histogram') {
       batches.push({
         type: 'histogram',
-        geometry: buildHistogramGeometry(values, vp, 0),
+        geometry: buildHistogramGeometry(values, vp, 0, pool, `${instance.id}:${out.key}:hist`),
         color: style.color,
       });
       continue;
@@ -73,7 +76,7 @@ function batchesForOutputs(
     if (plot === 'line') {
       batches.push({
         type: 'line',
-        geometry: buildLineGeometry(values, vp),
+        geometry: buildLineGeometry(values, vp, pool, `${instance.id}:${out.key}:line`),
         color: style.color,
         lineWidth: style.lineWidth,
       });
@@ -89,19 +92,21 @@ export function buildIndicatorDrawBatches(
   candles: Candle[],
   vp: VisibleRange,
   theme: Theme,
+  resultProvider?: IndicatorResultProvider | null,
+  pool?: GeometryBufferPool,
 ): IndicatorDrawBatch[] {
   const batches: IndicatorDrawBatch[] = [];
 
   for (const instance of indicators) {
     if (instance.visible === false) continue;
-    const plugin = IndicatorRegistry.get(instance.name);
+    const plugin = resolveIndicatorPlugin(instance);
     if (!plugin || !isWebGLCompatibleIndicator(plugin)) continue;
 
-    const inputs = resolveIndicatorInputs(plugin, instance);
-    const data = getComputedSeries(plugin, candles, inputs);
+    const provider = resolveIndicatorResultProvider(resultProvider);
+    const data = provider.resolveSeries(plugin, instance, candles);
     if (!data) continue;
 
-    batches.push(...batchesForOutputs(plugin, instance, candles, vp, theme, data));
+    batches.push(...batchesForOutputs(plugin, instance, candles, vp, theme, data, pool));
   }
 
   return batches;

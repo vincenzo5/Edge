@@ -1,6 +1,8 @@
 "use client";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { EdgeButton, EdgeEmptyState } from "../design-system";
+import { reportLocalError } from "@/lib/observability/reportLocalError";
 
 type Props = {
   children: ReactNode;
@@ -27,6 +29,12 @@ export default class ChartErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error("[ChartErrorBoundary]", error, info.componentStack);
+    reportLocalError({
+      source: "chart",
+      message: error.message || "Chart render failed",
+      stack: error.stack,
+      detail: info.componentStack ?? undefined,
+    });
   }
 
   handleRetry = (): void => {
@@ -46,35 +54,36 @@ export default class ChartErrorBoundary extends Component<Props, State> {
   render(): ReactNode {
     if (this.state.error) {
       return (
-        <div
+        <EdgeEmptyState
           data-testid="chart-error-fallback"
-          className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-[var(--edge-surface-panel)] px-4 py-6 text-center"
-        >
-          <p className="text-sm font-medium text-[var(--edge-text-primary)]">
-            This chart encountered an error
-          </p>
-          <p className="max-w-sm text-xs text-[var(--edge-text-muted)]">
-            {this.state.error.message || "Something went wrong while rendering this chart."}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <button
-              type="button"
-              data-testid="chart-error-retry"
-              onClick={this.handleRetry}
-              className="edge-focus-ring rounded px-3 py-1.5 text-xs font-medium text-[var(--edge-text-primary)] ring-1 ring-[var(--edge-border)]"
-            >
-              Retry chart
-            </button>
-            <button
-              type="button"
-              data-testid="chart-error-copy"
-              onClick={() => void this.handleCopyError()}
-              className="edge-focus-ring rounded px-3 py-1.5 text-xs text-[var(--edge-text-muted)] ring-1 ring-[var(--edge-border)]"
-            >
-              Copy error
-            </button>
-          </div>
-        </div>
+          role="alert"
+          title="This chart encountered an error"
+          message={
+            this.state.error.message || "Something went wrong while rendering this chart."
+          }
+          tone="error"
+          className="min-h-0 flex-1 bg-[var(--edge-surface-panel)]"
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <EdgeButton
+                type="button"
+                variant="secondary"
+                data-testid="chart-error-retry"
+                onClick={this.handleRetry}
+              >
+                Retry chart
+              </EdgeButton>
+              <EdgeButton
+                type="button"
+                variant="chrome"
+                data-testid="chart-error-copy"
+                onClick={() => void this.handleCopyError()}
+              >
+                Copy error
+              </EdgeButton>
+            </div>
+          }
+        />
       );
     }
 

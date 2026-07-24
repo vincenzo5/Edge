@@ -100,6 +100,22 @@ export function normalizeChartTimeZone(value: unknown): ChartTimeZone {
   }
 }
 
+/** True when persisted settings omit a timezone or carry the legacy factory default. */
+export function isLegacyFactoryTimeZone(value: unknown): boolean {
+  return value == null || (typeof value === 'string' && !value.trim()) || value === DEFAULT_CHART_TIMEZONE;
+}
+
+/** Resolve display timezone: inherit `defaultTimeZone` when raw setting is unset. */
+export function resolveEffectiveChartTimeZone(
+  raw: unknown,
+  defaultTimeZone?: ChartTimeZone,
+): ChartTimeZone {
+  if (raw === undefined || raw === null || (typeof raw === 'string' && !raw.trim())) {
+    return normalizeChartTimeZone(defaultTimeZone ?? DEFAULT_CHART_TIMEZONE);
+  }
+  return normalizeChartTimeZone(raw);
+}
+
 export function exchangeToTimeZone(exchange?: string | null): string {
   if (!exchange) return 'America/New_York';
   const key = exchange.trim().toUpperCase();

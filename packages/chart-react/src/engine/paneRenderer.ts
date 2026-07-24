@@ -10,18 +10,22 @@ import type {
 } from '@edge/chart-core';
 import type { ChartSettings, RequiredChartSettings } from './chartSettings';
 import type { PriceScaleSide } from '@edge/chart-core/layout';
+import { BackgroundLayerCache, SeriesLayerCache } from './layerCache';
 import {
   defaultLayerRegistry,
+  drawSeriesLayersWithCache,
   LAYER_PHASE_KEY,
+  SERIES_LAYER_IDS,
   type LayerDrawState,
 } from './layers';
-import { BackgroundLayerCache } from './layerCache';
 import type { CandleWebGLRenderer } from './webgl/candleWebGL';
 import type { IndicatorWebGLRenderer } from './webgl/indicatorWebGL';
 import type { EventBadgeGroup } from './eventBadges';
+import type { IndicatorResultProvider } from './indicatorResultProvider';
 import {
   measurePhase,
   canReuseBackgroundCache,
+  canReuseSeriesCache,
   type DrawInvalidationReason,
   type DrawPhaseTimings,
 } from './renderScheduler';
@@ -58,10 +62,13 @@ export type PaneRendererContext = {
   onEventBadgeGroupsDrawn: (groups: EventBadgeGroup[]) => void;
   reasons: ReadonlySet<DrawInvalidationReason>;
   backgroundCache: BackgroundLayerCache;
+  seriesCache: SeriesLayerCache;
   candleWebGL: CandleWebGLRenderer | null;
   candlesUseWebGL: boolean;
   indicatorWebGL: IndicatorWebGLRenderer | null;
   indicatorsUseWebGL: boolean;
+  indicatorResultProvider?: IndicatorResultProvider | null;
+  extraPriceAxisAnnotations?: import('@edge/chart-core/priceAxisTypes').PriceAxisAnnotation[];
 };
 
 /** Run ordered layer draw phases for one pane canvas. */
@@ -77,6 +84,7 @@ export function drawPaneLayers(ctx: PaneRendererContext): DrawPhaseTimings {
   };
   const totalStart = performance.now();
   const reuseBackground = canReuseBackgroundCache(ctx.reasons);
+  const reuseSeries = canReuseSeriesCache(ctx.reasons);
 
   ctx.ctx.clearRect(0, 0, ctx.width, ctx.height);
 
@@ -112,13 +120,30 @@ export function drawPaneLayers(ctx: PaneRendererContext): DrawPhaseTimings {
     reasons: ctx.reasons,
     backgroundCache: ctx.backgroundCache,
     reuseBackground,
+    seriesCache: ctx.seriesCache,
+    reuseSeries,
     candleWebGL: ctx.candleWebGL,
     candlesUseWebGL: ctx.candlesUseWebGL,
     indicatorWebGL: ctx.indicatorWebGL,
     indicatorsUseWebGL: ctx.indicatorsUseWebGL,
+    indicatorResultProvider: ctx.indicatorResultProvider,
+    extraPriceAxisAnnotations: ctx.extraPriceAxisAnnotations,
   };
 
+  let seriesDrawn = false;
+
   for (const layer of defaultLayerRegistry.getOrderedLayers(ctx.reasons)) {
+    if (SERIES_LAYER_IDS.has(layer.id)) {
+      if (!seriesDrawn) {
+        const phaseKey = 'candlesMs' as const;
+        phases[phaseKey] = measurePhase(() =>
+          drawSeriesLayersWithCache(layerState, defaultLayerRegistry),
+        ).durationMs;
+        phases.indicatorsMs = 0;
+        seriesDrawn = true;
+      }
+      continue;
+    }
     if (layer.shouldDraw && !layer.shouldDraw(layerState)) continue;
     const phaseKey = LAYER_PHASE_KEY[layer.id];
     phases[phaseKey] = measurePhase(() => layer.draw(layerState)).durationMs;

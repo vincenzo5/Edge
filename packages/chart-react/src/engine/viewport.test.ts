@@ -28,6 +28,7 @@ import {
   isViewportModified,
   isTimeWindowModified,
   adjustViewportForPrepend,
+  adjustViewportForTrim,
 } from './viewport';
 import type { Candle } from '@edge/chart-core/contracts';
 import { plotWidth } from '@edge/chart-core/layout';
@@ -56,6 +57,23 @@ describe('adjustViewportForPrepend', () => {
     const vp = createViewport(sample, 800, 400, 3);
     expect(adjustViewportForPrepend(vp, 0)).toBe(vp);
     expect(adjustViewportForPrepend(vp, -5)).toBe(vp);
+  });
+});
+
+describe('adjustViewportForTrim', () => {
+  it('shifts startIndex and endIndex down by removedCount', () => {
+    const vp = createViewport(sample, 800, 400, 3);
+    const shifted = adjustViewportForTrim(vp, 50);
+    expect(shifted.startIndex).toBe(vp.startIndex - 50);
+    expect(shifted.endIndex).toBe(vp.endIndex - 50);
+    expect(shifted.priceMin).toBe(vp.priceMin);
+    expect(shifted.priceMax).toBe(vp.priceMax);
+  });
+
+  it('returns same viewport when removedCount is zero or negative', () => {
+    const vp = createViewport(sample, 800, 400, 3);
+    expect(adjustViewportForTrim(vp, 0)).toBe(vp);
+    expect(adjustViewportForTrim(vp, -5)).toBe(vp);
   });
 });
 

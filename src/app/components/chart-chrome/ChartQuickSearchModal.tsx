@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import type { Theme } from '@/lib/chartConfig';
 import { EdgeModalShell, EdgeSearchInput } from '../design-system';
 
@@ -14,11 +14,6 @@ export default function ChartQuickSearchModal({ open, theme, onClose }: Props) {
   void theme;
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    inputRef.current?.focus();
-  }, [open]);
-
   return (
     <EdgeModalShell
       open={open}
@@ -27,10 +22,12 @@ export default function ChartQuickSearchModal({ open, theme, onClose }: Props) {
       maxWidth="sm"
       align="center"
       testId="quick-search-modal"
+      initialFocusRef={inputRef}
     >
       <div className="border-b border-[var(--edge-border)] px-4 py-2">
         <EdgeSearchInput
           ref={inputRef}
+          aria-label="Search tool or function"
           leadingIcon={
             <svg width={16} height={16} viewBox="0 0 16 16" fill="none" aria-hidden className="opacity-50">
               <circle cx="7" cy="7" r="4" stroke="currentColor" strokeWidth="1.2" />

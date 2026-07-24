@@ -30,9 +30,11 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
-    "@edge/chart-core": "*"
+    "@edge/chart-core": "*",
+    "@edge/indicator-runtime": "*"
   },
   "devDependencies": {
+    "@edge/indicator-runtime": "*",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "react": "^19.2.7",

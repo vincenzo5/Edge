@@ -20,6 +20,7 @@ describe("AppHydrationShell", () => {
     expect(screen.getByTestId("app-hydration-sidebar-rail")).toBeInTheDocument();
     expect(screen.getByTestId("app-hydration-range-bar")).toBeInTheDocument();
     expect(screen.getByTestId("app-hydration-spinner")).toBeInTheDocument();
+    expect(screen.getByTestId("skeleton-candle-bars")).toBeInTheDocument();
   });
 
   it("shows generic boot copy without a symbol", () => {

@@ -1,0 +1,42 @@
+{
+  "name": "@edge/indicator-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./runtimeWorker": {
+      "types": "./dist/runtimeWorker.d.ts",
+      "import": "./dist/runtimeWorker.js",
+      "require": "./dist/runtimeWorker.js",
+      "default": "./dist/runtimeWorker.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "require": "./dist/*.js",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@edge/chart-core": "*",
+    "quickjs-emscripten": "^0.31.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "typescript": "^6.0.3"
+  }
+}

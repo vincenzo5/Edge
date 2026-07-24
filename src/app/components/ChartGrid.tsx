@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import ChartCell from "./ChartCell";
 import type { CellConfig, LayoutTemplateId, Theme, ToolbarPrefs } from "@/lib/chartConfig";
+import type { PaletteId } from "@/lib/design-system/palettes";
 import { cellCountFor, getLayoutTemplate } from "@/lib/chartConfig";
 import { resolveLayoutGridStyles } from "@/lib/chart/layoutTemplateGrid";
 import { shouldStackLayout } from "@/lib/responsive/responsiveLayout";
@@ -10,6 +11,7 @@ import type { RailMode } from "@/lib/responsive/responsiveLayout";
 import { useElementSize } from "@/lib/responsive/useElementSize";
 import { ChartSyncProvider } from "./ChartSyncContext";
 import ChartDrawingRail from "./chart-chrome/ChartDrawingRail";
+import { useSidebarPanelWidth } from "./sidebar/SidebarPanelWidthContext";
 import type { SymbolSelectResult } from "@/lib/watchlist/types";
 
 export type ChartSymbolNav = {
@@ -25,8 +27,11 @@ type Props = {
   linkCrosshair: boolean;
   linkDrawings: boolean;
   theme: Theme;
+  palette: PaletteId;
   cells: CellConfig[];
   activeCellIndex: number;
+  /** When false, no grid cell subscribes to live candle streams (non-primary chart tile). */
+  isPrimaryChart?: boolean;
   toolbarPrefs: ToolbarPrefs;
   railMode?: RailMode;
   symbolNav?: ChartSymbolNav;
@@ -40,8 +45,10 @@ export default function ChartGrid({
   linkCrosshair,
   linkDrawings,
   theme,
+  palette,
   cells,
   activeCellIndex,
+  isPrimaryChart = true,
   toolbarPrefs,
   railMode = "full",
   symbolNav,
@@ -51,6 +58,7 @@ export default function ChartGrid({
 }: Props) {
   const count = cellCountFor(layoutId);
   const [gridRef, gridSize] = useElementSize<HTMLDivElement>();
+  const overlayInsetPx = useSidebarPanelWidth()?.overlayInsetPx ?? 0;
 
   const visibleCells = useMemo(
     () => cells.slice(0, count),
@@ -68,7 +76,12 @@ export default function ChartGrid({
 
   return (
     <ChartSyncProvider linkCrosshair={linkCrosshair} linkDrawings={linkDrawings}>
-      <div className="flex min-h-0 min-w-0 flex-1">
+      <div
+        className="flex min-h-0 min-w-0 flex-1"
+        data-testid="chart-grid-host"
+        data-overlay-inset={overlayInsetPx > 0 ? String(overlayInsetPx) : undefined}
+        style={overlayInsetPx > 0 ? { paddingRight: overlayInsetPx } : undefined}
+      >
         {count > 1 ? (
           <ChartDrawingRail
             theme={theme}
@@ -97,10 +110,12 @@ export default function ChartGrid({
               chartId={`cell-${i}`}
               config={cell}
               theme={theme}
+              palette={palette}
               compact={count > 1}
               railMode={railMode}
               showDrawingRail={count === 1}
               isActive={i === activeCellIndex}
+              live={i === activeCellIndex && isPrimaryChart}
               toolbarPrefs={toolbarPrefs}
               symbolNav={i === activeCellIndex ? symbolNav : undefined}
               onFocus={() => onActiveCellChange(i)}

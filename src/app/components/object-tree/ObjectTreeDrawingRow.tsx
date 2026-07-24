@@ -79,7 +79,7 @@ export function ObjectTreeDrawingRow({
         <HoverIconButton
           title={drawing.locked ? "Unlock drawing" : "Lock drawing"}
           onClick={onToggleLocked}
-          className={drawing.locked ? "text-orange-500" : ""}
+          className={drawing.locked ? "text-[var(--edge-warning)]" : ""}
         >
           <LockIcon size={ICON_SIZE} aria-hidden />
         </HoverIconButton>

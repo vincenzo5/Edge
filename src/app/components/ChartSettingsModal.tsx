@@ -22,7 +22,15 @@ import {
   mergeChartSettings,
 } from "@/lib/chartConfig";
 import { getChartColors } from "@/lib/chart/chartTheme";
-import { buildTimeZoneMenuOptions } from "@/lib/chart/timeZone";
+import { DEFAULT_PALETTE } from "@/lib/design-system/palettes";
+import { useAppThemeOptional } from "@/app/components/AppThemeProvider";
+import { buildTimeZoneMenuOptions, type ChartTimeZone } from "@/lib/chart/timeZone";
+import EdgeToggle from "@/app/components/design-system/EdgeToggle";
+import EdgeButton from "@/app/components/design-system/EdgeButton";
+import EdgeMenuItem from "@/app/components/design-system/EdgeMenuItem";
+import EdgeModalShell from "@/app/components/design-system/EdgeModalShell";
+import EdgeSelect from "@/app/components/design-system/EdgeSelect";
+import { popoverPanelClass, secondaryButtonClass } from "@/app/components/design-system/styles";
 
 type Section = "symbol" | "status" | "scales" | "canvas" | "events" | "trading";
 type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
@@ -30,6 +38,8 @@ type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
 type Props = {
   open: boolean;
   settings: ChartSettings | undefined;
+  /** App default timezone — shown when per-chart setting is unset. */
+  defaultTimeZone?: ChartTimeZone;
   initialSection?: Section;
   onClose: () => void;
   onSave: (next: RequiredChartSettings) => void;
@@ -60,17 +70,7 @@ function ToggleRow({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
-  return (
-    <label className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-[var(--edge-text-secondary)] ">{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4"
-      />
-    </label>
-  );
+  return <EdgeToggle label={label} checked={checked} onChange={onChange} />;
 }
 
 function SelectRow<T extends string>({
@@ -85,20 +85,19 @@ function SelectRow<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-[var(--edge-text-secondary)] ">{label}</span>
-      <select
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="text-[var(--edge-text-secondary)]">{label}</span>
+      <EdgeSelect
+        variant="field"
+        density="standard"
         value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        className="max-w-[180px] rounded border border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)] px-2 py-1 text-sm border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)]"
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </label>
+        onChange={onChange}
+        options={options.map((opt) => ({ value: opt.value, label: opt.label }))}
+        className="max-w-[180px]"
+        minWidth={160}
+        align="end"
+      />
+    </div>
   );
 }
 
@@ -249,6 +248,7 @@ const BUTTON_VISIBILITY_OPTIONS: { value: ButtonVisibility; label: string }[] = 
 export default function ChartSettingsModal({
   open,
   settings,
+  defaultTimeZone,
   initialSection = "status",
   onClose,
   onSave,
@@ -256,17 +256,21 @@ export default function ChartSettingsModal({
   onSaveTemplate,
   onApplyTemplate,
 }: Props) {
-  const merged = mergeChartSettings(settings);
+  const merged = mergeChartSettings(settings, { defaultTimeZone });
   const [values, setValues] = useState(merged);
   const [section, setSection] = useState<Section>("status");
   const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
-  const themeColors = getChartColors("dark");
+  const appTheme = useAppThemeOptional();
+  const themeColors = getChartColors(
+    appTheme?.theme ?? "dark",
+    appTheme?.palette ?? DEFAULT_PALETTE,
+  );
 
   useEffect(() => {
-    setValues(mergeChartSettings(settings));
+    setValues(mergeChartSettings(settings, { defaultTimeZone }));
     setSection(initialSection);
     setTemplateMenuOpen(false);
-  }, [settings, open, initialSection]);
+  }, [settings, defaultTimeZone, open, initialSection]);
 
   const setSymbol = useCallback(
     (patch: Partial<RequiredChartSettings["symbol"]>) => {
@@ -340,26 +344,8 @@ export default function ChartSettingsModal({
   }));
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center edge-modal-backdrop"
-      onClick={onClose}
-    >
-      <div
-        className="edge-modal-shell flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[var(--edge-radius-md)] border"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-[var(--edge-border)] px-4 py-3">
-          <h3 className="text-base font-semibold text-[var(--edge-text-primary)]">Settings</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="edge-icon-button edge-focus-ring text-sm text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-strong)]"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:min-h-[380px] sm:flex-row">
+    <EdgeModalShell open={open} title="Settings" onClose={onClose} maxWidth="lg" align="top">
+        <div className="flex min-h-0 max-h-[calc(85vh-8rem)] flex-1 flex-col overflow-hidden sm:min-h-[380px] sm:flex-row">
           <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-2 py-2 sm:w-44 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r sm:px-0">
             {SECTIONS.map((s) => (
               <button
@@ -857,7 +843,7 @@ export default function ChartSettingsModal({
                 <button
                   type="button"
                   onClick={() => setTemplateMenuOpen((prev) => !prev)}
-                  className="rounded border border-[var(--edge-border-strong)] px-3 py-1.5 text-sm text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-toolbar)] border-[var(--edge-border-strong)]  dark:hover:bg-gray-800"
+                  className={secondaryButtonClass("dark")}
                   aria-haspopup="menu"
                   aria-expanded={templateMenuOpen}
                 >
@@ -866,29 +852,21 @@ export default function ChartSettingsModal({
                 {templateMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute bottom-full left-0 z-10 mb-2 w-56 overflow-hidden rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] py-1 shadow-lg  "
+                    className={`${popoverPanelClass("dark")} absolute bottom-full left-0 z-10 mb-2 w-56 overflow-hidden py-1 shadow-[var(--edge-shadow-popover)]`}
                   >
                     {onSaveTemplate && (
-                      <button
-                        type="button"
-                        role="menuitem"
+                      <EdgeMenuItem
+                        label="Save current as template…"
                         onClick={handleSaveTemplate}
-                        className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--edge-surface-toolbar)] dark:hover:bg-gray-800"
-                      >
-                        Save current as template…
-                      </button>
+                      />
                     )}
-                    <button
-                      type="button"
-                      role="menuitem"
+                    <EdgeMenuItem
+                      label="Apply defaults"
                       onClick={() => {
                         handleReset();
                         setTemplateMenuOpen(false);
                       }}
-                      className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--edge-surface-toolbar)] dark:hover:bg-gray-800"
-                    >
-                      Apply defaults
-                    </button>
+                    />
                     {onApplyTemplate && (
                       <>
                         <div className="my-1 border-t border-[var(--edge-border)] " />
@@ -898,15 +876,11 @@ export default function ChartSettingsModal({
                           </div>
                         ) : (
                           chartTemplates.map((preset) => (
-                            <button
+                            <EdgeMenuItem
                               key={preset.id}
-                              type="button"
-                              role="menuitem"
+                              label={preset.name}
                               onClick={() => handleApplyTemplate(preset)}
-                              className="block w-full truncate px-3 py-2 text-left text-sm hover:bg-[var(--edge-surface-toolbar)] dark:hover:bg-gray-800"
-                            >
-                              {preset.name}
-                            </button>
+                            />
                           ))
                         )}
                       </>
@@ -917,24 +891,15 @@ export default function ChartSettingsModal({
             )}
           </div>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded px-3 py-1.5 text-sm text-[var(--edge-text-secondary)] hover:bg-gray-100  dark:hover:bg-gray-800"
-            >
+            <EdgeButton variant="chrome" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-            >
+            </EdgeButton>
+            <EdgeButton variant="primary" onClick={handleSave}>
               Ok
-            </button>
+            </EdgeButton>
           </div>
         </div>
-      </div>
-    </div>
+    </EdgeModalShell>
   );
 }
 

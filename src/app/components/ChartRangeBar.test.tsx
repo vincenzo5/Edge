@@ -110,6 +110,25 @@ describe('ChartRangeBar range presets', () => {
     expect(onGoToClick).toHaveBeenCalled();
   });
 
+  it('renders preset test ids and compact control classes', () => {
+    render(
+      <ChartRangeBar
+        selectedPreset="1y"
+        theme="dark"
+        timeZone="UTC"
+        onRangeSelect={vi.fn()}
+        onTimeZoneChange={vi.fn()}
+        onGoToClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('chart-range-bar')).toBeTruthy();
+    expect(screen.getByTestId('chart-range-preset-1y')).toBeTruthy();
+    expect(screen.getByTestId('chart-range-go-to')).toBeTruthy();
+    expect(screen.getByTestId('chart-range-clock')).toBeTruthy();
+    expect(screen.getByTestId('chart-range-preset-1y').className).toMatch(/edge-control-compact/);
+  });
+
   it('supports horizontal overflow for preset controls', () => {
     render(
       <ChartRangeBar

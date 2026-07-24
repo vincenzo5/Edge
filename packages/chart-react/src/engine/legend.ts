@@ -8,7 +8,9 @@ import { formatChange, formatPrice, formatVolume } from '@edge/chart-core/format
 import { INTERVALS } from '../constants';
 import { IndicatorRegistry } from '@edge/chart-core';
 import { legendFromOutputs } from '@edge/chart-core/indicatorCompute';
+import { formatScriptError } from '@edge/chart-core';
 import { getInputSchema, resolveIndicatorInputs } from '@edge/chart-core/indicatorInputs';
+import { resolveIndicatorPlugin, resolveIndicatorResultProvider, type IndicatorResultProvider } from './indicatorResultProvider';
 import type { InputValue } from '@edge/chart-core/plugin-api';
 import type { LegendSection } from '@edge/chart-core/legend/types';
 
@@ -198,11 +200,12 @@ export function resolveIndicatorLegend(
   dataIndex: number | null,
   theme: Theme = 'dark',
   chartSettings?: ChartSettings,
+  resultProvider?: IndicatorResultProvider | null,
 ): LegendSection[] | null {
   const index = resolveLegendIndex(candles, dataIndex);
   if (index == null) return null;
 
-  const plugin = IndicatorRegistry.get(indicator.name);
+  const plugin = resolveIndicatorPlugin(indicator);
   if (!plugin) return null;
 
   const settings = mergeChartSettings(chartSettings);
@@ -222,10 +225,28 @@ export function resolveIndicatorLegend(
     });
   }
 
+  const snap = resolveIndicatorResultProvider(resultProvider).getSnapshot(indicator.id);
+  if (snap && snap.state !== 'ready') {
+    const label =
+      snap.state === 'calculating'
+        ? 'Calculating…'
+        : snap.state === 'stale'
+          ? 'Stale'
+          : snap.error ?? formatScriptError(snap.errorCode);
+    sections.push({
+      kind: 'text',
+      text: label,
+      muted: true,
+      tooltip: snap.error ?? snap.state,
+    });
+  }
+
   if (settings.statusLine.indicatorShowValues) {
+    const provider = resolveIndicatorResultProvider(resultProvider);
+    const seriesData = provider.resolveSeries(plugin, indicator, candles);
     const entries =
       plugin.legendAt?.(index, candles, inputs, theme) ??
-      legendFromOutputs(plugin, index, candles, indicator, theme);
+      legendFromOutputs(plugin, index, candles, indicator, theme, seriesData);
     if (entries) {
       for (const entry of entries) {
         if (!entry.label) continue;

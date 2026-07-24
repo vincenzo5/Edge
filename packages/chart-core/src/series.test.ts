@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearHeikinAshiCache } from './heikinAshiCache';
 import {
   applyCandleAppend,
   applyCandleReplaceLatest,
@@ -8,6 +9,8 @@ import {
   ensureCandlesCover,
   mergeCandlesByTimestamp,
   mergeCandlesPrepend,
+  RESIDENT_BAR_SOFT_MAX,
+  trimResidentBars,
   toHeikinAshi,
   transformCandlesForChartType,
 } from './series';
@@ -67,9 +70,11 @@ describe('applyCandleReplaceLatest', () => {
     expect(next.at(-1)?.c).toBe(8);
   });
 
-  it('appends when the incoming bar is newer', () => {
+  it('replaces the tip when the provider remaps its timestamp', () => {
     const next = applyCandleReplaceLatest(base, { t: 3000, o: 3, h: 3, l: 3, c: 3 });
+    expect(next).toHaveLength(2);
     expect(next.at(-1)?.t).toBe(3000);
+    expect(next.map((c) => c.t)).toEqual([1000, 3000]);
   });
 });
 
@@ -105,6 +110,10 @@ describe('applyCandleStreamEvent', () => {
 });
 
 describe('toHeikinAshi', () => {
+  beforeEach(() => {
+    clearHeikinAshiCache();
+  });
+
   it('transforms a simple series correctly', () => {
     const input: Candle[] = [
       { t: 1, o: 10, h: 12, l: 9, c: 11 },
@@ -121,7 +130,20 @@ describe('toHeikinAshi', () => {
   it('returns empty array for empty input', () => {
     expect(toHeikinAshi([])).toEqual([]);
   });
+
+  it('reuses cached transform for identical input', () => {
+    const first = toHeikinAshi(sampleForHa());
+    const second = toHeikinAshi(sampleForHa());
+    expect(second).toBe(first);
+  });
 });
+
+function sampleForHa(): Candle[] {
+  return [
+    { t: 1, o: 10, h: 12, l: 9, c: 11 },
+    { t: 2, o: 11, h: 13, l: 10, c: 12 },
+  ];
+}
 
 describe('transformCandlesForChartType', () => {
   const input: Candle[] = [
@@ -158,6 +180,41 @@ describe('applyVisibleSlice', () => {
   it('slices from the start when visibleCount is positive', () => {
     expect(applyVisibleSlice(data, 3)).toHaveLength(3);
     expect(applyVisibleSlice(data, 3)[2].t).toBe(2);
+  });
+});
+
+describe('trimResidentBars', () => {
+  function makeCandles(count: number, startT = 0): Candle[] {
+    return Array.from({ length: count }, (_, i) => ({
+      t: startT + i * 1000,
+      o: i,
+      h: i + 1,
+      l: i - 1,
+      c: i,
+    }));
+  }
+
+  it('returns unchanged series when at or under soft max', () => {
+    const candles = makeCandles(100);
+    const result = trimResidentBars(candles, 5000);
+    expect(result.removed).toBe(0);
+    expect(result.candles).toBe(candles);
+  });
+
+  it('keeps newest bars and reports removed count', () => {
+    const candles = makeCandles(5100);
+    const result = trimResidentBars(candles, 5000);
+    expect(result.removed).toBe(100);
+    expect(result.candles).toHaveLength(5000);
+    expect(result.candles[0]?.t).toBe(100_000);
+    expect(result.candles.at(-1)?.t).toBe(candles.at(-1)?.t);
+  });
+
+  it('uses RESIDENT_BAR_SOFT_MAX by default', () => {
+    const candles = makeCandles(RESIDENT_BAR_SOFT_MAX + 50);
+    const result = trimResidentBars(candles);
+    expect(result.candles).toHaveLength(RESIDENT_BAR_SOFT_MAX);
+    expect(result.removed).toBe(50);
   });
 });
 

@@ -4,12 +4,16 @@ import type { Candle, IndicatorConfig } from './contracts';
 import {
   clearComputeCache,
   computeCacheKey,
+  computeTipStableCacheKey,
+  candleTipRevisionFromSeries,
   defaultValueAt,
+  getComputeCacheEntryCount,
   getComputedSeries,
   legendFromOutputs,
   resolveOutputColor,
   resolveSeriesStyle,
 } from './indicatorCompute';
+import { applyCandleReplaceLatest } from '@edge/chart-core';
 import { ma } from './indicators/ma';
 
 const candles: Candle[] = [
@@ -47,9 +51,11 @@ describe('indicatorCompute', () => {
   });
 
   describe('computeCacheKey', () => {
-    it('includes name, inputs, length, and boundary timestamps', () => {
+    it('includes name, inputs, length, boundary timestamps, and body hash (tip-stable)', () => {
       const key = computeCacheKey('MACD', { fast: 12 }, candles);
-      expect(key).toBe('MACD|[["fast",12]]|3|1|3');
+      expect(key).toMatch(/^MACD\|\[\["fast",12\]\]\|3\|1\|3\|[a-z0-9]+$/);
+      expect(key).toBe(computeTipStableCacheKey('MACD', { fast: 12 }, candles));
+      expect(key).not.toContain(candleTipRevisionFromSeries(candles));
     });
   });
 
@@ -136,6 +142,26 @@ describe('indicatorCompute', () => {
 
       getComputedSeries(firstPlugin, candles, {});
       expect(firstCalls).toBe(2);
+    });
+
+    it('does not grow cache entry count on repeated tip replace-latest ticks', () => {
+      const plugin = makeTestPlugin();
+      let series = [...candles];
+      getComputedSeries(plugin, series, {});
+      expect(getComputeCacheEntryCount()).toBe(1);
+
+      for (let i = 0; i < 20; i += 1) {
+        const last = series[series.length - 1]!;
+        series = applyCandleReplaceLatest(series, {
+          ...last,
+          c: last.c + 0.25,
+          h: Math.max(last.h, last.c + 0.25),
+        });
+        getComputedSeries(plugin, series, {});
+        expect(getComputeCacheEntryCount()).toBe(1);
+      }
+
+      expect(plugin.compute).toHaveBeenCalledTimes(21);
     });
   });
 

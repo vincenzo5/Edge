@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { VisibleRange } from '@edge/chart-core';
 import { TIME_AXIS_HEIGHT, PRICE_AXIS_WIDTH } from '@edge/chart-core/layout';
 import { buildHistogramGeometry, buildLineGeometry } from './seriesGeometry';
+import { createGeometryBufferPool } from './geometryBufferPool';
 
 function mockViewport(values: number[]): VisibleRange {
   const width = 800;
@@ -36,5 +37,13 @@ describe('seriesGeometry', () => {
     const geometry = buildHistogramGeometry([10, -5, 15], mockViewport([10, -5, 15]), 0);
     expect(geometry.vertexCount).toBeGreaterThan(0);
     expect(geometry.vertexCount % 3).toBe(0);
+  });
+
+  it('reuses pool backing store across builds', () => {
+    const pool = createGeometryBufferPool();
+    const vp = mockViewport([10, 20, 30, 40]);
+    const first = buildLineGeometry([10, 20, 30], vp, pool, 'line');
+    const second = buildLineGeometry([15, 25, 35], vp, pool, 'line');
+    expect(first.vertices.buffer).toBe(second.vertices.buffer);
   });
 });

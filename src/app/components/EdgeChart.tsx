@@ -21,13 +21,17 @@ import PackageEdgeChart, {
 } from '@edge/chart-react';
 import type { Candle, ChartDataMeta, ChartAnnotationChannelMarker } from '@edge/chart-core';
 import type { CellConfig, Theme, TrackedOverlay, SerializedDrawing } from '@/lib/chartConfig';
+import { DEFAULT_PALETTE, type PaletteId } from '@/lib/design-system/palettes';
 import { mergeChartSettings } from '@/lib/chartConfig';
+import type { ChartTimeZone } from '@/lib/chart/timeZone';
+import { isChartMetaDisplayFresh } from '@/lib/marketData/trust/dataTrust';
 import { buildCandleSessionKey } from '@/lib/chart/rangePresetTransition';
 import { resolveCellFetchRange } from '@/lib/chart/rangeInterval';
 import { cellConfigToChartState } from '@/lib/chart/stateMapping';
 import {
   captureChartElement,
   SnapshotCaptureError,
+  waitFrames,
   type SnapshotCaptureOptions,
 } from '@/lib/chart/chartSnapshot';
 import {
@@ -36,12 +40,18 @@ import {
   useChartOverlays,
   type UseChartDataFeedOptions,
 } from '@/lib/chartDataFeed';
+import { createChartScriptSeriesResolver } from '@/lib/chart/scriptSeriesResolver';
 import { eventKindsFromChartSettings } from '@/lib/chartDataFeed/eventOverlaySettings';
 import { drawingsToAnnotationMarkers, mergeAnnotationMarkers } from '@/lib/chartDataFeed/overlayMappers';
 import { useAccountOptional } from './AccountProvider';
 import { buildPositionReferenceLines } from '@/lib/brokerage/positionOverlays';
+import { buildMarginCallReferenceLines } from '@/lib/brokerage/marginCallOverlays';
+import { useSidebarOptional } from './SidebarContext';
+import { useRiskSettingsOptional } from './RiskSettingsProvider';
+import { useRiskLiquidationOverlayOptional } from './risk/RiskLiquidationOverlayContext';
 import ChartOverlayStatusStack from './chart-cell/ChartOverlayStatusStack';
 import ChartLoadingOverlay from './chart-cell/ChartLoadingOverlay';
+import { useScriptAlertSnapshotBridge } from '@/lib/alerts/useScriptAlertSnapshotBridge';
 
 export { indicatorKey, parseIndicatorKey, legacyParseIndicatorKey };
 export type { GoToRequest, GoToResult, DrawingScreenBounds, IndicatorKey };
@@ -54,6 +64,7 @@ export type ChartHandle = EdgeChartHandle & {
 type Props = {
   config: CellConfig;
   theme: Theme;
+  palette?: PaletteId;
   visibleCount?: number | null;
   chartId: string;
   onConfigChange?: (next: CellConfig) => void;
@@ -91,6 +102,7 @@ type Props = {
   liveMarketSession?: import('@edge/chart-core').MarketSessionKind | null;
   marketSessionLabel?: string | null;
   feed?: UseChartDataFeedOptions['feed'];
+  scriptSourceResolver?: import("@edge/chart-core").ScriptSourceResolver | null;
   /** Bump to refetch candles without changing symbol/range/interval. */
   reloadKey?: number;
   /** Bump feed reload (e.g. after chart error boundary or status badge retry). */
@@ -103,12 +115,20 @@ type Props = {
   showDataHealthBadge?: boolean;
   /** Transient journal execution markers (not persisted as drawings). */
   journalAnnotationMarkers?: ChartAnnotationChannelMarker[];
+  /** App default timezone — charts inherit when per-chart setting is unset. */
+  defaultTimeZone?: ChartTimeZone;
+  /** Fired after price-pane viewport mutations (pan/zoom/scale/restore). */
+  onViewportChange?: () => void;
+  /** Enable live candle subscription when the feed supports it. Default true. */
+  live?: boolean;
+  extraPriceAxisAnnotations?: import("@edge/chart-core/priceAxisTypes").PriceAxisAnnotation[];
 };
 
 const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) {
   const {
     config,
     theme,
+    palette = DEFAULT_PALETTE,
     visibleCount = null,
     chartId,
     onConfigChange,
@@ -126,6 +146,8 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     marketSessionLabel = null,
     showDataHealthBadge = false,
     journalAnnotationMarkers = [],
+    defaultTimeZone,
+    live = true,
     ...rest
   } = props;
 
@@ -158,7 +180,14 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     range: fetchRange,
     sessionMode,
     reloadKey,
+    live,
   });
+
+  const displayStale = useMemo(() => {
+    if (error || refreshing || streamError) return false;
+    if (!meta) return stale;
+    return !isChartMetaDisplayFresh(meta) && stale;
+  }, [meta, stale, streamError, error, refreshing]);
 
   const localAnnotations = useMemo(
     () =>
@@ -183,8 +212,8 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
 
   const account = useAccountOptional();
   const chartSettingsMerged = useMemo(
-    () => mergeChartSettings(config.chartSettings),
-    [config.chartSettings],
+    () => mergeChartSettings(config.chartSettings, { defaultTimeZone }),
+    [config.chartSettings, defaultTimeZone],
   );
   const positionReferenceLines = useMemo(() => {
     if (!chartSettingsMerged.trading.showPositions || !account) return [];
@@ -192,9 +221,31 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     return buildPositionReferenceLines(position);
   }, [account, chartSettingsMerged.trading.showPositions, config.symbol]);
 
+  const sidebar = useSidebarOptional();
+  const riskSettings = useRiskSettingsOptional();
+  const liquidationOverlay = useRiskLiquidationOverlayOptional();
+
+  const marginCallReferenceLines = useMemo(() => {
+    if (sidebar?.activePanel !== 'settings') return [];
+    if (riskSettings?.settings.showLiquidationLine !== true) return [];
+    if (liquidationOverlay == null) return [];
+    return buildMarginCallReferenceLines(
+      liquidationOverlay.price,
+      liquidationOverlay.verdict,
+    );
+  }, [
+    sidebar?.activePanel,
+    riskSettings?.settings.showLiquidationLine,
+    liquidationOverlay,
+  ]);
+
   const mergedReferenceLines = useMemo(
-    () => [...overlayState.referenceLines, ...positionReferenceLines],
-    [overlayState.referenceLines, positionReferenceLines],
+    () => [
+      ...overlayState.referenceLines,
+      ...positionReferenceLines,
+      ...marginCallReferenceLines,
+    ],
+    [overlayState.referenceLines, positionReferenceLines, marginCallReferenceLines],
   );
 
   const baseCandlesRef = useRef<Candle[]>([]);
@@ -205,6 +256,23 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     () => buildCandleSessionKey(config.symbol, fetchRange, config.interval),
     [config.symbol, fetchRange, config.interval],
   );
+
+  const scriptSeriesContext = useMemo(
+    () => ({
+      symbol: config.symbol,
+      interval: config.interval,
+      range: fetchRange,
+      sessionMode,
+    }),
+    [config.symbol, config.interval, fetchRange, sessionMode],
+  );
+
+  const scriptSeriesResolver = useMemo(
+    () => createChartScriptSeriesResolver(feed),
+    [feed],
+  );
+
+  const handleScriptResultReady = useScriptAlertSnapshotBridge(config.symbol);
 
   useEffect(() => {
     if (candles.length > 0) {
@@ -256,6 +324,8 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       restoreDrawings: (data) => innerRef.current?.restoreDrawings(data),
       getVisibleRange: () => innerRef.current?.getVisibleRange() ?? null,
       setVisibleRange: (start, end) => innerRef.current?.setVisibleRange(start, end),
+      applyViewportSnapshot: (snapshot) =>
+        innerRef.current?.applyViewportSnapshot(snapshot) ?? false,
       onCrosshair: (cb) => innerRef.current?.onCrosshair(cb) ?? (() => {}),
       setCrosshairFromSync: (ts) => innerRef.current?.setCrosshairFromSync(ts),
       getTrackedOverlays: () => innerRef.current?.getTrackedOverlays() ?? [],
@@ -308,6 +378,14 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         return captureChartElement(el, {
           ...opts,
           candleCount: innerRef.current?.getRawCandleCount() ?? baseCandlesRef.current.length,
+          afterPrepare: async () => {
+            await opts?.afterPrepare?.();
+            innerRef.current?.resize();
+            await waitFrames(2);
+            await new Promise<void>((resolve) => {
+              window.setTimeout(resolve, 120);
+            });
+          },
         });
       },
     }),
@@ -323,7 +401,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         showMarketStatus={config.chartSettings?.statusLine?.showMarketStatus !== false}
         error={error}
         streamError={streamError}
-        stale={stale}
+        stale={displayStale}
         refreshing={refreshing}
         source={meta?.source}
         onRetry={onRetry}
@@ -342,6 +420,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         candles={candles}
         state={chartState}
         theme={theme}
+        palette={palette}
         visibleCount={visibleCount}
         loading={loading}
         error={error}
@@ -358,12 +437,16 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         collapsedKeys={collapsedKeys}
         maximizedKey={maximizedKey}
         paneOrder={paneOrder}
+        defaultTimeZone={defaultTimeZone}
         onLoadOlderCandles={handleLoadOlderCandles}
         onRangePresetClear={handleRangePresetClear}
         onCandlesChange={handleCandlesChange}
         eventMarkers={overlayState.events}
         referenceLines={mergedReferenceLines}
         annotationMarkers={overlayState.annotations}
+        seriesContext={scriptSeriesContext}
+        seriesResolver={scriptSeriesResolver}
+        onScriptResultReady={handleScriptResultReady}
         {...rest}
       />
     </div>

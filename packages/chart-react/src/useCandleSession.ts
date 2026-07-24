@@ -11,11 +11,11 @@ import {
   type RefObject,
 } from 'react';
 import type { Candle, Interval, Range, SerializedChartState, VisibleRange } from '@edge/chart-core';
-import { applyVisibleSlice, mergeCandlesPrepend, transformCandlesForChartType, ensureCandlesCover } from '@edge/chart-core/series';
+import { applyVisibleSlice, mergeCandlesPrepend, transformCandlesForChartType, ensureCandlesCover, RESIDENT_BAR_SOFT_MAX, trimResidentBars } from '@edge/chart-core/series';
 import { createHistoryPrefetchController, type HistoryPrefetchController } from './engine/historyPrefetchController';
 import { buildCandleSessionKey, resolveViewportRevision } from './engine/rangePresetTransition';
 import { goToDate, goToRange, type GoToRequest, type GoToResult } from './engine/goTo';
-import { adjustViewportForPrepend } from './engine/viewport';
+import { adjustViewportForPrepend, adjustViewportForTrim } from './engine/viewport';
 import { resetAllPaneViewports } from './createEdgeChartHandle';
 import type { ChartPaneHandle } from './engine/paneHandle';
 
@@ -158,11 +158,14 @@ export function useCandleSession(deps: CandleSessionDeps): CandleSession {
             userHasPanned: userPannedTimeAxisRef.current,
           };
         },
-        onFetch: async () => {
+        onFetch: async (context) => {
           const base = baseCandlesRef.current;
           const loader = onLoadOlderCandlesRef.current;
           if (!loader || base.length === 0) {
             return { addedBars: 0, hasMore: false };
+          }
+          if (base.length >= RESIDENT_BAR_SOFT_MAX && context.background) {
+            return { addedBars: 0, hasMore: hasMoreHistoryRef.current };
           }
           try {
             const older = await loader(base[0]!.t);
@@ -170,24 +173,28 @@ export function useCandleSession(deps: CandleSessionDeps): CandleSession {
               hasMoreHistoryRef.current = false;
               return { addedBars: 0, hasMore: false };
             }
-            const merged = mergeCandlesPrepend(base, older);
-            const added = merged.length - base.length;
+            const mergedRaw = mergeCandlesPrepend(base, older);
+            const added = mergedRaw.length - base.length;
             if (added <= 0) {
               hasMoreHistoryRef.current = false;
               return { addedBars: 0, hasMore: false };
             }
+            const { candles: merged, removed } = trimResidentBars(mergedRaw);
             const priceHandle = paneHandlesRef.current?.get('price');
             const vp = priceHandle?.getViewport();
             if (vp && priceHandle) {
-              const shifted = adjustViewportForPrepend(vp, added);
-              priceHandle.syncTimeWindow(shifted.startIndex, shifted.endIndex, true);
-              syncSiblingsRef.current(shifted.startIndex, shifted.endIndex, 'price');
+              let nextVp = adjustViewportForPrepend(vp, added);
+              if (removed > 0) {
+                nextVp = adjustViewportForTrim(nextVp, removed);
+              }
+              priceHandle.syncTimeWindow(nextVp.startIndex, nextVp.endIndex, true);
+              syncSiblingsRef.current(nextVp.startIndex, nextVp.endIndex, 'price');
               latestVpRef.current = priceHandle.getViewport();
             }
             baseCandlesRef.current = merged;
             setBaseCandles(merged);
             onCandlesChangeRef.current?.(merged);
-            return { addedBars: added, hasMore: hasMoreHistoryRef.current };
+            return { addedBars: Math.max(0, merged.length - base.length), hasMore: hasMoreHistoryRef.current };
           } catch (e: unknown) {
             if (!(e instanceof DOMException && e.name === 'AbortError')) {
               hasMoreHistoryRef.current = false;
@@ -269,9 +276,23 @@ export function useCandleSession(deps: CandleSessionDeps): CandleSession {
       if (!loader) return Promise.resolve([] as Candle[]);
       return loader(beforeMs);
     };
+    const trimSessionCandles = (series: Candle[]): Candle[] => {
+      const { candles: trimmed, removed } = trimResidentBars(series);
+      if (removed > 0) {
+        const vp = priceHandle.getViewport();
+        if (vp) {
+          const shifted = adjustViewportForTrim(vp, removed);
+          priceHandle.syncTimeWindow(shifted.startIndex, shifted.endIndex, true);
+          syncSiblingsRef.current(shifted.startIndex, shifted.endIndex, 'price');
+          latestVpRef.current = priceHandle.getViewport();
+        }
+      }
+      return trimmed;
+    };
     const ensureCover = async (targetMs: number) => {
       try {
-        return await ensureCandlesCover(candles, targetMs, fetchOlder, 20, minLeadingBars);
+        const cover = await ensureCandlesCover(candles, targetMs, fetchOlder, 20, minLeadingBars);
+        return { ...cover, candles: trimSessionCandles(cover.candles) };
       } catch {
         return null;
       }

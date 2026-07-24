@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Interval, Theme } from '@/lib/chart/contracts';
 import type { GoToRequest, GoToResult } from '@/lib/chart/goTo';
 import { EdgeButton, EdgeModalShell, EdgeSegmentedTabs } from './design-system';
+import { fieldClass } from './design-system/styles';
 
 type Tab = 'date' | 'range';
 
@@ -54,8 +55,6 @@ function resultMessage(result: GoToResult): string | null {
   }
 }
 
-const fieldClass =
-  'rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-sm text-[var(--edge-text-primary)]';
 
 export default function ChartGoToModal({
   open,
@@ -173,7 +172,7 @@ export default function ChartGoToModal({
               type="date"
               value={dateValue}
               onChange={(e) => setDateValue(e.target.value)}
-              className={`${fieldClass} flex-1`}
+              className={`${fieldClass({ density: "compact" })} flex-1`}
             />
             <input
               type="time"
@@ -181,7 +180,7 @@ export default function ChartGoToModal({
               onChange={(e) => setTimeValue(e.target.value)}
               disabled={!showTime}
               title={showTime ? undefined : 'Time selection applies to intraday intervals only'}
-              className={`${fieldClass} w-24 ${!showTime ? 'opacity-50' : ''}`}
+              className={`${fieldClass({ density: "compact" })} w-24 ${!showTime ? 'opacity-50' : ''}`}
             />
           </div>
         ) : (
@@ -191,7 +190,7 @@ export default function ChartGoToModal({
                 type="date"
                 value={rangeFrom}
                 onChange={(e) => setRangeFrom(e.target.value)}
-                className={`${fieldClass} flex-1`}
+                className={`${fieldClass({ density: "compact" })} flex-1`}
                 aria-label="Range start date"
               />
               <input
@@ -199,7 +198,7 @@ export default function ChartGoToModal({
                 value={rangeFromTime}
                 onChange={(e) => setRangeFromTime(e.target.value)}
                 disabled={!showTime}
-                className={`${fieldClass} w-24 ${!showTime ? 'opacity-50' : ''}`}
+                className={`${fieldClass({ density: "compact" })} w-24 ${!showTime ? 'opacity-50' : ''}`}
               />
             </div>
             <div className="flex gap-2">
@@ -207,7 +206,7 @@ export default function ChartGoToModal({
                 type="date"
                 value={rangeTo}
                 onChange={(e) => setRangeTo(e.target.value)}
-                className={`${fieldClass} flex-1`}
+                className={`${fieldClass({ density: "compact" })} flex-1`}
                 aria-label="Range end date"
               />
               <input
@@ -215,7 +214,7 @@ export default function ChartGoToModal({
                 value={rangeToTime}
                 onChange={(e) => setRangeToTime(e.target.value)}
                 disabled={!showTime}
-                className={`${fieldClass} w-24 ${!showTime ? 'opacity-50' : ''}`}
+                className={`${fieldClass({ density: "compact" })} w-24 ${!showTime ? 'opacity-50' : ''}`}
               />
             </div>
           </>

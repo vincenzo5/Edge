@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAnnotationNarrative,
   buildThesisSummary,
   filterDrawingsByMetadata,
   mergeMetadata,
@@ -94,5 +95,19 @@ describe("annotationMetadata", () => {
     ]);
     expect(summary).toContain("1 active thesis");
     expect(summary).toContain("1 invalidation level");
+  });
+
+  it("builds annotation narrative with rationale and status", () => {
+    const narrative = buildAnnotationNarrative([
+      baseDrawing({
+        metadata: {
+          kind: "invalidation",
+          status: "proposed",
+          source: "ai",
+          rationale: "Break below $170",
+        },
+      }),
+    ]);
+    expect(narrative).toBe("invalidation (proposed): Break below $170");
   });
 });

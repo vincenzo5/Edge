@@ -9,14 +9,16 @@ import type {
   Theme,
   VisibleRange,
 } from '@edge/chart-core';
-import { DrawingRegistry, IndicatorRegistry } from '@edge/chart-core';
+import { DrawingRegistry } from '@edge/chart-core';
+import { resolveIndicatorPlugin, resolveIndicatorResultProvider, type IndicatorResultProvider } from './indicatorResultProvider';
 import { pointToPlot } from '@edge/chart-core/drawingCoords';
+import { drawScriptObjects } from '@edge/chart-core';
 import { drawAnnotationBadge } from '@edge/chart-core/drawings/annotationBadge';
 import { drawControlPoints, sortDrawingsByZ } from '@edge/chart-core/drawings/primitives';
 import { drawIndicator } from '@edge/chart-core/indicators/draw';
 import type { PriceScaleSide } from '@edge/chart-core/layout';
 import type { RequiredChartSettings } from './chartSettings';
-import type { BackgroundLayerCache } from './layerCache';
+import type { BackgroundLayerCache, SeriesLayerCache } from './layerCache';
 import {
   drawAxes,
   drawAnnotationMarkers,
@@ -39,12 +41,14 @@ import { isWebGLCandlesPreferred } from './webgl/candleWebGL';
 import type { IndicatorWebGLRenderer } from './webgl/indicatorWebGL';
 import { isWebGLIndicatorsPreferred } from './webgl/indicatorWebGL';
 import { isWebGLCompatibleIndicator } from './webgl/indicatorGeometry';
+import { resolveMainPaneScriptBarColors } from './scriptBarcolor';
 
 export type ChartLayerId =
   | 'background'
   | 'grid'
   | 'candles'
   | 'indicators'
+  | 'scriptObjects'
   | 'drawings'
   | 'axes';
 
@@ -83,6 +87,8 @@ export type LayerDrawState = {
   reasons: ReadonlySet<DrawInvalidationReason>;
   backgroundCache: BackgroundLayerCache;
   reuseBackground: boolean;
+  seriesCache: SeriesLayerCache;
+  reuseSeries: boolean;
   /** When set and ready, main-pane OHLC may render via WebGL (blit into ctx). */
   candleWebGL?: CandleWebGLRenderer | null;
   /** True when WebGL candle backend is active for this pane draw. */
@@ -91,6 +97,9 @@ export type LayerDrawState = {
   indicatorWebGL?: IndicatorWebGLRenderer | null;
   /** True when WebGL indicator backend is active for this pane draw. */
   indicatorsUseWebGL?: boolean;
+  /** Per-chart script result provider (Phase 2). */
+  indicatorResultProvider?: IndicatorResultProvider | null;
+  extraPriceAxisAnnotations?: import('@edge/chart-core/priceAxisTypes').PriceAxisAnnotation[];
 };
 
 export type ChartLayer = {
@@ -108,9 +117,44 @@ export const LAYER_PHASE_KEY: Record<ChartLayerId, keyof Omit<DrawPhaseTimings, 
   grid: 'gridMs',
   candles: 'candlesMs',
   indicators: 'indicatorsMs',
+  scriptObjects: 'indicatorsMs',
   drawings: 'drawingsMs',
   axes: 'axesMs',
 };
+
+export const SERIES_LAYER_IDS: ReadonlySet<ChartLayerId> = new Set([
+  'candles',
+  'indicators',
+  'scriptObjects',
+]);
+
+function drawSeriesLayerContent(state: LayerDrawState, registry: LayerRegistry): void {
+  for (const id of ['candles', 'indicators', 'scriptObjects'] as const) {
+    const layer = registry.get(id);
+    if (!layer) continue;
+    if (layer.shouldDraw && !layer.shouldDraw(state)) continue;
+    layer.draw(state);
+  }
+}
+
+/** Blit or rebuild the composite candles/indicators/scriptObjects OffscreenCanvas layer. */
+export function drawSeriesLayersWithCache(
+  state: LayerDrawState,
+  registry: LayerRegistry,
+): void {
+  const { ctx, width, height, theme, seriesCache, reuseSeries } = state;
+
+  if (reuseSeries) {
+    seriesCache.blitTo(ctx, width, height);
+    return;
+  }
+
+  seriesCache.invalidate();
+  seriesCache.ensure(width, height, theme, (seriesCtx) => {
+    drawSeriesLayerContent({ ...state, ctx: seriesCtx }, registry);
+  });
+  seriesCache.blitTo(ctx, width, height);
+}
 
 function drawBackgroundLayer(state: LayerDrawState): void {
   const {
@@ -155,6 +199,8 @@ function drawCandleOhlc(state: LayerDrawState): void {
     priceScaleSide,
     candleWebGL,
     candlesUseWebGL,
+    indicators,
+    indicatorResultProvider,
   } = state;
 
   if (state.isPricePane && chartSettings.symbol.sessionMode === 'extended') {
@@ -185,7 +231,21 @@ function drawCandleOhlc(state: LayerDrawState): void {
     });
 
   if (!usedWebGL) {
-    drawCandles(ctx, candles, vp, theme, chartType as Parameters<typeof drawCandles>[4], chartSettings);
+    const barColors = resolveMainPaneScriptBarColors(
+      indicators,
+      candles,
+      theme,
+      indicatorResultProvider,
+    );
+    drawCandles(
+      ctx,
+      candles,
+      vp,
+      theme,
+      chartType as Parameters<typeof drawCandles>[4],
+      chartSettings,
+      barColors,
+    );
   }
 }
 
@@ -266,12 +326,12 @@ function drawIndicatorPlotsLayer(state: LayerDrawState): void {
 
   const webglCandidates = indicators.filter((ind) => {
     if (ind.visible === false) return false;
-    const plugin = IndicatorRegistry.get(ind.name);
+    const plugin = resolveIndicatorPlugin(ind);
     return !!plugin && isWebGLCompatibleIndicator(plugin);
   });
   const canvasOnly = indicators.filter((ind) => {
     if (ind.visible === false) return false;
-    const plugin = IndicatorRegistry.get(ind.name);
+    const plugin = resolveIndicatorPlugin(ind);
     return !!plugin && !isWebGLCompatibleIndicator(plugin);
   });
 
@@ -286,6 +346,7 @@ function drawIndicatorPlotsLayer(state: LayerDrawState): void {
       width,
       height,
       priceScaleSide,
+      resultProvider: state.indicatorResultProvider,
     });
   }
 
@@ -294,9 +355,11 @@ function drawIndicatorPlotsLayer(state: LayerDrawState): void {
     : indicators.filter((ind) => ind.visible !== false);
 
   for (const ind of canvasIndicators) {
-    const plugin = IndicatorRegistry.get(ind.name);
+    const plugin = resolveIndicatorPlugin(ind);
     if (plugin) {
-      drawIndicator(plugin, ind, ctx, candles, vp, theme);
+      const provider = resolveIndicatorResultProvider(state.indicatorResultProvider);
+      const data = provider.resolveSeries(plugin, ind, candles);
+      drawIndicator(plugin, ind, ctx, candles, vp, theme, data);
     }
   }
 }
@@ -315,6 +378,13 @@ export function createIndicatorsLayer(backend: LayerBackend): ChartLayer {
 /** Swap the registry indicators layer to the WebGL backend (metadata only; draw falls back to Canvas). */
 export function registerWebGLIndicatorsLayer(registry: LayerRegistry): void {
   registry.register(createIndicatorsLayer('webgl'));
+}
+
+function drawScriptObjectsLayer(state: LayerDrawState): void {
+  const provider = resolveIndicatorResultProvider(state.indicatorResultProvider);
+  const entries = provider.collectScriptObjectDrawEntries(state.indicators, state.candles);
+  if (entries.length === 0) return;
+  drawScriptObjects(state.ctx, entries, state.vp, state.candles, state.theme);
 }
 
 function drawDrawingsLayer(state: LayerDrawState): void {
@@ -425,6 +495,8 @@ function drawAxesLabelsLayer(state: LayerDrawState): void {
       showTimeAxis: effectiveShowTimeAxis,
       livePrice,
       liveMarketSession: state.liveMarketSession,
+      resultProvider: state.indicatorResultProvider,
+      extraPriceAxisAnnotations: state.extraPriceAxisAnnotations,
     });
   }
 }
@@ -448,6 +520,13 @@ export const STANDARD_CHART_LAYERS: readonly ChartLayer[] = [
   },
   createCandlesLayer(isWebGLCandlesPreferred() ? 'webgl' : 'canvas'),
   createIndicatorsLayer(isWebGLIndicatorsPreferred() ? 'webgl' : 'canvas'),
+  {
+    id: 'scriptObjects',
+    z: 35,
+    backend: 'canvas',
+    invalidatingReasons: SERIES_INVALIDATING,
+    draw: drawScriptObjectsLayer,
+  },
   {
     id: 'drawings',
     z: 40,

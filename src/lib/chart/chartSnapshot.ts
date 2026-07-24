@@ -4,6 +4,7 @@ export type SnapshotError =
   | 'no_element'
   | 'no_data'
   | 'zero_size'
+  | 'too_narrow'
   | 'capture_failed'
   | 'clipboard_unsupported'
   | 'clipboard_denied'
@@ -12,7 +13,15 @@ export type SnapshotError =
 export type SnapshotCaptureOptions = {
   includeCrosshair?: boolean;
   pixelRatio?: number;
+  /** Runs after overlay expand / layout settle, before html-to-image (e.g. chart.resize()). */
+  afterPrepare?: () => void | Promise<void>;
 };
+
+/** Minimum rendered size after overlay expand — below this, capture is rejected. */
+export const MIN_SNAPSHOT_CAPTURE_WIDTH = 160;
+export const MIN_SNAPSHOT_CAPTURE_HEIGHT = 100;
+
+const CHART_GRID_HOST_TEST_ID = 'chart-grid-host';
 
 export type SnapshotAction = 'download' | 'copy' | 'open';
 
@@ -38,6 +47,8 @@ export function snapshotErrorMessage(reason: SnapshotError): string {
       return 'Chart is still loading.';
     case 'zero_size':
       return 'Chart area has no visible size.';
+    case 'too_narrow':
+      return 'Chart area is too narrow to capture. Close side panels or enlarge the chart tile.';
     case 'capture_failed':
       return 'Could not capture the chart image.';
     case 'clipboard_unsupported':
@@ -109,6 +120,46 @@ function resolvePixelRatio(pixelRatio?: number): number {
   return Math.min(window.devicePixelRatio || 1, 2);
 }
 
+/**
+ * Side panels reserve chart width via padding-right on the grid host. While a
+ * docked account/journal panel is open that can squeeze the chart to a useless
+ * sliver (~50px). Temporarily clear the inset so capture sees the real tile.
+ */
+export async function prepareChartElementForCapture(root: HTMLElement): Promise<() => void> {
+  const host = root.closest(`[data-testid="${CHART_GRID_HOST_TEST_ID}"]`);
+  if (!(host instanceof HTMLElement) || !host.style.paddingRight) {
+    return () => {};
+  }
+
+  const previousPadding = host.style.paddingRight;
+  host.style.paddingRight = "0px";
+
+  // Allow layout + ResizeObserver + WebGL buffer resize before capture.
+  await waitFrames(2);
+  window.dispatchEvent(new Event("resize"));
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 400);
+  });
+  await waitFrames(3);
+
+  return () => {
+    host.style.paddingRight = previousPadding;
+  };
+}
+
+function assertCaptureSize(root: HTMLElement): void {
+  const rect = root.getBoundingClientRect();
+  if (rect.width <= 1 || rect.height <= 1) {
+    throw new SnapshotCaptureError('zero_size');
+  }
+  if (
+    rect.width < MIN_SNAPSHOT_CAPTURE_WIDTH ||
+    rect.height < MIN_SNAPSHOT_CAPTURE_HEIGHT
+  ) {
+    throw new SnapshotCaptureError('too_narrow');
+  }
+}
+
 export async function captureChartElement(
   root: HTMLElement,
   opts?: SnapshotCaptureOptions & { candleCount?: number },
@@ -116,6 +167,7 @@ export async function captureChartElement(
   const readyError = validateSnapshotReady(root, opts?.candleCount ?? 1);
   if (readyError) throw new SnapshotCaptureError(readyError);
 
+  const restoreOverlay = await prepareChartElementForCapture(root);
   const includeCrosshair = opts?.includeCrosshair ?? false;
   const crosshair = root.querySelector('[data-crosshair-overlay]');
   const crosshairEl = crosshair instanceof HTMLElement ? crosshair : null;
@@ -126,6 +178,10 @@ export async function captureChartElement(
   }
 
   try {
+    if (opts?.afterPrepare) {
+      await opts.afterPrepare();
+    }
+    assertCaptureSize(root);
     await waitFrames(2);
 
     const blob = await toBlob(root, {
@@ -145,6 +201,7 @@ export async function captureChartElement(
     if (!includeCrosshair && crosshairEl) {
       crosshairEl.style.visibility = previousVisibility ?? '';
     }
+    restoreOverlay();
   }
 }
 

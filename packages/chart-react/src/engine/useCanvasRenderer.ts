@@ -3,6 +3,7 @@ import type {
   Candle,
   VisibleRange,
   Theme,
+  PaletteId,
   SerializedDrawing,
   IndicatorConfig,
   Interval,
@@ -10,9 +11,10 @@ import type {
   ChartReferenceLine,
   ChartAnnotationChannelMarker,
 } from '@edge/chart-core';
+import { DEFAULT_PALETTE, setActiveChartPalette } from '@edge/chart-core';
 import type { RequiredChartSettings } from './chartSettings';
 import type { PriceScaleSide } from '@edge/chart-core/layout';
-import { BackgroundLayerCache } from './layerCache';
+import { BackgroundLayerCache, SeriesLayerCache } from './layerCache';
 import {
   defaultLayerRegistry,
   registerWebGLCandlesLayer,
@@ -30,6 +32,7 @@ import {
 } from './renderScheduler';
 import { drawPaneLayers } from './paneRenderer';
 import type { EventBadgeGroup } from './eventBadges';
+import type { IndicatorResultProvider } from './indicatorResultProvider';
 
 type CanvasRendererParams = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -37,6 +40,7 @@ type CanvasRendererParams = {
   candles: Candle[];
   chartType: string;
   theme: Theme;
+  palette?: PaletteId;
   width: number;
   height: number;
   drawings: SerializedDrawing[];
@@ -62,6 +66,8 @@ type CanvasRendererParams = {
   eventBadgeGroupsRef: RefObject<EventBadgeGroup[]>;
   drawRef: RefObject<(reason?: DrawInvalidationReason) => void>;
   schedulerRef: RefObject<RenderScheduler | null>;
+  indicatorResultProvider?: IndicatorResultProvider | null;
+  extraPriceAxisAnnotations?: import('@edge/chart-core/priceAxisTypes').PriceAxisAnnotation[];
 };
 
 export function useCanvasRenderer({
@@ -70,6 +76,7 @@ export function useCanvasRenderer({
   candles,
   chartType,
   theme,
+  palette = DEFAULT_PALETTE,
   width,
   height,
   drawings,
@@ -95,8 +102,11 @@ export function useCanvasRenderer({
   eventBadgeGroupsRef,
   drawRef,
   schedulerRef,
+  indicatorResultProvider = null,
+  extraPriceAxisAnnotations = [],
 }: CanvasRendererParams) {
   const backgroundCacheRef = useRef(new BackgroundLayerCache());
+  const seriesCacheRef = useRef(new SeriesLayerCache());
   const candleWebGLRef = useRef<CandleWebGLRenderer | null>(null);
   const candlesUseWebGLRef = useRef(false);
   const indicatorWebGLRef = useRef<IndicatorWebGLRenderer | null>(null);
@@ -194,10 +204,13 @@ export function useCanvasRenderer({
         },
         reasons,
         backgroundCache: backgroundCacheRef.current,
+        seriesCache: seriesCacheRef.current,
         candleWebGL: candleWebGLRef.current,
         candlesUseWebGL: candlesUseWebGLRef.current,
         indicatorWebGL: indicatorWebGLRef.current,
         indicatorsUseWebGL: indicatorsUseWebGLRef.current,
+        indicatorResultProvider,
+        extraPriceAxisAnnotations,
       });
       schedulerRef.current?.recordPhases(phases);
     },
@@ -207,6 +220,7 @@ export function useCanvasRenderer({
       candles,
       chartType,
       theme,
+      palette,
       width,
       height,
       drawings,
@@ -230,6 +244,8 @@ export function useCanvasRenderer({
       hoveredDrawingIdRef,
       hoveredEventBadgeIdRef,
       eventBadgeGroupsRef,
+      indicatorResultProvider,
+      extraPriceAxisAnnotations,
     ],
   );
 
@@ -251,6 +267,20 @@ export function useCanvasRenderer({
   drawRef.current = (reason: DrawInvalidationReason = 'data') => {
     drawNow(reason);
   };
+
+  useEffect(() => {
+    setActiveChartPalette(palette);
+    drawNow('theme');
+  }, [palette, drawNow]);
+
+  useEffect(() => {
+    return () => {
+      backgroundCacheRef.current.dispose();
+      seriesCacheRef.current.dispose();
+      schedulerRef.current?.dispose();
+      schedulerRef.current = null;
+    };
+  }, [schedulerRef]);
 
   useEffect(() => {
     drawNow('data');

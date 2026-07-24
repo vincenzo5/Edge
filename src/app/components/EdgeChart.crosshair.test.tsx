@@ -100,6 +100,7 @@ describe('EdgeChart crosshair coalescing', () => {
       expect(moveCalls[0]?.[0]).toEqual({
         timestamp: 1000,
         dataIndex: 0,
+        plotX: 100,
         valueLabel: '105.00',
       });
     });

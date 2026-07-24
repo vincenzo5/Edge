@@ -2,6 +2,12 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ChartErrorBoundary from "./ChartErrorBoundary";
 
+const reportLocalError = vi.fn();
+
+vi.mock("@/lib/observability/reportLocalError", () => ({
+  reportLocalError: (...args: unknown[]) => reportLocalError(...args),
+}));
+
 function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {
   if (shouldThrow) {
     throw new Error("Chart render failed");
@@ -29,8 +35,14 @@ describe("ChartErrorBoundary", () => {
       </ChartErrorBoundary>,
     );
 
-    expect(screen.getByTestId("chart-error-fallback")).toBeInTheDocument();
+    expect(screen.getByTestId("chart-error-fallback")).toHaveAttribute("role", "alert");
     expect(screen.getByText(/Chart render failed/)).toBeInTheDocument();
+    expect(reportLocalError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "chart",
+        message: "Chart render failed",
+      }),
+    );
     consoleError.mockRestore();
   });
 

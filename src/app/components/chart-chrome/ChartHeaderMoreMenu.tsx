@@ -4,7 +4,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import type { Theme } from '@/lib/chartConfig';
 import ChartAnchoredPopover from './ChartAnchoredPopover';
 import ChartHeaderButton from './ChartHeaderButton';
-import { menuItemClass } from './headerStyles';
+import EdgeMenuItem from '../design-system/EdgeMenuItem';
 
 type MoreMenuItem = {
   id: string;
@@ -48,21 +48,20 @@ export default function ChartHeaderMoreMenu({ theme, items }: Props) {
         onClose={() => setOpen(false)}
       >
         {items.map((item) => (
-          <button
+          <EdgeMenuItem
             key={item.id}
-            type="button"
+            theme={theme}
+            label={item.label}
+            selected={item.active}
             disabled={item.disabled}
-            title={item.title ?? item.label}
+            disabledReason={item.title ?? item.label}
+            icon={item.icon}
+            testId={`header-more-${item.id}`}
             onClick={() => {
               item.onClick?.();
               setOpen(false);
             }}
-            className={menuItemClass(theme, item.active, item.disabled)}
-            data-testid={`header-more-${item.id}`}
-          >
-            {item.icon ? <span className="shrink-0">{item.icon}</span> : null}
-            <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-          </button>
+          />
         ))}
       </ChartAnchoredPopover>
     </>

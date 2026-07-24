@@ -1,12 +1,18 @@
 import type { VisibleRange } from '@edge/chart-core';
 import { plotWidth } from '@edge/chart-core/layout';
 import type { FillGeometry, LineGeometry } from './candleGeometry';
+import type { GeometryBufferPool } from './geometryBufferPool';
 
 const EMPTY_LINE: LineGeometry = { vertices: new Float32Array(0), vertexCount: 0 };
 const EMPTY_FILL: FillGeometry = { vertices: new Float32Array(0), vertexCount: 0 };
 
 /** Build interleaved [x,y] line segments for visible finite values. */
-export function buildLineGeometry(values: number[], vp: VisibleRange): LineGeometry {
+export function buildLineGeometry(
+  values: number[],
+  vp: VisibleRange,
+  pool?: GeometryBufferPool,
+  poolKey = 'line',
+): LineGeometry {
   const start = Math.max(0, Math.floor(vp.startIndex));
   const end = Math.min(values.length, Math.ceil(vp.endIndex));
   if (end <= start) return { ...EMPTY_LINE };
@@ -35,7 +41,7 @@ export function buildLineGeometry(values: number[], vp: VisibleRange): LineGeome
     prevY = y;
   }
 
-  const vertices = new Float32Array(verts);
+  const vertices = pool ? pool.fromNumbers(poolKey, verts) : new Float32Array(verts);
   return { vertices, vertexCount: vertices.length / 2 };
 }
 
@@ -44,6 +50,8 @@ export function buildHistogramGeometry(
   values: number[],
   vp: VisibleRange,
   zeroPrice = 0,
+  pool?: GeometryBufferPool,
+  poolKey = 'histogram',
 ): FillGeometry {
   const span = vp.endIndex - vp.startIndex;
   if (span <= 0) return { ...EMPTY_FILL };
@@ -70,6 +78,6 @@ export function buildHistogramGeometry(
     verts.push(left, top, right, bottom, left, bottom);
   }
 
-  const vertices = new Float32Array(verts);
+  const vertices = pool ? pool.fromNumbers(poolKey, verts) : new Float32Array(verts);
   return { vertices, vertexCount: vertices.length / 2 };
 }

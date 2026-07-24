@@ -8,6 +8,8 @@ import ChartHeaderButton from './ChartHeaderButton';
 import ChartMenuItemRow from './ChartMenuItemRow';
 import ChartMenuSectionHeader from './ChartMenuSectionHeader';
 import LayoutTemplateIcon from './LayoutTemplateIcon';
+import { EdgeToggleSwitch } from '../design-system';
+import { bodyTextClass } from '../design-system/styles';
 import {
   ChevronDownIcon,
   DownloadIcon,
@@ -29,32 +31,28 @@ type Props = {
   onRenameLayout?: () => void;
 };
 
-function ToggleSwitch({
+function LayoutSyncRow({
+  label,
   checked,
   disabled,
   onChange,
 }: {
+  label: string;
   checked: boolean;
   disabled?: boolean;
   onChange?: (v: boolean) => void;
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange?.(!checked)}
-      className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-        disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
-      } ${checked ? 'bg-[var(--edge-text-strong)]' : 'bg-[var(--edge-border-strong)]'}`}
-    >
-      <span
-        className={`absolute top-0.5 h-3 w-3 rounded-full bg-[var(--edge-background)] transition-transform ${
-          checked ? 'translate-x-3.5' : 'translate-x-0.5'
-        }`}
+    <div className={`flex items-center justify-between px-3 py-1.5 ${disabled ? 'opacity-40' : ''}`}>
+      <span className="text-xs">{label}</span>
+      <EdgeToggleSwitch
+        size="compact"
+        checked={checked}
+        disabled={disabled}
+        ariaLabel={label}
+        onChange={(value) => onChange?.(value)}
       />
-    </button>
+    </div>
   );
 }
 
@@ -98,11 +96,11 @@ export default function ChartLayoutMenu({
         aria-label="Manage layouts"
         title="Manage layouts"
       >
-        <span className="inline-flex items-center gap-0.5 text-xs font-medium">
+        <span className={`inline-flex items-center gap-0.5 ${bodyTextClass()} font-medium`}>
           {layoutName}
           <ChevronDownIcon />
         </span>
-        <span className="text-[10px] text-[var(--edge-accent-blue)]">Save</span>
+        <span className={`${bodyTextClass()} text-[var(--edge-accent-blue)]`}>Save</span>
       </button>
 
       <ChartAnchoredPopover
@@ -148,42 +146,28 @@ export default function ChartLayoutMenu({
         })}
         <div className="my-1 border-t border-[var(--edge-border-strong)]" />
         <ChartMenuSectionHeader theme={theme} label="SYNC IN LAYOUT" collapsed={false} />
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <span className="text-xs">Symbol</span>
-          <ToggleSwitch
-            checked={linkSymbol}
-            onChange={(v) => onLayoutSyncChange({ linkSymbol: v })}
-          />
-        </div>
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <span className="text-xs">Interval</span>
-          <ToggleSwitch
-            checked={linkInterval}
-            onChange={(v) => onLayoutSyncChange({ linkInterval: v })}
-          />
-        </div>
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <span className="text-xs">Crosshair</span>
-          <ToggleSwitch
-            checked={linkCrosshair}
-            onChange={(v) => onLayoutSyncChange({ linkCrosshair: v })}
-          />
-        </div>
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <span className="text-xs">Drawings</span>
-          <ToggleSwitch
-            checked={linkDrawings}
-            onChange={(v) => onLayoutSyncChange({ linkDrawings: v })}
-          />
-        </div>
-        <div className="flex items-center justify-between px-3 py-1.5 opacity-40">
-          <span className="text-xs">Time</span>
-          <ToggleSwitch checked={false} disabled />
-        </div>
-        <div className="flex items-center justify-between px-3 py-1.5 opacity-40">
-          <span className="text-xs">Date range</span>
-          <ToggleSwitch checked={false} disabled />
-        </div>
+        <LayoutSyncRow
+          label="Symbol"
+          checked={linkSymbol}
+          onChange={(v) => onLayoutSyncChange({ linkSymbol: v })}
+        />
+        <LayoutSyncRow
+          label="Interval"
+          checked={linkInterval}
+          onChange={(v) => onLayoutSyncChange({ linkInterval: v })}
+        />
+        <LayoutSyncRow
+          label="Crosshair"
+          checked={linkCrosshair}
+          onChange={(v) => onLayoutSyncChange({ linkCrosshair: v })}
+        />
+        <LayoutSyncRow
+          label="Drawings"
+          checked={linkDrawings}
+          onChange={(v) => onLayoutSyncChange({ linkDrawings: v })}
+        />
+        <LayoutSyncRow label="Time" checked={false} disabled />
+        <LayoutSyncRow label="Date range" checked={false} disabled />
       </ChartAnchoredPopover>
 
       <ChartAnchoredPopover
@@ -194,16 +178,8 @@ export default function ChartLayoutMenu({
         minWidth={260}
       >
         <ChartMenuItemRow theme={theme} label="Save layout" trailing={<span className="opacity-50">⌘ S</span>} disabled disabledReason="Coming soon" />
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <span className="text-xs">Autosave</span>
-          <ToggleSwitch checked={true} disabled />
-        </div>
-        <div className="flex items-center justify-between px-3 py-1.5 opacity-40">
-          <span className="inline-flex items-center gap-1 text-xs">
-            Share layout
-          </span>
-          <ToggleSwitch checked={false} disabled />
-        </div>
+        <LayoutSyncRow label="Autosave" checked={true} disabled />
+        <LayoutSyncRow label="Share layout" checked={false} disabled />
         <ChartMenuItemRow
           theme={theme}
           label="Rename..."

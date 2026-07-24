@@ -139,20 +139,30 @@ export const CHART_ICON_MARKUP: Record<ChartIconId, string> = {
     <text x="14" y="24" font-size="6" fill="currentColor" stroke="none" text-anchor="middle">R</text>
   `,
   "long-position": `
-    <circle cx="8" cy="9" r="1.75"/>
-    <line x1="8" y1="9" x2="22" y2="9"/>
-    <line x1="11" y1="14" x2="22" y2="14"/>
-    <circle cx="8" cy="19" r="1.75"/>
-    <line x1="8" y1="19" x2="22" y2="19"/>
-    <text x="14" y="12.5" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">L</text>
+    <circle cx="7.5" cy="7.5" r="1.75"/>
+    <line x1="7.5" y1="7.5" x2="20.5" y2="7.5"/>
+    <circle cx="7.5" cy="15.5" r="1.75"/>
+    <line x1="7.5" y1="15.5" x2="20.5" y2="15.5"/>
+    <circle cx="20.5" cy="15.5" r="1.75"/>
+    <circle cx="7.5" cy="20.5" r="1.75"/>
+    <line x1="7.5" y1="20.5" x2="20.5" y2="20.5"/>
+    <rect x="20" y="8.5" width="1.1" height="1.1" fill="currentColor" stroke="none"/>
+    <rect x="16.85" y="10.35" width="1.1" height="1.1" fill="currentColor" stroke="none"/>
+    <rect x="13.7" y="12.2" width="1.1" height="1.1" fill="currentColor" stroke="none"/>
+    <rect x="10.55" y="14.05" width="1.1" height="1.1" fill="currentColor" stroke="none"/>
   `,
   "short-position": `
-    <circle cx="8" cy="9" r="1.75"/>
-    <line x1="8" y1="9" x2="22" y2="9"/>
-    <line x1="11" y1="14" x2="22" y2="14"/>
-    <circle cx="8" cy="19" r="1.75"/>
-    <line x1="8" y1="19" x2="22" y2="19"/>
-    <text x="14" y="17" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">S</text>
+    <circle cx="7.5" cy="7.5" r="1.75"/>
+    <line x1="7.5" y1="7.5" x2="20.5" y2="7.5"/>
+    <circle cx="7.5" cy="12.5" r="1.75"/>
+    <line x1="7.5" y1="12.5" x2="20.5" y2="12.5"/>
+    <circle cx="20.5" cy="12.5" r="1.75"/>
+    <circle cx="7.5" cy="20.5" r="1.75"/>
+    <line x1="7.5" y1="20.5" x2="20.5" y2="20.5"/>
+    <rect x="10.55" y="13.85" width="1.1" height="1.1" fill="currentColor" stroke="none"/>
+    <rect x="13.7" y="15.7" width="1.1" height="1.1" fill="currentColor" stroke="none"/>
+    <rect x="16.85" y="17.55" width="1.1" height="1.1" fill="currentColor" stroke="none"/>
+    <rect x="20" y="19.4" width="1.1" height="1.1" fill="currentColor" stroke="none"/>
   `,
   "zoom-in": `
     <circle cx="12" cy="12" r="5.5"/>

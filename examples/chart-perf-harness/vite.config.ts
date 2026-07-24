@@ -45,4 +45,7 @@ export default defineConfig({
     outDir: "dist-browser",
     emptyOutDir: true,
   },
+  worker: {
+    format: "es",
+  },
 });

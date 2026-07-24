@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import ChartCell from './ChartCell';
+import { AppTimeZoneProvider } from './AppTimeZoneProvider';
 import { ActiveChartProvider, useActiveChart } from './ActiveChartContext';
 import { SidebarProvider } from './SidebarContext';
 import {
@@ -57,6 +58,8 @@ vi.mock('./EdgeChart', () => ({
       sendBackward: vi.fn(),
       duplicateOverlay: vi.fn(),
       isViewportModified: () => false,
+      applyViewportSnapshot: () => true,
+      getVisibleRange: () => null,
       resetChartView,
       resetPriceScaleWindow,
       setCrosshairFromSync: vi.fn(),
@@ -100,7 +103,8 @@ describe('ChartCell candle ref snapshot', () => {
   it('registers candles from ref without storing duplicate React state', async () => {
     const onSnapshot = vi.fn();
     render(
-      <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
+      <AppTimeZoneProvider>
+        <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
         <ActiveChartProvider>
           <ChartCell
             chartId="cell-0"
@@ -114,7 +118,8 @@ describe('ChartCell candle ref snapshot', () => {
           />
           <SnapshotReader onSnapshot={onSnapshot} />
         </ActiveChartProvider>
-      </SidebarProvider>,
+      </SidebarProvider>
+      </AppTimeZoneProvider>,
     );
 
     await waitFor(() => {
@@ -127,7 +132,8 @@ describe('ChartCell candle ref snapshot', () => {
   it('resets chart view and price scale when symbol changes on the active cell', async () => {
     const onConfigChange = vi.fn();
     const { rerender } = render(
-      <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
+      <AppTimeZoneProvider>
+        <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
         <ChartCell
           chartId="cell-0"
           config={{ ...DEFAULT_CELL, symbol: 'AAPL' }}
@@ -138,19 +144,21 @@ describe('ChartCell candle ref snapshot', () => {
           onConfigChange={onConfigChange}
           onToolbarPrefsChange={vi.fn()}
         />
-      </SidebarProvider>,
+      </SidebarProvider>
+      </AppTimeZoneProvider>,
     );
 
     await waitFor(() => {
-      expect(resetChartView).toHaveBeenCalled();
-      expect(resetPriceScaleWindow).toHaveBeenCalled();
+      expect(resetChartView).not.toHaveBeenCalled();
+      expect(resetPriceScaleWindow).not.toHaveBeenCalled();
     });
 
     resetChartView.mockClear();
     resetPriceScaleWindow.mockClear();
 
     rerender(
-      <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
+      <AppTimeZoneProvider>
+        <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
         <ChartCell
           chartId="cell-0"
           config={{ ...DEFAULT_CELL, symbol: 'GS' }}
@@ -161,7 +169,8 @@ describe('ChartCell candle ref snapshot', () => {
           onConfigChange={onConfigChange}
           onToolbarPrefsChange={vi.fn()}
         />
-      </SidebarProvider>,
+      </SidebarProvider>
+      </AppTimeZoneProvider>,
     );
 
     await waitFor(() => {

@@ -146,6 +146,16 @@ export function adjustViewportForPrepend(vp: ViewportState, addedCount: number):
   };
 }
 
+/** Shift indices down after oldest bars were dropped from the left (inverse of prepend adjust). */
+export function adjustViewportForTrim(vp: ViewportState, removedCount: number): ViewportState {
+  if (removedCount <= 0) return vp;
+  return {
+    ...vp,
+    startIndex: vp.startIndex - removedCount,
+    endIndex: vp.endIndex - removedCount,
+  };
+}
+
 /** Clamp indices and re-fit price after candle count changes (same dims). */
 export function refreshViewportForDataChange(
   vp: VisibleRange,

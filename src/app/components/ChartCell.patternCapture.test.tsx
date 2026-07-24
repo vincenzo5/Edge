@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor, screen, fireEvent } from '@testing-library/react';
 import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import ChartCell from './ChartCell';
+import { AppTimeZoneProvider } from './AppTimeZoneProvider';
 import { ActiveChartProvider, useActiveChart, type ActiveChartUICommands } from './ActiveChartContext';
 import { SidebarProvider } from './SidebarContext';
 import {
@@ -100,21 +101,23 @@ function UICommandsProbe({
 function renderCell() {
   const onCommands = vi.fn();
   const view = render(
-    <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
-      <ActiveChartProvider>
-        <ChartCell
-          chartId="cell-capture"
-          config={DEFAULT_CELL}
-          theme="dark"
-          compact
-          isActive
-          toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
-          onConfigChange={vi.fn()}
-          onToolbarPrefsChange={vi.fn()}
-        />
-        <UICommandsProbe onCommands={onCommands} />
-      </ActiveChartProvider>
-    </SidebarProvider>,
+    <AppTimeZoneProvider>
+      <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
+        <ActiveChartProvider>
+          <ChartCell
+            chartId="cell-capture"
+            config={DEFAULT_CELL}
+            theme="dark"
+            compact
+            isActive
+            toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+            onConfigChange={vi.fn()}
+            onToolbarPrefsChange={vi.fn()}
+          />
+          <UICommandsProbe onCommands={onCommands} />
+        </ActiveChartProvider>
+      </SidebarProvider>
+    </AppTimeZoneProvider>,
   );
   return { ...view, onCommands };
 }

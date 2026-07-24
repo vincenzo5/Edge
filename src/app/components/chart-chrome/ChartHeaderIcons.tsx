@@ -149,21 +149,40 @@ export function RedoIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export function SettingsIcon({ size = 16 }: { size?: number }) {
+/** Canonical closed-outline gear for settings actions across the app. */
+export function SettingsIcon({
+  size = 16,
+  className,
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" />
+    <svg
+      width={className ? undefined : size}
+      height={className ? undefined : size}
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      data-edge-icon="settings"
+      aria-hidden
+    >
       <path
-        d="M8 1.5v1.5M8 13v1.5M1.5 8h1.5M13 8h1.5M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
+        d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+      />
+      <path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.08A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.08A1.65 1.65 0 0 0 20.91 10H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"
       />
     </svg>
   );
 }
 
-export function CogIcon({ size = 16, className }: { size?: number; className?: string }) {
+/** Calculator icon for risk calculator rail. */
+export function CalculatorIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
     <svg
       width={className ? undefined : size}
@@ -173,19 +192,28 @@ export function CogIcon({ size = 16, className }: { size?: number; className?: s
       fill="none"
       aria-hidden
     >
-      <path
-        d="M8 5.25a2.75 2.75 0 1 1 0 5.5 2.75 2.75 0 0 1 0-5.5Z"
+      <rect
+        x="2.5"
+        y="1.75"
+        width="11"
+        height="12.5"
+        rx="1.25"
         stroke="currentColor"
         strokeWidth="1.2"
       />
       <path
-        d="M8 1.75v1.35M8 12.9v1.35M1.75 8h1.35M12.9 8h1.35M3.86 3.86l.95.95M11.19 11.19l.95.95M3.86 12.14l.95-.95M11.19 4.81l.95-.95M10.35 2.48l-.62 1.08M12.52 5.65l-1.08.62M12.52 10.35l-1.08-.62M10.35 13.52l-.62-1.08M5.65 13.52l.62-1.08M3.48 10.35l1.08-.62M3.48 5.65l1.08.62M5.65 2.48l.62 1.08"
+        d="M5 4.5h6M5 7h1.5M7.75 7H9.25M11.5 7H13M5 9.5h1.5M7.75 9.5H9.25M11.5 9.5H13M5 12h1.5M7.75 12H9.25M11.5 12H13"
         stroke="currentColor"
         strokeWidth="1.2"
         strokeLinecap="round"
       />
     </svg>
   );
+}
+
+/** @deprecated Use CalculatorIcon — kept for callers that still import RiskIcon. */
+export function RiskIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return <CalculatorIcon size={size} className={className} />;
 }
 
 export function SunIcon({ size = 16, className }: { size?: number; className?: string }) {
@@ -399,6 +427,34 @@ export function ScreenerIcon({ size = 16 }: { size?: number }) {
         strokeWidth="1.2"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+export function SyncIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M13 8a5 5 0 0 1-8.9 3.1M3 8a5 5 0 0 1 8.9-3.1"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path d="M3 11V8h3M13 5V8h-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function UploadIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M8 10V3M8 3l-2.5 2.5M8 3l2.5 2.5"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path d="M3 12h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   );
 }

@@ -116,6 +116,11 @@ function renderMenu(snapshot: ActiveChartSnapshot) {
   );
 }
 
+async function openMenu() {
+  fireEvent.click(screen.getByTestId('snapshot-trigger'));
+  return screen.findByRole('menuitem', { name: /Download image/i });
+}
+
 describe('ChartSnapshotMenu', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -123,33 +128,32 @@ describe('ChartSnapshotMenu', () => {
     mockPrepareSnapshotTab.mockReturnValue({ location: { href: '' }, close: vi.fn() });
   });
 
-  it('opens the snapshot menu', () => {
+  it('opens the snapshot menu', async () => {
     renderMenu(makeSnapshot(true));
-    fireEvent.click(screen.getByTestId('snapshot-trigger'));
-    expect(screen.getByRole('menuitem', { name: /Download image/i })).toBeInTheDocument();
+    expect(await openMenu()).toBeInTheDocument();
   });
 
-  it('enables download, copy, and open when chart can capture', () => {
+  it('enables download, copy, and open when chart can capture', async () => {
     renderMenu(makeSnapshot(true));
-    fireEvent.click(screen.getByTestId('snapshot-trigger'));
+    await openMenu();
 
     expect(screen.getByRole('menuitem', { name: /Download image/i })).not.toBeDisabled();
     expect(screen.getByRole('menuitem', { name: /Copy image/i })).not.toBeDisabled();
     expect(screen.getByRole('menuitem', { name: /Open in new tab/i })).not.toBeDisabled();
   });
 
-  it('disables capture actions when chart cannot capture', () => {
+  it('disables capture actions when chart cannot capture', async () => {
     renderMenu(makeSnapshot(false));
-    fireEvent.click(screen.getByTestId('snapshot-trigger'));
+    await openMenu();
 
     expect(screen.getByRole('menuitem', { name: /Download image/i })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: /Copy image/i })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: /Open in new tab/i })).toBeDisabled();
   });
 
-  it('keeps copy link and tweet disabled', () => {
+  it('keeps copy link and tweet disabled', async () => {
     renderMenu(makeSnapshot(true));
-    fireEvent.click(screen.getByTestId('snapshot-trigger'));
+    await openMenu();
 
     expect(screen.getByRole('menuitem', { name: /Copy link/i })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: /Tweet image/i })).toBeDisabled();
@@ -158,7 +162,7 @@ describe('ChartSnapshotMenu', () => {
   it('runs download action via captureSnapshot and runSnapshotAction', async () => {
     const captureSnapshot = vi.fn(async () => new Blob([new Uint8Array(32)], { type: 'image/png' }));
     renderMenu(makeSnapshot(true, captureSnapshot));
-    fireEvent.click(screen.getByTestId('snapshot-trigger'));
+    await openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: /Download image/i }));
 
     await waitFor(() => {
@@ -178,7 +182,7 @@ describe('ChartSnapshotMenu', () => {
     mockPrepareSnapshotTab.mockReturnValue(tab);
 
     renderMenu(makeSnapshot(true, captureSnapshot));
-    fireEvent.click(screen.getByTestId('snapshot-trigger'));
+    await openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: /Open in new tab/i }));
 
     await waitFor(() => {
@@ -194,7 +198,7 @@ describe('ChartSnapshotMenu', () => {
   it('shows error when runSnapshotAction fails', async () => {
     mockRunSnapshotAction.mockResolvedValue({ ok: false, reason: 'clipboard_denied' });
     renderMenu(makeSnapshot(true));
-    fireEvent.click(screen.getByTestId('snapshot-trigger'));
+    await openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: /Copy image/i }));
 
     await waitFor(() => {

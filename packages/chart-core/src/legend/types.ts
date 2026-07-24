@@ -30,7 +30,29 @@ export type LegendValueEntry = {
 
 export type SeriesColor = string | ((theme: import('../contracts').Theme, value: number | null) => string);
 
-export type PlotKind = 'line' | 'histogram' | 'hline' | 'columns';
+export type PlotKind =
+  | 'line'
+  | 'histogram'
+  | 'hline'
+  | 'columns'
+  | 'marker'
+  | 'bgcolor'
+  | 'barcolor';
+
+export type SeriesStyle = 'line' | 'stepline' | 'circles' | 'crosses' | 'area' | 'columns';
+
+export type MarkerShape =
+  | 'circle'
+  | 'cross'
+  | 'triangleUp'
+  | 'triangleDown'
+  | 'arrowUp'
+  | 'arrowDown'
+  | 'square';
+
+export type MarkerLocation = 'absolute' | 'aboveBar' | 'belowBar';
+
+export type SeriesLegendMode = 'value' | 'signal';
 
 export type SeriesOutput = {
   id: string;
@@ -45,4 +67,13 @@ export type SeriesOutput = {
   tooltip?: string;
   decimals?: number;
   color?: SeriesColor;
+  /** Script-only: bounded serializable conditional color rules. */
+  colorRules?: import('../scriptContracts').ScriptColorRule[];
+  style?: SeriesStyle;
+  markerShape?: MarkerShape;
+  markerLocation?: MarkerLocation;
+  markerSize?: number;
+  opacity?: number;
+  excludeFromScale?: boolean;
+  legendMode?: SeriesLegendMode;
 };

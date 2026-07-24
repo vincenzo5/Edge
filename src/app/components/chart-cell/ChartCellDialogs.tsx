@@ -18,6 +18,7 @@ import type {
   SerializedDrawing,
   Theme,
 } from "@/lib/chartConfig";
+import type { ChartTimeZone } from "@/lib/chart/timeZone";
 import type { PresetEnvelope } from "@/lib/chart/presets/types";
 
 type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
@@ -30,6 +31,15 @@ type Props = {
   pickerOpen: boolean;
   onPickerClose: () => void;
   onAddIndicator: (ind: Pick<IndicatorConfig, "name" | "pane">) => void;
+  onAddScript?: (params: {
+    scriptId: string;
+    revision: string;
+    name: string;
+    pane: "main" | "sub";
+  }) => void;
+  onEditScript?: (scriptId: string) => void;
+  onNewScript?: () => void;
+  onScriptSaved?: (params: { scriptId: string; revision: string }) => void;
   settingsIndicator: IndicatorConfig | null;
   settingsIndicatorId: string | null;
   onSettingsIndicatorClose: () => void;
@@ -47,6 +57,7 @@ type Props = {
   onDrawingStylesSave: (id: string, patch: Partial<DrawingStyles>) => void;
   chartSettingsOpen: boolean;
   chartSettingsSection: "symbol" | "status" | "scales" | "canvas" | "trading";
+  defaultTimeZone?: ChartTimeZone;
   onChartSettingsClose: () => void;
   onChartSettingsSave: (next: RequiredChartSettings) => void;
   chartTemplates: ChartTemplatePreset[];
@@ -77,6 +88,9 @@ export default function ChartCellDialogs({
   pickerOpen,
   onPickerClose,
   onAddIndicator,
+  onAddScript,
+  onEditScript,
+  onNewScript,
   settingsIndicator,
   settingsIndicatorId,
   onSettingsIndicatorClose,
@@ -88,6 +102,7 @@ export default function ChartCellDialogs({
   onDrawingStylesSave,
   chartSettingsOpen,
   chartSettingsSection,
+  defaultTimeZone,
   onChartSettingsClose,
   onChartSettingsSave,
   chartTemplates,
@@ -124,6 +139,9 @@ export default function ChartCellDialogs({
         active={config.indicators}
         theme={theme}
         onAdd={onAddIndicator}
+        onAddScript={onAddScript}
+        onEditScript={onEditScript}
+        onNewScript={onNewScript}
         onClose={onPickerClose}
       />
 
@@ -131,6 +149,7 @@ export default function ChartCellDialogs({
         open={settingsIndicatorId != null}
         indicator={settingsIndicator}
         theme={theme}
+        symbol={config.symbol}
         onClose={onSettingsIndicatorClose}
         onSave={onIndicatorParamsSave}
         onSaveAsTemplate={onSaveStudyTemplate}
@@ -147,6 +166,7 @@ export default function ChartCellDialogs({
       <ChartSettingsModal
         open={chartSettingsOpen}
         settings={config.chartSettings}
+        defaultTimeZone={defaultTimeZone}
         initialSection={chartSettingsSection}
         onClose={onChartSettingsClose}
         onSave={onChartSettingsSave}

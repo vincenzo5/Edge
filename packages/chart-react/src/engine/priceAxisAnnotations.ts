@@ -9,12 +9,12 @@ import {
   toScaleCoord,
   type PriceScaleContext,
 } from '@edge/chart-core/priceScaleTransform';
-import { IndicatorRegistry, DrawingRegistry } from '@edge/chart-core';
+import { DrawingRegistry } from '@edge/chart-core';
 import {
   buildResolvedStylesMap,
-  getComputedSeries,
 } from '@edge/chart-core/indicatorCompute';
 import { resolveIndicatorInputs } from '@edge/chart-core/indicatorInputs';
+import { resolveIndicatorResultProvider, resolveIndicatorPlugin, type IndicatorResultProvider } from './indicatorResultProvider';
 import { resolveDrawingStyles } from '@edge/chart-core/drawingStyles';
 import { intervalToMs } from '@edge/chart-core';
 import { getChartColors } from './chartTheme';
@@ -124,6 +124,7 @@ export function collectIndicatorAnnotations(
   settings: RequiredChartSettings,
   theme: Theme,
   paneId: string,
+  resultProvider?: IndicatorResultProvider | null,
 ): PriceAxisAnnotation[] {
   if (settings.scales.indicatorPriceLabelMode === 'hidden') return [];
   if (paneId !== 'price') return [];
@@ -136,15 +137,26 @@ export function collectIndicatorAnnotations(
 
   for (const ind of indicators) {
     if (ind.visible === false || ind.pane !== 'main') continue;
-    const plugin = IndicatorRegistry.get(ind.name);
+    const plugin = resolveIndicatorPlugin(ind);
     if (!plugin?.outputs?.length) continue;
 
     const inputs = resolveIndicatorInputs(plugin, ind);
-    const data = getComputedSeries(plugin, candles, inputs, ind);
+    const provider = resolveIndicatorResultProvider(resultProvider);
+    const data = provider.resolveSeries(plugin, ind, candles);
     if (!data) continue;
 
     for (const out of plugin.outputs) {
-      if (out.plot === 'hline' || out.plot === 'columns' || out.plot === 'histogram') continue;
+      if (
+        out.plot === 'hline' ||
+        out.plot === 'columns' ||
+        out.plot === 'histogram' ||
+        out.plot === 'marker' ||
+        out.plot === 'bgcolor' ||
+        out.plot === 'barcolor' ||
+        out.excludeFromScale
+      ) {
+        continue;
+      }
       const raw = data[out.key]?.[index] ?? null;
       if (raw == null || !Number.isFinite(raw)) continue;
 
@@ -222,6 +234,8 @@ export function collectPriceAxisAnnotations(input: {
   nowMs?: number;
   livePrice?: number | null;
   liveMarketSession?: MarketSessionKind | null;
+  resultProvider?: IndicatorResultProvider | null;
+  extraAnnotations?: PriceAxisAnnotation[];
 }): PriceAxisAnnotation[] {
   const {
     paneId,
@@ -236,6 +250,8 @@ export function collectPriceAxisAnnotations(input: {
     nowMs = Date.now(),
     livePrice,
     liveMarketSession,
+    resultProvider,
+    extraAnnotations = [],
   } = input;
 
   if (paneId === 'price') {
@@ -250,12 +266,13 @@ export function collectPriceAxisAnnotations(input: {
         livePrice,
         liveMarketSession,
       ),
-      ...collectIndicatorAnnotations(indicators, candles, vp, settings, theme, paneId),
+      ...collectIndicatorAnnotations(indicators, candles, vp, settings, theme, paneId, resultProvider),
       ...collectDrawingAnnotations(drawings, vp, candles, settings, theme, paneId, showTimeAxis),
+      ...extraAnnotations.filter((ann) => ann.paneId === paneId),
     ];
   }
 
-  return collectIndicatorAnnotations(indicators, candles, vp, settings, theme, paneId);
+  return collectIndicatorAnnotations(indicators, candles, vp, settings, theme, paneId, resultProvider);
 }
 
 export function layoutPriceAxisAnnotations(

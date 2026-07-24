@@ -14,6 +14,7 @@ export type {
   TrackedOverlay,
   Theme,
   GridMode,
+  PaletteId,
   VisibleRange,
   SyncedTimeWindow,
   CrosshairMoveEvent,
@@ -47,9 +48,16 @@ export { DrawingStore, pointsEqual } from './drawingStore';
 
 export { getAllIndicators, getIndicator, getCatalog, getCatalogEntry } from './indicators/registry';
 
+export { resolveScriptBarColors } from './indicators/draw';
+
 export { getAllDrawings, getDrawing } from './drawings/registry';
 
-export { getChartColors } from './themeTokens';
+export { DEFAULT_PALETTE, PALETTES } from './contracts';
+export {
+  getChartColors,
+  getActiveChartPalette,
+  setActiveChartPalette,
+} from './themeTokens';
 
 export { formatPrice, formatVolume, formatChange } from './format';
 
@@ -68,9 +76,12 @@ export {
   applyCandleStreamEvent,
   shouldPrefetchEdge,
   ensureCandlesCover,
+  trimResidentBars,
+  RESIDENT_BAR_SOFT_MAX,
   EDGE_FETCH_BAR_COUNT,
   PREFETCH_START_INDEX_THRESHOLD,
 } from './series';
+export { clearHeikinAshiCache, HEIKIN_ASHI_CACHE_MAX_ENTRIES } from './heikinAshiCache';
 export type { HistoryPrefetchInput } from './historyPrefetch';
 export {
   HISTORY_FETCH_BAR_COUNT,
@@ -86,7 +97,11 @@ export {
   isUrgentPrefetch,
   shouldBackgroundPrefetch,
 } from './historyPrefetch';
-export type { ApplyCandleStreamResult, EnsureCandlesCoverResult } from './series';
+export type {
+  ApplyCandleStreamResult,
+  EnsureCandlesCoverResult,
+  TrimResidentBarsResult,
+} from './series';
 
 export type { FetchIntervalResolution, ProviderInterval } from './interval';
 export {
@@ -219,3 +234,113 @@ export {
   sessionPriceLabelPrefix,
   sessionStatusLabel,
 } from './marketSession';
+
+export type {
+  ScriptDiagnostic,
+  ScriptDiagnosticSeverity,
+  ScriptCompileResult,
+  ScriptExecutionResult,
+  ScriptExecutionStatus,
+  ScriptExecutionFingerprints,
+  ScriptExecutionErrorCode,
+  ScriptAlertDef,
+  ScriptManifest,
+  ScriptPlotDef,
+  ScriptPlotKind,
+  ScriptSeriesStyle,
+  ScriptMarkerShape,
+  ScriptMarkerLocation,
+  ScriptColorRule,
+  ScriptColorRuleWhen,
+  ScriptInputSchema,
+  ScriptIdentity,
+  ScriptRuntimeBudgets,
+  ScriptIndicatorInstanceRef,
+  BuiltinIndicatorInstanceRef,
+  IndicatorInstanceRef,
+  ScriptIndicatorConfigExtension,
+  NormalizedScriptCandle,
+  ScriptSeriesRequest,
+  ScriptSeriesContext,
+  ScriptSeriesResolver,
+  ScriptResolvedInputs,
+  ScriptObjectKind,
+  ScriptObjectDef,
+  ScriptBoxObjectDef,
+  ScriptLabelObjectDef,
+  ScriptLevelObjectDef,
+  ScriptLabelAlign,
+} from './scriptContracts';
+
+export {
+  SCRIPT_LANGUAGE_VERSION,
+  SCRIPT_SDK_VERSION,
+  SCRIPT_RUNTIME_ABI,
+  MAX_SCRIPT_ALERT_CONDITIONS,
+  MAX_SCRIPT_ALERT_ID_LENGTH,
+  MAX_SCRIPT_MARKERS_PER_SERIES,
+  MAX_SCRIPT_BGCOLOR_SEGMENTS,
+  MAX_SCRIPT_OBJECTS,
+  MAX_SCRIPT_LABEL_TEXT_LENGTH,
+  SCRIPT_CALCULATE_OBJECTS_KEY,
+  DEFAULT_SCRIPT_RUNTIME_BUDGETS,
+  normalizeScriptCandles,
+  scriptPlotKindToPlotKind,
+  manifestPlotToSeriesOutput,
+  validateScriptManifest,
+  validateScriptAlertSeries,
+  validateScriptExecutionResult,
+  validateScriptObjects,
+  peelScriptCalculateOutput,
+  normalizeScriptBoxBounds,
+  validateParamDef,
+  stableScriptInputsFingerprint,
+  isLiteralScriptColor,
+  formatScriptError,
+  evaluateScriptColorRules,
+  matchesScriptColorRule,
+  countScriptMarkers,
+  compactScriptBgcolorSegments,
+  isTruthyScriptSignal,
+  seriesOutputExcludesFromScale,
+} from './scriptContracts';
+
+export { drawScriptObjects } from './scriptObjectsDraw';
+export type { ScriptObjectDrawEntry } from './scriptObjectsDraw';
+
+export type { ScriptFixture, ScriptFixtureId } from './scriptFixtures';
+export {
+  RESERVED_SCRIPT_DEPTH_FIXTURE_SLOTS,
+  SCRIPT_FIXTURES,
+  getScriptFixture,
+  makeSyntheticCandles,
+} from './scriptFixtures';
+export type { GoldenScriptFixtureId, ResolvedScriptFixtureSource } from './scriptFixtureCatalog';
+export {
+  GOLDEN_SCRIPT_FIXTURE_REVISION,
+  GOLDEN_SCRIPT_FIXTURE_IDS,
+  isGoldenScriptFixtureId,
+  resolveScriptFixtureSource,
+  scriptInstanceNameForFixture,
+} from './scriptFixtureCatalog';
+export {
+  CANDLE_TRANSFER_ENCODING,
+  CANDLE_TRANSFER_F64_STRIDE,
+  packCandlesToTransferBuffer,
+  unpackCandlesFromTransferBuffer,
+} from './candleTransferBuffer';
+export type { CandleTransferEncoding, PackedCandleTransferBuffer } from './candleTransferBuffer';
+
+export {
+  serializeScriptSeriesKey,
+  isPrimaryScriptSeriesKey,
+  dedupeScriptSeriesKeys,
+  parseScriptSeriesKey,
+  normalizeScriptSeriesSymbol,
+  normalizeScriptSeriesInterval,
+} from './scriptSeriesRequest';
+export type { ScriptSeriesKeyContext } from './scriptSeriesRequest';
+export { alignSeriesToPrimary } from './scriptSeriesAlign';
+export { buildSecondarySeriesFingerprint } from './scriptSeriesFingerprint';
+export type { ResolvedScriptSource, ScriptSourceResolver } from './scriptSourceResolver';
+export { resolveScriptSource } from './scriptSourceResolver';

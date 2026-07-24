@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { headerIconButtonClass } from "../design-system/styles";
 
 export const ICON_SIZE = 14;
 
@@ -17,11 +18,12 @@ export function HoverIconButton({
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
-      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--edge-radius-xs)] text-[var(--edge-text-muted)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)] ${className}`}
+      className={`${headerIconButtonClass("dark")} ${className}`}
     >
       {children}
     </button>

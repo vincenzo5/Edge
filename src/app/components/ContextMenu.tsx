@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import EdgeMenuItem from "./design-system/EdgeMenuItem";
+import { useMenuKeyboardNav } from "./design-system/useMenuKeyboardNav";
 import { popoverPanelClass } from "./design-system/styles";
 
 export type ContextMenuItem = {
@@ -11,6 +12,9 @@ export type ContextMenuItem = {
   danger?: boolean;
   dividerAfter?: boolean;
   disabled?: boolean;
+  selected?: boolean;
+  /** Non-interactive section label row (e.g. "Change panel"). */
+  sectionHeader?: boolean;
   action: () => void;
   children?: ContextMenuItem[];
 };
@@ -21,6 +25,7 @@ type Props = {
   items: ContextMenuItem[];
   header?: string;
   onClose: () => void;
+  "aria-label"?: string;
 };
 
 export function clampMenuPosition(
@@ -61,6 +66,7 @@ export default function ContextMenu({
   items,
   header,
   onClose,
+  "aria-label": ariaLabel = "Context menu",
 }: Props) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState<{
@@ -93,6 +99,12 @@ export default function ContextMenu({
     );
   }, [open, position, items, header]);
 
+  useMenuKeyboardNav({
+    open,
+    containerRef: menuRef,
+    onClose,
+  });
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -100,14 +112,9 @@ export default function ContextMenu({
         onClose();
       }
     };
-    const keyHandler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
     document.addEventListener("mousedown", handler);
-    document.addEventListener("keydown", keyHandler);
     return () => {
       document.removeEventListener("mousedown", handler);
-      document.removeEventListener("keydown", keyHandler);
     };
   }, [open, onClose]);
 
@@ -118,6 +125,8 @@ export default function ContextMenu({
   return (
     <div
       ref={menuRef}
+      role="menu"
+      aria-label={ariaLabel}
       style={{ left: displayPos.x, top: displayPos.y }}
       className={menuShellClass}
       onPointerDown={(event) => event.stopPropagation()}
@@ -132,23 +141,31 @@ export default function ContextMenu({
       ) : null}
       {items.map((item) => (
         <div key={item.id}>
-          <MenuItemRow
-            label={item.label}
-            shortcut={item.shortcut}
-            danger={item.danger}
-            disabled={item.disabled}
-            hasSubmenu={Boolean(item.children?.length)}
-            onClick={() => {
-              if (!item.disabled && !item.children?.length) {
-                item.action();
+          {item.sectionHeader ? (
+            <div className="border-t border-[var(--edge-border)] px-3 py-1.5 text-xs font-medium text-[var(--edge-text-secondary)]">
+              {item.label}
+            </div>
+          ) : (
+            <MenuItemRow
+              label={item.label}
+              shortcut={item.shortcut}
+              danger={item.danger}
+              disabled={item.disabled}
+              selected={item.selected}
+              hasSubmenu={Boolean(item.children?.length)}
+              onClick={() => {
+                if (!item.disabled && !item.children?.length) {
+                  item.action();
+                  onClose();
+                }
+              }}
+              submenu={
+                item.children?.length ? (
+                  <SubMenu items={item.children} onClose={onClose} />
+                ) : null
               }
-            }}
-            submenu={
-              item.children?.length ? (
-                <SubMenu items={item.children} onClose={onClose} />
-              ) : null
-            }
-          />
+            />
+          )}
           {item.dividerAfter ? <div className="edge-menu-divider" /> : null}
         </div>
       ))}
@@ -183,6 +200,8 @@ function SubMenu({
   return (
     <div
       ref={submenuRef}
+      role="menu"
+      aria-label="Submenu"
       className={`${menuShellClass} absolute top-0 min-w-[200px]`}
       style={
         placement === "left"
@@ -197,6 +216,7 @@ function SubMenu({
             shortcut={item.shortcut}
             danger={item.danger}
             disabled={item.disabled}
+            selected={item.selected}
             onClick={() => {
               if (!item.disabled) {
                 item.action();
@@ -215,6 +235,7 @@ function MenuItemRow({
   shortcut,
   danger,
   disabled,
+  selected,
   hasSubmenu,
   submenu,
   onClick,
@@ -223,6 +244,7 @@ function MenuItemRow({
   shortcut?: string;
   danger?: boolean;
   disabled?: boolean;
+  selected?: boolean;
   hasSubmenu?: boolean;
   submenu?: React.ReactNode;
   onClick: () => void;
@@ -240,6 +262,7 @@ function MenuItemRow({
         shortcut={shortcut}
         danger={danger}
         disabled={disabled}
+        selected={selected}
         hasSubmenu={hasSubmenu}
         onClick={onClick}
       />
