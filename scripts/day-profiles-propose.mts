@@ -1,21 +1,36 @@
 #!/usr/bin/env npx tsx
 /**
  * Propose day-profile labels from daily OHLCV (measurable tags + coarse hints).
- * Usage: npx tsx scripts/day-profiles-propose.mts [--days=10]
+ * Usage: npx tsx scripts/day-profiles-propose.mts [--days=10] [--skip-open] [--dry-run]
  *
- * Human still confirms L1/L2. openType is left blank (needs intraday).
+ * Human still confirms L1/L2. openType is prefilled as a mechanical hint from RTH 5m.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { getChartCandles, type Candle } from "../src/lib/yahooFinance";
+import {
+  atr,
+  classifyDayHint,
+  classifyGap,
+  classifyOpenType,
+  classifyRelative,
+  classifyRvol,
+  classifyVol,
+  etDate,
+  rthBars,
+  smaVolume,
+} from "../src/lib/dayProfiles";
+import { getChartCandles, getChartCandlesInPeriod, type Candle } from "../src/lib/yahooFinance";
 
 const SYMBOLS = ["SPY", "QQQ", "AAPL", "NVDA", "TSLA"] as const;
 const TAPE = new Set(["SPY", "QQQ"]);
 const ATR_N = 14;
 const VOL_N = 20;
+const OPEN_FETCH_DELAY_MS = 250;
 
 const daysArg = process.argv.find((a) => a.startsWith("--days="));
 const LOOKBACK_DAYS = daysArg ? Number.parseInt(daysArg.split("=")[1]!, 10) : 10;
+const SKIP_OPEN = process.argv.includes("--skip-open");
+const DRY_RUN = process.argv.includes("--dry-run");
 
 type Row = {
   symbol: string;
@@ -38,90 +53,24 @@ type Row = {
   notes: string;
 };
 
-/** Yahoo chart candles use unix seconds in `timestamp`. */
-function etDate(tsSec: number): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(tsSec * 1000));
-}
-
-function trueRange(c: Candle, prev: Candle): number {
-  return Math.max(c.high - c.low, Math.abs(c.high - prev.close), Math.abs(c.low - prev.close));
-}
-
-function atr(candles: Candle[], i: number, n: number): number | null {
-  if (i < n) return null;
-  let sum = 0;
-  for (let k = i - n + 1; k <= i; k++) {
-    sum += trueRange(candles[k]!, candles[k - 1]!);
-  }
-  return sum / n;
-}
-
-function smaVolume(candles: Candle[], i: number, n: number): number | null {
-  if (i < n - 1) return null;
-  let sum = 0;
-  let count = 0;
-  for (let k = i - n + 1; k <= i; k++) {
-    const v = candles[k]!.volume;
-    if (v == null || !Number.isFinite(v)) return null;
-    sum += v;
-    count++;
-  }
-  return count === n ? sum / n : null;
-}
-
-function classifyGap(gapPct: number, open: number, high: number, low: number, close: number, prevClose: number): string {
-  if (Math.abs(gapPct) < 0.002) return "gap_none";
-  if (gapPct >= 0.002) {
-    if (low > prevClose) return "gap_and_go";
-    if (close < prevClose) return close < open ? "gap_and_fade" : "gap_fill";
-    if (low <= prevClose && high > prevClose) return "gap_partial";
-    return "gap_fill";
-  }
-  // gap down
-  if (high < prevClose) return "gap_and_go";
-  if (close > prevClose) return close > open ? "gap_and_fade" : "gap_fill";
-  if (high >= prevClose && low < prevClose) return "gap_partial";
-  return "gap_fill";
-}
-
-function classifyVol(rangeAtr: number): string {
-  if (rangeAtr >= 2) return "vol_climax";
-  if (rangeAtr >= 1.3) return "vol_expand";
-  if (rangeAtr <= 0.6) return "vol_contract";
-  return "vol_normal";
-}
-
-function classifyRvol(rvol: number): string {
-  if (rvol >= 1.8) return "rvol_high";
-  if (rvol <= 0.7) return "rvol_low";
-  return "rvol_normal";
-}
-
-function classifyDayHint(closeLoc: number, rangeAtr: number): string {
-  if (rangeAtr <= 0.7) return "non_trend";
-  if (rangeAtr >= 1.2 && (closeLoc >= 0.8 || closeLoc <= 0.2)) return "trend";
-  if (rangeAtr < 1.3 && closeLoc >= 0.35 && closeLoc <= 0.65) return "neutral";
-  return "normal";
-}
-
-function classifyRelative(ret: number, spyRet: number): string {
-  const excess = ret - spyRet;
-  if (Math.abs(excess) < 0.003) return "beta_proxy";
-  if (excess >= 0.005) return "leader";
-  if (excess <= -0.005) return "laggard";
-  return "idiosyncratic";
-}
-
 function csvEscape(value: string): string {
   if (value.includes(",") || value.includes('"') || value.includes("\n")) {
     return `"${value.replaceAll('"', '""')}"`;
   }
   return value;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchOpenBars(symbol: string, date: string): Promise<Candle[]> {
+  const dayStart = new Date(`${date}T00:00:00-04:00`);
+  const dayEnd = new Date(`${date}T23:59:59-04:00`);
+  const period1 = new Date(dayStart.getTime() - 2 * 24 * 60 * 60 * 1000);
+  const period2 = new Date(dayEnd.getTime() + 24 * 60 * 60 * 1000);
+  const candles = await getChartCandlesInPeriod(symbol, period1, period2, "5m");
+  return rthBars(candles, date).slice(0, 18);
 }
 
 async function main() {
@@ -155,7 +104,7 @@ async function main() {
       if (!(range > 0)) continue;
 
       const atrVal = atr(candles, i, ATR_N);
-      const avgVol = smaVolume(candles, i - 1, VOL_N); // prior 20 days, no look-ahead
+      const avgVol = smaVolume(candles, i - 1, VOL_N);
       if (atrVal == null || avgVol == null || avgVol <= 0 || cur.volume == null) continue;
 
       const gapPct = (cur.open - prev.close) / prev.close;
@@ -186,12 +135,38 @@ async function main() {
         retPct: (ret * 100).toFixed(2),
         spyRetPct: spyRet == null ? "" : (spyRet * 100).toFixed(2),
         status: "proposed",
-        notes: "openType blank — confirm dayTypeHint on chart (daily + 5m open)",
+        notes: SKIP_OPEN
+          ? "openType skipped — confirm dayTypeHint + openType on chart"
+          : "openType hint — confirm L1/L2 on chart (daily + 5m open)",
       });
     }
   }
 
   rows.sort((a, b) => (a.date === b.date ? a.symbol.localeCompare(b.symbol) : b.date.localeCompare(a.date)));
+
+  const openCache = new Map<string, Candle[]>();
+  let openFilled = 0;
+  let openUnknown = 0;
+
+  if (!SKIP_OPEN) {
+    for (const row of rows) {
+      const key = `${row.symbol}:${row.date}`;
+      let bars = openCache.get(key);
+      if (!bars) {
+        try {
+          bars = await fetchOpenBars(row.symbol, row.date);
+          openCache.set(key, bars);
+          await sleep(OPEN_FETCH_DELAY_MS);
+        } catch (e) {
+          bars = [];
+          console.error(`warn ${key}: ${e instanceof Error ? e.message : e}`);
+        }
+      }
+      row.openType = bars.length >= 6 ? classifyOpenType(bars) : "open_unknown";
+      if (row.openType === "open_unknown") openUnknown += 1;
+      else openFilled += 1;
+    }
+  }
 
   const outDir = path.join(process.cwd(), "data/day-profiles/proposed");
   mkdirSync(outDir, { recursive: true });
@@ -223,11 +198,16 @@ async function main() {
     headers.join(","),
     ...rows.map((r) => headers.map((h) => csvEscape(String(r[h]))).join(",")),
   ];
-  writeFileSync(outPath, `${lines.join("\n")}\n`, "utf8");
+
+  if (!DRY_RUN) {
+    writeFileSync(outPath, `${lines.join("\n")}\n`, "utf8");
+  }
 
   const byDayType = new Map<string, number>();
+  const byOpenType = new Map<string, number>();
   for (const r of rows) {
     byDayType.set(r.dayTypeHint, (byDayType.get(r.dayTypeHint) ?? 0) + 1);
+    if (r.openType) byOpenType.set(r.openType, (byOpenType.get(r.openType) ?? 0) + 1);
   }
 
   console.log(
@@ -235,14 +215,20 @@ async function main() {
       {
         symbols: [...SYMBOLS],
         lookbackDays: LOOKBACK_DAYS,
+        skipOpen: SKIP_OPEN,
+        dryRun: DRY_RUN,
         rows: rows.length,
-        outPath: path.relative(process.cwd(), outPath),
+        outPath: DRY_RUN ? null : path.relative(process.cwd(), outPath),
         dayTypeHintCounts: Object.fromEntries(byDayType),
+        openTypeCounts: Object.fromEntries(byOpenType),
+        openFilled,
+        openUnknown,
         review: {
-          confirm: ["dayTypeHint → dayType", "openType on 5m", "relative / gap edge cases"],
+          confirm: ["dayTypeHint → dayType", "openType hint on 5m", "relative / gap edge cases"],
           trust: ["gap", "volatility", "participation", "metrics columns"],
           how: "Open symbol on chart at date; accept or edit; set status=confirmed when done",
         },
+        sample: rows.slice(0, 3),
       },
       null,
       2,

@@ -4,7 +4,7 @@ Label historical stock sessions into a small catalog so you can study cohorts of
 
 **Not the goal:** AI that trades for you.
 
-**Last updated:** 2026-07-17
+**Last updated:** 2026-07-23
 
 ## Catalog structure
 
@@ -44,11 +44,12 @@ Classify **tape first**, then the name relative to tape (L5).
 | Phase | Status |
 |-------|--------|
 | 0 — Schema | **Defined** (this doc) |
-| 1 — Manual labels | **In progress** — first propose batch: SPY/QQQ/AAPL/NVDA/TSLA × 10 days → `data/day-profiles/proposed/batch-20260718.csv` (`npx tsx scripts/day-profiles-propose.mts`) |
-| 2 — Cohort browse | Not started |
-| 3 — Rules assist | Partial — script auto-fills gap/vol/RVOL/relative + dayType *hint*; openType still human |
+| 1 — Manual labels | **Passing** (2026-07-22) — 50 sessions confirmed in `data/day-profiles/proposed/batch-20260718.csv` (`confirmed:50`; L1+L2 human review via visual guide + RTH 5m); propose script: `npx tsx scripts/day-profiles-propose.mts` |
+| 2 — Cohort browse | **Passing** (2026-07-22) — Days sidebar (`day-profiles`): filter L1–L3/L5 on confirmed CSV; open session on chart at RTH open via `GET /api/day-profiles` |
+| 3 — Rules assist | **Passing** (2026-07-23) — shared rules in `src/lib/dayProfiles/rules*.ts`; propose fills gap/vol/RVOL/relative + dayType hint + **openType hint** from RTH 5m; human confirms before `status=confirmed`; `npx tsx scripts/day-profiles-propose.mts [--days=N] [--skip-open]` |
 
 ## Related
 
+- **Visual guide (start here for review):** [day-classification-visual-guide.md](../trading/day-classification-visual-guide.md) + schematics in `docs/trading/assets/`
 - Setup families (L6): `src/lib/patternLibrary/taxonomy.ts`
 - Pattern capture / library: `src/lib/patternLibrary/ARCHITECTURE.md`
