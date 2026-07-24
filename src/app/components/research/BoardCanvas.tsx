@@ -1,9 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import { shouldMountBoardChart } from "@/lib/research/boardChartMountPolicy";
+import {
+  getBoardFocusedCardId,
+  setBoardFocusedCardId,
+  subscribeBoardFocus,
+} from "@/lib/research/boardFocusStore";
 import type { ResearchCardSketch, ResearchLinkSketch } from "@/lib/research/sessionSketch";
 
 import BoardCardNode from "./BoardCardNode";
@@ -58,7 +63,11 @@ export default function BoardCanvas({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [focusedCardId, setFocusedCardId] = useState<string | null>(null);
+  const focusedCardId = useSyncExternalStore(
+    subscribeBoardFocus,
+    getBoardFocusedCardId,
+    () => null,
+  );
   const [visibleCardIds, setVisibleCardIds] = useState<Set<string>>(() => new Set());
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
   const [linkSourceId, setLinkSourceId] = useState<string | null>(null);
@@ -71,18 +80,18 @@ export default function BoardCanvas({
         onLinkCards(linkSourceId, cardId);
         setLinkSourceId(null);
         setSelectedCardId(cardId);
-        setFocusedCardId(cardId);
+        setBoardFocusedCardId(cardId);
         return;
       }
       if (shiftKey) {
         setLinkSourceId(cardId);
         setSelectedCardId(cardId);
-        setFocusedCardId(cardId);
+        setBoardFocusedCardId(cardId);
         return;
       }
       setLinkSourceId(null);
       setSelectedCardId(cardId);
-      setFocusedCardId(cardId);
+      setBoardFocusedCardId(cardId);
     },
     [linkSourceId, onLinkCards],
   );
@@ -249,7 +258,7 @@ export default function BoardCanvas({
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) {
           setSelectedCardId(null);
-          setFocusedCardId(null);
+          setBoardFocusedCardId(null);
           setSelectedLinkId(null);
           setLinkSourceId(null);
           startPan(event);
@@ -269,7 +278,7 @@ export default function BoardCanvas({
           onPointerDown={(event) => {
             if (event.target === event.currentTarget) {
               setSelectedCardId(null);
-              setFocusedCardId(null);
+              setBoardFocusedCardId(null);
               setSelectedLinkId(null);
               setLinkSourceId(null);
               startPan(event);

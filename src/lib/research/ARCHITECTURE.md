@@ -1,6 +1,6 @@
 # Research UX Architecture
 
-Contracts for the AI-first research desk: Talk / Board / Desk densities, Research Session store, and entry policy. Phase 0 freezes shapes; Phase 1 wires density chrome and research entry; Phase 2 adds Talk artifact pin + evidence rail; Phase 3 adds spatial Board v1 with local session persistence; Phase 4 adds live card hosts and Board↔Desk promote/demote.
+Contracts for the AI-first research desk: Talk / Board / Desk densities, Research Session store, and entry policy. Phase 0 freezes shapes; Phase 1 wires density chrome and research entry; Phase 2 adds Talk artifact pin + evidence rail; Phase 3 adds spatial Board v1 with local session persistence; Phase 4 adds live card hosts and Board↔Desk promote/demote; Phase 5 adds AI board conductor tools via `ResearchBoardPort`.
 
 **Track:** [research-ux-roadmap.md](../../../docs/roadmaps/research-ux-roadmap.md)
 
@@ -103,9 +103,21 @@ Evidence → Board: `CopilotEvidenceRail` **Send to board** copies pinned cards 
 
 **Promote / demote:** Promote mutates Desk via `applySurfaceFocusOrOpen` + persists `deskTileId` / `appWorkspaceId` on session cards. Demote reads tile workspace tabs and adds a chart card to the session store. Open remains navigate-only deep links.
 
+## Phase 5 modules
+
+| File | Purpose |
+|------|---------|
+| `boardFocusStore.ts` | Ephemeral focused card id for live chart mount + AI `focus_research_card` |
+| `researchBoardPort.ts` | `ResearchBoardPort` facade over session store + focus store (ToolContext boundary) |
+| `src/lib/ai/tools/research.ts` | Registry tools: get/add/link/focus/arrange/remove board cards |
+
+**Confirm policy:** `arrange_research_cards` and `remove_research_card` require user confirmation. Adds/links/focus apply immediately with `source: ai`.
+
+**ToolContext:** `context.research` is wired in `AiToolsProvider` when `app` session is present; null on HTTP server context.
+
 ## Integration boundaries
 
-- **AI tools:** Board mutations (Phase 5+) go through the registry + confirm gates — no ad-hoc React mutation.
+- **AI tools:** Board mutations go through the registry + confirm gates — no ad-hoc React mutation.
 - **Persistence:** Session cloud sync is a separate resource from app-workspace and chart-workspace — see [persistence ARCHITECTURE](../persistence/ARCHITECTURE.md).
 - **Design system:** Board chrome (Phase 3+) uses Edge tokens — see [design-system ARCHITECTURE](../design-system/ARCHITECTURE.md).
 

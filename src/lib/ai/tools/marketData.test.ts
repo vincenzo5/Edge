@@ -20,6 +20,7 @@ describe("marketData options tools", () => {
         risk: null,
         account: null,
         options: null,
+        scriptLibrary: null,
         marketData: {
           searchSymbols: vi.fn(),
           getCandles: vi.fn(),
@@ -28,6 +29,10 @@ describe("marketData options tools", () => {
           getOptionExpirations,
           getOptionsChain: vi.fn(),
         },
+        trading: null,
+        journal: null,
+        alerts: null,
+        research: null,
       },
     );
     expect(result.ok).toBe(true);
@@ -57,6 +62,7 @@ describe("marketData options tools", () => {
         risk: null,
         account: null,
         options: null,
+        scriptLibrary: null,
         marketData: {
           searchSymbols: vi.fn(),
           getCandles: vi.fn(),
@@ -65,6 +71,10 @@ describe("marketData options tools", () => {
           getOptionExpirations: vi.fn(),
           getOptionsChain,
         },
+        trading: null,
+        journal: null,
+        alerts: null,
+        research: null,
       },
     );
     expect(result.ok).toBe(true);

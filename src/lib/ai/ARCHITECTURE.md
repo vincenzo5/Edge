@@ -34,7 +34,7 @@ AI Agent
 | `registry.ts` | Tool registration and lookup |
 | `tools/clientTools.ts` | Browser-safe tool groups (no `node:fs`) → `clientToolRegistry` |
 | `tools/index.ts` | `ALL_AI_TOOLS` = client tools + `patternLibraryTools` → `edgeToolRegistry` |
-| `tools/*.ts` | Implementations: chart, marketData, indicators, indicatorScripts, drawings, watchlist, workflow, screener, sessionState, trading, journal, alerts, patternLibrary |
+| `tools/*.ts` | Implementations: chart, marketData, indicators, indicatorScripts, drawings, watchlist, workflow, screener, sessionState, trading, journal, alerts, research, patternLibrary |
 | `context.ts` | `ToolContext` interface — adapter boundary |
 | `tradingPort.ts` | `TradingPort` facade over `/api/trading/*` (fetch) or `TradingService` (HTTP adapter) |
 | `journalPort.ts` | `JournalPort` facade over `/api/me/journal/*` via `journalClient` |
@@ -80,7 +80,7 @@ Each `tools/call` through [`adapters/mcp.ts`](adapters/mcp.ts) writes one JSON l
 
 - Tools MUST NOT import React — use `ToolContext` facades only.
 - All inputs MUST pass Zod validation before execution.
-- Destructive tools (`delete_drawing`, `clear_watchlist`, `delete_watchlist`, `delete_indicator_script`, `delete_alert`, `place_order`) require confirmation.
+- Destructive tools (`delete_drawing`, `clear_watchlist`, `delete_watchlist`, `delete_indicator_script`, `delete_alert`, `remove_research_card`, `place_order`) require confirmation.
 - Server-side tools (market data, trading, pattern library disk I/O) run without browser session; client-state tools return `requiresClientSession` error when no session.
 - My scripts: seven `*_indicator_script` tools use `ScriptLibraryPort` (never React). Generic chart tools sanitize script instances to refs only; source is returned only from dedicated script tools. Compile is client-side only.
 - When `layout.linkSymbol` or `layout.linkInterval` is on, matching fields propagate to peer cells; crosshair sync uses `layout.linkCrosshair`; drawing sync uses `layout.linkDrawings`.

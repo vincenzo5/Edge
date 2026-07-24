@@ -83,6 +83,7 @@ function createContext(layout: ChartLayout): ToolContext {
     trading: null,
     journal: null,
     alerts: null,
+    research: null,
   };
 }
 

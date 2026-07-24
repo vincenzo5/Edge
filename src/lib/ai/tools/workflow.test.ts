@@ -75,6 +75,7 @@ describe("summarizeChartTool annotations", () => {
       trading: null,
       journal: null,
       alerts: null,
+    research: null,
       marketData: {
         searchSymbols: async () => [],
         getCandles: async () => [],

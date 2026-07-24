@@ -4,7 +4,7 @@ Phased track to evolve Edge’s shell toward **research-first** UX: Copilot as t
 
 **Last updated:** 2026-07-24
 
-**Status:** Roadmap defined — Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-24). Phase 3 **Passing** (2026-07-24).
+**Status:** Roadmap defined — Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-24). Phase 3 **Passing** (2026-07-24). Phase 4 **Passing** (2026-07-24). Phase 5 **Passing** (2026-07-24).
 
 **Related:** [ROADMAP.md](../ROADMAP.md) (Phase 5 Copilot + shell), [AI Agent Roadmap](./ai-agent-roadmap.md), [Grok Copilot UX Parity](./grok-copilot-parity-roadmap.md), [Workspace State Persistence](./workspace-state-persistence-roadmap.md), [Rich Annotations Vision](../chart/rich-annotations-vision.md), [News Flow](./news-flow-roadmap.md), [Screener](./screener-roadmap.md), [Journal](./journal-roadmap.md), [Alerts](./alerts-roadmap.md), [Design System](../../src/lib/design-system/ARCHITECTURE.md), [AI Architecture](../../src/lib/ai/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -270,16 +270,16 @@ ask (Talk) ──▶ pin artifacts ──▶ arrange on Board ──▶ open Des
 
 **Outcome:** Copilot can propose board mutations (add/link/arrange) through tools + confirms.
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
 | Work item | Scope |
 |-----------|--------|
-| Registry tools | e.g. `add_research_card`, `link_research_cards`, `focus_research_card` (names frozen in phase kickoff) |
-| Confirm policy | Destructive remove / bulk rearrange / promote-to-alert-or-order need confirms |
-| Provenance | Cards created by AI mark `source: ai` / proposed where applicable |
-| Talk ↔ Board | Agent narrates; board updates; user can reject |
+| Registry tools | **Frozen:** `get_research_board`, `add_research_card`, `link_research_cards`, `focus_research_card`, `arrange_research_cards` (confirm), `remove_research_card` (destructive + confirm) |
+| Confirm policy | `remove_research_card` destructive; `arrange_research_cards` bulk layout confirm |
+| Provenance | Cards created by AI mark `source: ai`; optional `threadId` / `messageId` on add |
+| Talk ↔ Board | Agent narrates; board updates via `ResearchBoardPort`; user rejects via confirm decline |
 
-**Out of scope:** Fully autonomous overnight research agents; multi-user presence.
+**Out of scope:** Fully autonomous overnight research agents; multi-user presence; promote-to-alert/order (use existing alert/trading tools).
 
 **Exit:** Focused tool + confirm tests; app-level: “build a board for NVDA OR-high thesis” → cards appear → user accepts/rejects.
 

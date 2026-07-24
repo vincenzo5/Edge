@@ -1,0 +1,17 @@
+Research UX Phase 5 verification (2026-07-24)
+
+Focused:
+  npm test -- --run src/lib/ai/tools/research src/lib/research src/app/components/research
+  Test Files  10 passed (10)
+  Tests  54 passed (54)
+
+Build:
+  npm run build — research.ts types pass; full build blocked by pre-existing ManagePlaybookPicker.tsx EdgeButton density prop (unrelated)
+
+App-level (manual checklist):
+  - Copilot: ask to build NVDA OR-high thesis board → add_research_card + link_research_cards
+  - Cards appear on /research with source: ai
+  - arrange_research_cards / remove_research_card show confirm cards; decline rejects
+  - Density switcher Desk → /workspace intact
+
+Architecture review: self-review Passed (ResearchBoardPort boundary; confirm gates; Desk permanence)

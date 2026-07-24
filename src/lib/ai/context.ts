@@ -48,6 +48,7 @@ import type { AccountSnapshot } from "@/lib/brokerage/accountSnapshot";
 import type { OptionsSessionState } from "@/lib/options/optionsSession";
 import type { ScriptCompileResult, ScriptManifest } from "@edge/chart-core";
 import type { ScriptLibraryEntry, ScriptLibraryState } from "@/lib/scriptLibrary/types";
+import type { ResearchBoardPort } from "@/lib/research/researchBoardPort";
 
 export type ScriptLibraryPort = {
   isHydrated: () => boolean;
@@ -120,6 +121,7 @@ export type ToolContext = BaseToolContext & {
   trading: TradingPort | null;
   journal: JournalPort | null;
   alerts: AlertsPort | null;
+  research: ResearchBoardPort | null;
 };
 
 export type ChartRangeInput = {

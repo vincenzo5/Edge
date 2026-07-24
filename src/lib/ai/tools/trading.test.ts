@@ -87,6 +87,7 @@ function mockContext(trading: TradingPort): ToolContext {
     trading,
     journal: null,
     alerts: null,
+    research: null,
     marketData: {
       searchSymbols: vi.fn(),
       getCandles: vi.fn(),

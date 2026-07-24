@@ -63,6 +63,7 @@ describe("summarizeScreenTool", () => {
       trading: null,
       journal: null,
       alerts: null,
+    research: null,
       marketData: {
         searchSymbols: async () => [],
         getCandles: async () => [],
@@ -103,6 +104,7 @@ describe("summarizeScreenTool", () => {
       trading: null,
       journal: null,
       alerts: null,
+    research: null,
       marketData: {
         searchSymbols: async () => [],
         getCandles: async () => [],

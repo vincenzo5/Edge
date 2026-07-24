@@ -136,6 +136,12 @@ AI Agent
 | **Pattern library** | `capture_pattern_setup` | read | — | Draft record from active chart; requires client session |
 | **Pattern library** | `save_pattern_capture` | write | yes | Persist capture record + SVG |
 | **Pattern library** | `get_pattern_capture` | read | — | Load saved capture by id |
+| **Research board** | `get_research_board` | read | — | Active session cards, links, focus |
+| **Research board** | `add_research_card` | write | no | Add chart/screener/note/journal/aiCallout/deskLink card (`source: ai`) |
+| **Research board** | `link_research_cards` | write | no | Directed edge between cards |
+| **Research board** | `focus_research_card` | write | no | Focus card for live chart mount |
+| **Research board** | `arrange_research_cards` | write | yes | Bulk position updates |
+| **Research board** | `remove_research_card` | destructive | yes | Remove card + links |
 
 See [`src/lib/patternLibrary/ARCHITECTURE.md`](../src/lib/patternLibrary/ARCHITECTURE.md) for hybrid retrieval + bake-off methodology.
 

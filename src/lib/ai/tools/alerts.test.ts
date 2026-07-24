@@ -173,6 +173,7 @@ function mockContext(alerts: AlertsPort | null, layout = createLayout()): ToolCo
     trading: null,
     journal: null,
     alerts,
+    research: null,
   };
 }
 

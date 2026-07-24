@@ -104,6 +104,7 @@ function mockContext(journal: JournalPort | null): ToolContext {
     trading: null,
     journal,
     alerts: null,
+    research: null,
   };
 }
 
@@ -185,6 +186,7 @@ function mockChartContext(
     trading: null,
     journal,
     alerts: null,
+    research: null,
   };
 
   return { context, loadSymbolIntoActiveChart, applyCellUpdate, setActiveCellIndex, goTo };

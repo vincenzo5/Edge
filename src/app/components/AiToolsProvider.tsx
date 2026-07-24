@@ -28,6 +28,7 @@ import { useAccountOptional } from "./AccountProvider";
 import { useOptionsSessionOptional } from "./options/OptionsSessionProvider";
 import { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
 import { buildAccountSnapshot } from "@/lib/brokerage/accountSnapshot";
+import { createResearchBoardPort } from "@/lib/research/researchBoardPort";
 import type { ExecuteToolOptions, ToolResult } from "@/lib/ai/types";
 
 export type AiToolsContextValue = InAppAiTools & {
@@ -50,6 +51,7 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
   const tradingRef = useRef(createFetchTradingPort());
   const journalRef = useRef(createFetchJournalPort());
   const alertsRef = useRef(createFetchAlertsPort());
+  const researchRef = useRef(createResearchBoardPort());
 
   const getContext = useCallback((): ToolContext => {
     return {
@@ -130,6 +132,7 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
       trading: tradingRef.current,
       journal: journalRef.current,
       alerts: alertsRef.current,
+      research: app ? researchRef.current : null,
     };
   }, [app, chartBridge, chartActions, watchlist, screener, risk, account, optionsSession, scriptLibrary]);
 

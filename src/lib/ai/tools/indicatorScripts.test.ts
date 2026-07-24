@@ -169,6 +169,7 @@ function createContext(
     trading: null,
     journal: null,
     alerts: null,
+    research: null,
     ...rest,
   };
 }

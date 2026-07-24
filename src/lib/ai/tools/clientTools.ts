@@ -10,6 +10,7 @@ import { sessionStateTools } from "./sessionState";
 import { tradingTools } from "./trading";
 import { journalTools } from "./journal";
 import { alertsTools } from "./alerts";
+import { researchTools } from "./research";
 import { createToolRegistry } from "../registry";
 
 /** Tools safe to register in the browser (no node:fs or server-only deps). */
@@ -26,6 +27,7 @@ export const CLIENT_AI_TOOLS = [
   ...tradingTools,
   ...journalTools,
   ...alertsTools,
+  ...researchTools,
 ];
 
 export const clientToolRegistry = createToolRegistry(CLIENT_AI_TOOLS);
@@ -43,4 +45,5 @@ export {
   tradingTools,
   journalTools,
   alertsTools,
+  researchTools,
 };

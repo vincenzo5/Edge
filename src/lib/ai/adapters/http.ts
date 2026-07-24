@@ -36,5 +36,6 @@ export function createServerToolContext(): ToolContext {
     }),
     journal: null,
     alerts: null,
+    research: null,
   };
 }
