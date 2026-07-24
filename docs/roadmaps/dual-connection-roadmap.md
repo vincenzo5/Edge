@@ -4,9 +4,9 @@ Single roadmap for running **paper and live IB Gateway simultaneously**, decoupl
 
 **Last updated:** 2026-07-08
 
-**Status:** Phase D abstraction hardening + Data Health split shipped (2026-07-12); Phase C data preference split shipped.
+**Status:** Phases A–D **product complete** (2026-07-12). Deferred both-Gateway ops / app-level proofs → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 1.
 
-**Related:** [Trading Execution Roadmap](./trading-execution-roadmap.md) (Phases 0–5 shipped), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Edge Roadmap](../ROADMAP.md).
+**Related:** [Trading Execution Roadmap](./trading-execution-roadmap.md) (Phases 0–5 shipped), [Connections & Providers Roadmap](./connections-providers-roadmap.md) (Phase 0 contracts; Phase 1 Settings UI for paper/live controls), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Edge Roadmap](../ROADMAP.md).
 
 ---
 
@@ -140,7 +140,7 @@ curl -s "http://127.0.0.1:8765/account/status?connectionId=ib-live"  | jq '.acco
 | B.4 | Optional: `TWS_LIVE_ACCOUNT_ID` / known-account seed **only** when live Gateway is down — labeled `(live, offline)` for journal filter, never `(journal)` |
 | B.5 | Journal filter unchanged (match fill `account`); verify live fills fold under live picker selection |
 
-**Exit evidence:** Picker shows `DUP586813 (paper)` + `U25026894 (live)` (or actual ids); no `(journal)` row; selecting live scopes journal to that account id.
+**Exit evidence:** Picker shows `Paper (DUP586813)` + `Live (U25026894)` (or actual ids); no `(journal)` row; selecting live scopes journal to that account id.
 
 ### Phase C — Decouple data preference from order account
 
@@ -151,7 +151,7 @@ curl -s "http://127.0.0.1:8765/account/status?connectionId=ib-live"  | jq '.acco
 | C.1 | Introduce persisted `dataConnectionPreference` (or `edge:marketData:connectionId`) separate from `activeTradingAccount` |
 | C.2 | Default preference: **live** when live Gateway connected; else paper; else Yahoo waterfall (existing) |
 | C.3 | Sidecar market-data routes (`/quotes`, `/candles`, streams, warmup) accept `connectionId`; Next.js TWS client passes preference |
-| C.4 | Header UX: account picker = **order/journal/account-panel** target; subtle data-source chip or settings control for data preference (avoid two competing primary pickers) |
+| C.4 | Header UX: account picker = **order/journal/account-panel** target; **Market data** selector (`MarketDataConnectionMenu`) for chart/watchlist preference — independent from order account; global theme toggle + deferred application-settings shell in app header |
 | C.5 | `AccountProvider`: brokerage stream/snapshot follows **active trading account** environment (not data preference) |
 | C.6 | Trading readiness / pre-trade quotes follow **order** environment (safety); chart display may use data preference |
 | C.7 | Live brokerage SSE parity (or documented poll) — do not leave live account panel silently stale without UX |
@@ -203,5 +203,5 @@ Completion evidence in harness must quote actual command output (test counts, bu
 ## Next Session Entry Point
 
 1. ~~Phases A–D product work~~ — **shipped** (Docker dual Gateway infra, honest picker, data≠order preference, Data Health split).
-2. Remaining: local A.5 / both-Gateway ops proof with credentials + 2FA; keep display preference independent of order account.
+2. Remaining ops proof lives on [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 1 (A.5 both-Gateway, data≠order walk).
 3. Options / brackets stay on the trading-execution backlog (not this track).
