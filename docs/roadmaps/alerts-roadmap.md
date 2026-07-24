@@ -2,9 +2,9 @@
 
 Single roadmap for Edge price, drawing, and semantic annotation alerts — how the industry handles them, best practices, and phased implementation.
 
-**Last updated:** 2026-07-16
+**Last updated:** 2026-07-21
 
-**Status:** Not started — deferred until semantic annotations (Phase 4) and reliable data provenance are stable. Blocks screener scheduled re-runs ([Screener Roadmap](./screener-roadmap.md) Phase 3 item 4) and rich-annotations executability ([Rich Annotations Vision](../chart/rich-annotations-vision.md) Phase E).
+**Status:** Phase 0 **Passing** — Phase 1 **Passing** (2026-07-21) — Phase 2 **Passing** (2026-07-21) — Phase 3 **Passing** (2026-07-21) — Phase 4 **Passing** (2026-07-22): script condition alerts (Script Depth Phase 4 handoff). **Product complete for v1** (external delivery / semantic AI tools still deferred). Deferred app-level walks → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 2 (Wave 1, complete); MCP alert tool walk → [app-level-verification-wave-2-roadmap.md](./app-level-verification-wave-2-roadmap.md) Phase 4.
 
 ## Product goal
 
@@ -77,7 +77,7 @@ UI (chart / watchlist / AI tools)
 | Drawings / geometry | `packages/chart-core/src/drawings/`, drawing context menus |
 | Semantic metadata | `SerializedDrawing.metadata`, [rich-annotations-vision.md](../chart/rich-annotations-vision.md) |
 | Persistence | `src/lib/persistence/schemas/`, watchlist library pattern |
-| AI tools | `src/lib/ai/tools/` — `create_alert`, `list_alerts`, `dismiss_alert` (future) |
+| AI tools | `src/lib/ai/tools/alerts.ts` — lifecycle + high-level create + chart workflow (16 tools via `AlertsPort`; `requiresClientSession`) |
 | Screener | Scheduled re-run + "new symbols match" notification ([screener-roadmap.md](./screener-roadmap.md)) |
 
 ## Phasing
@@ -111,38 +111,62 @@ UI (chart / watchlist / AI tools)
 
 Reference parity: TradingView drawing alerts ([tradingview-reference.md](../chart/tradingview-reference.md)).
 
-### Phase 2 — Semantic & Edge-specific alerts
+### Phase 2 — Trade plan + screener alerts
 
-**Outcome:** Alerts that understand analysis intent, not just price levels.
+**Outcome:** Actionable alert workflows for trade setups and saved screen discovery.
 
-| Work item | Scope |
-|-----------|--------|
-| Semantic binding | Alert on `thesis` zone enter, `invalidation` break, `target` hit |
-| Trade plan bundle | One annotation → entry + stop + target alert set |
-| Invalidation auto-status | Mark annotation `invalidated` + notify on trigger |
-| AI create | Copilot arms alert when placing/updating semantic drawing |
-| Screener alerts | Scheduled re-run of saved screen; notify when result set changes |
+| Work item | Scope | Status |
+|-----------|--------|--------|
+| Trade plan bundle | Long/short position → entry + stop + target price alerts (`drawingRole` + `bundleId`); overlay **Add trade plan alerts…**; role-aware sync on edit | **Passing** |
+| Screener alerts | `screener_alerts` table + cron re-run; notify on **added** symbols; saved-screen **Notify** toggle (15m/60m); `source: "screener"` delivery | **Passing** |
 
-Aligns with [rich-annotations-vision.md Phase E](../chart/rich-annotations-vision.md).
+**Deferred from original Phase 2 naming:**
+- Semantic binding (`thesis` / `invalidation` / `target` kind alerts)
+- Invalidation auto-status on annotation
+- Semantic AI `create_alert` tools (lifecycle CRUD + high-level create **shipped** 2026-07-22 — see `src/lib/ai/tools/alerts.ts`)
 
-### Phase 3 — Delivery & power user
+Aligns partially with [rich-annotations-vision.md Phase E](../chart/rich-annotations-vision.md) (invalidation triggers still deferred).
 
-**Outcome:** Alerts reach the user outside the app; indicator conditions for advanced users.
+### Phase 3 — Power-user conditions
 
-| Work item | Scope |
-|-----------|--------|
-| Email / push | Optional channels (mobile later) |
-| Webhooks | Discord, Slack, custom automation |
-| Indicator conditions | Reuse declarative `IndicatorPlugin` (e.g. RSI > 70, MACD cross) |
-| Watchlist-wide | One alert definition covering many symbols |
-| Multi-condition | AND/OR on 2 conditions max (defer TradingView-style 5-way combinatorics) |
+**Outcome:** Advanced alert conditions without external delivery channels.
+
+| Work item | Scope | Status |
+|-----------|--------|--------|
+| Indicator conditions | Reuse declarative `IndicatorPlugin` via server candle eval (RSI/MACD/MA/EMA starter set); level + cross modes | **Passing** |
+| Watchlist-wide | One definition bound to `watchlistId`; per-symbol fire/cooldown via `symbol_state` | **Passing** |
+| Multi-condition | AND/OR on 2 legs max; false→true combinator edge | **Passing** |
+
+**Deferred from original Phase 3 naming:**
+- Email / push / webhooks (external delivery)
+- Semantic kind alerts (lifecycle alert AI tools shipped; semantic *kind* alerts still deferred)
+
+### Phase 4 — Script condition alerts
+
+**Outcome:** Private My scripts declare named condition series; client guest evaluates them; shared alerts engine arms/fires from freshness-guarded snapshots — never by running untrusted script on the server.
+
+Joint ownership with [script-depth-roadmap.md](./script-depth-roadmap.md) Phase 4.
+
+| Work item | Scope | Status |
+|-----------|--------|--------|
+| Manifest `alerts` | `ScriptManifest.alerts` maps condition id → `{ title, seriesId }`; SDK bump `edge-indicator-sdk-5` | **Passing** |
+| `script_condition` leg | Alert schema + config pane + prefill from script settings | **Passing** |
+| Snapshot ingest | `POST /api/me/alerts/[id]/snapshot` → `symbol_state` fields | **Passing** |
+| Cron eval | `evaluateAlertLeg` reads snapshot with 5m freshness guard; no server guest | **Passing** |
+| Chart bridge | Post snapshots after ready script results for armed alerts | **Passing** |
+
+**Reliability contract:** Price/drawing/indicator alerts remain server-reliable with the tab closed. Script-condition alerts may miss or lag when no chart session is updating snapshots (v1 intentional).
+
+**Out of scope:** Server QuickJS on cron; watchlist-wide script eval; Pine `alert()` syntax.
 
 ## Explicit deferrals
 
-- Pine Script / user-scripted alert logic
+- Email / push / webhooks (external alert delivery)
+- Pine Script syntax / arbitrary server-side guest execution
+- Server-side script guest execution for alert cron (script conditions use client snapshots in Phase 4)
 - Order execution tied to alert fire (alert → auto-trade)
 - Complex multi-leg bracket alerts
-- Screener scheduling before Phase 0 price alerts are proven
+- Screener scheduling before Phase 0 price alerts are proven *(Phase 2 screener alerts now Passing)*
 - Client-only evaluation (browser tab must not be required for reliability)
 
 ## Verification plan (when active)
