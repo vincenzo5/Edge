@@ -46,9 +46,4 @@ export {
   useScriptLibrary,
   useScriptLibraryOptional,
 } from "./ScriptLibraryContext";
-export {
-  ScriptLibraryMountGate,
-  useScriptLibraryAutoMountFromLayout,
-  useScriptLibraryMountRequest,
-} from "./ScriptLibraryMountGate";
 export { layoutHasScriptIndicators } from "./layoutHasScriptIndicators";

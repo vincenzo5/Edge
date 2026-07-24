@@ -8,7 +8,7 @@ import {
 } from "../../scripts/package-boundary-policy.mts";
 
 describe("app-lib boundary validator", () => {
-  it("passes on current src/lib sources (Phase 0 allowlist)", () => {
+  it("passes on current src/lib sources (fail-closed)", () => {
     expect(() => {
       execSync("npx tsx scripts/validate-app-lib-boundaries.mts", {
         cwd: join(import.meta.dirname, "../.."),
@@ -26,8 +26,8 @@ describe("app-lib boundary validator", () => {
     expect(issues.some((i) => i.reason.includes("@/app"))).toBe(true);
   });
 
-  it("allowlists known Phase 0 leaks only", () => {
-    expect(PHASE0_LIB_TO_APP_ALLOWLIST.size).toBe(7);
+  it("fail-closed on any lib→app import", () => {
+    expect(PHASE0_LIB_TO_APP_ALLOWLIST.size).toBe(0);
     const violations = libToAppBoundaryViolations([
       {
         relPath: "src/lib/ai/context.ts",
@@ -39,6 +39,6 @@ describe("app-lib boundary validator", () => {
       },
     ]);
     expect(violations.some((v) => v.file === "src/lib/example/newLeak.ts")).toBe(true);
-    expect(violations.some((v) => v.file === "src/lib/ai/context.ts")).toBe(false);
+    expect(violations.some((v) => v.file === "src/lib/ai/context.ts")).toBe(true);
   });
 });

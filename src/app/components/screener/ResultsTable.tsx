@@ -31,8 +31,7 @@ import { EdgeButton, EdgeEmptyState, EdgeMenuItem, EdgeSegmentedTabs, EdgeStatus
 import { HeatMapToolbar, HeatMapView } from "../heatmap";
 import { mergeScreenerQuoteOverlay } from "./useScreenerQuoteOverlay";
 import ColumnPicker from "./ColumnPicker";
-
-const PAGE_SIZE = 50;
+import { SCREENER_PAGE_SIZE } from "@/lib/screener/constants";
 const LIVE_QUOTE_STREAM_CAP = 32;
 const HEAT_MAP_QUOTE_STREAM_CAP = 200;
 
@@ -254,10 +253,10 @@ export default function ResultsTable({
     () => [...rows].sort((a, b) => compareScreenerRows(a, b, sort, indicatorValues)),
     [rows, sort, indicatorValues],
   );
-  const pageCount = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / SCREENER_PAGE_SIZE));
   const safePage = Math.min(Math.max(page, 0), pageCount - 1);
-  const pageStart = safePage * PAGE_SIZE;
-  const pageRowsRaw = sortedRows.slice(pageStart, pageStart + PAGE_SIZE);
+  const pageStart = safePage * SCREENER_PAGE_SIZE;
+  const pageRowsRaw = sortedRows.slice(pageStart, pageStart + SCREENER_PAGE_SIZE);
   const listStreamSymbols = useMemo(
     () =>
       pageRowsRaw
@@ -717,7 +716,7 @@ export default function ResultsTable({
   );
 }
 
-export { PAGE_SIZE as SCREENER_PAGE_SIZE };
+export { SCREENER_PAGE_SIZE } from "@/lib/screener/constants";
 
 function formatElapsed(ms: number): string {
   const seconds = Math.floor(ms / 1000);

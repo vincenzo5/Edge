@@ -10,7 +10,7 @@ import type {
 import type { Interval } from "@edge/chart-core";
 import type { Range } from "@/lib/yahoo";
 import type { SymbolSelectResult, WatchlistState } from "@/lib/watchlist/types";
-import type { ActiveChartSnapshot } from "@/app/components/ActiveChartContext";
+import type { ActiveChartSnapshot } from "@/lib/chart/activeChartTypes";
 import type { MarketDataPort } from "./marketDataPort";
 import type { TradingPort } from "./tradingPort";
 import type { JournalPort } from "./journalPort";

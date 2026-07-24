@@ -1,4 +1,4 @@
-import type { ActiveChartSnapshot } from "@/app/components/ActiveChartContext";
+import type { ActiveChartSnapshot } from "@/lib/chart/activeChartTypes";
 import type { ToolContext } from "../context";
 import { cellCountFor } from "@/lib/chartConfig";
 

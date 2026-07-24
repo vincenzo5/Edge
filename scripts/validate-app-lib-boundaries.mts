@@ -1,8 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Validates src/lib → src/app layering:
- * - Phase 0: allowlist known leaks; fail only on new production imports
- * - Phase 1: flip to fail-closed (empty allowlist)
+ * Validates src/lib → src/app layering (fail-closed since Phase 1).
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -44,22 +42,20 @@ for (const { relPath, content } of files) {
 }
 
 const violations = libToAppBoundaryViolations(files, PHASE0_LIB_TO_APP_ALLOWLIST);
-const allowlistedCount = new Set(
-  allIssues.map((issue) => issue.file).filter((file) => PHASE0_LIB_TO_APP_ALLOWLIST.has(file))
-).size;
+const leakingFiles = new Set(allIssues.map((issue) => issue.file));
 
 console.log(
-  `App-lib boundary scan: ${allIssues.length} import(s) in ${allowlistedCount} allowlisted file(s); ${violations.length} new violation(s).`
+  `App-lib boundary scan: ${allIssues.length} import(s) in ${leakingFiles.size} file(s); ${violations.length} violation(s).`
 );
 
 if (violations.length > 0) {
-  console.error("\nNew src/lib → src/app imports (not in Phase 0 allowlist):\n");
+  console.error("\nsrc/lib → src/app imports (fail-closed):\n");
   for (const issue of violations) {
     const loc = issue.line != null ? `${issue.file}:${issue.line}` : issue.file;
     console.error(`  ${loc} — ${issue.reason}`);
   }
-  console.error(`\n${violations.length} issue(s). Phase 1 will fail-closed on all leaks.`);
+  console.error(`\n${violations.length} issue(s). Move shared types to src/lib or packages.`);
   process.exit(1);
 }
 
-console.log("App-lib boundary validation passed (Phase 0 allowlist mode).");
+console.log("App-lib boundary validation passed (fail-closed).");

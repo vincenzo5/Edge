@@ -10,9 +10,9 @@ import {
   type ReactNode,
 } from "react";
 
-import { useAppWorkspace } from "@/app/components/app-workspace/AppWorkspaceContext";
+import { useAppWorkspace } from "./AppWorkspaceContext";
 import type { AppWorkspaceDocument } from "@/lib/appWorkspace/types";
-import { ScriptLibraryProvider } from "./ScriptLibraryContext";
+import { ScriptLibraryProvider } from "@/lib/scriptLibrary/ScriptLibraryContext";
 
 type ScriptLibraryMountContextValue = {
   requestScriptLibrary: () => void;

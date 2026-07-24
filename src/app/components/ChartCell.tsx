@@ -58,7 +58,7 @@ import { injectScriptFixtures, isScriptFixtureDevEnabled } from "@/lib/chart/scr
 import { defaultInputsFromSchema } from "@/lib/chart/indicatorInputs";
 import type { IndicatorPlugin } from "@/lib/chart/plugin-api";
 import { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
-import { useScriptLibraryMountRequest } from "@/lib/scriptLibrary/ScriptLibraryMountGate";
+import { useScriptLibraryMountRequest } from "@/app/components/app-workspace/ScriptLibraryMountGate";
 import { useOptionalAppWorkspace } from "./app-workspace/AppWorkspaceContext";
 import { useAppTimeZone } from "./AppTimeZoneProvider";
 import { buildAlertPrefillFromDrawing } from "@/lib/alerts/drawingAlertGeometry";

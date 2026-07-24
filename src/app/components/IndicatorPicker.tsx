@@ -13,7 +13,7 @@ import {
   toggleIndicatorFavorite,
 } from "@/lib/chart/indicatorFavorites";
 import { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
-import { useScriptLibraryMountRequest } from "@/lib/scriptLibrary/ScriptLibraryMountGate";
+import { useScriptLibraryMountRequest } from "@/app/components/app-workspace/ScriptLibraryMountGate";
 import {
   countScriptUsage,
   isSupportedScriptVersion,

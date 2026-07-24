@@ -2,7 +2,7 @@ import type {
   CopilotMessage,
   CopilotMessageAttachment,
   CopilotToolStep,
-} from "@/app/components/copilot/useCopilotThread";
+} from "@/lib/copilot/types";
 import type { PersistedCopilotMessage } from "@/lib/persistence/schemas/copilotThreads";
 
 const DEFAULT_THREAD_TITLE = "New chat";

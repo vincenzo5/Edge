@@ -1,5 +1,5 @@
 import { EDGE_AI_DEFAULT_MODEL_FALLBACK } from "@/lib/ai/model/allowlist";
-import type { CopilotMessage } from "@/app/components/copilot/useCopilotThread";
+import type { CopilotMessage } from "@/lib/copilot/types";
 import {
   DEFAULT_THREAD_TITLE,
   deriveThreadTitle,

@@ -1,4 +1,4 @@
-import type { SymbolSearchResult } from "@/app/components/design-system/symbol-search/types";
+import type { SymbolSearchResult } from "@/lib/marketData/search/types";
 import {
   buildClientCacheKey,
   normalizeClientCacheQuery,

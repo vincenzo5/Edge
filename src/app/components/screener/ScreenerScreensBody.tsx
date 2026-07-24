@@ -10,7 +10,7 @@ import {
 } from "react";
 import { patchScreenerState } from "@/lib/screener";
 import { resolveScreenName } from "@/lib/screener/summarizeScreen";
-import { useScreenerSessionModel } from "@/lib/screener/useScreenerSessionModel";
+import { useScreenerSessionModel } from "./useScreenerSessionModel";
 import { SCREENER_NARROW_LAYOUT_THRESHOLD } from "@/lib/responsive/layoutConstants";
 import { EdgeButton, EdgeIconButton, EdgeSelect } from "../design-system";
 import { bodyTextClass, compactControlClass, annotationTextClass, headerIconButtonClass } from "../design-system/styles";

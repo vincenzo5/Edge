@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import AppModuleShell from "@/app/components/home/AppModuleShell";
 import ModuleRouteTracker from "@/app/components/home/ModuleRouteTracker";
 import { ActiveChartProvider } from "@/app/components/ActiveChartContext";
-import { ScriptLibraryMountGate } from "@/lib/scriptLibrary/ScriptLibraryMountGate";
+import { ScriptLibraryMountGate } from "./ScriptLibraryMountGate";
 import { AppWorkspaceProvider, useAppWorkspace } from "./AppWorkspaceContext";
 import LayoutTreeView from "./LayoutTreeView";
 import WorkspaceBrowserTabQuote from "./WorkspaceBrowserTabQuote";

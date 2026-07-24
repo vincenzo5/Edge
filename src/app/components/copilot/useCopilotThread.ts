@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentStreamEvent, ChatMessage } from "@/lib/ai/agent/contracts";
-import { toArtifactHint, type ResearchArtifactHint } from "@/lib/research/artifactHint";
+import { toArtifactHint } from "@/lib/research/artifactHint";
 import {
   EDGE_AI_DEFAULT_MODEL_FALLBACK,
   resolveAllowedModelId,
@@ -27,61 +27,21 @@ import { selectChatRequestMessages } from "./selectChatRequestMessages";
 import { streamChat } from "./streamChat";
 import { resolveCopilotAttachmentDataUrl } from "@/lib/persistence/client/copilotAttachmentsClient";
 import type { CopilotAttachmentMimeType, CopilotAttachmentSource } from "@/lib/copilot/attachmentValidation";
+import type {
+  CopilotMessage,
+  CopilotMessageAttachment,
+  CopilotToolStep,
+} from "@/lib/copilot/types";
 
-export type CopilotDrawingLinkage = {
-  threadId: string;
-  messageId: string;
-};
-
-export type CopilotToolStepStatus =
-  | "running"
-  | "done"
-  | "error"
-  | "pending-confirm"
-  | "rejected";
-
-export type CopilotToolStep = {
-  callId: string;
-  name: string;
-  status: CopilotToolStepStatus;
-  summary?: string;
-  confirmReason?: string;
-  confirmArguments?: Record<string, unknown>;
-  confirmationToken?: string;
-  requiresClientSession?: boolean;
-  /** In-memory only — not persisted on Copilot thread rows. */
-  artifactHint?: ResearchArtifactHint;
-};
-
-export type CopilotMessageStatus = "streaming" | "done" | "error" | "cancelled";
-
-export type CopilotMessageAttachment = {
-  id: string;
-  mimeType: CopilotAttachmentMimeType;
-  name?: string | null;
-  source?: CopilotAttachmentSource;
-};
-
-export type CopilotMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  attachments?: CopilotMessageAttachment[];
-  toolSteps: CopilotToolStep[];
-  status?: CopilotMessageStatus;
-  error?: string;
-};
-
-export type CopilotThreadState = {
-  threadId: string;
-  title: string;
-  threads: CopilotThreadSummary[];
-  messages: CopilotMessage[];
-  isStreaming: boolean;
-  isHydrating: boolean;
-  hydrateError: string | null;
-  configError: string | null;
-};
+export type {
+  CopilotDrawingLinkage,
+  CopilotToolStepStatus,
+  CopilotToolStep,
+  CopilotMessageStatus,
+  CopilotMessageAttachment,
+  CopilotMessage,
+  CopilotThreadState,
+} from "@/lib/copilot/types";
 
 function createMessageId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {

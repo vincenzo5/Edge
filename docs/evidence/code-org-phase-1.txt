@@ -1,0 +1,23 @@
+Code organization — Phase 1 closeout
+Captured: 2026-07-24
+
+## Delivered
+- ActiveChart + DataWindow types → src/lib/chart/activeChartTypes.ts, dataWindow.ts
+- Copilot message types → src/lib/copilot/types.ts
+- SymbolSearch DTOs → src/lib/marketData/search/types.ts
+- Screener PAGE_SIZE + session model store injection (app wrapper)
+- ScriptLibraryMountGate → src/app/components/app-workspace/
+- Fail-closed app-lib boundary gate (empty allowlist); wired into check:packages
+
+## Verification
+Focused: npm test -- --run src/test/app-lib-boundaries.test.ts src/lib/ai src/lib/copilot src/lib/marketData/search src/lib/screener src/app/components/screener src/app/components/ActiveChartContext.test.tsx src/app/components/app-workspace/ScriptLibraryMountGate.test.tsx
+Result: Test Files 67 passed (67), Tests 383 passed (383)
+
+Boundary: npm run lint:app-lib-boundaries — 0 import(s) in 0 file(s); fail-closed passed
+Boundary: npm run lint:package-boundaries — passed
+
+Build: npm run build — ✓ Compiled successfully
+
+Architecture review: self-review Passed (app → lib → packages; lib ↛ app enforced)
+
+App-level: N/A

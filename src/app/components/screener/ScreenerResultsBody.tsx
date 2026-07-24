@@ -6,7 +6,7 @@ import {
   patchScreenerState,
   screenerLoadingLabel,
 } from "@/lib/screener";
-import { useScreenerSessionModel } from "@/lib/screener/useScreenerSessionModel";
+import { useScreenerSessionModel } from "./useScreenerSessionModel";
 import { addWatchlistItem, addWatchlistItems, createWatchlist } from "@/lib/watchlist/storage";
 import { useChartActions } from "../ChartActionsContext";
 import { useWatchlistActions } from "../watchlist/WatchlistContext";

@@ -2,7 +2,7 @@ import { vi } from "vitest";
 import type {
   ActiveChartRegistration,
   ActiveChartSnapshot,
-} from "@/app/components/ActiveChartContext";
+} from "@/lib/chart/activeChartTypes";
 
 export function makeDataWindowActionsMock(
   overrides?: Partial<ActiveChartSnapshot["dataWindowActions"]>,

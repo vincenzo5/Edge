@@ -32,8 +32,8 @@ import {
 import type { ScreenerSessionState } from "@/lib/screener/screenerSession";
 import { topHeatMapQuoteSymbols } from "@/lib/screener/screenerHeatMapAdapter";
 import { isReviewResumeValid, clampReviewIndex } from "@/lib/screener/reviewResume";
-import { useScreenerState } from "@/app/components/screener/ScreenerProvider";
-import { SCREENER_PAGE_SIZE } from "@/app/components/screener/ResultsTable";
+import { SCREENER_PAGE_SIZE } from "@/lib/screener/constants";
+import type { ScreenerSessionModelStore } from "@/lib/screener/screenerSessionModelStore";
 
 const DEFAULT_SORT: ScreenerSortSpec = {
   column: "symbol",
@@ -48,7 +48,7 @@ function visibleSymbolsKey(symbols: string[]): string {
   return symbols.join(",");
 }
 
-export function useScreenerSessionModel(active: boolean) {
+export function useScreenerSessionModel(store: ScreenerSessionModelStore, active: boolean) {
   const {
     state,
     setState,
@@ -60,7 +60,7 @@ export function useScreenerSessionModel(active: boolean) {
     toggleCompareSymbol,
     clearCompareSelection,
     setCompareOpen,
-  } = useScreenerState();
+  } = store;
 
   const {
     lastRun,

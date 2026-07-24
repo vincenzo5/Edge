@@ -8,7 +8,7 @@ import EdgeButton from "@/app/components/design-system/EdgeButton";
 import { useMarketDataQuotesForSymbols } from "@/app/components/MarketDataProvider";
 import { isEditableTarget } from "@/lib/shortcuts/isEditableTarget";
 import { resolveScreenName } from "@/lib/screener/summarizeScreen";
-import { useScreenerSessionModel } from "@/lib/screener/useScreenerSessionModel";
+import { useScreenerSessionModel } from "./useScreenerSessionModel";
 import {
   advanceReview,
   getReviewSymbol,

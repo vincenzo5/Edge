@@ -58,16 +58,8 @@ export function closedAppImportIssues(
   return issues;
 }
 
-/** Production files in src/lib known to import src/app (Phase 0 allowlist; cleared in Phase 1). */
-export const PHASE0_LIB_TO_APP_ALLOWLIST = new Set([
-  "src/lib/ai/context.ts",
-  "src/lib/ai/tools/_helpers.ts",
-  "src/lib/persistence/client/copilotThreadsClient.ts",
-  "src/lib/copilot/copilotThreadRedact.ts",
-  "src/lib/marketData/search/searchClient.ts",
-  "src/lib/screener/useScreenerSessionModel.ts",
-  "src/lib/scriptLibrary/ScriptLibraryMountGate.tsx",
-]);
+/** Phase 1: fail-closed — no allowlisted lib→app imports. */
+export const PHASE0_LIB_TO_APP_ALLOWLIST = new Set<string>();
 
 const LIB_TO_APP_CHECKS: Array<{ test: (specifier: string) => boolean; reason: string }> = [
   { test: (s) => s.startsWith("@/app/"), reason: "imports app layer via @/app alias" },

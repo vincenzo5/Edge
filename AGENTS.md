@@ -57,7 +57,7 @@ npm run check
 
 Default to WIP=1: keep only one task actively in progress. Do not start adjacent refactors, polish, or follow-up features until the current task has executable completion evidence. Planning → [plan-harness-awareness.mdc](.cursor/rules/plan-harness-awareness.mdc); implementing an approved plan → [execute-from-plan-checklist.md](docs/checklists/execute-from-plan-checklist.md) (skip planning checklists). Large plan sessions (~15–20+ tool calls) → fresh execute via `/handoff` + plan path.
 
-**Layering:** `src/lib` must not import `src/app` — shared types/hooks live below UI (`app` → `lib` → `packages`). Phase 0 allowlist gate: `npm run lint:app-lib-boundaries`; fail-closed in [code-organization-roadmap.md](docs/roadmaps/code-organization-roadmap.md) Phase 1. Baseline: [docs/evidence/code-org-baseline.txt](docs/evidence/code-org-baseline.txt).
+**Layering:** `src/lib` must not import `src/app` — shared types/hooks live below UI (`app` → `lib` → `packages`). Fail-closed gate: `npm run lint:app-lib-boundaries` (also in `check:packages`). Baseline: [docs/evidence/code-org-baseline.txt](docs/evidence/code-org-baseline.txt).
 
 A task is done only when its focused verification passes or a blocker is recorded in `docs/PROJECT-STATUS.md`.
 

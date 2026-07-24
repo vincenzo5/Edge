@@ -11,7 +11,7 @@ import {
 import type { ScreenerResultRow } from "@/lib/screener/types";
 import { useScreenerState } from "./ScreenerProvider";
 import { useScreenerReviewDrive } from "./useScreenerReviewDrive";
-import { SCREENER_PAGE_SIZE } from "./ResultsTable";
+import { SCREENER_PAGE_SIZE } from "@/lib/screener/constants";
 
 type Options = {
   active: boolean;

@@ -16,10 +16,8 @@ import { useStockAppLayoutController } from "./stock-app/useStockAppLayoutContro
 import { AppProviders } from "./stock-app/AppProviders";
 import { useAppTheme } from "./AppThemeProvider";
 import { buildAlertPrefillWorkspaceLink } from "@/lib/alerts/openAlertPrefill";
-import {
-  layoutHasScriptIndicators,
-  useScriptLibraryAutoMountFromLayout,
-} from "@/lib/scriptLibrary";
+import { layoutHasScriptIndicators } from "@/lib/scriptLibrary";
+import { useScriptLibraryAutoMountFromLayout } from "@/app/components/app-workspace/ScriptLibraryMountGate";
 import type { ChartTileBootstrapBinding } from "@/lib/app/bootstrap/chartTileBootstrapBinding";
 
 type Props = {

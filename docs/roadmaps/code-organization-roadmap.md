@@ -4,7 +4,7 @@ Phased track to close structural debt left after [Structural Refactor](./refacto
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Pending**.
 
 **Related:** [Structural Refactor](./refactor-roadmap.md) (complete), [Refactor Planning Checklist](../checklists/refactor-planning-checklist.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [AI Tools Architecture](../../src/lib/ai/ARCHITECTURE.md), [Persistence Architecture](../../src/lib/persistence/ARCHITECTURE.md), [Design System Architecture](../../src/lib/design-system/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Edge Roadmap](../ROADMAP.md), [AGENTS.md](../../AGENTS.md).
 
@@ -131,7 +131,7 @@ Known inverted imports (Phase 1 targets):
 
 **Outcome:** Shared types and pure helpers live under `src/lib` (or packages); UI owns React only; boundary test **fails** on new leaks.
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
 | # | Deliverable |
 |---|-------------|

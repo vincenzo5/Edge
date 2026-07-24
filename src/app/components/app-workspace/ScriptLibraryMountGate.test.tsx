@@ -5,7 +5,7 @@ import { useEffect } from "react";
 
 import AppWorkspaceShell from "./AppWorkspaceShell";
 import { useAppWorkspace } from "./AppWorkspaceContext";
-import { useScriptLibraryMountRequest } from "@/lib/scriptLibrary/ScriptLibraryMountGate";
+import { useScriptLibraryMountRequest } from "./ScriptLibraryMountGate";
 
 const scriptLibraryProviderSpy = vi.hoisted(() => vi.fn());
 
