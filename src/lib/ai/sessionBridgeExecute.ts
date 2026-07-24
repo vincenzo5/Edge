@@ -1,6 +1,7 @@
 import "server-only";
 
 import { enqueueSessionExecution } from "./sessionBridgeStore";
+import { getRequestId } from "@/lib/observability/requestIdContext";
 import type { ExecuteToolOptions, ToolResult } from "./types";
 
 export type SessionBridgeSource = "agent" | "mcp" | "http";
@@ -13,16 +14,19 @@ export type SessionBridgeLog = {
   code?: string;
   durationMs: number;
   source: SessionBridgeSource;
+  requestId?: string;
 };
 
 /** Structured stderr log for bridge debugging (no args/results/secrets). */
 export function logSessionBridgeCall(
   entry: Omit<SessionBridgeLog, "ts" | "event">,
 ): void {
+  const requestId = getRequestId();
   const line: SessionBridgeLog = {
     ts: new Date().toISOString(),
     event: "session.bridge",
     ...entry,
+    ...(requestId ? { requestId } : {}),
   };
   if (line.ok) {
     delete line.code;

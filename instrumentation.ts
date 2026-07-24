@@ -5,6 +5,10 @@ export async function register() {
     m.ensureServerCacheBackendsInitialized(),
   );
 
+  await import("./src/lib/observability/accessLogHook").then((m) =>
+    m.registerAccessLogHook(),
+  );
+
   if (process.env.TWS_ENABLED !== "true") return;
 
   // Node-only sidecar hooks live in a dynamic import so Turbopack does not

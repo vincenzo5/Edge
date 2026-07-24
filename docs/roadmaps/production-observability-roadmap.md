@@ -4,7 +4,7 @@ Harden Edge so operators can tell whether production is healthy **without babysi
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing**. Phase 1 **Passing**. Phases 2–5 **Pending**. Phase 2 may start under WIP=1. Complements [Security Hardening](./security-hardening-roadmap.md) (fail-closed perimeter), [Shared Cache Topology](./shared-cache-topology-roadmap.md) (Redis health fields), [Data State Hardening](./data-state-hardening-roadmap.md) (Data Health / SLIs), [Trading Execution](./trading-execution-roadmap.md) (audit ring + `order_intents`), and solo local observability in [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md).
+**Status:** Phase 0 **Passing**. Phase 1 **Passing**. Phase 2 **Passing**. Phases 3–5 **Pending**. Phase 3 may start under WIP=1. Complements [Security Hardening](./security-hardening-roadmap.md) (fail-closed perimeter), [Shared Cache Topology](./shared-cache-topology-roadmap.md) (Redis health fields), [Data State Hardening](./data-state-hardening-roadmap.md) (Data Health / SLIs), [Trading Execution](./trading-execution-roadmap.md) (audit ring + `order_intents`), and solo local observability in [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md).
 
 **Related:** [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md) (probe contract + env knobs + baseline).
 
@@ -70,6 +70,7 @@ After this track:
 | Error sink | Postgres table (+ report CLI); optional later self-hosted GlitchTip | Sentry / Bugsnag / paid error SaaS |
 | Alerts | Cron hitting probes + Discord/Slack webhook; optional self-hosted Uptime Kuma | PagerDuty / paid incident SaaS |
 | Metrics pipeline | Reuse process-local SLIs + health JSON; optional later Prometheus/Grafana OSS | Datadog / New Relic / paid OTel SaaS |
+| Lab memory scorecard | Local `perf:memory` / [memory-metrics-roadmap.md](./memory-metrics-roadmap.md) (heap, tab/process, desk) | Paid RUM / APM heap profiles as required deps |
 
 **Infra note:** Postgres/Redis hosting is application infrastructure, not observability SaaS. This track assumes those already exist for production Edge.
 
@@ -169,7 +170,7 @@ After this track:
 ### Phase 2 — Structured logs and request IDs
 
 **Band:** Now  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
 **Outcome:** Operators can follow one request across API (and into AI/trading call sites that opt in) without paid APM.
 

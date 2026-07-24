@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as executeModule from "./execute";
 import { buildMcpToolHandlers, logMcpToolCall } from "./mcp";
 import { edgeToolRegistry } from "../tools";
+import { runWithRequestId } from "@/lib/observability/requestIdContext";
 
 type McpToolLog = {
   ts?: string;
@@ -21,6 +22,10 @@ function parseMcpToolLogs(consoleSpy: ReturnType<typeof vi.spyOn>): McpToolLog[]
 }
 
 describe("logMcpToolCall", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("writes structured stderr JSON without code when ok", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -41,6 +46,22 @@ describe("logMcpToolCall", () => {
     });
     expect(line.code).toBeUndefined();
     expect(typeof line.ts).toBe("string");
+  });
+
+  it("includes requestId when ALS context is set", () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    runWithRequestId("mcp-req-1", () => {
+      logMcpToolCall({
+        tool: "search_symbols",
+        ok: true,
+        durationMs: 12,
+        bridge: false,
+      });
+    });
+
+    const [line] = parseMcpToolLogs(consoleSpy);
+    expect(line.requestId).toBe("mcp-req-1");
   });
 });
 

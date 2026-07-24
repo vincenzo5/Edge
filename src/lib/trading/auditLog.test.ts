@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { appendAudit, listAudit, resetAuditLogForTests } from "./auditLog";
+import { runWithRequestId } from "@/lib/observability/requestIdContext";
 
 describe("auditLog", () => {
   beforeEach(() => {
@@ -29,5 +30,16 @@ describe("auditLog", () => {
     }
     expect(listAudit()).toHaveLength(500);
     expect(listAudit()[0]?.detail).toBe("10");
+  });
+
+  it("includes requestId from ALS when present", () => {
+    runWithRequestId("audit-req-1", () => {
+      appendAudit({
+        action: "blocked",
+        outcome: "blocked",
+        detail: "missing session",
+      });
+    });
+    expect(listAudit()[0]?.requestId).toBe("audit-req-1");
   });
 });

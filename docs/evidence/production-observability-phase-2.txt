@@ -1,0 +1,43 @@
+# Production observability — Phase 2 evidence
+# Date: 2026-07-24
+
+## Scope
+Request ID middleware on `/api/*` + JSON access logs (`http.access`) + requestId propagation into AI/trading structured logs.
+
+## Delivered
+- src/lib/observability/requestIdCore.ts — header name, validate/mint/resolve (Edge-safe)
+- src/lib/observability/requestIdContext.ts — ALS getRequestId/runWithRequestId (Node)
+- src/lib/observability/accessLog.ts — stdout JSON access line, pathname-only, test silence
+- src/lib/observability/accessLogHook.ts — Node HTTP finish hook for /api/*
+- src/middleware.ts — request ID forward + response header on pass/401/429
+- instrumentation.ts — register access log hook on Node boot
+- src/lib/ai/adapters/mcp.ts — optional requestId on mcp.tool logs
+- src/lib/ai/sessionBridgeExecute.ts — optional requestId on session.bridge logs
+- src/lib/trading/auditLog.ts — optional requestId from ALS on ring entries
+- Tests: requestId, accessLog, accessLogHook, middleware, mcp, sessionBridgeExecute, auditLog
+- src/lib/observability/ARCHITECTURE.md — Phase 2 contract
+
+## Architecture review
+Self-review Passed — Edge-safe requestIdCore in middleware; Node hook for status/duration; no query/body/cookie logging; reuses existing MCP/bridge stderr shape.
+
+## Verification (2026-07-24)
+Focused:
+npm test -- --run src/middleware.test.ts src/lib/observability/requestId.test.ts src/lib/observability/accessLog.test.ts src/lib/observability/accessLogHook.test.ts src/lib/ai/adapters/mcp.test.ts src/lib/ai/sessionBridgeExecute.test.ts src/lib/trading/auditLog.test.ts
+Test Files  7 passed (7)
+Tests  28 passed (28)
+
+Build:
+npm run build
+✓ Compiled successfully in 11.3s
+(Full TS gate fails on pre-existing unrelated examples/chart-perf-harness/microbench.ts — not introduced by Phase 2.)
+
+App-level / ops:
+curl -sS -D - -o /dev/null -H "x-edge-request-id: phase2-evidence-req" "http://localhost:3003/api/search?q=AAPL"
+→ response header: x-edge-request-id: phase2-evidence-req
+
+Sample access log (from accessLogHook integration test / hook verification):
+{"event":"http.access","method":"GET","path":"/api/candles","status":201,"durationMs":…,"requestId":"incoming-req"}
+No query token in path field.
+
+## Next
+Phase 3 — durable trading audit (Postgres)

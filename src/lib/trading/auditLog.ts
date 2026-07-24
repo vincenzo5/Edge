@@ -1,3 +1,5 @@
+import { getRequestId } from "@/lib/observability/requestIdContext";
+
 export type TradingAuditAction =
   | "preview"
   | "submit"
@@ -16,13 +18,19 @@ export type TradingAuditEntry = {
   intentId?: string;
   orderRef?: string;
   detail?: string;
+  requestId?: string;
 };
 
 const MAX_ENTRIES = 500;
 const entries: TradingAuditEntry[] = [];
 
 export function appendAudit(entry: Omit<TradingAuditEntry, "at"> & { at?: number }): void {
-  entries.push({ ...entry, at: entry.at ?? Date.now() });
+  const requestId = getRequestId();
+  entries.push({
+    ...entry,
+    at: entry.at ?? Date.now(),
+    ...(requestId && !entry.requestId ? { requestId } : {}),
+  });
   while (entries.length > MAX_ENTRIES) {
     entries.shift();
   }

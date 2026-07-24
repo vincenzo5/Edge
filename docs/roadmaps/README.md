@@ -40,7 +40,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Data inventory and state hardening | [data-state-hardening-roadmap.md](./data-state-hardening-roadmap.md) | Phases 0–8 **Passing**; telemetry/SLOs future; live-fault walks → Wave 1 Phase 7 |
 | Data serving & caching efficiency | [data-serving-efficiency-roadmap.md](./data-serving-efficiency-roadmap.md) | Phases 0–6 **Passing**; Phase 7 **Skipped** — track complete; walks → Wave 1 Phase 7 |
 | Memory efficiency | [memory-efficiency-roadmap.md](./memory-efficiency-roadmap.md) | Phases 0–14 **Passing** (2026-07-24) — track complete; Redis adapters in Phase 12; prod topology → [shared-cache-topology-roadmap.md](./shared-cache-topology-roadmap.md) |
-| Comprehensive memory metrics | [memory-metrics-roadmap.md](./memory-metrics-roadmap.md) | Phase 0 **Passing** (2026-07-24); Phases 1–6 **Pending** — layered scorecard (heap, tab/process, GPU surfaces, desk composite, soak); measurement only |
+| Comprehensive memory metrics | [memory-metrics-roadmap.md](./memory-metrics-roadmap.md) | Phase 0–1 **Passing** (2026-07-24); Phases 2–6 **Pending** — layered scorecard (heap, tab/process, GPU surfaces, desk composite, soak); measurement only |
 | Runtime interaction performance | [runtime-performance-roadmap.md](./runtime-performance-roadmap.md) | Phase 0 **Passing** (2026-07-24); Phases 1–8 **Pending** — frame time / crosshair / tip tick / React wakeups |
 | Shared cache topology | [shared-cache-topology-roadmap.md](./shared-cache-topology-roadmap.md) | Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance); manual redis health flip → Wave 2 Phase 4 |
 | Workspace state persistence | [workspace-state-persistence-roadmap.md](./workspace-state-persistence-roadmap.md) | Phases 0–5 **Passing** — track complete; residual chrome → Wave 1 Phase 6 |
@@ -48,5 +48,5 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Code organization | [code-organization-roadmap.md](./code-organization-roadmap.md) | Phase 0–5 **Passing** (2026-07-24) — chart shims sunset complete |
 | TWS sidecar architecture | [tws-sidecar-refactor-roadmap.md](./tws-sidecar-refactor-roadmap.md) | Phases 0–7 **Passing** (2026-07-23) |
 | Security hardening | [security-hardening-roadmap.md](./security-hardening-roadmap.md) | Phases 0–6 **Passing** (2026-07-24) — track complete |
-| Production observability (free stack) | [production-observability-roadmap.md](./production-observability-roadmap.md) | Phase 0–1 **Passing**; Phases 2–5 **Pending** — logs, durable audit/errors, free alerts |
+| Production observability (free stack) | [production-observability-roadmap.md](./production-observability-roadmap.md) | Phase 0–2 **Passing**; Phases 3–5 **Pending** — durable audit/errors, free alerts |
 | Plan → execute token efficiency | [plan-execute-token-efficiency-roadmap.md](./plan-execute-token-efficiency-roadmap.md) | Phase 0–6 **Passing** (2026-07-24) — track complete |

@@ -1,5 +1,6 @@
 import type { ToolRegistry } from "../registry";
 import { executeTool } from "./execute";
+import { getRequestId } from "@/lib/observability/requestIdContext";
 import type {
   ExecuteToolOptions,
   PermissionMode,
@@ -101,14 +102,17 @@ export type McpToolCallLog = {
   code?: string;
   durationMs: number;
   bridge: boolean;
+  requestId?: string;
 };
 
 /** Structured stderr log for local MCP debugging (no args/results/secrets). */
 export function logMcpToolCall(entry: Omit<McpToolCallLog, "ts" | "event">): void {
+  const requestId = getRequestId();
   const line: McpToolCallLog = {
     ts: new Date().toISOString(),
     event: "mcp.tool",
     ...entry,
+    ...(requestId ? { requestId } : {}),
   };
   if (line.ok) {
     delete line.code;

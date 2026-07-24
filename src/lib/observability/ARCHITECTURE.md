@@ -80,6 +80,40 @@ Use `/healthz` for restart-on-hang; use `/readyz` to remove traffic when Postgre
 
 ---
 
+## Request IDs and access logs (Phase 2)
+
+**Implementation:** [`src/middleware.ts`](../../../middleware.ts), [`requestIdCore.ts`](requestIdCore.ts), [`requestIdContext.ts`](requestIdContext.ts), [`accessLog.ts`](accessLog.ts), [`accessLogHook.ts`](accessLogHook.ts), [`instrumentation.ts`](../../../instrumentation.ts).
+
+### Request correlation
+
+- **Header:** `x-edge-request-id` by default; override with `EDGE_REQUEST_ID_HEADER`.
+- **Middleware (`/api/*`):** Accept a valid incoming ID (charset `[\w.-]+`, max 128) or mint UUID; forward on the request; set response header on pass-through and auth/rate-limit short-circuits (401/429).
+- **Node ALS:** `accessLogHook` wraps `/api/*` HTTP requests so route handlers, AI stderr logs, and trading audit can read `getRequestId()` without threading IDs through every call site.
+
+### Access log line
+
+One stdout JSON line per `/api/*` request on `res.finish` (silenced in `test` / Vitest):
+
+```json
+{"ts":"…","event":"http.access","method":"GET","path":"/api/search","status":200,"durationMs":12,"requestId":"…"}
+```
+
+- **Path:** pathname only — query strings stripped (no tokens in logs).
+- **Never logged:** bodies, cookies, Authorization, tool args, broker payloads.
+- **Non-API routes:** `/healthz`, `/readyz`, pages — no access log (cheap probes stay quiet).
+
+### Propagation
+
+| Surface | Field |
+|---------|-------|
+| MCP tool stderr (`mcp.tool`) | optional `requestId` |
+| Session bridge stderr (`session.bridge`) | optional `requestId` |
+| Trading audit ring | optional `requestId` on entries |
+
+Market-data trace header `x-edge-md-trace-id` remains scoped to market-data routes — not replaced.
+
+---
+
 ## Env knobs (sketch)
 
 Documented intent for later phases. Placeholders in [.env.example](../../../.env.example).
@@ -102,6 +136,7 @@ Readiness reuses existing deploy profile knobs — do not invent parallel “obs
 | Piece | Location | Notes |
 |-------|----------|-------|
 | Liveness / readiness | `/healthz`, `/readyz`, `readiness.ts` | Public, secret-free JSON; fixed reason codes on 503 |
+| Request IDs + access logs | `middleware.ts`, `requestId*.ts`, `accessLog*.ts`, `instrumentation.ts` | `/api/*` only; JSON `http.access` to stdout; ALS propagation |
 | Redaction | `src/lib/api/redactDiagnostic.ts`, `safeErrorResponse.ts` | Reuse on all ops surfaces |
 | Local errors | `localErrorLog*.ts`, `reportLocalError.ts`, `/api/dev/local-errors` | Prod **404**; gitignored `.edge/error-log.jsonl` |
 | Client reporter | `src/app/components/observability/LocalErrorReporter.tsx` | Non-prod ingest |
@@ -112,6 +147,7 @@ Readiness reuses existing deploy profile knobs — do not invent parallel “obs
 | Trading audit ring | `src/lib/trading/auditLog.ts` (500 entries) | Lost on restart |
 | Order intents | Postgres `order_intents` | Durable intents; not full audit export |
 | TWS sidecar health | `services/tws-sidecar` `/health` | Optional gate in `/readyz` when `EDGE_READYZ_REQUIRE_TWS=1` |
+| Lab memory scorecard (L3) | `npm run perf:memory` → `memory-baseline-latest.json` | Browser scenarios record CDP `JSHeapUsedSize`/`JSHeapTotalSize` (`cdpJsHeap*Mb`) and best-effort `measureUserAgentSpecificMemory()` (`uaSpecific*` or `uaSpecificUnavailableReason`). UA-specific memory requires cross-origin isolation — Edge does not enable COOP/COEP for this; explicit unavailable is expected. Process RSS (L4) and desk composite remain on [memory-metrics-roadmap.md](../../../docs/roadmaps/memory-metrics-roadmap.md). |
 
 Inventory also recorded in the roadmap [Current baseline](../../../docs/roadmaps/production-observability-roadmap.md#current-baseline-what-already-works) table.
 
@@ -147,7 +183,7 @@ Audit/error read APIs require existing API auth / operator gates (Security Harde
 |-------|----------|
 | 0 | This doc + CONSTRAINTS + env placeholders (docs only) |
 | 1 | `/healthz`, `/readyz` routes + tests (**Passing**) |
-| 2 | Request ID middleware + JSON access logs |
+| 2 | Request ID middleware + JSON access logs (**Passing**) |
 | 3 | Durable trading audit (Postgres) |
 | 4 | Production error sink (Postgres) |
 | 5 | Free alerts + runbook |
