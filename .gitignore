@@ -56,3 +56,6 @@ data/copilot-attachments/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# personal YouTube transcript dumps (not product source)
+yt/
