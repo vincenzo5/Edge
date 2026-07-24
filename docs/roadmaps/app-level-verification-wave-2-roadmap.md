@@ -4,7 +4,7 @@ Phased closure of **app-level** proofs deferred after Wave 1 ([app-level-verific
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (inventory); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phases 3–4 **Pending**. Wave 1 remains closed; memory walks closed by [memory-efficiency-roadmap.md](./memory-efficiency-roadmap.md) Phase 14.
+**Status:** Phase 0 **Passing** (inventory); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Pending**. Wave 1 remains closed; memory walks closed by [memory-efficiency-roadmap.md](./memory-efficiency-roadmap.md) Phase 14.
 
 **Related:** [Project Status](../PROJECT-STATUS.md), [Testing Verification Checklist](../checklists/testing-verification-checklist.md), [Feature Roadmaps index](./README.md), [Wave 1](./app-level-verification-roadmap.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -156,9 +156,15 @@ Mark **Skipped** only with a one-line reason.
 
 ### Phase 3 — Connections & provider preference walks
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
 **Outcome:** Settings Connections / Market data prefs and Connection displayName proven in browser.
+
+**App-level evidence (2026-07-24, `http://localhost:3003/workspace`):**
+
+- **3.1:** `app-settings-connections-section` + `app-settings-market-data-section`; ib-live/ib-paper rows; provider table 7 rows; `secretHits=0`; API-keys-in-env copy present.
+- **3.2:** Yahoo-first preference `[yahoo,tws,ibkr,massive]`; cold POST OKTA `meta.source=yahoo` `warnings=0`; feed chip `Fallback · YAHOO · streaming`.
+- **3.3:** PATCH `ib-paper` → `Wave2 Paper Gateway`; reload settings input + `app-market-data-option-ib-paper` + chip after select.
 
 | # | Item | Source | Pass criteria (summary) |
 |---|------|--------|-------------------------|

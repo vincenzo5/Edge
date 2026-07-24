@@ -1,0 +1,24 @@
+App-level verification Wave 2 — Phase 3 (2026-07-24)
+URL: http://localhost:3003/workspace
+
+App-level: 3.1 Settings Connections + Market data — app-settings-connections-section + app-settings-market-data-section; ib-live/ib-paper rows; provider table 7 rows; secretHits=0
+App-level: 3.2 preference→meta.source — yahoo-first order [yahoo,tws,ibkr,massive]; cold POST OKTA meta.source=yahoo warnings=0; feed chip Fallback · YAHOO · streaming
+App-level: 3.3 displayName — PATCH ib-paper→Wave2 Paper Gateway; reload settings input=Wave2 Paper Gateway; app-market-data-option-ib-paper=Wave2 Paper Gateway; chip=Wave2 Paper Gateway after select
+
+3.1 Settings Connections + Market data console
+- app-settings-connections-section + app-settings-market-data-section visible from Application settings gear
+- Connection rows: app-settings-connection-row-ib-live (Live trading · Disconnected); app-settings-connection-row-ib-paper (Paper trading · Disconnected)
+- Provider table 7 rows (tws Degraded sidecar_unreachable; massive Healthy; yahoo Degraded; fmp/fred/sec configured)
+- Copy: API keys stay in server environment; Trading still requires broker-backed quotes
+- secretHits: [] (env var names only e.g. MASSIVE_API_KEY — no secret values)
+
+3.2 Preference → meta.source
+- Default localStorage edge:marketData:providerPreference:v1 orderedProviders [tws, ibkr, massive, yahoo]
+- Moved Yahoo Finance up ×3 → [yahoo, tws, ibkr, massive] via app-settings-provider-preference-list
+- Cold POST /api/candles symbol=OKTA providerPreference yahoo-first → meta.source=yahoo warnings=[] cacheTier=cold
+- Chart feed chip: Fallback · YAHOO · streaming
+
+3.3 Connection displayName
+- PATCH /api/me/connections/ib-paper displayName=Wave2 Paper Gateway (authenticated dev session)
+- Full reload → app-settings-connection-name-ib-paper value=Wave2 Paper Gateway
+- Header app-market-data-option-ib-paper=Wave2 Paper Gateway; selecting paper → app-market-data-picker chip=Wave2 Paper Gateway
