@@ -63,9 +63,10 @@ describe("research entry policy", () => {
     expect(RESEARCH_ENTRY_ROUTES.research).toBe("/research");
   });
 
-  it("does not alter root redirect policy in Phase 0", () => {
+  it("documents Phase 8 smart root redirect", () => {
     const root = entryPolicyForPath("/");
-    expect(root?.phase0Behavior).toContain("lastModule");
+    expect(root?.redirectBehavior).toContain("lastModule");
+    expect(root?.redirectBehavior).toContain("default density");
     expect(RESEARCH_ENTRY_POLICY.some((entry) => entry.path === "/copilot")).toBe(true);
   });
 });

@@ -4,7 +4,7 @@ Phased track to evolve Edge’s shell toward **research-first** UX: Copilot as t
 
 **Last updated:** 2026-07-24
 
-**Status:** Roadmap defined — Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-24). Phase 3 **Passing** (2026-07-24). Phase 4 **Passing** (2026-07-24). Phase 5 **Passing** (2026-07-24). Phase 6 **Passing** (2026-07-24). Phase 7 **Passing** (2026-07-24).
+**Status:** Roadmap defined — Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-24). Phase 3 **Passing** (2026-07-24). Phase 4 **Passing** (2026-07-24). Phase 5 **Passing** (2026-07-24). Phase 6 **Passing** (2026-07-24). Phase 7 **Passing** (2026-07-24). Phase 8 **Passing** (2026-07-24). **Track complete.**
 
 **Related:** [ROADMAP.md](../ROADMAP.md) (Phase 5 Copilot + shell), [AI Agent Roadmap](./ai-agent-roadmap.md), [Grok Copilot UX Parity](./grok-copilot-parity-roadmap.md), [Workspace State Persistence](./workspace-state-persistence-roadmap.md), [Rich Annotations Vision](../chart/rich-annotations-vision.md), [News Flow](./news-flow-roadmap.md), [Screener](./screener-roadmap.md), [Journal](./journal-roadmap.md), [Alerts](./alerts-roadmap.md), [Design System](../../src/lib/design-system/ARCHITECTURE.md), [AI Architecture](../../src/lib/ai/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -329,7 +329,7 @@ ask (Talk) ──▶ pin artifacts ──▶ arrange on Board ──▶ open Des
 
 **Outcome:** Product gravity can prefer research without stranding Desk users.
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
 | Work item | Scope |
 |-----------|--------|
@@ -339,6 +339,8 @@ ask (Talk) ──▶ pin artifacts ──▶ arrange on Board ──▶ open Des
 | Docs / onboarding | Short “Talk → pin → Board → Desk when needed” |
 
 **Out of scope:** Removing module routes; forcing Board on all users.
+
+**Phase 8 evidence:** **Focused:** `Test Files 4 passed (4)`, `Tests 31 passed (31)` (Phase 8 + lastModule + hub + redirect); AppSettingsShell `Tests 7 passed (7)`; **Build:** blocked by pre-existing `tradingClient.ts` import parse error (unrelated); **Architecture review:** self-review **Passed**; **App-level:** pref Desk/Board landings deferred.
 
 **Exit:** Focused last-module/pref tests; app-level: pref Desk → `/` still lands Desk; pref Board → lands research; both modes healthy.
 

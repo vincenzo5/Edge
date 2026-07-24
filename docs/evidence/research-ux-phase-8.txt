@@ -1,0 +1,29 @@
+Research UX Phase 8 — Research-default entry (2026-07-24)
+
+Focused (Phase 8 core):
+  npm test -- --run src/lib/research/researchUxPhase8.test.ts src/lib/app/lastModule.test.ts src/app/components/home/HomeHubCards.test.tsx src/app/components/home/RootEntryRedirect.test.tsx
+  Test Files  4 passed (4)
+  Tests  31 passed (31)
+
+AppSettingsShell:
+  npm test -- --run src/app/components/home/AppSettingsShell.test.tsx
+  Test Files  1 passed (1)
+  Tests  7 passed (7)
+
+Build:
+  npm run build — blocked by pre-existing tradingClient.ts import parse error (unrelated to Phase 8)
+
+Architecture review: self-review Passed
+
+Delivered:
+- defaultDensityPreference.ts — local pref tv-ai:research-default-density:v1 (default Desk)
+- rootRedirect.ts — density → /copilot | /research | /workspace
+- lastModule.ts — smart / with research/copilot targets + cold-start pref fallback
+- entryPolicy.ts — Phase 8 redirectBehavior descriptors
+- RootEntryRedirect.tsx — reads default density on /
+- AppSettingsShell.tsx — Default density segmented control
+- HomeHubCards.tsx — Research Session primary + Desk card + onboarding copy
+- researchUxPhase8.test.ts + updated lastModule/hub/redirect/settings tests
+- research/ARCHITECTURE.md Phase 8 section
+
+App-level: pref Desk/Board landings on localhost:3003 deferred

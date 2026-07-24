@@ -60,27 +60,46 @@ describe("lastModule", () => {
       expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/workspace");
     });
 
+    it("redirects to research when recent research module", () => {
+      const raw = JSON.stringify(createLastModuleRecord("research", nowMs - 1000));
+      expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/research");
+    });
+
+    it("redirects to copilot when recent copilot module", () => {
+      const raw = JSON.stringify(createLastModuleRecord("copilot", nowMs - 1000));
+      expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/copilot");
+    });
+
     it("redirects to home when module is home", () => {
       const raw = JSON.stringify(createLastModuleRecord("home", nowMs - 1000));
       expect(shouldRedirectFromRoot(raw, nowMs)).toBe("/home");
     });
 
-    it("redirects to home when record is missing or expired", () => {
-      expect(shouldRedirectFromRoot(null, nowMs)).toBe("/home");
+    it("redirects to workspace when record is missing or expired and default is Desk", () => {
+      expect(shouldRedirectFromRoot(null, nowMs)).toBe("/workspace");
       const expired = JSON.stringify(createLastModuleRecord("chart", nowMs - LAST_MODULE_TTL_MS - 1));
-      expect(shouldRedirectFromRoot(expired, nowMs)).toBe("/home");
+      expect(shouldRedirectFromRoot(expired, nowMs)).toBe("/workspace");
+    });
+
+    it("uses default density pref when record is missing or expired", () => {
+      expect(shouldRedirectFromRoot(null, nowMs, "Board")).toBe("/research");
+      expect(shouldRedirectFromRoot(null, nowMs, "Talk")).toBe("/copilot");
     });
   });
 
   describe("resolveRootRedirectTarget", () => {
-    it("maps research module to home", () => {
+    it("maps research module to /research", () => {
       const record = createLastModuleRecord("research", nowMs - 1000);
-      expect(resolveRootRedirectTarget(record, nowMs)).toBe("/home");
+      expect(resolveRootRedirectTarget(record, nowMs)).toBe("/research");
     });
 
-    it("maps copilot module to home", () => {
+    it("maps copilot module to /copilot", () => {
       const record = createLastModuleRecord("copilot", nowMs - 1000);
-      expect(resolveRootRedirectTarget(record, nowMs)).toBe("/home");
+      expect(resolveRootRedirectTarget(record, nowMs)).toBe("/copilot");
+    });
+
+    it("falls back to default density when record is null", () => {
+      expect(resolveRootRedirectTarget(null, nowMs, "Board")).toBe("/research");
     });
   });
 

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { readDefaultDensityPreference } from "@/lib/research/defaultDensityPreference";
 import {
   LAST_MODULE_STORAGE_KEY,
   shouldRedirectFromRoot,
@@ -14,6 +15,8 @@ export default function RootEntryRedirect() {
   useEffect(() => {
     const target = shouldRedirectFromRoot(
       window.localStorage.getItem(LAST_MODULE_STORAGE_KEY),
+      Date.now(),
+      readDefaultDensityPreference(),
     );
     router.replace(target);
   }, [router]);

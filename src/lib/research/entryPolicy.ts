@@ -1,16 +1,18 @@
 /**
- * Entry policy stub — Phase 0 contract (no lastModule redirect changes yet).
- * Phase 8 extends smart `/` and user default-density preference.
+ * Entry policy — Phase 8 smart `/` + density route roles.
  */
 
+import type { RootRedirectTarget } from "./rootRedirect";
+
 import { DESK_DENSITY_ROUTE } from "./density";
+import type { DefaultResearchDensity } from "./defaultDensityPreference";
+import { rootRedirectForDefaultDensity } from "./rootRedirect";
 
 export const RESEARCH_ENTRY_ROUTES = {
   root: "/",
   home: "/home",
   copilot: "/copilot",
   workspace: DESK_DENSITY_ROUTE,
-  /** Planned Talk/Board host — reserved; not routed in Phase 0. */
   research: "/research",
 } as const;
 
@@ -27,44 +29,50 @@ export type ResearchEntryRouteDescriptor = {
   path: (typeof RESEARCH_ENTRY_ROUTES)[ResearchEntryRouteKey];
   role: ResearchEntryRouteRole;
   density: "Talk" | "Board" | "Desk" | "none";
-  /** Phase 0: documented only — no forced redirect from this route. */
-  phase0Behavior: string;
+  redirectBehavior: string;
 };
 
-/** Typed map of route roles — entry policy frozen for later phases. */
+/** Typed map of route roles — entry policy for Phase 8. */
 export const RESEARCH_ENTRY_POLICY: readonly ResearchEntryRouteDescriptor[] = [
   {
     path: RESEARCH_ENTRY_ROUTES.root,
     role: "smartRedirect",
     density: "none",
-    phase0Behavior: "Existing lastModule redirect unchanged — /home or /workspace only",
+    redirectBehavior:
+      "Recent lastModule wins; cold/expired falls back to default density pref (Talk/Board/Desk)",
   },
   {
     path: RESEARCH_ENTRY_ROUTES.home,
     role: "moduleHub",
     density: "none",
-    phase0Behavior: "Module hub cards unchanged; Desk remains one click away",
+    redirectBehavior: "Module hub cards; Research Session + Desk remain one click away",
   },
   {
     path: RESEARCH_ENTRY_ROUTES.copilot,
     role: "talkHost",
     density: "Talk",
-    phase0Behavior: "Copilot page/sidebar/tile — primary Talk surface today",
+    redirectBehavior: "Copilot page/sidebar/tile — primary Talk surface",
   },
   {
     path: RESEARCH_ENTRY_ROUTES.workspace,
     role: "deskHost",
     density: "Desk",
-    phase0Behavior: "Tiled Desk — permanent density; behavior unchanged",
+    redirectBehavior: "Tiled Desk — permanent density; behavior unchanged",
   },
   {
     path: RESEARCH_ENTRY_ROUTES.research,
     role: "researchHost",
     density: "Board",
-    phase0Behavior: "Board stub shell — spatial cards deferred; root lastModule unchanged until Phase 8",
+    redirectBehavior: "Spatial Research Board — session cards + reel at /research",
   },
 ];
 
 export function entryPolicyForPath(path: string): ResearchEntryRouteDescriptor | undefined {
   return RESEARCH_ENTRY_POLICY.find((entry) => entry.path === path);
+}
+
+export function resolveEntryPolicyRootRedirect(
+  defaultDensity: DefaultResearchDensity,
+): RootRedirectTarget {
+  return rootRedirectForDefaultDensity(defaultDensity);
 }

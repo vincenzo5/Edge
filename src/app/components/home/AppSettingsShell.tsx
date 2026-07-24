@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useSyncExternalStore } from "react";
 import EdgeSelect from "../design-system/EdgeSelect";
+import EdgeSegmentedTabs from "../design-system/EdgeSegmentedTabs";
 import { labeledFieldClass } from "../design-system/styles";
 import EdgeSlideOver from "../design-system/EdgeSlideOver";
 import { useAppTimeZone } from "../AppTimeZoneProvider";
@@ -14,10 +15,30 @@ import {
   type PaletteId,
 } from "@/lib/design-system/palettes";
 import { getEdgeTokens } from "@/lib/design-system/edge";
+import {
+  readDefaultDensityPreference,
+  subscribeDefaultDensityPreference,
+  writeDefaultDensityPreference,
+  type DefaultResearchDensity,
+} from "@/lib/research/defaultDensityPreference";
+import { PERMANENT_DENSITY_ORDER } from "@/lib/research/densityNav";
 import ConnectionsSettingsSection from "./ConnectionsSettingsSection";
 import MarketDataSettingsSection from "./MarketDataSettingsSection";
 import { useSettingsMarketDataHealth } from "./useSettingsMarketDataHealth";
 import type { TradingAccount } from "@/lib/trading/types";
+
+const DEFAULT_DENSITY_SEGMENTS = PERMANENT_DENSITY_ORDER.map((density) => ({
+  id: density,
+  label: density,
+}));
+
+function subscribeDefaultDensitySnapshot(onStoreChange: () => void) {
+  return subscribeDefaultDensityPreference(() => onStoreChange());
+}
+
+function getDefaultDensitySnapshot(): DefaultResearchDensity {
+  return readDefaultDensityPreference();
+}
 
 type Props = {
   open: boolean;
@@ -70,6 +91,11 @@ export default function AppSettingsShell({
   const localTriggerRef = useRef<HTMLElement>(null);
   const { timeZone, setTimeZone } = useAppTimeZone();
   const { theme, palette, setPalette } = useAppTheme();
+  const defaultDensity = useSyncExternalStore(
+    subscribeDefaultDensitySnapshot,
+    getDefaultDensitySnapshot,
+    () => "Desk" as DefaultResearchDensity,
+  );
   const { health, loading: healthLoading, error: healthError } = useSettingsMarketDataHealth(open);
 
   const timeZoneOptions = useMemo(
@@ -163,6 +189,19 @@ export default function AppSettingsShell({
           </div>
           <p className="text-xs text-[var(--edge-text-secondary)]">
             Charts inherit this timezone until you change it from the chart clock or chart settings.
+          </p>
+          <div className={labeledFieldClass()}>
+            <span className="text-[var(--edge-text-secondary)]">Default density</span>
+            <EdgeSegmentedTabs
+              segments={DEFAULT_DENSITY_SEGMENTS}
+              value={defaultDensity}
+              onChange={(id) => writeDefaultDensityPreference(id as DefaultResearchDensity)}
+            />
+            <div data-testid="app-default-density">{defaultDensity}</div>
+          </div>
+          <p className="text-xs text-[var(--edge-text-secondary)]">
+            When you open Edge with no recent module, land on Talk, Board, or Desk. Recent activity
+            still wins for 24 hours.
           </p>
         </section>
 

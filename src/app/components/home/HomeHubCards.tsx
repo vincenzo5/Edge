@@ -6,18 +6,25 @@ import { panelTitleClass } from "../design-system/styles";
 
 const MODULES = [
   {
+    module: "research" as const,
+    href: "/research",
+    title: "Research Session",
+    description: "Build a spatial thesis board from charts, screener hits, and pinned evidence.",
+    testId: "home-hub-research",
+  },
+  {
     module: "copilot" as const,
     href: "/copilot",
     title: "Talk",
-    description: "Ask Copilot and build research with AI-first conversation.",
+    description: "Ask Copilot and pin artifacts to your research session.",
     testId: "home-hub-copilot",
   },
   {
-    module: "research" as const,
-    href: "/research",
-    title: "Board",
-    description: "Open the research board shell — spatial cards arrive in a later phase.",
-    testId: "home-hub-research",
+    module: "workspace" as const,
+    href: "/workspace",
+    title: "Desk",
+    description: "Multi-pane tiled workspace for dense charting and execution.",
+    testId: "home-hub-desk",
   },
   {
     module: "chart" as const,
@@ -46,6 +53,9 @@ export default function HomeHubCards() {
   return (
     <section data-testid="home-hub-cards">
       <h2 className={`mb-3 ${panelTitleClass()} uppercase tracking-wide`}>Modules</h2>
+      <p className="mb-3 text-sm text-[var(--edge-text-secondary)]">
+        Talk → pin → Board → Desk when needed
+      </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {MODULES.map((item) => (
           <Link

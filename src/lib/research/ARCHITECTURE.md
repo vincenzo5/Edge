@@ -44,7 +44,9 @@ See `ownership.ts` for the full ownership arrays. **Not** the same as Postgres `
 | `density.ts` | Talk / Board / Desk / Stage constants; Desk permanence |
 | `sessionSketch.ts` | Zod schemas for session, cards (6 types), links, reel |
 | `ownership.ts` | Desk / Session / Copilot ownership split |
-| `entryPolicy.ts` | Route role map — no `lastModule` changes until Phase 8 |
+| `entryPolicy.ts` | Route role map + Phase 8 smart `/` redirect rules |
+| `defaultDensityPreference.ts` | Local default density pref (`tv-ai:research-default-density:v1`) |
+| `rootRedirect.ts` | Default density → root redirect target |
 
 ## Phase 1 modules
 
@@ -141,6 +143,19 @@ Evidence → Board: `CopilotEvidenceRail` **Send to board** copies pinned cards 
 | `useResearchBoardSession.ts` | Exposes `reel` + reel mutation callbacks to Board shell |
 
 **Reel model:** `reel[]` beats reference board cards by `cardId` (`{ id, cardId, label?, order }`). Auto-append on card add skips duplicate `cardId`; manual **Checkpoint focused** allows duplicate beats for the same card. Removing a card prunes orphan beats and renumbers `order` densely. Journal export composes summary text and adds a `journalDraft` card — no parallel journal store.
+
+## Phase 8 modules
+
+| File / component | Purpose |
+|------------------|---------|
+| `defaultDensityPreference.ts` | Local opt-in default density (Talk/Board/Desk; default Desk) |
+| `rootRedirect.ts` | Maps default density to `/copilot`, `/research`, or `/workspace` |
+| `lastModule.ts` (extended) | Smart `/`: recent lastModule wins; cold/expired uses default density |
+| `RootEntryRedirect.tsx` | Reads lastModule + default density on `/` |
+| `AppSettingsShell.tsx` | Default density control in Application settings |
+| `HomeHubCards.tsx` | Research Session primary card; Desk prominent; onboarding copy |
+
+**Redirect priority:** recent `lastModule` (24h TTL) → default density pref → never forces Board without opt-in. Desk permanence unchanged.
 
 ## Integration boundaries
 

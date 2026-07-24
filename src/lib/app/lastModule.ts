@@ -15,7 +15,15 @@ export type LastModuleRecord = {
   updatedAt: string;
 };
 
-export type RootRedirectTarget = "/home" | "/workspace";
+import type { DefaultResearchDensity } from "@/lib/research/defaultDensityPreference";
+import { DEFAULT_RESEARCH_DENSITY } from "@/lib/research/defaultDensityPreference";
+import {
+  rootRedirectForDefaultDensity,
+  type RootRedirectTarget,
+} from "@/lib/research/rootRedirect";
+
+export type { RootRedirectTarget };
+export { rootRedirectForDefaultDensity };
 
 export function readLastModuleRecord(raw: string | null): LastModuleRecord | null {
   if (!raw) return null;
@@ -52,26 +60,32 @@ export function isLastModuleRecent(
 export function resolveRootRedirectTarget(
   record: LastModuleRecord | null,
   nowMs: number = Date.now(),
+  defaultDensity: DefaultResearchDensity = DEFAULT_RESEARCH_DENSITY,
 ): RootRedirectTarget {
   if (!record || !isLastModuleRecent(record, nowMs)) {
-    return "/home";
+    return rootRedirectForDefaultDensity(defaultDensity);
   }
-  if (
-    record.module === "chart" ||
-    record.module === "journal" ||
-    record.module === "screener" ||
-    record.module === "workspace"
-  ) {
-    return "/workspace";
+  switch (record.module) {
+    case "chart":
+    case "journal":
+    case "screener":
+    case "workspace":
+      return "/workspace";
+    case "research":
+      return "/research";
+    case "copilot":
+      return "/copilot";
+    case "home":
+      return "/home";
   }
-  return "/home";
 }
 
 export function shouldRedirectFromRoot(
   raw: string | null,
   nowMs: number = Date.now(),
+  defaultDensity: DefaultResearchDensity = DEFAULT_RESEARCH_DENSITY,
 ): RootRedirectTarget {
-  return resolveRootRedirectTarget(readLastModuleRecord(raw), nowMs);
+  return resolveRootRedirectTarget(readLastModuleRecord(raw), nowMs, defaultDensity);
 }
 
 export function createLastModuleRecord(

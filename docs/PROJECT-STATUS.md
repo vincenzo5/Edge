@@ -1996,8 +1996,8 @@ Older Passing rows: [status-archive/](./status-archive/).
 
 ## Task Contract — Trade management playbook
 
-- **Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24); Phase 6 **Active**
-- **Goal:** Post-fill Manage playbooks on Protect — Phase 1: attach + persist + chrome status; Phase 2+: server manager mutations; Phase 6: notify twin at manage levels.
+- **Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24); Phase 6 **Passing** (2026-07-24); Phase 7 **Active**
+- **Goal:** Post-fill Manage playbooks on Protect — Phase 7: AI preview/attach playbook tools through shared registry.
 - **Delivered (Phase 0):** `src/lib/trading/playbook/` — PositionPlan R lock, PlaybookTemplate/Rule/Instance schemas, 5 presets, `planPlaybookSteps`, conflict policy draft, Plan/Protect/Manage section in trading architecture.
 - **Delivered (Phase 1):** `playbookInstanceStore` + migration `0029`; `SubmitBracketRequest` playbook fields; `TradingService.attachPlaybookAfterBracket`; `/api/trading/playbooks` list + detach; Trade ticket **Manage with…** picker; open-risk/Account status + Detach.
 - **Delivered (Phase 2):** `runPlaybookEvaluation` + `/api/cron/playbook-evaluate`; BE/scale executors; migration `0030` + store `patch`; Pause/Resume/Skip API + open-risk/Account chrome.

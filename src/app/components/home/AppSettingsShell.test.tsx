@@ -5,6 +5,7 @@ import { AppThemeProvider } from "../AppThemeProvider";
 import { AppTimeZoneProvider } from "../AppTimeZoneProvider";
 import { AccountAliasesProvider } from "../AccountAliasesProvider";
 import { APP_PALETTE_PREFERENCE_KEY } from "@/lib/app/appPalettePreference";
+import { RESEARCH_DEFAULT_DENSITY_KEY } from "@/lib/research/defaultDensityPreference";
 import type { ServerHealthPayload } from "@/lib/marketData/health";
 
 const setPreference = vi.fn();
@@ -170,6 +171,21 @@ describe("AppSettingsShell", () => {
     });
     expect(localStorageMock.getItem(APP_PALETTE_PREFERENCE_KEY)).toBe("graphite");
     expect(document.documentElement.dataset.palette).toBe("graphite");
+  });
+
+  it("renders default density control and persists selection", async () => {
+    renderShell();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app-default-density")).toHaveTextContent("Desk");
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Board" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app-default-density")).toHaveTextContent("Board");
+    });
+    expect(localStorageMock.getItem(RESEARCH_DEFAULT_DENSITY_KEY)).toBe("Board");
   });
 
   it("renders Connections and Market data sections with health-driven status", async () => {
