@@ -7,7 +7,7 @@ import {
   useState,
   type RefObject,
 } from "react";
-import type { ChartHandle } from "../EdgeChart";
+import type { ChartHandle } from "./EdgeChart";
 import {
   INITIAL_CAPTURE_STATE,
   canSaveCapture,

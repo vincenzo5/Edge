@@ -1,0 +1,12 @@
+Code organization — Phase 3 (2026-07-24)
+
+Focused:
+npm test -- --run src/app/components/chart-cell src/app/components/chart-chrome/ChartGrid src/app/components/stock-app/StockApp.test.tsx src/app/components/drawing src/app/components/object-tree
+→ Test Files 28 passed (28), Tests 188 passed (188)
+
+Build: npm run build → ✓ Compiled successfully
+Boundary: npm run lint:app-lib-boundaries → 0 violations (fail-closed)
+Root components: 87 → 37 files at src/app/components/*.{ts,tsx}
+Ban note: src/lib/chart/ARCHITECTURE.md components root policy
+Architecture review: self-review Passed
+App-level: N/A

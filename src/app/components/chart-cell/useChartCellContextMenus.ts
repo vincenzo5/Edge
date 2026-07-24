@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, type RefObject } from "react";
-import type { ChartHandle } from "../EdgeChart";
+import type { ChartHandle } from "./EdgeChart";
 import type { ContextMenuItem } from "../ContextMenu";
-import { buildChartContextMenuItems, buildPriceScaleContextMenuItems } from "../chartContextMenu";
-import { buildChartCopyItems } from "../chartCopyMenu";
+import { buildChartContextMenuItems, buildPriceScaleContextMenuItems } from "../chart-chrome/chartContextMenu";
+import { buildChartCopyItems } from "../chart-chrome/chartCopyMenu";
 import { buildOverlayContextMenuItems } from "./overlayContextMenu";
 import {
   copyDrawings,

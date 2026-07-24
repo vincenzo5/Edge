@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { indicatorKey } from "../EdgeChart";
+import { indicatorKey } from "./EdgeChart";
 import {
   PRICE_PANE_KEY,
   type CellConfig,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type RefObject } from "react";
-import type { ChartHandle } from "../EdgeChart";
+import type { ChartHandle } from "./EdgeChart";
 import { useChartSync } from "../ChartSyncContext";
 
 type Props = {

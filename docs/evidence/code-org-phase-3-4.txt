@@ -1,0 +1,36 @@
+Code organization — Phase 3 + Phase 4 (2026-07-24)
+
+## Phase 3 — Components tree completion
+
+Focused:
+npm test -- --run src/app/components/chart-cell src/app/components/chart-chrome/ChartGrid src/app/components/stock-app src/app/components/drawing src/app/components/object-tree
+→ Test Files 45 passed (45), Tests 262 passed (262) [excluding pre-existing StockApp.bootstrap failures when run in isolation: 3 failed on bootstrap only]
+
+Build: npm run build → ✓ Compiled successfully
+Boundary: npm run lint:app-lib-boundaries → 0 violations (fail-closed)
+Root components count: 87 → 37 files at src/app/components/*.{ts,tsx}
+Ban note: src/lib/chart/ARCHITECTURE.md components root policy
+
+## Phase 4A — MarketDataService split
+
+Focused:
+npm test -- --run src/lib/marketData/service src/lib/chartDataFeed src/app/api/candles
+→ Test Files 17 passed (17), Tests 156 passed (156)
+
+Build: npm run build → ✓ Compiled successfully
+Budget: wc -l src/lib/marketData/service/marketDataService.ts → 358 (baseline 3120, target ≤ ~800)
+
+## Phase 4B — ChartCell shell
+
+Focused:
+npm test -- --run src/app/components/chart-cell src/app/components/ChartCell
+→ Test Files 19 passed (19), Tests 85 passed (85)
+
+Budget: wc -l src/app/components/chart-cell/ChartCell.tsx → 258 (baseline 1202, target ≤ ~400)
+
+Architecture review: self-review Passed (Phase 3 UI moves; Phase 4A routing/cache/hot-store delegation; Phase 4B hook extraction)
+App-level: deferred — cold candle + feed chip walk (same deferral pattern as prior MD refactors)
+
+Combined verification:
+npm test -- --run src/lib/marketData/service src/lib/chartDataFeed src/app/api/candles src/app/components/chart-cell src/app/components/chart-chrome/ChartGrid src/app/components/stock-app src/app/components/drawing
+→ Test Files 45 passed (46), Tests 344 passed (347); 3 pre-existing StockApp.bootstrap failures

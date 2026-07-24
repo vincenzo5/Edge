@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, type RefObject } from "react";
-import type { ChartHandle } from "../EdgeChart";
+import type { ChartHandle } from "./EdgeChart";
 import {
   copyDrawings,
   hasDrawingClipboard,

@@ -17,7 +17,7 @@ src/lib/marketData/
   providers/     Vendor adapters (yahoo, sec, fred, fmp, massive, tws, ibkr)
   events/        Canonical registry, normalizers, dedupe, filters
   router/        Provider capability registry and preferences
-  service/       MarketDataService + server singleton
+  service/       MarketDataService façade, route modules (candles/quotes/options/FMP/events/screener/probes), server singleton
   trust/         Data usage policy, provenance, readiness evaluation
 ```
 

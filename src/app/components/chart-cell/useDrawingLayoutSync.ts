@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
-import type { ChartHandle } from "../EdgeChart";
+import type { ChartHandle } from "./EdgeChart";
 import type { CellConfig, TrackedOverlay } from "@/lib/chartConfig";
 import type { SerializedDrawing } from "@/lib/chart/contracts";
 import { syncAlertsWithDrawingChanges } from "@/lib/alerts/drawingAlertSync";
@@ -150,7 +150,7 @@ export function useDrawingLayoutSync({
     lastAppliedDrawingsRef.current = serialized;
     lastRestoreGenerationRef.current = chartEngineGeneration;
     suppressDrawingPersistRef.current = true;
-    chartRef.current?.restoreDrawings(config.drawings ?? []);
+    chartRef.current?.restoreDrawings?.(config.drawings ?? []);
   }, [config.drawings, chartRef, chartEngineGeneration]);
 
   // Persist drawings to config when overlays change.

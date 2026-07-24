@@ -1,6 +1,6 @@
 'use client';
 
-import DrawingToolbar, { resolveGroupSelections } from '../DrawingToolbar';
+import DrawingToolbar, { resolveGroupSelections } from '../drawing/DrawingToolbar';
 import { useActiveChart } from '../ActiveChartContext';
 import type { Theme, ToolbarPrefs } from '@/lib/chartConfig';
 import type { RailMode } from '@/lib/responsive/responsiveLayout';

@@ -18,8 +18,8 @@ Historical Phase 0 leaks (resolved in Phase 1):
 
 | File | Baseline LOC | Target LOC |
 |------|-------------:|-----------:|
-| src/lib/marketData/service/marketDataService.ts | 3120 | ≤ ~800 shell + extracted modules |
-| src/app/components/ChartCell.tsx | 1202 | ≤ ~400 shell |
+| src/lib/marketData/service/marketDataService.ts | 3120 | ≤ ~800 shell + extracted modules (Phase 4A: 358) |
+| src/app/components/ChartCell.tsx | 1202 | ≤ ~400 shell (Phase 4B: 258 via chart-cell/ChartCell.tsx) |
 
 ## Components root (maxdepth 1)
 

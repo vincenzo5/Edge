@@ -43,7 +43,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Shared cache topology | [shared-cache-topology-roadmap.md](./shared-cache-topology-roadmap.md) | Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance); manual redis health flip → Wave 2 Phase 4 |
 | Workspace state persistence | [workspace-state-persistence-roadmap.md](./workspace-state-persistence-roadmap.md) | Phases 0–5 **Passing** — track complete; residual chrome → Wave 1 Phase 6 |
 | Structural refactor | [refactor-roadmap.md](./refactor-roadmap.md) | Tiers A–E **Passing** — track complete |
-| Code organization | [code-organization-roadmap.md](./code-organization-roadmap.md) | Phase 0–2 **Passing** (2026-07-24); Phase 3 **Pending** — components tree, god modules, chart shims |
+| Code organization | [code-organization-roadmap.md](./code-organization-roadmap.md) | Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** — chart shims sunset |
 | TWS sidecar architecture | [tws-sidecar-refactor-roadmap.md](./tws-sidecar-refactor-roadmap.md) | Phases 0–7 **Passing** (2026-07-23) |
 | Security hardening | [security-hardening-roadmap.md](./security-hardening-roadmap.md) | Phases 0–6 **Passing** (2026-07-24) — track complete |
 | Plan → execute token efficiency | [plan-execute-token-efficiency-roadmap.md](./plan-execute-token-efficiency-roadmap.md) | Phase 0–6 **Passing** (2026-07-24) — track complete |

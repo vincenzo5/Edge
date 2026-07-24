@@ -1,0 +1,21 @@
+Code organization — Phase 4 (2026-07-24)
+
+## 4A — MarketDataService
+
+Focused:
+npm test -- --run src/lib/marketData/service src/lib/chartDataFeed src/app/api/candles
+→ Test Files 17 passed (17), Tests 156 passed (156)
+
+Build: npm run build → ✓ Compiled successfully
+Budget: wc -l src/lib/marketData/service/marketDataService.ts → 358 (baseline 3120, target ≤ ~800)
+
+## 4B — ChartCell shell
+
+Focused:
+npm test -- --run src/app/components/chart-cell src/app/components/ChartCell
+→ Test Files 19 passed (19), Tests 85 passed (85)
+
+Budget: wc -l src/app/components/chart-cell/ChartCell.tsx → 258 (baseline 1202, target ≤ ~400)
+
+Architecture review: self-review Passed
+App-level: deferred — cold candle + feed chip walk

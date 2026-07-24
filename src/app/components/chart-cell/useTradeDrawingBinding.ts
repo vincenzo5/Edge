@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type RefObject } from "react";
-import type { ChartHandle } from "../EdgeChart";
+import type { ChartHandle } from "./EdgeChart";
 import type { TrackedOverlay } from "@/lib/chartConfig";
 import { positionOrderLevelsFromDrawing } from "@/lib/trading/positionTradeSetup";
 import type { useTradeSetupBindingOptional } from "../trading/TradeSetupBindingContext";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, type RefObject } from "react";
-import type { ChartHandle } from "../EdgeChart";
+import type { ChartHandle } from "./EdgeChart";
 import type { useActiveChartBridge } from "../ActiveChartContext";
 import type { Candle } from "@/lib/chart/contracts";
 import type { ChartDataMeta } from "@edge/chart-core";

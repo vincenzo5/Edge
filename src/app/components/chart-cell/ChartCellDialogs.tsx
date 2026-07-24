@@ -1,14 +1,14 @@
 "use client";
 
-import IndicatorPicker from "../IndicatorPicker";
-import IndicatorSettingsModal from "../IndicatorSettingsModal";
-import DrawingSettingsModal from "../DrawingSettingsModal";
-import ChartSettingsModal from "../ChartSettingsModal";
-import ChartGoToModal from "../ChartGoToModal";
-import DrawingRenameModal from "../DrawingRenameModal";
-import TemplatePickerModal from "../TemplatePickerModal";
-import BarReplay from "../BarReplay";
-import type { ChartHandle } from "../EdgeChart";
+import IndicatorPicker from "../chart-chrome/IndicatorPicker";
+import IndicatorSettingsModal from "../chart-chrome/IndicatorSettingsModal";
+import DrawingSettingsModal from "../drawing/DrawingSettingsModal";
+import ChartSettingsModal from "../chart-chrome/ChartSettingsModal";
+import ChartGoToModal from "../chart-chrome/ChartGoToModal";
+import DrawingRenameModal from "../drawing/DrawingRenameModal";
+import TemplatePickerModal from "../chart-chrome/TemplatePickerModal";
+import BarReplay from "../chart-chrome/BarReplay";
+import type { ChartHandle } from "./EdgeChart";
 import type { DrawingStyles } from "@/lib/chart/contracts";
 import type { GoToRequest } from "@/lib/chart/goTo";
 import type {
