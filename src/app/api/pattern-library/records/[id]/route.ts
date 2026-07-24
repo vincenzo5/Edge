@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { setupQualitySchema } from "@/lib/patternLibrary/types";
-import { loadRecord, patchRecordMetadata } from "@/lib/patternLibrary/storage";
+
+import { parsePatternId, setupQualitySchema } from "@/lib/patternLibrary/types";
+import { resolvePatternLibraryStoreForRequest } from "@/lib/patternLibrary/patternLibraryStore";
+import {
+  patternLibraryAuthResponse,
+  patternLibraryInvalidIdResponse,
+} from "@/lib/patternLibrary/routeErrors";
 
 export const runtime = "nodejs";
 
@@ -27,11 +32,21 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const record = loadRecord(id);
-  if (!record) {
-    return NextResponse.json({ error: "Record not found" }, { status: 404 });
+  try {
+    parsePatternId(id);
+    const store = await resolvePatternLibraryStoreForRequest();
+    const record = await store.loadRecord(id);
+    if (!record) {
+      return NextResponse.json({ error: "Record not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true, record });
+  } catch (error) {
+    const auth = patternLibraryAuthResponse(error);
+    if (auth) return auth;
+    const invalid = patternLibraryInvalidIdResponse(error);
+    if (invalid) return invalid;
+    return NextResponse.json({ error: "Invalid pattern id" }, { status: 400 });
   }
-  return NextResponse.json({ ok: true, record });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -51,10 +66,19 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  const record = patchRecordMetadata(id, parsed.data);
-  if (!record) {
-    return NextResponse.json({ error: "Record not found" }, { status: 404 });
+  try {
+    parsePatternId(id);
+    const store = await resolvePatternLibraryStoreForRequest();
+    const record = await store.patchRecordMetadata(id, parsed.data);
+    if (!record) {
+      return NextResponse.json({ error: "Record not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true, record });
+  } catch (error) {
+    const auth = patternLibraryAuthResponse(error);
+    if (auth) return auth;
+    const invalid = patternLibraryInvalidIdResponse(error);
+    if (invalid) return invalid;
+    return NextResponse.json({ error: "Invalid pattern id" }, { status: 400 });
   }
-
-  return NextResponse.json({ ok: true, record });
 }

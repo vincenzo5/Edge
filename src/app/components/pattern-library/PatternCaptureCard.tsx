@@ -23,7 +23,7 @@ export default function PatternCaptureCard({ summary, selected, onSelect }: Prop
       onClick={onSelect}
       className={`w-full rounded-md border p-2 text-left transition-colors ${
         selected
-          ? "border-[var(--edge-accent)] bg-[var(--edge-surface-hover)]"
+          ? "border-[var(--edge-accent-blue)] bg-[var(--edge-surface-hover)]"
           : "border-[var(--edge-border)] bg-[var(--edge-surface-panel)] hover:bg-[var(--edge-surface-hover)]"
       }`}
     >
@@ -52,7 +52,7 @@ export default function PatternCaptureCard({ summary, selected, onSelect }: Prop
           </div>
         </div>
         {needsReview ? (
-          <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--edge-warning)] bg-[var(--edge-surface-muted)]">
+          <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--edge-warning)] bg-[var(--edge-surface-active)]">
             Review
           </span>
         ) : null}

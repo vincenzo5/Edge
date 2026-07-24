@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PatternRecordSummary } from "@/lib/patternLibrary/recordSummaries";
 import type { PatternRecord } from "@/lib/patternLibrary/types";
+import {
+  fetchPatternLibraryRecordSummaries,
+} from "@/lib/persistence/client/patternLibraryRecordsClient";
 import { EdgeEmptyState, EdgeSpinner } from "@/app/components/design-system";
 import { PanelPopOutButton } from "../sidebar/PanelChromeActions";
 import PatternCaptureCard from "./PatternCaptureCard";
@@ -21,12 +24,8 @@ export function PatternsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/pattern-library/records");
-      if (!response.ok) {
-        throw new Error("Failed to load pattern library");
-      }
-      const payload = (await response.json()) as { records: PatternRecordSummary[] };
-      setRecords(payload.records);
+      const summaries = await fetchPatternLibraryRecordSummaries();
+      setRecords(summaries);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load pattern library");
       setRecords([]);
@@ -86,7 +85,7 @@ export function PatternsPanel() {
         ) : null}
 
         {error ? (
-          <div className="mb-3 text-sm text-[var(--edge-danger)]">{error}</div>
+          <div className="mb-3 text-sm text-[var(--edge-negative)]">{error}</div>
         ) : null}
 
         {!loading && !error && records.length === 0 ? (

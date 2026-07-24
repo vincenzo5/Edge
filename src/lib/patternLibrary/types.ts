@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+export const patternIdSchema = z.union([
+  z.string().uuid(),
+  z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
+]);
+
+export type PatternId = z.infer<typeof patternIdSchema>;
+
+export function parsePatternId(value: string): PatternId {
+  return patternIdSchema.parse(value);
+}
+
 export const setupQualitySchema = z.union([
   z.literal(1),
   z.literal(2),
@@ -138,7 +149,7 @@ export const patternCaptureSchema = z.object({
 export type PatternCapture = z.infer<typeof patternCaptureSchema>;
 
 export const patternRecordSchema = z.object({
-  id: z.string().min(1),
+  id: patternIdSchema,
   asOf: z.string().datetime(),
   symbol: z.string().min(1),
   timeframe: z.string().min(1),

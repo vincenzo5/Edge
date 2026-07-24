@@ -6,7 +6,8 @@ import type { Range } from "@/lib/yahoo";
 import type { PatternRecord } from "@/lib/patternLibrary/types";
 import type { SetupQuality } from "@/lib/patternLibrary/types";
 import { rangeForManualInterval } from "@/lib/chart/rangeInterval";
-import { EdgeButton, EdgeSlideOver } from "@/app/components/design-system";
+import { EdgeButton, EdgeSlideOver, EdgeSelect } from "@/app/components/design-system";
+import { invalidatePatternLibraryRecordsCache } from "@/lib/persistence/client/patternLibraryRecordsClient";
 import { useAppActions } from "../AppActionsContext";
 import { usePatternLibrary } from "./PatternLibraryContext";
 import {
@@ -114,6 +115,7 @@ export default function PatternCaptureDetailDrawer({
         }
         const payload = (await response.json()) as { record: PatternRecord };
         setRecord(payload.record);
+        invalidatePatternLibraryRecordsCache();
         onUpdated(payload.record);
       } catch (saveError) {
         setError(saveError instanceof Error ? saveError.message : "Save failed");
@@ -167,7 +169,7 @@ export default function PatternCaptureDetailDrawer({
       ) : null}
 
       {error ? (
-        <div className="mb-3 text-sm text-[var(--edge-danger)]">{error}</div>
+        <div className="mb-3 text-sm text-[var(--edge-negative)]">{error}</div>
       ) : null}
 
       {record ? (
@@ -190,7 +192,7 @@ export default function PatternCaptureDetailDrawer({
                 {record.capture.sections.map((section) => (
                   <div
                     key={section.id}
-                    className="flex items-center justify-between rounded bg-[var(--edge-surface-muted)] px-2 py-1 text-sm text-[var(--edge-text-secondary)]"
+                    className="flex items-center justify-between rounded bg-[var(--edge-surface-active)] px-2 py-1 text-sm text-[var(--edge-text-secondary)]"
                   >
                     <span>{section.label}</span>
                     <span className="font-mono text-xs tabular-nums text-[var(--edge-text-muted)]">
@@ -210,38 +212,38 @@ export default function PatternCaptureDetailDrawer({
           <div className="grid gap-3">
             <label className="grid gap-1 text-sm">
               <span className="text-xs text-[var(--edge-text-muted)]">Setup family</span>
-              <select
-                value={record.setupFamilyId}
+              <EdgeSelect
+                variant="field"
+                density="standard"
                 disabled={saving}
-                onChange={(event) => void saveMetadata({ setupFamilyId: event.target.value })}
-                className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-chart)] px-2 py-1.5 text-[var(--edge-text-primary)]"
-              >
-                {families.map((family) => (
-                  <option key={family.id} value={family.id}>
-                    {family.name}
-                  </option>
-                ))}
-              </select>
+                value={record.setupFamilyId}
+                onChange={(next) => void saveMetadata({ setupFamilyId: next })}
+                options={families.map((family) => ({
+                  value: family.id,
+                  label: family.name,
+                }))}
+                className="w-full"
+              />
             </label>
 
             <label className="grid gap-1 text-sm">
               <span className="text-xs text-[var(--edge-text-muted)]">Quality</span>
-              <select
-                value={record.quality}
+              <EdgeSelect
+                variant="field"
+                density="standard"
                 disabled={saving}
-                onChange={(event) =>
+                value={String(record.quality)}
+                onChange={(next) =>
                   void saveMetadata({
-                    quality: Number.parseInt(event.target.value, 10) as SetupQuality,
+                    quality: Number.parseInt(next, 10) as SetupQuality,
                   })
                 }
-                className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-chart)] px-2 py-1.5 text-[var(--edge-text-primary)]"
-              >
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
+                options={[1, 2, 3, 4, 5].map((value) => ({
+                  value: String(value),
+                  label: String(value),
+                }))}
+                className="w-full"
+              />
             </label>
 
             <label className="grid gap-1 text-sm">

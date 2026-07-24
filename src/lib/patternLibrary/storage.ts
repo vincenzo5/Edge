@@ -1,10 +1,9 @@
-import "server-only";
-
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import {
   patternRecordSchema,
   patternTaxonomySchema,
+  parsePatternId,
   type OhlcvBar,
   type PatternRecord,
   type PatternTaxonomy,
@@ -30,15 +29,68 @@ export function ensureLibraryDirs(): void {
   mkdirSync(RECORDS_DIR, { recursive: true });
 }
 
+function recordsRootPrefix(): string {
+  return `${path.resolve(RECORDS_DIR)}${path.sep}`;
+}
+
+function safeRecordJsonPath(id: string): string {
+  parsePatternId(id);
+  const resolved = path.resolve(RECORDS_DIR, `${id}.json`);
+  if (!resolved.startsWith(recordsRootPrefix())) {
+    throw new Error("Invalid pattern id path");
+  }
+  return resolved;
+}
+
+function safeRecordSvgPath(id: string): string {
+  parsePatternId(id);
+  const resolved = path.resolve(RECORDS_DIR, `${id}.svg`);
+  if (!resolved.startsWith(recordsRootPrefix())) {
+    throw new Error("Invalid pattern id path");
+  }
+  return resolved;
+}
+
+type TaxonomyCacheEntry = {
+  taxonomy: PatternTaxonomy;
+  mtimeMs: number;
+  filePath: string;
+};
+
+let taxonomyCache: TaxonomyCacheEntry | null = null;
+
+/** Reset in-memory taxonomy cache (tests). */
+export function clearTaxonomyCacheForTests(): void {
+  taxonomyCache = null;
+}
+
+function readTaxonomyFromDisk(filePath: string): PatternTaxonomy {
+  const raw = JSON.parse(readFileSync(filePath, "utf8")) as unknown;
+  return patternTaxonomySchema.parse(raw);
+}
+
 export function loadTaxonomy(filePath = TAXONOMY_PATH): PatternTaxonomy {
   if (!existsSync(filePath)) {
     const taxonomy = createDefaultTaxonomy();
     ensureLibraryDirs();
     writeFileSync(filePath, JSON.stringify(taxonomy, null, 2), "utf8");
+    const mtimeMs = statSync(filePath).mtimeMs;
+    taxonomyCache = { taxonomy, mtimeMs, filePath };
     return taxonomy;
   }
-  const raw = JSON.parse(readFileSync(filePath, "utf8")) as unknown;
-  return patternTaxonomySchema.parse(raw);
+
+  const mtimeMs = statSync(filePath).mtimeMs;
+  if (
+    taxonomyCache &&
+    taxonomyCache.filePath === filePath &&
+    taxonomyCache.mtimeMs === mtimeMs
+  ) {
+    return taxonomyCache.taxonomy;
+  }
+
+  const taxonomy = readTaxonomyFromDisk(filePath);
+  taxonomyCache = { taxonomy, mtimeMs, filePath };
+  return taxonomy;
 }
 
 export function saveTaxonomy(taxonomy: PatternTaxonomy, filePath = TAXONOMY_PATH): void {
@@ -48,14 +100,19 @@ export function saveTaxonomy(taxonomy: PatternTaxonomy, filePath = TAXONOMY_PATH
     updatedAt: new Date().toISOString(),
   });
   writeFileSync(filePath, JSON.stringify(parsed, null, 2), "utf8");
+  taxonomyCache = {
+    taxonomy: parsed,
+    mtimeMs: statSync(filePath).mtimeMs,
+    filePath,
+  };
 }
 
 export function recordPath(id: string): string {
-  return path.join(RECORDS_DIR, `${id}.json`);
+  return safeRecordJsonPath(id);
 }
 
 export function recordSvgPath(id: string): string {
-  return path.join(RECORDS_DIR, `${id}.svg`);
+  return safeRecordSvgPath(id);
 }
 
 export function hasRecordSvg(id: string): boolean {
@@ -80,7 +137,7 @@ export function writeRecordSvg(
   renderBars: OhlcvBar[],
   leftPaddingApplied: number,
 ): void {
-  const svgPath = path.join(RECORDS_DIR, `${record.id}.svg`);
+  const svgPath = safeRecordSvgPath(record.id);
   const capture = record.capture;
   const sections = capture
     ? sectionsToRenderOverlays(
