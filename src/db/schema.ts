@@ -66,6 +66,56 @@ export const userScreenerLibrary = pgTable("user_screener_library", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const userAppWorkspaces = pgTable("user_app_workspaces", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  schemaVersion: integer("schema_version").notNull().default(1),
+  appWorkspacesSnapshot: jsonb("app_workspaces_snapshot").notNull(),
+  syncRevision: integer("sync_revision").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const userPreferences = pgTable("user_preferences", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  schemaVersion: integer("schema_version").notNull().default(1),
+  preferencesSnapshot: jsonb("preferences_snapshot").notNull(),
+  syncRevision: integer("sync_revision").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const userPatternTaxonomy = pgTable("user_pattern_taxonomy", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  schemaVersion: integer("schema_version").notNull().default(1),
+  taxonomy: jsonb("taxonomy").notNull(),
+  syncRevision: integer("sync_revision").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const userPatternRecords = pgTable(
+  "user_pattern_records",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    recordId: text("record_id").notNull(),
+    record: jsonb("record").notNull(),
+    symbol: text("symbol").notNull(),
+    setupFamilyId: text("setup_family_id").notNull(),
+    capturedAt: timestamp("captured_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.recordId] })],
+);
+
 export const chartTemplateLibrary = pgTable("chart_template_library", {
   userId: uuid("user_id")
     .primaryKey()
@@ -76,6 +126,44 @@ export const chartTemplateLibrary = pgTable("chart_template_library", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const userScripts = pgTable(
+  "user_scripts",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    scriptId: uuid("script_id").notNull(),
+    displayName: text("display_name").notNull(),
+    headRevision: text("head_revision"),
+    draftSource: text("draft_source"),
+    draftManifest: jsonb("draft_manifest"),
+    draftDirty: boolean("draft_dirty").notNull().default(false),
+    draftUpdatedAt: timestamp("draft_updated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.scriptId] })],
+);
+
+export const userScriptRevisions = pgTable(
+  "user_script_revisions",
+  {
+    userId: uuid("user_id").notNull(),
+    scriptId: uuid("script_id").notNull(),
+    revision: text("revision").notNull(),
+    source: text("source").notNull(),
+    languageVersion: text("language_version").notNull(),
+    sdkVersion: text("sdk_version").notNull(),
+    manifest: jsonb("manifest"),
+    artifactHash: text("artifact_hash"),
+    compileOk: boolean("compile_ok").notNull(),
+    compiledAt: timestamp("compiled_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.scriptId, table.revision] }),
+  ],
+);
 
 export const marketResearchNotes = pgTable("market_research_notes", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -149,6 +237,12 @@ export const journalTrades = pgTable("journal_trades", {
   plannedRiskMode: text("planned_risk_mode"),
   plannedRiskValue: doublePrecision("planned_risk_value"),
   plannedRiskUsd: doublePrecision("planned_risk_usd"),
+  rating: integer("rating"),
+  mfeUsd: doublePrecision("mfe_usd"),
+  mfaUsd: doublePrecision("mfa_usd"),
+  excursionInterval: text("excursion_interval"),
+  excursionComputedAt: timestamp("excursion_computed_at", { withTimezone: true }),
+  ignored: boolean("ignored").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -165,6 +259,79 @@ export const journalTradeFills = pgTable(
     role: text("role").notNull(),
   },
   (table) => [primaryKey({ columns: [table.tradeId, table.fillId] })],
+);
+
+export const journalTradeScreenshots = pgTable(
+  "journal_trade_screenshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    tradeId: uuid("trade_id")
+      .notNull()
+      .references(() => journalTrades.id, { onDelete: "cascade" }),
+    sortIndex: integer("sort_index").notNull().default(0),
+    caption: text("caption"),
+    mimeType: text("mime_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    storageKey: text("storage_key").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    source: text("source").notNull().default("upload"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("journal_trade_screenshots_trade_sort_unique").on(
+      table.tradeId,
+      table.sortIndex,
+    ),
+  ],
+);
+
+export const copilotAttachments = pgTable("copilot_attachments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  mimeType: text("mime_type").notNull(),
+  byteSize: integer("byte_size").notNull(),
+  storageKey: text("storage_key").notNull(),
+  name: text("name"),
+  source: text("source").notNull().default("upload"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const journalTradeChartSnapshots = pgTable(
+  "journal_trade_chart_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    tradeId: uuid("trade_id")
+      .notNull()
+      .references(() => journalTrades.id, { onDelete: "cascade" }),
+    sortIndex: integer("sort_index").notNull().default(0),
+    label: text("label"),
+    symbol: text("symbol").notNull(),
+    interval: text("interval").notNull(),
+    cellConfig: jsonb("cell_config").notNull(),
+    cellConfigOriginal: jsonb("cell_config_original").notNull(),
+    planLevels: jsonb("plan_levels"),
+    screenshotId: uuid("screenshot_id").references(() => journalTradeScreenshots.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("journal_trade_chart_snapshots_trade_sort_unique").on(
+      table.tradeId,
+      table.sortIndex,
+    ),
+  ],
 );
 
 export const orderIntents = pgTable(
@@ -191,6 +358,33 @@ export const orderIntents = pgTable(
     ),
   ],
 );
+
+export const playbookInstances = pgTable("playbook_instances", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  templateId: text("template_id").notNull(),
+  status: text("status").notNull(),
+  positionPlan: jsonb("position_plan").notNull(),
+  ruleRuntimes: jsonb("rule_runtimes").notNull(),
+  orderIntentId: uuid("order_intent_id"),
+  orderRef: text("order_ref"),
+  stopOrderId: integer("stop_order_id"),
+  filledQty: integer("filled_qty"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const playbookAutoManage = pgTable("playbook_auto_manage", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  paperEnabled: boolean("paper_enabled").notNull().default(true),
+  liveEnabled: boolean("live_enabled").notNull().default(false),
+  liveConsentAt: timestamp("live_consent_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const brokerIngestCursors = pgTable("broker_ingest_cursors", {
   userId: uuid("user_id")
@@ -262,12 +456,160 @@ export type AppUser = typeof appUsers.$inferSelect;
 export type ChartWorkspace = typeof chartWorkspaces.$inferSelect;
 export type UserWatchlistLibrary = typeof userWatchlistLibrary.$inferSelect;
 export type UserScreenerLibrary = typeof userScreenerLibrary.$inferSelect;
+export type UserAppWorkspaces = typeof userAppWorkspaces.$inferSelect;
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type UserPatternTaxonomy = typeof userPatternTaxonomy.$inferSelect;
+export type UserPatternRecord = typeof userPatternRecords.$inferSelect;
 export type ChartTemplateLibrary = typeof chartTemplateLibrary.$inferSelect;
+export type UserScript = typeof userScripts.$inferSelect;
+export type UserScriptRevision = typeof userScriptRevisions.$inferSelect;
 export type MarketResearchNote = typeof marketResearchNotes.$inferSelect;
 export type JournalFill = typeof journalFills.$inferSelect;
 export type JournalTrade = typeof journalTrades.$inferSelect;
 export type JournalTradeFill = typeof journalTradeFills.$inferSelect;
+export type JournalTradeScreenshot = typeof journalTradeScreenshots.$inferSelect;
+export type CopilotAttachment = typeof copilotAttachments.$inferSelect;
+export type JournalTradeChartSnapshot = typeof journalTradeChartSnapshots.$inferSelect;
 export type OrderIntentRow = typeof orderIntents.$inferSelect;
+export type PlaybookInstanceRow = typeof playbookInstances.$inferSelect;
+export type PlaybookAutoManageRow = typeof playbookAutoManage.$inferSelect;
 export type BrokerIngestCursor = typeof brokerIngestCursors.$inferSelect;
 export type AccountSnapshotRow = typeof accountSnapshots.$inferSelect;
 export type PositionSnapshotRow = typeof positionSnapshots.$inferSelect;
+
+export const notificationEvents = pgTable(
+  "notification_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    source: text("source").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    href: text("href"),
+    dedupeKey: text("dedupe_key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("notification_events_id_user_unique").on(table.id, table.userId),
+  ],
+);
+
+export const alertDefinitions = pgTable("alert_definitions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  symbol: text("symbol").notNull(),
+  operator: text("operator").notNull(),
+  price: doublePrecision("price").notNull(),
+  message: text("message"),
+  recurrence: text("recurrence").notNull().default("once"),
+  status: text("status").notNull().default("active"),
+  cooldownMs: integer("cooldown_ms").notNull().default(30_000),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  lastPrice: doublePrecision("last_price"),
+  lastFiredAt: timestamp("last_fired_at", { withTimezone: true }),
+  drawingId: text("drawing_id"),
+  drawingKind: text("drawing_kind"),
+  priceHigh: doublePrecision("price_high"),
+  tlT0: doublePrecision("tl_t0"),
+  tlV0: doublePrecision("tl_v0"),
+  tlT1: doublePrecision("tl_t1"),
+  tlV1: doublePrecision("tl_v1"),
+  tlExtendLeft: boolean("tl_extend_left"),
+  tlExtendRight: boolean("tl_extend_right"),
+  drawingRole: text("drawing_role"),
+  bundleId: uuid("bundle_id"),
+  combinator: text("combinator"),
+  conditions: jsonb("conditions").notNull().default([]),
+  watchlistId: text("watchlist_id"),
+  symbolState: jsonb("symbol_state").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const screenerAlerts = pgTable(
+  "screener_alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    screenId: text("screen_id").notNull(),
+    intervalMinutes: integer("interval_minutes").notNull().default(60),
+    notifyOn: text("notify_on").notNull().default("added"),
+    status: text("status").notNull().default("active"),
+    cooldownMs: integer("cooldown_ms").notNull().default(300_000),
+    lastSymbols: jsonb("last_symbols").notNull().default([]),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    lastFiredAt: timestamp("last_fired_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("screener_alerts_user_screen_unique").on(table.userId, table.screenId),
+  ],
+);
+
+export const alertTriggerEvents = pgTable("alert_trigger_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  alertId: uuid("alert_id")
+    .notNull()
+    .references(() => alertDefinitions.id, { onDelete: "cascade" }),
+  symbol: text("symbol").notNull(),
+  operator: text("operator").notNull(),
+  triggerPrice: doublePrecision("trigger_price").notNull(),
+  quotePrice: doublePrecision("quote_price").notNull(),
+  notificationId: uuid("notification_id").references(() => notificationEvents.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const userCopilotThreads = pgTable("user_copilot_threads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  title: text("title").notNull().default("New chat"),
+  schemaVersion: integer("schema_version").notNull().default(1),
+  messages: jsonb("messages").notNull().default([]),
+  modelId: text("model_id"),
+  syncRevision: integer("sync_revision").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+});
+
+export const connections = pgTable(
+  "connections",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    id: text("id").notNull(),
+    kind: text("kind").notNull(),
+    authKind: text("auth_kind").notNull(),
+    broker: text("broker").notNull(),
+    environment: text("environment").notNull(),
+    displayName: text("display_name").notNull(),
+    status: text("status").notNull().default("unknown"),
+    metadata: jsonb("metadata").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.id] })],
+);
+
+export type NotificationEventRow = typeof notificationEvents.$inferSelect;
+export type AlertDefinitionRow = typeof alertDefinitions.$inferSelect;
+export type AlertTriggerEventRow = typeof alertTriggerEvents.$inferSelect;
+export type ScreenerAlertRow = typeof screenerAlerts.$inferSelect;
