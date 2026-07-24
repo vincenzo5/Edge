@@ -1,3 +1,5 @@
+export type ScenarioTag = "resident-typical" | "stress";
+
 export type DrawPhaseTimings = {
   backgroundMs?: number;
   gridMs?: number;
@@ -23,6 +25,7 @@ export type PerfMetrics = {
 export type ScenarioResult = {
   scenario: string;
   layer: "micro" | "browser";
+  tag?: ScenarioTag;
   candleCount: number;
   indicatorCount: number;
   drawingCount: number;

@@ -1,0 +1,44 @@
+# Runtime interaction performance — Phase 0 evidence
+# Date: 2026-07-24
+
+## Scope
+Metric contract + harness extension + fresh baseline. No user-visible chart behavior change.
+
+## Delivered
+- src/lib/chart/ARCHITECTURE.md — Runtime interaction metrics section + wakeup protocol
+- docs/ROADMAP.md — runtime-interaction baseline cross-link
+- docs/perf/market-data-performance.md — related baseline links
+- examples/chart-perf-harness/ — resident-typical (5k), drawings, tip-tick scenarios + tags
+- scripts/run-chart-perf.mts — dual-write runtime-interaction-baseline-*.json
+- src/test/reactRenderCounter.ts — render count helper for Phase 2 wakeup tests
+- docs/perf/runtime-interaction-baseline-latest.json — fresh baseline artifact
+
+## Architecture review
+Self-review Passed — measurement-only; no chart invalidation or provider contract changes.
+
+## Focused
+npm test -- --run src/test/reactRenderCounter.test.tsx src/test/chart-perf-harness.test.ts
+Test Files  2 passed (2)
+Tests  3 passed (3)
+
+## Harness
+npm run perf:chart
+Micro scenarios complete: 7
+Browser scenarios complete: 12
+
+Runtime interaction summary (resident-typical):
+- interaction-5k-crosshair-only | p50=23.8ms | p95=173.7ms
+- interaction-5k-pan-zoom | p50=68.6ms | p95=300ms
+- interaction-5k-pan-zoom-drawings-20 | p50=65.6ms | p95=231.7ms
+- interaction-5k-tip-tick | p50=23.1ms | p95=108.5ms
+- indicators-compute-tip-tick-5k-core-six | duration=31.83ms
+
+Saved:
+- docs/perf/runtime-interaction-baseline-latest.json
+- docs/perf/chart-baseline-latest.json
+
+## App-level
+N/A (harness-only; no product wiring)
+
+## Next
+Phase 1 — stop false series invalidation (drawings/selection out of SERIES_INVALIDATING)

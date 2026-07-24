@@ -1,8 +1,10 @@
-import { createRef } from "react";
+import { createRef, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import type { Candle } from "@edge/chart-core";
 import { createDefaultChartState } from "@edge/chart-core";
 import EdgeChart, { type EdgeChartHandle } from "@edge/chart-react";
 import { generateCandles } from "./generateCandles.js";
+import { generateTrendLineDrawings } from "./generateDrawings.js";
 import {
   measureFramesDuring,
   summarizeFrameDurations,
@@ -15,11 +17,68 @@ const CHART_WIDTH = 1200;
 const CHART_HEIGHT = 640;
 const INTERACTION_DURATION_MS = 2000;
 
-async function mountChart(
-  host: HTMLElement,
+type MountContext = {
+  root: Root;
+  handle: EdgeChartHandle | null;
+  durationMs: number;
+  candles: Candle[];
+  handleRef: RefObject<EdgeChartHandle | null>;
+  chartState: ReturnType<typeof createDefaultChartState>;
+};
+
+function mutateTipCandle(candles: Candle[], frameIndex: number): Candle[] {
+  const next = candles.slice();
+  const lastIndex = next.length - 1;
+  const last = next[lastIndex];
+  if (!last) return next;
+
+  const delta = (frameIndex % 7) - 3;
+  const close = Math.max(1, last.c + delta * 0.05);
+  const high = Math.max(last.h, close + 0.1);
+  const low = Math.min(last.l, close - 0.1);
+
+  next[lastIndex] = {
+    ...last,
+    c: round(close),
+    h: round(high),
+    l: round(Math.max(0.5, low)),
+    v: last.v + (frameIndex % 5) * 1_000,
+  };
+
+  return next;
+}
+
+function renderChart(
+  root: Root,
+  handleRef: RefObject<EdgeChartHandle | null>,
+  candles: Candle[],
   scenario: BrowserScenario,
-): Promise<{ root: Root; handle: EdgeChartHandle | null; durationMs: number }> {
+  chartState: ReturnType<typeof createDefaultChartState>,
+) {
+  root.render(
+    <EdgeChart
+      ref={handleRef}
+      candles={candles}
+      state={chartState}
+      theme="dark"
+      symbol="PERF"
+      range="max"
+      interval="1d"
+      loading={false}
+    />,
+  );
+}
+
+async function mountChart(host: HTMLElement, scenario: BrowserScenario): Promise<MountContext> {
   const candles = generateCandles(scenario.candleCount);
+  const drawings =
+    scenario.drawingCount > 0 ? generateTrendLineDrawings(candles, scenario.drawingCount) : [];
+  const chartState = createDefaultChartState({
+    chartType: "candle_solid",
+    indicators: scenario.indicators,
+    drawings,
+  });
+
   const handleRef = createRef<EdgeChartHandle>();
   const container = document.createElement("div");
   container.style.width = `${CHART_WIDTH}px`;
@@ -29,29 +88,16 @@ async function mountChart(
   const root = createRoot(container);
   const mountStartedAt = performance.now();
 
-  root.render(
-    <EdgeChart
-      ref={handleRef}
-      candles={candles}
-      state={createDefaultChartState({
-        chartType: "candle_solid",
-        indicators: scenario.indicators,
-        drawings: [],
-      })}
-      theme="dark"
-      symbol="PERF"
-      range="max"
-      interval="1d"
-      loading={false}
-    />,
-  );
-
+  renderChart(root, handleRef, candles, scenario, chartState);
   await waitForAnimationFrames(4);
 
   return {
     root,
     handle: handleRef.current,
     durationMs: performance.now() - mountStartedAt,
+    candles,
+    handleRef,
+    chartState,
   };
 }
 
@@ -75,9 +121,24 @@ function readDrawPhases(handle: EdgeChartHandle | null): DrawPhaseTimings | unde
 }
 
 async function runInteraction(
-  handle: EdgeChartHandle,
+  mount: MountContext,
+  scenario: BrowserScenario,
   kind: NonNullable<BrowserScenario["interaction"]>,
 ): Promise<ReturnType<typeof summarizeFrameDurations>> {
+  const handle = mount.handle;
+  if (!handle) {
+    return summarizeFrameDurations([]);
+  }
+
+  if (kind === "tip-tick") {
+    let candles = mount.candles;
+    const frameDurations = await measureFramesDuring(INTERACTION_DURATION_MS, (frameIndex) => {
+      candles = mutateTipCandle(candles, frameIndex);
+      renderChart(mount.root, mount.handleRef, candles, scenario, mount.chartState);
+    });
+    return summarizeFrameDurations(frameDurations);
+  }
+
   const frameDurations = await measureFramesDuring(INTERACTION_DURATION_MS, (frameIndex) => {
     const range = handle.getVisibleRange();
     if (!range) return;
@@ -108,6 +169,7 @@ async function runInteraction(
       }
     }
   });
+
   return summarizeFrameDurations(frameDurations);
 }
 
@@ -121,6 +183,8 @@ function interactionNotes(kind: NonNullable<BrowserScenario["interaction"]>): st
       return "Initial mount plus 2s crosshair sync frame sampling.";
     case "pan-zoom":
       return "Initial mount plus 2s pan/zoom mixed frame sampling.";
+    case "tip-tick":
+      return "Initial mount plus 2s tip candle prop updates (last-bar OHLC mutation via React re-render).";
   }
 }
 
@@ -128,27 +192,28 @@ async function runBrowserScenario(
   host: HTMLElement,
   scenario: BrowserScenario,
 ): Promise<ScenarioResult> {
-  const { root, handle, durationMs } = await mountChart(host, scenario);
+  const mount = await mountChart(host, scenario);
 
   let interactionMetrics = {};
-  if (scenario.interaction && handle) {
-    interactionMetrics = await runInteraction(handle, scenario.interaction);
+  if (scenario.interaction) {
+    interactionMetrics = await runInteraction(mount, scenario, scenario.interaction);
   }
 
-  const drawPhases = readDrawPhases(handle);
-  cleanupMount(root, host);
+  const drawPhases = readDrawPhases(mount.handle);
+  cleanupMount(mount.root, host);
 
   const subPaneCount = scenario.indicators.filter((indicator) => indicator.pane === "sub").length;
 
   return {
     scenario: scenario.id,
     layer: "browser",
+    tag: scenario.tag,
     candleCount: scenario.candleCount,
     indicatorCount: scenario.indicators.length,
     drawingCount: scenario.drawingCount,
     paneCount: 1 + subPaneCount,
     metrics: {
-      durationMs: round(durationMs),
+      durationMs: round(mount.durationMs),
       ...interactionMetrics,
       drawPhases,
     },

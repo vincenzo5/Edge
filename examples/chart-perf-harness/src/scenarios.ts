@@ -1,7 +1,13 @@
 import type { IndicatorConfig } from "@edge/chart-core";
 import { generateCandles } from "./generateCandles.js";
+import type { ScenarioTag } from "./types.js";
 
-export type InteractionKind = "pan-only" | "zoom-only" | "crosshair-only" | "pan-zoom";
+export type InteractionKind =
+  | "pan-only"
+  | "zoom-only"
+  | "crosshair-only"
+  | "pan-zoom"
+  | "tip-tick";
 
 export type BrowserScenario = {
   id: string;
@@ -9,6 +15,7 @@ export type BrowserScenario = {
   indicators: IndicatorConfig[];
   drawingCount: number;
   interaction?: InteractionKind;
+  tag?: ScenarioTag;
 };
 
 const CORE_INDICATORS: IndicatorConfig[] = [
@@ -20,6 +27,9 @@ const CORE_INDICATORS: IndicatorConfig[] = [
   { id: "perf-vol", name: "VOL", pane: "sub" },
 ];
 
+const RESIDENT_BAR_COUNT = 5_000;
+const STRESS_BAR_COUNT = 100_000;
+
 export const BROWSER_SCENARIOS: BrowserScenario[] = [
   {
     id: "initial-render-10k",
@@ -29,43 +39,89 @@ export const BROWSER_SCENARIOS: BrowserScenario[] = [
   },
   {
     id: "initial-render-100k",
-    candleCount: 100_000,
+    candleCount: STRESS_BAR_COUNT,
     indicators: [],
     drawingCount: 0,
+    tag: "stress",
   },
   {
     id: "indicators-100k-core-six",
-    candleCount: 100_000,
+    candleCount: STRESS_BAR_COUNT,
     indicators: CORE_INDICATORS,
     drawingCount: 0,
+    tag: "stress",
   },
   {
     id: "interaction-100k-pan-only",
-    candleCount: 100_000,
+    candleCount: STRESS_BAR_COUNT,
     indicators: CORE_INDICATORS,
     drawingCount: 0,
     interaction: "pan-only",
+    tag: "stress",
   },
   {
     id: "interaction-100k-zoom-only",
-    candleCount: 100_000,
+    candleCount: STRESS_BAR_COUNT,
     indicators: CORE_INDICATORS,
     drawingCount: 0,
     interaction: "zoom-only",
+    tag: "stress",
   },
   {
     id: "interaction-100k-crosshair-only",
-    candleCount: 100_000,
+    candleCount: STRESS_BAR_COUNT,
     indicators: CORE_INDICATORS,
     drawingCount: 0,
     interaction: "crosshair-only",
+    tag: "stress",
   },
   {
     id: "interaction-100k-pan-zoom-sample",
-    candleCount: 100_000,
+    candleCount: STRESS_BAR_COUNT,
     indicators: CORE_INDICATORS,
     drawingCount: 0,
     interaction: "pan-zoom",
+    tag: "stress",
+  },
+  {
+    id: "interaction-100k-pan-zoom-drawings-20",
+    candleCount: STRESS_BAR_COUNT,
+    indicators: CORE_INDICATORS,
+    drawingCount: 20,
+    interaction: "pan-zoom",
+    tag: "stress",
+  },
+  {
+    id: "interaction-5k-crosshair-only",
+    candleCount: RESIDENT_BAR_COUNT,
+    indicators: CORE_INDICATORS,
+    drawingCount: 0,
+    interaction: "crosshair-only",
+    tag: "resident-typical",
+  },
+  {
+    id: "interaction-5k-pan-zoom",
+    candleCount: RESIDENT_BAR_COUNT,
+    indicators: CORE_INDICATORS,
+    drawingCount: 0,
+    interaction: "pan-zoom",
+    tag: "resident-typical",
+  },
+  {
+    id: "interaction-5k-pan-zoom-drawings-20",
+    candleCount: RESIDENT_BAR_COUNT,
+    indicators: CORE_INDICATORS,
+    drawingCount: 20,
+    interaction: "pan-zoom",
+    tag: "resident-typical",
+  },
+  {
+    id: "interaction-5k-tip-tick",
+    candleCount: RESIDENT_BAR_COUNT,
+    indicators: CORE_INDICATORS,
+    drawingCount: 0,
+    interaction: "tip-tick",
+    tag: "resident-typical",
   },
 ];
 

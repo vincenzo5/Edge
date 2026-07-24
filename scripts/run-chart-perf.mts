@@ -12,6 +12,19 @@ const perfDir = path.join(repoRoot, "docs/perf");
 const previewPort = 5199;
 const previewUrl = `http://127.0.0.1:${previewPort}/?autorun=1`;
 
+const INTERACTION_SCENARIO_IDS = new Set([
+  "interaction-100k-pan-only",
+  "interaction-100k-zoom-only",
+  "interaction-100k-crosshair-only",
+  "interaction-100k-pan-zoom-sample",
+  "interaction-100k-pan-zoom-drawings-20",
+  "interaction-5k-crosshair-only",
+  "interaction-5k-pan-zoom",
+  "interaction-5k-pan-zoom-drawings-20",
+  "interaction-5k-tip-tick",
+  "indicators-compute-tip-tick-5k-core-six",
+]);
+
 function gitMeta(): PerfBaseline["git"] {
   try {
     return {
@@ -61,10 +74,11 @@ async function runBrowserBenchmarks(): Promise<{ results: ScenarioResult[]; brow
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
+    page.setDefaultTimeout(600_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(previewUrl, { waitUntil: "networkidle", timeout: 120_000 });
     await page.waitForFunction(() => window.__EDGE_CHART_PERF_READY__ === true, {
-      timeout: 180_000,
+      timeout: 300_000,
     });
 
     const error = await page.evaluate(() => window.__EDGE_CHART_PERF_ERROR__);
@@ -83,6 +97,10 @@ function printSummary(baseline: PerfBaseline): void {
   console.log("\nScenario summary:");
   for (const scenario of baseline.scenarios) {
     const parts = [`${scenario.scenario}`, `${scenario.metrics.durationMs}ms`];
+    if (scenario.tag) parts.push(`tag=${scenario.tag}`);
+    if (scenario.metrics.p50FrameMs != null) {
+      parts.push(`p50=${scenario.metrics.p50FrameMs}ms`);
+    }
     if (scenario.metrics.p95FrameMs != null) {
       parts.push(`p95=${scenario.metrics.p95FrameMs}ms`);
     }
@@ -91,6 +109,40 @@ function printSummary(baseline: PerfBaseline): void {
     }
     console.log(`- [${scenario.layer}] ${parts.join(" | ")}`);
   }
+}
+
+function printInteractionSummary(scenarios: ScenarioResult[]): void {
+  const interaction = scenarios.filter(
+    (scenario) => scenario.tag != null || INTERACTION_SCENARIO_IDS.has(scenario.scenario),
+  );
+
+  console.log("\nRuntime interaction summary:");
+  for (const scenario of interaction) {
+    const parts = [scenario.scenario];
+    if (scenario.tag) parts.push(`tag=${scenario.tag}`);
+    if (scenario.metrics.p50FrameMs != null) parts.push(`p50=${scenario.metrics.p50FrameMs}ms`);
+    if (scenario.metrics.p95FrameMs != null) parts.push(`p95=${scenario.metrics.p95FrameMs}ms`);
+    else parts.push(`duration=${scenario.metrics.durationMs}ms`);
+    console.log(`- ${parts.join(" | ")}`);
+  }
+}
+
+function selectInteractionScenarios(scenarios: ScenarioResult[]): ScenarioResult[] {
+  return scenarios.filter(
+    (scenario) => scenario.tag != null || INTERACTION_SCENARIO_IDS.has(scenario.scenario),
+  );
+}
+
+function writeBaseline(baseName: string, baseline: PerfBaseline): { latest: string; stamped: string } {
+  const latestPath = path.join(perfDir, `${baseName}-latest.json`);
+  const stampedPath = path.join(
+    perfDir,
+    `${baseName}-${baseline.generatedAt.replace(/[:.]/g, "-")}.json`,
+  );
+  const payload = `${JSON.stringify(baseline, null, 2)}\n`;
+  writeFileSync(latestPath, payload);
+  writeFileSync(stampedPath, payload);
+  return { latest: latestPath, stamped: stampedPath };
 }
 
 async function main(): Promise<void> {
@@ -102,31 +154,40 @@ async function main(): Promise<void> {
   const { results: browserResults, browser } = await runBrowserBenchmarks();
   console.log(`Browser scenarios complete: ${browserResults.length}`);
 
+  const generatedAt = new Date().toISOString();
+  const environment = {
+    node: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    browser,
+  };
+  const git = gitMeta();
+
+  const allScenarios = [...microResults, ...browserResults];
   const baseline: PerfBaseline = {
-    generatedAt: new Date().toISOString(),
-    git: gitMeta(),
-    environment: {
-      node: process.version,
-      platform: process.platform,
-      arch: process.arch,
-      browser,
-    },
-    scenarios: [...microResults, ...browserResults],
+    generatedAt,
+    git,
+    environment,
+    scenarios: allScenarios,
+  };
+
+  const interactionScenarios = selectInteractionScenarios(allScenarios);
+  const interactionBaseline: PerfBaseline = {
+    generatedAt,
+    git,
+    environment,
+    scenarios: interactionScenarios,
   };
 
   mkdirSync(perfDir, { recursive: true });
-  const latestPath = path.join(perfDir, "chart-baseline-latest.json");
-  const stampedPath = path.join(
-    perfDir,
-    `chart-baseline-${baseline.generatedAt.replace(/[:.]/g, "-")}.json`,
-  );
-
-  const payload = `${JSON.stringify(baseline, null, 2)}\n`;
-  writeFileSync(latestPath, payload);
-  writeFileSync(stampedPath, payload);
+  const chartPaths = writeBaseline("chart-baseline", baseline);
+  const interactionPaths = writeBaseline("runtime-interaction-baseline", interactionBaseline);
 
   printSummary(baseline);
-  console.log(`\nSaved baseline:\n- ${latestPath}\n- ${stampedPath}`);
+  printInteractionSummary(interactionScenarios);
+  console.log(
+    `\nSaved baselines:\n- ${chartPaths.latest}\n- ${chartPaths.stamped}\n- ${interactionPaths.latest}\n- ${interactionPaths.stamped}`,
+  );
 }
 
 main().catch((error) => {

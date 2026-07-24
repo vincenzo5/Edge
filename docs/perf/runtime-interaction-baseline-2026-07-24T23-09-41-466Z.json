@@ -12,42 +12,6 @@
   },
   "scenarios": [
     {
-      "scenario": "generate-candles-10k",
-      "layer": "micro",
-      "candleCount": 10000,
-      "indicatorCount": 0,
-      "drawingCount": 0,
-      "paneCount": 1,
-      "metrics": {
-        "durationMs": 1.08
-      },
-      "notes": "Deterministic candle generation only."
-    },
-    {
-      "scenario": "generate-candles-100k",
-      "layer": "micro",
-      "candleCount": 100000,
-      "indicatorCount": 0,
-      "drawingCount": 0,
-      "paneCount": 1,
-      "metrics": {
-        "durationMs": 7.1
-      },
-      "notes": "Deterministic candle generation only."
-    },
-    {
-      "scenario": "generate-candles-1m",
-      "layer": "micro",
-      "candleCount": 1000000,
-      "indicatorCount": 0,
-      "drawingCount": 0,
-      "paneCount": 1,
-      "metrics": {
-        "durationMs": 244.52
-      },
-      "notes": "Deterministic candle generation only."
-    },
-    {
       "scenario": "indicators-compute-cold-100k-core-six",
       "layer": "micro",
       "tag": "stress",
@@ -102,27 +66,6 @@
         "iterations": 15
       },
       "notes": "Tip mutation after warm cache — baseline for live tip update cost (full recompute today)."
-    },
-    {
-      "scenario": "initial-render-10k",
-      "layer": "browser",
-      "candleCount": 10000,
-      "indicatorCount": 0,
-      "drawingCount": 0,
-      "paneCount": 1,
-      "metrics": {
-        "durationMs": 62.3,
-        "drawPhases": {
-          "backgroundMs": 0.3,
-          "gridMs": 0,
-          "candlesMs": 6.3,
-          "indicatorsMs": 0,
-          "drawingsMs": 0,
-          "axesMs": 0.1,
-          "totalMs": 6.7
-        }
-      },
-      "notes": "Initial mount through four animation frames."
     },
     {
       "scenario": "initial-render-100k",

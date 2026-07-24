@@ -165,6 +165,22 @@ Package path: `packages/chart-react/src/engine/webgl/`.
 - **App adapters** (`src/lib/chart/`): feed glue, persistence mapping, layout templates — not re-exports (Phase 5).
 - **Config layer** (`src/lib/chartConfig.ts`): layout schema, defaults, link propagation.
 
+## Runtime interaction metrics
+
+Interaction smoothness is tracked separately from memory retention and market-data serving. See [Runtime Interaction Performance Roadmap](../../../docs/roadmaps/runtime-performance-roadmap.md) for phased work; Phase 0 freezes definitions and baselines only (no behavior change).
+
+| Metric | Meaning | Resident-typical target (~1–5k bars) |
+|--------|---------|----------------------------------------|
+| **Frame time p50 / p95** | One chart update while panning / scrubbing / ticking | p50 **< 16 ms**; p95 **< 33 ms** (crosshair + tip-tick) |
+| **Crosshair cost** | Extra work when only the crosshair moves | Series layers blit/skip; no `'data'` full rebuild |
+| **Tip tick cost** | Work when the latest bar updates | Fingerprint/lookup ≪ compute; tip path O(period)-class for builtins |
+| **React wakeups / quote** | Components re-rendering per quote frame | Inactive chart cells **0**; active cell only if it needs that symbol |
+| **Cold load time** | First useful candles | Out of scope for interaction gates (provider-bound) |
+
+**Baselines:** `npm run perf:chart` writes [docs/perf/chart-baseline-latest.json](../../../docs/perf/chart-baseline-latest.json) (full harness) and [docs/perf/runtime-interaction-baseline-latest.json](../../../docs/perf/runtime-interaction-baseline-latest.json) (tagged interaction scenarios). Stress scenarios use 100k bars; resident-typical scenarios use ~5k.
+
+**React wakeups protocol (Phase 0+):** Use React DevTools Profiler on multi-cell layouts during quote ticks for another symbol, or wrap components with `createRenderCounter` from `src/test/reactRenderCounter.ts` in Vitest. Passing criterion for Phase 2: inactive `ChartCell` render count **0** per foreign-symbol quote frame.
+
 ## Verification
 
 ```bash
@@ -177,6 +193,7 @@ npm test -- --run src/app/components/ChartCell.paneActions.test.tsx
 
 ## Related Docs
 
-- [docs/chart/features.md](../../../docs/chart/features.md) — feature inventory
+- [Runtime Interaction Performance Roadmap](../../../docs/roadmaps/runtime-performance-roadmap.md) — interaction smoothness track
+- [docs/perf/runtime-interaction-baseline-latest.json](../../../docs/perf/runtime-interaction-baseline-latest.json) — interaction harness baseline
 - [docs/chart/prereqs/plugin-api.md](../../../docs/chart/prereqs/plugin-api.md) — plugin interfaces
 - [docs/chart/drawing-engine-design.md](../../../docs/chart/drawing-engine-design.md) — drawing design
