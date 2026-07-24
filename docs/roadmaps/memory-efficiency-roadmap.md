@@ -6,7 +6,7 @@ Bound resident market-data memory on the client and Node process, cut clone/GC p
 
 **Status:** Phases 0–11 **Passing** (2026-07-24) — core retention track **complete**. Follow-up Phases 12–14: Phase 9–11 + 13 **Passing**; Phase 12 **Passing** (2026-07-24); Phase 14 **Passing** (2026-07-24). Complements the completed [Data Serving Efficiency](./data-serving-efficiency-roadmap.md) track.
 
-**Related:** [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Data Serving Efficiency](./data-serving-efficiency-roadmap.md), [Shared Cache Topology](./shared-cache-topology-roadmap.md) (prod Redis policy after Phase 12), [Data State Hardening](./data-state-hardening-roadmap.md), [Journal Architecture](../../src/lib/journal/ARCHITECTURE.md), [AI Tools Architecture](../ai-tools-architecture.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
+**Related:** [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Data Serving Efficiency](./data-serving-efficiency-roadmap.md), [Shared Cache Topology](./shared-cache-topology-roadmap.md) (prod Redis policy after Phase 12), [Data State Hardening](./data-state-hardening-roadmap.md), [Comprehensive Memory Metrics](./memory-metrics-roadmap.md) (layered measurement / scorecard — successor to “how do we read memory?”), [Journal Architecture](../../src/lib/journal/ARCHITECTURE.md), [AI Tools Architecture](../ai-tools-architecture.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
 **Origin:** 2026-07-23 memory-efficiency analysis (chart engine + app/state + server caches). Interactive summary: Cursor canvas `memory-efficiency-analysis.canvas.tsx`. This roadmap is the durable source of truth for phasing.
 
@@ -165,6 +165,7 @@ Client
 | Contract | Resident-bar, inactive-cell, clone-sharing, and server byte-budget rules in `marketData/ARCHITECTURE.md` + chart/chartDataFeed notes |
 | Knobs | Frozen defaults table below — **`RESIDENT_BAR_SOFT_MAX` 5_000 confirmed** by measurement |
 | Harness | Task Contract open; baselines in `docs/perf/memory-baseline-latest.json` |
+| Measure successor | Layered scorecard (tab/process, GPU, desk composite) → [Comprehensive Memory Metrics](./memory-metrics-roadmap.md) Phase 0 **Passing** — retention caps stay here; “how do we read memory?” moves to that track |
 
 **Phase 0 evidence** (`npm run perf:memory`, SPY `5m`/`1mo`):
 

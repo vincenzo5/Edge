@@ -181,10 +181,12 @@ __edgeMarketDataTelemetry.exportJson()
 ## Related docs
 
 - [market-data-baseline-latest.json](./market-data-baseline-latest.json) — raw scenario JSON  
-- [memory-baseline-latest.json](./memory-baseline-latest.json) — resident-bar / heap / subscription baselines (`npm run perf:memory`)  
+- [memory-baseline-latest.json](./memory-baseline-latest.json) — resident-bar / heap / subscription baselines (`npm run perf:memory`); layered tab/process/desk scorecard contract → [memory-metrics-roadmap.md](../roadmaps/memory-metrics-roadmap.md) (Phase 0 **Passing** — L1–L9 keys frozen; Phase 1+ enriches JSON)  
 - [src/lib/marketData/ARCHITECTURE.md](../src/lib/marketData/ARCHITECTURE.md) — provider routing & hot store  
 - [src/lib/chartDataFeed/ARCHITECTURE.md](../src/lib/chartDataFeed/ARCHITECTURE.md) — chart feed transport  
 - [chart-baseline-latest.json](./chart-baseline-latest.json) — chart *rendering* perf (separate concern)
+- [runtime-interaction-baseline-latest.json](./runtime-interaction-baseline-latest.json) — interaction metrics (crosshair, tip-tick, drawings; resident-typical + stress tags)
+- [Runtime Interaction Performance Roadmap](../roadmaps/runtime-performance-roadmap.md) — phased chart feel track
 
 ## Verification
 

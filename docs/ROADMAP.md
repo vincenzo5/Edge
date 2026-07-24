@@ -60,7 +60,7 @@ This track is intentionally staged. Percept-style parity is not a single WebGL r
 
 Stage 1 - Measurement and constraints:
 
-- **Shipped:** `examples/chart-perf-harness`, `npm run perf:chart`, and saved baseline at [perf/chart-baseline-latest.json](./perf/chart-baseline-latest.json).
+- **Shipped:** `examples/chart-perf-harness`, `npm run perf:chart`, and saved baseline at [perf/chart-baseline-latest.json](./perf/chart-baseline-latest.json). Interaction metric contract + tagged baseline at [perf/runtime-interaction-baseline-latest.json](./perf/runtime-interaction-baseline-latest.json) (Runtime Interaction Performance Phase 0).
 - Add a chart performance harness for representative datasets: 10k, 100k, and 1M candles; multiple panes; common indicators; drawing-heavy charts.
 - Measure initial render time, pan/zoom FPS, crosshair latency, memory use, indicator recompute cost, and multi-pane redraw cost.
 - Use the results to decide whether the first bottleneck is renderer fill rate, data structures, indicator math, React state churn, hit-testing, or API/data loading.
@@ -279,6 +279,7 @@ Living feature tracks (phase detail in each file):
 - ~~[Workspace state persistence](./roadmaps/workspace-state-persistence-roadmap.md)~~ — **Complete**
 - ~~[Data serving & caching efficiency](./roadmaps/data-serving-efficiency-roadmap.md)~~ — **Complete** (Phases 0–6 **Passing**; Phase 7 Redis **Skipped** — prod topology → [shared-cache-topology-roadmap.md](./roadmaps/shared-cache-topology-roadmap.md))
 - ~~[Memory efficiency](./roadmaps/memory-efficiency-roadmap.md)~~ — Phases 0–14 **Passing** (track complete; Phase 12 adapters)
+- [Comprehensive memory metrics](./roadmaps/memory-metrics-roadmap.md) — Phase 0 **Passing** (2026-07-24); Phases 1–6 **Pending** (tab/process RSS, UA memory, GPU surfaces, desk composite, soak scorecard; measurement only)
 - [Runtime interaction performance](./roadmaps/runtime-performance-roadmap.md) — Phase 0–8 **Pending** (frame time, crosshair cost, tip tick, React wakeups; CI budgets in Phase 8)
 - [Shared cache topology](./roadmaps/shared-cache-topology-roadmap.md) — Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance coordination)
 - ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete

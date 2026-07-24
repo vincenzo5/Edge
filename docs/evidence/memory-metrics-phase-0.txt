@@ -1,0 +1,30 @@
+# Memory metrics — Phase 0 evidence
+# Date: 2026-07-24
+
+## Scope
+Docs-only — layered metric contract (L1–L9), planned JSON keys (L3–L8), scorecard template, manual Task Manager ground-truth procedure, non-goals.
+No runtime code changes.
+
+## Delivered
+- docs/roadmaps/memory-metrics-roadmap.md — Phase 0 Passing; Planned baseline JSON keys; Scorecard template; Manual ground truth (L4); Phase 0 non-goals; Phase 0 results
+- docs/perf/market-data-performance.md — memory bullet points at frozen contract
+- docs/roadmaps/memory-efficiency-roadmap.md — measure successor note (retention caps unchanged)
+- docs/roadmaps/README.md — Phase 0 Passing status
+- docs/ROADMAP.md — Phase 0 Passing status
+
+## Cross-links
+- memory-metrics-roadmap.md ↔ market-data-performance.md memory bullet ↔ memory-efficiency-roadmap.md measure successor — verified
+
+## Architecture review
+Self-review Passed — docs-only contract freeze; baseline schema names frozen for Phases 1–4; no app/lib boundary or runtime change.
+
+## App-level
+N/A (no runtime change)
+
+## Next
+Phase 1 — UA-specific memory + CDP Performance metrics in `perf:memory` browser scenarios
+
+## Verification (2026-07-24)
+- npm run lint:instructions → Instruction architecture validation passed.
+- npm run lint:roadmap-status → pre-existing failure (trade-management-playbook README vs Pending phases); memory-metrics index lines verified manually
+- npm run lint:harness-retention → OK
