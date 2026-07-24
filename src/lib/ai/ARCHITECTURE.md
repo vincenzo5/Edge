@@ -45,7 +45,7 @@ AI Agent
 | `adapters/http.ts` | REST endpoint execution |
 | `adapters/mcp.ts` | MCP server execution |
 | `sessionBridge.ts`, `sessionBridgeExecute.ts` | Client session bridge store + `executeClientSessionTool` helper |
-| `AiSessionBridge.tsx` | Browser long-poll loop on `/api/ai/session/poll`; heartbeat every 45s (and on tab visible) — decoupled from poll cadence |
+| `AiSessionBridge.tsx` | Browser long-poll on `/api/ai/session/poll`; heartbeat every 45s (and on tab visible); on 401/409 re-syncs or adopts `sessionStorage` credentials with backoff (no 401 tight-loop). Mount once via `DensityModuleLayout` for Talk/Board/Desk (`src/app/(density)/layout.tsx`) — not inside nested `CopilotRuntimeProviders` tiles or chart `AppProviders`. |
 
 ## Tool Definition Shape
 
@@ -136,7 +136,7 @@ Phase 0 freezes contracts; Phase 1 adds the read-only server agent route; Phase 
 
 **Phase 3 behavior:** `requiresClientSession` read tools enqueue through `executeClientSessionTool` → in-memory session bridge → `AiSessionBridge` in the open browser tab. Single-consumer poll dispatch avoids duplicate job delivery across tabs. Structured stderr logs: `event: "session.bridge"` (tool, ok, code, durationMs, source — no args/secrets). In-memory store is single-process (solo local dev); multi-worker Redis deferred. MCP continues to use HTTP `/api/ai/session/execute` against the same store when `EDGE_APP_URL` is set.
 
-**Security hardening (Phase 3 — bridge ownership):** First heartbeat mints `{ sessionId, bridgeSecret }`; the browser stores the secret in memory + `sessionStorage` and sends `X-Edge-Bridge-Secret` on heartbeat refresh, poll, result, and Copilot session execute. Hijack heartbeats without the secret return **409**; poll/result without it return **401**. Optional bind to persistence `userId` when a signed cookie is present. HTTP `/api/ai/session/execute` also accepts a valid `EDGE_API_KEY` for MCP enqueue (no browser secret). In-process agent enqueue is unchanged.
+**Security hardening (Phase 3 — bridge ownership):** First heartbeat mints `{ sessionId, bridgeSecret }` synchronously before auth lookup (avoids Strict Mode double-mint races); the browser stores the secret in memory + `sessionStorage` and sends `X-Edge-Bridge-Secret` on heartbeat refresh, poll, result, and Copilot session execute. Hijack heartbeats without the secret return **409** (client adopts a racing mount's stored secret); poll/result without it return **401** (client re-heartbeats with backoff). Optional bind to persistence `userId` after mint when a signed cookie is present. HTTP `/api/ai/session/execute` also accepts a valid `EDGE_API_KEY` for MCP enqueue (no browser secret). In-process agent enqueue is unchanged.
 
 **Phase 4 behavior:** Copilot sends `permissionMode: write`. Non-destructive write tools auto-execute in the orchestrator loop. Tools with `requiresConfirmation` or `permission: destructive` emit `confirm-required` (with server-minted `confirmationToken`) + `confirmation_required` tool-result without executing. Copilot shows Accept/Reject cards; Accept re-executes via `/api/ai/session/execute` (client-session tools) or `/api/ai/tools/execute` (server-only tools) with the minted token — bare `confirmed: true` is rejected. Agent-path `add_drawing` merges default `metadata.source: ai` and `metadata.status: proposed`. `place_order` remains destructive with LIVE gate — never auto-executed or silently confirmed.
 

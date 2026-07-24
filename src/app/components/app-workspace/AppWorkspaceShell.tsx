@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
-import AppModuleShell from "@/app/components/home/AppModuleShell";
 import ModuleRouteTracker from "@/app/components/home/ModuleRouteTracker";
+import { useRegisterHeaderCenterSlot } from "@/app/components/home/HeaderCenterSlot";
 import { ActiveChartProvider } from "@/app/components/ActiveChartContext";
 import { ScriptLibraryMountGate } from "./ScriptLibraryMountGate";
 import { AppWorkspaceProvider, useAppWorkspace } from "./AppWorkspaceContext";
@@ -15,6 +16,21 @@ import { WorkspaceDriveProvider } from "./WorkspaceDriveContext";
 type Props = {
   children?: ReactNode;
 };
+
+function WorkspaceHeaderRegistration() {
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useRegisterHeaderCenterSlot(
+    <div
+      ref={setPortalTarget}
+      data-testid="workspace-header-controls-portal"
+      className="flex min-w-0 flex-1 items-center justify-center"
+    />,
+  );
+
+  if (!portalTarget) return null;
+  return createPortal(<WorkspaceHeaderControls />, portalTarget);
+}
 
 function WorkspaceBody() {
   const { hydrated } = useAppWorkspace();
@@ -53,27 +69,22 @@ function WorkspaceEscListener() {
   return null;
 }
 
-function WorkspaceChrome({ children }: { children?: ReactNode }) {
-  return (
-    <AppModuleShell
-      testId="workspace-page"
-      headerCenter={<WorkspaceHeaderControls />}
-    >
-      <ModuleRouteTracker module="workspace" />
-      <WorkspaceEscListener />
-      <WorkspaceBrowserTabQuote />
-      <WorkspaceBody />
-      {children}
-    </AppModuleShell>
-  );
-}
-
 export default function AppWorkspaceShell({ children }: Props) {
   return (
     <AppWorkspaceProvider>
       <ScriptLibraryMountGate>
         <WorkspaceDriveProvider>
-          <WorkspaceChrome>{children}</WorkspaceChrome>
+          <div
+            data-testid="workspace-page"
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          >
+            <WorkspaceHeaderRegistration />
+            <ModuleRouteTracker module="workspace" />
+            <WorkspaceEscListener />
+            <WorkspaceBrowserTabQuote />
+            <WorkspaceBody />
+            {children}
+          </div>
         </WorkspaceDriveProvider>
       </ScriptLibraryMountGate>
     </AppWorkspaceProvider>

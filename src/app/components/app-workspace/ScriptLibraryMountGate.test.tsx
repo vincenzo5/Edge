@@ -36,10 +36,6 @@ vi.mock("../home/ModuleRouteTracker", () => ({
   default: () => null,
 }));
 
-vi.mock("../home/AppModuleShell", () => ({
-  default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
 vi.mock("@/lib/persistence/sync/useAppWorkspacesRemoteSync", () => ({
   useAppWorkspacesRemoteSync: () => {},
 }));

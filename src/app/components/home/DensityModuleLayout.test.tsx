@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import AppModuleShell from "./AppModuleShell";
+
+import DensityModuleLayout from "./DensityModuleLayout";
 
 vi.mock("./AppTopHeader", () => ({
   default: () => <div data-testid="app-top-header" />,
@@ -20,17 +21,20 @@ vi.mock("./AppContextMenuProvider", () => ({
   }) => <div {...rest}>{children}</div>,
 }));
 
-describe("AppModuleShell", () => {
-  it("renders top header and viewport-bounded shell without side nav", () => {
+vi.mock("../AiSessionBridge", () => ({
+  default: () => <div data-testid="ai-session-bridge" />,
+}));
+
+describe("DensityModuleLayout", () => {
+  it("renders persistent header, session bridge, and body slot", () => {
     render(
-      <AppModuleShell testId="test-shell">
-        <div data-testid="shell-content">Content</div>
-      </AppModuleShell>,
+      <DensityModuleLayout>
+        <div data-testid="density-body">Talk body</div>
+      </DensityModuleLayout>,
     );
 
-    expect(screen.queryByTestId("home-app-nav")).not.toBeInTheDocument();
     expect(screen.getByTestId("app-top-header")).toBeInTheDocument();
-    expect(screen.getByTestId("test-shell")).toHaveClass("h-screen", "overflow-hidden");
-    expect(screen.getByTestId("shell-content")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-session-bridge")).toBeInTheDocument();
+    expect(screen.getByTestId("density-body")).toBeInTheDocument();
   });
 });

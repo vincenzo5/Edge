@@ -5,16 +5,6 @@ import { clearResearchBoardSessionForTests } from "@/lib/research/boardSessionSt
 
 import ResearchBoard from "./ResearchBoard";
 
-vi.mock("../home/AppModuleShell", () => ({
-  default: ({
-    children,
-    testId,
-  }: {
-    children: React.ReactNode;
-    testId?: string;
-  }) => <div data-testid={testId}>{children}</div>,
-}));
-
 vi.mock("../home/ModuleRouteTracker", () => ({
   default: () => null,
 }));

@@ -7,20 +7,16 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     prefetch: vi.fn(),
   }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/copilot",
+}));
+
+vi.mock("../AiSessionBridge", () => ({
+  default: () => null,
 }));
 
 import CopilotModuleShell from "./CopilotModuleShell";
 import * as copilotThreadsClient from "@/lib/persistence/client/copilotThreadsClient";
-
-vi.mock("../home/AppModuleShell", () => ({
-  default: ({
-    children,
-    testId,
-  }: {
-    children: React.ReactNode;
-    testId?: string;
-  }) => <div data-testid={testId}>{children}</div>,
-}));
 
 const THREAD_ID = "11111111-1111-4111-8111-111111111111";
 

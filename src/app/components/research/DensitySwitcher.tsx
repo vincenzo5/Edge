@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { recordLastModule } from "@/lib/app/lastModule";
@@ -22,6 +23,16 @@ export default function DensitySwitcher() {
   const router = useRouter();
   const pathname = usePathname();
   const activeDensity = densityFromPathname(pathname);
+
+  useEffect(() => {
+    if (!activeDensity) return;
+    for (const density of PERMANENT_DENSITY_ORDER) {
+      const route = densityRouteFor(density);
+      if (route !== pathname) {
+        router.prefetch(route);
+      }
+    }
+  }, [activeDensity, pathname, router]);
 
   if (!activeDensity) {
     return null;

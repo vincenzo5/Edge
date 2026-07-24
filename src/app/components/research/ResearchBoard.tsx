@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { listEvidenceCards } from "@/lib/research/evidenceStore";
 import { promoteResearchCardToDesk } from "@/lib/research/promote";
 
-import AppModuleShell from "../home/AppModuleShell";
 import ModuleRouteTracker from "../home/ModuleRouteTracker";
 import { useResearchEvidence } from "./useResearchEvidence";
 import BoardCanvas from "./BoardCanvas";
@@ -56,7 +55,10 @@ export default function ResearchBoard() {
   };
 
   return (
-    <AppModuleShell testId="research-board-page">
+    <div
+      data-testid="research-board-page"
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+    >
       <ModuleRouteTracker module="research" />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ResearchBoardSessionRail
@@ -127,6 +129,6 @@ export default function ResearchBoard() {
           />
         </div>
       </div>
-    </AppModuleShell>
+    </div>
   );
 }

@@ -13,7 +13,6 @@ import { MarketDataProvider } from "../MarketDataProvider";
 import { RiskSettingsProvider } from "../RiskSettingsProvider";
 import { DataHealthProvider } from "../data-health";
 import { AiToolsProvider } from "../AiToolsProvider";
-import AiSessionBridge from "../AiSessionBridge";
 import { CopilotProvider } from "../copilot/CopilotContext";
 import { PatternLibraryProvider } from "../pattern-library/PatternLibraryContext";
 import { ShortcutUIProvider } from "../shortcuts/ShortcutUIContext";
@@ -51,6 +50,7 @@ import type { SidebarPanelWidthContextValue } from "../sidebar/SidebarPanelWidth
  *   → OptionsSessionProvider → DataHealthProvider
  *   → (ActiveChartProvider lives on AppWorkspaceShell so journal tiles share chart context)
  *   → ShortcutUIProvider → ShortcutProvider → AiToolsProvider → chrome
+ * Density layout mounts AiSessionBridge once for Talk/Board/Desk — not duplicated here.
  */
 export type AppProvidersProps = {
   layout: ChartLayout;
@@ -133,7 +133,6 @@ export function AppProviders({
                                           <ShortcutProvider>
                                             <AiToolsProvider>
                                               <CopilotProvider>
-                                                <AiSessionBridge />
                                                 <LocalErrorReporter />
                                                 <PrimaryChartBrowserTabQuote
                                                   symbol={activeCellSymbol}

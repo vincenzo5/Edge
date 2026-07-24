@@ -98,23 +98,48 @@ type AppWorkspaceContextValue = {
 
 const AppWorkspaceContext = createContext<AppWorkspaceContextValue | null>(null);
 
+type WorkspaceBootstrapCache = {
+  state: AppWorkspacesState;
+  committedState: AppWorkspacesState;
+  bootstrapRemoteApplied: boolean;
+  bootstrapRemotePending: boolean;
+  finishRemoteAppWorkspacesMerge?: () => Promise<AppWorkspacesState | null>;
+};
+
+let workspaceBootstrapCache: WorkspaceBootstrapCache | null = null;
+
+export function clearWorkspaceBootstrapCacheForTests(): void {
+  workspaceBootstrapCache = null;
+}
+
+function rememberWorkspaceBootstrap(entry: WorkspaceBootstrapCache): void {
+  workspaceBootstrapCache = entry;
+}
+
 export function AppWorkspaceProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppWorkspacesState>(() => createDefaultWorkspacesState());
-  const [committedState, setCommittedState] = useState<AppWorkspacesState>(() =>
-    createDefaultWorkspacesState(),
+  const [state, setState] = useState<AppWorkspacesState>(
+    () => workspaceBootstrapCache?.state ?? createDefaultWorkspacesState(),
   );
-  const [hydrated, setHydrated] = useState(false);
-  const [bootstrapRemoteApplied, setBootstrapRemoteApplied] = useState(false);
-  const [bootstrapRemotePending, setBootstrapRemotePending] = useState(false);
+  const [committedState, setCommittedState] = useState<AppWorkspacesState>(
+    () => workspaceBootstrapCache?.committedState ?? createDefaultWorkspacesState(),
+  );
+  const [hydrated, setHydrated] = useState(() => workspaceBootstrapCache != null);
+  const [bootstrapRemoteApplied, setBootstrapRemoteApplied] = useState(
+    () => workspaceBootstrapCache?.bootstrapRemoteApplied ?? false,
+  );
+  const [bootstrapRemotePending, setBootstrapRemotePending] = useState(
+    () => workspaceBootstrapCache?.bootstrapRemotePending ?? false,
+  );
   const [layoutEditMode, setLayoutEditModeState] = useState<LayoutEditMode>("use");
   const editBaselineRef = useRef<AppWorkspaceDocument | null>(null);
-  const hydratedRef = useRef(false);
+  const hydratedRef = useRef(workspaceBootstrapCache != null);
   const layoutEditModeRef = useRef<LayoutEditMode>("use");
   const stateRef = useRef(state);
   const committedStateRef = useRef(committedState);
   const pendingRemoteStateRef = useRef<AppWorkspacesState | null>(null);
-  const finishRemoteAppWorkspacesMergeRef =
-    useRef<(() => Promise<AppWorkspacesState | null>) | undefined>(undefined);
+  const finishRemoteAppWorkspacesMergeRef = useRef<
+    (() => Promise<AppWorkspacesState | null>) | undefined
+  >(workspaceBootstrapCache?.finishRemoteAppWorkspacesMerge);
 
   stateRef.current = state;
   committedStateRef.current = committedState;
@@ -134,6 +159,10 @@ export function AppWorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (workspaceBootstrapCache) {
+      return;
+    }
+
     let cancelled = false;
     const local = loadAppWorkspacesState();
     setState(local);
@@ -152,11 +181,24 @@ export function AppWorkspaceProvider({ children }: { children: ReactNode }) {
         finishRemoteAppWorkspacesMergeRef.current = result.finishRemoteAppWorkspacesMerge;
         hydratedRef.current = true;
         setHydrated(true);
+        rememberWorkspaceBootstrap({
+          state: result.remoteApplied ? result.state : local,
+          committedState: result.remoteApplied ? result.state : local,
+          bootstrapRemoteApplied: result.remoteApplied,
+          bootstrapRemotePending: result.remotePending,
+          finishRemoteAppWorkspacesMerge: result.finishRemoteAppWorkspacesMerge,
+        });
       })
       .catch(() => {
         if (cancelled) return;
         hydratedRef.current = true;
         setHydrated(true);
+        rememberWorkspaceBootstrap({
+          state: local,
+          committedState: local,
+          bootstrapRemoteApplied: false,
+          bootstrapRemotePending: false,
+        });
       });
 
     return () => {
@@ -187,9 +229,16 @@ export function AppWorkspaceProvider({ children }: { children: ReactNode }) {
     const t = setTimeout(() => {
       saveAppWorkspacesState(state);
       setCommittedState(state);
+      rememberWorkspaceBootstrap({
+        state,
+        committedState: state,
+        bootstrapRemoteApplied,
+        bootstrapRemotePending,
+        finishRemoteAppWorkspacesMerge: finishRemoteAppWorkspacesMergeRef.current,
+      });
     }, 400);
     return () => clearTimeout(t);
-  }, [state, layoutEditMode]);
+  }, [state, layoutEditMode, bootstrapRemoteApplied, bootstrapRemotePending]);
 
   useEffect(() => {
     if (layoutEditMode !== "use") return;

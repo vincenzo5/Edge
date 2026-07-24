@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-import { AppWorkspaceProvider, useAppWorkspace } from "./AppWorkspaceContext";
+import { AppWorkspaceProvider, clearWorkspaceBootstrapCacheForTests, useAppWorkspace } from "./AppWorkspaceContext";
 import { APP_WORKSPACES_STORAGE_KEY } from "@/lib/appWorkspace/storage";
 import { resetAppWorkspaceIdCounterForTests } from "@/lib/appWorkspace/ids";
 import type { AppWorkspacesState } from "@/lib/appWorkspace/types";
@@ -59,6 +59,7 @@ function Probe() {
 
 describe("AppWorkspaceProvider", () => {
   beforeEach(() => {
+    clearWorkspaceBootstrapCacheForTests();
     resetAppWorkspaceIdCounterForTests();
     window.localStorage.removeItem(APP_WORKSPACES_STORAGE_KEY);
   });

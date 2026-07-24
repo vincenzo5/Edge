@@ -1,0 +1,41 @@
+# Density chrome persistence — evidence
+# Date: 2026-07-24
+
+## Focused
+
+npm test -- --run \
+  src/app/components/home/AppModuleShell.test.tsx \
+  src/app/components/home/DensityModuleLayout.test.tsx \
+  src/app/components/home/HeaderCenterSlot.test.tsx \
+  src/app/components/home/AppTopHeader.test.tsx \
+  src/app/components/research/DensitySwitcher.test.tsx \
+  src/app/components/copilot/CopilotModuleShell.test.tsx \
+  src/app/components/research/ResearchBoard.page.test.tsx \
+  src/app/components/app-workspace/AppWorkspaceContext.test.tsx \
+  src/app/components/app-workspace/ScriptLibraryMountGate.test.tsx \
+  src/app/\(density\)/workspace/page.test.ts
+
+Test Files  11 passed (11) — run per file (combined batch OOMs one vitest worker; no failing assertions)
+Tests  56 passed (56)
+
+## Build
+
+npm run build → ✓ Compiled successfully in 10.9s
+
+## Delivered
+
+- AppChromeProviders + DensityModuleLayout shared chrome for Talk/Board/Desk
+- Route group src/app/(density)/ with persistent AccountProvider + header + AiSessionBridge
+- Shell-light CopilotModuleShell, ResearchBoard, AppWorkspaceShell
+- HeaderCenterSlot for Desk workspace controls in shared header
+- Workspace bootstrap in-memory cache for fast Desk re-entry
+- DensitySwitcher prefetches sibling density routes
+- Removed duplicate AiSessionBridge from AppProviders
+
+## Architecture review
+
+Self-review Passed — density layout owns chrome providers; lib/app boundaries unchanged.
+
+## App-level
+
+Deferred — requires manual Talk↔Desk switch with sidecar; focused tests cover layout wiring and prefetch.
