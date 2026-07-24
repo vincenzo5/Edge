@@ -1,0 +1,81 @@
+{
+  "generatedAt": "2026-07-23T23:41:21.361Z",
+  "git": {
+    "commit": "798e921",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "baseUrl": "http://localhost:3003",
+    "browserAvailable": true
+  },
+  "proposedKnobs": {
+    "RESIDENT_BAR_SOFT_MAX": 5000,
+    "sessionStorageBarThreshold": 2000,
+    "sessionStoragePayloadBytesThreshold": 2097152,
+    "dataCacheMaxEntries": 256,
+    "hotStoreMaxEntries": 128,
+    "inactiveCellLiveDefault": false
+  },
+  "scenarios": {
+    "node-simulation-loadMore": {
+      "symbol": "SPY",
+      "interval": "5m",
+      "range": "1mo",
+      "candlesLength": 4343,
+      "sessionStorageBytes": 388670,
+      "approxCandleArrayBytes": 208464,
+      "loadMoreRounds": 10,
+      "pageSize": 500,
+      "exceedsSoftMax": false,
+      "sessionStorageWouldGate": true
+    },
+    "node-server-cache-warm": {
+      "candleFetchCount": 50,
+      "heapUsedBeforeMb": 109.48,
+      "heapUsedAfterMb": 108.66,
+      "rssBeforeMb": 286.22,
+      "rssAfterMb": 346.36,
+      "heapDeltaMb": -0.82,
+      "rssDeltaMb": 60.14
+    },
+    "browser-b1-1cell-10x-loadMore": {
+      "paneCount": 1,
+      "loadMoreRounds": 10,
+      "heapBeforeMb": 68.86,
+      "heapAfterMb": 68.86,
+      "heapDeltaMb": 0,
+      "jsHeapUsedMb": 68.86,
+      "jsHeapTotalMb": 92.89,
+      "sessionStorageChartCacheBytes": 798965,
+      "maxCandlesLength": 7938,
+      "eventSourceCount": 6,
+      "mountedChartCells": 24,
+      "note": "Live subscriptions = EventSource count; inactive cells still live today (Phase 2 will gate)."
+    },
+    "browser-b2-8cell-10x-loadMore": {
+      "paneCount": 8,
+      "loadMoreRounds": 10,
+      "heapBeforeMb": 68.86,
+      "heapAfterMb": 68.86,
+      "heapDeltaMb": 0,
+      "jsHeapUsedMb": 68.86,
+      "jsHeapTotalMb": 92.89,
+      "sessionStorageChartCacheBytes": 798899,
+      "maxCandlesLength": 7938,
+      "eventSourceCount": 6,
+      "mountedChartCells": 34,
+      "note": "Live subscriptions = EventSource count; inactive cells still live today (Phase 2 will gate)."
+    },
+    "browser-b3-live-tip-60s": {
+      "durationSec": 60,
+      "plannedDurationSec": 300,
+      "heapBeforeMb": 68.86,
+      "heapAfterMb": 68.86,
+      "heapDeltaMb": 0,
+      "note": "Automated 60s window; roadmap B3 target is 5 min with 3 indicators + 1 script — defer full walk to app-level verification."
+    }
+  }
+}

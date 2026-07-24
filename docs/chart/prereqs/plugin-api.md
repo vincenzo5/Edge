@@ -51,7 +51,26 @@ export type IndicatorConfig = {
 
 Use `createIndicatorInstance(name, pane)` in `chartConfig.ts` when adding from the picker (always creates a new id).
 
-## DrawingPlugin
+## User script instances (Phase 2+)
+
+User scripts are **not** registered in the static built-in catalog. Chart instances use additive fields:
+
+```ts
+export type IndicatorConfig = {
+  // ...existing fields...
+  kind?: 'builtin' | 'script';
+  scriptId?: string;
+  revision?: string; // immutable source hash
+};
+```
+
+- Built-ins: synchronous `compute()` via `IndicatorRegistry`.
+- Scripts: async results via per-chart `ScriptResultCoordinator` → `IndicatorResultProvider`.
+- Source and compiled artifacts live in the script library only — never in workspace payloads.
+- Settings UI reads `manifest.inputs` (`ParamDef` union) from the saved revision or Run draft manifest.
+
+Authoring API (shipped): `edgeScript()` returning a manifest object with `calculate(candles, inputs, ta)` and `plots`. See [script-examples.md](../script-examples.md).
+
 
 ```ts
 export interface DrawingPlugin {

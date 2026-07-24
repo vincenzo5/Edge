@@ -1,0 +1,16 @@
+Trade management playbook — Phase 4 verification (2026-07-24)
+
+Focused: npm test -- --run src/lib/trading/playbook src/lib/trading/tradingService.test.ts src/app/components/trading/ProtectiveOcoForm src/app/components/trading/TradeOrderForm.test.tsx src/app/api/trading/oco
+Result: Test Files 16 passed (16), Tests 80 passed (80)
+
+Build: npm run build — ✓ Compiled successfully in 8.7s; TS exit blocked by pre-existing BoardScreenerCardHost.tsx SavedScreen.query type error
+
+Architecture review: self-review Passed
+
+App-level: OCO+Manage + chart markers + stop-drag paper walkthrough deferred
+
+Delivered:
+- SubmitProtectiveOcoRequest playbook fields + TradingService.attachPlaybook (armed OCO path)
+- ManagePlaybookPicker shared on TradeOrderForm + ProtectiveOcoForm
+- manageLevelsFromInstance + price-axis manage annotations on ChartCell
+- playbookStopSync + modifyOrder client + useDrawingLayoutSync hook

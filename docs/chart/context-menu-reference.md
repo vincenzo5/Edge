@@ -131,7 +131,7 @@ Right-click on a selected or hit-tested drawing. Edge implements this via `build
 | **Clone** | Ctrl/Cmd+drag | Duplicate in place | **Partial** | **Duplicate** menu item (`⌘D`); no drag-clone |
 | **Copy** | ⌘ C | Copy drawing to clipboard | **Done** | `chartClipboard.ts` + active-cell ⌘C |
 | **Paste** | ⌘ V | Paste at cursor | **Done** | Crosshair anchor via `drawingClone.ts` |
-| **Add alert on drawing…** | — | Alert on drawing geometry / levels | **Out of scope** | — |
+| **Add alert on drawing…** | — | Alert on drawing geometry / levels | **Done** | Horizontal line, trend line, rectangle; see [alerts-roadmap.md](../roadmaps/alerts-roadmap.md) Phase 1 |
 | **Create a group** | — | Object Tree grouping | **None** | — |
 | **Save as template** | — | Save drawing preset | **None** | — |
 | **Remove** | ⌫ / Delete | Delete drawing | **Done** | Context menu + toolbar delete when selected |

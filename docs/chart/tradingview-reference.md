@@ -193,24 +193,24 @@ Discover → Add → Configure inputs → Style → Live on chart → Manage →
 
 ### 5.8 TradingView vs Edge — indicators (summary)
 
-Edge implements a **small, fixed plugin set** with the same *basic* chart workflow (add, configure numbers, hide, remove, pane layout). TradingView is a **full indicator platform** (hundreds of built-ins, Pine scripting, alerts, templates, styling).
+Edge implements a **small, fixed plugin set** plus **private My scripts** (Edge TypeScript compiled in a guest WASM VM). TradingView is a **full indicator platform** (hundreds of built-ins, Pine scripting, alerts, templates, styling).
 
 | Area | TradingView | Edge |
 |------|-------------|------|
-| **Library size** | 400+ built-in + 100k+ community | 27 catalog names; **6 working** (MA, EMA, BOLL, MACD, RSI, VOL) |
-| **Extensibility** | Pine Script (indicators, strategies, libraries) | TypeScript plugins only; no user scripting |
-| **Instances** | Multiple of same indicator (e.g. two MAs) | One per name per pane |
-| **Settings** | Inputs + style (colors, line width, plot type) | **Partial** — Inputs + Style tabs in `IndicatorSettingsModal`; colors/width per output series; no plot type switching |
-| **Visual richness** | Fills, barcolor, labels, tables, shapes | Lines, histograms, horizontal guides |
-| **Lifecycle basics** | Add / hide / remove / object tree | **Same** — picker, Object Tree, settings gear |
+| **Library size** | 400+ built-in + 100k+ community | 27 catalog names; **6 working** built-ins (MA, EMA, BOLL, MACD, RSI, VOL) + private My scripts |
+| **Extensibility** | Pine Script (indicators, strategies, libraries) | Private Edge TypeScript `edgeScript()` — not Pine syntax; depth via [script-depth-roadmap.md](../roadmaps/script-depth-roadmap.md) |
+| **Instances** | Multiple of same indicator (e.g. two MAs) | One per name per pane (built-ins); multiple script instances via UUID |
+| **Settings** | Inputs + style (colors, line width, plot type) | **Partial** — Inputs + Style tabs in `IndicatorSettingsModal`; colors/width per output series; script plots: line, histogram, hline, band |
+| **Visual richness** | Fills, barcolor, labels, tables, shapes | Lines, histograms, horizontal guides, bands; markers/bgcolor/MTF deferred to script depth Phases 2–3 |
+| **Lifecycle basics** | Add / hide / remove / object tree | **Same** — picker, Object Tree, settings gear; Scripts tile for My scripts |
 | **Pane layout** | Reorder, collapse, maximize, resize | **Same** — `paneOrder`, collapse, maximize, drag heights |
 | **Templates & favorites** | Study templates, chart templates, starred indicators | None |
-| **Alerts** | On indicator conditions | None |
+| **Alerts** | On indicator conditions | None (script conditions planned — script depth Phase 4 + alerts track) |
 | **Drawings on indicator panes** | Yes (e.g. trendline on RSI) | Drawings stay on price pane |
 | **Fundamentals / compare symbols** | Yes | None |
-| **Persistence** | Cloud layouts, cross-device | Local layout storage per cell |
+| **Persistence** | Cloud layouts, cross-device | Local layout + optional Postgres My scripts sync |
 
-**In one sentence:** Edge has TradingView's indicator *workflow skeleton* (picker → settings → legend → panes → object tree) but not its *platform depth* (library size, Pine, styling, alerts, templates, or advanced visuals).
+**In one sentence:** Edge has TradingView's indicator *workflow skeleton* (picker → settings → legend → panes → object tree) plus private TypeScript My scripts, but not Pine syntax, community library, full styling, alerts, templates, or advanced visuals yet.
 
 For Edge's live implementation status, see [features.md §7](./features.md#7-indicators).
 

@@ -1,0 +1,175 @@
+{
+  "generatedAt": "2026-07-24T15:11:25.428Z",
+  "git": {
+    "commit": "798e921",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "baseUrl": "http://localhost:3003",
+    "browserAvailable": true,
+    "liveTipSec": 60
+  },
+  "proposedKnobs": {
+    "RESIDENT_BAR_SOFT_MAX": 5000,
+    "sessionStorageBarThreshold": 2000,
+    "sessionStoragePayloadBytesThreshold": 2097152,
+    "dataCacheMaxEntries": 256,
+    "hotStoreMaxEntries": 128,
+    "inactiveCellLiveDefault": false
+  },
+  "scenarios": {
+    "node-simulation-loadMore": {
+      "symbol": "SPY",
+      "interval": "5m",
+      "range": "1mo",
+      "candlesLength": 4419,
+      "sessionStorageBytes": 394530,
+      "approxCandleArrayBytes": 212112,
+      "loadMoreRounds": 10,
+      "pageSize": 500,
+      "trimmedBarsTotal": 0,
+      "withinSoftMax": true,
+      "historyStillLoads": false,
+      "residentBarSoftMax": 5000,
+      "pass": true
+    },
+    "node-server-cache-warm": {
+      "candleFetchCount": 50,
+      "heapUsedBeforeMb": 108.91,
+      "heapUsedAfterMb": 98.99,
+      "rssBeforeMb": 284.44,
+      "rssAfterMb": 342.47,
+      "heapDeltaMb": -9.92,
+      "rssDeltaMb": 58.03,
+      "dataCacheTotalEntries": 50,
+      "dataCacheCandlesNamespaceEntries": 50,
+      "hotStoreEntries": 60,
+      "withinDataCacheCap": true,
+      "withinHotStoreCap": true,
+      "pass": true
+    },
+    "browser-b1-1cell-10x-loadMore": {
+      "paneCount": 1,
+      "loadMoreRounds": 10,
+      "heapBeforeMb": 61.04,
+      "heapAfterMb": 61.04,
+      "heapDeltaMb": 0,
+      "jsHeapUsedMb": 61.04,
+      "jsHeapTotalMb": 92.89,
+      "sessionStorageChartCacheBytes": 0,
+      "maxCandlesLengthFromStorage": 0,
+      "eventSourceCount": 3,
+      "inactiveChartSurfaces": 0,
+      "mountedEngines": 1,
+      "activeCellOutlines": 0,
+      "maxCandlesLength": 3960,
+      "trimmedBarsTotal": 0,
+      "withinSoftMax": true,
+      "historyStillLoads": false,
+      "inactivePolicyPass": true,
+      "residentBarPass": true,
+      "activeCellSwitch": null,
+      "pass": true,
+      "note": "Phase 14: trimResidentBars contract on API loadMore; inactive cells unmounted (Phase 11); live gated to active cell (Phase 2). EventSource count includes quote streams."
+    },
+    "browser-b2-8cell-10x-loadMore": {
+      "paneCount": 8,
+      "loadMoreRounds": 10,
+      "heapBeforeMb": 73.05,
+      "heapAfterMb": 73.05,
+      "heapDeltaMb": 0,
+      "jsHeapUsedMb": 73.05,
+      "jsHeapTotalMb": 117.3,
+      "sessionStorageChartCacheBytes": 0,
+      "maxCandlesLengthFromStorage": 0,
+      "eventSourceCount": 4,
+      "inactiveChartSurfaces": 7,
+      "mountedEngines": 1,
+      "activeCellOutlines": 1,
+      "maxCandlesLength": 3960,
+      "trimmedBarsTotal": 0,
+      "withinSoftMax": true,
+      "historyStillLoads": false,
+      "inactivePolicyPass": true,
+      "residentBarPass": true,
+      "activeCellSwitch": {
+        "clickedCellIndex": 1,
+        "before": {
+          "jsHeapUsedMb": 73.05,
+          "jsHeapTotalMb": 117.3,
+          "sessionStorageChartCacheBytes": 0,
+          "maxCandlesLengthFromStorage": 0,
+          "eventSourceCount": 3,
+          "inactiveChartSurfaces": 7,
+          "mountedEngines": 1,
+          "activeCellOutlines": 1
+        },
+        "after": {
+          "jsHeapUsedMb": 73.05,
+          "jsHeapTotalMb": 117.3,
+          "sessionStorageChartCacheBytes": 0,
+          "maxCandlesLengthFromStorage": 0,
+          "eventSourceCount": 4,
+          "inactiveChartSurfaces": 7,
+          "mountedEngines": 1,
+          "activeCellOutlines": 1
+        },
+        "pass": true
+      },
+      "pass": true,
+      "note": "Phase 14: trimResidentBars contract on API loadMore; inactive cells unmounted (Phase 11); live gated to active cell (Phase 2). EventSource count includes quote streams."
+    },
+    "browser-b3-live-tip": {
+      "durationSec": 60,
+      "plannedDurationSec": 300,
+      "heapBeforeMb": 64.85,
+      "heapAfterMb": 64.85,
+      "heapDeltaMb": 0,
+      "eventSourceCount": 3,
+      "pass": true,
+      "note": "Phase 13: automated live tip window (set MEMORY_LIVE_TIP_SEC=300 for full 5 min)."
+    }
+  },
+  "phase14Walks": {
+    "walks": {
+      "phase7-journal-window": {
+        "openStatus": 401,
+        "closedStatus": 401,
+        "openCount": 0,
+        "closedCount": 0,
+        "mergedUnique": 0,
+        "providerWindow": 0,
+        "pass": false,
+        "blocked": true
+      },
+      "phase7-copilot-window": {
+        "inputMessages": 80,
+        "selectedCount": 40,
+        "maxContentLen": 4000,
+        "pass": true
+      },
+      "phase8-9-chart-only-chunks": {
+        "lazyChunkCount": 0,
+        "chunkUrls": [],
+        "pass": true
+      },
+      "phase8-9-journal-entry-chunks": {
+        "journalRelatedResources": 1,
+        "pass": true,
+        "note": "Journal tile navigation loads journal surface (dynamic import or route bundle)."
+      },
+      "phase10-trades-scroll": {
+        "totalTrades": 0,
+        "domRowsVisible": 0,
+        "virtualized": true,
+        "pass": true,
+        "skippedLargeFixture": true,
+        "resultText": ""
+      }
+    },
+    "allPass": false
+  }
+}

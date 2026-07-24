@@ -31,7 +31,7 @@ TradingView answers *where*. Edge should answer **what, why, still true, and wha
 - UI: kind/rationale in selection toolbar; accept/dismiss for AI `proposed` annotations; kind prefix in Object Tree
 - AI: `add_drawing` / `update_drawing` accept `metadata`; `list_drawings` filters by kind/status/source; `summarize_chart` returns `annotations` block
 
-**Still deferred:** live computed stats (Phase B), copilot `threadId` navigation (Phase C), playbooks (Phase D), alerts (Phase E). Schema fields `threadId`, `playbookId`, `linkGroupId`, `computed` are reserved.
+**Still deferred:** live computed stats (Phase B), playbooks (Phase D), alerts (Phase E). Schema fields `playbookId`, `linkGroupId`, `computed` remain reserved. **Phase C shipped** (2026-07-23) via [AI Agent Roadmap Phase 5](../roadmaps/ai-agent-roadmap.md): `threadId`/`messageId` on AI drawings, Copilot focus on click, provenance UI, `summarize_chart` narrative. **Copilot workflow prompts shipped** (2026-07-22) via [AI Agent Roadmap Phase 8](../roadmaps/ai-agent-roadmap.md) — guided chips only; playbook layers remain Phase D.
 
 Previously, drawings were **geometry + cosmetic styles only** (no `metadata` field). Phase A closes the semantic gap; Phase B+ will add live payloads and chart↔chat linkage.
 
@@ -266,6 +266,8 @@ Phases are ordered by leverage for the co-pilot product, not by TV feature parit
 ### Phase C — Conversation anchors
 
 **Goal:** chart ↔ copilot bidirectional linkage.
+
+**Implementation ownership:** [AI Agent Roadmap Phase 5](../roadmaps/ai-agent-roadmap.md) (depends on copilot shell + confirmed writes).
 
 | Work item | Scope |
 |-----------|--------|

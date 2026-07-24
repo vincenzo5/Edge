@@ -181,6 +181,7 @@ __edgeMarketDataTelemetry.exportJson()
 ## Related docs
 
 - [market-data-baseline-latest.json](./market-data-baseline-latest.json) — raw scenario JSON  
+- [memory-baseline-latest.json](./memory-baseline-latest.json) — resident-bar / heap / subscription baselines (`npm run perf:memory`)  
 - [src/lib/marketData/ARCHITECTURE.md](../src/lib/marketData/ARCHITECTURE.md) — provider routing & hot store  
 - [src/lib/chartDataFeed/ARCHITECTURE.md](../src/lib/chartDataFeed/ARCHITECTURE.md) — chart feed transport  
 - [chart-baseline-latest.json](./chart-baseline-latest.json) — chart *rendering* perf (separate concern)

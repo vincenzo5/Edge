@@ -89,12 +89,12 @@ In-chart workspace tab strip is removed; layout persistence still uses a single 
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Symbol search | **Done** | `SearchBar` in `ChartCell`; Yahoo lookup via `/api/search` |
+| Symbol search | **Done** | `SearchBar` in `ChartCell`; Yahoo lookup via `/api/search`; empty query shows up to 12 recent chart symbols from `edge:recent-symbols:v1` |
 | Symbol metadata persistence | **Done** | `symbolName`, `exchange` stored in `CellConfig` on select |
 | Range selector (bottom bar) | **Done** | 1D, 5D, 1M, 3M, 6M, YTD, 1Y, 5Y, All — sets visible window **and** default interval (1D→1m, 5D→5m, 1M→30m, 3M→1h, 6M→2h, YTD/1Y→1d, 5Y→1wk, All→1mo). Click active preset again to deselect and restore default 1Y/1D landing view. Top interval dropdown overrides bar size and clears preset highlight. Calendar icon opens **Go to** modal (date or custom range) |
 | Interval selector | **Done** | 1m, 5m, 15m, 30m, 1h, 2h, 1D, 1W, 1M — candle/bar resolution only; top toolbar dropdown |
 | Chart type selector | **Done** | Cell toolbar; 5 types from `CHART_TYPES` |
-| Yahoo candle fetch | **Done** | `fetchYahooCandles()` in `series.ts`; app `EdgeChart` widens fetch via `resolveCellFetchRange()` (1wk→5y, 1mo→max when no bottom-bar preset); manual interval picks use `rangeForManualInterval()` |
+| Yahoo candle fetch | **Done** | `fetchYahooCandles()` in `series.ts`; app `EdgeChart` widens fetch via `resolveCellFetchRange()` (1wk→5y, 1mo→max when no bottom-bar preset); manual interval picks use `rangeForManualInterval()` (1m→5d, 5m/15m/30m→1mo); `yahooFinance` clamps intraday windows to Yahoo retention (1m≤7d, 5m/15m/30m≤60d, 1h≤730d) |
 | Candle validation / normalization | **Done** | Short-form `{ t,o,h,l,c,v }`; ms timestamps |
 | Heikin Ashi transform | **Done** | Applied when `chartType === 'heikin_ashi'` |
 | Bar Replay data slice | **Done** | `onDataLoaded` → `candleCount`; `baseCandles` + `applyVisibleSlice` (no refetch on scrub) |
@@ -164,6 +164,7 @@ In-chart workspace tab strip is removed; layout persistence still uses a single 
 | Double-click price axis → reset auto | **Done** | `resetPanePriceScale()` per pane |
 | Reset chart view (context menu) | **Done** | Blank menu + ⌥R shortcut; disabled when viewport default — [context-menu-reference.md §1.1](./context-menu-reference.md#11-chart-view) |
 | Viewport modified detection | **Done** | `isViewportModified()` compares pan/zoom/scale to defaults |
+| Modified viewport restore | **Done** | Optional `CellConfig.viewport` persists when modified; debounced write; restore on load; cleared on symbol/interval/range-preset/reset — Phase 4 workspace state persistence |
 | Hover cursors | **Done** | `resolveHoverCursor()` — crosshair, grab/grabbing, ns/ew-resize on axes |
 | Drawing-tool cursor mode | **Done** | Active drawing tool shows crosshair cursor on canvas |
 | Pinch zoom | **Done** | Two-pointer pinch on `[data-edge-chart]`; reuses `applyWheelAction` zoom |
@@ -251,6 +252,18 @@ In-chart workspace tab strip is removed; layout persistence still uses a single 
 | Typed indicator inputs | **Done** | `inputSchema` union (`number`, `enum`, `boolean`, `source`); `resolveIndicatorInputs` |
 | Per-instance styles | **Done** | `styles` on `IndicatorConfig`; Settings modal Inputs + Style |
 | Declarative plot draw | **Done** | `drawFromOutputs`; optional `draw` on plugins; `fillBetween` for BOLL bands |
+| User script chart runtime (Phase 2) | **Done** | Golden fixtures via dev injector; async coordinator + unified provider; four plot types through declarative renderer |
+| My scripts MVP (Phase 3) | **Done** | DB-first My scripts via `/api/me/scripts`; picker + editor; Postgres required under `npm run dev` |
+| User script V1 hardening (Phase 4) | **Done** | All input kinds + conditional colors; typed error UX; TA starter SDK; debounce/worker recovery; a11y; V1 docs |
+| AI script authoring (Phase 5A) | **Done** | Seven governed AI tools for My scripts CRUD/compile/apply; authoring context + diagnostics; delete confirmation; generic chart tools return script refs only |
+| My scripts DB-first library | **Done** | Normalized `user_scripts` + `user_script_revisions`; resource API; server-owned revision hash; browser memory cache only; one-time legacy import |
+| Scripts workspace surface (Phase 6) | **Done** | Workspace **Scripts** tile: library rail + Monaco in-tile editor (Run/Save/diagnostics); Apply to chart; picker Edit/New focuses tile; `ScriptLibraryProvider` at workspace shell |
+| Script depth Phase 1 | **Done** | TA helper expansion (`edge-indicator-sdk-2`): movers, composites, oscillators, glue — [script-depth-roadmap.md](../roadmaps/script-depth-roadmap.md) |
+| Script depth Phase 2 | **Done** | Declarative plot visuals (`edge-indicator-sdk-3`): marker, bgcolor, barcolor, stepline/circles/crosses/area/columns styles — [script-depth-roadmap.md](../roadmaps/script-depth-roadmap.md) |
+| Script depth Phase 3 | **Done** | Multi-timeframe / multi-symbol `request.series` (`edge-indicator-sdk-4`): host fetch, close-of-bar alignment, budgets — [script-depth-roadmap.md](../roadmaps/script-depth-roadmap.md) |
+| Script depth Phase 4 | **Done** | Script condition alerts handoff (`edge-indicator-sdk-5`): `ScriptManifest.alerts`, `script_condition` leg, client snapshot → shared cron — [alerts-roadmap.md](../roadmaps/alerts-roadmap.md) Phase 4 |
+| Script depth Phase 5 | **Done** | Script-managed objects (`edge-indicator-sdk-6`): declarative `box`/`label`/`level` on price pane; separate from DrawingStore — [script-depth-roadmap.md](../roadmaps/script-depth-roadmap.md) |
+| Script depth Phase 0 | **Done** | Extension seams frozen: Pine→Edge inventory, additive SDK/plot/TA rules, reserved depth fixture slots; no runtime behavior change — [script-depth-roadmap.md](../roadmaps/script-depth-roadmap.md) |
 | Picker grouped by category | **Done** | Trend / Momentum / Volume with descriptions |
 | Indicator instance ids | **Done** | UUID per instance in `CellConfig.indicators`; `indicatorKey()` returns id |
 | Param schema on plugins | **Done** | `paramSchema` + `defaultParams`; persisted via `createIndicatorInstance` |
@@ -330,6 +343,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Edit control points | **Done** | Magnet applies on CP drag |
 | Delete selected drawing | **Done** | Toolbar ⌫ + `onSelectionChange` sync |
 | Floating selection toolbar | **Done** | `DrawingSelectionToolbar` — 28px clearance from drawing; flips below when viewport lacks room above; edge-clamped |
+| AI annotation chart↔chat linkage | **Done** | Phase 5 — `threadId`/`messageId` on agent drawings; “Open in chat” + Copilot focus; accept→`accepted` — [ai-agent-roadmap.md](../roadmaps/ai-agent-roadmap.md) |
 | Magnet (snap OHLC) | **Done** | 5px strong magnet |
 | Drawing context menu (rename/lock/hide/z) | **Done** | Canvas right-click hit-test → overlay menu — see [context-menu-reference.md §2](./context-menu-reference.md#2-drawing--overlay-context-menu) |
 | Z-order / duplicate | **Done** | `bringForward`/`sendBackward`/`duplicateOverlay` |
@@ -343,7 +357,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 |---------|--------|-------|
 | Multi-chart layout templates | **Done** | TradingView-style layout setup menu: pane counts 1–10, 12, 14, 16 with ~52 shape variants; template-driven CSS grid; legacy `gridMode` migrated to `layoutId`; narrow viewports stack multi-column templates; expanding layout clones the active cell (symbol, settings, indicators, drawings) into new panes; shrinking to single-pane promotes the active cell to the sole pane |
 | Link symbols (range/interval/symbol) | **Done** | Atomic propagation via `applyCellUpdate` in `StockApp`; includes `symbolName`/`exchange` |
-| Active cell focus | **Done** | `activeCellIndex` persisted; blue focus ring when `cellCount > 1`; drawing tools disabled on inactive cells |
+| Active cell focus | **Done** | `activeCellIndex` persisted; blue focus ring when `cellCount > 1`; drawing tools disabled on inactive cells; only active cell on primary chart tile subscribes to live candle stream (`live: false` elsewhere) |
 | Shared drawing rail (multi-pane) | **Done** | When `cellCount > 1`, one compact `ChartDrawingRail` in `ChartGrid` targets active pane via `ActiveChartContext`; single-pane keeps inline rail in `ChartCell` |
 | Per-cell config | **Done** | `CellConfig` per grid cell |
 | Layout persistence (localStorage) | **Done** | `loadLayout` / `saveLayout` in `layoutStorage.ts`; includes `sidebar.activePanel` |
@@ -355,13 +369,14 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Module home hub | **Done** | `/home` hub (`HomeShell`); charts at `/chart`; `/workspace` tiling; `/screener` + `/journal` modules; `/` redirects via `lastModule.ts` (24h) to last module |
 | Drawing toolbar rail | **Done** | Single-pane: left column in `ChartCell`. Multi-pane: one shared rail in `ChartGrid` (`ChartDrawingRail`) driven by active cell registration; `railMode` (`full` \| `compact`) via shared `iconRailShellClass` |
 | Bottom range bar alignment | **Done** | `ChartRangeBar` sits in the chart column beside the drawing rail (not full cell width) so presets align with the plot area |
-| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.tsx` for watchlist, options, screener, patterns, object-tree, trade, account, risk, and settings panels |
+| Right sidebar shell | **Done** | App-level icon rail + content panel in `StockApp`; registry in `sidebar/registry.tsx` for watchlist, options, screener, patterns, object-tree, trade, account, risk, and settings panels; docked overlay applies `ChartGrid` `paddingRight = overlayInsetPx` so candles stay clear of the panel (floating panels unchanged) |
 | Floating panel pop-out | **Done** | Any sidebar panel can Pop out to `FloatingPanelHost` / `FloatingPanelShell` (drag/resize) or Dock back; `presentation` + `floatingGeometry` persisted in layout |
 | Data Health overlay | **Done** | Active cell: icon-only severity dot (`DataHealthButton`) + progressive-disclosure panel with dataset chips, Issues log, and provider recovery |
 | App bootstrap / hydration | **Done** | `resolveAppBootstrap` gates provider mount; `AppHydrationShell` full-chrome skeleton until layout hydrates; `ChartLoadingOverlay` on cold candle fetch |
 | Account sidebar panel | **Partial** | App-level `account` panel via `AccountProvider` + `/api/brokerage/*`; overhauled layout with color-coded PnL, metric help tooltips, tabbed open orders/today's fills, icon refresh, day-trades in net-liq card, and computed leverage; live positions/PnL/summary/fills when TWS sidecar + IB Gateway connected; open orders require `TWS_READONLY=false`; orders filtered by active account; cancel open orders via `/api/trading/*`; what-if preview UI removed (preview lives in Trade ticket) |
-| Chart trade ticket | **Done** | Header **Trade** opens `TradeTicketModal` (preview → confirm → place); paper/live mode; live requires typing `LIVE`; uses `TradingService` / connection registry |
-| Risk sidebar panel | **Done** | App-level `risk` panel via `RiskSettingsProvider`; percent-of-account or absolute $ sizing with IB summary basis tags; `dollarRisk`/`riskAccount` propagate to options Risk Calculator and risk-ruler presets; stale badge + `manualCapital` fallback when account disconnected; localStorage `edge.riskSettings.v1` |
+| Chart trade ticket | **Done** | Header **Trade** opens `TradeTicketModal` (preview → confirm → place); sidebar Trade panel; **Size for risk** fills quantity from plan levels + risk budget when linked to position drawing; paper/live mode; live requires typing `LIVE`; uses `TradingService` / connection registry |
+| Journal trade chart forks | **Done** | Attach editable live chart fork to journal trade: chart snapshot menu **Attach to journal trade…** or trade detail **Capture active chart**; stores deep-cloned `CellConfig` + screenshot + optional plan levels; **Open trade chart** modal with live feed, entry/exit markers, debounced save, reset-to-capture; fork isolated from workspace (`journal_trade_chart_snapshots`, IndexedDB fallback) |
+| Risk sidebar panel | **Done** | App-level **Risk calculator** footer panel via `RiskSettingsProvider`; merged **Trade size** card (hero shares, at risk + cost, single stacked margin bar with existing use then this trade, plain `$left · status` summary, inline **Liq** price + Stop reachable / Margin call first under Margin, **Show on chart** toggle); dashed **MARGIN CALL** reference line on active chart while Risk tab open (non-persisted); technical IB fields in Details disclosure; debounced what-if when sized — if IB omits deltas, estimates use IBKR Reg T/house stock rules (`resolveIbkrStockMarginRates`: long 50%/25%, short >$16.67 50%/30%; short Liq uses `(1+m)`); trade levels + risk budget below; `$ absolute` default (works offline) or percent of IB `NetLiquidation` (no basis picker); whole-share sizing from entry/stop + `dollarRisk` (unchanged by margin display); auto-binds to newest long/short on active chart with formatted entry/stop sync (manual edit soft-unlinks but keeps bind; Entry refresh icon sets last quote; levels-row refresh re-links from chart); bind survives page refresh via localStorage `edge.riskPositionBind.v1` and reconnects when the chart drawing reloads; calculator rail icon; stale badge in percent mode when account disconnected; localStorage `edge.riskSettings.v1` includes `showLiquidationLine` (default true; legacy `manualCapital`/`accountBasis` stripped on load) |
 | Chart position overlay (`showPositions`) | **Partial** | Settings → Trading → Positions toggles avg-cost reference line on the active symbol from held position (`positionOverlays.ts`); in-chart buy/sell buttons, order/execution/PnL overlays not yet wired (ticket is header modal, not canvas overlay) |
 | Object Tree panel | **Done** | Right sidebar panel (`object-tree`); active pane live state via `ActiveChartContext`; layout-wide pane list via `AppActions`; Object tree / Data window tabs persisted per `chartId` |
 | Object Tree — symbol row | **Done** | Single-pane: flat symbol · exchange · interval header. Multi-pane: collapsible pane sections per cell (title click focuses pane; chevron toggles collapse) |
@@ -499,6 +514,7 @@ V1 chart contract closed June 2025 (Phases 0–4). Remaining work is polish and 
 | **Named drawing templates** | Copy/paste only; no “Save as template” on drawings |
 | **Drawing visibility intervals** | Deferred — show drawing only on selected timeframes |
 | **Template export/import** | localStorage only; no JSON download |
+| **Command palette + keyboard shortcuts** | **Done** — ⌘K/Ctrl+K palette with quick guide + recent (`edge:recent-commands:v1`); `/` change symbol; panel/theme/indicators shortcuts; registry in `src/lib/shortcuts/` |
 | **Undo/redo drawings** | **Done** — `DrawingStore` + keyboard shortcuts; kept here as recently closed context |
 | **Log / percent / indexed scale modes** | **Done** | `priceScaleType` in `chartSettings`; price-axis context menu + Settings modal |
 | **Go to date** | **Done** | Range-bar calendar icon + chart context menu (⌥G); centers single date or fits custom range; fetches older bars when needed |
@@ -532,8 +548,10 @@ Prioritized against [tradingview-reference.md](./tradingview-reference.md). Edge
 
 ### Tier C — Explicit deferrals
 
-- Pine Script / community indicators
-- Alerts on price or drawings
+- Pine Script syntax / community indicators (private TypeScript My scripts foundation: [typescript-indicator-scripting-roadmap.md](../roadmaps/typescript-indicator-scripting-roadmap.md); Pine-like depth without Pine syntax: [script-depth-roadmap.md](../roadmaps/script-depth-roadmap.md) — track **complete**: Phases 0–5 **Done** through `edge-indicator-sdk-6` script-managed objects)
+- ~~**Price alerts (Phase 0)**~~ — **Done** — bell + toast inbox, Alerts workspace tile, server cron evaluator; see [alerts-roadmap.md](../roadmaps/alerts-roadmap.md)
+- ~~**Drawing-bound alerts (Phase 1)**~~ — **Done** — hline/trend/rectangle bind; overlay **Add alert on drawing…**; geometry sync + expire on delete; zone/trendline cron eval
+- Drawing-bound and semantic annotation alerts (Phase 1+)
 - Non-time charts: Renko, P&F, Kagi
 - Volume footprint, TPO, session profile
 

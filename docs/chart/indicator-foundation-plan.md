@@ -300,7 +300,7 @@ onRemoveIndicator?: (id: string) => void;
 
 ## Non-goals
 
-- Pine Script / user scripting
+- Pine Script / runtime user scripting was outside this foundation; private TypeScript scripting is now a separate planned track in [typescript-indicator-scripting-roadmap.md](../roadmaps/typescript-indicator-scripting-roadmap.md)
 - `IndicatorContext`, MTF, interval visibility
 - Templates, favorites, alerts
 - Drawings on indicator panes ([drawing-foundation.md](./drawing-foundation.md) gap 4)
