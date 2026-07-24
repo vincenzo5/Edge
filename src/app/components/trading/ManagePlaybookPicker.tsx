@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fieldClass } from "../design-system/styles";
 import { EdgeButton } from "../design-system";
+import { PlaybookTemplateEditor } from "./PlaybookTemplateEditor";
 import { formatManageStepPreview } from "@/lib/trading/playbook/display";
 import { formatManageNotifySummary } from "@/lib/trading/playbook/manageNotifyAlerts";
 import { planPlaybookSteps } from "@/lib/trading/playbook/planSteps";
@@ -51,6 +52,7 @@ export function ManagePlaybookPicker({
   const [userTemplates, setUserTemplates] = useState<PlaybookTemplate[]>([]);
   const [libraryBusy, setLibraryBusy] = useState(false);
   const [renameDraft, setRenameDraft] = useState("");
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const refreshTemplates = useCallback(async () => {
     const data = await fetchPlaybookTemplates();
@@ -135,6 +137,24 @@ export function ManagePlaybookPicker({
     });
   }
 
+  async function saveEditedTemplate(template: PlaybookTemplate) {
+    if (!selectedIsUserTemplate) return;
+    await runLibraryAction(async () => {
+      const response = await fetch(`/api/trading/playbooks/templates/${value}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: template.name,
+          description: template.description,
+          rules: template.rules,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to save template");
+      }
+    });
+  }
+
   return (
     <div className="space-y-2">
       <label className="block">
@@ -178,6 +198,15 @@ export function ManagePlaybookPicker({
           </EdgeButton>
           {selectedIsUserTemplate ? (
             <>
+              <EdgeButton
+                type="button"
+                variant="secondary"
+                disabled={disabled || libraryBusy}
+                onClick={() => setEditorOpen(true)}
+                data-testid="trade-manage-edit-template"
+              >
+                Edit template…
+              </EdgeButton>
               <input
                 className={`${fieldClass({ density: "compact" })} min-w-[10rem]`}
                 value={renameDraft}
@@ -239,6 +268,17 @@ export function ManagePlaybookPicker({
             <div key={step.ruleId}>{formatManageStepPreview(step)}</div>
           ))}
         </div>
+      ) : null}
+
+      {selectedIsUserTemplate && selectedTemplate ? (
+        <PlaybookTemplateEditor
+          open={editorOpen}
+          template={selectedTemplate}
+          positionPlan={positionPlan}
+          onClose={() => setEditorOpen(false)}
+          onSave={saveEditedTemplate}
+          disabled={disabled || libraryBusy}
+        />
       ) : null}
     </div>
   );

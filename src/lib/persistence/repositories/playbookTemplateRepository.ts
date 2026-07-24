@@ -106,6 +106,7 @@ export async function patchPlaybookTemplate(
     ...existing,
     ...(patch.name != null ? { name: patch.name } : {}),
     ...(patch.description != null ? { description: patch.description } : {}),
+    ...(patch.rules != null ? { rules: patch.rules } : {}),
   });
   const db = getDb();
   await db
@@ -113,6 +114,7 @@ export async function patchPlaybookTemplate(
     .set({
       name: updated.name,
       description: updated.description,
+      rules: updated.rules,
       updatedAt: new Date(),
     })
     .where(and(eq(playbookTemplates.userId, userId), eq(playbookTemplates.id, id)));

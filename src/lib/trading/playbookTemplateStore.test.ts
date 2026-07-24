@@ -38,4 +38,21 @@ describe("playbookTemplateStore", () => {
     expect(duplicate?.name).toContain("Half then BE");
     expect(duplicate?.id.startsWith("user_")).toBe(true);
   });
+
+  it("patches user template rules", async () => {
+    const store = createMemoryPlaybookTemplateStore();
+    const created = await store.create({ sourceTemplateId: "break_even" });
+    const nextRules = [
+      {
+        id: "custom-be",
+        label: "Custom BE",
+        when: { kind: "multipleOfR" as const, multiple: 1.5 },
+        then: { kind: "modifyStop" as const, breakEven: true },
+        once: true,
+      },
+    ];
+    const patched = await store.patch(created.id, { rules: nextRules });
+    expect(patched?.rules).toEqual(nextRules);
+    expect(await store.patch("break_even", { rules: nextRules })).toBeNull();
+  });
 });

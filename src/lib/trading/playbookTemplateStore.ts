@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  PlaybookRuleSchema,
   PlaybookTemplateSchema,
   type PlaybookTemplate,
 } from "./playbook/types";
@@ -19,6 +20,7 @@ export const PatchPlaybookTemplateSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional(),
     description: z.string().trim().min(1).max(240).optional(),
+    rules: z.array(PlaybookRuleSchema).min(1).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required",
@@ -89,6 +91,7 @@ export function createMemoryPlaybookTemplateStore(): PlaybookTemplateStore {
         ...existing,
         ...(patch.name != null ? { name: patch.name } : {}),
         ...(patch.description != null ? { description: patch.description } : {}),
+        ...(patch.rules != null ? { rules: patch.rules } : {}),
       });
       byId.set(id, updated);
       return updated;
@@ -172,6 +175,7 @@ export function createBrowserPlaybookTemplateStore(): PlaybookTemplateStore {
         ...records[index]!,
         ...(patch.name != null ? { name: patch.name } : {}),
         ...(patch.description != null ? { description: patch.description } : {}),
+        ...(patch.rules != null ? { rules: patch.rules } : {}),
       });
       records[index] = updated;
       writeBrowserTemplates(records);

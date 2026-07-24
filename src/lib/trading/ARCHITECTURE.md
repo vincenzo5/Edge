@@ -296,6 +296,17 @@ Copilot attach_playbook (confirm gate) → TradingPort.attachPlaybook → attach
 API: POST /api/trading/playbooks/preview, POST /api/trading/playbooks/attach
 ```
 
+Phase 8 — full rule editor (shipped):
+
+```
+ManagePlaybookPicker "Edit template…" for user_* templates only (builtins → Duplicate)
+PlaybookTemplateEditor modal → structured when/then rule fields + requires/priority/once
+  → validatePlaybookTemplateDraft (PlaybookTemplateSchema) + planPlaybookSteps preview
+PATCH /api/trading/playbooks/templates/[id] accepts rules (name/description/rules)
+  → playbookTemplateStore + playbook_templates.rules jsonb
+Armed instances keep templateSnapshot — template edits apply to future attaches only
+```
+
 API: `GET /api/trading/playbooks`, `POST /api/trading/playbooks/preview`, `POST /api/trading/playbooks/attach`, `POST /api/trading/playbooks/[id]/{detach,pause,resume,skip}`, `GET|PATCH /api/trading/playbooks/auto-manage`, `GET|POST /api/trading/playbooks/templates`, `PATCH|DELETE /api/trading/playbooks/templates/[id]`, `POST /api/trading/playbooks/templates/[id]/duplicate` (mutate auth parity). Cron: `GET|POST /api/cron/playbook-evaluate` (cron auth; in-process TradingService).
 
 UI copy: **Manage with…** / **Management playbook** — not bare “Playbook” (distinct from AI annotation playbooks).

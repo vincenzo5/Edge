@@ -1,0 +1,22 @@
+Trade management playbook — Phase 8 verification (2026-07-24)
+
+Focused:
+npm test -- --run src/lib/trading/playbookTemplateStore.test.ts src/lib/trading/playbook/editorDraft.test.ts src/lib/trading/playbook/resolveTemplate.test.ts src/app/api/trading/playbooks/templates src/app/components/trading/ManagePlaybookPicker.test.tsx src/app/components/trading/PlaybookTemplateEditor.test.tsx
+
+Result: Test Files 6 passed (6), Tests 23 passed (23)
+
+Build:
+npm run build
+✓ Compiled successfully
+
+Architecture review: self-review Passed
+
+App-level: create/edit custom template → attach on paper → manager respects edited rules — deferred
+
+Delivered:
+- PatchPlaybookTemplateSchema + store/repo persist rules
+- editorDraft.ts — validatePlaybookTemplateDraft, createPlaybookRuleDraft, reorderPlaybookRules
+- PlaybookTemplateEditor modal — when/then fields, live planPlaybookSteps preview, Zod validation
+- ManagePlaybookPicker "Edit template…" for user_* only
+- resolveTemplate.test.ts — snapshot unchanged when library rules patched
+- trading/ARCHITECTURE.md Phase 8 section

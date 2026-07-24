@@ -94,6 +94,34 @@ describe("/api/trading/playbooks/templates routes", () => {
     expect(res.status).toBe(200);
   });
 
+  it("PATCH updates user template rules", async () => {
+    const rules = [
+      {
+        id: "custom-be",
+        when: { kind: "multipleOfR", multiple: 1 },
+        then: { kind: "modifyStop", breakEven: true },
+        once: true,
+      },
+    ];
+    mockPatchPlaybookTemplate.mockResolvedValue({
+      id: "user_abc",
+      name: "Custom",
+      description: "x",
+      rules,
+    });
+
+    const res = await patchTemplate(
+      new Request("http://localhost/api/trading/playbooks/templates/user_abc", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rules }),
+      }),
+      { params: Promise.resolve({ id: "user_abc" }) },
+    );
+    expect(res.status).toBe(200);
+    expect(mockPatchPlaybookTemplate).toHaveBeenCalledWith("user_abc", { rules });
+  });
+
   it("POST duplicate clones template", async () => {
     mockDuplicatePlaybookTemplate.mockResolvedValue({
       id: "user_copy",

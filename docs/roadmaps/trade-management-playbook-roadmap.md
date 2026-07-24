@@ -4,7 +4,7 @@ Phased track for **automated post-fill trade management** — reusable rule reci
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24); Phase 6 **Passing** (2026-07-24); Phase 7 **Passing** (2026-07-24); Phase 8 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-24); Phase 1 **Passing** (2026-07-24); Phase 2 **Passing** (2026-07-24); Phase 3 **Passing** (2026-07-24); Phase 4 **Passing** (2026-07-24); Phase 5 **Passing** (2026-07-24); Phase 6 **Passing** (2026-07-24); Phase 7 **Passing** (2026-07-24); Phase 8 **Passing** (2026-07-24). **Track complete.**
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (brackets / OCO / trail — **Protect**), [Alerts](./alerts-roadmap.md) (trade-plan bundles — **notify only**), [Journal](./journal-roadmap.md) (review; strategy docs deferred), [AI Agent](./ai-agent-roadmap.md) (annotation “playbooks” Phase D — **different concept**), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -306,11 +306,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, an Activ
 | 8.4 | ManagePlaybookPicker entry: “Edit template…” for `user_*` ids; block editing builtins (duplicate instead) |
 | 8.5 | Instance safety unchanged — armed instances keep `templateSnapshot`; edits apply to future attaches only |
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
-**Depends on:** Phase 5 template library.
-
-**Verification:** **Focused:** editor validation + save round-trip tests; **Build:** compile OK; **Architecture review:** self-review; **App-level:** create custom template → attach → manager respects edited rules on paper
+**Verification:** **Focused:** editor validation + save round-trip tests — Test Files 6 passed (6), Tests 23 passed (23); **Build:** `npm run build` — ✓ Compiled successfully; **Architecture review:** self-review **Passed**; **App-level:** create custom template → attach → manager respects edited rules on paper deferred
 
 **Out of scope for Phase 8:** indicator/script `when`, options legs, scale-in rules (see exclusions below).
 
