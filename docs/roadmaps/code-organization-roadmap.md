@@ -163,11 +163,11 @@ Known inverted imports (Phase 1 targets):
 
 | # | Deliverable |
 |---|-------------|
-| 2.1 | Archive Previous Verified stacks older than the keep window into `docs/status-archive/` (dated file); leave Current + Active + recent Passing |
-| 2.2 | Document archive rule in harness checklist / PROJECT-STATUS header (keep ≤ N previous blocks) |
+| 2.1 | Archive Previous Verified stacks into `docs/status-archive/` (dated file); leave Current + Active + recent Passing; Previous keep = **0** in hot file |
+| 2.2 | Document archive rule in harness checklist / PROJECT-STATUS header (Previous keep = **0**; [harness-steward.mdc](../../.cursor/rules/harness-steward.mdc)) |
 | 2.3 | Align `docs/roadmaps/README.md` + stale `docs/ROADMAP.md` rows (Research UX, Wave 2, shared-cache, etc.) with PROJECT-STATUS |
 | 2.4 | Refresh `AGENTS.md` Repo Layout: `packages/`, `marketData`, trading/journal, design-system tokens vs primitives |
-| 2.5 | Optional: `npm run harness:closeout` / docs automation note so closeout prefers archive over append forever |
+| 2.5 | `npm run harness:closeout` + `status:prune` + Steward rule — closeout archives displaced Current (no hot-file Previous stacks) |
 
 **Files (expected):** `docs/PROJECT-STATUS.md`, `docs/status-archive/*`, `docs/checklists/harness-status-checklist.md`, `docs/roadmaps/README.md`, `docs/ROADMAP.md`, `AGENTS.md`.
 

@@ -1,0 +1,59 @@
+---
+description: Exclusive mutator for PROJECT-STATUS, status-archive, and roadmap status lines — evidence-gated closeout and prune only
+alwaysApply: false
+---
+
+# Harness Steward
+
+Use when closing out a task, pruning the hot harness, or syncing roadmap status lines. The Steward is the **only** agent that should edit harness files directly.
+
+## Scope
+
+**May edit:** `docs/PROJECT-STATUS.md`, `docs/status-archive/**`, roadmap `**Status:**` lines referenced at closeout.
+
+**Must not:** edit `src/` or product code; invent or paraphrase verification output; mark **Passing** without `--evidence-file`; stack `## Previous Verified State` in the hot file.
+
+## Inputs (from parent or execute closeout)
+
+- Task name (`--name`)
+- Evidence file path (`--evidence-file`) — quoted command output only
+- Optional: `--files`, `--roadmap`, `--session-log`
+
+## Workflow
+
+1. Confirm evidence file exists and contains real command output (test counts, lint exit, line counts).
+2. Run closeout (archives displaced Current; does not stack Previous in hot file):
+
+```bash
+npm run harness:closeout -- --name "…" --evidence-file path [--files …] [--roadmap …] [--session-log …]
+```
+
+3. Prune overflow when hot file exceeds ~300 lines or after closeout:
+
+```bash
+npm run status:prune -- --dry-run   # inspect first
+npm run status:prune
+```
+
+4. Verify gates:
+
+```bash
+npm run lint:harness-retention
+npm run lint:roadmap-status
+npm run lint:instructions
+```
+
+5. Report quoted results to parent; do not claim Passing if any gate fails.
+
+## Retention (fail-closed)
+
+| Content | Hot retention |
+|---------|---------------|
+| Previous Verified State | **0** — archive only |
+| Active Work Passing | ≤10 recent rows |
+| Session Log | ~15 entries |
+| Hot file | ≤400 lines (`lint:harness-retention`) |
+
+## Pattern
+
+Parent owns judgment and WIP=1. Optional Task Executor implements product code in a fresh chat (`/handoff`). Steward runs **only** the harness write-path above — curator mode is `status:prune`, not a separate agent.

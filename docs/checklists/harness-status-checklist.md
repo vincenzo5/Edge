@@ -90,13 +90,13 @@ After significant work, update the top block with:
 - [ ] **Current blocker** — none or explicit
 - [ ] **Next best step** — single concrete action
 - [ ] **Last updated** — today's date (YYYY-MM-DD)
-- [ ] On closeout, displaced Current → `status-archive/`; legacy Previous Verified ≤10 (overflow auto-pruned)
+- [ ] On closeout, displaced Current → `status-archive/`; **0** Previous Verified blocks in hot file (`status:prune` / [harness-steward.mdc](../../.cursor/rules/harness-steward.mdc))
 
 ## Retention / Archive
 
 `PROJECT-STATUS.md` is a hot dashboard. Full history: [docs/status-archive/](../status-archive/).
 
-- [ ] Previous Verified keeps ≤10 most recent blocks; older → monthly `status-archive/YYYY-MM.md` (auto on `harness:closeout`)
+- [ ] Previous Verified keeps **0** blocks in hot file; all displaced/historical blocks → monthly `status-archive/YYYY-MM.md` (`harness:closeout` + `status:prune`)
 - [ ] Active Work keeps Active/Pending/Blocked + ≤10 recent Passing rows
 - [ ] Completed Task Contracts moved to `status-archive/` (or deleted if Session Log already has evidence)
 - [ ] Session Log keeps ~15 recent entries; older → monthly `status-archive/YYYY-MM.md`

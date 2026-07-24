@@ -78,12 +78,15 @@ Prefer a **new execute chat** when plan research exceeded ~15–20 tool calls (s
 
 ## Closeout
 
-Walk [session-exit-checklist.md](./session-exit-checklist.md). Prefer evidence-gated helper:
+Walk [session-exit-checklist.md](./session-exit-checklist.md). Prefer [Harness Steward](../../.cursor/rules/harness-steward.mdc) (exclusive harness mutator):
 
 ```bash
 npm run harness:closeout -- --name "…" --evidence-file path [--files …] [--roadmap …] [--session-log …]
+npm run status:prune
+npm run lint:harness-retention
 ```
-Closeout demotes Current → Previous Verified and archives overflow beyond 10 blocks to `docs/status-archive/`.
+
+Closeout archives the displaced Current block to `docs/status-archive/` — **no** `## Previous Verified State` stacks in the hot file (Previous keep = **0**).
 
 - [ ] Active Work → **Passing** with quoted evidence + Files column (via helper or manual)
 - [ ] Current Verified State block updated
