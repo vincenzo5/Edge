@@ -9,6 +9,7 @@ import AppModuleShell from "../home/AppModuleShell";
 import ModuleRouteTracker from "../home/ModuleRouteTracker";
 import { useResearchEvidence } from "./useResearchEvidence";
 import BoardCanvas from "./BoardCanvas";
+import BoardReelFilmstrip from "./BoardReelFilmstrip";
 import ResearchBoardSessionRail from "./ResearchBoardSessionRail";
 import { useResearchBoardSession } from "./useResearchBoardSession";
 
@@ -20,6 +21,7 @@ export default function ResearchBoard() {
     summaries,
     cards,
     links,
+    reel,
     primaryThreadId,
     moveCard,
     removeCard,
@@ -30,6 +32,9 @@ export default function ResearchBoard() {
     switchSession,
     renameSession,
     deleteSession,
+    checkpointFocused,
+    removeBeat,
+    draftJournalFromReel,
   } = useResearchBoardSession();
 
   const handleImportEvidence = () => {
@@ -94,6 +99,19 @@ export default function ResearchBoard() {
               </button>
             ) : null}
           </header>
+          <BoardReelFilmstrip
+            reel={reel}
+            cards={cards}
+            onCheckpointFocused={() => {
+              checkpointFocused();
+            }}
+            onRemoveBeat={(beatId) => {
+              removeBeat(beatId);
+            }}
+            onDraftJournal={() => {
+              draftJournalFromReel();
+            }}
+          />
           <BoardCanvas
             cards={cards}
             links={links}

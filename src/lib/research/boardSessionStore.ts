@@ -1,13 +1,26 @@
 import { z } from "zod";
 
-import type { ResearchCardSketch, ResearchLinkSketch, ResearchSessionSketch } from "./sessionSketch";
+import type {
+  ResearchCardSketch,
+  ResearchLinkSketch,
+  ResearchReelBeatSketch,
+  ResearchSessionSketch,
+} from "./sessionSketch";
 import {
   RESEARCH_SESSION_SKETCH_VERSION,
   RESEARCH_SESSIONS_STORAGE_KEY,
   researchCardSketchSchema,
   researchLinkSketchSchema,
+  researchReelBeatSketchSchema,
   researchSessionSketchSchema,
 } from "./sessionSketch";
+import {
+  appendReelBeatPure,
+  appendReelBeatsForCardsPure,
+  pruneReelForRemovedCard,
+  removeReelBeatPure,
+  reorderReelBeatsPure,
+} from "./reelBeats";
 import type { ResearchSessionSummary } from "@/lib/persistence/schemas/researchSessions";
 
 const BOARD_SESSIONS_DOC_VERSION = 1 as const;
@@ -393,14 +406,22 @@ export function addBoardCard(card: ResearchCardSketch): ResearchCardSketch {
     position: card.position ?? defaultPosition(index, card),
   });
 
-  updateActiveSession((current) => ({
-    ...current,
-    cards: [...current.cards, withPosition],
-    threadIds:
-      withPosition.threadId && !current.threadIds.includes(withPosition.threadId)
-        ? [...current.threadIds, withPosition.threadId]
-        : current.threadIds,
-  }));
+  updateActiveSession((current) => {
+    const cards = [...current.cards, withPosition];
+    return {
+      ...current,
+      cards,
+      reel: appendReelBeatPure(current.reel, cards, {
+        cardId: withPosition.id,
+        allowDuplicate: false,
+        createId,
+      }),
+      threadIds:
+        withPosition.threadId && !current.threadIds.includes(withPosition.threadId)
+          ? [...current.threadIds, withPosition.threadId]
+          : current.threadIds,
+    };
+  });
 
   return withPosition;
 }
@@ -475,6 +496,7 @@ export function removeBoardCard(cardId: string): void {
     links: session.links.filter(
       (link) => link.fromCardId !== cardId && link.toCardId !== cardId,
     ),
+    reel: pruneReelForRemovedCard(session.reel, cardId),
   }));
 }
 
@@ -525,14 +547,64 @@ export function importEvidenceCardsToBoard(cards: ResearchCardSketch[]): Researc
         threadIds.push(card.threadId);
       }
     }
+    const nextCards = [...current.cards, ...imported];
     return {
       ...current,
-      cards: [...current.cards, ...imported],
+      cards: nextCards,
       threadIds,
+      reel: appendReelBeatsForCardsPure(
+        current.reel,
+        nextCards,
+        imported.map((card) => card.id),
+        createId,
+      ),
     };
   });
 
   return imported;
+}
+
+export type AppendReelBeatInput = {
+  cardId: string;
+  label?: string;
+  allowDuplicate?: boolean;
+};
+
+export function appendReelBeat(input: AppendReelBeatInput): ResearchReelBeatSketch | null {
+  const session = getActiveBoardSession();
+  const nextReel = appendReelBeatPure(session.reel, session.cards, {
+    ...input,
+    createId,
+  });
+  if (nextReel.length === session.reel.length) return null;
+
+  updateActiveSession((current) => ({
+    ...current,
+    reel: nextReel,
+  }));
+
+  return nextReel[nextReel.length - 1] ?? null;
+}
+
+export function removeReelBeat(beatId: string): void {
+  updateActiveSession((session) => ({
+    ...session,
+    reel: removeReelBeatPure(session.reel, beatId),
+  }));
+}
+
+export function reorderReelBeats(orderedBeatIds: string[]): void {
+  updateActiveSession((session) => ({
+    ...session,
+    reel: reorderReelBeatsPure(session.reel, orderedBeatIds),
+  }));
+}
+
+export function clearReel(): void {
+  updateActiveSession((session) => ({
+    ...session,
+    reel: [],
+  }));
 }
 
 export function clearResearchBoardSessionForTests(): void {

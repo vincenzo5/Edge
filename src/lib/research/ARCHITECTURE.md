@@ -130,6 +130,18 @@ Evidence → Board: `CopilotEvidenceRail` **Send to board** copies pinned cards 
 
 **Desk boundary:** Session persistence never writes workspace tile layout.
 
+## Phase 7 modules
+
+| File / component | Purpose |
+|------------------|---------|
+| `reelBeats.ts` | Pure reel helpers — append/dedupe, reorder, prune orphans, default labels |
+| `reelJournalDraft.ts` | Compose ordered reel beats into a `journalDraft` summary string |
+| `boardSessionStore.ts` | Reel mutators (`appendReelBeat`, `removeReelBeat`, `reorderReelBeats`); auto-append on card add/import; prune beats on card delete |
+| `BoardReelFilmstrip.tsx` | Horizontal session reel UI — scrub beats, checkpoint focused, draft journal |
+| `useResearchBoardSession.ts` | Exposes `reel` + reel mutation callbacks to Board shell |
+
+**Reel model:** `reel[]` beats reference board cards by `cardId` (`{ id, cardId, label?, order }`). Auto-append on card add skips duplicate `cardId`; manual **Checkpoint focused** allows duplicate beats for the same card. Removing a card prunes orphan beats and renumbers `order` densely. Journal export composes summary text and adds a `journalDraft` card — no parallel journal store.
+
 ## Integration boundaries
 
 - **AI tools:** Board mutations go through the registry + confirm gates — no ad-hoc React mutation.

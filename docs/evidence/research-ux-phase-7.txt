@@ -1,0 +1,21 @@
+Research UX Phase 7 — Session reel (2026-07-24)
+
+Focused:
+npm test -- --run src/lib/research src/app/components/research
+Test Files  13 passed (13)
+Tests  62 passed (62)
+
+Build:
+npm run build
+✓ Compiled successfully
+
+Architecture review: self-review Passed
+
+Delivered:
+- reelBeats.ts — append/dedupe/reorder/prune pure helpers
+- boardSessionStore reel mutators + auto-append on card add/import + prune on card delete
+- BoardReelFilmstrip.tsx — horizontal filmstrip, checkpoint focused, draft journal
+- reelJournalDraft.ts — compose journalDraft summary from ordered reel
+- useResearchBoardSession + ResearchBoard wiring
+
+App-level: reel scrub + draft journal walkthrough deferred

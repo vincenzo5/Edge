@@ -4,7 +4,7 @@ Phased track to evolve Edge’s shell toward **research-first** UX: Copilot as t
 
 **Last updated:** 2026-07-24
 
-**Status:** Roadmap defined — Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-24). Phase 3 **Passing** (2026-07-24). Phase 4 **Passing** (2026-07-24). Phase 5 **Passing** (2026-07-24). Phase 6 **Passing** (2026-07-24).
+**Status:** Roadmap defined — Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-24). Phase 3 **Passing** (2026-07-24). Phase 4 **Passing** (2026-07-24). Phase 5 **Passing** (2026-07-24). Phase 6 **Passing** (2026-07-24). Phase 7 **Passing** (2026-07-24).
 
 **Related:** [ROADMAP.md](../ROADMAP.md) (Phase 5 Copilot + shell), [AI Agent Roadmap](./ai-agent-roadmap.md), [Grok Copilot UX Parity](./grok-copilot-parity-roadmap.md), [Workspace State Persistence](./workspace-state-persistence-roadmap.md), [Rich Annotations Vision](../chart/rich-annotations-vision.md), [News Flow](./news-flow-roadmap.md), [Screener](./screener-roadmap.md), [Journal](./journal-roadmap.md), [Alerts](./alerts-roadmap.md), [Design System](../../src/lib/design-system/ARCHITECTURE.md), [AI Architecture](../../src/lib/ai/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -309,7 +309,7 @@ ask (Talk) ──▶ pin artifacts ──▶ arrange on Board ──▶ open Des
 
 **Outcome:** A research session can be replayed as an ordered reel of beats for review/journal.
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-24)
 
 | Work item | Scope |
 |-----------|--------|
@@ -318,6 +318,8 @@ ask (Talk) ──▶ pin artifacts ──▶ arrange on Board ──▶ open Des
 | Export hooks | Optional “draft journal from reel” (uses journal APIs; no parallel journal) |
 
 **Out of scope:** Video export; social sharing.
+
+**Phase 7 evidence:** **Focused:** `Test Files 13 passed (13)`, `Tests 62 passed (62)`; **Build:** `npm run build` — ✓ Compiled successfully; **Architecture review:** self-review **Passed**; **App-level:** reel scrub + draft journal walkthrough deferred.
 
 **Exit:** Focused reel model tests; app-level: complete a short session → scrub reel → open beat.
 

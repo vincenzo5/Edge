@@ -5,15 +5,20 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import {
   addBoardCard,
   addBoardLink,
+  appendReelBeat,
   getActiveBoardSession,
   getActiveSessionRecord,
   importEvidenceCardsToBoard,
   listResearchSessionSummaries,
   removeBoardCard,
   removeBoardLink,
+  removeReelBeat,
+  reorderReelBeats,
   subscribeResearchBoardSession,
   updateBoardCardPosition,
 } from "@/lib/research/boardSessionStore";
+import { getBoardFocusedCardId } from "@/lib/research/boardFocusStore";
+import { composeJournalDraftSummaryFromReel } from "@/lib/research/reelJournalDraft";
 import {
   createResearchSessionState,
   deleteResearchSessionState,
@@ -193,6 +198,54 @@ export function useResearchBoardSession() {
     refreshSyncRevision();
   }, [refreshSyncRevision]);
 
+  const appendBeat = useCallback(
+    (cardId: string, label?: string, allowDuplicate = false) => {
+      const beat = appendReelBeat({ cardId, label, allowDuplicate });
+      if (beat) schedulePersist();
+      return beat;
+    },
+    [schedulePersist],
+  );
+
+  const removeBeat = useCallback(
+    (beatId: string) => {
+      removeReelBeat(beatId);
+      schedulePersist();
+    },
+    [schedulePersist],
+  );
+
+  const reorderBeats = useCallback(
+    (orderedBeatIds: string[]) => {
+      reorderReelBeats(orderedBeatIds);
+      schedulePersist();
+    },
+    [schedulePersist],
+  );
+
+  const checkpointFocused = useCallback(() => {
+    const focusedId = getBoardFocusedCardId();
+    if (!focusedId) return null;
+    return appendBeat(focusedId, undefined, true);
+  }, [appendBeat]);
+
+  const draftJournalFromReel = useCallback(() => {
+    const active = getActiveBoardSession();
+    const summary = composeJournalDraftSummaryFromReel(active, active.reel, active.cards);
+    const cardId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `journal-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const card = addBoardCard({
+      id: cardId,
+      type: "journalDraft",
+      source: "user",
+      summary,
+    });
+    schedulePersist();
+    return card;
+  }, [schedulePersist]);
+
   const primaryThreadId = session.threadIds[0] ?? null;
 
   return {
@@ -200,6 +253,7 @@ export function useResearchBoardSession() {
     summaries,
     cards: session.cards,
     links: session.links,
+    reel: session.reel,
     isHydrating,
     hydrateError,
     primaryThreadId,
@@ -213,5 +267,10 @@ export function useResearchBoardSession() {
     switchSession,
     renameSession,
     deleteSession,
+    appendBeat,
+    removeBeat,
+    reorderBeats,
+    checkpointFocused,
+    draftJournalFromReel,
   };
 }

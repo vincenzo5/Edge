@@ -20,7 +20,7 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 | App shell | Shipped foundation | Faster bootstrap (`resolveAppBootstrap`), floating sidebar panels, TV-style price legend, age-based Data Health chrome, `/workspace` tiling shell (Chart/Screener/Journal/Scripts/Alerts tiles), responsive module home hub at `/home` with charts at `/chart`, `/screener` review app, smart `/` entry (24h last-module redirect), and `/journal` module (Dashboard / Trades / Settings). Desk tiling + cloud sync shipped via [Workspace State Persistence](./roadmaps/workspace-state-persistence-roadmap.md). Research-first Talk/Board densities (Desk kept) tracked in [Research UX Roadmap](./roadmaps/research-ux-roadmap.md). |
 | Trading journal | Shipped foundation | IBKR fill sync + Flex CSV import → grouped round-trip trades; Postgres + localStorage fallback; dashboard KPIs, calendar P&L, equity curve, tag/setup and time reports, R-multiple, filters, chart deep links with execution markers, trade rating, compare reports, STK MFE/MFA. **Server-side broker ledger ingest** (fills + account/position snapshots while Next+sidecar up) in [Broker Ledger Roadmap](./roadmaps/broker-ledger-roadmap.md). Full tiers in [Journal Roadmap](./roadmaps/journal-roadmap.md). |
 | Trading execution | Phase 0–5 **Passing** | Paper + live via in-app mode; registry `ib-paper`/`ib-live`; Trade sidebar + confirm; AccountPanel cancel; journal orderRef; AI place_order; Postgres `order_intents` when `DATABASE_URL` set. Dual-connection **display preference ≠ order account** shipped (`edge:marketData:connectionId`); remaining Docker both-Gateway ops in [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md). Brackets/OCO/trail shipped (Phases 6–9). Backlog: options; post-fill manage → [Trade Management Playbook Roadmap](./roadmaps/trade-management-playbook-roadmap.md). [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md). |
-| Trade management | Roadmap defined | Post-fill **Manage** playbooks (BE, scale-out, trail) on top of broker **Protect**; Phase 0 **Pending**. [Trade Management Playbook Roadmap](./roadmaps/trade-management-playbook-roadmap.md). |
+| Trade management | Phase 0–6 **Passing** | Post-fill **Manage** on broker **Protect**; Phase 7–8 **Pending** (AI tools, rule editor). [Trade Management Playbook Roadmap](./roadmaps/trade-management-playbook-roadmap.md). |
 | Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Massive, TWS, and IBKR adapters; age-based display freshness and trust-event logging for transport recovery; ChartDataFeed/watchlist thread TWS `connectionId` display preference. Client TTL reuse / poll hygiene / serving-cost gaps closed in [Data Serving Efficiency Roadmap](./roadmaps/data-serving-efficiency-roadmap.md) (Phases 0–6 **Passing**; Phase 7 Redis **Skipped** — superseded for prod topology by [Shared Cache Topology](./roadmaps/shared-cache-topology-roadmap.md)). Resident-bar / clone / process-heap retention Phases 0–14 **Passing** in [Memory Efficiency Roadmap](./roadmaps/memory-efficiency-roadmap.md) (Phase 12 flagged Redis adapters). Prod Redis fail-loud / ops flip → [Shared Cache Topology Roadmap](./roadmaps/shared-cache-topology-roadmap.md). Settings Connections / provider prefs / product connect path → [Connections & Providers Roadmap](./roadmaps/connections-providers-roadmap.md). |
 | IBKR provider | Shipped in main routing | IBKR-first candles and quotes in `MarketDataService` with Yahoo fallback; probe routes remain for diagnostics. Requires daily Gateway login for live IBKR data. |
 | AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data and trading tools (`preview_order` / `place_order`) run server-side; stateful chart, watchlist, screener, risk, account, and options session tools require an app session. |
@@ -247,7 +247,7 @@ Guardrails:
 
 - [AI Agent / In-App Copilot Roadmap](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing** (contracts → OpenRouter agent → chat shell → session bridge → confirmed writes → chart↔chat → thread persistence → model picker → workflows).
 - [Grok Copilot UX Parity Roadmap](./roadmaps/grok-copilot-parity-roadmap.md) — Copilot shell/composer match **grok.com**; Phases 0–5 **Passing** (track complete).
-- [Research UX Roadmap](./roadmaps/research-ux-roadmap.md) — AI-first research desk: Talk / Board / Desk densities; pinable artifacts; Research Board; session persistence; **tiled Desk kept forever**. Phase 0 **Pending**.
+- [Research UX Roadmap](./roadmaps/research-ux-roadmap.md) — AI-first research desk: Talk / Board / Desk densities; pinable artifacts; Research Board; session reel; **tiled Desk kept forever**. Phases 0–7 **Passing**.
 
 Future work (research shell + residual agent polish):
 
@@ -266,7 +266,7 @@ Future work (research shell + residual agent polish):
 Living feature tracks (phase detail in each file):
 
 - [Trading execution](./roadmaps/trading-execution-roadmap.md) — Phases 0–5 + **6–9 Passing**; options backlog
-- [Trade management playbook](./roadmaps/trade-management-playbook-roadmap.md) — Phase 0 **Pending**; post-fill Manage on Protect
+- [Trade management playbook](./roadmaps/trade-management-playbook-roadmap.md) — Phase 0–6 **Passing**; Phase 7–8 **Pending** (AI tools, rule editor)
 - [Dual connection](./roadmaps/dual-connection-roadmap.md) — Phases A–D product complete; ops proof on Wave 1 Phase 1
 - [Connections & providers](./roadmaps/connections-providers-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (hosted IB OAuth); Settings/prefs walks → Wave 2 Phase 3
 - [Stock screener](./roadmaps/screener-roadmap.md) — Phases 1–5 shipped; product deferrals remain
@@ -274,7 +274,7 @@ Living feature tracks (phase detail in each file):
 - [Alerts](./roadmaps/alerts-roadmap.md) — Phases 0–4 **Passing**; external delivery / semantic AI deferred
 - [AI agent / in-app copilot](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing**; deferred walks → Wave 2 Phase 1
 - [Grok Copilot UX parity](./roadmaps/grok-copilot-parity-roadmap.md) — Phases 0–5 **Passing** (track complete); chrome walks → Wave 2 Phase 2
-- [Research UX (AI-first desk)](./roadmaps/research-ux-roadmap.md) — Phase 0 **Pending**; Desk tiling retained
+- [Research UX (AI-first desk)](./roadmaps/research-ux-roadmap.md) — Phases 0–7 **Passing**; Desk tiling retained
 - [TypeScript indicator scripting](./roadmaps/typescript-indicator-scripting-roadmap.md) — Phases 0–5B + Scripts tile **Passing**
 - [Script depth](./roadmaps/script-depth-roadmap.md) — Phases 0–5 **Passing** — track complete
 - ~~[Workspace state persistence](./roadmaps/workspace-state-persistence-roadmap.md)~~ — **Complete**
@@ -292,6 +292,7 @@ Broader product backlog (not feature-track owned):
 - News flow — research captured; implementation not started → [News Flow Roadmap](./roadmaps/news-flow-roadmap.md)
 - Day classification — Phase 1 manual labels **Passing** (2026-07-22); Phase 2 cohort browse **Passing** (2026-07-22); Phase 3 rules assist partial → [Day Classification Roadmap](./roadmaps/day-classification-roadmap.md)
 - ~~Structural refactor~~ — Tiers A–E **Passing** → [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md)
+- Code organization — Phase 0 **Pending** (layering, god modules, UI tree, chart shims, harness) → [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md)
 
 ## Explicit Deferrals
 
@@ -330,4 +331,5 @@ These are intentionally not near-term roadmap items:
 - [Memory Efficiency Roadmap](./roadmaps/memory-efficiency-roadmap.md) - Phases 0–14 **Passing** (track complete; Redis shared cache optional behind `EDGE_MARKET_DATA_CACHE_BACKEND=redis`).
 - [Plan → Execute Token Efficiency Roadmap](./roadmaps/plan-execute-token-efficiency-roadmap.md) - Phase 0–6 **Passing** (track complete).
 - [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md) - sync/series consolidation and chart/app coordinator decomposition.
+- [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md) - follow-on structure: `lib`↛`app`, god-module budgets, components migration, chart shim sunset, harness hygiene.
 - [Chart Performance Baseline](./perf/chart-baseline-latest.json) - latest harness output from `npm run perf:chart`.
