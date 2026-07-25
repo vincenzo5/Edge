@@ -74,13 +74,8 @@ export class RedisDataCache implements DataCacheBackend {
         return { hit: false, value: null, stale: true, asOf: entry.asOf };
       }
 
-      entry.touchedAt = now;
-      const ttlMs = Math.max(entry.expiresAt - now, 1);
-      await this.redis
-        .multi()
-        .set(redisKey, JSON.stringify(entry), "PX", ttlMs)
-        .zadd(redisDataCacheLruKey(namespace), now, key)
-        .exec();
+      // LRU touch only — keep existing key TTL; avoid rewriting full JSON on hit.
+      await this.redis.zadd(redisDataCacheLruKey(namespace), now, key);
 
       return {
         hit: true,

@@ -21,7 +21,7 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 | Trading journal | Shipped foundation | IBKR fill sync + Flex CSV import → grouped round-trip trades; Postgres + localStorage fallback; dashboard KPIs, calendar P&L, equity curve, tag/setup and time reports, R-multiple, filters, chart deep links with execution markers, trade rating, compare reports, STK MFE/MFA. **Server-side broker ledger ingest** (fills + account/position snapshots while Next+sidecar up) in [Broker Ledger Roadmap](./roadmaps/broker-ledger-roadmap.md). Full tiers in [Journal Roadmap](./roadmaps/journal-roadmap.md). |
 | Trading execution | Phase 0–5 **Passing** | Paper + live via in-app mode; registry `ib-paper`/`ib-live`; Trade sidebar + confirm; AccountPanel cancel; journal orderRef; AI place_order; Postgres `order_intents` when `DATABASE_URL` set. Dual-connection **display preference ≠ order account** shipped (`edge:marketData:connectionId`); remaining Docker both-Gateway ops in [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md). Brackets/OCO/trail shipped (Phases 6–9). Backlog: options; post-fill manage → [Trade Management Playbook Roadmap](./roadmaps/trade-management-playbook-roadmap.md). [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md). |
 | Trade management | Phase 0–7 **Passing** | Post-fill **Manage** on broker **Protect**; Phase 8 **Pending** (rule editor). [Trade Management Playbook Roadmap](./roadmaps/trade-management-playbook-roadmap.md). |
-| Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Massive, TWS, and IBKR adapters; age-based display freshness and trust-event logging for transport recovery; ChartDataFeed/watchlist thread TWS `connectionId` display preference. Client TTL reuse / poll hygiene / serving-cost gaps closed in [Data Serving Efficiency Roadmap](./roadmaps/data-serving-efficiency-roadmap.md) (Phases 0–6 **Passing**; Phase 7 Redis **Skipped** — superseded for prod topology by [Shared Cache Topology](./roadmaps/shared-cache-topology-roadmap.md)). Resident-bar / clone / process-heap retention Phases 0–14 **Passing** in [Memory Efficiency Roadmap](./roadmaps/memory-efficiency-roadmap.md) (Phase 12 flagged Redis adapters). Prod Redis fail-loud / ops flip → [Shared Cache Topology Roadmap](./roadmaps/shared-cache-topology-roadmap.md). Settings Connections / provider prefs / product connect path → [Connections & Providers Roadmap](./roadmaps/connections-providers-roadmap.md). |
+| Market data foundation | Shipped foundation | Provider-neutral service exists in `src/lib/marketData/` with Yahoo, SEC, FRED, FMP, Massive, TWS, and IBKR adapters; age-based display freshness and trust-event logging for transport recovery; ChartDataFeed/watchlist thread TWS `connectionId` display preference. Client TTL reuse / poll hygiene / serving-cost gaps closed in [Data Serving Efficiency Roadmap](./roadmaps/data-serving-efficiency-roadmap.md) (Phases 0–6 **Passing**; Phase 7 Redis **Skipped** — superseded for prod topology by [Shared Cache Topology](./roadmaps/shared-cache-topology-roadmap.md)). Resident-bar / clone / process-heap retention Phases 0–14 **Passing** in [Memory Efficiency Roadmap](./roadmaps/memory-efficiency-roadmap.md) (Phase 12 flagged Redis adapters). Prod Redis fail-loud / ops flip → [Shared Cache Topology Roadmap](./roadmaps/shared-cache-topology-roadmap.md). Settings Connections / provider prefs / local Gateway connect → [Connections & Providers Roadmap](./roadmaps/connections-providers-roadmap.md); hosted IB OAuth → [IBKR Hosted OAuth Roadmap](./roadmaps/ibkr-hosted-oauth-roadmap.md). |
 | IBKR provider | Shipped in main routing | IBKR-first candles and quotes in `MarketDataService` with Yahoo fallback; probe routes remain for diagnostics. Requires daily Gateway login for live IBKR data. |
 | AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data and trading tools (`preview_order` / `place_order`) run server-side; stateful chart, watchlist, screener, risk, account, and options session tools require an app session. |
 | Semantic annotations | Phase A shipped | Drawings can carry thesis, invalidation, target, and note metadata; AI drawing tools can read/write/filter metadata. |
@@ -65,7 +65,7 @@ Stage 1 - Measurement and constraints:
 - Measure initial render time, pan/zoom FPS, crosshair latency, memory use, indicator recompute cost, and multi-pane redraw cost.
 - Use the results to decide whether the first bottleneck is renderer fill rate, data structures, indicator math, React state churn, hit-testing, or API/data loading.
 - **Initial baseline (2026-06-24):** 100k + six indicators mount ~1.8s; pan/zoom sample p95 ~894ms with 80% dropped frames; indicator cache-key fingerprint on 100k candles ~243ms (similar to cold compute), pointing to cache-key/compute and interaction repaint as first optimization targets.
-- **Interaction optimization track:** [Runtime Interaction Performance Roadmap](./roadmaps/runtime-performance-roadmap.md) — Phases 0–8 **Pending** (metric contract → false invalidation → React fan-out → revision/tip compute → drawings → pan/zoom → list virtualization → layout fan-out → CI budgets).
+- **Interaction optimization track:** [Runtime Interaction Performance Roadmap](./roadmaps/runtime-performance-roadmap.md) — Phases 0–8 **Passing** (2026-07-25); track complete — metric contract through CI budgets.
 
 Stage 2 - Declarative indicator platform:
 
@@ -267,7 +267,8 @@ Living feature tracks (phase detail in each file):
 - [Trading execution](./roadmaps/trading-execution-roadmap.md) — Phases 0–5 + **6–9 Passing**; options backlog
 - [Trade management playbook](./roadmaps/trade-management-playbook-roadmap.md) — Phase 0–7 **Passing**; Phase 8 **Pending** (rule editor)
 - [Dual connection](./roadmaps/dual-connection-roadmap.md) — Phases A–D product complete; ops proof on Wave 1 Phase 1
-- [Connections & providers](./roadmaps/connections-providers-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (hosted IB OAuth); Settings/prefs walks closed on Wave 2 Phase 3
+- [Connections & providers](./roadmaps/connections-providers-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (local Gateway polish); Settings/prefs walks closed on Wave 2 Phase 3
+- [IBKR hosted OAuth](./roadmaps/ibkr-hosted-oauth-roadmap.md) — Phase 0 **Pending** (feasibility + IB vendor/first-party onboarding); browser Connect IB — separate from Connections
 - [Stock screener](./roadmaps/screener-roadmap.md) — Phases 1–5 shipped; product deferrals remain
 - [Trading journal](./roadmaps/journal-roadmap.md) — Tier 3 **Passing** (rating, compare, MFE/MFA); import chrome closed on Wave 2 Phase 4
 - [Alerts](./roadmaps/alerts-roadmap.md) — Phases 0–4 **Passing**; external delivery / semantic AI deferred; MCP tools closed on Wave 2 Phase 4
@@ -280,7 +281,7 @@ Living feature tracks (phase detail in each file):
 - ~~[Data serving & caching efficiency](./roadmaps/data-serving-efficiency-roadmap.md)~~ — **Complete** (Phases 0–6 **Passing**; Phase 7 Redis **Skipped** — prod topology → [shared-cache-topology-roadmap.md](./roadmaps/shared-cache-topology-roadmap.md))
 - ~~[Memory efficiency](./roadmaps/memory-efficiency-roadmap.md)~~ — Phases 0–14 **Passing** (track complete; Phase 12 adapters)
 - [Comprehensive memory metrics](./roadmaps/memory-metrics-roadmap.md) — Phase 0–6 **Passing** (2026-07-25); track complete (soak dual-delta gate; measurement only)
-- [Runtime interaction performance](./roadmaps/runtime-performance-roadmap.md) — Phase 0–8 **Pending** (frame time, crosshair cost, tip tick, React wakeups; CI budgets in Phase 8)
+- [Runtime interaction performance](./roadmaps/runtime-performance-roadmap.md) — Phase 0–8 **Passing** (2026-07-25); track complete
 - [Shared cache topology](./roadmaps/shared-cache-topology-roadmap.md) — Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance coordination)
 - ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete
 - [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (free alerts; no paid SaaS)
@@ -292,7 +293,7 @@ Broader product backlog (not feature-track owned):
 - Advanced market-context overlays — earnings, dividends, filings, news, options expirations, semantic AI annotations
 - TrendSpider competitive review — inventory started; prioritize Adopt/Adapt/Defer/Skip → [TrendSpider Competitive Roadmap](./roadmaps/trendspider-competitive-roadmap.md)
 - News flow — research captured; implementation not started → [News Flow Roadmap](./roadmaps/news-flow-roadmap.md)
-- ~~Day classification~~ — Phases 1–3 **Passing** (2026-07-23) → [Day Classification Roadmap](./roadmaps/day-classification-roadmap.md)
+- Day classification — Phases 1–3 **Passing** (2026-07-23); Phase 4 in-app review UI **Pending** → [Day Classification Roadmap](./roadmaps/day-classification-roadmap.md)
 - ~~Structural refactor~~ — Tiers A–E **Passing** → [Structural Refactor Roadmap](./refactor-roadmap.md)
 - Code organization — Phase 0–2 **Passing** (2026-07-24); Phase 3 **Pending** (components tree, god modules, chart shims) → [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md)
 
@@ -325,7 +326,8 @@ These are intentionally not near-term roadmap items:
 - [Trading Execution Roadmap](./roadmaps/trading-execution-roadmap.md) - IB order place/manage phases, domain model, verification gates.
 - [Trade Management Playbook Roadmap](./roadmaps/trade-management-playbook-roadmap.md) - post-fill Manage rules (BE, scale, trail) on broker Protect; Plan/Protect/Manage separation.
 - [Dual Connection Roadmap](./roadmaps/dual-connection-roadmap.md) - paper+live Gateways and market-data vs order-account split.
-- [Connections & Providers Roadmap](./roadmaps/connections-providers-roadmap.md) - Settings Connections, provider prefs, ConfigSource, product broker connect.
+- [Connections & Providers Roadmap](./roadmaps/connections-providers-roadmap.md) - Settings Connections, provider prefs, ConfigSource, local Gateway polish.
+- [IBKR Hosted OAuth Roadmap](./roadmaps/ibkr-hosted-oauth-roadmap.md) - Browser Connect IB / Web API OAuth (vendor or first-party); separate from Connections.
 - [Alerts Roadmap](./roadmaps/alerts-roadmap.md) - industry patterns, best practices, and phased alert platform.
 - [AI Agent Roadmap](./roadmaps/ai-agent-roadmap.md) - in-app copilot, OpenRouter model gateway, session bridge, chart↔chat linkage.
 - [Research UX Roadmap](./roadmaps/research-ux-roadmap.md) - Talk / Board / Desk densities; Research Session + Board; tiled Desk kept forever.

@@ -24,7 +24,8 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Trading execution | [trading-execution-roadmap.md](./trading-execution-roadmap.md) | Phases 0–5 + **6–9 Passing** (2026-07-22); options backlog; ops walks → Wave 1 Phase 1 + 4 |
 | Trade management playbook | [trade-management-playbook-roadmap.md](./trade-management-playbook-roadmap.md) | Phase 0–8 **Passing** (2026-07-24); track complete |
 | Dual connection | [dual-connection-roadmap.md](./dual-connection-roadmap.md) | Phases A–D **product complete**; both-Gateway ops proof → Wave 1 Phase 1 |
-| Connections & providers | [connections-providers-roadmap.md](./connections-providers-roadmap.md) | Phase 0–4 **Passing**; Phase 5 **Pending** (hosted IB OAuth); Settings/prefs walks → Wave 2 Phase 3 |
+| Connections & providers | [connections-providers-roadmap.md](./connections-providers-roadmap.md) | Phase 0–4 **Passing**; Phase 5 **Pending** (local Gateway polish); Settings/prefs walks → Wave 2 Phase 3 |
+| IBKR hosted OAuth | [ibkr-hosted-oauth-roadmap.md](./ibkr-hosted-oauth-roadmap.md) | Phase 0 **Pending** (feasibility + IB onboarding); extracted from Connections Path A |
 | Broker ledger + sync | [broker-ledger-roadmap.md](./broker-ledger-roadmap.md) · [functional test plan](./broker-ledger-functional-test-plan.md) | Phases 0–4 **Passing**; Flex/live residual → Wave 1 Phase 1 |
 | Alerts | [alerts-roadmap.md](./alerts-roadmap.md) | Phases 0–4 **Passing** (product complete for v1); external delivery deferred; walks → Wave 1 Phase 2; MCP tools → Wave 2 Phase 4 |
 | AI agent / in-app copilot | [ai-agent-roadmap.md](./ai-agent-roadmap.md) | Phases 0–8 **Passing** — functional agent complete; deferred walks → Wave 2 Phase 1 |
@@ -36,12 +37,12 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | TrendSpider competitive | [trendspider-competitive-roadmap.md](./trendspider-competitive-roadmap.md) | Research inventory started; prioritize Adopt/Adapt/Defer/Skip before implementation |
 | App UX polish | [app-ux-polish-roadmap.md](./app-ux-polish-roadmap.md) | Phases 0–5 **Passing** — track complete; residual chrome walks → Wave 1 Phase 6 |
 | Component standardization | [component-standardization-roadmap.md](./component-standardization-roadmap.md) | Phases 0–6 **Passing** — track complete |
-| Day classification | [day-classification-roadmap.md](./day-classification-roadmap.md) | Phases 1–3 **Passing** (2026-07-23) — manual labels, cohort browse, rules assist |
+| Day classification | [day-classification-roadmap.md](./day-classification-roadmap.md) | Phases 1–3 **Passing** (2026-07-23); Phase 4 review UI **Pending** |
 | Data inventory and state hardening | [data-state-hardening-roadmap.md](./data-state-hardening-roadmap.md) | Phases 0–8 **Passing**; telemetry/SLOs future; live-fault walks → Wave 1 Phase 7 |
 | Data serving & caching efficiency | [data-serving-efficiency-roadmap.md](./data-serving-efficiency-roadmap.md) | Phases 0–6 **Passing**; Phase 7 **Skipped** — track complete; walks → Wave 1 Phase 7 |
 | Memory efficiency | [memory-efficiency-roadmap.md](./memory-efficiency-roadmap.md) | Phases 0–14 **Passing** (2026-07-24) — track complete; Redis adapters in Phase 12; prod topology → [shared-cache-topology-roadmap.md](./shared-cache-topology-roadmap.md) |
 | Comprehensive memory metrics | [memory-metrics-roadmap.md](./memory-metrics-roadmap.md) | Phase 0–6 **Passing** (2026-07-25); track complete — layered scorecard (heap, tab/process, GPU surfaces, desk composite, report + soft budgets, soak); measurement only |
-| Runtime interaction performance | [runtime-performance-roadmap.md](./runtime-performance-roadmap.md) | Phase 0–4 **Passing** (2026-07-25); Phases 5–8 **Pending** — frame time / crosshair / tip tick / React wakeups |
+| Runtime interaction performance | [runtime-performance-roadmap.md](./runtime-performance-roadmap.md) | Phase 0–8 **Passing** (2026-07-25); track complete — frame time / crosshair / tip tick / React wakeups / CI budgets |
 | Shared cache topology | [shared-cache-topology-roadmap.md](./shared-cache-topology-roadmap.md) | Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance); manual redis health flip → Wave 2 Phase 4 |
 | Workspace state persistence | [workspace-state-persistence-roadmap.md](./workspace-state-persistence-roadmap.md) | Phases 0–5 **Passing** — track complete; residual chrome → Wave 1 Phase 6 |
 | Structural refactor | [refactor-roadmap.md](./refactor-roadmap.md) | Tiers A–E **Passing** — track complete |

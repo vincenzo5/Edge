@@ -11,10 +11,6 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/copilot",
 }));
 
-vi.mock("../AiSessionBridge", () => ({
-  default: () => null,
-}));
-
 import CopilotModuleShell from "./CopilotModuleShell";
 import * as copilotThreadsClient from "@/lib/persistence/client/copilotThreadsClient";
 

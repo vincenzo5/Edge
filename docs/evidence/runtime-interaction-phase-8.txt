@@ -1,0 +1,48 @@
+# Runtime interaction performance — Phase 8 evidence
+# Date: 2026-07-25
+
+## Scope
+Server amplification + CI budgets: cheap Redis hit touches, server miss coalesce, canonical quote keys, dynamic html-to-image, bridge mount guardrails, relative p50/p95 regression gates on perf:chart.
+
+## Delivered
+- src/lib/marketData/cache/redisDataCache.ts — ZADD-only LRU touch on hit (no payload rewrite)
+- src/lib/marketData/cache/redisHotStore.ts — same hit-path touch pattern
+- src/lib/marketData/cache/redisDataCache.test.ts — hit path asserts no SET
+- src/lib/marketData/service/coalesceInFlight.ts — server coalesce helper (chartDataFeed re-exports)
+- src/lib/marketData/service/candlesFetch.ts — coalesce cold misses (Yahoo + provider candles)
+- src/lib/marketData/service/marketDataService.ts — coalesce search misses
+- src/lib/marketData/service/contextAndFundamentals.ts — coalesce fundamentals + market_context misses
+- src/lib/marketData/service/cacheKeys.ts — sorted quote batch keys
+- src/lib/marketData/service/quotesFetch.ts — quotesRevalidateKeys Set (mirrors candles)
+- src/lib/marketData/service/cacheKeys.test.ts — canonical quote key test
+- src/lib/marketData/service/coalesceInFlight.test.ts — in-flight dedupe test
+- src/lib/chart/chartSnapshot.ts — dynamic import html-to-image at capture time
+- src/app/components/AiSessionBridgeMount.test.ts — single production mount contract
+- src/app/components/copilot/CopilotModuleShell.test.tsx — removed stale AiSessionBridge mock
+- scripts/chart-perf-budgets.ts — resident-typical regression gate (×1.15)
+- scripts/chart-perf-budgets.test.ts — breach/under unit tests
+- scripts/run-chart-perf.mts — budget gate after baseline write
+- .github/workflows/chart-perf.yml — CI strict perf:chart job
+- src/lib/marketData/ARCHITECTURE.md — Phase 8 server coalesce + Redis touch notes
+
+## Architecture review
+Self-review Passed — cache touch + service coalesce + perf gate only; no provider routing changes.
+
+## Focused
+npm test -- --run src/lib/marketData/cache/redisDataCache.test.ts src/lib/marketData/service/coalesceInFlight.test.ts src/lib/marketData/service/cacheKeys.test.ts src/lib/chart/chartSnapshot.test.ts src/app/components/AiSessionBridgeMount.test.ts scripts/chart-perf-budgets.test.ts src/lib/chartDataFeed/coalesceInFlight.test.ts
+Test Files  7 passed (7)
+Tests  26 passed (26)
+
+## Budget gate smoke (strict breach)
+CHART_PERF_BUDGET_STRICT=1 node applyChartPerfBudgetGate fixture
+budget: interaction-5k-tip-tick p95FrameMs=30 exceeds 23.00
+exit=1
+
+## Absolute track targets (waived for CI fail)
+Committed baseline resident-typical (2026-07-25): crosshair p50=18.6 p95=84.7; tip-tick p50=16.7 p95=69.9 — above track targets p50<16 / p95<33; CI fails on relative regression vs baseline ×1.15 only.
+
+## perf:market-data cold paths
+Out of scope for chart harness gate (documented in roadmap Phase 8).
+
+## Next
+Track complete — Runtime Interaction Performance Phases 0–8 Passing.

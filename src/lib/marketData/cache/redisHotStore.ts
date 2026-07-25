@@ -66,12 +66,8 @@ export class RedisHotStore implements HotStoreBackend {
         return { hit: false, data: null, fresh: false, servable: false };
       }
 
-      entry.touchedAt = now;
-      await this.redis
-        .multi()
-        .set(redisKey, JSON.stringify(entry), "PXAT", entry.staleUntil)
-        .zadd(redisHotLruKey(), now, key)
-        .exec();
+      // LRU touch only — keep existing key TTL; avoid rewriting full JSON on hit.
+      await this.redis.zadd(redisHotLruKey(), now, key);
 
       const fresh = now < entry.freshUntil;
       return {

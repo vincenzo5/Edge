@@ -22,7 +22,8 @@ export function candlesCacheKey(
 
 
 export function quotesCacheKey(provider: string, symbols: string[], connectionId?: string): string {
-  return buildCacheKey(["quotes", provider, connectionId ?? "", symbols.join(",")]);
+  const canonical = [...symbols].sort().join(",");
+  return buildCacheKey(["quotes", provider, connectionId ?? "", canonical]);
 }
 
 

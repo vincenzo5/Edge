@@ -246,9 +246,10 @@ export function scheduleQuotesRevalidate(svc: MarketDataServiceHost,
   options: Pick<MarketDataReadOptions, "twsConnectionId" | "providerPreference" | "respectProviderPreference" | "trustUsage"> = {},
 ): void {
   if (symbols.length === 0) return;
-  const key = `${options.twsConnectionId ?? ""}|${symbols.join(",")}|${JSON.stringify(options.providerPreference ?? null)}`;
-  if (svc.quotesRevalidateKey === key) return;
-  svc.quotesRevalidateKey = key;
+  const sorted = [...symbols].map((s) => s.trim().toUpperCase()).filter(Boolean).sort();
+  const key = `${options.twsConnectionId ?? ""}|${sorted.join(",")}|${JSON.stringify(options.providerPreference ?? null)}`;
+  if (svc.quotesRevalidateKeys.has(key)) return;
+  svc.quotesRevalidateKeys.add(key);
   void fetchQuotesFresh(svc, symbols, Date.now(), null, options)
     .then((result) => {
       for (const quote of result.data) {
@@ -272,9 +273,7 @@ export function scheduleQuotesRevalidate(svc: MarketDataServiceHost,
       );
     })
     .finally(() => {
-      if (svc.quotesRevalidateKey === key) {
-        svc.quotesRevalidateKey = null;
-      }
+      svc.quotesRevalidateKeys.delete(key);
     });
 }
 

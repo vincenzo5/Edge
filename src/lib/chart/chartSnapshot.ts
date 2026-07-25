@@ -1,4 +1,3 @@
-import { toBlob } from 'html-to-image';
 
 export type SnapshotError =
   | 'no_element'
@@ -184,6 +183,7 @@ export async function captureChartElement(
     assertCaptureSize(root);
     await waitFrames(2);
 
+    const { toBlob } = await import('html-to-image');
     const blob = await toBlob(root, {
       pixelRatio: resolvePixelRatio(opts?.pixelRatio),
       cacheBust: true,

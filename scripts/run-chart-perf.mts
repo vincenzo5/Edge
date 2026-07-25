@@ -1,10 +1,15 @@
 import { execSync, spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { runMicrobenchmarks } from "../examples/chart-perf-harness/src/microbench.ts";
 import type { PerfBaseline, ScenarioResult } from "../examples/chart-perf-harness/src/types.ts";
+import {
+  applyChartPerfBudgetGate,
+  readChartPerfBudgetConfig,
+  type ChartPerfBaseline,
+} from "./chart-perf-budgets.ts";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const exampleDir = path.join(repoRoot, "examples/chart-perf-harness");
@@ -145,8 +150,23 @@ function writeBaseline(baseName: string, baseline: PerfBaseline): { latest: stri
   return { latest: latestPath, stamped: stampedPath };
 }
 
+function loadReferenceBaseline(): ChartPerfBaseline | null {
+  const referencePath =
+    process.env.CHART_PERF_BUDGET_REFERENCE?.trim() ||
+    path.join(perfDir, "runtime-interaction-baseline-latest.json");
+  if (!existsSync(referencePath)) return null;
+  try {
+    return JSON.parse(readFileSync(referencePath, "utf8")) as ChartPerfBaseline;
+  } catch {
+    return null;
+  }
+}
+
 async function main(): Promise<void> {
   console.log("Edge chart performance baseline\n");
+
+  const referenceBaseline = loadReferenceBaseline();
+  const budgetConfig = readChartPerfBudgetConfig();
 
   const microResults = runMicrobenchmarks();
   console.log(`Micro scenarios complete: ${microResults.length}`);
@@ -188,6 +208,24 @@ async function main(): Promise<void> {
   console.log(
     `\nSaved baselines:\n- ${chartPaths.latest}\n- ${chartPaths.stamped}\n- ${interactionPaths.latest}\n- ${interactionPaths.stamped}`,
   );
+
+  if (referenceBaseline) {
+    const { breaches, exitCode } = applyChartPerfBudgetGate(
+      referenceBaseline,
+      interactionBaseline,
+      budgetConfig,
+    );
+    if (breaches.length === 0) {
+      console.log("\nChart perf budgets: pass (resident-typical within regression factor)");
+    } else if (!budgetConfig.strict) {
+      console.log(`\nChart perf budgets: ${breaches.length} warning(s) (non-strict)`);
+    } else {
+      console.error(`\nChart perf budgets: ${breaches.length} breach(es)`);
+      process.exit(exitCode);
+    }
+  } else {
+    console.log("\nChart perf budgets: skipped (no reference baseline on disk)");
+  }
 }
 
 main().catch((error) => {

@@ -20,6 +20,7 @@ import {
 } from "../cache/serverCacheBackends";
 import { clearHotStoreForTests } from "../hotStore";
 import { createYahooProvider, type YahooFinanceClient } from "../providers/yahoo/adapter";
+import { coalesceInFlight } from "./coalesceInFlight";
 import { createSecProvider } from "../providers/sec/adapter";
 import { createFredProvider } from "../providers/fred/adapter";
 import { createFmpProvider } from "../providers/fmp/adapter";
@@ -114,7 +115,7 @@ export class MarketDataService implements MarketDataServiceHost {
   ibkr;
   tws;
   candlesRevalidateKeys = new Set<string>();
-  quotesRevalidateKey: string | null = null;
+  quotesRevalidateKeys = new Set<string>();
   optionExpRevalidateKeys = new Set<string>();
   optionsChainRevalidateKeys = new Set<string>();
   twsGatewayProbeAt = 0;
@@ -153,9 +154,22 @@ export class MarketDataService implements MarketDataServiceHost {
         warnings: [],
       });
     }
-    const data = await this.yahoo.searchInstruments(trimmed, limit);
-    await Promise.resolve(globalDataCache.write("search", cacheKey, data, cacheTtlMs("search"), Date.now()));
-    return createDataResult(data, "yahoo", { requestedAt });
+    return coalesceInFlight(`search:${cacheKey}`, async () => {
+      const cachedAgain = await Promise.resolve(
+        globalDataCache.read<InstrumentSearchResult[]>("search", cacheKey),
+      );
+      if (cachedAgain.hit && cachedAgain.value) {
+        return createDataResult(cachedAgain.value, "yahoo", {
+          requestedAt,
+          stale: false,
+          asOf: cachedAgain.asOf,
+          warnings: [],
+        });
+      }
+      const data = await this.yahoo.searchInstruments(trimmed, limit);
+      await Promise.resolve(globalDataCache.write("search", cacheKey, data, cacheTtlMs("search"), Date.now()));
+      return createDataResult(data, "yahoo", { requestedAt });
+    });
   }
 
   getCandles(request: CandleRequest, options: MarketDataReadOptions = {}) {

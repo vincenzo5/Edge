@@ -204,6 +204,7 @@ Cache keys are namespaced per provider (`massive`, `ibkr`, `tws`, `yahoo`) so a 
 | Chart candles (initial) | yes | `chartClientCache` | shipped |
 | Chart `loadMore` | yes | `chartClientCache` | **Phase 3 wired** — same-key prepend merge + refresh-preserving merge |
 | Search / fundamentals / overlays / context | yes on miss | `ClientTtlCache` | **Phase 1 wired** — `searchClient`, `fundamentalsClient`, `marketContextClient`, overlay loaders in `apiChartDataFeed` |
+| Server candles / search / fundamentals / market_context | yes on cold miss | `globalDataCache` / HotStore | **Runtime interaction Phase 8** — `coalesceInFlight` in `marketData/service/` wraps provider fetch on cache miss |
 | AI fetch port (in-app) | yes on miss | `ClientTtlCache` | **Phase 5 wired** — `createFetchMarketDataPort` search/quotes/ai_candles |
 | Quote streams | n/a | never | `MarketDataProvider` Map — chart cells + tab title read `quotesBySymbol` via `resolveChartLiveQuotePrice`; layout cell symbols stream-first (cap 32) |
 
@@ -233,6 +234,7 @@ Cache keys are namespaced per provider (`massive`, `ibkr`, `tws`, `yahoo`) so a 
 | Auth / TLS | Staging/prod `REDIS_URL` with password when required; `rediss://` when deploy mandates TLS — `ioredis` reads URL credentials |
 | Local dev | Passwordless `redis://localhost:6379` via `npm run redis:up` |
 | Parity verification | Manual: `REDIS_URL=… EDGE_TEST_REDIS=1 npm test -- --run src/lib/marketData/cache/cacheParity.test.ts` — no CI workflow |
+| Hit touch (Phase 8) | `RedisDataCache` / `RedisHotStore` | On cache hit, **ZADD LRU only** — no `SET`/`JSON.stringify` payload rewrite; key TTL unchanged |
 | Operator flip (staging → prod) | Set `EDGE_MARKET_DATA_CACHE_BACKEND=redis` + `REDIS_URL` + require-on; confirm `/api/market-data/health` `cache.kind: redis` and no degraded storms for one release cycle on staging before prod |
 
 **Memory efficiency track (Phase 0 contract — 2026-07-23; Phases 1–9 shipped; Phases 10–14 pending):** Baselines in [docs/perf/memory-baseline-latest.json](../../../docs/perf/memory-baseline-latest.json); full phasing in [Memory Efficiency Roadmap](../../../docs/roadmaps/memory-efficiency-roadmap.md). Data-serving reuse stays; this track bounds **retention, clone pressure, and live subscription multiplication**.

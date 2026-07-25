@@ -26,6 +26,7 @@ import {
 } from "./providerRouting";
 import { getQuotes } from "./quotesFetch";
 import type { MarketDataServiceHost } from "./marketDataServiceHost";
+import { coalesceInFlight } from "./coalesceInFlight";
 
 export async function getFundamentals(svc: MarketDataServiceHost, symbol: string): Promise<DataResult<FundamentalsSnapshot>> {
   const requestedAt = Date.now();
@@ -39,13 +40,29 @@ export async function getFundamentals(svc: MarketDataServiceHost, symbol: string
       { transport: "cache" },
     );
   }
-  const data = await svc.yahoo.getFundamentals(sym);
-  await Promise.resolve(globalDataCache.write("fundamentals", cacheKey, data, cacheTtlMs("fundamentals"), Date.now()));
-  return recordServiceDelivery(
-    createDataResult(data, "yahoo", { requestedAt }),
-    "fundamentals_display",
-    { transport: "request" },
-  );
+  return coalesceInFlight(`fundamentals:${cacheKey}`, async () => {
+    const cachedAgain = await Promise.resolve(
+      globalDataCache.read<FundamentalsSnapshot>("fundamentals", cacheKey),
+    );
+    if (cachedAgain.hit && cachedAgain.value) {
+      return recordServiceDelivery(
+        createDataResult(cachedAgain.value, "yahoo", {
+          requestedAt,
+          asOf: cachedAgain.asOf,
+          cacheTier: "cold",
+        }),
+        "fundamentals_display",
+        { transport: "cache" },
+      );
+    }
+    const data = await svc.yahoo.getFundamentals(sym);
+    await Promise.resolve(globalDataCache.write("fundamentals", cacheKey, data, cacheTtlMs("fundamentals"), Date.now()));
+    return recordServiceDelivery(
+      createDataResult(data, "yahoo", { requestedAt }),
+      "fundamentals_display",
+      { transport: "request" },
+    );
+  });
 }
 
 
@@ -109,6 +126,15 @@ export async function getMarketContext(svc: MarketDataServiceHost, symbol: strin
       asOf: cached.asOf,
     });
   }
+
+  return coalesceInFlight(`market_context:${cacheKey}`, async () => {
+    const cachedAgain = await Promise.resolve(globalDataCache.read<MarketContext>("market_context", cacheKey));
+    if (cachedAgain.hit && cachedAgain.value) {
+      return createDataResult(cachedAgain.value, "mixed", {
+        requestedAt,
+        asOf: cachedAgain.asOf,
+      });
+    }
 
   const warnings: string[] = [];
   let source: DataResult<MarketContext>["source"] = "mixed";
@@ -208,6 +234,7 @@ export async function getMarketContext(svc: MarketDataServiceHost, symbol: strin
     "market_context",
     { transport: "request" },
   );
+  });
 }
 
 

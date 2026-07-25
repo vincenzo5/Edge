@@ -38,6 +38,7 @@ import {
   type MarketDataReadOptions,
 } from "./marketDataServiceShared";
 import type { MarketDataServiceHost } from "./marketDataServiceHost";
+import { coalesceInFlight } from "./coalesceInFlight";
 
 export async function fetchYahooCandles(
   svc: MarketDataServiceHost,
@@ -45,22 +46,24 @@ export async function fetchYahooCandles(
   requestedAt: number,
 ): Promise<DataResult<CandleResponse>> {
   const cacheKey = candlesCacheKey("yahoo", request);
-  const cached = await Promise.resolve(globalDataCache.read<CandleResponse>("candles", cacheKey));
-  if (cached.hit && cached.value) {
-    return createDataResult(cached.value, "yahoo", {
-      requestedAt,
-      asOf: cached.asOf,
-    });
-  }
-  const data = await svc.yahoo.getCandles(request);
-  await Promise.resolve(globalDataCache.write(
-    "candles",
-    cacheKey,
-    data,
-    cacheTtlMs("candles", request.interval),
-    Date.now(),
-  ));
-  return createDataResult(data, "yahoo", { requestedAt });
+  return coalesceInFlight(`candles:yahoo:${cacheKey}`, async () => {
+    const cached = await Promise.resolve(globalDataCache.read<CandleResponse>("candles", cacheKey));
+    if (cached.hit && cached.value) {
+      return createDataResult(cached.value, "yahoo", {
+        requestedAt,
+        asOf: cached.asOf,
+      });
+    }
+    const data = await svc.yahoo.getCandles(request);
+    await Promise.resolve(globalDataCache.write(
+      "candles",
+      cacheKey,
+      data,
+      cacheTtlMs("candles", request.interval),
+      Date.now(),
+    ));
+    return createDataResult(data, "yahoo", { requestedAt });
+  });
 }
 
 
@@ -77,32 +80,34 @@ export async function fetchProviderCandles(svc: MarketDataServiceHost,
     request,
     providerName === "tws" ? twsConnectionId : undefined,
   );
-  if (!bypassLegacyCache) {
-    const cached = await Promise.resolve(globalDataCache.read<CandleResponse>("candles", cacheKey));
-    if (cached.hit && cached.value) {
-      return createDataResult(cached.value, providerName, {
-        requestedAt,
-        asOf: cached.asOf,
-      });
+  return coalesceInFlight(`candles:${providerName}:${cacheKey}`, async () => {
+    if (!bypassLegacyCache) {
+      const cached = await Promise.resolve(globalDataCache.read<CandleResponse>("candles", cacheKey));
+      if (cached.hit && cached.value) {
+        return createDataResult(cached.value, providerName, {
+          requestedAt,
+          asOf: cached.asOf,
+        });
+      }
     }
-  }
-  const twsOptions =
-    providerName === "tws" && twsConnectionId ? { connectionId: twsConnectionId } : undefined;
-  const data =
-    providerName === "tws"
-      ? await (provider as TwsProvider).getCandles(request, twsOptions)
-      : await provider.getCandles(request);
-  if (data && data.candles.length > 0) {
-    await Promise.resolve(globalDataCache.write(
-      "candles",
-      cacheKey,
-      data,
-      cacheTtlMs("candles", request.interval),
-      Date.now(),
-    ));
-    return createDataResult(data, providerName, { requestedAt });
-  }
-  return null;
+    const twsOptions =
+      providerName === "tws" && twsConnectionId ? { connectionId: twsConnectionId } : undefined;
+    const data =
+      providerName === "tws"
+        ? await (provider as TwsProvider).getCandles(request, twsOptions)
+        : await provider.getCandles(request);
+    if (data && data.candles.length > 0) {
+      await Promise.resolve(globalDataCache.write(
+        "candles",
+        cacheKey,
+        data,
+        cacheTtlMs("candles", request.interval),
+        Date.now(),
+      ));
+      return createDataResult(data, providerName, { requestedAt });
+    }
+    return null;
+  });
 }
 
 

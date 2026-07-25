@@ -255,7 +255,7 @@ export function resetTwsRecoveryState(svc: MarketDataServiceHost, args: {
   svc.lastTwsStatusProbe = null;
   svc.lastTwsStatusObservedAt = 0;
   svc.candlesRevalidateKeys.clear();
-  svc.quotesRevalidateKey = null;
+  svc.quotesRevalidateKeys.clear();
   svc.optionExpRevalidateKeys.clear();
   svc.optionsChainRevalidateKeys.clear();
 

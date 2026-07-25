@@ -17,7 +17,7 @@ export type MarketDataServiceHost = {
   ibkr: IbkrProvider;
   tws: TwsProvider;
   candlesRevalidateKeys: Set<string>;
-  quotesRevalidateKey: string | null;
+  quotesRevalidateKeys: Set<string>;
   optionExpRevalidateKeys: Set<string>;
   optionsChainRevalidateKeys: Set<string>;
   twsGatewayProbeAt: number;

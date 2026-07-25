@@ -14,13 +14,11 @@ import {
   validateSnapshotReady,
 } from './chartSnapshot';
 
+const mockedToBlob = vi.fn();
+
 vi.mock('html-to-image', () => ({
-  toBlob: vi.fn(),
+  toBlob: (...args: unknown[]) => mockedToBlob(...args),
 }));
-
-import { toBlob } from 'html-to-image';
-
-const mockedToBlob = vi.mocked(toBlob);
 
 function makePngBlob(size = 32): Blob {
   return new Blob([new Uint8Array(size)], { type: 'image/png' });
@@ -199,7 +197,6 @@ describe('prepareChartElementForCapture', () => {
   });
 
 });
-
 describe('captureChartElement', () => {
   beforeEach(() => {
     mockedToBlob.mockReset();
