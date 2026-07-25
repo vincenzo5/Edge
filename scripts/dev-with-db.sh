@@ -77,8 +77,11 @@ clear_dev_port() {
 
 trap cleanup EXIT INT TERM
 
-log "Starting Postgres (docker compose)..."
-docker compose up -d postgres
+log "Starting shared Postgres + Redis (docker compose)..."
+docker compose up -d --wait postgres redis
+
+log "Provisioning local databases (edge_dev, edge_prod)..."
+npm run local:infra:provision
 
 log "Waiting for Postgres to accept connections..."
 npx tsx scripts/wait-for-postgres.mts

@@ -105,25 +105,27 @@ Drizzle ORM + Postgres
 ## Setup
 
 ```bash
-cp .env.example .env.local   # set DATABASE_URL, EDGE_AUTH_SECRET
-npm run dev                  # start Postgres, migrate, then dev server
+cp .env.example .env.local   # set DATABASE_URL (edge_dev), EDGE_AUTH_SECRET
+npm run dev                  # start shared Postgres + Redis, provision databases, migrate, dev server
 ```
 
 Manual steps (equivalent):
 
 ```bash
-npm run db:up
+npm run local:infra:up
+npm run local:infra:provision
 npm run db:wait
 npm run db:migrate   # applies only pending migrations (tracked in edge_schema_migrations)
-npm run dev
+npm run dev:lite
 ```
 
 ## Dev startup
 
-- **`npm run dev`** — starts the Docker Postgres container, waits until `DATABASE_URL` accepts connections, applies SQL migrations, then runs the Next.js dev server. Use this when cloud sync (workspaces, journal, libraries) should work on first load.
-- **`npm run dev:lite`** — app only, no Postgres bootstrap. Persistence sync hooks still run when `DATABASE_URL` is set, but without Postgres you get `401` on `/api/me/*` and localStorage remains the effective store (including `edge.journal.v1` for the trading journal).
-- **Shutdown** — Ctrl+C stops only the Next.js dev server. Postgres keeps running (`restart: unless-stopped`). Stop the container with `npm run db:down`.
-- **Requirements** — `DATABASE_URL`, `EDGE_AUTH_SECRET` (non-placeholder), and Docker. Optional `EDGE_DEV_PASSPHRASE` requires the login banner before sync works. Local dev may set `EDGE_ALLOW_OPEN_DEV_SESSION=1` for silent bootstrap (non-production only).
+- **`npm run dev`** — starts shared Docker Postgres and Redis (`local:infra:up`), provisions `edge_dev` and `edge_prod`, waits until `DATABASE_URL` accepts connections, applies SQL migrations, then runs the Next.js dev server. Use this when cloud sync (workspaces, journal, libraries) should work on first load.
+- **`npm run dev:lite`** — app only, no infrastructure bootstrap. Persistence sync hooks still run when `DATABASE_URL` is set, but without Postgres you get `401` on `/api/me/*` and localStorage remains the effective store (including `edge.journal.v1` for the trading journal).
+- **Shutdown** — Ctrl+C stops only the Next.js dev server. Postgres and Redis keep running (`restart: unless-stopped`). Stop containers with `npm run db:down`.
+- **Requirements** — `DATABASE_URL` targeting `edge_dev`, `EDGE_AUTH_SECRET` (non-placeholder), and Docker. Optional `EDGE_DEV_PASSPHRASE` requires the login banner before sync works. Local dev may set `EDGE_ALLOW_OPEN_DEV_SESSION=1` for silent bootstrap (non-production only).
+- **Isolation proof** — `npm run local:infra:verify` checks Postgres and Redis separation for concurrent dev/prod profiles.
 
 ## Verification
 

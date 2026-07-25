@@ -224,13 +224,16 @@ Cache keys are namespaced per provider (`massive`, `ibkr`, `tws`, `yahoo`) so a 
 | Schema bump | increment `REDIS_MD_SCHEMA_VERSION` in `redisKeys.ts` | No dual-read — old keys orphan until TTL/eviction; deploy staging first, then prod |
 | Boot init | `instrumentation.ts` | `ensureServerCacheBackendsInitialized()` when Node runtime starts |
 
-**Concurrent local development + production (Phase 0 contract):** both host-native
+**Concurrent local development + production (Phase 0 contract; Phase 1 infrastructure):** both host-native
 Next processes use `redis://localhost:6379`, but development must set
 `EDGE_CACHE_ENV=dev` and production must set `EDGE_CACHE_ENV=prod`. Production
 also sets `EDGE_MARKET_DATA_CACHE_BACKEND=redis` and `EDGE_REQUIRE_REDIS=1`;
 development may fall back when Redis is unavailable. The paired profiles are
-checked by `npm run local:deploy:preflight`. Cleanup and deploy automation must
-target one `edge:{env}:…` root and must never issue `FLUSHALL` or `FLUSHDB`.
+checked by `npm run local:deploy:preflight`. Shared Docker Postgres/Redis are
+started with `npm run local:infra:up`; `edge_dev` and `edge_prod` are provisioned
+by `npm run local:infra:provision`; isolation is proven by
+`npm run local:infra:verify`. Cleanup and deploy automation must target one
+`edge:{env}:…` root and must never issue `FLUSHALL` or `FLUSHDB`.
 Development defaults to `TWS_ENABLED=false`, leaving production as the only
 owner of broker-sidecar recovery. Full topology and later infrastructure work:
 [Local Development and Production Roadmap](../../../docs/roadmaps/local-dev-production-roadmap.md).

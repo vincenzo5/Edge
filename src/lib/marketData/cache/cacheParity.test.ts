@@ -5,13 +5,14 @@ import { DataCache } from "./dataCache";
 import { RedisHotStore } from "./redisHotStore";
 import { RedisDataCache } from "./redisDataCache";
 import { createRedisClient, ensureRedisConnected, pingRedis } from "./redisClient";
+import { clearRedisEnvKeys } from "./redisTestCleanup";
 import { hotQuoteKey } from "../hotStoreConstants";
 
-async function flushRedisTestDb(): Promise<void> {
+async function clearRedisTestEnvKeys(): Promise<void> {
   const client = createRedisClient();
   try {
     await ensureRedisConnected(client);
-    await client.flushdb();
+    await clearRedisEnvKeys(client);
   } finally {
     await client.quit().catch(() => undefined);
   }
@@ -163,7 +164,7 @@ describe.skipIf(!shouldRunRedisTests || !redisUrl)("HotStore parity (redis)", ()
   });
 
   beforeEach(async () => {
-    await flushRedisTestDb();
+    await clearRedisTestEnvKeys();
     store = new RedisHotStore(createRedisClient(), { maxEntries: 2 });
   });
 
@@ -171,7 +172,7 @@ describe.skipIf(!shouldRunRedisTests || !redisUrl)("HotStore parity (redis)", ()
     if (store) {
       await store.clear();
     }
-    await flushRedisTestDb();
+    await clearRedisTestEnvKeys();
   });
 
   it("redis is reachable", () => {
@@ -208,7 +209,7 @@ describe.skipIf(!shouldRunRedisTests || !redisUrl)("DataCache parity (redis)", (
   let store: RedisDataCache;
 
   beforeEach(async () => {
-    await flushRedisTestDb();
+    await clearRedisTestEnvKeys();
     store = new RedisDataCache(createRedisClient(), { maxEntriesPerNamespace: 2 });
   });
 
@@ -216,7 +217,7 @@ describe.skipIf(!shouldRunRedisTests || !redisUrl)("DataCache parity (redis)", (
     if (store) {
       await store.clear();
     }
-    await flushRedisTestDb();
+    await clearRedisTestEnvKeys();
   });
 
   it("stores and reads values before ttl expiry", async () => {

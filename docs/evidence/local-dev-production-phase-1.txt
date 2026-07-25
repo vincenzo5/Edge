@@ -1,0 +1,60 @@
+# Local development and production — Phase 1 evidence
+# Date: 2026-07-25
+
+## Scope
+Shared Docker infrastructure with data isolation: Compose health checks, idempotent
+edge_dev/edge_prod provisioning, Redis prefix safety, and live isolation proof.
+No production worktree, launchd, deploy, or rollback changes.
+
+## Delivered
+- docker-compose.yml — Postgres + Redis health checks
+- scripts/local-data-infrastructure.mts — up/provision/verify CLI
+- scripts/local-data-infrastructure.test.ts — unit coverage
+- package.json — local:infra:up, local:infra:provision, local:infra:verify
+- scripts/dev-with-db.sh — shared infra up + provision before migrate
+- src/lib/marketData/cache/redisTestCleanup.ts — prefix-scoped Redis cleanup
+- src/lib/marketData/cache/redisTestCleanup.test.ts
+- src/lib/marketData/cache/cacheParity.test.ts — no FLUSHDB
+- src/lib/marketData/cache/redisKeys.test.ts — dev/prod root contract
+- .env.example, marketData/ARCHITECTURE.md, persistence/ARCHITECTURE.md
+
+## Architecture review
+Self-review Passed — shared infra only; fixed allowlisted DB names; prefix-scoped
+Redis cleanup; no FLUSHALL/FLUSHDB in app/deploy automation; secrets redacted in CLI output.
+
+## Focused
+npm test -- --run scripts/local-data-infrastructure.test.ts src/lib/marketData/cache/redisKeys.test.ts src/lib/marketData/cache/redisTestCleanup.test.ts scripts/validate-local-deploy.test.ts
+Test Files  4 passed (4)
+Tests  51 passed (51)
+
+## Compose health
+docker compose config (exit 0)
+docker compose up -d --wait postgres redis
+Container edge-postgres Healthy
+Container edge-redis Healthy
+
+## Provision idempotency
+npm run local:infra:provision
+database=edge_dev status=created
+database=edge_prod status=created
+npm run local:infra:provision
+database=edge_dev status=exists
+database=edge_prod status=exists
+
+## Live isolation
+npm run local:infra:verify
+postgres.isolation=pass
+redis.isolation=pass
+redis.devKey=edge:dev:1:md:infra-probe:dev-*
+redis.prodKey=edge:prod:1:md:infra-probe:prod-*
+overall=pass
+Local data isolation verification passed.
+
+## Startup
+npm run check:startup
+Instruction architecture validation passed.
+Test Files  1 passed (1)
+Tests  2 passed (2)
+
+## Full
+npm run check — blocked by pre-existing lint:data-state-contracts (46 API route registrations); not introduced by Phase 1.

@@ -67,6 +67,18 @@ describe("redisKeys", () => {
     expect(prodHot.startsWith(stagingHot)).toBe(false);
   });
 
+  it("maps frozen local dev/prod cache segments to disjoint roots", () => {
+    process.env.EDGE_CACHE_ENV = "dev";
+    const devRoot = redisMdKeyRoot();
+
+    process.env.EDGE_CACHE_ENV = "prod";
+    const prodRoot = redisMdKeyRoot();
+
+    expect(devRoot).toBe("edge:dev:1:md");
+    expect(prodRoot).toBe("edge:prod:1:md");
+    expect(devRoot).not.toBe(prodRoot);
+  });
+
   it("derives data-cache namespace from scoped LRU key", () => {
     process.env.EDGE_CACHE_ENV = "staging";
     const lruKey = redisDataCacheLruKey("quotes");
