@@ -239,7 +239,7 @@ describe('ChartCanvas axis drag', () => {
 
     const after = getHandle().getViewport()!;
     expect(after.endIndex - after.startIndex).toBeLessThan(visibleBefore);
-    expect(after.priceScaleMode).toBe('manual');
+    expect(after.priceScaleMode).toBe('auto');
   });
 
   it('allows axis scale gestures after a scale drag converted to body pan', () => {

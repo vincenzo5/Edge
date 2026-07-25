@@ -246,7 +246,7 @@ describe('scaleTime', () => {
     expect(scaled.priceMax).toBe(vp.priceMax);
   });
 
-  it('switches to manual price scale mode', () => {
+  it('preserves auto price scale mode', () => {
     const candles = Array.from({ length: 200 }, (_, i) => ({
       t: i,
       o: 10,
@@ -256,7 +256,7 @@ describe('scaleTime', () => {
     }));
     const vp = createViewport(candles, 800, 400, 100);
     const scaled = scaleTime(vp, -50, candles.length);
-    expect(scaled.priceScaleMode).toBe('manual');
+    expect(scaled.priceScaleMode).toBe('auto');
     const fitted = applyAutoPriceScale(scaled, candles);
     expect(fitted.priceMin).toBe(scaled.priceMin);
     expect(fitted.priceMax).toBe(scaled.priceMax);
@@ -328,7 +328,7 @@ describe('applyAutoPriceScale', () => {
     expect(fitted.priceMin).toBe(beforeMin);
   });
 
-  it('locks auto price scale after time-axis scale drag; pan still refits in auto mode', () => {
+  it('keeps auto price scale after time-axis scaling and preserves explicit manual mode', () => {
     const candles = Array.from({ length: 50 }, (_, i) => ({
       t: i,
       o: 10 + i,
@@ -338,11 +338,15 @@ describe('applyAutoPriceScale', () => {
     }));
     const vp = createViewport(candles, 800, 400, 20);
     const scaled = scaleTime(vp, -40, candles.length);
-    expect(scaled.priceScaleMode).toBe('manual');
+    expect(scaled.priceScaleMode).toBe('auto');
     const panned = pan(scaled, 60, candles.length);
     const fitted = applyAutoPriceScale(panned, candles);
-    expect(fitted.priceMin).toBe(panned.priceMin);
-    expect(fitted.priceMax).toBe(panned.priceMax);
+    expect(fitted.priceMin).not.toBe(panned.priceMin);
+    expect(fitted.priceMax).not.toBe(panned.priceMax);
+
+    const manual = scalePrice(vp, 30, candles.length);
+    const manuallyScaledTime = scaleTime(manual, -40, candles.length);
+    expect(manuallyScaledTime.priceScaleMode).toBe('manual');
   });
 });
 

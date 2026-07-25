@@ -57,6 +57,22 @@ function relevantIndicatorsForPane(
   return indicators.filter((ind) => ind.pane === 'main' && ind.visible !== false);
 }
 
+function visibleLivePrice(
+  vp: VisibleRange,
+  candles: Candle[],
+  paneId: string,
+  livePrice: number | null | undefined,
+): number | null {
+  if (paneId !== 'price' || livePrice == null || !Number.isFinite(livePrice)) {
+    return null;
+  }
+  const latestIndex = candles.length - 1;
+  if (latestIndex < vp.startIndex || latestIndex >= vp.endIndex) {
+    return null;
+  }
+  return livePrice;
+}
+
 function buildVisibleScaleCacheKey(
   vp: VisibleRange,
   candles: Candle[],
@@ -231,6 +247,7 @@ export function applyPanePriceScale(
     return vp;
   }
 
+  const scaleLivePrice = visibleLivePrice(vp, candles, paneId, livePrice);
   const provider = resolveIndicatorResultProvider(resultProvider);
   const cacheKey = buildVisibleScaleCacheKey(
     vp,
@@ -238,7 +255,7 @@ export function applyPanePriceScale(
     paneId,
     indicators,
     chartSettings,
-    livePrice,
+    scaleLivePrice,
     provider.getSeriesIdentity(),
   );
   const cached = visibleScaleCache.get(cacheKey);
@@ -259,7 +276,7 @@ export function applyPanePriceScale(
     paneId,
     indicators,
     chartSettings,
-    livePrice,
+    scaleLivePrice,
     provider,
   );
   visibleScaleCache.set(cacheKey, {

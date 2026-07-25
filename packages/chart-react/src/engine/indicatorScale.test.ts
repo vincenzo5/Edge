@@ -114,4 +114,32 @@ describe('applyPanePriceScale cache', () => {
     );
     expect(scaled.priceMin).toBeLessThan(scaled.priceMax);
   });
+
+  it('excludes the live quote when the latest candle is outside the visible window', () => {
+    const livePrice = 1_000_000;
+    const scaled = applyPanePriceScale(
+      baseViewport(20, 80),
+      candles,
+      'price',
+      [maOverlay()],
+      mergeChartSettings(),
+      livePrice,
+    );
+
+    expect(scaled.priceMax).toBeLessThan(livePrice);
+  });
+
+  it('includes the live quote when the latest candle is visible', () => {
+    const livePrice = 1_000_000;
+    const scaled = applyPanePriceScale(
+      baseViewport(100, candles.length),
+      candles,
+      'price',
+      [],
+      mergeChartSettings(),
+      livePrice,
+    );
+
+    expect(scaled.priceMax).toBe(livePrice);
+  });
 });

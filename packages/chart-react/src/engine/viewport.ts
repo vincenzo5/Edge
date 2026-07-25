@@ -293,7 +293,7 @@ export function scaleTimeFromInitial(
   const pw = plotWidth(initial.width);
   const factor = 1 + (totalDeltaX / pw) * TIME_SCALE_SENSITIVITY;
   const scaled = zoom(initial, factor, pw / 2, totalCandles, pw);
-  return attachViewportHelpers({ ...scaled, priceScaleMode: 'manual' }, totalCandles);
+  return attachViewportHelpers({ ...scaled }, totalCandles);
 }
 
 /** Scale price axis from a fixed initial viewport using total vertical drag (pixels). */
