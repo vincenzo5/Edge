@@ -59,6 +59,7 @@
     "report:local-errors": "npx tsx scripts/report-local-errors.mts",
     "report:trading-audit": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/report-trading-audit.mts",
     "report:production-errors": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/report-production-errors.mts",
+    "watch:readyz": "npx tsx scripts/watch-readyz.mts",
     "smoke:data-providers": "npx tsx scripts/run-data-provider-smoke.mts",
     "pattern-library:seed": "npx tsx scripts/pattern-library-seed.mts",
     "pattern-library:bakeoff": "npx tsx scripts/pattern-library-bakeoff.mts",

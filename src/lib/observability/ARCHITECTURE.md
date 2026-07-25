@@ -141,6 +141,44 @@ Market-data trace header `x-edge-md-trace-id` remains scoped to market-data rout
 
 ---
 
+## Free alerts (Phase 5)
+
+**Implementation:** [`readyzProbe.ts`](readyzProbe.ts), [`readyzAlertState.ts`](readyzAlertState.ts), [`readyzAlertNotify.ts`](readyzAlertNotify.ts), [`readyzAlertRun.ts`](readyzAlertRun.ts), [`scripts/watch-readyz.mts`](../../../scripts/watch-readyz.mts).
+
+External watcher — **not** in-app `/api/cron/*` (cron inside Node cannot fire when the process is down).
+
+- **Probe:** `GET EDGE_READYZ_URL` (default `http://127.0.0.1:3003/readyz`); parse `{ ok, reasons? }`; network/non-JSON → fixed codes (`readyz_unreachable`, `readyz_invalid_response`) — never echo bodies or secrets.
+- **State:** gitignored `.edge/readyz-alert-state.json` tracks consecutive failures and alerting; `EDGE_READYZ_ALERT_FAILURES` (default **3**) before first notify; single recovery notify when readiness returns after alerting.
+- **Notify:** `POST EDGE_ALERT_WEBHOOK_URL` with Discord (`content`) + Slack (`text`) compatible JSON; payload includes host label (`EDGE_ALERT_HOST`), fixed reason codes, timestamp only.
+- **CLI:** `npm run watch:readyz` — one-shot (cron-friendly); `--loop --interval-ms N` for long-running; `--dry-run` prints would-notify payload without POST.
+
+**Cron example:**
+
+```cron
+*/2 * * * * cd /path/to/edge && npm run watch:readyz >> /var/log/edge-readyz-watch.log 2>&1
+```
+
+**Uptime Kuma (optional):** self-hosted HTTP monitor on `/readyz` with Discord/Slack notification channel is an acceptable alternative; first-party script above is the proven repo path.
+
+Distinct from product price alerts (`src/lib/alerts/`, `/api/cron/alert-evaluate`).
+
+---
+
+## Operator runbook
+
+| Question | Check |
+|----------|-------|
+| Is the app up? | `GET /healthz` → 200 |
+| Can it serve? | `GET /readyz` → 200; 503 shows fixed reason codes (`postgres_unavailable`, `redis_unavailable`, `tws_unavailable`) |
+| What just broke? | stdout `http.access` JSON logs + `x-edge-request-id`; grep by request ID across API / AI / trading stderr |
+| What happened to this order? | `npm run report:trading-audit -- --limit 20` or `GET /api/me/trading-audit` |
+| Did users hit errors overnight? | `npm run report:production-errors -- --limit 50` or `GET /api/me/production-errors` |
+| Do I need to wake up? | `npm run watch:readyz` (cron) + `EDGE_ALERT_WEBHOOK_URL`; Data Health UI for human triage after alert |
+
+After a readiness alert: confirm `/readyz` reason codes, check Postgres/Redis/TWS sidecar, then `report:production-errors` and `report:trading-audit` for correlated failures.
+
+---
+
 ## Env knobs (sketch)
 
 Documented intent for later phases. Placeholders in [.env.example](../../../.env.example).
@@ -153,6 +191,10 @@ Documented intent for later phases. Placeholders in [.env.example](../../../.env
 | `EDGE_READYZ_REQUIRE_TWS` | 1 | When `1`, `/readyz` pings `TWS_SIDECAR_URL` `/health` if sidecar URL set |
 | `EDGE_AUDIT_RETENTION_DAYS` | 3 | Trading audit Postgres retention (or row cap — Phase 3 picks default) |
 | `EDGE_ERROR_RETENTION_DAYS` | 4 | Production error sink retention (Phase 4) |
+| `EDGE_READYZ_URL` | 5 | Target URL for external readiness watcher (default local `/readyz`) |
+| `EDGE_ALERT_WEBHOOK_URL` | 5 | Discord or Slack incoming webhook for readiness alerts |
+| `EDGE_READYZ_ALERT_FAILURES` | 5 | Consecutive `/readyz` failures before notify (default 3) |
+| `EDGE_ALERT_HOST` | 5 | Host label in alert text (default `edge`) |
 
 Readiness reuses existing deploy profile knobs — do not invent parallel “observability-only” dependency flags beyond `EDGE_READYZ_REQUIRE_TWS`.
 
@@ -167,6 +209,7 @@ Readiness reuses existing deploy profile knobs — do not invent parallel “obs
 | Redaction | `src/lib/api/redactDiagnostic.ts`, `safeErrorResponse.ts` | Reuse on all ops surfaces |
 | Local errors | `localErrorLog*.ts`, `reportLocalError.ts`, `/api/dev/local-errors` | Prod **404**; gitignored `.edge/error-log.jsonl`; **Postgres dual-write** when `DATABASE_URL` set (Phase 4) |
 | Production errors | `productionErrorPersist.ts`, `/api/me/production-errors`, `report:production-errors` | Auth-gated prod ingest + report; redacted durable rows |
+| Free alerts | `readyzProbe.ts`, `readyzAlert*.ts`, `watch:readyz` | External `/readyz` watcher + webhook; state in `.edge/readyz-alert-state.json` |
 | Client reporter | `src/app/components/observability/LocalErrorReporter.tsx` | Non-prod ingest |
 | Market-data health | `/api/market-data/health`, Data Health UI | Solo UX; heavy for orchestrators |
 | Process-local SLIs | `src/lib/marketData/state/operationalMetrics.ts` | 30m / 512 samples; not durable |
@@ -212,8 +255,8 @@ Audit/error read APIs require existing API auth / operator gates (Security Harde
 | 0 | This doc + CONSTRAINTS + env placeholders (docs only) |
 | 1 | `/healthz`, `/readyz` routes + tests (**Passing**) |
 | 2 | Request ID middleware + JSON access logs (**Passing**) |
-| 3 | Durable trading audit (Postgres) — **implemented** |
-| 4 | Production error sink (Postgres) — **implemented** |
-| 5 | Free alerts + runbook |
+| 3 | Durable trading audit (Postgres) — **Passing** |
+| 4 | Production error sink (Postgres) — **Passing** |
+| 5 | Free alerts + runbook — **Passing** |
 
 Track status: [production-observability-roadmap.md](../../../docs/roadmaps/production-observability-roadmap.md).

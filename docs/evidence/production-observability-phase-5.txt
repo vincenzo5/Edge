@@ -1,0 +1,36 @@
+# Production observability — Phase 5 evidence
+# Date: 2026-07-25
+
+## Scope
+Free alerts — external `/readyz` watcher with Discord/Slack webhook notify on consecutive readiness failures; operator runbook; no paid SaaS.
+
+## Delivered
+- src/lib/observability/readyzProbe.ts — fetch/parse /readyz; fixed reason codes only
+- src/lib/observability/readyzAlertState.ts — .edge/readyz-alert-state.json consecutive-failure state
+- src/lib/observability/readyzAlertNotify.ts — Discord+Slack webhook payload + POST
+- src/lib/observability/readyzAlertRun.ts — probe → state → notify tick
+- scripts/watch-readyz.mts — npm run watch:readyz (one-shot, --loop, --dry-run)
+- package.json — watch:readyz script
+- .env.example — EDGE_READYZ_URL, EDGE_ALERT_WEBHOOK_URL, EDGE_READYZ_ALERT_FAILURES, EDGE_ALERT_HOST
+- Tests: readyzProbe, readyzAlertState, readyzAlertNotify, readyzAlertRun
+- src/lib/observability/ARCHITECTURE.md — Phase 5 + operator runbook
+- src/lib/marketData/ARCHITECTURE.md — runbook link from local observability section
+
+## Architecture review
+Self-review Passed — external watcher (not in-app cron); redacted fixed reason codes only; distinct from product alerts; free-stack webhook path; state in gitignored .edge/.
+
+## Verification (2026-07-25)
+Focused:
+npm test -- --run src/lib/observability/readyzProbe.test.ts src/lib/observability/readyzAlertState.test.ts src/lib/observability/readyzAlertNotify.test.ts src/lib/observability/readyzAlertRun.test.ts
+Test Files  4 passed (4)
+Tests  27 passed (27)
+
+Ops / app-level (dry-run alert path):
+EDGE_READYZ_URL=http://127.0.0.1:1/readyz EDGE_ALERT_HOST=phase5-smoke npm run watch:readyz -- --dry-run (x3)
+readyz failed (readyz_unreachable)
+readyz failed (readyz_unreachable)
+readyz failed (readyz_unreachable)
+[dry-run] would notify: [Edge readyz alert] host=phase5-smoke reasons=readyz_unreachable consecutiveFailures=3 at=2026-07-25T17:01:55.335Z
+
+## Next
+Track complete — all Phase 0–5 Passing.

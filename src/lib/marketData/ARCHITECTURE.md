@@ -87,7 +87,7 @@ For the single local environment, use these tools together:
 - **Reliability snapshot** — `npm run report:data-reliability` against `/api/market-data/health`.
 - **Persistent error log** — redacted failures append to gitignored `.edge/error-log.jsonl` via `/api/dev/local-errors` (production **404**; non-production loopback or `EDGE_API_KEY`); read with `npm run report:local-errors`. Sources: chart boundary, API 5xx (`safeErrorResponse`), script runtime failures, and uncaught browser errors.
 
-**Production successor (free stack):** probes, structured logs, durable audit/errors, and free alerts are owned by [Production Observability Roadmap](../../../docs/roadmaps/production-observability-roadmap.md) — no paid APM/Sentry SaaS. This solo toolkit remains for local/dev.
+**Production successor (free stack):** probes, structured logs, durable audit/errors, and free alerts are owned by [Production Observability Roadmap](../../../docs/roadmaps/production-observability-roadmap.md) — no paid APM/Sentry SaaS. Operator runbook: [Observability ARCHITECTURE — Operator runbook](../observability/ARCHITECTURE.md#operator-runbook). This solo toolkit remains for local/dev.
 
 ### Provider and dataset onboarding
 

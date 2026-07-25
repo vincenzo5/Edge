@@ -4,7 +4,7 @@ Harden Edge so operators can tell whether production is healthy **without babysi
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing**. Phase 1 **Passing**. Phase 2 **Passing**. Phase 3 **Passing**. Phase 4 **Passing**. Phase 5 **Pending**. Phase 5 may start under WIP=1. Complements [Security Hardening](./security-hardening-roadmap.md) (fail-closed perimeter), [Shared Cache Topology](./shared-cache-topology-roadmap.md) (Redis health fields), [Data State Hardening](./data-state-hardening-roadmap.md) (Data Health / SLIs), [Trading Execution](./trading-execution-roadmap.md) (audit ring + `order_intents`), and solo local observability in [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md).
+**Status:** Phase 0 **Passing**. Phase 1 **Passing**. Phase 2 **Passing**. Phase 3 **Passing**. Phase 4 **Passing**. Phase 5 **Passing**. Phase 5 may start under WIP=1. Complements [Security Hardening](./security-hardening-roadmap.md) (fail-closed perimeter), [Shared Cache Topology](./shared-cache-topology-roadmap.md) (Redis health fields), [Data State Hardening](./data-state-hardening-roadmap.md) (Data Health / SLIs), [Trading Execution](./trading-execution-roadmap.md) (audit ring + `order_intents`), and solo local observability in [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md).
 
 **Related:** [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md) (probe contract + env knobs + baseline).
 
