@@ -12,7 +12,6 @@ import {
   getSharedCandleStreamCountForTests,
   resetSharedCandleStreamRegistryForTests,
 } from './sharedCandleStreamRegistry';
-import { resetCoalesceInFlightForTests } from './coalesceInFlight';
 
 const baseCandles: Candle[] = [
   { t: 1000, o: 1, h: 2, l: 0.5, c: 1.5 },
@@ -86,7 +85,6 @@ describe('useChartDataFeed', () => {
   beforeEach(() => {
     clearChartClientCacheForTests();
     resetSharedCandleStreamRegistryForTests();
-    resetCoalesceInFlightForTests();
   });
 
   it('loads candles and starts streaming when supported', async () => {
@@ -131,6 +129,45 @@ describe('useChartDataFeed', () => {
 
     second.unmount();
     await waitFor(() => expect(getSharedCandleStreamCountForTests()).toBe(0));
+  });
+
+  it('loads candles for remaining consumers when one unmounts during fetch', async () => {
+    let resolveLoad: ((value: Awaited<ReturnType<ChartDataFeed['loadCandles']>>) => void) | null =
+      null;
+    const loadCandles = vi.fn(({ signal }: { signal?: AbortSignal }) => {
+      return new Promise<Awaited<ReturnType<ChartDataFeed['loadCandles']>>>((resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        resolveLoad = resolve;
+      });
+    });
+    const feed = createStreamingFeed({ loadCandles, subscribeCandles: undefined });
+    const options = {
+      feed,
+      symbol: 'SPY',
+      interval: '5m' as const,
+      range: '1d' as const,
+      live: false,
+    };
+
+    const first = renderHook(() => useChartDataFeed(options));
+    const second = renderHook(() => useChartDataFeed(options));
+
+    await waitFor(() => expect(loadCandles).toHaveBeenCalledTimes(2));
+
+    first.unmount();
+
+    act(() => {
+      resolveLoad?.({
+        symbol: 'SPY',
+        interval: '5m',
+        candles: baseCandles,
+        hasMore: true,
+        meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+      });
+    });
+
+    await waitFor(() => expect(second.result.current.candles).toHaveLength(2));
+    second.unmount();
   });
 
   it('clears stale state on metadata-only refresh events', async () => {
