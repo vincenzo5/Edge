@@ -42,11 +42,17 @@ export function cellChartId(index: number): string {
 }
 
 export function getCellConfig(chartId: string): CellConfig | undefined {
-  return cells.get(chartId)?.config;
+  const entry = cells.get(chartId);
+  if (!entry) return undefined;
+  if (!storeHydrated && entry.revision === 0) return undefined;
+  return entry.config;
 }
 
 export function getCellRevision(chartId: string): number {
-  return cells.get(chartId)?.revision ?? 0;
+  const entry = cells.get(chartId);
+  if (!entry) return -1;
+  if (!storeHydrated && entry.revision === 0) return -1;
+  return entry.revision;
 }
 
 export function setCellConfig(chartId: string, next: CellConfig): void {
@@ -62,9 +68,6 @@ export function subscribeCellConfig(chartId: string, listener: () => void): () =
   entry.listeners.add(listener);
   return () => {
     entry.listeners.delete(listener);
-    if (entry.listeners.size === 0) {
-      cells.delete(chartId);
-    }
   };
 }
 

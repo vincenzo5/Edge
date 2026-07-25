@@ -203,6 +203,22 @@ describe("runtime interaction wakeups — Phase 7", () => {
     expect(getCellRevision(cellChartId(0))).toBeGreaterThan(0);
   });
 
+  it("useCellLayoutConfig keeps a stable snapshot before store hydration", () => {
+    const fallback = { ...DEFAULT_CELL, symbol: "AAPL" };
+    const seen: CellConfig[] = [];
+
+    function Probe() {
+      seen.push(useCellLayoutConfig("cell-0", fallback));
+      return null;
+    }
+
+    const { rerender } = render(<Probe />);
+    rerender(<Probe />);
+
+    expect(seen.length).toBeGreaterThanOrEqual(2);
+    expect(seen[0]).toBe(seen[seen.length - 1]);
+  });
+
   it("persistence round-trip captures drawing slice on flush", () => {
     const fallback = { ...DEFAULT_CELL, symbol: "AAPL" };
     const flushed: CellConfig[] = [];
