@@ -30,6 +30,9 @@ export type IndicatorResultProviderOptions = {
   sessionKey?: string;
 };
 
+/** Per-frame resolved indicator series keyed by instance id (Phase 5). */
+export type FrameIndicatorSeries = ReadonlyMap<string, Record<string, number[]> | null>;
+
 function isScriptInstance(instance: IndicatorConfig): boolean {
   return instance.kind === 'script' || Boolean(instance.scriptId);
 }
@@ -80,6 +83,22 @@ export class IndicatorResultProvider {
 
   setSeriesIdentity(identity: CandleSeriesIdentity | undefined): void {
     this.seriesIdentity = identity;
+  }
+
+  getSeriesIdentity(): CandleSeriesIdentity | undefined {
+    return this.seriesIdentity;
+  }
+
+  /** Resolve each visible indicator once per draw frame. */
+  prepareFrame(indicators: IndicatorConfig[], candles: Candle[]): FrameIndicatorSeries {
+    const frame = new Map<string, Record<string, number[]> | null>();
+    for (const instance of indicators) {
+      if (instance.visible === false) continue;
+      const plugin = resolveIndicatorPlugin(instance);
+      if (!plugin) continue;
+      frame.set(instance.id, this.resolveSeries(plugin, instance, candles));
+    }
+    return frame;
   }
 
   subscribe(listener: () => void): () => void {
@@ -263,6 +282,20 @@ export function resolveIndicatorResultProvider(
   provider?: IndicatorResultProvider | null,
 ): IndicatorResultProvider {
   return provider ?? getDefaultIndicatorResultProvider();
+}
+
+/** Read pre-resolved frame series when present; otherwise resolve on demand. */
+export function resolveSeriesForFrame(
+  frame: FrameIndicatorSeries | null | undefined,
+  provider: IndicatorResultProvider,
+  plugin: IndicatorPlugin,
+  instance: IndicatorConfig,
+  candles: Candle[],
+): Record<string, number[]> | null {
+  if (frame?.has(instance.id)) {
+    return frame.get(instance.id) ?? null;
+  }
+  return provider.resolveSeries(plugin, instance, candles);
 }
 
 export function buildScriptFingerprint(

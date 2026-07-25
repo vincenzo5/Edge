@@ -5,6 +5,8 @@ import { resolveScriptBarColors } from '@edge/chart-core';
 import {
   resolveIndicatorPlugin,
   resolveIndicatorResultProvider,
+  resolveSeriesForFrame,
+  type FrameIndicatorSeries,
   type IndicatorResultProvider,
 } from './indicatorResultProvider';
 
@@ -14,16 +16,17 @@ export function resolveMainPaneScriptBarColors(
   candles: Candle[],
   theme: Theme,
   resultProvider?: IndicatorResultProvider | null,
+  frameIndicatorSeries?: FrameIndicatorSeries | null,
 ): Array<string | null> | null {
   const overlays = indicators.filter((ind) => ind.pane === 'main' && ind.visible !== false);
+  const provider = resolveIndicatorResultProvider(resultProvider);
   for (const ind of overlays) {
     const plugin = resolveIndicatorPlugin(ind);
     if (!plugin?.outputs?.length) continue;
     const barcolorOut = plugin.outputs.find((out) => out.plot === 'barcolor');
     if (!barcolorOut) continue;
 
-    const provider = resolveIndicatorResultProvider(resultProvider);
-    const data = provider.resolveSeries(plugin, ind, candles);
+    const data = resolveSeriesForFrame(frameIndicatorSeries, provider, plugin, ind, candles);
     if (!data?.[barcolorOut.key]) continue;
 
     const midIndex = Math.min(

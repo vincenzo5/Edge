@@ -126,13 +126,22 @@ export class IndicatorWebGLRenderer {
       height: number;
       priceScaleSide: PriceScaleSide;
       resultProvider?: import('../indicatorResultProvider').IndicatorResultProvider | null;
+      frameIndicatorSeries?: import('../indicatorResultProvider').FrameIndicatorSeries | null;
     },
   ): boolean {
     if (!this.isReady()) return false;
 
-    const { indicators, candles, vp, theme, effectiveShowTimeAxis, width, height, priceScaleSide, resultProvider } =
+    const { indicators, candles, vp, theme, effectiveShowTimeAxis, width, height, priceScaleSide, resultProvider, frameIndicatorSeries } =
       params;
-    const batches = buildIndicatorDrawBatches(indicators, candles, vp, theme, resultProvider, this.geometryPool);
+    const batches = buildIndicatorDrawBatches(
+      indicators,
+      candles,
+      vp,
+      theme,
+      resultProvider,
+      this.geometryPool,
+      frameIndicatorSeries,
+    );
     if (batches.length === 0) return false;
 
     this.resize(width, height);

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { IndicatorRegistry } from '@edge/chart-core';
 import { compileScript } from '@edge/indicator-runtime';
 import { runCompileAndExecutePipeline } from '@edge/indicator-runtime';
@@ -11,6 +11,7 @@ import {
   scriptManifestToPlugin,
   setDefaultIndicatorResultProvider,
   clearScriptIndicatorPlugins,
+  resolveSeriesForFrame,
 } from './indicatorResultProvider.js';
 import { buildIndicatorDrawBatches } from './webgl/indicatorGeometry.js';
 import { collectIndicatorAnnotations } from './priceAxisAnnotations.js';
@@ -55,6 +56,34 @@ describe('IndicatorResultProvider', () => {
     };
     const series = provider.resolveBuiltinSeries(plugin!, instance, candles);
     expect(series?.ma?.length).toBe(candles.length);
+  });
+
+  it('prepareFrame resolves each visible indicator once', () => {
+    const provider = new IndicatorResultProvider();
+    const maPlugin = IndicatorRegistry.get('MA')!;
+    const emaPlugin = IndicatorRegistry.get('EMA')!;
+    const instances: IndicatorConfig[] = [
+      { id: 'ma-1', name: 'MA', pane: 'main', inputs: { period: 20 } },
+      { id: 'ema-1', name: 'EMA', pane: 'main', inputs: { period: 12 } },
+      { id: 'hidden', name: 'MA', pane: 'main', visible: false, inputs: { period: 5 } },
+    ];
+    const resolveSpy = vi.spyOn(provider, 'resolveSeries');
+
+    const frame = provider.prepareFrame(instances, candles);
+
+    expect(frame.size).toBe(2);
+    expect(frame.get('ma-1')?.ma?.length).toBe(candles.length);
+    expect(frame.get('ema-1')?.ema?.length).toBe(candles.length);
+    expect(resolveSpy).toHaveBeenCalledTimes(2);
+    resolveSpy.mockRestore();
+
+    const maInstance = instances[0];
+    const fromFrame = resolveSeriesForFrame(frame, provider, maPlugin, maInstance, candles);
+    const resolveAgain = vi.spyOn(provider, 'resolveSeries');
+    resolveSeriesForFrame(frame, provider, maPlugin, maInstance, candles);
+    expect(fromFrame?.ma?.length).toBe(candles.length);
+    expect(resolveAgain).not.toHaveBeenCalled();
+    resolveAgain.mockRestore();
   });
 
   it('rejects stale script snapshots from another session', () => {

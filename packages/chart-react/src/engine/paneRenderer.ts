@@ -22,6 +22,7 @@ import type { CandleWebGLRenderer } from './webgl/candleWebGL';
 import type { IndicatorWebGLRenderer } from './webgl/indicatorWebGL';
 import type { EventBadgeGroup } from './eventBadges';
 import type { IndicatorResultProvider } from './indicatorResultProvider';
+import { resolveIndicatorResultProvider } from './indicatorResultProvider';
 import {
   measurePhase,
   canReuseBackgroundCache,
@@ -88,6 +89,9 @@ export function drawPaneLayers(ctx: PaneRendererContext): DrawPhaseTimings {
 
   ctx.ctx.clearRect(0, 0, ctx.width, ctx.height);
 
+  const indicatorResultProvider = resolveIndicatorResultProvider(ctx.indicatorResultProvider);
+  const frameIndicatorSeries = indicatorResultProvider.prepareFrame(ctx.indicators, ctx.candles);
+
   const layerState: LayerDrawState = {
     ctx: ctx.ctx,
     vp: ctx.vp,
@@ -127,6 +131,7 @@ export function drawPaneLayers(ctx: PaneRendererContext): DrawPhaseTimings {
     indicatorWebGL: ctx.indicatorWebGL,
     indicatorsUseWebGL: ctx.indicatorsUseWebGL,
     indicatorResultProvider: ctx.indicatorResultProvider,
+    frameIndicatorSeries,
     extraPriceAxisAnnotations: ctx.extraPriceAxisAnnotations,
   };
 

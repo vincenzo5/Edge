@@ -502,6 +502,7 @@ export type DrawPriceAxisAnnotationsInput = {
   livePrice?: number | null;
   liveMarketSession?: import('@edge/chart-core').MarketSessionKind | null;
   resultProvider?: import('./indicatorResultProvider').IndicatorResultProvider | null;
+  frameIndicatorSeries?: import('./indicatorResultProvider').FrameIndicatorSeries | null;
   extraPriceAxisAnnotations?: import('@edge/chart-core/priceAxisTypes').PriceAxisAnnotation[];
 };
 
@@ -543,6 +544,7 @@ export function drawPriceAxisAnnotations(input: DrawPriceAxisAnnotationsInput): 
     livePrice,
     liveMarketSession,
     resultProvider: input.resultProvider,
+    frameIndicatorSeries: input.frameIndicatorSeries,
     extraAnnotations: input.extraPriceAxisAnnotations,
   });
   const laidOut = filterVisibleAnnotations(

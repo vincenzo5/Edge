@@ -14,7 +14,7 @@ import {
   buildResolvedStylesMap,
 } from '@edge/chart-core/indicatorCompute';
 import { resolveIndicatorInputs } from '@edge/chart-core/indicatorInputs';
-import { resolveIndicatorResultProvider, resolveIndicatorPlugin, type IndicatorResultProvider } from './indicatorResultProvider';
+import { resolveIndicatorResultProvider, resolveIndicatorPlugin, resolveSeriesForFrame, type FrameIndicatorSeries, type IndicatorResultProvider } from './indicatorResultProvider';
 import { resolveDrawingStyles } from '@edge/chart-core/drawingStyles';
 import { intervalToMs } from '@edge/chart-core';
 import { getChartColors } from './chartTheme';
@@ -125,6 +125,7 @@ export function collectIndicatorAnnotations(
   theme: Theme,
   paneId: string,
   resultProvider?: IndicatorResultProvider | null,
+  frameIndicatorSeries?: FrameIndicatorSeries | null,
 ): PriceAxisAnnotation[] {
   if (settings.scales.indicatorPriceLabelMode === 'hidden') return [];
   if (paneId !== 'price') return [];
@@ -142,7 +143,7 @@ export function collectIndicatorAnnotations(
 
     const inputs = resolveIndicatorInputs(plugin, ind);
     const provider = resolveIndicatorResultProvider(resultProvider);
-    const data = provider.resolveSeries(plugin, ind, candles);
+    const data = resolveSeriesForFrame(frameIndicatorSeries, provider, plugin, ind, candles);
     if (!data) continue;
 
     for (const out of plugin.outputs) {
@@ -235,6 +236,7 @@ export function collectPriceAxisAnnotations(input: {
   livePrice?: number | null;
   liveMarketSession?: MarketSessionKind | null;
   resultProvider?: IndicatorResultProvider | null;
+  frameIndicatorSeries?: FrameIndicatorSeries | null;
   extraAnnotations?: PriceAxisAnnotation[];
 }): PriceAxisAnnotation[] {
   const {
@@ -251,6 +253,7 @@ export function collectPriceAxisAnnotations(input: {
     livePrice,
     liveMarketSession,
     resultProvider,
+    frameIndicatorSeries,
     extraAnnotations = [],
   } = input;
 
@@ -266,13 +269,31 @@ export function collectPriceAxisAnnotations(input: {
         livePrice,
         liveMarketSession,
       ),
-      ...collectIndicatorAnnotations(indicators, candles, vp, settings, theme, paneId, resultProvider),
+      ...collectIndicatorAnnotations(
+        indicators,
+        candles,
+        vp,
+        settings,
+        theme,
+        paneId,
+        resultProvider,
+        frameIndicatorSeries,
+      ),
       ...collectDrawingAnnotations(drawings, vp, candles, settings, theme, paneId, showTimeAxis),
       ...extraAnnotations.filter((ann) => ann.paneId === paneId),
     ];
   }
 
-  return collectIndicatorAnnotations(indicators, candles, vp, settings, theme, paneId, resultProvider);
+  return collectIndicatorAnnotations(
+    indicators,
+    candles,
+    vp,
+    settings,
+    theme,
+    paneId,
+    resultProvider,
+    frameIndicatorSeries,
+  );
 }
 
 export function layoutPriceAxisAnnotations(

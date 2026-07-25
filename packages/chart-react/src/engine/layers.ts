@@ -10,7 +10,7 @@ import type {
   VisibleRange,
 } from '@edge/chart-core';
 import { DrawingRegistry } from '@edge/chart-core';
-import { resolveIndicatorPlugin, resolveIndicatorResultProvider, type IndicatorResultProvider } from './indicatorResultProvider';
+import { resolveIndicatorPlugin, resolveIndicatorResultProvider, resolveSeriesForFrame, type FrameIndicatorSeries, type IndicatorResultProvider } from './indicatorResultProvider';
 import { pointToPlot } from '@edge/chart-core/drawingCoords';
 import { drawScriptObjects } from '@edge/chart-core';
 import { drawAnnotationBadge } from '@edge/chart-core/drawings/annotationBadge';
@@ -99,6 +99,8 @@ export type LayerDrawState = {
   indicatorsUseWebGL?: boolean;
   /** Per-chart script result provider (Phase 2). */
   indicatorResultProvider?: IndicatorResultProvider | null;
+  /** Resolved indicator series for this draw frame (Phase 5). */
+  frameIndicatorSeries?: FrameIndicatorSeries | null;
   extraPriceAxisAnnotations?: import('@edge/chart-core/priceAxisTypes').PriceAxisAnnotation[];
 };
 
@@ -236,6 +238,7 @@ function drawCandleOhlc(state: LayerDrawState): void {
       candles,
       theme,
       indicatorResultProvider,
+      state.frameIndicatorSeries,
     );
     drawCandles(
       ctx,
@@ -347,6 +350,7 @@ function drawIndicatorPlotsLayer(state: LayerDrawState): void {
       height,
       priceScaleSide,
       resultProvider: state.indicatorResultProvider,
+      frameIndicatorSeries: state.frameIndicatorSeries,
     });
   }
 
@@ -358,7 +362,13 @@ function drawIndicatorPlotsLayer(state: LayerDrawState): void {
     const plugin = resolveIndicatorPlugin(ind);
     if (plugin) {
       const provider = resolveIndicatorResultProvider(state.indicatorResultProvider);
-      const data = provider.resolveSeries(plugin, ind, candles);
+      const data = resolveSeriesForFrame(
+        state.frameIndicatorSeries,
+        provider,
+        plugin,
+        ind,
+        candles,
+      );
       drawIndicator(plugin, ind, ctx, candles, vp, theme, data);
     }
   }
@@ -496,6 +506,7 @@ function drawAxesLabelsLayer(state: LayerDrawState): void {
       livePrice,
       liveMarketSession: state.liveMarketSession,
       resultProvider: state.indicatorResultProvider,
+      frameIndicatorSeries: state.frameIndicatorSeries,
       extraPriceAxisAnnotations: state.extraPriceAxisAnnotations,
     });
   }

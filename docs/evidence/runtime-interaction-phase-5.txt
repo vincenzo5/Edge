@@ -1,0 +1,37 @@
+# Runtime interaction performance — Phase 5 evidence
+# Date: 2026-07-25
+
+## Scope
+Pan/zoom scale cache + frame resolve once per draw.
+
+## Delivered
+- packages/chart-react/src/engine/indicatorScale.ts — quantized visible min/max cache; clearVisibleScaleCache
+- packages/chart-react/src/engine/indicatorResultProvider.ts — getSeriesIdentity, prepareFrame, resolveSeriesForFrame
+- packages/chart-react/src/engine/paneRenderer.ts — prepareFrame at draw entry
+- packages/chart-react/src/engine/layers.ts — frame map for bar colors, indicators, axes
+- packages/chart-react/src/engine/scriptBarcolor.ts — resolveSeriesForFrame
+- packages/chart-react/src/engine/priceAxisAnnotations.ts — resolveSeriesForFrame
+- packages/chart-react/src/engine/webgl/indicatorGeometry.ts — resolveSeriesForFrame
+- packages/chart-react/src/engine/webgl/indicatorWebGL.ts — frame map passthrough
+- packages/chart-react/src/engine/renderer.ts — frame map passthrough to axis annotations
+- packages/chart-react/src/engine/indicatorScale.test.ts — scale cache regressions
+- packages/chart-react/src/engine/indicatorResultProvider.test.ts — prepareFrame + resolveSeriesForFrame
+- src/lib/chart/ARCHITECTURE.md — Phase 5 paragraph
+
+## Architecture review
+Self-review Passed — scale cache + frame resolve only; auto-scale semantics and manual mode unchanged.
+
+## Focused
+npm test -- --run packages/chart-react/src/engine/indicatorScale.test.ts packages/chart-react/src/engine/indicatorResultProvider.test.ts
+Test Files  2 passed (2)
+Tests  11 passed (11)
+
+## Harness (pan/zoom vs Phase 4 baseline)
+npm run perf:chart
+- interaction-5k-pan-zoom: p50=34.2ms p95=211.8ms (Phase 4 p50=52.4 p95=209.8)
+- interaction-5k-pan-zoom-drawings-20: p50=27.7ms p95=182.9ms (Phase 4 p50=54.7 p95=207.3)
+- interaction-100k-pan-zoom-sample: p50=705.8ms p95=1554ms (Phase 4 p50=901.3 p95=1960.1)
+- interaction-100k-pan-zoom-drawings-20: p50=581.5ms p95=1462.2ms (Phase 4 p50=922.2 p95=1842.9)
+
+## Next
+Phase 6 — virtualize heavy lists.

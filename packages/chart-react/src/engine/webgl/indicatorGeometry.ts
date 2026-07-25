@@ -1,7 +1,7 @@
 import type { Candle, IndicatorConfig, Theme, VisibleRange } from '@edge/chart-core';
 import type { IndicatorPlugin } from '@edge/chart-core/plugin-api';
 import { resolveSeriesStyle } from '@edge/chart-core/indicatorCompute';
-import { resolveIndicatorResultProvider, resolveIndicatorPlugin, type IndicatorResultProvider } from '../indicatorResultProvider';
+import { resolveIndicatorResultProvider, resolveIndicatorPlugin, resolveSeriesForFrame, type FrameIndicatorSeries, type IndicatorResultProvider } from '../indicatorResultProvider';
 import type { FillGeometry, LineGeometry } from './candleGeometry';
 import type { GeometryBufferPool } from './geometryBufferPool';
 import { buildHistogramGeometry, buildLineGeometry } from './seriesGeometry';
@@ -94,16 +94,17 @@ export function buildIndicatorDrawBatches(
   theme: Theme,
   resultProvider?: IndicatorResultProvider | null,
   pool?: GeometryBufferPool,
+  frameIndicatorSeries?: FrameIndicatorSeries | null,
 ): IndicatorDrawBatch[] {
   const batches: IndicatorDrawBatch[] = [];
+  const provider = resolveIndicatorResultProvider(resultProvider);
 
   for (const instance of indicators) {
     if (instance.visible === false) continue;
     const plugin = resolveIndicatorPlugin(instance);
     if (!plugin || !isWebGLCompatibleIndicator(plugin)) continue;
 
-    const provider = resolveIndicatorResultProvider(resultProvider);
-    const data = provider.resolveSeries(plugin, instance, candles);
+    const data = resolveSeriesForFrame(frameIndicatorSeries, provider, plugin, instance, candles);
     if (!data) continue;
 
     batches.push(...batchesForOutputs(plugin, instance, candles, vp, theme, data, pool));

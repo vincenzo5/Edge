@@ -192,6 +192,8 @@ Interaction smoothness is tracked separately from memory retention and market-da
 
 **Drawing interaction hot path (Phase 4):** `pointToPlot` resolves timestamps via O(1) matching `dataIndex` or binary search (`lowerBoundCandleIndex` / `resolveDataIndexFromTimestamp` in `packages/chart-core/src/drawingCoords.ts`). Hover hit-test is RAF-coalesced in `useCanvasGestures` with shared cursor state via `computeDrawingHoverHit`; `getHitTestCandidates` caches z-sorted visible lists and AABB-culls before plugin `hitTest`. Drag moves coalesce `DrawingStore.replaceDrawing` to one write per frame (`drawingDragCoalesce.ts`); undo still commits on pointer-up via `execute`.
 
+**Pan/zoom scale + frame resolve (Phase 5):** Auto-scale bounds cache by quantized index window + candle/indicator identity in `indicatorScale.ts` (`clearVisibleScaleCache` for tests/session resets). `IndicatorResultProvider.prepareFrame` resolves each visible indicator once per draw; `resolveSeriesForFrame` feeds bar colors, indicator plots, WebGL batches, and price-axis annotations from the same map (`paneRenderer.ts` entry).
+
 ## Verification
 
 ```bash
