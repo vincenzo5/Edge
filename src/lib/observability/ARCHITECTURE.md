@@ -191,6 +191,18 @@ targets the recorded PID and refuses unmanaged port collisions on `:3000`.
 Migrate/build load production env explicitly; migrate runs from the development
 checkout (deps present) with `--env-file` targeting `edge_prod`.
 
+Phase 4 adds explicit promotion and rollback via `scripts/deploy-local-prod.mts`
+and `npm run local:prod:{deploy,rollback}`. Deploy requires `--revision`
+(commit SHA or tag), runs `check:startup`, classifies pending SQL migrations for
+destructive patterns, stops launchd, promotes the detached production worktree,
+migrates/builds, restarts the LaunchAgent, and fail-closes on a health gate:
+`/healthz`, `/readyz`, and `/api/market-data/health` with
+`cache.kind=redis` and `cache.degraded=false`. Revision history lives in
+gitignored `.edge/local-prod/deploy-revisions.json` (`currentSha`, `previousSha`,
+`pendingSha`, `failedSha`, `promotedAt`, `buildId` — no secrets). Rollback
+restores `previousSha`, rebuilds when `.next/BUILD_ID` is missing, and repeats
+the same health gate before promoting rollback state to current.
+
 Production configuration failures use fixed field/reason messages and never
 print dotenv source lines, credentials, or connection URLs. See
 [Local Development and Production Roadmap](../../../docs/roadmaps/local-dev-production-roadmap.md).
@@ -207,6 +219,8 @@ print dotenv source lines, credentials, or connection URLs. See
 | What happened to this order? | `npm run report:trading-audit -- --limit 20` or `GET /api/me/trading-audit` |
 | Did users hit errors overnight? | `npm run report:production-errors -- --limit 50` or `GET /api/me/production-errors` |
 | Do I need to wake up? | `npm run watch:readyz` (cron) + `EDGE_ALERT_WEBHOOK_URL`; Data Health UI for human triage after alert |
+| Promote a tested revision? | `npm run local:prod:deploy -- --revision <sha>` then confirm `npm run local:prod:status` shows deploy.current + ready probes |
+| Recover from a bad deploy? | `npm run local:prod:rollback` restores deploy.previous and re-runs the health gate |
 
 After a readiness alert: confirm `/readyz` reason codes, check Postgres/Redis/TWS sidecar, then `report:production-errors` and `report:trading-audit` for correlated failures.
 

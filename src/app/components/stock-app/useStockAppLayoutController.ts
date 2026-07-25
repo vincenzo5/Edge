@@ -58,6 +58,11 @@ export function useStockAppLayoutController({
 }: Args) {
   const appTheme = useAppThemeOptional();
 
+  const cells = useMemo(
+    () => layout.cells.slice(0, cellCountFor(layout.layoutId)),
+    [layout.cells, layout.layoutId],
+  );
+
   const applyCellUpdate = useCallback(
     (index: number, next: CellConfig) => {
       const id = cellChartId(index);
@@ -114,11 +119,6 @@ export function useStockAppLayoutController({
       setLayout((prev) => ({ ...prev, toolbarPrefs: next }));
     },
     [setLayout],
-  );
-
-  const cells = useMemo(
-    () => layout.cells.slice(0, cellCountFor(layout.layoutId)),
-    [layout.cells, layout.layoutId],
   );
 
   const activeCellIndex = layout.activeCellIndex ?? 0;

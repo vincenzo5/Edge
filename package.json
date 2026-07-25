@@ -56,6 +56,8 @@
     "local:prod:service:restart": "bash scripts/install-local-prod-service.sh restart",
     "local:prod:service:status": "bash scripts/install-local-prod-service.sh status",
     "local:prod:service:logs": "bash scripts/install-local-prod-service.sh logs",
+    "local:prod:deploy": "bash scripts/deploy-local-prod.sh deploy",
+    "local:prod:rollback": "bash scripts/deploy-local-prod.sh rollback",
     "db:migrate": "npx tsx scripts/db-migrate.mts",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",

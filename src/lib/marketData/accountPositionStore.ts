@@ -15,7 +15,7 @@ function positionKey(position: AccountPosition | null): string {
     position.avgCost,
     position.marketPrice,
     position.marketValue,
-    position.unrealizedPnL,
+    position.unrealizedPNL,
   ].join("|");
 }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET } from "./route";
 import { getServerCacheHealthSnapshot } from "@/lib/marketData/cache/serverCacheHealth";
+import { createTwsClient, isTwsConfigured } from "@/lib/marketData/providers/tws/client";
 
 const getTwsStatusProbe = vi.fn(async () => ({
   data: {
@@ -44,6 +45,7 @@ vi.mock("@/lib/marketData/providers/tws/recoverySession", () => ({
 }));
 
 vi.mock("@/lib/marketData/providers/tws/client", () => ({
+  isTwsConfigured: vi.fn(() => true),
   createTwsClient: vi.fn(() => ({
     probeHealth: vi.fn(async () => ({ ok: true, capabilities: { controlRecovery: true } })),
   })),
@@ -114,6 +116,13 @@ describe("/api/market-data/health GET", () => {
     expect(JSON.stringify(json)).not.toMatch(/FMP_API_KEY|FRED_API_KEY|SEC_USER_AGENT/);
     expect(json.health.recentWarnings.some((w) => w.includes("authenticated"))).toBe(false);
     expect(getIbkrStatusProbe).not.toHaveBeenCalled();
+  });
+
+  it("skips sidecar probe when TWS is not configured", async () => {
+    vi.mocked(isTwsConfigured).mockReturnValueOnce(false);
+    const res = await GET(new Request("http://localhost/api/market-data/health"));
+    expect(res.status).toBe(200);
+    expect(createTwsClient).not.toHaveBeenCalled();
   });
 
   it("returns monotonic revision metadata", async () => {

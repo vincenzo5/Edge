@@ -1,7 +1,7 @@
 import YahooFinance from "yahoo-finance2";
 
 import type { ChartHistoryExtent } from "@edge/chart-core";
-import type { Interval as ChartInterval, Range } from "@edge/chart-core/contracts";
+import type { Interval as ChartInterval } from "@edge/chart-core/contracts";
 
 // v3 changed the default export from a singleton to a class that must be
 // instantiated before use. See docs/UPGRADING.md (v2 -> v3).
@@ -101,7 +101,7 @@ const MS_DAY = 24 * 60 * 60 * 1000;
  * Requests outside these windows fail with "must be within the last N days".
  * Returns null when the interval has no short history cap for our ranges.
  */
-export function yahooMaxHistoryMs(interval: Interval): number | null {
+export function yahooMaxHistoryMs(interval: ChartInterval): number | null {
   switch (interval) {
     case "1m":
       return 7 * MS_DAY;
@@ -110,6 +110,7 @@ export function yahooMaxHistoryMs(interval: Interval): number | null {
     case "30m":
       return 60 * MS_DAY;
     case "1h":
+    case "2h":
       return 730 * MS_DAY;
     default:
       return null;
@@ -120,7 +121,7 @@ export function yahooMaxHistoryMs(interval: Interval): number | null {
 export function clampYahooChartPeriod(
   period1: Date,
   period2: Date,
-  interval: Interval,
+  interval: ChartInterval,
   nowMs = Date.now(),
 ): { period1: Date; period2: Date } | null {
   const maxMs = yahooMaxHistoryMs(interval);

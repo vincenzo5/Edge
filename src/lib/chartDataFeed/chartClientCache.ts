@@ -13,7 +13,7 @@ export type ChartClientCacheKeyParts = {
   symbol: string;
   exchange?: string;
   interval: Interval;
-  range: Range;
+  range?: Range;
   sessionMode?: MarketSessionMode;
 };
 

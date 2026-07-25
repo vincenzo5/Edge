@@ -42,7 +42,7 @@ function mutateTipCandle(candles: Candle[], frameIndex: number): Candle[] {
     c: round(close),
     h: round(high),
     l: round(Math.max(0.5, low)),
-    v: last.v + (frameIndex % 5) * 1_000,
+    v: (last.v ?? 0) + (frameIndex % 5) * 1_000,
   };
 
   return next;

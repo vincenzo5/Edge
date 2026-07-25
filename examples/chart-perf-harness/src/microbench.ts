@@ -30,7 +30,7 @@ function mutateTip(candles: Candle[]): Candle[] {
     c: round(last.c + 0.12),
     h: round(Math.max(last.h, last.c + 0.2)),
     l: round(Math.min(last.l, last.c - 0.1)),
-    v: last.v + 2_500,
+    v: (last.v ?? 0) + 2_500,
   };
 
   return next;

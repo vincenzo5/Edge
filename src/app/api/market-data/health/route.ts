@@ -11,7 +11,7 @@ import { getDeliveryRegistry } from "@/lib/marketData/state/deliveryRegistry";
 import { twsHealthGate } from "@/lib/marketData/providers/tws/healthGate";
 import { deriveTwsSystemLifecycle } from "@/lib/marketData/providers/tws/lifecycle";
 import { getTwsRecoverySession } from "@/lib/marketData/providers/tws/recoverySession";
-import { createTwsClient } from "@/lib/marketData/providers/tws/client";
+import { createTwsClient, isTwsConfigured } from "@/lib/marketData/providers/tws/client";
 import { getServerMarketDataService } from "@/lib/marketData/service/server";
 import { nextHealthRevision } from "@/lib/marketData/healthRevision";
 import {
@@ -122,8 +122,9 @@ export async function GET(request: Request): Promise<Response> {
       ]),
     );
 
-    const client = createTwsClient();
-    const healthProbe = await client.probeHealth(2_000);
+    const healthProbe = isTwsConfigured()
+      ? await createTwsClient().probeHealth(2_000)
+      : { ok: false };
 
     const cache = await getServerCacheHealthSnapshot();
 

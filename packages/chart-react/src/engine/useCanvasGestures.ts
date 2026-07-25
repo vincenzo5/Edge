@@ -30,7 +30,10 @@ import { resetPanePriceScale } from './indicatorScale';
 import { formatAxisTime } from '@edge/chart-core/time';
 import { formatCrosshairValue } from '@edge/chart-core/crosshair';
 import { clampPlot } from '@edge/chart-core/drawingCoords';
-import { computeDrawingHoverHit } from '../drawing/drawingHoverHitTest';
+import {
+  computeDrawingHoverHit,
+  type DrawingHoverHit,
+} from '../drawing/drawingHoverHitTest';
 import { snapshotViewport, type ActiveGesture } from './paneGesture';
 import type { EventBadgeGroup } from './eventBadges';
 import type { RequiredChartSettings } from './chartSettings';
@@ -66,7 +69,13 @@ type CanvasGesturesParams = {
   isPlotBody: (x: number, y: number) => boolean;
   plotCoordsFromClient: (x: number, y: number) => { plotX: number; plotY: number };
   hitTestEventBadgeAt: (x: number, y: number) => EventBadgeGroup | null;
-  applyCursor: (x: number, y: number, isDragging?: boolean, shiftHeld?: boolean) => void;
+  applyCursor: (
+    x: number,
+    y: number,
+    isDragging?: boolean,
+    shiftHeld?: boolean,
+    hoverHit?: DrawingHoverHit,
+  ) => void;
   handleBadgeHover: (x: number, y: number) => boolean;
   rafRef: RefObject<number | null>;
   momentumRef: RefObject<number>;

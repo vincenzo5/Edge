@@ -35,6 +35,7 @@ export const LOCAL_PROD_PID_FILE = "local-prod.pid";
 export const LOCAL_PROD_META_FILE = "local-prod.meta.json";
 export const LOCAL_PROD_LOG_FILE = "local-prod.log";
 export const LOCAL_PROD_BLOCKED_FILE = "service-blocked.json";
+export const LOCAL_PROD_DEPLOY_STATE_FILE = "deploy-revisions.json";
 export const LOCAL_PROD_SERVICE_LABEL = "com.edge.local-prod";
 export const LOCAL_PROD_LOG_MAX_BYTES = 10 * 1024 * 1024;
 export const LOCAL_PROD_BLOCKED_SLEEP_MS = 300_000;
@@ -67,6 +68,15 @@ export type LocalProdBlockedState = {
   at: string;
   reason: string;
   detail?: string;
+};
+
+export type LocalProdDeployRevisionState = {
+  currentSha: string | null;
+  previousSha: string | null;
+  pendingSha: string | null;
+  failedSha: string | null;
+  promotedAt: string | null;
+  buildId: string | null;
 };
 
 export type LocalProdOptions = {
@@ -371,7 +381,63 @@ function runtimePaths(developmentRoot: string) {
     metaPath: join(dir, LOCAL_PROD_META_FILE),
     logPath: join(dir, LOCAL_PROD_LOG_FILE),
     blockedPath: join(dir, LOCAL_PROD_BLOCKED_FILE),
+    deployStatePath: join(dir, LOCAL_PROD_DEPLOY_STATE_FILE),
   };
+}
+
+export function emptyDeployRevisionState(): LocalProdDeployRevisionState {
+  return {
+    currentSha: null,
+    previousSha: null,
+    pendingSha: null,
+    failedSha: null,
+    promotedAt: null,
+    buildId: null,
+  };
+}
+
+export function readDeployRevisionState(
+  developmentRoot: string,
+  deps: Pick<LocalProdDeps, "existsSync" | "readFileSync">,
+): LocalProdDeployRevisionState {
+  const { deployStatePath } = runtimePaths(developmentRoot);
+  if (!deps.existsSync(deployStatePath)) return emptyDeployRevisionState();
+  try {
+    const parsed = JSON.parse(
+      deps.readFileSync(deployStatePath, "utf8"),
+    ) as Partial<LocalProdDeployRevisionState>;
+    return {
+      currentSha: parsed.currentSha ?? null,
+      previousSha: parsed.previousSha ?? null,
+      pendingSha: parsed.pendingSha ?? null,
+      failedSha: parsed.failedSha ?? null,
+      promotedAt: parsed.promotedAt ?? null,
+      buildId: parsed.buildId ?? null,
+    };
+  } catch {
+    return emptyDeployRevisionState();
+  }
+}
+
+export function writeDeployRevisionState(
+  developmentRoot: string,
+  state: LocalProdDeployRevisionState,
+  deps: Pick<LocalProdDeps, "mkdirSync" | "writeFileSync">,
+): void {
+  const { dir, deployStatePath } = runtimePaths(developmentRoot);
+  deps.mkdirSync(dir, { recursive: true });
+  deps.writeFileSync(deployStatePath, JSON.stringify(state, null, 2) + "\n", "utf8");
+}
+
+export function formatDeployRevisionStatus(state: LocalProdDeployRevisionState): string[] {
+  return [
+    `deploy.current=${state.currentSha ?? "none"}`,
+    `deploy.previous=${state.previousSha ?? "none"}`,
+    `deploy.pending=${state.pendingSha ?? "none"}`,
+    `deploy.failed=${state.failedSha ?? "none"}`,
+    `deploy.promotedAt=${state.promotedAt ?? "none"}`,
+    `deploy.buildId=${state.buildId ?? "none"}`,
+  ];
 }
 
 export function launchAgentTarget(uid: number): string {
@@ -961,6 +1027,11 @@ export async function runStatusCommand(
     console.log(
       `production.readyz=${ready.ok ? "pass" : "fail"} reasons=${ready.reasons.join(",") || "none"}`,
     );
+  }
+
+  const deployState = readDeployRevisionState(options.developmentRoot, deps);
+  for (const line of formatDeployRevisionStatus(deployState)) {
+    console.log(line);
   }
 
   const issues = validateLocalDeploy(input);

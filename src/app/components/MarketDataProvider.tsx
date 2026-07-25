@@ -165,7 +165,7 @@ function oldestQuoteUpdatedAt(quotes: Iterable<QuoteSnapshot>): number | undefin
 }
 
 function mergeQuotesMeta(
-  quotes: Map<string, QuoteSnapshot>,
+  quotes: ReadonlyMap<string, QuoteSnapshot>,
   meta: RestQuotesResponse["meta"] | undefined,
   prev: Partial<ChartDataMeta> | null | undefined,
   streaming?: boolean,
