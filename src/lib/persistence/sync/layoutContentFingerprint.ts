@@ -1,4 +1,6 @@
 import type { ChartLayout } from "@/lib/chartConfig";
+import { cellChartId, getCellRevision, isCellLayoutStoreHydrated } from "@/lib/chart/cellLayoutStore";
+import { cellCountFor } from "@/lib/chartConfig";
 
 let fingerprintCache = new WeakMap<object, string>();
 
@@ -22,9 +24,35 @@ export function layoutContentFingerprint(layout: ChartLayout): string {
   return fingerprint;
 }
 
+/**
+ * Revision-based layout fingerprint — avoids stringifying drawings/viewport on hot path.
+ * Falls back to full layout fingerprint when cell store has no entries yet.
+ */
+export function layoutRevisionFingerprint(layout: ChartLayout): string {
+  const count = cellCountFor(layout.layoutId);
+  if (!isCellLayoutStoreHydrated()) {
+    return layoutContentFingerprint(layout);
+  }
+
+  const shell = [
+    layout.layoutId,
+    layout.activeCellIndex ?? 0,
+    layout.linkSymbol,
+    layout.linkInterval,
+    layout.linkCrosshair,
+    layout.linkDrawings,
+    JSON.stringify(layout.toolbarPrefs),
+    JSON.stringify(layout.sidebar),
+  ].join("\0");
+  const cellRevs = Array.from({ length: count }, (_, i) => getCellRevision(cellChartId(i))).join(
+    ",",
+  );
+  return fnv1aHash(`${shell}\0${cellRevs}`);
+}
+
 export function layoutsContentEqual(a: ChartLayout, b: ChartLayout): boolean {
   if (a === b) return true;
-  return layoutContentFingerprint(a) === layoutContentFingerprint(b);
+  return layoutRevisionFingerprint(a) === layoutRevisionFingerprint(b);
 }
 
 /** Test helper — reset identity cache between Vitest cases. */

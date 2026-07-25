@@ -225,6 +225,7 @@ export function createDrawingHandleSlice(ctx: DrawingHandleSliceContext): Drawin
       return () => selectionChangeCbsRef.current.delete(cb);
     },
     serializeDrawings: () => serializeAll(drawingsRef.current),
+    getDrawingRevision: () => drawingStoreRef.current.getRevision(),
     restoreDrawings: (data) => {
       hydrateDrawings(data);
     },

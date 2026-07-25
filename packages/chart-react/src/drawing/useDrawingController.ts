@@ -57,6 +57,8 @@ export type DrawingControllerDeps = {
   error: string | null;
   displayCandlesLength: number;
   stateDrawings: SerializedDrawing[] | undefined;
+  /** External layout revision for drawings — skips JSON.stringify hydrate dedupe. */
+  stateDrawingsRevision?: number;
   /** Live last price for stick-entry-to-last-price on long/short positions. */
   livePrice?: number | null;
 };
@@ -77,6 +79,7 @@ export type DrawingHandleSlice = {
   selectDrawing: (id: string | null) => void;
   onSelectionChange: (cb: (id: string | null) => void) => () => void;
   serializeDrawings: () => SerializedDrawing[];
+  getDrawingRevision: () => number;
   restoreDrawings: (data: SerializedDrawing[]) => void;
   getTrackedOverlays: () => TrackedOverlay[];
   removeOverlay: (id: string) => void;
@@ -116,6 +119,7 @@ export function useDrawingController(deps: DrawingControllerDeps) {
     error,
     displayCandlesLength,
     stateDrawings,
+    stateDrawingsRevision,
     livePrice = null,
   } = deps;
 
@@ -155,6 +159,7 @@ export function useDrawingController(deps: DrawingControllerDeps) {
     error,
     displayCandlesLength,
     stateDrawings,
+    stateDrawingsRevision,
     activePlacingPaneRef,
     bumpDrawTick,
   });

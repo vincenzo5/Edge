@@ -59,6 +59,8 @@ export type EdgeChartHandle = {
   clearDrawings: () => void;
   setMagnet: (on: boolean) => void;
   serializeDrawings: () => SerializedDrawing[];
+  /** Monotonic drawing-store revision — cheap change detection vs stringify. */
+  getDrawingRevision: () => number;
   restoreDrawings: (data: SerializedDrawing[]) => void;
   getVisibleRange: () => VisibleRange | null;
   setVisibleRange: (startIndex: number, endIndex: number) => void;
@@ -146,6 +148,8 @@ export type EdgeChartProps = {
   rangePreset?: Range | null;
   /** Session key for viewport resets when the candle series identity changes. */
   sessionKey?: string;
+  /** External layout revision for drawings — avoids JSON.stringify hydrate dedupe. */
+  drawingsRevision?: number;
   collapsedKeys?: Set<IndicatorKey>;
   maximizedKey?: IndicatorKey | null;
   paneOrder?: string[];

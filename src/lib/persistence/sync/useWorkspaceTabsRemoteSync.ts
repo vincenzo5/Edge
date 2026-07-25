@@ -13,13 +13,13 @@ import {
   updateTabRemote,
   type WorkspaceTabsState,
 } from "@/lib/app/workspaceTabs";
-import { layoutContentFingerprint } from "./layoutContentFingerprint";
+import { layoutRevisionFingerprint } from "./layoutContentFingerprint";
 import { mergeRemoteConflictLayout } from "./mergeRemoteConflictLayout";
 
 /** Stable key for the active tab layout — excludes remote sync metadata. */
 export function workspaceActiveContentKey(tabs: WorkspaceTabsState): string {
   const active = getActiveTab(tabs);
-  return `${active.id}\0${active.title}\0${layoutContentFingerprint(active.layout)}`;
+  return `${active.id}\0${active.title}\0${layoutRevisionFingerprint(active.layout)}`;
 }
 
 async function persistActiveTab(

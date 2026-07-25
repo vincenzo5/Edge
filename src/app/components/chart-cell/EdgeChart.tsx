@@ -63,6 +63,7 @@ export type ChartHandle = EdgeChartHandle & {
 
 type Props = {
   config: CellConfig;
+  drawingsRevision?: number;
   theme: Theme;
   palette?: PaletteId;
   visibleCount?: number | null;
@@ -127,6 +128,7 @@ type Props = {
 const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) {
   const {
     config,
+    drawingsRevision,
     theme,
     palette = DEFAULT_PALETTE,
     visibleCount = null,
@@ -323,6 +325,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       clearDrawings: () => innerRef.current?.clearDrawings(),
       setMagnet: (on) => innerRef.current?.setMagnet(on),
       serializeDrawings: () => innerRef.current?.serializeDrawings() ?? [],
+      getDrawingRevision: () => innerRef.current?.getDrawingRevision?.() ?? 0,
       restoreDrawings: (data) => innerRef.current?.restoreDrawings(data),
       getVisibleRange: () => innerRef.current?.getVisibleRange() ?? null,
       setVisibleRange: (start, end) => innerRef.current?.setVisibleRange(start, end),
@@ -436,6 +439,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         range={fetchRange}
         rangePreset={config.rangePreset ?? null}
         sessionKey={sessionKey}
+        drawingsRevision={drawingsRevision}
         collapsedKeys={collapsedKeys}
         maximizedKey={maximizedKey}
         paneOrder={paneOrder}

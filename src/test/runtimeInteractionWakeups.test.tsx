@@ -13,6 +13,17 @@ import {
 } from "@/lib/marketData/accountPositionStore";
 import { useAccountPositionForSymbol } from "@/lib/marketData/useAccountPosition";
 import type { AccountPosition } from "@/lib/marketData/contracts/brokerage";
+import {
+  cellChartId,
+  clearCellLayoutStoreForTests,
+  flushCellLayoutNow,
+  getCellConfig,
+  getCellRevision,
+  registerCellLayoutFlushHandler,
+  setCellConfig,
+} from "@/lib/chart/cellLayoutStore";
+import { useCellLayoutConfig } from "@/lib/chart/useCellLayoutConfig";
+import { DEFAULT_CELL, type CellConfig } from "@/lib/chartConfig";
 
 function quote(symbol: string, price: number): QuoteSnapshot {
   return {
@@ -58,6 +69,20 @@ function AccountPositionProbe({
 }) {
   useRenderCounter(counter);
   useAccountPositionForSymbol(symbol);
+  return null;
+}
+
+function CellLayoutProbe({
+  chartId,
+  fallback,
+  counter,
+}: {
+  chartId: string;
+  fallback: CellConfig;
+  counter: ReturnType<typeof createRenderCounter>;
+}) {
+  useRenderCounter(counter);
+  useCellLayoutConfig(chartId, fallback);
   return null;
 }
 
@@ -132,5 +157,74 @@ describe("runtime interaction wakeups — Phase 2", () => {
 
     expect(aaplCounter.count()).toBe(0);
     expect(msftCounter.count()).toBe(1);
+  });
+});
+
+describe("runtime interaction wakeups — Phase 7", () => {
+  beforeEach(() => {
+    clearCellLayoutStoreForTests();
+  });
+
+  it("inactive cell probe does not render when another cell drawing slice updates", () => {
+    const cellACounter = createRenderCounter();
+    const cellBCounter = createRenderCounter();
+    const fallbackA = { ...DEFAULT_CELL, symbol: "AAPL" };
+    const fallbackB = { ...DEFAULT_CELL, symbol: "MSFT" };
+
+    render(
+      <>
+        <CellLayoutProbe chartId="cell-0" fallback={fallbackA} counter={cellACounter} />
+        <CellLayoutProbe chartId="cell-1" fallback={fallbackB} counter={cellBCounter} />
+      </>,
+    );
+
+    cellACounter.reset();
+    cellBCounter.reset();
+
+    act(() => {
+      setCellConfig(cellChartId(0), {
+        ...fallbackA,
+        drawings: [
+          {
+            id: "d1",
+            name: "trend_line",
+            points: [{ timestamp: 1, value: 1 }],
+            visible: true,
+            locked: false,
+            zLevel: 0,
+            paneId: "price",
+          },
+        ],
+      });
+    });
+
+    expect(cellACounter.count()).toBe(1);
+    expect(cellBCounter.count()).toBe(0);
+    expect(getCellRevision(cellChartId(0))).toBeGreaterThan(0);
+  });
+
+  it("persistence round-trip captures drawing slice on flush", () => {
+    const fallback = { ...DEFAULT_CELL, symbol: "AAPL" };
+    const flushed: CellConfig[] = [];
+
+    registerCellLayoutFlushHandler(() => {
+      flushed.push({ ...(getCellConfig(cellChartId(0)) ?? fallback) });
+    });
+
+    const drawing = {
+      id: "d1",
+      name: "trend_line",
+      points: [{ timestamp: 1, value: 1 }],
+      visible: true,
+      locked: false,
+      zLevel: 0,
+      paneId: "price",
+    };
+
+    setCellConfig(cellChartId(0), { ...fallback, drawings: [drawing] });
+    flushCellLayoutNow();
+
+    expect(flushed).toHaveLength(1);
+    expect(flushed[0]?.drawings).toEqual([drawing]);
   });
 });

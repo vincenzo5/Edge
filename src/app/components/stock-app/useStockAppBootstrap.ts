@@ -28,6 +28,12 @@ import { createDefaultScreenerSession } from "@/lib/screener/screenerSession";
 import { useChartTemplateLibraryRemoteSync } from "@/lib/persistence/sync/useChartTemplateLibraryRemoteSync";
 import { useWorkspaceTabsRemoteSync } from "@/lib/persistence/sync/useWorkspaceTabsRemoteSync";
 import type { ChartLayout } from "@/lib/chartConfig";
+import {
+  collectLayoutCells,
+  registerCellLayoutFlushHandler,
+  syncCellLayoutStoreFromLayout,
+} from "@/lib/chart/cellLayoutStore";
+import { cellCountFor } from "@/lib/chartConfig";
 
 export type UseStockAppBootstrapOptions = {
   chartTileBinding?: ChartTileBootstrapBinding;
@@ -76,7 +82,11 @@ export function useStockAppBootstrap(options: UseStockAppBootstrapOptions = {}) 
 
   const setLayout = useCallback(
     (updater: ChartLayout | ((prev: ChartLayout) => ChartLayout)) => {
-      setWorkspaceTabs((prev) => updateActiveTabLayout(prev, updater));
+      setWorkspaceTabs((prev) => {
+        const next = updateActiveTabLayout(prev, updater);
+        syncCellLayoutStoreFromLayout(getActiveLayout(next));
+        return next;
+      });
     },
     [],
   );
@@ -85,6 +95,7 @@ export function useStockAppBootstrap(options: UseStockAppBootstrapOptions = {}) 
     (result: AppBootstrapResult) => {
       const prunedTabs = pruneToSingleActiveTab(result.workspaceTabs);
       workspaceTabsRef.current = prunedTabs;
+      syncCellLayoutStoreFromLayout(getActiveLayout(prunedTabs));
       setWorkspaceTabs(prunedTabs);
       saveWorkspaceTabs(prunedTabs, storageBinding);
       setWatchlistBootstrap(result.watchlist);
@@ -145,6 +156,7 @@ export function useStockAppBootstrap(options: UseStockAppBootstrapOptions = {}) 
         const next = pruneToSingleActiveTab(
           mergeWorkspaceTabsApply(current, incoming, applyOptions),
         );
+        syncCellLayoutStoreFromLayout(getActiveLayout(next));
         workspaceTabsRef.current = next;
         saveWorkspaceTabs(next, storageBinding);
         return next;
@@ -178,6 +190,17 @@ export function useStockAppBootstrap(options: UseStockAppBootstrapOptions = {}) 
   }, [flushActiveTabSave]);
 
   useChartTemplateLibraryRemoteSync();
+
+  useEffect(() => {
+    return registerCellLayoutFlushHandler(() => {
+      setWorkspaceTabs((prev) => {
+        const currentLayout = getActiveLayout(prev);
+        const count = cellCountFor(currentLayout.layoutId);
+        const mergedCells = collectLayoutCells(count);
+        return updateActiveTabLayout(prev, { ...currentLayout, cells: mergedCells });
+      });
+    });
+  }, []);
 
   useEffect(() => {
     if (!hydratedRef.current) return;

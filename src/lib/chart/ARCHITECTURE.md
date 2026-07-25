@@ -196,6 +196,8 @@ Interaction smoothness is tracked separately from memory retention and market-da
 
 **List virtualization (Phase 6):** Heavy desk lists use `@tanstack/react-virtual` with memoized rows — watchlist (`WatchlistTable` + `WatchlistRow`), options chain strikes (`OptionsChainTable` + `OptionsChainRow`), and Copilot history bubbles (`CopilotMessageList` + `CopilotMessageBubble`). Streaming assistant messages stay mounted outside the recycled window; greeks popover panels lazy-mount on hover only.
 
+**Layout persistence fan-out (Phase 7):** Per-cell layout slices live in `cellLayoutStore` (`useCellLayoutConfig` / `useSyncExternalStore` per `chartId`). Drawing/viewport-only edits write the keyed store + debounced flush into `workspaceTabs` without waking sibling `ChartCell`s. `DrawingStore.revision` and `layoutRevisionFingerprint` replace hot-path `JSON.stringify` equality for drawing persist and dirty keys.
+
 ## Verification
 
 ```bash

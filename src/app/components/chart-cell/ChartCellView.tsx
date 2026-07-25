@@ -62,6 +62,7 @@ type CaptureSlice = Pick<
 export type ChartCellViewProps = {
   chartId: string;
   config: CellConfig;
+  configRevision: number;
   theme: "light" | "dark";
   palette: PaletteId;
   compact: boolean;
@@ -207,13 +208,14 @@ export type ChartCellViewProps = {
   replayActive: boolean;
   setVisibleCount: Dispatch<SetStateAction<number | null>>;
   suppressDrawingPersistRef: MutableRefObject<boolean>;
-  lastAppliedDrawingsRef: MutableRefObject<string>;
+  lastAppliedDrawingRevisionRef: MutableRefObject<number>;
 };
 
 export default function ChartCellView(props: ChartCellViewProps) {
   const {
     chartId,
     config,
+    configRevision,
     theme,
     palette,
     compact,
@@ -328,7 +330,7 @@ export default function ChartCellView(props: ChartCellViewProps) {
     replayActive,
     setVisibleCount,
     suppressDrawingPersistRef,
-    lastAppliedDrawingsRef,
+    lastAppliedDrawingRevisionRef,
   } = props;
 
   const {
@@ -392,6 +394,7 @@ export default function ChartCellView(props: ChartCellViewProps) {
                   key={chartRetryKey}
                   ref={chartRef}
                   config={config}
+                  drawingsRevision={configRevision}
                   theme={theme}
                   palette={palette}
                   compact={compact}
@@ -619,7 +622,7 @@ export default function ChartCellView(props: ChartCellViewProps) {
           chartRef={chartRef}
           chartId={chartId}
           suppressDrawingPersistRef={suppressDrawingPersistRef}
-          lastAppliedDrawingsRef={lastAppliedDrawingsRef}
+          lastAppliedDrawingRevisionRef={lastAppliedDrawingRevisionRef}
         />
       ) : null}
     </div>

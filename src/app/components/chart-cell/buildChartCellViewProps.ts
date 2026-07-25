@@ -17,6 +17,7 @@ import type { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibrary
 type BuildParams = {
   chartId: string;
   config: CellConfig;
+  configRevision: number;
   theme: "light" | "dark";
   palette: PaletteId;
   compact: boolean;
@@ -44,6 +45,7 @@ type BuildParams = {
 export function buildChartCellViewProps({
   chartId,
   config,
+  configRevision,
   theme,
   palette,
   compact,
@@ -67,7 +69,7 @@ export function buildChartCellViewProps({
   patternLibrary,
   scriptLibrary,
 }: BuildParams): ChartCellViewProps {
-  const { overlays, overlaysDirtyRef, suppressDrawingPersistRef, lastAppliedDrawingsRef } =
+  const { overlays, overlaysDirtyRef, suppressDrawingPersistRef, lastAppliedDrawingRevisionRef } =
     drawing;
   const {
     patternCapture,
@@ -97,6 +99,7 @@ export function buildChartCellViewProps({
   return {
     chartId,
     config,
+    configRevision,
     theme,
     palette,
     compact,
@@ -226,6 +229,6 @@ export function buildChartCellViewProps({
     replayActive,
     setVisibleCount: feed.setVisibleCount,
     suppressDrawingPersistRef,
-    lastAppliedDrawingsRef,
+    lastAppliedDrawingRevisionRef,
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { type ChartHandle } from "./EdgeChart";
 import { useJournalChartOverlay } from "../journal/journalChartOverlayContext";
 import { usePatternChartGoto, usePatternLibraryOptional } from "../pattern-library/PatternLibraryContext";
@@ -37,6 +37,7 @@ import type { PriceAxisAnnotation } from "@edge/chart-core/priceAxisTypes";
 import type { ChartSymbolNav } from "../chart-chrome/ChartGrid";
 import type { RailMode } from "@/lib/responsive/responsiveLayout";
 import { DEFAULT_PALETTE, type PaletteId } from "@/lib/design-system/palettes";
+import { useCellLayoutConfig, useCellLayoutRevision } from "@/lib/chart/useCellLayoutConfig";
 
 type Props = {
   chartId: string;
@@ -59,9 +60,9 @@ type Props = {
   journalAnnotationMarkersOverride?: ChartAnnotationChannelMarker[];
 };
 
-export default function ChartCell({
+export default memo(function ChartCell({
   chartId,
-  config,
+  config: configProp,
   theme,
   palette = DEFAULT_PALETTE,
   compact = false,
@@ -77,6 +78,8 @@ export default function ChartCell({
   onCandleCount,
   journalAnnotationMarkersOverride,
 }: Props) {
+  const config = useCellLayoutConfig(chartId, configProp);
+  const configRevision = useCellLayoutRevision(chartId);
   const chartRef = useRef<ChartHandle>(null);
   const tradeBinding = useTradeSetupBindingOptional();
   const riskBinding = useRiskPositionBindingOptional();
@@ -146,6 +149,7 @@ export default function ChartCell({
   const drawing = useDrawingLayoutSync({
     chartRef,
     config,
+    configRevision,
     onConfigChange,
     chartId,
     isActive,
@@ -230,6 +234,7 @@ export default function ChartCell({
       {...buildChartCellViewProps({
         chartId,
         config,
+        configRevision,
         theme,
         palette,
         compact,
@@ -255,4 +260,4 @@ export default function ChartCell({
       })}
     />
   );
-}
+});

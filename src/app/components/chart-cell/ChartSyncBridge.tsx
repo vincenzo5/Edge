@@ -8,7 +8,7 @@ type Props = {
   chartRef: RefObject<ChartHandle | null>;
   chartId: string;
   suppressDrawingPersistRef: React.MutableRefObject<boolean>;
-  lastAppliedDrawingsRef: React.MutableRefObject<string>;
+  lastAppliedDrawingRevisionRef: React.MutableRefObject<number>;
 };
 
 /** Subscribes to crosshair timestamps and drawing sync from peer charts via ChartSyncContext. */
@@ -16,7 +16,7 @@ export default function ChartSyncBridge({
   chartRef,
   chartId,
   suppressDrawingPersistRef,
-  lastAppliedDrawingsRef,
+  lastAppliedDrawingRevisionRef,
 }: Props) {
   const sync = useChartSync();
 
@@ -30,13 +30,13 @@ export default function ChartSyncBridge({
   useEffect(() => {
     if (!sync) return;
     return sync.subscribeDrawings(chartId, (drawings) => {
-      const serialized = JSON.stringify(drawings);
-      if (serialized === lastAppliedDrawingsRef.current) return;
-      lastAppliedDrawingsRef.current = serialized;
+      const chart = chartRef.current;
+      if (!chart) return;
       suppressDrawingPersistRef.current = true;
-      chartRef.current?.restoreDrawings(drawings);
+      chart.restoreDrawings(drawings);
+      lastAppliedDrawingRevisionRef.current = chart.getDrawingRevision?.() ?? 0;
     });
-  }, [sync, chartId, chartRef, suppressDrawingPersistRef, lastAppliedDrawingsRef]);
+  }, [sync, chartId, chartRef, suppressDrawingPersistRef, lastAppliedDrawingRevisionRef]);
 
   return null;
 }

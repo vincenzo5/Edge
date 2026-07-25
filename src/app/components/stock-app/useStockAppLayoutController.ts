@@ -23,6 +23,13 @@ import { useChartDeepLinkBootstrap } from "@/app/components/journal/useChartDeep
 import type { ChartDeepLinkParams } from "@/lib/journal/chartDeepLink";
 import { recordRecentSymbol, seedRecentSymbols } from "@/lib/app/recentSymbols";
 import { renameTab, type WorkspaceTabsState } from "@/lib/app/workspaceTabs";
+import {
+  cellChartId,
+  getCellConfig,
+  isDrawingViewportOnlyPatch,
+  scheduleCellLayoutFlush,
+  setCellConfig,
+} from "@/lib/chart/cellLayoutStore";
 import { buildAppActions } from "../AppActionsContext";
 import { useAppThemeOptional } from "../AppThemeProvider";
 import { useSymbolNavigationHistory } from "../chart-chrome/useSymbolNavigationHistory";
@@ -53,9 +60,27 @@ export function useStockAppLayoutController({
 
   const applyCellUpdate = useCallback(
     (index: number, next: CellConfig) => {
-      setLayout((prev) => applyLinkPropagation(prev, index, next));
+      const id = cellChartId(index);
+      const prev = getCellConfig(id) ?? cells[index] ?? DEFAULT_CELL;
+
+      if (isDrawingViewportOnlyPatch(prev, next)) {
+        setCellConfig(id, next);
+        if (layout.linkDrawings) {
+          const count = cellCountFor(layout.layoutId);
+          for (let i = 0; i < count; i += 1) {
+            if (i === index) continue;
+            const peerId = cellChartId(i);
+            const peer = getCellConfig(peerId) ?? cells[i] ?? DEFAULT_CELL;
+            setCellConfig(peerId, { ...peer, drawings: next.drawings });
+          }
+        }
+        scheduleCellLayoutFlush();
+        return;
+      }
+
+      setLayout((prevLayout) => applyLinkPropagation(prevLayout, index, next));
     },
-    [setLayout],
+    [cells, layout.layoutId, layout.linkDrawings, setLayout],
   );
 
   const handleActiveCellChange = useCallback(

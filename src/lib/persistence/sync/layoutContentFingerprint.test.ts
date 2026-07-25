@@ -3,13 +3,16 @@ import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
 import {
   fnv1aHash,
   layoutContentFingerprint,
+  layoutRevisionFingerprint,
   layoutsContentEqual,
   resetLayoutContentFingerprintCacheForTests,
 } from "./layoutContentFingerprint";
+import { syncCellLayoutStoreFromLayout, setCellConfig, cellChartId, clearCellLayoutStoreForTests } from "@/lib/chart/cellLayoutStore";
 
 describe("layoutContentFingerprint", () => {
   beforeEach(() => {
     resetLayoutContentFingerprintCacheForTests();
+    clearCellLayoutStoreForTests();
   });
 
   it("returns the same fingerprint for equal layout content", () => {
@@ -44,5 +47,28 @@ describe("layoutContentFingerprint", () => {
   it("fnv1aHash is stable for the same input", () => {
     expect(fnv1aHash("hello")).toBe(fnv1aHash("hello"));
     expect(fnv1aHash("hello")).not.toBe(fnv1aHash("world"));
+  });
+
+  it("layoutRevisionFingerprint tracks cell store revisions without full layout stringify", () => {
+    syncCellLayoutStoreFromLayout(DEFAULT_LAYOUT);
+    const before = layoutRevisionFingerprint(DEFAULT_LAYOUT);
+
+    setCellConfig(cellChartId(0), {
+      ...DEFAULT_LAYOUT.cells[0]!,
+      drawings: [
+        {
+          id: "d1",
+          name: "trend_line",
+          points: [],
+          visible: true,
+          locked: false,
+          zLevel: 0,
+          paneId: "price",
+        },
+      ],
+    });
+
+    const after = layoutRevisionFingerprint(DEFAULT_LAYOUT);
+    expect(before).not.toBe(after);
   });
 });

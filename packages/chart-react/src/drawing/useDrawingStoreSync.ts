@@ -16,6 +16,7 @@ type UseDrawingStoreSyncParams = {
   error: string | null;
   displayCandlesLength: number;
   stateDrawings: SerializedDrawing[] | undefined;
+  stateDrawingsRevision?: number;
   activePlacingPaneRef: MutableRefObject<string>;
   bumpDrawTick: () => void;
 };
@@ -26,12 +27,14 @@ export function useDrawingStoreSync({
   error,
   displayCandlesLength,
   stateDrawings,
+  stateDrawingsRevision,
   activePlacingPaneRef,
   bumpDrawTick,
 }: UseDrawingStoreSyncParams) {
   const drawingsRef = useRef<SerializedDrawing[]>([]);
   const drawingStoreRef = useRef(new DrawingStore());
   const trackedRef = useRef<Map<string, TrackedOverlay>>(new Map());
+  const lastExternalRevisionRef = useRef<number | undefined>(undefined);
   const drawingsSignatureRef = useRef<string>('');
 
   const syncTrackedFromDrawings = useCallback((drawings: SerializedDrawing[]) => {
@@ -102,6 +105,19 @@ export function useDrawingStoreSync({
 
   useEffect(() => {
     if (loading || error || displayCandlesLength === 0) return;
+
+    if (stateDrawingsRevision != null) {
+      if (trackedRef.current.size === 0) {
+        if (stateDrawings?.length) hydrateDrawings(stateDrawings);
+        lastExternalRevisionRef.current = stateDrawingsRevision;
+        return;
+      }
+      if (stateDrawingsRevision === lastExternalRevisionRef.current) return;
+      lastExternalRevisionRef.current = stateDrawingsRevision;
+      hydrateDrawings(stateDrawings ?? []);
+      return;
+    }
+
     const signature = JSON.stringify(stateDrawings ?? []);
     if (trackedRef.current.size === 0) {
       if (stateDrawings?.length) hydrateDrawings(stateDrawings);
@@ -111,7 +127,7 @@ export function useDrawingStoreSync({
     if (signature === drawingsSignatureRef.current) return;
     drawingsSignatureRef.current = signature;
     hydrateDrawings(stateDrawings ?? []);
-  }, [loading, error, displayCandlesLength, stateDrawings, hydrateDrawings]);
+  }, [loading, error, displayCandlesLength, stateDrawings, stateDrawingsRevision, hydrateDrawings]);
 
   return {
     drawingsRef,

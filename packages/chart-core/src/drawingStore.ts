@@ -93,13 +93,20 @@ export class DrawingStore {
   private undoStack: DrawingCommand[] = [];
   private redoStack: DrawingCommand[] = [];
   private listeners = new Set<() => void>();
+  private revision = 0;
 
   subscribe(cb: () => void): () => void {
     this.listeners.add(cb);
     return () => this.listeners.delete(cb);
   }
 
+  /** Monotonic revision bumped on every store mutation (including hydrate). */
+  getRevision(): number {
+    return this.revision;
+  }
+
   private notify() {
+    this.revision += 1;
     this.listeners.forEach((cb) => cb());
   }
 

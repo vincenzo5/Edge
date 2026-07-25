@@ -53,6 +53,15 @@ describe('DrawingStore', () => {
     expect(store.getDrawings()).toHaveLength(0);
   });
 
+  it('revision increments on mutations and hydrate', () => {
+    const store = new DrawingStore();
+    expect(store.getRevision()).toBe(0);
+    store.execute({ type: 'add', drawing: sample });
+    expect(store.getRevision()).toBe(1);
+    store.hydrate([]);
+    expect(store.getRevision()).toBe(2);
+  });
+
   it('updateMeta undo restores visible and locked', () => {
     const store = new DrawingStore();
     store.hydrate([sample]);

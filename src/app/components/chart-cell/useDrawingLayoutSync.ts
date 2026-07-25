@@ -15,6 +15,7 @@ const DRAWING_PERSIST_DEBOUNCE_MS = 500;
 type Params = {
   chartRef: RefObject<ChartHandle | null>;
   config: CellConfig;
+  configRevision: number;
   onConfigChange: (next: CellConfig) => void;
   chartId: string;
   isActive: boolean;
@@ -34,6 +35,7 @@ type Params = {
 export function useDrawingLayoutSync({
   chartRef,
   config,
+  configRevision,
   onConfigChange,
   chartId,
   isActive,
@@ -46,7 +48,7 @@ export function useDrawingLayoutSync({
   const [overlays, setOverlays] = useState<TrackedOverlay[]>([]);
   const overlaysDirtyRef = useRef(false);
   const suppressDrawingPersistRef = useRef(false);
-  const lastAppliedDrawingsRef = useRef("");
+  const lastAppliedDrawingRevisionRef = useRef(-1);
   const lastSyncedDrawingsRef = useRef<SerializedDrawing[]>([]);
   const drawingPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const configRef = useRef(config);
@@ -65,14 +67,14 @@ export function useDrawingLayoutSync({
       return;
     }
 
-    const serialized = JSON.stringify(drawings);
-    if (serialized === lastAppliedDrawingsRef.current) {
+    const drawingRevision = chart.getDrawingRevision?.() ?? 0;
+    if (drawingRevision === lastAppliedDrawingRevisionRef.current) {
       overlaysDirtyRef.current = false;
       return;
     }
 
     overlaysDirtyRef.current = false;
-    lastAppliedDrawingsRef.current = serialized;
+    lastAppliedDrawingRevisionRef.current = drawingRevision;
     onConfigChange({ ...current, drawings: drawings ?? [] });
     if (sync?.linkDrawings && isActive) {
       sync.broadcastDrawings(chartId, drawings);
@@ -134,24 +136,30 @@ export function useDrawingLayoutSync({
   }, [sync, chartId, isActive, chartRef, chartEngineGeneration, setSelectedOverlayId, setHistoryRevision]);
 
   const lastRestoreGenerationRef = useRef(-1);
+  const lastRestoreRevisionRef = useRef(-1);
 
   // Apply peer or layout-propagated drawings without echoing back to layout/sync bus.
   useEffect(() => {
-    const serialized = JSON.stringify(config.drawings ?? []);
     const sameGeneration = chartEngineGeneration === lastRestoreGenerationRef.current;
-    if (serialized === lastAppliedDrawingsRef.current && sameGeneration) return;
+    if (configRevision === lastRestoreRevisionRef.current && sameGeneration) return;
 
     const current = chartRef.current?.serializeDrawings();
-    if (current && JSON.stringify(current) === serialized && sameGeneration) {
-      lastAppliedDrawingsRef.current = serialized;
+    const targetRevision = chartRef.current?.getDrawingRevision?.() ?? -1;
+    if (
+      current &&
+      configRevision === lastRestoreRevisionRef.current &&
+      targetRevision === lastAppliedDrawingRevisionRef.current &&
+      sameGeneration
+    ) {
       return;
     }
 
-    lastAppliedDrawingsRef.current = serialized;
+    lastRestoreRevisionRef.current = configRevision;
     lastRestoreGenerationRef.current = chartEngineGeneration;
+    lastAppliedDrawingRevisionRef.current = chartRef.current?.getDrawingRevision?.() ?? -1;
     suppressDrawingPersistRef.current = true;
     chartRef.current?.restoreDrawings?.(config.drawings ?? []);
-  }, [config.drawings, chartRef, chartEngineGeneration]);
+  }, [config.drawings, configRevision, chartRef, chartEngineGeneration]);
 
   // Persist drawings to config when overlays change.
   useEffect(() => {
@@ -182,7 +190,7 @@ export function useDrawingLayoutSync({
     overlays,
     overlaysDirtyRef,
     suppressDrawingPersistRef,
-    lastAppliedDrawingsRef,
+    lastAppliedDrawingRevisionRef,
     flushDrawingsPersist,
   };
 }
