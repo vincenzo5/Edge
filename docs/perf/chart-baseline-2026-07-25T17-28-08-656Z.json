@@ -1,0 +1,424 @@
+{
+  "generatedAt": "2026-07-25T17:28:08.656Z",
+  "git": {
+    "commit": "367d3d6",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.7827.55 Safari/537.36"
+  },
+  "scenarios": [
+    {
+      "scenario": "generate-candles-10k",
+      "layer": "micro",
+      "candleCount": 10000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 1.37
+      },
+      "notes": "Deterministic candle generation only."
+    },
+    {
+      "scenario": "generate-candles-100k",
+      "layer": "micro",
+      "candleCount": 100000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 10.74
+      },
+      "notes": "Deterministic candle generation only."
+    },
+    {
+      "scenario": "generate-candles-1m",
+      "layer": "micro",
+      "candleCount": 1000000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 270.43
+      },
+      "notes": "Deterministic candle generation only."
+    },
+    {
+      "scenario": "indicators-compute-cold-100k-core-six",
+      "layer": "micro",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 15,
+      "drawingCount": 0,
+      "paneCount": 11,
+      "metrics": {
+        "durationMs": 589.68,
+        "iterations": 15
+      },
+      "notes": "Cold compute cache; all implemented core indicators."
+    },
+    {
+      "scenario": "indicators-compute-warm-100k-core-six",
+      "layer": "micro",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 15,
+      "drawingCount": 0,
+      "paneCount": 11,
+      "metrics": {
+        "durationMs": 577.11,
+        "iterations": 15
+      },
+      "notes": "Warm compute cache hit path."
+    },
+    {
+      "scenario": "indicator-cache-key-100k-core-six",
+      "layer": "micro",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 15,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 0.08,
+        "iterations": 15
+      },
+      "notes": "Revision-based cache-key cost before compute short-circuit."
+    },
+    {
+      "scenario": "indicators-compute-tip-tick-5k-core-six",
+      "layer": "micro",
+      "tag": "resident-typical",
+      "candleCount": 5000,
+      "indicatorCount": 15,
+      "drawingCount": 0,
+      "paneCount": 11,
+      "metrics": {
+        "durationMs": 7,
+        "iterations": 15
+      },
+      "notes": "Tip mutation after warm cache — incremental tip path when supported."
+    },
+    {
+      "scenario": "initial-render-10k",
+      "layer": "browser",
+      "candleCount": 10000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 71.6,
+        "drawPhases": {
+          "backgroundMs": 1.4,
+          "gridMs": 0,
+          "candlesMs": 8.5,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 0.2,
+          "totalMs": 10.8
+        }
+      },
+      "notes": "Initial mount through four animation frames."
+    },
+    {
+      "scenario": "initial-render-100k",
+      "layer": "browser",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 0,
+      "drawingCount": 0,
+      "paneCount": 1,
+      "metrics": {
+        "durationMs": 397.2,
+        "drawPhases": {
+          "backgroundMs": 1.1,
+          "gridMs": 0,
+          "candlesMs": 57.7,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 0.2,
+          "totalMs": 59.7
+        }
+      },
+      "notes": "Initial mount through four animation frames."
+    },
+    {
+      "scenario": "indicators-100k-core-six",
+      "layer": "browser",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 7620.5,
+        "drawPhases": {
+          "backgroundMs": 1,
+          "gridMs": 0,
+          "candlesMs": 391.3,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 64,
+          "totalMs": 457
+        }
+      },
+      "notes": "Initial mount through four animation frames."
+    },
+    {
+      "scenario": "interaction-100k-pan-only",
+      "layer": "browser",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 7395.4,
+        "averageFrameMs": 1278.73,
+        "p50FrameMs": 1597,
+        "p95FrameMs": 2249.4,
+        "maxFrameMs": 2249.4,
+        "droppedFramePercent": 66.67,
+        "frameSamples": 3,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 3.1,
+          "candlesMs": 361.9,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 62.3,
+          "totalMs": 427.3
+        }
+      },
+      "notes": "Initial mount plus 2s pan-only frame sampling."
+    },
+    {
+      "scenario": "interaction-100k-zoom-only",
+      "layer": "browser",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 7485.9,
+        "averageFrameMs": 505.05,
+        "p50FrameMs": 389.5,
+        "p95FrameMs": 1016.2,
+        "maxFrameMs": 1016.2,
+        "droppedFramePercent": 75,
+        "frameSamples": 4,
+        "drawPhases": {
+          "backgroundMs": 1.8,
+          "gridMs": 3.2,
+          "candlesMs": 86.7,
+          "indicatorsMs": 0,
+          "drawingsMs": 0.1,
+          "axesMs": 68.6,
+          "totalMs": 160.4
+        }
+      },
+      "notes": "Initial mount plus 2s zoom-only frame sampling."
+    },
+    {
+      "scenario": "interaction-100k-crosshair-only",
+      "layer": "browser",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 7380.9,
+        "averageFrameMs": 702.07,
+        "p50FrameMs": 732.4,
+        "p95FrameMs": 1381.4,
+        "maxFrameMs": 1381.4,
+        "droppedFramePercent": 66.67,
+        "frameSamples": 3,
+        "drawPhases": {
+          "backgroundMs": 4.7,
+          "gridMs": 3.4,
+          "candlesMs": 374.2,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 65.5,
+          "totalMs": 450.3
+        }
+      },
+      "notes": "Initial mount plus 2s crosshair sync frame sampling."
+    },
+    {
+      "scenario": "interaction-100k-pan-zoom-sample",
+      "layer": "browser",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 7400.3,
+        "averageFrameMs": 951.3,
+        "p50FrameMs": 901.3,
+        "p95FrameMs": 1960.1,
+        "maxFrameMs": 1960.1,
+        "droppedFramePercent": 66.67,
+        "frameSamples": 3,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 3,
+          "candlesMs": 83.7,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 68.4,
+          "totalMs": 155.1
+        }
+      },
+      "notes": "Initial mount plus 2s pan/zoom mixed frame sampling."
+    },
+    {
+      "scenario": "interaction-100k-pan-zoom-drawings-20",
+      "layer": "browser",
+      "tag": "stress",
+      "candleCount": 100000,
+      "indicatorCount": 6,
+      "drawingCount": 20,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 7221.3,
+        "averageFrameMs": 916.63,
+        "p50FrameMs": 922.2,
+        "p95FrameMs": 1842.9,
+        "maxFrameMs": 1842.9,
+        "droppedFramePercent": 66.67,
+        "frameSamples": 3,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 3.9,
+          "candlesMs": 80,
+          "indicatorsMs": 0,
+          "drawingsMs": 2.6,
+          "axesMs": 60.8,
+          "totalMs": 147.3
+        }
+      },
+      "notes": "Initial mount plus 2s pan/zoom mixed frame sampling."
+    },
+    {
+      "scenario": "interaction-5k-crosshair-only",
+      "layer": "browser",
+      "tag": "resident-typical",
+      "candleCount": 5000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 364.4,
+        "averageFrameMs": 29.94,
+        "p50FrameMs": 23.1,
+        "p95FrameMs": 84.3,
+        "maxFrameMs": 183.2,
+        "droppedFramePercent": 64.18,
+        "frameSamples": 67,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 0,
+          "candlesMs": 4.1,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 3.5,
+          "totalMs": 7.6
+        }
+      },
+      "notes": "Initial mount plus 2s crosshair sync frame sampling."
+    },
+    {
+      "scenario": "interaction-5k-pan-zoom",
+      "layer": "browser",
+      "tag": "resident-typical",
+      "candleCount": 5000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 359.6,
+        "averageFrameMs": 70.54,
+        "p50FrameMs": 52.4,
+        "p95FrameMs": 209.8,
+        "maxFrameMs": 216,
+        "droppedFramePercent": 96.55,
+        "frameSamples": 29,
+        "drawPhases": {
+          "backgroundMs": 0.1,
+          "gridMs": 0,
+          "candlesMs": 3.6,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 3.2,
+          "totalMs": 6.9
+        }
+      },
+      "notes": "Initial mount plus 2s pan/zoom mixed frame sampling."
+    },
+    {
+      "scenario": "interaction-5k-pan-zoom-drawings-20",
+      "layer": "browser",
+      "tag": "resident-typical",
+      "candleCount": 5000,
+      "indicatorCount": 6,
+      "drawingCount": 20,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 358.1,
+        "averageFrameMs": 71.58,
+        "p50FrameMs": 54.7,
+        "p95FrameMs": 207.3,
+        "maxFrameMs": 214.3,
+        "droppedFramePercent": 96.43,
+        "frameSamples": 28,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 0,
+          "candlesMs": 3.9,
+          "indicatorsMs": 0,
+          "drawingsMs": 0.1,
+          "axesMs": 3.4,
+          "totalMs": 7.4
+        }
+      },
+      "notes": "Initial mount plus 2s pan/zoom mixed frame sampling."
+    },
+    {
+      "scenario": "interaction-5k-tip-tick",
+      "layer": "browser",
+      "tag": "resident-typical",
+      "candleCount": 5000,
+      "indicatorCount": 6,
+      "drawingCount": 0,
+      "paneCount": 4,
+      "metrics": {
+        "durationMs": 363.7,
+        "averageFrameMs": 29.57,
+        "p50FrameMs": 21.3,
+        "p95FrameMs": 75.8,
+        "maxFrameMs": 169.2,
+        "droppedFramePercent": 60.29,
+        "frameSamples": 68,
+        "drawPhases": {
+          "backgroundMs": 0,
+          "gridMs": 0,
+          "candlesMs": 4.1,
+          "indicatorsMs": 0,
+          "drawingsMs": 0,
+          "axesMs": 3.6,
+          "totalMs": 7.7
+        }
+      },
+      "notes": "Initial mount plus 2s tip candle prop updates (last-bar OHLC mutation via React re-render)."
+    }
+  ]
+}

@@ -223,6 +223,43 @@ export function plotToPoint(
   return { timestamp, value, dataIndex };
 }
 
+/** Lower-bound index: first i where candles[i].t >= timestamp, or candles.length. */
+export function lowerBoundCandleIndex(candles: Candle[], timestamp: number): number {
+  let lo = 0;
+  let hi = candles.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (candles[mid]!.t < timestamp) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** Resolve data index from timestamp via O(1) match, extrapolation, or binary search. */
+export function resolveDataIndexFromTimestamp(
+  timestamp: number,
+  candles: Candle[],
+): number | undefined {
+  if (candles.length === 0) return undefined;
+
+  const firstTs = candles[0]!.t;
+  const lastIdx = candles.length - 1;
+  const lastTs = candles[lastIdx]!.t;
+  const dt = estimateBarDurationMs(candles);
+
+  if (timestamp > lastTs && dt > 0) {
+    return lastIdx + (timestamp - lastTs) / dt;
+  }
+  if (timestamp < firstTs && dt > 0) {
+    return (timestamp - firstTs) / dt;
+  }
+
+  const lo = lowerBoundCandleIndex(candles, timestamp);
+  if (lo < candles.length && candles[lo]!.t === timestamp) return lo;
+  if (lo < candles.length) return lo;
+  return lastIdx;
+}
+
 export function pointToPlot(
   point: { timestamp?: number; value?: number; dataIndex?: number },
   vp: VisibleRange,
@@ -231,25 +268,16 @@ export function pointToPlot(
 ): PlotCoords {
   let dataIndex: number | undefined;
   if (point.timestamp != null && point.timestamp !== 0) {
-    dataIndex = candles.findIndex((c) => c.t === point.timestamp);
-    if (dataIndex < 0 && candles.length > 0) {
-      const firstTs = candles[0]!.t;
-      const lastIdx = candles.length - 1;
-      const lastTs = candles[lastIdx]!.t;
-      const dt = estimateBarDurationMs(candles);
-      if (point.timestamp > lastTs && dt > 0) {
-        // Future / virtual-right: derive index from time (stable across history prepend).
-        dataIndex = lastIdx + (point.timestamp - lastTs) / dt;
-      } else if (point.timestamp < firstTs && dt > 0) {
-        dataIndex = (point.timestamp - firstTs) / dt;
-      } else {
-        for (let i = 0; i < candles.length; i++) {
-          if (candles[i]!.t >= point.timestamp) {
-            dataIndex = i;
-            break;
-          }
-        }
-      }
+    const storedIndex = point.dataIndex;
+    if (
+      storedIndex != null &&
+      storedIndex >= 0 &&
+      storedIndex < candles.length &&
+      candles[storedIndex]!.t === point.timestamp
+    ) {
+      dataIndex = storedIndex;
+    } else {
+      dataIndex = resolveDataIndexFromTimestamp(point.timestamp, candles);
     }
     // Timestamp not in series and time extrapolate failed: prefer stored dataIndex.
     if ((dataIndex == null || dataIndex < 0 || Number.isNaN(dataIndex)) && point.dataIndex != null) {

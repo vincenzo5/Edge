@@ -29,8 +29,8 @@ import {
 import { resetPanePriceScale } from './indicatorScale';
 import { formatAxisTime } from '@edge/chart-core/time';
 import { formatCrosshairValue } from '@edge/chart-core/crosshair';
-import { hitTestAll } from '@edge/chart-core';
 import { clampPlot } from '@edge/chart-core/drawingCoords';
+import { computeDrawingHoverHit } from '../drawing/drawingHoverHitTest';
 import { snapshotViewport, type ActiveGesture } from './paneGesture';
 import type { EventBadgeGroup } from './eventBadges';
 import type { RequiredChartSettings } from './chartSettings';
@@ -108,6 +108,8 @@ type CanvasGesturesParams = {
   drawingDragRef: RefObject<boolean>;
   hoveredDrawingIdRef: RefObject<string | null>;
   dragCrosshairAnchorRef: RefObject<DragCrosshairAnchor | null>;
+  hoverHitRafRef: RefObject<number | null>;
+  pendingHoverRef: RefObject<{ x: number; y: number; shiftKey: boolean } | null>;
 };
 
 export function useCanvasGestures({
@@ -157,6 +159,8 @@ export function useCanvasGestures({
   drawingDragRef,
   hoveredDrawingIdRef,
   dragCrosshairAnchorRef,
+  hoverHitRafRef,
+  pendingHoverRef,
 }: CanvasGesturesParams) {
   const toPlotEvent = useCallback(
     (e: React.MouseEvent, phase: DrawingPointerEvent['phase']): DrawingPointerEvent => {
@@ -303,6 +307,11 @@ export function useCanvasGestures({
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+    if (hoverHitRafRef.current) {
+      cancelAnimationFrame(hoverHitRafRef.current);
+      hoverHitRafRef.current = null;
+    }
+    pendingHoverRef.current = null;
     const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -486,18 +495,38 @@ export function useCanvasGestures({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => requestDraw('viewport'));
     } else {
-      applyCursor(x, y, false, e.shiftKey);
-
       if (handleBadgeHover(x, y)) return;
 
-      const nextHoveredDrawingId =
-        drawingModeRef.current === 'navigate' && isPlotBody(x, y)
-          ? hitTestAll(x, y, drawings, layoutViewport(vpRef.current), candles, showTimeAxis)
-          : null;
-      if (hoveredDrawingIdRef.current !== nextHoveredDrawingId) {
-        hoveredDrawingIdRef.current = nextHoveredDrawingId;
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        rafRef.current = requestAnimationFrame(() => requestDraw('drawings'));
+      pendingHoverRef.current = { x, y, shiftKey: e.shiftKey };
+      if (hoverHitRafRef.current == null) {
+        hoverHitRafRef.current = requestAnimationFrame(() => {
+          hoverHitRafRef.current = null;
+          const pending = pendingHoverRef.current;
+          if (!pending || !vpRef.current) return;
+
+          const plot = clampPlot(pending.x, pending.y, width, height, showTimeAxis);
+          const vp = layoutViewport(vpRef.current);
+          const hoverHit = computeDrawingHoverHit(
+            plot.x,
+            plot.y,
+            drawingsRef.current,
+            vp,
+            candlesRef.current,
+            showTimeAxis,
+          );
+
+          const nextHoveredDrawingId =
+            drawingModeRef.current === 'navigate' && isPlotBody(pending.x, pending.y)
+              ? hoverHit.hoveredDrawingId
+              : null;
+          if (hoveredDrawingIdRef.current !== nextHoveredDrawingId) {
+            hoveredDrawingIdRef.current = nextHoveredDrawingId;
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            rafRef.current = requestAnimationFrame(() => requestDraw('drawings'));
+          }
+
+          applyCursor(pending.x, pending.y, false, pending.shiftKey, hoverHit);
+        });
       }
 
       if (

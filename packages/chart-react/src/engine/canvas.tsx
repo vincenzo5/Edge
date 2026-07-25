@@ -174,6 +174,8 @@ export default function ChartCanvas({
     price: number;
   };
   const dragCrosshairAnchorRef = useRef<DragCrosshairAnchor | null>(null);
+  const hoverHitRafRef = useRef<number | null>(null);
+  const pendingHoverRef = useRef<{ x: number; y: number; shiftKey: boolean } | null>(null);
 
   const { appliedCursorRef, activeToolRef } = useCanvasCursorRefs(activeTool);
 
@@ -325,11 +327,14 @@ export default function ChartCanvas({
     drawingDragRef,
     hoveredDrawingIdRef,
     dragCrosshairAnchorRef,
+    hoverHitRafRef,
+    pendingHoverRef,
   });
 
   useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (hoverHitRafRef.current) cancelAnimationFrame(hoverHitRafRef.current);
     };
   }, []);
 

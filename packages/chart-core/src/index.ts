@@ -37,7 +37,17 @@ export type {
   DrawingPlacement,
 } from './plugin-api';
 
-export { IndicatorRegistry, DrawingRegistry, drawingAliases, serializeAll, restoreAll, hitTestAll, hitTestControlPoint } from './pluginHost';
+export {
+  IndicatorRegistry,
+  DrawingRegistry,
+  drawingAliases,
+  serializeAll,
+  restoreAll,
+  getHitTestCandidates,
+  getVisibleDrawingsSorted,
+  hitTestAll,
+  hitTestControlPoint,
+} from './pluginHost';
 
 export { createInitialLayout, applyBoundaryResize, computePaneBoundaries, PANE_SEPARATOR_HEIGHT } from './panes';
 export type { Pane, PaneLayout } from './panes';

@@ -190,6 +190,8 @@ Interaction smoothness is tracked separately from memory retention and market-da
 
 **Revision identity + tip compute (Phase 3):** `CandleSeriesIdentity` (`bodyRevision`, `tipRevision`, bounds) is advanced at candle ingestion in `applyCandleStreamEvent`, prepend/trim helpers, and `useChartDataFeed` (`seriesIdentity` prop into `@edge/chart-react`). Hot-path cache keys use `bodyRevision` instead of `candleBodyFingerprint`. Builtin tip-only updates use incremental updaters in `indicatorTipUpdate.ts` (EMA, MA, RSI, ATR, VWAP; MACD recompute on tip while retaining tip-stable slot); scripts keep full re-run on tip dirty.
 
+**Drawing interaction hot path (Phase 4):** `pointToPlot` resolves timestamps via O(1) matching `dataIndex` or binary search (`lowerBoundCandleIndex` / `resolveDataIndexFromTimestamp` in `packages/chart-core/src/drawingCoords.ts`). Hover hit-test is RAF-coalesced in `useCanvasGestures` with shared cursor state via `computeDrawingHoverHit`; `getHitTestCandidates` caches z-sorted visible lists and AABB-culls before plugin `hitTest`. Drag moves coalesce `DrawingStore.replaceDrawing` to one write per frame (`drawingDragCoalesce.ts`); undo still commits on pointer-up via `execute`.
+
 ## Verification
 
 ```bash

@@ -10,6 +10,7 @@ import {
   withStickEntryDisabled,
 } from '@edge/chart-core';
 import { plotToPoint, translateDrawingPoints } from '@edge/chart-core/drawingCoords';
+import { scheduleDragReplace, flushDragReplace } from './drawingDragCoalesce';
 import {
   type DrawingControllerState,
   type DrawingPointerEvent,
@@ -129,7 +130,7 @@ export function applyDrawingPointerTransition(
     const before = cpDragPointsSnapshotRef.current;
     if (drawing && before && !drawing.locked) {
       const nextPoints = translateSnapshotPoints(before);
-      drawingStoreRef.current.replaceDrawing(drawing.id!, {
+      scheduleDragReplace(drawingStoreRef.current, drawing.id!, {
         ...drawing,
         points: nextPoints,
       });
@@ -150,7 +151,7 @@ export function applyDrawingPointerTransition(
         candlesRef.current,
         showTimeAxis,
       );
-      drawingStoreRef.current.replaceDrawing(drawing.id!, updated);
+      scheduleDragReplace(drawingStoreRef.current, drawing.id!, updated);
     }
     return true;
   }
@@ -345,6 +346,7 @@ export function applyDrawingPointerTransition(
 
   if (event.phase === 'up') {
     if (state.fsm === 'dragging_drawing') {
+      flushDragReplace();
       const id = state.draggingDrawingId;
       const drawing = id ? drawingsRef.current.find((d) => d.id === id) : undefined;
       const before = cpDragPointsSnapshotRef.current;
@@ -392,6 +394,7 @@ export function applyDrawingPointerTransition(
     }
 
     if (state.fsm === 'dragging_cp') {
+      flushDragReplace();
       const id = state.draggingDrawingId;
       const drawing = id ? drawingsRef.current.find((d) => d.id === id) : undefined;
       const before = cpDragPointsSnapshotRef.current;

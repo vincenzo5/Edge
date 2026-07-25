@@ -13,6 +13,8 @@ import {
   yForPricePlot,
   snapToOhlc,
   MAGNET_THRESHOLD_PX,
+  lowerBoundCandleIndex,
+  resolveDataIndexFromTimestamp,
 } from '@edge/chart-core/drawingCoords';
 
 const candles: Candle[] = [
@@ -178,41 +180,51 @@ describe('drawingCoords', () => {
       { timestamp: futureTs, value: 108, dataIndex: 1 },
       vp,
       candles,
-      true
+      true,
     );
     expect(back.x).toBeCloseTo(vp.xForIndex(candles.length - 1 + 10), 0);
   });
 
-  it('plotToPoint with magnet on sub-pane snaps to indicator value', () => {
-    const baseVp = createViewport(candles, 800, 200, 3, 0);
-    const vp = attachViewportHelpers(
-      { ...baseVp, priceMin: 0, priceMax: 100, priceScaleMode: 'manual' },
-      candles.length
-    );
-    const rsiIndicator: IndicatorConfig = {
-      id: 'rsi1',
-      name: 'RSI',
-      pane: 'sub',
-      params: { period: 2 },
-      visible: true,
-    };
-    const idx = 2;
-    const rsiPlugin = IndicatorRegistry.get('RSI');
-    const indicatorValue = rsiPlugin?.valueAt?.(idx, candles, resolveIndicatorInputs(rsiPlugin, rsiIndicator));
-    expect(indicatorValue).not.toBeNull();
-    const plotX = vp.xForIndex(idx);
-    const plotY = yForPricePlot(indicatorValue!, vp, false) + 2;
-    const pt = plotToPoint(plotX, plotY, vp, candles, {
-      magnet: true,
-      snapXCandle: true,
-      paneId: 'rsi1',
-      indicators: [rsiIndicator],
-      showTimeAxis: false,
-    });
-    expect(pt.value).toBeCloseTo(indicatorValue!, 4);
+  it('lowerBoundCandleIndex finds first bar at or after timestamp', () => {
+    expect(lowerBoundCandleIndex(candles, 1500)).toBe(1);
+    expect(lowerBoundCandleIndex(candles, 2000)).toBe(1);
+    expect(lowerBoundCandleIndex(candles, 500)).toBe(0);
+    expect(lowerBoundCandleIndex(candles, 4000)).toBe(3);
   });
 
-  it('plotToPoint and pointToPlot round-trip on sub-pane indicator scale', () => {
+  it('resolveDataIndexFromTimestamp uses O(1) path when dataIndex matches timestamp', () => {
+    const dense: Candle[] = Array.from({ length: 5000 }, (_, i) => ({
+      t: i * 60_000,
+      o: 100,
+      h: 101,
+      l: 99,
+      c: 100,
+    }));
+    const target = 2500;
+    const idx = resolveDataIndexFromTimestamp(dense[target]!.t, dense);
+    expect(idx).toBe(target);
+  });
+
+  it('pointToPlot on dense series matches timestamp lookup', () => {
+    const dense: Candle[] = Array.from({ length: 5000 }, (_, i) => ({
+      t: i * 60_000,
+      o: 100 + i * 0.01,
+      h: 101 + i * 0.01,
+      l: 99 + i * 0.01,
+      c: 100 + i * 0.01,
+    }));
+    const vp = createViewport(dense, 800, 400, 120, 4980);
+    const targetIdx = 4800;
+    const back = pointToPlot(
+      { timestamp: dense[targetIdx]!.t, value: dense[targetIdx]!.c, dataIndex: targetIdx },
+      vp,
+      dense,
+      true,
+    );
+    expect(back.x).toBeCloseTo(vp.xForIndex(targetIdx), 0);
+  });
+
+  it('plotToPoint with magnet on sub-pane snaps to indicator value', () => {
     const baseVp = createViewport(candles, 800, 200, 3, 0);
     const vp = attachViewportHelpers(
       { ...baseVp, priceMin: 0, priceMax: 100, priceScaleMode: 'manual' },

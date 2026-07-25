@@ -41,7 +41,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Data serving & caching efficiency | [data-serving-efficiency-roadmap.md](./data-serving-efficiency-roadmap.md) | Phases 0–6 **Passing**; Phase 7 **Skipped** — track complete; walks → Wave 1 Phase 7 |
 | Memory efficiency | [memory-efficiency-roadmap.md](./memory-efficiency-roadmap.md) | Phases 0–14 **Passing** (2026-07-24) — track complete; Redis adapters in Phase 12; prod topology → [shared-cache-topology-roadmap.md](./shared-cache-topology-roadmap.md) |
 | Comprehensive memory metrics | [memory-metrics-roadmap.md](./memory-metrics-roadmap.md) | Phase 0–4 **Passing** (2026-07-25); Phases 5–6 **Pending** — layered scorecard (heap, tab/process, GPU surfaces, desk composite, soak); measurement only |
-| Runtime interaction performance | [runtime-performance-roadmap.md](./runtime-performance-roadmap.md) | Phase 0–3 **Passing** (2026-07-25); Phases 4–8 **Pending** — frame time / crosshair / tip tick / React wakeups |
+| Runtime interaction performance | [runtime-performance-roadmap.md](./runtime-performance-roadmap.md) | Phase 0–4 **Passing** (2026-07-25); Phases 5–8 **Pending** — frame time / crosshair / tip tick / React wakeups |
 | Shared cache topology | [shared-cache-topology-roadmap.md](./shared-cache-topology-roadmap.md) | Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance); manual redis health flip → Wave 2 Phase 4 |
 | Workspace state persistence | [workspace-state-persistence-roadmap.md](./workspace-state-persistence-roadmap.md) | Phases 0–5 **Passing** — track complete; residual chrome → Wave 1 Phase 6 |
 | Structural refactor | [refactor-roadmap.md](./refactor-roadmap.md) | Tiers A–E **Passing** — track complete |

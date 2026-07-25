@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-07-25T17:16:07.697Z",
+  "generatedAt": "2026-07-25T17:28:08.656Z",
   "git": {
-    "commit": "c878aad",
+    "commit": "367d3d6",
     "branch": "main"
   },
   "environment": {
@@ -20,7 +20,7 @@
       "drawingCount": 0,
       "paneCount": 11,
       "metrics": {
-        "durationMs": 592.92,
+        "durationMs": 589.68,
         "iterations": 15
       },
       "notes": "Cold compute cache; all implemented core indicators."
@@ -34,7 +34,7 @@
       "drawingCount": 0,
       "paneCount": 11,
       "metrics": {
-        "durationMs": 578.74,
+        "durationMs": 577.11,
         "iterations": 15
       },
       "notes": "Warm compute cache hit path."
@@ -48,7 +48,7 @@
       "drawingCount": 0,
       "paneCount": 1,
       "metrics": {
-        "durationMs": 0.05,
+        "durationMs": 0.08,
         "iterations": 15
       },
       "notes": "Revision-based cache-key cost before compute short-circuit."
@@ -62,7 +62,7 @@
       "drawingCount": 0,
       "paneCount": 11,
       "metrics": {
-        "durationMs": 7.02,
+        "durationMs": 7,
         "iterations": 15
       },
       "notes": "Tip mutation after warm cache — incremental tip path when supported."
@@ -76,15 +76,15 @@
       "drawingCount": 0,
       "paneCount": 1,
       "metrics": {
-        "durationMs": 433.7,
+        "durationMs": 397.2,
         "drawPhases": {
-          "backgroundMs": 1.2,
+          "backgroundMs": 1.1,
           "gridMs": 0,
-          "candlesMs": 62.7,
+          "candlesMs": 57.7,
           "indicatorsMs": 0,
           "drawingsMs": 0,
           "axesMs": 0.2,
-          "totalMs": 64.7
+          "totalMs": 59.7
         }
       },
       "notes": "Initial mount through four animation frames."
@@ -98,15 +98,15 @@
       "drawingCount": 0,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 7622.1,
+        "durationMs": 7620.5,
         "drawPhases": {
           "backgroundMs": 1,
           "gridMs": 0,
-          "candlesMs": 377.2,
+          "candlesMs": 391.3,
           "indicatorsMs": 0,
           "drawingsMs": 0,
-          "axesMs": 59.9,
-          "totalMs": 438.7
+          "axesMs": 64,
+          "totalMs": 457
         }
       },
       "notes": "Initial mount through four animation frames."
@@ -120,21 +120,21 @@
       "drawingCount": 0,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 7157.7,
-        "averageFrameMs": 1260.6,
-        "p50FrameMs": 1583,
-        "p95FrameMs": 2195.5,
-        "maxFrameMs": 2195.5,
+        "durationMs": 7395.4,
+        "averageFrameMs": 1278.73,
+        "p50FrameMs": 1597,
+        "p95FrameMs": 2249.4,
+        "maxFrameMs": 2249.4,
         "droppedFramePercent": 66.67,
         "frameSamples": 3,
         "drawPhases": {
           "backgroundMs": 0,
           "gridMs": 3.1,
-          "candlesMs": 384.9,
+          "candlesMs": 361.9,
           "indicatorsMs": 0,
           "drawingsMs": 0,
-          "axesMs": 68,
-          "totalMs": 456
+          "axesMs": 62.3,
+          "totalMs": 427.3
         }
       },
       "notes": "Initial mount plus 2s pan-only frame sampling."
@@ -148,21 +148,21 @@
       "drawingCount": 0,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 7256.7,
-        "averageFrameMs": 511.6,
-        "p50FrameMs": 384.5,
-        "p95FrameMs": 1076,
-        "maxFrameMs": 1076,
+        "durationMs": 7485.9,
+        "averageFrameMs": 505.05,
+        "p50FrameMs": 389.5,
+        "p95FrameMs": 1016.2,
+        "maxFrameMs": 1016.2,
         "droppedFramePercent": 75,
         "frameSamples": 4,
         "drawPhases": {
           "backgroundMs": 1.8,
-          "gridMs": 2.6,
-          "candlesMs": 77.6,
+          "gridMs": 3.2,
+          "candlesMs": 86.7,
           "indicatorsMs": 0,
-          "drawingsMs": 0,
-          "axesMs": 62.2,
-          "totalMs": 144.2
+          "drawingsMs": 0.1,
+          "axesMs": 68.6,
+          "totalMs": 160.4
         }
       },
       "notes": "Initial mount plus 2s zoom-only frame sampling."
@@ -176,21 +176,21 @@
       "drawingCount": 0,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 7226.2,
-        "averageFrameMs": 698.63,
-        "p50FrameMs": 729.4,
-        "p95FrameMs": 1369,
-        "maxFrameMs": 1369,
+        "durationMs": 7380.9,
+        "averageFrameMs": 702.07,
+        "p50FrameMs": 732.4,
+        "p95FrameMs": 1381.4,
+        "maxFrameMs": 1381.4,
         "droppedFramePercent": 66.67,
         "frameSamples": 3,
         "drawPhases": {
-          "backgroundMs": 3.9,
-          "gridMs": 3.1,
-          "candlesMs": 358.9,
+          "backgroundMs": 4.7,
+          "gridMs": 3.4,
+          "candlesMs": 374.2,
           "indicatorsMs": 0,
           "drawingsMs": 0,
-          "axesMs": 69.7,
-          "totalMs": 438
+          "axesMs": 65.5,
+          "totalMs": 450.3
         }
       },
       "notes": "Initial mount plus 2s crosshair sync frame sampling."
@@ -204,21 +204,21 @@
       "drawingCount": 0,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 7344.8,
-        "averageFrameMs": 931.53,
-        "p50FrameMs": 918.2,
-        "p95FrameMs": 1889.4,
-        "maxFrameMs": 1889.4,
+        "durationMs": 7400.3,
+        "averageFrameMs": 951.3,
+        "p50FrameMs": 901.3,
+        "p95FrameMs": 1960.1,
+        "maxFrameMs": 1960.1,
         "droppedFramePercent": 66.67,
         "frameSamples": 3,
         "drawPhases": {
           "backgroundMs": 0,
-          "gridMs": 3.8,
-          "candlesMs": 79.1,
+          "gridMs": 3,
+          "candlesMs": 83.7,
           "indicatorsMs": 0,
           "drawingsMs": 0,
-          "axesMs": 64,
-          "totalMs": 146.9
+          "axesMs": 68.4,
+          "totalMs": 155.1
         }
       },
       "notes": "Initial mount plus 2s pan/zoom mixed frame sampling."
@@ -232,21 +232,21 @@
       "drawingCount": 20,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 7464.7,
-        "averageFrameMs": 947.2,
-        "p50FrameMs": 952.1,
-        "p95FrameMs": 1888.1,
-        "maxFrameMs": 1888.1,
+        "durationMs": 7221.3,
+        "averageFrameMs": 916.63,
+        "p50FrameMs": 922.2,
+        "p95FrameMs": 1842.9,
+        "maxFrameMs": 1842.9,
         "droppedFramePercent": 66.67,
         "frameSamples": 3,
         "drawPhases": {
           "backgroundMs": 0,
-          "gridMs": 2.7,
-          "candlesMs": 77.2,
+          "gridMs": 3.9,
+          "candlesMs": 80,
           "indicatorsMs": 0,
-          "drawingsMs": 11.8,
-          "axesMs": 61,
-          "totalMs": 152.7
+          "drawingsMs": 2.6,
+          "axesMs": 60.8,
+          "totalMs": 147.3
         }
       },
       "notes": "Initial mount plus 2s pan/zoom mixed frame sampling."
@@ -260,21 +260,21 @@
       "drawingCount": 0,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 375.2,
-        "averageFrameMs": 31.43,
-        "p50FrameMs": 23.8,
-        "p95FrameMs": 90.6,
-        "maxFrameMs": 181.3,
-        "droppedFramePercent": 70.77,
-        "frameSamples": 65,
+        "durationMs": 364.4,
+        "averageFrameMs": 29.94,
+        "p50FrameMs": 23.1,
+        "p95FrameMs": 84.3,
+        "maxFrameMs": 183.2,
+        "droppedFramePercent": 64.18,
+        "frameSamples": 67,
         "drawPhases": {
-          "backgroundMs": 0.1,
+          "backgroundMs": 0,
           "gridMs": 0,
-          "candlesMs": 4.2,
+          "candlesMs": 4.1,
           "indicatorsMs": 0,
           "drawingsMs": 0,
-          "axesMs": 3.4,
-          "totalMs": 7.7
+          "axesMs": 3.5,
+          "totalMs": 7.6
         }
       },
       "notes": "Initial mount plus 2s crosshair sync frame sampling."
@@ -288,21 +288,21 @@
       "drawingCount": 0,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 362.4,
-        "averageFrameMs": 74.91,
-        "p50FrameMs": 53,
-        "p95FrameMs": 219.6,
-        "maxFrameMs": 222.1,
-        "droppedFramePercent": 96.3,
-        "frameSamples": 27,
+        "durationMs": 359.6,
+        "averageFrameMs": 70.54,
+        "p50FrameMs": 52.4,
+        "p95FrameMs": 209.8,
+        "maxFrameMs": 216,
+        "droppedFramePercent": 96.55,
+        "frameSamples": 29,
         "drawPhases": {
-          "backgroundMs": 0,
+          "backgroundMs": 0.1,
           "gridMs": 0,
-          "candlesMs": 3.8,
+          "candlesMs": 3.6,
           "indicatorsMs": 0,
           "drawingsMs": 0,
-          "axesMs": 3,
-          "totalMs": 6.8
+          "axesMs": 3.2,
+          "totalMs": 6.9
         }
       },
       "notes": "Initial mount plus 2s pan/zoom mixed frame sampling."
@@ -316,21 +316,21 @@
       "drawingCount": 20,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 364.9,
-        "averageFrameMs": 77.17,
-        "p50FrameMs": 60.2,
-        "p95FrameMs": 208,
-        "maxFrameMs": 217.6,
-        "droppedFramePercent": 96.15,
-        "frameSamples": 26,
+        "durationMs": 358.1,
+        "averageFrameMs": 71.58,
+        "p50FrameMs": 54.7,
+        "p95FrameMs": 207.3,
+        "maxFrameMs": 214.3,
+        "droppedFramePercent": 96.43,
+        "frameSamples": 28,
         "drawPhases": {
           "backgroundMs": 0,
           "gridMs": 0,
-          "candlesMs": 4.2,
+          "candlesMs": 3.9,
           "indicatorsMs": 0,
-          "drawingsMs": 0.6,
-          "axesMs": 3.7,
-          "totalMs": 8.5
+          "drawingsMs": 0.1,
+          "axesMs": 3.4,
+          "totalMs": 7.4
         }
       },
       "notes": "Initial mount plus 2s pan/zoom mixed frame sampling."
@@ -344,21 +344,21 @@
       "drawingCount": 0,
       "paneCount": 4,
       "metrics": {
-        "durationMs": 362.1,
-        "averageFrameMs": 30.69,
-        "p50FrameMs": 22.7,
-        "p95FrameMs": 89.5,
-        "maxFrameMs": 159.7,
-        "droppedFramePercent": 66.67,
-        "frameSamples": 66,
+        "durationMs": 363.7,
+        "averageFrameMs": 29.57,
+        "p50FrameMs": 21.3,
+        "p95FrameMs": 75.8,
+        "maxFrameMs": 169.2,
+        "droppedFramePercent": 60.29,
+        "frameSamples": 68,
         "drawPhases": {
-          "backgroundMs": 0.1,
+          "backgroundMs": 0,
           "gridMs": 0,
-          "candlesMs": 4.4,
+          "candlesMs": 4.1,
           "indicatorsMs": 0,
           "drawingsMs": 0,
-          "axesMs": 3.3,
-          "totalMs": 7.8
+          "axesMs": 3.6,
+          "totalMs": 7.7
         }
       },
       "notes": "Initial mount plus 2s tip candle prop updates (last-bar OHLC mutation via React re-render)."

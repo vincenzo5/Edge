@@ -8,10 +8,11 @@ import {
   type DragMode,
   type PriceScaleSide,
 } from '@edge/chart-core/layout';
-import { hitTestAll, hitTestControlPoint } from '@edge/chart-core';
+import { hitTestAll, hitTestControlPoint, getVisibleDrawingsSorted } from '@edge/chart-core';
 import { clampPlot } from '@edge/chart-core/drawingCoords';
 import { hitTestEventBadge, type EventBadgeGroup } from './eventBadges';
 import type { DrawInvalidationReason } from './renderScheduler';
+import type { DrawingHoverHit } from '../drawing/drawingHoverHitTest';
 
 type CanvasCursorParams = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -82,7 +83,13 @@ export function useCanvasCursor({
   );
 
   const applyCursor = useCallback(
-    (x: number, y: number, isDragging = isDraggingRef.current, shiftHeld = false) => {
+    (
+      x: number,
+      y: number,
+      isDragging = isDraggingRef.current,
+      shiftHeld = false,
+      hoverHit?: DrawingHoverHit,
+    ) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -94,32 +101,37 @@ export function useCanvasCursor({
         vpRef.current &&
         resolveDragMode(x, y, width, height, showTimeAxis, priceScaleSide) === 'body'
       ) {
-        const plot = clampPlot(x, y, width, height, showTimeAxis);
-        const vp = layoutViewport(vpRef.current);
-        const candles = candlesRef.current;
-        const paneDrawings = drawingsRef.current;
+        if (hoverHit) {
+          overControlPoint = hoverHit.overControlPoint;
+          controlPointLocked = hoverHit.controlPointLocked;
+          overDrawing = hoverHit.overDrawing;
+        } else {
+          const plot = clampPlot(x, y, width, height, showTimeAxis);
+          const vp = layoutViewport(vpRef.current);
+          const candles = candlesRef.current;
+          const paneDrawings = drawingsRef.current;
+          const visibleSorted = getVisibleDrawingsSorted(paneDrawings);
 
-        for (const drawing of [...paneDrawings]
-          .filter((d) => d.visible)
-          .sort((a, b) => b.zLevel - a.zLevel)) {
-          const cpIdx = hitTestControlPoint(
-            plot.x,
-            plot.y,
-            drawing,
-            vp,
-            candles,
-            showTimeAxis,
-          );
-          if (cpIdx >= 0) {
-            overControlPoint = true;
-            controlPointLocked = drawing.locked;
-            break;
+          for (const drawing of visibleSorted) {
+            const cpIdx = hitTestControlPoint(
+              plot.x,
+              plot.y,
+              drawing,
+              vp,
+              candles,
+              showTimeAxis,
+            );
+            if (cpIdx >= 0) {
+              overControlPoint = true;
+              controlPointLocked = Boolean(drawing.locked);
+              break;
+            }
           }
-        }
 
-        if (!overControlPoint) {
-          overDrawing =
-            hitTestAll(plot.x, plot.y, paneDrawings, vp, candles, showTimeAxis) != null;
+          if (!overControlPoint) {
+            overDrawing =
+              hitTestAll(plot.x, plot.y, paneDrawings, vp, candles, showTimeAxis) != null;
+          }
         }
       }
 
