@@ -4,7 +4,7 @@ Give operators and agents a **layered, comparable snapshot** of Edge memory — 
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phases 2–6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
+**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phases 3–6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
 
 **Related:** [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md), [memory-baseline-latest.json](../perf/memory-baseline-latest.json), [market-data-performance.md](../perf/market-data-performance.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -244,7 +244,7 @@ Compare future automated L4 to Chrome Task Manager on a **headed** desktop run (
 ### Phase 2 — Tab / renderer process memory (Task Manager analogue)
 
 **Band:** Now  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-25)
 
 **Outcome:** Automated **L4** number comparable to Chrome Task Manager for the Edge tab/renderer.
 
@@ -259,9 +259,30 @@ Compare future automated L4 to Chrome Task Manager on a **headed** desktop run (
 
 **Exit evidence:** `perf:memory` JSON shows L4; one evidence note with optional manual Task Manager compare on a desktop run.
 
-**Gate — Phase 2 Passing:** B1/B2 scenarios emit process RSS; methodology documented; existing L1/L2 gates still pass.
+**Gate — Phase 2 Passing:** B1/B2 scenarios emit process RSS; methodology documented; existing L1/L2 gates still pass. **Met.**
 
----
+#### Phase 2 methodology (L4)
+
+Automated L4 uses OS `ps` on the Playwright Chromium PID tree (`scripts/memory-process-rss.ts`):
+
+1. Root PID = `browser.process().pid` from Playwright launch.
+2. Parse `ps -axo pid=,ppid=,rss=,comm=` (darwin/linux only; Windows → null + note).
+3. Walk descendants of root PID; select **max RSS** among renderer-like processes (`*Renderer*` in `comm`).
+4. If no renderer child is found, fall back to browser root PID RSS (`os-ps-browser-fallback`).
+5. Record `processSampleMethod`, `processSampleNote` (includes `headless=true|false`, platform, selected PID).
+6. Sanity: console warns when `processRssAfterMb` &lt; `jsHeapUsedMb` on the same scenario.
+
+**Headless vs Task Manager:** CI/local `perf:memory` runs headless Chromium; Chrome Task Manager (Shift+Esc) on a headed desktop run will read higher and is the optional ground truth — see **Manual ground truth (L4)** above. Do not hard-fail on absolute MB delta across modes.
+
+#### Phase 2 results (2026-07-25)
+
+- `scripts/memory-process-rss.ts` — OS `ps` parse + max-renderer RSS selection.
+- `scripts/memory-baseline-metrics.ts` — L4 normalize + L4≥L2 sanity helper.
+- `scripts/run-memory-baseline.mts` — before/after L4 on B1/B2/B3.
+- Tests: `scripts/memory-process-rss.test.ts`, extended `memory-baseline-metrics.test.ts`.
+- Evidence: [memory-metrics-phase-2.txt](../evidence/memory-metrics-phase-2.txt).
+- **Architecture review:** self-review **Passed** — measurement-only; unknown → null; no retention changes.
+- **Next:** Phase 3 — GPU / chart surface accounting.
 
 ### Phase 3 — GPU / chart surface accounting
 

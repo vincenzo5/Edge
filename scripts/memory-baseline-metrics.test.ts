@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   bytesToMb,
   normalizeCdpHeapMetrics,
+  normalizeProcessRssSample,
   normalizeUaSpecificMemory,
+  processRssBelowHeapWarn,
 } from "./memory-baseline-metrics.ts";
 
 describe("bytesToMb", () => {
@@ -68,5 +70,48 @@ describe("normalizeCdpHeapMetrics", () => {
       cdpJsHeapUsedSizeMb: null,
       cdpJsHeapTotalSizeMb: null,
     });
+  });
+});
+
+describe("normalizeProcessRssSample", () => {
+  it("maps before/after bytes to L4 fields", () => {
+    expect(
+      normalizeProcessRssSample({
+        beforeBytes: 100 * 1024 * 1024,
+        afterBytes: 120 * 1024 * 1024,
+        method: "os-ps-max-renderer",
+        note: "headless=true; platform=darwin; pid=1001",
+      }),
+    ).toEqual({
+      processRssBeforeMb: 100,
+      processRssAfterMb: 120,
+      processRssDeltaMb: 20,
+      processSampleMethod: "os-ps-max-renderer",
+      processSampleNote: "headless=true; platform=darwin; pid=1001",
+    });
+  });
+
+  it("returns nulls for missing samples without faking zero", () => {
+    expect(
+      normalizeProcessRssSample({
+        method: "unavailable",
+        note: "headless=true; platform=win32; os-ps unsupported on this platform",
+      }),
+    ).toEqual({
+      processRssBeforeMb: null,
+      processRssAfterMb: null,
+      processRssDeltaMb: null,
+      processSampleMethod: "unavailable",
+      processSampleNote: "headless=true; platform=win32; os-ps unsupported on this platform",
+    });
+  });
+});
+
+describe("processRssBelowHeapWarn", () => {
+  it("warns when process RSS is below JS heap", () => {
+    expect(processRssBelowHeapWarn(80, 100)).toBe(true);
+    expect(processRssBelowHeapWarn(120, 100)).toBe(false);
+    expect(processRssBelowHeapWarn(null, 100)).toBe(false);
+    expect(processRssBelowHeapWarn(120, null)).toBe(false);
   });
 });

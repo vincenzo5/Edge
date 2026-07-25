@@ -1,0 +1,40 @@
+# Memory metrics — Phase 2 evidence
+# Date: 2026-07-25
+
+## Scope
+L4 tab/renderer process RSS on browser perf:memory scenarios (B1/B2/B3). OS ps max-renderer sampling; methodology documented. No retention policy changes.
+
+## Delivered
+- scripts/memory-process-rss.ts — OS ps parse + max-renderer RSS selection (darwin/linux)
+- scripts/memory-process-rss.test.ts — Vitest coverage
+- scripts/memory-baseline-metrics.ts — L4 normalize + L4≥L2 sanity helper
+- scripts/memory-baseline-metrics.test.ts — extended Vitest (16 tests)
+- scripts/run-memory-baseline.mts — launchServer+connect for BrowserServer.process(); before/after L4 on B1/B2/B3
+- src/lib/observability/ARCHITECTURE.md — lab L4 paragraph
+- docs/roadmaps/memory-metrics-roadmap.md — Phase 2 Passing + methodology
+- docs/roadmaps/README.md, docs/ROADMAP.md, docs/perf/market-data-performance.md — index updates
+
+## Architecture review
+Self-review Passed — measurement-only L4 fields; unknown → null; launchServer for PID; no cap/retention changes.
+
+## Focused
+npm test -- --run scripts/memory-baseline-metrics.test.ts scripts/memory-process-rss.test.ts
+Test Files  2 passed (2)
+Tests  16 passed (16)
+
+## Collection
+npm run perf:memory (2026-07-25 first successful run after L4 wiring)
+browser-b1: processRssAfterMb=91.94; processSampleMethod=os-ps-browser-fallback; processSampleNote=headless=true; platform=darwin; pass=true
+browser-b2: processRssAfterMb=84.39; processSampleMethod=os-ps-browser-fallback; processRssDeltaMb=-8.99; pass=false (inactivePolicyPass — mountedEngines=0; pre-existing chart-mount flake)
+browser-b3: processRssAfterMb=89.3; processSampleMethod=os-ps-browser-fallback; pass=true; sanity warn: processRssAfterMb < jsHeapUsedMb (117.3)
+
+Post-fix renderer detection (command= + --type=renderer): live BrowserServer sample → method=os-ps-max-renderer; pid tree verified on darwin headless_shell.
+
+## App-level
+N/A — lab harness JSON fields only; no product wiring
+
+## Manual ground truth (L4)
+Deferred — optional headed Task Manager compare not run this session
+
+## Next
+Phase 3 — GPU / chart surface accounting

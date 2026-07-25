@@ -7,7 +7,7 @@ import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium, type Page } from "playwright";
+import { chromium, type BrowserServer, type Page } from "playwright";
 import {
   getChartCandles,
   getChartCandlesBefore,
@@ -42,10 +42,14 @@ import { createDefaultWorkspaceTabs } from "../src/lib/app/workspaceTabs.ts";
 import { DEFAULT_LAYOUT, type ChartLayout, type CellConfig } from "../src/lib/chartConfig.ts";
 import {
   normalizeCdpHeapMetrics,
+  normalizeProcessRssSample,
   normalizeUaSpecificMemory,
+  processRssBelowHeapWarn,
   type CdpHeapFields,
+  type ProcessRssFields,
   type UaSpecificMemoryFields,
 } from "./memory-baseline-metrics.ts";
+import { sampleChromiumProcessRss, type ChromiumProcessRssSample } from "./memory-process-rss.ts";
 
 config({ path: ".env.local" });
 
@@ -483,6 +487,50 @@ async function readBrowserL3Metrics(page: Page): Promise<UaSpecificMemoryFields 
   return { ...ua, ...cdp };
 }
 
+type BrowserProcessSampler = {
+  rootPid: number | null;
+  headless: boolean;
+};
+
+function createBrowserProcessSampler(browserServer: BrowserServer, headless: boolean): BrowserProcessSampler {
+  return {
+    rootPid: browserServer.process()?.pid ?? null,
+    headless,
+  };
+}
+
+function sampleBrowserProcessRss(sampler: BrowserProcessSampler): ChromiumProcessRssSample {
+  return sampleChromiumProcessRss(sampler.rootPid, { headless: sampler.headless });
+}
+
+function buildL4Fields(
+  beforeSample: ChromiumProcessRssSample,
+  afterSample: ChromiumProcessRssSample,
+): ProcessRssFields {
+  const method =
+    afterSample.method !== "unavailable" ? afterSample.method : beforeSample.method;
+  const note = afterSample.note ?? beforeSample.note ?? null;
+
+  return normalizeProcessRssSample({
+    beforeBytes: beforeSample.bytes,
+    afterBytes: afterSample.bytes,
+    method,
+    note,
+  });
+}
+
+function warnIfProcessRssBelowHeap(
+  l4: ProcessRssFields,
+  jsHeapUsedMb: number | null,
+  scenarioId: string,
+): void {
+  if (processRssBelowHeapWarn(l4.processRssAfterMb, jsHeapUsedMb)) {
+    console.warn(
+      `[memory-baseline] ${scenarioId}: processRssAfterMb (${l4.processRssAfterMb}) < jsHeapUsedMb (${jsHeapUsedMb}) — possible sampling bug`,
+    );
+  }
+}
+
 async function readBrowserCellMetrics(page: Page): Promise<Record<string, number | null>> {
   return page.evaluate(() => {
     const perf = performance as Performance & { memory?: { usedJSHeapSize: number; totalJSHeapSize: number } };
@@ -523,7 +571,8 @@ async function readBrowserCellMetrics(page: Page): Promise<Record<string, number
 
 async function measureBrowserScenario(
   page: Page,
-  options: { paneCount: number; loadMoreRounds: number },
+  options: { paneCount: number; loadMoreRounds: number; scenarioId: string },
+  sampler: BrowserProcessSampler,
 ): Promise<Record<string, unknown>> {
   await installEventSourceCounter(page);
 
@@ -537,6 +586,7 @@ async function measureBrowserScenario(
   });
   await page.waitForTimeout(3000);
 
+  const processBefore = sampleBrowserProcessRss(sampler);
   const heapBefore = await page.evaluate(() => {
     const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
     return perf.memory?.usedJSHeapSize ?? null;
@@ -569,8 +619,11 @@ async function measureBrowserScenario(
   }
 
   await page.waitForTimeout(1000);
+  const processAfter = sampleBrowserProcessRss(sampler);
   const metrics = await readBrowserCellMetrics(page);
   const l3Metrics = await readBrowserL3Metrics(page);
+  const l4Metrics = buildL4Fields(processBefore, processAfter);
+  warnIfProcessRssBelowHeap(l4Metrics, metrics.jsHeapUsedMb ?? null, options.scenarioId);
 
   const heapAfter = metrics.jsHeapUsedMb != null ? metrics.jsHeapUsedMb * 1024 * 1024 : null;
   const heapDeltaMb =
@@ -593,6 +646,7 @@ async function measureBrowserScenario(
     heapDeltaMb,
     ...metrics,
     ...l3Metrics,
+    ...l4Metrics,
     ...loadMore,
     inactivePolicyPass,
     residentBarPass,
@@ -606,7 +660,10 @@ async function measureBrowserScenario(
   };
 }
 
-async function measureLiveTipPressure(page: Page): Promise<Record<string, unknown>> {
+async function measureLiveTipPressure(
+  page: Page,
+  sampler: BrowserProcessSampler,
+): Promise<Record<string, unknown>> {
   await installEventSourceCounter(page);
   const layout = buildLayout(1, BASE_SYMBOL, BASE_INTERVAL, "1d");
   await seedWorkspace(page, layout);
@@ -616,6 +673,7 @@ async function measureLiveTipPressure(page: Page): Promise<Record<string, unknow
     timeout: 60_000,
   });
 
+  const processBefore = sampleBrowserProcessRss(sampler);
   const heapBefore = await page.evaluate(() => {
     const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
     return perf.memory?.usedJSHeapSize ?? null;
@@ -623,6 +681,7 @@ async function measureLiveTipPressure(page: Page): Promise<Record<string, unknow
 
   await page.waitForTimeout(LIVE_TIP_SEC * 1000);
 
+  const processAfter = sampleBrowserProcessRss(sampler);
   const metrics = await page.evaluate(() => {
     const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
     return {
@@ -631,6 +690,8 @@ async function measureLiveTipPressure(page: Page): Promise<Record<string, unknow
     };
   });
   const l3Metrics = await readBrowserL3Metrics(page);
+  const l4Metrics = buildL4Fields(processBefore, processAfter);
+  warnIfProcessRssBelowHeap(l4Metrics, metrics.jsHeapUsedMb ?? null, "browser-b3-live-tip");
 
   const heapAfter = metrics.jsHeapUsedMb != null ? metrics.jsHeapUsedMb * 1024 * 1024 : null;
 
@@ -642,6 +703,7 @@ async function measureLiveTipPressure(page: Page): Promise<Record<string, unknow
     heapDeltaMb: heapBefore != null && heapAfter != null ? mb(heapAfter - heapBefore) : null,
     eventSourceCount: metrics.eventSourceCount,
     ...l3Metrics,
+    ...l4Metrics,
     pass: heapBefore == null || heapAfter == null ? null : mb(heapAfter - heapBefore) < 50,
     note:
       LIVE_TIP_SEC >= 300
@@ -813,20 +875,31 @@ async function main(): Promise<void> {
   let phase14: Record<string, unknown> | null = null;
 
   if (browserUp) {
-    const browser = await chromium.launch({ headless: true });
+    const headless = true;
+    const browserServer = await chromium.launchServer({ headless });
+    const browser = await chromium.connect(browserServer.wsEndpoint());
+    const sampler = createBrowserProcessSampler(browserServer, headless);
     const context = await browser.newContext();
     await bootstrapDevSession(context);
     try {
       const page1 = await context.newPage();
-      b1 = await measureBrowserScenario(page1, { paneCount: 1, loadMoreRounds: LOAD_MORE_ROUNDS });
+      b1 = await measureBrowserScenario(
+        page1,
+        { paneCount: 1, loadMoreRounds: LOAD_MORE_ROUNDS, scenarioId: "browser-b1-1cell-10x-loadMore" },
+        sampler,
+      );
       await page1.close();
 
       const page2 = await context.newPage();
-      b2 = await measureBrowserScenario(page2, { paneCount: 8, loadMoreRounds: LOAD_MORE_ROUNDS });
+      b2 = await measureBrowserScenario(
+        page2,
+        { paneCount: 8, loadMoreRounds: LOAD_MORE_ROUNDS, scenarioId: "browser-b2-8cell-10x-loadMore" },
+        sampler,
+      );
       await page2.close();
 
       const page3 = await context.newPage();
-      b3 = await measureLiveTipPressure(page3);
+      b3 = await measureLiveTipPressure(page3, sampler);
       await page3.close();
 
       const page4 = await context.newPage();
@@ -834,6 +907,7 @@ async function main(): Promise<void> {
       await page4.close();
     } finally {
       await browser.close();
+      await browserServer.close();
     }
   }
 

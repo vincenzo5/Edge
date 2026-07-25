@@ -60,3 +60,46 @@ export function normalizeCdpHeapMetrics(metrics: CdpPerformanceMetric[]): CdpHea
     cdpJsHeapTotalSizeMb: total != null ? bytesToMb(total) : null,
   };
 }
+
+export type ProcessRssSampleInput = {
+  beforeBytes?: number | null;
+  afterBytes?: number | null;
+  method?: string | null;
+  note?: string | null;
+};
+
+export type ProcessRssFields = {
+  processRssBeforeMb: number | null;
+  processRssAfterMb: number | null;
+  processRssDeltaMb: number | null;
+  processSampleMethod: string | null;
+  processSampleNote: string | null;
+};
+
+export function normalizeProcessRssSample(input: ProcessRssSampleInput): ProcessRssFields {
+  const beforeMb = bytesToMb(input.beforeBytes);
+  const afterMb = bytesToMb(input.afterBytes);
+  const deltaMb =
+    beforeMb != null && afterMb != null ? Math.round((afterMb - beforeMb) * 100) / 100 : null;
+
+  const method =
+    typeof input.method === "string" && input.method.trim().length > 0 ? input.method.trim() : null;
+  const note =
+    typeof input.note === "string" && input.note.trim().length > 0 ? input.note.trim() : null;
+
+  return {
+    processRssBeforeMb: beforeMb,
+    processRssAfterMb: afterMb,
+    processRssDeltaMb: deltaMb,
+    processSampleMethod: method,
+    processSampleNote: note,
+  };
+}
+
+export function processRssBelowHeapWarn(
+  processRssAfterMb: number | null,
+  jsHeapUsedMb: number | null,
+): boolean {
+  if (processRssAfterMb == null || jsHeapUsedMb == null) return false;
+  return processRssAfterMb < jsHeapUsedMb;
+}
