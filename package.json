@@ -36,6 +36,8 @@
     "db:down": "docker compose down",
     "redis:up": "docker compose up -d redis",
     "redis:down": "docker compose stop redis",
+    "local:deploy:preflight": "npx tsx scripts/validate-local-deploy.mts preflight",
+    "local:deploy:status": "npx tsx scripts/validate-local-deploy.mts status",
     "db:migrate": "npx tsx scripts/db-migrate.mts",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",

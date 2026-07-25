@@ -164,6 +164,20 @@ Distinct from product price alerts (`src/lib/alerts/`, `/api/cron/alert-evaluate
 
 ---
 
+## Concurrent local environments
+
+The local deployment contract keeps development on `127.0.0.1:3003` and
+production on `127.0.0.1:3000`. The watcher default remains the development
+target for existing workflows; the production profile must explicitly set
+`EDGE_READYZ_URL=http://127.0.0.1:3000/readyz`. Run
+`npm run local:deploy:status` to print the two profiles without URLs or secret
+values, and `npm run local:deploy:preflight` before production build/start work.
+Production configuration failures use fixed field/reason messages and never
+print dotenv source lines, credentials, or connection URLs. See
+[Local Development and Production Roadmap](../../../docs/roadmaps/local-dev-production-roadmap.md).
+
+---
+
 ## Operator runbook
 
 | Question | Check |
