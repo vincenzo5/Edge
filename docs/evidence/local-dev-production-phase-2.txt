@@ -1,0 +1,71 @@
+# Local development and production — Phase 2 evidence
+# Date: 2026-07-25
+
+## Scope
+Separate stable production runtime: detached worktree setup, production-profile lifecycle CLI,
+loopback dev binding, production migrate/build/start/stop/status wrappers, and runtime identity
+status output. No launchd, deploy/rollback, or full Phase 5 operations matrix.
+
+## Delivered
+- scripts/local-prod.mts — setup/preflight/migrate/build/start/stop/status CLI
+- scripts/local-prod.sh — thin launcher
+- scripts/local-prod.test.ts — CLI and lifecycle unit tests
+- scripts/load-deploy-env.mts — profile env loading helper
+- scripts/load-deploy-env.test.ts
+- scripts/db-migrate.mts — --env-file support for edge_prod migrations
+- package.json — local:prod:* commands; dev:lite loopback + TWS_ENABLED=false; build:packages order fix
+- .env.example — local:prod operator notes
+- src/lib/observability/ARCHITECTURE.md — Phase 2 operator contract
+
+## Architecture review
+Self-review Passed — reuses validate-local-deploy contract; migrate runs from dev checkout with prod env file;
+managed PID under .edge/local-prod; refuses unmanaged :3000 collisions; no secrets in status output.
+
+## Focused
+npm test -- --run scripts/local-prod.test.ts scripts/load-deploy-env.test.ts scripts/validate-local-deploy.test.ts src/lib/marketData/cache/redisKeys.test.ts
+Test Files  4 passed (4)
+Tests  57 passed (57)
+
+## CLI / setup
+npm run local:prod:setup -- --revision HEAD
+production.worktree=created revision=dcbc393b5e2b8f112af037338420a1519dcce88a
+
+npm run local:prod:preflight
+Local deployment preflight passed: profiles=2 issues=0
+
+npm run local:prod:migrate -- --skip-infra
+Production migrations complete.
+
+npm run local:prod:status
+development: host=127.0.0.1 port=3003 database=edge_dev cacheEnv=dev cacheBackend=redis tws=disabled auth=dev-open
+production: host=127.0.0.1 port=3000 database=edge_prod cacheEnv=prod cacheBackend=redis tws=disabled auth=closed
+development: revision=dcbc393b5e2b8f112af037338420a1519dcce88a mode=dev port=3003
+production: revision=dcbc393b5e2b8f112af037338420a1519dcce88a buildId=missing mode=start port=3000 managed=stopped pid=none listeners=none
+
+## Infra isolation (unchanged)
+npm run local:infra:verify
+postgres.isolation=pass
+redis.isolation=pass
+overall=pass
+
+## Build
+npm run local:prod:build — blocked by pre-existing TS errors (packages/chart-react useCanvasGestures.ts,
+examples/chart-perf-harness microbench.ts); not introduced by Phase 2. build:packages order corrected
+(chart-core → indicator-runtime → ai-tools-* → chart-react).
+
+## App-level
+Dev loopback probe (TWS_ENABLED=false next dev -H 127.0.0.1 -p 3003):
+curl -sf http://127.0.0.1:3003/healthz → {"ok":true}
+curl -sf http://127.0.0.1:3003/readyz → {"ok":true}
+
+Concurrent :3000 production start deferred — production BUILD_ID missing until pre-existing build TS
+errors are resolved; start gate correctly refuses without build output (unit tested).
+
+## Startup
+npm run check:startup
+Instruction architecture validation passed.
+Test Files  1 passed (1)
+Tests  2 passed (2)
+
+## Next
+Phase 3 — managed production lifecycle (launchd)

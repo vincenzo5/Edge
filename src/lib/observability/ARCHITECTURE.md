@@ -172,6 +172,16 @@ target for existing workflows; the production profile must explicitly set
 `EDGE_READYZ_URL=http://127.0.0.1:3000/readyz`. Run
 `npm run local:deploy:status` to print the two profiles without URLs or secret
 values, and `npm run local:deploy:preflight` before production build/start work.
+
+Phase 2 adds a manual production runtime wrapper (`scripts/local-prod.mts`,
+`scripts/local-prod.sh`) with `npm run local:prod:{setup,preflight,migrate,build,start,stop,status}`.
+Production runs from a sibling detached Git worktree with its own
+`.env.production.local`, `node_modules`, and `.next`. Managed process metadata
+lives under gitignored `.edge/local-prod/` in the development checkout; stop only
+targets the recorded PID and refuses unmanaged port collisions on `:3000`.
+Migrate/build load production env explicitly; migrate runs from the development
+checkout (deps present) with `--env-file` targeting `edge_prod`.
+
 Production configuration failures use fixed field/reason messages and never
 print dotenv source lines, credentials, or connection URLs. See
 [Local Development and Production Roadmap](../../../docs/roadmaps/local-dev-production-roadmap.md).

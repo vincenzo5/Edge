@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,12 +7,41 @@ import { Pool } from "pg";
 
 import { runPendingMigrations } from "./db-migrate-lib.mts";
 
-config({ path: ".env.local" });
+function parseEnvFileArg(argv: string[]): string {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--env-file") {
+      const value = argv[index + 1];
+      if (!value || value.startsWith("--")) {
+        console.error("--env-file requires a path.");
+        process.exit(2);
+      }
+      return value;
+    }
+    if (arg.startsWith("--env-file=")) {
+      const value = arg.slice("--env-file=".length);
+      if (!value) {
+        console.error("--env-file requires a path.");
+        process.exit(2);
+      }
+      return value;
+    }
+  }
+  return ".env.local";
+}
+
+const envFile = parseEnvFileArg(process.argv.slice(2));
+if (!existsSync(envFile)) {
+  console.error(`Environment file not found: ${envFile}`);
+  process.exit(1);
+}
+
+config({ path: envFile });
 config();
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) {
-  console.error("DATABASE_URL is not set. Copy .env.example to .env.local and start Postgres.");
+  console.error(`DATABASE_URL is not set in ${envFile}. Configure persistence vars before migrating.`);
   process.exit(1);
 }
 

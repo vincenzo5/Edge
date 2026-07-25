@@ -22,7 +22,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Stock screener | [screener-roadmap.md](./screener-roadmap.md) | Phases 1–5 **shipped**; product deferrals remain; app-level walks → Wave 1 Phase 5 |
 | Trading journal | [journal-roadmap.md](./journal-roadmap.md) | v1 + Tiers 1–3 **Passing** (2026-07-22); app-level walks → Wave 1 Phase 6; import chrome → Wave 2 Phase 4 |
 | Trading execution | [trading-execution-roadmap.md](./trading-execution-roadmap.md) | Phases 0–5 + **6–9 Passing** (2026-07-22); options backlog; ops walks → Wave 1 Phase 1 + 4 |
-| Trade management playbook | [trade-management-playbook-roadmap.md](./trade-management-playbook-roadmap.md) | Phase 0–8 **Passing** (2026-07-24); track complete |
+| Trade management playbook | [trade-management-playbook-roadmap.md](./trade-management-playbook-roadmap.md) | Phase 0–7 **Passing** (2026-07-24); Phase 8 **Pending** — rule editor |
 | Dual connection | [dual-connection-roadmap.md](./dual-connection-roadmap.md) | Phases A–D **product complete**; both-Gateway ops proof → Wave 1 Phase 1 |
 | Connections & providers | [connections-providers-roadmap.md](./connections-providers-roadmap.md) | Phase 0–4 **Passing**; Phase 5 **Pending** (local Gateway polish); Settings/prefs walks → Wave 2 Phase 3 |
 | IBKR hosted OAuth | [ibkr-hosted-oauth-roadmap.md](./ibkr-hosted-oauth-roadmap.md) | Phase 0 **Pending** (feasibility + IB onboarding); extracted from Connections Path A |
@@ -44,11 +44,11 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Comprehensive memory metrics | [memory-metrics-roadmap.md](./memory-metrics-roadmap.md) | Phase 0–6 **Passing** (2026-07-25); track complete — layered scorecard (heap, tab/process, GPU surfaces, desk composite, report + soft budgets, soak); measurement only |
 | Runtime interaction performance | [runtime-performance-roadmap.md](./runtime-performance-roadmap.md) | Phase 0–8 **Passing** (2026-07-25); track complete — frame time / crosshair / tip tick / React wakeups / CI budgets |
 | Shared cache topology | [shared-cache-topology-roadmap.md](./shared-cache-topology-roadmap.md) | Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance); manual redis health flip → Wave 2 Phase 4 |
-| Local development and production | [local-dev-production-roadmap.md](./local-dev-production-roadmap.md) | Phase 0 **Passing** (2026-07-25); Phases 1–5 **Pending** |
+| Local development and production | [local-dev-production-roadmap.md](./local-dev-production-roadmap.md) | Phase 0 **Passing** (2026-07-25); Phase 1 **Passing** (2026-07-25); Phase 2 **Passing** (2026-07-25); Phases 3–5 **Pending** |
 | Workspace state persistence | [workspace-state-persistence-roadmap.md](./workspace-state-persistence-roadmap.md) | Phases 0–5 **Passing** — track complete; residual chrome → Wave 1 Phase 6 |
 | Structural refactor | [refactor-roadmap.md](./refactor-roadmap.md) | Tiers A–E **Passing** — track complete |
 | Code organization | [code-organization-roadmap.md](./code-organization-roadmap.md) | Phase 0–5 **Passing** (2026-07-24) — chart shims sunset complete |
 | TWS sidecar architecture | [tws-sidecar-refactor-roadmap.md](./tws-sidecar-refactor-roadmap.md) | Phases 0–7 **Passing** (2026-07-23) |
 | Security hardening | [security-hardening-roadmap.md](./security-hardening-roadmap.md) | Phases 0–6 **Passing** (2026-07-24) — track complete |
-| Production observability (free stack) | [production-observability-roadmap.md](./production-observability-roadmap.md) | Phase 0–4 **Passing**; Phase 5 **Pending** — free alerts |
+| Production observability (free stack) | [production-observability-roadmap.md](./production-observability-roadmap.md) | Phase 0–5 **Passing** (2026-07-25); track complete |
 | Plan → execute token efficiency | [plan-execute-token-efficiency-roadmap.md](./plan-execute-token-efficiency-roadmap.md) | Phase 0–9 **Passing** (2026-07-25) — track complete |

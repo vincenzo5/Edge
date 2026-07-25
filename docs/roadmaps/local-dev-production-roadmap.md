@@ -4,7 +4,7 @@ Run a stable production build and the active development server concurrently on 
 
 **Last updated:** 2026-07-25
 
-**Status:** Phase 0 **Passing** (2026-07-25); Phase 1 **Passing** (2026-07-25); Phases 2–5 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-25); Phase 1 **Passing** (2026-07-25); Phase 2 **Passing** (2026-07-25); Phases 3–5 **Pending**.
 
 **Related:** [Shared Cache Topology](./shared-cache-topology-roadmap.md), [Production Observability](./production-observability-roadmap.md), [Security Hardening](./security-hardening-roadmap.md), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
