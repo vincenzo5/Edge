@@ -136,6 +136,8 @@ Package path: `packages/chart-react/src/engine/webgl/`.
 - **Registry:** `createCandlesLayer('webgl')` + `registerWebGLCandlesLayer(defaultLayerRegistry)` swap the candles layer backend metadata; draw always falls back to Canvas when WebGL is unavailable or chart type is unsupported (e.g. `candle_stroke`).
 - **Invalidation:** Reuses `SERIES_INVALIDATING`; viewport pans rebuild visible geometry each frame (CPU-side typed arrays → GPU buffer upload).
 
+**Lab memory (L5):** `npm run perf:memory` records DOM-attached `canvasCount`, live `webglContextCount` via `globalThis.__edgeWebGLLiveContextCount` (incremented in `createWebGL2Context`, decremented in `releaseWebGL2Context` on dispose), and best-effort `gpuMemoryMb` from a throwaway WebGL2 probe (`WEBGL_memory_info` when present). Detached WebGL backend canvases (`candleWebGL.ts`, `indicatorWebGL.ts`) are not in the DOM — the live counter is the authoritative WebGL inventory. **Not measurable in lab:** OffscreenCanvas layer caches (`BackgroundLayerCache`, `SeriesLayerCache`), full VRAM in headless Chromium — those fields are `null` + `gpuMemoryNote`, never zero-filled. See [memory-metrics-roadmap.md](../../../docs/roadmaps/memory-metrics-roadmap.md) Phase 3.
+
 ### WebGL Indicator Backend (Stage 5 extension)
 
 - **Scope:** Declarative indicator outputs with `plot: 'line' | 'histogram'` only (e.g. MA, EMA, MACD histogram). Custom `draw()` plugins and band/fill outputs (e.g. BOLL) remain on Canvas.
@@ -185,6 +187,8 @@ Interaction smoothness is tracked separately from memory retention and market-da
 **React wakeups (Phase 2):** Quotes live in `src/lib/marketData/quotesStore.ts` with per-symbol `useQuote` selectors (`useSyncExternalStore`). `MarketDataProvider` context carries meta/transport/reload only; warmup/SSE keys are primitive strings (not layout array identity). Copilot thread state is split from stable actions (`useCopilotActions` for chart cells). Account position overlays use `useAccountPositionForSymbol`. Crosshair scrub state is stored in `cellCrosshairStore` per `chartId`; subscribers use `useCellCrosshairSnapshot` instead of re-rendering `ChartCell`.
 
 **React wakeups protocol (Phase 0+):** Use React DevTools Profiler on multi-cell layouts during quote ticks for another symbol, or wrap components with `createRenderCounter` from `src/test/reactRenderCounter.ts` in Vitest. Passing criterion for Phase 2: inactive `ChartCell` render count **0** per foreign-symbol quote frame.
+
+**Revision identity + tip compute (Phase 3):** `CandleSeriesIdentity` (`bodyRevision`, `tipRevision`, bounds) is advanced at candle ingestion in `applyCandleStreamEvent`, prepend/trim helpers, and `useChartDataFeed` (`seriesIdentity` prop into `@edge/chart-react`). Hot-path cache keys use `bodyRevision` instead of `candleBodyFingerprint`. Builtin tip-only updates use incremental updaters in `indicatorTipUpdate.ts` (EMA, MA, RSI, ATR, VWAP; MACD recompute on tip while retaining tip-stable slot); scripts keep full re-run on tip dirty.
 
 ## Verification
 

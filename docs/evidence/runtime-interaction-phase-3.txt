@@ -1,0 +1,37 @@
+# Runtime interaction performance — Phase 3 evidence
+# Date: 2026-07-25
+
+## Scope
+Candle revision identity + tip incremental compute for builtins.
+
+## Delivered
+- packages/chart-core/src/candleSeriesIdentity.ts — bodyRevision/tipRevision identity + advance helpers
+- packages/chart-core/src/indicatorTipUpdate.ts — incremental tip updaters (EMA, MA, RSI, ATR, VWAP; MACD tip recompute)
+- packages/chart-core/src/indicatorCompute.ts — revision cache keys + incremental getComputedSeries path
+- packages/chart-core/src/series.ts — identity on stream/trim/prepend helpers
+- packages/chart-core/src/heikinAshiCache.ts — revision-based HA cache keys
+- packages/chart-react/src/engine/indicatorResultProvider.ts — seriesIdentity plumbing
+- packages/chart-react/src/engine/scriptResultCoordinator.ts — revision cache keys
+- packages/chart-react/src/useScriptResultCoordinator.ts — seriesIdentity sync
+- src/lib/chartDataFeed/useChartDataFeed.ts — maintain/export seriesIdentity
+- src/app/components/chart-cell/EdgeChart.tsx — pass seriesIdentity to chart engine
+- examples/chart-perf-harness/src/microbench.ts — identity-aware microbench
+- src/lib/chart/ARCHITECTURE.md — Phase 3 revision/tip contract note
+
+## Architecture review
+Self-review Passed — identity owned at candle ingestion in chart-core/feed; packages avoid app imports; scripts keep full tip re-run.
+
+## Focused
+npm test -- --run packages/chart-core/src/indicatorCompute.test.ts packages/chart-core/src/candleSeriesIdentity.test.ts packages/chart-core/src/indicatorTipUpdate.test.ts packages/chart-core/src/heikinAshiCache.test.ts packages/chart-react/src/engine/indicatorResultProvider.test.ts packages/chart-core/src/series.test.ts src/lib/chartDataFeed/useChartDataFeed.test.ts
+Test Files  7 passed (7)
+Tests  68 passed (68)
+
+## Build
+npm run build:packages — exit 0
+
+## Harness microbench (vs Phase 0 baseline)
+- indicator-cache-key-100k-core-six: 586.11ms → 0.05ms
+- indicators-compute-tip-tick-5k-core-six: 33.75ms → 7.02ms
+
+## Next
+Phase 4 — drawing interaction hot path

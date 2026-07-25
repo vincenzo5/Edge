@@ -2,14 +2,23 @@ import type { Candle, IndicatorConfig, Theme } from './contracts';
 import type { IndicatorPlugin, ResolvedInputs, ResolvedSeriesStyle } from './plugin-api';
 import type { LegendValueEntry, SeriesColor, SeriesOutput } from './legend/types';
 import { resolveIndicatorInputs, stableStringifyInputs } from './indicatorInputs';
+import type { CandleSeriesAdvanceKind, CandleSeriesIdentity } from './candleSeriesIdentity';
+import { candleTipRevisionFromSeries } from './candleSeriesIdentity';
+import {
+  buildComputeCacheAux,
+  tryIncrementalTipUpdate,
+  type ComputeCacheAux,
+} from './indicatorTipUpdate';
 
 const MAX_CACHE_ENTRIES = 64;
 /** Soft approximate byte budget for builtin compute cache entries (series array lengths × 8). */
 export const COMPUTE_CACHE_SOFT_BYTES = 16 * 1024 * 1024;
 
 type ComputeCacheEntry = {
+  bodyRevision: number;
   tipRevision: string;
   data: Record<string, number[]>;
+  aux?: ComputeCacheAux;
   touchedAt: number;
   approxBytes: number;
 };
@@ -55,24 +64,18 @@ export function candleBodyFingerprint(candles: Candle[]): string {
   return (hash >>> 0).toString(36);
 }
 
-export function candleTipRevision(candle: Candle): string {
-  let hash = 2166136261;
-  hash = hashCandleFields(hash, candle);
-  return (hash >>> 0).toString(36);
-}
-
-export function candleTipRevisionFromSeries(candles: Candle[]): string {
-  const last = candles.at(-1);
-  if (!last) return '0';
-  return candleTipRevision(last);
-}
+export { candleTipRevision, candleTipRevisionFromSeries } from './candleSeriesIdentity';
 
 /** Tip-stable cache identity — excludes tip OHLC so live ticks reuse one slot. */
 export function computeTipStableCacheKey(
   name: string,
   inputs: ResolvedInputs,
   candles: Candle[],
+  identity?: CandleSeriesIdentity,
 ): string {
+  if (identity) {
+    return `${name}|${stableStringifyInputs(inputs)}|${identity.length}|${identity.firstT}|${identity.lastT}|${identity.bodyRevision}`;
+  }
   const firstT = candles[0]?.t ?? 0;
   const lastT = candles.at(-1)?.t ?? 0;
   return `${name}|${stableStringifyInputs(inputs)}|${candles.length}|${firstT}|${lastT}|${candleBodyFingerprint(candles)}`;
@@ -83,8 +86,9 @@ export function computeCacheKey(
   name: string,
   inputs: ResolvedInputs,
   candles: Candle[],
+  identity?: CandleSeriesIdentity,
 ): string {
-  return computeTipStableCacheKey(name, inputs, candles);
+  return computeTipStableCacheKey(name, inputs, candles, identity);
 }
 
 function approxSeriesBytes(data: Record<string, number[]>): number {
@@ -138,11 +142,25 @@ export function getComputeCacheEntryCount(): number {
   return computeCache.size;
 }
 
+export type GetComputedSeriesOptions = {
+  identity?: CandleSeriesIdentity;
+  advanceKind?: CandleSeriesAdvanceKind;
+};
+
+function resolveIdentity(
+  candles: Candle[],
+  options?: GetComputedSeriesOptions,
+): CandleSeriesIdentity | undefined {
+  if (options?.identity) return options.identity;
+  return undefined;
+}
+
 export function getComputedSeries(
   plugin: IndicatorPlugin,
   candles: Candle[],
   inputs?: ResolvedInputs,
   instance?: Pick<IndicatorConfig, 'inputs' | 'params'>,
+  options?: GetComputedSeriesOptions,
 ): Record<string, number[]> | null {
   if (!plugin.compute) return null;
 
@@ -150,19 +168,53 @@ export function getComputedSeries(
     inputs ??
     (instance ? resolveIndicatorInputs(plugin, instance) : ({} as ResolvedInputs));
 
-  const key = computeTipStableCacheKey(plugin.name, resolved, candles);
-  const tipRevision = candleTipRevisionFromSeries(candles);
+  const identity = resolveIdentity(candles, options);
+  const key = computeTipStableCacheKey(plugin.name, resolved, candles, identity);
+  const tipRevision = identity?.tipRevision ?? candleTipRevisionFromSeries(candles);
+  const bodyRevision = identity?.bodyRevision ?? -1;
   const hit = computeCache.get(key);
+
   if (hit && hit.tipRevision === tipRevision) {
     hit.touchedAt = Date.now();
     return hit.data;
   }
 
+  if (
+    hit &&
+    hit.bodyRevision === bodyRevision &&
+    identity &&
+    hit.tipRevision !== tipRevision
+  ) {
+    const incremental = tryIncrementalTipUpdate(
+      plugin.name,
+      candles,
+      resolved,
+      hit.data,
+      hit.aux,
+      options?.advanceKind ?? identity.lastAdvanceKind,
+    );
+    if (incremental) {
+      const now = Date.now();
+      computeCache.set(key, {
+        bodyRevision,
+        tipRevision,
+        data: incremental.data,
+        aux: incremental.aux,
+        touchedAt: now,
+        approxBytes: approxSeriesBytes(incremental.data),
+      });
+      evictComputeCacheUntilWithinBudget();
+      return incremental.data;
+    }
+  }
+
   const data = plugin.compute(candles, resolved);
   const now = Date.now();
   computeCache.set(key, {
+    bodyRevision,
     tipRevision,
     data,
+    aux: buildComputeCacheAux(plugin.name, candles, resolved, data),
     touchedAt: now,
     approxBytes: approxSeriesBytes(data),
   });

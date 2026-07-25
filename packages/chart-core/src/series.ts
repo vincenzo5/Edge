@@ -1,6 +1,13 @@
 import type { Candle } from './contracts';
 import type { ChartCandleStreamEvent, ChartDataMeta } from './dataSource';
 import { getCachedHeikinAshi, setCachedHeikinAshi } from './heikinAshiCache';
+import {
+  advanceCandleSeriesIdentity,
+  classifyAppendAdvanceKind,
+  createCandleSeriesIdentity,
+  type CandleSeriesAdvanceKind,
+  type CandleSeriesIdentity,
+} from './candleSeriesIdentity';
 
 export type ChartType =
   | 'candle_solid'
@@ -9,10 +16,10 @@ export type ChartType =
   | 'area'
   | 'heikin_ashi';
 
-/** Heikin Ashi transform (pure). Results are cached by length + OHLCV fingerprint. */
-export function toHeikinAshi(candles: Candle[]): Candle[] {
+/** Heikin Ashi transform (pure). Results are cached by revision identity when provided. */
+export function toHeikinAshi(candles: Candle[], identity?: CandleSeriesIdentity): Candle[] {
   if (candles.length === 0) return [];
-  const cached = getCachedHeikinAshi(candles);
+  const cached = getCachedHeikinAshi(candles, identity);
   if (cached) {
     return cached as Candle[];
   }
@@ -27,7 +34,7 @@ export function toHeikinAshi(candles: Candle[]): Candle[] {
     out.push(ha);
     prevHA = ha;
   }
-  return setCachedHeikinAshi(candles, out) as Candle[];
+  return setCachedHeikinAshi(candles, out, identity) as Candle[];
 }
 
 /** Apply visible slice (e.g. Bar Replay). */
@@ -104,26 +111,78 @@ export function applyCandleReplaceLatest(existing: Candle[], candle: Candle): Ca
 export type ApplyCandleStreamResult = {
   candles: Candle[];
   meta?: ChartDataMeta;
+  identity?: CandleSeriesIdentity;
 };
+
 
 /** Apply a live candle stream event to the current series. */
 export function applyCandleStreamEvent(
   existing: Candle[],
   event: ChartCandleStreamEvent,
+  prevIdentity?: CandleSeriesIdentity,
 ): ApplyCandleStreamResult {
   switch (event.type) {
-    case 'snapshot':
-      return { candles: applyCandleSnapshot(existing, event.candles), meta: event.meta };
-    case 'append':
-      return { candles: applyCandleAppend(existing, event.candle), meta: event.meta };
-    case 'replace-latest':
-      return { candles: applyCandleReplaceLatest(existing, event.candle), meta: event.meta };
+    case 'snapshot': {
+      const candles = applyCandleSnapshot(existing, event.candles);
+      return {
+        candles,
+        meta: event.meta,
+        identity: advanceCandleSeriesIdentity(prevIdentity, candles, 'snapshot'),
+      };
+    }
+    case 'append': {
+      const candles = applyCandleAppend(existing, event.candle);
+      const kind = classifyAppendAdvanceKind(existing, event.candle);
+      return {
+        candles,
+        meta: event.meta,
+        identity: advanceCandleSeriesIdentity(prevIdentity, candles, kind),
+      };
+    }
+    case 'replace-latest': {
+      const candles = applyCandleReplaceLatest(existing, event.candle);
+      return {
+        candles,
+        meta: event.meta,
+        identity: advanceCandleSeriesIdentity(prevIdentity, candles, 'replace-latest'),
+      };
+    }
     case 'refresh':
     case 'stale':
     case 'reconnect':
     case 'error':
-      return { candles: existing, meta: event.meta };
+      return { candles: existing, meta: event.meta, identity: prevIdentity };
   }
+}
+
+export function mergeCandlesPrependWithIdentity(
+  existing: Candle[],
+  older: Candle[],
+  prevIdentity?: CandleSeriesIdentity,
+): { candles: Candle[]; identity: CandleSeriesIdentity } {
+  const candles = mergeCandlesPrepend(existing, older);
+  return {
+    candles,
+    identity: advanceCandleSeriesIdentity(prevIdentity, candles, 'prepend'),
+  };
+}
+
+export function trimResidentBarsWithIdentity(
+  candles: Candle[],
+  prevIdentity?: CandleSeriesIdentity,
+  softMax = RESIDENT_BAR_SOFT_MAX,
+): TrimResidentBarsResult & { identity: CandleSeriesIdentity } {
+  const trimmed = trimResidentBars(candles, softMax);
+  if (trimmed.removed === 0) {
+    return {
+      ...trimmed,
+      identity: prevIdentity ?? createCandleSeriesIdentity(trimmed.candles),
+    };
+  }
+  return {
+    ...trimmed,
+    identity: advanceCandleSeriesIdentity(prevIdentity, trimmed.candles, 'trim'),
+  };
 }
 
 export {

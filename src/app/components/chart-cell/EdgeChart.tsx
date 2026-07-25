@@ -165,6 +165,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
 
   const {
     candles,
+    seriesIdentity,
     loading,
     error,
     meta,
@@ -447,6 +448,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         annotationMarkers={overlayState.annotations}
         seriesContext={scriptSeriesContext}
         seriesResolver={scriptSeriesResolver}
+        seriesIdentity={seriesIdentity}
         onScriptResultReady={handleScriptResultReady}
         {...rest}
       />

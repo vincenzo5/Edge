@@ -98,6 +98,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     scriptSourceResolver,
     seriesContext,
     seriesResolver,
+    seriesIdentity,
     onScriptResultReady,
   } = props;
 
@@ -176,6 +177,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     scriptSourceResolver,
     seriesContext: seriesContext ?? null,
     seriesResolver: seriesResolver ?? null,
+    seriesIdentity,
     onScriptResultReady,
   });
 

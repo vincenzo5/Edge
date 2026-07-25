@@ -1,7 +1,7 @@
 import type { Candle, IndicatorConfig, ScriptExecutionErrorCode, ScriptObjectDef, ScriptObjectDrawEntry } from '@edge/chart-core';
 import type { IndicatorPlugin } from '@edge/chart-core/plugin-api';
 import { IndicatorRegistry } from '@edge/chart-core';
-import type { ScriptManifest } from '@edge/chart-core';
+import type { CandleSeriesIdentity, ScriptManifest } from '@edge/chart-core';
 import type { SeriesOutput } from '@edge/chart-core/legend/types';
 import {
   candleTipRevisionFromSeries,
@@ -38,10 +38,11 @@ export function buildInstanceFingerprint(
   instance: IndicatorConfig,
   plugin: IndicatorPlugin,
   candles: Candle[],
+  identity?: CandleSeriesIdentity,
 ): string {
   const inputs = resolveIndicatorInputs(plugin, instance);
-  const base = computeTipStableCacheKey(plugin.name, inputs, candles);
-  const withTip = `${base}|tip:${candleTipRevisionFromSeries(candles)}`;
+  const base = computeTipStableCacheKey(plugin.name, inputs, candles, identity);
+  const withTip = `${base}|tip:${identity?.tipRevision ?? candleTipRevisionFromSeries(candles)}`;
   if (isScriptInstance(instance)) {
     return `${withTip}|script:${instance.scriptId ?? instance.id}|rev:${instance.revision ?? 'unknown'}`;
   }
@@ -71,9 +72,14 @@ export class IndicatorResultProvider {
   private generation = 0;
   private readonly sessionKey: string;
   private readonly listeners = new Set<() => void>();
+  private seriesIdentity: CandleSeriesIdentity | undefined;
 
   constructor(options: IndicatorResultProviderOptions = {}) {
     this.sessionKey = options.sessionKey ?? 'default';
+  }
+
+  setSeriesIdentity(identity: CandleSeriesIdentity | undefined): void {
+    this.seriesIdentity = identity;
   }
 
   subscribe(listener: () => void): () => void {
@@ -99,8 +105,11 @@ export class IndicatorResultProvider {
     instance: IndicatorConfig,
     candles: Candle[],
   ): Record<string, number[]> | null {
-    const fingerprint = buildInstanceFingerprint(instance, plugin, candles);
-    const series = getComputedSeries(plugin, candles, undefined, instance);
+    const fingerprint = buildInstanceFingerprint(instance, plugin, candles, this.seriesIdentity);
+    const series = getComputedSeries(plugin, candles, undefined, instance, {
+      identity: this.seriesIdentity,
+      advanceKind: this.seriesIdentity?.lastAdvanceKind,
+    });
     if (series) {
       this.snapshots.set(instance.id, {
         generation: ++this.generation,
@@ -177,7 +186,7 @@ export class IndicatorResultProvider {
     instance: IndicatorConfig,
     candles: Candle[],
   ): Record<string, number[]> | null {
-    const fingerprint = buildInstanceFingerprint(instance, plugin, candles);
+    const fingerprint = buildInstanceFingerprint(instance, plugin, candles, this.seriesIdentity);
     if (isScriptInstance(instance)) {
       const snap = this.snapshots.get(instance.id);
       if (!snap) return null;
@@ -205,7 +214,7 @@ export class IndicatorResultProvider {
       if (!isScriptInstance(instance)) continue;
       const plugin = resolveIndicatorPlugin(instance);
       if (!plugin || plugin.pane !== 'main') continue;
-      const fingerprint = buildInstanceFingerprint(instance, plugin, candles);
+      const fingerprint = buildInstanceFingerprint(instance, plugin, candles, this.seriesIdentity);
       const snap = this.snapshots.get(instance.id);
       if (!snap || snap.fingerprint !== fingerprint || !snap.objects) continue;
       for (const [objectId, def] of Object.entries(snap.objects)) {

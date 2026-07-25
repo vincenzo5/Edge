@@ -1,4 +1,5 @@
 import type { Candle } from './contracts';
+import type { CandleSeriesIdentity } from './candleSeriesIdentity';
 import { candleValueFingerprint } from './indicatorCompute';
 
 export const HEIKIN_ASHI_CACHE_MAX_ENTRIES = 8;
@@ -18,7 +19,10 @@ function freezeCandleSeries(candles: Candle[]): readonly Candle[] {
   return Object.freeze(candles);
 }
 
-function cacheKey(candles: Candle[]): string {
+function cacheKey(candles: Candle[], identity?: CandleSeriesIdentity): string {
+  if (identity) {
+    return `${identity.length}|${identity.bodyRevision}|${identity.tipRevision}`;
+  }
   return `${candles.length}|${candleValueFingerprint(candles)}`;
 }
 
@@ -44,8 +48,11 @@ export function clearHeikinAshiCache(): void {
   order.length = 0;
 }
 
-export function getCachedHeikinAshi(candles: Candle[]): readonly Candle[] | null {
-  const key = cacheKey(candles);
+export function getCachedHeikinAshi(
+  candles: Candle[],
+  identity?: CandleSeriesIdentity,
+): readonly Candle[] | null {
+  const key = cacheKey(candles, identity);
   const hit = cache.get(key);
   if (!hit) {
     return null;
@@ -54,8 +61,12 @@ export function getCachedHeikinAshi(candles: Candle[]): readonly Candle[] | null
   return hit;
 }
 
-export function setCachedHeikinAshi(candles: Candle[], ha: Candle[]): readonly Candle[] {
-  const key = cacheKey(candles);
+export function setCachedHeikinAshi(
+  candles: Candle[],
+  ha: Candle[],
+  identity?: CandleSeriesIdentity,
+): readonly Candle[] {
+  const key = cacheKey(candles, identity);
   const frozen = freezeCandleSeries(ha);
   cache.set(key, frozen);
   touchKey(key);

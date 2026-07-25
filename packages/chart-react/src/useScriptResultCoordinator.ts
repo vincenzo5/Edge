@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import type { Candle, IndicatorConfig, ScriptSeriesContext, ScriptSeriesResolver, ScriptSourceResolver } from '@edge/chart-core';
+import type { Candle, CandleSeriesIdentity, IndicatorConfig, ScriptSeriesContext, ScriptSeriesResolver, ScriptSourceResolver } from '@edge/chart-core';
 import { ScriptResultCoordinator } from './engine/scriptResultCoordinator';
 import {
   IndicatorResultProvider,
@@ -12,6 +12,7 @@ export type UseScriptResultCoordinatorOptions = {
   sessionKey: string;
   indicators: IndicatorConfig[];
   candles: Candle[];
+  seriesIdentity?: CandleSeriesIdentity;
   onInvalidate?: () => void;
   onScriptResultReady?: (event: import('./types').ScriptResultReadyEvent) => void;
   scriptSourceResolver?: ScriptSourceResolver | null;
@@ -73,8 +74,16 @@ export function useScriptResultCoordinator(
       seriesContext: options.seriesContext ?? null,
       seriesResolver: options.seriesResolver ?? null,
     });
+    coordinator.setSeriesIdentity(options.seriesIdentity);
     coordinator.sync(options.indicators, options.candles);
-  }, [coordinator, options.indicators, options.candles, options.seriesContext, options.seriesResolver]);
+  }, [
+    coordinator,
+    options.indicators,
+    options.candles,
+    options.seriesContext,
+    options.seriesResolver,
+    options.seriesIdentity,
+  ]);
 
   return useMemo(() => ({ provider }), [provider]);
 }

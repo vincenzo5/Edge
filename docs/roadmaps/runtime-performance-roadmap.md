@@ -4,7 +4,7 @@ Make Edge charts and desks feel smooth under live quotes, crosshair scrubbing, d
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing**. Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phases 3–8 **Pending**.
+**Status:** Phase 0 **Passing**. Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phase 3 **Passing** (2026-07-25). Phases 4–8 **Pending**.
 
 **Related:** [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart perf baseline](../perf/chart-baseline-latest.json), [Market data performance](../perf/market-data-performance.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 

@@ -1,4 +1,4 @@
-import type { Candle, IndicatorConfig, ScriptExecutionErrorCode, ScriptObjectDef, ScriptSeriesContext, ScriptSeriesResolver, ScriptSourceResolver } from '@edge/chart-core';
+import type { Candle, CandleSeriesIdentity, IndicatorConfig, ScriptExecutionErrorCode, ScriptObjectDef, ScriptSeriesContext, ScriptSeriesResolver, ScriptSourceResolver } from '@edge/chart-core';
 import { formatScriptError } from '@edge/chart-core';
 import type { IndicatorPlugin, InputValue } from '@edge/chart-core/plugin-api';
 import { resolveIndicatorInputs } from '@edge/chart-core/indicatorInputs';
@@ -101,6 +101,7 @@ export class ScriptResultCoordinator {
   private readonly scriptSourceResolver?: ScriptSourceResolver | null;
   private readonly seriesContextRef: { current: ScriptSeriesContext | null };
   private readonly seriesResolverRef: { current: ScriptSeriesResolver | null };
+  private seriesIdentity: CandleSeriesIdentity | undefined;
   private readonly cache = new Map<string, CachedScriptResult>();
   private readonly lastValidByInstance = new Map<string, CachedScriptResult>();
   private readonly pending = new Map<string, PendingRun>();
@@ -127,6 +128,11 @@ export class ScriptResultCoordinator {
     if (options.seriesResolver !== undefined) {
       this.seriesResolverRef.current = options.seriesResolver;
     }
+  }
+
+  setSeriesIdentity(identity: CandleSeriesIdentity | undefined): void {
+    this.seriesIdentity = identity;
+    this.provider.setSeriesIdentity(identity);
   }
 
   private resolveSource(scriptId: string, revision: string): ResolvedScriptSource | null {
@@ -187,7 +193,7 @@ export class ScriptResultCoordinator {
     candles: Candle[],
   ): string {
     const inputs = resolveIndicatorInputs(plugin, instance);
-    const tipStable = computeTipStableCacheKey(plugin.name, inputs, candles);
+    const tipStable = computeTipStableCacheKey(plugin.name, inputs, candles, this.seriesIdentity);
     const contextSuffix = this.seriesContextRef.current
       ? `${this.seriesContextRef.current.symbol}|${this.seriesContextRef.current.interval}|${this.seriesContextRef.current.range}|${this.seriesContextRef.current.sessionMode ?? 'regular'}`
       : '';
@@ -230,9 +236,9 @@ export class ScriptResultCoordinator {
     }
 
     const plugin = stubScriptPlugin(instance, resolved);
-    const fingerprint = buildInstanceFingerprint(instance, plugin, candles);
+    const fingerprint = buildInstanceFingerprint(instance, plugin, candles, this.seriesIdentity);
     const cacheKey = this.buildTipStableCacheKey(instance, plugin, candles);
-    const tipRevision = candleTipRevisionFromSeries(candles);
+    const tipRevision = this.seriesIdentity?.tipRevision ?? candleTipRevisionFromSeries(candles);
 
     const cached = this.cache.get(cacheKey);
     if (cached && cached.tipRevision === tipRevision) {
@@ -408,7 +414,7 @@ export class ScriptResultCoordinator {
     const fp =
       fingerprint ??
       (resolved
-        ? buildInstanceFingerprint(instance, stubScriptPlugin(instance, resolved), candles)
+        ? buildInstanceFingerprint(instance, stubScriptPlugin(instance, resolved), candles, this.seriesIdentity)
         : `script:${instance.id}`);
 
     if (this.lastValidByInstance.has(instance.id)) {

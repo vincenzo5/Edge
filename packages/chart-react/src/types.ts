@@ -207,6 +207,8 @@ export type EdgeChartProps = {
   seriesContext?: import('@edge/chart-core').ScriptSeriesContext | null;
   /** Host-provided fetcher for secondary script series. */
   seriesResolver?: import('@edge/chart-core').ScriptSeriesResolver | null;
+  /** Monotonic candle body/tip revision identity from the live feed. */
+  seriesIdentity?: import('@edge/chart-core').CandleSeriesIdentity;
   /** Fired when a script instance produces a ready result (for alert snapshot bridges). */
   onScriptResultReady?: (event: ScriptResultReadyEvent) => void;
   /** App default timezone — charts inherit when per-chart setting is unset. */

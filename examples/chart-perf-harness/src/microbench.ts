@@ -3,6 +3,10 @@ import {
   computeCacheKey,
   getComputedSeries,
 } from "@edge/chart-core/indicatorCompute";
+import {
+  advanceCandleSeriesIdentity,
+  createCandleSeriesIdentity,
+} from "@edge/chart-core";
 import { resolveIndicatorInputs } from "@edge/chart-core/indicatorInputs";
 import { getAllIndicators } from "@edge/chart-core/indicators/registry";
 import type { Candle } from "@edge/chart-core";
@@ -100,10 +104,11 @@ export function runMicrobenchmarks(): ScenarioResult[] {
     notes: "Warm compute cache hit path.",
   });
 
+  const identity100k = createCandleSeriesIdentity(candles100k);
   const cacheKeyDurationMs = measureDuration(() => {
     for (const plugin of indicators) {
       const inputs = resolveIndicatorInputs(plugin, { inputs: plugin.defaultInputs });
-      computeCacheKey(plugin.name, inputs, candles100k);
+      computeCacheKey(plugin.name, inputs, candles100k, identity100k);
     }
   });
 
@@ -119,21 +124,23 @@ export function runMicrobenchmarks(): ScenarioResult[] {
       durationMs: cacheKeyDurationMs,
       iterations: indicators.length,
     },
-    notes: "Cache-key fingerprint cost before compute short-circuit.",
+    notes: "Revision-based cache-key cost before compute short-circuit.",
   });
 
   const candles5k = generateCandles(5_000);
+  let identity5k = createCandleSeriesIdentity(candles5k);
   clearComputeCache();
   for (const plugin of indicators) {
     const inputs = resolveIndicatorInputs(plugin, { inputs: plugin.defaultInputs });
-    getComputedSeries(plugin, candles5k, inputs);
+    getComputedSeries(plugin, candles5k, inputs, undefined, { identity: identity5k });
   }
 
   const tipCandles = mutateTip(candles5k);
+  identity5k = advanceCandleSeriesIdentity(identity5k, tipCandles, "replace-latest");
   const tipTickDurationMs = measureDuration(() => {
     for (const plugin of indicators) {
       const inputs = resolveIndicatorInputs(plugin, { inputs: plugin.defaultInputs });
-      getComputedSeries(plugin, tipCandles, inputs);
+      getComputedSeries(plugin, tipCandles, inputs, undefined, { identity: identity5k });
     }
   });
 
@@ -149,7 +156,7 @@ export function runMicrobenchmarks(): ScenarioResult[] {
       durationMs: tipTickDurationMs,
       iterations: indicators.length,
     },
-    notes: "Tip mutation after warm cache — baseline for live tip update cost (full recompute today).",
+    notes: "Tip mutation after warm cache — incremental tip path when supported.",
   });
 
   return results;

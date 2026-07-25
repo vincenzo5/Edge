@@ -77,6 +77,8 @@ export {
   shouldPrefetchEdge,
   ensureCandlesCover,
   trimResidentBars,
+  trimResidentBarsWithIdentity,
+  mergeCandlesPrependWithIdentity,
   RESIDENT_BAR_SOFT_MAX,
   EDGE_FETCH_BAR_COUNT,
   PREFETCH_START_INDEX_THRESHOLD,
@@ -102,6 +104,17 @@ export type {
   EnsureCandlesCoverResult,
   TrimResidentBarsResult,
 } from './series';
+export type {
+  CandleSeriesAdvanceKind,
+  CandleSeriesIdentity,
+} from './candleSeriesIdentity';
+export {
+  advanceCandleSeriesIdentity,
+  boundsFromCandles,
+  classifyAppendAdvanceKind,
+  createCandleSeriesIdentity,
+  resetCandleSeriesIdentitySeqForTests,
+} from './candleSeriesIdentity';
 
 export type { FetchIntervalResolution, ProviderInterval } from './interval';
 export {
