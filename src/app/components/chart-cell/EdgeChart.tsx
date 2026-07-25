@@ -172,6 +172,8 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     error,
     meta,
     loadMore,
+    hasMore,
+    historyExtent,
     refreshing,
     stale,
     streamError,
@@ -446,6 +448,8 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
         defaultTimeZone={defaultTimeZone}
         onLoadOlderCandles={handleLoadOlderCandles}
         onRangePresetClear={handleRangePresetClear}
+        hasMoreHistory={hasMore}
+        historyExtent={historyExtent}
         onCandlesChange={handleCandlesChange}
         eventMarkers={overlayState.events}
         referenceLines={mergedReferenceLines}

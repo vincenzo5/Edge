@@ -6,12 +6,14 @@ import type {
   ChartCandleStreamEvent,
   ChartDataFeed,
   ChartDataMeta,
+  ChartHistoryExtent,
   Interval,
   MarketSessionMode,
   Range,
 } from '@edge/chart-core';
 import { applyCandleStreamEvent, intervalToMs, mergeCandlesPrependWithIdentity, trimResidentBarsWithIdentity, createCandleSeriesIdentity, type CandleSeriesIdentity } from '@edge/chart-core';
 import { recordMarketDataTelemetry, type MarketDataPerfPhase } from '@/lib/marketData/telemetry';
+import { advanceChartHistoryExtent } from './historyExtent';
 import {
   buildChartClientCacheKey,
   patchChartClientCacheHasMore,
@@ -43,6 +45,7 @@ export type ChartDataFeedState = {
   error: string | null;
   meta: ChartDataMeta | null;
   hasMore: boolean;
+  historyExtent: ChartHistoryExtent | null;
   streaming: boolean;
   stale: boolean;
   streamError: string | null;
@@ -94,12 +97,14 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<ChartDataMeta | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [historyExtent, setHistoryExtent] = useState<ChartHistoryExtent | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [stale, setStale] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [lastUpdateAt, setLastUpdateAt] = useState<number | null>(null);
 
   const candlesRef = useRef<Candle[]>([]);
+  const historyExtentRef = useRef<ChartHistoryExtent | null>(null);
   const seriesIdentityRef = useRef<CandleSeriesIdentity | undefined>(undefined);
   const [seriesIdentity, setSeriesIdentity] = useState<CandleSeriesIdentity | undefined>(undefined);
   const fetchGenerationRef = useRef(0);
@@ -154,6 +159,8 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
           setSeriesIdentity(seriesIdentityRef.current);
           setCandles(cached.candles);
           setHasMore(cached.hasMore);
+          historyExtentRef.current = cached.historyExtent ?? null;
+          setHistoryExtent(cached.historyExtent ?? null);
           setLoading(false);
           setRefreshing(true);
           streamStateRef.current = {
@@ -172,16 +179,20 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
         } else {
           candlesRef.current = [];
           seriesIdentityRef.current = undefined;
+          historyExtentRef.current = null;
           setSeriesIdentity(undefined);
           setCandles([]);
+          setHistoryExtent(null);
           setLoading(true);
           setRefreshing(false);
         }
       } else {
         candlesRef.current = [];
         seriesIdentityRef.current = undefined;
+        historyExtentRef.current = null;
         setSeriesIdentity(undefined);
         setCandles([]);
+        setHistoryExtent(null);
         setLoading(true);
         setRefreshing(false);
       }
@@ -230,6 +241,15 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
           seriesIdentityRef.current = applied.identity;
           setSeriesIdentity(applied.identity);
           setCandles(applied.candles);
+          if (historyExtentRef.current && applied.candles.length > 0) {
+            const last = applied.candles.at(-1)!.t;
+            const nextExtent = {
+              ...historyExtentRef.current,
+              toMs: Math.max(historyExtentRef.current.toMs, last),
+            };
+            historyExtentRef.current = nextExtent;
+            setHistoryExtent(nextExtent);
+          }
           const now = Date.now();
           const nextMeta = buildMeta(applied.meta ?? event.meta, {
             ...streamStateRef.current,
@@ -329,8 +349,16 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
           : (result.hasMore ??
               readChartClientCache(requestKey)?.hasMore ??
               mergedCandles.length > result.candles.length);
+        const mergedExtent = advanceChartHistoryExtent(
+          reloadTriggered ? null : historyExtentRef.current,
+          result.historyExtent ?? null,
+          mergedCandles,
+          mergedHasMore,
+        );
         candlesRef.current = mergedCandles;
         setCandles(mergedCandles);
+        historyExtentRef.current = mergedExtent;
+        setHistoryExtent(mergedExtent);
         recordMarketDataTelemetry('chart.candles.firstPaint', {
           traceId: result.meta?.traceId,
           scenario: `chart-load:${symbol}:${interval}:${range ?? '1y'}`,
@@ -367,6 +395,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
             candles: mergedCandles,
             meta: resultMeta,
             hasMore: mergedHasMore,
+            historyExtent: mergedExtent,
             asOf: loadedAt,
           });
         } else {
@@ -375,6 +404,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
             leftHistoryCandles: leftHistory.length > 0 ? leftHistory : undefined,
             meta: resultMeta,
             hasMore: mergedHasMore,
+            historyExtent: mergedExtent,
             asOf: loadedAt,
           });
         }
@@ -452,16 +482,25 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
     seriesIdentityRef.current = trimmed.identity;
     setSeriesIdentity(trimmed.identity);
     const nextHasMore = result.hasMore ?? true;
+    const nextExtent = advanceChartHistoryExtent(
+      historyExtentRef.current,
+      result.historyExtent ?? null,
+      merged,
+      nextHasMore,
+    );
     const nextMeta = result.meta ?? meta ?? DEFAULT_META;
     const asOf = Date.now();
     candlesRef.current = merged;
     setCandles(merged);
+    historyExtentRef.current = nextExtent;
+    setHistoryExtent(nextExtent);
     setMeta(buildMeta(nextMeta, streamStateRef.current));
     setHasMore(nextHasMore);
     writeChartClientCache(cacheKey, {
       candles: merged,
       meta: nextMeta,
       hasMore: nextHasMore,
+      historyExtent: nextExtent,
       asOf,
     });
     return result.candles;
@@ -475,6 +514,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
     error,
     meta,
     hasMore,
+    historyExtent,
     streaming,
     stale,
     streamError,

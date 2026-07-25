@@ -1,6 +1,7 @@
 import YahooFinance from "yahoo-finance2";
 
-import type { Interval as ChartInterval } from "@edge/chart-core/contracts";
+import type { ChartHistoryExtent } from "@edge/chart-core";
+import type { Interval as ChartInterval, Range } from "@edge/chart-core/contracts";
 
 // v3 changed the default export from a singleton to a class that must be
 // instantiated before use. See docs/UPGRADING.md (v2 -> v3).
@@ -135,6 +136,46 @@ export function clampYahooChartPeriod(
   }
   if (p1 >= p2) return null;
   return { period1: new Date(p1), period2: new Date(p2) };
+}
+
+/** Provider-advertised Yahoo history envelope for chart navigator chrome. */
+export function computeYahooHistoryExtent(
+  interval: ChartInterval,
+  request: { range?: Range; beforeTimestamp?: number },
+  candleTimesMs: number[],
+  nowMs = Date.now(),
+): ChartHistoryExtent {
+  const lastMs = candleTimesMs.length > 0 ? candleTimesMs[candleTimesMs.length - 1]! : nowMs;
+  const firstMs = candleTimesMs.length > 0 ? candleTimesMs[0]! : lastMs;
+  const maxMs = yahooMaxHistoryMs(interval);
+  const intervalMs = intervalToMs(interval);
+
+  if (maxMs != null) {
+    const exactFromMs = nowMs - maxMs;
+    const atEarliest =
+      candleTimesMs.length === 0 || firstMs <= exactFromMs + intervalMs;
+    return {
+      fromMs: exactFromMs,
+      toMs: Math.max(lastMs, nowMs),
+      completeness: atEarliest ? "exact" : "discovered",
+    };
+  }
+
+  if (request.beforeTimestamp != null) {
+    return {
+      fromMs: firstMs,
+      toMs: lastMs,
+      completeness: "discovered",
+    };
+  }
+
+  const { period1 } = rangeToPeriods(request.range ?? "1y");
+  const rangeFromMs = period1.getTime();
+  return {
+    fromMs: Math.min(rangeFromMs, firstMs),
+    toMs: lastMs,
+    completeness: request.range === "max" ? "discovered" : "exact",
+  };
 }
 
 /**

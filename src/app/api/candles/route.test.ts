@@ -70,6 +70,11 @@ describe("/api/candles POST", () => {
     const json = await res.json();
     expect(json.candles).toHaveLength(1);
     expect(json.meta).toMatchObject({ source: "yahoo", stale: false, warnings: [] });
+    expect(json.historyExtent).toMatchObject({
+      completeness: expect.stringMatching(/exact|discovered/),
+      fromMs: expect.any(Number),
+      toMs: expect.any(Number),
+    });
   });
 
   it("rejects missing symbol with 400", async () => {

@@ -182,7 +182,14 @@ export type {
   ChartDataFeed,
 } from './dataSource';
 
-export { CANDLE_TIMESTAMP_UNIT, SUPPORTED_INTERVALS, CHART_EVENT_OVERLAY_KINDS } from './dataSource';
+export {
+  CANDLE_TIMESTAMP_UNIT,
+  SUPPORTED_INTERVALS,
+  CHART_EVENT_OVERLAY_KINDS,
+  type ChartHistoryExtent,
+  type ChartHistoryExtentCompleteness,
+} from './dataSource';
+export { mergeChartHistoryExtent, visibleWindowMs } from './historyExtent';
 
 export {
   computeRiskMetrics,

@@ -1,10 +1,11 @@
-import type { Candle, ChartDataMeta, Interval, MarketSessionMode, Range } from '@edge/chart-core';
+import type { Candle, ChartDataMeta, ChartHistoryExtent, Interval, MarketSessionMode, Range } from '@edge/chart-core';
 import { mergeCandlesPrepend, trimResidentBars } from '@edge/chart-core';
 
 export type ChartClientCacheEntry = {
   candles: Candle[];
   meta: ChartDataMeta;
   hasMore: boolean;
+  historyExtent?: ChartHistoryExtent | null;
   asOf: number;
 };
 
@@ -74,6 +75,7 @@ function prepareCacheEntry(entry: ChartClientCacheEntry): ChartClientCacheEntry 
     candles: freezeCandleSeries(entry.candles),
     meta: freezeMeta(entry.meta),
     hasMore: entry.hasMore,
+    historyExtent: entry.historyExtent ?? null,
     asOf: entry.asOf,
   };
 }
@@ -84,6 +86,7 @@ function exposeCacheEntry(entry: ChartClientCacheEntry): ChartClientCacheEntry {
     candles: entry.candles,
     meta: entry.meta,
     hasMore: entry.hasMore,
+    historyExtent: entry.historyExtent ?? null,
     asOf: entry.asOf,
   };
 }
@@ -180,6 +183,7 @@ export type WriteMergedChartClientCacheParams = {
   leftHistoryCandles?: Candle[];
   meta: ChartDataMeta;
   hasMore: boolean;
+  historyExtent?: ChartHistoryExtent | null;
   asOf: number;
 };
 
@@ -196,12 +200,14 @@ export function writeMergedChartClientCache(
     candles: merged,
     meta: params.meta,
     hasMore: params.hasMore,
+    historyExtent: params.historyExtent ?? null,
     asOf: params.asOf,
   });
   return readChartClientCache(key) ?? prepareCacheEntry({
     candles: merged,
     meta: params.meta,
     hasMore: params.hasMore,
+    historyExtent: params.historyExtent ?? null,
     asOf: params.asOf,
   });
 }

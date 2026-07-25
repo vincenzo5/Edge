@@ -14,6 +14,7 @@ import {
   readMarketDataTraceFromRequest,
 } from "@/lib/marketData/telemetry";
 import { isMarketDataPerfEnabled } from "@/lib/marketData/telemetry/isPerfEnabled";
+import { equityCandleToLegacyApi } from "@/lib/marketData/validation/mappers";
 
 export const runtime = "nodejs";
 
@@ -46,7 +47,7 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const serviceStartedAt = Date.now();
-    const result = await service.getLegacyCandles(
+    const result = await service.getCandles(
       {
         symbol: input.symbol,
         range: input.before == null ? (input.range ?? "1y") : undefined,
@@ -61,10 +62,10 @@ export async function POST(request: Request): Promise<Response> {
         providerPreference: input.providerPreference,
       },
     );
-    perfContext.collector.record("api.service.getLegacyCandles", serviceStartedAt, true, "api", {
+    perfContext.collector.record("api.service.getCandles", serviceStartedAt, true, "api", {
       source: result.source,
       cacheTier: result.cacheTier,
-      barCount: result.data.length,
+      barCount: result.data.candles.length,
     });
     perfContext.collector.record("api.total", routeStartedAt, true, "api");
 
@@ -82,8 +83,11 @@ export async function POST(request: Request): Promise<Response> {
     };
 
     return NextResponse.json({
-      candles: result.data,
+      candles: result.data.candles.map(equityCandleToLegacyApi),
       meta,
+      hasMore: result.data.hasMore,
+      nextBeforeTimestamp: result.data.nextBeforeTimestamp,
+      historyExtent: result.data.historyExtent,
     });
   } catch (error) {
     perfContext.collector.record("api.total", routeStartedAt, false, "api", {

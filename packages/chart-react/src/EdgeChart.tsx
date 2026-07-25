@@ -14,7 +14,7 @@ import { PANE_SEPARATOR_HEIGHT } from '@edge/chart-core/panes';
 import type { VisibleRange, PaneSegment } from '@edge/chart-core';
 import ChartCanvas from './engine/canvas';
 import CrosshairOverlay from './engine/CrosshairOverlay';
-import { mergeChartSettings } from './engine/chartSettings';
+import { mergeChartSettings, resolvePriceScaleSide } from './engine/chartSettings';
 import ChartLegendBar from './components/ChartLegendBar';
 import PaneLegendBar from './components/PaneLegendBar';
 import PaneSeparators from './components/PaneSeparators';
@@ -26,8 +26,12 @@ import { useDrawingController } from './drawing/useDrawingController';
 import { createEdgeChartHandle } from './createEdgeChartHandle';
 import { indicatorKey } from './indicatorKey';
 import EventDetailCard from './components/EventDetailCard';
+import HistoryNavigatorOverlay, {
+  type HistoryNavigatorOverlayHandle,
+} from './components/HistoryNavigatorOverlay';
 import { useCandleSession } from './useCandleSession';
 import { useCrosshairCoordinator } from './useCrosshairCoordinator';
+import { useHistoryNavigatorCoordinator } from './useHistoryNavigatorCoordinator';
 import { useChartWheelPinch } from './useChartWheelPinch';
 import { usePaneLayoutController } from './usePaneLayoutController';
 import { useEventDetailController } from './useEventDetailController';
@@ -95,6 +99,9 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     onEventBadgeHover,
     onEventBadgeMore,
     onViewportChange,
+    historyExtent = null,
+    hasMoreHistory = true,
+    showHistoryNavigator = true,
     scriptSourceResolver,
     seriesContext,
     seriesResolver,
@@ -123,6 +130,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
   const prefetchControllerRef = useRef<HistoryPrefetchController | null>(null);
   const overlayChangeCbsRef = useRef<Set<() => void>>(new Set());
   const wheelingRef = useRef(false);
+  const historyNavigatorRef = useRef<HistoryNavigatorOverlayHandle | null>(null);
   const syncSiblingsRef = useRef<(startIndex: number, endIndex: number, sourcePaneId: string) => void>(
     () => {},
   );
@@ -148,6 +156,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     onCandlesChange,
     onLoadOlderCandles,
     onRangePresetClear,
+    hasMoreHistory,
     paneHandlesRef,
     latestVpRef,
     syncSiblingsRef,
@@ -274,16 +283,6 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     setDims,
   } = paneLayout;
 
-  const handleViewport = useCallback(
-    (vp: VisibleRange, paneId: string) => {
-      handleViewportBase(vp, paneId);
-      if (paneId === 'price') {
-        onViewportChangeRef.current?.();
-      }
-    },
-    [handleViewportBase],
-  );
-
   syncSiblingsRef.current = paneLayout.syncSiblings;
 
   useImperativeHandle(
@@ -340,6 +339,31 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     [state.chartSettings, defaultTimeZone],
   );
   const showCrosshairOverlay = chartSettings.canvas.showCrosshair && !suppressCrosshair;
+
+  const priceScaleSide = resolvePriceScaleSide(chartSettings.scales.priceScalePlacement);
+
+  const historyNavigator = useHistoryNavigatorCoordinator({
+    enabled: showHistoryNavigator,
+    historyExtent,
+    candles: displayCandles,
+    width: dims.width,
+    priceScaleSide,
+    viewportRevision,
+    latestVpRef,
+    wheelingRef,
+    overlayRef: historyNavigatorRef,
+  });
+
+  const handleViewport = useCallback(
+    (vp: VisibleRange, paneId: string) => {
+      handleViewportBase(vp, paneId);
+      if (paneId === 'price') {
+        historyNavigator.onViewportChange(vp);
+        onViewportChangeRef.current?.();
+      }
+    },
+    [handleViewportBase, historyNavigator],
+  );
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -578,6 +602,14 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
         crosshairMode={chartSettings.canvas.crosshairMode}
         canvasSettings={chartSettings.canvas}
       />
+
+      {showHistoryNavigator && (
+        <HistoryNavigatorOverlay
+          ref={historyNavigatorRef}
+          width={dims.width}
+          height={dims.height}
+        />
+      )}
 
       {!onEventBadgeClick && (
         <EventDetailCard

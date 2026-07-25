@@ -205,6 +205,12 @@ export type EdgeChartProps = {
   onEventBadgeMore?: (group: EventBadgeGroup) => void;
   /** Fired after price-pane viewport mutations (pan/zoom/scale/restore). */
   onViewportChange?: () => void;
+  /** Provider/session history envelope for the bottom navigator track. */
+  historyExtent?: import('@edge/chart-core').ChartHistoryExtent | null;
+  /** Authoritative pagination flag from the host feed. */
+  hasMoreHistory?: boolean;
+  /** Show transient history navigator while panning/zooming. Default true. */
+  showHistoryNavigator?: boolean;
   /** Optional resolver for user-authored script sources (library); fixtures remain fallback. */
   scriptSourceResolver?: import('@edge/chart-core').ScriptSourceResolver | null;
   /** Chart context for script request.series MTF/MS resolution. */

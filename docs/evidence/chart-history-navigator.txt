@@ -1,0 +1,14 @@
+# Chart history navigator evidence
+# Date: 2026-07-25
+
+## Scope
+Transient display-only horizontal history navigator + provider/session history extent metadata.
+
+## Focused
+npm test -- --run packages/chart-react/src/historyNavigator.test.ts packages/chart-core/src/historyExtent.test.ts src/lib/chartDataFeed/useChartDataFeed.test.ts src/lib/chartDataFeed/apiChartDataFeed.test.ts src/lib/chartDataFeed/chartClientCache.test.ts src/app/api/candles/route.test.ts packages/chart-react/src/EdgeChart.test.tsx
+Test Files  7 passed (7)
+Tests  75 passed (75)
+
+## Build
+npm run build:packages — passed
+npm run build — blocked by pre-existing examples/chart-perf-harness microbench.ts TS error (not introduced by this change)

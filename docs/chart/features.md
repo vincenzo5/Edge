@@ -99,6 +99,7 @@ In-chart workspace tab strip is removed; layout persistence still uses a single 
 | Heikin Ashi transform | **Done** | Applied when `chartType === 'heikin_ashi'` |
 | Bar Replay data slice | **Done** | `onDataLoaded` → `candleCount`; `baseCandles` + `applyVisibleSlice` (no refetch on scrub) |
 | Infinite scroll / edge fetch | **Done** | 50% visible lookahead prefetch, 500-bar pages, pipelined history fetch (1 in-flight + 1 queued), 100ms debounce (urgent bypass), background page on chart load, pan slack = visible−1 (first bar to right edge / last bar to left edge); prepends via `POST /api/candles` `{ before }`; `adjustViewportForPrepend` keeps window stable |
+| History navigator (pan context) | **Done** | Transient bottom overlay while panning/zooming horizontally; thumb = visible window vs provider/session history envelope (`ChartHistoryExtent`); fades after ~800ms; display-only |
 | Event badge overlays | **Done** | Corporate, filing, macro, news, and options expiration events render in a reserved bottom event rail as grouped badges (count glyph when overlapping); rail background is transparent (inherits plot background); click opens grouped detail card; full-height guides on hover/selection only. Chart settings default to earnings/dividends/splits/filings plus macro for benchmark symbols; news and options expirations are opt-in. |
 | Loading / error states | **Done** | Overlay text in `EdgeChart` while fetching or on failure |
 

@@ -287,7 +287,7 @@ owner of broker-sidecar recovery. Full topology and later infrastructure work:
 
 **Do not:** persist candles into durable layout/prefs; weaken data-state trust labels when serving shared cache refs; introduce a parallel cache framework — extend `chartClientCache`, `DataCache`, `HotStore`, and existing dispose paths.
 
-API routes return optional `meta: { source, warnings, stale, asOf, usage, readiness }` alongside legacy `{ candles }` / `{ quotes }` payloads. Candles and quotes attach trust fields via `trust/enrichResponseMeta.ts` (see [Data trust model](#data-trust-model)). Probe routes under `/api/market-data/ibkr/*` remain available for diagnostics.
+API routes return optional `meta: { source, warnings, stale, asOf, usage, readiness }` alongside legacy `{ candles }` / `{ quotes }` payloads. **`POST /api/candles`** also returns optional pagination fields: `hasMore`, `nextBeforeTimestamp`, and `historyExtent` (`fromMs`, `toMs`, `completeness: exact|discovered`) threaded from provider responses through `MarketDataService.getCandles`. Client `useChartDataFeed` maintains a monotonic session envelope independent of the 5k resident-bar trim. Candles and quotes attach trust fields via `trust/enrichResponseMeta.ts` (see [Data trust model](#data-trust-model)). Probe routes under `/api/market-data/ibkr/*` remain available for diagnostics.
 
 ## Providers
 

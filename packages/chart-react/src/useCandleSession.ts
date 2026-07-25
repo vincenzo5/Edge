@@ -32,6 +32,7 @@ export type CandleSessionDeps = {
   onCandlesChange?: (candles: Candle[]) => void;
   onLoadOlderCandles?: (beforeMs: number) => Promise<Candle[]>;
   onRangePresetClear?: () => void;
+  hasMoreHistory?: boolean;
   paneHandlesRef: RefObject<Map<string, ChartPaneHandle>>;
   latestVpRef: MutableRefObject<VisibleRange | null>;
   syncSiblingsRef: RefObject<(startIndex: number, endIndex: number, sourcePaneId: string) => void>;
@@ -69,6 +70,7 @@ export function useCandleSession(deps: CandleSessionDeps): CandleSession {
     onCandlesChange,
     onLoadOlderCandles,
     onRangePresetClear,
+    hasMoreHistory = true,
     paneHandlesRef,
     latestVpRef,
     syncSiblingsRef,
@@ -114,7 +116,8 @@ export function useCandleSession(deps: CandleSessionDeps): CandleSession {
   const baseCandlesRef = useRef<Candle[]>([]);
   const appliedCandlesSessionKeyRef = useRef<string | null>(null);
   const prevViewportRevisionRef = useRef<string | undefined>(undefined);
-  const hasMoreHistoryRef = useRef(true);
+  const hasMoreHistoryRef = useRef(hasMoreHistory);
+  hasMoreHistoryRef.current = hasMoreHistory;
   const userPannedTimeAxisRef = useRef(false);
   const goToImplRef = useRef<(req: GoToRequest) => Promise<GoToResult>>(async () => ({
     ok: false,
@@ -139,9 +142,9 @@ export function useCandleSession(deps: CandleSessionDeps): CandleSession {
 
   useEffect(() => {
     userPannedTimeAxisRef.current = false;
-    hasMoreHistoryRef.current = true;
+    hasMoreHistoryRef.current = hasMoreHistory;
     prefetchControllerRef.current?.reset();
-  }, [candleSessionKey]);
+  }, [candleSessionKey, hasMoreHistory, prefetchControllerRef]);
 
   useEffect(() => {
     if (!prefetchControllerRef.current) {

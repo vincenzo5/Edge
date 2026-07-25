@@ -52,6 +52,9 @@ type ApiMetaPayload = Partial<ChartDataMeta> & {
 type ApiCandlesResponse = {
   candles: unknown[];
   meta?: ApiMetaPayload;
+  hasMore?: boolean;
+  nextBeforeTimestamp?: number;
+  historyExtent?: import('@edge/chart-core').ChartHistoryExtent;
 };
 
 type ApiQuotesResponse = {
@@ -396,16 +399,27 @@ function normalizeCandlePage(
   raw: unknown[],
   meta: ChartDataMeta,
   resampleTo?: Interval,
+  pagination?: Pick<ApiCandlesResponse, 'hasMore' | 'nextBeforeTimestamp' | 'historyExtent'>,
 ): ChartCandleResult {
   const normalized = validateCandles(raw);
   const candles = resampleTo ? applyIntervalResample(normalized, resampleTo) : normalized;
   const first = candles[0];
+  const pageExtent =
+    pagination?.historyExtent ??
+    (candles.length > 0
+      ? {
+          fromMs: first!.t,
+          toMs: candles[candles.length - 1]!.t,
+          completeness: 'discovered' as const,
+        }
+      : undefined);
   return {
     symbol,
     interval,
     candles,
-    hasMore: first != null,
-    nextBeforeTimestamp: first?.t,
+    hasMore: pagination?.hasMore ?? first != null,
+    nextBeforeTimestamp: pagination?.nextBeforeTimestamp ?? first?.t,
+    historyExtent: pageExtent,
     meta,
   };
 }
@@ -437,6 +451,7 @@ export function createApiChartDataFeed(
       payload.candles,
       normalizeMeta(payload.meta),
       resampleTo,
+      payload,
     );
   }
 
@@ -458,6 +473,7 @@ export function createApiChartDataFeed(
         payload.candles,
         normalizeMeta(payload.meta),
         resampleTo,
+        payload,
       );
     },
 
@@ -478,6 +494,7 @@ export function createApiChartDataFeed(
         payload.candles,
         normalizeMeta(payload.meta),
         resampleTo,
+        payload,
       );
     },
 

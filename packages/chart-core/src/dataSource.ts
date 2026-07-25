@@ -45,6 +45,16 @@ export type CandleRequest = {
   sessionMode?: MarketSessionMode;
 };
 
+/** How confidently the provider advertises the full history window. */
+export type ChartHistoryExtentCompleteness = 'exact' | 'discovered';
+
+/** Stable time bounds for a chart session's available history. */
+export type ChartHistoryExtent = {
+  fromMs: number;
+  toMs: number;
+  completeness: ChartHistoryExtentCompleteness;
+};
+
 export type CandleResponse = {
   symbol: string;
   interval: Interval;
@@ -53,6 +63,8 @@ export type CandleResponse = {
   hasMore?: boolean;
   /** Hint for the next pagination request (`beforeTimestamp`). */
   nextBeforeTimestamp?: number;
+  /** Provider-advertised or session-discovered history envelope. */
+  historyExtent?: ChartHistoryExtent;
 };
 
 export type InstrumentSearchRequest = {

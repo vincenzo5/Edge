@@ -1,5 +1,7 @@
 import type { Interval as ChartInterval } from "@edge/chart-core/contracts";
 import type { Interval as YahooInterval, Range as YahooRange } from "@/lib/yahooFinance";
+import { computeYahooHistoryExtent } from "@/lib/yahooFinance";
+import { intervalToMs } from "@edge/chart-core/interval";
 import type { EquityCandle, EquityQuote } from "../../contracts/equities";
 import type { FundamentalsSnapshot } from "../../contracts/fundamentals";
 import type { InstrumentSearchResult } from "../../contracts/instruments";
@@ -169,13 +171,25 @@ export function createYahooProvider(client: YahooFinanceClient) {
               yahooInterval,
             );
       const candles = mapYahooCandles(raw);
+      const historyExtent = computeYahooHistoryExtent(
+        request.interval,
+        request,
+        candles.map((c) => c.t),
+      );
+      const intervalMs = intervalToMs(request.interval);
+      const first = candles[0];
+      const hasMoreBefore =
+        request.beforeTimestamp != null &&
+        candles.length > 0 &&
+        (historyExtent.completeness === "discovered" ||
+          first!.t > historyExtent.fromMs + intervalMs * 0.5);
       return {
         symbol: request.symbol,
         interval: request.interval,
         candles,
-        hasMore: request.beforeTimestamp != null ? candles.length > 0 : undefined,
-        nextBeforeTimestamp:
-          candles.length > 0 ? candles[0]!.t : undefined,
+        hasMore: request.beforeTimestamp != null ? hasMoreBefore : undefined,
+        nextBeforeTimestamp: first?.t,
+        historyExtent,
       };
     },
 
