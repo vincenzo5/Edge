@@ -42,6 +42,7 @@ import { createDefaultWorkspaceTabs } from "../src/lib/app/workspaceTabs.ts";
 import { DEFAULT_LAYOUT, type ChartLayout, type CellConfig } from "../src/lib/chartConfig.ts";
 import {
   normalizeCdpHeapMetrics,
+  normalizeDeskComposite,
   normalizeProcessRssSample,
   normalizeSurfaceMetrics,
   normalizeUaSpecificMemory,
@@ -49,11 +50,13 @@ import {
   surfacePolicyPass,
   collectSurfaceMetricsInPage,
   type CdpHeapFields,
+  type DeskCompositeFields,
   type ProcessRssFields,
   type SurfaceMetricsFields,
   type UaSpecificMemoryFields,
 } from "./memory-baseline-metrics.ts";
 import { sampleChromiumProcessRss, type ChromiumProcessRssSample } from "./memory-process-rss.ts";
+import { sampleRedisUsedMb, sampleSidecarRssMb } from "./memory-desk-sample.ts";
 
 config({ path: ".env.local" });
 
@@ -122,6 +125,7 @@ type MemoryBaseline = {
   };
   scenarios: Record<string, unknown>;
   phase14Walks?: Record<string, unknown>;
+  desk?: DeskCompositeFields;
 };
 
 function gitMeta(): MemoryBaseline["git"] {
@@ -883,6 +887,47 @@ async function measurePhase14Walks(page: Page): Promise<Record<string, unknown>>
   return { walks, allPass };
 }
 
+function readScenarioNumber(
+  scenario: Record<string, unknown> | undefined,
+  key: string,
+): number | null {
+  if (!scenario || scenario.skipped === true) return null;
+  const value = scenario[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+async function buildDeskComposite(
+  scenarios: Record<string, unknown>,
+): Promise<DeskCompositeFields> {
+  const browserProcessRssMb =
+    readScenarioNumber(
+      scenarios["browser-b1-1cell-10x-loadMore"] as Record<string, unknown> | undefined,
+      "processRssAfterMb",
+    ) ??
+    readScenarioNumber(
+      scenarios["browser-b2-8cell-10x-loadMore"] as Record<string, unknown> | undefined,
+      "processRssAfterMb",
+    );
+  const nodeRssMb = readScenarioNumber(
+    scenarios["node-server-cache-warm"] as Record<string, unknown> | undefined,
+    "rssAfterMb",
+  );
+
+  const [sidecarSample, redisSample] = await Promise.all([
+    sampleSidecarRssMb(),
+    sampleRedisUsedMb(),
+  ]);
+
+  return normalizeDeskComposite({
+    browserProcessRssMb,
+    nodeRssMb,
+    sidecarRssMb: sidecarSample.rssMb,
+    redisUsedMb: redisSample.usedMb,
+    skippedNoSidecar: sidecarSample.skippedNoSidecar,
+    skippedNoRedis: redisSample.skippedNoRedis,
+  });
+}
+
 async function main(): Promise<void> {
   mkdirSync(perfDir, { recursive: true });
 
@@ -903,29 +948,36 @@ async function main(): Promise<void> {
     const context = await browser.newContext();
     await bootstrapDevSession(context);
     try {
-      const page1 = await context.newPage();
-      b1 = await measureBrowserScenario(
-        page1,
-        { paneCount: 1, loadMoreRounds: LOAD_MORE_ROUNDS, scenarioId: "browser-b1-1cell-10x-loadMore" },
-        sampler,
-      );
-      await page1.close();
+      try {
+        const page1 = await context.newPage();
+        b1 = await measureBrowserScenario(
+          page1,
+          { paneCount: 1, loadMoreRounds: LOAD_MORE_ROUNDS, scenarioId: "browser-b1-1cell-10x-loadMore" },
+          sampler,
+        );
+        await page1.close();
 
-      const page2 = await context.newPage();
-      b2 = await measureBrowserScenario(
-        page2,
-        { paneCount: 8, loadMoreRounds: LOAD_MORE_ROUNDS, scenarioId: "browser-b2-8cell-10x-loadMore" },
-        sampler,
-      );
-      await page2.close();
+        const page2 = await context.newPage();
+        b2 = await measureBrowserScenario(
+          page2,
+          { paneCount: 8, loadMoreRounds: LOAD_MORE_ROUNDS, scenarioId: "browser-b2-8cell-10x-loadMore" },
+          sampler,
+        );
+        await page2.close();
 
-      const page3 = await context.newPage();
-      b3 = await measureLiveTipPressure(page3, sampler);
-      await page3.close();
+        const page3 = await context.newPage();
+        b3 = await measureLiveTipPressure(page3, sampler);
+        await page3.close();
 
-      const page4 = await context.newPage();
-      phase14 = await measurePhase14Walks(page4);
-      await page4.close();
+        const page4 = await context.newPage();
+        phase14 = await measurePhase14Walks(page4);
+        await page4.close();
+      } catch (error) {
+        console.warn(
+          "Browser scenarios failed; continuing with desk composite and partial baseline:",
+          error instanceof Error ? error.message : error,
+        );
+      }
     } finally {
       await browser.close();
       await browserServer.close();
@@ -973,6 +1025,8 @@ async function main(): Promise<void> {
     phase14Walks: phase14 ?? { skipped: true, reason: "dev server not reachable" },
   };
 
+  baseline.desk = await buildDeskComposite(baseline.scenarios);
+
   const stamp = baseline.generatedAt.replace(/[:.]/g, "-");
   const latestPath = path.join(perfDir, "memory-baseline-latest.json");
   const stampedPath = path.join(perfDir, `memory-baseline-${stamp}.json`);
@@ -980,7 +1034,10 @@ async function main(): Promise<void> {
   writeFileSync(stampedPath, `${JSON.stringify(baseline, null, 2)}\n`);
 
   console.log(`Memory baseline written: ${latestPath}`);
-  console.log(JSON.stringify({ scenarios: baseline.scenarios, phase14Walks: baseline.phase14Walks }, null, 2));
+  console.log(
+    `Desk composite: totalKnownMb=${baseline.desk.totalKnownMb} skippedNoSidecar=${baseline.desk.skippedNoSidecar} skippedNoRedis=${baseline.desk.skippedNoRedis}`,
+  );
+  console.log(JSON.stringify({ desk: baseline.desk, scenarios: baseline.scenarios, phase14Walks: baseline.phase14Walks }, null, 2));
 }
 
 main().catch((error) => {

@@ -4,7 +4,7 @@ Give operators and agents a **layered, comparable snapshot** of Edge memory — 
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phase 3 **Passing** (2026-07-25). Phases 4–6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
+**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phase 3 **Passing** (2026-07-25). Phase 4 **Passing** (2026-07-25). Phases 5–6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
 
 **Related:** [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md), [memory-baseline-latest.json](../perf/memory-baseline-latest.json), [market-data-performance.md](../perf/market-data-performance.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -319,7 +319,7 @@ Automated L4 uses OS `ps` on the Playwright Chromium PID tree (`scripts/memory-p
 ### Phase 4 — Desk composite (Node + sidecar + Redis)
 
 **Band:** Pre-launch  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-25)
 
 **Outcome:** One snapshot of the **local desk** footprint, not only the browser.
 
@@ -334,7 +334,27 @@ Automated L4 uses OS `ps` on the Playwright Chromium PID tree (`scripts/memory-p
 
 **Exit evidence:** Composite section in JSON; skips are explicit; no secrets in output.
 
-**Gate — Phase 4 Passing:** Composite present; skips labeled; redaction-safe.
+**Gate — Phase 4 Passing:** Composite present; skips labeled; redaction-safe. **Met.**
+
+#### Phase 4 methodology (L6–L8)
+
+- **`desk.browserProcessRssMb`:** B1 `processRssAfterMb`, fallback B2 when B1 skipped.
+- **`desk.nodeRssMb`:** `node-server-cache-warm.rssAfterMb` from the baseline collector process after in-process cache warm — **not** the Next.js dev-server PID.
+- **`desk.sidecarRssMb`:** `GET {TWS_SIDECAR_URL}/health` → `pid` → OS `ps` RSS via `lookupPidRssBytes`; `skippedNoSidecar: true` when URL unset or unreachable.
+- **`desk.redisUsedMb`:** `REDIS_URL` → short-lived ioredis `INFO memory` → `used_memory`; `skippedNoRedis: true` when unset or unreachable; no connection strings in JSON output.
+- **`desk.totalKnownMb`:** sum of non-null MB layers above.
+
+#### Phase 4 results (2026-07-25)
+
+- `scripts/memory-process-rss.ts` — `lookupPidRssBytes` for exact-PID RSS.
+- `scripts/memory-desk-sample.ts` — `sampleSidecarRssMb`, `sampleRedisUsedMb`, `parseRedisUsedMemoryBytes`.
+- `scripts/memory-baseline-metrics.ts` — `normalizeDeskComposite`.
+- `scripts/run-memory-baseline.mts` — top-level `desk` composite; browser scenario failures no longer block JSON write.
+- Tests: `scripts/memory-baseline-metrics.test.ts`, `scripts/memory-process-rss.test.ts`, `scripts/memory-desk-sample.test.ts`.
+- `src/lib/observability/ARCHITECTURE.md` — lab L6–L8 paragraph.
+- Evidence: [memory-metrics-phase-4.txt](../evidence/memory-metrics-phase-4.txt).
+- **Architecture review:** self-review **Passed** — measurement-only; redaction-safe skips; no retention/probe contract change.
+- **Next:** Phase 5 — scorecard report and soft budgets.
 
 ---
 

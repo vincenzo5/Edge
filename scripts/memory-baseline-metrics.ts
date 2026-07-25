@@ -180,6 +180,56 @@ export type SurfaceMetricsRaw = {
   gpuMemoryNote: string | null;
 };
 
+export type DeskCompositeInput = {
+  browserProcessRssMb?: number | null;
+  nodeRssMb?: number | null;
+  sidecarRssMb?: number | null;
+  redisUsedMb?: number | null;
+  skippedNoSidecar?: boolean;
+  skippedNoRedis?: boolean;
+};
+
+export type DeskCompositeFields = {
+  browserProcessRssMb: number | null;
+  nodeRssMb: number | null;
+  sidecarRssMb: number | null;
+  redisUsedMb: number | null;
+  totalKnownMb: number | null;
+  skippedNoSidecar: boolean;
+  skippedNoRedis: boolean;
+};
+
+function finiteMb(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  return Math.round(value * 100) / 100;
+}
+
+/** L6–L8 desk composite — sum known MB layers; explicit skips when sidecar/Redis absent. */
+export function normalizeDeskComposite(input: DeskCompositeInput): DeskCompositeFields {
+  const browserProcessRssMb = finiteMb(input.browserProcessRssMb);
+  const nodeRssMb = finiteMb(input.nodeRssMb);
+  const sidecarRssMb = finiteMb(input.sidecarRssMb);
+  const redisUsedMb = finiteMb(input.redisUsedMb);
+
+  const knownParts = [browserProcessRssMb, nodeRssMb, sidecarRssMb, redisUsedMb].filter(
+    (value): value is number => value != null,
+  );
+  const totalKnownMb =
+    knownParts.length > 0
+      ? Math.round(knownParts.reduce((sum, value) => sum + value, 0) * 100) / 100
+      : null;
+
+  return {
+    browserProcessRssMb,
+    nodeRssMb,
+    sidecarRssMb,
+    redisUsedMb,
+    totalKnownMb,
+    skippedNoSidecar: input.skippedNoSidecar ?? true,
+    skippedNoRedis: input.skippedNoRedis ?? true,
+  };
+}
+
 /** Runs in browser context (Playwright page.evaluate). */
 export function collectSurfaceMetricsInPage(): SurfaceMetricsRaw {
   const canvasCount = document.querySelectorAll("canvas").length;

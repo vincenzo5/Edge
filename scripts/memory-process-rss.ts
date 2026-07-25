@@ -70,6 +70,13 @@ export function collectDescendantPids(
   return descendants;
 }
 
+export function lookupPidRssBytes(entries: ProcessEntry[], pid: number): number | null {
+  if (!Number.isFinite(pid)) return null;
+  const entry = entries.find((candidate) => candidate.pid === pid);
+  if (!entry) return null;
+  return entry.rssKb * 1024;
+}
+
 export function selectProcessRssBytes(
   entries: ProcessEntry[],
   rootPid: number,

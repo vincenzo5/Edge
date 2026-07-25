@@ -1,0 +1,45 @@
+# Memory metrics — Phase 4 evidence
+# Date: 2026-07-25
+
+## Scope
+L6–L8 desk composite on `npm run perf:memory`: top-level `desk` object with browser process RSS, Node cache-warm RSS, optional TWS sidecar RSS, optional Redis `used_memory`, explicit skips, redaction-safe output. No retention policy changes.
+
+## Delivered
+- scripts/memory-process-rss.ts — lookupPidRssBytes for exact-PID RSS
+- scripts/memory-desk-sample.ts — sampleSidecarRssMb, sampleRedisUsedMb, parseRedisUsedMemoryBytes
+- scripts/memory-baseline-metrics.ts — normalizeDeskComposite
+- scripts/run-memory-baseline.mts — top-level desk composite; browser failures no longer block JSON write
+- scripts/memory-baseline-metrics.test.ts — normalizeDeskComposite tests
+- scripts/memory-process-rss.test.ts — lookupPidRssBytes tests
+- scripts/memory-desk-sample.test.ts — sidecar/redis skip + redaction tests
+- src/lib/observability/ARCHITECTURE.md — lab L6–L8 paragraph
+- docs/roadmaps/memory-metrics-roadmap.md — Phase 4 Passing + methodology/results
+- docs/roadmaps/README.md, docs/ROADMAP.md, docs/perf/market-data-performance.md — index updates
+
+## Architecture review
+Self-review Passed — measurement-only L6–L8 fields; skippedNoSidecar/skippedNoRedis explicit; no secrets in JSON; no cap/retention/probe contract changes.
+
+## Focused
+npm test -- --run scripts/memory-baseline-metrics.test.ts scripts/memory-process-rss.test.ts scripts/memory-desk-sample.test.ts
+Test Files  3 passed (3)
+Tests  33 passed (33)
+
+## Collection (perf:memory desk)
+Desk composite: totalKnownMb=902.55 skippedNoSidecar=false skippedNoRedis=true
+"desk": {
+  "browserProcessRssMb": 480.63,
+  "nodeRssMb": 358.95,
+  "sidecarRssMb": 62.97,
+  "redisUsedMb": null,
+  "totalKnownMb": 902.55,
+  "skippedNoSidecar": false,
+  "skippedNoRedis": true
+}
+
+Note: browser scenarios hit workspace hydration timeout on later pages; desk still written with B1 process RSS + node + sidecar samples.
+
+## App-level
+N/A — lab harness JSON fields only; no product wiring
+
+## Next
+Phase 5 — scorecard report and soft budgets

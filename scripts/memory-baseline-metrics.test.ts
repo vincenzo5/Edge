@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bytesToMb,
   normalizeCdpHeapMetrics,
+  normalizeDeskComposite,
   normalizeProcessRssSample,
   normalizeSurfaceMetrics,
   normalizeUaSpecificMemory,
@@ -168,5 +169,56 @@ describe("surfacePolicyPass", () => {
     expect(surfacePolicyPass(8, 1, 3, 7)).toBe(true);
     expect(surfacePolicyPass(8, 1, 8, 7)).toBe(false);
     expect(surfacePolicyPass(8, 0, 3, 7)).toBe(false);
+  });
+});
+
+describe("normalizeDeskComposite", () => {
+  it("sums known MB layers and preserves explicit skips", () => {
+    expect(
+      normalizeDeskComposite({
+        browserProcessRssMb: 120.5,
+        nodeRssMb: 299,
+        sidecarRssMb: 42,
+        redisUsedMb: 8.25,
+        skippedNoSidecar: false,
+        skippedNoRedis: false,
+      }),
+    ).toEqual({
+      browserProcessRssMb: 120.5,
+      nodeRssMb: 299,
+      sidecarRssMb: 42,
+      redisUsedMb: 8.25,
+      totalKnownMb: 469.75,
+      skippedNoSidecar: false,
+      skippedNoRedis: false,
+    });
+  });
+
+  it("defaults skips to true and does not fake zero for missing samples", () => {
+    expect(
+      normalizeDeskComposite({
+        nodeRssMb: 150,
+      }),
+    ).toEqual({
+      browserProcessRssMb: null,
+      nodeRssMb: 150,
+      sidecarRssMb: null,
+      redisUsedMb: null,
+      totalKnownMb: 150,
+      skippedNoSidecar: true,
+      skippedNoRedis: true,
+    });
+  });
+
+  it("returns null totalKnownMb when all layers are missing", () => {
+    expect(normalizeDeskComposite({})).toEqual({
+      browserProcessRssMb: null,
+      nodeRssMb: null,
+      sidecarRssMb: null,
+      redisUsedMb: null,
+      totalKnownMb: null,
+      skippedNoSidecar: true,
+      skippedNoRedis: true,
+    });
   });
 });

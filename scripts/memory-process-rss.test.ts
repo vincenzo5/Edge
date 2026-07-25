@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectDescendantPids,
   isRendererCommand,
+  lookupPidRssBytes,
   parsePsOutput,
   selectProcessRssBytes,
 } from "./memory-process-rss.ts";
@@ -80,5 +81,23 @@ describe("selectProcessRssBytes", () => {
   it("returns null when root pid is missing", () => {
     const entries = parsePsOutput(`1001 1000 50000 Google Chrome Helper (Renderer)`);
     expect(selectProcessRssBytes(entries, 1000)).toBeNull();
+  });
+});
+
+describe("lookupPidRssBytes", () => {
+  it("returns RSS bytes for an exact pid", () => {
+    const entries = parsePsOutput(`
+  1000     1   12000 python3 tws_sidecar
+  1001  1000   50000 Google Chrome Helper (Renderer)
+    `);
+
+    expect(lookupPidRssBytes(entries, 1000)).toBe(12000 * 1024);
+    expect(lookupPidRssBytes(entries, 1001)).toBe(50000 * 1024);
+  });
+
+  it("returns null when pid is missing or invalid", () => {
+    const entries = parsePsOutput(`1000 1 12000 python3`);
+    expect(lookupPidRssBytes(entries, 9999)).toBeNull();
+    expect(lookupPidRssBytes(entries, Number.NaN)).toBeNull();
   });
 });
