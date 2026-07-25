@@ -5,7 +5,9 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
+  type MutableRefObject,
   type ReactNode,
 } from "react";
 import { useAppActions } from "../AppActionsContext";
@@ -17,7 +19,7 @@ export type OpenAnnotationInChatOptions = {
   rationale?: string;
 };
 
-export type CopilotContextValue = ReturnType<typeof useCopilotThread> & {
+export type CopilotActionsContextValue = {
   focusMessageId: string | null;
   fallbackRationale: string | null;
   focusMessage: (messageId: string) => void;
@@ -25,11 +27,33 @@ export type CopilotContextValue = ReturnType<typeof useCopilotThread> & {
   openAnnotationInChat: (options: OpenAnnotationInChatOptions) => void;
 };
 
-const CopilotContext = createContext<CopilotContextValue | null>(null);
+export type CopilotContextValue = ReturnType<typeof useCopilotThread> &
+  CopilotActionsContextValue;
+
+type CopilotThreadHandle = ReturnType<typeof useCopilotThread>;
+
+const CopilotActionsContext = createContext<CopilotActionsContextValue | null>(null);
+export { CopilotActionsContext };
+
+const CopilotThreadContext = createContext<CopilotThreadHandle | null>(null);
+
+function CopilotThreadHost({
+  threadRef,
+  children,
+}: {
+  threadRef: MutableRefObject<CopilotThreadHandle | null>;
+  children: ReactNode;
+}) {
+  const thread = useCopilotThread();
+  threadRef.current = thread;
+  return (
+    <CopilotThreadContext.Provider value={thread}>{children}</CopilotThreadContext.Provider>
+  );
+}
 
 export function CopilotProvider({ children }: { children: ReactNode }) {
   const appActions = useAppActions();
-  const thread = useCopilotThread();
+  const threadRef = useRef<CopilotThreadHandle | null>(null);
   const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const [fallbackRationale, setFallbackRationale] = useState<string | null>(null);
 
@@ -48,6 +72,9 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       appActions?.setSidebarPanel("copilot");
 
       void (async () => {
+        const thread = threadRef.current;
+        if (!thread) return;
+
         let activeMessages = thread.messages;
         if (options.threadId && options.threadId !== thread.threadId) {
           const loadedMessages = await thread.switchThread(options.threadId);
@@ -71,33 +98,41 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
         setFallbackRationale(options.rationale?.trim() || null);
       })();
     },
-    [appActions, thread],
+    [appActions],
   );
 
-  const value = useMemo(
+  const actionsValue = useMemo<CopilotActionsContextValue>(
     () => ({
-      ...thread,
       focusMessageId,
       fallbackRationale,
       focusMessage,
       clearFocus,
       openAnnotationInChat,
     }),
-    [
-      thread,
-      focusMessageId,
-      fallbackRationale,
-      focusMessage,
-      clearFocus,
-      openAnnotationInChat,
-    ],
+    [focusMessageId, fallbackRationale, focusMessage, clearFocus, openAnnotationInChat],
   );
 
   return (
-    <CopilotContext.Provider value={value}>{children}</CopilotContext.Provider>
+    <CopilotActionsContext.Provider value={actionsValue}>
+      <CopilotThreadHost threadRef={threadRef}>{children}</CopilotThreadHost>
+    </CopilotActionsContext.Provider>
   );
 }
 
-export function useCopilot(): CopilotContextValue | null {
-  return useContext(CopilotContext);
+export function useCopilotActions(): CopilotActionsContextValue | null {
+  return useContext(CopilotActionsContext);
+}
+
+export function useCopilotThreadState(): ReturnType<typeof useCopilotThread> | null {
+  return useContext(CopilotThreadContext);
+}
+
+/** Full Copilot state for panel/composer consumers. */
+export function useCopilot(): CopilotContextValue {
+  const thread = useCopilotThreadState();
+  const actions = useCopilotActions();
+  if (!thread || !actions) {
+    throw new Error("useCopilot must be used within CopilotProvider");
+  }
+  return { ...thread, ...actions };
 }

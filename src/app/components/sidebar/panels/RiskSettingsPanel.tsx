@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useActiveChart } from "../../ActiveChartContext";
-import { useMarketDataQuotes } from "../../MarketDataProvider";
+import { useQuote } from "@/lib/marketData/useQuotes";
 import { useRiskSettings } from "../../RiskSettingsProvider";
 import { useRiskPositionBinding } from "../../risk/RiskPositionBindingContext";
 import { useRiskLiquidationOverlay } from "../../risk/RiskLiquidationOverlayContext";
@@ -123,7 +123,8 @@ export function RiskSettingsPanel() {
   } = useRiskSettings();
   const { bind, linked, levels, markManualOverride, relink } = useRiskPositionBinding();
   const activeChart = useActiveChart();
-  const marketData = useMarketDataQuotes();
+  const symbol = activeChart?.config.symbol?.trim().toUpperCase() ?? null;
+  const quote = useQuote(symbol);
   const [entryInput, setEntryInput] = useState("");
   const [stopInput, setStopInput] = useState("");
   const [riskPercentInput, setRiskPercentInput] = useState(String(settings.riskPercent));
@@ -149,14 +150,10 @@ export function RiskSettingsPanel() {
     setStopInput(formatPrice(levels.stop));
   }, [linked, levels?.entry, levels?.stop, levels?.direction]);
 
-  const symbol = activeChart?.config.symbol?.trim().toUpperCase() ?? null;
-
   const lastPrice = useMemo(() => {
-    if (!symbol || !marketData) return null;
-    const quote = marketData.quotesBySymbol.get(symbol);
     const price = quote?.regularMarketPrice;
     return price != null && Number.isFinite(price) ? price : null;
-  }, [symbol, marketData]);
+  }, [quote]);
 
   const entry = parsePriceInput(entryInput);
   const stop = parsePriceInput(stopInput);

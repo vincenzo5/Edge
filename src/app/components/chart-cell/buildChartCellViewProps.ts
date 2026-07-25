@@ -10,7 +10,7 @@ import type { useChartCellModalState, useChartCellModalSelection } from "./useCh
 import type { useChartCellFeedBinding } from "./useChartCellFeedBinding";
 import type { useChartCellOrchestration } from "./useChartCellOrchestration";
 import type { useDrawingLayoutSync } from "./useDrawingLayoutSync";
-import type { useCopilot } from "../copilot/CopilotContext";
+import type { useCopilotActions } from "../copilot/CopilotContext";
 import type { usePatternLibraryOptional } from "../pattern-library/PatternLibraryContext";
 import type { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
 
@@ -36,7 +36,7 @@ type BuildParams = {
   feed: ReturnType<typeof useChartCellFeedBinding>;
   drawing: ReturnType<typeof useDrawingLayoutSync>;
   orchestration: ReturnType<typeof useChartCellOrchestration>;
-  copilot: ReturnType<typeof useCopilot>;
+  copilot: ReturnType<typeof useCopilotActions>;
   patternLibrary: ReturnType<typeof usePatternLibraryOptional>;
   scriptLibrary: ReturnType<typeof useScriptLibraryOptional>;
 };
@@ -166,7 +166,6 @@ export function buildChartCellViewProps({
     copilot,
     setSettingsOverlayId: modal.setSettingsOverlayId,
     handleOverlayRightClick: contextMenus.handleOverlayRightClick,
-    crosshairData: crosshair.crosshairData,
     handleCrosshairMove: crosshair.handleCrosshairMove,
     handleCrosshairFire,
     handleLegendAction: modal.handleLegendAction,

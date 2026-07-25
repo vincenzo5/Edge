@@ -43,7 +43,7 @@ import {
 import { createChartScriptSeriesResolver } from '@/lib/chart/scriptSeriesResolver';
 import { eventKindsFromChartSettings } from '@/lib/chartDataFeed/eventOverlaySettings';
 import { drawingsToAnnotationMarkers, mergeAnnotationMarkers } from '@/lib/chartDataFeed/overlayMappers';
-import { useAccountOptional } from '../AccountProvider';
+import { useAccountPositionForSymbol } from "../AccountProvider";
 import { buildPositionReferenceLines } from '@/lib/brokerage/positionOverlays';
 import { buildMarginCallReferenceLines } from '@/lib/brokerage/marginCallOverlays';
 import { useSidebarOptional } from '../SidebarContext';
@@ -210,16 +210,17 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
     eventKinds,
   });
 
-  const account = useAccountOptional();
   const chartSettingsMerged = useMemo(
     () => mergeChartSettings(config.chartSettings, { defaultTimeZone }),
     [config.chartSettings, defaultTimeZone],
   );
+
+  const position = useAccountPositionForSymbol(
+    chartSettingsMerged.trading.showPositions ? config.symbol : null,
+  );
   const positionReferenceLines = useMemo(() => {
-    if (!chartSettingsMerged.trading.showPositions || !account) return [];
-    const position = account.positionForSymbol(config.symbol);
     return buildPositionReferenceLines(position);
-  }, [account, chartSettingsMerged.trading.showPositions, config.symbol]);
+  }, [position]);
 
   const sidebar = useSidebarOptional();
   const riskSettings = useRiskSettingsOptional();

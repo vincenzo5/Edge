@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useActiveChart } from "../../ActiveChartContext";
-import { useMarketDataQuotes } from "../../MarketDataProvider";
+import { useQuote } from "@/lib/marketData/useQuotes";
 import { PanelPopOutButton } from "../PanelChromeActions";
 import { TradeOrderForm } from "../../trading/TradeOrderForm";
 import { useTradeSetupBinding } from "../../trading/TradeSetupBindingContext";
@@ -10,15 +10,12 @@ import { useTradeSetupBinding } from "../../trading/TradeSetupBindingContext";
 export function TradeSidebarPanel() {
   const { bind, levels, symbol: boundSymbol } = useTradeSetupBinding();
   const activeChart = useActiveChart();
-  const marketData = useMarketDataQuotes();
-
   const symbol = boundSymbol ?? activeChart?.config.symbol ?? "";
+  const quote = useQuote(symbol || null);
   const lastPrice = useMemo(() => {
-    if (!symbol || !marketData) return null;
-    const quote = marketData.quotesBySymbol.get(symbol.trim().toUpperCase());
     const price = quote?.regularMarketPrice;
     return price != null && Number.isFinite(price) ? price : null;
-  }, [marketData, symbol]);
+  }, [quote]);
 
   const boundActive = bind != null && levels != null;
 

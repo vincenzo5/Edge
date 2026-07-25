@@ -21,6 +21,7 @@ import {
 import type { Candle } from "@edge/chart-core/contracts";
 import type { useSidebarOptional } from "../SidebarContext";
 import type { useTradeSetupBindingOptional } from "../trading/TradeSetupBindingContext";
+import { getCellCrosshair } from "@/lib/chart/cellCrosshairStore";
 
 type ContextMenuState = {
   position: { x: number; y: number };
@@ -33,11 +34,6 @@ type Params = {
   chartId: string;
   config: CellConfig;
   overlays: TrackedOverlay[];
-  crosshairData: {
-    dataIndex: number | null;
-    timestamp: number | null;
-    valueLabel: string | null;
-  };
   displayCandlesRef: RefObject<Candle[]>;
   chartSettingsMerged: RequiredChartSettings;
   latestCrosshairPlotXRef: RefObject<number | null>;
@@ -80,7 +76,6 @@ export function useChartCellContextMenus({
   chartId,
   config,
   overlays,
-  crosshairData,
   displayCandlesRef,
   chartSettingsMerged,
   latestCrosshairPlotXRef,
@@ -176,6 +171,7 @@ export function useChartCellContextMenus({
         displayCandlesRef.current.length > 0
           ? displayCandlesRef.current
           : (chartRef.current?.getCandles() ?? []);
+      const crosshairData = getCellCrosshair(chartId);
       const copyItems = buildChartCopyItems({
         valueLabel: crosshairData.valueLabel,
         timestamp: crosshairData.timestamp,
@@ -259,9 +255,7 @@ export function useChartCellContextMenus({
     [
       overlays.length,
       config,
-      crosshairData.valueLabel,
-      crosshairData.timestamp,
-      crosshairData.dataIndex,
+      chartId,
       chartSettingsMerged.symbol.timeZone,
       chartSettingsMerged.canvas.lockCrosshairToTime,
       handleClearDrawings,

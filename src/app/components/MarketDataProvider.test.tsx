@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, waitFor, act } from "@testing-library/react";
-import { MarketDataProvider, useMarketDataQuotes } from "./MarketDataProvider";
+import { MarketDataProvider, useMarketDataQuotes, useQuote, useQuoteCount } from "./MarketDataProvider";
+import { clearQuotesStore } from "@/lib/marketData/quotesStore";
 import type { ChartLayout } from "@/lib/chartConfig";
 
 class MockEventSource {
@@ -64,12 +65,13 @@ const layout: ChartLayout = {
 
 function QuoteStatusProbe() {
   const marketData = useMarketDataQuotes();
-  const aapl = marketData?.quotesBySymbol.get("AAPL");
+  const aapl = useQuote("AAPL");
+  const quoteCount = useQuoteCount();
   return (
     <div>
       <span data-testid="quote-transport">{marketData?.quotesTransport ?? "none"}</span>
       <span data-testid="quote-error">{marketData?.quoteError ?? ""}</span>
-      <span data-testid="quote-count">{marketData?.quotesBySymbol.size ?? 0}</span>
+      <span data-testid="quote-count">{quoteCount}</span>
       <span data-testid="quote-price">{aapl?.regularMarketPrice ?? ""}</span>
       <span data-testid="quote-change-pct">{aapl?.regularMarketChangePercent ?? ""}</span>
       <span data-testid="quote-warnings">
@@ -85,6 +87,7 @@ describe("MarketDataProvider quotes", () => {
   beforeEach(() => {
     MockEventSource.instances = [];
     recordHealthEventMock.mockClear();
+    clearQuotesStore();
     vi.stubGlobal("EventSource", MockEventSource);
   });
 

@@ -35,7 +35,8 @@ import type { LineStyleOverride } from "@edge/chart-core/contracts";
 import type { PresetEnvelope } from "@/lib/chart/presets/types";
 import type { usePatternCapture } from "./usePatternCapture";
 import type { useCellCrosshair } from "./useCellCrosshair";
-import type { useCopilot } from "../copilot/CopilotContext";
+import type { useCopilotActions } from "../copilot/CopilotContext";
+import { useCellCrosshairSnapshot } from "./useCellCrosshairSnapshot";
 import type { usePatternLibraryOptional } from "../pattern-library/PatternLibraryContext";
 import type { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
 
@@ -123,13 +124,12 @@ export type ChartCellViewProps = {
   setToolbarDragOffset: Dispatch<SetStateAction<{ x: number; y: number }>>;
   overlays: TrackedOverlay[];
   overlaysDirtyRef: MutableRefObject<boolean>;
-  copilot: ReturnType<typeof useCopilot>;
+  copilot: ReturnType<typeof useCopilotActions>;
   setSettingsOverlayId: Dispatch<SetStateAction<string | null>>;
   handleOverlayRightClick: (
     overlay: TrackedOverlay,
     position: { x: number; y: number },
   ) => void;
-  crosshairData: ReturnType<typeof useCellCrosshair>["crosshairData"];
   handleCrosshairMove: ReturnType<typeof useCellCrosshair>["handleCrosshairMove"];
   handleCrosshairFire: (ts: number | null) => void;
   handleLegendAction: (actionId: string) => void;
@@ -268,7 +268,6 @@ export default function ChartCellView(props: ChartCellViewProps) {
     copilot,
     setSettingsOverlayId,
     handleOverlayRightClick,
-    crosshairData,
     handleCrosshairMove,
     handleCrosshairFire,
     handleLegendAction,
@@ -347,6 +346,8 @@ export default function ChartCellView(props: ChartCellViewProps) {
     handleCaptureOverlayClick,
     handleCaptureOverlayPointerMove,
   } = capture;
+
+  const crosshairSnapshot = useCellCrosshairSnapshot(chartId);
 
   return (
     <div
@@ -587,7 +588,7 @@ export default function ChartCellView(props: ChartCellViewProps) {
         onApplyTemplate={handleApplyTemplate}
         goToOpen={goToOpen}
         onGoToClose={onGoToClose}
-        crosshairTimestamp={crosshairData.timestamp}
+        crosshairTimestamp={crosshairSnapshot.timestamp}
         lastCandleTimestamp={lastCandleTimestamp}
         onGoTo={(req) =>
           chartRef.current?.goTo(req) ??

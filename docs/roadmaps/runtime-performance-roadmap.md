@@ -4,7 +4,7 @@ Make Edge charts and desks feel smooth under live quotes, crosshair scrubbing, d
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing**. Phase 1 **Passing** (2026-07-24). Phases 2–8 **Pending**. Phase 0 may start under WIP=1. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (resident bars / inactive unmount — **complete**), [Data Serving Efficiency](./data-serving-efficiency-roadmap.md) (**complete**), [Shared Cache Topology](./shared-cache-topology-roadmap.md), and chart harness notes in [ROADMAP.md](../ROADMAP.md) (Charting Platform Acceleration Stage 1).
+**Status:** Phase 0 **Passing**. Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phases 3–8 **Pending**.
 
 **Related:** [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart perf baseline](../perf/chart-baseline-latest.json), [Market data performance](../perf/market-data-performance.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -174,7 +174,7 @@ RenderScheduler
 
 ### Phase 2 — Cut React wakeups on volatile streams (P0)
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-25)
 
 **Outcome:** Quote ticks, Copilot token streaming, and account snapshots do not re-render inactive chart cells.
 

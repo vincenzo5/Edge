@@ -21,6 +21,7 @@ import type {
   ActiveChartUICommands,
 } from "../ActiveChartContext";
 import { getCatalogMeta } from "@edge/chart-core/indicators/catalog";
+import { useCellCrosshairSnapshot } from "./useCellCrosshairSnapshot";
 
 type Params = {
   activeChartBridge: ReturnType<typeof useActiveChartBridge>;
@@ -31,7 +32,7 @@ type Params = {
   theme: Theme;
   overlays: TrackedOverlay[];
   dataMeta: ChartDataMeta | null;
-  crosshairDataIndex: number | null;
+  crosshairChartId: string;
   displayCandlesRef: RefObject<Candle[]>;
   candlesRevision: number;
   overlayActions: () => ActiveChartOverlayActions;
@@ -68,7 +69,7 @@ export function useRegisterActiveChart({
   theme,
   overlays,
   dataMeta,
-  crosshairDataIndex,
+  crosshairChartId,
   displayCandlesRef,
   candlesRevision,
   overlayActions,
@@ -95,6 +96,9 @@ export function useRegisterActiveChart({
   hasDrawingSelection,
   captureActive,
 }: Params) {
+  const crosshairSnapshot = useCellCrosshairSnapshot(crosshairChartId);
+  const crosshairDataIndex = crosshairSnapshot.dataIndex;
+
   const chartCommandRefs = useMemo(() => chartCommands(), [chartCommands]);
   const drawingCommandRefs = useMemo(() => drawingCommands(), [drawingCommands]);
   const drawingToolbarActionRefs = useMemo(

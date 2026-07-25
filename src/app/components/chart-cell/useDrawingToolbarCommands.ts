@@ -21,6 +21,7 @@ import type { SerializedDrawing } from "@/lib/chartConfig";
 import type { DrawingToolName } from "../chart-icons/toolGroups";
 import type { CellConfig, PriceScaleType, ToolbarPrefs, TrackedOverlay } from "@/lib/chartConfig";
 import { mergeChartSettings, patchChartSettings } from "@/lib/chartConfig";
+import { getCellCrosshair } from "@/lib/chart/cellCrosshairStore";
 
 type Params = {
   chartRef: RefObject<ChartHandle | null>;
@@ -30,10 +31,7 @@ type Params = {
   toolbarPrefs: ToolbarPrefs;
   overlays: TrackedOverlay[];
   selectedOverlayId: string | null;
-  crosshairData: {
-    dataIndex: number | null;
-    timestamp: number | null;
-  };
+  chartId: string;
   overlaysDirtyRef: RefObject<boolean>;
   setActiveTool: React.Dispatch<React.SetStateAction<string>>;
   setSelectedOverlayId: React.Dispatch<React.SetStateAction<string | null>>;
@@ -59,7 +57,7 @@ export function useDrawingToolbarCommands({
   toolbarPrefs,
   overlays,
   selectedOverlayId,
-  crosshairData,
+  chartId,
   overlaysDirtyRef,
   setActiveTool,
   setSelectedOverlayId,
@@ -81,6 +79,7 @@ export function useDrawingToolbarCommands({
     const chart = chartRef.current;
     if (!chart) return;
 
+    const crosshairData = getCellCrosshair(chartId);
     const candles = chartRef.current?.getCandles() ?? [];
     const idx =
       crosshairData.dataIndex != null && crosshairData.dataIndex >= 0
@@ -102,7 +101,7 @@ export function useDrawingToolbarCommands({
       setSelectedOverlayId(ids[ids.length - 1] ?? null);
     }
     setContextMenu(null);
-  }, [crosshairData, chartRef, setActiveTool, setSelectedOverlayId, setContextMenu]);
+  }, [chartId, chartRef, setActiveTool, setSelectedOverlayId, setContextMenu]);
 
   pasteDrawingsRef.current = handlePasteDrawings;
 

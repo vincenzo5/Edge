@@ -182,6 +182,8 @@ Interaction smoothness is tracked separately from memory retention and market-da
 
 **Invalidation (Phase 1):** `SERIES_INVALIDATING` in `packages/chart-react/src/engine/renderScheduler.ts` covers `data|size|theme|settings` only. Drawing hover/select/drag requests `'drawings'` / `'selection'`; crosshair requests `'crosshair'`. Those overlay reasons redraw the drawings/axes layers but reuse the series OffscreenCanvas via `canReuseSeriesCache`.
 
+**React wakeups (Phase 2):** Quotes live in `src/lib/marketData/quotesStore.ts` with per-symbol `useQuote` selectors (`useSyncExternalStore`). `MarketDataProvider` context carries meta/transport/reload only; warmup/SSE keys are primitive strings (not layout array identity). Copilot thread state is split from stable actions (`useCopilotActions` for chart cells). Account position overlays use `useAccountPositionForSymbol`. Crosshair scrub state is stored in `cellCrosshairStore` per `chartId`; subscribers use `useCellCrosshairSnapshot` instead of re-rendering `ChartCell`.
+
 **React wakeups protocol (Phase 0+):** Use React DevTools Profiler on multi-cell layouts during quote ticks for another symbol, or wrap components with `createRenderCounter` from `src/test/reactRenderCounter.ts` in Vitest. Passing criterion for Phase 2: inactive `ChartCell` render count **0** per foreign-symbol quote frame.
 
 ## Verification

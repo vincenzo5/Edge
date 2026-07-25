@@ -36,6 +36,15 @@ import type { TradingAccount, TradingEnvironment } from "@/lib/trading/types";
 
 export type { AccountConnectionState } from "@/lib/brokerage/accountSnapshot";
 import type { AccountConnectionState } from "@/lib/brokerage/accountSnapshot";
+import { syncAccountPositions } from "@/lib/marketData/accountPositionStore";
+
+type AccountTradingIdentity = {
+  activeTradingAccount: TradingAccount | null;
+  activeTradingAccountId: string | null;
+  tradingEnvironment: TradingEnvironment;
+};
+
+const AccountTradingIdentityContext = createContext<AccountTradingIdentity | null>(null);
 
 type AccountContextValue = {
   connectionState: AccountConnectionState;
@@ -224,6 +233,19 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [refresh]);
 
+  useEffect(() => {
+    syncAccountPositions(snapshot.positions ?? []);
+  }, [snapshot.positions]);
+
+  const tradingIdentity = useMemo<AccountTradingIdentity>(
+    () => ({
+      activeTradingAccount,
+      activeTradingAccountId,
+      tradingEnvironment,
+    }),
+    [activeTradingAccount, activeTradingAccountId, tradingEnvironment],
+  );
+
   const positionForSymbol = useCallback(
     (symbol: string) => {
       const sym = symbol.trim().toUpperCase();
@@ -280,8 +302,18 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     setActiveTradingAccount,
   ]);
 
-  return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
+  return (
+    <AccountTradingIdentityContext.Provider value={tradingIdentity}>
+      <AccountContext.Provider value={value}>{children}</AccountContext.Provider>
+    </AccountTradingIdentityContext.Provider>
+  );
 }
+
+export function useAccountTradingIdentity(): AccountTradingIdentity | null {
+  return useContext(AccountTradingIdentityContext);
+}
+
+export { useAccountPositionForSymbol } from "@/lib/marketData/useAccountPosition";
 
 export function useAccount(): AccountContextValue {
   const ctx = useContext(AccountContext);

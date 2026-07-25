@@ -18,7 +18,7 @@ import { useChartSync } from "../ChartSyncContext";
 import { useActiveChartBridge } from "../ActiveChartContext";
 import { useMarketDataQuotes } from "../MarketDataProvider";
 import { useSidebarOptional } from "../SidebarContext";
-import { useCopilot } from "../copilot/CopilotContext";
+import { useCopilotActions } from "../copilot/CopilotContext";
 import type { ChartAnnotationChannelMarker } from "@edge/chart-core";
 import { type CellConfig, type ToolbarPrefs } from "@/lib/chartConfig";
 import { useTradeSetupBindingOptional } from "../trading/TradeSetupBindingContext";
@@ -27,7 +27,7 @@ import { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryConte
 import { useScriptLibraryMountRequest } from "@/app/components/app-workspace/ScriptLibraryMountGate";
 import { useOptionalAppWorkspace } from "../app-workspace/AppWorkspaceContext";
 import { useAppTimeZone } from "../AppTimeZoneProvider";
-import { useAccountOptional } from "../AccountProvider";
+import { useAccountTradingIdentity } from "../AccountProvider";
 import { usePlaybookInstances } from "../trading/usePlaybookInstances";
 import {
   manageLevelsForSymbol,
@@ -80,7 +80,7 @@ export default function ChartCell({
   const chartRef = useRef<ChartHandle>(null);
   const tradeBinding = useTradeSetupBindingOptional();
   const riskBinding = useRiskPositionBindingOptional();
-  const account = useAccountOptional();
+  const account = useAccountTradingIdentity();
   const tradingAccountId = account?.activeTradingAccountId ?? "";
   const { instances: playbookInstances } = usePlaybookInstances(tradingAccountId || null);
   const managePriceAxisAnnotations = useMemo((): PriceAxisAnnotation[] => {
@@ -107,7 +107,7 @@ export default function ChartCell({
   const activeChartBridge = useActiveChartBridge();
   const marketData = useMarketDataQuotes();
   const sidebar = useSidebarOptional();
-  const copilot = useCopilot();
+  const copilotActions = useCopilotActions();
   const {
     markers: journalOverlayMarkers,
     gotoMs: journalGotoMs,
@@ -138,7 +138,7 @@ export default function ChartCell({
     liveProp,
     config,
     onCandleCount,
-    marketData,
+    reloadToken: marketData?.reloadToken,
     chartRef,
     replayActive,
   });
@@ -249,7 +249,7 @@ export default function ChartCell({
         feed,
         drawing,
         orchestration,
-        copilot,
+        copilot: copilotActions,
         patternLibrary,
         scriptLibrary,
       })}

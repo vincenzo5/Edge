@@ -1,15 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-
-type CrosshairData = {
-  dataIndex: number | null;
-  timestamp: number | null;
-  valueLabel: string | null;
-  plotX: number | null;
-};
+import { useCallback, useEffect, useRef } from "react";
+import { setCellCrosshair } from "@/lib/chart/cellCrosshairStore";
 
 type Params = {
+  chartId: string;
   captureActive: boolean;
   refreshCaptureViewport: () => void;
   setVisibleRangeTick: React.Dispatch<React.SetStateAction<number>>;
@@ -17,20 +12,20 @@ type Params = {
 };
 
 export function useCellCrosshair({
+  chartId,
   captureActive,
   refreshCaptureViewport,
   setVisibleRangeTick,
   setCaptureHoverBar,
 }: Params) {
-  const [crosshairData, setCrosshairData] = useState<CrosshairData>({
-    dataIndex: null,
-    timestamp: null,
-    valueLabel: null,
-    plotX: null,
-  });
   const crosshairRafRef = useRef<number | null>(null);
   const latestCrosshairPlotXRef = useRef<number | null>(null);
-  const pendingCrosshairRef = useRef<CrosshairData | null>(null);
+  const pendingCrosshairRef = useRef<{
+    dataIndex: number | null;
+    timestamp: number | null;
+    valueLabel: string | null;
+    plotX: number | null;
+  } | null>(null);
 
   const handleCrosshairMove = useCallback(
     (ev: {
@@ -53,11 +48,11 @@ export function useCellCrosshair({
       crosshairRafRef.current = requestAnimationFrame(() => {
         crosshairRafRef.current = null;
         if (pendingCrosshairRef.current) {
-          setCrosshairData(pendingCrosshairRef.current);
+          setCellCrosshair(chartId, pendingCrosshairRef.current);
         }
       });
     },
-    [captureActive, refreshCaptureViewport, setCaptureHoverBar, setVisibleRangeTick],
+    [chartId, captureActive, refreshCaptureViewport, setCaptureHoverBar, setVisibleRangeTick],
   );
 
   useEffect(() => {
@@ -69,8 +64,9 @@ export function useCellCrosshair({
   }, []);
 
   return {
-    crosshairData,
     latestCrosshairPlotXRef,
     handleCrosshairMove,
   };
 }
+
+export type { CellCrosshairData } from "@/lib/chart/cellCrosshairStore";

@@ -42,7 +42,7 @@ import type { useDrawingLayoutSync } from "./useDrawingLayoutSync";
 import type { ChartSymbolNav } from "../chart-chrome/ChartGrid";
 import type { SymbolSelectResult } from "@/lib/watchlist/types";
 import type { PriceAxisAnnotation } from "@edge/chart-core/priceAxisTypes";
-import type { useMarketDataQuotes } from "../MarketDataProvider";
+import { getQuote } from "@/lib/marketData/quotesStore";
 import type { useScriptLibraryOptional } from "@/lib/scriptLibrary/ScriptLibraryContext";
 import type { useOptionalAppWorkspace } from "../app-workspace/AppWorkspaceContext";
 import type { usePatternLibraryOptional } from "../pattern-library/PatternLibraryContext";
@@ -76,7 +76,7 @@ type Params = {
   markViewportDirty: () => void;
   managePriceAxisAnnotations: PriceAxisAnnotation[];
   sync: ReturnType<typeof useChartSync>;
-  marketData: ReturnType<typeof useMarketDataQuotes>;
+  marketData: { reloadToken?: number } | null;
   sidebar: ReturnType<typeof useSidebarOptional>;
   tradeBinding: ReturnType<typeof useTradeSetupBindingOptional>;
   riskBinding: ReturnType<typeof useRiskPositionBindingOptional>;
@@ -282,6 +282,7 @@ export function useChartCellOrchestration({
   });
 
   const crosshair = useCellCrosshair({
+    chartId,
     captureActive: patternCapture.captureActive,
     refreshCaptureViewport: patternCapture.refreshCaptureViewport,
     setVisibleRangeTick: patternCapture.setVisibleRangeTick,
@@ -296,7 +297,7 @@ export function useChartCellOrchestration({
     toolbarPrefs,
     overlays,
     selectedOverlayId: modal.selectedOverlayId,
-    crosshairData: crosshair.crosshairData,
+    chartId,
     overlaysDirtyRef,
     setActiveTool,
     setSelectedOverlayId: modal.setSelectedOverlayId,
@@ -327,13 +328,13 @@ export function useChartCellOrchestration({
       const drawings = chartRef.current?.serializeDrawings() ?? [];
       const drawingEntry = drawings.find((entry) => entry.id === overlayId);
       if (!drawingEntry) return;
-      const quote = marketData?.quotesBySymbol.get(symbol) ?? null;
+      const quote = getQuote(symbol);
       const quotePrice = quote?.regularMarketPrice ?? null;
       const prefill = buildAlertPrefillFromDrawing({ symbol, drawing: drawingEntry, quotePrice });
       if (!prefill) return;
       router.push(buildAlertPrefillWorkspaceLink(prefill));
     },
-    [config.symbol, marketData?.quotesBySymbol, router, chartRef],
+    [config.symbol, router, chartRef],
   );
 
   const handleAddTradePlanAlerts = useCallback(
@@ -356,7 +357,6 @@ export function useChartCellOrchestration({
     chartId,
     config,
     overlays,
-    crosshairData: crosshair.crosshairData,
     displayCandlesRef: feed.displayCandlesRef,
     chartSettingsMerged,
     latestCrosshairPlotXRef: crosshair.latestCrosshairPlotXRef,
@@ -491,7 +491,7 @@ export function useChartCellOrchestration({
     theme,
     overlays,
     dataMeta: feed.dataMeta,
-    crosshairDataIndex: crosshair.crosshairData.dataIndex,
+    crosshairChartId: chartId,
     displayCandlesRef: feed.displayCandlesRef,
     candlesRevision: feed.candlesRevision,
     overlayActions: drawingToolbar.overlayActions,

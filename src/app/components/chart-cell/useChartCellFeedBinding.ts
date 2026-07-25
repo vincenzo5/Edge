@@ -12,18 +12,18 @@ import type { Candle } from "@edge/chart-core/contracts";
 import type { ChartDataMeta } from "@edge/chart-core";
 import type { MarketSessionKind } from "@edge/chart-core";
 import { resolveMarketSession, sessionStatusLabel } from "@edge/chart-core";
-import { resolveChartLiveQuotePrice } from "@/lib/chart/resolveChartLiveQuotePrice";
+import { resolveChartLiveQuotePriceFromSnapshot } from "@/lib/chart/resolveChartLiveQuotePrice";
 import { buildCandleSessionKey } from "@edge/chart-react/engine/rangePresetTransition";
 import type { CellConfig } from "@/lib/chartConfig";
 import type { ChartHandle } from "./EdgeChart";
-import type { useMarketDataQuotes } from "../MarketDataProvider";
+import { useQuote } from "@/lib/marketData/useQuotes";
 
 type Params = {
   isActive: boolean;
   liveProp?: boolean;
   config: CellConfig;
   onCandleCount?: (n: number) => void;
-  marketData: ReturnType<typeof useMarketDataQuotes>;
+  reloadToken?: number;
   chartRef: RefObject<ChartHandle | null>;
   replayActive: boolean;
 };
@@ -33,7 +33,7 @@ export function useChartCellFeedBinding({
   liveProp,
   config,
   onCandleCount,
-  marketData,
+  reloadToken = 0,
   chartRef,
   replayActive,
 }: Params) {
@@ -53,6 +53,7 @@ export function useChartCellFeedBinding({
   const [lastCandleTimestamp, setLastCandleTimestamp] = useState<number | null>(null);
   const [dataMeta, setDataMeta] = useState<ChartDataMeta | null>(null);
 
+  const liveQuote = useQuote(isActive || liveProp === true ? config.symbol : null);
   const candleSessionKey = useMemo(
     () => buildCandleSessionKey(config.symbol, config.range, config.interval),
     [config.symbol, config.range, config.interval],
@@ -98,14 +99,11 @@ export function useChartCellFeedBinding({
     setChartRetryKey((key) => key + 1);
   }, []);
 
-  const chartReloadKey = (marketData?.reloadToken ?? 0) + chartRetryKey;
+  const chartReloadKey = reloadToken + chartRetryKey;
 
-  const liveQuote =
-    marketData?.quotesBySymbol.get(config.symbol.trim().toUpperCase()) ?? null;
-  const liveQuotePrice =
-    marketData != null
-      ? resolveChartLiveQuotePrice(config.symbol, marketData.quotesBySymbol)
-      : null;
+  const liveQuotePrice = liveQuote
+    ? resolveChartLiveQuotePriceFromSnapshot(config.symbol, liveQuote)
+    : null;
   const liveMarketSession: MarketSessionKind | null = liveQuote
     ? resolveMarketSession({
         atMs: liveQuote.updatedAt,

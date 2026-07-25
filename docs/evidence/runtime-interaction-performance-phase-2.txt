@@ -1,0 +1,33 @@
+# Runtime interaction performance — Phase 2 evidence
+# Date: 2026-07-25
+
+## Scope
+Cut React wakeups on volatile streams: quote ticks, Copilot thread streaming, account snapshots, crosshair scrub.
+
+## Delivered
+- src/lib/marketData/quotesStore.ts — per-symbol external store + notify
+- src/lib/marketData/useQuotes.ts — useQuote / useQuotesForSymbols via useSyncExternalStore
+- src/app/components/MarketDataProvider.tsx — quotes off context; stable warmup/SSE primitive keys
+- src/app/components/copilot/CopilotContext.tsx — CopilotThreadHost isolates useCopilotThread; useCopilotActions for chart cells
+- src/lib/marketData/accountPositionStore.ts + useAccountPosition.ts — per-symbol position selector
+- src/app/components/AccountProvider.tsx — sync positions store; useAccountTradingIdentity
+- src/lib/chart/cellCrosshairStore.ts + useCellCrosshairSnapshot.ts — crosshair off ChartCell setState
+- src/app/components/chart-cell/* — ChartCell/EdgeChart/feed/orchestration narrow subscriptions
+- src/test/runtimeInteractionWakeups.test.tsx — foreign-symbol quote + account position wakeup probes
+- src/lib/chart/ARCHITECTURE.md — Phase 2 wakeup contract note
+
+## Architecture review
+Self-review Passed — quotes/account/crosshair stores in lib; app providers write; ChartCell consumes selectors/actions only; CopilotThreadHost prevents provider-body thread fan-out.
+
+## Focused
+npm test -- --run src/test/reactRenderCounter.test.tsx src/test/runtimeInteractionWakeups.test.tsx src/lib/marketData/quotesStore.test.ts src/app/components/MarketDataProvider.test.tsx src/app/components/copilot/CopilotContext.test.tsx
+Test Files  5 passed (5)
+Tests  15 passed (15)
+
+## Wakeup evidence
+- inactive quote probe (symbol=null): count 0 on MSFT tick
+- active AAPL probe: count 1 on AAPL tick; MSFT probe count 0
+- MSFT account position probe: count 1 on MSFT position update; AAPL probe count 0
+
+## Next
+Phase 3 — candle revision identity + tip incremental compute

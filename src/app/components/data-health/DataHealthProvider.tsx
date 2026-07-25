@@ -32,7 +32,7 @@ import { subscribeTwsRecovery } from "@/lib/marketData/twsRecoveryBus";
 import { runTwsRecoveryClient } from "@/lib/marketData/twsRecoveryClient";
 import { setTwsRecoveryContext } from "@/lib/marketData/twsRecoveryContext";
 import { useActiveChart } from "../ActiveChartContext";
-import { useMarketDataQuotes } from "../MarketDataProvider";
+import { useMarketDataQuotes, useQuoteCount, useAllQuotes } from "../MarketDataProvider";
 import { useAccountOptional } from "../AccountProvider";
 import { useAccountAliasesOptional } from "../AccountAliasesProvider";
 import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
@@ -69,6 +69,8 @@ const DataHealthContext = createContext<DataHealthContextValue | null>(null);
 export function DataHealthProvider({ children }: { children: ReactNode }) {
   const activeChart = useActiveChart();
   const marketData = useMarketDataQuotes();
+  const quoteCount = useQuoteCount();
+  const allQuotes = useAllQuotes();
   const account = useAccountOptional();
   const accountAliases = useAccountAliasesOptional();
   const { preference: dataConnectionPreference } = useDataConnectionPreference();
@@ -284,11 +286,11 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
   const snapshot = useMemo(() => {
     const chartSymbol = activeChart?.config.symbol?.trim().toUpperCase();
     const chartInterval = activeChart?.config.interval;
-    const quoteCount = marketData?.quotesBySymbol.size ?? 0;
+    const quoteCountValue = quoteCount;
     const watchlistTotal = marketData?.watchlistSymbolCount ?? 0;
     let watchlistAsOf: number | undefined = marketData?.quotesMeta?.asOf;
-    if (marketData?.quotesBySymbol.size) {
-      for (const quote of marketData.quotesBySymbol.values()) {
+    if (quoteCountValue > 0) {
+      for (const quote of allQuotes.values()) {
         if (typeof quote.updatedAt !== "number") continue;
         watchlistAsOf =
           watchlistAsOf == null ? quote.updatedAt : Math.min(watchlistAsOf, quote.updatedAt);
@@ -314,7 +316,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
           watchlistAsOf,
           watchlistDeliveryAt,
           watchlistDetail:
-            watchlistTotal > 0 ? `${quoteCount}/${watchlistTotal} symbols` : undefined,
+            watchlistTotal > 0 ? `${quoteCountValue}/${watchlistTotal} symbols` : undefined,
           watchlistLoading: marketData?.quotesLoading,
           watchlistError: marketData?.quoteError,
           watchlistTransport: marketData?.quotesTransport,
@@ -376,7 +378,8 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
     activeChart?.config.symbol,
     activeChart?.dataMeta,
     marketData?.quoteError,
-    marketData?.quotesBySymbol.size,
+    quoteCount,
+    allQuotes,
     marketData?.quotesLoading,
     marketData?.quotesMeta,
     marketData?.quotesTransport,
