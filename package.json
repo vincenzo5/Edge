@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "setup": "npm ci",
-    "check": "npm run lint:instructions && npm run lint:harness-retention && npm run lint:roadmap-status && npm run lint:data-state-contracts && npm run check:packages && npm test -- --run && npm run build",
+    "check": "npm run lint:instructions && npm run lint:harness-retention && npm run lint:roadmap-status && npm run lint:efficiency-ledger && npm run lint:data-state-contracts && npm run check:packages && npm test -- --run && npm run build",
     "check:packages": "npm run lint:package-boundaries && npm run lint:app-lib-boundaries && npm run lint:chart-shims && npm run typecheck:packages && npm run check:examples",
     "check:examples": "npm run build:packages && npm run check -w @edge/example-chart-core-basic && npm run check -w @edge/example-chart-react-basic && npm run check -w @edge/example-chart-plugins-basic && npm run check -w @edge/example-ai-tools-chart-basic && npm run check -w @edge/example-chart-data-source-basic && npm run check -w @edge/example-chart-perf-harness && npm run check -w @edge/example-indicator-runtime-spike",
     "check:startup": "npm run lint:instructions && npm test -- --run src/test/startup.test.ts src/app/components/chartContextMenu.test.ts src/app/components/chartCopyMenu.test.ts",
@@ -28,6 +28,7 @@
     "lint:instructions": "npx tsx scripts/validate-agent-instructions.mts",
     "lint:harness-retention": "npx tsx scripts/validate-harness-retention.mts",
     "lint:roadmap-status": "npx tsx scripts/check-roadmap-status.mts",
+    "lint:efficiency-ledger": "npx tsx scripts/lint-efficiency-ledger.mts",
     "test": "vitest",
     "mcp:edge": "npx tsx scripts/edge-mcp-server.mts",
     "db:up": "docker compose up -d postgres",
@@ -76,6 +77,8 @@
     "efficiency:attach": "npx tsx scripts/efficiency-ledger.mts attach",
     "efficiency:import-usage": "npx tsx scripts/efficiency-ledger.mts import-usage",
     "efficiency:reconcile": "npx tsx scripts/efficiency-ledger.mts reconcile",
+    "efficiency:status": "npx tsx scripts/efficiency-ledger.mts status",
+    "efficiency:backfill": "npx tsx scripts/efficiency-backfill.mts",
     "status:prune": "npx tsx scripts/harness-archive.mts",
     "roadmaps:status-check": "npx tsx scripts/check-roadmap-status.mts",
     "hooks:install": "git config core.hooksPath .githooks"

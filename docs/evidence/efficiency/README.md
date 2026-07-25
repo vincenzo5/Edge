@@ -4,7 +4,9 @@ Append-only record of AI-assisted task cost and effort. One row per Active Work 
 
 **Store:** [`ledger.jsonl`](./ledger.jsonl)  
 **Usage import:** [`usage.jsonl`](./usage.jsonl)  
-**Active registry:** `.edge/efficiency-active.json` (gitignored; multi-task map)
+**Active registry:** `.edge/efficiency-active.json` (gitignored; multi-task map)  
+**Prompt log:** `.edge/prompts.jsonl` (gitignored; ambient hook capture)  
+**Session log:** `.edge/sessions.jsonl` (gitignored; idle detection)
 
 ## Domain
 
@@ -65,7 +67,8 @@ Imported from periodic Cursor usage extracts:
 2. **Multi-task registry** — many open stamps; starting task B does not overwrite A; pause/resume/switch for context changes.
 3. **Closeout gate** — `npm run harness:closeout` requires a valid time-window ledger row; spend may be null until reconcile.
 4. **Spend deferred** — import usage periodically; run `efficiency:reconcile` to attribute spend/tokens by timestamp overlap.
-5. **No dashboard** — query JSONL directly (jq, spreadsheet import, etc.).
+5. **Timeline partition (Phase 9)** — project hooks append prompts; closeout chain-anchors `started_at` to previous ledger `ended_at` (gap-clamped); auto-fills messages/handoffs/rework from prompt log.
+6. **No dashboard** — query JSONL directly (jq, spreadsheet import, etc.).
 
 ## Overlap attribution (reconcile)
 
@@ -74,30 +77,40 @@ When usage intervals overlap multiple closed task windows, spend/tokens split **
 ## Commands
 
 ```bash
-# At task activate (when Active Work → Active)
-npm run harness:activate -- --name "Feature — Phase N" [--session-id UUID]
+# At task activate (when Active Work → Active; idempotent resume by default)
+npm run harness:activate -- --name "Feature — Phase N" [--session-id UUID] [--strict]
+
+# Open-task status + chain anchor hint
+npm run efficiency:status
 
 # Context switch (pause foreground, resume/start target)
 npm run efficiency:switch -- --name "Other task" [--session-id UUID]
 
-# Attach chat session for auto message/handoff counts at closeout
+# Attach chat session for transcript fallback at closeout
 npm run efficiency:attach -- --name "Feature — Phase N" --session-id UUID
 
 # List open tasks
 npm run efficiency:list
 
-# At closeout (auto-fills started_at, handoffs, null spend; needs --user-messages if no sessions)
+# At closeout (chain-anchored window + prompt-log auto-fill; do not pass --user-messages)
 npm run harness:closeout -- \
   --name "Feature — Phase N" \
-  --evidence-file docs/evidence/....txt \
-  [--user-messages 8]
+  --evidence-file docs/evidence/....txt
+
+# Lint: newly Passing rows must have ledger entry
+npm run lint:efficiency-ledger
 
 # Periodic: import Cursor usage extract
 npm run efficiency:import-usage -- --file path/to/usage-export.jsonl
 
 # Attribute spend/tokens to closed tasks by timestamp
-npm run efficiency:reconcile [--dry-run]
+npm run efficiency:reconcile [--dry-run] [--include-zero]
+
+# Optional: backfill prompts from ~/.cursor/analytics/analytics.db
+npm run efficiency:backfill [--dry-run]
 ```
+
+Project hooks (committed in `.cursor/hooks.json`) append prompts on every submit and inject open-task context at session start. Plan mode does not run efficiency scripts.
 
 Efficiency file alternative at closeout (JSON):
 

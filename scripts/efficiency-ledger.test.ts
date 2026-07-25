@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -7,10 +7,14 @@ import {
   attachSession,
   buildEfficiencyInputFromArgs,
   buildEfficiencyRecord,
+  countPromptsInWindow,
+  countReworkTurns,
   countUserMessagesFromSessions,
+  getPreviousLedgerEndedAt,
   importUsageRecords,
   mergeEfficiencyInput,
   migrateV0StampToRegistry,
+  normalizeTaskName,
   parseEfficiencyArgs,
   parseEfficiencyFile,
   pauseTask,
@@ -22,6 +26,7 @@ import {
   reconcileTaskSpend,
   removeTaskFromRegistry,
   resolveEffectiveLedgerRecords,
+  resolveTaskStartedAt,
   resumeTask,
   startTask,
   switchTask,
@@ -106,13 +111,25 @@ describe("efficiency-ledger multi-task registry", () => {
     expect(registry.foreground).toBe("Task B — Phase 1");
   });
 
-  it("rejects duplicate open task name", () => {
+  it("rejects duplicate open task name when strict", () => {
     const dir = mkdtempSync(join(tmpdir(), "efficiency-ledger-"));
     const activePath = ".edge/efficiency-active.json";
     startTask({ name: "Example — Phase 1" }, { activePath, cwd: dir });
-    expect(() => startTask({ name: "Example — Phase 1" }, { activePath, cwd: dir })).toThrow(
-      /already open/,
+    expect(() =>
+      startTask({ name: "Example — Phase 1", strict: true }, { activePath, cwd: dir }),
+    ).toThrow(/already open/);
+  });
+
+  it("returns existing entry when starting duplicate without strict", () => {
+    const dir = mkdtempSync(join(tmpdir(), "efficiency-ledger-"));
+    const activePath = ".edge/efficiency-active.json";
+    const first = startTask(
+      { name: "Example — Phase 1", startedAt: "2026-07-25T10:00:00.000Z" },
+      { activePath, cwd: dir },
     );
+    const second = startTask({ name: "Example — Phase 1" }, { activePath, cwd: dir });
+    expect(second.started_at).toBe(first.started_at);
+    expect(Object.keys(readActiveRegistry(activePath, dir).tasks)).toHaveLength(1);
   });
 
   it("pause and resume switch foreground", () => {
@@ -401,5 +418,314 @@ describe("efficiency usage import and reconcile", () => {
       allTasks: [taskA, taskB],
     });
     expect(aSpend.spend_usd + bSpend.spend_usd).toBeCloseTo(2, 5);
+  });
+
+  it("reconciles zero-spend rows when includeZero is set", () => {
+    const dir = mkdtempSync(join(tmpdir(), "efficiency-reconcile-zero-"));
+    const ledgerPath = "ledger.jsonl";
+    const usagePath = "usage.jsonl";
+
+    appendRecord(
+      buildEfficiencyRecord({
+        taskName: "Example — zero spend",
+        input: {
+          user_messages: 1,
+          handoffs: 0,
+          rework_turns: 0,
+          spend_usd: 0,
+          started_at: "2026-07-25T10:00:00.000Z",
+        },
+        endedAt: "2026-07-25T11:00:00.000Z",
+        id: "zero-row",
+      }),
+      { ledgerPath, cwd: dir },
+    );
+
+    importUsageRecords(
+      [
+        {
+          id: "usage-zero",
+          started_at: "2026-07-25T10:15:00.000Z",
+          ended_at: "2026-07-25T10:45:00.000Z",
+          spend_usd: 1.25,
+          imported_at: "2026-07-25T12:00:00.000Z",
+        },
+      ],
+      { usagePath, cwd: dir },
+    );
+
+    const without = reconcileLedgerSpend({ ledgerPath, usagePath, cwd: dir });
+    expect(without.reconciled).toBe(0);
+
+    const withZero = reconcileLedgerSpend({
+      ledgerPath,
+      usagePath,
+      cwd: dir,
+      includeZero: true,
+    });
+    expect(withZero.reconciled).toBe(1);
+  });
+});
+
+describe("efficiency-ledger phase 9 timeline partition", () => {
+  it("normalizeTaskName folds whitespace and dashes", () => {
+    expect(normalizeTaskName("Task efficiency ledger — Phase 9")).toBe(
+      "task efficiency ledger - phase 9",
+    );
+    expect(normalizeTaskName("Task  efficiency  ledger - Phase 9")).toBe(
+      "task efficiency ledger - phase 9",
+    );
+  });
+
+  it("chains started_at from previous ledger ended_at", () => {
+    const dir = mkdtempSync(join(tmpdir(), "efficiency-chain-"));
+    const ledgerPath = "ledger.jsonl";
+    const activePath = ".edge/efficiency-active.json";
+
+    appendRecord(
+      buildEfficiencyRecord({
+        taskName: "Prior task",
+        input: {
+          user_messages: 1,
+          handoffs: 0,
+          rework_turns: 0,
+          spend_usd: null,
+          started_at: "2026-07-25T08:00:00.000Z",
+        },
+        endedAt: "2026-07-25T09:00:00.000Z",
+      }),
+      { ledgerPath, cwd: dir },
+    );
+
+    startTask(
+      { name: "Next task", startedAt: "2026-07-25T17:00:00.000Z" },
+      { activePath, cwd: dir },
+    );
+
+    const startedAt = resolveTaskStartedAt({
+      registryStartedAt: "2026-07-25T17:00:00.000Z",
+      ledgerPath,
+      cwd: dir,
+      endedAt: "2026-07-25T18:00:00.000Z",
+    });
+
+    expect(startedAt).toBe("2026-07-25T09:00:00.000Z");
+    expect(getPreviousLedgerEndedAt(ledgerPath, dir)).toBe("2026-07-25T09:00:00.000Z");
+  });
+
+  it("clamps started_at to first prompt when gap exceeds max hours", () => {
+    const dir = mkdtempSync(join(tmpdir(), "efficiency-gap-"));
+    const ledgerPath = "ledger.jsonl";
+    const promptsPath = ".edge/prompts.jsonl";
+
+    appendRecord(
+      buildEfficiencyRecord({
+        taskName: "Prior task",
+        input: {
+          user_messages: 1,
+          handoffs: 0,
+          rework_turns: 0,
+          spend_usd: null,
+          started_at: "2026-07-25T08:00:00.000Z",
+        },
+        endedAt: "2026-07-25T09:00:00.000Z",
+      }),
+      { ledgerPath, cwd: dir },
+    );
+
+    mkdirSync(join(dir, ".edge"), { recursive: true });
+    appendFileSync(
+      join(dir, promptsPath),
+      [
+        JSON.stringify({
+          ts: "2026-07-25T20:00:00.000Z",
+          conversation_id: "conv-1",
+          generation_id: "gen-1",
+          prompt_head: "start phase 9",
+          prompt_length: 13,
+        }),
+      ].join("\n") + "\n",
+      "utf8",
+    );
+
+    const startedAt = resolveTaskStartedAt({
+      registryStartedAt: "2026-07-25T17:00:00.000Z",
+      ledgerPath,
+      promptsPath,
+      cwd: dir,
+      endedAt: "2026-07-25T21:00:00.000Z",
+    });
+
+    expect(startedAt).toBe("2026-07-25T20:00:00.000Z");
+  });
+
+  it("auto-fills user_messages and handoffs from prompt log", () => {
+    const dir = mkdtempSync(join(tmpdir(), "efficiency-prompts-"));
+    const activePath = ".edge/efficiency-active.json";
+    const promptsPath = ".edge/prompts.jsonl";
+
+    startTask(
+      { name: "Example — Phase 9", startedAt: "2026-07-25T10:00:00.000Z" },
+      { activePath, cwd: dir },
+    );
+
+    mkdirSync(join(dir, ".edge"), { recursive: true });
+    appendFileSync(
+      join(dir, promptsPath),
+      [
+        JSON.stringify({
+          ts: "2026-07-25T10:05:00.000Z",
+          conversation_id: "conv-a",
+          generation_id: "g1",
+          prompt_head: "first",
+          prompt_length: 5,
+        }),
+        JSON.stringify({
+          ts: "2026-07-25T10:10:00.000Z",
+          conversation_id: "conv-b",
+          generation_id: "g2",
+          prompt_head: "handoff",
+          prompt_length: 7,
+        }),
+      ].join("\n") + "\n",
+      "utf8",
+    );
+
+    const counts = countPromptsInWindow({
+      sinceIso: "2026-07-25T10:00:00.000Z",
+      untilIso: "2026-07-25T11:00:00.000Z",
+      promptsPath,
+      cwd: dir,
+    });
+    expect(counts.userMessages).toBe(2);
+    expect(counts.handoffs).toBe(1);
+
+    const { input, errors } = buildEfficiencyInputFromArgs(
+      parseEfficiencyArgs(["--name", "Example — Phase 9"]),
+      {
+        taskName: "Example — Phase 9",
+        cwd: dir,
+        activePath,
+        promptsPath,
+        endedAt: "2026-07-25T11:00:00.000Z",
+      },
+    );
+    expect(errors).toEqual([]);
+    expect(input?.user_messages).toBe(2);
+    expect(input?.handoffs).toBe(1);
+  });
+
+  it("counts rework turns after prior same-name ledger row", () => {
+    const dir = mkdtempSync(join(tmpdir(), "efficiency-rework-"));
+    const ledgerPath = "ledger.jsonl";
+    const promptsPath = ".edge/prompts.jsonl";
+
+    appendRecord(
+      buildEfficiencyRecord({
+        taskName: "Example — Phase 9",
+        input: {
+          user_messages: 1,
+          handoffs: 0,
+          rework_turns: 0,
+          spend_usd: null,
+          started_at: "2026-07-25T08:00:00.000Z",
+        },
+        endedAt: "2026-07-25T09:00:00.000Z",
+      }),
+      { ledgerPath, cwd: dir },
+    );
+
+    mkdirSync(join(dir, ".edge"), { recursive: true });
+    appendFileSync(
+      join(dir, promptsPath),
+      [
+        JSON.stringify({
+          ts: "2026-07-25T10:00:00.000Z",
+          conversation_id: "conv-1",
+          generation_id: "g1",
+          prompt_head: "reopen",
+          prompt_length: 6,
+        }),
+      ].join("\n") + "\n",
+      "utf8",
+    );
+
+    expect(
+      countReworkTurns({
+        taskName: "Example — Phase 9",
+        sinceIso: "2026-07-25T09:30:00.000Z",
+        untilIso: "2026-07-25T11:00:00.000Z",
+        promptsPath,
+        ledgerPath,
+        cwd: dir,
+      }),
+    ).toBe(1);
+  });
+
+  it("parses transcript timestamps from message wrapper", () => {
+    const dir = mkdtempSync(join(tmpdir(), "efficiency-transcript-ts-"));
+    const sessionDir = join(dir, "session-1");
+    mkdirSync(sessionDir, { recursive: true });
+    writeFileSync(
+      join(sessionDir, "0.jsonl"),
+      [
+        '{"role":"user","message":"<timestamp>2026-07-25T12:00:00.000Z</timestamp>\\nhello"}',
+        '{"role":"user","message":"<timestamp>2026-07-24T12:00:00.000Z</timestamp>\\nold"}',
+      ].join("\n"),
+      "utf8",
+    );
+
+    expect(
+      countUserMessagesFromSessions({
+        sessionIds: ["session-1"],
+        sinceIso: "2026-07-25T11:00:00.000Z",
+        transcriptsDir: dir,
+      }),
+    ).toBe(1);
+  });
+
+  it("merge uses chain-anchored started_at for meaningful window", () => {
+    const dir = mkdtempSync(join(tmpdir(), "efficiency-merge-window-"));
+    const ledgerPath = "ledger.jsonl";
+    const activePath = ".edge/efficiency-active.json";
+
+    appendRecord(
+      buildEfficiencyRecord({
+        taskName: "Prior",
+        input: {
+          user_messages: 1,
+          handoffs: 0,
+          rework_turns: 0,
+          spend_usd: null,
+          started_at: "2026-07-25T08:00:00.000Z",
+        },
+        endedAt: "2026-07-25T09:00:00.000Z",
+      }),
+      { ledgerPath, cwd: dir },
+    );
+
+    startTask(
+      { name: "Current", startedAt: "2026-07-25T17:00:00.000Z" },
+      { activePath, cwd: dir },
+    );
+
+    const record = mergeEfficiencyInput({
+      taskName: "Current",
+      input: {
+        user_messages: 2,
+        handoffs: 0,
+        rework_turns: 0,
+        spend_usd: null,
+      },
+      ledgerPath,
+      activePath,
+      cwd: dir,
+      endedAt: "2026-07-25T18:00:00.000Z",
+    });
+
+    expect(record.started_at).toBe("2026-07-25T09:00:00.000Z");
+    expect(Date.parse(record.ended_at) - Date.parse(record.started_at)).toBeGreaterThan(
+      60 * 60 * 1000,
+    );
   });
 });

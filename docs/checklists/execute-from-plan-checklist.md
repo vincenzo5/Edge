@@ -81,15 +81,18 @@ Prefer a **new execute chat** when plan research exceeded ~15–20 tool calls (s
 Walk [session-exit-checklist.md](./session-exit-checklist.md). Prefer [Harness Steward](../../.cursor/rules/harness-steward.mdc) (exclusive harness mutator):
 
 ```bash
-npm run harness:closeout -- --name "…" --evidence-file path [--files …] [--roadmap …] [--session-log …] [--user-messages N] [--efficiency-file path]
+npm run harness:closeout -- --name "…" --evidence-file path [--files …] [--roadmap …] [--session-log …] [--efficiency-file path]
 npm run status:prune
 npm run lint:harness-retention
+npm run lint:efficiency-ledger
 ```
+
+Do **not** pass `--user-messages` — `.edge/prompts.jsonl` (project hooks) auto-fills at closeout.
 
 Closeout archives the displaced Current block to `docs/status-archive/` — **no** `## Previous Verified State` stacks in the hot file (Previous keep = **0**).
 
 - [ ] Active Work → **Passing** with quoted evidence + Files column (via helper or manual)
-- [ ] Efficiency ledger row appended via closeout gate (time window + messages; spend null until `efficiency:reconcile`)
+- [ ] Efficiency ledger row appended via closeout gate (chain-anchored time window + prompt-log messages; spend null until `efficiency:reconcile`)
 - [ ] Current Verified State block updated
 - [ ] Session Log entry if work ran this session or cross-session
 - [ ] Roadmap phase status line if applicable

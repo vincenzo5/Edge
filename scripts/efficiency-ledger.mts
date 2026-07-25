@@ -16,10 +16,13 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 
 export const DEFAULT_LEDGER_PATH = "docs/evidence/efficiency/ledger.jsonl";
 export const DEFAULT_USAGE_PATH = "docs/evidence/efficiency/usage.jsonl";
 export const DEFAULT_ACTIVE_PATH = ".edge/efficiency-active.json";
+export const DEFAULT_PROMPTS_PATH = ".edge/prompts.jsonl";
+export const DEFAULT_SESSIONS_PATH = ".edge/sessions.jsonl";
 
 export type EfficiencyOutcome = "Passing" | "Blocked" | "Abandoned";
 export type ActiveTaskStatus = "active" | "paused";
@@ -89,7 +92,32 @@ export type UsageRecord = {
   imported_at: string;
 };
 
+export type PromptLogEntry = {
+  ts: string;
+  conversation_id: string;
+  generation_id?: string;
+  prompt_head?: string;
+  prompt_length?: number;
+};
+
 const OUTCOMES: EfficiencyOutcome[] = ["Passing", "Blocked", "Abandoned"];
+
+export function normalizeTaskName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[—–-]/g, "-");
+}
+
+export function getMaxGapHours(): number {
+  const raw = process.env.EDGE_EFFICIENCY_MAX_GAP_HOURS?.trim();
+  if (raw) {
+    const value = Number(raw);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  return 8;
+}
 
 function isIsoDate(value: string): boolean {
   return Number.isFinite(Date.parse(value));
@@ -174,6 +202,7 @@ export function startTask(
     spendBaselineUsd?: number;
     startedAt?: string;
     sessionId?: string;
+    strict?: boolean;
   },
   paths?: { activePath?: string; cwd?: string },
 ): ActiveTaskEntry {
@@ -183,7 +212,19 @@ export function startTask(
   let registry = readActiveRegistry(activePath, cwd);
 
   if (registry.tasks[name]) {
-    throw new Error(`task "${name}" is already open in efficiency registry`);
+    if (options.strict) {
+      throw new Error(`task "${name}" is already open in efficiency registry`);
+    }
+    const existing = registry.tasks[name]!;
+    if (options.sessionId && !existing.session_ids.includes(options.sessionId)) {
+      attachSession(name, options.sessionId, { activePath, cwd });
+    }
+    registry.foreground = name;
+    if (existing.status === "paused") {
+      return resumeTask(name, { activePath, cwd });
+    }
+    writeActiveRegistry(registry, activePath, cwd);
+    return readActiveTaskEntry(name, activePath, cwd)!;
   }
 
   if (registry.foreground && registry.foreground !== name) {
@@ -378,6 +419,180 @@ export function defaultTranscriptsDir(cwd = process.cwd()): string {
   return join(homedir(), ".cursor", "projects", slug, "agent-transcripts");
 }
 
+export function readPromptLog(
+  promptsPath = DEFAULT_PROMPTS_PATH,
+  cwd = process.cwd(),
+): PromptLogEntry[] {
+  const absolute = resolve(cwd, promptsPath);
+  if (!existsSync(absolute)) return [];
+
+  return readFileSync(absolute, "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      try {
+        return JSON.parse(line) as PromptLogEntry;
+      } catch {
+        throw new Error(`invalid JSON on prompts line ${index + 1}`);
+      }
+    });
+}
+
+export function getPreviousLedgerEndedAt(
+  ledgerPath = DEFAULT_LEDGER_PATH,
+  cwd = process.cwd(),
+): string | null {
+  const records = resolveEffectiveLedgerRecords(readLedgerRecords(ledgerPath, cwd));
+  if (records.length === 0) return null;
+
+  const sorted = [...records].sort(
+    (a, b) => Date.parse(b.ended_at) - Date.parse(a.ended_at),
+  );
+  return sorted[0]?.ended_at ?? null;
+}
+
+export function getPriorTaskEndedAt(
+  taskName: string,
+  ledgerPath = DEFAULT_LEDGER_PATH,
+  cwd = process.cwd(),
+): string | null {
+  const normalized = normalizeTaskName(taskName);
+  const records = resolveEffectiveLedgerRecords(readLedgerRecords(ledgerPath, cwd));
+  const matching = records
+    .filter((record) => normalizeTaskName(record.task_name) === normalized)
+    .sort((a, b) => Date.parse(b.ended_at) - Date.parse(a.ended_at));
+  return matching[0]?.ended_at ?? null;
+}
+
+export function resolveTaskStartedAt(options: {
+  explicitStartedAt?: string;
+  registryStartedAt?: string;
+  ledgerPath?: string;
+  promptsPath?: string;
+  cwd?: string;
+  endedAt?: string;
+}): string | null {
+  const cwd = options.cwd ?? process.cwd();
+  const ledgerPath = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
+  const promptsPath = options.promptsPath ?? DEFAULT_PROMPTS_PATH;
+
+  let anchor =
+    options.explicitStartedAt ??
+    getPreviousLedgerEndedAt(ledgerPath, cwd) ??
+    options.registryStartedAt ??
+    undefined;
+
+  if (!anchor) return null;
+
+  const anchorMs = Date.parse(anchor);
+  if (!Number.isFinite(anchorMs)) return anchor;
+
+  const endedAtMs = options.endedAt ? Date.parse(options.endedAt) : Date.now();
+  const maxGapMs = getMaxGapHours() * 60 * 60 * 1000;
+
+  const promptsAfterAnchor = readPromptLog(promptsPath, cwd)
+    .filter((entry) => {
+      const ts = Date.parse(entry.ts);
+      return Number.isFinite(ts) && ts >= anchorMs && ts <= endedAtMs;
+    })
+    .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+
+  if (promptsAfterAnchor.length === 0) return anchor;
+
+  const firstPromptMs = Date.parse(promptsAfterAnchor[0]!.ts);
+  if (firstPromptMs - anchorMs > maxGapMs) {
+    return promptsAfterAnchor[0]!.ts;
+  }
+
+  return anchor;
+}
+
+export function countPromptsInWindow(options: {
+  sinceIso: string;
+  untilIso: string;
+  promptsPath?: string;
+  cwd?: string;
+}): { userMessages: number; handoffs: number } {
+  const cwd = options.cwd ?? process.cwd();
+  const promptsPath = options.promptsPath ?? DEFAULT_PROMPTS_PATH;
+  const since = Date.parse(options.sinceIso);
+  const until = Date.parse(options.untilIso);
+  if (!Number.isFinite(since) || !Number.isFinite(until)) {
+    return { userMessages: 0, handoffs: 0 };
+  }
+
+  const inWindow = readPromptLog(promptsPath, cwd).filter((entry) => {
+    const ts = Date.parse(entry.ts);
+    return Number.isFinite(ts) && ts >= since && ts <= until;
+  });
+
+  const conversationIds = new Set(
+    inWindow.map((entry) => entry.conversation_id).filter(Boolean),
+  );
+
+  return {
+    userMessages: inWindow.length,
+    handoffs: Math.max(0, conversationIds.size - 1),
+  };
+}
+
+export function countReworkTurns(options: {
+  taskName: string;
+  sinceIso: string;
+  untilIso: string;
+  priorEndedAt?: string | null;
+  promptsPath?: string;
+  ledgerPath?: string;
+  cwd?: string;
+}): number {
+  const cwd = options.cwd ?? process.cwd();
+  const promptsPath = options.promptsPath ?? DEFAULT_PROMPTS_PATH;
+  const priorEndedAt =
+    options.priorEndedAt ??
+    getPriorTaskEndedAt(options.taskName, options.ledgerPath, cwd);
+
+  if (!priorEndedAt) return 0;
+
+  const priorMs = Date.parse(priorEndedAt);
+  const sinceMs = Date.parse(options.sinceIso);
+  const untilMs = Date.parse(options.untilIso);
+  if (!Number.isFinite(priorMs) || !Number.isFinite(sinceMs) || !Number.isFinite(untilMs)) {
+    return 0;
+  }
+
+  return readPromptLog(promptsPath, cwd).filter((entry) => {
+    const ts = Date.parse(entry.ts);
+    return Number.isFinite(ts) && ts > priorMs && ts >= sinceMs && ts <= untilMs;
+  }).length;
+}
+
+function parseTranscriptTimestamp(row: {
+  role?: string;
+  timestamp?: string;
+  message?: unknown;
+}): number | null {
+  if (row.timestamp) {
+    const parsed = Date.parse(row.timestamp);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  const messageText =
+    typeof row.message === "string"
+      ? row.message
+      : row.message != null
+        ? JSON.stringify(row.message)
+        : "";
+
+  const match = messageText.match(/<timestamp>([^<]+)<\/timestamp>/i);
+  if (match?.[1]) {
+    const parsed = Date.parse(match[1].trim());
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return null;
+}
+
 export function countUserMessagesFromSessions(options: {
   sessionIds: string[];
   sinceIso: string;
@@ -404,6 +619,8 @@ export function countUserMessagesFromSessions(options: {
             message?: unknown;
           };
           if (row.role !== "user") continue;
+          const messageTs = parseTranscriptTimestamp(row);
+          if (messageTs !== null && messageTs < since) continue;
           if (row.timestamp && Date.parse(row.timestamp) < since) continue;
           count += 1;
         } catch {
@@ -657,6 +874,8 @@ export function mergeEfficiencyInput(options: {
 }): EfficiencyRecord {
   const cwd = options.cwd ?? process.cwd();
   const activePath = options.activePath ?? DEFAULT_ACTIVE_PATH;
+  const ledgerPath = options.ledgerPath ?? DEFAULT_LEDGER_PATH;
+  const endedAt = options.endedAt ?? new Date().toISOString();
 
   const inputErrors = validateEfficiencyInput(options.input);
   if (inputErrors.length > 0) {
@@ -664,7 +883,14 @@ export function mergeEfficiencyInput(options: {
   }
 
   const entry = readActiveTaskEntry(options.taskName, activePath, cwd);
-  const startedAt = options.input.started_at ?? entry?.started_at;
+  const startedAt = resolveTaskStartedAt({
+    explicitStartedAt: options.input.started_at,
+    registryStartedAt: entry?.started_at,
+    ledgerPath,
+    cwd,
+    endedAt,
+  });
+
   if (!startedAt) {
     throw new Error(
       "started_at is required — run npm run harness:activate or pass --started-at / efficiency-file started_at",
@@ -713,6 +939,7 @@ export function parseEfficiencyArgs(argv: string[]): {
   sessionId?: string;
   transcriptsDir?: string;
   usageFile?: string;
+  includeZero?: boolean;
   dryRun: boolean;
 } {
   const getFlag = (flag: string): string | undefined => {
@@ -749,17 +976,29 @@ export function parseEfficiencyArgs(argv: string[]): {
     sessionId: getFlag("--session-id"),
     transcriptsDir: getFlag("--transcripts-dir"),
     usageFile: getFlag("--file"),
+    includeZero: argv.includes("--include-zero"),
     dryRun: argv.includes("--dry-run"),
   };
 }
 
 export function buildEfficiencyInputFromArgs(
   parsed: ReturnType<typeof parseEfficiencyArgs>,
-  options?: { taskName?: string; cwd?: string; activePath?: string; transcriptsDir?: string },
+  options?: {
+    taskName?: string;
+    cwd?: string;
+    activePath?: string;
+    ledgerPath?: string;
+    promptsPath?: string;
+    transcriptsDir?: string;
+    endedAt?: string;
+  },
 ): { input?: EfficiencyInput; errors: string[] } {
   const cwd = options?.cwd ?? process.cwd();
   const activePath = options?.activePath ?? DEFAULT_ACTIVE_PATH;
+  const ledgerPath = options?.ledgerPath ?? DEFAULT_LEDGER_PATH;
+  const promptsPath = options?.promptsPath ?? DEFAULT_PROMPTS_PATH;
   const taskName = options?.taskName ?? parsed.name;
+  const endedAt = options?.endedAt ?? new Date().toISOString();
 
   if (parsed.efficiencyFile) {
     return { errors: ["efficiency file path should be resolved by caller"] };
@@ -767,27 +1006,68 @@ export function buildEfficiencyInputFromArgs(
 
   const entry = taskName ? readActiveTaskEntry(taskName, activePath, cwd) : null;
 
+  const startedAt = resolveTaskStartedAt({
+    explicitStartedAt: parsed.startedAt,
+    registryStartedAt: entry?.started_at,
+    ledgerPath,
+    promptsPath,
+    cwd,
+    endedAt,
+  });
+
   let userMessages = parsed.userMessages;
-  if (userMessages === undefined && entry && entry.session_ids.length > 0) {
+  let handoffs = parsed.handoffs;
+  let reworkTurns = parsed.reworkTurns;
+
+  if (startedAt) {
+    const promptCounts = countPromptsInWindow({
+      sinceIso: startedAt,
+      untilIso: endedAt,
+      promptsPath,
+      cwd,
+    });
+
+    if (userMessages === undefined && promptCounts.userMessages > 0) {
+      userMessages = promptCounts.userMessages;
+    }
+
+    if (handoffs === undefined && promptCounts.userMessages > 0) {
+      handoffs = promptCounts.handoffs;
+    }
+
+    if (reworkTurns === undefined && promptCounts.userMessages > 0) {
+      reworkTurns = countReworkTurns({
+        taskName: taskName ?? "",
+        sinceIso: startedAt,
+        untilIso: endedAt,
+        promptsPath,
+        ledgerPath,
+        cwd,
+      });
+    }
+  }
+
+  if (userMessages === undefined && entry && entry.session_ids.length > 0 && startedAt) {
     const transcriptsDir = parsed.transcriptsDir ?? defaultTranscriptsDir(cwd);
     userMessages = countUserMessagesFromSessions({
       sessionIds: entry.session_ids,
-      sinceIso: entry.started_at,
+      sinceIso: startedAt,
       transcriptsDir,
     });
   }
 
-  let handoffs = parsed.handoffs;
   if (handoffs === undefined && entry) {
     handoffs = Math.max(0, entry.session_ids.length - 1);
   }
 
-  const reworkTurns = parsed.reworkTurns ?? 0;
+  if (reworkTurns === undefined) {
+    reworkTurns = 0;
+  }
 
   if (userMessages === undefined) {
     return {
       errors: [
-        "user_messages required — attach session (--session-id) or pass --user-messages",
+        "user_messages required — prompt log empty; attach session (--session-id) or pass --user-messages",
       ],
     };
   }
@@ -803,7 +1083,6 @@ export function buildEfficiencyInputFromArgs(
     spend_usd: parsed.spendUsd ?? null,
   };
 
-  const startedAt = parsed.startedAt ?? entry?.started_at;
   if (startedAt) input.started_at = startedAt;
 
   if (parsed.spendBaselineUsd !== undefined) input.spend_baseline_usd = parsed.spendBaselineUsd;
@@ -973,10 +1252,12 @@ export function reconcileLedgerSpend(options?: {
   usagePath?: string;
   cwd?: string;
   dryRun?: boolean;
+  includeZero?: boolean;
 }): { reconciled: number; skipped: number; records: EfficiencyRecord[] } {
   const cwd = options?.cwd ?? process.cwd();
   const ledgerPath = options?.ledgerPath ?? DEFAULT_LEDGER_PATH;
   const usagePath = options?.usagePath ?? DEFAULT_USAGE_PATH;
+  const includeZero = options?.includeZero ?? false;
 
   const rawRecords = readLedgerRecords(ledgerPath, cwd);
   const effective = resolveEffectiveLedgerRecords(rawRecords);
@@ -986,9 +1267,12 @@ export function reconcileLedgerSpend(options?: {
     rawRecords.filter((r) => r.corrects && !r.void).map((r) => r.corrects!),
   );
 
-  const pending = effective.filter(
-    (r) => r.spend_usd === null && !correctedIds.has(r.id),
-  );
+  const pending = effective.filter((record) => {
+    if (correctedIds.has(record.id)) return false;
+    if (record.spend_usd === null) return true;
+    if (includeZero && record.spend_usd === 0) return true;
+    return false;
+  });
 
   const correctionRows: EfficiencyRecord[] = [];
   let reconciled = 0;
@@ -1001,7 +1285,7 @@ export function reconcileLedgerSpend(options?: {
       allTasks: effective,
     });
 
-    if (totals.spend_usd === 0 && usageRecords.length === 0) {
+    if (totals.spend_usd === 0 && usageRecords.length === 0 && !includeZero) {
       skipped += 1;
       continue;
     }
@@ -1029,7 +1313,7 @@ function mainStart(argv: string[]): void {
   const parsed = parseEfficiencyArgs(argv);
   if (!parsed.name) {
     console.error(
-      'Usage: npm run efficiency:start -- --name "Feature — Phase N" [--session-id UUID] [--spend-baseline-usd 12.34]',
+      'Usage: npm run efficiency:start -- --name "Feature — Phase N" [--session-id UUID] [--spend-baseline-usd 12.34] [--strict]',
     );
     process.exit(1);
   }
@@ -1039,6 +1323,7 @@ function mainStart(argv: string[]): void {
     spendBaselineUsd: parsed.spendBaselineUsd,
     startedAt: parsed.startedAt,
     sessionId: parsed.sessionId,
+    strict: argv.includes("--strict"),
   });
 
   console.log(
@@ -1126,17 +1411,48 @@ function mainImportUsage(argv: string[]): void {
 
 function mainReconcile(argv: string[]): void {
   const parsed = parseEfficiencyArgs(argv);
-  const result = reconcileLedgerSpend({ dryRun: parsed.dryRun });
+  const result = reconcileLedgerSpend({
+    dryRun: parsed.dryRun,
+    includeZero: parsed.includeZero,
+  });
   const mode = parsed.dryRun ? "dry-run" : "complete";
   console.log(
     `efficiency:reconcile ${mode} — reconciled=${result.reconciled} skipped=${result.skipped}`,
   );
 }
 
+function mainStatus(): void {
+  const registry = readActiveRegistry();
+  const tasks = listOpenTasks();
+  const previousEndedAt = getPreviousLedgerEndedAt();
+
+  if (tasks.length === 0) {
+    console.log("efficiency:status — no open tasks");
+    if (previousEndedAt) {
+      console.log(`  chain anchor (previous ended_at): ${previousEndedAt}`);
+    }
+    return;
+  }
+
+  console.log("efficiency:status — open tasks:");
+  for (const task of tasks) {
+    const fg = registry.foreground === task.task_name ? " foreground" : "";
+    const anchor = resolveTaskStartedAt({
+      registryStartedAt: task.started_at,
+      endedAt: new Date().toISOString(),
+    });
+    console.log(
+      `- ${task.task_name} status=${task.status}${fg} registry_started_at=${task.started_at} resolved_window_start=${anchor ?? "n/a"} sessions=${task.session_ids.length}`,
+    );
+  }
+  if (previousEndedAt) {
+    console.log(`  chain anchor (previous ended_at): ${previousEndedAt}`);
+  }
+}
+
 const isMain =
   process.argv[1] !== undefined &&
-  (process.argv[1].endsWith("efficiency-ledger.mts") ||
-    process.argv[1].endsWith("efficiency-ledger.mjs"));
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isMain) {
   const command = process.argv[2];
@@ -1166,9 +1482,12 @@ if (isMain) {
     case "reconcile":
       mainReconcile(argv);
       break;
+    case "status":
+      mainStatus();
+      break;
     default:
       console.error(
-        "Usage: npx tsx scripts/efficiency-ledger.mts <start|pause|resume|switch|list|attach|import-usage|reconcile> …",
+        "Usage: npx tsx scripts/efficiency-ledger.mts <start|pause|resume|switch|list|attach|import-usage|reconcile|status> …",
       );
       process.exit(1);
   }

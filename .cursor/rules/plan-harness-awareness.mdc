@@ -39,6 +39,8 @@ Required sections in order:
 
 ## Harness Update
 - One line: Activate <name>; WIP=1; on Passing quote evidence; Task Contract/Session Log if cross-session; Commit: yes | skip (reason).
+- Ledger track phases: use canonical Active Work name `Ledger track — Phase N` (or `Task efficiency ledger — Phase N` for this roadmap).
+- Plan mode: do **not** run efficiency scripts (`harness:activate`, `harness:closeout`, `efficiency:*`) — tracking is ambient via project hooks + execute closeout.
 ```
 
 ## Do not drop

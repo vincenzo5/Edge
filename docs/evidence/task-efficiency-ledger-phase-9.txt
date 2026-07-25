@@ -1,0 +1,32 @@
+# Task efficiency ledger — Phase 9 evidence
+# Date: 2026-07-25
+
+## Scope
+Timeline-partition efficiency tracking: ambient prompt hooks, chain-anchored closeout windows, prompt-log auto-fill, lint gate, idempotent activate.
+
+## Delivered
+- .cursor/hooks.json + efficiency-prompt-log.mjs, efficiency-session-start.mjs, efficiency-session-end.mjs
+- scripts/efficiency-ledger.mts — normalizeTaskName, resolveTaskStartedAt, prompt log auto-fill, includeZero reconcile
+- scripts/lint-efficiency-ledger.mts + tests
+- scripts/harness-activate.mts — default switchTask; --strict for throw-on-duplicate
+- scripts/efficiency-backfill.mts — optional analytics DB backfill
+- package.json — lint:efficiency-ledger in check, efficiency:status, efficiency:backfill
+- docs/roadmaps/plan-execute-token-efficiency-roadmap.md — Phase 9 section
+- .cursor/rules/plan-harness-awareness.mdc, execute-from-plan.mdc — no --user-messages in Plan/execute
+- docs/checklists/execute-from-plan-checklist.md, docs/evidence/efficiency/README.md
+
+## Focused
+npm test -- --run scripts/efficiency-ledger.test.ts scripts/harness-closeout.test.ts scripts/lint-efficiency-ledger.test.ts
+Test Files  3 passed (3)
+Tests  57 passed (57)
+
+## Hook smoke
+echo fixture JSON | node .cursor/hooks/efficiency-prompt-log.mjs
+Appended line to .edge/prompts.jsonl with conversation_id conv-smoke-1
+
+## Instructions
+npm run lint:instructions
+Instruction architecture validation passed.
+
+## Closeout smoke
+Chain-anchored started_at uses previous ledger ended_at; no --user-messages; spend_usd null

@@ -4,7 +4,9 @@ Cut agent token cost for plan and implement work **without** weakening DoD, WIP=
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (compact plan template, 2026-07-24). Phase 1 **Passing** (execute-from-plan protocol, 2026-07-24). Phase 2 **Passing** (explore opt-in, 2026-07-24). Phase 3 **Passing** (hot harness read windows, 2026-07-24). Phase 4 **Passing** (scope plan-rule injection, 2026-07-24). Phase 5 **Passing** (fresh-chat execute process, 2026-07-24). Phase 6 **Passing** (harness closeout helper, 2026-07-24). Phase 7 **Passing** (task efficiency ledger, 2026-07-25). Phase 8 **Passing** (concurrent registry + deferred spend reconcile). Complements [AGENTS.md](../../AGENTS.md), [plan-execute-routing](../../.cursor/rules/plan-execute-routing.mdc), [plan-harness-awareness](../../.cursor/rules/plan-harness-awareness.mdc), [planning-router](../checklists/planning-router.md), and [harness-status-checklist](../checklists/harness-status-checklist.md).
+**Status:** Phase 0 **Passing** (compact plan template, 2026-07-24). Phase 1 **Passing** (execute-from-plan protocol, 2026-07-24). Phase 2 **Passing** (explore opt-in, 2026-07-24). Phase 3 **Passing** (hot harness read windows, 2026-07-24). Phase 4 **Passing** (scope plan-rule injection, 2026-07-24). Phase 5 **Passing** (fresh-chat execute process, 2026-07-24). Phase 6 **Passing** (harness closeout helper, 2026-07-24). Phase 7 **Passing** (task efficiency ledger, 2026-07-25). Phase 8 **Passing** (concurrent registry + deferred spend reconcile). Phase 9 **Passing** (timeline-partition tracking). Complements [AGENTS.md](../../AGENTS.md), [plan-execute-routing](../../.cursor/rules/plan-execute-routing.mdc), [plan-harness-awareness](../../.cursor/rules/plan-harness-awareness.mdc), [planning-router](../checklists/planning-router.md), and [harness-status-checklist](../checklists/harness-status-checklist.md).
+
+**Ledger track:** Active Work names for this roadmap use `Task efficiency ledger — Phase N` (or `Ledger track — Phase N`).
 
 **Related:** [Project Status](../PROJECT-STATUS.md), `/handoff` Cursor skill (~800 tok fresh-chat briefs), existing evidence-gated docs automation (`npm run docs:auto-update` harness lane).
 
@@ -201,6 +203,24 @@ Fills Active Work → Passing + quoted evidence, Current Verified State, optiona
 
 ---
 
+### Phase 9 — Timeline-partition efficiency tracking
+
+**Outcome:** Real task windows for plan→build workflow without agent-discipline for activate or `--user-messages`; meaningful spend reconcile via chain-anchored windows and ambient prompt log.
+
+**Scope:**
+
+- Project hooks (`.cursor/hooks.json`) — `beforeSubmitPrompt` → `.edge/prompts.jsonl`; `sessionStart` context; `sessionEnd` idle markers
+- Chain-anchored `started_at` at closeout — `--started-at` → registry → previous ledger `ended_at`; gap clamp via `EDGE_EFFICIENCY_MAX_GAP_HOURS` (default 8)
+- Auto-fill — `user_messages`, `handoffs`, `rework_turns` from prompt log; `--user-messages` fallback only when log empty
+- `lint:efficiency-ledger` — newly Passing Active Work rows require matching ledger entry (`normalizeTaskName`)
+- Idempotent `harness:activate` (default `switchTask`); `--strict` for throw-on-duplicate
+- Fixes — transcript `<timestamp>` parse; `reconcile --include-zero`; optional `efficiency:backfill` + `efficiency:status`
+- Rule/checklist updates; no efficiency scripts in Plan mode
+
+**Exit evidence:** Focused tests pass; hook smoke appends prompt row; closeout without `--user-messages` yields window ≥ minutes and `spend_usd: null`; `lint:instructions` pass.
+
+---
+
 ## Verification Plan (per phase)
 
 | Tier | When |
@@ -214,9 +234,9 @@ Fills Active Work → Passing + quoted evidence, Current Verified State, optiona
 
 ## Harness Update
 
-- Track row: **Plan → execute token efficiency** — **Passing** (Phase 0–8 complete, 2026-07-25).
-- Phase 0–8 **Passing** via compact plan template + execute-from-plan + explore opt-in + hot harness read windows + plan-rule injection + fresh-chat execute + harness closeout helper + task efficiency ledger + concurrent registry + deferred spend reconcile.
-- Phase 8 evidence: **Focused:** Test Files 2 passed (2), Tests 43 passed (43); closeout without spend succeeds; reconcile attributes usage by timestamp.
+- Track row: **Plan → execute token efficiency** — **Passing** (Phase 0–9 complete, 2026-07-25).
+- Phase 0–9 **Passing** via compact plan template + execute-from-plan + explore opt-in + hot harness read windows + plan-rule injection + fresh-chat execute + harness closeout helper + task efficiency ledger + concurrent registry + deferred spend reconcile + timeline-partition tracking.
+- Phase 9 evidence: **Focused:** Test Files 3 passed (3), Tests 55+ passed; hook smoke appends `.edge/prompts.jsonl`; closeout without `--user-messages` chain-anchors window; `lint:efficiency-ledger` + `lint:instructions` pass.
 - Do not activate while another product phase is Active (WIP=1).
 
 ---
