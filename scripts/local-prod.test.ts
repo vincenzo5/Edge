@@ -6,12 +6,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   HelpRequestedError,
+  isLaunchAgentLoaded,
   loadDeployInputSync,
   parseLocalProdArgs,
   readBuildId,
   readRuntimeMeta,
   readWorktreeFacts,
   readWorktreeRevision,
+  rotateLogIfNeeded,
+  runLogsCommand,
   runPreflightCheck,
   runSetupCommand,
   runStartCommand,
@@ -127,6 +130,7 @@ function baseOptions(overrides: Partial<LocalProdOptions> = {}): LocalProdOption
     productionEnvPath: input.productionEnvPath,
     revision: null,
     skipInfra: true,
+    tailLines: 200,
     ...overrides,
   };
 }
@@ -141,18 +145,25 @@ function mockDeps(partial: Partial<LocalProdDeps> = {}): LocalProdDeps {
     writeFileSync: (path, data) => {
       files.set(String(path), String(data));
     },
+    appendFileSync: (path, data) => {
+      files.set(String(path), (files.get(String(path)) ?? "") + String(data));
+    },
     mkdirSync: (path) => {
       dirs.add(String(path));
     },
     unlinkSync: (path) => {
       files.delete(String(path));
     },
+    statSync: vi.fn(() => ({ size: 0 })),
+    renameSync: vi.fn(),
     probeReadyz: vi.fn(async () => ({ ok: true, reasons: [] })),
     spawnProcess: vi.fn(() => ({ pid: 4242, unref: () => undefined })),
     killProcess: vi.fn(() => true),
     processAlive: vi.fn(() => false),
     listenPidsOnPort: vi.fn(() => []),
     fetchImpl: fetch,
+    uid: 501,
+    sleep: vi.fn(async () => {}),
     ...partial,
   };
 }
@@ -266,11 +277,26 @@ describe("runStartCommand", () => {
             host: "127.0.0.1",
             port: 3000,
             logPath: "/tmp/log",
+            supervisor: "manual",
           });
         }
         return "";
       },
       processAlive: (pid) => pid === 111,
+    });
+    const code = await runStartCommand(options, deps);
+    expect(code).toBe(1);
+  });
+
+  it("refuses when launchd owns production", async () => {
+    const options = baseOptions({ command: "start" });
+    const deps = mockDeps({
+      existsSync: (path) => String(path).endsWith("BUILD_ID") || String(path).includes(".env"),
+      readFileSync: (path) => (String(path).endsWith("BUILD_ID") ? "build-1" : ""),
+      execFile: vi.fn((file, args) => {
+        if (file === "launchctl" && args[0] === "print") return "state = running";
+        return "";
+      }),
     });
     const code = await runStartCommand(options, deps);
     expect(code).toBe(1);
@@ -281,6 +307,46 @@ describe("runStopCommand", () => {
   it("noops when no managed process exists", async () => {
     const code = await runStopCommand(baseOptions({ command: "stop" }), mockDeps());
     expect(code).toBe(0);
+  });
+});
+
+describe("runLogsCommand", () => {
+  it("prints empty when no logs exist", () => {
+    const options = baseOptions({ command: "logs" });
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+    try {
+      runLogsCommand(options, mockDeps());
+    } finally {
+      console.log = originalLog;
+    }
+    expect(logs).toContain("production.logs=empty");
+  });
+});
+
+describe("rotateLogIfNeeded", () => {
+  it("rotates when file exceeds max bytes", () => {
+    const logPath = "/tmp/local-prod.log";
+    const deps = mockDeps({
+      existsSync: (path) => String(path) === logPath,
+      statSync: vi.fn(() => ({ size: 11 * 1024 * 1024 })),
+    });
+    rotateLogIfNeeded(logPath, deps);
+    expect(deps.renameSync).toHaveBeenCalledWith(logPath, `${logPath}.1`);
+  });
+});
+
+describe("isLaunchAgentLoaded", () => {
+  it("returns false when launchctl print fails", () => {
+    const deps = mockDeps({
+      execFile: vi.fn(() => {
+        throw new Error("not loaded");
+      }),
+    });
+    expect(isLaunchAgentLoaded(deps)).toBe(false);
   });
 });
 

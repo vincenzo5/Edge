@@ -174,7 +174,16 @@ target for existing workflows; the production profile must explicitly set
 values, and `npm run local:deploy:preflight` before production build/start work.
 
 Phase 2 adds a manual production runtime wrapper (`scripts/local-prod.mts`,
-`scripts/local-prod.sh`) with `npm run local:prod:{setup,preflight,migrate,build,start,stop,status}`.
+`scripts/local-prod.sh`) with `npm run local:prod:{setup,preflight,migrate,build,start,stop,status,logs}`.
+Phase 3 adds a user-scoped macOS LaunchAgent (`com.edge.local-prod`) via
+`scripts/local-prod-service.mts` and `npm run local:prod:service:{install,uninstall,start,stop,restart,status,logs}`.
+The launchd job runs `scripts/local-prod-service.sh run`, which delegates to the
+foreground `local-prod service-run` supervisor (infra wait → preflight → migrate →
+`next start`). Manual `local:prod:start` refuses when launchd is loaded; service
+stop uses `launchctl bootout`. Managed metadata lives under gitignored
+`.edge/local-prod/` (`local-prod.meta.json` includes `supervisor=manual|launchd`;
+blocked config states go to `service-blocked.json`; app logs rotate at 10MB with
+one retained `.1` file; launchd stdout/stderr also land under `.edge/local-prod/`).
 Production runs from a sibling detached Git worktree with its own
 `.env.production.local`, `node_modules`, and `.next`. Managed process metadata
 lives under gitignored `.edge/local-prod/` in the development checkout; stop only

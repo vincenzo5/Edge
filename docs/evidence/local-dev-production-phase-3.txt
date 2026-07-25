@@ -1,0 +1,78 @@
+# Local development and production — Phase 3 evidence
+# Date: 2026-07-25
+
+## Scope
+Managed production lifecycle via user LaunchAgent: foreground service-run supervisor,
+install/start/stop/restart/status/logs/uninstall commands, launchd/manual conflict
+guards, bounded logs, and blocked-state visibility. Deploy/rollback remains Phase 4.
+
+## Delivered
+- scripts/local-prod.mts — service-run, logs, supervisor field, log rotation, launchd guards
+- scripts/local-prod-service.mts — LaunchAgent render/install/lifecycle CLI
+- scripts/local-prod-service.sh, scripts/install-local-prod-service.sh — thin launchers
+- scripts/local-prod-service.test.ts — plist/redaction/install/log tests
+- ops/launchd/com.edge.local-prod.plist.template — secret-free LaunchAgent template
+- package.json — local:prod:logs + local:prod:service:* commands
+- src/lib/observability/ARCHITECTURE.md — Phase 3 operator contract
+
+## Architecture review
+Self-review Passed — user LaunchAgent only; secrets stay in .env.production.local;
+manual start refuses when launchd loaded; service-run fails visibly on missing build/infra;
+no deploy/rollback in this phase.
+
+## Focused
+npm test -- --run scripts/local-prod.test.ts scripts/local-prod-service.test.ts scripts/load-deploy-env.test.ts scripts/validate-local-deploy.test.ts
+Test Files  4 passed (4)
+Tests  61 passed (61)
+
+## Startup
+npm run check:startup
+Instruction architecture validation passed.
+Test Files  1 passed (1)
+Tests  2 passed (2)
+
+## Preflight
+npm run local:prod:preflight
+Local deployment preflight passed: profiles=2 issues=0
+
+## Service install / lifecycle
+npm run local:prod:service:install
+local-prod.service=installed label=com.edge.local-prod plist=/Users/vincentn/Library/LaunchAgents/com.edge.local-prod.plist
+
+launchctl print gui/501/com.edge.local-prod
+state = running
+
+npm run local:prod:service:status
+launchd: label=com.edge.local-prod installed=yes loaded=yes state=running
+production: buildId=missing managed=stopped launchd=loaded
+production.blocked=missing_build at=2026-07-25T23:13:39.326Z detail=none
+
+npm run local:prod:service:logs -- --lines 20
+production.service-run=blocked reason=missing_build
+
+## Manual vs launchd conflict
+npm run local:prod:start (while launchd loaded)
+LaunchAgent owns production lifecycle. Use: npm run local:prod:service:start (or stop the service first).
+exit=1
+
+## Stop / uninstall idempotency
+npm run local:prod:service:stop → local-prod.service=stop label=com.edge.local-prod
+npm run local:prod:service:uninstall → local-prod.service=uninstalled label=com.edge.local-prod
+second uninstall → exit=0 (idempotent)
+
+## Port probes (install window)
+curl -sf http://127.0.0.1:3000/healthz → unavailable (expected: missing BUILD_ID)
+curl -sf http://127.0.0.1:3003/healthz → {"ok":true} (dev server already running; not started by launchd)
+
+## Build (deferred blocker — pre-existing, not introduced by Phase 3)
+npm run local:prod:build
+packages/chart-react useCanvasGestures.ts TS2554 — same failure in dev checkout build:packages
+
+## App-level deferred (until production BUILD_ID exists)
+- Terminal-close :3000 readyz pass
+- kill -9 recovery within ThrottleInterval
+- Host reboot/login recovery proof
+- Concurrent dev+prod revision proof on :3000/:3003
+
+## Next
+Phase 4 — promotion and rollback (deploy-local-prod)

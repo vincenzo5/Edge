@@ -1,10 +1,12 @@
 #!/usr/bin/env npx tsx
 
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   statSync,
   unlinkSync,
   writeFileSync,
@@ -32,6 +34,12 @@ export const LOCAL_PROD_RUNTIME_DIR = ".edge/local-prod";
 export const LOCAL_PROD_PID_FILE = "local-prod.pid";
 export const LOCAL_PROD_META_FILE = "local-prod.meta.json";
 export const LOCAL_PROD_LOG_FILE = "local-prod.log";
+export const LOCAL_PROD_BLOCKED_FILE = "service-blocked.json";
+export const LOCAL_PROD_SERVICE_LABEL = "com.edge.local-prod";
+export const LOCAL_PROD_LOG_MAX_BYTES = 10 * 1024 * 1024;
+export const LOCAL_PROD_BLOCKED_SLEEP_MS = 300_000;
+
+export type LocalProdSupervisor = "manual" | "launchd";
 
 export type LocalProdCommand =
   | "setup"
@@ -40,7 +48,9 @@ export type LocalProdCommand =
   | "build"
   | "start"
   | "stop"
-  | "status";
+  | "status"
+  | "service-run"
+  | "logs";
 
 export type LocalProdRuntimeMeta = {
   pid: number;
@@ -50,6 +60,13 @@ export type LocalProdRuntimeMeta = {
   host: string;
   port: number;
   logPath: string;
+  supervisor: LocalProdSupervisor;
+};
+
+export type LocalProdBlockedState = {
+  at: string;
+  reason: string;
+  detail?: string;
 };
 
 export type LocalProdOptions = {
@@ -60,6 +77,7 @@ export type LocalProdOptions = {
   productionEnvPath: string;
   revision: string | null;
   skipInfra: boolean;
+  tailLines: number;
 };
 
 export type LocalProdExec = (
@@ -73,14 +91,19 @@ export type LocalProdDeps = {
   existsSync: typeof existsSync;
   readFileSync: typeof readFileSync;
   writeFileSync: typeof writeFileSync;
+  appendFileSync: typeof appendFileSync;
   mkdirSync: typeof mkdirSync;
   unlinkSync: typeof unlinkSync;
+  statSync: typeof statSync;
+  renameSync: typeof renameSync;
   probeReadyz: typeof probeReadyz;
   spawnProcess: typeof spawn;
   killProcess: (pid: number, signal?: NodeJS.Signals) => boolean;
   processAlive: (pid: number) => boolean;
   listenPidsOnPort: (port: number) => number[];
   fetchImpl: typeof fetch;
+  uid: number;
+  sleep: (ms: number) => Promise<void>;
 };
 
 const HELP_TEXT = `Local production runtime wrapper.
@@ -90,9 +113,11 @@ Commands:
   preflight  Validate paired dev/prod profiles
   migrate    Apply migrations to edge_prod
   build      Install deps and next build in production worktree
-  start      Start next start on 127.0.0.1:3000 (background)
-  stop       Stop the managed production process
-  status     Print runtime identity and readiness
+  start        Start next start on 127.0.0.1:3000 (background, manual supervisor)
+  stop         Stop the managed production process
+  status       Print runtime identity and readiness
+  service-run  Foreground supervisor entrypoint for launchd
+  logs         Tail managed production logs (redacted)
 
 Options:
   --dev-root <path>     Development checkout (default: cwd)
@@ -101,6 +126,7 @@ Options:
   --prod-env <path>     Production env file override
   --revision <sha>      Git commit/tag for setup (required for setup)
   --skip-infra          Skip docker compose up before migrate/start
+  --lines <n>           Log tail line count for logs (default: 200)
 
 Examples:
   npm run local:prod:setup -- --revision HEAD
@@ -147,8 +173,11 @@ export function defaultLocalProdDeps(): LocalProdDeps {
     existsSync,
     readFileSync,
     writeFileSync,
+    appendFileSync,
     mkdirSync,
     unlinkSync,
+    statSync,
+    renameSync,
     probeReadyz,
     spawnProcess: spawn,
     killProcess: (pid, signal = "TERM") => {
@@ -169,6 +198,8 @@ export function defaultLocalProdDeps(): LocalProdDeps {
     },
     listenPidsOnPort: defaultListenPidsOnPort,
     fetchImpl: fetch,
+    uid: process.getuid?.() ?? 501,
+    sleep: (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms)),
   };
 }
 
@@ -187,6 +218,8 @@ export function parseLocalProdArgs(argv: string[], cwd = process.cwd()): LocalPr
     "start",
     "stop",
     "status",
+    "service-run",
+    "logs",
   ];
   if (args[0] && knownCommands.includes(args[0] as LocalProdCommand)) {
     command = args.shift() as LocalProdCommand;
@@ -195,7 +228,9 @@ export function parseLocalProdArgs(argv: string[], cwd = process.cwd()): LocalPr
     if (args.includes("--help") || args.includes("-h") || args.length === 0) {
       throw new HelpRequestedError();
     }
-    throw new Error("Missing command. Use: setup | preflight | migrate | build | start | stop | status");
+    throw new Error(
+      "Missing command. Use: setup | preflight | migrate | build | start | stop | status | service-run | logs",
+    );
   }
 
   let developmentRoot = resolve(cwd);
@@ -204,6 +239,7 @@ export function parseLocalProdArgs(argv: string[], cwd = process.cwd()): LocalPr
   let productionEnvPath: string | null = null;
   let revision: string | null = null;
   let skipInfra = false;
+  let tailLines = 200;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -212,6 +248,18 @@ export function parseLocalProdArgs(argv: string[], cwd = process.cwd()): LocalPr
     }
     if (flag === "--skip-infra") {
       skipInfra = true;
+      continue;
+    }
+    if (flag === "--lines") {
+      const value = args[index + 1];
+      if (!value || value.startsWith("--")) {
+        throw new Error("--lines requires a value");
+      }
+      tailLines = Number.parseInt(value, 10);
+      if (!Number.isFinite(tailLines) || tailLines < 1) {
+        throw new Error("--lines must be a positive integer");
+      }
+      index += 1;
       continue;
     }
     const value = args[index + 1];
@@ -249,6 +297,7 @@ export function parseLocalProdArgs(argv: string[], cwd = process.cwd()): LocalPr
     productionEnvPath,
     revision,
     skipInfra,
+    tailLines,
   };
 }
 
@@ -321,7 +370,72 @@ function runtimePaths(developmentRoot: string) {
     pidPath: join(dir, LOCAL_PROD_PID_FILE),
     metaPath: join(dir, LOCAL_PROD_META_FILE),
     logPath: join(dir, LOCAL_PROD_LOG_FILE),
+    blockedPath: join(dir, LOCAL_PROD_BLOCKED_FILE),
   };
+}
+
+export function launchAgentTarget(uid: number): string {
+  return `gui/${uid}/${LOCAL_PROD_SERVICE_LABEL}`;
+}
+
+export function isLaunchAgentLoaded(deps: Pick<LocalProdDeps, "execFile" | "uid">): boolean {
+  try {
+    deps.execFile("launchctl", ["print", launchAgentTarget(deps.uid)]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function rotateLogIfNeeded(
+  logPath: string,
+  deps: Pick<LocalProdDeps, "existsSync" | "statSync" | "renameSync">,
+  maxBytes = LOCAL_PROD_LOG_MAX_BYTES,
+): void {
+  if (!deps.existsSync(logPath)) return;
+  try {
+    const size = deps.statSync(logPath).size;
+    if (size <= maxBytes) return;
+    const rotated = `${logPath}.1`;
+    if (deps.existsSync(rotated)) {
+      // keep one retained rotation
+      return;
+    }
+    deps.renameSync(logPath, rotated);
+  } catch {
+    // best effort
+  }
+}
+
+export function readBlockedState(
+  developmentRoot: string,
+  deps: Pick<LocalProdDeps, "existsSync" | "readFileSync">,
+): LocalProdBlockedState | null {
+  const { blockedPath } = runtimePaths(developmentRoot);
+  if (!deps.existsSync(blockedPath)) return null;
+  try {
+    return JSON.parse(deps.readFileSync(blockedPath, "utf8")) as LocalProdBlockedState;
+  } catch {
+    return null;
+  }
+}
+
+function writeBlockedState(
+  developmentRoot: string,
+  state: LocalProdBlockedState,
+  deps: Pick<LocalProdDeps, "mkdirSync" | "writeFileSync">,
+): void {
+  const { dir, blockedPath } = runtimePaths(developmentRoot);
+  deps.mkdirSync(dir, { recursive: true });
+  deps.writeFileSync(blockedPath, JSON.stringify(state, null, 2) + "\n", "utf8");
+}
+
+function clearBlockedState(
+  developmentRoot: string,
+  deps: Pick<LocalProdDeps, "existsSync" | "unlinkSync">,
+): void {
+  const { blockedPath } = runtimePaths(developmentRoot);
+  if (deps.existsSync(blockedPath)) deps.unlinkSync(blockedPath);
 }
 
 export function readRuntimeMeta(
@@ -333,7 +447,10 @@ export function readRuntimeMeta(
   try {
     const parsed = JSON.parse(deps.readFileSync(metaPath, "utf8")) as LocalProdRuntimeMeta;
     if (typeof parsed.pid !== "number") return null;
-    return parsed;
+    return {
+      ...parsed,
+      supervisor: parsed.supervisor ?? "manual",
+    };
   } catch {
     return null;
   }
@@ -353,9 +470,99 @@ function clearRuntimeState(
   developmentRoot: string,
   deps: Pick<LocalProdDeps, "existsSync" | "unlinkSync">,
 ): void {
-  const { pidPath, metaPath } = runtimePaths(developmentRoot);
+  const { pidPath, metaPath, blockedPath } = runtimePaths(developmentRoot);
   if (deps.existsSync(pidPath)) deps.unlinkSync(pidPath);
   if (deps.existsSync(metaPath)) deps.unlinkSync(metaPath);
+  if (deps.existsSync(blockedPath)) deps.unlinkSync(blockedPath);
+}
+
+async function spawnProductionProcess(
+  options: LocalProdOptions,
+  deps: LocalProdDeps,
+  supervisor: LocalProdSupervisor,
+  foreground: boolean,
+): Promise<{ code: number; child: ChildProcess | null }> {
+  const port = LOCAL_DEPLOY_CONTRACT.production.port;
+  const host = LOCAL_DEPLOY_CONTRACT.production.host;
+  const { dir, pidPath, logPath } = runtimePaths(options.developmentRoot);
+  deps.mkdirSync(dir, { recursive: true });
+  rotateLogIfNeeded(logPath, deps);
+
+  loadProfileEnvIntoProcess(options.productionRoot, "production");
+  const revision = readWorktreeRevision(options.productionRoot, deps.execFile);
+  const buildId = readBuildId(options.productionRoot, deps);
+
+  const child = deps.spawnProcess(
+    "npm",
+    ["run", "start", "--", "-H", host, "-p", String(port)],
+    {
+      cwd: options.productionRoot,
+      env: { ...process.env, NODE_ENV: "production" },
+      detached: !foreground,
+      stdio: foreground ? ["ignore", "pipe", "pipe"] : ["ignore", "open", logPath],
+    },
+  );
+
+  if (!child?.pid) {
+    console.error("Failed to start production process.");
+    return { code: 1, child: null };
+  }
+
+  if (foreground && child.stdout && child.stderr) {
+    child.stdout.on("data", (chunk: Buffer | string) => {
+      deps.appendFileSync(logPath, String(chunk));
+    });
+    child.stderr.on("data", (chunk: Buffer | string) => {
+      deps.appendFileSync(logPath, String(chunk));
+    });
+  }
+
+  const meta: LocalProdRuntimeMeta = {
+    pid: child.pid,
+    startedAt: new Date().toISOString(),
+    revision: revision ?? "unknown",
+    buildId,
+    host,
+    port,
+    logPath,
+    supervisor,
+  };
+  writeRuntimeMeta(options.developmentRoot, meta, deps);
+  deps.writeFileSync(pidPath, String(child.pid) + "\n", "utf8");
+
+  if (!foreground) {
+    child.unref();
+    await deps.sleep(1500);
+    const readyzUrl = process.env.EDGE_READYZ_URL?.trim() || `http://${host}:${port}/readyz`;
+    const ready = await deps.probeReadyz(readyzUrl, deps.fetchImpl);
+    console.log(
+      `production.start=pass pid=${child.pid} revision=${meta.revision} buildId=${buildId ?? "missing"} supervisor=${supervisor} readyz=${ready.ok ? "pass" : "pending"}`,
+    );
+    if (!ready.ok) {
+      console.error(`Readiness pending: ${ready.reasons.join(", ") || "unknown"}`);
+    }
+    return { code: 0, child };
+  }
+
+  return new Promise((resolvePromise) => {
+    let shuttingDown = false;
+    const shutdown = (signal: NodeJS.Signals) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      deps.killProcess(child.pid!, signal);
+    };
+    process.once("SIGTERM", () => shutdown("TERM"));
+    process.once("SIGINT", () => shutdown("TERM"));
+
+    child.on("exit", (exitCode, exitSignal) => {
+      clearRuntimeState(options.developmentRoot, deps);
+      const code = exitCode ?? (exitSignal ? 1 : 0);
+      console.error(
+        `production.service-run=exit code=${code} signal=${exitSignal ?? "none"} revision=${meta.revision}`,
+      );
+      resolvePromise({ code, child });
+    });
+  });
 }
 
 export function loadDeployInputSync(options: LocalProdOptions, deps: LocalProdDeps): LocalDeployInput {
@@ -523,6 +730,13 @@ export async function runStartCommand(
   const preflight = runPreflightCheck(input);
   if (preflight !== 0) return preflight;
 
+  if (isLaunchAgentLoaded(deps)) {
+    console.error(
+      "LaunchAgent owns production lifecycle. Use: npm run local:prod:service:start (or stop the service first).",
+    );
+    return 1;
+  }
+
   const buildIdPath = join(options.productionRoot, ".next", "BUILD_ID");
   if (!deps.existsSync(buildIdPath)) {
     console.error("Production build is missing. Run: npm run local:prod:build");
@@ -530,7 +744,6 @@ export async function runStartCommand(
   }
 
   const port = LOCAL_DEPLOY_CONTRACT.production.port;
-  const host = LOCAL_DEPLOY_CONTRACT.production.host;
   const existingMeta = readRuntimeMeta(options.developmentRoot, deps);
   if (existingMeta && deps.processAlive(existingMeta.pid)) {
     console.error(`Managed production process already running (pid=${existingMeta.pid}).`);
@@ -548,52 +761,8 @@ export async function runStartCommand(
   const infra = ensureSharedInfra(options.skipInfra);
   if (infra !== 0) return infra;
 
-  loadProfileEnvIntoProcess(options.productionRoot, "production");
-  const { dir, pidPath, logPath } = runtimePaths(options.developmentRoot);
-  deps.mkdirSync(dir, { recursive: true });
-
-  const revision = readWorktreeRevision(options.productionRoot, deps.execFile);
-  const buildId = readBuildId(options.productionRoot, deps);
-  const child = deps.spawnProcess(
-    "npm",
-    ["run", "start", "--", "-H", host, "-p", String(port)],
-    {
-      cwd: options.productionRoot,
-      env: { ...process.env, NODE_ENV: "production" },
-      detached: true,
-      stdio: ["ignore", "open", logPath],
-    },
-  );
-
-  if (!child.pid) {
-    console.error("Failed to start production process.");
-    return 1;
-  }
-
-  child.unref();
-  const meta: LocalProdRuntimeMeta = {
-    pid: child.pid,
-    startedAt: new Date().toISOString(),
-    revision: revision ?? "unknown",
-    buildId,
-    host,
-    port,
-    logPath,
-  };
-  writeRuntimeMeta(options.developmentRoot, meta, deps);
-  deps.writeFileSync(pidPath, String(child.pid) + "\n", "utf8");
-
-  await new Promise((resolveSleep) => setTimeout(resolveSleep, 1500));
-
-  const readyzUrl = process.env.EDGE_READYZ_URL?.trim() || `http://${host}:${port}/readyz`;
-  const ready = await deps.probeReadyz(readyzUrl, deps.fetchImpl);
-  console.log(
-    `production.start=pass pid=${child.pid} revision=${meta.revision} buildId=${buildId ?? "missing"} readyz=${ready.ok ? "pass" : "pending"}`,
-  );
-  if (!ready.ok) {
-    console.error(`Readiness pending: ${ready.reasons.join(", ") || "unknown"}`);
-  }
-  return 0;
+  const result = await spawnProductionProcess(options, deps, "manual", false);
+  return result.code;
 }
 
 export async function runStopCommand(
@@ -601,6 +770,13 @@ export async function runStopCommand(
   deps: LocalProdDeps,
 ): Promise<number> {
   const meta = readRuntimeMeta(options.developmentRoot, deps);
+  if (meta?.supervisor === "launchd" && isLaunchAgentLoaded(deps)) {
+    console.error(
+      "Production is launchd-managed. Use: npm run local:prod:service:stop",
+    );
+    return 1;
+  }
+
   if (!meta) {
     console.log("production.stop=noop reason=no-managed-process");
     return 0;
@@ -613,13 +789,124 @@ export async function runStopCommand(
   }
 
   deps.killProcess(meta.pid, "TERM");
-  await new Promise((resolveSleep) => setTimeout(resolveSleep, 1000));
+  await deps.sleep(1000);
   if (deps.processAlive(meta.pid)) {
     deps.killProcess(meta.pid, "KILL");
   }
 
   clearRuntimeState(options.developmentRoot, deps);
   console.log(`production.stop=pass pid=${meta.pid}`);
+  return 0;
+}
+
+export async function runServiceRunCommand(
+  options: LocalProdOptions,
+  deps: LocalProdDeps,
+): Promise<number> {
+  while (true) {
+    clearBlockedState(options.developmentRoot, deps);
+
+    const input = loadDeployInputSync(options, deps);
+    const preflight = runPreflightCheck(input);
+    if (preflight !== 0) {
+      writeBlockedState(
+        options.developmentRoot,
+        { at: new Date().toISOString(), reason: "preflight_failed" },
+        deps,
+      );
+      console.error("production.service-run=blocked reason=preflight_failed");
+      await deps.sleep(LOCAL_PROD_BLOCKED_SLEEP_MS);
+      continue;
+    }
+
+    const buildIdPath = join(options.productionRoot, ".next", "BUILD_ID");
+    if (!deps.existsSync(buildIdPath)) {
+      writeBlockedState(
+        options.developmentRoot,
+        { at: new Date().toISOString(), reason: "missing_build" },
+        deps,
+      );
+      console.error("production.service-run=blocked reason=missing_build");
+      await deps.sleep(LOCAL_PROD_BLOCKED_SLEEP_MS);
+      continue;
+    }
+
+    const port = LOCAL_DEPLOY_CONTRACT.production.port;
+    const listeners = deps.listenPidsOnPort(port).filter((pid) => {
+      const meta = readRuntimeMeta(options.developmentRoot, deps);
+      return !meta || pid !== meta.pid;
+    });
+    if (listeners.length > 0) {
+      writeBlockedState(
+        options.developmentRoot,
+        {
+          at: new Date().toISOString(),
+          reason: "port_collision",
+          detail: listeners.join(","),
+        },
+        deps,
+      );
+      console.error(`production.service-run=blocked reason=port_collision pids=${listeners.join(",")}`);
+      await deps.sleep(LOCAL_PROD_BLOCKED_SLEEP_MS);
+      continue;
+    }
+
+    const infra = ensureSharedInfra(options.skipInfra);
+    if (infra !== 0) {
+      console.error("production.service-run=retry reason=infra_unavailable");
+      await deps.sleep(30_000);
+      continue;
+    }
+
+    const migrateCode = await runMigrateCommand({ ...options, skipInfra: true }, deps);
+    if (migrateCode !== 0) {
+      writeBlockedState(
+        options.developmentRoot,
+        { at: new Date().toISOString(), reason: "migrate_failed" },
+        deps,
+      );
+      console.error("production.service-run=blocked reason=migrate_failed");
+      await deps.sleep(LOCAL_PROD_BLOCKED_SLEEP_MS);
+      continue;
+    }
+
+    const result = await spawnProductionProcess(options, deps, "launchd", true);
+    if (result.code !== 0) {
+      await deps.sleep(30_000);
+      continue;
+    }
+  }
+}
+
+export function runLogsCommand(
+  options: LocalProdOptions,
+  deps: LocalProdDeps,
+): number {
+  const runtimeDir = join(options.developmentRoot, LOCAL_PROD_RUNTIME_DIR);
+  const candidates = [
+    join(runtimeDir, LOCAL_PROD_LOG_FILE),
+    join(runtimeDir, "launchd-stdout.log"),
+    join(runtimeDir, "launchd-stderr.log"),
+  ];
+  let printed = false;
+  for (const logPath of candidates) {
+    if (!deps.existsSync(logPath)) continue;
+    const content = deps.readFileSync(logPath, "utf8");
+    const lines = content.split("\n").filter((line) => line.length > 0);
+    const tail = lines.slice(-options.tailLines);
+    console.log(`--- ${logPath} (last ${tail.length} lines) ---`);
+    for (const line of tail) {
+      if (/EDGE_API_KEY|EDGE_AUTH_SECRET|postgres:\/\/[^@]+@/i.test(line)) {
+        console.log("[redacted line omitted]");
+        continue;
+      }
+      console.log(line);
+    }
+    printed = true;
+  }
+  if (!printed) {
+    console.log("production.logs=empty");
+  }
   return 0;
 }
 
@@ -639,14 +926,19 @@ export async function runStatusCommand(
   const meta = readRuntimeMeta(options.developmentRoot, deps);
   const port = LOCAL_DEPLOY_CONTRACT.production.port;
   const listeners = deps.listenPidsOnPort(port);
+  const launchdLoaded = isLaunchAgentLoaded(deps);
+  const blocked = readBlockedState(options.developmentRoot, deps);
 
   let managed = "stopped";
   let pid: number | null = null;
+  let supervisor: LocalProdSupervisor | "none" = "none";
   if (meta && deps.processAlive(meta.pid)) {
     managed = "running";
     pid = meta.pid;
+    supervisor = meta.supervisor;
   } else if (meta) {
     managed = "stale";
+    supervisor = meta.supervisor;
   }
 
   const host = LOCAL_DEPLOY_CONTRACT.production.host;
@@ -658,8 +950,13 @@ export async function runStatusCommand(
     `development: revision=${devRevision ?? "unknown"} mode=dev port=${LOCAL_DEPLOY_CONTRACT.development.port}`,
   );
   console.log(
-    `production: revision=${prodRevision ?? "unknown"} buildId=${prodBuildId ?? "missing"} mode=start port=${port} managed=${managed} pid=${pid ?? "none"} listeners=${listeners.join(",") || "none"}`,
+    `production: revision=${prodRevision ?? "unknown"} buildId=${prodBuildId ?? "missing"} mode=start port=${port} managed=${managed} supervisor=${supervisor} launchd=${launchdLoaded ? "loaded" : "none"} pid=${pid ?? "none"} listeners=${listeners.join(",") || "none"}`,
   );
+  if (blocked) {
+    console.log(
+      `production.blocked=${blocked.reason} at=${blocked.at} detail=${blocked.detail ?? "none"}`,
+    );
+  }
   if (ready) {
     console.log(
       `production.readyz=${ready.ok ? "pass" : "fail"} reasons=${ready.reasons.join(",") || "none"}`,
@@ -696,6 +993,10 @@ export async function runLocalProdCommand(
       return runStopCommand(options, deps);
     case "status":
       return runStatusCommand(options, deps);
+    case "service-run":
+      return runServiceRunCommand(options, deps);
+    case "logs":
+      return runLogsCommand(options, deps);
     default:
       return 2;
   }

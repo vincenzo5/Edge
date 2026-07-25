@@ -284,9 +284,9 @@ Living feature tracks (phase detail in each file):
 - [Comprehensive memory metrics](./roadmaps/memory-metrics-roadmap.md) — Phase 0–6 **Passing** (2026-07-25); track complete (soak dual-delta gate; measurement only)
 - [Runtime interaction performance](./roadmaps/runtime-performance-roadmap.md) — Phase 0–8 **Passing** (2026-07-25); track complete
 - [Shared cache topology](./roadmaps/shared-cache-topology-roadmap.md) — Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance coordination)
-- [Local development and production](./roadmaps/local-dev-production-roadmap.md) — Phase 0 **Passing**; Phase 1 next (shared Docker Redis/Postgres with isolated durable data)
+- [Local development and production](./roadmaps/local-dev-production-roadmap.md) — Phase 0–3 **Passing** (2026-07-25); Phase 4 next (promotion and rollback)
 - ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete
-- [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (free alerts; no paid SaaS)
+- [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0–5 **Passing** (2026-07-25); track complete
 - [Plan → execute token efficiency](./roadmaps/plan-execute-token-efficiency-roadmap.md) — Phase 0–7 **Passing** (track complete)
 
 Broader product backlog (not feature-track owned):
