@@ -25,8 +25,8 @@ Implementing an approved plan → [execute-from-plan-checklist.md](./execute-fro
 
 ## WIP=1 Discipline
 
-- [ ] At most one Active Work row will be **Active** during implementation
-- [ ] Plan states what happens to the current Active item (complete, block, pause, or replace)
+- [ ] Prefer one **Active** focus row; multi Active allowed when multitasking (efficiency registry tracks each task)
+- [ ] Plan states what happens to other Active items when multitasking (pause via `efficiency:pause` / `efficiency:switch`)
 - [ ] No adjacent refactors, polish, or follow-up features bundled while Active item lacks evidence
 
 ## Active Work Row (when starting tracked work)

@@ -4,7 +4,7 @@ Cut agent token cost for plan and implement work **without** weakening DoD, WIP=
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (compact plan template, 2026-07-24). Phase 1 **Passing** (execute-from-plan protocol, 2026-07-24). Phase 2 **Passing** (explore opt-in, 2026-07-24). Phase 3 **Passing** (hot harness read windows, 2026-07-24). Phase 4 **Passing** (scope plan-rule injection, 2026-07-24). Phase 5 **Passing** (fresh-chat execute process, 2026-07-24). Phase 6 **Passing** (harness closeout helper, 2026-07-24). Phase 7 **Passing** (task efficiency ledger, 2026-07-25). Complements [AGENTS.md](../../AGENTS.md), [plan-execute-routing](../../.cursor/rules/plan-execute-routing.mdc), [plan-harness-awareness](../../.cursor/rules/plan-harness-awareness.mdc), [planning-router](../checklists/planning-router.md), and [harness-status-checklist](../checklists/harness-status-checklist.md).
+**Status:** Phase 0 **Passing** (compact plan template, 2026-07-24). Phase 1 **Passing** (execute-from-plan protocol, 2026-07-24). Phase 2 **Passing** (explore opt-in, 2026-07-24). Phase 3 **Passing** (hot harness read windows, 2026-07-24). Phase 4 **Passing** (scope plan-rule injection, 2026-07-24). Phase 5 **Passing** (fresh-chat execute process, 2026-07-24). Phase 6 **Passing** (harness closeout helper, 2026-07-24). Phase 7 **Passing** (task efficiency ledger, 2026-07-25). Phase 8 **Passing** (concurrent registry + deferred spend reconcile). Complements [AGENTS.md](../../AGENTS.md), [plan-execute-routing](../../.cursor/rules/plan-execute-routing.mdc), [plan-harness-awareness](../../.cursor/rules/plan-harness-awareness.mdc), [planning-router](../checklists/planning-router.md), and [harness-status-checklist](../checklists/harness-status-checklist.md).
 
 **Related:** [Project Status](../PROJECT-STATUS.md), `/handoff` Cursor skill (~800 tok fresh-chat briefs), existing evidence-gated docs automation (`npm run docs:auto-update` harness lane).
 
@@ -185,6 +185,22 @@ Fills Active Work → Passing + quoted evidence, Current Verified State, optiona
 
 ---
 
+### Phase 8 — Concurrent registry + deferred spend reconcile
+
+**Outcome:** Multiple concurrent task stamps; closeout auto-fills time window and effort fields; spend/tokens attributed later from imported Cursor usage by timestamp overlap.
+
+**Scope:**
+
+- Multi-task `.edge/efficiency-active.json` registry (start/pause/resume/switch/list/attach)
+- `npm run harness:activate` — harness-native stamp at task activate
+- `harness:closeout` auto-fill — `started_at`, handoffs, null spend; `--user-messages` only when no attached sessions
+- `docs/evidence/efficiency/usage.jsonl` + `efficiency:import-usage` + `efficiency:reconcile` (correction rows)
+- Checklist/rule updates; soften WIP=1 to prefer one focus Active
+
+**Exit evidence:** Focused tests pass (43+); closeout without `--spend-usd` succeeds with null spend; reconcile dry-run attributes fixture usage.
+
+---
+
 ## Verification Plan (per phase)
 
 | Tier | When |
@@ -198,9 +214,9 @@ Fills Active Work → Passing + quoted evidence, Current Verified State, optiona
 
 ## Harness Update
 
-- Track row: **Plan → execute token efficiency** — **Passing** (Phase 0–7 complete, 2026-07-25).
-- Phase 0–7 **Passing** via compact plan template + execute-from-plan + explore opt-in + hot harness read windows + plan-rule injection + fresh-chat execute + harness closeout helper + task efficiency ledger.
-- Phase 7 evidence: **Focused:** Test Files 2 passed (2), Tests 32 passed (32); closeout gate blocks without efficiency fields.
+- Track row: **Plan → execute token efficiency** — **Passing** (Phase 0–8 complete, 2026-07-25).
+- Phase 0–8 **Passing** via compact plan template + execute-from-plan + explore opt-in + hot harness read windows + plan-rule injection + fresh-chat execute + harness closeout helper + task efficiency ledger + concurrent registry + deferred spend reconcile.
+- Phase 8 evidence: **Focused:** Test Files 2 passed (2), Tests 43 passed (43); closeout without spend succeeds; reconcile attributes usage by timestamp.
 - Do not activate while another product phase is Active (WIP=1).
 
 ---

@@ -12,10 +12,10 @@ Follow [docs/checklists/execute-from-plan-checklist.md](../docs/checklists/execu
 ## Must do
 
 1. **Read the approved plan** — steps, concrete files, Verification Plan, Harness Update line.
-2. **Activate harness once** — set Active Work row **Active** (WIP=1); run `npm run efficiency:start -- --name "…"`; read Active Work row + open Task Contract only (**≤2** `PROJECT-STATUS` reads total: activate + closeout).
+2. **Activate harness once** — set Active Work row **Active**; run `npm run harness:activate -- --name "…"`; read Active Work row + open Task Contract only (**≤2** `PROJECT-STATUS` reads total: activate + closeout).
 3. **Implement plan steps only** — no adjacent refactors, polish, or follow-ups.
 4. **Run plan Verification** — quote **actual command output** (test counts, build exit, app-level numbers).
-5. **Closeout once** — prefer [Harness Steward](./harness-steward.mdc): `npm run harness:closeout -- --name "…" --evidence-file … [--user-messages N --handoffs N --rework-turns N --spend-usd X | --efficiency-file path]` then `npm run status:prune` + `lint:harness-retention` (scripts archive displaced Current; **0** Previous in hot file); else Active Work → **Passing** + Files; Current Verified State; Session Log if cross-session.
+5. **Closeout once** — prefer [Harness Steward](./harness-steward.mdc): `npm run harness:closeout -- --name "…" --evidence-file … [--user-messages N | --efficiency-file path]` then `npm run status:prune` + `lint:harness-retention` (scripts archive displaced Current; **0** Previous in hot file); else Active Work → **Passing** + Files; Current Verified State; Session Log if cross-session.
 6. **Commit once after Passing** — when verification evidence is quoted and Active Work is **Passing**, create one git commit for the task changes (follow the repo commit protocol: status/diff/log → stage relevant files → HEREDOC message). Skip when: no changes, plan says `Commit: skip`, or state is not Passing. Never commit secrets / `.env.local`. This step is the standing commit request for execute-from-plan (overrides “only commit when asked”).
 
 ## Must not
@@ -64,7 +64,7 @@ If the approved plan lacks any of:
 
 ## Do not drop
 
-- WIP=1 (one Active row)
+- WIP=1 (prefer one focus Active row; multi Active allowed when multitasking — use efficiency registry for attribution)
 - Focused verify + quoted evidence when code changes
 - App-level when UI+state, API+persist, or AI+app boundaries cross
 - Task Contract / Session Log when cross-session or cross-component

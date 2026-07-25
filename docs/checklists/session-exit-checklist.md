@@ -17,7 +17,7 @@ Walk this checklist as the **last step** before ending your turn when:
 - [ ] Task Contract created or updated for long-running or cross-component work
 - [ ] Session Log entry appended for today (`### YYYY-MM-DD — …`) when work ran this session
 - [ ] Current Verified State block updated (**Current task**, **State**, **Latest verification**, **Evidence**, **Current blocker**, **Next best step**, **Last updated**)
-- [ ] Efficiency ledger row recorded at closeout (required by `harness:closeout` gate)
+- [ ] Efficiency ledger row recorded at closeout (required by `harness:closeout` gate; spend filled later via `efficiency:reconcile`)
 - [ ] Closest architecture doc updated if contracts or structure changed
 
 ## Verification Evidence

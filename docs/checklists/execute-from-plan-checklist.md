@@ -47,7 +47,7 @@ If any missing → stop; tell user what's missing; do not discover or improvise.
 
 ## Execute Must
 
-- [ ] Activate harness once — Active Work **Active** (WIP=1); run `npm run efficiency:start -- --name "…"` to stamp task window
+- [ ] Activate harness once — Active Work **Active**; run `npm run harness:activate -- --name "…"` to stamp task window (multi-task registry; use `efficiency:switch` when changing focus)
 - [ ] Implement plan steps only — no bundled adjacent work
 - [ ] Run Verification Plan tiers; quote actual command output
 - [ ] Closeout once — see [session-exit-checklist.md](./session-exit-checklist.md)
@@ -81,7 +81,7 @@ Prefer a **new execute chat** when plan research exceeded ~15–20 tool calls (s
 Walk [session-exit-checklist.md](./session-exit-checklist.md). Prefer [Harness Steward](../../.cursor/rules/harness-steward.mdc) (exclusive harness mutator):
 
 ```bash
-npm run harness:closeout -- --name "…" --evidence-file path [--files …] [--roadmap …] [--session-log …] [--user-messages N --handoffs N --rework-turns N --spend-usd X | --efficiency-file path]
+npm run harness:closeout -- --name "…" --evidence-file path [--files …] [--roadmap …] [--session-log …] [--user-messages N] [--efficiency-file path]
 npm run status:prune
 npm run lint:harness-retention
 ```
@@ -89,7 +89,7 @@ npm run lint:harness-retention
 Closeout archives the displaced Current block to `docs/status-archive/` — **no** `## Previous Verified State` stacks in the hot file (Previous keep = **0**).
 
 - [ ] Active Work → **Passing** with quoted evidence + Files column (via helper or manual)
-- [ ] Efficiency ledger row appended via closeout gate (`--user-messages`, `--handoffs`, `--rework-turns`, `--spend-usd` or `--efficiency-file`)
+- [ ] Efficiency ledger row appended via closeout gate (time window + messages; spend null until `efficiency:reconcile`)
 - [ ] Current Verified State block updated
 - [ ] Session Log entry if work ran this session or cross-session
 - [ ] Roadmap phase status line if applicable

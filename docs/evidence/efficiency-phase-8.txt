@@ -1,0 +1,36 @@
+# Task efficiency ledger — Phase 8 evidence
+# Date: 2026-07-25
+
+## Scope
+Multi-task efficiency registry, harness-native activate, closeout auto-fill with deferred spend, usage import + timestamp reconcile.
+
+## Delivered
+- scripts/efficiency-ledger.mts — multi-task registry, pause/resume/switch/list/attach, import-usage, reconcile
+- scripts/harness-activate.mts — npm run harness:activate
+- scripts/harness-closeout.mts — auto-fill from registry, null spend allowed
+- scripts/efficiency-ledger.test.ts, scripts/harness-closeout.test.ts — extended Vitest
+- package.json — harness:activate, efficiency:pause/resume/switch/list/attach/import-usage/reconcile
+- docs/evidence/efficiency/README.md — concurrent model, usage schema, reconcile commands
+- docs/checklists/execute-from-plan-checklist.md, session-exit-checklist.md, harness-status-checklist.md
+- .cursor/rules/execute-from-plan.mdc — harness:activate, deferred spend
+- docs/roadmaps/plan-execute-token-efficiency-roadmap.md — Phase 8 section
+
+## Architecture review
+Self-review Passed — closeout gate unchanged for time-window row; spend null until reconcile correction rows; append-only ledger + usage stores.
+
+## Focused
+npm test -- --run scripts/efficiency-ledger.test.ts scripts/harness-closeout.test.ts
+Test Files  2 passed (2)
+Tests  43 passed (43)
+
+## Instructions
+npm run lint:instructions
+Instruction architecture validation passed.
+
+## Gate smoke
+closeout without registry stamp — auto-fill errors on started_at/user_messages
+closeout with stamp, no spend-usd — succeeds with spend_usd null in ledger row
+efficiency:reconcile dry-run — attributes fixture usage to task window via correction row
+
+## Next
+Run efficiency:import-usage after periodic Cursor usage extract; efficiency:reconcile to fill spend on closed tasks

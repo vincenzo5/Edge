@@ -112,6 +112,9 @@ export function resolveCloseoutEfficiencyInput(
       if (parsed.outcome && !fileInput.outcome) {
         fileInput.outcome = parsed.outcome;
       }
+      if (fileInput.spend_usd === undefined) {
+        fileInput.spend_usd = null;
+      }
       const validationErrors = validateEfficiencyInput(fileInput);
       if (validationErrors.length > 0) return { errors: validationErrors };
       return { input: fileInput, errors: [] };
@@ -124,7 +127,14 @@ export function resolveCloseoutEfficiencyInput(
     }
   }
 
-  return buildEfficiencyInputFromArgs(parsed);
+  if (!parsed.name) {
+    return { errors: ["task name required for efficiency auto-fill"] };
+  }
+
+  return buildEfficiencyInputFromArgs(parsed, {
+    taskName: parsed.name,
+    cwd,
+  });
 }
 
 export function readEvidenceFile(path: string, cwd = process.cwd()): string {
@@ -523,7 +533,7 @@ function main(): void {
 
   if (!parsed.name || !parsed.evidenceFile) {
     console.error(
-      "Usage: npm run harness:closeout -- --name \"Feature name\" --evidence-file path [--files ...] [--behavior ...] [--next ...] [--roadmap path] [--track-name ...] [--session-log ...] [--efficiency-file path | --user-messages N --handoffs N --rework-turns N --spend-usd X] [--dry-run]",
+      "Usage: npm run harness:closeout -- --name \"Feature name\" --evidence-file path [--files ...] [--behavior ...] [--next ...] [--roadmap path] [--track-name ...] [--session-log ...] [--user-messages N] [--handoffs N] [--rework-turns N] [--spend-usd X] [--efficiency-file path] [--dry-run]",
     );
     process.exit(1);
   }

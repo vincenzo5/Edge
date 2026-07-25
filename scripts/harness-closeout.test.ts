@@ -16,7 +16,7 @@ import {
   updateRoadmapPhaseStatus,
   validateEvidenceText,
 } from "./harness-closeout.mts";
-import { startTask } from "./efficiency-ledger.mts";
+import { startTask, attachSession } from "./efficiency-ledger.mts";
 import { validateProjectStatusContent } from "./validate-project-status.mts";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -71,7 +71,7 @@ const DEFAULT_EFFICIENCY = {
   user_messages: 5,
   handoffs: 0,
   rework_turns: 0,
-  spend_usd: 1.25,
+  spend_usd: null as number | null,
   started_at: "2026-07-24T10:00:00.000Z",
 };
 
@@ -100,17 +100,48 @@ describe("harness-closeout helpers", () => {
     });
   });
 
-  it("resolves efficiency input from CLI flags", () => {
-    const { input, errors } = resolveCloseoutEfficiencyInput({
-      userMessages: 3,
-      handoffs: 0,
-      reworkTurns: 0,
-      spendUsd: 1,
-      dryRun: false,
-      statusPath: "docs/PROJECT-STATUS.md",
-    });
+  it("resolves efficiency input from CLI flags with registry auto-fill", () => {
+    const dir = mkdtempSync(join(tmpdir(), "harness-closeout-eff-"));
+    startTask(
+      { name: "Example — Phase 1", startedAt: DEFAULT_EFFICIENCY.started_at },
+      { cwd: dir },
+    );
+
+    const { input, errors } = resolveCloseoutEfficiencyInput(
+      {
+        name: "Example — Phase 1",
+        userMessages: 3,
+        dryRun: false,
+        statusPath: "docs/PROJECT-STATUS.md",
+      },
+      dir,
+    );
     expect(errors).toEqual([]);
     expect(input?.user_messages).toBe(3);
+    expect(input?.spend_usd).toBeNull();
+    expect(input?.started_at).toBe(DEFAULT_EFFICIENCY.started_at);
+  });
+
+  it("auto-fills handoffs from registry sessions", () => {
+    const dir = mkdtempSync(join(tmpdir(), "harness-closeout-eff-"));
+    startTask(
+      { name: "Example — Phase 1", startedAt: DEFAULT_EFFICIENCY.started_at },
+      { cwd: dir },
+    );
+    attachSession("Example — Phase 1", "s1", { cwd: dir });
+    attachSession("Example — Phase 1", "s2", { cwd: dir });
+
+    const { input, errors } = resolveCloseoutEfficiencyInput(
+      {
+        name: "Example — Phase 1",
+        userMessages: 2,
+        dryRun: false,
+        statusPath: "docs/PROJECT-STATUS.md",
+      },
+      dir,
+    );
+    expect(errors).toEqual([]);
+    expect(input?.handoffs).toBe(1);
   });
 
   it("parses CLI args", () => {
@@ -360,5 +391,42 @@ describe("runCloseout dry-run", () => {
     const ledger = readEvidenceFile(ledgerPath, dir);
     expect(ledger).toContain('"task_name":"Example — Phase 1"');
     expect(ledger).toContain('"user_messages":5');
+    expect(ledger).toContain('"spend_usd":null');
+  });
+
+  it("closeout without spend succeeds when registry stamped", () => {
+    const dir = mkdtempSync(join(tmpdir(), "harness-closeout-"));
+    const statusPath = join(dir, "PROJECT-STATUS.md");
+    writeFileSync(statusPath, FIXTURE_STATUS, "utf8");
+
+    startTask(
+      { name: "Example — Phase 1", startedAt: DEFAULT_EFFICIENCY.started_at },
+      { cwd: dir },
+    );
+
+    const { input, errors } = resolveCloseoutEfficiencyInput(
+      {
+        name: "Example — Phase 1",
+        userMessages: 4,
+        dryRun: false,
+        statusPath: "docs/PROJECT-STATUS.md",
+      },
+      dir,
+    );
+    expect(errors).toEqual([]);
+    expect(input?.spend_usd).toBeNull();
+  });
+
+  it("closeout without registry stamp fails auto-fill", () => {
+    const dir = mkdtempSync(join(tmpdir(), "harness-closeout-"));
+    const { errors } = resolveCloseoutEfficiencyInput(
+      {
+        name: "Example — Phase 1",
+        dryRun: false,
+        statusPath: "docs/PROJECT-STATUS.md",
+      },
+      dir,
+    );
+    expect(errors.some((e) => e.includes("started_at") || e.includes("user_messages"))).toBe(true);
   });
 });
