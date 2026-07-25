@@ -57,6 +57,7 @@ import {
 } from "./memory-baseline-metrics.ts";
 import { sampleChromiumProcessRss, type ChromiumProcessRssSample } from "./memory-process-rss.ts";
 import { sampleRedisUsedMb, sampleSidecarRssMb } from "./memory-desk-sample.ts";
+import { formatMemoryScorecard } from "./memory-scorecard.ts";
 
 config({ path: ".env.local" });
 
@@ -1034,10 +1035,8 @@ async function main(): Promise<void> {
   writeFileSync(stampedPath, `${JSON.stringify(baseline, null, 2)}\n`);
 
   console.log(`Memory baseline written: ${latestPath}`);
-  console.log(
-    `Desk composite: totalKnownMb=${baseline.desk.totalKnownMb} skippedNoSidecar=${baseline.desk.skippedNoSidecar} skippedNoRedis=${baseline.desk.skippedNoRedis}`,
-  );
-  console.log(JSON.stringify({ desk: baseline.desk, scenarios: baseline.scenarios, phase14Walks: baseline.phase14Walks }, null, 2));
+  console.log("");
+  console.log(formatMemoryScorecard(baseline, { sourcePath: latestPath }));
 }
 
 main().catch((error) => {

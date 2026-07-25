@@ -38,6 +38,7 @@ Run focused tests for the area you changed, then `npm run check` when touching s
 npm test -- --run src/lib/chart/drawingStore.test.ts
 npm test -- --run src/lib/ai/registry.test.ts
 npm test -- --run src/app/components/chartContextMenu.test.ts
+npm run report:memory   # lab memory scorecard from memory-baseline-latest.json
 
 # Full readiness gate
 npm run check

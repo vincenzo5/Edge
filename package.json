@@ -57,6 +57,7 @@
     "perf:memory": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/run-memory-baseline.mts",
     "report:data-reliability": "npx tsx scripts/report-data-reliability.mts",
     "report:local-errors": "npx tsx scripts/report-local-errors.mts",
+    "report:memory": "npx tsx scripts/report-memory.mts",
     "report:trading-audit": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/report-trading-audit.mts",
     "report:production-errors": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/report-production-errors.mts",
     "watch:readyz": "npx tsx scripts/watch-readyz.mts",

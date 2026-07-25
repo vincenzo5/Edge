@@ -4,7 +4,7 @@ Give operators and agents a **layered, comparable snapshot** of Edge memory — 
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phase 3 **Passing** (2026-07-25). Phase 4 **Passing** (2026-07-25). Phases 5–6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
+**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phase 3 **Passing** (2026-07-25). Phase 4 **Passing** (2026-07-25). Phase 5 **Passing** (2026-07-25). Phase 6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
 
 **Related:** [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md), [memory-baseline-latest.json](../perf/memory-baseline-latest.json), [market-data-performance.md](../perf/market-data-performance.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -361,7 +361,7 @@ Automated L4 uses OS `ps` on the Playwright Chromium PID tree (`scripts/memory-p
 ### Phase 5 — Scorecard report and soft budgets
 
 **Band:** Pre-launch  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-25)
 
 **Outcome:** Humans get a 10-second read; CI can warn on regressions.
 
@@ -376,7 +376,30 @@ Automated L4 uses OS `ps` on the Playwright Chromium PID tree (`scripts/memory-p
 
 **Exit evidence:** Report command shows L1–L8 table; soft budget warnings demonstrated in evidence file.
 
-**Gate — Phase 5 Passing:** Scorecard reproducible from latest JSON; budgets documented.
+**Gate — Phase 5 Passing:** Scorecard reproducible from latest JSON; budgets documented. **Met.**
+
+#### Soft budget defaults (warn-only)
+
+| Env var | Default | Warn when |
+|---------|---------|-----------|
+| `MEMORY_BUDGET_HEAP_DELTA_MB` | 50 | B1 `heapDeltaMb` exceeds budget |
+| `MEMORY_BUDGET_PROCESS_RSS_MB` | 1200 | B1 `processRssAfterMb` exceeds budget |
+| `MEMORY_BUDGET_DESK_TOTAL_MB` | 2500 | `desk.totalKnownMb` exceeds budget |
+| (implicit) | — | `withinSoftMax` ∧ `withinDataCacheCap` ∧ `withinHotStoreCap` false → `soft-budget: caps` |
+
+Exit code stays **0** on soft budget warnings; missing layers skip that budget check.
+
+#### Phase 5 results (2026-07-25)
+
+- `scripts/memory-scorecard.ts` — L1–L8 table formatter + soft budget evaluation.
+- `scripts/report-memory.mts` — `npm run report:memory` (`--file` optional).
+- `scripts/run-memory-baseline.mts` — scorecard printed after JSON write.
+- `scripts/memory-scorecard.test.ts` — Vitest coverage (15 tests).
+- `package.json` — `report:memory` script.
+- `src/lib/observability/ARCHITECTURE.md` — lab scorecard Phase 5 note.
+- Evidence: [memory-metrics-phase-5.txt](../evidence/memory-metrics-phase-5.txt).
+- **Architecture review:** self-review **Passed** — lab CLI only; warn-only budgets; no retention changes.
+- **Next:** Phase 6 — soak / leak regression.
 
 ---
 

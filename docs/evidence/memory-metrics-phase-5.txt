@@ -1,0 +1,51 @@
+# Memory metrics — Phase 5 evidence
+# Date: 2026-07-25
+
+## Scope
+L1–L8 human scorecard from `memory-baseline-latest.json`, warn-only soft budgets, wired into `perf:memory` and `report:memory`. No retention policy changes.
+
+## Delivered
+- scripts/memory-scorecard.ts — buildMemoryScorecardRow, formatMemoryScorecard, evaluateSoftBudgets, readSoftBudgetConfig
+- scripts/report-memory.mts — standalone report CLI (`--file` optional)
+- scripts/run-memory-baseline.mts — scorecard printed after baseline write
+- scripts/memory-scorecard.test.ts — Vitest coverage
+- package.json — report:memory script
+- src/lib/observability/ARCHITECTURE.md — lab scorecard Phase 5 paragraph
+- docs/roadmaps/memory-metrics-roadmap.md — Phase 5 Passing + soft budget env vars
+- docs/roadmaps/README.md, docs/ROADMAP.md, docs/perf/market-data-performance.md — index updates
+
+## Architecture review
+Self-review Passed — lab CLI/report only; warn-only soft budgets (exit 0); no cap/retention/probe contract changes; Data Health UI deferred.
+
+## Focused
+npm test -- --run scripts/memory-scorecard.test.ts
+Test Files  1 passed (1)
+Tests  15 passed (15)
+
+## Collection (report:memory)
+Memory scorecard (L1–L8)
+Source: /Users/vincentn/TV AI/docs/perf/memory-baseline-latest.json
+Generated: 2026-07-25T17:27:05.488Z
+Browser scenario: browser-b1-1cell-10x-loadMore
+
+| Tab MB (L4) | Heap MB (L2) | Δ Heap | Candles (L1) | Engines (L1) | Node RSS (L6) | Sidecar RSS (L7) | Caps OK (L1) |
+|-------------|--------------|--------|----------------|--------------|---------------|------------------|--------------|
+| 480.63 | 98.23 | 0 | 3860 | 0 | 358.95 | 62.97 | yes |
+
+Desk: totalKnownMb=902.55 browser=480.63 node=358.95 sidecar=62.97 redis=— (redis skipped)
+
+## Soft-budget demo
+MEMORY_BUDGET_PROCESS_RSS_MB=1 npm run report:memory
+Soft budget warnings:
+- soft-budget: processRssAfterMb=480.63 exceeds 1
+
+## Soft budget defaults (env override)
+- MEMORY_BUDGET_HEAP_DELTA_MB=50
+- MEMORY_BUDGET_PROCESS_RSS_MB=1200
+- MEMORY_BUDGET_DESK_TOTAL_MB=2500
+
+## App-level
+N/A — lab harness CLI only; no product wiring
+
+## Next
+Phase 6 — soak / leak regression (dual heap + process delta gate)
