@@ -150,7 +150,7 @@ export function normalizeSurfaceMetrics(input: SurfaceMetricsInput): SurfaceMetr
   };
 }
 
-/** L5 guard: inactive-unmount should keep DOM canvas count below pane count when one engine is mounted. */
+/** L5 guard: multi-cell Desk grids mount all visible engines (no inactive placeholders). */
 export function surfacePolicyPass(
   paneCount: number,
   mountedEngines: number | null,
@@ -161,8 +161,11 @@ export function surfacePolicyPass(
     return canvasCount == null || canvasCount > 0;
   }
 
-  const expectedInactive = paneCount - 1;
-  if ((inactiveChartSurfaces ?? 0) !== expectedInactive || (mountedEngines ?? 0) !== 1) {
+  if ((inactiveChartSurfaces ?? 0) !== 0) {
+    return false;
+  }
+
+  if ((mountedEngines ?? 0) !== paneCount) {
     return false;
   }
 
@@ -170,7 +173,7 @@ export function surfacePolicyPass(
     return false;
   }
 
-  return canvasCount < paneCount;
+  return true;
 }
 
 export type SurfaceMetricsRaw = {

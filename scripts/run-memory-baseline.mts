@@ -627,8 +627,8 @@ async function measureBrowserScenario(
         before: beforeSwitch,
         after: afterSwitch,
         pass:
-          (afterSwitch.inactiveChartSurfaces ?? 0) === options.paneCount - 1 &&
-          (afterSwitch.mountedEngines ?? 0) === 1 &&
+          (afterSwitch.inactiveChartSurfaces ?? 0) === 0 &&
+          (afterSwitch.mountedEngines ?? 0) === options.paneCount &&
           (afterSwitch.activeCellOutlines ?? 0) === 1,
       };
     }
@@ -646,14 +646,13 @@ async function measureBrowserScenario(
   const heapDeltaMb =
     heapBefore != null && heapAfter != null ? mb(heapAfter - heapBefore) : null;
 
-  const expectedInactive = options.paneCount > 1 ? options.paneCount - 1 : 0;
   const residentBarPass =
     loadMore.withinSoftMax &&
     (loadMore.historyStillLoads || (loadMore.maxCandlesLength as number) < RESIDENT_BAR_SOFT_MAX);
   const inactivePolicyPass =
     options.paneCount === 1 ||
-    ((metrics.inactiveChartSurfaces ?? 0) === expectedInactive &&
-      (metrics.mountedEngines ?? 0) === 1);
+    ((metrics.inactiveChartSurfaces ?? 0) === 0 &&
+      (metrics.mountedEngines ?? 0) === options.paneCount);
   const surfacePolicyPassFlag = surfacePolicyPass(
     options.paneCount,
     metrics.mountedEngines ?? null,
@@ -682,7 +681,7 @@ async function measureBrowserScenario(
       surfacePolicyPassFlag &&
       (activeCellSwitch?.pass ?? true),
     note:
-      "Phase 14: trimResidentBars contract on API loadMore; inactive cells unmounted (Phase 11); live gated to active cell (Phase 2). EventSource count includes quote streams.",
+      "Phase 14: trimResidentBars contract on API loadMore; multi-cell Desk mounts all visible engines with shared candle streams; active cell owns interaction. EventSource count includes quote streams.",
   };
 }
 

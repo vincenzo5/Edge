@@ -69,6 +69,7 @@ function renderChartCell(
   props: {
     isActive?: boolean;
     live?: boolean;
+    mountChartEngine?: boolean;
   },
   onConfigChange = vi.fn(),
 ) {
@@ -83,6 +84,7 @@ function renderChartCell(
             compact
             isActive={props.isActive ?? true}
             live={props.live}
+            mountChartEngine={props.mountChartEngine}
             toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
             onConfigChange={onConfigChange}
             onToolbarPrefsChange={vi.fn()}
@@ -124,9 +126,19 @@ describe("ChartCell live policy wiring", () => {
     expect(screen.queryByTestId("inactive-chart-surface")).not.toBeInTheDocument();
   });
 
-  it("unmounts EdgeChart when cell becomes inactive and remounts on activate", () => {
+  it("mounts engine for inactive cell when mountChartEngine is true", () => {
+    renderChartCell({ isActive: false, live: true, mountChartEngine: true });
+    expect(edgeChartLive).toHaveBeenCalledWith(true);
+    expect(screen.getByTestId("edge-chart-mock")).toBeInTheDocument();
+    expect(screen.queryByTestId("inactive-chart-surface")).not.toBeInTheDocument();
+  });
+
+  it("keeps engine mounted when active cell changes with mountChartEngine true", () => {
     const onConfigChange = vi.fn();
-    const { rerender } = renderChartCell({ isActive: true }, onConfigChange);
+    const { rerender } = renderChartCell(
+      { isActive: true, live: true, mountChartEngine: true },
+      onConfigChange,
+    );
     expect(screen.getByTestId("edge-chart-mock")).toBeInTheDocument();
 
     rerender(
@@ -139,28 +151,8 @@ describe("ChartCell live policy wiring", () => {
               theme="dark"
               compact
               isActive={false}
-              toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
-              onConfigChange={onConfigChange}
-              onToolbarPrefsChange={vi.fn()}
-            />
-          </ActiveChartProvider>
-        </SidebarProvider>
-      </AppTimeZoneProvider>,
-    );
-
-    expect(screen.queryByTestId("edge-chart-mock")).not.toBeInTheDocument();
-    expect(screen.getByTestId("inactive-chart-surface")).toBeInTheDocument();
-
-    rerender(
-      <AppTimeZoneProvider>
-        <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
-          <ActiveChartProvider>
-            <ChartCell
-              chartId="cell-0"
-              config={DEFAULT_CELL}
-              theme="dark"
-              compact
-              isActive={true}
+              live={true}
+              mountChartEngine
               toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
               onConfigChange={onConfigChange}
               onToolbarPrefsChange={vi.fn()}
@@ -172,6 +164,40 @@ describe("ChartCell live policy wiring", () => {
 
     expect(screen.getByTestId("edge-chart-mock")).toBeInTheDocument();
     expect(screen.queryByTestId("inactive-chart-surface")).not.toBeInTheDocument();
+    expect(edgeChartLive).toHaveBeenLastCalledWith(true);
+  });
+
+  it("unmounts EdgeChart when mountChartEngine becomes false", () => {
+    const onConfigChange = vi.fn();
+    const { rerender } = renderChartCell(
+      { isActive: true, live: true, mountChartEngine: true },
+      onConfigChange,
+    );
+    expect(screen.getByTestId("edge-chart-mock")).toBeInTheDocument();
+
+    rerender(
+      <AppTimeZoneProvider>
+        <SidebarProvider activePanel={null} onActivePanelChange={vi.fn()}>
+          <ActiveChartProvider>
+            <ChartCell
+              chartId="cell-0"
+              config={DEFAULT_CELL}
+              theme="dark"
+              compact
+              isActive={false}
+              live={false}
+              mountChartEngine={false}
+              toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
+              onConfigChange={onConfigChange}
+              onToolbarPrefsChange={vi.fn()}
+            />
+          </ActiveChartProvider>
+        </SidebarProvider>
+      </AppTimeZoneProvider>,
+    );
+
+    expect(screen.queryByTestId("edge-chart-mock")).not.toBeInTheDocument();
+    expect(screen.getByTestId("inactive-chart-surface")).toBeInTheDocument();
   });
 
   it("flushes modified viewport into config before unmounting inactive cell", () => {
@@ -189,6 +215,7 @@ describe("ChartCell live policy wiring", () => {
               theme="dark"
               compact
               isActive={false}
+              mountChartEngine={false}
               toolbarPrefs={DEFAULT_TOOLBAR_PREFS}
               onConfigChange={onConfigChange}
               onToolbarPrefsChange={vi.fn()}

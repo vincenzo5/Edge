@@ -357,7 +357,7 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 |---------|--------|-------|
 | Multi-chart layout templates | **Done** | TradingView-style layout setup menu: pane counts 1–10, 12, 14, 16 with ~52 shape variants; template-driven CSS grid; legacy `gridMode` migrated to `layoutId`; narrow viewports stack multi-column templates; expanding layout clones the active cell (symbol, settings, indicators, drawings) into new panes; shrinking to single-pane promotes the active cell to the sole pane |
 | Link symbols (range/interval/symbol) | **Done** | Atomic propagation via `applyCellUpdate` in `StockApp`; includes `symbolName`/`exchange` |
-| Active cell focus | **Done** | `activeCellIndex` persisted; blue focus ring when `cellCount > 1`; drawing tools disabled on inactive cells; only active cell on primary chart tile subscribes to live candle stream (`live: false` elsewhere) |
+| Active cell focus | **Done** | `activeCellIndex` persisted; blue focus ring when `cellCount > 1`; drawing tools disabled on inactive cells; primary Desk tile streams all visible cells live with shared transports for identical configs; active cell alone owns symbol nav and Data Health |
 | Shared drawing rail (multi-pane) | **Done** | When `cellCount > 1`, one compact `ChartDrawingRail` in `ChartGrid` targets active pane via `ActiveChartContext`; single-pane keeps inline rail in `ChartCell` |
 | Per-cell config | **Done** | `CellConfig` per grid cell |
 | Layout persistence (localStorage) | **Done** | `loadLayout` / `saveLayout` in `layoutStorage.ts`; includes `sidebar.activePanel` |

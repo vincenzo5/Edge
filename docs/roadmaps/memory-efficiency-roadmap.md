@@ -598,6 +598,10 @@ Completion evidence in `PROJECT-STATUS.md` must quote actual command output (tes
 
 ## Harness update (when executing)
 
+## Follow-up — Simultaneous multi-chart rendering (2026-07-25)
+
+Desk multi-chart layouts now mount all visible cells and stream live on the primary tile. Identical symbol/range/interval tuples share one candle transport via `sharedCandleStreamRegistry`. Phase 11 inactive unmount remains for resource-gated surfaces (research board off-focus). Lab harness B2 expects `mountedEngines === paneCount` and `inactiveChartSurfaces === 0`.
+
 When a phase becomes Active:
 
 1. Set WIP=1 Active Work row: **Memory efficiency — Phase N** with behavior, state, files.

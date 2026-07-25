@@ -16,6 +16,11 @@ export {
   createServerProxiedStreamTransport,
   defaultStreamTransportFactory,
 } from './streamTransportFactory';
+export { subscribeSharedCandles, buildSharedCandleStreamKey } from './sharedCandleStreamRegistry';
+export {
+  resetSharedCandleStreamRegistryForTests,
+  getSharedCandleStreamCountForTests,
+} from './sharedCandleStreamRegistry';
 export {
   createServerProxiedCandleSubscription,
   createServerProxiedQuoteSubscription,

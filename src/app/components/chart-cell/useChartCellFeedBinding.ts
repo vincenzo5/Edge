@@ -21,6 +21,8 @@ import { useQuote } from "@/lib/marketData/useQuotes";
 type Params = {
   isActive: boolean;
   liveProp?: boolean;
+  /** When set, overrides default mount policy (active cell or explicit live). */
+  mountChartEngineProp?: boolean;
   config: CellConfig;
   onCandleCount?: (n: number) => void;
   reloadToken?: number;
@@ -31,6 +33,7 @@ type Params = {
 export function useChartCellFeedBinding({
   isActive,
   liveProp,
+  mountChartEngineProp,
   config,
   onCandleCount,
   reloadToken = 0,
@@ -38,8 +41,9 @@ export function useChartCellFeedBinding({
   replayActive,
 }: Params) {
   const live = liveProp ?? isActive;
-  /** Phase 11: unmount chart engine when inactive unless explicit live override (journal fork). */
-  const mountChartEngine = isActive || liveProp === true;
+  /** Default: mount when active or explicit live (journal fork). Grid passes mountChartEngine=true. */
+  const mountChartEngine =
+    mountChartEngineProp ?? (isActive || liveProp === true);
 
   const [chartEngineGeneration, setChartEngineGeneration] = useState(0);
   const mountChartEngineRef = useRef(mountChartEngine);
@@ -53,7 +57,7 @@ export function useChartCellFeedBinding({
   const [lastCandleTimestamp, setLastCandleTimestamp] = useState<number | null>(null);
   const [dataMeta, setDataMeta] = useState<ChartDataMeta | null>(null);
 
-  const liveQuote = useQuote(isActive || liveProp === true ? config.symbol : null);
+  const liveQuote = useQuote(live ? config.symbol : null);
   const candleSessionKey = useMemo(
     () => buildCandleSessionKey(config.symbol, config.range, config.interval),
     [config.symbol, config.range, config.interval],

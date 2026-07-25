@@ -33,8 +33,8 @@ describe("collectSurfaceMetricsInPage (Playwright L5)", () => {
     expect(l5.gpuMemoryMb).toBeNull();
     expect(l5.gpuMemoryNote).toContain("OffscreenCanvas");
 
-    expect(surfacePolicyPass(8, 1, l5.canvasCount, 7)).toBe(true);
-    expect(surfacePolicyPass(8, 1, 8, 7)).toBe(false);
+    expect(surfacePolicyPass(8, 8, l5.canvasCount, 0)).toBe(true);
+    expect(surfacePolicyPass(8, 1, 8, 0)).toBe(false);
 
     await page.close();
   });

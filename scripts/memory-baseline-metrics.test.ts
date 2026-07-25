@@ -165,10 +165,11 @@ describe("surfacePolicyPass", () => {
     expect(surfacePolicyPass(1, 1, 2, 0)).toBe(true);
   });
 
-  it("requires canvas count below pane count for multi-cell inactive unmount", () => {
-    expect(surfacePolicyPass(8, 1, 3, 7)).toBe(true);
-    expect(surfacePolicyPass(8, 1, 8, 7)).toBe(false);
-    expect(surfacePolicyPass(8, 0, 3, 7)).toBe(false);
+  it("requires all visible engines mounted for multi-cell simultaneous render", () => {
+    expect(surfacePolicyPass(8, 8, 8, 0)).toBe(true);
+    expect(surfacePolicyPass(8, 1, 8, 0)).toBe(false);
+    expect(surfacePolicyPass(8, 8, 8, 7)).toBe(false);
+    expect(surfacePolicyPass(8, 0, 3, 0)).toBe(false);
   });
 });
 

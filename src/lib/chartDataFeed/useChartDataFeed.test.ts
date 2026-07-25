@@ -8,6 +8,11 @@ import {
 } from './chartClientCache';
 import type { Candle, ChartDataFeed, ChartCandleStreamSink, ChartDataMeta } from '@edge/chart-core';
 import { RESIDENT_BAR_SOFT_MAX } from '@edge/chart-core';
+import {
+  getSharedCandleStreamCountForTests,
+  resetSharedCandleStreamRegistryForTests,
+} from './sharedCandleStreamRegistry';
+import { resetCoalesceInFlightForTests } from './coalesceInFlight';
 
 const baseCandles: Candle[] = [
   { t: 1000, o: 1, h: 2, l: 0.5, c: 1.5 },
@@ -80,6 +85,8 @@ function createStreamingFeed(overrides?: Partial<ChartDataFeed>): StreamingTestF
 describe('useChartDataFeed', () => {
   beforeEach(() => {
     clearChartClientCacheForTests();
+    resetSharedCandleStreamRegistryForTests();
+    resetCoalesceInFlightForTests();
   });
 
   it('loads candles and starts streaming when supported', async () => {
@@ -100,6 +107,30 @@ describe('useChartDataFeed', () => {
     });
 
     unmount();
+  });
+
+  it('shares one candle stream transport for identical live tuples', async () => {
+    const subscribe = vi.fn((_request, _sink) => () => {});
+    const feed = createStreamingFeed({ subscribeCandles: subscribe });
+    const options = {
+      feed,
+      symbol: 'SPY',
+      interval: '5m' as const,
+      range: '1d' as const,
+      live: true,
+    };
+
+    const first = renderHook(() => useChartDataFeed(options));
+    const second = renderHook(() => useChartDataFeed(options));
+
+    await waitFor(() => expect(subscribe).toHaveBeenCalledTimes(1));
+    expect(getSharedCandleStreamCountForTests()).toBe(1);
+
+    first.unmount();
+    expect(getSharedCandleStreamCountForTests()).toBe(1);
+
+    second.unmount();
+    await waitFor(() => expect(getSharedCandleStreamCountForTests()).toBe(0));
   });
 
   it('clears stale state on metadata-only refresh events', async () => {

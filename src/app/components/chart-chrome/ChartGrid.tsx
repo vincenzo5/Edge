@@ -115,7 +115,8 @@ export default function ChartGrid({
               railMode={railMode}
               showDrawingRail={count === 1}
               isActive={i === activeCellIndex}
-              live={i === activeCellIndex && isPrimaryChart}
+              mountChartEngine
+              live={isPrimaryChart}
               toolbarPrefs={toolbarPrefs}
               symbolNav={i === activeCellIndex ? symbolNav : undefined}
               onFocus={() => onActiveCellChange(i)}

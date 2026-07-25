@@ -1,0 +1,32 @@
+# Multi-chart simultaneous rendering evidence
+# Date: 2026-07-25
+
+## Scope
+Desk multi-chart layouts render all visible cells simultaneously with shared live candle transports for identical configs. Active cell retains interaction ownership.
+
+## Delivered
+- `src/app/components/chart-cell/useChartCellFeedBinding.ts` — `mountChartEngineProp` override; quote subscription follows `live`
+- `src/app/components/chart-cell/ChartCell.tsx` — `mountChartEngine` prop
+- `src/app/components/chart-chrome/ChartGrid.tsx` — all visible cells mount + live on primary tile
+- `src/lib/chartDataFeed/sharedCandleStreamRegistry.ts` — ref-counted stream fan-out
+- `src/lib/chartDataFeed/useChartDataFeed.ts` — shared subscribe + coalesced load
+- `scripts/memory-baseline-metrics.ts` — simultaneous-render surface policy
+- `scripts/run-memory-baseline.mts` — B2 inactive/active cell switch criteria
+- Architecture + features docs updated
+
+## Architecture review
+Self-review **Passed** — mount/live/active policies separated; research board + journal fork exceptions preserved.
+
+## Focused
+```
+npm test -- --run src/app/components/chart-cell/ChartCell.livePolicy.test.tsx src/app/components/chart-chrome/ChartGrid.livePolicy.test.tsx src/lib/chartDataFeed/useChartDataFeed.test.ts src/lib/chartDataFeed/sharedCandleStreamRegistry.test.ts scripts/memory-baseline-metrics.test.ts scripts/memory-surface-collect.test.ts src/test/runtimeInteractionWakeups.test.tsx
+Test Files  7 passed (7)
+Tests  58 passed (58)
+```
+
+## App-level (8-cell SPY layout, localhost:3003/workspace)
+- `gridCells: 8`, `mountedEngines: 8`, `inactiveChartSurfaces: 0`, `canvasCount: 16`
+- After active cell switch: `mountedEngines: 8`, `inactive: 0`, `activeOutlines: 1`
+
+## Build
+`npm run build` blocked by pre-existing unrelated TS errors (`examples/chart-perf-harness`, `packages/chart-react/useCanvasGestures.ts`); not introduced by this change.

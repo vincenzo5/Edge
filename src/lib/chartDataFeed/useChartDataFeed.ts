@@ -19,6 +19,8 @@ import {
   writeChartClientCache,
   writeMergedChartClientCache,
 } from './chartClientCache';
+import { coalesceInFlight } from './coalesceInFlight';
+import { subscribeSharedCandles } from './sharedCandleStreamRegistry';
 
 export type UseChartDataFeedOptions = {
   feed: ChartDataFeed;
@@ -297,14 +299,16 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
     void (async () => {
       const requestStartedAt = Date.now();
       try {
-        const result = await feedRef.current.loadCandles({
-          symbol,
-          exchange,
-          interval,
-          range,
-          sessionMode,
-          signal: abortController.signal,
-        });
+        const result = await coalesceInFlight(`chart-load:${requestKey}`, () =>
+          feedRef.current.loadCandles({
+            symbol,
+            exchange,
+            interval,
+            range,
+            sessionMode,
+            signal: abortController.signal,
+          }),
+        );
         if (cancelled || generation !== fetchGenerationRef.current) return;
         const loadedAt = Date.now();
         const resultMeta = result.meta ?? DEFAULT_META;
@@ -379,7 +383,8 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
         }
 
         if (live && feedRef.current.subscribeCandles) {
-          unsubscribe = feedRef.current.subscribeCandles(
+          unsubscribe = subscribeSharedCandles(
+            feedRef.current,
             { symbol, exchange, interval, range, sessionMode },
             handleStreamEvent,
           );

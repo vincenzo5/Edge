@@ -49,6 +49,8 @@ type Props = {
   isActive?: boolean;
   /** Candle stream subscription; defaults to isActive when unset. */
   live?: boolean;
+  /** Mount EdgeChart engine; defaults to active cell or explicit live. */
+  mountChartEngine?: boolean;
   showDrawingRail?: boolean;
   toolbarPrefs: ToolbarPrefs;
   symbolNav?: ChartSymbolNav;
@@ -69,6 +71,7 @@ export default memo(function ChartCell({
   railMode = "full",
   isActive = true,
   live: liveProp,
+  mountChartEngine: mountChartEngineProp,
   showDrawingRail = true,
   toolbarPrefs,
   symbolNav,
@@ -139,6 +142,7 @@ export default memo(function ChartCell({
   const feed = useChartCellFeedBinding({
     isActive,
     liveProp,
+    mountChartEngineProp,
     config,
     onCandleCount,
     reloadToken: marketData?.reloadToken,

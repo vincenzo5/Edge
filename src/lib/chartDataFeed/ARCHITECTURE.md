@@ -105,8 +105,8 @@ Full track: [Memory Efficiency Roadmap](../../../docs/roadmaps/memory-efficiency
 |------|----------------|-------|
 | `RESIDENT_BAR_SOFT_MAX` | **5_000** | Phase 1 **shipped** — trims oldest bars after merge/prefetch when exceeded; preserve live tip |
 | History page size | **500** (`HISTORY_FETCH_BAR_COUNT`) | Unchanged; do not prefetch past soft max once Phase 1 ships |
-| Inactive cell `live` | **`false`** when `!isActive` or non-primary chart tile (Phase 2 **shipped**) | Active cell on primary tile only; journal trade fork uses explicit `live={true}` override |
-| Inactive cell engine | **Unmounted** when `!(isActive \|\| liveProp === true)` (Phase 11 **shipped**) | `ChartCell` keeps shell + `InactiveChartSurface`; flush viewport/drawings to `CellConfig` before teardown; remount paints from `chartClientCache` + restores layout sketch |
+| Inactive cell `live` | **`false`** on non-primary chart tiles | Primary Desk tile: all visible cells stream live; identical tuples share one transport |
+| Inactive cell engine | **Unmounted** only on resource-gated surfaces (research board off-focus, explicit `mountChartEngine={false}`) | Desk `ChartGrid` passes `mountChartEngine` for every visible cell; `InactiveChartSurface` remains for gated callers; flush viewport/drawings to `CellConfig` before genuine teardown |
 | sessionStorage gate | skip when `candles.length > 2_000` or payload ≳ **2 MB** | Phase 3 **shipped** — memory cache still works |
 | Cache entry LRU | 20 entries / 5 min | Entry-count bounded; resident trim + immutable shared refs |
 
@@ -134,6 +134,7 @@ Server-side byte/LRU budgets for `DataCache` / `HotStore` are documented in [mar
 | `coalesceInFlight.ts` | In-flight dedupe for identical candle/quote POSTs |
 | `chartClientCache.ts` | Session SWR memo for `useChartDataFeed` |
 | `useChartDataFeed.ts` | React hook: cache paint + background refresh + stream subscription |
+| `sharedCandleStreamRegistry.ts` | Ref-counted fan-out for identical live candle stream tuples |
 | `src/lib/marketData/stream/` | Server SSE sessions + IBKR smd quote adapter |
 | `src/app/components/watchlist/useWatchlistQuoteStream.ts` | Watchlist SSE client (`/api/stream/quotes`) |
 | `src/app/api/stream/*/route.ts` | SSE endpoints |
