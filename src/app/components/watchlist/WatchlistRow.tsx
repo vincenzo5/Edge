@@ -1,7 +1,8 @@
 "use client";
 
+import { memo } from "react";
 import type { WatchlistDisplayRow } from "@/lib/watchlist/viewModel";
-import type { QuoteSnapshot, WatchlistColumnId, WatchlistViewPrefs } from "@/lib/watchlist/types";
+import type { QuoteSnapshot, WatchlistColumnId } from "@/lib/watchlist/types";
 import { toneTextClass } from "@/lib/design-system/edge";
 import { formatQuoteAge, shouldShowQuoteAgeHint } from "@/lib/watchlist/formatQuoteAge";
 
@@ -25,28 +26,82 @@ function formatLargeNumber(value: number | null | undefined): string {
   return value.toLocaleString();
 }
 
-type Props = {
-  row: WatchlistDisplayRow;
-  quote?: QuoteSnapshot;
-  selected: boolean;
-  visibleColumns: WatchlistColumnId[];
+export type WatchlistRowActions = {
   onActivate: () => void;
   onRemove: () => void;
   onTogglePin: () => void;
   onEditTags: () => void;
 };
 
-export default function WatchlistRow({
+type Props = {
+  row: WatchlistDisplayRow;
+  quote?: QuoteSnapshot;
+  selected: boolean;
+  visibleColumns: WatchlistColumnId[];
+  actions: WatchlistRowActions;
+  measureRef?: (node: Element | null) => void;
+  virtualIndex?: number;
+};
+
+function quoteFieldsEqual(
+  left: QuoteSnapshot | undefined,
+  right: QuoteSnapshot | undefined,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return left === right;
+  return (
+    left.symbol === right.symbol &&
+    left.regularMarketPrice === right.regularMarketPrice &&
+    left.regularMarketChangePercent === right.regularMarketChangePercent &&
+    left.regularMarketVolume === right.regularMarketVolume &&
+    left.updatedAt === right.updatedAt
+  );
+}
+
+function metricsFieldsEqual(
+  left: WatchlistDisplayRow["metrics"],
+  right: WatchlistDisplayRow["metrics"],
+): boolean {
+  return (
+    left.last === right.last &&
+    left.changePct === right.changePct &&
+    left.volume === right.volume &&
+    left.marketCap === right.marketCap
+  );
+}
+
+function watchlistRowPropsAreEqual(prev: Props, next: Props): boolean {
+  if (prev.selected !== next.selected) return false;
+  if (prev.visibleColumns !== next.visibleColumns) return false;
+  if (prev.virtualIndex !== next.virtualIndex) return false;
+  if (prev.row.item.symbol !== next.row.item.symbol) return false;
+  if (prev.row.item.pinned !== next.row.item.pinned) return false;
+  if (prev.row.pinned !== next.row.pinned) return false;
+  if (prev.row.item.note !== next.row.item.note) return false;
+  if ((prev.row.item.tags ?? []).join("\0") !== (next.row.item.tags ?? []).join("\0")) {
+    return false;
+  }
+  if (!metricsFieldsEqual(prev.row.metrics, next.row.metrics)) return false;
+  if (!quoteFieldsEqual(prev.quote, next.quote)) return false;
+  return (
+    prev.actions.onActivate === next.actions.onActivate &&
+    prev.actions.onRemove === next.actions.onRemove &&
+    prev.actions.onTogglePin === next.actions.onTogglePin &&
+    prev.actions.onEditTags === next.actions.onEditTags
+  );
+}
+
+function WatchlistRow({
   row,
   quote,
   selected,
   visibleColumns,
-  onActivate,
-  onRemove,
-  onTogglePin,
-  onEditTags,
+  actions,
+  measureRef,
+  virtualIndex,
 }: Props) {
   const { item, metrics } = row;
+  const { onActivate, onRemove, onTogglePin, onEditTags } = actions;
   const changePct = metrics.changePct;
   const isPositive = changePct != null && changePct > 0;
   const isNegative = changePct != null && changePct < 0;
@@ -201,6 +256,8 @@ export default function WatchlistRow({
 
   return (
     <tr
+      ref={measureRef}
+      data-index={virtualIndex}
       data-testid={`watchlist-row-${item.symbol}`}
       data-selected={selected ? "true" : "false"}
       data-pinned={row.pinned ? "true" : "false"}
@@ -211,3 +268,5 @@ export default function WatchlistRow({
     </tr>
   );
 }
+
+export default memo(WatchlistRow, watchlistRowPropsAreEqual);

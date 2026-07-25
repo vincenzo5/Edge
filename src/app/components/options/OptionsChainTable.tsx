@@ -1,15 +1,37 @@
 "use client";
 
+import { useVirtualizer, observeElementOffset, type Virtualizer } from "@tanstack/react-virtual";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 import type { OptionContractSnapshot } from "@/lib/marketData/contracts/options";
-import {
-  chainRowClass,
-  chainRowSideClass,
-  formatOptionLast,
-  isLastOutsideSpread,
-} from "@/lib/options/chainDisplay";
-import { formatOptionPrice, type StrikeRow } from "@/lib/options/optionsClient";
+import type { StrikeRow } from "@/lib/options/optionsClient";
 import { EdgeEmptyState, EdgeSkeletonLine, EdgeStatusRegion } from "../design-system";
-import { ChainLegGreeksPopover } from "./ChainRowGreeksPopover";
+import OptionsChainRow from "./OptionsChainRow";
+
+const ESTIMATED_ROW_HEIGHT = 28;
+const VIRTUAL_OVERSCAN = 6;
+
+function observeOptionsChainScrollRect<T extends Element>(
+  instance: Virtualizer<T, Element>,
+  cb: (rect: { width: number; height: number }) => void,
+) {
+  const element = instance.scrollElement;
+  if (!element) {
+    return () => {};
+  }
+
+  const notify = () => {
+    const rect = element.getBoundingClientRect();
+    cb({
+      width: rect.width,
+      height: rect.height,
+    });
+  };
+
+  notify();
+  const observer = new ResizeObserver(notify);
+  observer.observe(element);
+  return () => observer.disconnect();
+}
 
 function ChainLoadingState({
   symbol,
@@ -43,25 +65,6 @@ function ChainLoadingState({
   );
 }
 
-function priceCellClass(sideClass: string): string {
-  return [
-    "px-1 py-0.5 text-[11px] tabular-nums text-[var(--edge-text-primary)]",
-    sideClass,
-  ].join(" ");
-}
-
-function lastCellClass(
-  contract: OptionContractSnapshot | undefined,
-  sideClass: string,
-): string {
-  const outside = isLastOutsideSpread(contract);
-  return [
-    "px-1 py-0.5 text-[11px] tabular-nums font-medium",
-    sideClass,
-    outside ? "text-[var(--edge-warning)]" : "text-[var(--edge-text-primary)]",
-  ].join(" ");
-}
-
 export type OptionsChainTableProps = {
   contracts: StrikeRow[];
   spotPrice: number | null;
@@ -72,6 +75,7 @@ export type OptionsChainTableProps = {
   primaryExpiration: string | null;
   onLoadAllStrikes: () => void;
   onAnalyzeContract?: (contract: OptionContractSnapshot) => void;
+  scrollRef?: RefObject<HTMLDivElement | null>;
 };
 
 export function OptionsChainTable({
@@ -84,7 +88,33 @@ export function OptionsChainTable({
   primaryExpiration,
   onLoadAllStrikes,
   onAnalyzeContract,
+  scrollRef: externalScrollRef,
 }: OptionsChainTableProps) {
+  const internalScrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = externalScrollRef ?? internalScrollRef;
+
+  const rowVirtualizer = useVirtualizer({
+    count: contracts.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    overscan: VIRTUAL_OVERSCAN,
+    getItemKey: (index) => contracts[index]?.strike ?? index,
+    observeElementRect: observeOptionsChainScrollRect,
+    observeElementOffset,
+  });
+
+  useLayoutEffect(() => {
+    rowVirtualizer.measure();
+  }, [rowVirtualizer, contracts.length]);
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const isVirtualized = virtualRows.length > 0;
+  const paddingTop = isVirtualized && virtualRows.length > 0 ? virtualRows[0]!.start : 0;
+  const paddingBottom =
+    isVirtualized && virtualRows.length > 0
+      ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1]!.end
+      : 0;
+
   if (chainLoading) {
     return <ChainLoadingState symbol={symbol} expiration={primaryExpiration} />;
   }
@@ -105,6 +135,8 @@ export function OptionsChainTable({
   }
 
   if (contracts.length === 0) return null;
+
+  const expiration = primaryExpiration ?? contracts[0]?.call?.expiration ?? contracts[0]?.put?.expiration ?? "";
 
   return (
     <>
@@ -156,63 +188,41 @@ export function OptionsChainTable({
             </tr>
           </thead>
           <tbody>
-            {contracts.map((row) => {
-              const callSide = chainRowSideClass(row.strike, spotPrice, "call");
-              const putSide = chainRowSideClass(row.strike, spotPrice, "put");
-              const rowBand = chainRowClass(row.strike, spotPrice);
-              const expiration = primaryExpiration ?? row.call?.expiration ?? row.put?.expiration ?? "";
-
-              return (
-                <tr
-                  key={row.strike}
-                  data-testid={`options-chain-row-${row.strike}`}
-                  className={`border-t border-[var(--edge-border)] ${rowBand}`}
-                >
-                  <ChainLegGreeksPopover
-                    side="call"
-                    strike={row.strike}
-                    expiration={expiration}
+            {isVirtualized && paddingTop > 0 ? (
+              <tr aria-hidden="true">
+                <td colSpan={7} style={{ height: paddingTop, padding: 0, border: 0 }} />
+              </tr>
+            ) : null}
+            {isVirtualized
+              ? virtualRows.map((virtualRow) => {
+                  const row = contracts[virtualRow.index]!;
+                  return (
+                    <OptionsChainRow
+                      key={row.strike}
+                      row={row}
+                      spotPrice={spotPrice}
+                      expiration={expiration}
+                      onAnalyzeContract={onAnalyzeContract}
+                      measureRef={rowVirtualizer.measureElement}
+                      virtualIndex={virtualRow.index}
+                    />
+                  );
+                })
+              : contracts.map((row, index) => (
+                  <OptionsChainRow
+                    key={row.strike}
+                    row={row}
                     spotPrice={spotPrice}
-                    contract={row.call}
-                    onAnalyzeContract={onAnalyzeContract}
-                  >
-                    <td className={priceCellClass(callSide)}>
-                      {formatOptionPrice(row.call?.bid)}
-                    </td>
-                    <td className={priceCellClass(callSide)}>
-                      {formatOptionPrice(row.call?.ask)}
-                    </td>
-                    <td className={lastCellClass(row.call, callSide)}>
-                      {formatOptionLast(row.call?.last)}
-                    </td>
-                  </ChainLegGreeksPopover>
-                  <td
-                    data-testid={`options-chain-strike-${row.strike}`}
-                    className={`min-w-[3rem] border-x border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-1 py-0.5 text-center text-[11px] font-semibold tabular-nums text-[var(--edge-text-strong)] ${rowBand ? "ring-1 ring-inset ring-[var(--edge-accent-blue)]/40" : ""}`}
-                  >
-                    {row.strike}
-                  </td>
-                  <ChainLegGreeksPopover
-                    side="put"
-                    strike={row.strike}
                     expiration={expiration}
-                    spotPrice={spotPrice}
-                    contract={row.put}
                     onAnalyzeContract={onAnalyzeContract}
-                  >
-                    <td className={lastCellClass(row.put, putSide)}>
-                      {formatOptionLast(row.put?.last)}
-                    </td>
-                    <td className={priceCellClass(putSide)}>
-                      {formatOptionPrice(row.put?.ask)}
-                    </td>
-                    <td className={`${priceCellClass(putSide)} text-right`}>
-                      {formatOptionPrice(row.put?.bid)}
-                    </td>
-                  </ChainLegGreeksPopover>
-                </tr>
-              );
-            })}
+                    virtualIndex={index}
+                  />
+                ))}
+            {isVirtualized && paddingBottom > 0 ? (
+              <tr aria-hidden="true">
+                <td colSpan={7} style={{ height: paddingBottom, padding: 0, border: 0 }} />
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>

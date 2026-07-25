@@ -1,8 +1,67 @@
+/** @vitest-environment jsdom */
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CopilotArtifactCard } from "./CopilotArtifactCard";
 import { CopilotMessageList } from "./CopilotMessageList";
 import type { CopilotMessage } from "./useCopilotThread";
+
+const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+function mockCopilotScrollContainer() {
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+    if (this.getAttribute("data-testid") === "copilot-message-list") {
+      return {
+        width: 640,
+        height: 480,
+        top: 0,
+        left: 0,
+        bottom: 480,
+        right: 640,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    }
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  class MockResizeObserver {
+    private callback: ResizeObserverCallback;
+
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+    }
+
+    observe(target: Element) {
+      const rect = target.getBoundingClientRect();
+      this.callback(
+        [
+          {
+            target,
+            contentRect: {
+              width: rect.width,
+              height: rect.height,
+              top: 0,
+              left: 0,
+              bottom: rect.height,
+              right: rect.width,
+              x: 0,
+              y: 0,
+              toJSON: () => ({}),
+            },
+          } as ResizeObserverEntry,
+        ],
+        this,
+      );
+    }
+
+    unobserve() {}
+
+    disconnect() {}
+  }
+
+  vi.stubGlobal("ResizeObserver", MockResizeObserver);
+}
 
 const baseMessages: CopilotMessage[] = [
   {
@@ -29,6 +88,15 @@ const baseMessages: CopilotMessage[] = [
 ];
 
 describe("CopilotMessageList", () => {
+  beforeEach(() => {
+    mockCopilotScrollContainer();
+  });
+
+  afterEach(() => {
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    vi.unstubAllGlobals();
+  });
+
   it("wraps non-confirm tool steps in Thoughts and keeps confirm chips outside", () => {
     const messages: CopilotMessage[] = [
       ...baseMessages.slice(0, 1),
@@ -165,5 +233,88 @@ describe("CopilotMessageList", () => {
     );
 
     expect(screen.getByTestId("copilot-artifact-pinned")).toBeTruthy();
+  });
+
+  it("virtualizes long threads without mounting every message bubble", () => {
+    const manyMessages: CopilotMessage[] = Array.from({ length: 120 }, (_, index) => ({
+      id: `m-${index}`,
+      role: index % 2 === 0 ? "user" : "assistant",
+      content: `Message ${index}`,
+      toolSteps: [],
+      status: "done",
+    }));
+
+    render(
+      <div className="flex h-[480px] min-h-0 flex-col">
+        <CopilotMessageList
+          messages={manyMessages}
+          configError={null}
+          onResolveConfirm={vi.fn()}
+        />
+      </div>,
+    );
+
+    const bubbles = screen.getAllByTestId(/^copilot-message-m-/);
+    expect(bubbles.length).toBeGreaterThan(0);
+    expect(bubbles.length).toBeLessThan(120);
+  });
+
+  it("keeps streaming bubble mounted while token content updates", () => {
+    const history: CopilotMessage[] = Array.from({ length: 40 }, (_, index) => ({
+      id: `hist-${index}`,
+      role: index % 2 === 0 ? "user" : "assistant",
+      content: `History ${index}`,
+      toolSteps: [],
+      status: "done",
+    }));
+    const streamingMessages: CopilotMessage[] = [
+      ...history,
+      {
+        id: "stream-1",
+        role: "assistant",
+        content: "Partial",
+        toolSteps: [],
+        status: "streaming",
+      },
+    ];
+
+    const { rerender } = render(
+      <div className="flex h-[480px] min-h-0 flex-col">
+        <CopilotMessageList
+          messages={streamingMessages}
+          configError={null}
+          onResolveConfirm={vi.fn()}
+          isStreaming
+        />
+      </div>,
+    );
+
+    expect(screen.getByTestId("copilot-message-stream-1")).toBeTruthy();
+    expect(screen.getAllByTestId(/^copilot-message-hist-/).length).toBeLessThan(40);
+
+    rerender(
+      <div className="flex h-[480px] min-h-0 flex-col">
+        <CopilotMessageList
+          messages={[
+            ...history,
+            {
+              id: "stream-1",
+              role: "assistant",
+              content: "Partial response grows",
+              toolSteps: [],
+              status: "streaming",
+            },
+          ]}
+          configError={null}
+          onResolveConfirm={vi.fn()}
+          isStreaming
+        />
+      </div>,
+    );
+
+    expect(screen.getByTestId("copilot-message-stream-1")).toHaveTextContent(
+      "Partial response grows",
+    );
+    expect(screen.getAllByTestId(/^copilot-message-hist-/).length).toBeLessThan(40);
   });
 });

@@ -125,9 +125,7 @@ export function ChainLegGreeksPopover({
   const [visible, setVisible] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<CSSProperties | null>(null);
 
-  const panel = formatChainLegGreeksPanel(side, strike, expiration, contract);
   const testId = `options-chain-${side}-greeks-${strike}`;
-  const headerClass = chainLegHeaderClass(strike, spotPrice, side);
 
   const clearShowTimer = useCallback(() => {
     if (showTimerRef.current) {
@@ -185,14 +183,18 @@ export function ChainLegGreeksPopover({
     side === "call"
       ? (["Bid", "Ask", "Last"] as const)
       : (["Last", "Ask", "Bid"] as const);
-  const quoteValues =
-    side === "call"
-      ? ([panel.bid, panel.ask, panel.last] as const)
-      : ([panel.last, panel.ask, panel.bid] as const);
 
   const popover =
     visible && typeof document !== "undefined" ? (
-      createPortal(
+      (() => {
+        const panel = formatChainLegGreeksPanel(side, strike, expiration, contract);
+        const headerClass = chainLegHeaderClass(strike, spotPrice, side);
+        const quoteValues =
+          side === "call"
+            ? ([panel.bid, panel.ask, panel.last] as const)
+            : ([panel.last, panel.ask, panel.bid] as const);
+
+        return createPortal(
         <div
           id={popoverId}
           role="tooltip"
@@ -269,7 +271,8 @@ export function ChainLegGreeksPopover({
           </div>
         </div>,
         document.body,
-      )
+        );
+      })()
     ) : null;
 
   const enhancedChildren = Children.map(children, (child, index) => {

@@ -260,7 +260,7 @@ RenderScheduler
 
 ### Phase 6 — Virtualize heavy lists (P1)
 
-**Status:** **Pending**
+**Status:** **Passing**
 
 **Outcome:** Large watchlist, options chain, and Copilot threads only mount visible rows.
 

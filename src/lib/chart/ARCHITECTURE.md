@@ -194,6 +194,8 @@ Interaction smoothness is tracked separately from memory retention and market-da
 
 **Pan/zoom scale + frame resolve (Phase 5):** Auto-scale bounds cache by quantized index window + candle/indicator identity in `indicatorScale.ts` (`clearVisibleScaleCache` for tests/session resets). `IndicatorResultProvider.prepareFrame` resolves each visible indicator once per draw; `resolveSeriesForFrame` feeds bar colors, indicator plots, WebGL batches, and price-axis annotations from the same map (`paneRenderer.ts` entry).
 
+**List virtualization (Phase 6):** Heavy desk lists use `@tanstack/react-virtual` with memoized rows — watchlist (`WatchlistTable` + `WatchlistRow`), options chain strikes (`OptionsChainTable` + `OptionsChainRow`), and Copilot history bubbles (`CopilotMessageList` + `CopilotMessageBubble`). Streaming assistant messages stay mounted outside the recycled window; greeks popover panels lazy-mount on hover only.
+
 ## Verification
 
 ```bash

@@ -1,0 +1,39 @@
+# Runtime interaction performance — Phase 6 evidence
+# Date: 2026-07-25
+
+## Scope
+Virtualize heavy lists (watchlist, options chain, Copilot messages) with memoized rows and wakeup/mount-count evidence.
+
+## Delivered
+- src/app/components/watchlist/watchlistVirtualItems.ts — flatten pinned/groups into virtual items
+- src/app/components/watchlist/WatchlistTable.tsx — @tanstack/react-virtual scroll body
+- src/app/components/watchlist/WatchlistRow.tsx — memoized row + per-symbol quote props
+- src/app/components/watchlist/WatchlistPanel.tsx — flex scroll shell (table owns overflow)
+- src/app/components/options/OptionsChainTable.tsx — virtualized strike tbody
+- src/app/components/options/OptionsChainRow.tsx — memoized strike row
+- src/app/components/options/OptionsChainView.tsx — scrollRef passthrough
+- src/app/components/options/ChainRowGreeksPopover.tsx — lazy panel format on hover
+- src/app/components/copilot/copilotMessageSplit.ts — isolate streaming message
+- src/app/components/copilot/CopilotMessageBubble.tsx — memoized bubble extract
+- src/app/components/copilot/CopilotMessageList.tsx — virtual history + pinned streaming bubble
+- src/app/components/watchlist/WatchlistTable.test.tsx — mount-count virtualization tests
+- src/app/components/options/OptionsChainView.test.tsx — strike virtualization test
+- src/app/components/copilot/CopilotMessageList.test.tsx — thread + streaming isolation tests
+- src/lib/chart/ARCHITECTURE.md — Phase 6 list virtualization paragraph
+- src/lib/ai/ARCHITECTURE.md — Copilot message list Phase 6 note
+
+## Architecture review
+Self-review Passed — app list components only; journal virtual pattern reused; quote stream and Copilot streaming paths preserved.
+
+## Focused
+npm test -- --run src/app/components/watchlist/WatchlistTable.test.tsx src/app/components/options/OptionsChainView.test.tsx src/app/components/copilot/CopilotMessageList.test.tsx
+Test Files  3 passed (3)
+Tests  18 passed (18)
+
+## Wakeup / mount evidence
+- WatchlistTable: 200 rows → mounted rows < 200 (before and after quote tick rerender)
+- OptionsChainView: 200 strikes → mounted rows < 200
+- CopilotMessageList: 120 messages → mounted bubbles < 120; streaming bubble updates without remounting full history window
+
+## Next
+Phase 7 — layout persistence fan-out

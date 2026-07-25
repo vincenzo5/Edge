@@ -378,6 +378,7 @@ export function OptionsChainView({
   variant,
   onAnalyzeContract,
 }: OptionsChainViewProps) {
+  const chainScrollRef = useRef<HTMLDivElement>(null);
   const {
     snapshot,
     symbol,
@@ -422,6 +423,7 @@ export function OptionsChainView({
       primaryExpiration={primaryExpiration}
       onLoadAllStrikes={loadAllStrikes}
       onAnalyzeContract={onAnalyzeContract}
+      scrollRef={chainScrollRef}
     />
   );
 
@@ -434,6 +436,7 @@ export function OptionsChainView({
     <div data-testid={variant === "sidebar" ? "options-panel" : "options-chain-view-dialog"} className={shellClass}>
       <OptionsChainHeader model={model} meta={meta} warnings={warnings} variant={variant} />
       <div
+        ref={chainScrollRef}
         data-testid="options-chain-scroll"
         className={`min-h-0 flex-1 overflow-auto ${variant === "sidebar" ? "px-2 py-2" : "px-3 py-2"}`}
       >

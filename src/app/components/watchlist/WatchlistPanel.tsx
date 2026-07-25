@@ -287,7 +287,7 @@ export function WatchlistPanel() {
         />
       </div>
 
-      <div className="min-h-0 max-h-[55%] shrink-0 overflow-auto border-b border-[var(--edge-border)]">
+      <div className="flex min-h-0 max-h-[55%] shrink-0 flex-col border-b border-[var(--edge-border)]">
         <WatchlistTable
           displayModel={displayModel}
           itemCount={activeList.items.length}

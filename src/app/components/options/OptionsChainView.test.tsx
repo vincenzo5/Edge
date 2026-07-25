@@ -1,47 +1,107 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { OptionsChainView } from "./OptionsChainView";
 import type { OptionsChainModel } from "./useOptionsChainModel";
 import type { StrikeRow } from "@/lib/options/optionsClient";
 import { DEFAULT_CELL } from "@/lib/chartConfig";
 
-function makeModel(overrides?: Partial<OptionsChainModel>): OptionsChainModel {
-  const contracts: StrikeRow[] = [
-    {
-      strike: 150,
-      call: {
-        contractSymbol: "AAPL260711C00150000",
-        underlying: "AAPL",
-        type: "call",
-        expiration: "2026-07-11",
-        strike: 150,
-        bid: 1,
-        ask: 1.2,
-        last: 1.15,
-        delta: 0.52,
-        impliedVolatility: 0.35,
-        volume: 100,
-        openInterest: 500,
-        updatedAt: Date.now(),
-      },
-      put: {
-        contractSymbol: "AAPL260711P00150000",
-        underlying: "AAPL",
-        type: "put",
-        expiration: "2026-07-11",
-        strike: 150,
-        bid: 0.9,
-        ask: 1.0,
-        last: 0.95,
-        delta: -0.48,
-        impliedVolatility: 0.34,
-        volume: 80,
-        openInterest: 400,
-        updatedAt: Date.now(),
-      },
+const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+function mockOptionsChainScrollContainer() {
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+    if (this.getAttribute("data-testid") === "options-chain-scroll") {
+      return {
+        width: 480,
+        height: 320,
+        top: 0,
+        left: 0,
+        bottom: 320,
+        right: 480,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    }
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  class MockResizeObserver {
+    private callback: ResizeObserverCallback;
+
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+    }
+
+    observe(target: Element) {
+      const rect = target.getBoundingClientRect();
+      this.callback(
+        [
+          {
+            target,
+            contentRect: {
+              width: rect.width,
+              height: rect.height,
+              top: 0,
+              left: 0,
+              bottom: rect.height,
+              right: rect.width,
+              x: 0,
+              y: 0,
+              toJSON: () => ({}),
+            },
+          } as ResizeObserverEntry,
+        ],
+        this,
+      );
+    }
+
+    unobserve() {}
+
+    disconnect() {}
+  }
+
+  vi.stubGlobal("ResizeObserver", MockResizeObserver);
+}
+
+function makeStrike(strike: number): StrikeRow {
+  return {
+    strike,
+    call: {
+      contractSymbol: `AAPL260711C${String(strike).padStart(8, "0")}`,
+      underlying: "AAPL",
+      type: "call",
+      expiration: "2026-07-11",
+      strike,
+      bid: 1,
+      ask: 1.2,
+      last: 1.15,
+      delta: 0.52,
+      impliedVolatility: 0.35,
+      volume: 100,
+      openInterest: 500,
+      updatedAt: Date.now(),
     },
-  ];
+    put: {
+      contractSymbol: `AAPL260711P${String(strike).padStart(8, "0")}`,
+      underlying: "AAPL",
+      type: "put",
+      expiration: "2026-07-11",
+      strike,
+      bid: 0.9,
+      ask: 1.0,
+      last: 0.95,
+      delta: -0.48,
+      impliedVolatility: 0.34,
+      volume: 80,
+      openInterest: 400,
+      updatedAt: Date.now(),
+    },
+  };
+}
+
+function makeModel(overrides?: Partial<OptionsChainModel>): OptionsChainModel {
+  const contracts: StrikeRow[] = [makeStrike(150)];
 
   return {
     snapshot: {
@@ -76,8 +136,32 @@ function makeModel(overrides?: Partial<OptionsChainModel>): OptionsChainModel {
 }
 
 describe("OptionsChainView", () => {
+  beforeEach(() => {
+    mockOptionsChainScrollContainer();
+  });
+
   afterEach(() => {
     vi.useRealTimers();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    vi.unstubAllGlobals();
+  });
+
+  it("virtualizes large strike lists without mounting every row", () => {
+    const contracts = Array.from({ length: 200 }, (_, index) => makeStrike(100 + index));
+
+    render(
+      <div className="flex h-[320px] min-h-0 flex-col">
+        <OptionsChainView
+          model={makeModel({ contracts, chainMode: "full" })}
+          variant="sidebar"
+        />
+      </div>,
+    );
+
+    const rows = screen.getAllByTestId(/^options-chain-row-/);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThan(200);
+    expect(screen.queryByTestId("options-chain-row-299")).toBeNull();
   });
 
   it("renders compact expiration labels and chain-first layout regions", () => {
