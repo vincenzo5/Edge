@@ -608,6 +608,19 @@ export const tradingAuditEvents = pgTable("trading_audit_events", {
   detail: text("detail"),
 });
 
+export const productionErrorEvents = pgTable("production_error_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  atMs: bigint("at_ms", { mode: "number" }).notNull(),
+  source: text("source").notNull(),
+  message: text("message").notNull(),
+  stack: text("stack"),
+  detail: text("detail"),
+  requestId: text("request_id"),
+});
+
 export const userCopilotThreads = pgTable("user_copilot_threads", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
@@ -665,4 +678,5 @@ export type NotificationEventRow = typeof notificationEvents.$inferSelect;
 export type AlertDefinitionRow = typeof alertDefinitions.$inferSelect;
 export type AlertTriggerEventRow = typeof alertTriggerEvents.$inferSelect;
 export type TradingAuditEventRow = typeof tradingAuditEvents.$inferSelect;
+export type ProductionErrorEventRow = typeof productionErrorEvents.$inferSelect;
 export type ScreenerAlertRow = typeof screenerAlerts.$inferSelect;

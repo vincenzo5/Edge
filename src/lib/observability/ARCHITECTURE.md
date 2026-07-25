@@ -125,6 +125,22 @@ Market-data trace header `x-edge-md-trace-id` remains scoped to market-data rout
 
 ---
 
+## Production error sink (Phase 4)
+
+**Implementation:** [`localErrorLogStore.ts`](localErrorLogStore.ts), [`productionErrorPersist.ts`](productionErrorPersist.ts), [`productionErrorRepository.ts`](../persistence/repositories/productionErrorRepository.ts), [`POST`/`GET /api/me/production-errors`](../../../app/api/me/production-errors/route.ts), [`report-production-errors.mts`](../../../scripts/report-production-errors.mts), [`reportLocalError.ts`](reportLocalError.ts).
+
+- **Dual-write:** `appendLocalError` always writes JSONL when possible; when `DATABASE_URL` is set, fire-and-forget Postgres insert (fail-open — DB errors never block API responses).
+- **Schema:** `production_error_events` — `at_ms`, `source`, `message`, optional redacted `stack`/`detail`/`request_id`; **no** tokens, account IDs, or raw provider payloads.
+- **Ingest paths:**
+  - Server: `safeErrorResponse` / `appendLocalError` → Postgres via `ensureDevAppUser()` when DB configured.
+  - Client (production): `reportLocalError` → `POST /api/me/production-errors` with session auth (`credentials: include`).
+  - Client (non-prod): unchanged `POST /api/dev/local-errors` (loopback / `EDGE_API_KEY`).
+- **Read paths:** `GET /api/me/production-errors` (`withPersistenceAuth`, `?limit=` capped at 200); `npm run report:production-errors` (requires Postgres).
+- **Retention:** `EDGE_ERROR_RETENTION_DAYS` (default **30**); lazy purge on persist and report/CLI.
+- **Solo path preserved:** `.edge/error-log.jsonl` + `/api/dev/local-errors` stay **404 in production** (CONSTRAINTS).
+
+---
+
 ## Env knobs (sketch)
 
 Documented intent for later phases. Placeholders in [.env.example](../../../.env.example).
@@ -149,7 +165,8 @@ Readiness reuses existing deploy profile knobs — do not invent parallel “obs
 | Liveness / readiness | `/healthz`, `/readyz`, `readiness.ts` | Public, secret-free JSON; fixed reason codes on 503 |
 | Request IDs + access logs | `middleware.ts`, `requestId*.ts`, `accessLog*.ts`, `instrumentation.ts` | `/api/*` only; JSON `http.access` to stdout; ALS propagation |
 | Redaction | `src/lib/api/redactDiagnostic.ts`, `safeErrorResponse.ts` | Reuse on all ops surfaces |
-| Local errors | `localErrorLog*.ts`, `reportLocalError.ts`, `/api/dev/local-errors` | Prod **404**; gitignored `.edge/error-log.jsonl` |
+| Local errors | `localErrorLog*.ts`, `reportLocalError.ts`, `/api/dev/local-errors` | Prod **404**; gitignored `.edge/error-log.jsonl`; **Postgres dual-write** when `DATABASE_URL` set (Phase 4) |
+| Production errors | `productionErrorPersist.ts`, `/api/me/production-errors`, `report:production-errors` | Auth-gated prod ingest + report; redacted durable rows |
 | Client reporter | `src/app/components/observability/LocalErrorReporter.tsx` | Non-prod ingest |
 | Market-data health | `/api/market-data/health`, Data Health UI | Solo UX; heavy for orchestrators |
 | Process-local SLIs | `src/lib/marketData/state/operationalMetrics.ts` | 30m / 512 samples; not durable |
@@ -158,7 +175,7 @@ Readiness reuses existing deploy profile knobs — do not invent parallel “obs
 | Trading audit ring | `src/lib/trading/auditLog.ts` (500 entries) | Process-local ring; **Postgres dual-write** when `DATABASE_URL` set (Phase 3) |
 | Order intents | Postgres `order_intents` | Durable intents; not full audit export |
 | TWS sidecar health | `services/tws-sidecar` `/health` | Optional gate in `/readyz` when `EDGE_READYZ_REQUIRE_TWS=1` |
-| Lab memory scorecard (L3) | `npm run perf:memory` → `memory-baseline-latest.json` | Browser scenarios record CDP `JSHeapUsedSize`/`JSHeapTotalSize` (`cdpJsHeap*Mb`) and best-effort `measureUserAgentSpecificMemory()` (`uaSpecific*` or `uaSpecificUnavailableReason`). UA-specific memory requires cross-origin isolation — Edge does not enable COOP/COEP for this; explicit unavailable is expected. Process RSS (L4) and desk composite remain on [memory-metrics-roadmap.md](../../../docs/roadmaps/memory-metrics-roadmap.md). |
+| Lab memory scorecard (L3–L4) | `npm run perf:memory` → `memory-baseline-latest.json` | Browser scenarios record CDP `JSHeapUsedSize`/`JSHeapTotalSize` (`cdpJsHeap*Mb`) and best-effort `measureUserAgentSpecificMemory()` (`uaSpecific*` or `uaSpecificUnavailableReason`). UA-specific memory requires cross-origin isolation — Edge does not enable COOP/COEP for this; explicit unavailable is expected. **L4 (Phase 2):** `processRss*Mb` via OS `ps` max-renderer RSS on the Playwright Chromium PID tree; `processSampleMethod`/`processSampleNote` record headless + platform; warns when process RSS &lt; JS heap. Desk composite (L6–L8) remains on [memory-metrics-roadmap.md](../../../docs/roadmaps/memory-metrics-roadmap.md). |
 
 Inventory also recorded in the roadmap [Current baseline](../../../docs/roadmaps/production-observability-roadmap.md#current-baseline-what-already-works) table.
 
@@ -196,7 +213,7 @@ Audit/error read APIs require existing API auth / operator gates (Security Harde
 | 1 | `/healthz`, `/readyz` routes + tests (**Passing**) |
 | 2 | Request ID middleware + JSON access logs (**Passing**) |
 | 3 | Durable trading audit (Postgres) — **implemented** |
-| 4 | Production error sink (Postgres) |
+| 4 | Production error sink (Postgres) — **implemented** |
 | 5 | Free alerts + runbook |
 
 Track status: [production-observability-roadmap.md](../../../docs/roadmaps/production-observability-roadmap.md).

@@ -72,16 +72,29 @@ export function appendLocalError(
   input: LocalErrorLogInput,
   options: { logPath?: string } = {},
 ): LocalErrorLogEntry | null {
+  const entry = sanitizeEntry(input);
   try {
     const logPath = options.logPath ?? resolveLocalErrorLogPath();
     fs.mkdirSync(path.dirname(logPath), { recursive: true });
-    const entry = sanitizeEntry(input);
     const lines = readLines(logPath);
     lines.push(JSON.stringify(entry));
     const trimmed = lines.slice(-LOCAL_ERROR_LOG_RETENTION);
     fs.writeFileSync(logPath, `${trimmed.join("\n")}\n`, "utf8");
-    return entry;
   } catch {
-    return null;
+    // JSONL write failure must not throw — durable persist still attempted below.
   }
+
+  void import("./productionErrorPersist")
+    .then((mod) =>
+      mod.persistProductionError({
+        at: entry.at,
+        source: entry.source,
+        message: entry.message,
+        stack: entry.stack,
+        detail: entry.detail,
+      }),
+    )
+    .catch(() => {});
+
+  return entry;
 }

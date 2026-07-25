@@ -1,0 +1,46 @@
+# Production observability — Phase 4 evidence
+# Date: 2026-07-25
+
+## Scope
+Production error sink — Postgres dual-write from appendLocalError when DATABASE_URL set; auth-gated POST/GET /api/me/production-errors; npm run report:production-errors; 30-day retention; /api/dev/local-errors still 404 in production.
+
+## Delivered
+- src/db/migrations/0038_production_error_events.sql — production_error_events table + index
+- src/db/schema.ts — productionErrorEvents Drizzle table
+- src/lib/persistence/repositories/productionErrorRepository.ts — insert/list/purge
+- src/lib/observability/productionErrorPersist.ts — fail-open dual-write + lazy retention purge
+- src/lib/observability/productionErrorRetention.ts — EDGE_ERROR_RETENTION_DAYS (default 30)
+- src/lib/observability/localErrorLogStore.ts — fire-and-forget persist after JSONL append
+- src/app/api/me/production-errors/route.ts — POST ingest + GET list with withPersistenceAuth
+- src/lib/observability/reportLocalError.ts — production → /api/me/production-errors + credentials include
+- scripts/report-production-errors.mts — npm run report:production-errors (Postgres required)
+- package.json — report:production-errors script with server-only stub
+- Tests: productionErrorPersist, productionErrorRetention, productionErrorRepository, route, reportLocalError, localErrorLog, dev/local-errors
+- src/lib/observability/ARCHITECTURE.md — Phase 4 section + baseline update
+
+## Architecture review
+Self-review Passed — fail-open persist (JSONL always attempted); redactDiagnostic on all fields; withPersistenceAuth on prod ingest/list; solo /api/dev/local-errors 404 unchanged in production.
+
+## Verification (2026-07-25)
+Focused:
+npm test -- --run src/lib/observability/productionErrorPersist.test.ts src/lib/observability/productionErrorRetention.test.ts src/lib/persistence/repositories/productionErrorRepository.test.ts src/app/api/me/production-errors/route.test.ts src/lib/observability/reportLocalError.test.ts src/lib/observability/localErrorLog.test.ts src/app/api/dev/local-errors/route.test.ts
+Test Files  7 passed (7)
+Tests  27 passed (27)
+
+Migration:
+npm run db:migrate
+Applied migration: .../0038_production_error_events.sql
+
+Build:
+npm run build
+✓ Compiled successfully in 13.0s
+(Full TS gate fails on pre-existing unrelated examples/chart-perf-harness/microbench.ts — not introduced by Phase 4.)
+
+App-level / ops:
+appendLocalError dual-write smoke + npm run report:production-errors -- --limit 5:
+Production errors (Postgres) — 2 entries
+[2026-07-25T16:58:27.818Z] phase4-append-smoke
+message: via appendLocalError dual-write
+
+## Next
+Phase 5 — free alerts + runbook

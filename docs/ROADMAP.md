@@ -283,7 +283,7 @@ Living feature tracks (phase detail in each file):
 - [Runtime interaction performance](./roadmaps/runtime-performance-roadmap.md) — Phase 0–8 **Pending** (frame time, crosshair cost, tip tick, React wakeups; CI budgets in Phase 8)
 - [Shared cache topology](./roadmaps/shared-cache-topology-roadmap.md) — Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance coordination)
 - ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete
-- [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0–2 **Passing**; Phases 3–5 **Pending** (durable audit/errors, free alerts; no paid SaaS)
+- [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (free alerts; no paid SaaS)
 - ~~[Plan → execute token efficiency](./roadmaps/plan-execute-token-efficiency-roadmap.md)~~ — Phase 0–6 **Passing** (track complete)
 
 Broader product backlog (not feature-track owned):
