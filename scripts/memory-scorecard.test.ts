@@ -3,9 +3,13 @@ import {
   buildMemoryScorecardRow,
   computeCapsOk,
   DEFAULT_SOFT_BUDGETS,
+  evaluateSoakBudgets,
+  evaluateSoakPass,
   evaluateSoftBudgets,
   formatMemoryScorecard,
+  formatSoakScorecardLine,
   readSoftBudgetConfig,
+  resolveSoakSec,
   selectBrowserScenario,
   type MemoryBaselineSnapshot,
 } from "./memory-scorecard.ts";
@@ -44,6 +48,15 @@ const fixtureBaseline: MemoryBaselineSnapshot = {
     skippedNoSidecar: false,
     skippedNoRedis: true,
   },
+};
+
+const soakFixture = {
+  soakDurationSec: 60,
+  soakHeapDeltaMb: 12,
+  soakProcessRssDeltaMb: 25,
+  eventSourceCountBefore: 2,
+  eventSourceCountAfter: 2,
+  eventSourceCountStable: true,
 };
 
 describe("selectBrowserScenario", () => {
@@ -192,6 +205,56 @@ describe("evaluateSoftBudgets", () => {
     });
     expect(warnings).toEqual([]);
   });
+
+  it("warns when soak heap delta exceeds budget", () => {
+    const warnings = evaluateSoftBudgets(
+      {
+        scenarios: {
+          "browser-b3-live-tip": {
+            soakHeapDeltaMb: 75,
+            soakProcessRssDeltaMb: 10,
+          },
+        },
+      },
+      { ...DEFAULT_SOFT_BUDGETS, soakHeapDeltaMb: 50 },
+    );
+    expect(warnings).toEqual([
+      {
+        id: "soak-heap-delta",
+        message: "soft-budget: soakHeapDeltaMb=75 exceeds 50",
+      },
+    ]);
+  });
+
+  it("warns when soak process RSS delta exceeds budget", () => {
+    const warnings = evaluateSoftBudgets(
+      {
+        scenarios: {
+          "browser-b3-live-tip": {
+            soakHeapDeltaMb: 10,
+            soakProcessRssDeltaMb: 150,
+          },
+        },
+      },
+      { ...DEFAULT_SOFT_BUDGETS, soakProcessRssDeltaMb: 100 },
+    );
+    expect(warnings).toEqual([
+      {
+        id: "soak-process-rss-delta",
+        message: "soft-budget: soakProcessRssDeltaMb=150 exceeds 100",
+      },
+    ]);
+  });
+
+  it("skips soak budgets when B3 is skipped", () => {
+    expect(
+      evaluateSoftBudgets({
+        scenarios: {
+          "browser-b3-live-tip": { skipped: true, reason: "dev server not reachable" },
+        },
+      }),
+    ).toEqual([]);
+  });
 });
 
 describe("formatMemoryScorecard", () => {
@@ -223,6 +286,20 @@ describe("formatMemoryScorecard", () => {
     expect(output).toContain("Soft budget warnings:");
     expect(output).toContain("soft-budget: processRssAfterMb=1500 exceeds 1200");
   });
+
+  it("includes soak line when B3 data is present", () => {
+    const output = formatMemoryScorecard({
+      ...fixtureBaseline,
+      scenarios: {
+        ...fixtureBaseline.scenarios,
+        "browser-b3-live-tip": soakFixture,
+      },
+    });
+
+    expect(output).toContain(
+      "Soak (L9): duration=60s Δheap=12 Δprocess=25 EventSource stable=yes",
+    );
+  });
 });
 
 describe("readSoftBudgetConfig", () => {
@@ -232,11 +309,15 @@ describe("readSoftBudgetConfig", () => {
         MEMORY_BUDGET_HEAP_DELTA_MB: "25",
         MEMORY_BUDGET_PROCESS_RSS_MB: "900",
         MEMORY_BUDGET_DESK_TOTAL_MB: "1800",
+        MEMORY_BUDGET_SOAK_HEAP_DELTA_MB: "30",
+        MEMORY_BUDGET_SOAK_PROCESS_RSS_DELTA_MB: "80",
       }),
     ).toEqual({
       heapDeltaMb: 25,
       processRssMb: 900,
       deskTotalMb: 1800,
+      soakHeapDeltaMb: 30,
+      soakProcessRssDeltaMb: 80,
     });
   });
 
@@ -245,7 +326,90 @@ describe("readSoftBudgetConfig", () => {
       readSoftBudgetConfig({
         MEMORY_BUDGET_HEAP_DELTA_MB: "not-a-number",
         MEMORY_BUDGET_PROCESS_RSS_MB: "-1",
+        MEMORY_BUDGET_SOAK_HEAP_DELTA_MB: "0",
       }),
     ).toEqual(DEFAULT_SOFT_BUDGETS);
+  });
+});
+
+describe("resolveSoakSec", () => {
+  it("prefers MEMORY_SOAK_SEC over MEMORY_LIVE_TIP_SEC", () => {
+    expect(
+      resolveSoakSec({
+        MEMORY_SOAK_SEC: "45",
+        MEMORY_LIVE_TIP_SEC: "120",
+      }),
+    ).toBe(45);
+  });
+
+  it("falls back to MEMORY_LIVE_TIP_SEC then default", () => {
+    expect(resolveSoakSec({ MEMORY_LIVE_TIP_SEC: "90" })).toBe(90);
+    expect(resolveSoakSec({})).toBe(60);
+  });
+
+  it("enforces minimum soak duration", () => {
+    expect(resolveSoakSec({ MEMORY_SOAK_SEC: "3" })).toBe(10);
+  });
+});
+
+describe("evaluateSoakPass", () => {
+  it("passes when both deltas are within budget", () => {
+    expect(
+      evaluateSoakPass(
+        { soakHeapDeltaMb: 12, soakProcessRssDeltaMb: 25 },
+        DEFAULT_SOFT_BUDGETS,
+      ),
+    ).toBe(true);
+  });
+
+  it("fails when either delta exceeds budget", () => {
+    expect(
+      evaluateSoakPass(
+        { soakHeapDeltaMb: 75, soakProcessRssDeltaMb: 25 },
+        DEFAULT_SOFT_BUDGETS,
+      ),
+    ).toBe(false);
+    expect(
+      evaluateSoakPass(
+        { soakHeapDeltaMb: 12, soakProcessRssDeltaMb: 150 },
+        DEFAULT_SOFT_BUDGETS,
+      ),
+    ).toBe(false);
+  });
+
+  it("returns null when either delta is missing", () => {
+    expect(evaluateSoakPass({ soakHeapDeltaMb: 12, soakProcessRssDeltaMb: null })).toBeNull();
+  });
+});
+
+describe("evaluateSoakBudgets", () => {
+  it("returns empty warnings when soak is null", () => {
+    expect(evaluateSoakBudgets(null)).toEqual([]);
+  });
+
+  it("warns on both soak deltas when over budget", () => {
+    expect(
+      evaluateSoakBudgets(
+        { soakHeapDeltaMb: 75, soakProcessRssDeltaMb: 150 },
+        DEFAULT_SOFT_BUDGETS,
+      ),
+    ).toEqual([
+      {
+        id: "soak-heap-delta",
+        message: "soft-budget: soakHeapDeltaMb=75 exceeds 50",
+      },
+      {
+        id: "soak-process-rss-delta",
+        message: "soft-budget: soakProcessRssDeltaMb=150 exceeds 100",
+      },
+    ]);
+  });
+});
+
+describe("formatSoakScorecardLine", () => {
+  it("formats soak metrics for the scorecard", () => {
+    expect(formatSoakScorecardLine(soakFixture)).toBe(
+      "Soak (L9): duration=60s Δheap=12 Δprocess=25 EventSource stable=yes",
+    );
   });
 });

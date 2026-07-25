@@ -4,7 +4,7 @@ Give operators and agents a **layered, comparable snapshot** of Edge memory — 
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phase 3 **Passing** (2026-07-25). Phase 4 **Passing** (2026-07-25). Phase 5 **Passing** (2026-07-25). Phase 6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
+**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phase 3 **Passing** (2026-07-25). Phase 4 **Passing** (2026-07-25). Phase 5 **Passing** (2026-07-25). Phase 6 **Passing** (2026-07-25). Track complete. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
 
 **Related:** [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md), [memory-baseline-latest.json](../perf/memory-baseline-latest.json), [market-data-performance.md](../perf/market-data-performance.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -406,7 +406,7 @@ Exit code stays **0** on soft budget warnings; missing layers skip that budget c
 ### Phase 6 — Soak / leak regression
 
 **Band:** Pre-launch  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-25)
 
 **Outcome:** Catch “fine at 1 minute, fat at 30” on heap **and** process.
 
@@ -420,7 +420,28 @@ Exit code stays **0** on soft budget warnings; missing layers skip that budget c
 
 **Exit evidence:** Soak scenario in baseline; budget behavior tested (unit or script flag).
 
-**Gate — Phase 6 Passing:** Soak emits dual deltas; documented how to run full-length locally.
+**Gate — Phase 6 Passing:** Soak emits dual deltas; documented how to run full-length locally. **Met.**
+
+#### Soak env vars
+
+| Env var | Default | Purpose |
+|---------|---------|---------|
+| `MEMORY_SOAK_SEC` | falls back to `MEMORY_LIVE_TIP_SEC` → `60` (min 10) | B3 soak window duration |
+| `MEMORY_LIVE_TIP_SEC` | `60` | Legacy fallback when `MEMORY_SOAK_SEC` unset |
+| `MEMORY_BUDGET_SOAK_HEAP_DELTA_MB` | 50 | Warn-only soak heap Δ budget |
+| `MEMORY_BUDGET_SOAK_PROCESS_RSS_DELTA_MB` | 100 | Warn-only soak process RSS Δ budget |
+
+**Short soak (CI / dev):** `MEMORY_SOAK_SEC=10 npm run perf:memory`  
+**Full local soak:** `MEMORY_SOAK_SEC=300 npm run perf:memory` (5 min; not default CI)
+
+#### Phase 6 results (2026-07-25)
+
+- `scripts/run-memory-baseline.mts` — B3 emits L9 keys (`soakDurationSec`, `soakHeapDeltaMb`, `soakProcessRssDeltaMb`, EventSource stability); dual-delta `pass`; `environment.soakSec`.
+- `scripts/memory-scorecard.ts` — `resolveSoakSec`, `evaluateSoakPass`, `evaluateSoakBudgets`, soak scorecard line, soak soft budgets.
+- `scripts/memory-scorecard.test.ts` — Vitest coverage (28 tests).
+- Evidence: [memory-metrics-phase-6.txt](../evidence/memory-metrics-phase-6.txt).
+- **Architecture review:** self-review **Passed** — lab CLI only; warn-only soak budgets (exit 0); no retention changes.
+- **Next:** Track complete — optional full-length local soak when investigating leaks.
 
 ---
 

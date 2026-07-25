@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-07-25T17:40:00.000Z",
+  "environment": {
+    "soakSec": 10,
+    "liveTipSec": 60
+  },
+  "scenarios": {
+    "browser-b1-1cell-10x-loadMore": {
+      "jsHeapUsedMb": 98.23,
+      "heapDeltaMb": 0,
+      "processRssAfterMb": 480.63,
+      "maxCandlesLength": 3860,
+      "mountedEngines": 1,
+      "withinSoftMax": true
+    },
+    "node-server-cache-warm": {
+      "rssAfterMb": 358.95,
+      "withinDataCacheCap": true,
+      "withinHotStoreCap": true
+    },
+    "browser-b3-live-tip": {
+      "soakDurationSec": 10,
+      "soakHeapDeltaMb": 2.5,
+      "soakProcessRssDeltaMb": 18.2,
+      "heapDeltaMb": 2.5,
+      "processRssDeltaMb": 18.2,
+      "eventSourceCountBefore": 2,
+      "eventSourceCountAfter": 2,
+      "eventSourceCountStable": true,
+      "pass": true
+    }
+  },
+  "desk": {
+    "browserProcessRssMb": 480.63,
+    "nodeRssMb": 358.95,
+    "sidecarRssMb": 62.97,
+    "redisUsedMb": null,
+    "totalKnownMb": 902.55,
+    "skippedNoSidecar": false,
+    "skippedNoRedis": true
+  }
+}

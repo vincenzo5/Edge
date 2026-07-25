@@ -11,6 +11,17 @@ export type BrowserScenarioFields = {
   withinSoftMax?: boolean | null;
 };
 
+export type SoakScenarioFields = {
+  skipped?: boolean;
+  reason?: string;
+  soakDurationSec?: number | null;
+  soakHeapDeltaMb?: number | null;
+  soakProcessRssDeltaMb?: number | null;
+  eventSourceCountBefore?: number | null;
+  eventSourceCountAfter?: number | null;
+  eventSourceCountStable?: boolean | null;
+};
+
 export type NodeCacheWarmFields = {
   rssAfterMb?: number | null;
   withinDataCacheCap?: boolean | null;
@@ -44,13 +55,20 @@ export type MemorySoftBudgetConfig = {
   heapDeltaMb: number;
   processRssMb: number;
   deskTotalMb: number;
+  soakHeapDeltaMb: number;
+  soakProcessRssDeltaMb: number;
 };
 
 export const DEFAULT_SOFT_BUDGETS: MemorySoftBudgetConfig = {
   heapDeltaMb: 50,
   processRssMb: 1200,
   deskTotalMb: 2500,
+  soakHeapDeltaMb: 50,
+  soakProcessRssDeltaMb: 100,
 };
+
+const SOAK_SEC_MIN = 10;
+const SOAK_SEC_DEFAULT = 60;
 
 function asBrowserScenario(value: unknown): BrowserScenarioFields | null {
   if (value == null || typeof value !== "object") return null;
@@ -62,6 +80,13 @@ function asBrowserScenario(value: unknown): BrowserScenarioFields | null {
 function asNodeCacheWarm(value: unknown): NodeCacheWarmFields | null {
   if (value == null || typeof value !== "object") return null;
   const row = value as NodeCacheWarmFields & { skipped?: boolean };
+  if (row.skipped) return null;
+  return row;
+}
+
+function asSoakScenario(value: unknown): SoakScenarioFields | null {
+  if (value == null || typeof value !== "object") return null;
+  const row = value as SoakScenarioFields;
   if (row.skipped) return null;
   return row;
 }
@@ -94,7 +119,69 @@ export function readSoftBudgetConfig(
     heapDeltaMb: parsePositiveNumber(env.MEMORY_BUDGET_HEAP_DELTA_MB, DEFAULT_SOFT_BUDGETS.heapDeltaMb),
     processRssMb: parsePositiveNumber(env.MEMORY_BUDGET_PROCESS_RSS_MB, DEFAULT_SOFT_BUDGETS.processRssMb),
     deskTotalMb: parsePositiveNumber(env.MEMORY_BUDGET_DESK_TOTAL_MB, DEFAULT_SOFT_BUDGETS.deskTotalMb),
+    soakHeapDeltaMb: parsePositiveNumber(
+      env.MEMORY_BUDGET_SOAK_HEAP_DELTA_MB,
+      DEFAULT_SOFT_BUDGETS.soakHeapDeltaMb,
+    ),
+    soakProcessRssDeltaMb: parsePositiveNumber(
+      env.MEMORY_BUDGET_SOAK_PROCESS_RSS_DELTA_MB,
+      DEFAULT_SOFT_BUDGETS.soakProcessRssDeltaMb,
+    ),
   };
+}
+
+export function resolveSoakSec(env: NodeJS.ProcessEnv = process.env): number {
+  const soakParsed = Number.parseFloat(env.MEMORY_SOAK_SEC ?? "");
+  if (Number.isFinite(soakParsed) && soakParsed > 0) {
+    return Math.max(SOAK_SEC_MIN, Math.floor(soakParsed));
+  }
+
+  const liveTipParsed = Number.parseFloat(env.MEMORY_LIVE_TIP_SEC ?? "");
+  if (Number.isFinite(liveTipParsed) && liveTipParsed > 0) {
+    return Math.max(SOAK_SEC_MIN, Math.floor(liveTipParsed));
+  }
+
+  return SOAK_SEC_DEFAULT;
+}
+
+export function evaluateSoakPass(
+  soak: Pick<SoakScenarioFields, "soakHeapDeltaMb" | "soakProcessRssDeltaMb">,
+  config: MemorySoftBudgetConfig = readSoftBudgetConfig(),
+): boolean | null {
+  const { soakHeapDeltaMb, soakProcessRssDeltaMb } = soak;
+  if (soakHeapDeltaMb == null || soakProcessRssDeltaMb == null) {
+    return null;
+  }
+
+  return (
+    soakHeapDeltaMb <= config.soakHeapDeltaMb &&
+    soakProcessRssDeltaMb <= config.soakProcessRssDeltaMb
+  );
+}
+
+export function evaluateSoakBudgets(
+  soak: SoakScenarioFields | null,
+  config: MemorySoftBudgetConfig = readSoftBudgetConfig(),
+): MemorySoftBudget[] {
+  if (soak == null) return [];
+
+  const warnings: MemorySoftBudget[] = [];
+
+  if (soak.soakHeapDeltaMb != null && soak.soakHeapDeltaMb > config.soakHeapDeltaMb) {
+    warnings.push({
+      id: "soak-heap-delta",
+      message: `soft-budget: soakHeapDeltaMb=${soak.soakHeapDeltaMb} exceeds ${config.soakHeapDeltaMb}`,
+    });
+  }
+
+  if (soak.soakProcessRssDeltaMb != null && soak.soakProcessRssDeltaMb > config.soakProcessRssDeltaMb) {
+    warnings.push({
+      id: "soak-process-rss-delta",
+      message: `soft-budget: soakProcessRssDeltaMb=${soak.soakProcessRssDeltaMb} exceeds ${config.soakProcessRssDeltaMb}`,
+    });
+  }
+
+  return warnings;
 }
 
 export function selectBrowserScenario(
@@ -181,7 +268,21 @@ export function evaluateSoftBudgets(
     });
   }
 
+  const soak = asSoakScenario(baseline.scenarios?.["browser-b3-live-tip"]);
+  warnings.push(...evaluateSoakBudgets(soak, config));
+
   return warnings;
+}
+
+function formatSoakStable(value: boolean | null | undefined): string {
+  if (value == null) return "—";
+  return value ? "yes" : "no";
+}
+
+export function formatSoakScorecardLine(soak: SoakScenarioFields | null): string | null {
+  if (soak == null) return null;
+
+  return `Soak (L9): duration=${formatCount(soak.soakDurationSec)}s Δheap=${formatMb(soak.soakHeapDeltaMb)} Δprocess=${formatMb(soak.soakProcessRssDeltaMb)} EventSource stable=${formatSoakStable(soak.eventSourceCountStable)}`;
 }
 
 export function formatMemoryScorecard(
@@ -219,6 +320,12 @@ export function formatMemoryScorecard(
     lines.push(
       `Desk: totalKnownMb=${formatMb(desk.totalKnownMb)} browser=${formatMb(desk.browserProcessRssMb)} node=${formatMb(desk.nodeRssMb)} sidecar=${formatMb(desk.sidecarRssMb)} redis=${formatMb(desk.redisUsedMb)}${skipSuffix}`,
     );
+  }
+
+  const soakLine = formatSoakScorecardLine(asSoakScenario(baseline.scenarios?.["browser-b3-live-tip"]));
+  if (soakLine) {
+    lines.push("");
+    lines.push(soakLine);
   }
 
   const warnings = evaluateSoftBudgets(baseline);

@@ -57,13 +57,14 @@ import {
 } from "./memory-baseline-metrics.ts";
 import { sampleChromiumProcessRss, type ChromiumProcessRssSample } from "./memory-process-rss.ts";
 import { sampleRedisUsedMb, sampleSidecarRssMb } from "./memory-desk-sample.ts";
-import { formatMemoryScorecard } from "./memory-scorecard.ts";
+import { formatMemoryScorecard, evaluateSoakPass, resolveSoakSec } from "./memory-scorecard.ts";
 
 config({ path: ".env.local" });
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const perfDir = path.join(repoRoot, "docs/perf");
 const baseUrl = process.env.MEMORY_BASELINE_URL ?? "http://localhost:3003";
+const SOAK_SEC = resolveSoakSec(process.env);
 const LIVE_TIP_SEC = Math.max(10, Number(process.env.MEMORY_LIVE_TIP_SEC ?? 60));
 
 const BASE_SYMBOL = "SPY";
@@ -115,6 +116,7 @@ type MemoryBaseline = {
     baseUrl: string;
     browserAvailable: boolean;
     liveTipSec: number;
+    soakSec: number;
   };
   proposedKnobs: {
     RESIDENT_BAR_SOFT_MAX: number;
@@ -702,8 +704,11 @@ async function measureLiveTipPressure(
     const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
     return perf.memory?.usedJSHeapSize ?? null;
   });
+  const eventSourceCountBefore = await page.evaluate(() => {
+    return (window as unknown as { __edgeEventSourceCount?: number }).__edgeEventSourceCount ?? 0;
+  });
 
-  await page.waitForTimeout(LIVE_TIP_SEC * 1000);
+  await page.waitForTimeout(SOAK_SEC * 1000);
 
   const processAfter = sampleBrowserProcessRss(sampler);
   const metrics = await page.evaluate(() => {
@@ -719,22 +724,32 @@ async function measureLiveTipPressure(
   warnIfProcessRssBelowHeap(l4Metrics, metrics.jsHeapUsedMb ?? null, "browser-b3-live-tip");
 
   const heapAfter = metrics.jsHeapUsedMb != null ? metrics.jsHeapUsedMb * 1024 * 1024 : null;
+  const soakHeapDeltaMb =
+    heapBefore != null && heapAfter != null ? mb(heapAfter - heapBefore) : null;
+  const soakProcessRssDeltaMb = l4Metrics.processRssDeltaMb ?? null;
+  const eventSourceCountStable = eventSourceCountBefore === metrics.eventSourceCount;
 
   return {
-    durationSec: LIVE_TIP_SEC,
+    durationSec: SOAK_SEC,
     plannedDurationSec: 300,
+    soakDurationSec: SOAK_SEC,
+    soakHeapDeltaMb,
+    soakProcessRssDeltaMb,
     heapBeforeMb: heapBefore != null ? mb(heapBefore) : null,
     heapAfterMb: metrics.jsHeapUsedMb,
-    heapDeltaMb: heapBefore != null && heapAfter != null ? mb(heapAfter - heapBefore) : null,
+    heapDeltaMb: soakHeapDeltaMb,
+    eventSourceCountBefore,
+    eventSourceCountAfter: metrics.eventSourceCount,
     eventSourceCount: metrics.eventSourceCount,
+    eventSourceCountStable,
     ...l3Metrics,
     ...l4Metrics,
     ...l5Metrics,
-    pass: heapBefore == null || heapAfter == null ? null : mb(heapAfter - heapBefore) < 50,
+    pass: evaluateSoakPass({ soakHeapDeltaMb, soakProcessRssDeltaMb }),
     note:
-      LIVE_TIP_SEC >= 300
-        ? "Phase 13: 5 min live tip window."
-        : "Phase 13: automated live tip window (set MEMORY_LIVE_TIP_SEC=300 for full 5 min).",
+      SOAK_SEC >= 300
+        ? "Phase 6: full 5 min soak window (MEMORY_SOAK_SEC=300)."
+        : "Phase 6: short soak window (set MEMORY_SOAK_SEC=300 for full 5 min local soak).",
   };
 }
 
@@ -1004,6 +1019,7 @@ async function main(): Promise<void> {
       baseUrl,
       browserAvailable: browserUp,
       liveTipSec: LIVE_TIP_SEC,
+      soakSec: SOAK_SEC,
     },
     proposedKnobs,
     scenarios: {

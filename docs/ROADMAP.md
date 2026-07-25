@@ -279,7 +279,7 @@ Living feature tracks (phase detail in each file):
 - ~~[Workspace state persistence](./roadmaps/workspace-state-persistence-roadmap.md)~~ — **Complete**
 - ~~[Data serving & caching efficiency](./roadmaps/data-serving-efficiency-roadmap.md)~~ — **Complete** (Phases 0–6 **Passing**; Phase 7 Redis **Skipped** — prod topology → [shared-cache-topology-roadmap.md](./roadmaps/shared-cache-topology-roadmap.md))
 - ~~[Memory efficiency](./roadmaps/memory-efficiency-roadmap.md)~~ — Phases 0–14 **Passing** (track complete; Phase 12 adapters)
-- [Comprehensive memory metrics](./roadmaps/memory-metrics-roadmap.md) — Phase 0–5 **Passing** (2026-07-25); Phase 6 **Pending** (soak; measurement only)
+- [Comprehensive memory metrics](./roadmaps/memory-metrics-roadmap.md) — Phase 0–6 **Passing** (2026-07-25); track complete (soak dual-delta gate; measurement only)
 - [Runtime interaction performance](./roadmaps/runtime-performance-roadmap.md) — Phase 0–8 **Pending** (frame time, crosshair cost, tip tick, React wakeups; CI budgets in Phase 8)
 - [Shared cache topology](./roadmaps/shared-cache-topology-roadmap.md) — Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance coordination)
 - ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete
