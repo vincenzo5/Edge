@@ -15,6 +15,7 @@ import { createGeometryBufferPool, type GeometryBufferPool } from './geometryBuf
 import {
   colorToRgba,
   createWebGL2Context,
+  releaseWebGL2Context,
   linkProgram,
   type GL2,
 } from './webglContext';
@@ -115,6 +116,7 @@ export class CandleWebGLRenderer {
     if (this.lineBuffer) gl.deleteBuffer(this.lineBuffer);
     if (this.fillProgram) gl.deleteProgram(this.fillProgram.program);
     if (this.lineProgram) gl.deleteProgram(this.lineProgram.program);
+    releaseWebGL2Context(gl);
     this.gl = null;
     this.fillProgram = null;
     this.lineProgram = null;

@@ -2,6 +2,27 @@
 
 export type GL2 = WebGL2RenderingContext;
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __edgeWebGLLiveContextCount: number | undefined;
+}
+
+function incrementLiveContextCount(): void {
+  if (typeof globalThis === 'undefined') return;
+  const current = globalThis.__edgeWebGLLiveContextCount ?? 0;
+  globalThis.__edgeWebGLLiveContextCount = current + 1;
+}
+
+function decrementLiveContextCount(): void {
+  if (typeof globalThis === 'undefined') return;
+  const current = globalThis.__edgeWebGLLiveContextCount ?? 0;
+  globalThis.__edgeWebGLLiveContextCount = Math.max(0, current - 1);
+}
+
+export function getWebGLLiveContextCount(): number {
+  return globalThis.__edgeWebGLLiveContextCount ?? 0;
+}
+
 export function createWebGL2Context(
   canvas: HTMLCanvasElement,
 ): GL2 | null {
@@ -13,10 +34,22 @@ export function createWebGL2Context(
       stencil: false,
       preserveDrawingBuffer: true,
     });
-    return gl instanceof WebGL2RenderingContext ? gl : null;
+    if (gl instanceof WebGL2RenderingContext) {
+      incrementLiveContextCount();
+      return gl;
+    }
+    return null;
   } catch {
     return null;
   }
+}
+
+/** Release a WebGL2 context and keep the lab live-context counter accurate. */
+export function releaseWebGL2Context(gl: GL2 | null): void {
+  if (!gl) return;
+  const loseExt = gl.getExtension('WEBGL_lose_context');
+  loseExt?.loseContext();
+  decrementLiveContextCount();
 }
 
 export function compileShader(

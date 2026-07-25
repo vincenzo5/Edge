@@ -3,8 +3,10 @@ import {
   bytesToMb,
   normalizeCdpHeapMetrics,
   normalizeProcessRssSample,
+  normalizeSurfaceMetrics,
   normalizeUaSpecificMemory,
   processRssBelowHeapWarn,
+  surfacePolicyPass,
 } from "./memory-baseline-metrics.ts";
 
 describe("bytesToMb", () => {
@@ -113,5 +115,58 @@ describe("processRssBelowHeapWarn", () => {
     expect(processRssBelowHeapWarn(120, 100)).toBe(false);
     expect(processRssBelowHeapWarn(null, 100)).toBe(false);
     expect(processRssBelowHeapWarn(120, null)).toBe(false);
+  });
+});
+
+describe("normalizeSurfaceMetrics", () => {
+  it("maps surface inventory to L5 fields", () => {
+    expect(
+      normalizeSurfaceMetrics({
+        canvasCount: 3,
+        webglContextCount: 2,
+        gpuMemoryBytes: 16 * 1024 * 1024,
+      }),
+    ).toEqual({
+      canvasCount: 3,
+      webglContextCount: 2,
+      gpuMemoryMb: 16,
+      gpuMemoryNote: null,
+    });
+  });
+
+  it("returns null gpuMemoryMb with note when GPU bytes are missing", () => {
+    expect(
+      normalizeSurfaceMetrics({
+        canvasCount: 2,
+        webglContextCount: 0,
+        gpuMemoryNote: "no GPU memory extension (headless)",
+      }),
+    ).toEqual({
+      canvasCount: 2,
+      webglContextCount: 0,
+      gpuMemoryMb: null,
+      gpuMemoryNote: "no GPU memory extension (headless)",
+    });
+  });
+
+  it("does not fake zero gpuMemoryMb when bytes are zero or invalid", () => {
+    expect(normalizeSurfaceMetrics({ canvasCount: 1, webglContextCount: 0, gpuMemoryBytes: 0 })).toEqual({
+      canvasCount: 1,
+      webglContextCount: 0,
+      gpuMemoryMb: null,
+      gpuMemoryNote: "gpu memory unavailable",
+    });
+  });
+});
+
+describe("surfacePolicyPass", () => {
+  it("passes single-cell when canvases are present", () => {
+    expect(surfacePolicyPass(1, 1, 2, 0)).toBe(true);
+  });
+
+  it("requires canvas count below pane count for multi-cell inactive unmount", () => {
+    expect(surfacePolicyPass(8, 1, 3, 7)).toBe(true);
+    expect(surfacePolicyPass(8, 1, 8, 7)).toBe(false);
+    expect(surfacePolicyPass(8, 0, 3, 7)).toBe(false);
   });
 });

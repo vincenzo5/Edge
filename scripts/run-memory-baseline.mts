@@ -43,10 +43,14 @@ import { DEFAULT_LAYOUT, type ChartLayout, type CellConfig } from "../src/lib/ch
 import {
   normalizeCdpHeapMetrics,
   normalizeProcessRssSample,
+  normalizeSurfaceMetrics,
   normalizeUaSpecificMemory,
   processRssBelowHeapWarn,
+  surfacePolicyPass,
+  collectSurfaceMetricsInPage,
   type CdpHeapFields,
   type ProcessRssFields,
+  type SurfaceMetricsFields,
   type UaSpecificMemoryFields,
 } from "./memory-baseline-metrics.ts";
 import { sampleChromiumProcessRss, type ChromiumProcessRssSample } from "./memory-process-rss.ts";
@@ -569,6 +573,11 @@ async function readBrowserCellMetrics(page: Page): Promise<Record<string, number
   });
 }
 
+async function readBrowserSurfaceMetrics(page: Page): Promise<SurfaceMetricsFields> {
+  const raw = await page.evaluate(collectSurfaceMetricsInPage);
+  return normalizeSurfaceMetrics(raw);
+}
+
 async function measureBrowserScenario(
   page: Page,
   options: { paneCount: number; loadMoreRounds: number; scenarioId: string },
@@ -623,6 +632,7 @@ async function measureBrowserScenario(
   const metrics = await readBrowserCellMetrics(page);
   const l3Metrics = await readBrowserL3Metrics(page);
   const l4Metrics = buildL4Fields(processBefore, processAfter);
+  const l5Metrics = await readBrowserSurfaceMetrics(page);
   warnIfProcessRssBelowHeap(l4Metrics, metrics.jsHeapUsedMb ?? null, options.scenarioId);
 
   const heapAfter = metrics.jsHeapUsedMb != null ? metrics.jsHeapUsedMb * 1024 * 1024 : null;
@@ -637,6 +647,12 @@ async function measureBrowserScenario(
     options.paneCount === 1 ||
     ((metrics.inactiveChartSurfaces ?? 0) === expectedInactive &&
       (metrics.mountedEngines ?? 0) === 1);
+  const surfacePolicyPassFlag = surfacePolicyPass(
+    options.paneCount,
+    metrics.mountedEngines ?? null,
+    l5Metrics.canvasCount,
+    metrics.inactiveChartSurfaces ?? null,
+  );
 
   return {
     paneCount: options.paneCount,
@@ -647,13 +663,16 @@ async function measureBrowserScenario(
     ...metrics,
     ...l3Metrics,
     ...l4Metrics,
+    ...l5Metrics,
     ...loadMore,
     inactivePolicyPass,
+    surfacePolicyPass: surfacePolicyPassFlag,
     residentBarPass,
     activeCellSwitch,
     pass:
       residentBarPass &&
       inactivePolicyPass &&
+      surfacePolicyPassFlag &&
       (activeCellSwitch?.pass ?? true),
     note:
       "Phase 14: trimResidentBars contract on API loadMore; inactive cells unmounted (Phase 11); live gated to active cell (Phase 2). EventSource count includes quote streams.",
@@ -691,6 +710,7 @@ async function measureLiveTipPressure(
   });
   const l3Metrics = await readBrowserL3Metrics(page);
   const l4Metrics = buildL4Fields(processBefore, processAfter);
+  const l5Metrics = await readBrowserSurfaceMetrics(page);
   warnIfProcessRssBelowHeap(l4Metrics, metrics.jsHeapUsedMb ?? null, "browser-b3-live-tip");
 
   const heapAfter = metrics.jsHeapUsedMb != null ? metrics.jsHeapUsedMb * 1024 * 1024 : null;
@@ -704,6 +724,7 @@ async function measureLiveTipPressure(
     eventSourceCount: metrics.eventSourceCount,
     ...l3Metrics,
     ...l4Metrics,
+    ...l5Metrics,
     pass: heapBefore == null || heapAfter == null ? null : mb(heapAfter - heapBefore) < 50,
     note:
       LIVE_TIP_SEC >= 300

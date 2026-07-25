@@ -4,7 +4,7 @@ Give operators and agents a **layered, comparable snapshot** of Edge memory — 
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phases 3–6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
+**Status:** Phase 0 **Passing** (2026-07-24). Phase 1 **Passing** (2026-07-24). Phase 2 **Passing** (2026-07-25). Phase 3 **Passing** (2026-07-25). Phases 4–6 **Pending**. Complements [Memory Efficiency](./memory-efficiency-roadmap.md) (bounds what we keep), [Runtime Interaction Performance](./runtime-performance-roadmap.md) (frame time / wakeups — not RSS), [Production Observability](./production-observability-roadmap.md) (ops probes/logs/alerts — free stack), and baselines in [docs/perf/](../perf/).
 
 **Related:** [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Chart Architecture](../../src/lib/chart/ARCHITECTURE.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md), [memory-baseline-latest.json](../perf/memory-baseline-latest.json), [market-data-performance.md](../perf/market-data-performance.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -287,7 +287,7 @@ Automated L4 uses OS `ps` on the Playwright Chromium PID tree (`scripts/memory-p
 ### Phase 3 — GPU / chart surface accounting
 
 **Band:** Now  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-25)
 
 **Outcome:** Explain chart-specific cost beyond “one heap number.”
 
@@ -302,9 +302,19 @@ Automated L4 uses OS `ps` on the Playwright Chromium PID tree (`scripts/memory-p
 
 **Exit evidence:** New L5 fields in baseline; focused tests for counters; doc paragraph.
 
-**Gate — Phase 3 Passing:** B2 reports surface/WebGL inventory consistent with inactive-unmount policy; unknowns are null, not zero-filled.
+**Gate — Phase 3 Passing:** B2 reports surface/WebGL inventory consistent with inactive-unmount policy; unknowns are null, not zero-filled. **Met.**
 
----
+#### Phase 3 results (2026-07-25)
+
+- `scripts/memory-baseline-metrics.ts` — `normalizeSurfaceMetrics`, `surfacePolicyPass`, `collectSurfaceMetricsInPage`.
+- `scripts/memory-surface-collect.test.ts` — Playwright L5 collector (DOM canvases + live WebGL counter).
+- `scripts/run-memory-baseline.mts` — L5 on B1/B2/B3; `surfacePolicyPass` gate on multi-cell.
+- `packages/chart-react/src/engine/webgl/webglContext.ts` — `__edgeWebGLLiveContextCount` + `releaseWebGL2Context`.
+- `packages/chart-react/src/engine/webgl/candleWebGL.ts`, `indicatorWebGL.ts` — dispose releases GL counter.
+- `src/lib/chart/ARCHITECTURE.md`, `src/lib/observability/ARCHITECTURE.md` — L5 lab notes.
+- Evidence: [memory-metrics-phase-3.txt](../evidence/memory-metrics-phase-3.txt).
+- **Architecture review:** self-review **Passed** — measurement-only; unknown → null; no retention changes.
+- **Next:** Phase 4 — desk composite (Node + sidecar + Redis).
 
 ### Phase 4 — Desk composite (Node + sidecar + Redis)
 

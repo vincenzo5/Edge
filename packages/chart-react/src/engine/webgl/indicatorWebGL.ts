@@ -4,7 +4,13 @@ import { plotHeight, plotLeftOffset, plotWidth } from '@edge/chart-core/layout';
 import type { FillGeometry, LineGeometry } from './candleGeometry';
 import { buildIndicatorDrawBatches, type IndicatorDrawBatch } from './indicatorGeometry';
 import { createGeometryBufferPool } from './geometryBufferPool';
-import { colorToRgba, createWebGL2Context, linkProgram, type GL2 } from './webglContext';
+import {
+  colorToRgba,
+  createWebGL2Context,
+  linkProgram,
+  releaseWebGL2Context,
+  type GL2,
+} from './webglContext';
 
 const VERT_SRC = `#version 300 es
 in vec2 a_position;
@@ -98,6 +104,7 @@ export class IndicatorWebGLRenderer {
     if (this.lineBuffer) gl.deleteBuffer(this.lineBuffer);
     if (this.fillProgram) gl.deleteProgram(this.fillProgram.program);
     if (this.lineProgram) gl.deleteProgram(this.lineProgram.program);
+    releaseWebGL2Context(gl);
     this.gl = null;
     this.fillProgram = null;
     this.lineProgram = null;

@@ -181,7 +181,7 @@ __edgeMarketDataTelemetry.exportJson()
 ## Related docs
 
 - [market-data-baseline-latest.json](./market-data-baseline-latest.json) — raw scenario JSON  
-- [memory-baseline-latest.json](./memory-baseline-latest.json) — resident-bar / heap / subscription baselines (`npm run perf:memory`); layered tab/process/desk scorecard contract → [memory-metrics-roadmap.md](../roadmaps/memory-metrics-roadmap.md) (Phase 0–2 **Passing** — L1–L9 keys frozen; L3 CDP + UA-specific; L4 process RSS via OS `ps` max-renderer on browser scenarios; Phase 3+ adds GPU surfaces)  
+- [memory-baseline-latest.json](./memory-baseline-latest.json) — resident-bar / heap / subscription baselines (`npm run perf:memory`); layered tab/process/desk scorecard contract → [memory-metrics-roadmap.md](../roadmaps/memory-metrics-roadmap.md) (Phase 0–3 **Passing** — L1–L9 keys frozen; L3 CDP + UA-specific; L4 process RSS via OS `ps` max-renderer; L5 canvas/WebGL/GPU on browser scenarios; Phase 4+ desk composite)  
 - [src/lib/marketData/ARCHITECTURE.md](../src/lib/marketData/ARCHITECTURE.md) — provider routing & hot store  
 - [src/lib/chartDataFeed/ARCHITECTURE.md](../src/lib/chartDataFeed/ARCHITECTURE.md) — chart feed transport  
 - [chart-baseline-latest.json](./chart-baseline-latest.json) — chart *rendering* perf (separate concern)

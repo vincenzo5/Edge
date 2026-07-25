@@ -12,7 +12,7 @@ import {
   setWebGLCandlesPreferred,
   isWebGLCandlesPreferred,
 } from './candleWebGL';
-import { colorToRgba, withAlphaByte } from './webglContext';
+import { colorToRgba, getWebGLLiveContextCount, withAlphaByte } from './webglContext';
 
 function mockViewport(candleCount: number): VisibleRange {
   const width = 800;
@@ -50,6 +50,12 @@ describe('webglContext helpers', () => {
 
   it('appends alpha byte to hex colors', () => {
     expect(withAlphaByte('#26a69a', 0x33)).toBe('#26a69a33');
+  });
+
+  it('exposes live WebGL context count for lab metrics', () => {
+    globalThis.__edgeWebGLLiveContextCount = 2;
+    expect(getWebGLLiveContextCount()).toBe(2);
+    globalThis.__edgeWebGLLiveContextCount = 0;
   });
 });
 

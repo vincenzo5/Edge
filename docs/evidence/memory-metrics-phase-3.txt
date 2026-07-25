@@ -1,0 +1,40 @@
+# Memory metrics — Phase 3 evidence
+# Date: 2026-07-25
+
+## Scope
+L5 GPU / chart surface accounting on perf:memory browser scenarios (B1/B2/B3). DOM canvas count, live WebGL context counter, best-effort GPU memory probe. B2 surfacePolicyPass aligns with inactive-unmount. No retention policy changes.
+
+## Delivered
+- scripts/memory-baseline-metrics.ts — normalizeSurfaceMetrics, surfacePolicyPass, collectSurfaceMetricsInPage
+- scripts/memory-baseline-metrics.test.ts — extended Vitest (L5 normalizers + surfacePolicyPass)
+- scripts/memory-surface-collect.test.ts — Playwright L5 collector integration test
+- scripts/run-memory-baseline.mts — L5 on B1/B2/B3; surfacePolicyPass on multi-cell
+- packages/chart-react/src/engine/webgl/webglContext.ts — __edgeWebGLLiveContextCount + releaseWebGL2Context
+- packages/chart-react/src/engine/webgl/candleWebGL.ts, indicatorWebGL.ts — dispose releases GL counter
+- packages/chart-react/src/engine/webgl/candleWebGL.test.ts — live counter accessor test
+- src/lib/chart/ARCHITECTURE.md — L5 lab memory paragraph
+- src/lib/observability/ARCHITECTURE.md — lab scorecard L3–L5 row
+- docs/roadmaps/memory-metrics-roadmap.md — Phase 3 Passing + results
+- docs/roadmaps/README.md, docs/ROADMAP.md, docs/perf/market-data-performance.md — index updates
+
+## Architecture review
+Self-review Passed — measurement-only L5 fields; gpuMemoryMb null when extensions absent; no cap/retention changes.
+
+## Focused
+npm test -- --run scripts/memory-baseline-metrics.test.ts scripts/memory-surface-collect.test.ts packages/chart-react/src/engine/webgl/candleWebGL.test.ts
+Test Files  3 passed (3)
+Tests  26 passed (26)
+
+## Collection (L5 collector)
+Playwright collectSurfaceMetricsInPage on fixture page:
+canvasCount=2; webglContextCount=2; gpuMemoryMb=null; gpuMemoryNote contains "OffscreenCanvas"
+surfacePolicyPass(8,1,2,7)=true; surfacePolicyPass(8,1,8,7)=false
+
+## Full perf:memory (B1/B2)
+Blocked this session — /workspace hits React "Maximum update depth exceeded" (getSnapshot infinite loop) from unrelated WIP on branch; script aborts before JSON write. Re-run npm run perf:memory after workspace loads to stamp L5 keys into memory-baseline-latest.json.
+
+## App-level
+N/A — lab harness JSON fields only; no product wiring
+
+## Next
+Phase 4 — desk composite (Node + sidecar + Redis)
