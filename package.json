@@ -66,6 +66,7 @@
     "pattern-library:stress": "npx tsx scripts/pattern-library-stress.mts",
     "docs:auto-update": "npx tsx scripts/update-docs-for-diff.mts",
     "harness:closeout": "npx tsx scripts/harness-closeout.mts",
+    "efficiency:start": "npx tsx scripts/efficiency-ledger.mts start",
     "status:prune": "npx tsx scripts/harness-archive.mts",
     "roadmaps:status-check": "npx tsx scripts/check-roadmap-status.mts",
     "hooks:install": "git config core.hooksPath .githooks"

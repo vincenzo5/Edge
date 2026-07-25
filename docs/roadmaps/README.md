@@ -49,4 +49,4 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | TWS sidecar architecture | [tws-sidecar-refactor-roadmap.md](./tws-sidecar-refactor-roadmap.md) | Phases 0–7 **Passing** (2026-07-23) |
 | Security hardening | [security-hardening-roadmap.md](./security-hardening-roadmap.md) | Phases 0–6 **Passing** (2026-07-24) — track complete |
 | Production observability (free stack) | [production-observability-roadmap.md](./production-observability-roadmap.md) | Phase 0–4 **Passing**; Phase 5 **Pending** — free alerts |
-| Plan → execute token efficiency | [plan-execute-token-efficiency-roadmap.md](./plan-execute-token-efficiency-roadmap.md) | Phase 0–6 **Passing** (2026-07-24) — track complete |
+| Plan → execute token efficiency | [plan-execute-token-efficiency-roadmap.md](./plan-execute-token-efficiency-roadmap.md) | Phase 0–7 **Passing** (2026-07-25) — track complete |

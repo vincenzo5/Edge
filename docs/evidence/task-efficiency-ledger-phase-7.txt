@@ -1,0 +1,37 @@
+# Task efficiency ledger — Phase 7 evidence
+# Date: 2026-07-25
+
+## Scope
+Append-only task efficiency ledger + closeout gate. Manual spend at closeout. No dashboard.
+
+## Delivered
+- docs/evidence/efficiency/README.md — domain + schema
+- docs/evidence/efficiency/ledger.jsonl — append-only store
+- scripts/efficiency-ledger.mts — startTask, appendRecord, validate, CLI efficiency:start
+- scripts/efficiency-ledger.test.ts — Vitest coverage
+- scripts/harness-closeout.mts — efficiency gate (--user-messages, --handoffs, --rework-turns, --spend-usd or --efficiency-file)
+- scripts/harness-closeout.test.ts — gate + ledger append tests
+- package.json — efficiency:start script
+- docs/checklists/execute-from-plan-checklist.md, session-exit-checklist.md — closeout bullets
+- .cursor/rules/execute-from-plan.mdc — activate + closeout efficiency commands
+- docs/roadmaps/plan-execute-token-efficiency-roadmap.md — Phase 7 section
+- docs/roadmaps/README.md, docs/ROADMAP.md — Phase 7 Active status
+
+## Architecture review
+Self-review Passed — harness-only scripts; append-only ledger in docs/evidence; active stamp in gitignored .edge/; closeout gate independent of DoD evidence validation.
+
+## Focused
+npm test -- --run scripts/efficiency-ledger.test.ts scripts/harness-closeout.test.ts
+Test Files  2 passed (2)
+Tests  32 passed (32)
+
+## Instructions
+npm run lint:instructions
+Instruction architecture validation passed.
+
+## Gate smoke
+harness:closeout without efficiency flags → blocked (invalid efficiency input)
+harness:closeout --dry-run with efficiency flags → dry-run complete (efficiency ledger in changed list)
+
+## Next
+Phase 7 Passing; use ledger on every subsequent task closeout

@@ -10,11 +10,13 @@ import {
   prependSessionLogEntry,
   readEvidenceFile,
   replaceCurrentVerifiedState,
+  resolveCloseoutEfficiencyInput,
   runCloseout,
   updateActiveWorkRow,
   updateRoadmapPhaseStatus,
   validateEvidenceText,
 } from "./harness-closeout.mts";
+import { startTask } from "./efficiency-ledger.mts";
 import { validateProjectStatusContent } from "./validate-project-status.mts";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -65,7 +67,52 @@ const FIXTURE_ROADMAP = `# Roadmap
 **Outcome:** ship example.
 `;
 
+const DEFAULT_EFFICIENCY = {
+  user_messages: 5,
+  handoffs: 0,
+  rework_turns: 0,
+  spend_usd: 1.25,
+  started_at: "2026-07-24T10:00:00.000Z",
+};
+
 describe("harness-closeout helpers", () => {
+  it("parses efficiency CLI args", () => {
+    expect(
+      parseArgs([
+        "--name",
+        "Example — Phase 1",
+        "--evidence-file",
+        "evidence.txt",
+        "--user-messages",
+        "4",
+        "--handoffs",
+        "1",
+        "--rework-turns",
+        "0",
+        "--spend-usd",
+        "2.5",
+      ]),
+    ).toMatchObject({
+      userMessages: 4,
+      handoffs: 1,
+      reworkTurns: 0,
+      spendUsd: 2.5,
+    });
+  });
+
+  it("resolves efficiency input from CLI flags", () => {
+    const { input, errors } = resolveCloseoutEfficiencyInput({
+      userMessages: 3,
+      handoffs: 0,
+      reworkTurns: 0,
+      spendUsd: 1,
+      dryRun: false,
+      statusPath: "docs/PROJECT-STATUS.md",
+    });
+    expect(errors).toEqual([]);
+    expect(input?.user_messages).toBe(3);
+  });
+
   it("parses CLI args", () => {
     expect(
       parseArgs([
@@ -246,6 +293,11 @@ describe("runCloseout dry-run", () => {
       "utf8",
     );
 
+    startTask(
+      { name: "Example — Phase 1", startedAt: DEFAULT_EFFICIENCY.started_at },
+      { cwd: dir },
+    );
+
     runCloseout({
       statusPath,
       roadmapPath,
@@ -256,10 +308,57 @@ describe("runCloseout dry-run", () => {
         evidenceText: readEvidenceFile(evidencePath, dir),
         files: "src/example.ts",
         todayIso: "2026-07-24",
+        efficiency: DEFAULT_EFFICIENCY,
       },
     });
 
     const afterStatus = readEvidenceFile(statusPath, dir);
     expect(afterStatus.trimEnd()).toBe(FIXTURE_STATUS.trimEnd());
+  });
+
+  it("requires efficiency input", () => {
+    const dir = mkdtempSync(join(tmpdir(), "harness-closeout-"));
+    const statusPath = join(dir, "PROJECT-STATUS.md");
+    writeFileSync(statusPath, FIXTURE_STATUS, "utf8");
+
+    expect(() =>
+      runCloseout({
+        statusPath,
+        dryRun: true,
+        cwd: dir,
+        closeout: {
+          name: "Example — Phase 1",
+          evidenceText: "**Focused:** Test Files 1 passed (1), Tests 10 passed (10)",
+          todayIso: "2026-07-24",
+        },
+      }),
+    ).toThrow(/efficiency input/);
+  });
+
+  it("appends efficiency ledger on successful closeout", () => {
+    const dir = mkdtempSync(join(tmpdir(), "harness-closeout-"));
+    const statusPath = join(dir, "PROJECT-STATUS.md");
+    const ledgerPath = join(dir, "docs/evidence/efficiency/ledger.jsonl");
+    writeFileSync(statusPath, FIXTURE_STATUS, "utf8");
+
+    startTask(
+      { name: "Example — Phase 1", startedAt: DEFAULT_EFFICIENCY.started_at },
+      { cwd: dir },
+    );
+
+    runCloseout({
+      statusPath,
+      cwd: dir,
+      closeout: {
+        name: "Example — Phase 1",
+        evidenceText: "**Focused:** Test Files 1 passed (1), Tests 10 passed (10)",
+        todayIso: "2026-07-24",
+        efficiency: DEFAULT_EFFICIENCY,
+      },
+    });
+
+    const ledger = readEvidenceFile(ledgerPath, dir);
+    expect(ledger).toContain('"task_name":"Example — Phase 1"');
+    expect(ledger).toContain('"user_messages":5');
   });
 });

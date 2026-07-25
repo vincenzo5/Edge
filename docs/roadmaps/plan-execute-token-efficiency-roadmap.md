@@ -4,7 +4,7 @@ Cut agent token cost for plan and implement work **without** weakening DoD, WIP=
 
 **Last updated:** 2026-07-24
 
-**Status:** Phase 0 **Passing** (compact plan template, 2026-07-24). Phase 1 **Passing** (execute-from-plan protocol, 2026-07-24). Phase 2 **Passing** (explore opt-in, 2026-07-24). Phase 3 **Passing** (hot harness read windows, 2026-07-24). Phase 4 **Passing** (scope plan-rule injection, 2026-07-24). Phase 5 **Passing** (fresh-chat execute process, 2026-07-24). Phase 6 **Passing** (harness closeout helper, 2026-07-24). Complements [AGENTS.md](../../AGENTS.md), [plan-execute-routing](../../.cursor/rules/plan-execute-routing.mdc), [plan-harness-awareness](../../.cursor/rules/plan-harness-awareness.mdc), [planning-router](../checklists/planning-router.md), and [harness-status-checklist](../checklists/harness-status-checklist.md).
+**Status:** Phase 0 **Passing** (compact plan template, 2026-07-24). Phase 1 **Passing** (execute-from-plan protocol, 2026-07-24). Phase 2 **Passing** (explore opt-in, 2026-07-24). Phase 3 **Passing** (hot harness read windows, 2026-07-24). Phase 4 **Passing** (scope plan-rule injection, 2026-07-24). Phase 5 **Passing** (fresh-chat execute process, 2026-07-24). Phase 6 **Passing** (harness closeout helper, 2026-07-24). Phase 7 **Passing** (task efficiency ledger, 2026-07-25). Complements [AGENTS.md](../../AGENTS.md), [plan-execute-routing](../../.cursor/rules/plan-execute-routing.mdc), [plan-harness-awareness](../../.cursor/rules/plan-harness-awareness.mdc), [planning-router](../checklists/planning-router.md), and [harness-status-checklist](../checklists/harness-status-checklist.md).
 
 **Related:** [Project Status](../PROJECT-STATUS.md), `/handoff` Cursor skill (~800 tok fresh-chat briefs), existing evidence-gated docs automation (`npm run docs:auto-update` harness lane).
 
@@ -170,6 +170,21 @@ Fills Active Work → Passing + quoted evidence, Current Verified State, optiona
 
 ---
 
+### Phase 7 — Task efficiency ledger
+
+**Outcome:** Every Passing/Blocked/Abandoned task records messages, handoffs, rework, and spend in one append-only ledger; closeout fails without a valid row.
+
+**Scope:**
+
+- `docs/evidence/efficiency/ledger.jsonl` + domain README
+- `scripts/efficiency-ledger.mts` — `efficiency:start` active stamp + append/validate
+- `harness:closeout` gate — `--user-messages`, `--handoffs`, `--rework-turns`, `--spend-usd` or `--efficiency-file`
+- Checklist bullets in execute-from-plan + session-exit
+
+**Exit evidence:** Focused tests pass; dry-run closeout without efficiency flags fails; with flags succeeds.
+
+---
+
 ## Verification Plan (per phase)
 
 | Tier | When |
@@ -183,9 +198,9 @@ Fills Active Work → Passing + quoted evidence, Current Verified State, optiona
 
 ## Harness Update
 
-- Track row: **Plan → execute token efficiency** — **Passing** (Phase 0–6 complete, 2026-07-24).
-- Phase 0–6 **Passing** via compact plan template + execute-from-plan + explore opt-in + hot harness read windows + plan-rule injection + fresh-chat execute + harness closeout helper.
-- On each phase Passing: quote lint/validator (and A/B notes for 1–3); Session Log if cross-session.
+- Track row: **Plan → execute token efficiency** — **Passing** (Phase 0–7 complete, 2026-07-25).
+- Phase 0–7 **Passing** via compact plan template + execute-from-plan + explore opt-in + hot harness read windows + plan-rule injection + fresh-chat execute + harness closeout helper + task efficiency ledger.
+- Phase 7 evidence: **Focused:** Test Files 2 passed (2), Tests 32 passed (32); closeout gate blocks without efficiency fields.
 - Do not activate while another product phase is Active (WIP=1).
 
 ---

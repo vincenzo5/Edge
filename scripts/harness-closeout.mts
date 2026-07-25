@@ -8,6 +8,14 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { appendToStatusArchive, prunePreviousVerifiedBlocks } from "./harness-archive.mts";
 import {
+  buildEfficiencyInputFromArgs,
+  mergeEfficiencyInput,
+  parseEfficiencyArgs,
+  parseEfficiencyFile,
+  validateEfficiencyInput,
+  type EfficiencyInput,
+} from "./efficiency-ledger.mts";
+import {
   hasConcreteVerificationEvidence,
   hasParaphraseOnlyPass,
   hasPendingVerification,
@@ -26,6 +34,7 @@ export type CloseoutOptions = {
   sessionLog?: string;
   trackName?: string;
   todayIso?: string;
+  efficiency?: EfficiencyInput;
 };
 
 export type CloseoutResult = {
@@ -47,12 +56,24 @@ export function parseArgs(argv: string[]): {
   trackName?: string;
   dryRun: boolean;
   statusPath: string;
+  efficiencyFile?: string;
+  userMessages?: number;
+  handoffs?: number;
+  reworkTurns?: number;
+  spendUsd?: number;
+  spendBaselineUsd?: number;
+  startedAt?: string;
+  tokens?: number;
+  notes?: string;
+  outcome?: EfficiencyInput["outcome"];
 } {
   const getFlag = (flag: string): string | undefined => {
     const index = argv.indexOf(flag);
     if (index === -1 || index + 1 >= argv.length) return undefined;
     return argv[index + 1];
   };
+
+  const efficiency = parseEfficiencyArgs(argv);
 
   return {
     name: getFlag("--name"),
@@ -65,7 +86,45 @@ export function parseArgs(argv: string[]): {
     trackName: getFlag("--track-name"),
     dryRun: argv.includes("--dry-run"),
     statusPath: getFlag("--status") ?? DEFAULT_STATUS_PATH,
+    efficiencyFile: efficiency.efficiencyFile,
+    userMessages: efficiency.userMessages,
+    handoffs: efficiency.handoffs,
+    reworkTurns: efficiency.reworkTurns,
+    spendUsd: efficiency.spendUsd,
+    spendBaselineUsd: efficiency.spendBaselineUsd,
+    startedAt: efficiency.startedAt,
+    tokens: efficiency.tokens,
+    notes: efficiency.notes,
+    outcome: efficiency.outcome,
   };
+}
+
+export function resolveCloseoutEfficiencyInput(
+  parsed: ReturnType<typeof parseArgs>,
+  cwd = process.cwd(),
+): { input?: EfficiencyInput; errors: string[] } {
+  if (parsed.efficiencyFile) {
+    try {
+      const fileInput = parseEfficiencyFile(readEvidenceFile(parsed.efficiencyFile, cwd));
+      if (parsed.startedAt && !fileInput.started_at) {
+        fileInput.started_at = parsed.startedAt;
+      }
+      if (parsed.outcome && !fileInput.outcome) {
+        fileInput.outcome = parsed.outcome;
+      }
+      const validationErrors = validateEfficiencyInput(fileInput);
+      if (validationErrors.length > 0) return { errors: validationErrors };
+      return { input: fileInput, errors: [] };
+    } catch (error) {
+      return {
+        errors: [
+          `failed to read efficiency file: ${error instanceof Error ? error.message : String(error)}`,
+        ],
+      };
+    }
+  }
+
+  return buildEfficiencyInputFromArgs(parsed);
 }
 
 export function readEvidenceFile(path: string, cwd = process.cwd()): string {
@@ -434,7 +493,20 @@ export function runCloseout(options: {
     roadmapContent = readFileSync(resolve(cwd, options.roadmapPath), "utf8");
   }
 
+  if (!options.closeout.efficiency) {
+    throw new Error("closeout requires efficiency input");
+  }
+
   const result = applyCloseout(statusContent, options.closeout, roadmapContent);
+
+  mergeEfficiencyInput({
+    taskName: options.closeout.name,
+    input: options.closeout.efficiency,
+    cwd,
+    dryRun: options.dryRun,
+    clearActive: !options.dryRun,
+  });
+  result.changed.push("efficiency ledger");
 
   if (!options.dryRun) {
     writeFileSync(statusPath, result.statusContent, "utf8");
@@ -451,7 +523,7 @@ function main(): void {
 
   if (!parsed.name || !parsed.evidenceFile) {
     console.error(
-      "Usage: npm run harness:closeout -- --name \"Feature name\" --evidence-file path [--files ...] [--behavior ...] [--next ...] [--roadmap path] [--track-name ...] [--session-log ...] [--dry-run]",
+      "Usage: npm run harness:closeout -- --name \"Feature name\" --evidence-file path [--files ...] [--behavior ...] [--next ...] [--roadmap path] [--track-name ...] [--session-log ...] [--efficiency-file path | --user-messages N --handoffs N --rework-turns N --spend-usd X] [--dry-run]",
     );
     process.exit(1);
   }
@@ -475,6 +547,16 @@ function main(): void {
     process.exit(1);
   }
 
+  const { input: efficiencyInput, errors: efficiencyErrors } =
+    resolveCloseoutEfficiencyInput(parsed);
+  if (efficiencyErrors.length > 0 || !efficiencyInput) {
+    console.error("harness:closeout blocked — invalid efficiency input:");
+    for (const message of efficiencyErrors) {
+      console.error(`  - ${message}`);
+    }
+    process.exit(1);
+  }
+
   try {
     const result = runCloseout({
       statusPath: parsed.statusPath,
@@ -487,6 +569,7 @@ function main(): void {
         roadmap: parsed.roadmap,
         sessionLog: parsed.sessionLog,
         trackName: parsed.trackName,
+        efficiency: efficiencyInput,
       },
       roadmapPath: parsed.roadmap,
       dryRun: parsed.dryRun,
