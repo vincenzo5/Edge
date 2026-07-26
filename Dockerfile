@@ -42,11 +42,10 @@ RUN npm run build:packages && npx next build
 FROM node:${NODE_VERSION} AS migrate
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/scripts/db-migrate.mts ./scripts/db-migrate.mts
 COPY --from=builder /app/scripts/db-migrate-lib.mts ./scripts/db-migrate-lib.mts
 COPY --from=builder /app/src/db/migrations ./src/db/migrations
-RUN npm i --no-save tsx pg
+RUN npm install --no-save --ignore-scripts tsx pg dotenv --no-package-lock
 ENTRYPOINT ["npx", "tsx", "scripts/db-migrate.mts"]
 
 # --- runtime: minimal, non-root ---

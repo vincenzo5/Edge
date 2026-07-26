@@ -1,0 +1,81 @@
+# Local production containerization — Phase 2 evidence
+# Date: 2026-07-26
+
+## Scope
+Compose app-prod service, dependency URLs, durable mounts, and readiness.
+No lifecycle CLI (Phase 3). Legacy worktree/LaunchAgent unchanged except temporary
+stop during app-prod gate.
+
+## Delivered
+- docker-compose.yml — loopback infra ports, edge-net, app-prod (profile prod),
+  app-prod-migrate (profile migrate), healthcheck, logging, durable mounts, extra_hosts
+- scripts/validate-local-deploy.mts — CONTAINER_COMPOSE_APP_SERVICE_CONTRACT +
+  validateComposeAppServiceFacts / validateComposeInfraPortBindings
+- scripts/compose-app-service.mts — inspect CLI + compose config parser
+- scripts/compose-app-service.test.ts — contract tests
+- scripts/compose-env.mts — EDGE_APP_IMAGE placeholder for infra-only compose
+- scripts/local-data-infrastructure.mts — withComposeEnv for infra up
+- scripts/dev-with-db.sh — EDGE_APP_IMAGE placeholder export
+- scripts/db-migrate.mts — allow injected DATABASE_URL without env file on disk
+- Dockerfile — migrate target installs tsx/pg/dotenv without workspace package.json
+- package.json — compose:validate
+- .env.example — Phase 2 operator notes
+- src/lib/observability/ARCHITECTURE.md — Phase 2 app-prod wiring
+- src/lib/persistence/ARCHITECTURE.md — durable mount wiring
+- src/lib/marketData/ARCHITECTURE.md — host.docker.internal TWS route
+
+## Architecture review
+Self-review Passed — app-prod uses prod profile so infra-only compose stays
+unaffected; env_file sourced from compose YAML; secrets stay out of image layers;
+durable mounts match CONTAINER_DURABLE_MOUNT_PATHS inventory.
+
+## Focused
+Command:
+npm test -- --run scripts/compose-app-service.test.ts scripts/validate-local-deploy.test.ts scripts/local-data-infrastructure.test.ts
+Output:
+Test Files  3 passed (3)
+Tests  66 passed (66)
+
+## Compose config
+Command: npm run compose:validate
+Output:
+compose.validate=pass
+app-prod.port=127.0.0.1:3000:3000
+app-prod.env_file=.edge/local-prod/production.env
+postgres.port=127.0.0.1:5432:5432
+redis.port=127.0.0.1:6379:6379
+
+## App-level — compose health
+Command:
+EDGE_APP_IMAGE=edge-app:3cc72af11f3bda4b256abdd4fe0b13768088ae87 docker compose --profile prod up -d --wait app-prod
+Output: Container edge-app-prod Healthy
+Command: curl -sf http://127.0.0.1:3000/healthz
+Output: {"ok":true}
+Command: curl -sf http://127.0.0.1:3000/readyz
+Output: {"ok":true}
+
+## Isolation
+Command: npm run local:infra:verify
+Output: postgres.isolation=pass redis.isolation=pass overall=pass
+
+## Durable state
+Wrote data/journal-screenshots/phase2-probe.txt; recreated app-prod container;
+docker exec edge-app-prod cat /app/data/journal-screenshots/phase2-probe.txt
+Output: phase2-durable-probe-1785029385
+
+## Migrate one-shot
+Command:
+npm run image:migrate:build -- --image edge-app:3cc72af... --skip-worktree
+EDGE_APP_IMAGE=edge-app:3cc72af... docker compose --profile migrate run --rm app-prod-migrate
+Output: Migrations complete (0 SQL files applied). exit=0
+
+## Startup
+Command: npm run check:startup
+Output: Instruction architecture validation passed.; Tests  2 passed (2)
+
+## Legacy regression
+Command: npm run local:prod:preflight
+Output: Local deployment preflight passed: profiles=2 issues=0; exit=0
+
+## Next
+Phase 3 — lifecycle CLI (image up/down/status/logs), ownership guard, boot behavior

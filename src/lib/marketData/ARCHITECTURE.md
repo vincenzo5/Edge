@@ -253,6 +253,12 @@ the sidecar. When production TWS is enabled in the container profile,
 (non-loopback — same rule as remote hosts). Loopback `127.0.0.1` inside the
 container does not reach the host sidecar.
 
+**Container TWS route (Phase 2):** `app-prod` adds
+`extra_hosts: host.docker.internal:host-gateway` so the authenticated sidecar
+bridge works from inside the container. TWS-disabled readiness remains the
+default production profile; enable TWS only with `TWS_MANAGED=external` and
+`TWS_SIDECAR_SECRET` set in `.edge/local-prod/production.env`.
+
 **Redis ops profile (Phase 4 — [Shared Cache Topology Roadmap](../../../docs/roadmaps/shared-cache-topology-roadmap.md)):**
 
 | Policy | Contract |

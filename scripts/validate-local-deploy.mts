@@ -57,6 +57,68 @@ export const CONTAINER_FORBIDDEN_IMAGE_PATHS = [
   ".next",
 ] as const;
 
+/** Frozen Compose app-prod service contract (Phase 2). */
+export const CONTAINER_COMPOSE_APP_SERVICE_CONTRACT = {
+  appProdServiceName: "app-prod",
+  migrateServiceName: "app-prod-migrate",
+  migrateProfile: "migrate",
+  appPortHost: "127.0.0.1",
+  appPort: 3000,
+  postgresPortHost: "127.0.0.1",
+  postgresPort: 5432,
+  redisPortHost: "127.0.0.1",
+  redisPort: 6379,
+  envFilePath: CONTAINER_PRODUCTION_ENV_RELATIVE,
+  appRestartPolicy: "unless-stopped",
+  migrateRestartPolicy: "no",
+  appDependsOn: ["postgres", "redis"] as const,
+  migrateDependsOn: ["postgres"] as const,
+  durableMountTargets: [
+    "/app/data/journal-screenshots",
+    "/app/data/copilot-attachments",
+  ] as const,
+  extraHostEntry: "host.docker.internal:host-gateway",
+  logDriver: "json-file",
+  logMaxSize: "10m",
+  logMaxFile: "3",
+  migrateImageSuffix: "-migrate",
+} as const;
+
+export type ComposeAppProdFacts = {
+  portBindings: string[];
+  envFiles: string[];
+  dependsOn: string[];
+  dependsOnConditions: Record<string, string | undefined>;
+  hasHealthcheck: boolean;
+  restart: string | null;
+  durableMountSources: string[];
+  durableMountTargets: string[];
+  extraHosts: string[];
+  loggingDriver: string | null;
+  loggingMaxSize: string | null;
+  loggingMaxFile: string | null;
+};
+
+export type ComposeAppProdMigrateFacts = {
+  profiles: string[];
+  image: string | null;
+  restart: string | null;
+  dependsOn: string[];
+  dependsOnConditions: Record<string, string | undefined>;
+  envFiles: string[];
+};
+
+export type ComposeInfraServiceFacts = {
+  portBindings: string[];
+};
+
+export type ComposeAppServiceFacts = {
+  appProd: ComposeAppProdFacts | null;
+  appProdMigrate: ComposeAppProdMigrateFacts | null;
+  postgres: ComposeInfraServiceFacts | null;
+  redis: ComposeInfraServiceFacts | null;
+};
+
 export type ProductionRuntimeMode = "legacy-worktree" | "container";
 
 export type DeployProfile = "development" | "production";
@@ -1039,6 +1101,345 @@ export function formatLocalDeployStatus(summaries: LocalDeploySummary[]): string
     const runtime = summary.runtimeMode ? ` runtime=${summary.runtimeMode}` : "";
     return `${summary.profile}${runtime}: host=${summary.host} port=${summary.port} database=${summary.database ?? "invalid"} cacheEnv=${summary.cacheEnv ?? "unset"} cacheBackend=${summary.cacheBackend ?? "unset"} tws=${summary.twsEnabled ? "enabled" : "disabled"} auth=${summary.authMode}`;
   });
+}
+
+function portBindingMatchesLoopback(
+  bindings: string[],
+  host: string,
+  port: number,
+): boolean {
+  return bindings.some((binding) => {
+    const normalized = binding.trim();
+    if (normalized === `${host}:${port}:${port}`) return true;
+    const parts = normalized.split(":");
+    if (parts.length === 3) {
+      return parts[0] === host && Number(parts[1]) === port && Number(parts[2]) === port;
+    }
+    return false;
+  });
+}
+
+function normalizeMountSource(source: string): string {
+  return source.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function expectedDurableMountSources(): string[] {
+  return CONTAINER_DURABLE_MOUNT_PATHS.map((path) => normalizeMountSource(`./${path}`)).sort();
+}
+
+/** Validates postgres/redis host publishes are loopback-only. */
+export function validateComposeInfraPortBindings(
+  facts: ComposeAppServiceFacts,
+  issues: LocalDeployIssue[],
+): void {
+  const contract = CONTAINER_COMPOSE_APP_SERVICE_CONTRACT;
+
+  if (!facts.postgres) {
+    addIssue(
+      issues,
+      "postgres.service_missing",
+      "shared",
+      "postgres",
+      "Compose must define a postgres service.",
+    );
+  } else if (
+    !portBindingMatchesLoopback(
+      facts.postgres.portBindings,
+      contract.postgresPortHost,
+      contract.postgresPort,
+    )
+  ) {
+    addIssue(
+      issues,
+      "postgres.port_binding",
+      "shared",
+      "postgres.ports",
+      `Postgres must publish ${contract.postgresPortHost}:${contract.postgresPort} only.`,
+    );
+  }
+
+  if (!facts.redis) {
+    addIssue(
+      issues,
+      "redis.service_missing",
+      "shared",
+      "redis",
+      "Compose must define a redis service.",
+    );
+  } else if (
+    !portBindingMatchesLoopback(facts.redis.portBindings, contract.redisPortHost, contract.redisPort)
+  ) {
+    addIssue(
+      issues,
+      "redis.port_binding",
+      "shared",
+      "redis.ports",
+      `Redis must publish ${contract.redisPortHost}:${contract.redisPort} only.`,
+    );
+  }
+}
+
+/** Validates app-prod and app-prod-migrate Compose service facts. */
+export function validateComposeAppServiceFacts(
+  facts: ComposeAppServiceFacts,
+  issues: LocalDeployIssue[],
+): void {
+  const contract = CONTAINER_COMPOSE_APP_SERVICE_CONTRACT;
+  const app = facts.appProd;
+
+  if (!app) {
+    addIssue(
+      issues,
+      "app-prod.service_missing",
+      "shared",
+      "app-prod",
+      "Compose must define an app-prod service.",
+    );
+    return;
+  }
+
+  if (!portBindingMatchesLoopback(app.portBindings, contract.appPortHost, contract.appPort)) {
+    addIssue(
+      issues,
+      "app-prod.port_binding",
+      "shared",
+      "app-prod.ports",
+      `app-prod must publish ${contract.appPortHost}:${contract.appPort} only.`,
+    );
+  }
+
+  const envFiles = app.envFiles.map((entry) => entry.replace(/\\/g, "/"));
+  if (!envFiles.includes(contract.envFilePath)) {
+    addIssue(
+      issues,
+      "app-prod.env_file",
+      "shared",
+      "app-prod.env_file",
+      `app-prod env_file must include ${contract.envFilePath}.`,
+    );
+  }
+
+  for (const dependency of contract.appDependsOn) {
+    if (!app.dependsOn.includes(dependency)) {
+      addIssue(
+        issues,
+        "app-prod.depends_on",
+        "shared",
+        "app-prod.depends_on",
+        `app-prod must depend on ${dependency}.`,
+      );
+    } else if (app.dependsOnConditions[dependency] !== "service_healthy") {
+      addIssue(
+        issues,
+        "app-prod.depends_on_condition",
+        "shared",
+        "app-prod.depends_on",
+        `app-prod depends_on.${dependency} must use condition service_healthy.`,
+      );
+    }
+  }
+
+  if (!app.hasHealthcheck) {
+    addIssue(
+      issues,
+      "app-prod.healthcheck_missing",
+      "shared",
+      "app-prod.healthcheck",
+      "app-prod must define a Docker healthcheck.",
+    );
+  }
+
+  if (app.restart !== contract.appRestartPolicy) {
+    addIssue(
+      issues,
+      "app-prod.restart_policy",
+      "shared",
+      "app-prod.restart",
+      `app-prod restart must be ${contract.appRestartPolicy}.`,
+    );
+  }
+
+  const expectedSources = expectedDurableMountSources();
+  const actualSources = [...app.durableMountSources]
+    .map(normalizeMountSource)
+    .sort();
+  for (const source of expectedSources) {
+    if (!actualSources.includes(source)) {
+      addIssue(
+        issues,
+        "app-prod.durable_mount_missing",
+        "shared",
+        "app-prod.volumes",
+        `app-prod must mount host path ${source}.`,
+      );
+    }
+  }
+  for (const source of actualSources) {
+    if (!expectedSources.includes(source)) {
+      addIssue(
+        issues,
+        "app-prod.durable_mount_extra",
+        "shared",
+        "app-prod.volumes",
+        `app-prod must not mount unexpected host path ${source}.`,
+      );
+    }
+  }
+
+  const expectedTargets = [...contract.durableMountTargets].sort();
+  const actualTargets = [...app.durableMountTargets].sort();
+  if (actualTargets.join(",") !== expectedTargets.join(",")) {
+    addIssue(
+      issues,
+      "app-prod.durable_mount_target",
+      "shared",
+      "app-prod.volumes",
+      "app-prod durable mount targets must match the frozen inventory.",
+    );
+  }
+
+  const hasExtraHost = app.extraHosts.some(
+    (entry) => entry.trim() === contract.extraHostEntry,
+  );
+  if (!hasExtraHost) {
+    addIssue(
+      issues,
+      "app-prod.extra_hosts",
+      "shared",
+      "app-prod.extra_hosts",
+      `app-prod must include extra_hosts entry ${contract.extraHostEntry}.`,
+    );
+  }
+
+  if (app.loggingDriver !== contract.logDriver) {
+    addIssue(
+      issues,
+      "app-prod.logging_driver",
+      "shared",
+      "app-prod.logging",
+      `app-prod logging driver must be ${contract.logDriver}.`,
+    );
+  }
+  if (app.loggingMaxSize !== contract.logMaxSize) {
+    addIssue(
+      issues,
+      "app-prod.logging_max_size",
+      "shared",
+      "app-prod.logging",
+      `app-prod logging max-size must be ${contract.logMaxSize}.`,
+    );
+  }
+  if (app.loggingMaxFile !== contract.logMaxFile) {
+    addIssue(
+      issues,
+      "app-prod.logging_max_file",
+      "shared",
+      "app-prod.logging",
+      `app-prod logging max-file must be ${contract.logMaxFile}.`,
+    );
+  }
+
+  const migrate = facts.appProdMigrate;
+  if (!migrate) {
+    addIssue(
+      issues,
+      "app-prod-migrate.service_missing",
+      "shared",
+      "app-prod-migrate",
+      "Compose must define an app-prod-migrate service.",
+    );
+    return;
+  }
+
+  if (!migrate.profiles.includes(contract.migrateProfile)) {
+    addIssue(
+      issues,
+      "app-prod-migrate.profile_missing",
+      "shared",
+      "app-prod-migrate.profiles",
+      `app-prod-migrate must use profile ${contract.migrateProfile}.`,
+    );
+  }
+
+  if (migrate.restart !== contract.migrateRestartPolicy) {
+    addIssue(
+      issues,
+      "app-prod-migrate.restart_policy",
+      "shared",
+      "app-prod-migrate.restart",
+      `app-prod-migrate restart must be ${contract.migrateRestartPolicy}.`,
+    );
+  }
+
+  for (const dependency of contract.migrateDependsOn) {
+    if (!migrate.dependsOn.includes(dependency)) {
+      addIssue(
+        issues,
+        "app-prod-migrate.depends_on",
+        "shared",
+        "app-prod-migrate.depends_on",
+        `app-prod-migrate must depend on ${dependency}.`,
+      );
+    } else if (migrate.dependsOnConditions[dependency] !== "service_healthy") {
+      addIssue(
+        issues,
+        "app-prod-migrate.depends_on_condition",
+        "shared",
+        "app-prod-migrate.depends_on",
+        `app-prod-migrate depends_on.${dependency} must use condition service_healthy.`,
+      );
+    }
+  }
+
+  const migrateEnvFiles = migrate.envFiles.map((entry) => entry.replace(/\\/g, "/"));
+  if (!migrateEnvFiles.includes(contract.envFilePath)) {
+    addIssue(
+      issues,
+      "app-prod-migrate.env_file",
+      "shared",
+      "app-prod-migrate.env_file",
+      `app-prod-migrate env_file must include ${contract.envFilePath}.`,
+    );
+  }
+
+  const image = migrate.image?.trim() ?? "";
+  if (image && !image.endsWith(contract.migrateImageSuffix)) {
+    addIssue(
+      issues,
+      "app-prod-migrate.image_suffix",
+      "shared",
+      "app-prod-migrate.image",
+      `app-prod-migrate image must end with ${contract.migrateImageSuffix}.`,
+    );
+  }
+}
+
+/** Validates the full Compose app-prod contract (infra + app services). */
+export function validateComposeAppService(facts: ComposeAppServiceFacts): LocalDeployIssue[] {
+  const issues: LocalDeployIssue[] = [];
+  validateComposeInfraPortBindings(facts, issues);
+  validateComposeAppServiceFacts(facts, issues);
+  return issues.sort((a, b) => a.code.localeCompare(b.code));
+}
+
+export function formatComposeAppServiceSummary(facts: ComposeAppServiceFacts): string[] {
+  const contract = CONTAINER_COMPOSE_APP_SERVICE_CONTRACT;
+  const app = facts.appProd;
+  const migrate = facts.appProdMigrate;
+  const lines = [
+    `app-prod.present=${app ? "yes" : "no"}`,
+    `app-prod.port=${app?.portBindings.join(",") || "none"}`,
+    `app-prod.env_file=${app?.envFiles.join(",") || "none"}`,
+    `app-prod.depends_on=${app?.dependsOn.join(",") || "none"}`,
+    `app-prod.durableMounts=${app?.durableMountSources.length ?? 0}`,
+    `app-prod.extra_hosts=${app?.extraHosts.includes(contract.extraHostEntry) ? "yes" : "no"}`,
+    `app-prod-migrate.present=${migrate ? "yes" : "no"}`,
+    `app-prod-migrate.profile=${migrate?.profiles.includes(contract.migrateProfile) ? contract.migrateProfile : "missing"}`,
+    `app-prod-migrate.image_suffix=${migrate?.image?.endsWith(contract.migrateImageSuffix) ? "yes" : "no"}`,
+    `postgres.port=${facts.postgres?.portBindings.join(",") || "none"}`,
+    `redis.port=${facts.redis?.portBindings.join(",") || "none"}`,
+  ];
+  return lines;
 }
 
 function readEnvironmentFile(path: string): Record<string, string> {

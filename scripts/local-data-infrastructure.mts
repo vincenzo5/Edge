@@ -9,6 +9,7 @@ import { Pool as PgPool } from "pg";
 import Redis from "ioredis";
 
 import { LOCAL_DEPLOY_CONTRACT } from "./validate-local-deploy.mts";
+import { withComposeEnv } from "./compose-env.mts";
 
 config({ path: ".env.local" });
 config();
@@ -342,6 +343,7 @@ export function runLocalInfraUp(cwd = process.cwd()): number {
   execFileSync("docker", ["compose", "up", "-d", "--wait", "postgres", "redis"], {
     cwd,
     stdio: "inherit",
+    env: withComposeEnv(),
   });
   console.log("Local infrastructure is healthy: postgres redis");
   return 0;

@@ -191,6 +191,12 @@ libraries stay in `edge_prod` without FS mounts.
 | `.edge/local-prod/deploy-revisions.json` | deploy CLI on host | host-only operator state |
 | `.edge/local-prod/production.env` | container prod secrets | runtime env file mount, never in image |
 
+Phase 2 wires the two FS durable paths as Compose bind mounts on `app-prod`:
+`./data/journal-screenshots` → `/app/data/journal-screenshots` and
+`./data/copilot-attachments` → `/app/data/copilot-attachments`. Container
+replacement preserves host files; `data/pattern-library/` is intentionally not
+mounted when Postgres is configured (`edge_prod` holds pattern records).
+
 Frozen inventories: `CONTAINER_DURABLE_MOUNT_PATHS` and
 `CONTAINER_FORBIDDEN_IMAGE_PATHS` in `scripts/validate-local-deploy.mts`.
 See [Local Production Containerization Roadmap](../../../docs/roadmaps/local-production-containerization-roadmap.md).

@@ -253,6 +253,17 @@ paths (`.git`, `node_modules`, env files, `.edge`, `.next`) before promotion.
 Build-time allowlisted `NEXT_PUBLIC_*` values only; runtime secrets load from
 `.edge/local-prod/production.env` at container start (Phase 2+).
 
+Phase 2 adds `app-prod` and `app-prod-migrate` services to `docker-compose.yml`.
+Production runs on loopback `127.0.0.1:3000` with runtime env from
+`.edge/local-prod/production.env`, `depends_on` health conditions for Postgres
+and Redis, Docker healthcheck on `/healthz`, json-file log rotation (10m × 3),
+durable bind mounts for journal screenshots and copilot attachments, and
+`host.docker.internal:host-gateway` for authenticated TWS bridge access.
+The migrate service uses profile `migrate` and image suffix `-migrate`.
+Operator sets `EDGE_APP_IMAGE=edge-app:<full-git-sha>` before
+`docker compose up -d --wait app-prod`. Static contract validation:
+`npm run compose:validate`.
+
 Health/readiness contracts are unchanged: `/healthz` and `/readyz` remain cheap
 and secret-free; production deploy health gate still requires Redis
 `cache.kind=redis` and `cache.degraded=false`.

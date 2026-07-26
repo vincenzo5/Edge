@@ -62,6 +62,7 @@
     "image:build": "npx tsx scripts/build-app-image.mts build",
     "image:inspect": "npx tsx scripts/build-app-image.mts inspect",
     "image:migrate:build": "npx tsx scripts/build-app-image.mts migrate-image",
+    "compose:validate": "npx tsx scripts/compose-app-service.mts inspect",
     "db:migrate": "npx tsx scripts/db-migrate.mts",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",

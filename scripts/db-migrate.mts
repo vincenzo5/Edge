@@ -31,15 +31,18 @@ function parseEnvFileArg(argv: string[]): string {
 }
 
 const envFile = parseEnvFileArg(process.argv.slice(2));
+const databaseUrlFromEnv = process.env.DATABASE_URL?.trim();
 if (!existsSync(envFile)) {
-  console.error(`Environment file not found: ${envFile}`);
-  process.exit(1);
+  if (!databaseUrlFromEnv) {
+    console.error(`Environment file not found: ${envFile}`);
+    process.exit(1);
+  }
+} else {
+  config({ path: envFile });
 }
-
-config({ path: envFile });
 config();
 
-const databaseUrl = process.env.DATABASE_URL?.trim();
+const databaseUrl = databaseUrlFromEnv ?? process.env.DATABASE_URL?.trim();
 if (!databaseUrl) {
   console.error(`DATABASE_URL is not set in ${envFile}. Configure persistence vars before migrating.`);
   process.exit(1);

@@ -78,6 +78,7 @@ clear_dev_port() {
 trap cleanup EXIT INT TERM
 
 log "Starting shared Postgres + Redis (docker compose)..."
+export EDGE_APP_IMAGE="${EDGE_APP_IMAGE:-edge-app:0000000000000000000000000000000000000000}"
 docker compose up -d --wait postgres redis
 
 log "Provisioning local databases (edge_dev, edge_prod)..."
