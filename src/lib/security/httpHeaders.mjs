@@ -18,9 +18,15 @@ const BASE_SECURITY_HEADERS = [
  * @returns {SecurityHeader[]}
  */
 export function buildAppSecurityHeaders(isProduction) {
+  // Dev-only unsafe-eval: React/Next reconstruct call stacks via eval() in development.
+  // Production keeps wasm-unsafe-eval only (QuickJS indicator runtime).
+  const scriptSrc = isProduction
+    ? "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'";
+
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",

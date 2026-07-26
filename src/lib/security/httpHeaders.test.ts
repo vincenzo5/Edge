@@ -18,14 +18,18 @@ describe("httpHeaders", () => {
     const csp = headerValue(headers, "Content-Security-Policy");
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("'wasm-unsafe-eval'");
+    expect(csp).toContain("'unsafe-eval'");
     expect(csp).toContain("worker-src 'self' blob:");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("img-src 'self' data: blob:");
     expect(headerValue(headers, "Strict-Transport-Security")).toBeUndefined();
   });
 
-  it("adds HSTS only in production app headers", () => {
+  it("keeps production CSP without unsafe-eval and adds HSTS", () => {
     const prod = buildAppSecurityHeaders(true);
+    const csp = headerValue(prod, "Content-Security-Policy");
+    expect(csp).toContain("'wasm-unsafe-eval'");
+    expect(csp).not.toContain("'unsafe-eval'");
     expect(headerValue(prod, "Strict-Transport-Security")).toBe(
       "max-age=31536000; includeSubDomains",
     );
