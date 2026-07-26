@@ -85,54 +85,9 @@ describe("recoverTwsSidecar", () => {
     expect(resetGate).toHaveBeenCalledOnce();
   });
 
-  it("starts sidecar in external mode when unreachable and port is free", async () => {
+  it("returns operator restart message in external mode when sidecar is unreachable", async () => {
     process.env.TWS_MANAGED = "external";
-    let reachable = false;
-    const startSidecar = vi.fn(async () => {
-      reachable = true;
-      return true;
-    });
-
-    const result = await recoverTwsSidecar([], {
-      isControlAllowed: () => true,
-      isConfigured: () => true,
-      getConfig: () => ({
-        baseUrl: "http://127.0.0.1:8765",
-        timeoutMs: 1000,
-        candlesTimeoutMs: 1000,
-        quotesTimeoutMs: 1000,
-        optionsTimeoutMs: 1000,
-      }),
-      probeHealth: async () => reachable,
-      fetchHealth: async () => null,
-      probeStatus: async () => ({
-        configured: true,
-        sidecarReachable: true,
-        gatewayConnected: true,
-        warnings: [],
-      }),
-      waitForHealth: async () => {
-        reachable = true;
-        return true;
-      },
-      startSidecar,
-      reconnect: async () => ({
-        configured: true,
-        sidecarReachable: true,
-        gatewayConnected: true,
-        warnings: [],
-      }),
-      warmup: async () => {},
-      resetGate: vi.fn(),
-    });
-
-    expect(startSidecar).toHaveBeenCalledOnce();
-    expect(result.ok).toBe(true);
-    expect(result.action).toBe("started");
-  });
-
-  it("returns port conflict message in external mode when sidecar still unreachable after start", async () => {
-    process.env.TWS_MANAGED = "external";
+    const startSidecar = vi.fn(async () => true);
 
     const result = await recoverTwsSidecar([], {
       isControlAllowed: () => true,
@@ -147,16 +102,50 @@ describe("recoverTwsSidecar", () => {
       probeHealth: async () => false,
       fetchHealth: async () => null,
       probeStatus: async () => null,
-      startSidecar: async () => true,
+      startSidecar,
       waitForHealth: async () => false,
       reconnect: vi.fn(),
       warmup: vi.fn(),
       resetGate: vi.fn(),
     });
 
+    expect(startSidecar).not.toHaveBeenCalled();
     expect(result.ok).toBe(false);
-    expect(result.message).toContain("8765");
-    expect(result.message).toMatch(/npm run tws:sidecar/i);
+    expect(result.message).toMatch(/operator-managed sidecar/i);
+  });
+
+  it("returns operator restart message in external mode when restart is required", async () => {
+    process.env.TWS_MANAGED = "external";
+    const restartSidecar = vi.fn(async () => true);
+
+    const result = await recoverTwsSidecar([], {
+      isControlAllowed: () => true,
+      isConfigured: () => true,
+      getConfig: () => ({
+        baseUrl: "http://127.0.0.1:8765",
+        timeoutMs: 1000,
+        candlesTimeoutMs: 1000,
+        quotesTimeoutMs: 1000,
+        optionsTimeoutMs: 1000,
+      }),
+      probeHealth: async () => true,
+      probeStatus: async () => ({
+        configured: true,
+        sidecarReachable: true,
+        gatewayConnected: false,
+        restartRequired: true,
+        connectionState: "client_id_stuck",
+        warnings: [],
+      }),
+      reconnect: vi.fn(),
+      restartSidecar,
+      warmup: vi.fn(),
+      resetGate: vi.fn(),
+    });
+
+    expect(restartSidecar).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/operator-managed sidecar/i);
   });
 
   it("returns failed when foreign edge-local sidecar owns the port", async () => {

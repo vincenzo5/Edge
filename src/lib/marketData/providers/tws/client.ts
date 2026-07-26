@@ -481,7 +481,7 @@ export function createTwsClient(config?: TwsClientConfig) {
       try {
         const res = await fetch(url, {
           method: "GET",
-          headers: { Accept: "application/json" },
+          headers: sidecarAuthHeaders({ Accept: "application/json" }),
           signal: AbortSignal.timeout(timeoutMs),
         });
         if (!res.ok) return null;

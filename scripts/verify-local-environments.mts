@@ -291,6 +291,7 @@ async function defaultRunDeployCommand(
       revision: options.revision,
       skipInfra: options.skipInfra,
       skipStartup: true,
+      skipChartPerf: true,
     },
     defaultDeployLocalProdContainerDeps(),
   );
@@ -310,6 +311,7 @@ async function defaultRunRollbackCommand(
       revision: null,
       skipInfra: options.skipInfra,
       skipStartup: true,
+      skipChartPerf: true,
     },
     defaultDeployLocalProdContainerDeps(),
   );
@@ -537,19 +539,49 @@ export async function runBrokerOwnershipScenario(
 ): Promise<VerifyScenarioResult> {
   const lines: string[] = [];
   const defaultIssues = validateContainerLocalDeploy(input);
-  const twsIssue = defaultIssues.find((issue) => issue.code === "development.tws_enabled");
   lines.push(`development.tws_default_issues=${defaultIssues.length}`);
-  lines.push(`development.tws_enabled_blocked=${twsIssue ? "yes" : "no"}`);
 
-  const devWithTws: ContainerLocalDeployInput = {
+  const sharedSecret = "shared-sidecar-secret-abcdefghijklmnopqrstuvwxyz";
+  const sharedSidecarInput: ContainerLocalDeployInput = {
     ...input,
-    development: { ...input.development, TWS_ENABLED: "true" },
+    development: {
+      ...input.development,
+      TWS_ENABLED: "true",
+      TWS_MANAGED: "external",
+      EDGE_TRADING_ENVIRONMENT_LOCK: "paper",
+      TWS_SIDECAR_URL: "http://127.0.0.1:8765",
+      TWS_SIDECAR_SECRET: sharedSecret,
+    },
+    production: {
+      ...input.production,
+      TWS_ENABLED: "true",
+      TWS_MANAGED: "external",
+      EDGE_TRADING_ENVIRONMENT_LOCK: "live",
+      TWS_SIDECAR_URL: "http://host.docker.internal:8765",
+      TWS_SIDECAR_SECRET: sharedSecret,
+    },
   };
-  const twsEnabledIssues = validateContainerLocalDeploy(devWithTws);
-  const failsWithTws = twsEnabledIssues.some((issue) => issue.code === "development.tws_enabled");
-  lines.push(`development.tws_enabled_rejected=${failsWithTws ? "yes" : "no"}`);
+  const sharedIssues = validateContainerLocalDeploy(sharedSidecarInput);
+  lines.push(`shared_sidecar.issues=${sharedIssues.length}`);
+  lines.push(`shared_sidecar.valid=${sharedIssues.length === 0 ? "yes" : "no"}`);
 
-  const pass = defaultIssues.length === 0 && failsWithTws;
+  const invalidDevInput: ContainerLocalDeployInput = {
+    ...sharedSidecarInput,
+    development: {
+      ...sharedSidecarInput.development,
+      EDGE_TRADING_ENVIRONMENT_LOCK: "live",
+    },
+  };
+  const invalidIssues = validateContainerLocalDeploy(invalidDevInput);
+  const rejectsBadDevLock = invalidIssues.some(
+    (issue) => issue.code === "development.trading_environment_lock",
+  );
+  lines.push(`shared_sidecar.rejects_bad_dev_lock=${rejectsBadDevLock ? "yes" : "no"}`);
+
+  const pass =
+    defaultIssues.length === 0 &&
+    sharedIssues.length === 0 &&
+    rejectsBadDevLock;
   return makeResult("broker-ownership", pass, lines, deps);
 }
 

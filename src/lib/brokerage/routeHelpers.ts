@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { jsonErrorResponse } from "@/lib/api/safeErrorResponse";
 import { BrokerageRequestError } from "@/lib/brokerage/brokerageClient";
+import {
+  TradingEnvironmentLockedError,
+  TradingValidationError,
+} from "@/lib/trading/validateOrder";
 
 export function brokerageDisabledResponse(): Response {
   return NextResponse.json(
@@ -21,6 +25,12 @@ const DEGRADED_BROKERAGE_STATUSES = new Set<BrokerageRequestError["category"]>([
 ]);
 
 export function brokerageErrorResponse(error: unknown): Response {
+  if (error instanceof TradingEnvironmentLockedError) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+  if (error instanceof TradingValidationError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
   if (error instanceof BrokerageRequestError) {
     const status = DEGRADED_BROKERAGE_STATUSES.has(error.category) ? 503 : 500;
     return NextResponse.json(

@@ -12,6 +12,7 @@ import {
   type PreviewPlaybookRequest,
 } from "./types";
 import { isTradingEnvironmentConfigured } from "./connectionRegistry";
+import type { TradingEnvironment } from "./types";
 
 export class TradingValidationError extends Error {
   constructor(message: string) {
@@ -27,6 +28,20 @@ export class TradingKillSwitchError extends Error {
   }
 }
 
+export class TradingEnvironmentLockedError extends Error {
+  readonly locked: TradingEnvironment;
+  readonly attempted: TradingEnvironment;
+
+  constructor(locked: TradingEnvironment, attempted: TradingEnvironment) {
+    super(
+      `Trading environment "${attempted}" is not allowed. This process is locked to "${locked}".`,
+    );
+    this.name = "TradingEnvironmentLockedError";
+    this.locked = locked;
+    this.attempted = attempted;
+  }
+}
+
 export function isTradingKillSwitchOn(): boolean {
   const raw = process.env.EDGE_TRADING_KILL_SWITCH?.trim().toLowerCase();
   return raw === "true" || raw === "1";
@@ -35,6 +50,23 @@ export function isTradingKillSwitchOn(): boolean {
 export function assertTradingKillSwitchOff(): void {
   if (isTradingKillSwitchOn()) {
     throw new TradingKillSwitchError();
+  }
+}
+
+/** Process-level paper/live pin when dev and prod share one sidecar. */
+export function readTradingEnvironmentLock(): TradingEnvironment | null {
+  const raw = process.env.EDGE_TRADING_ENVIRONMENT_LOCK?.trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === "paper" || raw === "live") return raw;
+  throw new TradingValidationError(
+    'Invalid EDGE_TRADING_ENVIRONMENT_LOCK: must be "paper" or "live".',
+  );
+}
+
+export function assertTradingEnvironmentAllowed(environment: TradingEnvironment): void {
+  const lock = readTradingEnvironmentLock();
+  if (lock && environment !== lock) {
+    throw new TradingEnvironmentLockedError(lock, environment);
   }
 }
 
@@ -77,6 +109,7 @@ export function assertPaperTradingEnabled(): void {
 export function assertTradingEnabledForEnvironment(
   environment: OrderDraft["environment"],
 ): void {
+  assertTradingEnvironmentAllowed(environment);
   if (!isTradingEnvironmentConfigured(environment)) {
     throw new TradingValidationError(
       "Trading requires TWS_READONLY=false for the IB API session.",

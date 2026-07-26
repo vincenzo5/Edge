@@ -125,6 +125,7 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 - **Trade sidebar panel + Account panel** display the globally selected account only — no Paper/Live toggle or account picker in those surfaces.
 - **Live submit gate:** `liveConfirmation: "LIVE"` required server-side on submit/cancel/modify when `environment === "live"`. Close-position UI confirms with a single Confirm click (token sent automatically); Trade ticket / protective OCO still ask the user to type `LIVE`.
 - **Kill switch** (`EDGE_TRADING_KILL_SWITCH`) remains operator emergency stop — not the normal mode control.
+- **Environment lock** (`EDGE_TRADING_ENVIRONMENT_LOCK=paper|live`) pins each Next process to one trading environment when dev and container prod share one host sidecar. Server routes reject mismatched `environment` / draft env with **403**; market-data `connectionId` stays independent (live quotes while paper trading remain valid).
 - **`TWS_READONLY=false`** still required for mutations on any connection.
 
 ## Drawing-bound trade setup (v1)

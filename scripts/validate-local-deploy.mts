@@ -273,6 +273,178 @@ function isLoopbackSidecarHostname(hostname: string): boolean {
   return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "[::1]" || normalized === "::1";
 }
 
+function sidecarPort(url: string): number | null {
+  try {
+    const parsed = new URL(url);
+    const port = parsed.port
+      ? Number(parsed.port)
+      : parsed.protocol === "https:" ? 443 : 80;
+    return Number.isFinite(port) && port > 0 ? port : null;
+  } catch {
+    return null;
+  }
+}
+
+function validateDevelopmentTwsWhenEnabled(
+  env: Record<string, string>,
+  issues: LocalDeployIssue[],
+): void {
+  if (trimmed(env, "TWS_MANAGED") !== "external") {
+    addIssue(
+      issues,
+      "development.tws_managed",
+      "development",
+      "TWS_MANAGED",
+      "Development TWS_MANAGED must be external when TWS is enabled.",
+    );
+  }
+  if (trimmed(env, "EDGE_TRADING_ENVIRONMENT_LOCK") !== "paper") {
+    addIssue(
+      issues,
+      "development.trading_environment_lock",
+      "development",
+      "EDGE_TRADING_ENVIRONMENT_LOCK",
+      "Development EDGE_TRADING_ENVIRONMENT_LOCK must be paper when TWS is enabled.",
+    );
+  }
+  const sidecar = trimmed(env, "TWS_SIDECAR_URL");
+  if (!sidecar) {
+    addIssue(
+      issues,
+      "development.tws_sidecar_url",
+      "development",
+      "TWS_SIDECAR_URL",
+      "Development TWS_SIDECAR_URL is required when TWS is enabled.",
+    );
+  } else {
+    try {
+      const hostname = new URL(sidecar).hostname;
+      if (!isLoopbackSidecarHostname(hostname)) {
+        addIssue(
+          issues,
+          "development.tws_sidecar_url",
+          "development",
+          "TWS_SIDECAR_URL",
+          "Development TWS_SIDECAR_URL must target loopback when TWS is enabled.",
+        );
+      }
+      if (sidecarPort(sidecar) !== 8765) {
+        addIssue(
+          issues,
+          "development.tws_sidecar_port",
+          "development",
+          "TWS_SIDECAR_URL",
+          "Development TWS_SIDECAR_URL must use port 8765.",
+        );
+      }
+    } catch {
+      addIssue(
+        issues,
+        "development.tws_sidecar_url",
+        "development",
+        "TWS_SIDECAR_URL",
+        "Development TWS_SIDECAR_URL must be a valid URL.",
+      );
+    }
+  }
+  if (!secretIsSafe(trimmed(env, "TWS_SIDECAR_SECRET"))) {
+    addIssue(
+      issues,
+      "development.tws_sidecar_secret",
+      "development",
+      "TWS_SIDECAR_SECRET",
+      "Development TWS_SIDECAR_SECRET must be a non-placeholder value of at least 32 characters when TWS is enabled.",
+    );
+  }
+}
+
+function validateContainerProductionTwsWhenEnabled(
+  env: Record<string, string>,
+  issues: LocalDeployIssue[],
+): void {
+  if (trimmed(env, "EDGE_TRADING_ENVIRONMENT_LOCK") !== "live") {
+    addIssue(
+      issues,
+      "production.trading_environment_lock",
+      "production",
+      "EDGE_TRADING_ENVIRONMENT_LOCK",
+      "Container production EDGE_TRADING_ENVIRONMENT_LOCK must be live when TWS is enabled.",
+    );
+  }
+  const sidecar = trimmed(env, "TWS_SIDECAR_URL");
+  if (!sidecar) {
+    addIssue(
+      issues,
+      "production.tws_sidecar_url",
+      "production",
+      "TWS_SIDECAR_URL",
+      "Container production TWS_SIDECAR_URL is required when TWS is enabled.",
+    );
+  } else {
+    try {
+      const parsed = new URL(sidecar);
+      if (parsed.hostname.toLowerCase() !== "host.docker.internal") {
+        addIssue(
+          issues,
+          "production.tws_sidecar_url",
+          "production",
+          "TWS_SIDECAR_URL",
+          "Container production TWS_SIDECAR_URL must target host.docker.internal when TWS is enabled.",
+        );
+      }
+      if (sidecarPort(sidecar) !== 8765) {
+        addIssue(
+          issues,
+          "production.tws_sidecar_port",
+          "production",
+          "TWS_SIDECAR_URL",
+          "Container production TWS_SIDECAR_URL must use port 8765.",
+        );
+      }
+    } catch {
+      addIssue(
+        issues,
+        "production.tws_sidecar_url",
+        "production",
+        "TWS_SIDECAR_URL",
+        "Container production TWS_SIDECAR_URL must be a valid URL.",
+      );
+    }
+  }
+  if (!secretIsSafe(trimmed(env, "TWS_SIDECAR_SECRET"))) {
+    addIssue(
+      issues,
+      "production.tws_sidecar_secret",
+      "production",
+      "TWS_SIDECAR_SECRET",
+      "Container production TWS_SIDECAR_SECRET must be a non-placeholder value of at least 32 characters when TWS is enabled.",
+    );
+  }
+}
+
+function validateSharedSidecarContract(
+  development: Record<string, string>,
+  production: Record<string, string>,
+  issues: LocalDeployIssue[],
+): void {
+  const devTws = isTrue(trimmed(development, "TWS_ENABLED"));
+  const prodTws = isTrue(trimmed(production, "TWS_ENABLED"));
+
+  if (devTws && prodTws) {
+    const devSecret = trimmed(development, "TWS_SIDECAR_SECRET");
+    const prodSecret = trimmed(production, "TWS_SIDECAR_SECRET");
+    if (devSecret && prodSecret && devSecret !== prodSecret) {
+      addIssue(
+        issues,
+        "shared.tws_sidecar_secret",
+        "shared",
+        "TWS_SIDECAR_SECRET",
+        "Development and production TWS_SIDECAR_SECRET must match for a shared sidecar.",
+      );
+    }
+  }
+}
+
 function isInside(root: string, candidate: string): boolean {
   const rel = relative(resolve(root), resolve(candidate));
   return rel === "" || (!rel.startsWith(`..${sep}`) && rel !== ".." && !isAbsolute(rel));
@@ -381,13 +553,7 @@ function validateProfile(
       );
     }
     if (isTrue(trimmed(env, "TWS_ENABLED"))) {
-      addIssue(
-        issues,
-        "development.tws_enabled",
-        profile,
-        "TWS_ENABLED",
-        "Development TWS_ENABLED must be disabled by default.",
-      );
+      validateDevelopmentTwsWhenEnabled(env, issues);
     }
     return;
   }
@@ -552,6 +718,8 @@ export function validateLocalDeploy(input: LocalDeployInput): LocalDeployIssue[]
       "Development and production EDGE_AUTH_SECRET values must be distinct.",
     );
   }
+
+  validateSharedSidecarContract(input.development, input.production, issues);
 
   if (resolve(input.developmentRoot) === resolve(input.productionRoot)) {
     addIssue(
@@ -833,29 +1001,7 @@ function validateContainerProductionProfile(
         "Container production TWS_MANAGED must be external when TWS is enabled.",
       );
     }
-    const sidecar = trimmed(env, "TWS_SIDECAR_URL");
-    if (sidecar) {
-      try {
-        const hostname = new URL(sidecar).hostname;
-        if (!isLoopbackSidecarHostname(hostname) && !secretIsSafe(trimmed(env, "TWS_SIDECAR_SECRET"))) {
-          addIssue(
-            issues,
-            "production.tws_sidecar_secret",
-            "production",
-            "TWS_SIDECAR_SECRET",
-            "Container production requires TWS_SIDECAR_SECRET for a non-loopback sidecar.",
-          );
-        }
-      } catch {
-        addIssue(
-          issues,
-          "production.tws_sidecar_url",
-          "production",
-          "TWS_SIDECAR_URL",
-          "Container production TWS_SIDECAR_URL must be a valid URL.",
-        );
-      }
-    }
+    validateContainerProductionTwsWhenEnabled(env, issues);
   } else if (trimmed(env, "TWS_MANAGED") === "local") {
     addIssue(
       issues,
@@ -1042,6 +1188,7 @@ export function validateContainerLocalDeploy(input: ContainerLocalDeployInput): 
 
   validatePortOwnership(input.portOwnership, issues);
   validateContainerImageFacts(input.imageFacts, issues);
+  validateSharedSidecarContract(input.development, input.production, issues);
 
   return issues.sort((a, b) => a.code.localeCompare(b.code));
 }

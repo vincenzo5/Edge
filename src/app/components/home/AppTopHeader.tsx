@@ -74,7 +74,12 @@ export default function AppTopHeader({ centerSlot }: Props) {
     setLoading(true);
     try {
       const tradingResult = await fetchTradingAccounts();
-      setAccounts(tradingResult.accounts);
+      const lock = tradingResult.environmentLock ?? null;
+      setAccounts(
+        lock
+          ? tradingResult.accounts.filter((row) => row.environment === lock)
+          : tradingResult.accounts,
+      );
       setDefaultAccountId(tradingResult.defaultAccountId);
     } catch {
       setAccounts([]);

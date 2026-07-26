@@ -82,6 +82,7 @@ import {
   parsePreviewPlaybookRequest,
   parseProtectiveOcoPlan,
   PREVIEW_INTENT_MAX_AGE_MS,
+  readTradingEnvironmentLock,
   TradingKillSwitchError,
   TradingValidationError,
 } from "./validateOrder";
@@ -232,7 +233,18 @@ export class TradingService {
   }
 
   async listAccounts(environment?: TradingEnvironment): Promise<TradingAccount[]> {
-    this.ensureTradingEnabled();
+    const lock = readTradingEnvironmentLock();
+    const effectiveEnvironment = environment ?? lock ?? undefined;
+    if (effectiveEnvironment) {
+      this.ensureTradingEnabled(effectiveEnvironment);
+    } else {
+      assertTradingKillSwitchOff();
+      if (!isTradingConfigured()) {
+        throw new TradingValidationError(
+          "Trading requires TWS_READONLY=false for the IB API session.",
+        );
+      }
+    }
     await awaitSidecarForBrokerage();
     const client = getBrokerageClient();
     if (!client) {
@@ -246,8 +258,8 @@ export class TradingService {
       );
     }
 
-    const targets = environment
-      ? [resolveConnectionByEnvironment(environment)]
+    const targets = effectiveEnvironment
+      ? [resolveConnectionByEnvironment(effectiveEnvironment)]
       : listIbConnections();
 
     const accounts: TradingAccount[] = [];

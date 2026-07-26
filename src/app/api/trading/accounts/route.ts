@@ -9,6 +9,7 @@ import {
   tradingDisabledResponse,
   tradingErrorResponse,
 } from "@/lib/trading/routeHelpers";
+import { readTradingEnvironmentLock } from "@/lib/trading/validateOrder";
 
 export const runtime = "nodejs";
 
@@ -29,7 +30,11 @@ export async function GET(request: Request): Promise<Response> {
       environment?.success ? environment.data : undefined,
     );
     const defaultAccountId = resolveTradingAccountId(accounts);
-    return NextResponse.json({ accounts, defaultAccountId });
+    return NextResponse.json({
+      accounts,
+      defaultAccountId,
+      environmentLock: readTradingEnvironmentLock(),
+    });
   } catch (error) {
     return tradingErrorResponse(error);
   }

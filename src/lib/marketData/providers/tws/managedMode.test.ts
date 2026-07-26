@@ -34,10 +34,10 @@ describe("managedMode", () => {
     expect(canNextSpawnSidecar()).toBe(false);
   });
 
-  it("allows user recovery spawn in external mode when port is not foreign", () => {
+  it("does not allow user recovery spawn in external mode", () => {
     process.env.TWS_ENABLED = "true";
     process.env.TWS_MANAGED = "external";
-    expect(canSpawnSidecarForUserRecovery(false)).toBe(true);
+    expect(canSpawnSidecarForUserRecovery(false)).toBe(false);
     expect(canSpawnSidecarForUserRecovery(true)).toBe(false);
   });
 

@@ -70,7 +70,7 @@ export async function probeSidecarLiveness(
   try {
     const res = await fetch(url, {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: sidecarAuthHeaders({ Accept: "application/json" }),
       signal: AbortSignal.timeout(timeoutMs),
     });
     return res.ok;

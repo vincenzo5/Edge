@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { OrderDraftSchema } from "./types";
 import {
   assertPaperTradingEnabled,
+  assertTradingEnvironmentAllowed,
   isPaperTradingConfigured,
   normalizeDraftForHash,
+  readTradingEnvironmentLock,
+  TradingEnvironmentLockedError,
 } from "./validateOrder";
 
 describe("validateOrder", () => {
@@ -128,6 +131,32 @@ describe("validateOrder", () => {
       expect(() => assertPaperTradingEnabled()).toThrow();
     } finally {
       process.env.TWS_READONLY = originalReadonly;
+    }
+  });
+
+  it("reads and enforces EDGE_TRADING_ENVIRONMENT_LOCK", () => {
+    const originalLock = process.env.EDGE_TRADING_ENVIRONMENT_LOCK;
+    try {
+      delete process.env.EDGE_TRADING_ENVIRONMENT_LOCK;
+      expect(readTradingEnvironmentLock()).toBeNull();
+      expect(() => assertTradingEnvironmentAllowed("paper")).not.toThrow();
+      expect(() => assertTradingEnvironmentAllowed("live")).not.toThrow();
+
+      process.env.EDGE_TRADING_ENVIRONMENT_LOCK = "paper";
+      expect(readTradingEnvironmentLock()).toBe("paper");
+      expect(() => assertTradingEnvironmentAllowed("paper")).not.toThrow();
+      expect(() => assertTradingEnvironmentAllowed("live")).toThrow(TradingEnvironmentLockedError);
+
+      process.env.EDGE_TRADING_ENVIRONMENT_LOCK = "live";
+      expect(readTradingEnvironmentLock()).toBe("live");
+      expect(() => assertTradingEnvironmentAllowed("live")).not.toThrow();
+      expect(() => assertTradingEnvironmentAllowed("paper")).toThrow(TradingEnvironmentLockedError);
+    } finally {
+      if (originalLock === undefined) {
+        delete process.env.EDGE_TRADING_ENVIRONMENT_LOCK;
+      } else {
+        process.env.EDGE_TRADING_ENVIRONMENT_LOCK = originalLock;
+      }
     }
   });
 });

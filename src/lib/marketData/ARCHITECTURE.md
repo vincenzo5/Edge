@@ -246,6 +246,8 @@ Development defaults to `TWS_ENABLED=false`. Full legacy topology:
 Container successor:
 [Local Production Containerization Roadmap](../../../docs/roadmaps/local-production-containerization-roadmap.md).
 
+**Shared sidecar (concurrent dev + container prod):** one operator-owned host sidecar on `:8765` connects both IB Gateways (`ib-paper` → `:4002`, `ib-live` → `:4001`). Development uses `TWS_MANAGED=external`, `TWS_SIDECAR_URL=http://127.0.0.1:8765`, and `EDGE_TRADING_ENVIRONMENT_LOCK=paper`. Container production uses `TWS_SIDECAR_URL=http://host.docker.internal:8765`, the same `TWS_SIDECAR_SECRET`, and `EDGE_TRADING_ENVIRONMENT_LOCK=live`. Start Gateways (`npm run ib:gateway:up`) then `npm run tws:sidecar` once on the host.
+
 **Container TWS boundary (Phase 0):** the app container must not spawn or restart
 the sidecar. When production TWS is enabled in the container profile,
 `TWS_MANAGED=external` only; reach the host-native sidecar via
@@ -515,9 +517,9 @@ When IB Gateway is manually restored after a disconnect, the Data Health dropdow
 | Mode | Next spawn/kill | Boot ensure | User Reconnect spawn | Use when |
 |------|-----------------|-------------|----------------------|----------|
 | `local` | Yes | Yes | Yes (`edge-local`) | Default dev — Next owns one sidecar |
-| `external` | No | No | Yes when port free (`standalone`) | Manual/systemd sidecar; Reconnect starts sidecar if down |
+| `external` | No | No | No (reconnect only) | Shared/operator sidecar — dev + prod both external |
 
-Docker Compose is **not** used for the sidecar. External mode skips boot ensure; user Reconnect still attempts spawn unless port 8765 is owned by another Edge dev instance — then stop that process or run `npm run tws:sidecar` yourself.
+Docker Compose is **not** used for the sidecar. External mode skips boot ensure and user Recover never spawns or kills the shared process — unreachable or wedged sidecars require the operator to restart `npm run tws:sidecar`.
 
 **Brokerage readiness:** `awaitSidecarForBrokerage()` gates `/api/brokerage/*` and `BrokerageService` only — chart/quote routes keep fast Yahoo fallback.
 

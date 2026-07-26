@@ -10,6 +10,7 @@ import { isBrokerageConfigured } from "@/lib/brokerage/brokerageService";
 import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
 import { resolveConnectionByEnvironment } from "@/lib/trading/connectionRegistry";
 import { TradingEnvironmentSchema } from "@/lib/trading/types";
+import { assertTradingEnvironmentAllowed } from "@/lib/trading/validateOrder";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,12 @@ export async function GET(request: Request): Promise<Response> {
   const environment = TradingEnvironmentSchema.safeParse(environmentParam);
   if (!environment.success) {
     return NextResponse.json({ error: "Invalid environment" }, { status: 400 });
+  }
+
+  try {
+    assertTradingEnvironmentAllowed(environment.data);
+  } catch (error) {
+    return brokerageErrorResponse(error);
   }
 
   await awaitSidecarForBrokerage();

@@ -10,8 +10,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[2]
-load_dotenv(ROOT / ".env.local", override=True)
-load_dotenv(ROOT / ".env", override=True)
+load_dotenv(ROOT / ".env.local", override=False)
+load_dotenv(ROOT / ".env", override=False)
 
 TWS_HOST = os.environ.get("TWS_HOST", "127.0.0.1")
 TWS_PAPER_PORT = int(os.environ.get("TWS_PAPER_PORT", os.environ.get("TWS_PORT", "4002")))

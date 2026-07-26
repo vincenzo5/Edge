@@ -328,12 +328,15 @@ describe("runBuildIsolationScenario", () => {
 });
 
 describe("runBrokerOwnershipScenario", () => {
-  it("rejects development TWS ownership by default contract", async () => {
+  it("accepts complementary shared-sidecar dev/prod locks", async () => {
     const input = validContainerInput();
     const deps = mockDeps();
     const result = await runBrokerOwnershipScenario(input, deps);
     expect(result.pass).toBe(true);
-    expect(result.lines.some((line) => line.includes("development.tws_enabled_rejected=yes"))).toBe(true);
+    expect(result.lines.some((line) => line.includes("shared_sidecar.valid=yes"))).toBe(true);
+    expect(result.lines.some((line) => line.includes("shared_sidecar.rejects_bad_dev_lock=yes"))).toBe(
+      true,
+    );
   });
 });
 

@@ -66,6 +66,7 @@ async function parseTradingResponse<T>(res: Response): Promise<T> {
 export type TradingAccountsResponse = {
   accounts: TradingAccount[];
   defaultAccountId: string;
+  environmentLock?: TradingEnvironment | null;
 };
 
 export async function fetchTradingAccounts(

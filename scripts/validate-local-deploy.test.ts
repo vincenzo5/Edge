@@ -136,7 +136,7 @@ describe("validateLocalDeploy", () => {
     ["development cache segment", (input: LocalDeployInput) => (input.development.EDGE_CACHE_ENV = "prod"), "development.cache_env"],
     ["development Redis fallback", (input: LocalDeployInput) => (input.development.EDGE_REQUIRE_REDIS = "1"), "development.require_redis"],
     ["development auth mode", (input: LocalDeployInput) => (input.development.EDGE_API_AUTH_MODE = "key"), "development.auth_mode"],
-    ["development TWS ownership", (input: LocalDeployInput) => (input.development.TWS_ENABLED = "true"), "development.tws_enabled"],
+    ["development TWS without shared-sidecar contract", (input: LocalDeployInput) => (input.development.TWS_ENABLED = "true"), "development.tws_managed"],
     ["production host", (input: LocalDeployInput) => (input.production.EDGE_APP_HOST = "0.0.0.0"), "production.host"],
     ["production port", (input: LocalDeployInput) => (input.production.EDGE_APP_PORT = "3003"), "production.port"],
     ["production database", (input: LocalDeployInput) => (input.production.DATABASE_URL = "postgres://edge:x@localhost/edge_dev"), "production.database"],

@@ -29,11 +29,9 @@ export function canNextSpawnSidecar(): boolean {
 }
 
 /**
- * User-initiated recover (`POST /api/market-data/tws/recover`) may spawn when local
- * managed, or in external mode when port 8765 is not owned by a foreign edge-local sidecar.
+ * User-initiated recover may spawn only in local managed mode.
+ * External mode is control-only — operator owns the shared sidecar process.
  */
-export function canSpawnSidecarForUserRecovery(foreignSidecarOnPort = false): boolean {
-  if (isTwsLocalManaged()) return true;
-  if (isTwsExternalManaged()) return !foreignSidecarOnPort;
-  return false;
+export function canSpawnSidecarForUserRecovery(_foreignSidecarOnPort = false): boolean {
+  return isTwsLocalManaged();
 }

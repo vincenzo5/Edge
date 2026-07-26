@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { jsonErrorResponse } from "@/lib/api/safeErrorResponse";
 import { BrokerageRequestError } from "@/lib/brokerage/brokerageClient";
-import { TradingValidationError, TradingKillSwitchError } from "./validateOrder";
+import {
+  TradingValidationError,
+  TradingKillSwitchError,
+  TradingEnvironmentLockedError,
+} from "./validateOrder";
 
 export function tradingDisabledResponse(): Response {
   return NextResponse.json(
@@ -24,6 +28,9 @@ const DEGRADED_TRADING_STATUSES = new Set<BrokerageRequestError["category"]>([
 export function tradingErrorResponse(error: unknown): Response {
   if (error instanceof TradingKillSwitchError) {
     return NextResponse.json({ error: error.message }, { status: 503 });
+  }
+  if (error instanceof TradingEnvironmentLockedError) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
   }
   if (error instanceof TradingValidationError) {
     return NextResponse.json({ error: error.message }, { status: 400 });

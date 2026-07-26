@@ -1,0 +1,29 @@
+# Shared sidecar paper/live isolation — evidence
+# Date: 2026-07-26
+
+## Scope
+Server-side EDGE_TRADING_ENVIRONMENT_LOCK, external control-only recover, sidecar auth probes, deploy contract for shared sidecar, UI account pinning.
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/validateOrder.test.ts src/lib/trading/tradingService.test.ts src/app/api/trading/trading.routes.test.ts src/lib/brokerage/brokerageClient.test.ts src/lib/brokerage/brokerageService.test.ts src/lib/marketData/providers/tws/managedMode.test.ts src/lib/marketData/providers/tws/recover.test.ts src/lib/marketData/providers/tws/client.health.test.ts scripts/validate-local-deploy.test.ts scripts/verify-local-environments.test.ts
+
+Output:
+Test Files  10 passed (10)
+Tests  127 passed (127)
+
+Command:
+cd services/tws-sidecar && python -m unittest test_main.py
+
+Output:
+Ran 55 tests in 0.111s
+OK
+
+## App-level
+Deferred — requires TWS_ENABLED + shared sidecar + complementary locks in .env.local and production.env with live Gateways logged in.
+
+## Operator enablement
+1. npm run ib:gateway:up
+2. npm run tws:sidecar (host, with TWS_SIDECAR_SECRET)
+3. Dev .env.local: TWS_ENABLED=true, TWS_MANAGED=external, EDGE_TRADING_ENVIRONMENT_LOCK=paper
+4. production.env: TWS_ENABLED=true, TWS_MANAGED=external, TWS_SIDECAR_URL=http://host.docker.internal:8765, EDGE_TRADING_ENVIRONMENT_LOCK=live, matching secret

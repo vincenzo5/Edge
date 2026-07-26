@@ -16,6 +16,7 @@ import {
 } from "./client";
 import { canNextSpawnSidecar, canSpawnSidecarForUserRecovery, isTwsExternalManaged } from "./managedMode";
 import { checkSidecarOwnership } from "./sidecarOwnership";
+import { sidecarAuthHeaders } from "./sidecarAuth";
 import { updateTwsRecoveryPhase } from "./recoverySession";
 
 export type TwsRecoverAction = "reconnected" | "started" | "restarted" | "failed";
@@ -211,6 +212,7 @@ async function defaultReconnect(baseUrl: string): Promise<TwsStatusProbe> {
   const url = `${baseUrl.replace(/\/$/, "")}/control/reconnect`;
   const res = await fetch(url, {
     method: "POST",
+    headers: sidecarAuthHeaders({ Accept: "application/json" }),
     signal: AbortSignal.timeout(15_000),
   });
   const text = await res.text();
@@ -238,7 +240,10 @@ async function defaultWarmup(baseUrl: string, symbols: string[]): Promise<void> 
   try {
     await fetch(`${baseUrl.replace(/\/$/, "")}/warmup`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: sidecarAuthHeaders({
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      }),
       body: JSON.stringify({ symbols: normalized }),
       signal: AbortSignal.timeout(15_000),
     });
@@ -249,6 +254,9 @@ async function defaultWarmup(baseUrl: string, symbols: string[]): Promise<void> 
 
 export const EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE =
   "Port 8765 is in use. Stop the other process on that port, or run: npm run tws:sidecar";
+
+export const EXTERNAL_OPERATOR_RESTART_MESSAGE =
+  "Restart the operator-managed sidecar (npm run tws:sidecar), then retry.";
 
 function spawnManagedSidecarProcess(managedBy: "edge-local" | "standalone"): boolean {
   if (managedSidecarProcess && managedSidecarProcess.exitCode == null && !managedSidecarProcess.killed) {
@@ -514,12 +522,14 @@ export async function recoverTwsSidecar(
         false,
         "failed",
         "failed",
-        EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
+        isTwsExternalManaged()
+          ? EXTERNAL_OPERATOR_RESTART_MESSAGE
+          : EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
         {
           configured: true,
           sidecarReachable: false,
           gatewayConnected: false,
-          warnings: ["Sidecar unreachable — port conflict or spawn blocked"],
+          warnings: ["Sidecar unreachable — spawn blocked"],
         },
         "sidecar_unresponsive",
       );
@@ -573,7 +583,9 @@ export async function recoverTwsSidecar(
         false,
         "failed",
         "failed",
-        EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
+        isTwsExternalManaged()
+          ? EXTERNAL_OPERATOR_RESTART_MESSAGE
+          : EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
         {
           configured: true,
           sidecarReachable: preStatus?.sidecarReachable ?? true,
@@ -681,7 +693,9 @@ export async function recoverTwsSidecar(
         false,
         "failed",
         action,
-        EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
+        isTwsExternalManaged()
+          ? EXTERNAL_OPERATOR_RESTART_MESSAGE
+          : EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE,
         status,
         "worker_wedged",
       );

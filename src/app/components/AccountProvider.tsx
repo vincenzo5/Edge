@@ -57,6 +57,7 @@ type AccountContextValue = {
   activeTradingAccount: TradingAccount | null;
   activeTradingAccountId: string | null;
   tradingEnvironment: TradingEnvironment;
+  tradingEnvironmentLock: TradingEnvironment | null;
   setTradingEnvironment: (environment: TradingEnvironment) => void;
   setActiveTradingAccount: (account: TradingAccount) => void;
   executions: AccountExecution[];
@@ -107,21 +108,52 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [tradingEnvironment, setTradingEnvironmentState] = useState<TradingEnvironment>(
     () => readActiveTradingAccount()?.environment ?? readTradingEnvironment(),
   );
+  const [tradingEnvironmentLock, setTradingEnvironmentLock] =
+    useState<TradingEnvironment | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  const setTradingEnvironment = useCallback((environment: TradingEnvironment) => {
-    writeTradingEnvironment(environment);
-    setTradingEnvironmentState(environment);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/trading/config", { cache: "no-store" });
+        if (!res.ok) return;
+        const body = (await res.json()) as { environmentLock?: TradingEnvironment | null };
+        if (cancelled) return;
+        setTradingEnvironmentLock(body.environmentLock ?? null);
+      } catch {
+        /* ignore config fetch errors */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!tradingEnvironmentLock) return;
+    writeTradingEnvironment(tradingEnvironmentLock);
+    setTradingEnvironmentState(tradingEnvironmentLock);
+  }, [tradingEnvironmentLock]);
+
+  const setTradingEnvironment = useCallback(
+    (environment: TradingEnvironment) => {
+      if (tradingEnvironmentLock && environment !== tradingEnvironmentLock) return;
+      writeTradingEnvironment(environment);
+      setTradingEnvironmentState(environment);
+    },
+    [tradingEnvironmentLock],
+  );
 
   const setActiveTradingAccount = useCallback(
     (account: TradingAccount) => {
+      if (tradingEnvironmentLock && account.environment !== tradingEnvironmentLock) return;
       writeActiveTradingAccount(account);
       setActiveTradingAccountState(account);
       setActiveTradingAccountId(account.accountId);
       setTradingEnvironment(account.environment);
     },
-    [setTradingEnvironment],
+    [setTradingEnvironment, tradingEnvironmentLock],
   );
 
   const refresh = useCallback(async () => {
@@ -280,6 +312,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       activeTradingAccount,
       activeTradingAccountId,
       tradingEnvironment,
+      tradingEnvironmentLock,
       setTradingEnvironment,
       setActiveTradingAccount,
       executions: accountSnapshot.executions,
@@ -298,6 +331,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     activeTradingAccount,
     activeTradingAccountId,
     tradingEnvironment,
+    tradingEnvironmentLock,
     setTradingEnvironment,
     setActiveTradingAccount,
   ]);

@@ -17,6 +17,10 @@ import {
 import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
 import { resolveConnectionByEnvironment } from "@/lib/trading/connectionRegistry";
 import type { TradingEnvironment } from "@/lib/trading/types";
+import {
+  assertTradingEnvironmentAllowed,
+  readTradingEnvironmentLock,
+} from "@/lib/trading/validateOrder";
 
 export type BrokerageSnapshot = {
   status: AccountStatus | null;
@@ -48,6 +52,7 @@ export class BrokerageService {
   }
 
   async getSnapshot(environment: TradingEnvironment = "paper"): Promise<BrokerageSnapshot> {
+    assertTradingEnvironmentAllowed(environment);
     const connection = resolveConnectionByEnvironment(environment);
     const client = getBrokerageClient(connection.connectionId);
     if (!client) return EMPTY_SNAPSHOT;
@@ -120,6 +125,7 @@ export class BrokerageService {
     request: WhatIfRequest,
     environment: TradingEnvironment = "paper",
   ): Promise<WhatIfResult> {
+    assertTradingEnvironmentAllowed(environment);
     const connection = resolveConnectionByEnvironment(environment);
     const client = getBrokerageClient(connection.connectionId);
     if (!client) {
