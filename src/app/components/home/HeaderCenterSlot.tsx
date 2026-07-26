@@ -11,10 +11,12 @@ import {
 
 type HeaderCenterSlotContextValue = {
   centerSlot: ReactNode;
-  registerCenterSlot: (slot: ReactNode) => () => void;
 };
 
 const HeaderCenterSlotContext = createContext<HeaderCenterSlotContextValue | null>(null);
+const HeaderCenterSlotRegistrationContext = createContext<
+  ((slot: ReactNode) => () => void) | null
+>(null);
 
 export function HeaderCenterSlotProvider({ children }: { children: ReactNode }) {
   const [centerSlot, setCenterSlot] = useState<ReactNode>(null);
@@ -27,9 +29,11 @@ export function HeaderCenterSlotProvider({ children }: { children: ReactNode }) 
   }, []);
 
   return (
-    <HeaderCenterSlotContext.Provider value={{ centerSlot, registerCenterSlot }}>
-      {children}
-    </HeaderCenterSlotContext.Provider>
+    <HeaderCenterSlotRegistrationContext.Provider value={registerCenterSlot}>
+      <HeaderCenterSlotContext.Provider value={{ centerSlot }}>
+        {children}
+      </HeaderCenterSlotContext.Provider>
+    </HeaderCenterSlotRegistrationContext.Provider>
   );
 }
 
@@ -39,10 +43,10 @@ export function useHeaderCenterSlot(): ReactNode {
 }
 
 export function useRegisterHeaderCenterSlot(slot: ReactNode): void {
-  const ctx = useContext(HeaderCenterSlotContext);
+  const registerCenterSlot = useContext(HeaderCenterSlotRegistrationContext);
 
   useEffect(() => {
-    if (!ctx) return;
-    return ctx.registerCenterSlot(slot);
-  }, [ctx, slot]);
+    if (!registerCenterSlot) return;
+    return registerCenterSlot(slot);
+  }, [registerCenterSlot, slot]);
 }

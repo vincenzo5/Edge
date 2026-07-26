@@ -28,4 +28,23 @@ describe("HeaderCenterSlot", () => {
 
     expect(screen.getByTestId("desk-controls")).toBeInTheDocument();
   });
+
+  it("does not rerender the registering subtree when the slot is published", () => {
+    let registrationRenders = 0;
+
+    function CountedRegistration() {
+      registrationRenders += 1;
+      useRegisterHeaderCenterSlot(<span>Desk controls</span>);
+      return null;
+    }
+
+    render(
+      <HeaderCenterSlotProvider>
+        <CountedRegistration />
+        <HeaderWithSlot />
+      </HeaderCenterSlotProvider>,
+    );
+
+    expect(registrationRenders).toBe(1);
+  });
 });
