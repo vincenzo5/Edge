@@ -219,6 +219,36 @@ Disruptive scenarios (`redis-outage`, `process-recovery`, `promotion`,
 `reboot-resume` to confirm Docker + launchd production recovery while
 development stays stopped. Append evidence with `--output docs/evidence/...`.
 
+### Container production successor (Phase 0 contract)
+
+The [Local Production Containerization Roadmap](../../../docs/roadmaps/local-production-containerization-roadmap.md)
+replaces the production worktree + LaunchAgent runtime with an immutable Docker
+image while development stays host-native on `127.0.0.1:3003`. Phase 0 freezes
+the contract only; image build, Compose app services, and cutover remain later
+phases.
+
+| Concern | Legacy (Passing) | Container successor |
+|---------|------------------|---------------------|
+| Production runtime | Sibling detached worktree + `next start` / LaunchAgent | `edge-app:<full-git-sha>` standalone Next.js container |
+| Production secrets | `.env.production.local` in worktree (0600) | `.edge/local-prod/production.env` in dev checkout (0600) |
+| Production Postgres/Redis | `localhost:5432/edge_prod`, `redis://localhost:6379` | Compose DNS `postgres:5432`, `redis://redis:6379` inside container |
+| Development deps | `localhost` loopback | unchanged |
+| Identity | worktree SHA + `.next/BUILD_ID` | image tag + OCI revision label + digest in deploy state |
+| Logs | `.edge/local-prod/local-prod.log` + launchd files | Docker stdout/stderr with rotation |
+| Deploy state | `.edge/local-prod/deploy-revisions.json` (host CLI) | same file; tracks image SHA/digest instead of worktree promotion |
+| Readiness watcher | host `npm run watch:readyz` on `:3000` | unchanged target URL |
+| Port `:3000` ownership | LaunchAgent or manual PID | Docker container only after cutover; legacy + container must never both bind |
+
+Static validation lives in `scripts/validate-local-deploy.mts`:
+`validateLocalDeploy()` for the legacy paired profile;
+`validateContainerLocalDeploy()` for the container successor. Both formatters
+stay secret-free. Port-ownership guard rejects simultaneous LaunchAgent load and
+container bind on `:3000`.
+
+Health/readiness contracts are unchanged: `/healthz` and `/readyz` remain cheap
+and secret-free; production deploy health gate still requires Redis
+`cache.kind=redis` and `cache.degraded=false`.
+
 ---
 
 ## Operator runbook

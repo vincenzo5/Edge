@@ -50,6 +50,15 @@ describe("sidecarAuth", () => {
     expect(() => assertSidecarAuthConfigured("http://192.168.1.10:8765")).not.toThrow();
   });
 
+  it("requires secret for host.docker.internal sidecar URL", () => {
+    expect(() => assertSidecarAuthConfigured("http://host.docker.internal:8765")).toThrow(
+      SidecarAuthConfigurationError,
+    );
+    expect(isSidecarUrlLoopback("http://host.docker.internal:8765")).toBe(false);
+    vi.stubEnv("TWS_SIDECAR_SECRET", "remote-secret");
+    expect(() => assertSidecarAuthConfigured("http://host.docker.internal:8765")).not.toThrow();
+  });
+
   it("resolves sidecar URL from env with trailing slash stripped", () => {
     vi.stubEnv("TWS_SIDECAR_URL", "http://127.0.0.1:8765/");
     expect(resolveSidecarUrl()).toBe("http://127.0.0.1:8765");

@@ -179,6 +179,22 @@ Programmatic mirror: [`workspaceStateStorageInventory.ts`](./workspaceStateStora
 | Copilot threads | `localCopilotThreadsStore` + `copilotThreadsClient` | ai-agent **6–7** | `/api/me/copilot-threads` (+ optional `modelId` per thread) |
 | Copilot attachments | `copilotAttachmentsClient` + FS blobs under `data/copilot-attachments/` | Grok parity **5** | `/api/me/copilot/attachments` (multipart upload + auth GET); metadata in `copilot_attachments` |
 
+**Container durable mounts (Phase 0 contract):** when production moves to Docker,
+only repo-relative FS blobs below require explicit host bind mounts; Postgres-backed
+libraries stay in `edge_prod` without FS mounts.
+
+| Path | Owner | Mount in container prod |
+|------|-------|-------------------------|
+| `data/journal-screenshots/` | `journalScreenshotRootDir()` | required durable mount |
+| `data/copilot-attachments/` | `copilotAttachmentRootDir()` | required durable mount |
+| `data/pattern-library/` | `patternLibrary/storage.ts` | not mounted when Postgres configured (`edge_prod`) |
+| `.edge/local-prod/deploy-revisions.json` | deploy CLI on host | host-only operator state |
+| `.edge/local-prod/production.env` | container prod secrets | runtime env file mount, never in image |
+
+Frozen inventories: `CONTAINER_DURABLE_MOUNT_PATHS` and
+`CONTAINER_FORBIDDEN_IMAGE_PATHS` in `scripts/validate-local-deploy.mts`.
+See [Local Production Containerization Roadmap](../../../docs/roadmaps/local-production-containerization-roadmap.md).
+
 Sketch schemas (not wired): [`chartTileBindingSketch.ts`](../appWorkspace/chartTileBindingSketch.ts). Viewport persist contract: [`viewportPersistSketch.ts`](../chart/viewportPersistSketch.ts) (wired on `CellConfig.viewport` via `cellConfigSchema`). Production prefs schema: [`userPreferences.ts`](./schemas/userPreferences.ts).
 
 ### User-state APIs

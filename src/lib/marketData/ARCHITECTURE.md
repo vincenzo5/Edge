@@ -224,20 +224,34 @@ Cache keys are namespaced per provider (`massive`, `ibkr`, `tws`, `yahoo`) so a 
 | Schema bump | increment `REDIS_MD_SCHEMA_VERSION` in `redisKeys.ts` | No dual-read — old keys orphan until TTL/eviction; deploy staging first, then prod |
 | Boot init | `instrumentation.ts` | `ensureServerCacheBackendsInitialized()` when Node runtime starts |
 
-**Concurrent local development + production (Phase 0 contract; Phase 1 infrastructure):** both host-native
-Next processes use `redis://localhost:6379`, but development must set
-`EDGE_CACHE_ENV=dev` and production must set `EDGE_CACHE_ENV=prod`. Production
-also sets `EDGE_MARKET_DATA_CACHE_BACKEND=redis` and `EDGE_REQUIRE_REDIS=1`;
-development may fall back when Redis is unavailable. The paired profiles are
-checked by `npm run local:deploy:preflight`. Shared Docker Postgres/Redis are
+**Concurrent local development + production (Phase 0 contract; Phase 1 infrastructure):**
+Development stays host-native on loopback infrastructure; production has two
+validated profiles during the containerization transition:
+
+| Profile | Postgres | Redis | Validator |
+|---------|----------|-------|-----------|
+| Legacy worktree | `localhost:5432/edge_dev` + `localhost:5432/edge_prod` | shared `localhost:6379` | `validateLocalDeploy()` |
+| Container successor | dev `localhost:5432/edge_dev`; prod `postgres:5432/edge_prod` | dev `localhost:6379`; prod `redis:6379` | `validateContainerLocalDeploy()` |
+
+Both require `EDGE_CACHE_ENV=dev` / `prod` isolation. Production sets
+`EDGE_MARKET_DATA_CACHE_BACKEND=redis` and `EDGE_REQUIRE_REDIS=1`; development
+may fall back when Redis is unavailable. Shared Docker Postgres/Redis are
 started with `npm run local:infra:up`; `edge_dev` and `edge_prod` are provisioned
 by `npm run local:infra:provision`; isolation is proven by
 `npm run local:infra:verify` and the Phase 5 verifier
 (`npm run local:prod:verify -- isolation`). Cleanup and deploy automation must target one
 `edge:{env}:…` root and must never issue `FLUSHALL` or `FLUSHDB`.
-Development defaults to `TWS_ENABLED=false`, leaving production as the only
-owner of broker-sidecar recovery. Full topology and later infrastructure work:
+Development defaults to `TWS_ENABLED=false`. Full legacy topology:
 [Local Development and Production Roadmap](../../../docs/roadmaps/local-dev-production-roadmap.md).
+Container successor:
+[Local Production Containerization Roadmap](../../../docs/roadmaps/local-production-containerization-roadmap.md).
+
+**Container TWS boundary (Phase 0):** the app container must not spawn or restart
+the sidecar. When production TWS is enabled in the container profile,
+`TWS_MANAGED=external` only; reach the host-native sidecar via
+`http://host.docker.internal:8765` with mandatory `TWS_SIDECAR_SECRET`
+(non-loopback — same rule as remote hosts). Loopback `127.0.0.1` inside the
+container does not reach the host sidecar.
 
 **Redis ops profile (Phase 4 — [Shared Cache Topology Roadmap](../../../docs/roadmaps/shared-cache-topology-roadmap.md)):**
 

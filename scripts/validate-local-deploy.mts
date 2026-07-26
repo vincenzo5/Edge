@@ -23,6 +23,42 @@ export const LOCAL_DEPLOY_CONTRACT = {
   },
 } as const;
 
+/** Container successor production contract — Phase 0 freeze; runtime cutover is Phase 3+. */
+export const CONTAINER_PRODUCTION_ENV_RELATIVE = ".edge/local-prod/production.env";
+
+export const LOCAL_CONTAINER_PRODUCTION_CONTRACT = {
+  host: "127.0.0.1",
+  port: 3000,
+  database: "edge_prod",
+  cacheEnv: "prod",
+  postgresHost: "postgres",
+  postgresPort: "5432",
+  redisHost: "redis",
+  redisPort: "6379",
+  envRelativePath: CONTAINER_PRODUCTION_ENV_RELATIVE,
+  imageNamePrefix: "edge-app:",
+  fullGitShaPattern: /^[0-9a-f]{40}$/,
+  twsSidecarHost: "host.docker.internal",
+} as const;
+
+/** Durable host mounts required for container replacement (Phase 2 wiring). */
+export const CONTAINER_DURABLE_MOUNT_PATHS = [
+  "data/journal-screenshots",
+  "data/copilot-attachments",
+] as const;
+
+/** Paths that must never appear in a production runtime image layer. */
+export const CONTAINER_FORBIDDEN_IMAGE_PATHS = [
+  ".git",
+  "node_modules",
+  ".env.local",
+  ".env.production.local",
+  CONTAINER_PRODUCTION_ENV_RELATIVE,
+  ".next",
+] as const;
+
+export type ProductionRuntimeMode = "legacy-worktree" | "container";
+
 export type DeployProfile = "development" | "production";
 
 export type EnvironmentFileFacts = {
@@ -64,6 +100,29 @@ export type LocalDeploySummary = {
   cacheBackend: string | null;
   twsEnabled: boolean;
   authMode: string;
+  runtimeMode?: ProductionRuntimeMode;
+};
+
+export type PortOwnershipFacts = {
+  legacyLaunchAgentLoaded: boolean;
+  containerBoundPort3000: boolean;
+};
+
+export type ContainerImageFacts = {
+  imageTag: string | null;
+  buildContextClean: boolean;
+  ociRevisionLabel: string | null;
+  forbiddenPathsPresent?: string[];
+};
+
+export type ContainerLocalDeployInput = {
+  development: Record<string, string>;
+  production: Record<string, string>;
+  developmentRoot: string;
+  productionEnvPath: string;
+  productionEnvFile: EnvironmentFileFacts;
+  portOwnership?: PortOwnershipFacts;
+  imageFacts?: ContainerImageFacts;
 };
 
 const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
@@ -124,6 +183,32 @@ function postgresServer(value: string): string | null {
   const parsed = databaseUrl(value);
   if (!parsed) return null;
   return `${parsed.protocol}//${parsed.hostname.toLowerCase()}:${parsed.port || "5432"}`;
+}
+
+function postgresHostname(value: string): string | null {
+  const parsed = databaseUrl(value);
+  return parsed ? parsed.hostname.toLowerCase() : null;
+}
+
+function redisHostname(value: string): string | null {
+  const parsed = redisUrl(value);
+  return parsed ? parsed.hostname.toLowerCase() : null;
+}
+
+export function resolveContainerProductionEnvPath(developmentRoot: string): string {
+  return join(developmentRoot, CONTAINER_PRODUCTION_ENV_RELATIVE);
+}
+
+export function parseImageTagSha(imageTag: string): string | null {
+  const prefix = LOCAL_CONTAINER_PRODUCTION_CONTRACT.imageNamePrefix;
+  if (!imageTag.startsWith(prefix)) return null;
+  const sha = imageTag.slice(prefix.length).trim().toLowerCase();
+  return LOCAL_CONTAINER_PRODUCTION_CONTRACT.fullGitShaPattern.test(sha) ? sha : null;
+}
+
+function isLoopbackSidecarHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "[::1]" || normalized === "::1";
 }
 
 function isInside(root: string, candidate: string): boolean {
@@ -503,6 +588,425 @@ export function validateLocalDeploy(input: LocalDeployInput): LocalDeployIssue[]
   return issues.sort((a, b) => a.code.localeCompare(b.code));
 }
 
+function validateContainerProductionProfile(
+  env: Record<string, string>,
+  issues: LocalDeployIssue[],
+): void {
+  const expected = LOCAL_CONTAINER_PRODUCTION_CONTRACT;
+  const host = trimmed(env, "EDGE_APP_HOST");
+  const port = trimmed(env, "EDGE_APP_PORT");
+  const database = trimmed(env, "DATABASE_URL");
+  const cacheEnv = trimmed(env, "EDGE_CACHE_ENV");
+  const redis = trimmed(env, "REDIS_URL");
+
+  if (host !== expected.host) {
+    addIssue(
+      issues,
+      "production.host",
+      "production",
+      "EDGE_APP_HOST",
+      "Container production EDGE_APP_HOST must be 127.0.0.1.",
+    );
+  }
+  if (port !== String(expected.port)) {
+    addIssue(
+      issues,
+      "production.port",
+      "production",
+      "EDGE_APP_PORT",
+      `Container production EDGE_APP_PORT must be ${expected.port}.`,
+    );
+  }
+
+  const parsedDatabaseName = databaseName(database);
+  if (parsedDatabaseName !== expected.database) {
+    addIssue(
+      issues,
+      "production.database",
+      "production",
+      "DATABASE_URL",
+      `Container production DATABASE_URL must target database ${expected.database}.`,
+    );
+  }
+
+  const pgHost = postgresHostname(database);
+  if (pgHost !== expected.postgresHost) {
+    addIssue(
+      issues,
+      "production.postgres_host",
+      "production",
+      "DATABASE_URL",
+      `Container production DATABASE_URL must use Compose hostname ${expected.postgresHost}.`,
+    );
+  }
+
+  const pgPort = databaseUrl(database)?.port || "5432";
+  if (pgPort !== expected.postgresPort) {
+    addIssue(
+      issues,
+      "production.postgres_port",
+      "production",
+      "DATABASE_URL",
+      `Container production DATABASE_URL must use port ${expected.postgresPort}.`,
+    );
+  }
+
+  if (cacheEnv !== expected.cacheEnv) {
+    addIssue(
+      issues,
+      "production.cache_env",
+      "production",
+      "EDGE_CACHE_ENV",
+      `Container production EDGE_CACHE_ENV must be ${expected.cacheEnv}.`,
+    );
+  }
+
+  if (!redisUrl(redis)) {
+    addIssue(
+      issues,
+      "production.redis_url",
+      "production",
+      "REDIS_URL",
+      "Container production REDIS_URL must be a valid redis or rediss URL.",
+    );
+  }
+
+  const redisHost = redisHostname(redis);
+  if (redisHost !== expected.redisHost) {
+    addIssue(
+      issues,
+      "production.redis_host",
+      "production",
+      "REDIS_URL",
+      `Container production REDIS_URL must use Compose hostname ${expected.redisHost}.`,
+    );
+  }
+
+  const redisPort = redisUrl(redis)?.port || "6379";
+  if (redisPort !== expected.redisPort) {
+    addIssue(
+      issues,
+      "production.redis_port",
+      "production",
+      "REDIS_URL",
+      `Container production REDIS_URL must use port ${expected.redisPort}.`,
+    );
+  }
+
+  if (!secretIsSafe(trimmed(env, "EDGE_AUTH_SECRET"))) {
+    addIssue(
+      issues,
+      "production.auth_secret",
+      "production",
+      "EDGE_AUTH_SECRET",
+      "Container production EDGE_AUTH_SECRET must be a non-placeholder value of at least 32 characters.",
+    );
+  }
+
+  if (trimmed(env, "EDGE_MARKET_DATA_CACHE_BACKEND") !== "redis") {
+    addIssue(
+      issues,
+      "production.cache_backend",
+      "production",
+      "EDGE_MARKET_DATA_CACHE_BACKEND",
+      "Container production EDGE_MARKET_DATA_CACHE_BACKEND must be redis.",
+    );
+  }
+  if (!isTrue(trimmed(env, "EDGE_REQUIRE_REDIS"))) {
+    addIssue(
+      issues,
+      "production.require_redis",
+      "production",
+      "EDGE_REQUIRE_REDIS",
+      "Container production EDGE_REQUIRE_REDIS must be enabled explicitly.",
+    );
+  }
+  if (trimmed(env, "EDGE_API_AUTH_MODE") === "dev-open") {
+    addIssue(
+      issues,
+      "production.auth_mode",
+      "production",
+      "EDGE_API_AUTH_MODE",
+      "Container production EDGE_API_AUTH_MODE must not be dev-open.",
+    );
+  }
+  if (!secretIsSafe(trimmed(env, "EDGE_API_KEY"))) {
+    addIssue(
+      issues,
+      "production.api_key",
+      "production",
+      "EDGE_API_KEY",
+      "Container production EDGE_API_KEY must be a non-placeholder value of at least 32 characters.",
+    );
+  }
+  if (!isFalse(trimmed(env, "EDGE_ALLOW_OPEN_DEV_SESSION"))) {
+    addIssue(
+      issues,
+      "production.open_dev_session",
+      "production",
+      "EDGE_ALLOW_OPEN_DEV_SESSION",
+      "Container production EDGE_ALLOW_OPEN_DEV_SESSION must be disabled.",
+    );
+  }
+
+  const readyz = trimmed(env, "EDGE_READYZ_URL");
+  if (readyz !== "http://127.0.0.1:3000/readyz") {
+    addIssue(
+      issues,
+      "production.readyz_url",
+      "production",
+      "EDGE_READYZ_URL",
+      "Container production EDGE_READYZ_URL must target http://127.0.0.1:3000/readyz.",
+    );
+  }
+
+  if (isTrue(trimmed(env, "TWS_ENABLED"))) {
+    const managed = trimmed(env, "TWS_MANAGED");
+    if (managed !== "external") {
+      addIssue(
+        issues,
+        "production.tws_managed",
+        "production",
+        "TWS_MANAGED",
+        "Container production TWS_MANAGED must be external when TWS is enabled.",
+      );
+    }
+    const sidecar = trimmed(env, "TWS_SIDECAR_URL");
+    if (sidecar) {
+      try {
+        const hostname = new URL(sidecar).hostname;
+        if (!isLoopbackSidecarHostname(hostname) && !secretIsSafe(trimmed(env, "TWS_SIDECAR_SECRET"))) {
+          addIssue(
+            issues,
+            "production.tws_sidecar_secret",
+            "production",
+            "TWS_SIDECAR_SECRET",
+            "Container production requires TWS_SIDECAR_SECRET for a non-loopback sidecar.",
+          );
+        }
+      } catch {
+        addIssue(
+          issues,
+          "production.tws_sidecar_url",
+          "production",
+          "TWS_SIDECAR_URL",
+          "Container production TWS_SIDECAR_URL must be a valid URL.",
+        );
+      }
+    }
+  } else if (trimmed(env, "TWS_MANAGED") === "local") {
+    addIssue(
+      issues,
+      "production.tws_managed",
+      "production",
+      "TWS_MANAGED",
+      "Container production must not use TWS_MANAGED=local.",
+    );
+  }
+}
+
+function validateContainerDevelopmentDependencyHosts(
+  env: Record<string, string>,
+  issues: LocalDeployIssue[],
+): void {
+  const database = trimmed(env, "DATABASE_URL");
+  const redis = trimmed(env, "REDIS_URL");
+  const pgHost = postgresHostname(database);
+  if (pgHost && pgHost !== "localhost" && pgHost !== "127.0.0.1") {
+    addIssue(
+      issues,
+      "development.postgres_host",
+      "development",
+      "DATABASE_URL",
+      "Container-paired development DATABASE_URL must use localhost.",
+    );
+  }
+  const redisHost = redisHostname(redis);
+  if (redisHost && redisHost !== "localhost" && redisHost !== "127.0.0.1") {
+    addIssue(
+      issues,
+      "development.redis_host",
+      "development",
+      "REDIS_URL",
+      "Container-paired development REDIS_URL must use localhost.",
+    );
+  }
+}
+
+function validateContainerImageFacts(
+  imageFacts: ContainerImageFacts | undefined,
+  issues: LocalDeployIssue[],
+): void {
+  if (!imageFacts) return;
+
+  if (!imageFacts.buildContextClean) {
+    addIssue(
+      issues,
+      "container.build_context_dirty",
+      "shared",
+      "buildContextClean",
+      "Production image build context must be clean at the selected revision.",
+    );
+  }
+
+  const tag = imageFacts.imageTag?.trim() ?? "";
+  if (tag) {
+    const sha = parseImageTagSha(tag);
+    if (!sha) {
+      addIssue(
+        issues,
+        "container.image_tag",
+        "shared",
+        "imageTag",
+        "Production image tag must be edge-app:<full-git-sha>.",
+      );
+    } else if (
+      imageFacts.ociRevisionLabel &&
+      imageFacts.ociRevisionLabel.trim().toLowerCase() !== sha
+    ) {
+      addIssue(
+        issues,
+        "container.oci_revision_mismatch",
+        "shared",
+        "ociRevisionLabel",
+        "OCI revision label must match the image tag git SHA.",
+      );
+    }
+  }
+
+  const forbidden = imageFacts.forbiddenPathsPresent ?? [];
+  for (const path of forbidden) {
+    addIssue(
+      issues,
+      "container.forbidden_image_path",
+      "shared",
+      "forbiddenPathsPresent",
+      `Production runtime image must not include ${path}.`,
+    );
+  }
+}
+
+function validatePortOwnership(
+  portOwnership: PortOwnershipFacts | undefined,
+  issues: LocalDeployIssue[],
+): void {
+  if (!portOwnership) return;
+  if (portOwnership.legacyLaunchAgentLoaded && portOwnership.containerBoundPort3000) {
+    addIssue(
+      issues,
+      "shared.port_ownership_collision",
+      "shared",
+      "port3000",
+      "Legacy LaunchAgent and container production must not both own port 3000.",
+    );
+  }
+}
+
+/** Validates the host-dev + container-prod paired contract (Phase 0 successor). */
+export function validateContainerLocalDeploy(input: ContainerLocalDeployInput): LocalDeployIssue[] {
+  const issues: LocalDeployIssue[] = [];
+  validateProfile("development", input.development, issues);
+  validateContainerDevelopmentDependencyHosts(input.development, issues);
+  validateContainerProductionProfile(input.production, issues);
+
+  const devPort = trimmed(input.development, "EDGE_APP_PORT");
+  const prodPort = trimmed(input.production, "EDGE_APP_PORT");
+  if (devPort && devPort === prodPort) {
+    addIssue(
+      issues,
+      "shared.port_collision",
+      "shared",
+      "EDGE_APP_PORT",
+      "Development and production ports must be distinct.",
+    );
+  }
+
+  if (
+    trimmed(input.development, "EDGE_CACHE_ENV") &&
+    trimmed(input.development, "EDGE_CACHE_ENV") === trimmed(input.production, "EDGE_CACHE_ENV")
+  ) {
+    addIssue(
+      issues,
+      "shared.cache_env_collision",
+      "shared",
+      "EDGE_CACHE_ENV",
+      "Development and production EDGE_CACHE_ENV values must be distinct.",
+    );
+  }
+
+  const devSecret = trimmed(input.development, "EDGE_AUTH_SECRET");
+  const prodSecret = trimmed(input.production, "EDGE_AUTH_SECRET");
+  if (devSecret && prodSecret && devSecret === prodSecret) {
+    addIssue(
+      issues,
+      "shared.auth_secret_reuse",
+      "shared",
+      "EDGE_AUTH_SECRET",
+      "Development and production EDGE_AUTH_SECRET values must be distinct.",
+    );
+  }
+
+  const canonicalEnvPath = resolveContainerProductionEnvPath(input.developmentRoot);
+  if (resolve(input.productionEnvPath) !== resolve(canonicalEnvPath)) {
+    addIssue(
+      issues,
+      "production.env_location",
+      "production",
+      "productionEnvPath",
+      `Container production environment file must be ${CONTAINER_PRODUCTION_ENV_RELATIVE} under the development checkout.`,
+    );
+  }
+
+  if (!input.productionEnvFile.exists) {
+    addIssue(
+      issues,
+      "production.env_missing",
+      "production",
+      "productionEnvPath",
+      "Container production environment file is missing.",
+    );
+  } else if (
+    input.productionEnvFile.mode === null ||
+    (input.productionEnvFile.mode & 0o077) !== 0
+  ) {
+    addIssue(
+      issues,
+      "production.env_permissions",
+      "production",
+      "productionEnvPath",
+      "Container production environment file must not grant group or world permissions.",
+    );
+  }
+
+  validatePortOwnership(input.portOwnership, issues);
+  validateContainerImageFacts(input.imageFacts, issues);
+
+  return issues.sort((a, b) => a.code.localeCompare(b.code));
+}
+
+export function summarizeContainerLocalDeploy(input: ContainerLocalDeployInput): LocalDeploySummary[] {
+  const development = summarizeLocalDeploy({
+    development: input.development,
+    production: input.production,
+    developmentRoot: input.developmentRoot,
+    productionRoot: input.developmentRoot,
+    developmentEnvPath: join(input.developmentRoot, LOCAL_DEPLOY_CONTRACT.development.envFileName),
+    productionEnvPath: input.productionEnvPath,
+    productionEnvFile: input.productionEnvFile,
+    productionWorktree: {
+      exists: false,
+      isGitWorktree: false,
+      clean: false,
+      detached: false,
+    },
+  });
+  return development.map((summary) =>
+    summary.profile === "production"
+      ? { ...summary, runtimeMode: "container" as const }
+      : { ...summary, runtimeMode: "container" as const },
+  );
+}
+
 export function summarizeLocalDeploy(input: LocalDeployInput): LocalDeploySummary[] {
   return (["development", "production"] as const).map((profile) => {
     const env = input[profile];
@@ -531,10 +1035,10 @@ export function formatLocalDeployIssues(issues: LocalDeployIssue[]): string[] {
 }
 
 export function formatLocalDeployStatus(summaries: LocalDeploySummary[]): string[] {
-  return summaries.map(
-    (summary) =>
-      `${summary.profile}: host=${summary.host} port=${summary.port} database=${summary.database ?? "invalid"} cacheEnv=${summary.cacheEnv ?? "unset"} cacheBackend=${summary.cacheBackend ?? "unset"} tws=${summary.twsEnabled ? "enabled" : "disabled"} auth=${summary.authMode}`,
-  );
+  return summaries.map((summary) => {
+    const runtime = summary.runtimeMode ? ` runtime=${summary.runtimeMode}` : "";
+    return `${summary.profile}${runtime}: host=${summary.host} port=${summary.port} database=${summary.database ?? "invalid"} cacheEnv=${summary.cacheEnv ?? "unset"} cacheBackend=${summary.cacheBackend ?? "unset"} tws=${summary.twsEnabled ? "enabled" : "disabled"} auth=${summary.authMode}`;
+  });
 }
 
 function readEnvironmentFile(path: string): Record<string, string> {

@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  CONTAINER_DURABLE_MOUNT_PATHS,
+  CONTAINER_FORBIDDEN_IMAGE_PATHS,
   formatLocalDeployIssues,
   formatLocalDeployStatus,
+  LOCAL_CONTAINER_PRODUCTION_CONTRACT,
+  parseImageTagSha,
   parseLocalDeployArgs,
+  resolveContainerProductionEnvPath,
+  summarizeContainerLocalDeploy,
   summarizeLocalDeploy,
+  validateContainerLocalDeploy,
   validateLocalDeploy,
+  type ContainerLocalDeployInput,
   type LocalDeployInput,
 } from "./validate-local-deploy.mts";
 
@@ -13,6 +21,7 @@ const PROD_ROOT = "/Users/example/TV AI-production";
 const DEV_SECRET = "dev-secret-abcdefghijklmnopqrstuvwxyz-123";
 const PROD_SECRET = "prod-secret-abcdefghijklmnopqrstuvwxyz-456";
 const API_KEY = "api-key-abcdefghijklmnopqrstuvwxyz-789";
+const FULL_SHA = "5aa83b921c51a7dadc625101076301ce765ac03d";
 
 function validInput(): LocalDeployInput {
   return {
@@ -62,6 +71,57 @@ function validInput(): LocalDeployInput {
 
 function issueCodes(input: LocalDeployInput): string[] {
   return validateLocalDeploy(input).map((issue) => issue.code);
+}
+
+function validContainerInput(): ContainerLocalDeployInput {
+  return {
+    development: {
+      EDGE_APP_HOST: "127.0.0.1",
+      EDGE_APP_PORT: "3003",
+      DATABASE_URL: "postgres://edge:dev-password@localhost:5432/edge_dev",
+      EDGE_MARKET_DATA_CACHE_BACKEND: "redis",
+      REDIS_URL: "redis://localhost:6379",
+      EDGE_CACHE_ENV: "dev",
+      EDGE_REQUIRE_REDIS: "0",
+      EDGE_AUTH_SECRET: DEV_SECRET,
+      EDGE_API_AUTH_MODE: "dev-open",
+      EDGE_ALLOW_OPEN_DEV_SESSION: "1",
+      TWS_ENABLED: "false",
+    },
+    production: {
+      EDGE_APP_HOST: "127.0.0.1",
+      EDGE_APP_PORT: "3000",
+      DATABASE_URL: "postgres://edge:prod-password@postgres:5432/edge_prod",
+      EDGE_MARKET_DATA_CACHE_BACKEND: "redis",
+      REDIS_URL: "redis://redis:6379",
+      EDGE_CACHE_ENV: "prod",
+      EDGE_REQUIRE_REDIS: "1",
+      EDGE_AUTH_SECRET: PROD_SECRET,
+      EDGE_API_AUTH_MODE: "key",
+      EDGE_API_KEY: API_KEY,
+      EDGE_ALLOW_OPEN_DEV_SESSION: "0",
+      EDGE_READYZ_URL: "http://127.0.0.1:3000/readyz",
+      TWS_ENABLED: "false",
+      TWS_MANAGED: "external",
+    },
+    developmentRoot: DEV_ROOT,
+    productionEnvPath: resolveContainerProductionEnvPath(DEV_ROOT),
+    productionEnvFile: { exists: true, mode: 0o600 },
+    portOwnership: {
+      legacyLaunchAgentLoaded: false,
+      containerBoundPort3000: false,
+    },
+    imageFacts: {
+      imageTag: `${LOCAL_CONTAINER_PRODUCTION_CONTRACT.imageNamePrefix}${FULL_SHA}`,
+      buildContextClean: true,
+      ociRevisionLabel: FULL_SHA,
+      forbiddenPathsPresent: [],
+    },
+  };
+}
+
+function containerIssueCodes(input: ContainerLocalDeployInput): string[] {
+  return validateContainerLocalDeploy(input).map((issue) => issue.code);
 }
 
 describe("validateLocalDeploy", () => {
@@ -191,6 +251,125 @@ describe("validateLocalDeploy", () => {
     input.productionEnvFile.mode = 0o644;
     const codes = issueCodes(input);
     expect(codes).toEqual([...codes].sort((a, b) => a.localeCompare(b)));
+  });
+});
+
+describe("validateContainerLocalDeploy", () => {
+  it("accepts the frozen container paired-profile contract", () => {
+    expect(validateContainerLocalDeploy(validContainerInput())).toEqual([]);
+  });
+
+  it("requires Compose DNS dependency hostnames for production", () => {
+    const input = validContainerInput();
+    input.production.DATABASE_URL = "postgres://edge:x@localhost:5432/edge_prod";
+    input.production.REDIS_URL = "redis://localhost:6379";
+    expect(containerIssueCodes(input)).toEqual(
+      expect.arrayContaining(["production.postgres_host", "production.redis_host"]),
+    );
+  });
+
+  it("requires localhost dependency hostnames for development", () => {
+    const input = validContainerInput();
+    input.development.DATABASE_URL = "postgres://edge:x@postgres:5432/edge_dev";
+    input.development.REDIS_URL = "redis://redis:6379";
+    expect(containerIssueCodes(input)).toEqual(
+      expect.arrayContaining(["development.postgres_host", "development.redis_host"]),
+    );
+  });
+
+  it("does not require shared postgres/redis endpoints between profiles", () => {
+    expect(containerIssueCodes(validContainerInput())).not.toContain("shared.postgres_server");
+    expect(containerIssueCodes(validContainerInput())).not.toContain("shared.redis_endpoint");
+  });
+
+  it("requires canonical container production env location and permissions", () => {
+    const input = validContainerInput();
+    input.productionEnvPath = "/tmp/production.env";
+    expect(containerIssueCodes(input)).toContain("production.env_location");
+
+    input.productionEnvPath = resolveContainerProductionEnvPath(DEV_ROOT);
+    input.productionEnvFile = { exists: false, mode: null };
+    expect(containerIssueCodes(input)).toContain("production.env_missing");
+
+    input.productionEnvFile = { exists: true, mode: 0o644 };
+    expect(containerIssueCodes(input)).toContain("production.env_permissions");
+  });
+
+  it("rejects TWS_MANAGED=local for container production", () => {
+    const input = validContainerInput();
+    input.production.TWS_ENABLED = "true";
+    input.production.TWS_MANAGED = "local";
+    input.production.TWS_SIDECAR_URL = "http://host.docker.internal:8765";
+    input.production.TWS_SIDECAR_SECRET = "sidecar-secret-abcdefghijklmnopqrstuvwxyz";
+    expect(containerIssueCodes(input)).toContain("production.tws_managed");
+  });
+
+  it("requires sidecar secret for host.docker.internal", () => {
+    const input = validContainerInput();
+    input.production.TWS_ENABLED = "true";
+    input.production.TWS_MANAGED = "external";
+    input.production.TWS_SIDECAR_URL = "http://host.docker.internal:8765";
+    expect(containerIssueCodes(input)).toContain("production.tws_sidecar_secret");
+
+    input.production.TWS_SIDECAR_SECRET = "sidecar-secret-abcdefghijklmnopqrstuvwxyz";
+    expect(containerIssueCodes(input)).not.toContain("production.tws_sidecar_secret");
+  });
+
+  it("rejects duplicate port ownership between legacy launchd and container", () => {
+    const input = validContainerInput();
+    input.portOwnership = {
+      legacyLaunchAgentLoaded: true,
+      containerBoundPort3000: true,
+    };
+    expect(containerIssueCodes(input)).toContain("shared.port_ownership_collision");
+  });
+
+  it("validates image identity and forbidden build context paths", () => {
+    const input = validContainerInput();
+    input.imageFacts = {
+      imageTag: `${LOCAL_CONTAINER_PRODUCTION_CONTRACT.imageNamePrefix}${FULL_SHA}`,
+      buildContextClean: false,
+      ociRevisionLabel: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      forbiddenPathsPresent: [".git", "node_modules"],
+    };
+    expect(containerIssueCodes(input)).toEqual(
+      expect.arrayContaining([
+        "container.build_context_dirty",
+        "container.oci_revision_mismatch",
+        "container.forbidden_image_path",
+      ]),
+    );
+
+    input.imageFacts = {
+      imageTag: "edge-app:short",
+      buildContextClean: true,
+      ociRevisionLabel: null,
+      forbiddenPathsPresent: [],
+    };
+    expect(containerIssueCodes(input)).toContain("container.image_tag");
+  });
+
+  it("formats container status without URLs or secrets", () => {
+    const output = formatLocalDeployStatus(summarizeContainerLocalDeploy(validContainerInput())).join("\n");
+    expect(output).toContain("runtime=container");
+    expect(output).toContain("database=edge_prod");
+    for (const sensitive of ["postgres://", "redis://", "prod-password", PROD_SECRET, API_KEY]) {
+      expect(output).not.toContain(sensitive);
+    }
+  });
+
+  it("locks durable mount and forbidden image path inventories", () => {
+    expect(CONTAINER_DURABLE_MOUNT_PATHS).toEqual([
+      "data/journal-screenshots",
+      "data/copilot-attachments",
+    ]);
+    expect(CONTAINER_FORBIDDEN_IMAGE_PATHS).toEqual(
+      expect.arrayContaining([".git", "node_modules", ".edge/local-prod/production.env"]),
+    );
+    expect(parseImageTagSha(`${LOCAL_CONTAINER_PRODUCTION_CONTRACT.imageNamePrefix}${FULL_SHA}`)).toBe(
+      FULL_SHA,
+    );
+    expect(parseImageTagSha("edge-app:short")).toBeNull();
   });
 });
 

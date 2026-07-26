@@ -1,0 +1,50 @@
+# Local production containerization — Phase 0 evidence
+# Date: 2026-07-26
+
+## Scope
+Freeze the container-production replacement contract alongside the legacy
+worktree/LaunchAgent profile. No Dockerfile, Compose app service, or runtime cutover.
+
+## Delivered
+- scripts/validate-local-deploy.mts — LOCAL_CONTAINER_PRODUCTION_CONTRACT,
+  validateContainerLocalDeploy(), durable/forbidden path inventories, image identity
+- scripts/load-deploy-env.mts — container production env resolution
+- .env.example — container successor profile notes
+- src/lib/observability/ARCHITECTURE.md — container successor lifecycle section
+- src/lib/marketData/ARCHITECTURE.md — dual-profile deps + TWS container boundary
+- src/lib/persistence/ARCHITECTURE.md — durable mount inventory
+
+## Architecture review
+Self-review Passed — dual runtime transition preserves legacy validateLocalDeploy();
+container profile uses Compose DNS, external-only TWS, host.docker.internal auth,
+and secret-free formatters.
+
+## Focused
+Command:
+npm test -- --run scripts/validate-local-deploy.test.ts scripts/load-deploy-env.test.ts src/lib/marketData/providers/tws/sidecarAuth.test.ts
+Output:
+Test Files  3 passed (3)
+Tests  55 passed (55)
+
+## Startup
+Command: npm run check:startup
+Output:
+Instruction architecture validation passed.
+Test Files  1 passed (1)
+Tests  2 passed (2)
+
+## Legacy regression
+Command: npm run local:prod:preflight
+Output:
+Local deployment preflight passed: profiles=2 issues=0
+exit=0
+
+## Full
+Command: npm run check
+Output:
+lint:instructions OK; lint:harness-retention OK; lint:roadmap-status OK;
+lint:efficiency-ledger OK; lint:data-state-contracts failed (46 pre-existing API
+route registration issues — not introduced by this change)
+
+## Next
+Phase 1 — multi-stage Dockerfile, .dockerignore, standalone Next.js runtime image
