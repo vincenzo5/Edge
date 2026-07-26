@@ -215,6 +215,21 @@ export function trimResidentBars(
   };
 }
 
+/** Drop newest bars after a history prepend; keeps the older resident window. */
+export function trimResidentBarsAfterPrepend(
+  candles: Candle[],
+  softMax = RESIDENT_BAR_SOFT_MAX,
+): TrimResidentBarsResult {
+  if (candles.length <= softMax) {
+    return { candles, removed: 0 };
+  }
+  const removed = candles.length - softMax;
+  return {
+    candles: candles.slice(0, softMax),
+    removed,
+  };
+}
+
 export type EnsureCandlesCoverResult = {
   candles: Candle[];
   prepended: number;

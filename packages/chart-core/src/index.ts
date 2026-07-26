@@ -87,6 +87,7 @@ export {
   shouldPrefetchEdge,
   ensureCandlesCover,
   trimResidentBars,
+  trimResidentBarsAfterPrepend,
   trimResidentBarsWithIdentity,
   mergeCandlesPrependWithIdentity,
   RESIDENT_BAR_SOFT_MAX,

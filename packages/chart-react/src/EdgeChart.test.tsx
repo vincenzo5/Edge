@@ -257,6 +257,63 @@ describe('@edge/chart-react EdgeChart', () => {
     );
   });
 
+  it('pages past the resident bar limit without discarding older history', async () => {
+    const dayMs = 86_400_000;
+    const older = makeCandles(500, 1_000_000, dayMs);
+    const candles = makeCandles(5_000, 1_000_000 + 500 * dayMs, dayMs);
+    const onLoadOlderCandles = vi.fn().mockResolvedValue(older);
+    const ref = createRef<EdgeChartHandle>();
+
+    const { container, rerender } = render(
+      <EdgeChart
+        ref={ref}
+        candles={candles}
+        state={createDefaultChartState()}
+        theme="dark"
+        symbol="DEMO"
+        range="max"
+        interval="1d"
+        loading={false}
+        onLoadOlderCandles={onLoadOlderCandles}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current?.getRawCandleCount()).toBe(5_000);
+    });
+
+    const chartArea = container.querySelector('[data-edge-chart]');
+    expect(chartArea).not.toBeNull();
+    fireEvent.wheel(chartArea!, { deltaX: 100_000, deltaY: 0, deltaMode: 0 });
+
+    await waitFor(
+      () => {
+        expect(ref.current?.getCandles()[0]?.t).toBe(older[0]!.t);
+      },
+      { timeout: 3000 },
+    );
+    expect(ref.current?.getRawCandleCount()).toBe(5_000);
+    expect(ref.current?.getCandles().at(-1)?.t).toBe(candles[4_499]!.t);
+
+    rerender(
+      <EdgeChart
+        ref={ref}
+        candles={candles}
+        state={createDefaultChartState()}
+        theme="dark"
+        symbol="DEMO"
+        range="max"
+        interval="1d"
+        loading={false}
+        onLoadOlderCandles={onLoadOlderCandles}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ref.current?.getCandles()[0]?.t).toBe(older[0]!.t);
+    });
+  });
+
   it('resets the viewport when the interval session loads after panning', async () => {
     const dailyCandles = makeCandles(300);
     const weeklyCandles = makeCandles(120, dailyCandles[0]!.t, 7 * 86_400_000);

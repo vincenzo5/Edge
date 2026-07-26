@@ -11,6 +11,7 @@ import {
   mergeCandlesPrepend,
   RESIDENT_BAR_SOFT_MAX,
   trimResidentBars,
+  trimResidentBarsAfterPrepend,
   toHeikinAshi,
   transformCandlesForChartType,
 } from './series';
@@ -215,6 +216,15 @@ describe('trimResidentBars', () => {
     const result = trimResidentBars(candles);
     expect(result.candles).toHaveLength(RESIDENT_BAR_SOFT_MAX);
     expect(result.removed).toBe(50);
+  });
+
+  it('keeps the oldest resident window after prepending history', () => {
+    const candles = makeCandles(5100);
+    const result = trimResidentBarsAfterPrepend(candles, 5000);
+    expect(result.removed).toBe(100);
+    expect(result.candles).toHaveLength(5000);
+    expect(result.candles[0]?.t).toBe(candles[0]?.t);
+    expect(result.candles.at(-1)?.t).toBe(4_999_000);
   });
 });
 

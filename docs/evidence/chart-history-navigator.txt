@@ -1,3 +1,35 @@
+Chart history navigator
+Date: 2026-07-25
+
+Delivered
+- Historical prepends keep the older side of the 5,000-bar resident window, allowing pagination beyond the memory cap.
+- Same-session live/cache snapshots no longer replace an older resident window while the user is browsing history.
+- Header center-slot registration and quote selectors use stable subscriptions/snapshots, removing the maximum-update-depth console failure.
+- Unauthorized notification polling falls back to local storage instead of producing an unhandled rejection.
+
+Focused
+npm test -- --run packages/chart-core/src/series.test.ts packages/chart-react/src/useHistoryNavigatorCoordinator.test.ts packages/chart-react/src/EdgeChart.test.tsx packages/chart-react/src/engine/historyPrefetchController.test.ts src/app/components/home/HeaderCenterSlot.test.tsx src/lib/marketData/useQuotes.test.tsx src/lib/notifications/notificationClient.test.ts
+Test Files 7 passed (7)
+Tests 47 passed (47)
+
+Typecheck
+npm run typecheck -w @edge/chart-react
+exit 0
+
+Startup
+npm run check:startup
+Instruction architecture validation passed.
+Test Files 1 passed (1)
+Tests 2 passed (2)
+
+App-level
+- Reloaded /workspace on localhost:3003: 8 chart surfaces and 16 canvases rendered.
+- Dispatched 12 horizontal wheel pans and a notification refresh.
+- console.error calls: 0; chart surfaces remained mounted.
+
+Known unrelated verification
+- Root `npm run typecheck` does not exist.
+- `tsc --noEmit` reports 549 pre-existing project errors; the focused chart-react package typecheck passes.
 # Chart history navigator evidence
 # Date: 2026-07-25
 
