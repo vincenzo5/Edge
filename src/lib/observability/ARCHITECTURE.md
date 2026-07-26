@@ -274,6 +274,20 @@ but refuse start/install when the app-prod container owns port `3000`. Productio
 logs move to Docker stdout/stderr (json-file rotation); request IDs and
 structured `http.access` output are preserved in container logs.
 
+Phase 4 adds image-based promotion and rollback via
+`scripts/deploy-local-prod-container.mts` and
+`npm run local:prod:container:{deploy,rollback}`. Deploy requires `--revision`,
+builds immutable runtime + migrate images from a clean detached worktree context,
+runs migration classification, one-shot migrate, replaces `app-prod`, and
+promotes only after Docker health plus `/healthz`, `/readyz`, and Redis
+non-degraded probes pass. Revision state in
+`.edge/local-prod/deploy-revisions.json` tracks current/previous/pending/failed
+SHA and digest fields (`deploy.currentDigest`, etc.) without secrets. Failed
+candidates stay unpromoted; explicit rollback restores the previous image and
+re-runs the full gate. Image retention keeps current + previous + failed tags
+(and `-migrate` variants); other local `edge-app:*` tags are pruned after
+promotion.
+
 Health/readiness contracts are unchanged: `/healthz` and `/readyz` remain cheap
 and secret-free; production deploy health gate still requires Redis
 `cache.kind=redis` and `cache.degraded=false`.
@@ -290,8 +304,8 @@ and secret-free; production deploy health gate still requires Redis
 | What happened to this order? | `npm run report:trading-audit -- --limit 20` or `GET /api/me/trading-audit` |
 | Did users hit errors overnight? | `npm run report:production-errors -- --limit 50` or `GET /api/me/production-errors` |
 | Do I need to wake up? | `npm run watch:readyz` (cron) + `EDGE_ALERT_WEBHOOK_URL`; Data Health UI for human triage after alert |
-| Promote a tested revision? | `npm run local:prod:deploy -- --revision <sha>` then confirm `npm run local:prod:status` shows deploy.current + ready probes |
-| Recover from a bad deploy? | `npm run local:prod:rollback` restores deploy.previous and re-runs the health gate |
+| Promote a tested revision? | Container: `npm run local:prod:container:deploy -- --revision <sha>` then `npm run local:prod:container:status` shows deploy.current + digest + ready probes. Legacy worktree: `npm run local:prod:deploy -- --revision <sha>` |
+| Recover from a bad deploy? | Container: `npm run local:prod:container:rollback`. Legacy: `npm run local:prod:rollback` |
 | Prove concurrent dev + prod? | `npm run local:prod:verify -- all` then `--allow-disruptive <scenario>`; reboot: `reboot-prepare` → manual reboot → `reboot-resume` |
 
 After a readiness alert: confirm `/readyz` reason codes, check Postgres/Redis/TWS sidecar, then `report:production-errors` and `report:trading-audit` for correlated failures.

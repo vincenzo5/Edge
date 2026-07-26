@@ -451,6 +451,90 @@ export function runInspectCommand(
   return 0;
 }
 
+export function readImageDigest(
+  imageTag: string,
+  execFile: BuildAppImageExec = defaultExecFile,
+): string | null {
+  try {
+    const repoDigest = execFile("docker", [
+      "image",
+      "inspect",
+      "--format",
+      "{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}",
+      imageTag,
+    ]).trim();
+    if (repoDigest) return repoDigest;
+  } catch {
+    // fall through to image Id
+  }
+  try {
+    const imageId = execFile("docker", [
+      "image",
+      "inspect",
+      "--format",
+      "{{.Id}}",
+      imageTag,
+    ]).trim();
+    return imageId || null;
+  } catch {
+    return null;
+  }
+}
+
+export function listEdgeAppImageTags(execFile: BuildAppImageExec = defaultExecFile): string[] {
+  try {
+    const output = execFile("docker", [
+      "images",
+      LOCAL_CONTAINER_PRODUCTION_CONTRACT.imageNamePrefix.replace(/:$/, ""),
+      "--format",
+      "{{.Repository}}:{{.Tag}}",
+    ]).trim();
+    if (!output) return [];
+    return output
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.endsWith(":<none>"));
+  } catch {
+    return [];
+  }
+}
+
+export function edgeAppRetainTagsFromState(state: {
+  currentSha: string | null;
+  previousSha: string | null;
+  failedSha: string | null;
+}): Set<string> {
+  const retain = new Set<string>();
+  for (const sha of [state.currentSha, state.previousSha, state.failedSha]) {
+    if (!sha) continue;
+    retain.add(imageTagForSha(sha));
+    retain.add(migrateImageTagForSha(sha));
+  }
+  return retain;
+}
+
+export function pruneEdgeAppImages(
+  retainTags: Set<string>,
+  execFile: BuildAppImageExec = defaultExecFile,
+): { removed: string[]; kept: string[] } {
+  const listed = listEdgeAppImageTags(execFile);
+  const removed: string[] = [];
+  const kept: string[] = [];
+  for (const tag of listed) {
+    if (retainTags.has(tag)) {
+      kept.push(tag);
+      continue;
+    }
+    try {
+      execFile("docker", ["rmi", tag]);
+      removed.push(tag);
+    } catch {
+      // image may be in use; skip
+    }
+  }
+  return { removed, kept };
+}
+
 export function runBuildAppImageCommand(
   options: BuildAppImageOptions,
   deps: BuildAppImageDeps = defaultBuildAppImageDeps(),

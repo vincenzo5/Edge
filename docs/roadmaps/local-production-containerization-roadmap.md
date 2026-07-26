@@ -5,7 +5,7 @@ production runtime with an immutable Docker image on the same machine.
 
 **Last updated:** 2026-07-26
 
-**Status:** Phase 0 **Passing** (2026-07-26). Phase 1 **Passing** (2026-07-26). Phase 2 **Passing** (2026-07-26). Phase 3 **Passing** (2026-07-26).
+**Status:** Phase 0 **Passing** (2026-07-26). Phase 1 **Passing** (2026-07-26). Phase 2 **Passing** (2026-07-26). Phase 3 **Passing** (2026-07-26). Phase 4 **Pending**.
 
 **Related:** [Local Development and Production](./local-dev-production-roadmap.md),
 [Shared Cache Topology](./shared-cache-topology-roadmap.md),

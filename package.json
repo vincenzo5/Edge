@@ -67,6 +67,8 @@
     "local:prod:container:status": "bash scripts/local-prod-container.sh status",
     "local:prod:container:logs": "bash scripts/local-prod-container.sh logs",
     "local:prod:container:inspect": "bash scripts/local-prod-container.sh inspect",
+    "local:prod:container:deploy": "bash scripts/deploy-local-prod-container.sh deploy",
+    "local:prod:container:rollback": "bash scripts/deploy-local-prod-container.sh rollback",
     "image:build": "npx tsx scripts/build-app-image.mts build",
     "image:inspect": "npx tsx scripts/build-app-image.mts inspect",
     "image:migrate:build": "npx tsx scripts/build-app-image.mts migrate-image",

@@ -45,7 +45,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Runtime interaction performance | [runtime-performance-roadmap.md](./runtime-performance-roadmap.md) | Phase 0–8 **Passing** (2026-07-25); track complete — frame time / crosshair / tip tick / React wakeups / CI budgets |
 | Shared cache topology | [shared-cache-topology-roadmap.md](./shared-cache-topology-roadmap.md) | Phase 0–4 **Passing** (2026-07-24); Phase 5 **Pending** (multi-instance); manual redis health flip → Wave 2 Phase 4 |
 | Local development and production | [local-dev-production-roadmap.md](./local-dev-production-roadmap.md) | Phases 0–5 **Passing** (2026-07-26) — host-native production track complete |
-| Local production containerization | [local-production-containerization-roadmap.md](./local-production-containerization-roadmap.md) | Phase 0–2 **Passing** (2026-07-26); Phase 3 **Pending** — lifecycle CLI |
+| Local production containerization | [local-production-containerization-roadmap.md](./local-production-containerization-roadmap.md) | Phase 0–3 **Passing** (2026-07-26); Phase 4 **Pending** — image deploy/rollback |
 | Workspace state persistence | [workspace-state-persistence-roadmap.md](./workspace-state-persistence-roadmap.md) | Phases 0–5 **Passing** — track complete; residual chrome → Wave 1 Phase 6 |
 | Structural refactor | [refactor-roadmap.md](./refactor-roadmap.md) | Tiers A–E **Passing** — track complete |
 | Code organization | [code-organization-roadmap.md](./code-organization-roadmap.md) | Phase 0–5 **Passing** (2026-07-24) — chart shims sunset complete |

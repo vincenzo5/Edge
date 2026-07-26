@@ -78,6 +78,10 @@ export type LocalProdDeployRevisionState = {
   failedSha: string | null;
   promotedAt: string | null;
   buildId: string | null;
+  currentDigest: string | null;
+  previousDigest: string | null;
+  pendingDigest: string | null;
+  failedDigest: string | null;
 };
 
 export type LocalProdOptions = {
@@ -394,6 +398,10 @@ export function emptyDeployRevisionState(): LocalProdDeployRevisionState {
     failedSha: null,
     promotedAt: null,
     buildId: null,
+    currentDigest: null,
+    previousDigest: null,
+    pendingDigest: null,
+    failedDigest: null,
   };
 }
 
@@ -414,6 +422,10 @@ export function readDeployRevisionState(
       failedSha: parsed.failedSha ?? null,
       promotedAt: parsed.promotedAt ?? null,
       buildId: parsed.buildId ?? null,
+      currentDigest: parsed.currentDigest ?? null,
+      previousDigest: parsed.previousDigest ?? null,
+      pendingDigest: parsed.pendingDigest ?? null,
+      failedDigest: parsed.failedDigest ?? null,
     };
   } catch {
     return emptyDeployRevisionState();
@@ -438,6 +450,10 @@ export function formatDeployRevisionStatus(state: LocalProdDeployRevisionState):
     `deploy.failed=${state.failedSha ?? "none"}`,
     `deploy.promotedAt=${state.promotedAt ?? "none"}`,
     `deploy.buildId=${state.buildId ?? "none"}`,
+    `deploy.currentDigest=${state.currentDigest ?? "none"}`,
+    `deploy.previousDigest=${state.previousDigest ?? "none"}`,
+    `deploy.pendingDigest=${state.pendingDigest ?? "none"}`,
+    `deploy.failedDigest=${state.failedDigest ?? "none"}`,
   ];
 }
 
