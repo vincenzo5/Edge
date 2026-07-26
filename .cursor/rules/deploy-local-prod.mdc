@@ -1,0 +1,12 @@
+---
+description: When the user wants to deploy, promote, or rollback local Docker production (deploy to prod, push to production, rollback prod), read the deploy-local-prod skill and run the container promote/rollback pipeline.
+alwaysApply: false
+---
+
+# Local Production Deploy
+
+Router only — read and follow [`.cursor/skills/deploy-local-prod/SKILL.md`](../skills/deploy-local-prod/SKILL.md).
+
+Manual entry: `/deploy-prod` (optional revision in input).
+
+Do not invent alternate deploy paths. Container production (`local:prod:container:*`) is the only supported promote/rollback path.

@@ -1,0 +1,19 @@
+# Deploy prod agent artifacts — evidence
+# Date: 2026-07-26
+
+## Scope
+Cursor rule, skill, and slash command for LLM-driven local container production deploy/rollback. No runtime or deploy-script changes.
+
+## Delivered
+- .cursor/skills/deploy-local-prod/SKILL.md — deploy/rollback pipeline, hard rules, failure template
+- .cursor/rules/deploy-local-prod.mdc — intent router to skill
+- .cursor/commands/deploy-prod.md — manual /deploy-prod entry
+- AGENTS.md — Instruction Hygiene pointer
+
+## Focused
+Command: npm run lint:instructions
+Result: npm run lint:instructions passed — Instruction architecture validation passed.
+exit=0
+
+## Manual smoke
+Not run — artifact-only task; no live promote required per plan.

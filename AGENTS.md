@@ -117,7 +117,7 @@ This file is a router, not an encyclopedia. Keep it under 150 lines.
 
 - **Global rules only here** — add to this file only non-negotiable constraints that apply to every task.
 - **Scoped guidance → topic docs** — chart, AI, persistence, design system details belong in the docs above.
-- **Scoped guidance → Cursor rules/skills** — visual asset production uses `.cursor/rules/visual-assets.mdc` and `.cursor/skills/`.
+- **Scoped guidance → Cursor rules/skills** — visual asset production uses `.cursor/rules/visual-assets.mdc` and `.cursor/skills/`; local prod deploy/rollback uses `.cursor/rules/deploy-local-prod.mdc`, `.cursor/skills/deploy-local-prod`, and `/deploy-prod`.
 - **Historical lessons → tests** — encode one-off bug fixes as Vitest cases instead of permanent narrative notes.
 - **Before adding a rule** — ask whether it belongs in a topic doc, a test, or code comments instead.
 
