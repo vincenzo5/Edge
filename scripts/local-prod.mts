@@ -31,6 +31,17 @@ import {
 } from "./validate-local-deploy.mts";
 import { assertLegacyProductionStartAllowed } from "./port-ownership.mts";
 
+/** Phase 5 cutover — worktree + LaunchAgent production is no longer supported. */
+export const LEGACY_WORKTREE_PRODUCTION_RETIRED = true;
+
+export const LEGACY_PRODUCTION_RETIRED_HINT =
+  "Use container commands: npm run local:prod:container:{status|deploy|start|rollback}. See src/lib/observability/ARCHITECTURE.md.";
+
+export function assertLegacyProductionNotRetired(action: string): string | null {
+  if (!LEGACY_WORKTREE_PRODUCTION_RETIRED) return null;
+  return `Legacy worktree/LaunchAgent production is retired (${action}). ${LEGACY_PRODUCTION_RETIRED_HINT}`;
+}
+
 export const LOCAL_PROD_RUNTIME_DIR = ".edge/local-prod";
 export const LOCAL_PROD_PID_FILE = "local-prod.pid";
 export const LOCAL_PROD_META_FILE = "local-prod.meta.json";
@@ -710,6 +721,12 @@ export async function runSetupCommand(
     return 2;
   }
 
+  const retired = assertLegacyProductionNotRetired("setup");
+  if (retired) {
+    console.error(retired);
+    return 1;
+  }
+
   const revision = options.revision;
   if (deps.existsSync(options.productionRoot)) {
     const current = readWorktreeRevision(options.productionRoot, deps.execFile);
@@ -758,6 +775,11 @@ export async function runMigrateCommand(
   options: LocalProdOptions,
   deps: LocalProdDeps,
 ): Promise<number> {
+  const retired = assertLegacyProductionNotRetired("migrate");
+  if (retired) {
+    console.error(retired);
+    return 1;
+  }
   const input = loadDeployInputSync(options, deps);
   const preflight = runPreflightCheck(input);
   if (preflight !== 0) return preflight;
@@ -783,6 +805,11 @@ export async function runBuildCommand(
   options: LocalProdOptions,
   deps: LocalProdDeps,
 ): Promise<number> {
+  const retired = assertLegacyProductionNotRetired("build");
+  if (retired) {
+    console.error(retired);
+    return 1;
+  }
   const input = loadDeployInputSync(options, deps);
   const preflight = runPreflightCheck(input);
   if (preflight !== 0) return preflight;
@@ -809,6 +836,11 @@ export async function runStartCommand(
   options: LocalProdOptions,
   deps: LocalProdDeps,
 ): Promise<number> {
+  const retired = assertLegacyProductionNotRetired("start");
+  if (retired) {
+    console.error(retired);
+    return 1;
+  }
   const input = loadDeployInputSync(options, deps);
   const preflight = runPreflightCheck(input);
   if (preflight !== 0) return preflight;
@@ -894,6 +926,11 @@ export async function runServiceRunCommand(
   options: LocalProdOptions,
   deps: LocalProdDeps,
 ): Promise<number> {
+  const retired = assertLegacyProductionNotRetired("service-run");
+  if (retired) {
+    console.error(retired);
+    return 1;
+  }
   while (true) {
     clearBlockedState(options.developmentRoot, deps);
 
@@ -1124,6 +1161,14 @@ export async function runLocalProdCli(
   try {
     const options = parseLocalProdArgs(argv, cwd);
     if (options.command === "preflight") {
+      if (LEGACY_WORKTREE_PRODUCTION_RETIRED) {
+        const { loadContainerDeployInputSync, runContainerPreflightCheck } = await import(
+          "./deploy-local-prod-container.mts"
+        );
+        return runContainerPreflightCheck(
+          loadContainerDeployInputSync(options.developmentRoot, deps),
+        );
+      }
       return runLocalDeployCli(
         [
           "preflight",

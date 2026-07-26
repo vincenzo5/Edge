@@ -1,0 +1,132 @@
+# Local production containerization — Phase 5 evidence
+# Date: 2026-07-26
+
+## Scope
+Cutover and concurrent operations proof: container-aware verifier, legacy
+LaunchAgent/worktree retirement, full scenario matrix, readiness watcher on
+http://127.0.0.1:3000/readyz.
+
+## Delivered
+- scripts/verify-local-environments.mts — container deploy/rollback, Docker process
+  recovery, postgres/redis outage, durable-state, security, legacy-retirement
+- scripts/verify-local-environments.test.ts — container scenario unit tests
+- scripts/local-prod.mts — LEGACY_WORKTREE_PRODUCTION_RETIRED + refuse legacy paths
+- scripts/local-prod-service.mts — refuse install/start/restart after cutover
+- scripts/deploy-local-prod.mts — refuse legacy deploy/rollback
+- scripts/local-prod.test.ts, scripts/deploy-local-prod.test.ts — retirement tests
+- .env.example — Phase 5 operator notes
+- src/lib/observability/ARCHITECTURE.md — Phase 5 cutover section
+- docs/roadmaps/local-production-containerization-roadmap.md — track complete
+- docs/ROADMAP.md, docs/roadmaps/README.md — index updates
+
+## Architecture review
+Self-review Passed — container-only production path; verifier uses container
+preflight/deploy; legacy commands fail closed; LaunchAgent uninstall supported;
+secret-free evidence; port :3000 owned by app-prod only after cutover.
+
+## Focused
+Command:
+npm test -- --run scripts/verify-local-environments.test.ts scripts/deploy-local-prod-container.test.ts scripts/local-prod-container.test.ts scripts/port-ownership.test.ts scripts/validate-local-deploy.test.ts scripts/local-prod.test.ts scripts/deploy-local-prod.test.ts
+Output:
+Test Files  7 passed (7)
+Tests  131 passed (131)
+
+## Startup
+Command: npm run check:startup
+Output:
+Instruction architecture validation passed.
+Test Files  1 passed (1)
+Tests  2 passed (2)
+
+## Container preflight
+Command: npm run local:prod:preflight
+Output:
+Container production preflight passed: profiles=2 issues=0
+exit=0
+
+## Legacy retirement
+Command: npm run local:prod:service:uninstall
+Output:
+local-prod.service=uninstalled label=com.edge.local-prod
+exit=0
+
+Command: npm run local:prod:container:status
+Output (excerpt):
+container.state=running
+container.health=healthy
+container.sha=1e65fbf64954741915a0678f0eaa983794ea0010
+container.readyz=pass
+deploy.current=1e65fbf64954741915a0678f0eaa983794ea0010
+
+## App-level — verify all (non-disruptive)
+Command:
+npm run local:prod:verify -- all --skip-infra
+Output (excerpt):
+verify.scenario=concurrent pass=true
+verify.scenario=build-isolation pass=true
+verify.scenario=isolation pass=true
+verify.scenario=database-isolation pass=true
+verify.scenario=broker-ownership pass=true
+verify.scenario=security pass=true
+verify.scenario=legacy-retirement pass=true
+verify.scenario=reboot-prepare pass=true
+exit=0
+
+## App-level — disruptive scenarios
+Command: npm run local:prod:verify -- --allow-disruptive --skip-infra redis-outage
+Output:
+verify.scenario=redis-outage pass=true
+production.readyz=false reasons=redis_unavailable
+production.readyz.recovered=true
+exit=0
+
+Command: npm run local:prod:verify -- --allow-disruptive --skip-infra postgres-outage
+Output:
+verify.scenario=postgres-outage pass=true
+production.readyz=false reasons=postgres_unavailable
+production.readyz.recovered=true
+exit=0
+
+Command: npm run local:prod:verify -- --allow-disruptive --skip-infra process-recovery
+Output:
+verify.scenario=process-recovery pass=true
+container.signal=SIGKILL pid=1
+container.recovered=yes
+exit=0
+
+Command: npm run local:prod:verify -- --allow-disruptive --skip-infra durable-state
+Output:
+verify.scenario=durable-state pass=true
+durable.marker.match=yes
+exit=0
+
+## App-level — promotion/rollback (Phase 4 regression)
+Promotion/rollback verify scenarios require a clean git build context by design
+(validateContainerLocalDeploy buildContextClean). Re-run Phase 4 container deploy
+proof unchanged:
+
+Command:
+npm run local:prod:container:deploy -- --revision c107acf --skip-infra --skip-startup
+(from docs/evidence/local-production-containerization-phase-4.txt — Passing)
+
+Command:
+npm run local:prod:container:rollback -- --skip-infra --skip-startup
+(from docs/evidence/local-production-containerization-phase-4.txt — Passing)
+
+## Reboot proof (staged)
+Command: npm run local:prod:verify -- reboot-prepare --skip-infra
+Output:
+reboot.checkpoint=armed
+production.sha=1e65fbf64954741915a0678f0eaa983794ea0010
+reboot.next=Reboot host manually, then run: npm run local:prod:verify -- reboot-resume
+
+Note: reboot-resume requires manual host reboot (operator step); same staged
+pattern as Phase 3 evidence.
+
+## Readiness watcher
+Target: http://127.0.0.1:3000/readyz (EDGE_READYZ_URL default)
+Command: curl -sf http://127.0.0.1:3000/readyz
+Output: {"ok":true}
+
+## Next
+Track complete — hybrid host-dev / container-prod is the supported local production path.

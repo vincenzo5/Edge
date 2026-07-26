@@ -204,49 +204,21 @@ describe("runSetupCommand", () => {
     expect(code).toBe(2);
   });
 
-  it("creates worktree when missing", async () => {
+  it("refuses legacy setup after Phase 5 retirement", async () => {
     const options = baseOptions({ command: "setup", revision: "abc123" });
-    const execFile = vi.fn((file, args) => {
-      if (file === "git" && args[0] === "worktree") return "";
-      if (file === "git" && args.includes("rev-parse")) return "abc123";
-      return "";
-    });
-    const deps = mockDeps({
-      execFile,
-      existsSync: (path) => path !== options.productionRoot,
-    });
-    const code = await runSetupCommand(options, deps);
-    expect(code).toBe(0);
-    expect(execFile).toHaveBeenCalledWith(
-      "git",
-      ["worktree", "add", "--detach", options.productionRoot, "abc123"],
-      expect.any(Object),
-    );
-  });
-
-  it("is idempotent when worktree already matches revision", async () => {
-    const options = baseOptions({ command: "setup", revision: "abc123" });
-    const execFile = vi.fn((file, args) => {
-      if (file === "git" && args.includes("rev-parse")) return "abc123";
-      if (file === "git" && args.includes("status")) return "";
-      if (file === "git" && args.includes("symbolic-ref")) throw new Error("detached");
-      return "";
-    });
-    const deps = mockDeps({
-      execFile,
-      existsSync: () => true,
-    });
-    const code = await runSetupCommand(options, deps);
-    expect(code).toBe(0);
-    expect(execFile).not.toHaveBeenCalledWith(
-      "git",
-      expect.arrayContaining(["worktree", "add"]),
-      expect.anything(),
-    );
+    const code = await runSetupCommand(options, mockDeps());
+    expect(code).toBe(1);
   });
 });
 
 describe("runStartCommand", () => {
+  it("refuses legacy start after Phase 5 retirement", async () => {
+    const options = baseOptions({ command: "start" });
+    const deps = mockDeps();
+    const code = await runStartCommand(options, deps);
+    expect(code).toBe(1);
+  });
+
   it("refuses unmanaged port collision", async () => {
     const options = baseOptions({ command: "start" });
     const deps = mockDeps({

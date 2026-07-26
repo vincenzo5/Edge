@@ -1,6 +1,6 @@
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname, basename } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -16,24 +16,89 @@ import {
   runConcurrentScenario,
   runRebootPrepareScenario,
   runRebootResumeScenario,
+  runLegacyRetirementScenario,
   runVerifyScenario,
   scenariosForCommand,
   emptyVerifyState,
   type VerifyLocalEnvironmentsDeps,
   type VerifyLocalEnvironmentsOptions,
 } from "./verify-local-environments.mts";
-import { type LocalDeployInput } from "./validate-local-deploy.mts";
+import {
+  LOCAL_DEPLOY_CONTRACT,
+  parseImageTagSha,
+  resolveContainerProductionEnvPath,
+  validateContainerLocalDeploy,
+  type ContainerLocalDeployInput,
+} from "./validate-local-deploy.mts";
 
 const DEV_SECRET = "dev-secret-abcdefghijklmnopqrstuvwxyz-123";
 const PROD_SECRET = "prod-secret-abcdefghijklmnopqrstuvwxyz-456";
 const API_KEY = "api-key-abcdefghijklmnopqrstuvwxyz-789";
 
-function validInput(overrides: Partial<LocalDeployInput> = {}): LocalDeployInput {
+const FULL_SHA = "a".repeat(40);
+
+function validContainerInput(overrides: Partial<ContainerLocalDeployInput> = {}): ContainerLocalDeployInput {
   const root = mkdtempSync(join(tmpdir(), "edge-verify-"));
   const devRoot = join(root, "TV AI");
-  const prodRoot = join(root, "TV AI-production");
   mkdirSync(devRoot, { recursive: true });
-  mkdirSync(prodRoot, { recursive: true });
+  mkdirSync(join(devRoot, ".edge", "local-prod"), { recursive: true });
+  writeFileSync(
+    join(devRoot, ".env.local"),
+    [
+      "EDGE_APP_HOST=127.0.0.1",
+      "EDGE_APP_PORT=3003",
+      "DATABASE_URL=postgres://edge:dev-password@localhost:5432/edge_dev",
+      "EDGE_MARKET_DATA_CACHE_BACKEND=redis",
+      "REDIS_URL=redis://localhost:6379",
+      "EDGE_CACHE_ENV=dev",
+      "EDGE_REQUIRE_REDIS=0",
+      `EDGE_AUTH_SECRET=${DEV_SECRET}`,
+      "EDGE_API_AUTH_MODE=dev-open",
+      "EDGE_ALLOW_OPEN_DEV_SESSION=1",
+      "TWS_ENABLED=false",
+    ].join("\n") + "\n",
+    "utf8",
+  );
+  writeFileSync(
+    resolveContainerProductionEnvPath(devRoot),
+    [
+      "EDGE_APP_HOST=127.0.0.1",
+      "EDGE_APP_PORT=3000",
+      "DATABASE_URL=postgres://edge:prod-password@postgres:5432/edge_prod",
+      "EDGE_MARKET_DATA_CACHE_BACKEND=redis",
+      "REDIS_URL=redis://redis:6379",
+      "EDGE_CACHE_ENV=prod",
+      "EDGE_REQUIRE_REDIS=1",
+      `EDGE_AUTH_SECRET=${PROD_SECRET}`,
+      "EDGE_API_AUTH_MODE=key",
+      `EDGE_API_KEY=${API_KEY}`,
+      "EDGE_ALLOW_OPEN_DEV_SESSION=0",
+      "EDGE_READYZ_URL=http://127.0.0.1:3000/readyz",
+      "TWS_ENABLED=false",
+      "TWS_MANAGED=external",
+    ].join("\n") + "\n",
+    { mode: 0o600 },
+  );
+  writeFileSync(
+    join(devRoot, ".edge", "local-prod", "deploy-revisions.json"),
+    JSON.stringify(
+      {
+        currentSha: FULL_SHA,
+        previousSha: null,
+        pendingSha: null,
+        failedSha: null,
+        promotedAt: null,
+        buildId: "build-abc",
+        currentDigest: "edge-app@sha256:abc",
+        previousDigest: null,
+        pendingDigest: null,
+        failedDigest: null,
+      },
+      null,
+      2,
+    ) + "\n",
+    "utf8",
+  );
   return {
     development: {
       EDGE_APP_HOST: "127.0.0.1",
@@ -51,9 +116,9 @@ function validInput(overrides: Partial<LocalDeployInput> = {}): LocalDeployInput
     production: {
       EDGE_APP_HOST: "127.0.0.1",
       EDGE_APP_PORT: "3000",
-      DATABASE_URL: "postgres://edge:prod-password@localhost:5432/edge_prod",
+      DATABASE_URL: "postgres://edge:prod-password@postgres:5432/edge_prod",
       EDGE_MARKET_DATA_CACHE_BACKEND: "redis",
-      REDIS_URL: "redis://localhost:6379",
+      REDIS_URL: "redis://redis:6379",
       EDGE_CACHE_ENV: "prod",
       EDGE_REQUIRE_REDIS: "1",
       EDGE_AUTH_SECRET: PROD_SECRET,
@@ -64,26 +129,23 @@ function validInput(overrides: Partial<LocalDeployInput> = {}): LocalDeployInput
       TWS_ENABLED: "false",
     },
     developmentRoot: devRoot,
-    productionRoot: prodRoot,
-    developmentEnvPath: join(devRoot, ".env.local"),
-    productionEnvPath: join(prodRoot, ".env.production.local"),
+    productionEnvPath: resolveContainerProductionEnvPath(devRoot),
     productionEnvFile: { exists: true, mode: 0o600 },
-    productionWorktree: {
-      exists: true,
-      isGitWorktree: true,
-      clean: true,
-      detached: true,
+    portOwnership: {
+      legacyLaunchAgentLoaded: false,
+      containerBoundPort3000: true,
     },
     ...overrides,
   };
 }
 
-function verifyOptions(input: LocalDeployInput, overrides: Partial<VerifyLocalEnvironmentsOptions> = {}) {
+function verifyOptions(input: ContainerLocalDeployInput, overrides: Partial<VerifyLocalEnvironmentsOptions> = {}) {
+  const prodRoot = join(dirname(input.developmentRoot), `${basename(input.developmentRoot)}-production`);
   return {
     command: "status" as const,
     developmentRoot: input.developmentRoot,
-    productionRoot: input.productionRoot,
-    developmentEnvPath: input.developmentEnvPath,
+    productionRoot: prodRoot,
+    developmentEnvPath: join(input.developmentRoot, ".env.local"),
     productionEnvPath: input.productionEnvPath,
     revision: null,
     skipInfra: true,
@@ -97,12 +159,51 @@ function verifyOptions(input: LocalDeployInput, overrides: Partial<VerifyLocalEn
   };
 }
 
+function mockDockerContainerExec(imageTag = `edge-app:${FULL_SHA}`) {
+  return vi.fn((file: string, args: string[]) => {
+    if (file === "git" && args.includes("rev-parse")) {
+      return "devsha222";
+    }
+    if (file === "launchctl") {
+      throw new Error("not loaded");
+    }
+    if (file === "docker" && args[0] === "inspect") {
+      const target = args.at(-1);
+      const formatIndex = args.indexOf("--format");
+      const format = formatIndex >= 0 ? String(args[formatIndex + 1]) : "";
+      if (target === "edge-app-prod") {
+        if (format.includes("State.Status")) return "running";
+        if (format.includes("State.Health")) return "healthy";
+        if (format.includes("Config.Image")) return imageTag;
+      }
+    }
+    if (file === "docker" && args[0] === "compose") {
+      return "running";
+    }
+    return "";
+  });
+}
+
 function mockDeps(partial: Partial<VerifyLocalEnvironmentsDeps> = {}): VerifyLocalEnvironmentsDeps {
   const base = defaultVerifyLocalEnvironmentsDeps();
   return {
     ...base,
-    existsSync: vi.fn(() => true),
-    readFileSync: vi.fn(() => "{}"),
+    existsSync: vi.fn((path) => {
+      const value = String(path);
+      if (value.includes("deploy-revisions.json")) return true;
+      if (value.includes("production.env")) return true;
+      return true;
+    }),
+    readFileSync: vi.fn((path) => {
+      const value = String(path);
+      if (value.includes("deploy-revisions.json")) {
+        return JSON.stringify({
+          currentSha: FULL_SHA,
+          currentDigest: "edge-app@sha256:abc",
+        });
+      }
+      return "{}";
+    }),
     writeFileSync: vi.fn(),
     mkdirSync: vi.fn(),
     listenPidsOnPort: vi.fn((port: number) => (port === 3003 ? [111] : [222])),
@@ -116,13 +217,7 @@ function mockDeps(partial: Partial<VerifyLocalEnvironmentsDeps> = {}): VerifyLoc
       return new Response(JSON.stringify({ ok: false }), { status: 503 });
     }) as typeof fetch,
     probeReadyz: vi.fn(async () => ({ ok: true, reasons: [] })),
-    execFile: vi.fn((file, args) => {
-      if (file === "git" && args.includes("rev-parse")) {
-        if (args.some((arg) => String(arg).includes("production"))) return "prodsha111";
-        return "devsha222";
-      }
-      return "";
-    }),
+    execFile: mockDockerContainerExec(),
     readBootMarker: vi.fn(() => "boot-1"),
     now: vi.fn(() => "2026-07-26T00:00:00.000Z"),
     verifyLocalDataIsolation: vi.fn(async () => ({
@@ -203,13 +298,15 @@ describe("scenariosForCommand", () => {
     const scenarios = scenariosForCommand("all");
     expect(scenarios).toContain("concurrent");
     expect(scenarios).toContain("reboot-prepare");
+    expect(scenarios).toContain("security");
+    expect(scenarios).toContain("legacy-retirement");
     expect(scenarios).not.toContain("redis-outage");
   });
 });
 
 describe("runConcurrentScenario", () => {
   it("passes when both ports listen and probes succeed", async () => {
-    const input = validInput();
+    const input = validContainerInput();
     const deps = mockDeps();
     const result = await runConcurrentScenario(verifyOptions(input), deps, input);
     expect(result.pass).toBe(true);
@@ -218,31 +315,21 @@ describe("runConcurrentScenario", () => {
 });
 
 describe("runBuildIsolationScenario", () => {
-  it("passes when production revision and buildId remain stable", async () => {
-    const input = validInput();
-    mkdirSync(join(input.productionRoot, ".next"), { recursive: true });
-    writeFileSync(join(input.productionRoot, ".next", "BUILD_ID"), "build-abc", "utf8");
-
-    const prodRoot = input.productionRoot;
+  it("passes when production image SHA and digest remain stable", async () => {
+    const input = validContainerInput();
     const deps = mockDeps({
-      existsSync: (path) => String(path).includes("BUILD_ID") || true,
-      readFileSync: (path) => (String(path).includes("BUILD_ID") ? "build-abc" : "{}"),
-      execFile: vi.fn((file, args) => {
-        if (file === "git" && args.includes("rev-parse")) {
-          return args[1] === prodRoot ? "prodsha" : "devsha";
-        }
-        return "";
-      }),
+      execFile: mockDockerContainerExec(`edge-app:${FULL_SHA}`),
     });
 
     const result = await runBuildIsolationScenario(verifyOptions(input), deps);
     expect(result.pass).toBe(true);
+    expect(result.lines.some((line) => line.includes(`production.sha.before=${FULL_SHA}`))).toBe(true);
   });
 });
 
 describe("runBrokerOwnershipScenario", () => {
   it("rejects development TWS ownership by default contract", async () => {
-    const input = validInput();
+    const input = validContainerInput();
     const deps = mockDeps();
     const result = await runBrokerOwnershipScenario(input, deps);
     expect(result.pass).toBe(true);
@@ -252,7 +339,7 @@ describe("runBrokerOwnershipScenario", () => {
 
 describe("runRebootPrepareScenario", () => {
   it("persists reboot checkpoint state", () => {
-    const input = validInput();
+    const input = validContainerInput();
     const deps = mockDeps();
     const state = emptyVerifyState("2026-07-26T00:00:00.000Z");
     const result = runRebootPrepareScenario(verifyOptions(input), deps, state);
@@ -263,21 +350,17 @@ describe("runRebootPrepareScenario", () => {
 });
 
 describe("runRebootResumeScenario", () => {
-  it("passes when operational recovery succeeds after reboot prepare", async () => {
-    const input = validInput();
+  it("passes when container operational recovery succeeds after reboot prepare", async () => {
+    const input = validContainerInput();
     const deps = mockDeps({
       readBootMarker: vi.fn(() => "boot-1"),
-      listenPidsOnPort: vi.fn((port) => (port === 3000 ? [333] : [])),
-      execFile: vi.fn((file, args) => {
-        if (file === "launchctl") return "loaded";
-        if (file === "docker") return "running";
-        if (file === "git") return "sha";
-        return "";
-      }),
+      listenPidsOnPort: vi.fn((port) => (port === 3003 ? [] : [222])),
+      execFile: mockDockerContainerExec(),
     });
     const state = emptyVerifyState("2026-07-26T00:00:00.000Z");
     state.rebootPending = true;
     state.rebootBootMarkerBefore = "boot-1";
+    state.productionRevision = FULL_SHA;
 
     const result = await runRebootResumeScenario(verifyOptions(input), deps, state);
     expect(result.pass).toBe(true);
@@ -285,7 +368,7 @@ describe("runRebootResumeScenario", () => {
   });
 
   it("fails without reboot-prepare checkpoint", async () => {
-    const input = validInput();
+    const input = validContainerInput();
     const deps = mockDeps();
     const state = emptyVerifyState("2026-07-26T00:00:00.000Z");
     const result = await runRebootResumeScenario(verifyOptions(input), deps, state);
@@ -293,9 +376,18 @@ describe("runRebootResumeScenario", () => {
   });
 });
 
+describe("runLegacyRetirementScenario", () => {
+  it("passes when container owns production and LaunchAgent is absent", async () => {
+    const input = validContainerInput();
+    const deps = mockDeps();
+    const result = await runLegacyRetirementScenario(verifyOptions(input), deps);
+    expect(result.pass).toBe(true);
+  });
+});
+
 describe("runVerifyScenario disruptive guard", () => {
   it("blocks disruptive scenarios without allow flag", async () => {
-    const input = validInput();
+    const input = validContainerInput();
     const deps = mockDeps();
     const state = emptyVerifyState("2026-07-26T00:00:00.000Z");
     for (const scenario of DISRUPTIVE_SCENARIOS) {
@@ -319,12 +411,17 @@ describe("VERIFY_SCENARIOS registry", () => {
       "build-isolation",
       "isolation",
       "redis-outage",
+      "redis-outage",
+      "postgres-outage",
       "database-isolation",
       "process-recovery",
       "reboot-prepare",
       "reboot-resume",
       "promotion",
       "rollback",
+      "durable-state",
+      "security",
+      "legacy-retirement",
       "broker-ownership",
       "all",
     ]) {

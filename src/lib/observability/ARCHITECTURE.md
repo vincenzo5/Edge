@@ -210,14 +210,15 @@ print dotenv source lines, credentials, or connection URLs. See
 Phase 5 adds a redaction-safe concurrent-operations verifier
 (`scripts/verify-local-environments.mts`) and
 `npm run local:prod:verify -- <scenario|all>`. The default `all` matrix runs
-non-disruptive scenarios (concurrent ports, build isolation, Postgres/Redis
-isolation, database isolation, broker ownership) plus `reboot-prepare`.
-Disruptive scenarios (`redis-outage`, `process-recovery`, `promotion`,
-`rollback`) require `--allow-disruptive`. Host reboot proof is staged:
-`reboot-prepare` checkpoints the boot marker under gitignored
-`.edge/local-prod/verify-state.json`; after a manual reboot, run
-`reboot-resume` to confirm Docker + launchd production recovery while
-development stays stopped. Append evidence with `--output docs/evidence/...`.
+non-disruptive scenarios (concurrent ports, container build isolation,
+Postgres/Redis isolation, database isolation, broker ownership, security,
+legacy-retirement) plus `reboot-prepare`. Disruptive scenarios (`redis-outage`,
+`postgres-outage`, `process-recovery`, `promotion`, `rollback`, `durable-state`)
+require `--allow-disruptive`. Host reboot proof is staged:
+`reboot-prepare` checkpoints the boot marker and container SHA/digest under
+gitignored `.edge/local-prod/verify-state.json`; after a manual reboot, run
+`reboot-resume` to confirm Docker + app-prod recovery while development stays
+stopped. Append evidence with `--output docs/evidence/...`.
 
 ### Container production successor (Phase 0 contract)
 
@@ -288,6 +289,17 @@ re-runs the full gate. Image retention keeps current + previous + failed tags
 (and `-migrate` variants); other local `edge-app:*` tags are pruned after
 promotion.
 
+Phase 5 completes cutover: `scripts/verify-local-environments.mts` targets
+container production (deploy/rollback via `deploy-local-prod-container.mts`,
+Docker process recovery, image SHA/digest build isolation, postgres/redis outage
+proof, durable-state, security, and legacy-retirement scenarios). Legacy
+worktree + LaunchAgent production commands refuse with pointers to
+`local:prod:container:*`; `local:prod:preflight` validates the container
+profile. Cutover operator steps: `npm run local:prod:service:uninstall` (if
+installed), confirm `npm run local:prod:container:status`, optional removal of
+the sibling `*-production` worktree. Readiness watcher remains
+`http://127.0.0.1:3000/readyz`.
+
 Health/readiness contracts are unchanged: `/healthz` and `/readyz` remain cheap
 and secret-free; production deploy health gate still requires Redis
 `cache.kind=redis` and `cache.degraded=false`.
@@ -304,8 +316,9 @@ and secret-free; production deploy health gate still requires Redis
 | What happened to this order? | `npm run report:trading-audit -- --limit 20` or `GET /api/me/trading-audit` |
 | Did users hit errors overnight? | `npm run report:production-errors -- --limit 50` or `GET /api/me/production-errors` |
 | Do I need to wake up? | `npm run watch:readyz` (cron) + `EDGE_ALERT_WEBHOOK_URL`; Data Health UI for human triage after alert |
-| Promote a tested revision? | Container: `npm run local:prod:container:deploy -- --revision <sha>` then `npm run local:prod:container:status` shows deploy.current + digest + ready probes. Legacy worktree: `npm run local:prod:deploy -- --revision <sha>` |
-| Recover from a bad deploy? | Container: `npm run local:prod:container:rollback`. Legacy: `npm run local:prod:rollback` |
+| Promote a tested revision? | `npm run local:prod:container:deploy -- --revision <sha>` then `npm run local:prod:container:status` shows deploy.current + digest + ready probes |
+| Recover from a bad deploy? | `npm run local:prod:container:rollback` |
+| Retire legacy LaunchAgent? | `npm run local:prod:service:uninstall` (legacy install/start/deploy refuse after Phase 5 cutover) |
 | Prove concurrent dev + prod? | `npm run local:prod:verify -- all` then `--allow-disruptive <scenario>`; reboot: `reboot-prepare` → manual reboot → `reboot-resume` |
 
 After a readiness alert: confirm `/readyz` reason codes, check Postgres/Redis/TWS sidecar, then `report:production-errors` and `report:trading-audit` for correlated failures.

@@ -336,99 +336,28 @@ describe("probeMarketDataCache", () => {
 });
 
 describe("runDeployCommand", () => {
-  it("requires revision", async () => {
-    const code = await runDeployCommand(deployOptions({ revision: null }), mockDeployDeps());
-    expect(code).toBe(2);
-  });
-
-  it("blocks dirty production worktree", async () => {
-    const input = validInput({
-      productionWorktree: {
-        exists: true,
-        isGitWorktree: true,
-        clean: false,
-        detached: true,
-      },
-    });
-    const deps = mockDeployDeps({
-      execFile: vi.fn((file, args) => {
-        if (file === "git" && args.includes("status")) return " M file.ts";
-        if (file === "git" && args.includes("rev-parse")) return "abc123";
-        if (file === "git" && args.includes("symbolic-ref")) throw new Error("detached");
-        return "";
-      }),
-    });
-    const code = await runDeployCommand(
-      {
-        ...deployOptions(),
-        developmentRoot: input.developmentRoot,
-        productionRoot: input.productionRoot,
-        developmentEnvPath: input.developmentEnvPath,
-        productionEnvPath: input.productionEnvPath,
-      },
-      deps,
-    );
+  it("refuses legacy deploy after Phase 5 retirement", async () => {
+    const code = await runDeployCommand(deployOptions(), mockDeployDeps());
     expect(code).toBe(1);
   });
 
-  it("passes deploy and records revision state", async () => {
+  it("refuses rollback without reaching previous revision lookup", async () => {
     const input = validInput();
     const options = deployOptions({
+      command: "rollback",
+      revision: null,
       developmentRoot: input.developmentRoot,
       productionRoot: input.productionRoot,
       developmentEnvPath: input.developmentEnvPath,
       productionEnvPath: input.productionEnvPath,
     });
-
-    const deps = mockDeployDeps({
-      execFile: vi.fn((file, args) => {
-        if (file === "git" && args.includes("rev-parse")) return "abc123";
-        if (file === "git" && args.includes("status")) return "";
-        if (file === "git" && args.includes("symbolic-ref")) throw new Error("detached");
-        if (file === "git" && args.includes("diff")) return "";
-        return "";
-      }),
-    });
-
-    const code = await runDeployCommand(options, deps);
-    expect(code).toBe(0);
-    expect(deps.runMigrate).toHaveBeenCalled();
-    expect(deps.runBuild).toHaveBeenCalled();
-    expect(deps.restartService).toHaveBeenCalled();
-    expect(deps.runHealthGate).toHaveBeenCalled();
-    const state = readDeployRevisionState(options.developmentRoot, deps);
-    expect(state.currentSha).toBe("abc123");
-    expect(state.buildId).toBe("build-1");
-  });
-
-  it("fails deploy when health gate fails", async () => {
-    const input = validInput();
-    const options = deployOptions({
-      developmentRoot: input.developmentRoot,
-      productionRoot: input.productionRoot,
-      developmentEnvPath: input.developmentEnvPath,
-      productionEnvPath: input.productionEnvPath,
-    });
-    const deps = mockDeployDeps({
-      runHealthGate: vi.fn(async () => ({
-        ok: false,
-        healthz: true,
-        readyz: false,
-        cacheKind: "redis",
-        cacheDegraded: false,
-        reasons: ["readyz_unreachable"],
-      })),
-    });
-
-    const code = await runDeployCommand(options, deps);
+    const code = await runRollbackCommand(options, mockDeployDeps());
     expect(code).toBe(1);
-    const state = readDeployRevisionState(options.developmentRoot, deps);
-    expect(state.failedSha).toBe("abc123");
   });
 });
 
-describe("runRollbackCommand", () => {
-  it("blocks when no previous revision", async () => {
+describe("runRollbackCommand legacy retirement", () => {
+  it("refuses legacy rollback after Phase 5 retirement", async () => {
     const input = validInput();
     const options = deployOptions({
       command: "rollback",
@@ -438,53 +367,8 @@ describe("runRollbackCommand", () => {
       developmentEnvPath: input.developmentEnvPath,
       productionEnvPath: input.productionEnvPath,
     });
-    const deps = mockDeployDeps({
-      existsSync: (path) => existsSync(String(path)),
-      readFileSync: (path) => readFileSync(String(path), "utf8"),
-    });
-    const code = await runRollbackCommand(options, deps);
+    const code = await runRollbackCommand(options, mockDeployDeps());
     expect(code).toBe(1);
-  });
-
-  it("restores previous revision after health gate pass", async () => {
-    const input = validInput();
-    const options = deployOptions({
-      command: "rollback",
-      revision: null,
-      developmentRoot: input.developmentRoot,
-      productionRoot: input.productionRoot,
-      developmentEnvPath: input.developmentEnvPath,
-      productionEnvPath: input.productionEnvPath,
-    });
-
-    const deps = mockDeployDeps({
-      readProductionBuildId: vi.fn(() => "prev-build"),
-      execFile: vi.fn((file, args) => {
-        if (file === "git" && args.includes("rev-parse")) return "prev123";
-        if (file === "git" && args.includes("status")) return "";
-        if (file === "git" && args.includes("symbolic-ref")) throw new Error("detached");
-        return "";
-      }),
-    });
-
-    writeDeployRevisionState(
-      options.developmentRoot,
-      {
-        currentSha: "bad123",
-        previousSha: "prev123",
-        pendingSha: null,
-        failedSha: "bad123",
-        promotedAt: "2026-07-25T00:00:00.000Z",
-        buildId: "old-build",
-      },
-      deps,
-    );
-
-    const code = await runRollbackCommand(options, deps);
-    expect(code).toBe(0);
-    const state = readDeployRevisionState(options.developmentRoot, deps);
-    expect(state.currentSha).toBe("prev123");
-    expect(state.previousSha).toBeNull();
   });
 });
 

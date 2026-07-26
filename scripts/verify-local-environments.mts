@@ -1,5 +1,6 @@
 #!/usr/bin/env npx tsx
 
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   existsSync,
@@ -10,6 +11,9 @@ import {
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { inspectImageFacts, readDockerUser } from "./build-app-image.mts";
+import { inspectComposeAppService } from "./compose-app-service.mts";
+import { withComposeEnv } from "./compose-env.mts";
 import { probeHealthz, runDeployHealthGate } from "./deploy-health-gate.mts";
 import {
   formatVerifyResult,
@@ -19,21 +23,25 @@ import {
 import {
   LOCAL_PROD_RUNTIME_DIR,
   defaultLocalProdDeps,
-  isLaunchAgentLoaded,
-  loadDeployInputSync,
-  readBuildId,
   readDeployRevisionState,
-  readRuntimeMeta,
-  readWorktreeRevision,
   type LocalProdDeps,
   type LocalProdOptions,
 } from "./local-prod.mts";
+import {
+  APP_PROD_CONTAINER_NAME,
+  readContainerProductionFacts,
+  readLaunchAgentLoadState,
+  unmanagedPort3000Listeners,
+} from "./port-ownership.mts";
 import { probeReadyz } from "../src/lib/observability/readyzProbe.ts";
 import {
   LOCAL_DEPLOY_CONTRACT,
-  formatLocalDeployIssues,
-  validateLocalDeploy,
-  type LocalDeployInput,
+  parseImageTagSha,
+  resolveContainerProductionEnvPath,
+  validateComposeAppServiceFacts,
+  validateContainerLocalDeploy,
+  type ContainerLocalDeployInput,
+  type LocalDeployIssue,
 } from "./validate-local-deploy.mts";
 
 export const VERIFY_STATE_FILE = "verify-state.json";
@@ -44,12 +52,16 @@ export const VERIFY_SCENARIOS = [
   "build-isolation",
   "isolation",
   "redis-outage",
+  "postgres-outage",
   "database-isolation",
   "process-recovery",
   "reboot-prepare",
   "reboot-resume",
   "promotion",
   "rollback",
+  "durable-state",
+  "security",
+  "legacy-retirement",
   "broker-ownership",
   "all",
 ] as const;
@@ -58,9 +70,11 @@ export type VerifyScenario = (typeof VERIFY_SCENARIOS)[number];
 
 export const DISRUPTIVE_SCENARIOS = new Set<VerifyScenario>([
   "redis-outage",
+  "postgres-outage",
   "process-recovery",
   "promotion",
   "rollback",
+  "durable-state",
 ]);
 
 export type VerifyScenarioResult = {
@@ -76,6 +90,7 @@ export type VerifyState = {
   rebootPending: boolean;
   rebootBootMarkerBefore: string | null;
   productionRevision: string | null;
+  productionDigest: string | null;
   productionBuildId: string | null;
   scenarios: Partial<Record<VerifyScenario, VerifyScenarioResult>>;
 };
@@ -103,6 +118,8 @@ export type VerifyLocalEnvironmentsDeps = LocalProdDeps & {
   ) => Promise<number>;
   stopRedis: () => number;
   startRedis: () => number;
+  stopPostgres: () => number;
+  startPostgres: () => number;
   readBootMarker: () => string | null;
   now: () => string;
 };
@@ -115,34 +132,38 @@ const SECRET_PATTERNS = [
   /password[^\s]*/gi,
 ];
 
-const HELP_TEXT = `Verify concurrent local development and production environments.
+const HELP_TEXT = `Verify concurrent local development and container production environments.
 
 Commands:
   verify <scenario|all>   Run one scenario or the full pre-reboot matrix
 
 Scenarios:
   concurrent              Both ports serve with distinct identity
-  build-isolation         Production revision/buildId unchanged after dev probe
+  build-isolation         Production image SHA/digest unchanged after dev probe
   isolation               Postgres + Redis key isolation
   redis-outage            Production unready during Redis stop; recovery (disruptive)
+  postgres-outage         Production unready during Postgres stop; recovery (disruptive)
   database-isolation      Dev probe writes invisible in edge_prod
-  process-recovery        launchd restarts production after kill -9 (disruptive)
+  process-recovery        Docker restarts app-prod after kill -9 PID 1 (disruptive)
   reboot-prepare          Checkpoint boot marker before manual host reboot
-  reboot-resume           Verify post-reboot recovery (after manual reboot)
-  promotion               Deploy known-good revision (disruptive)
-  rollback                Failed deploy + rollback restore (disruptive)
+  reboot-resume           Verify post-reboot container recovery (after manual reboot)
+  promotion               Container deploy known-good revision (disruptive)
+  rollback                Failed container deploy + rollback restore (disruptive)
+  durable-state           Durable mount checksum survives container restart (disruptive)
+  security                Loopback bindings, non-root runtime, forbidden-path scan
+  legacy-retirement       LaunchAgent absent; container owns :3000; worktree optional
   broker-ownership        Dev default profile rejects TWS ownership
   all                     Non-disruptive matrix + reboot-prepare
 
 Options:
   --scenario <name>       Alias for subcommand (verify --scenario concurrent)
-  --allow-disruptive      Permit redis-outage, process-recovery, promotion, rollback
+  --allow-disruptive      Permit redis/postgres outage, process-recovery, promotion, rollback, durable-state
   --revision-good <sha>   Known-good revision for promotion scenario
   --revision-bad <sha>    Intentionally bad revision for rollback scenario
   --dev-root <path>       Development checkout (default: cwd)
-  --prod-root <path>      Production worktree override
+  --prod-root <path>      Legacy production worktree path (optional; legacy-retirement only)
   --dev-env <path>        Development env file override
-  --prod-env <path>       Production env file override
+  --prod-env <path>       Container production env file override
   --skip-infra            Skip docker compose up before verify
   --output <path>         Append redacted report lines to evidence file
 
@@ -180,11 +201,17 @@ function defaultReadBootMarker(): string | null {
   }
 }
 
-function defaultStopRedis(): number {
+function composeEnv(): NodeJS.ProcessEnv {
+  return withComposeEnv(process.env);
+}
+
+function stopRedisAt(developmentRoot: string): number {
   try {
     execFileSync("docker", ["compose", "stop", "redis"], {
+      cwd: developmentRoot,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      env: composeEnv(),
     });
     return 0;
   } catch {
@@ -192,31 +219,80 @@ function defaultStopRedis(): number {
   }
 }
 
-function defaultStartRedis(): number {
+function startRedisAt(developmentRoot: string): number {
   try {
     execFileSync("docker", ["compose", "up", "-d", "--wait", "redis"], {
+      cwd: developmentRoot,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      env: composeEnv(),
     });
     return 0;
   } catch {
     return 1;
   }
+}
+
+function stopPostgresAt(developmentRoot: string): number {
+  try {
+    execFileSync("docker", ["compose", "stop", "postgres"], {
+      cwd: developmentRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: composeEnv(),
+    });
+    return 0;
+  } catch {
+    return 1;
+  }
+}
+
+function startPostgresAt(developmentRoot: string): number {
+  try {
+    execFileSync("docker", ["compose", "up", "-d", "--wait", "postgres"], {
+      cwd: developmentRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: composeEnv(),
+    });
+    return 0;
+  } catch {
+    return 1;
+  }
+}
+
+function defaultStopRedis(): number {
+  return stopRedisAt(process.cwd());
+}
+
+function defaultStartRedis(): number {
+  return startRedisAt(process.cwd());
+}
+
+function defaultStopPostgres(): number {
+  return stopPostgresAt(process.cwd());
+}
+
+function defaultStartPostgres(): number {
+  return startPostgresAt(process.cwd());
 }
 
 async function defaultRunDeployCommand(
   options: VerifyLocalEnvironmentsOptions & { revision: string },
   _deps: VerifyLocalEnvironmentsDeps,
 ): Promise<number> {
-  const { runDeployCommand, defaultDeployLocalProdDeps } = await import("./deploy-local-prod.mts");
-  return runDeployCommand(
+  const { runContainerDeployCommand, defaultDeployLocalProdContainerDeps } = await import(
+    "./deploy-local-prod-container.mts"
+  );
+  return runContainerDeployCommand(
     {
-      ...options,
       command: "deploy",
+      developmentRoot: options.developmentRoot,
       revision: options.revision,
+      skipInfra: options.skipInfra,
       skipStartup: true,
     },
-    defaultDeployLocalProdDeps(),
+    defaultDeployLocalProdContainerDeps(),
   );
 }
 
@@ -224,15 +300,18 @@ async function defaultRunRollbackCommand(
   options: VerifyLocalEnvironmentsOptions,
   _deps: VerifyLocalEnvironmentsDeps,
 ): Promise<number> {
-  const { runRollbackCommand, defaultDeployLocalProdDeps } = await import("./deploy-local-prod.mts");
-  return runRollbackCommand(
+  const { runContainerRollbackCommand, defaultDeployLocalProdContainerDeps } = await import(
+    "./deploy-local-prod-container.mts"
+  );
+  return runContainerRollbackCommand(
     {
-      ...options,
       command: "rollback",
+      developmentRoot: options.developmentRoot,
       revision: null,
+      skipInfra: options.skipInfra,
       skipStartup: true,
     },
-    defaultDeployLocalProdDeps(),
+    defaultDeployLocalProdContainerDeps(),
   );
 }
 
@@ -246,6 +325,8 @@ export function defaultVerifyLocalEnvironmentsDeps(): VerifyLocalEnvironmentsDep
     runRollbackCommand: defaultRunRollbackCommand,
     stopRedis: defaultStopRedis,
     startRedis: defaultStartRedis,
+    stopPostgres: defaultStopPostgres,
+    startPostgres: defaultStartPostgres,
     readBootMarker: defaultReadBootMarker,
     now: () => new Date().toISOString(),
   };
@@ -277,6 +358,7 @@ export function emptyVerifyState(now: string): VerifyState {
     rebootPending: false,
     rebootBootMarkerBefore: null,
     productionRevision: null,
+    productionDigest: null,
     productionBuildId: null,
     scenarios: {},
   };
@@ -320,6 +402,33 @@ function profileUrl(profile: "development" | "production", path: string): string
   return `http://${contract.host}:${contract.port}${path}`;
 }
 
+function readWorktreeRevisionFromRoot(
+  root: string,
+  execFile: VerifyLocalEnvironmentsDeps["execFile"],
+): string | null {
+  try {
+    return execFile("git", ["-C", root, "rev-parse", "HEAD"]).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function readProductionContainerIdentity(
+  developmentRoot: string,
+  deps: VerifyLocalEnvironmentsDeps,
+): { sha: string | null; digest: string | null; imageTag: string | null } {
+  const container = readContainerProductionFacts(deps.execFile);
+  const deployState = readDeployRevisionState(developmentRoot, deps);
+  const sha =
+    deployState.currentSha ??
+    (container.imageTag ? parseImageTagSha(container.imageTag) : null);
+  return {
+    sha,
+    digest: deployState.currentDigest,
+    imageTag: container.imageTag,
+  };
+}
+
 function makeResult(
   scenario: VerifyScenario,
   pass: boolean,
@@ -332,7 +441,7 @@ function makeResult(
 export async function runConcurrentScenario(
   options: VerifyLocalEnvironmentsOptions,
   deps: VerifyLocalEnvironmentsDeps,
-  input: LocalDeployInput,
+  input: ContainerLocalDeployInput,
 ): Promise<VerifyScenarioResult> {
   const lines: string[] = [];
   const devPort = LOCAL_DEPLOY_CONTRACT.development.port;
@@ -356,9 +465,14 @@ export async function runConcurrentScenario(
     input.production.EDGE_READYZ_URL?.trim() || profileUrl("production", "/readyz");
   lines.push(`production.readyz_url_target=${prodReadyzUrl.includes(":3000") ? "3000" : "other"}`);
 
+  const container = readContainerProductionFacts(deps.execFile);
+  lines.push(`container.running=${container.running}`);
+  lines.push(`container.health=${container.health ?? "none"}`);
+
   const pass =
     devListeners.length > 0 &&
     prodListeners.length > 0 &&
+    container.running &&
     devHealthz &&
     prodHealthz &&
     devReady.ok &&
@@ -373,24 +487,24 @@ export async function runBuildIsolationScenario(
   deps: VerifyLocalEnvironmentsDeps,
 ): Promise<VerifyScenarioResult> {
   const lines: string[] = [];
-  const beforeRevision = readWorktreeRevision(options.productionRoot, deps.execFile);
-  const beforeBuildId = readBuildId(options.productionRoot, deps);
-  const devRevision = readWorktreeRevision(options.developmentRoot, deps.execFile);
-  lines.push(`production.revision.before=${beforeRevision ?? "unknown"}`);
-  lines.push(`production.buildId.before=${beforeBuildId ?? "missing"}`);
+  const before = readProductionContainerIdentity(options.developmentRoot, deps);
+  const devRevision = readWorktreeRevisionFromRoot(options.developmentRoot, deps.execFile);
+  lines.push(`production.sha.before=${before.sha ?? "unknown"}`);
+  lines.push(`production.digest.before=${before.digest ?? "none"}`);
+  lines.push(`production.image.before=${before.imageTag ?? "none"}`);
   lines.push(`development.revision=${devRevision ?? "unknown"}`);
 
-  const afterRevision = readWorktreeRevision(options.productionRoot, deps.execFile);
-  const afterBuildId = readBuildId(options.productionRoot, deps);
-  lines.push(`production.revision.after=${afterRevision ?? "unknown"}`);
-  lines.push(`production.buildId.after=${afterBuildId ?? "missing"}`);
+  const after = readProductionContainerIdentity(options.developmentRoot, deps);
+  lines.push(`production.sha.after=${after.sha ?? "unknown"}`);
+  lines.push(`production.digest.after=${after.digest ?? "none"}`);
+  lines.push(`production.image.after=${after.imageTag ?? "none"}`);
 
   const pass =
-    beforeRevision !== null &&
-    beforeRevision === afterRevision &&
-    beforeBuildId !== null &&
-    beforeBuildId === afterBuildId &&
-    devRevision !== beforeRevision;
+    before.sha !== null &&
+    before.sha === after.sha &&
+    before.digest === after.digest &&
+    before.imageTag === after.imageTag &&
+    devRevision !== before.sha;
 
   return makeResult("build-isolation", pass, lines, deps);
 }
@@ -418,20 +532,20 @@ export async function runDatabaseIsolationScenario(
 }
 
 export async function runBrokerOwnershipScenario(
-  input: LocalDeployInput,
+  input: ContainerLocalDeployInput,
   deps: VerifyLocalEnvironmentsDeps,
 ): Promise<VerifyScenarioResult> {
   const lines: string[] = [];
-  const defaultIssues = validateLocalDeploy(input);
+  const defaultIssues = validateContainerLocalDeploy(input);
   const twsIssue = defaultIssues.find((issue) => issue.code === "development.tws_enabled");
   lines.push(`development.tws_default_issues=${defaultIssues.length}`);
   lines.push(`development.tws_enabled_blocked=${twsIssue ? "yes" : "no"}`);
 
-  const devWithTws: LocalDeployInput = {
+  const devWithTws: ContainerLocalDeployInput = {
     ...input,
     development: { ...input.development, TWS_ENABLED: "true" },
   };
-  const twsEnabledIssues = validateLocalDeploy(devWithTws);
+  const twsEnabledIssues = validateContainerLocalDeploy(devWithTws);
   const failsWithTws = twsEnabledIssues.some((issue) => issue.code === "development.tws_enabled");
   lines.push(`development.tws_enabled_rejected=${failsWithTws ? "yes" : "no"}`);
 
@@ -442,7 +556,7 @@ export async function runBrokerOwnershipScenario(
 export async function runRedisOutageScenario(
   options: VerifyLocalEnvironmentsOptions,
   deps: VerifyLocalEnvironmentsDeps,
-  input: LocalDeployInput,
+  input: ContainerLocalDeployInput,
 ): Promise<VerifyScenarioResult> {
   const lines: string[] = [];
   let pass = false;
@@ -476,56 +590,82 @@ export async function runRedisOutageScenario(
   return makeResult("redis-outage", pass, lines, deps);
 }
 
+export async function runPostgresOutageScenario(
+  options: VerifyLocalEnvironmentsOptions,
+  deps: VerifyLocalEnvironmentsDeps,
+  input: ContainerLocalDeployInput,
+): Promise<VerifyScenarioResult> {
+  const lines: string[] = [];
+  let pass = false;
+  try {
+    const stopCode = deps.stopPostgres();
+    lines.push(`postgres.stop=${stopCode === 0 ? "pass" : "fail"}`);
+    await deps.sleep(2_000);
+
+    const prodReady = await deps.probeReadyz(profileUrl("production", "/readyz"), deps.fetchImpl);
+    const devReady = await deps.probeReadyz(profileUrl("development", "/readyz"), deps.fetchImpl);
+    lines.push(`production.readyz=${prodReady.ok} reasons=${prodReady.reasons.join(",") || "none"}`);
+    lines.push(`development.readyz=${devReady.ok} reasons=${devReady.reasons.join(",") || "none"}`);
+
+    const prodFailLoud = !prodReady.ok;
+    const devRequirePostgresOff = input.development.EDGE_REQUIRE_REDIS !== "1";
+    lines.push(`development.require_redis=${input.development.EDGE_REQUIRE_REDIS ?? "0"}`);
+
+    const startCode = deps.startPostgres();
+    lines.push(`postgres.start=${startCode === 0 ? "pass" : "fail"}`);
+    await deps.sleep(5_000);
+
+    const prodRecovered = await deps.probeReadyz(profileUrl("production", "/readyz"), deps.fetchImpl);
+    lines.push(
+      `production.readyz.recovered=${prodRecovered.ok} reasons=${prodRecovered.reasons.join(",") || "none"}`,
+    );
+
+    pass = stopCode === 0 && prodFailLoud && devRequirePostgresOff && startCode === 0 && prodRecovered.ok;
+  } finally {
+    deps.startPostgres();
+  }
+  return makeResult("postgres-outage", pass, lines, deps);
+}
+
 export async function runProcessRecoveryScenario(
   options: VerifyLocalEnvironmentsOptions,
   deps: VerifyLocalEnvironmentsDeps,
 ): Promise<VerifyScenarioResult> {
   const lines: string[] = [];
-  const launchdLoaded = isLaunchAgentLoaded(deps);
-  lines.push(`launchd.loaded=${launchdLoaded}`);
-  if (!launchdLoaded) {
-    lines.push("process-recovery=skipped reason=launchd_not_loaded");
+  const containerBefore = readContainerProductionFacts(deps.execFile);
+  lines.push(`container.running.before=${containerBefore.running}`);
+  lines.push(`container.health.before=${containerBefore.health ?? "none"}`);
+
+  if (!containerBefore.running) {
+    lines.push("process-recovery=skipped reason=container_not_running");
     return makeResult("process-recovery", false, lines, deps);
   }
 
-  const prodPort = LOCAL_DEPLOY_CONTRACT.production.port;
-  const metaBefore = readRuntimeMeta(options.developmentRoot, deps);
-  const pidBefore = metaBefore?.pid ?? deps.listenPidsOnPort(prodPort)[0] ?? null;
-  lines.push(`production.pid.before=${pidBefore ?? "none"}`);
-
-  if (pidBefore === null) {
-    lines.push("process-recovery=skipped reason=no_production_listener");
+  try {
+    deps.execFile("docker", ["exec", APP_PROD_CONTAINER_NAME, "kill", "-9", "1"]);
+    lines.push("container.signal=SIGKILL pid=1");
+  } catch {
+    lines.push("container.signal=failed");
     return makeResult("process-recovery", false, lines, deps);
   }
 
-  deps.killProcess(pidBefore, "SIGKILL");
-  lines.push(`production.signal=SIGKILL pid=${pidBefore}`);
-
-  let listenersAfter: number[] = [];
-  let pidAfter: number | null = null;
-  let ready = { ok: false, reasons: ["readyz_unreachable"] as string[] };
+  let recovered = false;
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
     await deps.sleep(5_000);
-    listenersAfter = deps.listenPidsOnPort(prodPort);
-    pidAfter = listenersAfter[0] ?? readRuntimeMeta(options.developmentRoot, deps)?.pid ?? null;
-    if (listenersAfter.length > 0) {
-      ready = await deps.probeReadyz(profileUrl("production", "/readyz"), deps.fetchImpl);
-      if (ready.ok) break;
+    const containerAfter = readContainerProductionFacts(deps.execFile);
+    const ready = await deps.probeReadyz(profileUrl("production", "/readyz"), deps.fetchImpl);
+    lines.push(
+      `container.health.poll=${containerAfter.health ?? "none"} readyz=${ready.ok ? "pass" : "fail"}`,
+    );
+    if (containerAfter.running && containerAfter.health === "healthy" && ready.ok) {
+      recovered = true;
+      break;
     }
   }
 
-  lines.push(`production.listeners.after=${listenersAfter.join(",") || "none"}`);
-  lines.push(`production.pid.after=${pidAfter ?? "none"}`);
-  lines.push(`production.readyz=${ready.ok} reasons=${ready.reasons.join(",") || "none"}`);
-
-  const restarted =
-    listenersAfter.length > 0 &&
-    (pidAfter === null || pidAfter !== pidBefore) &&
-    ready.ok;
-  lines.push(`production.restarted=${restarted ? "yes" : "no"}`);
-
-  return makeResult("process-recovery", restarted, lines, deps);
+  lines.push(`container.recovered=${recovered ? "yes" : "no"}`);
+  return makeResult("process-recovery", recovered, lines, deps);
 }
 
 export function runRebootPrepareScenario(
@@ -535,17 +675,19 @@ export function runRebootPrepareScenario(
 ): VerifyScenarioResult {
   const lines: string[] = [];
   const bootMarker = deps.readBootMarker();
+  const identity = readProductionContainerIdentity(options.developmentRoot, deps);
   state.bootMarker = bootMarker;
   state.rebootBootMarkerBefore = bootMarker;
   state.rebootPending = true;
-  state.productionRevision = readWorktreeRevision(options.productionRoot, deps.execFile);
-  state.productionBuildId = readBuildId(options.productionRoot, deps);
+  state.productionRevision = identity.sha;
+  state.productionDigest = identity.digest;
+  state.productionBuildId = null;
   writeVerifyState(options.developmentRoot, state, deps);
 
   lines.push(`reboot.boot_marker.before=${bootMarker ?? "unknown"}`);
   lines.push(`reboot.checkpoint=armed`);
-  lines.push(`production.revision=${state.productionRevision ?? "unknown"}`);
-  lines.push(`production.buildId=${state.productionBuildId ?? "missing"}`);
+  lines.push(`production.sha=${state.productionRevision ?? "unknown"}`);
+  lines.push(`production.digest=${state.productionDigest ?? "none"}`);
   lines.push("reboot.next=Reboot host manually, then run: npm run local:prod:verify -- reboot-resume");
 
   const pass = bootMarker !== null;
@@ -569,8 +711,13 @@ export async function runRebootResumeScenario(
   const bootChanged = bootMarkerAfter !== null && bootMarkerAfter !== state.rebootBootMarkerBefore;
   lines.push(`reboot.boot_marker.changed=${bootChanged}`);
 
-  const launchdLoaded = isLaunchAgentLoaded(deps);
-  lines.push(`launchd.loaded=${launchdLoaded}`);
+  const launchAgent = readLaunchAgentLoadState(deps.execFile, deps.uid);
+  lines.push(`launchd.loaded=${launchAgent.loaded}`);
+  lines.push(`launchd.blocks_container=${launchAgent.blocksContainerLifecycle}`);
+
+  const container = readContainerProductionFacts(deps.execFile);
+  lines.push(`container.running=${container.running}`);
+  lines.push(`container.health=${container.health ?? "none"}`);
 
   const devPort = LOCAL_DEPLOY_CONTRACT.development.port;
   const devListeners = deps.listenPidsOnPort(devPort);
@@ -588,8 +735,18 @@ export async function runRebootResumeScenario(
   }
   lines.push(`docker.infra=${dockerHealthy ? "running" : "degraded"}`);
 
+  const identity = readProductionContainerIdentity(options.developmentRoot, deps);
+  lines.push(`production.sha.after=${identity.sha ?? "unknown"}`);
+  lines.push(`production.digest.after=${identity.digest ?? "none"}`);
+
   const operationalRecovery =
-    launchdLoaded && devListeners.length === 0 && prodReady.ok && dockerHealthy;
+    !launchAgent.blocksContainerLifecycle &&
+    container.running &&
+    container.health === "healthy" &&
+    devListeners.length === 0 &&
+    prodReady.ok &&
+    dockerHealthy &&
+    (state.productionRevision === null || identity.sha === state.productionRevision);
   lines.push(`reboot.operational_recovery=${operationalRecovery ? "pass" : "fail"}`);
 
   state.rebootPending = false;
@@ -607,7 +764,7 @@ export async function runRebootResumeScenario(
 export async function runPromotionScenario(
   options: VerifyLocalEnvironmentsOptions,
   deps: VerifyLocalEnvironmentsDeps,
-  input: LocalDeployInput,
+  input: ContainerLocalDeployInput,
 ): Promise<VerifyScenarioResult> {
   const lines: string[] = [];
   const revision = options.revisionGood?.trim();
@@ -638,7 +795,7 @@ export async function runPromotionScenario(
 export async function runRollbackScenario(
   options: VerifyLocalEnvironmentsOptions,
   deps: VerifyLocalEnvironmentsDeps,
-  input: LocalDeployInput,
+  input: ContainerLocalDeployInput,
 ): Promise<VerifyScenarioResult> {
   const lines: string[] = [];
   const badRevision = options.revisionBad?.trim();
@@ -680,6 +837,154 @@ export async function runRollbackScenario(
   return makeResult("rollback", pass, lines, deps);
 }
 
+export async function runDurableStateScenario(
+  options: VerifyLocalEnvironmentsOptions,
+  deps: VerifyLocalEnvironmentsDeps,
+): Promise<VerifyScenarioResult> {
+  const lines: string[] = [];
+  const container = readContainerProductionFacts(deps.execFile);
+  if (!container.running || !container.imageTag) {
+    lines.push("durable-state=skipped reason=container_not_running");
+    return makeResult("durable-state", false, lines, deps);
+  }
+
+  const mountDir = join(options.developmentRoot, "data", "journal-screenshots");
+  deps.mkdirSync(mountDir, { recursive: true });
+  const marker = `phase5-durable-${Date.now()}`;
+  const hostPath = join(mountDir, "phase5-probe.txt");
+  deps.writeFileSync(hostPath, marker, "utf8");
+  const checksumBefore = createHash("sha256").update(marker).digest("hex");
+  lines.push(`durable.checksum.before=${checksumBefore}`);
+
+  try {
+    const composeEnv = withComposeEnv({
+      ...process.env,
+      EDGE_APP_IMAGE: container.imageTag,
+    });
+    execFileSync(
+      "docker",
+      ["compose", "--profile", "prod", "restart", "app-prod"],
+      {
+        cwd: options.developmentRoot,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        env: composeEnv,
+      },
+    );
+    await deps.sleep(15_000);
+
+    const inside = deps
+      .execFile("docker", [
+        "exec",
+        APP_PROD_CONTAINER_NAME,
+        "cat",
+        "/app/data/journal-screenshots/phase5-probe.txt",
+      ])
+      .trim();
+    const checksumAfter = createHash("sha256").update(inside).digest("hex");
+    lines.push(`durable.checksum.after=${checksumAfter}`);
+    lines.push(`durable.marker.match=${inside === marker ? "yes" : "no"}`);
+
+    const pass = checksumBefore === checksumAfter && inside === marker;
+    return makeResult("durable-state", pass, lines, deps);
+  } catch (error) {
+    lines.push(`durable-state=failed reason=${error instanceof Error ? error.message : "unknown"}`);
+    return makeResult("durable-state", false, lines, deps);
+  }
+}
+
+export async function runSecurityScenario(
+  options: VerifyLocalEnvironmentsOptions,
+  deps: VerifyLocalEnvironmentsDeps,
+): Promise<VerifyScenarioResult> {
+  const lines: string[] = [];
+  const composeIssues: LocalDeployIssue[] = [];
+  const composeFacts = inspectComposeAppService(options.developmentRoot, deps.execFile);
+  validateComposeAppServiceFacts(composeFacts, composeIssues);
+  lines.push(`compose.issues=${composeIssues.length}`);
+
+  const appProd = composeFacts.appProd;
+  const loopback3000 =
+    appProd?.portBindings.some((binding) => binding.includes("127.0.0.1:3000")) ?? false;
+  const loopback5432 =
+    composeFacts.postgres?.portBindings.some((binding) => binding.includes("127.0.0.1:5432")) ??
+    false;
+  const loopback6379 =
+    composeFacts.redis?.portBindings.some((binding) => binding.includes("127.0.0.1:6379")) ?? false;
+  lines.push(`compose.loopback_3000=${loopback3000}`);
+  lines.push(`compose.loopback_5432=${loopback5432}`);
+  lines.push(`compose.loopback_6379=${loopback6379}`);
+
+  const container = readContainerProductionFacts(deps.execFile);
+  const imageTag = container.imageTag;
+  let nonRoot = true;
+  let forbiddenClean = true;
+  if (imageTag) {
+    const user = readDockerUser(imageTag, deps.execFile);
+    nonRoot = user != null && user !== "0" && user !== "root";
+    lines.push(`image.user=${user ?? "unknown"}`);
+    const facts = inspectImageFacts(imageTag, options.developmentRoot, {
+      execFile: deps.execFile,
+      existsSync: deps.existsSync,
+      readFileSync: deps.readFileSync,
+      mkdirSync: deps.mkdirSync,
+      writeFileSync: deps.writeFileSync,
+    });
+    forbiddenClean = (facts.forbiddenPathsPresent?.length ?? 0) === 0;
+    lines.push(`image.forbidden_paths=${facts.forbiddenPathsPresent?.join(",") || "none"}`);
+  } else {
+    lines.push("image.user=unknown");
+    lines.push("image.forbidden_paths=none");
+  }
+
+  const redactionOk = redactVerifyLine("EDGE_API_KEY=super-secret-key-value-here").includes("[redacted]");
+  lines.push(`redaction.sample=${redactionOk ? "pass" : "fail"}`);
+
+  const pass =
+    composeIssues.length === 0 &&
+    loopback3000 &&
+    loopback5432 &&
+    loopback6379 &&
+    nonRoot &&
+    forbiddenClean &&
+    redactionOk;
+  return makeResult("security", pass, lines, deps);
+}
+
+export async function runLegacyRetirementScenario(
+  options: VerifyLocalEnvironmentsOptions,
+  deps: VerifyLocalEnvironmentsDeps,
+): Promise<VerifyScenarioResult> {
+  const lines: string[] = [];
+  const launchAgent = readLaunchAgentLoadState(deps.execFile, deps.uid);
+  lines.push(`launchd.loaded=${launchAgent.loaded}`);
+  lines.push(`launchd.blocks_container=${launchAgent.blocksContainerLifecycle}`);
+
+  const container = readContainerProductionFacts(deps.execFile);
+  lines.push(`container.running=${container.running}`);
+  lines.push(`container.health=${container.health ?? "none"}`);
+
+  const unmanaged = unmanagedPort3000Listeners(
+    {
+      execFile: deps.execFile,
+      listenPidsOnPort: deps.listenPidsOnPort,
+    },
+    container,
+  );
+  lines.push(`port3000.unmanaged_listeners=${unmanaged.join(",") || "none"}`);
+
+  const worktreeExists = deps.existsSync(options.productionRoot);
+  lines.push(`legacy.worktree.present=${worktreeExists}`);
+  lines.push(`legacy.worktree.required=false`);
+
+  const pass =
+    !launchAgent.blocksContainerLifecycle &&
+    container.running &&
+    container.health === "healthy" &&
+    unmanaged.length === 0;
+  return makeResult("legacy-retirement", pass, lines, deps);
+}
+
 export function scenariosForCommand(scenario: VerifyScenario): VerifyScenario[] {
   if (scenario === "all") {
     return [
@@ -688,6 +993,8 @@ export function scenariosForCommand(scenario: VerifyScenario): VerifyScenario[] 
       "isolation",
       "database-isolation",
       "broker-ownership",
+      "security",
+      "legacy-retirement",
       "reboot-prepare",
     ];
   }
@@ -774,7 +1081,7 @@ export function parseVerifyLocalEnvironmentsArgs(
     developmentEnvPath = join(developmentRoot, LOCAL_DEPLOY_CONTRACT.development.envFileName);
   }
   if (!productionEnvPath) {
-    productionEnvPath = join(productionRoot, LOCAL_DEPLOY_CONTRACT.production.envFileName);
+    productionEnvPath = resolveContainerProductionEnvPath(developmentRoot);
   }
 
   return {
@@ -798,7 +1105,7 @@ export async function runVerifyScenario(
   scenario: VerifyScenario,
   options: VerifyLocalEnvironmentsOptions,
   deps: VerifyLocalEnvironmentsDeps,
-  input: LocalDeployInput,
+  input: ContainerLocalDeployInput,
   state: VerifyState,
 ): Promise<VerifyScenarioResult> {
   const blocked = ensureDisruptiveAllowed(scenario, options.allowDisruptive);
@@ -815,6 +1122,8 @@ export async function runVerifyScenario(
       return runIsolationScenario(deps);
     case "redis-outage":
       return runRedisOutageScenario(options, deps, input);
+    case "postgres-outage":
+      return runPostgresOutageScenario(options, deps, input);
     case "database-isolation":
       return runDatabaseIsolationScenario(deps);
     case "process-recovery":
@@ -827,6 +1136,12 @@ export async function runVerifyScenario(
       return runPromotionScenario(options, deps, input);
     case "rollback":
       return runRollbackScenario(options, deps, input);
+    case "durable-state":
+      return runDurableStateScenario(options, deps);
+    case "security":
+      return runSecurityScenario(options, deps);
+    case "legacy-retirement":
+      return runLegacyRetirementScenario(options, deps);
     case "broker-ownership":
       return runBrokerOwnershipScenario(input, deps);
     default:
@@ -838,21 +1153,22 @@ export async function runVerifyLocalEnvironmentsCommand(
   options: VerifyLocalEnvironmentsOptions,
   deps: VerifyLocalEnvironmentsDeps = defaultVerifyLocalEnvironmentsDeps(),
 ): Promise<number> {
-  const input = loadDeployInputSync(options, deps);
-  const preflightIssues = validateLocalDeploy(input);
-  if (preflightIssues.length > 0) {
-    console.error(`Local deployment preflight failed (${preflightIssues.length} issues):`);
-    for (const line of formatLocalDeployIssues(preflightIssues)) {
-      console.error(redactVerifyLine(`- ${line}`));
-    }
-    return 1;
+  const { loadContainerDeployInputSync, runContainerPreflightCheck } = await import(
+    "./deploy-local-prod-container.mts"
+  );
+  const input = loadContainerDeployInputSync(options.developmentRoot, deps);
+  const preflightCode = runContainerPreflightCheck(input);
+  if (preflightCode !== 0) {
+    return preflightCode;
   }
 
   if (!options.skipInfra) {
     try {
       execFileSync("docker", ["compose", "up", "-d", "--wait", "postgres", "redis"], {
+        cwd: options.developmentRoot,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
+        env: composeEnv(),
       });
     } catch {
       console.error("verify.infra=failed");
@@ -860,13 +1176,27 @@ export async function runVerifyLocalEnvironmentsCommand(
     }
   }
 
-  const existing = readVerifyState(options.developmentRoot, deps);
+  const depsWithRoot: VerifyLocalEnvironmentsDeps = {
+    ...deps,
+    stopRedis: () => stopRedisAt(options.developmentRoot),
+    startRedis: () => startRedisAt(options.developmentRoot),
+    stopPostgres: () => stopPostgresAt(options.developmentRoot),
+    startPostgres: () => startPostgresAt(options.developmentRoot),
+  };
+
+  const existing = readVerifyState(options.developmentRoot, depsWithRoot);
   const state = existing ?? emptyVerifyState(deps.now());
+  if (!state.scenarios) {
+    state.scenarios = {};
+  }
+  if (state.productionDigest === undefined) {
+    state.productionDigest = null;
+  }
   const selected = scenariosForCommand(options.scenario);
   const results: VerifyScenarioResult[] = [];
 
   for (const scenario of selected) {
-    const result = await runVerifyScenario(scenario, options, deps, input, state);
+    const result = await runVerifyScenario(scenario, options, depsWithRoot, input, state);
     state.scenarios[scenario] = result;
     results.push(result);
     for (const line of formatVerifyReport([result])) {
@@ -874,10 +1204,10 @@ export async function runVerifyLocalEnvironmentsCommand(
     }
   }
 
-  writeVerifyState(options.developmentRoot, state, deps);
+  writeVerifyState(options.developmentRoot, state, depsWithRoot);
 
   if (options.outputPath) {
-    const header = `# verify-local-environments\n# at=${deps.now()}\n`;
+    const header = `# verify-local-environments\n# at=${depsWithRoot.now()}\n`;
     const body = formatVerifyReport(results).join("\n") + "\n";
     if (existsSync(options.outputPath)) {
       writeFileSync(options.outputPath, readFileSync(options.outputPath, "utf8") + "\n" + body, "utf8");

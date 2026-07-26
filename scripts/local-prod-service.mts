@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import {
   LOCAL_PROD_LOG_FILE,
   LOCAL_PROD_RUNTIME_DIR,
+  assertLegacyProductionNotRetired,
   defaultLocalProdDeps,
   loadDeployInputSync,
   parseLocalProdArgs,
@@ -237,6 +238,9 @@ export async function runInstallCommand(
   options: LocalProdServiceOptions,
   deps: LocalProdServiceDeps = defaultLocalProdServiceDeps(options.developmentRoot),
 ): Promise<number> {
+  const legacyRefusal = refuseWhenLegacyRetired("service:install");
+  if (legacyRefusal != null) return legacyRefusal;
+
   const containerRefusal = refuseWhenContainerOwnsProduction(deps);
   if (containerRefusal != null) return containerRefusal;
 
@@ -292,6 +296,15 @@ export function runUninstallCommand(
   return 0;
 }
 
+function refuseWhenLegacyRetired(action: string): number | null {
+  const retired = assertLegacyProductionNotRetired(action);
+  if (retired) {
+    console.error(retired);
+    return 1;
+  }
+  return null;
+}
+
 function refuseWhenContainerOwnsProduction(
   deps: Pick<LocalProdServiceDeps, "execFile">,
 ): number | null {
@@ -304,6 +317,9 @@ function refuseWhenContainerOwnsProduction(
 }
 
 export function runServiceStartCommand(deps: LocalProdServiceDeps = defaultLocalProdServiceDeps()): number {
+  const legacyRefusal = refuseWhenLegacyRetired("service:start");
+  if (legacyRefusal != null) return legacyRefusal;
+
   const containerRefusal = refuseWhenContainerOwnsProduction(deps);
   if (containerRefusal != null) return containerRefusal;
 
@@ -332,6 +348,9 @@ export function runServiceStopCommand(deps: LocalProdServiceDeps = defaultLocalP
 }
 
 export function runServiceRestartCommand(deps: LocalProdServiceDeps = defaultLocalProdServiceDeps()): number {
+  const legacyRefusal = refuseWhenLegacyRetired("service:restart");
+  if (legacyRefusal != null) return legacyRefusal;
+
   const containerRefusal = refuseWhenContainerOwnsProduction(deps);
   if (containerRefusal != null) return containerRefusal;
 

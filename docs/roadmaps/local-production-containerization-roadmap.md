@@ -5,7 +5,7 @@ production runtime with an immutable Docker image on the same machine.
 
 **Last updated:** 2026-07-26
 
-**Status:** Phase 0 **Passing** (2026-07-26). Phase 1 **Passing** (2026-07-26). Phase 2 **Passing** (2026-07-26). Phase 3 **Passing** (2026-07-26). Phase 4 **Passing** (2026-07-26).
+**Status:** Phase 0 **Passing** (2026-07-26). Phase 1 **Passing** (2026-07-26). Phase 2 **Passing** (2026-07-26). Phase 3 **Passing** (2026-07-26). Phase 4 **Passing** (2026-07-26). Phase 5 **Passing** (2026-07-26). **Track complete.**
 
 **Related:** [Local Development and Production](./local-dev-production-roadmap.md),
 [Shared Cache Topology](./shared-cache-topology-roadmap.md),
@@ -23,9 +23,7 @@ production runtime with an immutable Docker image on the same machine.
   Docker image while preserving host-native Next.js development.
 - **Secondary:** Operations, security, and testing — replace `launchd` lifecycle
   ownership, preserve deploy/rollback guarantees, and prove container recovery.
-- **Architecture review:** **Required** — self-review **Pending**. This changes the
-  production runtime, dependency networking, secret loading, writable state,
-  deployment, rollback, and broker-sidecar boundary.
+- **Architecture review:** **Required** — self-review **Passed** (Phase 5 cutover).
 - **Assumptions:**
   - One macOS host; development remains `next dev` on `127.0.0.1:3003`.
   - Production remains private and loopback-only on `127.0.0.1:3000`.

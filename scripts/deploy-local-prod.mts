@@ -8,6 +8,7 @@ import { runDeployHealthGate } from "./deploy-health-gate.mts";
 import { classifyMigrationChanges } from "./deploy-migration-policy.mts";
 import { loadProfileEnvIntoProcess } from "./load-deploy-env.mts";
 import {
+  assertLegacyProductionNotRetired,
   defaultLocalProdDeps,
   isLaunchAgentLoaded,
   loadDeployInputSync,
@@ -251,6 +252,11 @@ export async function runDeployCommand(
   options: DeployLocalProdOptions,
   deps: DeployLocalProdDeps = defaultDeployLocalProdDeps(),
 ): Promise<number> {
+  const retired = assertLegacyProductionNotRetired("deploy");
+  if (retired) {
+    console.error(retired);
+    return 1;
+  }
   if (!options.revision) {
     console.error("Error: --revision is required for deploy.");
     console.error("  npm run local:prod:deploy -- --revision <sha|tag>");
@@ -378,6 +384,11 @@ export async function runRollbackCommand(
   options: DeployLocalProdOptions,
   deps: DeployLocalProdDeps = defaultDeployLocalProdDeps(),
 ): Promise<number> {
+  const retired = assertLegacyProductionNotRetired("rollback");
+  if (retired) {
+    console.error(retired);
+    return 1;
+  }
   const input = loadDeployInputSync(options, deps);
   const preflight = runPreflightCheck(input);
   if (preflight !== 0) return preflight;
