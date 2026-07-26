@@ -1,0 +1,64 @@
+# Local development and production — Phase 5 evidence
+# Date: 2026-07-26
+
+## Scope
+Concurrent operations proof via verify-local-environments: dual-port concurrency, build isolation,
+Postgres/Redis isolation, Redis outage/recovery, launchd process recovery, staged reboot
+checkpoint/resume, promotion, rollback, and broker ownership.
+
+## Focused
+Command:
+npm test -- --run scripts/verify-local-environments.test.ts scripts/local-data-infrastructure.test.ts scripts/local-prod.test.ts scripts/local-prod-service.test.ts scripts/deploy-local-prod.test.ts scripts/load-deploy-env.test.ts scripts/validate-local-deploy.test.ts src/lib/observability/readyzProbe.test.ts src/app/api/market-data/health/route.test.ts
+Output:
+Test Files  9 passed (9)
+Tests  118 passed (118)
+
+## Startup
+Command: npm run check:startup
+Output:
+Instruction architecture validation passed.
+Test Files  1 passed (1)
+Tests  2 passed (2)
+
+## App-level — verify matrix
+Command: npm run local:prod:verify -- all --skip-infra
+Output:
+verify.scenario=concurrent pass=true
+production.readyz_url_target=3000
+verify.scenario=build-isolation pass=true
+verify.scenario=isolation pass=true overall=pass
+verify.scenario=database-isolation pass=true
+verify.scenario=broker-ownership pass=true
+verify.scenario=reboot-prepare pass=true reboot.checkpoint=armed
+
+Command: npm run local:prod:verify -- --allow-disruptive redis-outage --skip-infra
+Output:
+verify.scenario=redis-outage pass=true
+production.readyz=false reasons=redis_unavailable
+production.readyz.recovered=true
+
+Command: npm run local:prod:verify -- --allow-disruptive process-recovery --skip-infra
+Output:
+verify.scenario=process-recovery pass=true
+production.restarted=yes production.readyz=true
+
+Command: npm run local:prod:verify -- --allow-disruptive promotion --revision-good 5aa83b9 --skip-infra
+Output:
+verify.scenario=promotion pass=true production.deploy.exit=0 production.health_gate=pass
+
+Command: npm run local:prod:verify -- --allow-disruptive rollback --revision-bad 2b4d57c --skip-infra
+Output:
+verify.scenario=rollback pass=true production.deploy.failed.exit=1 production.rollback.exit=0 production.health_gate=pass
+
+Command: npm run local:prod:verify -- reboot-resume --skip-infra
+Output:
+verify.scenario=reboot-resume pass=true reboot.operational_recovery=pass development.listeners=none production.readyz=true
+
+## Build
+Command: npm run local:prod:build
+Output:
+production.build=pass revision=5aa83b921c51a7dadc625101076301ce765ac03d buildId=MYHpo1eOme7vfweImqxda
+exit=0
+
+## Architecture review
+Self-review Passed — verifier composes Phase 0–4 helpers; disruptive scenarios gated; redacted output; reboot checkpoint under .edge/local-prod/verify-state.json.

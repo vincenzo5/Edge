@@ -232,7 +232,8 @@ development may fall back when Redis is unavailable. The paired profiles are
 checked by `npm run local:deploy:preflight`. Shared Docker Postgres/Redis are
 started with `npm run local:infra:up`; `edge_dev` and `edge_prod` are provisioned
 by `npm run local:infra:provision`; isolation is proven by
-`npm run local:infra:verify`. Cleanup and deploy automation must target one
+`npm run local:infra:verify` and the Phase 5 verifier
+(`npm run local:prod:verify -- isolation`). Cleanup and deploy automation must target one
 `edge:{env}:…` root and must never issue `FLUSHALL` or `FLUSHDB`.
 Development defaults to `TWS_ENABLED=false`, leaving production as the only
 owner of broker-sidecar recovery. Full topology and later infrastructure work:

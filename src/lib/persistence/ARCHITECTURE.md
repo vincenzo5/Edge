@@ -125,7 +125,7 @@ npm run dev:lite
 - **`npm run dev:lite`** — app only, no infrastructure bootstrap. Persistence sync hooks still run when `DATABASE_URL` is set, but without Postgres you get `401` on `/api/me/*` and localStorage remains the effective store (including `edge.journal.v1` for the trading journal).
 - **Shutdown** — Ctrl+C stops only the Next.js dev server. Postgres and Redis keep running (`restart: unless-stopped`). Stop containers with `npm run db:down`.
 - **Requirements** — `DATABASE_URL` targeting `edge_dev`, `EDGE_AUTH_SECRET` (non-placeholder), and Docker. Optional `EDGE_DEV_PASSPHRASE` requires the login banner before sync works. Local dev may set `EDGE_ALLOW_OPEN_DEV_SESSION=1` for silent bootstrap (non-production only).
-- **Isolation proof** — `npm run local:infra:verify` checks Postgres and Redis separation for concurrent dev/prod profiles.
+- **Isolation proof** — `npm run local:infra:verify` checks Postgres and Redis separation for concurrent dev/prod profiles; `npm run local:prod:verify -- database-isolation` re-probes cross-database writes.
 
 ## Verification
 

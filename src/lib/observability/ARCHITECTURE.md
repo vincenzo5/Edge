@@ -207,6 +207,18 @@ Production configuration failures use fixed field/reason messages and never
 print dotenv source lines, credentials, or connection URLs. See
 [Local Development and Production Roadmap](../../../docs/roadmaps/local-dev-production-roadmap.md).
 
+Phase 5 adds a redaction-safe concurrent-operations verifier
+(`scripts/verify-local-environments.mts`) and
+`npm run local:prod:verify -- <scenario|all>`. The default `all` matrix runs
+non-disruptive scenarios (concurrent ports, build isolation, Postgres/Redis
+isolation, database isolation, broker ownership) plus `reboot-prepare`.
+Disruptive scenarios (`redis-outage`, `process-recovery`, `promotion`,
+`rollback`) require `--allow-disruptive`. Host reboot proof is staged:
+`reboot-prepare` checkpoints the boot marker under gitignored
+`.edge/local-prod/verify-state.json`; after a manual reboot, run
+`reboot-resume` to confirm Docker + launchd production recovery while
+development stays stopped. Append evidence with `--output docs/evidence/...`.
+
 ---
 
 ## Operator runbook
@@ -221,6 +233,7 @@ print dotenv source lines, credentials, or connection URLs. See
 | Do I need to wake up? | `npm run watch:readyz` (cron) + `EDGE_ALERT_WEBHOOK_URL`; Data Health UI for human triage after alert |
 | Promote a tested revision? | `npm run local:prod:deploy -- --revision <sha>` then confirm `npm run local:prod:status` shows deploy.current + ready probes |
 | Recover from a bad deploy? | `npm run local:prod:rollback` restores deploy.previous and re-runs the health gate |
+| Prove concurrent dev + prod? | `npm run local:prod:verify -- all` then `--allow-disruptive <scenario>`; reboot: `reboot-prepare` → manual reboot → `reboot-resume` |
 
 After a readiness alert: confirm `/readyz` reason codes, check Postgres/Redis/TWS sidecar, then `report:production-errors` and `report:trading-audit` for correlated failures.
 
