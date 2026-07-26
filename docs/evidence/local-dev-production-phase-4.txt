@@ -1,0 +1,44 @@
+# Local development and production — Phase 4 evidence
+# Date: 2026-07-26
+
+## Scope
+Revision-gated promotion and rollback for local production: deploy/rollback CLI, migration safety,
+deploy revision state, fail-closed health gate (healthz/readyz/cache), launchd coordination.
+
+## Focused
+Command:
+npm test -- --run scripts/deploy-local-prod.test.ts scripts/local-prod.test.ts scripts/local-prod-service.test.ts scripts/load-deploy-env.test.ts scripts/validate-local-deploy.test.ts src/lib/observability/readyzProbe.test.ts src/app/api/market-data/health/route.test.ts
+Output:
+Test Files  7 passed (7)
+Tests  95 passed (95)
+
+## Package/build
+Command:
+npm run typecheck -w @edge/chart-react && npm run build:packages
+Output: exit 0
+
+## Known-good deploy
+Command:
+npx tsx scripts/deploy-local-prod.mts deploy --revision 5aa83b9 --skip-infra --skip-startup
+Output:
+production.deploy=pass revision=5aa83b921c51a7dadc625101076301ce765ac03d buildId=sdkc9kbG2cWywMc53IcAK health_gate=pass
+
+## App-level probes (post-deploy)
+healthz={"ok":true}
+readyz={"ok":true}
+cache.kind=redis cache.degraded=false
+
+## Failed candidate + rollback
+Command:
+npx tsx scripts/deploy-local-prod.mts deploy --revision 2b4d57c --skip-infra --skip-startup
+Output:
+production.deploy=failed revision=2b4d57ce392794c30a8c085829b6bcf2112bd166 health_gate=readyz_invalid_response
+exit=1
+
+Command:
+npx tsx scripts/deploy-local-prod.mts rollback --skip-infra --skip-startup
+Output:
+production.rollback=pass revision=5aa83b921c51a7dadc625101076301ce765ac03d buildId=bMYHGZOTKRI-13HW5Zowe health_gate=pass
+exit=0
+
+deploy.current=5aa83b921c51a7dadc625101076301ce765ac03d after rollback
