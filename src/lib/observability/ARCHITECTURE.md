@@ -233,7 +233,7 @@ phases.
 | Production secrets | `.env.production.local` in worktree (0600) | `.edge/local-prod/production.env` in dev checkout (0600) |
 | Production Postgres/Redis | `localhost:5432/edge_prod`, `redis://localhost:6379` | Compose DNS `postgres:5432`, `redis://redis:6379` inside container |
 | Development deps | `localhost` loopback | unchanged |
-| Identity | worktree SHA + `.next/BUILD_ID` | image tag + OCI revision label + digest in deploy state |
+| Identity | worktree SHA + `.next/BUILD_ID` | image tag `edge-app:<full-git-sha>` + OCI `org.opencontainers.image.revision` label (+ digest in deploy state Phase 4) |
 | Logs | `.edge/local-prod/local-prod.log` + launchd files | Docker stdout/stderr with rotation |
 | Deploy state | `.edge/local-prod/deploy-revisions.json` (host CLI) | same file; tracks image SHA/digest instead of worktree promotion |
 | Readiness watcher | host `npm run watch:readyz` on `:3000` | unchanged target URL |
@@ -244,6 +244,14 @@ Static validation lives in `scripts/validate-local-deploy.mts`:
 `validateContainerLocalDeploy()` for the container successor. Both formatters
 stay secret-free. Port-ownership guard rejects simultaneous LaunchAgent load and
 container bind on `:3000`.
+
+Phase 1 adds `Dockerfile`, `.dockerignore`, Next.js `output: 'standalone'`, and
+`scripts/build-app-image.mts` (`npm run image:{build,inspect,migrate:build}`).
+Runtime images are tagged `edge-app:<full-git-sha>`, run as non-root user
+`edge`, expose `/healthz` for Docker healthchecks, and are scanned for forbidden
+paths (`.git`, `node_modules`, env files, `.edge`, `.next`) before promotion.
+Build-time allowlisted `NEXT_PUBLIC_*` values only; runtime secrets load from
+`.edge/local-prod/production.env` at container start (Phase 2+).
 
 Health/readiness contracts are unchanged: `/healthz` and `/readyz` remain cheap
 and secret-free; production deploy health gate still requires Redis

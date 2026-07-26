@@ -2,6 +2,7 @@ import { buildSecurityHeaderRoutes } from "./src/lib/security/httpHeaders.mjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   transpilePackages: ['@edge/chart-core', '@edge/chart-react', '@edge/ai-tools-core', '@edge/indicator-runtime'],
   serverExternalPackages: ['ioredis'],
   async headers() {

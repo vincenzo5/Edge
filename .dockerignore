@@ -1,0 +1,48 @@
+# Git and VCS
+.git
+.gitignore
+
+# Dependencies and build output
+node_modules
+**/node_modules
+.next
+**/dist
+**/.cache
+*.tsbuildinfo
+
+# Local secrets and operator state
+.edge
+.env
+.env.*
+!.env.example
+
+# Durable user data (mounted at runtime in Phase 2+)
+data/journal-screenshots
+data/copilot-attachments
+data/pattern-library
+
+# Non-runtime content
+coverage
+docs
+examples
+.tools
+*.log
+.DS_Store
+.vscode
+.idea
+.cursor
+.github
+.githooks
+playwright-report
+test-results
+yt
+
+# Tests (not needed in production image build)
+scripts/*test*
+**/*.test.ts
+**/*.test.tsx
+
+# IB Gateway local config
+services/ib-gateway/.env
+services/ib-gateway/tws_settings_live
+services/ib-gateway/tws_settings_paper
