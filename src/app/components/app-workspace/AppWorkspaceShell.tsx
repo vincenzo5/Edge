@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import ModuleRouteTracker from "@/app/components/home/ModuleRouteTracker";
@@ -20,13 +20,17 @@ type Props = {
 function WorkspaceHeaderRegistration() {
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
-  useRegisterHeaderCenterSlot(
-    <div
-      ref={setPortalTarget}
-      data-testid="workspace-header-controls-portal"
-      className="flex min-w-0 flex-1 items-center justify-center"
-    />,
+  const headerSlot = useMemo(
+    () => (
+      <div
+        ref={setPortalTarget}
+        data-testid="workspace-header-controls-portal"
+        className="flex min-w-0 flex-1 items-center justify-center"
+      />
+    ),
+    [],
   );
+  useRegisterHeaderCenterSlot(headerSlot);
 
   if (!portalTarget) return null;
   return createPortal(<WorkspaceHeaderControls />, portalTarget);

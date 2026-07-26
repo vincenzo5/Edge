@@ -6,6 +6,10 @@ import { useEffect } from "react";
 import AppWorkspaceShell from "./AppWorkspaceShell";
 import { useAppWorkspace } from "./AppWorkspaceContext";
 import { useScriptLibraryMountRequest } from "./ScriptLibraryMountGate";
+import {
+  HeaderCenterSlotProvider,
+  useHeaderCenterSlot,
+} from "../home/HeaderCenterSlot";
 
 const scriptLibraryProviderSpy = vi.hoisted(() => vi.fn());
 
@@ -63,8 +67,17 @@ function AssignScriptsTileHarness() {
   return <div data-testid="scripts-tile-assigned" />;
 }
 
+function HeaderSlotMount() {
+  return <>{useHeaderCenterSlot()}</>;
+}
+
 function renderShell(children?: React.ReactNode) {
-  return render(<AppWorkspaceShell>{children}</AppWorkspaceShell>);
+  return render(
+    <HeaderCenterSlotProvider>
+      <HeaderSlotMount />
+      <AppWorkspaceShell>{children}</AppWorkspaceShell>
+    </HeaderCenterSlotProvider>,
+  );
 }
 
 describe("ScriptLibraryMountGate", () => {
@@ -80,6 +93,7 @@ describe("ScriptLibraryMountGate", () => {
       expect(screen.getByTestId("layout-tree-view")).toBeInTheDocument();
     });
 
+    expect(screen.getByTestId("workspace-header-controls-portal")).toBeInTheDocument();
     expect(screen.queryByTestId("script-library-provider")).not.toBeInTheDocument();
     expect(scriptLibraryProviderSpy).not.toHaveBeenCalled();
   });
