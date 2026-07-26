@@ -1,0 +1,81 @@
+{
+  "generatedAt": "2026-07-25T17:40:23.616Z",
+  "git": {
+    "commit": "b6dad94",
+    "branch": "main"
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "baseUrl": "http://localhost:3003",
+    "browserAvailable": true,
+    "liveTipSec": 60,
+    "soakSec": 10
+  },
+  "proposedKnobs": {
+    "RESIDENT_BAR_SOFT_MAX": 5000,
+    "sessionStorageBarThreshold": 2000,
+    "sessionStoragePayloadBytesThreshold": 2097152,
+    "dataCacheMaxEntries": 256,
+    "hotStoreMaxEntries": 128,
+    "inactiveCellLiveDefault": false
+  },
+  "scenarios": {
+    "node-simulation-loadMore": {
+      "symbol": "SPY",
+      "interval": "5m",
+      "range": "1mo",
+      "candlesLength": 4535,
+      "sessionStorageBytes": 405802,
+      "approxCandleArrayBytes": 217680,
+      "loadMoreRounds": 10,
+      "pageSize": 500,
+      "trimmedBarsTotal": 0,
+      "withinSoftMax": true,
+      "historyStillLoads": false,
+      "residentBarSoftMax": 5000,
+      "pass": true
+    },
+    "node-server-cache-warm": {
+      "candleFetchCount": 50,
+      "heapUsedBeforeMb": 112.1,
+      "heapUsedAfterMb": 117.84,
+      "rssBeforeMb": 279.05,
+      "rssAfterMb": 342.08,
+      "heapDeltaMb": 5.74,
+      "rssDeltaMb": 63.03,
+      "dataCacheTotalEntries": 50,
+      "dataCacheCandlesNamespaceEntries": 50,
+      "hotStoreEntries": 60,
+      "withinDataCacheCap": true,
+      "withinHotStoreCap": true,
+      "pass": true
+    },
+    "browser-b1-1cell-10x-loadMore": {
+      "skipped": true,
+      "reason": "dev server not reachable"
+    },
+    "browser-b2-8cell-10x-loadMore": {
+      "skipped": true,
+      "reason": "dev server not reachable"
+    },
+    "browser-b3-live-tip": {
+      "skipped": true,
+      "reason": "dev server not reachable"
+    }
+  },
+  "phase14Walks": {
+    "skipped": true,
+    "reason": "dev server not reachable"
+  },
+  "desk": {
+    "browserProcessRssMb": null,
+    "nodeRssMb": 342.08,
+    "sidecarRssMb": 48.31,
+    "redisUsedMb": null,
+    "totalKnownMb": 390.39,
+    "skippedNoSidecar": false,
+    "skippedNoRedis": true
+  }
+}
