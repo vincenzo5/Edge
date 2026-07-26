@@ -1,0 +1,52 @@
+# Crosshair snap to candle center evidence
+# Date: 2026-07-25
+
+## Scope
+Vertical crosshair snaps to the candle body/wick center under the pointer
+(TradingView-style bar-to-bar snap). Horizontal line still follows cursor Y.
+
+## Delivered
+- packages/chart-core/src/crosshair.ts — xForBarCenter, snapCrosshairXToBar;
+  buildSyncedCrosshairState uses bar center
+- packages/chart-react/src/engine/useCanvasGestures.ts — emitCrosshairMove snaps
+  free hover + pan-anchor vertical X to bar center
+- Tests: snapCrosshairXToBar unit + canvas hover snap
+- Docs: features.md, ARCHITECTURE.md, context-menu-reference.md
+
+## Focused
+Command:
+npm test -- --run src/lib/chart/crosshair.test.ts
+Output:
+Test Files  1 passed (1)
+Tests  20 passed (20)
+
+Command:
+npm test -- --run packages/chart-react/src/engine/canvas.test.tsx -t "snaps the vertical crosshair"
+Output:
+Test Files  1 passed (1)
+Tests  1 passed (1)
+
+Command:
+npm test -- --run packages/chart-react/src/engine/canvas.test.tsx -t "crosshair during pan"
+Output:
+Test Files  1 passed (1)
+Tests  3 passed (3)
+
+## Startup
+Command: npm run check:startup
+Output:
+Instruction architecture validation passed.
+Test Files  1 passed (1)
+Tests  2 passed (2)
+
+## Known unrelated
+packages/chart-react/src/engine/canvas.test.tsx cursor policy suite has 2 pre-existing failures
+(empty canvas.style.cursor); not introduced by this change. Confirmed failing without this diff.
+
+## Architecture review
+Self-review Passed — vertical snap uses shared xForBarCenter matching candle
+body/wick geometry (0.7 body width ratio); time-lock and free-follow paths
+unchanged except free X now snaps; drawing magnet (snapPlotXToCandle) unchanged.
+
+## Next
+None — reload chart and hover across bars to confirm bar-to-bar vertical snap.

@@ -1,6 +1,6 @@
 import type { Candle, CrosshairState, IndicatorConfig, VisibleRange } from './contracts';
 import { formatPrice } from './format';
-import { plotHeight } from './layout';
+import { plotHeight, plotWidth } from './layout';
 import { IndicatorRegistry } from './pluginHost';
 import { defaultValueAt } from './indicatorCompute';
 import { resolveIndicatorInputs } from './indicatorInputs';
@@ -10,6 +10,17 @@ import {
   linearScaleContext,
   toScaleCoord,
 } from './priceScaleTransform';
+
+/** Matches candle body width in Canvas/WebGL series draw (`(plotWidth / visible) * ratio`). */
+export const CANDLE_BODY_WIDTH_RATIO = 0.7;
+
+/** Plot X of the candle body/wick center for a data index. */
+export function xForBarCenter(dataIndex: number, vp: VisibleRange): number {
+  const visible = vp.endIndex - vp.startIndex;
+  if (visible <= 0) return vp.xForIndex(dataIndex);
+  const bodyWidth = (plotWidth(vp.width) / visible) * CANDLE_BODY_WIDTH_RATIO;
+  return vp.xForIndex(dataIndex) + bodyWidth / 2;
+}
 
 /** Map plot-area Y (0..plotHeight) to raw price via viewport helpers. */
 export function priceForPlotY(
@@ -114,6 +125,18 @@ export function clampIndexToViewport(index: number, vp: VisibleRange): number {
   return Math.max(vp.startIndex, Math.min(vp.endIndex, index));
 }
 
+/**
+ * TradingView-style vertical crosshair snap: map pointer X to the bar column
+ * under the cursor, then place the line at that candle's body/wick center.
+ */
+export function snapCrosshairXToBar(
+  plotX: number,
+  vp: VisibleRange,
+): { plotX: number; dataIndex: number } {
+  const dataIndex = vp.indexForX(plotX);
+  return { plotX: xForBarCenter(dataIndex, vp), dataIndex };
+}
+
 export function buildSyncedCrosshairState(args: {
   dataIndex: number;
   vp: VisibleRange;
@@ -123,7 +146,7 @@ export function buildSyncedCrosshairState(args: {
   segment: { top: number; height: number; showTimeAxis: boolean };
 }): import('./contracts').CrosshairState {
   const { dataIndex, vp, candles, indicators, interval, segment } = args;
-  const plotX = vp.xForIndex(dataIndex);
+  const plotX = xForBarCenter(dataIndex, vp);
   const plotY = plotHeight(segment.height, segment.showTimeAxis) / 2;
   const candle = candles[dataIndex];
   return {

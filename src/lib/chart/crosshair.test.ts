@@ -8,6 +8,8 @@ import {
   findDataIndexForTimestamp,
   clampIndexToViewport,
   crosshairStatesEqual,
+  snapCrosshairXToBar,
+  xForBarCenter,
 } from '@edge/chart-core/crosshair';
 import { snapPlotXToCandle } from '@edge/chart-core/drawingCoords';
 import { registerIndicator } from '@edge/chart-core/indicators/registry';
@@ -145,6 +147,50 @@ describe('clampIndexToViewport', () => {
     const vp = createViewport(sample, 800, 400, 3);
     expect(clampIndexToViewport(-5, vp)).toBe(vp.startIndex);
     expect(clampIndexToViewport(999, vp)).toBe(vp.endIndex);
+  });
+});
+
+describe('snapCrosshairXToBar', () => {
+  it('always snaps pointer X to the candle body/wick center under the cursor', () => {
+    const vp = attachViewportHelpers(
+      {
+        ...createViewport(longSample, 800, 400, 30),
+        startIndex: 100,
+        endIndex: 130,
+      },
+      longSample.length,
+    );
+    const slotLeft = vp.xForIndex(120);
+    const slotRight = vp.xForIndex(121);
+    const offsetX = slotLeft + (slotRight - slotLeft) * 0.25;
+
+    const snapped = snapCrosshairXToBar(offsetX, vp);
+
+    expect(snapped.dataIndex).toBe(120);
+    expect(snapped.plotX).toBe(xForBarCenter(120, vp));
+    expect(snapped.plotX).not.toBe(offsetX);
+    expect(snapped.plotX).toBeGreaterThan(slotLeft);
+  });
+
+  it('keeps the same center while the pointer stays within the same bar column', () => {
+    const vp = attachViewportHelpers(
+      {
+        ...createViewport(longSample, 800, 400, 30),
+        startIndex: 100,
+        endIndex: 130,
+      },
+      longSample.length,
+    );
+    const slotLeft = vp.xForIndex(120);
+    const slotRight = vp.xForIndex(121);
+    const mid = (slotLeft + slotRight) / 2;
+    const left = snapCrosshairXToBar(slotLeft + 1, vp);
+    const right = snapCrosshairXToBar(mid, vp);
+
+    expect(left.dataIndex).toBe(120);
+    expect(right.dataIndex).toBe(120);
+    expect(left.plotX).toBe(right.plotX);
+    expect(left.plotX).toBe(xForBarCenter(120, vp));
   });
 });
 

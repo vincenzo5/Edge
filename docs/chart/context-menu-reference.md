@@ -62,7 +62,7 @@ Shown when a broker is connected and/or alerts are enabled. Labels include symbo
 
 | Item | Shortcut | Description | Edge status | Edge notes |
 |------|----------|-------------|-------------|------------|
-| **Lock vertical cursor line by time** | — | Toggle: freeze the vertical crosshair line at its current X position vs free cursor follow | **Done** | Blank menu toggle → `chartSettings.canvas.lockCrosshairToTime`; default off; locked X stored in `lockedCrosshairPlotX`; menu hover suppresses crosshair updates |
+| **Lock vertical cursor line by time** | — | Toggle: freeze the vertical crosshair line at its current (bar-snapped) X position vs bar-to-bar cursor follow | **Done** | Blank menu toggle → `chartSettings.canvas.lockCrosshairToTime`; default off; locked X stored in `lockedCrosshairPlotX`; menu hover suppresses crosshair updates |
 
 ### 1.5 View & organization
 

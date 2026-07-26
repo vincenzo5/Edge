@@ -28,7 +28,11 @@ import {
 } from './viewport';
 import { resetPanePriceScale } from './indicatorScale';
 import { formatAxisTime } from '@edge/chart-core/time';
-import { formatCrosshairValue } from '@edge/chart-core/crosshair';
+import {
+  formatCrosshairValue,
+  snapCrosshairXToBar,
+  xForBarCenter,
+} from '@edge/chart-core/crosshair';
 import { clampPlot } from '@edge/chart-core/drawingCoords';
 import {
   computeDrawingHoverHit,
@@ -214,15 +218,20 @@ export function useCanvasGestures({
 
       if (anchor && !useLockedPlotX) {
         idx = anchor.dataIndex;
-        crosshairX = vp.xForIndex(idx);
+        crosshairX = xForBarCenter(idx, vp);
         plotY = Math.max(0, Math.min(ph, vp.yForPrice(anchor.price)));
       } else {
         const pointerCrosshairX = Math.max(0, Math.min(pw, localX - plotOffset));
-        crosshairX = useLockedPlotX
-          ? Math.max(0, Math.min(pw, lockedPlotX))
-          : pointerCrosshairX;
+        if (useLockedPlotX) {
+          crosshairX = Math.max(0, Math.min(pw, lockedPlotX));
+          idx = vp.indexForX(crosshairX);
+        } else {
+          // Snap vertical line to the center of the bar under the pointer.
+          const snapped = snapCrosshairXToBar(pointerCrosshairX, vp);
+          crosshairX = Math.max(0, Math.min(pw, snapped.plotX));
+          idx = snapped.dataIndex;
+        }
         plotY = Math.max(0, Math.min(ph, localY));
-        idx = vp.indexForX(crosshairX);
       }
 
       const candle = idx >= 0 && idx < candles.length ? candles[idx] : null;

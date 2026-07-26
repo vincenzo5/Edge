@@ -5,6 +5,7 @@ import ChartCanvas from './canvas';
 import type { ChartPaneHandle } from './paneHandle';
 import type { Candle, SerializedDrawing } from '@edge/chart-core/contracts';
 import { PRICE_AXIS_WIDTH, TIME_AXIS_HEIGHT } from '@edge/chart-core/layout';
+import { xForBarCenter } from '@edge/chart-core/crosshair';
 import { layoutEventBadgeGroups } from './eventBadges';
 
 const candles: Candle[] = Array.from({ length: 200 }, (_, i) => ({
@@ -383,6 +384,34 @@ describe('ChartCanvas crosshair during pan', () => {
     return (width - PRICE_AXIS_WIDTH) / 2;
   }
 
+  it('snaps the vertical crosshair to the hovered bar center', () => {
+    const width = 800;
+    const height = 400;
+    const onCrosshairMove = vi.fn();
+    const { container, getHandle } = renderChartCanvas(width, height, { onCrosshairMove });
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('canvas not found');
+
+    const bodyX = plotBodyClientX(width);
+    const y = height / 2;
+    fireEvent.mouseMove(canvas, { clientX: bodyX, clientY: y });
+    const first = onCrosshairMove.mock.calls.at(-1)?.[0];
+    expect(first).toBeDefined();
+
+    onCrosshairMove.mockClear();
+    fireEvent.mouseMove(canvas, { clientX: bodyX + 4, clientY: y });
+    const second = onCrosshairMove.mock.calls.at(-1)?.[0];
+    expect(second).toBeDefined();
+
+    const vp = getHandle().getViewport()!;
+    expect(first.plotX).toBeCloseTo(xForBarCenter(first.dataIndex, vp), 1);
+    expect(second.plotX).toBeCloseTo(xForBarCenter(second.dataIndex, vp), 1);
+    // Small move within the same bar column keeps the vertical line fixed.
+    if (first.dataIndex === second.dataIndex) {
+      expect(second.plotX).toBe(first.plotX);
+    }
+  });
+
   it('keeps crosshair anchored to the clicked chart position while panning', () => {
     const width = 800;
     const height = 400;
@@ -408,7 +437,7 @@ describe('ChartCanvas crosshair during pan', () => {
     expect(panEvent.plotX).not.toBe(hoverEvent.plotX);
 
     const vp = getHandle().getViewport()!;
-    expect(panEvent.plotX).toBeCloseTo(vp.xForIndex(hoverEvent.dataIndex), 1);
+    expect(panEvent.plotX).toBeCloseTo(xForBarCenter(hoverEvent.dataIndex, vp), 1);
     expect(panEvent.localY).toBe(panEvent.plotY);
 
     fireEvent.mouseUp(canvas);
