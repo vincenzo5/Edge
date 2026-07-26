@@ -56,6 +56,8 @@ Drizzle ORM + Postgres
 | Research sessions | `/api/me/research-sessions` | `src/lib/research/sessionSketch.ts`, `boardSessionStore.ts`, `researchSessionsClient.ts` |
 | Broker connections | `/api/me/connections` (GET list), `/api/me/connections/[id]` (GET, PATCH), `/api/me/connections/[id]/reconnect`, `/api/me/connections/[id]/disconnect` | `connections.ts` + `connectionsRepository.ts` + `src/lib/connections/ARCHITECTURE.md` |
 | Trading journal | `/api/me/journal/fills`, `/api/me/journal/trades`, `/api/me/journal/trades/[id]`, `/api/me/journal/trades/rebuild`, `/api/me/journal/import` | `journal.ts` + `journalClient.ts` + `src/lib/journal/ARCHITECTURE.md` |
+| Trading audit (durable) | `/api/me/trading-audit` (GET) | `tradingAuditRepository.ts`; dual-write from `src/lib/trading/tradingAuditPersist.ts` — see [observability/ARCHITECTURE.md](../observability/ARCHITECTURE.md) |
+| Production errors (durable) | `/api/me/production-errors` (GET, POST) | `productionErrorRepository.ts`; ingest via `productionErrorPersist.ts` / `reportLocalError` — see [observability/ARCHITECTURE.md](../observability/ARCHITECTURE.md) |
 | Order intents | No `/api/me/*` route — server-only via `TradingService` / `resolveServerIntentStore()` | Migration `0005_order_intents.sql` + `intentRepository.ts`; consumed by `src/lib/trading/postgresIntentStore.ts` (memory fallback when `DATABASE_URL` unset) |
 | Broker ledger ingest | `/api/cron/brokerage-ingest` (GET/POST); `/api/me/brokerage-ingest/status`; `/api/me/account-snapshots` | Migrations `0006`–`0008`; `brokerIngestRepository.ts`, `accountSnapshotRepository.ts`, `positionSnapshotRepository.ts`; consumed by `src/lib/brokerage/ingest/` |
 

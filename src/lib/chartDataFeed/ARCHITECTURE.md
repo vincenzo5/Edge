@@ -103,8 +103,8 @@ Full track: [Memory Efficiency Roadmap](../../../docs/roadmaps/memory-efficiency
 
 | Knob | Frozen default | Notes |
 |------|----------------|-------|
-| `RESIDENT_BAR_SOFT_MAX` | **5_000** | Phase 1 **shipped** — trims oldest bars after merge/prefetch when exceeded; preserve live tip |
-| History page size | **500** (`HISTORY_FETCH_BAR_COUNT`) | Unchanged; do not prefetch past soft max once Phase 1 ships |
+| `RESIDENT_BAR_SOFT_MAX` | **5_000** | Cap resident RAM. Live-side merge/tip paths use `trimResidentBars` (drop oldest, keep tip). History prepends use `trimResidentBarsAfterPrepend` (keep older window, drop newest) so paging past the soft max retains the fetched older page instead of snapping back to the live-side cache |
+| History page size | **500** (`HISTORY_FETCH_BAR_COUNT`) | Unchanged; horizontal paging may continue past soft max via older-window trim |
 | Inactive cell `live` | **`false`** on non-primary chart tiles | Primary Desk tile: all visible cells stream live; identical tuples share one transport |
 | Inactive cell engine | **Unmounted** only on resource-gated surfaces (research board off-focus, explicit `mountChartEngine={false}`) | Desk `ChartGrid` passes `mountChartEngine` for every visible cell; `InactiveChartSurface` remains for gated callers; flush viewport/drawings to `CellConfig` before genuine teardown |
 | sessionStorage gate | skip when `candles.length > 2_000` or payload ≳ **2 MB** | Phase 3 **shipped** — memory cache still works |
@@ -120,7 +120,7 @@ Server-side byte/LRU budgets for `DataCache` / `HotStore` are documented in [mar
 
 **General client TTL (Phase 1):** Search, fundamentals, overlays, and market context reuse `ClientTtlCache` via `getOrFetchClientTtl` / per-loader cache in `apiChartDataFeed.ts`. Candles remain on `chartClientCache.ts` only — see [marketData/ARCHITECTURE.md](../marketData/ARCHITECTURE.md) client cache section.
 
-`postCandles` / `postQuotes` coalesce identical in-flight REST requests via `coalesceInFlight.ts`. Loads with an explicit `AbortSignal` bypass coalesce so symbol/range changes can cancel stale fetches.
+`postCandles` / `postQuotes` coalesce identical in-flight REST requests via `coalesceInFlight.ts`. Loads with an explicit `AbortSignal` bypass coalesce so symbol/range changes can cancel stale fetches. Do **not** wrap per-cell `useChartDataFeed` loads in hook-level `coalesceInFlight` that shares one `AbortSignal` across cells — peer unmount would abort the shared promise and blank every chart on the grid. Stream fan-out for identical live tuples stays in `sharedCandleStreamRegistry` only.
 
 ## Key Files
 
