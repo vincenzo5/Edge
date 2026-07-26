@@ -6,6 +6,8 @@ Run a stable production build and the active development server concurrently on 
 
 **Status:** Phase 0 **Passing** (2026-07-25); Phase 1 **Passing** (2026-07-25); Phase 2 **Passing** (2026-07-25); Phase 3 **Passing** (2026-07-25); Phase 4 **Passing** (2026-07-26); Phase 5 **Passing**.
 
+**Successor:** [Local Production Containerization](./local-production-containerization-roadmap.md) preserves host-native development while replacing this track's production worktree + LaunchAgent runtime with an immutable Docker image.
+
 **Related:** [Shared Cache Topology](./shared-cache-topology-roadmap.md), [Production Observability](./production-observability-roadmap.md), [Security Hardening](./security-hardening-roadmap.md), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Observability Architecture](../../src/lib/observability/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
 ---
