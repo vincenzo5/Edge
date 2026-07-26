@@ -19,9 +19,13 @@ async function parseJson<T>(response: Response): Promise<T | null> {
   }
 }
 
+function shouldUseLocalStore(response: Response): boolean {
+  return response.status === 401 || response.status === 503;
+}
+
 export async function fetchNotifications(): Promise<NotificationListResult> {
   const response = await fetch("/api/me/notifications", { cache: "no-store" });
-  if (response.status === 503) {
+  if (shouldUseLocalStore(response)) {
     const notifications = listLocalNotifications();
     return {
       notifications,
@@ -43,7 +47,7 @@ export async function createNotification(input: CreateNotificationInput): Promis
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (response.status === 503) {
+  if (shouldUseLocalStore(response)) {
     return addLocalNotification({
       source: input.source ?? "system",
       title: input.title,
@@ -69,7 +73,7 @@ export async function patchNotification(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
-  if (response.status === 503) {
+  if (shouldUseLocalStore(response)) {
     if (patch.dismiss) return dismissLocalNotification(notificationId);
     if (patch.read) return markLocalNotificationRead(notificationId);
     return null;
@@ -83,7 +87,7 @@ export async function markAllNotificationsRead(): Promise<number> {
   const response = await fetch("/api/me/notifications/mark-all-read", {
     method: "POST",
   });
-  if (response.status === 503) {
+  if (shouldUseLocalStore(response)) {
     return markAllLocalNotificationsRead();
   }
   if (!response.ok) throw new Error("Could not mark notifications read.");

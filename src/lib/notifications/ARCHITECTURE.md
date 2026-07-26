@@ -4,7 +4,7 @@ In-app notification delivery for Edge — bell inbox, toast viewport, and server
 
 ## Model
 
-- **Notification events** are append-only records (`notification_events` in Postgres; `edge:notifications:v1` in localStorage when persistence returns 503).
+- **Notification events** are append-only records (`notification_events` in Postgres; `edge:notifications:v1` in localStorage when persistence is unavailable or the browser has no persistence session).
 - **Emit path:** server code calls `emitNotification()` in [`emitNotification.ts`](./emitNotification.ts) → [`notificationRepository.ts`](../persistence/repositories/notificationRepository.ts).
 - **Dedupe:** same `dedupeKey` within 30s is suppressed (see [`dedupe.ts`](./dedupe.ts)).
 
@@ -12,7 +12,7 @@ In-app notification delivery for Edge — bell inbox, toast viewport, and server
 
 - [`NotificationProvider.tsx`](../../app/components/notifications/NotificationProvider.tsx) polls `/api/me/notifications`, drives toast + inbox state.
 - [`NotificationBellMenu.tsx`](../../app/components/notifications/NotificationBellMenu.tsx) lives in `AppTopHeader`.
-- [`notificationClient.ts`](./notificationClient.ts) falls back to [`localNotificationStore.ts`](./localNotificationStore.ts) on 503.
+- [`notificationClient.ts`](./notificationClient.ts) falls back to [`localNotificationStore.ts`](./localNotificationStore.ts) on 401 or 503, so optional persistence does not produce rejected polling promises.
 
 ## API
 

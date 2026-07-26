@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import type { QuoteSnapshot } from "@/lib/watchlist/types";
 import {
   getAllQuotes,
@@ -9,6 +9,8 @@ import {
   subscribeQuote,
   subscribeQuotesGlobal,
 } from "./quotesStore";
+
+const EMPTY_QUOTES: QuoteSnapshot[] = [];
 
 export function useQuote(symbol: string | null | undefined): QuoteSnapshot | null {
   const normalized = symbol?.trim().toUpperCase() ?? "";
@@ -24,11 +26,9 @@ export function useQuote(symbol: string | null | undefined): QuoteSnapshot | nul
 }
 
 export function useQuotesForSymbols(symbols: string[]): QuoteSnapshot[] {
-  const normalized = useMemo(
-    () => [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))],
-    [symbols],
-  );
-  const key = normalized.join(",");
+  const key = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].join(",");
+  const normalized = useMemo(() => (key ? key.split(",") : []), [key]);
+  const snapshotRef = useRef<QuoteSnapshot[]>(EMPTY_QUOTES);
   const subscribe = useCallback(
     (listener: () => void) => {
       if (normalized.length === 0) return () => {};
@@ -37,14 +37,23 @@ export function useQuotesForSymbols(symbols: string[]): QuoteSnapshot[] {
         for (const unsub of unsubs) unsub();
       };
     },
-    [key, normalized],
+    [normalized],
   );
   const getSnapshot = useCallback(() => {
-    return normalized
+    const next = normalized
       .map((sym) => getQuote(sym))
       .filter((row): row is QuoteSnapshot => row != null);
-  }, [key, normalized]);
-  return useSyncExternalStore(subscribe, getSnapshot, () => []);
+    const previous = snapshotRef.current;
+    if (
+      previous.length === next.length &&
+      previous.every((quote, index) => quote === next[index])
+    ) {
+      return previous;
+    }
+    snapshotRef.current = next;
+    return next;
+  }, [normalized]);
+  return useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_QUOTES);
 }
 
 export function useQuoteCount(): number {
