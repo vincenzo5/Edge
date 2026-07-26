@@ -16,6 +16,7 @@ import {
   runPreflightCheck,
   type LocalProdOptions,
 } from "./local-prod.mts";
+import { assertLegacyProductionStartAllowed } from "./port-ownership.mts";
 
 export const LOCAL_PROD_SERVICE_LABEL = "com.edge.local-prod";
 export const PLIST_TEMPLATE_PATH = join(process.cwd(), "ops/launchd/com.edge.local-prod.plist.template");
@@ -236,6 +237,9 @@ export async function runInstallCommand(
   options: LocalProdServiceOptions,
   deps: LocalProdServiceDeps = defaultLocalProdServiceDeps(options.developmentRoot),
 ): Promise<number> {
+  const containerRefusal = refuseWhenContainerOwnsProduction(deps);
+  if (containerRefusal != null) return containerRefusal;
+
   const preflight = runPreflightCheck(loadDeployInputSync(options, defaultLocalProdDeps()));
   if (preflight !== 0) {
     console.error("Service install aborted: preflight failed.");
@@ -288,7 +292,21 @@ export function runUninstallCommand(
   return 0;
 }
 
+function refuseWhenContainerOwnsProduction(
+  deps: Pick<LocalProdServiceDeps, "execFile">,
+): number | null {
+  const error = assertLegacyProductionStartAllowed({ execFile: deps.execFile });
+  if (error) {
+    console.error(error);
+    return 1;
+  }
+  return null;
+}
+
 export function runServiceStartCommand(deps: LocalProdServiceDeps = defaultLocalProdServiceDeps()): number {
+  const containerRefusal = refuseWhenContainerOwnsProduction(deps);
+  if (containerRefusal != null) return containerRefusal;
+
   if (!isLaunchAgentInstalled(deps)) {
     console.error("LaunchAgent is not installed. Run: npm run local:prod:service:install");
     return 1;
@@ -314,6 +332,9 @@ export function runServiceStopCommand(deps: LocalProdServiceDeps = defaultLocalP
 }
 
 export function runServiceRestartCommand(deps: LocalProdServiceDeps = defaultLocalProdServiceDeps()): number {
+  const containerRefusal = refuseWhenContainerOwnsProduction(deps);
+  if (containerRefusal != null) return containerRefusal;
+
   if (!isLaunchAgentInstalled(deps)) {
     console.error("LaunchAgent is not installed. Run: npm run local:prod:service:install");
     return 1;

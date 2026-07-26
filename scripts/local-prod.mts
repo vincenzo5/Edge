@@ -29,6 +29,7 @@ import {
   validateLocalDeploy,
   type LocalDeployInput,
 } from "./validate-local-deploy.mts";
+import { assertLegacyProductionStartAllowed } from "./port-ownership.mts";
 
 export const LOCAL_PROD_RUNTIME_DIR = ".edge/local-prod";
 export const LOCAL_PROD_PID_FILE = "local-prod.pid";
@@ -803,6 +804,14 @@ export async function runStartCommand(
     return 1;
   }
 
+  const containerOwnershipError = assertLegacyProductionStartAllowed({
+    execFile: deps.execFile,
+  });
+  if (containerOwnershipError) {
+    console.error(containerOwnershipError);
+    return 1;
+  }
+
   const buildIdPath = join(options.productionRoot, ".next", "BUILD_ID");
   if (!deps.existsSync(buildIdPath)) {
     console.error("Production build is missing. Run: npm run local:prod:build");
@@ -871,6 +880,24 @@ export async function runServiceRunCommand(
 ): Promise<number> {
   while (true) {
     clearBlockedState(options.developmentRoot, deps);
+
+    const containerOwnershipError = assertLegacyProductionStartAllowed({
+      execFile: deps.execFile,
+    });
+    if (containerOwnershipError) {
+      writeBlockedState(
+        options.developmentRoot,
+        {
+          at: new Date().toISOString(),
+          reason: "container_owns_production",
+          detail: containerOwnershipError,
+        },
+        deps,
+      );
+      console.error(`production.service-run=blocked reason=container_owns_production`);
+      await deps.sleep(LOCAL_PROD_BLOCKED_SLEEP_MS);
+      continue;
+    }
 
     const input = loadDeployInputSync(options, deps);
     const preflight = runPreflightCheck(input);

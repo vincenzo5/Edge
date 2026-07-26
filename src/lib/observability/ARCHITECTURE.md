@@ -264,6 +264,16 @@ Operator sets `EDGE_APP_IMAGE=edge-app:<full-git-sha>` before
 `docker compose up -d --wait app-prod`. Static contract validation:
 `npm run compose:validate`.
 
+Phase 3 adds `scripts/local-prod-container.mts` and
+`npm run local:prod:container:{build,migrate,start,stop,restart,status,logs,inspect}`.
+The CLI resolves `edge-app:<full-git-sha>` tags, ensures shared infra is up,
+enforces mutual exclusion with LaunchAgent/unmanaged `:3000` listeners via
+`scripts/port-ownership.mts`, and prints secret-free status/logs. Legacy
+`local:prod:*` and `local:prod:service:*` remain for the compatibility window
+but refuse start/install when the app-prod container owns port `3000`. Production
+logs move to Docker stdout/stderr (json-file rotation); request IDs and
+structured `http.access` output are preserved in container logs.
+
 Health/readiness contracts are unchanged: `/healthz` and `/readyz` remain cheap
 and secret-free; production deploy health gate still requires Redis
 `cache.kind=redis` and `cache.degraded=false`.

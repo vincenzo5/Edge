@@ -301,6 +301,27 @@ describe("runStartCommand", () => {
     const code = await runStartCommand(options, deps);
     expect(code).toBe(1);
   });
+
+  it("refuses when container production owns port 3000", async () => {
+    const options = baseOptions({ command: "start" });
+    const deps = mockDeps({
+      existsSync: (path) => String(path).endsWith("BUILD_ID") || String(path).includes(".env"),
+      readFileSync: (path) => (String(path).endsWith("BUILD_ID") ? "build-1" : ""),
+      execFile: vi.fn((file, args) => {
+        if (file === "docker" && args[0] === "inspect") {
+          const formatIndex = args.indexOf("--format");
+          const format = formatIndex >= 0 ? args[formatIndex + 1] : "";
+          if (format.includes("State.Status")) return "running";
+          if (format.includes("State.Health")) return "healthy";
+          if (format.includes("Config.Image")) return "edge-app:5aa83b921c51a7dadc625101076301ce765ac03d";
+        }
+        if (file === "launchctl" && args[0] === "print") throw new Error("not loaded");
+        return "";
+      }),
+    });
+    const code = await runStartCommand(options, deps);
+    expect(code).toBe(1);
+  });
 });
 
 describe("runStopCommand", () => {

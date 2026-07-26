@@ -1,0 +1,101 @@
+# Local production containerization — Phase 3 evidence
+# Date: 2026-07-26
+
+## Scope
+Docker-owned production lifecycle CLI with ownership guards, secret-free status/logs,
+and recovery proof. No Phase 4 deploy/rollback or Phase 5 legacy retirement.
+
+## Delivered
+- scripts/port-ownership.mts — shared LaunchAgent/container port guards
+- scripts/port-ownership.test.ts — ownership guard unit tests
+- scripts/local-prod-container.mts — build/migrate/start/stop/restart/status/logs/inspect CLI
+- scripts/local-prod-container.sh — thin launcher
+- scripts/local-prod-container.test.ts — CLI contract + redaction tests
+- scripts/local-prod.mts — legacy start/service-run refuse when container owns :3000
+- scripts/local-prod-service.mts — service install/start/restart refuse when container owns :3000
+- scripts/local-prod.test.ts — reverse ownership guard test
+- scripts/local-prod-service.test.ts — install refusal when container running
+- package.json — local:prod:container:* commands
+- .env.example — Phase 3 operator notes
+- src/lib/observability/ARCHITECTURE.md — Phase 3 lifecycle CLI + Docker log model
+
+## Architecture review
+Self-review Passed — container lifecycle uses existing Compose/image contracts;
+LaunchAgent blocking only when state is running/launching/waiting; legacy paths
+fail closed when app-prod owns :3000; status/logs omit secrets.
+
+## Focused
+Command:
+npm test -- --run scripts/port-ownership.test.ts scripts/local-prod-container.test.ts scripts/local-prod.test.ts scripts/local-prod-service.test.ts scripts/compose-app-service.test.ts scripts/validate-local-deploy.test.ts
+Output:
+Test Files  6 passed (6)
+Tests  105 passed (105)
+
+## Compose config
+Command: npm run compose:validate
+Output:
+compose.validate=pass
+app-prod.port=127.0.0.1:3000:3000
+app-prod.env_file=.edge/local-prod/production.env
+
+## App-level — CLI start + health
+Command:
+npm run local:prod:container:start -- --image edge-app:3cc72af11f3bda4b256abdd4fe0b13768088ae87 --skip-infra
+Output:
+Container edge-app-prod Healthy
+container.start=pass image=edge-app:3cc72af11f3bda4b256abdd4fe0b13768088ae87
+Command: curl -sf http://127.0.0.1:3000/healthz
+Output: {"ok":true}
+Command: curl -sf http://127.0.0.1:3000/readyz
+Output: {"ok":true}
+
+## Status (secret-free)
+Command: npm run local:prod:container:status
+Output (excerpt):
+container.state=running
+container.health=healthy
+container.sha=3cc72af11f3bda4b256abdd4fe0b13768088ae87
+container.healthz=pass
+container.readyz=pass
+deps.postgres=healthy
+deps.redis=healthy
+
+## Logs
+Command: npm run local:prod:container:logs -- --lines 5
+Output (excerpt):
+--- edge-app-prod (last 5 lines) ---
+edge-app-prod  | ✓ Ready in 0ms
+(no EDGE_API_KEY / DATABASE_URL lines in sample)
+
+## Durable state
+Wrote data/journal-screenshots/phase3-probe.txt; container restart;
+docker exec edge-app-prod cat /app/data/journal-screenshots/phase3-probe.txt
+Output: phase3-durable-1785029929
+
+## Process recovery
+Command: docker exec edge-app-prod kill -9 1; sleep 15
+Output:
+running healthy restart=unless-stopped
+Command: curl -sf http://127.0.0.1:3000/healthz
+Output: {"ok":true}
+
+## Ownership guards
+Container start refused while LaunchAgent state=running (before service:stop).
+After service:stop (SIGTERMed), container start succeeded.
+Legacy start + service install refuse when app-prod container is running (unit tests).
+
+## Startup
+Command: npm run check:startup
+Output: Instruction architecture validation passed.; Tests  2 passed (2)
+
+## Legacy regression
+Command: npm run local:prod:preflight
+Output: Local deployment preflight passed: profiles=2 issues=0; exit=0
+
+## Boot recovery (staged)
+Checkpoint: .edge/local-prod/verify-state.json phase3_boot_prepared=2026-07-26
+Resume after manual reboot: confirm Docker Desktop + edge-app-prod healthy on :3000;
+development (next dev :3003) remains stopped.
+
+## Next
+Phase 4 — image-based promotion and rollback

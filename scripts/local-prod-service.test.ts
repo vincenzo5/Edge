@@ -75,6 +75,24 @@ describe("runInstallCommand", () => {
     const code = await runInstallCommand(options, mockServiceDeps());
     expect(code).toBe(1);
   });
+
+  it("refuses when container production owns port 3000", async () => {
+    const options = parseLocalProdServiceArgs(["install"], "/Users/tester/TV AI");
+    const deps = mockServiceDeps({
+      execFile: vi.fn((file: string, args: string[]) => {
+        if (file === "docker" && args[0] === "inspect") {
+          const formatIndex = args.indexOf("--format");
+          const format = formatIndex >= 0 ? args[formatIndex + 1] : "";
+          if (format.includes("State.Status")) return "running";
+          if (format.includes("State.Health")) return "healthy";
+          if (format.includes("Config.Image")) return "edge-app:5aa83b921c51a7dadc625101076301ce765ac03d";
+        }
+        return "";
+      }),
+    });
+    const code = await runInstallCommand(options, deps);
+    expect(code).toBe(1);
+  });
 });
 
 describe("runUninstallCommand", () => {
