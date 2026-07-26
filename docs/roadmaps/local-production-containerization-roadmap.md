@@ -317,6 +317,17 @@ non-container process owns port `3000`.
 
 ---
 
+## Adjacent ops — local HTTPS front door
+
+This track intentionally kept production on loopback HTTP (`127.0.0.1:3000`).
+An optional host-local HTTPS reverse proxy (`https://edge.local` → `:3000`) is
+documented separately and does not change the container contract, readiness
+watcher default, or deploy gates.
+
+**Operator doc:** [docs/ops/local-https.md](../ops/local-https.md)
+
+---
+
 ## Harness Update
 
 Activate `Local production containerization — Phase N`; WIP=1; use a

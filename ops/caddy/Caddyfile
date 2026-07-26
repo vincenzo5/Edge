@@ -1,0 +1,11 @@
+# Loopback-only HTTPS front door for local production.
+# TLS material is generated into .edge/local-https/ via: npm run local:https:install
+# Operator runbook: docs/ops/local-https.md
+
+edge.local {
+	bind 127.0.0.1
+	tls ../../.edge/local-https/edge.local.pem ../../.edge/local-https/edge.local-key.pem
+	reverse_proxy 127.0.0.1:3000 {
+		header_up Host {host}
+	}
+}

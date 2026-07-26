@@ -1,0 +1,56 @@
+# Local HTTPS front door evidence
+# Date: 2026-07-26
+
+## Scope
+Loopback-only HTTPS reverse proxy for local production at https://edge.local → 127.0.0.1:3000.
+
+## Delivered
+- docs/ops/local-https.md — operator runbook
+- ops/caddy/Caddyfile — loopback bind + mkcert TLS paths
+- ops/launchd/com.edge.local-https.plist.template — optional login persistence
+- scripts/local-https.mts, scripts/local-https.sh, scripts/local-https.test.ts
+- package.json — local:https:* and local:https:service:* commands
+- .env.example — EDGE_PUBLIC_APP_URL pointer
+- src/lib/observability/ARCHITECTURE.md — runbook + env knob rows
+- docs/roadmaps/local-production-containerization-roadmap.md — adjacent ops note
+
+## Architecture review
+Self-review Passed — loopback-only Caddy bind guard; TLS/certs gitignored under .edge/local-https/; upstream and readiness watcher unchanged on http://127.0.0.1:3000/readyz; EDGE_TRUSTED_PROXY_COUNT left unset by default.
+
+## Focused
+Command:
+npm test -- --run scripts/local-https.test.ts
+Output:
+Test Files  1 passed (1)
+Tests  9 passed (9)
+
+## Config validation
+Command:
+cd ops/caddy && caddy validate --config Caddyfile --adapter caddyfile
+Output:
+Valid configuration
+
+## Cert install
+Command:
+npm run local:https:install
+Output:
+local-https.certs=installed host=edge.local
+
+## Upstream probe (unchanged)
+Command:
+curl -sf http://127.0.0.1:3000/readyz
+Output:
+{"ok":true}
+
+## App-level — HTTPS front door (operator prerequisites)
+Blocked in agent sandbox without sudo/password for /etc/hosts and port 443 bind.
+Operator steps (documented in docs/ops/local-https.md):
+1. sudo sh -c 'echo "127.0.0.1 edge.local" >> /etc/hosts'
+2. mkcert -install
+3. npm run local:https:install
+4. cd ops/caddy && sudo caddy start --config Caddyfile --adapter caddyfile
+5. curl -sf https://edge.local/healthz && curl -sf https://edge.local/readyz
+6. Open https://edge.local/workspace in browser
+
+## Next
+Optional: set EDGE_PUBLIC_APP_URL=https://edge.local in .edge/local-prod/production.env and restart app-prod.

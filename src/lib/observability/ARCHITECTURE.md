@@ -318,6 +318,8 @@ and secret-free; production deploy health gate still requires Redis
 | Do I need to wake up? | `npm run watch:readyz` (cron) + `EDGE_ALERT_WEBHOOK_URL`; Data Health UI for human triage after alert |
 | Promote a tested revision? | `npm run local:prod:container:deploy -- --revision <sha>` then `npm run local:prod:container:status` shows deploy.current + digest + ready probes |
 | Recover from a bad deploy? | `npm run local:prod:container:rollback` |
+| Browse production as `https://edge.local`? | Optional loopback HTTPS front door — [docs/ops/local-https.md](../../../docs/ops/local-https.md); `npm run local:https:status` |
+| Is the HTTPS proxy up? | `npm run local:https:status` → `proxy.up=yes` and `https.healthz=pass` |
 | Retire legacy LaunchAgent? | `npm run local:prod:service:uninstall` (legacy install/start/deploy refuse after Phase 5 cutover) |
 | Prove concurrent dev + prod? | `npm run local:prod:verify -- all` then `--allow-disruptive <scenario>`; reboot: `reboot-prepare` → manual reboot → `reboot-resume` |
 
@@ -338,6 +340,7 @@ Documented intent for later phases. Placeholders in [.env.example](../../../.env
 | `EDGE_AUDIT_RETENTION_DAYS` | 3 | Trading audit Postgres retention (or row cap — Phase 3 picks default) |
 | `EDGE_ERROR_RETENTION_DAYS` | 4 | Production error sink retention (Phase 4) |
 | `EDGE_READYZ_URL` | 5 | Target URL for external readiness watcher (default local `/readyz`) |
+| `EDGE_PUBLIC_APP_URL` | HTTPS front door | Public base URL for OpenRouter referer and absolute links (e.g. `https://edge.local`; see [docs/ops/local-https.md](../../../docs/ops/local-https.md)) |
 | `EDGE_ALERT_WEBHOOK_URL` | 5 | Discord or Slack incoming webhook for readiness alerts |
 | `EDGE_READYZ_ALERT_FAILURES` | 5 | Consecutive `/readyz` failures before notify (default 3) |
 | `EDGE_ALERT_HOST` | 5 | Host label in alert text (default `edge`) |
