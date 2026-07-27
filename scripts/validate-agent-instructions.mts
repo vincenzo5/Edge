@@ -43,6 +43,7 @@ const ALWAYS_APPLY_ALLOWLIST = new Set<string>(["plan-execute-routing.mdc"]);
 const REQUIRED_AGENTS_LINKS = [
   "docs/CONSTRAINTS.md",
   "docs/PROJECT-STATUS.md",
+  "docs/harness/README.md",
   "src/lib/design-system/ARCHITECTURE.md",
   "src/lib/chart/ARCHITECTURE.md",
   "src/lib/ai/ARCHITECTURE.md",
@@ -82,7 +83,7 @@ function validateAgentsMd(issues: Issue[]): void {
   if (!/read when/i.test(content)) {
     issues.push({
       file: rel,
-      message: 'missing "read when" routing language in Key Docs section',
+      message: 'missing "read when" routing language in Branch routing section',
     });
   }
 

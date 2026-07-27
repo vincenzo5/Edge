@@ -1,6 +1,6 @@
 # Sub-Harness Tree
 
-Edge’s agent instruction topology: a **thin parent** (`AGENTS.md`) plus **routed domain lanes**. Cursor **Plan mode** stays the sole planning ceremony; lanes narrow which pack and sensors load — they do not replace Plan mode or the plan → execute protocol.
+Edge’s agent instruction topology: a **thin parent** ([`AGENTS.md`](../../AGENTS.md) — Branch routing fan-out) plus **routed domain lanes**. Cursor **Plan mode** stays the sole planning ceremony; lanes narrow which pack and sensors load — they do not replace Plan mode or the plan → execute protocol.
 
 **Track:** [Sub-Harness Tree Roadmap](../roadmaps/sub-harness-tree-roadmap.md). **Constraint truth:** [CONSTRAINTS.md](../CONSTRAINTS.md). **Status hub:** [PROJECT-STATUS.md](../PROJECT-STATUS.md) only — no per-branch status files.
 
@@ -36,10 +36,11 @@ Cross-cut:
 ## How Plan mode uses branches
 
 1. **Mode ≠ branch** — Plan/Execute is *how* you work; branch is *which world* you enter.
-2. **Classify** — compact plan Intent Classification emits `Branch: <LANE>` (primary ± secondary). Wired into [plan-harness-awareness.mdc](../../.cursor/rules/plan-harness-awareness.mdc).
-3. **Load** — Read `docs/harness/branches/<LANE>.md` before deep architecture reads. **Phase 2 live.**
-4. **Execute** — reads `Branch:` from the approved plan; runs that lane’s sensors; no re-classification unless the plan is wrong.
-5. **Topic docs** — branch pack → area `ARCHITECTURE.md` → focused verify.
+2. **Parent** — [`AGENTS.md`](../../AGENTS.md) Branch routing points here; always-on CONSTRAINTS + PROJECT-STATUS. **Phase 3 live.**
+3. **Classify** — compact plan Intent Classification emits `Branch: <LANE>` (primary ± secondary). Wired into [plan-harness-awareness.mdc](../../.cursor/rules/plan-harness-awareness.mdc).
+4. **Load** — Read `docs/harness/branches/<LANE>.md` before deep architecture reads.
+5. **Execute** — reads `Branch:` from the approved plan; runs that lane’s sensors; no re-classification unless the plan is wrong.
+6. **Topic docs** — branch pack → area `ARCHITECTURE.md` → focused verify.
 
 Packs are ≤ ~80 lines: seed, load set, sensors, status prefix, security pins. They **link** into `CONSTRAINTS.md` — they do not restate it.
 

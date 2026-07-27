@@ -66,9 +66,11 @@ For long-running or cross-component work, write a Task Contract in `docs/PROJECT
 
 ## Session Exit
 
-Before handing off, leave a clean state: update `docs/PROJECT-STATUS.md`, record verification results, note blockers, remove temporary/debug artifacts you created, and make the next action explicit. On execute-from-plan closeout, after **Passing** with quoted evidence, create one git commit for the task (skip if no changes or plan says `Commit: skip`).
+Before handing off, leave a clean state: update [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md), record verification results, note blockers, remove temporary/debug artifacts you created, and make the next action explicit. On execute closeout: `npm run harness:closeout -- --name "…" --evidence-file …` (archives Previous Verified overflow to `docs/status-archive/`). After **Passing** with quoted evidence, create one git commit (skip if no changes or plan says `Commit: skip`).
 
-Run the smallest verification tier that matches the change; use `npm run check` for broad/shared behavior before merge.
+Run the smallest verification tier that matches the change; use `npm run check` for broad/shared behavior before merge. Record durable architecture decisions in the closest `ARCHITECTURE.md`. When a change touches contracts or verification expectations, update the closest related doc in the same change.
+
+Local CI only (no GitHub Actions): `npm run hooks:install` → pre-push runs `npm run ci:local`. Full: `npm run check`. Chart perf / prod: deploy pipeline. Optional docs: `EDGE_DOCS_HOOK=1` + `CURSOR_API_KEY`.
 
 ## Repo Layout
 
@@ -84,22 +86,16 @@ Run the smallest verification tier that matches the change; use `npm run check` 
 | `src/app/api/` | REST — candles, AI tools, persistence |
 | `docs/chart/`, `docs/PROJECT-STATUS.md` | Feature inventory; hot harness (`docs/status-archive/` history) |
 
-## Key Docs (read when relevant)
+## Branch routing (read when relevant)
 
 Load topic docs on demand — do not read everything for every task.
 
-| Doc | Read when |
-|-----|-----------|
-| [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md) | Planning work, checking shipped vs active vs deferred — hot windows in [harness-status-checklist.md](docs/checklists/harness-status-checklist.md) |
-| [docs/ROADMAP.md](docs/ROADMAP.md) + [docs/roadmaps/](docs/roadmaps/README.md) | Product direction, phase index, and feature-track phasing |
-| [docs/CONSTRAINTS.md](docs/CONSTRAINTS.md) | Before any change — hard rules (MUST / MUST NOT) |
-| [src/lib/design-system/ARCHITECTURE.md](src/lib/design-system/ARCHITECTURE.md) | Styling app chrome — tokens, `Edge*` primitives, menus, modals, sidebars |
-| [src/lib/chart/ARCHITECTURE.md](src/lib/chart/ARCHITECTURE.md) | Chart rendering, drawings, indicators, viewport, panes, context menus |
-| [src/lib/ai/ARCHITECTURE.md](src/lib/ai/ARCHITECTURE.md) | Adding or changing AI tools, adapters, or tool permissions |
-| [src/lib/persistence/ARCHITECTURE.md](src/lib/persistence/ARCHITECTURE.md) | Sync, schemas, repositories, auth, or `/api/me/*` routes |
-| [docs/chart/features.md](docs/chart/features.md) | Shipping or updating chart feature status rows |
-| [docs/chart/context-menu-reference.md](docs/chart/context-menu-reference.md) | Context menu parity or copy/paste behavior |
-| [docs/ai-tools-architecture.md](docs/ai-tools-architecture.md) | Full AI tool inventory, rollout phases, adapter details |
+1. **Always-on:** [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md) (hot windows), [docs/CONSTRAINTS.md](docs/CONSTRAINTS.md) (MUST / MUST NOT).
+2. **Classify branch** — Plan mode emits `Branch: <LANE>`; see intent→branch router in [docs/harness/README.md](docs/harness/README.md).
+3. **Load pack** — Read `docs/harness/branches/<LANE>.md` (pack Load set + Sensors).
+4. **Deep dive** — pack points to area `ARCHITECTURE.md` and topic docs; read when the pack says so.
+
+Topic anchors (via branch packs): [src/lib/chart/ARCHITECTURE.md](src/lib/chart/ARCHITECTURE.md), [src/lib/ai/ARCHITECTURE.md](src/lib/ai/ARCHITECTURE.md), [src/lib/persistence/ARCHITECTURE.md](src/lib/persistence/ARCHITECTURE.md), [src/lib/design-system/ARCHITECTURE.md](src/lib/design-system/ARCHITECTURE.md). Product direction: [docs/ROADMAP.md](docs/ROADMAP.md) + [docs/roadmaps/](docs/roadmaps/README.md).
 
 ## Hard Constraints (summary)
 
@@ -116,27 +112,9 @@ See [docs/CONSTRAINTS.md](docs/CONSTRAINTS.md) for the full list. Critical rules
 This file is a router, not an encyclopedia. Keep it under 150 lines.
 
 - **Global rules only here** — add to this file only non-negotiable constraints that apply to every task.
-- **Scoped guidance → topic docs** — chart, AI, persistence, design system details belong in the docs above.
-- **Scoped guidance → Cursor rules/skills** — visual asset production uses `.cursor/rules/visual-assets.mdc` and `.cursor/skills/`; local prod deploy/rollback uses `.cursor/rules/deploy-local-prod.mdc`, `.cursor/skills/deploy-local-prod`, and `/deploy-prod`.
+- **Scoped guidance → branch packs → topic docs** — do not restate domain detail in the parent.
+- **Specialty side doors:** **OPS** — `.cursor/rules/deploy-local-prod.mdc`, `.cursor/skills/deploy-local-prod/`, `/deploy-prod`; **BRAND** — `.cursor/skills/visual-assets/`, `.cursor/skills/visual-production/`; **HARNESS** — `.cursor/rules/harness-steward.mdc`, closeout protocol.
 - **Historical lessons → tests** — encode one-off bug fixes as Vitest cases instead of permanent narrative notes.
-- **Before adding a rule** — ask whether it belongs in a topic doc, a test, or code comments instead.
+- **Before adding a rule** — ask whether it belongs in a branch pack, topic doc, a test, or code comments instead.
 
 Run `npm run lint:instructions` to verify entry-file size and rule scoping.
-
-## Session Continuity
-
-For long-running or interrupted work, update `docs/PROJECT-STATUS.md` before handing off. On execute closeout: `npm run harness:closeout -- --name "…" --evidence-file …` (archives Previous Verified overflow to `docs/status-archive/`).
-
-Record durable architecture decisions in the closest architecture doc rather than a separate decision log unless decisions begin accumulating across multiple areas.
-
-## Doc Maintenance
-
-When a change touches chart architecture, AI tool contracts, persistence schemas, API behavior, or verification expectations, update the closest related doc in the same change:
-
-- Chart engine → `src/lib/chart/ARCHITECTURE.md` + row in `docs/chart/features.md`
-- AI tools → `src/lib/ai/ARCHITECTURE.md` + `docs/ai-tools-architecture.md`
-- Persistence → `src/lib/persistence/ARCHITECTURE.md`
-- Design system → `src/lib/design-system/ARCHITECTURE.md`
-- Current status → `docs/PROJECT-STATUS.md`
-
-Local CI only (no GitHub Actions): `npm run hooks:install` → pre-push runs `npm run ci:local`. Full: `npm run check`. Chart perf / prod: deploy pipeline. Optional docs: `EDGE_DOCS_HOOK=1` + `CURSOR_API_KEY`.

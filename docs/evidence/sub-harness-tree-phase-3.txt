@@ -1,0 +1,39 @@
+# Sub-harness tree — Phase 3 evidence
+# Date: 2026-07-27
+
+## Scope
+Thin parent — AGENTS.md sheds Key Docs encyclopedia; Branch routing fans out through harness router + branch packs.
+No ledger fill; no runtime change; no Phase 5 specialty cutover.
+
+## Delivered
+- AGENTS.md — 120 lines (≤150); Key Docs table replaced with Branch routing section; Session Continuity + Doc Maintenance collapsed into Session Exit; OPS/BRAND/HARNESS specialty pointers in Instruction Hygiene
+- scripts/validate-agent-instructions.mts — required link docs/harness/README.md; error message updated for Branch routing section
+- docs/harness/README.md — Phase 3 live; parent fan-out step in Plan-mode flow
+- docs/roadmaps/sub-harness-tree-roadmap.md — Phase 3 Passing
+- docs/roadmaps/README.md — Sub-harness row synced
+- docs/ROADMAP.md — Near-Term line synced
+
+## Architecture review
+Self-review — instruction contract change; parent routes via Branch routing; packs specialize; CONSTRAINTS not restated.
+
+## Manual diff check
+- Init commands (setup, check:startup, dev) present
+- WIP=1 and Definition of Done intact
+- Layering gate (lint:app-lib-boundaries) intact
+- Secrets rule (never commit .env.local) intact
+- Branch routing: AGENTS.md → docs/harness/README.md → docs/harness/branches/<LANE>.md → ARCHITECTURE.md
+
+## App-level
+N/A (no runtime change)
+
+## Next
+Phase 4 — Security ledger + sensors
+
+## Focused
+Command: npm run lint:instructions
+Result: npm run lint:instructions passed — Instruction architecture validation passed.
+exit=0
+
+Command: npm run roadmaps:status-check
+Result: roadmaps:status-check OK — README table matches track Status lines.
+exit=0
