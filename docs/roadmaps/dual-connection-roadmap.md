@@ -2,9 +2,9 @@
 
 Single roadmap for running **paper and live IB Gateway simultaneously**, decoupling **market-data connection** from **order-routing account**, and folding journal fills into real Gateway accounts (no synthetic journal-only picker rows).
 
-**Last updated:** 2026-07-08
+**Last updated:** 2026-07-27
 
-**Status:** Phases A–D **product complete** (2026-07-12). Deferred both-Gateway ops / app-level proofs → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 1.
+**Status:** Phases A–D **product complete** (2026-07-12). Shared host sidecar + process `EDGE_TRADING_ENVIRONMENT_LOCK` **shipped** for concurrent dev (paper) + container prod (live). Deferred credential-gated both-Gateway walk → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 1.
 
 **Related:** [Trading Execution Roadmap](./trading-execution-roadmap.md) (Phases 0–5 shipped), [Connections & Providers Roadmap](./connections-providers-roadmap.md) (Phase 0 contracts; Phase 1 Settings UI for paper/live controls), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Edge Roadmap](../ROADMAP.md).
 
@@ -29,6 +29,8 @@ Let Edge:
 | Brokerage snapshot by `environment` | **Shipped** | `/api/brokerage/*?environment=` |
 | Dual Gateway sockets in sidecar code | **Shipped** | `connectionId` on MD + account routes |
 | Paper + live Gateways both listening | **Partial** | Docker compose shipped; app-level dual-port proof credential-gated |
+| Shared host sidecar (dev + container prod) | **Shipped** | One operator sidecar on `:8765`; both Next processes use `TWS_MANAGED=external` (Recover is control-only) |
+| Process environment lock | **Shipped** | `EDGE_TRADING_ENVIRONMENT_LOCK=paper\|live` — server 403 on mismatch; header account picker + `AccountProvider` pin; MD `connectionId` stays independent |
 | Chart/quotes on selectable connection | **Shipped** | Phase C — `edge:marketData:connectionId` |
 | Independent data preference vs order account | **Shipped** | Phase C — header data chip vs order picker |
 | Journal-only synthetic picker rows | **Removed** | Phase B — real Gateway ids only |
@@ -203,5 +205,6 @@ Completion evidence in harness must quote actual command output (test counts, bu
 ## Next Session Entry Point
 
 1. ~~Phases A–D product work~~ — **shipped** (Docker dual Gateway infra, honest picker, data≠order preference, Data Health split).
-2. Remaining ops proof lives on [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 1 (A.5 both-Gateway, data≠order walk).
-3. Options / brackets stay on the trading-execution backlog (not this track).
+2. ~~Shared sidecar paper/live isolation~~ — **shipped** (`EDGE_TRADING_ENVIRONMENT_LOCK`, external Recover control-only; see [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md) shared-sidecar note).
+3. Remaining ops proof lives on [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 1 (A.5 both-Gateway, data≠order walk with complementary locks).
+4. Options / brackets stay on the trading-execution backlog (not this track).

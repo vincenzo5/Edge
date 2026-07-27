@@ -424,7 +424,7 @@ Implementation: [src/middleware.ts](../../../middleware.ts), [src/lib/api/](../.
 
 ## ConfigSource and provider key catalog (Phase 3)
 
-Adapters resolve **configured?** and credentials through [`config/`](config/) — not scattered `process.env` reads. Default backend is `EnvConfigSource` (`getConfigSource()`). Phase 6 BYO vault will implement the same `ConfigSource` interface server-side; Settings and `/api/market-data/health` continue to expose **configured booleans only** — never secret values.
+Adapters resolve **configured?** and credentials through [`config/`](config/) — not scattered `process.env` reads. Default backend is `EnvConfigSource` (`getConfigSource()`). **Production binding:** `EnvConfigSource` reads known keys via static `process.env.KEY` accessors (not only dynamic `process.env[key]`) so Next.js standalone/server bundles keep runtime env polyfills — including `TWS_SIDECAR_SECRET`. Phase 6 BYO vault will implement the same `ConfigSource` interface server-side; Settings and `/api/market-data/health` continue to expose **configured booleans only** — never secret values.
 
 | Provider | Env keys | Purpose |
 |----------|----------|---------|
