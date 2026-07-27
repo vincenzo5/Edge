@@ -66,7 +66,8 @@ def _worker_diagnostics() -> dict[str, Any]:
 
 
 def _read_gateway_connected() -> bool:
-    ib = _ib
+    # Read from state module — `from state import *` rebinds do not update shared scalars.
+    ib = state_mod._ib
     if ib is None:
         return False
     try:
@@ -76,22 +77,19 @@ def _read_gateway_connected() -> bool:
 
 
 def _touch_connection_observation(connection_id: str, state: str, connected: bool) -> None:
-    global _connection_observed_at_ms, _connection_states
-    _connection_observed_at_ms[connection_id] = now_ms()
-    _connection_states[connection_id] = "connected" if connected else state
+    state_mod._connection_observed_at_ms[connection_id] = now_ms()
+    state_mod._connection_states[connection_id] = "connected" if connected else state
 
 
 def _set_connection_state(state: str) -> None:
-    global _connection_state
-    with _supervisor_lock:
-        _connection_state = state
+    with state_mod._supervisor_lock:
+        state_mod._connection_state = state
         connected = state == "connected"
         _touch_connection_observation(config.PRIMARY_CONNECTION_ID, state, connected)
 
 
 def _set_connection_state_locked(state: str) -> None:
-    global _connection_state
-    _connection_state = state
+    state_mod._connection_state = state
     _touch_connection_observation(
         config.PRIMARY_CONNECTION_ID,
         state,
@@ -202,24 +200,23 @@ def _maybe_schedule_auto_reconnect() -> None:
 
 
 def _record_ib_error(error_code: int, error_message: str) -> None:
-    global _last_ib_error_code, _last_ib_error_message, _subscriptions_lost, _restart_required
-    with _supervisor_lock:
-        _last_ib_error_code = error_code
-        _last_ib_error_message = error_message
+    with state_mod._supervisor_lock:
+        state_mod._last_ib_error_code = error_code
+        state_mod._last_ib_error_message = error_message
         lowered = error_message.lower()
         if error_code == 1100:
             _set_connection_state_locked("gateway_disconnected")
             _set_recovery_phase("failed", error_message)
             _maybe_schedule_auto_reconnect()
         elif error_code == 1101:
-            _subscriptions_lost = True
+            state_mod._subscriptions_lost = True
             _set_connection_state_locked("connected")
         elif error_code == 1102:
-            _subscriptions_lost = False
+            state_mod._subscriptions_lost = False
             _set_connection_state_locked("connected")
         elif error_code == 326 or "client id is already in use" in lowered:
             _set_connection_state_locked("client_id_stuck")
-            _restart_required = True
+            state_mod._restart_required = True
         elif error_code in (502, 504):
             _set_connection_state_locked("gateway_disconnected")
             _maybe_schedule_auto_reconnect()

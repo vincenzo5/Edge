@@ -17,19 +17,19 @@ from tws_sidecar.mapping import (
     _upsert_execution,
 )
 from tws_sidecar.util import now_ms, safe_float
+import tws_sidecar.runtime.state as state_mod
 from tws_sidecar.runtime.state import *
 
 def _resolve_account_id(ib: IB) -> str:
-    global _managed_accounts, _account_id
     account_pin = runtime_attr("TWS_ACCOUNT_ID", "")
     if account_pin:
-        _account_id = account_pin
+        state_mod._account_id = account_pin
         return account_pin
     accounts = ib.managedAccounts() or []
-    _managed_accounts = list(accounts)
+    state_mod._managed_accounts = list(accounts)
     if not accounts:
         raise RuntimeError("No managed IB accounts available")
-    _account_id = accounts[0]
+    state_mod._account_id = accounts[0]
     return accounts[0]
 
 
@@ -230,11 +230,10 @@ def _on_commission_report(trade, fill, report) -> None:
         _upsert_execution(_map_execution_from_fill(fill, commission_report=report))
 
 def _setup_account_subscriptions(ib: IB) -> None:
-    global _account_subscriptions_active, _managed_accounts, _account_id, _account_summary_updated_at
-    if _account_subscriptions_active:
+    if state_mod._account_subscriptions_active:
         return
     account = _resolve_account_id(ib)
-    _managed_accounts = list(ib.managedAccounts() or [account])
+    state_mod._managed_accounts = list(ib.managedAccounts() or [account])
 
     ib.updatePortfolioEvent += _on_update_portfolio
     ib.accountValueEvent += _on_update_account_value
@@ -260,7 +259,7 @@ def _setup_account_subscriptions(ib: IB) -> None:
         ib.reqAccountSummary()
         for item in ib.accountSummary():
             _on_update_account_value(item)
-        _account_summary_updated_at = now_ms()
+        state_mod._account_summary_updated_at = now_ms()
     except Exception:  # noqa: BLE001
         pass
     if not config.TWS_READONLY:
@@ -273,8 +272,8 @@ def _setup_account_subscriptions(ib: IB) -> None:
     try:
         for pos in ib.positions():
             key = _portfolio_key(pos.contract)
-            with _account_lock:
-                _account_positions_raw[key] = {
+            with state_mod._account_lock:
+                state_mod._account_positions_raw[key] = {
                     "account": pos.account,
                     "contract": _map_contract(pos.contract),
                     "position": safe_float(pos.position),
@@ -289,5 +288,5 @@ def _setup_account_subscriptions(ib: IB) -> None:
     except Exception:  # noqa: BLE001
         pass
 
-    _account_subscriptions_active = True
+    state_mod._account_subscriptions_active = True
 

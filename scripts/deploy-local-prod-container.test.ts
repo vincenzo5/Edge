@@ -92,6 +92,7 @@ function deployOptions(overrides: Partial<{
   revision: string | null;
   skipInfra: boolean;
   skipStartup: boolean;
+  skipChartPerf: boolean;
   developmentRoot: string;
 }> = {}) {
   const { devRoot } = makeFixtureRoots();
@@ -101,6 +102,7 @@ function deployOptions(overrides: Partial<{
     revision: FULL_SHA,
     skipInfra: true,
     skipStartup: true,
+    skipChartPerf: true,
     ...overrides,
   };
 }
@@ -223,6 +225,7 @@ function mockContainerDeployDeps(
       listImageTarEntries: vi.fn(() => ["app/server.js"]),
     },
     runStartupCheck: vi.fn(() => 0),
+    runChartPerfCheck: vi.fn(() => 0),
     runInfraUp: vi.fn(() => 0),
     runContainerMigrate: vi.fn(() => 0),
     runContainerStart: vi.fn(() => 0),
@@ -253,6 +256,15 @@ describe("parseDeployLocalProdContainerArgs", () => {
     expect(options.command).toBe("deploy");
     expect(options.revision).toBe(FULL_SHA);
     expect(options.skipStartup).toBe(false);
+    expect(options.skipChartPerf).toBe(false);
+  });
+
+  it("parses --skip-chart-perf", () => {
+    const options = parseDeployLocalProdContainerArgs(
+      ["deploy", "--revision", FULL_SHA, "--skip-chart-perf"],
+      "/tmp/dev",
+    );
+    expect(options.skipChartPerf).toBe(true);
   });
 
   it("throws help for empty argv", () => {
@@ -354,6 +366,28 @@ describe("runContainerDeployCommand", () => {
     expect(state.currentSha).toBe(FULL_SHA);
     expect(state.currentDigest).toBe(DIGEST);
     expect(state.buildId).toBe("build-123");
+  });
+
+  it("runs chart perf gate before build when not skipped", async () => {
+    const options = deployOptions({ skipChartPerf: false });
+    const deps = mockContainerDeployDeps();
+
+    const code = await runContainerDeployCommand(options, deps);
+    expect(code).toBe(0);
+    expect(deps.runChartPerfCheck).toHaveBeenCalled();
+    expect(deps.buildRuntimeAndMigrateImages).toHaveBeenCalled();
+  });
+
+  it("blocks deploy when chart perf budgets fail", async () => {
+    const options = deployOptions({ skipChartPerf: false });
+    const deps = mockContainerDeployDeps({
+      runChartPerfCheck: vi.fn(() => 1),
+    });
+
+    const code = await runContainerDeployCommand(options, deps);
+    expect(code).toBe(1);
+    expect(deps.runChartPerfCheck).toHaveBeenCalled();
+    expect(deps.buildRuntimeAndMigrateImages).not.toHaveBeenCalled();
   });
 
   it("fails deploy when health gate fails without promoting current", async () => {

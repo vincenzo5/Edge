@@ -93,4 +93,5 @@ npm run db:migrate
 log "Postgres ready. Starting dev server on http://localhost:${DEV_PORT} ..."
 clear_dev_port
 dev_started=true
-exec npm run dev:lite
+# Respect .env.local (including TWS_ENABLED). Use `npm run dev:lite` to force TWS off.
+exec ./node_modules/.bin/next dev -H 127.0.0.1 -p "${DEV_PORT}"

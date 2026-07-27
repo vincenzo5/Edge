@@ -13,40 +13,12 @@ from typing import Any
 from fastapi import HTTPException
 
 from tws_sidecar.runtime.connections import _reconnect_ib, _status_payload
-from tws_sidecar.runtime.supervisor import _set_recovery_phase
+from tws_sidecar.runtime.supervisor import _set_recovery_phase, _worker_diagnostics
 from tws_sidecar.runtime.worker import IbWorkerTimeoutError, run_on_ib_thread
 from tws_sidecar.runtime.state import *
 @app.get("/control/recovery")
 def control_recovery_status() -> dict[str, Any]:
     return _status_payload()
-
-
-def _start_async_reconnect() -> dict[str, Any]:
-    global _reconnect_thread
-
-    def runner() -> None:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            _reconnect_ib()
-        except Exception as exc:  # noqa: BLE001
-            _set_recovery_phase("failed", str(exc))
-        finally:
-            loop.close()
-
-    with _recovery_lock:
-        if _reconnect_thread is not None and _reconnect_thread.is_alive():
-            payload = _status_payload()
-            payload["accepted"] = True
-            payload["inProgress"] = True
-            return payload
-    thread = threading.Thread(target=runner, name="tws-reconnect", daemon=True)
-    _reconnect_thread = thread
-    thread.start()
-    payload = _status_payload()
-    payload["accepted"] = True
-    payload["inProgress"] = True
-    return payload
 
 
 def _start_async_reconnect() -> dict[str, Any]:

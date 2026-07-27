@@ -66,16 +66,15 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-export TWS_HOST="${TWS_HOST:-127.0.0.1}"
-export TWS_PORT="${TWS_PORT:-4002}"
-export TWS_CLIENT_ID="${TWS_CLIENT_ID:-77}"
-export TWS_READONLY="${TWS_READONLY:-true}"
+# Do not export TWS_HOST/PORT/CLIENT_ID/READONLY defaults here — that would stamp
+# process env and block services/tws-sidecar dotenv (.env.local with override=False).
+# Operator-exported values still win; otherwise Python loads .env.local then config defaults.
 export TWS_SIDECAR_PORT="${PORT}"
 export TWS_MANAGED_BY="${TWS_MANAGED_BY:-standalone}"
 export EDGE_INSTANCE_ID="${EDGE_INSTANCE_ID:-}"
-export TWS_SIDECAR_SECRET="${TWS_SIDECAR_SECRET:-}"
+# Leave TWS_SIDECAR_SECRET unset unless the operator exported it, so .env.local can supply it.
 
-echo "Starting TWS sidecar: IB Gateway ${TWS_HOST}:${TWS_PORT} (paper default 4002, live 4001), clientId=${TWS_CLIENT_ID}, sidecarPort=${TWS_SIDECAR_PORT}, managedBy=${TWS_MANAGED_BY}" >&2
+echo "Starting TWS sidecar: sidecarPort=${TWS_SIDECAR_PORT}, managedBy=${TWS_MANAGED_BY} (IB host/port/clientId from env or .env.local)" >&2
 
 echo $$ > "${PID_FILE}"
 exec "${VENV}/bin/python" "${ROOT}/services/tws-sidecar/main.py"

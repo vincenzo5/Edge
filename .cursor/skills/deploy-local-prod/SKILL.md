@@ -19,7 +19,8 @@ Run in order. Stop on first nonzero exit.
 
 1. **Resolve revision** — SHA, tag, or `HEAD`. If the user gave none, ask once; do not guess.
 2. **Preflight** — `npm run local:deploy:preflight`
-3. **Promote** — `npm run local:prod:container:deploy -- --revision <rev>`
+3. **Promote** — `npm run local:prod:container:deploy -- --revision <rev>`  
+   (deploy itself runs `check:startup`, then `CHART_PERF_BUDGET_STRICT=1 npm run perf:chart`, then build/migrate/start)
 4. **Status** — `npm run local:prod:container:status`
 5. **Probe** — `curl -sf http://127.0.0.1:3000/healthz` and `curl -sf http://127.0.0.1:3000/readyz`
 
@@ -35,7 +36,7 @@ When intent is rollback (not promote):
 ## Hard rules
 
 - Use **only** `local:prod:container:*` for promote/rollback — never legacy `local:prod:deploy` or LaunchAgent paths.
-- Do **not** pass `--skip-startup` or `--skip-infra` unless the user explicitly allows it.
+- Do **not** pass `--skip-startup`, `--skip-chart-perf`, or `--skip-infra` unless the user explicitly allows it.
 - Do **not** edit secrets, `.env*`, or `.edge/local-prod/production.env`.
 - Do **not** start adjacent coding, refactors, or harness updates unless asked.
 - On failure: stop; do not retry with improvised commands.

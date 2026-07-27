@@ -1,6 +1,6 @@
 # Communication
 
-Answer as simply as possible. Prefer one sentence over two, a bullet list over a paragraph, and a direct answer over preamble. Expand only when asked.
+Write in the spirit of [ASD-STE100 Simplified Technical English](https://www.asd-ste100.org/): short sentences, active voice, one idea per sentence, and one clear word for one meaning. Full STE dictionary compliance is not required. Prefer one sentence over two, a bullet list over a paragraph, and a direct answer over preamble. Expand only when asked.
 
 ---
 

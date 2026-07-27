@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from ib_insync import Stock
 
 from tws_sidecar import config
+from tws_sidecar.config import INTERVAL_TO_BAR, RANGE_TO_DURATION
 from tws_sidecar.market_data.contracts import (
     _get_secdef_chains,
     _map_contract_details,

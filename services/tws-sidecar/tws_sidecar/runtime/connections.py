@@ -16,6 +16,7 @@ from tws_sidecar.runtime.supervisor import (
     _maybe_schedule_auto_reconnect,
     _read_gateway_connected,
     _record_ib_error,
+    _reset_auto_reconnect_attempts,
     _resubscribe_quote_symbols,
     _set_connection_state,
     _set_connection_state_locked,
@@ -26,6 +27,7 @@ from tws_sidecar.runtime.supervisor import (
 from tws_sidecar.runtime.resolve import runtime_callable
 from tws_sidecar.runtime.worker import run_on_ib_thread
 from tws_sidecar.account.cache import _setup_account_subscriptions
+import tws_sidecar.runtime.state as state_mod
 from tws_sidecar.runtime.state import *
 
 def _resolve_connection_id(
@@ -128,16 +130,16 @@ def _get_ib_for_connection(connection_id: str) -> IB:
 
 
 def _get_ib() -> IB:
-    global _ib, _last_connect_error, _active_client_id, _restart_required, _subscriptions_lost
-    with _lock:
-        if _ib is not None and _ib.isConnected():
-            return _ib
-        if _ib is not None:
+    with state_mod._lock:
+        existing = state_mod._ib
+        if existing is not None and existing.isConnected():
+            return existing
+        if existing is not None:
             try:
-                _ib.disconnect()
+                existing.disconnect()
             except Exception:  # noqa: BLE001
                 pass
-            _ib = None
+            state_mod._ib = None
         _set_connection_state("api_connecting")
         last_exc: Exception | None = None
         for offset in range(4):
@@ -152,23 +154,23 @@ def _get_ib() -> IB:
                     timeout=4,
                 )
                 _attach_ib_handlers(ib, config.PRIMARY_CONNECTION_ID)
-                _ib = ib
-                _active_client_id = client_id
-                _last_connect_error = None
-                _restart_required = False
+                state_mod._ib = ib
+                state_mod._active_client_id = client_id
+                state_mod._last_connect_error = None
+                state_mod._restart_required = False
                 _set_connection_state("connected")
                 _setup_account_subscriptions(ib)
-                if _subscriptions_lost:
+                if state_mod._subscriptions_lost:
                     _resubscribe_quote_symbols(ib)
-                    _subscriptions_lost = False
+                    state_mod._subscriptions_lost = False
                 return ib
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
                 msg = str(exc)
-                _last_connect_error = msg
+                state_mod._last_connect_error = msg
                 if "client id is already in use" in msg.lower() or "326" in msg:
                     _set_connection_state("client_id_stuck")
-                    _restart_required = True
+                    state_mod._restart_required = True
                 try:
                     ib.disconnect()
                 except Exception:  # noqa: BLE001
@@ -215,53 +217,52 @@ def _reconnect_extra_connections() -> None:
 
 def _reset_ib_connection() -> None:
     """Drop stale IB socket and quote subscriptions so the next connect is fresh."""
-    global _ib, _account_subscriptions_active, _account_summary_updated_at, _ib_handlers_attached, _active_client_id
-    with _lock:
-        if _ib is not None:
+    with state_mod._lock:
+        existing = state_mod._ib
+        if existing is not None:
             try:
-                if _ib.isConnected():
-                    _ib.disconnect()
+                if existing.isConnected():
+                    existing.disconnect()
             except Exception:  # noqa: BLE001
                 pass
-            _ib = None
-    _ib_handlers_attached.clear()
-    _active_client_id = None
-    with _quote_sub_lock:
-        _quote_subscriptions_by_connection.pop(config.PRIMARY_CONNECTION_ID, None)
+            state_mod._ib = None
+    state_mod._ib_handlers_attached.clear()
+    state_mod._active_client_id = None
+    with state_mod._quote_sub_lock:
+        state_mod._quote_subscriptions_by_connection.pop(config.PRIMARY_CONNECTION_ID, None)
     _reset_extra_ib_connections()
-    with _account_lock:
-        _account_subscriptions_active = False
-        _account_summary.clear()
-        _account_summary_updated_at = 0
-        _account_portfolio.clear()
-        _account_values.clear()
-        _account_pnl.clear()
-        _account_orders.clear()
-        _account_executions.clear()
-        _account_positions_raw.clear()
+    with state_mod._account_lock:
+        state_mod._account_subscriptions_active = False
+        state_mod._account_summary.clear()
+        state_mod._account_summary_updated_at = 0
+        state_mod._account_portfolio.clear()
+        state_mod._account_values.clear()
+        state_mod._account_pnl.clear()
+        state_mod._account_orders.clear()
+        state_mod._account_executions.clear()
+        state_mod._account_positions_raw.clear()
 
 
 def _reconnect_ib() -> dict[str, Any]:
-    global _subscriptions_lost, _last_connect_error, _restart_required
     _set_recovery_phase("reconnecting", "Resetting IB connection")
     _set_connection_state("reconnecting")
     _reset_ib_connection()
     try:
         ib = runtime_callable("_get_ib", _get_ib)()
-        if _subscriptions_lost:
+        if state_mod._subscriptions_lost:
             _set_recovery_phase("reconnecting", "Resubscribing market data")
             _resubscribe_quote_symbols(ib)
-            _subscriptions_lost = False
+            state_mod._subscriptions_lost = False
         _set_recovery_phase("reconnecting", "Reconnecting live Gateway")
         _reconnect_extra_connections()
         _set_recovery_phase("connected", "Gateway connected")
         _reset_auto_reconnect_attempts()
     except Exception as exc:  # noqa: BLE001
-        _last_connect_error = str(exc)
+        state_mod._last_connect_error = str(exc)
         msg = str(exc).lower()
         if "client id is already in use" in msg or "326" in msg:
             _set_connection_state("client_id_stuck")
-            _restart_required = True
+            state_mod._restart_required = True
         else:
             _set_connection_state("failed")
         _set_recovery_phase("failed", str(exc))
@@ -294,7 +295,7 @@ def _connection_status_entry(connection_id: str) -> dict[str, Any]:
     conn_state = _connection_states.get(connection_id)
     if conn_state is None:
         conn_state = "connected" if connected else "gateway_disconnected"
-    socket_subs_lost = _subscriptions_lost if connection_id == config.PRIMARY_CONNECTION_ID else False
+    socket_subs_lost = state_mod._subscriptions_lost if connection_id == config.PRIMARY_CONNECTION_ID else False
     return {
         "connectionId": connection_id,
         "gatewayConnected": connected,
@@ -324,13 +325,14 @@ def _status_payload() -> dict[str, Any]:
     connected = _read_gateway_connected()
     diagnostics = _worker_diagnostics()
     warnings: list[str] = []
-    with _supervisor_lock:
-        connection_state = _connection_state
-        active_client_id = _active_client_id
-        last_ib_error_code = _last_ib_error_code
-        last_ib_error_message = _last_ib_error_message
-        subscriptions_lost = _subscriptions_lost
-        restart_required = _restart_required
+    with state_mod._supervisor_lock:
+        connection_state = state_mod._connection_state
+        active_client_id = state_mod._active_client_id
+        last_ib_error_code = state_mod._last_ib_error_code
+        last_ib_error_message = state_mod._last_ib_error_message
+        subscriptions_lost = state_mod._subscriptions_lost
+        restart_required = state_mod._restart_required
+        last_connect_error = state_mod._last_connect_error
     worker_wedged = bool(diagnostics.get("workerWedged"))
     if worker_wedged:
         warnings.append("Sidecar IB worker wedged — reconnect or restart sidecar")
@@ -341,8 +343,8 @@ def _status_payload() -> dict[str, Any]:
     if subscriptions_lost:
         warnings.append("Market data subscriptions lost — resubscribing")
     if not connected:
-        if _last_connect_error:
-            warnings.append(_last_connect_error)
+        if last_connect_error:
+            warnings.append(last_connect_error)
         else:
             warnings.append(
                 f"Not connected to IB Gateway at {config.TWS_HOST}:{config.TWS_PORT}. "
@@ -368,7 +370,7 @@ def _status_payload() -> dict[str, Any]:
         "clientId": config.TWS_CLIENT_ID,
         "readOnly": config.TWS_READONLY,
         "brokerageEnabled": True,
-        "message": _last_connect_error,
+        "message": last_connect_error,
         "warnings": warnings,
         "diagnostics": diagnostics,
         "connections": _connections_map(),

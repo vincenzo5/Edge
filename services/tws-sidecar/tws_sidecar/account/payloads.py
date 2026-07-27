@@ -24,6 +24,7 @@ from tws_sidecar.account.pricing import (
 )
 from tws_sidecar.runtime.resolve import runtime_attr, runtime_callable
 from tws_sidecar.runtime.worker import run_on_ib_thread
+import tws_sidecar.runtime.state as state_mod
 from tws_sidecar.runtime.state import *
 
 def _merge_positions() -> list[dict[str, Any]]:
@@ -62,14 +63,18 @@ def _merge_positions() -> list[dict[str, Any]]:
 
 
 def _account_status_payload() -> dict[str, Any]:
-    connected = _ib is not None and _ib.isConnected()
-    with _account_lock:
+    ib = state_mod._ib
+    connected = ib is not None and ib.isConnected()
+    with state_mod._account_lock:
         return {
             "enabled": True,
-            "connected": connected and runtime_attr("_account_subscriptions_active", _account_subscriptions_active),
-            "accountId": runtime_attr("_account_id", _account_id),
-            "managedAccounts": list(runtime_attr("_managed_accounts", _managed_accounts)),
-            "summaryUpdatedAt": _account_summary_updated_at or None,
+            "connected": connected
+            and bool(runtime_attr("_account_subscriptions_active", state_mod._account_subscriptions_active)),
+            "accountId": runtime_attr("_account_id", state_mod._account_id),
+            "managedAccounts": list(
+                runtime_attr("_managed_accounts", state_mod._managed_accounts) or []
+            ),
+            "summaryUpdatedAt": state_mod._account_summary_updated_at or None,
             "readOnly": runtime_attr("TWS_READONLY", config.TWS_READONLY),
             "timestamp": now_ms(),
         }

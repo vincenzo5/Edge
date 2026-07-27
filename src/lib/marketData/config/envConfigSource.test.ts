@@ -25,4 +25,11 @@ describe("EnvConfigSource", () => {
     expect(source.get("MISSING_KEY")).toBeUndefined();
     expect(source.isSet("MISSING_KEY")).toBe(false);
   });
+
+  it("reads TWS_SIDECAR_SECRET via static env binding", () => {
+    vi.stubEnv("TWS_SIDECAR_SECRET", "  sidecar-secret  ");
+    const source = new EnvConfigSource();
+    expect(source.get("TWS_SIDECAR_SECRET")).toBe("sidecar-secret");
+    expect(source.isSet("TWS_SIDECAR_SECRET")).toBe(true);
+  });
 });

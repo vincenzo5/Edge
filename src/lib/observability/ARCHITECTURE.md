@@ -278,6 +278,8 @@ structured `http.access` output are preserved in container logs.
 Phase 4 adds image-based promotion and rollback via
 `scripts/deploy-local-prod-container.mts` and
 `npm run local:prod:container:{deploy,rollback}`. Deploy requires `--revision`,
+runs `check:startup` and strict chart perf budgets
+(`CHART_PERF_BUDGET_STRICT=1 npm run perf:chart`; skip with `--skip-chart-perf`),
 builds immutable runtime + migrate images from a clean detached worktree context,
 runs migration classification, one-shot migrate, replaces `app-prod`, and
 promotes only after Docker health plus `/healthz`, `/readyz`, and Redis

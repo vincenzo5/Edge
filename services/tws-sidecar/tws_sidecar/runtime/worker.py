@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import queue
 import threading
 import time
 import uuid
@@ -14,11 +15,23 @@ class IbWorkerTimeoutError(TimeoutError):
     """Raised when an IB worker job exceeds its wait budget."""
 
 
+def _pump_ib_loop(loop: asyncio.AbstractEventLoop, idle_sec: float = 0.05) -> None:
+    """Let ib_insync process socket callbacks so Gateway sessions stay alive between jobs."""
+    try:
+        loop.run_until_complete(asyncio.sleep(idle_sec))
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _ib_worker() -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     while True:
-        _priority, _seq, job_id, job_name, fn = _ib_jobs.get()
+        try:
+            _priority, _seq, job_id, job_name, fn = _ib_jobs.get(timeout=0.05)
+        except queue.Empty:
+            _pump_ib_loop(loop)
+            continue
         with _abandoned_job_ids_lock:
             if job_id in _abandoned_job_ids:
                 _abandoned_job_ids.discard(job_id)
@@ -45,6 +58,7 @@ def _ib_worker() -> None:
                 _last_completed_job = job_name
                 _last_completed_at = time.time()
             _ib_jobs.task_done()
+            _pump_ib_loop(loop, 0)
 
 
 def run_on_ib_thread(

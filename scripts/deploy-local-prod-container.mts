@@ -61,11 +61,13 @@ export type DeployLocalProdContainerOptions = {
   revision: string | null;
   skipInfra: boolean;
   skipStartup: boolean;
+  skipChartPerf: boolean;
 };
 
 export type DeployLocalProdContainerDeps = LocalProdDeps & {
   buildDeps: BuildAppImageDeps;
   runStartupCheck: () => number;
+  runChartPerfCheck: () => number;
   runInfraUp: () => number;
   runContainerMigrate: (options: LocalProdContainerOptions) => number;
   runContainerStart: (options: LocalProdContainerOptions) => number;
@@ -88,6 +90,7 @@ Options:
   --dev-root <path>     Development checkout (default: cwd)
   --skip-infra          Skip docker compose up before migrate/start
   --skip-startup        Skip npm run check:startup gate
+  --skip-chart-perf     Skip CHART_PERF_BUDGET_STRICT=1 npm run perf:chart gate
 
 Examples:
   npm run local:prod:container:deploy -- --revision HEAD
@@ -122,6 +125,7 @@ export function parseDeployLocalProdContainerArgs(
   let revision: string | null = null;
   let skipInfra = false;
   let skipStartup = false;
+  let skipChartPerf = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -134,6 +138,10 @@ export function parseDeployLocalProdContainerArgs(
     }
     if (flag === "--skip-startup") {
       skipStartup = true;
+      continue;
+    }
+    if (flag === "--skip-chart-perf") {
+      skipChartPerf = true;
       continue;
     }
     const value = args[index + 1];
@@ -150,7 +158,7 @@ export function parseDeployLocalProdContainerArgs(
     index += 1;
   }
 
-  return { command, developmentRoot, revision, skipInfra, skipStartup };
+  return { command, developmentRoot, revision, skipInfra, skipStartup, skipChartPerf };
 }
 
 export function loadContainerDeployInputSync(
@@ -378,6 +386,21 @@ export function defaultDeployLocalProdContainerDeps(): DeployLocalProdContainerD
         return 1;
       }
     },
+    runChartPerfCheck: () => {
+      try {
+        execFileSync("npm", ["run", "perf:chart"], {
+          cwd: process.cwd(),
+          stdio: "inherit",
+          env: {
+            ...process.env,
+            CHART_PERF_BUDGET_STRICT: "1",
+          },
+        });
+        return 0;
+      } catch {
+        return 1;
+      }
+    },
     runInfraUp: () => {
       try {
         return runLocalInfraUp();
@@ -460,6 +483,14 @@ export async function runContainerDeployCommand(
     if (startup !== 0) {
       console.error("Deploy blocked: check:startup failed.");
       return startup;
+    }
+  }
+
+  if (!options.skipChartPerf) {
+    const chartPerf = deps.runChartPerfCheck();
+    if (chartPerf !== 0) {
+      console.error("Deploy blocked: chart perf budgets failed.");
+      return chartPerf;
     }
   }
 

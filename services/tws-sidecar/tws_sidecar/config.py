@@ -9,7 +9,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
+# config.py lives at services/tws-sidecar/tws_sidecar/ → repo root is parents[3]
+ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(ROOT / ".env.local", override=False)
 load_dotenv(ROOT / ".env", override=False)
 
