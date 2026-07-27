@@ -12,6 +12,7 @@
     "check:packages": "npm run lint:package-boundaries && npm run lint:app-lib-boundaries && npm run lint:chart-shims && npm run typecheck:packages && npm run check:examples",
     "check:examples": "npm run build:packages && npm run check -w @edge/example-chart-core-basic && npm run check -w @edge/example-chart-react-basic && npm run check -w @edge/example-chart-plugins-basic && npm run check -w @edge/example-ai-tools-chart-basic && npm run check -w @edge/example-chart-data-source-basic && npm run check -w @edge/example-chart-perf-harness && npm run check -w @edge/example-indicator-runtime-spike",
     "check:startup": "npm run lint:instructions && npm test -- --run src/test/startup.test.ts src/app/components/chartContextMenu.test.ts src/app/components/chartCopyMenu.test.ts",
+    "ci:local": "npm run check:startup",
     "lint:package-boundaries": "npx tsx scripts/validate-package-boundaries.mts",
     "lint:app-lib-boundaries": "npx tsx scripts/validate-app-lib-boundaries.mts",
     "lint:chart-shims": "npx tsx scripts/validate-chart-shims.mts",

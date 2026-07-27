@@ -1,12 +1,23 @@
 #!/bin/sh
-# Local docs updater — runs before push. Opt out: EDGE_SKIP_DOCS_HOOK=1 git push
+# Local CI only — no GitHub Actions.
 # Install: npm run hooks:install
-
-if [ "$EDGE_SKIP_DOCS_HOOK" = "1" ]; then
-  exit 0
-fi
+#
+# Default: npm run ci:local (check:startup)
+# Skip CI:   EDGE_SKIP_LOCAL_CI=1 git push
+# Docs hook (Cursor API, opt-in): EDGE_DOCS_HOOK=1 git push
+# Skip docs when enabled: EDGE_SKIP_DOCS_HOOK=1 git push
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT" || exit 1
 
-exec npx tsx scripts/update-docs-for-diff.mts --pre-push
+if [ "$EDGE_SKIP_LOCAL_CI" != "1" ]; then
+  echo "pre-push: npm run ci:local"
+  npm run ci:local || exit 1
+fi
+
+if [ "$EDGE_DOCS_HOOK" = "1" ] && [ "$EDGE_SKIP_DOCS_HOOK" != "1" ]; then
+  echo "pre-push: docs:auto-update"
+  exec npx tsx scripts/update-docs-for-diff.mts --pre-push
+fi
+
+exit 0

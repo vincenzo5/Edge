@@ -448,7 +448,7 @@ export async function runDocsUpdate(options: {
       console.error(`  ${line}`);
     }
     console.error("Review the edits, commit them, then push again.");
-    console.error("Opt out for one push: EDGE_SKIP_DOCS_HOOK=1 git push");
+    console.error("Docs hook is opt-in: EDGE_DOCS_HOOK=1 git push (skip: EDGE_SKIP_DOCS_HOOK=1)");
     return hookExitCodeForDocsChange(afterDocs);
   }
 

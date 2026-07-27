@@ -139,4 +139,4 @@ When a change touches chart architecture, AI tool contracts, persistence schemas
 - Design system → `src/lib/design-system/ARCHITECTURE.md`
 - Current status → `docs/PROJECT-STATUS.md`
 
-Optional pre-push: `npm run hooks:install` + `CURSOR_API_KEY` in `.env.local` → `npm run docs:auto-update` on unpushed diffs.
+Local CI only (no GitHub Actions): `npm run hooks:install` → pre-push runs `npm run ci:local`. Full: `npm run check`. Chart perf / prod: deploy pipeline. Optional docs: `EDGE_DOCS_HOOK=1` + `CURSOR_API_KEY`.
