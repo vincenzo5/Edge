@@ -45,4 +45,4 @@ App-level when UI + state + persistence cross: layout sync, sidebar, or journal 
 | SEC-18 | Session cookie max age |
 | SEC-19 | `EDGE_AUTH_SECRET` rotation = logout |
 
-Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md) (Phase 4 fills owners).
+Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md).

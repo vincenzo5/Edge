@@ -1,0 +1,45 @@
+# Sub-harness tree — Phase 4 evidence
+# Date: 2026-07-27
+
+## Scope
+Security ledger + sensors — fill SEC-01..SEC-23 owners and pinning tests; sync pack Security pins; document SECURITY campaign mode; add lint:harness-ledger gate.
+No runtime change; no Phase 5 specialty cutover.
+
+## Delivered
+- docs/harness/security-invariant-ledger.md — SEC-01..SEC-23 filled (owning lane + pin path + status pinned)
+- docs/harness/branches/*.md — Security pins footers point to ledger (Phase 4 stub text removed)
+- docs/harness/README.md — Phase 4 live; SECURITY campaign protocol documented
+- scripts/validate-harness-ledger.mts — SEC-01..SEC-23 completeness gate
+- scripts/validate-agent-instructions.mts — calls validateHarnessLedger
+- package.json — lint:harness-ledger script
+- docs/roadmaps/sub-harness-tree-roadmap.md — Phase 4 Passing
+- docs/roadmaps/README.md — Sub-harness row synced
+- docs/ROADMAP.md — Near-Term line synced
+
+## Architecture review
+Self-review — instruction contract change; ledger ownership matches Phase 2 pack assignments; CONSTRAINTS not restated.
+
+## Manual spot-check
+- LIVE owns SEC-12 (tradingMutateAuth), SEC-17 (sidecarAuth)
+- AGENT owns SEC-06 (parseExecuteBody), SEC-11 (session.routes), SEC-20 (promptBoundaries)
+- OPS owns SEC-04 (apiAuth), SEC-22 (redactDiagnostic), SEC-23 (healthz/readyz)
+- Ledger rows cover CONSTRAINTS Security + Observability MUSTs (SEC-01..SEC-23)
+
+## App-level
+N/A (no runtime change)
+
+## Next
+Phase 5 — Router enforcement + specialty cutover
+
+## Focused
+Command: npm run lint:harness-ledger
+Result: npm run lint:harness-ledger passed — Harness ledger validation passed.
+exit=0
+
+Command: npm run lint:instructions
+Result: npm run lint:instructions passed — Instruction architecture validation passed.
+exit=0
+
+Command: npm run roadmaps:status-check
+Result: roadmaps:status-check OK — README table matches track Status lines.
+exit=0

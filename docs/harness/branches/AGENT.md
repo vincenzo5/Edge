@@ -39,4 +39,4 @@ App-level when tool + app context cross: destructive tool requires confirmation 
 | SEC-11 | Bridge secret on session poll/result/execute |
 | SEC-20 | Copilot prompt isolation |
 
-Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md) (Phase 4 fills owners).
+Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md).

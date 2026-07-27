@@ -4,7 +4,7 @@ Evolve Edge’s single mega work harness into a **thin parent + routed domain su
 
 **Last updated:** 2026-07-27
 
-**Status:** Phase 0 **Passing** (2026-07-27). Phase 1 **Passing** (2026-07-27). Phase 2 **Passing** (2026-07-27). Phase 3 **Passing** (2026-07-27). Phase 4 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-27). Phase 1 **Passing** (2026-07-27). Phase 2 **Passing** (2026-07-27). Phase 3 **Passing** (2026-07-27). Phase 4 **Passing** (2026-07-27). Phase 5 **Pending**.
 
 **Related:** [AGENTS.md](../../AGENTS.md), [Plan → Execute Token Efficiency](./plan-execute-token-efficiency-roadmap.md), [plan-execute-routing](../../.cursor/rules/plan-execute-routing.mdc), [plan-harness-awareness](../../.cursor/rules/plan-harness-awareness.mdc), [execute-from-plan](../../.cursor/rules/execute-from-plan.mdc), [harness-steward](../../.cursor/rules/harness-steward.mdc), [CONSTRAINTS.md](../CONSTRAINTS.md), [Security Hardening](./security-hardening-roadmap.md), [Local Production Containerization](./local-production-containerization-roadmap.md).
 
@@ -346,5 +346,5 @@ App-level / `npm run build` **not** required — harness/docs only unless a phas
 | 1 | Branch field in Plan mode | **Passing** (2026-07-27) |
 | 2 | Branch packs | **Passing** (2026-07-27) |
 | 3 | Thin parent | **Passing** (2026-07-27) |
-| 4 | Security ledger + sensors | **Pending** |
+| 4 | Security ledger + sensors | **Passing** (2026-07-27) |
 | 5 | Router enforcement + specialty cutover | **Pending** |

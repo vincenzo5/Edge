@@ -42,4 +42,4 @@ App-level when UI + engine + state cross: manual chart interaction on `http://lo
 |----|------|
 | SEC-15 | CSP / HSTS on app routes — canvas indicator QuickJS exceptions |
 
-Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md) (Phase 4 fills owners).
+Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md).

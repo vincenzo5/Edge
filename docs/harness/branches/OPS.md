@@ -50,4 +50,4 @@ App-level: probe `http://127.0.0.1:3000/readyz` — JSON must be secret-free.
 | SEC-22 | `redactDiagnostic` on ops surfaces |
 | SEC-23 | Secret-free health probes |
 
-Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md) (Phase 4 fills owners).
+Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md).

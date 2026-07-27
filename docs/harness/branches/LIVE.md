@@ -45,4 +45,4 @@ App-level when UI + order state + sidecar cross: paper order round-trip with dis
 | SEC-12 | Mutating `/api/trading/*` auth when Postgres configured |
 | SEC-17 | `TWS_SIDECAR_SECRET` for non-loopback sidecar |
 
-Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md) (Phase 4 fills owners).
+Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md).

@@ -27,6 +27,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:instructions": "npx tsx scripts/validate-agent-instructions.mts",
+    "lint:harness-ledger": "npx tsx scripts/validate-harness-ledger.mts",
     "lint:harness-retention": "npx tsx scripts/validate-harness-retention.mts",
     "lint:roadmap-status": "npx tsx scripts/check-roadmap-status.mts",
     "lint:efficiency-ledger": "npx tsx scripts/lint-efficiency-ledger.mts",

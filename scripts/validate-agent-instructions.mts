@@ -14,10 +14,12 @@ import {
   validateSessionExitContent,
   type Issue,
 } from "./validate-project-status.mts";
+import { validateHarnessLedgerContent } from "./validate-harness-ledger.mts";
 
 const ROOT = join(import.meta.dirname, "..");
 const AGENTS_PATH = join(ROOT, "AGENTS.md");
 const PROJECT_STATUS_PATH = join(ROOT, "docs", "PROJECT-STATUS.md");
+const HARNESS_LEDGER_PATH = join(ROOT, "docs", "harness", "security-invariant-ledger.md");
 const CHECKLISTS_DIR = join(ROOT, "docs", "checklists");
 const PLAN_HARNESS_RULE_PATH = join(ROOT, ".cursor", "rules", "plan-harness-awareness.mdc");
 const EXECUTE_FROM_PLAN_RULE_PATH = join(ROOT, ".cursor", "rules", "execute-from-plan.mdc");
@@ -364,6 +366,18 @@ function validatePlanningChecklists(issues: Issue[]): void {
   }
 }
 
+function validateHarnessLedger(issues: Issue[]): void {
+  const rel = "docs/harness/security-invariant-ledger.md";
+  if (!existsSync(HARNESS_LEDGER_PATH)) {
+    issues.push({ file: rel, message: "file not found" });
+    return;
+  }
+  const content = readText(HARNESS_LEDGER_PATH);
+  for (const { message } of validateHarnessLedgerContent(content)) {
+    issues.push({ file: rel, message });
+  }
+}
+
 function validateProjectStatus(issues: Issue[]): void {
   const rel = "docs/PROJECT-STATUS.md";
   const content = readText(PROJECT_STATUS_PATH);
@@ -378,6 +392,7 @@ function main(): void {
   validateCursorRules(issues);
   validateInstructionFiles(issues);
   validatePlanningChecklists(issues);
+  validateHarnessLedger(issues);
   validateProjectStatus(issues);
 
   if (issues.length > 0) {

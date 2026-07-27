@@ -36,7 +36,7 @@ Cross-cut:
 ## How Plan mode uses branches
 
 1. **Mode ≠ branch** — Plan/Execute is *how* you work; branch is *which world* you enter.
-2. **Parent** — [`AGENTS.md`](../../AGENTS.md) Branch routing points here; always-on CONSTRAINTS + PROJECT-STATUS. **Phase 3 live.**
+2. **Parent** — [`AGENTS.md`](../../AGENTS.md) Branch routing points here; always-on CONSTRAINTS + PROJECT-STATUS. **Phase 4 live** (security ledger + campaign mode).
 3. **Classify** — compact plan Intent Classification emits `Branch: <LANE>` (primary ± secondary). Wired into [plan-harness-awareness.mdc](../../.cursor/rules/plan-harness-awareness.mdc).
 4. **Load** — Read `docs/harness/branches/<LANE>.md` before deep architecture reads.
 5. **Execute** — reads `Branch:` from the approved plan; runs that lane’s sensors; no re-classification unless the plan is wrong.
@@ -103,9 +103,21 @@ Router picks **one primary** lane by changed invariant, then optional **secondar
 
 ## Security (laminated, not a peer branch)
 
-Security invariants live in [CONSTRAINTS.md](../CONSTRAINTS.md) Security section. Each MUST maps to an **owning lane** and **pinning test or doc** in [security-invariant-ledger.md](./security-invariant-ledger.md). Core lane packs list ledger ids they own (Phase 4).
+Security invariants live in [CONSTRAINTS.md](../CONSTRAINTS.md) Security section. Each MUST maps to an **owning lane** and **pinning test or doc** in [security-invariant-ledger.md](./security-invariant-ledger.md). Core lane packs list ledger ids they own under **Security pins**.
 
-**Temporary SECURITY campaign mode:** audit or hardening sprints may load multiple lane packs + the full ledger. Campaigns are time-boxed — not a standing peer branch. Full campaign protocol lands in Phase 4.
+### Temporary SECURITY campaign mode
+
+Use for time-boxed audit or hardening sprints — **not** a standing peer branch.
+
+**When to use:** cross-lane security review, invariant gap audit, or post-incident hardening that touches multiple lanes (e.g. auth + trading + AI bridge).
+
+**How to run:**
+
+1. **Plan** — Intent Classification notes `SECURITY campaign` in Assumptions; primary lane stays the changed invariant (or **HARNESS** if docs-only). Load [security-invariant-ledger.md](./security-invariant-ledger.md) plus every lane pack whose pins are in scope.
+2. **Execute** — Run each affected lane's pin tests (ledger **pinning test or doc** column) as focused verify; do not invent a SECURITY pack.
+3. **Close** — Normal harness closeout when the campaign ends; archive campaign notes in evidence file. Campaign rows do not persist as a permanent branch.
+
+**Exit:** campaign ends when scoped invariants are pinned or blockers are recorded; return to single-primary `Branch:` for follow-up work.
 
 ---
 

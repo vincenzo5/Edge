@@ -41,4 +41,4 @@ npm run harness:closeout -- --name "…" --evidence-file …
 
 ## Security pins
 
-None — process lane. Security ownership lives in product lane packs; ledger fill is Phase 4.
+None — process lane. Security ownership lives in product lane packs; see [security-invariant-ledger.md](../security-invariant-ledger.md).

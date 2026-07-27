@@ -44,4 +44,4 @@ App-level when API + cache + chart feed cross: confirm candle load and `meta.sou
 |----|------|
 | SEC-16 | `IBKR_SSL_VERIFY` default on |
 
-Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md) (Phase 4 fills owners).
+Full ledger: [security-invariant-ledger.md](../security-invariant-ledger.md).
