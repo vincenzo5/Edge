@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,6 +18,7 @@ import {
   imageExists,
   loadContainerDeployInputSync,
   parseDeployLocalProdContainerArgs,
+  restoreWorktreeAfterChartPerf,
   runContainerDeployCommand,
   runContainerPreflightCheck,
   runContainerRollbackCommand,
@@ -388,6 +390,43 @@ describe("runContainerDeployCommand", () => {
     expect(code).toBe(1);
     expect(deps.runChartPerfCheck).toHaveBeenCalled();
     expect(deps.buildRuntimeAndMigrateImages).not.toHaveBeenCalled();
+  });
+
+  it("restoreWorktreeAfterChartPerf clears perf baseline dirt", () => {
+    const root = mkdtempSync(join(tmpdir(), "edge-chart-perf-restore-"));
+    execFileSync("git", ["-C", root, "init"]);
+    execFileSync("git", ["-C", root, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", root, "config", "user.name", "test"]);
+    mkdirSync(join(root, "docs", "perf"), { recursive: true });
+    mkdirSync(join(root, "examples", "chart-perf-harness", "dist-browser"), {
+      recursive: true,
+    });
+    writeFileSync(join(root, "docs", "perf", "chart-baseline-latest.json"), "{}\n");
+    writeFileSync(
+      join(root, "docs", "perf", "runtime-interaction-baseline-latest.json"),
+      "{}\n",
+    );
+    writeFileSync(
+      join(root, "examples", "chart-perf-harness", "dist-browser", "index.html"),
+      "<html></html>\n",
+    );
+    execFileSync("git", ["-C", root, "add", "."]);
+    execFileSync("git", ["-C", root, "commit", "-m", "seed"]);
+
+    writeFileSync(join(root, "docs", "perf", "chart-baseline-latest.json"), '{"dirty":true}\n');
+    writeFileSync(
+      join(root, "docs", "perf", "chart-baseline-2026-07-27T00-00-00-000Z.json"),
+      '{"temp":true}\n',
+    );
+
+    restoreWorktreeAfterChartPerf(root);
+
+    expect(readFileSync(join(root, "docs", "perf", "chart-baseline-latest.json"), "utf8")).toBe(
+      "{}\n",
+    );
+    expect(
+      existsSync(join(root, "docs", "perf", "chart-baseline-2026-07-27T00-00-00-000Z.json")),
+    ).toBe(false);
   });
 
   it("fails deploy when health gate fails without promoting current", async () => {

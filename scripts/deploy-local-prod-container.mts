@@ -367,6 +367,36 @@ function readBuildIdFromContainer(execFile: LocalProdDeps["execFile"]): string |
   }
 }
 
+/** Undo `npm run perf:chart` worktree writes so image build can require a clean tree. */
+export function restoreWorktreeAfterChartPerf(developmentRoot: string): void {
+  execFileSync(
+    "git",
+    [
+      "-C",
+      developmentRoot,
+      "checkout",
+      "--",
+      "docs/perf/chart-baseline-latest.json",
+      "docs/perf/runtime-interaction-baseline-latest.json",
+      "examples/chart-perf-harness/dist-browser",
+    ],
+    { stdio: "ignore" },
+  );
+  execFileSync(
+    "git",
+    [
+      "-C",
+      developmentRoot,
+      "clean",
+      "-fd",
+      "--",
+      "docs/perf",
+      "examples/chart-perf-harness/dist-browser",
+    ],
+    { stdio: "ignore" },
+  );
+}
+
 export function defaultDeployLocalProdContainerDeps(): DeployLocalProdContainerDeps {
   const base = defaultLocalProdDeps();
   const buildDeps = defaultBuildAppImageDeps();
@@ -396,6 +426,9 @@ export function defaultDeployLocalProdContainerDeps(): DeployLocalProdContainerD
             CHART_PERF_BUDGET_STRICT: "1",
           },
         });
+        // perf:chart rewrites tracked baselines / harness dist; restore a clean
+        // worktree so the detached image build context check can pass.
+        restoreWorktreeAfterChartPerf(process.cwd());
         return 0;
       } catch {
         return 1;
