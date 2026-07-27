@@ -16,7 +16,7 @@ Do **not** use for Plan mode or "plan this" asks — use [planning-router.md](./
 
 Read only:
 
-- [ ] Approved plan — Proposed Plan steps, Verification Plan, Harness Update, Arch line
+- [ ] Approved plan — Proposed Plan steps, Verification Plan, Harness Update, Arch line, `Branch:` when present (do not re-classify unless plan is wrong/incomplete)
 - [ ] [docs/PROJECT-STATUS.md](../PROJECT-STATUS.md) — Active Work row for this task + open Task Contract only (`Grep`; **≤2** status reads total: activate + closeout)
 - [ ] Closest architecture doc for touched area (from plan files column or Area Ownership)
 
@@ -42,6 +42,7 @@ Before coding, confirm the plan has:
 - [ ] Arch: N/A (reason) or Arch: Required (reviewer, Pending|Passed|Blocked)
 - [ ] Focused verify command when code changes
 - [ ] Concrete files for non-trivial work
+- [ ] `Branch:` when present matches the work (stop/re-plan only if wrong — missing `Branch:` on pre-Phase-1 plans is OK)
 
 If any missing → stop; tell user what's missing; do not discover or improvise.
 

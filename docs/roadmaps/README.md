@@ -53,4 +53,4 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Security hardening | [security-hardening-roadmap.md](./security-hardening-roadmap.md) | Phases 0–6 **Passing** (2026-07-24) — track complete |
 | Production observability (free stack) | [production-observability-roadmap.md](./production-observability-roadmap.md) | Phase 0–5 **Passing** (2026-07-25); track complete |
 | Plan → execute token efficiency | [plan-execute-token-efficiency-roadmap.md](./plan-execute-token-efficiency-roadmap.md) | Phase 0–9 **Passing** (2026-07-25) — track complete |
-| Sub-harness tree | [sub-harness-tree-roadmap.md](./sub-harness-tree-roadmap.md) | Phase 0 **Passing** (2026-07-27); Phase 1 **Pending** |
+| Sub-harness tree | [sub-harness-tree-roadmap.md](./sub-harness-tree-roadmap.md) | Phase 0 **Passing** (2026-07-27); Phase 1 **Passing** (2026-07-27); Phase 2 **Pending** |

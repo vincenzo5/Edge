@@ -16,6 +16,8 @@ Before classifying intent, read:
 
 Then apply [harness-status-checklist.md](./harness-status-checklist.md) for every plan.
 
+After Plan vs Execute routing, classify `Branch:` per [plan-harness-awareness.mdc](../../.cursor/rules/plan-harness-awareness.mdc) and the intent→branch router in [docs/harness/README.md](../harness/README.md) — before deep topic architecture reads.
+
 ## Architecture Review (Always Evaluate)
 
 After selecting the primary intent checklist, **always** evaluate [architecture-review-checklist.md](./architecture-review-checklist.md).
@@ -65,6 +67,7 @@ Walk selected checklists internally. Every plan MUST include these sections in o
 
 ```md
 ## Intent Classification
+- Branch: <ENGINE|DATA|LIVE|AGENT|APP|OPS|HARNESS> (secondary: <lane|none>)
 - Primary / Secondary. Arch: N/A (reason) | Required (reviewer, Pending|Passed|Blocked).
 - Assumptions: only non-obvious deltas (omit checklist file lists).
 ```
@@ -106,6 +109,7 @@ Architecture decision; focused command when code changes; app-level when UI+stat
 
 ```md
 ## Intent Classification
+- Branch: APP (secondary: none)
 - Primary: Feature. Arch: Required (self-review, Pending).
 
 ## Checklist Review

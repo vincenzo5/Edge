@@ -36,7 +36,7 @@ Cross-cut:
 ## How Plan mode uses branches
 
 1. **Mode ≠ branch** — Plan/Execute is *how* you work; branch is *which world* you enter.
-2. **Classify** — compact plan Intent Classification emits `Branch: <LANE>` (primary ± secondary). Phase 1 wires this into plan-harness-awareness.
+2. **Classify** — compact plan Intent Classification emits `Branch: <LANE>` (primary ± secondary). **Phase 1 live** — wired into [plan-harness-awareness.mdc](../../.cursor/rules/plan-harness-awareness.mdc); do not load branch packs yet.
 3. **Load** — Read `docs/harness/branches/<LANE>.md` (Phase 2) before deep architecture reads.
 4. **Execute** — reads `Branch:` from the approved plan; runs that lane’s sensors; no re-classification unless the plan is wrong.
 5. **Topic docs** — branch pack → area `ARCHITECTURE.md` → focused verify.

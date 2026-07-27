@@ -1,0 +1,41 @@
+# Sub-harness tree — Phase 1 evidence
+# Date: 2026-07-27
+
+## Scope
+Instruction contract only — wire Branch: into Plan-mode Intent Classification; execute reads Branch from approved plan.
+No branch packs; no AGENTS.md trim; no runtime change.
+
+## Delivered
+- .cursor/rules/plan-harness-awareness.mdc — Branch: first bullet in Intent Classification template; classify after Plan vs Execute; no pack load until Phase 2
+- .cursor/rules/plan-execute-routing.mdc — Plan turns classify Branch before deep topic loads
+- docs/checklists/planning-router.md — Branch classify pointer; template + compact example updated
+- .cursor/rules/execute-from-plan.mdc — read Branch from plan; no re-classify unless wrong/incomplete
+- docs/checklists/execute-from-plan-checklist.md — Pre-Execute + Gate Branch notes
+- docs/harness/README.md — Phase 1 live on classify step; pack load still Phase 2
+- docs/roadmaps/sub-harness-tree-roadmap.md — Phase 1 Passing
+- docs/roadmaps/README.md — Sub-harness row synced
+- docs/ROADMAP.md — Near-Term line synced
+
+## Architecture review
+Self-review Passed — instruction contract change only; emit/read Branch without pack loads; BRAND excluded from enum (side door).
+
+## Manual smoke
+- This phase plan: Branch: HARNESS (secondary: none) — harness rules/checklists/steward work
+- Router example: chart drawing/indicator → Branch: ENGINE
+- Router example: container deploy/rollback → Branch: OPS
+Template language usable without loading docs/harness/branches/*.
+
+## App-level
+N/A (no runtime change)
+
+## Next
+Phase 2 — Branch packs under docs/harness/branches/
+
+## Focused
+Command: npm run lint:instructions
+Result: npm run lint:instructions passed — Instruction architecture validation passed.
+exit=0
+
+Command: npm run roadmaps:status-check
+Result: roadmaps:status-check OK — README table matches track Status lines.
+exit=0

@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Plan vs Execute Routing
 
-- **Planning** (Plan mode, "plan this", scope/design before coding) → follow [plan-harness-awareness.mdc](./plan-harness-awareness.mdc).
+- **Planning** (Plan mode, "plan this", scope/design before coding) → follow [plan-harness-awareness.mdc](./plan-harness-awareness.mdc). Plan turns classify `Branch:` per plan-harness + [docs/harness/README.md](../docs/harness/README.md) router before deep topic loads.
 - **Implementing an approved plan** (implement, execute, ship, build from plan) → follow [execute-from-plan.mdc](./execute-from-plan.mdc).
 
 Do not load both full rules in the same turn. Coding turns must not pay the compact plan template.

@@ -19,8 +19,11 @@ When generating any plan (especially in Plan mode):
 
 Required sections in order:
 
+Classify **Branch** after Plan vs Execute routing, before deep topic loads — use the intent→branch router in [docs/harness/README.md](../docs/harness/README.md). Do **not** load `docs/harness/branches/*` until Phase 2 packs exist.
+
 ```md
 ## Intent Classification
+- Branch: <ENGINE|DATA|LIVE|AGENT|APP|OPS|HARNESS> (secondary: <lane|none>)
 - Primary / Secondary. Arch: N/A (reason) | Required (reviewer, Pending|Passed|Blocked).
 - Assumptions: only non-obvious deltas (omit checklist file lists).
 
@@ -45,6 +48,7 @@ Required sections in order:
 
 ## Do not drop
 
+- Branch line (primary ± secondary; BRAND is a side door — not in the enum)
 - Architecture review decision line (N/A reason or Required + reviewer)
 - Focused verify command when code changes
 - App-level tier when UI+state, API+persist, or AI+app boundaries cross
