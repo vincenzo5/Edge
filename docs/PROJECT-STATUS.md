@@ -2,7 +2,7 @@
 
 Single source for **current** progress. Historical harness dumps: [status-archive/](./status-archive/). For row-by-row feature detail, see [chart/features.md](./chart/features.md).
 
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-27
 
 ## Current Verified State
 
@@ -108,6 +108,13 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 - **Next:** Activate Connections Phase 5 under WIP=1 when prioritized — Gateway connect chrome (5.2–5.5).
 
 ## Session Log
+
+### 2026-07-27 — Prod TWS binding + shared-sidecar deploy prep
+
+- **Completed:** Committed and pushed static `EnvConfigSource` TWS bindings, sidecar state_mod/config ROOT fixes, deploy chart-perf gate, and dual-connection docs sync (`30685a7` on `main`).
+- **Verification run:** Focused: pushed commits `f7a68ff` / `86ba53e` / `30685a7`; `npm run lint:instructions` after this Session Log entry; chart-perf strict gate re-run for container deploy.
+- **Next best step:** `npm run local:prod:container:deploy -- --revision HEAD` after chart-perf + startup gates pass.
+
 
 ### 2026-07-26 — Local production containerization — Phase 2
 
