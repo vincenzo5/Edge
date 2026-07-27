@@ -19,7 +19,7 @@ When generating any plan (especially in Plan mode):
 
 Required sections in order:
 
-Classify **Branch** after Plan vs Execute routing, before deep topic loads — use the intent→branch router in [docs/harness/README.md](../docs/harness/README.md). Do **not** load `docs/harness/branches/*` until Phase 2 packs exist.
+Classify **Branch** after Plan vs Execute routing, before deep topic loads — use the intent→branch router in [docs/harness/README.md](../docs/harness/README.md). Then **Read** `docs/harness/branches/<PRIMARY>.md` (and secondary pack if named) before area architecture deep-dives. Do not load unrelated lane packs.
 
 ```md
 ## Intent Classification

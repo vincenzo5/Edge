@@ -1,0 +1,50 @@
+# Sub-harness tree — Phase 2 evidence
+# Date: 2026-07-27
+
+## Scope
+Branch packs under docs/harness/branches/; Plan mode loads primary pack after Branch:; execute prefers pack Sensors.
+No AGENTS.md trim; no ledger fill; no runtime change.
+
+## Delivered
+- docs/harness/branches/ENGINE.md — 45 lines
+- docs/harness/branches/DATA.md — 47 lines
+- docs/harness/branches/LIVE.md — 48 lines
+- docs/harness/branches/AGENT.md — 42 lines
+- docs/harness/branches/APP.md — 48 lines
+- docs/harness/branches/OPS.md — 53 lines
+- docs/harness/branches/HARNESS.md — 44 lines
+- .cursor/rules/plan-harness-awareness.mdc — Read primary pack after Branch:; no unrelated lane packs
+- .cursor/rules/execute-from-plan.mdc — Read pack; prefer Sensors for focused verify
+- docs/checklists/execute-from-plan-checklist.md — Pre-Execute pack Read + Sensors note
+- docs/harness/README.md — Phase 2 live; branch pack index table; BRAND side door only
+- docs/roadmaps/sub-harness-tree-roadmap.md — Phase 2 Passing
+- docs/roadmaps/README.md — Sub-harness row synced
+- docs/ROADMAP.md — Near-Term line synced
+
+## Architecture review
+Self-review — instruction contract change; seven packs ≤80 lines; link-only CONSTRAINTS; security pins stub ids until Phase 4.
+
+## Spot-check
+- All seven packs exist; max line count 53 (OPS.md); no full CONSTRAINTS paste
+- Pack links resolve to real ARCHITECTURE.md paths and skills
+- BRAND has no peer pack file (README side door only)
+
+## Manual smoke
+- This execute session: Branch HARNESS → HARNESS.md is first domain doc after classification
+- DATA, LIVE, OPS packs exist for Plan-mode load per router examples
+- plan-harness language requires Read docs/harness/branches/<PRIMARY>.md before architecture deep-dives
+
+## App-level
+N/A (no runtime change)
+
+## Next
+Phase 3 — Thin parent (AGENTS.md trim)
+
+## Focused
+Command: npm run lint:instructions
+Result: npm run lint:instructions passed — Instruction architecture validation passed.
+exit=0
+
+Command: npm run roadmaps:status-check
+Result: roadmaps:status-check OK — README table matches track Status lines.
+exit=0

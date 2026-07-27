@@ -16,7 +16,7 @@ Do **not** use for Plan mode or "plan this" asks — use [planning-router.md](./
 
 Read only:
 
-- [ ] Approved plan — Proposed Plan steps, Verification Plan, Harness Update, Arch line, `Branch:` when present (do not re-classify unless plan is wrong/incomplete)
+- [ ] Approved plan — Proposed Plan steps, Verification Plan, Harness Update, Arch line, `Branch:` when present (do not re-classify unless plan is wrong/incomplete); when `Branch:` present, Read `docs/harness/branches/<PRIMARY>.md` and prefer pack **Sensors** for focused verify
 - [ ] [docs/PROJECT-STATUS.md](../PROJECT-STATUS.md) — Active Work row for this task + open Task Contract only (`Grep`; **≤2** status reads total: activate + closeout)
 - [ ] Closest architecture doc for touched area (from plan files column or Area Ownership)
 

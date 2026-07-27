@@ -13,7 +13,7 @@ PARENT (thin)
   WIP · router · shared DoD · status hub
   plan | execute = MODE (orthogonal)
 
-Core lanes (packs under docs/harness/branches/ — Phase 2):
+Core lanes (packs under docs/harness/branches/):
   ENGINE   chart platform (packages/chart-*, indicators, drawings, scripting, perf)
   DATA     market truth (providers, cache, freshness, history, connections-as-quotes)
   LIVE     money path (orders, paper/live, TWS control, display≠order account)
@@ -36,12 +36,26 @@ Cross-cut:
 ## How Plan mode uses branches
 
 1. **Mode ≠ branch** — Plan/Execute is *how* you work; branch is *which world* you enter.
-2. **Classify** — compact plan Intent Classification emits `Branch: <LANE>` (primary ± secondary). **Phase 1 live** — wired into [plan-harness-awareness.mdc](../../.cursor/rules/plan-harness-awareness.mdc); do not load branch packs yet.
-3. **Load** — Read `docs/harness/branches/<LANE>.md` (Phase 2) before deep architecture reads.
+2. **Classify** — compact plan Intent Classification emits `Branch: <LANE>` (primary ± secondary). Wired into [plan-harness-awareness.mdc](../../.cursor/rules/plan-harness-awareness.mdc).
+3. **Load** — Read `docs/harness/branches/<LANE>.md` before deep architecture reads. **Phase 2 live.**
 4. **Execute** — reads `Branch:` from the approved plan; runs that lane’s sensors; no re-classification unless the plan is wrong.
 5. **Topic docs** — branch pack → area `ARCHITECTURE.md` → focused verify.
 
 Packs are ≤ ~80 lines: seed, load set, sensors, status prefix, security pins. They **link** into `CONSTRAINTS.md` — they do not restate it.
+
+**Branch packs:**
+
+| Pack | Path |
+|------|------|
+| ENGINE | [branches/ENGINE.md](./branches/ENGINE.md) |
+| DATA | [branches/DATA.md](./branches/DATA.md) |
+| LIVE | [branches/LIVE.md](./branches/LIVE.md) |
+| AGENT | [branches/AGENT.md](./branches/AGENT.md) |
+| APP | [branches/APP.md](./branches/APP.md) |
+| OPS | [branches/OPS.md](./branches/OPS.md) |
+| HARNESS | [branches/HARNESS.md](./branches/HARNESS.md) |
+
+**BRAND** — side door only (no peer pack): `.cursor/skills/visual-assets/`, `.cursor/skills/visual-production/`, dashmotion.
 
 ---
 

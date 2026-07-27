@@ -11,7 +11,7 @@ Follow [docs/checklists/execute-from-plan-checklist.md](../docs/checklists/execu
 
 ## Must do
 
-1. **Read the approved plan** — steps, concrete files, Verification Plan, Harness Update line, and `Branch:` when present. Do not re-classify branch unless the plan is wrong or incomplete.
+1. **Read the approved plan** — steps, concrete files, Verification Plan, Harness Update line, and `Branch:` when present. Do not re-classify branch unless the plan is wrong or incomplete. When `Branch:` is present, **Read** `docs/harness/branches/<PRIMARY>.md` (and secondary if named) and prefer that pack’s **Sensors** for focused verify — still honor the plan Verification Plan.
 2. **Activate harness once** — set Active Work row **Active**; run `npm run harness:activate -- --name "…"`; read Active Work row + open Task Contract only (**≤2** `PROJECT-STATUS` reads total: activate + closeout).
 3. **Implement plan steps only** — no adjacent refactors, polish, or follow-ups.
 4. **Run plan Verification** — quote **actual command output** (test counts, build exit, app-level numbers).

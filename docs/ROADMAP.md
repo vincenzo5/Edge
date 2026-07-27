@@ -288,7 +288,7 @@ Living feature tracks (phase detail in each file):
 - ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete
 - [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0–5 **Passing** (2026-07-25); track complete
 - [Plan → execute token efficiency](./roadmaps/plan-execute-token-efficiency-roadmap.md) — Phase 0–7 **Passing** (track complete)
-- [Sub-harness tree](./roadmaps/sub-harness-tree-roadmap.md) — Phase 0 **Passing** (2026-07-27); Phase 1 **Passing** (2026-07-27); Phase 2 **Pending** (Branch packs)
+- [Sub-harness tree](./roadmaps/sub-harness-tree-roadmap.md) — Phase 0 **Passing** (2026-07-27); Phase 1 **Passing** (2026-07-27); Phase 2 **Passing** (2026-07-27); Phase 3 **Pending** (Thin parent)
 
 Broader product backlog (not feature-track owned):
 
