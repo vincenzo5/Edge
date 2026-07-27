@@ -288,6 +288,7 @@ Living feature tracks (phase detail in each file):
 - ~~[Security hardening](./roadmaps/security-hardening-roadmap.md)~~ — Phases 0–6 **Passing** (2026-07-24); track complete
 - [Production observability (free stack)](./roadmaps/production-observability-roadmap.md) — Phase 0–5 **Passing** (2026-07-25); track complete
 - [Plan → execute token efficiency](./roadmaps/plan-execute-token-efficiency-roadmap.md) — Phase 0–7 **Passing** (track complete)
+- [Sub-harness tree](./roadmaps/sub-harness-tree-roadmap.md) — Phase 0 **Passing** (2026-07-27); Phase 1 **Pending** (Branch field in Plan mode)
 
 Broader product backlog (not feature-track owned):
 
@@ -338,6 +339,7 @@ These are intentionally not near-term roadmap items:
 - [Memory Efficiency Roadmap](./roadmaps/memory-efficiency-roadmap.md) - Phases 0–14 **Passing** (track complete; Redis shared cache optional behind `EDGE_MARKET_DATA_CACHE_BACKEND=redis`).
 - [Runtime Interaction Performance Roadmap](./roadmaps/runtime-performance-roadmap.md) - frame time, crosshair cost, tip tick, React wakeups; CI budgets after interaction fixes.
 - [Plan → Execute Token Efficiency Roadmap](./roadmaps/plan-execute-token-efficiency-roadmap.md) - Phase 0–7 **Passing** (track complete).
+- [Sub-Harness Tree Roadmap](./roadmaps/sub-harness-tree-roadmap.md) - thin parent + routed domain packs (ENGINE/DATA/LIVE/AGENT/APP/OPS); Plan mode spine.
 - [Production Observability Roadmap](./roadmaps/production-observability-roadmap.md) - free-stack probes, logs, durable audit/errors, and alerts (no paid SaaS).
 - [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md) - sync/series consolidation and chart/app coordinator decomposition.
 - [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md) - follow-on structure: `lib`↛`app`, god-module budgets, components migration, chart shim sunset, harness hygiene.

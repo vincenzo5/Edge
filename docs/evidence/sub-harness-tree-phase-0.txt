@@ -1,0 +1,35 @@
+# Sub-harness tree — Phase 0 evidence
+# Date: 2026-07-27
+
+## Scope
+Docs-only — spec lock for thin parent + routed domain sub-harnesses.
+Target tree, router table, security invariant ledger skeleton.
+No agent behavior change; no branch packs; no rule or AGENTS.md edits.
+
+## Delivered
+- docs/harness/README.md — topology, seam rules, Plan-mode branch flow, intent→branch router, specialty side doors, non-goals
+- docs/harness/security-invariant-ledger.md — SEC-01..SEC-23 stubs (Security + Observability security-adjacent MUSTs)
+- docs/roadmaps/sub-harness-tree-roadmap.md — Phase 0 Passing; phase summary table
+- docs/roadmaps/README.md — Sub-harness row synced
+- docs/ROADMAP.md — Near-Term line synced
+
+## Architecture review
+N/A — docs/spec only; no runtime or instruction contract change (Phase 1+).
+
+## Manual smoke
+Tree matches locked decisions: DATA peer present; BRAND side door (not peer); SECURITY laminated (not peer); HARNESS quarantined.
+
+## App-level
+N/A (no runtime change)
+
+## Next
+Phase 1 — Branch field in Plan mode (plan-harness-awareness Intent Classification template)
+
+## Focused
+Command: npm run lint:instructions
+Result: npm run lint:instructions passed — Instruction architecture validation passed.
+exit=0
+
+Command: npm run roadmaps:status-check
+Result: roadmaps:status-check OK — README table matches track Status lines.
+exit=0
