@@ -1,0 +1,43 @@
+# Sub-harness tree — Phase 5 evidence
+# Date: 2026-07-27
+
+## Scope
+Router enforcement + specialty cutover — OPS-forced deploy entry; BRAND visual side door; HARNESS quarantine in steward; soft branch-prefixed Active Work preference.
+No runtime change; no fail-closed Branch lint (YAGNI).
+
+## Delivered
+- .cursor/rules/deploy-local-prod.mdc — OPS-forced entry; Branch: OPS + OPS.md pack pointer
+- .cursor/skills/deploy-local-prod/SKILL.md — OPS specialty entry block
+- .cursor/rules/visual-assets.mdc — BRAND side door pointer
+- .cursor/skills/visual-assets/SKILL.md — BRAND side door pointer
+- .cursor/skills/visual-production/SKILL.md — BRAND side door pointer
+- .cursor/rules/harness-steward.mdc — HARNESS quarantine section
+- docs/checklists/harness-status-checklist.md — quarantine line in WIP section
+- docs/harness/README.md — Phase 5 live; router-owned side doors; Active Work naming; router matrix
+- docs/harness/branches/HARNESS.md — closeout note for branch-prefixed Active Work
+- docs/roadmaps/sub-harness-tree-roadmap.md — Phase 5 Passing; track complete
+- docs/roadmaps/README.md — Sub-harness row synced
+- docs/ROADMAP.md — Near-Term line synced
+
+## Architecture review
+Self-review — instruction cutover only; specialty doors aligned with branch router; no CONSTRAINTS restatement.
+
+## Manual router matrix
+- /deploy-prod → OPS (deploy-local-prod rule/skill + OPS.md)
+- Chart plan → ENGINE (router table + ENGINE.md)
+- Order isolation → LIVE (router table + LIVE.md)
+- Market-data freshness → DATA (router table + DATA.md)
+- Harness rule edit → HARNESS only (steward quarantine + HARNESS pack)
+- Landing visuals → BRAND side door (visual-assets/visual-production skills)
+
+## App-level
+N/A (no runtime change)
+
+## Focused
+Command: npm run lint:instructions
+Result: npm run lint:instructions passed — Instruction architecture validation passed.
+exit=0
+
+Command: npm run lint:harness-ledger
+Result: npm run lint:harness-ledger passed — Harness ledger validation passed.
+exit=0

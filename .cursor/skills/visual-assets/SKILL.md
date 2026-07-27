@@ -5,6 +5,8 @@ description: Generate visual assets for the Edge landing page — logos, icons, 
 
 # Visual Assets Production
 
+**BRAND side door** — router index: [docs/harness/README.md](../../../docs/harness/README.md) (no peer branch pack).
+
 Asset inventory and production guide for the Edge landing page. Maps each visual asset to the correct tool and provides the context the agent needs to produce on-brand results.
 
 ## Asset-to-Tool Map

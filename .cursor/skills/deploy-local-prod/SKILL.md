@@ -9,6 +9,8 @@ description: >-
 
 # Deploy Local Production
 
+**OPS specialty entry** — `Branch: OPS`; load [docs/harness/branches/OPS.md](../../../docs/harness/branches/OPS.md) for Sensors and Security pins. Router index: [docs/harness/README.md](../../../docs/harness/README.md).
+
 Container production only. Legacy worktree/LaunchAgent deploy is retired.
 
 Deep operator detail: [src/lib/observability/ARCHITECTURE.md](../../../src/lib/observability/ARCHITECTURE.md) (Operator runbook).

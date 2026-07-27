@@ -5,6 +5,8 @@ description: Orchestrate visual asset production for the Edge landing page. Coor
 
 # Visual Production Orchestrator
 
+**BRAND side door** — router index: [docs/harness/README.md](../../../docs/harness/README.md) (no peer branch pack).
+
 Coordinates the four visual asset tools in the correct production order. Called by the `edge-landing-page` skill when it reaches Phase 2, or directly when the user asks to produce visual assets.
 
 ## Prerequisites

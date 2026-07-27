@@ -25,6 +25,7 @@ Implementing an approved plan → [execute-from-plan-checklist.md](./execute-fro
 
 ## WIP=1 Discipline
 
+- [ ] **HARNESS quarantine:** a turn mutates harness artifacts **or** product code, not both (unless plan scopes harness-only)
 - [ ] Prefer one **Active** focus row; multi Active allowed when multitasking (efficiency registry tracks each task)
 - [ ] Plan states what happens to other Active items when multitasking (pause via `efficiency:pause` / `efficiency:switch`)
 - [ ] No adjacent refactors, polish, or follow-up features bundled while Active item lacks evidence

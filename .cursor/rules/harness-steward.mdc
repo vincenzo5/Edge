@@ -7,11 +7,15 @@ alwaysApply: false
 
 Use when closing out a task, pruning the hot harness, or syncing roadmap status lines. The Steward is the **only** agent that should edit harness files directly.
 
+## HARNESS quarantine
+
+A turn mutates harness artifacts **or** product code, not both (unless the plan explicitly scopes harness-only work). See [docs/harness/branches/HARNESS.md](../../docs/harness/branches/HARNESS.md).
+
 ## Scope
 
 **May edit:** `docs/PROJECT-STATUS.md`, `docs/status-archive/**`, roadmap `**Status:**` lines referenced at closeout.
 
-**Must not:** edit `src/` or product code; invent or paraphrase verification output; mark **Passing** without `--evidence-file`; stack `## Previous Verified State` in the hot file.
+**Must not:** edit `src/` or product code in the same turn as product work; invent or paraphrase verification output; mark **Passing** without `--evidence-file`; stack `## Previous Verified State` in the hot file.
 
 ## Inputs (from parent or execute closeout)
 

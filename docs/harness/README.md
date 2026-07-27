@@ -36,7 +36,7 @@ Cross-cut:
 ## How Plan mode uses branches
 
 1. **Mode ≠ branch** — Plan/Execute is *how* you work; branch is *which world* you enter.
-2. **Parent** — [`AGENTS.md`](../../AGENTS.md) Branch routing points here; always-on CONSTRAINTS + PROJECT-STATUS. **Phase 4 live** (security ledger + campaign mode).
+2. **Parent** — [`AGENTS.md`](../../AGENTS.md) Branch routing points here; always-on CONSTRAINTS + PROJECT-STATUS. **Phase 5 live** (router enforcement + specialty cutover).
 3. **Classify** — compact plan Intent Classification emits `Branch: <LANE>` (primary ± secondary). Wired into [plan-harness-awareness.mdc](../../.cursor/rules/plan-harness-awareness.mdc).
 4. **Load** — Read `docs/harness/branches/<LANE>.md` before deep architecture reads.
 5. **Execute** — reads `Branch:` from the approved plan; runs that lane’s sensors; no re-classification unless the plan is wrong.
@@ -93,11 +93,15 @@ Router picks **one primary** lane by changed invariant, then optional **secondar
 | Harness rules, checklists, steward, closeout, PROJECT-STATUS | HARNESS | — |
 | Landing page brand kit, logos, mockups, animations | BRAND | — (side door via visual skills) |
 
-**Specialty side doors (already shipped):**
+**Specialty side doors (router-owned):**
 
-- **OPS** — `.cursor/rules/deploy-local-prod.mdc`, `.cursor/skills/deploy-local-prod/`, `/deploy-prod`
-- **BRAND** — `.cursor/skills/visual-assets/`, `.cursor/skills/visual-production/`, dashmotion
-- **HARNESS** — `.cursor/rules/harness-steward.mdc`, `npm run harness:closeout`
+- **OPS** — `.cursor/rules/deploy-local-prod.mdc`, `.cursor/skills/deploy-local-prod/`, `/deploy-prod` — OPS-forced; plan with `Branch: OPS` + [OPS.md](./branches/OPS.md)
+- **BRAND** — `.cursor/rules/visual-assets.mdc`, `.cursor/skills/visual-assets/`, `.cursor/skills/visual-production/`, dashmotion — side door only (no peer pack)
+- **HARNESS** — `.cursor/rules/harness-steward.mdc`, `npm run harness:closeout` — quarantined; harness **or** product per turn
+
+**Active Work naming:** new rows prefer lane prefixes (`DATA — …`, `OPS — …`, etc.). Roadmap track names (`Sub-harness tree — Phase N`) remain valid for HARNESS track work. No fail-closed lint on prefixes.
+
+**Router matrix (manual smoke):** `/deploy-prod` → OPS; chart plan → ENGINE; order isolation → LIVE; market-data freshness → DATA; harness rule edit → HARNESS only; landing visuals → BRAND side door.
 
 ---
 

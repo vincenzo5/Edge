@@ -39,6 +39,8 @@ npm run harness:closeout -- --name "…" --evidence-file …
 
 `HARNESS — …` or track phases like `Sub-harness tree — Phase N`.
 
+**Closeout:** new Active Work rows prefer lane prefixes (`DATA — …`, `OPS — …`); track phase names stay valid for HARNESS work. Instruction preference only — no fail-closed lint.
+
 ## Security pins
 
 None — process lane. Security ownership lives in product lane packs; see [security-invariant-ledger.md](../security-invariant-ledger.md).
