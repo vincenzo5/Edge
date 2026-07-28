@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   saveWorkspaceTabs,
   type WorkspaceTabsStorageBinding,
@@ -82,14 +82,15 @@ export function useStockAppBootstrap(options: UseStockAppBootstrapOptions = {}) 
 
   const setLayout = useCallback(
     (updater: ChartLayout | ((prev: ChartLayout) => ChartLayout)) => {
-      setWorkspaceTabs((prev) => {
-        const next = updateActiveTabLayout(prev, updater);
-        syncCellLayoutStoreFromLayout(getActiveLayout(next));
-        return next;
-      });
+      setWorkspaceTabs((prev) => updateActiveTabLayout(prev, updater));
     },
     [],
   );
+
+  useLayoutEffect(() => {
+    if (!hydrated) return;
+    syncCellLayoutStoreFromLayout(layout);
+  }, [layout, hydrated]);
 
   const applyBootstrapResult = useCallback(
     (result: AppBootstrapResult) => {
@@ -156,7 +157,6 @@ export function useStockAppBootstrap(options: UseStockAppBootstrapOptions = {}) 
         const next = pruneToSingleActiveTab(
           mergeWorkspaceTabsApply(current, incoming, applyOptions),
         );
-        syncCellLayoutStoreFromLayout(getActiveLayout(next));
         workspaceTabsRef.current = next;
         saveWorkspaceTabs(next, storageBinding);
         return next;

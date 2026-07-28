@@ -1,0 +1,26 @@
+# APP — Live functional QA remediation — Phase 2 evidence
+# Date: 2026-07-28
+# Scope: QA-02 — move cellLayoutStore sync out of StockApp setState updaters
+
+## Delivered
+- src/app/components/stock-app/useStockAppBootstrap.ts — removed syncCellLayoutStoreFromLayout from setLayout/handleApplyWorkspaceTabs updaters; added useLayoutEffect mirror after hydrate
+- src/app/components/stock-app/useStockAppBootstrap.test.tsx — regression test for render-time ChartCell update warning
+
+## Architecture review
+Self-review Passed — cellLayoutStore ownership unchanged; sync timing moved to post-commit layout effect only.
+
+## Focused
+Command:
+npm test -- --run src/app/components/stock-app/useStockAppBootstrap.test.tsx src/lib/chart/cellLayoutStore.test.ts
+
+Output:
+Test Files  2 passed (2)
+Tests  5 passed (5)
+
+## App-level
+Route: GET /workspace 200
+Symbol change: SPYM → AAPL via symbol search (same setLayout path as SPY → AAPL)
+Browser console capture (CDP addScriptToEvaluateOnNewDocument + reload): chartCellWarnings → []
+Dev-server terminal grep after change: no `Cannot update a component (ChartCell) while rendering a different component (StockApp)` line
+
+Closes: QA-02
