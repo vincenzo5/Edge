@@ -83,34 +83,12 @@ describe("CopilotPanel", () => {
     });
   });
 
-  it("shows workflow prompt chips in empty state", async () => {
+  it("does not show workflow prompt chips in empty state", async () => {
     renderPanel();
     await waitFor(() => {
-      expect(screen.getByTestId("copilot-prompt-library")).toBeTruthy();
+      expect(screen.getByTestId("copilot-empty")).toBeTruthy();
     });
-    expect(screen.getByTestId("copilot-prompt-prepare_analysis")).toBeTruthy();
-    expect(screen.getByTestId("copilot-prompt-summarize_thesis")).toBeTruthy();
-  });
-
-  it("sends workflow prompt when chip is clicked", async () => {
-    const streamChatSpy = vi.spyOn(streamChatModule, "streamChat").mockResolvedValue({
-      ok: true,
-    });
-
-    renderPanel();
-    await waitFor(() => {
-      expect(screen.getByTestId("copilot-prompt-summarize_thesis")).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByTestId("copilot-prompt-summarize_thesis"));
-
-    await waitFor(() => {
-      expect(streamChatSpy).toHaveBeenCalled();
-    });
-
-    expect(streamChatSpy.mock.calls[0]?.[0].messages.at(-1)?.content).toContain(
-      "data source",
-    );
+    expect(screen.queryByTestId("copilot-prompt-library")).toBeNull();
   });
 
   it("shows empty state before first message", async () => {
@@ -150,7 +128,9 @@ describe("CopilotPanel", () => {
     await waitFor(() => {
       expect(screen.getByTestId("copilot-composer-input")).toBeTruthy();
     });
-    expect(screen.getByPlaceholderText("What do you want to know?")).toBeTruthy();
+    expect(screen.getByTestId("copilot-hero-placeholder")).toHaveTextContent(
+      "What do you want to know?",
+    );
     expect(screen.getByTestId("copilot-composer")).toHaveAttribute(
       "data-copilot-composer-mode",
       "hero",

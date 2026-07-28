@@ -1,0 +1,28 @@
+# APP — Talk empty composer UX evidence
+# Date: 2026-07-27
+
+## Scope
+Talk empty-state composer UX: remove workflow pills, center hero cluster, SuperGrok-relative Edge logo sizing, idle rotating placeholder questions, auto-grow textarea.
+
+## Delivered
+- src/app/components/copilot/CopilotPanel.tsx — removed CopilotPromptLibrary footer
+- src/app/components/copilot/CopilotShell.tsx — overlay topChrome; copilot-empty-cluster centers brand + composer
+- src/app/components/copilot/CopilotEmptyBrand.tsx — wordmark ~55% bar height; gap = one bar height
+- src/app/components/copilot/CopilotComposer.tsx — hero idle placeholder rotator (3s), auto-grow textarea, items-end bar
+- src/lib/ai/agent/promptLibrary.ts — COPILOT_HERO_DEFAULT_PLACEHOLDER, COPILOT_IDLE_QUESTIONS
+- src/app/globals.css — copilot hero placeholder slide animations + reduced-motion
+- Deleted src/app/components/copilot/CopilotPromptLibrary.tsx
+- Tests updated across copilot panel/shell/composer + promptLibrary
+
+## Architecture review
+Self-review Passed — contained APP surface UX; no AI registry or persistence contract changes.
+
+## Focused
+Command:
+npm test -- --run src/app/components/copilot/CopilotComposer.test.tsx src/app/components/copilot/CopilotPanel.test.tsx src/app/components/copilot/CopilotShell.test.tsx src/app/components/copilot/CopilotModuleShell.test.tsx src/lib/ai/agent/promptLibrary.test.ts
+Output:
+Test Files  5 passed (5)
+Tests  44 passed (44)
+
+## App-level
+Empty /copilot Talk: no workflow pills; brand + bar centered; idle placeholder rotates to workflow questions after 3s; multiline input grows the query bar.

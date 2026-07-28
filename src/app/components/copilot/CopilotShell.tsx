@@ -38,27 +38,28 @@ export function CopilotShell({
       <div
         data-testid={testId}
         data-copilot-shell-variant={variant}
-        className="copilot-shell flex h-full min-h-0 flex-col"
+        className="copilot-shell relative flex h-full min-h-0 flex-col"
       >
+        {banners}
         {topChrome ? (
           <div
             data-testid="copilot-top-chrome"
-            className="flex shrink-0 items-center justify-end gap-2 px-[var(--edge-space-4)] py-[var(--edge-space-3)]"
+            className="absolute right-0 top-0 z-10 flex items-center justify-end gap-2 px-[var(--edge-space-4)] py-[var(--edge-space-3)]"
           >
             {topChrome}
           </div>
         ) : null}
-        {banners}
         <div
           data-testid="copilot-empty"
-          className="flex min-h-0 flex-1 flex-col items-center justify-center px-[var(--edge-space-4)] py-[var(--edge-space-6)]"
+          className="flex min-h-0 flex-1 flex-col items-center justify-center px-[var(--edge-space-4)]"
         >
-          {brand}
           <div
-            className={`flex w-full flex-col items-center gap-[var(--edge-space-4)] ${
+            data-testid="copilot-empty-cluster"
+            className={`flex w-full flex-col items-center ${
               isWideHost ? "max-w-[var(--copilot-bar-max-width)]" : ""
             }`}
           >
+            {brand}
             <div className="w-full">{composer}</div>
             {footer ? <div className="w-full">{footer}</div> : null}
           </div>

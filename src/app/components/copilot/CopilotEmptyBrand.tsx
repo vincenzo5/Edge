@@ -31,7 +31,7 @@ export function CopilotEmptyBrand({ variant }: Props) {
     <div
       data-testid="copilot-empty-brand"
       data-brand-variant="full"
-      className="mb-[var(--edge-space-6)] flex items-center justify-center"
+      className="mb-[var(--copilot-bar-min-height)] flex items-center justify-center"
     >
       <Image
         src="/brand/logo-full-mono-white.svg"
@@ -39,7 +39,7 @@ export function CopilotEmptyBrand({ variant }: Props) {
         width={120}
         height={48}
         priority
-        className="h-12 w-auto opacity-90"
+        className="h-[calc(var(--copilot-bar-min-height)*0.55)] w-auto opacity-90"
       />
     </div>
   );

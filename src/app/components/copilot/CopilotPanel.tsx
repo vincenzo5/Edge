@@ -31,7 +31,6 @@ import { CopilotHistoryRail } from "./CopilotHistoryRail";
 import { CopilotEvidenceRail } from "./CopilotEvidenceRail";
 import { CopilotMessageList } from "./CopilotMessageList";
 import { CopilotModelSettingsModal } from "./CopilotModelSettingsModal";
-import { CopilotPromptLibrary } from "./CopilotPromptLibrary";
 import { CopilotShell, type CopilotShellVariant } from "./CopilotShell";
 import { useCopilot } from "./CopilotContext";
 import { useEnabledAgentModels } from "./useEnabledAgentModels";
@@ -172,7 +171,6 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
   const isEmpty = messages.length === 0 && !configError;
   const showHistoryRail = isWideHost && !isEmpty;
   const composerDisabled = Boolean(configError && messages.length === 0);
-  const promptsDisabled = isStreaming || composerDisabled;
 
   const handleStartRename = () => {
     setRenameDraft(title);
@@ -508,7 +506,6 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
         brand={<CopilotEmptyBrand variant={variant} />}
         banners={banners}
         composer={composer}
-        footer={<CopilotPromptLibrary onPromptSelect={handleSend} disabled={promptsDisabled} />}
       >
         {null}
       </CopilotShell>

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CopilotComposer } from "./CopilotComposer";
 
@@ -207,5 +207,53 @@ describe("CopilotComposer", () => {
 
     expect(onRequestVisionModel).toHaveBeenCalled();
     expect(uploadCopilotAttachment).not.toHaveBeenCalled();
+  });
+
+  it("shows hero idle placeholder and rotates after 3 seconds", () => {
+    vi.useFakeTimers();
+    try {
+      renderComposer({ mode: "hero" });
+
+      expect(screen.getByTestId("copilot-hero-placeholder")).toHaveTextContent(
+        "What do you want to know?",
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      expect(screen.getByTestId("copilot-hero-placeholder")).toHaveTextContent(
+        "Prepare chart for analysis?",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hides hero placeholder when draft has text", () => {
+    renderComposer({ mode: "hero" });
+
+    fireEvent.change(screen.getByTestId("copilot-composer-input"), {
+      target: { value: "Hello" },
+    });
+
+    expect(screen.queryByTestId("copilot-hero-placeholder")).toBeNull();
+  });
+
+  it("grows textarea height with multiline draft", () => {
+    renderComposer();
+
+    const textarea = screen.getByTestId("copilot-composer-input") as HTMLTextAreaElement;
+    Object.defineProperty(textarea, "scrollHeight", {
+      configurable: true,
+      get() {
+        const lineCount = textarea.value.split("\n").length;
+        return 28 * lineCount;
+      },
+    });
+
+    fireEvent.change(textarea, { target: { value: "Line one\nLine two\nLine three" } });
+
+    expect(textarea.style.height).toBe("84px");
   });
 });

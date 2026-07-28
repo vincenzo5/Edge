@@ -61,7 +61,7 @@ describe("CopilotModuleShell", () => {
     expect(screen.queryByRole("heading", { name: "Copilot" })).toBeNull();
 
     await waitFor(() => {
-      expect(screen.getByTestId("copilot-prompt-library")).toBeTruthy();
+      expect(screen.getByTestId("copilot-empty-cluster")).toBeTruthy();
     });
     expect(screen.getByTestId("copilot-panel")).toHaveAttribute(
       "data-copilot-shell-variant",

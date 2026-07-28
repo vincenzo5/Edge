@@ -37,6 +37,12 @@ export const COPILOT_WORKFLOW_PROMPTS: readonly CopilotWorkflowPrompt[] = [
   },
 ] as const;
 
+export const COPILOT_HERO_DEFAULT_PLACEHOLDER = "What do you want to know?" as const;
+
+export const COPILOT_IDLE_QUESTIONS: readonly string[] = COPILOT_WORKFLOW_PROMPTS.map(
+  (entry) => `${entry.label}?`,
+);
+
 export function getCopilotWorkflowPrompt(
   id: CopilotWorkflowPromptId,
 ): CopilotWorkflowPrompt | undefined {

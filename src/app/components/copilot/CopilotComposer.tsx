@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type ClipboardEvent,
@@ -16,6 +17,10 @@ import {
 } from "../chart-chrome/ChartHeaderIcons";
 import { EdgeAnchoredPopover } from "../design-system";
 import { menuItemClass } from "../design-system/styles";
+import {
+  COPILOT_HERO_DEFAULT_PLACEHOLDER,
+  COPILOT_IDLE_QUESTIONS,
+} from "@/lib/ai/agent/promptLibrary";
 import type { CopilotMessageAttachment } from "./useCopilotThread";
 import type { CopilotAttachmentSource } from "@/lib/copilot/attachmentValidation";
 import { COPILOT_ATTACHMENT_MAX_PER_MESSAGE } from "@/lib/copilot/attachmentValidation";
@@ -49,6 +54,95 @@ type Props = {
   onRequestVisionModel?: () => void;
   onCaptureChart?: () => Promise<Blob | null>;
 };
+
+const HERO_PLACEHOLDER_ROTATE_MS = 3000;
+
+function usePrefersReducedMotion(): boolean {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReducedMotion(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+function CopilotHeroIdlePlaceholder({ active }: { active: boolean }) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const sequence = useMemo(
+    () => [COPILOT_HERO_DEFAULT_PLACEHOLDER, ...COPILOT_IDLE_QUESTIONS],
+    [],
+  );
+  const [index, setIndex] = useState(0);
+  const [exitingText, setExitingText] = useState<string | null>(null);
+  const [enteringText, setEnteringText] = useState(COPILOT_HERO_DEFAULT_PLACEHOLDER);
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    indexRef.current = index;
+  }, [index]);
+
+  useEffect(() => {
+    if (!active) {
+      setIndex(0);
+      indexRef.current = 0;
+      setExitingText(null);
+      setEnteringText(COPILOT_HERO_DEFAULT_PLACEHOLDER);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      const currentIndex = indexRef.current;
+      const nextIndex = (currentIndex + 1) % sequence.length;
+      const outgoing = sequence[currentIndex];
+      const incoming = sequence[nextIndex];
+
+      if (prefersReducedMotion) {
+        setExitingText(null);
+        setEnteringText(incoming);
+        setIndex(nextIndex);
+        return;
+      }
+
+      setExitingText(outgoing);
+      setEnteringText(incoming);
+      setIndex(nextIndex);
+    }, HERO_PLACEHOLDER_ROTATE_MS);
+
+    return () => window.clearInterval(timer);
+  }, [active, prefersReducedMotion, sequence]);
+
+  useEffect(() => {
+    if (!exitingText || prefersReducedMotion) return;
+    const timer = window.setTimeout(() => setExitingText(null), 280);
+    return () => window.clearTimeout(timer);
+  }, [exitingText, prefersReducedMotion]);
+
+  const currentText = sequence[index] ?? COPILOT_HERO_DEFAULT_PLACEHOLDER;
+
+  return (
+    <div
+      data-testid="copilot-hero-placeholder"
+      className="copilot-hero-placeholder-track w-full"
+      aria-hidden
+    >
+      {exitingText ? (
+        <span className="copilot-hero-placeholder-line is-exiting">{exitingText}</span>
+      ) : null}
+      <span
+        key={prefersReducedMotion ? currentText : `${index}-${enteringText}`}
+        className={`copilot-hero-placeholder-line ${exitingText && !prefersReducedMotion ? "is-entering" : ""}`}
+      >
+        {prefersReducedMotion ? currentText : enteringText}
+      </span>
+    </div>
+  );
+}
 
 function CheckIcon() {
   return (
@@ -101,7 +195,7 @@ function truncateChipLabel(label: string, maxChars: number): string {
 }
 
 const queryBarClass =
-  "flex min-h-[var(--copilot-bar-min-height)] w-full items-center gap-1 rounded-[var(--copilot-pill-radius)] bg-[var(--copilot-query-bar-bg)] px-2 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.24)] ring-1 ring-inset ring-[var(--copilot-query-bar-ring)]";
+  "flex min-h-[var(--copilot-bar-min-height)] w-full items-end gap-1 rounded-[var(--copilot-pill-radius)] bg-[var(--copilot-query-bar-bg)] px-2 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.24)] ring-1 ring-inset ring-[var(--copilot-query-bar-ring)]";
 
 const circularControlClass =
   "edge-focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed";
@@ -117,6 +211,9 @@ const modelMenuPanelClass =
 
 const attachMenuPanelClass =
   "rounded-[var(--copilot-menu-radius)] border border-[color-mix(in_oklab,var(--edge-text-strong)_10%,transparent)] bg-[var(--copilot-menu-bg)] py-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)]";
+
+const textareaClass =
+  "min-h-[calc(var(--copilot-bar-min-height)-16px)] max-h-[50vh] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-1 py-2 text-[length:var(--copilot-composer-body-size,16px)] leading-snug text-[var(--edge-text-primary)] outline-none placeholder:text-[var(--edge-text-secondary)] disabled:opacity-60";
 
 async function uploadDraftAttachment(
   file: Blob,
@@ -158,8 +255,10 @@ export function CopilotComposer({
   const chipRef = useRef<HTMLButtonElement>(null);
   const attachRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputId = useId();
   const previewUrlsRef = useRef<string[]>([]);
+  const showHeroPlaceholder = mode === "hero" && !draft;
 
   const currentModel = models.find((model) => model.id === modelId);
   const modelLabel = currentModel?.label ?? modelId;
@@ -169,6 +268,17 @@ export function CopilotComposer({
   const canSubmit = hasDraftContent && !disabled && !isStreaming && !visionBlocked && !isUploading;
   const modelChipDisabled = disabled || isStreaming;
   const attachDisabled = disabled || isStreaming || isUploading;
+
+  const syncTextareaHeight = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, []);
+
+  useEffect(() => {
+    syncTextareaHeight();
+  }, [draft, syncTextareaHeight]);
 
   useEffect(() => {
     if (isStreaming && menuOpen) {
@@ -276,6 +386,12 @@ export function CopilotComposer({
     previewUrlsRef.current = [];
     setAttachments([]);
     setAttachError(null);
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        textarea.style.height = "auto";
+      }
+    });
   };
 
   const onSubmit = (event: FormEvent) => {
@@ -404,18 +520,26 @@ export function CopilotComposer({
           <PlusIcon size={18} />
         </button>
 
-        <textarea
-          data-testid="copilot-composer-input"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={onKeyDown}
-          onPaste={onPaste}
-          placeholder={placeholder}
-          rows={1}
-          disabled={disabled}
-          aria-label="Ask Copilot anything"
-          className="min-h-[calc(var(--copilot-bar-min-height)-16px)] max-h-40 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[length:var(--copilot-composer-body-size,16px)] leading-snug text-[var(--edge-text-primary)] outline-none placeholder:text-[var(--edge-text-secondary)] disabled:opacity-60"
-        />
+        <div className="relative min-w-0 flex-1 self-stretch">
+          {showHeroPlaceholder ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center px-1 py-2">
+              <CopilotHeroIdlePlaceholder active={!disabled} />
+            </div>
+          ) : null}
+          <textarea
+            ref={textareaRef}
+            data-testid="copilot-composer-input"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={onKeyDown}
+            onPaste={onPaste}
+            placeholder={showHeroPlaceholder ? "" : placeholder}
+            rows={1}
+            disabled={disabled}
+            aria-label="Ask Copilot anything"
+            className={textareaClass}
+          />
+        </div>
 
         <button
           ref={chipRef}

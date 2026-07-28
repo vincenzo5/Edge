@@ -553,3 +553,58 @@ body {
     opacity: 1;
   }
 }
+
+.copilot-shell .copilot-hero-placeholder-track {
+  position: relative;
+  height: 1.375rem;
+  overflow: hidden;
+}
+
+.copilot-shell .copilot-hero-placeholder-line {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--edge-text-secondary);
+  font-size: var(--copilot-composer-body-size, 16px);
+  line-height: 1.375;
+}
+
+.copilot-shell .copilot-hero-placeholder-line.is-entering {
+  animation: copilot-placeholder-enter 280ms ease-out forwards;
+}
+
+.copilot-shell .copilot-hero-placeholder-line.is-exiting {
+  animation: copilot-placeholder-exit 280ms ease-out forwards;
+}
+
+@keyframes copilot-placeholder-enter {
+  from {
+    opacity: 0.6;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes copilot-placeholder-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0.4;
+    transform: translateY(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-shell .copilot-hero-placeholder-line.is-entering,
+  .copilot-shell .copilot-hero-placeholder-line.is-exiting {
+    animation: none;
+  }
+}
