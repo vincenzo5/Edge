@@ -1,0 +1,30 @@
+# AGENT — Copilot chat blocks — Phase 1 evidence
+# Date: 2026-07-29
+# Scope: Stick-to-bottom scroll verification + shared Action shell for confirm Accept/Reject
+
+## Delivered
+- src/lib/copilot/chatBlockMapping.ts — toolStepToActionBlock mapper
+- src/app/components/copilot/CopilotActionBlock.tsx — shared Action shell
+- src/app/components/copilot/CopilotMessageBubble.tsx — confirm steps render via CopilotActionBlock
+- src/app/components/copilot/CopilotMessageList.test.tsx — unpinned stream no-yank regression
+- src/lib/ai/ARCHITECTURE.md — Phase 1 section
+- docs/roadmaps/copilot-chat-blocks-roadmap.md — Phase 1 Passing
+
+## Architecture review
+Self-review Passed — no NDJSON stream union change; blocks in-memory only; SEC-06 Accept path and SEC-20 prompt isolation untouched.
+
+## Focused
+Command:
+npm test -- --run src/lib/copilot/chatBlockMapping.test.ts src/app/components/copilot/CopilotActionBlock.test.tsx src/app/components/copilot/CopilotMessageList.test.tsx
+
+Output:
+Test Files  3 passed (3)
+Tests  31 passed (31)
+
+## App-level
+Routes: GET /copilot 200 (dev server http://localhost:3003)
+Behaviors verified:
+- Send message → viewport follows stream when near bottom
+- Scroll up during stream → scroll-to-bottom control visible; scrollTop unchanged on content growth
+- Confirm gate → Accept/Reject buttons present (copilot-confirm-accept-* testids preserved)
+- Jump-to-latest re-pins and hides scroll-to-bottom control

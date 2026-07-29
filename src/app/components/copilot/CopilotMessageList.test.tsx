@@ -97,7 +97,27 @@ describe("CopilotMessageList", () => {
     vi.unstubAllGlobals();
   });
 
-  it("wraps non-confirm tool steps in Thoughts and keeps confirm chips outside", () => {
+  it("centers messages in the same max-width column as the composer bar", () => {
+    render(
+      <CopilotMessageList
+        messages={baseMessages}
+        configError={null}
+        onResolveConfirm={vi.fn()}
+      />,
+    );
+
+    const list = screen.getByTestId("copilot-message-list");
+    const column = screen.getByTestId("copilot-message-column");
+    expect(list.className).toContain("px-[var(--edge-space-4)]");
+    expect(list.className).toContain("pb-0");
+    expect(column.className).toContain("max-w-[var(--copilot-bar-max-width)]");
+    expect(column.className).toContain("mx-auto");
+    expect(column.className).toContain("w-full");
+    // Match attach (+) glyph: query-bar pad + centered icon inset.
+    expect(column.className).toContain("px-[var(--copilot-message-inline-inset)]");
+  });
+
+  it("wraps non-confirm tool steps in Steps and keeps confirm chips outside", () => {
     const messages: CopilotMessage[] = [
       ...baseMessages.slice(0, 1),
       {
@@ -130,8 +150,17 @@ describe("CopilotMessageList", () => {
       />,
     );
 
-    expect(screen.getByTestId("copilot-thoughts")).toBeTruthy();
-    expect(screen.getByTestId("copilot-tool-c3")).toBeTruthy();
+    const thoughts = screen.getByTestId("copilot-thoughts");
+    expect(thoughts).toBeTruthy();
+    expect(thoughts.tagName).toBe("DETAILS");
+    expect(thoughts.className).not.toMatch(/border|bg-\[/);
+    expect(thoughts.querySelector("summary")?.textContent).toMatch(/Steps · 1/);
+    const stepRow = screen.getByTestId("copilot-tool-c3");
+    expect(stepRow.textContent).toMatch(/Symbol search/);
+    expect(stepRow.textContent).toMatch(/1 symbol/);
+    expect(stepRow.textContent).not.toMatch(/search_symbols/);
+    expect(stepRow.className).toMatch(/min-w-0/);
+    expect(thoughts.className).toMatch(/min-w-0/);
     expect(screen.getByTestId("copilot-confirm-accept-c2")).toBeTruthy();
     expect(screen.queryByTestId("copilot-confirm-accept-c3")).toBeNull();
   });
@@ -151,6 +180,51 @@ describe("CopilotMessageList", () => {
     fireEvent.click(screen.getByTestId("copilot-regenerate-a1"));
     expect(onRegenerate).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("copilot-copy-a1")).toBeTruthy();
+    expect(screen.getByTestId("copilot-message-actions-a1")).toHaveAttribute(
+      "data-reveal",
+      "always",
+    );
+  });
+
+  it("shows hover-revealed actions on earlier assistant turns", () => {
+    const messages: CopilotMessage[] = [
+      ...baseMessages,
+      {
+        id: "u2",
+        role: "user",
+        content: "And NVDA?",
+        toolSteps: [],
+        status: "done",
+      },
+      {
+        id: "a2",
+        role: "assistant",
+        content: "Here is NVDA.",
+        toolSteps: [],
+        status: "done",
+      },
+    ];
+
+    render(
+      <CopilotMessageList
+        messages={messages}
+        configError={null}
+        onResolveConfirm={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("copilot-message-actions-a1")).toHaveAttribute(
+      "data-reveal",
+      "hover",
+    );
+    expect(screen.getByTestId("copilot-copy-a1")).toBeTruthy();
+    expect(screen.queryByTestId("copilot-regenerate-a1")).toBeNull();
+    expect(screen.getByTestId("copilot-message-actions-a2")).toHaveAttribute(
+      "data-reveal",
+      "always",
+    );
+    expect(screen.getByTestId("copilot-regenerate-a2")).toBeTruthy();
   });
 
   it("hides regenerate while streaming", () => {
@@ -176,10 +250,11 @@ describe("CopilotMessageList", () => {
     );
 
     expect(screen.queryByTestId("copilot-regenerate-a-stream")).toBeNull();
-    expect(screen.getByText(/Thinking/)).toBeTruthy();
+    expect(screen.getByTestId("copilot-working-indicator")).toBeTruthy();
+    expect(screen.getByTestId("copilot-working-label")).toHaveTextContent(/Working for \d+s/);
   });
 
-  it("renders artifact cards outside Thoughts with pin control", () => {
+  it("renders artifact cards outside Steps with pin control", () => {
     const onPinArtifact = vi.fn();
     const messages: CopilotMessage[] = [
       {
@@ -233,6 +308,194 @@ describe("CopilotMessageList", () => {
     );
 
     expect(screen.getByTestId("copilot-artifact-pinned")).toBeTruthy();
+  });
+
+  it("shows scroll-to-bottom when scrolled up and jumps to latest on click", () => {
+    const manyMessages: CopilotMessage[] = Array.from({ length: 40 }, (_, index) => ({
+      id: `m-${index}`,
+      role: index % 2 === 0 ? "user" : "assistant",
+      content: `Message ${index}`,
+      toolSteps: [],
+      status: "done",
+    }));
+
+    render(
+      <div className="flex h-[480px] min-h-0 flex-col">
+        <CopilotMessageList
+          messages={manyMessages}
+          configError={null}
+          onResolveConfirm={vi.fn()}
+        />
+      </div>,
+    );
+
+    const list = screen.getByTestId("copilot-message-list");
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 2000 });
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 480 });
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+
+    fireEvent.wheel(list, { deltaY: -120 });
+    fireEvent.scroll(list);
+    expect(screen.getByTestId("copilot-scroll-to-bottom")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("copilot-scroll-to-bottom"));
+    expect(list.scrollTop).toBe(2000);
+    expect(screen.queryByTestId("copilot-scroll-to-bottom")).toBeNull();
+
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 1520,
+    });
+    fireEvent.scroll(list);
+    expect(screen.queryByTestId("copilot-scroll-to-bottom")).toBeNull();
+  });
+
+  it("pins to latest when a new user message is sent even if scrolled up", () => {
+    const initialMessages: CopilotMessage[] = Array.from({ length: 20 }, (_, index) => ({
+      id: `m-${index}`,
+      role: index % 2 === 0 ? "user" : "assistant",
+      content: `Message ${index}`,
+      toolSteps: [],
+      status: "done",
+    }));
+
+    const { rerender } = render(
+      <div className="flex h-[480px] min-h-0 flex-col">
+        <CopilotMessageList
+          messages={initialMessages}
+          configError={null}
+          onResolveConfirm={vi.fn()}
+        />
+      </div>,
+    );
+
+    const list = screen.getByTestId("copilot-message-list");
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 2000 });
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 480 });
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    fireEvent.wheel(list, { deltaY: -120 });
+    fireEvent.scroll(list);
+    expect(screen.getByTestId("copilot-scroll-to-bottom")).toBeTruthy();
+
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 2400 });
+
+    const nextMessages: CopilotMessage[] = [
+      ...initialMessages,
+      {
+        id: "u-new",
+        role: "user",
+        content: "New question",
+        toolSteps: [],
+        status: "done",
+      },
+      {
+        id: "a-new",
+        role: "assistant",
+        content: "",
+        toolSteps: [],
+        status: "streaming",
+      },
+    ];
+
+    rerender(
+      <div className="flex h-[480px] min-h-0 flex-col">
+        <CopilotMessageList
+          messages={nextMessages}
+          configError={null}
+          onResolveConfirm={vi.fn()}
+        />
+      </div>,
+    );
+
+    expect(list.scrollTop).toBe(2400);
+    expect(screen.queryByTestId("copilot-scroll-to-bottom")).toBeNull();
+  });
+
+  it("hides scroll-to-bottom when already near the latest messages", () => {
+    render(
+      <CopilotMessageList
+        messages={baseMessages}
+        configError={null}
+        onResolveConfirm={vi.fn()}
+      />,
+    );
+
+    const list = screen.getByTestId("copilot-message-list");
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 500 });
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 480 });
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+
+    fireEvent.wheel(list, { deltaY: -40 });
+    fireEvent.scroll(list);
+    expect(screen.queryByTestId("copilot-scroll-to-bottom")).toBeNull();
+  });
+
+  it("does not snap back while slowly scrolling up through the near-bottom zone", () => {
+    const manyMessages: CopilotMessage[] = Array.from({ length: 40 }, (_, index) => ({
+      id: `m-${index}`,
+      role: index % 2 === 0 ? "user" : "assistant",
+      content: `Message ${index}`,
+      toolSteps: [],
+      status: "done",
+    }));
+
+    render(
+      <div className="flex h-[480px] min-h-0 flex-col">
+        <CopilotMessageList
+          messages={manyMessages}
+          configError={null}
+          onResolveConfirm={vi.fn()}
+        />
+      </div>,
+    );
+
+    const list = screen.getByTestId("copilot-message-list");
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 2000 });
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 480 });
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 1520,
+    });
+    fireEvent.scroll(list);
+
+    // Weak upward step still inside the 96px near-bottom threshold.
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 1480,
+    });
+    fireEvent.wheel(list, { deltaY: -20 });
+    fireEvent.scroll(list);
+
+    // Content/layout resize must not yank a user who has started scrolling up.
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 2050 });
+    fireEvent.scroll(list);
+    expect(list.scrollTop).toBe(1480);
+
+    // Continue past the threshold without needing a fast fling.
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 1200,
+    });
+    fireEvent.wheel(list, { deltaY: -40 });
+    fireEvent.scroll(list);
+    expect(list.scrollTop).toBe(1200);
+    expect(screen.getByTestId("copilot-scroll-to-bottom")).toBeTruthy();
   });
 
   it("virtualizes long threads without mounting every message bubble", () => {
@@ -316,5 +579,81 @@ describe("CopilotMessageList", () => {
       "Partial response grows",
     );
     expect(screen.getAllByTestId(/^copilot-message-hist-/).length).toBeLessThan(40);
+  });
+
+  it("does not yank scroll position when unpinned and stream content grows", () => {
+    const history: CopilotMessage[] = Array.from({ length: 30 }, (_, index) => ({
+      id: `hist-${index}`,
+      role: index % 2 === 0 ? "user" : "assistant",
+      content: `History ${index}`,
+      toolSteps: [],
+      status: "done",
+    }));
+    const initialStreaming: CopilotMessage[] = [
+      ...history,
+      {
+        id: "stream-1",
+        role: "assistant",
+        content: "Partial",
+        toolSteps: [],
+        status: "streaming",
+      },
+    ];
+
+    const { rerender } = render(
+      <div className="flex h-[480px] min-h-0 flex-col">
+        <CopilotMessageList
+          messages={initialStreaming}
+          configError={null}
+          onResolveConfirm={vi.fn()}
+          isStreaming
+        />
+      </div>,
+    );
+
+    const list = screen.getByTestId("copilot-message-list");
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 3000 });
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 480 });
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+
+    fireEvent.wheel(list, { deltaY: -120 });
+    fireEvent.scroll(list);
+    expect(screen.getByTestId("copilot-scroll-to-bottom")).toBeTruthy();
+
+    Object.defineProperty(list, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 400,
+    });
+    const pinnedScrollTop = list.scrollTop;
+
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 3600 });
+
+    rerender(
+      <div className="flex h-[480px] min-h-0 flex-col">
+        <CopilotMessageList
+          messages={[
+            ...history,
+            {
+              id: "stream-1",
+              role: "assistant",
+              content: "Partial response grows much longer during stream",
+              toolSteps: [],
+              status: "streaming",
+            },
+          ]}
+          configError={null}
+          onResolveConfirm={vi.fn()}
+          isStreaming
+        />
+      </div>,
+    );
+
+    expect(list.scrollTop).toBe(pinnedScrollTop);
+    expect(screen.getByTestId("copilot-scroll-to-bottom")).toBeTruthy();
   });
 });

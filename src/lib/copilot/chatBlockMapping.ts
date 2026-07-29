@@ -1,7 +1,14 @@
-import type { ChatBlock, ChatBlockKind, DataChatBlock, ReferenceChatBlock } from "@/lib/copilot/chatBlocks";
+import type {
+  ActionChatBlock,
+  ChatBlock,
+  ChatBlockKind,
+  DataChatBlock,
+  ReferenceChatBlock,
+} from "@/lib/copilot/chatBlocks";
 import type { CopilotToolStep } from "@/lib/copilot/types";
 import { DESTRUCTIVE_TOOL_NAMES } from "@/lib/ai/agent/confirmGate";
 import type { ResearchArtifactHint } from "@/lib/research/artifactHint";
+import { toolStepDisplayName } from "@/lib/copilot/toolStepDisplay";
 
 /** Tools that emit structured Data blocks when hints or summaries are present. */
 const DATA_TOOL_NAMES = new Set([
@@ -133,4 +140,31 @@ export function toolStepToBlockKind(step: CopilotToolStep): ChatBlockKind {
     if (hintKind) return hintKind;
   }
   return toolNameToBlockKind(step.name);
+}
+
+const ACTION_PRIMARY_LABEL = "Accept";
+const ACTION_SECONDARY_LABEL = "Reject";
+
+/** Build an Action block from a pending-confirm tool step (Phase 1 shell input). */
+export function toolStepToActionBlock(step: CopilotToolStep): ActionChatBlock | null {
+  if (step.status !== "pending-confirm") {
+    return null;
+  }
+
+  const summary = (step.confirmReason ?? step.summary ?? "").trim();
+
+  return {
+    kind: "action",
+    title: toolStepDisplayName(step.name),
+    summary,
+    primaryLabel: ACTION_PRIMARY_LABEL,
+    secondaryLabel: ACTION_SECONDARY_LABEL,
+    callId: step.callId,
+    name: step.name,
+    ...(step.confirmationToken ? { confirmationToken: step.confirmationToken } : {}),
+    ...(step.requiresClientSession != null
+      ? { requiresClientSession: step.requiresClientSession }
+      : {}),
+    ...(step.confirmArguments ? { confirmArguments: step.confirmArguments } : {}),
+  };
 }

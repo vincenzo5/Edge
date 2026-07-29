@@ -5,6 +5,7 @@ import {
   hintToBlockSketch,
   isConfirmToolStep,
   toolNameToBlockKind,
+  toolStepToActionBlock,
   toolStepToBlockKind,
 } from "./chatBlockMapping";
 import type { CopilotToolStep } from "./types";
@@ -102,5 +103,55 @@ describe("toolStepToBlockKind", () => {
       artifactHint: { type: "screener", title: "Results" },
     };
     expect(toolStepToBlockKind(step)).toBe("data");
+  });
+});
+
+describe("toolStepToActionBlock", () => {
+  it("maps pending-confirm steps to Action blocks", () => {
+    const step: CopilotToolStep = {
+      callId: "c1",
+      name: "delete_drawing",
+      status: "pending-confirm",
+      confirmReason: "Confirm delete",
+      confirmationToken: "tok_1",
+      requiresClientSession: true,
+      confirmArguments: { id: "d1" },
+    };
+
+    const block = toolStepToActionBlock(step);
+    expect(block).toEqual({
+      kind: "action",
+      title: "Delete drawing",
+      summary: "Confirm delete",
+      primaryLabel: "Accept",
+      secondaryLabel: "Reject",
+      callId: "c1",
+      name: "delete_drawing",
+      confirmationToken: "tok_1",
+      requiresClientSession: true,
+      confirmArguments: { id: "d1" },
+    });
+  });
+
+  it("uses step summary when confirmReason is absent", () => {
+    const block = toolStepToActionBlock({
+      callId: "c2",
+      name: "preview_order",
+      status: "pending-confirm",
+      summary: "Review order details",
+    });
+
+    expect(block?.summary).toBe("Review order details");
+    expect(block?.title).toBe("Preview order");
+  });
+
+  it("returns null for non-confirm steps", () => {
+    expect(
+      toolStepToActionBlock({
+        callId: "c3",
+        name: "delete_drawing",
+        status: "done",
+      }),
+    ).toBeNull();
   });
 });
