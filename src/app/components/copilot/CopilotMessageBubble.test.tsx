@@ -142,4 +142,51 @@ describe("CopilotMessageBubble", () => {
     fireEvent.click(screen.getByTestId("copilot-reference-chip-c-chart-ref-chart"));
     expect(onOpenHref).toHaveBeenCalledWith("/chart?symbol=AAPL&interval=1D");
   });
+
+  it("renders follow-up chips when showFollowups is true", () => {
+    const onSelectFollowup = vi.fn();
+    const message: CopilotMessage = {
+      id: "a-4",
+      role: "assistant",
+      content: "Done.",
+      toolSteps: [],
+      status: "done",
+    };
+
+    render(
+      <CopilotMessageBubble
+        message={message}
+        onResolveConfirm={vi.fn()}
+        showFollowups
+        onSelectFollowup={onSelectFollowup}
+      />,
+    );
+
+    expect(screen.getByTestId("copilot-followups-a-4")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("copilot-followup-chip-prepare_analysis"));
+    expect(onSelectFollowup).toHaveBeenCalledWith(
+      expect.stringContaining("Prepare the active symbol for analysis"),
+    );
+  });
+
+  it("hides follow-up chips when showFollowups is false", () => {
+    const message: CopilotMessage = {
+      id: "a-5",
+      role: "assistant",
+      content: "Done.",
+      toolSteps: [],
+      status: "done",
+    };
+
+    render(
+      <CopilotMessageBubble
+        message={message}
+        onResolveConfirm={vi.fn()}
+        showFollowups={false}
+        onSelectFollowup={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("copilot-followups-a-5")).toBeNull();
+  });
 });

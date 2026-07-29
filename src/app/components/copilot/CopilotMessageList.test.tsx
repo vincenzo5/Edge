@@ -254,7 +254,7 @@ describe("CopilotMessageList", () => {
     expect(screen.getByTestId("copilot-working-label")).toHaveTextContent(/Working for \d+s/);
   });
 
-  it("renders artifact cards outside Steps with pin control", () => {
+  it("renders media blocks outside Steps with pin control", () => {
     const onPinArtifact = vi.fn();
     const messages: CopilotMessage[] = [
       {
@@ -655,5 +655,159 @@ describe("CopilotMessageList", () => {
 
     expect(list.scrollTop).toBe(pinnedScrollTop);
     expect(screen.getByTestId("copilot-scroll-to-bottom")).toBeTruthy();
+  });
+
+  it("shows follow-up chips under the latest completed assistant turn", () => {
+    const messages: CopilotMessage[] = [
+      {
+        id: "u1",
+        role: "user",
+        content: "Hello",
+        toolSteps: [],
+        status: "done",
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "First reply",
+        toolSteps: [],
+        status: "done",
+      },
+      {
+        id: "u2",
+        role: "user",
+        content: "Follow up",
+        toolSteps: [],
+        status: "done",
+      },
+      {
+        id: "a2",
+        role: "assistant",
+        content: "Latest reply",
+        toolSteps: [],
+        status: "done",
+      },
+    ];
+
+    render(
+      <CopilotMessageList
+        messages={messages}
+        configError={null}
+        onResolveConfirm={vi.fn()}
+        onSelectFollowup={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("copilot-followups-a1")).toBeNull();
+    expect(screen.getByTestId("copilot-followups-a2")).toBeTruthy();
+  });
+
+  it("hides follow-up chips while streaming", () => {
+    const messages: CopilotMessage[] = [
+      {
+        id: "u1",
+        role: "user",
+        content: "Hello",
+        toolSteps: [],
+        status: "done",
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "Done reply",
+        toolSteps: [],
+        status: "done",
+      },
+      {
+        id: "a-stream",
+        role: "assistant",
+        content: "",
+        toolSteps: [],
+        status: "streaming",
+      },
+    ];
+
+    render(
+      <CopilotMessageList
+        messages={messages}
+        configError={null}
+        onResolveConfirm={vi.fn()}
+        isStreaming
+        onSelectFollowup={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("copilot-followups-a1")).toBeNull();
+  });
+
+  it("hides follow-up chips while pending confirm", () => {
+    const messages: CopilotMessage[] = [
+      {
+        id: "u1",
+        role: "user",
+        content: "Delete drawing",
+        toolSteps: [],
+        status: "done",
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "Confirm delete?",
+        toolSteps: [
+          {
+            callId: "c1",
+            name: "delete_drawing",
+            status: "pending-confirm",
+            confirmReason: "Confirm delete",
+          },
+        ],
+        status: "done",
+      },
+    ];
+
+    render(
+      <CopilotMessageList
+        messages={messages}
+        configError={null}
+        onResolveConfirm={vi.fn()}
+        onSelectFollowup={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("copilot-followups-a1")).toBeNull();
+  });
+
+  it("sends follow-up chip prompt via onSelectFollowup", () => {
+    const onSelectFollowup = vi.fn();
+    const messages: CopilotMessage[] = [
+      {
+        id: "u1",
+        role: "user",
+        content: "Hello",
+        toolSteps: [],
+        status: "done",
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "Reply",
+        toolSteps: [],
+        status: "done",
+      },
+    ];
+
+    render(
+      <CopilotMessageList
+        messages={messages}
+        configError={null}
+        onResolveConfirm={vi.fn()}
+        onSelectFollowup={onSelectFollowup}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("copilot-followup-chip-compare_symbols"));
+    expect(onSelectFollowup).toHaveBeenCalledWith(
+      expect.stringContaining("Compare two to four symbols"),
+    );
   });
 });

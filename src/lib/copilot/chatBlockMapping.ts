@@ -1,9 +1,11 @@
+import { COPILOT_WORKFLOW_PROMPTS } from "@/lib/ai/agent/promptLibrary";
 import {
   CHAT_BLOCK_MAX_REFERENCE_CHIPS,
   type ActionChatBlock,
   type ChatBlock,
   type ChatBlockKind,
   type DataChatBlock,
+  type FollowupsChatBlock,
   type MediaChatBlock,
   type ReferenceChatBlock,
 } from "@/lib/copilot/chatBlocks";
@@ -273,6 +275,18 @@ export function toolStepToBlockKind(step: CopilotToolStep): ChatBlockKind {
 
 const ACTION_PRIMARY_LABEL = "Accept";
 const ACTION_SECONDARY_LABEL = "Reject";
+
+/** Build a Follow-ups block from curated workflow prompts (Phase 4). */
+export function workflowPromptsToFollowupsBlock(): FollowupsChatBlock {
+  return {
+    kind: "followups",
+    chips: COPILOT_WORKFLOW_PROMPTS.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      prompt: entry.prompt,
+    })),
+  };
+}
 
 /** Build an Action block from a pending-confirm tool step (Phase 1 shell input). */
 export function toolStepToActionBlock(step: CopilotToolStep): ActionChatBlock | null {

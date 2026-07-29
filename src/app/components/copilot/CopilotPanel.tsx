@@ -4,10 +4,11 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   PencilIcon,
+  PinIcon,
   PlusIcon,
   SettingsIcon,
+  TrashIcon,
 } from "../chart-chrome/ChartHeaderIcons";
-import { TrashIcon } from "../chart-icons/ChartToolIcons";
 import { useAppActions } from "../AppActionsContext";
 import { useActiveChart } from "@/app/components/ActiveChartContext";
 import {
@@ -51,11 +52,12 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
   const activeChart = useActiveChart();
   const copilot = useCopilot();
   const enabledModels = useEnabledAgentModels();
-  const { pinFromHint, isPinned } = useResearchEvidence();
+  const { cards: pinnedCards, pinFromHint, isPinned } = useResearchEvidence();
   const [renameDraft, setRenameDraft] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
   const composerModels = useMemo(
     () =>
       enabledModels.map((model) => ({
@@ -125,6 +127,13 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
       router.push(href);
     },
     [router],
+  );
+
+  const handleSelectFollowup = useCallback(
+    (prompt: string) => {
+      handleSend(prompt, []);
+    },
+    [handleSend],
   );
 
   if (!appActions || !copilot) {
@@ -203,17 +212,45 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
     openRename();
   };
 
+  const showPinnedToggle = variant === "page";
+  const pinnedToggle = showPinnedToggle ? (
+    <div className="relative">
+      <EdgeIconButton
+        type="button"
+        aria-label={pinnedOpen ? "Close pinned" : "Open pinned"}
+        title={pinnedOpen ? "Close pinned" : "Open pinned"}
+        data-testid="copilot-pinned-toggle"
+        active={pinnedOpen}
+        pressed={pinnedOpen}
+        onClick={() => setPinnedOpen((open) => !open)}
+      >
+        <PinIcon />
+      </EdgeIconButton>
+      {!pinnedOpen && pinnedCards.length > 0 ? (
+        <span
+          data-testid="copilot-pinned-count"
+          className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--edge-accent-blue)] px-0.5 text-[9px] font-semibold leading-none text-[var(--edge-text-on-accent)]"
+        >
+          {pinnedCards.length}
+        </span>
+      ) : null}
+    </div>
+  ) : null;
+
   const wideEmptyTopChrome = (
-    <EdgeIconButton
-      type="button"
-      aria-label="Copilot settings"
-      title="Copilot settings"
-      data-testid="copilot-settings"
-      disabled={isStreaming}
-      onClick={() => setSettingsOpen(true)}
-    >
-      <SettingsIcon />
-    </EdgeIconButton>
+    <>
+      {pinnedToggle}
+      <EdgeIconButton
+        type="button"
+        aria-label="Copilot settings"
+        title="Copilot settings"
+        data-testid="copilot-settings"
+        disabled={isStreaming}
+        onClick={() => setSettingsOpen(true)}
+      >
+        <SettingsIcon />
+      </EdgeIconButton>
+    </>
   );
 
   const minimalTopChrome = (
@@ -309,7 +346,7 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
             }}
             disabled={isStreaming || !threadId}
           >
-            <TrashIcon size={16} />
+            <TrashIcon />
           </EdgeIconButton>
         </div>
       }
@@ -317,46 +354,42 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
   );
 
   const wideActiveTopChrome = (
-    <EdgePanelHeader
-      title="Copilot"
-      actions={
-        <div className="flex items-center gap-2">
-          <EdgeIconButton
-            type="button"
-            aria-label="Copilot settings"
-            title="Copilot settings"
-            data-testid="copilot-settings"
-            disabled={isStreaming}
-            onClick={() => setSettingsOpen(true)}
-          >
-            <SettingsIcon />
-          </EdgeIconButton>
-          <EdgeIconButton
-            type="button"
-            aria-label="Rename"
-            title="Rename"
-            data-testid="copilot-rename"
-            onClick={handleStartRename}
-            disabled={isStreaming || !threadId}
-          >
-            <PencilIcon />
-          </EdgeIconButton>
-          <EdgeIconButton
-            type="button"
-            aria-label="Delete"
-            title="Delete"
-            data-testid="copilot-delete"
-            onClick={() => {
-              clearFocus();
-              void deleteThread(threadId);
-            }}
-            disabled={isStreaming || !threadId}
-          >
-            <TrashIcon size={16} />
-          </EdgeIconButton>
-        </div>
-      }
-    />
+    <>
+      {pinnedToggle}
+      <EdgeIconButton
+        type="button"
+        aria-label="Copilot settings"
+        title="Copilot settings"
+        data-testid="copilot-settings"
+        disabled={isStreaming}
+        onClick={() => setSettingsOpen(true)}
+      >
+        <SettingsIcon />
+      </EdgeIconButton>
+      <EdgeIconButton
+        type="button"
+        aria-label="Rename"
+        title="Rename"
+        data-testid="copilot-rename"
+        onClick={handleStartRename}
+        disabled={isStreaming || !threadId}
+      >
+        <PencilIcon />
+      </EdgeIconButton>
+      <EdgeIconButton
+        type="button"
+        aria-label="Delete"
+        title="Delete"
+        data-testid="copilot-delete"
+        onClick={() => {
+          clearFocus();
+          void deleteThread(threadId);
+        }}
+        disabled={isStreaming || !threadId}
+      >
+        <TrashIcon />
+      </EdgeIconButton>
+    </>
   );
 
   const historyRail = showHistoryRail ? (
@@ -377,7 +410,6 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
         void deleteThread(targetThreadId);
       }}
       onSearchOpen={() => setSearchOpen(true)}
-      onSeeAll={() => setSearchOpen(true)}
       onRenameThread={handleRenameThread}
     />
   ) : undefined;
@@ -403,7 +435,7 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
   ) : null;
 
   const evidenceRail =
-    variant === "page" && !isEmpty ? (
+    showPinnedToggle && pinnedOpen ? (
       <CopilotEvidenceRail onOpenHref={handleOpenEvidenceHref} />
     ) : undefined;
 
@@ -509,6 +541,8 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
       onRegenerate={handleRegenerate}
       onPinArtifact={handlePinArtifact}
       isArtifactPinned={isPinned}
+      onOpenHref={handleOpenEvidenceHref}
+      onSelectFollowup={handleSelectFollowup}
     />
   );
 
@@ -562,6 +596,7 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
         topChrome={showHistoryRail ? wideEmptyTopChrome : minimalTopChrome}
         brand={<CopilotEmptyBrand variant={variant} />}
         history={historyRail}
+        evidence={evidenceRail}
         banners={banners}
         composer={composer}
       >

@@ -4,7 +4,7 @@ Phased track to evolve Edge Copilot’s **in-thread message vocabulary** into a 
 
 **Last updated:** 2026-07-29
 
-**Status:** Roadmap defined — Phase 0 **Passing**; Phase 1 **Passing**; Phase 2 **Passing**; Phase 3 **Passing**; Phase 4 **Pending**.
+**Status:** Roadmap defined — Phase 0 **Passing**; Phase 1 **Passing**; Phase 2 **Passing**; Phase 3 **Passing**; Phase 4 **Passing**; Phase 5 **Pending**.
 
 **Related:** [AI Agent / In-App Copilot](./ai-agent-roadmap.md) (Phases 0–8 **Passing**), [Grok Copilot UX Parity](./grok-copilot-parity-roadmap.md) (Phases 0–5 **Passing** — shell complete), [Research UX](./research-ux-roadmap.md) (pin / evidence / Board — side surfaces), [AI Architecture](../../src/lib/ai/ARCHITECTURE.md), [Research Architecture](../../src/lib/research/ARCHITECTURE.md), [Design System](../../src/lib/design-system/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -214,13 +214,13 @@ Phase 0 freezes the mapping; Phase 2+ may extend stream payloads beyond hint-onl
 
 **Outcome:** **Follow-up** chips under completed assistant turns; click sends as a normal user message (with workspace snapshot).
 
-**Status:** **Pending**
+**Status:** **Passing**
 
 | Work item | Scope |
 |-----------|--------|
-| Chip source | Start from curated prompts (`promptLibrary`) or last-turn suggestions — pick one in phase; no mode routing |
+| Chip source | Curated `COPILOT_WORKFLOW_PROMPTS` via `workflowPromptsToFollowupsBlock` |
 | Placement | Under latest assistant turn only; hide while streaming / pending confirm |
-| Empty state | Do not resurrect workflow pills in the empty hero (idle placeholder rotator stays) |
+| Empty state | Empty hero stays pill-free; idle placeholder rotator unchanged |
 
 **Exit evidence:** Focused panel/bubble tests; app-level: chip send creates user message and streams reply.
 

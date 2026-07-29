@@ -23,7 +23,7 @@ describe("parseChatBlock", () => {
     expect(parseChatBlock(block)).toEqual(block);
   });
 
-  it("round-trips media blocks", () => {
+  it("round-trips media blocks with image src", () => {
     const block = {
       kind: "media" as const,
       src: "https://example.com/chart.png",
@@ -32,6 +32,30 @@ describe("parseChatBlock", () => {
       openLabel: "Open",
     };
     expect(parseChatBlock(block)).toEqual(block);
+  });
+
+  it("round-trips caption-only media blocks with pinHint", () => {
+    const block = {
+      kind: "media" as const,
+      caption: "AAPL · 1D",
+      openLabel: "Open",
+      openHref: "/chart?symbol=AAPL&interval=1D",
+      pinHint: {
+        type: "chart" as const,
+        symbol: "AAPL",
+        interval: "1D",
+      },
+    };
+    expect(parseChatBlock(block)).toEqual(block);
+  });
+
+  it("rejects media blocks without src, caption, or pinHint", () => {
+    expect(() =>
+      parseChatBlock({
+        kind: "media",
+        openLabel: "Open",
+      }),
+    ).toThrow();
   });
 
   it("round-trips data table blocks with pinHint", () => {
@@ -91,6 +115,20 @@ describe("parseChatBlock", () => {
     const block = {
       kind: "followups" as const,
       chips: [{ id: "f1", prompt: "Summarize the chart" }],
+    };
+    expect(parseChatBlock(block)).toEqual(block);
+  });
+
+  it("round-trips follow-up blocks with optional label", () => {
+    const block = {
+      kind: "followups" as const,
+      chips: [
+        {
+          id: "prepare_analysis",
+          label: "Prepare chart for analysis",
+          prompt: "Prepare the active symbol for analysis…",
+        },
+      ],
     };
     expect(parseChatBlock(block)).toEqual(block);
   });

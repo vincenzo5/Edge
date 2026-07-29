@@ -42,13 +42,40 @@ export const traceChatBlockSchema = z.object({
   steps: z.array(traceStepRefSchema).max(CHAT_BLOCK_MAX_TRACE_STEPS),
 });
 
-const mediaChatBlockSchema = z.object({
-  kind: z.literal("media"),
-  src: z.string().min(1).max(8_000_000),
-  mimeType: z.enum(COPILOT_ATTACHMENT_MIME_TYPES),
-  caption: z.string().trim().max(240).optional(),
-  openLabel: z.string().trim().max(40).optional(),
-});
+const mediaChatBlockSchema = z
+  .object({
+    kind: z.literal("media"),
+    src: z.string().min(1).max(8_000_000).optional(),
+    mimeType: z.enum(COPILOT_ATTACHMENT_MIME_TYPES).optional(),
+    caption: z.string().trim().max(240).optional(),
+    openLabel: z.string().trim().max(40).optional(),
+    openHref: z.string().min(1).max(2048).optional(),
+    /** Compact pin bridge — in-memory only; not persisted on Copilot thread rows. */
+    pinHint: researchArtifactHintSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.src && !value.mimeType) {
+      ctx.addIssue({
+        code: "custom",
+        message: "mimeType is required when src is set",
+        path: ["mimeType"],
+      });
+    }
+    if (value.mimeType && !value.src) {
+      ctx.addIssue({
+        code: "custom",
+        message: "src is required when mimeType is set",
+        path: ["src"],
+      });
+    }
+    if (!value.src && !value.caption?.trim() && !value.pinHint) {
+      ctx.addIssue({
+        code: "custom",
+        message: "media block requires src, caption, or pinHint",
+        path: ["caption"],
+      });
+    }
+  });
 
 const dataTableColumnSchema = z.object({
   id: z.string().min(1).max(32),
@@ -112,6 +139,7 @@ export const referenceChatBlockSchema = z.object({
 
 const followupChipSchema = z.object({
   id: z.string().min(1).max(64),
+  label: z.string().trim().min(1).max(120).optional(),
   prompt: z.string().trim().min(1).max(500),
 });
 

@@ -12,7 +12,9 @@ import {
   toolStepToMediaBlock,
   toolStepsToReferenceBlock,
   referenceTargetHref,
+  workflowPromptsToFollowupsBlock,
 } from "./chatBlockMapping";
+import { COPILOT_WORKFLOW_PROMPTS } from "@/lib/ai/agent/promptLibrary";
 import type { CopilotToolStep } from "./types";
 
 describe("hintToBlockKind", () => {
@@ -286,5 +288,19 @@ describe("referenceTargetHref", () => {
     expect(
       referenceTargetHref({ type: "symbol-interval", symbol: "TSLA", interval: "5" }),
     ).toBe("/chart?symbol=TSLA&interval=5");
+  });
+});
+
+describe("workflowPromptsToFollowupsBlock", () => {
+  it("maps curated workflow prompts to follow-up chips", () => {
+    const block = workflowPromptsToFollowupsBlock();
+
+    expect(block.kind).toBe("followups");
+    expect(block.chips).toHaveLength(COPILOT_WORKFLOW_PROMPTS.length);
+    expect(block.chips[0]).toEqual({
+      id: "prepare_analysis",
+      label: "Prepare chart for analysis",
+      prompt: COPILOT_WORKFLOW_PROMPTS[0]!.prompt,
+    });
   });
 });

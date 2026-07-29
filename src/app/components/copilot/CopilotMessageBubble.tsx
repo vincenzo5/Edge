@@ -10,10 +10,12 @@ import {
   toolStepToDataBlock,
   toolStepToMediaBlock,
   toolStepsToReferenceBlock,
+  workflowPromptsToFollowupsBlock,
 } from "@/lib/copilot/chatBlockMapping";
 import { CopilotActionBlock } from "./CopilotActionBlock";
 import { CopilotArtifactCard } from "./CopilotArtifactCard";
 import { CopilotDataBlock } from "./CopilotDataBlock";
+import { CopilotFollowupsBlock } from "./CopilotFollowupsBlock";
 import { CopilotMediaBlock } from "./CopilotMediaBlock";
 import { CopilotReferenceBlock } from "./CopilotReferenceBlock";
 import { CopilotWorkingIndicator } from "./CopilotWorkingIndicator";
@@ -248,6 +250,9 @@ export type CopilotMessageBubbleProps = {
   ) => void;
   isArtifactPinned?: (toolCallId: string) => boolean;
   onOpenHref?: (href: string) => void;
+  showFollowups?: boolean;
+  onSelectFollowup?: (prompt: string) => void;
+  followupsDisabled?: boolean;
   measureRef?: (node: Element | null) => void;
   virtualIndex?: number;
 };
@@ -292,6 +297,9 @@ function copilotMessageBubblePropsAreEqual(
   if (prev.onPinArtifact !== next.onPinArtifact) return false;
   if (prev.isArtifactPinned !== next.isArtifactPinned) return false;
   if (prev.onOpenHref !== next.onOpenHref) return false;
+  if (prev.showFollowups !== next.showFollowups) return false;
+  if (prev.onSelectFollowup !== next.onSelectFollowup) return false;
+  if (prev.followupsDisabled !== next.followupsDisabled) return false;
   return true;
 }
 
@@ -309,6 +317,9 @@ function CopilotMessageBubble({
   onPinArtifact,
   isArtifactPinned,
   onOpenHref,
+  showFollowups = false,
+  onSelectFollowup,
+  followupsDisabled = false,
   measureRef,
   virtualIndex,
 }: CopilotMessageBubbleProps) {
@@ -411,6 +422,14 @@ function CopilotMessageBubble({
           testId={`copilot-reference-${message.id}`}
           onOpen={onOpenHref}
           disabled={message.status === "streaming"}
+        />
+      ) : null}
+      {showFollowups ? (
+        <CopilotFollowupsBlock
+          block={workflowPromptsToFollowupsBlock()}
+          testId={`copilot-followups-${message.id}`}
+          onSelect={onSelectFollowup}
+          disabled={followupsDisabled}
         />
       ) : null}
       {showActions ? (
