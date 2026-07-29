@@ -97,6 +97,23 @@ describe("parseChatBlock", () => {
     expect(parseChatBlock(block)).toEqual(block);
   });
 
+  it("round-trips action blocks with summaryRows", () => {
+    const block = {
+      kind: "action" as const,
+      title: "Place order",
+      summary: "Submit this order?",
+      summaryRows: [
+        { key: "Symbol", value: "AAPL" },
+        { key: "Side", value: "BUY" },
+        { key: "Qty", value: "10" },
+      ],
+      primaryLabel: "Accept",
+      secondaryLabel: "Reject",
+      name: "place_order",
+    };
+    expect(parseChatBlock(block)).toEqual(block);
+  });
+
   it("round-trips reference blocks", () => {
     const block = {
       kind: "reference" as const,

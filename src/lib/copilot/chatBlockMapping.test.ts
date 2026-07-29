@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   attachmentToMediaBlock,
+  actionSummaryRowsFromStep,
   hintToBlockKind,
   hintToBlockSketch,
   isConfirmToolStep,
@@ -165,7 +166,7 @@ describe("toolStepToActionBlock", () => {
       confirmReason: "Confirm delete",
       confirmationToken: "tok_1",
       requiresClientSession: true,
-      confirmArguments: { id: "d1" },
+      confirmArguments: { drawingId: "d1", cellIndex: 0 },
     };
 
     const block = toolStepToActionBlock(step);
@@ -173,14 +174,93 @@ describe("toolStepToActionBlock", () => {
       kind: "action",
       title: "Delete drawing",
       summary: "Confirm delete",
+      summaryRows: [
+        { key: "Drawing ID", value: "d1" },
+        { key: "Cell", value: "0" },
+      ],
       primaryLabel: "Accept",
       secondaryLabel: "Reject",
       callId: "c1",
       name: "delete_drawing",
       confirmationToken: "tok_1",
       requiresClientSession: true,
-      confirmArguments: { id: "d1" },
+      confirmArguments: { drawingId: "d1", cellIndex: 0 },
     });
+  });
+
+  it("maps place_order draft fields to summaryRows", () => {
+    const block = toolStepToActionBlock({
+      callId: "c-order",
+      name: "place_order",
+      status: "pending-confirm",
+      confirmReason: "Submit this order?",
+      confirmArguments: {
+        draft: {
+          symbol: "AAPL",
+          side: "BUY",
+          quantity: 10,
+          orderType: "LMT",
+          limitPrice: 190.5,
+          tif: "DAY",
+          environment: "paper",
+        },
+        idempotencyKey: "idem-1",
+        previewIntentId: "intent-1",
+      },
+    });
+
+    expect(block?.summaryRows).toEqual([
+      { key: "Symbol", value: "AAPL" },
+      { key: "Side", value: "BUY" },
+      { key: "Qty", value: "10" },
+      { key: "Type", value: "LMT" },
+      { key: "Limit", value: "190.5" },
+      { key: "TIF", value: "DAY" },
+      { key: "Environment", value: "paper" },
+    ]);
+    expect(block?.summaryRows?.some((row) => row.key === "idempotencyKey")).toBe(false);
+  });
+
+  it("maps attach_playbook args to summaryRows", () => {
+    const rows = actionSummaryRowsFromStep({
+      callId: "c-pb",
+      name: "attach_playbook",
+      status: "pending-confirm",
+      confirmArguments: {
+        symbol: "TSLA",
+        side: "BUY",
+        templateId: "trail-stop-v1",
+        environment: "paper",
+        qty: 5,
+        entryPrice: 250,
+        initialStop: 240,
+        liveConfirmation: "LIVE",
+      },
+    });
+
+    expect(rows).toEqual([
+      { key: "Symbol", value: "TSLA" },
+      { key: "Side", value: "BUY" },
+      { key: "Template", value: "trail-stop-v1" },
+      { key: "Environment", value: "paper" },
+      { key: "Qty", value: "5" },
+      { key: "Entry", value: "250" },
+      { key: "Stop", value: "240" },
+    ]);
+  });
+
+  it("maps prepare_chart_for_analysis args to summaryRows", () => {
+    const rows = actionSummaryRowsFromStep({
+      callId: "c-prep",
+      name: "prepare_chart_for_analysis",
+      status: "pending-confirm",
+      confirmArguments: { symbol: "NVDA", exchange: "NASDAQ" },
+    });
+
+    expect(rows).toEqual([
+      { key: "Symbol", value: "NVDA" },
+      { key: "Exchange", value: "NASDAQ" },
+    ]);
   });
 
   it("uses step summary when confirmReason is absent", () => {

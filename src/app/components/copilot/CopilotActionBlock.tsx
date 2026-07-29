@@ -32,6 +32,19 @@ export function CopilotActionBlock({
       {block.summary ? (
         <p className="mt-1 text-[var(--edge-text-secondary)]">{block.summary}</p>
       ) : null}
+      {block.summaryRows && block.summaryRows.length > 0 ? (
+        <dl
+          data-testid={`copilot-action-summary-rows-${testIdSuffix}`}
+          className="mt-2 space-y-1 text-[var(--edge-text-secondary)]"
+        >
+          {block.summaryRows.map((row) => (
+            <div key={row.key} className="flex gap-2">
+              <dt className="shrink-0 font-medium text-[var(--edge-text-primary)]">{row.key}</dt>
+              <dd className="min-w-0 break-words">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
       <div className="mt-2 flex gap-2">
         <EdgeButton
           type="button"

@@ -4,7 +4,7 @@ Phased track to evolve Edge Copilot’s **in-thread message vocabulary** into a 
 
 **Last updated:** 2026-07-29
 
-**Status:** Roadmap defined — Phase 0 **Passing**; Phase 1 **Passing**; Phase 2 **Passing**; Phase 3 **Passing**; Phase 4 **Passing**; Phase 5 **Pending**.
+**Status:** Roadmap defined — Phase 0 **Passing**; Phase 1 **Passing**; Phase 2 **Passing**; Phase 3 **Passing**; Phase 4 **Passing**; Phase 5 **Passing**.
 
 **Related:** [AI Agent / In-App Copilot](./ai-agent-roadmap.md) (Phases 0–8 **Passing**), [Grok Copilot UX Parity](./grok-copilot-parity-roadmap.md) (Phases 0–5 **Passing** — shell complete), [Research UX](./research-ux-roadmap.md) (pin / evidence / Board — side surfaces), [AI Architecture](../../src/lib/ai/ARCHITECTURE.md), [Research Architecture](../../src/lib/research/ARCHITECTURE.md), [Design System](../../src/lib/design-system/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -230,12 +230,12 @@ Phase 0 freezes the mapping; Phase 2+ may extend stream payloads beyond hint-onl
 
 **Outcome:** Order preview and annotation proposal use the Action shell with richer summary rows (still confirm-gated).
 
-**Status:** **Pending**
+**Status:** **Passing**
 
 | Work item | Scope |
 |-----------|--------|
-| Order preview | Map `preview_order` / confirm into Action summary fields |
-| Annotation propose | Accept → existing drawing accept path |
+| Order preview | Map `place_order` confirm draft into Action `summaryRows` |
+| Annotation propose | Accept → existing drawing accept path (chart toolbar; no new chat gate) |
 | Security | No bypass of `confirmationToken` / destructive gates |
 
 **Exit evidence:** Focused confirm/Action tests; app-level: gated tool still requires Accept; rejected path unchanged.

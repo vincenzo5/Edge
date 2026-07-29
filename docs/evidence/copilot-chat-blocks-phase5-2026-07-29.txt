@@ -1,0 +1,32 @@
+# AGENT — Copilot chat blocks — Phase 5 evidence
+# Date: 2026-07-29
+# Scope: Enrich Action payloads with summaryRows for trading / annotation confirms
+
+## Delivered
+- src/lib/copilot/chatBlocks.ts — optional summaryRows on Action blocks (max 12 kv rows)
+- src/lib/copilot/chatBlockMapping.ts — actionSummaryRowsFromStep + toolStepToActionBlock enrichment
+- src/app/components/copilot/CopilotActionBlock.tsx — compact summary row list under confirm reason
+- src/app/components/copilot/CopilotActionBlock.test.tsx — summaryRows render
+- src/lib/copilot/chatBlocks.test.ts — action summaryRows round-trip
+- src/lib/copilot/chatBlockMapping.test.ts — place_order, attach_playbook, delete_drawing, prepare_chart
+- src/lib/ai/ARCHITECTURE.md — Phase 5 section
+- docs/roadmaps/copilot-chat-blocks-roadmap.md — Phase 5 Passing
+
+## Architecture review
+Self-review Passed — no NDJSON stream union change; blocks in-memory only; SEC-06 Accept path and SEC-20 prompt isolation untouched; proposed AI drawing Accept stays on chart toolbar.
+
+## Focused
+Command:
+npm test -- --run src/lib/copilot/chatBlocks.test.ts src/lib/copilot/chatBlockMapping.test.ts src/app/components/copilot/CopilotActionBlock.test.tsx src/app/components/copilot/CopilotMessageBubble.test.tsx src/app/components/copilot/CopilotMessageList.test.tsx
+
+Output:
+Test Files  5 passed (5)
+Tests  69 passed (69)
+
+## App-level
+Behaviors verified (component + mapper integration tests):
+- place_order confirm-gated step shows draft summaryRows (Symbol, Side, Qty, Type, Limit, TIF, Environment)
+- delete_drawing confirm shows Drawing ID + Cell rows
+- attach_playbook and prepare_chart_for_analysis row mapping covered
+- Accept/Reject testids and confirmationToken wiring unchanged
+- No in-chat Accept added for proposed add_drawing annotations

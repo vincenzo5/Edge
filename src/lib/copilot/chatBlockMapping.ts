@@ -1,7 +1,9 @@
 import { COPILOT_WORKFLOW_PROMPTS } from "@/lib/ai/agent/promptLibrary";
 import {
   CHAT_BLOCK_MAX_REFERENCE_CHIPS,
+  CHAT_BLOCK_MAX_ACTION_SUMMARY_ROWS,
   type ActionChatBlock,
+  type ActionSummaryRow,
   type ChatBlock,
   type ChatBlockKind,
   type DataChatBlock,
@@ -276,6 +278,117 @@ export function toolStepToBlockKind(step: CopilotToolStep): ChatBlockKind {
 const ACTION_PRIMARY_LABEL = "Accept";
 const ACTION_SECONDARY_LABEL = "Reject";
 
+function formatActionSummaryValue(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (typeof value === "boolean") {
+    return value ? "Yes" : "No";
+  }
+  return null;
+}
+
+function pushActionSummaryRow(
+  rows: ActionSummaryRow[],
+  key: string,
+  value: unknown,
+): void {
+  if (rows.length >= CHAT_BLOCK_MAX_ACTION_SUMMARY_ROWS) return;
+  const formatted = formatActionSummaryValue(value);
+  if (!formatted) return;
+  rows.push({ key, value: formatted });
+}
+
+function pushActionSummaryRowsFromRecord(
+  rows: ActionSummaryRow[],
+  record: Record<string, unknown>,
+  fields: Array<{ argKey: string; label: string }>,
+): void {
+  for (const { argKey, label } of fields) {
+    if (!(argKey in record)) continue;
+    pushActionSummaryRow(rows, label, record[argKey]);
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function orderDraftSummaryRows(draft: Record<string, unknown>): ActionSummaryRow[] {
+  const rows: ActionSummaryRow[] = [];
+  pushActionSummaryRowsFromRecord(rows, draft, [
+    { argKey: "symbol", label: "Symbol" },
+    { argKey: "side", label: "Side" },
+    { argKey: "quantity", label: "Qty" },
+    { argKey: "orderType", label: "Type" },
+    { argKey: "limitPrice", label: "Limit" },
+    { argKey: "stopPrice", label: "Stop" },
+    { argKey: "tif", label: "TIF" },
+    { argKey: "environment", label: "Environment" },
+    { argKey: "outsideRth", label: "Outside RTH" },
+  ]);
+  return rows;
+}
+
+function attachPlaybookSummaryRows(args: Record<string, unknown>): ActionSummaryRow[] {
+  const rows: ActionSummaryRow[] = [];
+  pushActionSummaryRowsFromRecord(rows, args, [
+    { argKey: "symbol", label: "Symbol" },
+    { argKey: "side", label: "Side" },
+    { argKey: "templateId", label: "Template" },
+    { argKey: "environment", label: "Environment" },
+    { argKey: "qty", label: "Qty" },
+    { argKey: "entryPrice", label: "Entry" },
+    { argKey: "initialStop", label: "Stop" },
+  ]);
+  return rows;
+}
+
+function deleteDrawingSummaryRows(args: Record<string, unknown>): ActionSummaryRow[] {
+  const rows: ActionSummaryRow[] = [];
+  pushActionSummaryRowsFromRecord(rows, args, [
+    { argKey: "drawingId", label: "Drawing ID" },
+    { argKey: "cellIndex", label: "Cell" },
+  ]);
+  return rows;
+}
+
+function prepareChartSummaryRows(args: Record<string, unknown>): ActionSummaryRow[] {
+  const rows: ActionSummaryRow[] = [];
+  pushActionSummaryRowsFromRecord(rows, args, [
+    { argKey: "symbol", label: "Symbol" },
+    { argKey: "exchange", label: "Exchange" },
+  ]);
+  return rows;
+}
+
+/** Derive compact Action summary rows from confirm arguments (Phase 5). */
+export function actionSummaryRowsFromStep(step: CopilotToolStep): ActionSummaryRow[] {
+  const args = step.confirmArguments;
+  if (!args) return [];
+
+  switch (step.name) {
+    case "place_order": {
+      const draft = asRecord(args.draft);
+      return draft ? orderDraftSummaryRows(draft) : [];
+    }
+    case "attach_playbook":
+      return attachPlaybookSummaryRows(args);
+    case "delete_drawing":
+      return deleteDrawingSummaryRows(args);
+    case "prepare_chart_for_analysis":
+      return prepareChartSummaryRows(args);
+    default:
+      return [];
+  }
+}
+
 /** Build a Follow-ups block from curated workflow prompts (Phase 4). */
 export function workflowPromptsToFollowupsBlock(): FollowupsChatBlock {
   return {
@@ -295,11 +408,13 @@ export function toolStepToActionBlock(step: CopilotToolStep): ActionChatBlock | 
   }
 
   const summary = (step.confirmReason ?? step.summary ?? "").trim();
+  const summaryRows = actionSummaryRowsFromStep(step);
 
   return {
     kind: "action",
     title: toolStepDisplayName(step.name),
     summary,
+    ...(summaryRows.length > 0 ? { summaryRows } : {}),
     primaryLabel: ACTION_PRIMARY_LABEL,
     secondaryLabel: ACTION_SECONDARY_LABEL,
     callId: step.callId,

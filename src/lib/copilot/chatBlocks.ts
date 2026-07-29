@@ -18,6 +18,7 @@ export type ChatBlockKind = (typeof CHAT_BLOCK_KINDS)[number];
 export const CHAT_BLOCK_MAX_DATA_COLUMNS = 12;
 export const CHAT_BLOCK_MAX_DATA_ROWS = 40;
 export const CHAT_BLOCK_MAX_KV_ENTRIES = 24;
+export const CHAT_BLOCK_MAX_ACTION_SUMMARY_ROWS = 12;
 export const CHAT_BLOCK_MAX_REFERENCE_CHIPS = 8;
 export const CHAT_BLOCK_MAX_FOLLOWUPS = 6;
 export const CHAT_BLOCK_MAX_TRACE_STEPS = 32;
@@ -84,10 +85,12 @@ const dataTableColumnSchema = z.object({
 
 const dataTableRowSchema = z.record(z.string().max(32), z.string().max(240));
 
-const dataKvEntrySchema = z.object({
+export const dataKvEntrySchema = z.object({
   key: z.string().trim().min(1).max(80),
   value: z.string().trim().max(500),
 });
+
+export const actionSummaryRowSchema = dataKvEntrySchema;
 
 export const dataChatBlockSchema = z.object({
   kind: z.literal("data"),
@@ -104,6 +107,7 @@ export const actionChatBlockSchema = z.object({
   kind: z.literal("action"),
   title: z.string().trim().min(1).max(120),
   summary: z.string().trim().max(2000),
+  summaryRows: z.array(actionSummaryRowSchema).max(CHAT_BLOCK_MAX_ACTION_SUMMARY_ROWS).optional(),
   primaryLabel: z.string().trim().min(1).max(40),
   secondaryLabel: z.string().trim().min(1).max(40),
   callId: z.string().min(1).optional(),
@@ -162,6 +166,7 @@ export type TraceChatBlock = z.infer<typeof traceChatBlockSchema>;
 export type MediaChatBlock = z.infer<typeof mediaChatBlockSchema>;
 export type DataChatBlock = z.infer<typeof dataChatBlockSchema>;
 export type ActionChatBlock = z.infer<typeof actionChatBlockSchema>;
+export type ActionSummaryRow = z.infer<typeof actionSummaryRowSchema>;
 export type ReferenceChatBlock = z.infer<typeof referenceChatBlockSchema>;
 export type FollowupsChatBlock = z.infer<typeof followupsChatBlockSchema>;
 

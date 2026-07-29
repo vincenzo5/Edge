@@ -32,6 +32,32 @@ describe("CopilotActionBlock", () => {
     expect(screen.getByTestId("copilot-confirm-reject-c2")).toBeTruthy();
   });
 
+  it("renders summaryRows when present", () => {
+    render(
+      <CopilotActionBlock
+        block={{
+          ...sampleBlock,
+          title: "Place order",
+          name: "place_order",
+          summary: "Submit this order?",
+          summaryRows: [
+            { key: "Symbol", value: "AAPL" },
+            { key: "Side", value: "BUY" },
+            { key: "Qty", value: "10" },
+          ],
+        }}
+        onPrimary={vi.fn()}
+        onSecondary={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("copilot-action-summary-rows-c2")).toBeTruthy();
+    expect(screen.getByText("Symbol")).toBeTruthy();
+    expect(screen.getByText("AAPL")).toBeTruthy();
+    expect(screen.getByText("Qty")).toBeTruthy();
+    expect(screen.getByText("10")).toBeTruthy();
+  });
+
   it("fires primary and secondary handlers", () => {
     const onPrimary = vi.fn();
     const onSecondary = vi.fn();
