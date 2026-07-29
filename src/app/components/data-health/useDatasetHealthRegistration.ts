@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { ChartDataMeta } from "@edge/chart-core";
 import type { DatasetId } from "@/lib/marketData/state/catalog";
 import type { DatasetKind } from "@/lib/marketData/trust/dataTrust";
@@ -23,6 +23,7 @@ export function useRegisterDatasetDemand(
 ): void {
   const { registerDatasetDemand } = useDataHealth();
   const active = options?.active ?? true;
+  const warningsKey = options?.warnings?.join("\0") ?? "";
   useEffect(() => {
     registerDatasetDemand({
       datasetId,
@@ -45,7 +46,7 @@ export function useRegisterDatasetDemand(
     options?.detail,
     options?.trustDataset,
     active,
-    options?.warnings,
+    warningsKey,
     options?.status,
   ]);
 }
@@ -53,15 +54,21 @@ export function useRegisterDatasetDemand(
 export function useRegisterScreenerHealthDemand(): void {
   const screener = useScreenerStateOptional();
   const lastRun = screener?.session.lastRun;
-  const meta = lastRun?.meta
-    ? {
-        source: lastRun.meta.source,
-        stale: lastRun.meta.stale,
-        warnings: lastRun.meta.warnings,
-        asOf: lastRun.meta.asOf,
-        lastUpdateAt: Date.now(),
-      }
-    : null;
+  const meta = useMemo(() => {
+    if (!lastRun?.meta) return null;
+    return {
+      source: lastRun.meta.source,
+      stale: lastRun.meta.stale,
+      warnings: lastRun.meta.warnings,
+      asOf: lastRun.meta.asOf,
+      lastUpdateAt: lastRun.meta.asOf,
+    };
+  }, [
+    lastRun?.meta?.source,
+    lastRun?.meta?.stale,
+    lastRun?.meta?.asOf,
+    lastRun?.meta?.warnings,
+  ]);
   const skipped = lastRun?.meta?.skippedSymbols?.length ?? 0;
   const detail =
     lastRun != null

@@ -47,6 +47,39 @@ export type DemandDatasetInput = {
   active?: boolean;
 };
 
+function demandMetaEqual(
+  a: DemandDatasetInput["meta"],
+  b: DemandDatasetInput["meta"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  return (
+    a.source === b.source &&
+    a.asOf === b.asOf &&
+    a.stale === b.stale &&
+    a.lastUpdateAt === b.lastUpdateAt &&
+    a.cacheTier === b.cacheTier &&
+    (a.warnings?.join("\0") ?? "") === (b.warnings?.join("\0") ?? "")
+  );
+}
+
+/** Skip redundant demand-dataset writes that would re-render DataHealthProvider. */
+export function areDemandDatasetInputsEqual(
+  a: DemandDatasetInput,
+  b: DemandDatasetInput | undefined,
+): boolean {
+  if (!b) return false;
+  return (
+    a.datasetId === b.datasetId &&
+    (a.active ?? true) === (b.active ?? true) &&
+    a.detail === b.detail &&
+    a.status === b.status &&
+    a.trustDataset === b.trustDataset &&
+    (a.warnings?.join("\0") ?? "") === (b.warnings?.join("\0") ?? "") &&
+    demandMetaEqual(a.meta, b.meta)
+  );
+}
+
 export type BrokerageSubdatasetInput = {
   datasetId: Extract<
     DatasetId,

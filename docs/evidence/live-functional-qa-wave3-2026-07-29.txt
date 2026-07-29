@@ -1,0 +1,78 @@
+# APP — Live functional QA remediation — Phase 8 (Wave 3) evidence
+# Date: 2026-07-29
+# Environment: local dev http://localhost:3003 (npm run dev)
+# Scope: Wave 3 regression pass — routes, trader loop, Copilot, screener/journal/research, broker calm
+
+## Wave 3 discovery fix (screener run)
+During 8.4 first pass, screener Run triggered `Maximum update depth exceeded` in DataHealthProvider
+(`useRegisterScreenerHealthDemand` used `Date.now()` for `meta.lastUpdateAt` every render).
+Fixed in:
+- src/app/components/data-health/useDatasetHealthRegistration.ts — stable screener meta via useMemo + asOf
+- src/app/components/data-health/DataHealthProvider.tsx — skip redundant demand-dataset setState
+- src/lib/marketData/healthDatasets.ts — areDemandDatasetInputsEqual helper
+- Tests: healthDatasets.test.ts, useDatasetHealthRegistration.test.tsx
+
+## Focused
+Command:
+npm test -- --run src/app/components/research/useResearchEvidence.test.tsx src/app/components/stock-app/useStockAppBootstrap.test.tsx src/lib/persistence/sync/useWorkspaceTabsRemoteSync.test.ts src/app/components/AccountProvider.test.tsx src/lib/screener/providerWarnings.test.ts src/app/components/MarketDataProvider.test.tsx src/app/components/stock-app/useStockAppLayoutController.test.tsx src/lib/marketData/healthDatasets.test.ts src/app/components/data-health/useDatasetHealthRegistration.test.tsx
+
+Output:
+Test Files  9 passed (9)
+Tests  37 passed (37)
+
+## 8.1 Route smoke (HTTP)
+All primary routes returned 200:
+/ /home /workspace /chart /copilot /research /journal /journal/dashboard /journal/trades /journal/open /journal/settings /screener /screener/screens /screener/results /screener/review /screener/keepers
+
+No white-screen on route GET probes.
+
+## 8.2 Trader loop (/workspace)
+- GET /workspace 200; chart-grid + chart-header-instrument-cluster present
+- Title: TSLA persisted from prior session; Indicator settings control present (MA from persistence)
+- Console filters after load: getServerSnapshot → []; ChartCell-during-render → []
+- chart-workspaces: PUT to rebound id 74947dcc-… (no stale 709905f3 404 storm)
+
+## 8.3 Copilot (closes QA-11)
+Route: GET /copilot 200
+- No getServerSnapshot warning in browser console capture
+- Click New Chat (aria-label) → data-testid="copilot-empty-brand" visible (data-brand-variant="full")
+- Composer present; workflowPills=0
+
+## 8.4 Screener / journal / research
+Research: GET /research 200 — Board tab, "No sessions yet", session rail loads
+Journal: GET /journal/dashboard 200 (tile route smoke)
+Screener (post-fix):
+- FMP still suspended: GET /api/market-data/fmp/movers → meta.warnings FMP 403 Account suspended
+- Workspace screener: Gainers today → Run → no crash
+- data-testid=screener-provider-restriction-banner visible (FMP 403 suspended text)
+- data-testid=screener-results-empty-restriction title "Screener provider unavailable"
+- data-testid=screener-provider-warnings role=alert present
+
+## 8.5 Connections / broker calm (QA-04 re-check)
+GET /api/market-data/health → providers[tws].circuitOpen=true, status=degraded (gateway_disconnected)
+After workspace reload performance entries (35s window, circuit open):
+- /api/brokerage/snapshot — 0 requests
+- /api/trading/accounts — 0 requests
+- /api/brokerage/snapshot?environment=live — 0 requests
+Account header disabled; Reconnect chrome visible
+
+## QA inventory disposition
+| ID | Priority | Status | Notes |
+|----|----------|--------|-------|
+| QA-01 | P1 | Closed | Phase 1; Wave 3 no getServerSnapshot warning |
+| QA-02 | P1 | Closed | Phase 2; Wave 3 no ChartCell render warning |
+| QA-03 | P1 | Closed | Phase 3; no stale workspace PUT 404 |
+| QA-04 | P1 | Closed | Phase 4; Wave 3 broker poll calm with circuit open |
+| QA-05 | P2 | Fixed | Phase 5 + Wave 3 screener warning UI after DataHealth fix |
+| QA-06 | P2 | Fixed | Phase 6 |
+| QA-07 | P2 | Fixed | Phase 6 |
+| QA-08 | P2 | Fixed | Phase 7 |
+| QA-09 | P2 | Fixed | Phase 7 |
+| QA-10 | P2 | Skipped | Observability only; quote SSE fallback unchanged |
+| QA-11 | P3 | Closed | Wave 3 New chat + copilot-empty-brand |
+| QA-12 | P3 | Skipped | Ops/env — TWS not connected; Phase 4 covers product behavior |
+| QA-13 | P3 | Skipped | Dev sourcemap noise only |
+
+Open P1 from inventory: 0
+
+Closes: QA-11; track-level Wave 3 verification complete

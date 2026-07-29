@@ -36,7 +36,10 @@ import { useMarketDataQuotes, useQuoteCount, useAllQuotes } from "../MarketDataP
 import { useAccountOptional } from "../AccountProvider";
 import { useAccountAliasesOptional } from "../AccountAliasesProvider";
 import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
-import type { DemandDatasetInput } from "@/lib/marketData/healthDatasets";
+import {
+  areDemandDatasetInputsEqual,
+  type DemandDatasetInput,
+} from "@/lib/marketData/healthDatasets";
 import { buildBrokerageSubdatasetInputs } from "@/lib/brokerage/brokerageDelivery";
 import { usePersistenceSyncHealth } from "@/lib/persistence/sync/usePersistenceSyncHealth";
 import { useRegisterScreenerHealthDemand } from "./useDatasetHealthRegistration";
@@ -230,13 +233,15 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
 
   const registerDatasetDemand = useCallback((input: DemandDatasetInput) => {
     setDemandDatasets((prev) => {
-      const next = { ...prev };
       if (input.active === false) {
+        if (!(input.datasetId in prev)) return prev;
+        const next = { ...prev };
         delete next[input.datasetId];
         return next;
       }
-      next[input.datasetId] = input;
-      return next;
+      const existing = prev[input.datasetId];
+      if (areDemandDatasetInputsEqual(input, existing)) return prev;
+      return { ...prev, [input.datasetId]: input };
     });
   }, []);
 

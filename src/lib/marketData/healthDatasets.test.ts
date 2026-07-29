@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  areDemandDatasetInputsEqual,
   buildDemandDatasetRow,
   buildPreTradeDatasetRow,
   filterVisibleCurrentDataRows,
@@ -61,5 +62,38 @@ describe("healthDatasets", () => {
     expect(row?.readinessReasons).toEqual([
       "Connection only — quote readiness not verified",
     ]);
+  });
+});
+
+describe("areDemandDatasetInputsEqual", () => {
+  it("treats identical demand inputs as equal", () => {
+    const input = {
+      datasetId: "screener_descriptive" as const,
+      active: true,
+      detail: "0 results",
+      status: "loaded" as const,
+      meta: {
+        source: "fmp",
+        stale: false,
+        asOf: 1_700_000_000_000,
+        lastUpdateAt: 1_700_000_000_000,
+      },
+      warnings: ["FMP endpoint restricted (403)"],
+    };
+    expect(areDemandDatasetInputsEqual(input, { ...input })).toBe(true);
+  });
+
+  it("detects meta lastUpdateAt churn", () => {
+    const base = {
+      datasetId: "screener_descriptive" as const,
+      active: true,
+      meta: { source: "fmp", lastUpdateAt: 1 },
+    };
+    expect(
+      areDemandDatasetInputsEqual(base, {
+        ...base,
+        meta: { source: "fmp", lastUpdateAt: 2 },
+      }),
+    ).toBe(false);
   });
 });
