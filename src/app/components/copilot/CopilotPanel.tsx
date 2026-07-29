@@ -28,6 +28,7 @@ import {
 import { CopilotComposer } from "./CopilotComposer";
 import { CopilotEmptyBrand } from "./CopilotEmptyBrand";
 import { CopilotHistoryRail } from "./CopilotHistoryRail";
+import { CopilotHistorySearchModal } from "./CopilotHistorySearchModal";
 import { CopilotEvidenceRail } from "./CopilotEvidenceRail";
 import { CopilotMessageList } from "./CopilotMessageList";
 import { CopilotModelSettingsModal } from "./CopilotModelSettingsModal";
@@ -54,6 +55,7 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
   const [renameDraft, setRenameDraft] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const composerModels = useMemo(
     () =>
       enabledModels.map((model) => ({
@@ -169,7 +171,7 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
 
   const isWideHost = variant === "page" || variant === "tile";
   const isEmpty = messages.length === 0 && !configError;
-  const showHistoryRail = isWideHost && !isEmpty;
+  const showHistoryRail = isWideHost;
   const composerDisabled = Boolean(configError && messages.length === 0);
 
   const handleStartRename = () => {
@@ -182,6 +184,37 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
       setIsRenaming(false);
     });
   };
+
+  const handleRenameThread = (targetThreadId: string) => {
+    const target = threads.find((entry) => entry.id === targetThreadId);
+    if (!target) return;
+
+    const openRename = () => {
+      setRenameDraft(target.title);
+      setIsRenaming(true);
+    };
+
+    if (targetThreadId !== threadId) {
+      clearFocus();
+      void switchThread(targetThreadId).then(openRename);
+      return;
+    }
+
+    openRename();
+  };
+
+  const wideEmptyTopChrome = (
+    <EdgeIconButton
+      type="button"
+      aria-label="Copilot settings"
+      title="Copilot settings"
+      data-testid="copilot-settings"
+      disabled={isStreaming}
+      onClick={() => setSettingsOpen(true)}
+    >
+      <SettingsIcon />
+    </EdgeIconButton>
+  );
 
   const minimalTopChrome = (
     <>
@@ -343,8 +376,31 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
         clearFocus();
         void deleteThread(targetThreadId);
       }}
+      onSearchOpen={() => setSearchOpen(true)}
+      onSeeAll={() => setSearchOpen(true)}
+      onRenameThread={handleRenameThread}
     />
   ) : undefined;
+
+  const historySearchModal = showHistoryRail ? (
+    <CopilotHistorySearchModal
+      open={searchOpen}
+      threads={threads}
+      activeThreadId={threadId}
+      disabled={isStreaming}
+      onClose={() => setSearchOpen(false)}
+      onSelectThread={(nextThreadId) => {
+        clearFocus();
+        void switchThread(nextThreadId);
+        setSearchOpen(false);
+      }}
+      onNewChat={() => {
+        clearFocus();
+        void newChat();
+        setSearchOpen(false);
+      }}
+    />
+  ) : null;
 
   const evidenceRail =
     variant === "page" && !isEmpty ? (
@@ -470,6 +526,7 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
         >
           {messageList}
         </CopilotShell>
+        {historySearchModal}
         <CopilotModelSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       </>
     );
@@ -502,13 +559,15 @@ export function CopilotPanel({ variant = "sidebar" }: Props) {
       <CopilotShell
         variant={variant}
         isEmpty
-        topChrome={minimalTopChrome}
+        topChrome={showHistoryRail ? wideEmptyTopChrome : minimalTopChrome}
         brand={<CopilotEmptyBrand variant={variant} />}
+        history={historyRail}
         banners={banners}
         composer={composer}
       >
         {null}
       </CopilotShell>
+      {historySearchModal}
       <CopilotModelSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );

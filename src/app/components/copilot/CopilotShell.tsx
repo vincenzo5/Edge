@@ -34,13 +34,8 @@ export function CopilotShell({
   const isWideHost = variant === "page" || variant === "tile";
 
   if (isEmpty) {
-    return (
-      <div
-        data-testid={testId}
-        data-copilot-shell-variant={variant}
-        className="copilot-shell relative flex h-full min-h-0 flex-col"
-      >
-        {banners}
+    const emptyHero = (
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {topChrome ? (
           <div
             data-testid="copilot-top-chrome"
@@ -64,6 +59,36 @@ export function CopilotShell({
             {footer ? <div className="w-full">{footer}</div> : null}
           </div>
         </div>
+      </div>
+    );
+
+    if (history) {
+      return (
+        <div
+          data-testid={testId}
+          data-copilot-shell-variant={variant}
+          className="copilot-shell flex h-full min-h-0 flex-col"
+        >
+          {banners}
+          <div
+            data-testid="copilot-empty-layout"
+            className="flex min-h-0 flex-1 overflow-hidden"
+          >
+            {history}
+            {emptyHero}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        data-testid={testId}
+        data-copilot-shell-variant={variant}
+        className="copilot-shell relative flex h-full min-h-0 flex-col"
+      >
+        {banners}
+        {emptyHero}
       </div>
     );
   }

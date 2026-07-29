@@ -55,6 +55,25 @@ describe("CopilotShell", () => {
     expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy();
   });
 
+  it("renders empty layout with history beside hero cluster", () => {
+    render(
+      <CopilotShell
+        variant="page"
+        isEmpty
+        history={<aside data-testid="history-slot">History</aside>}
+        brand={<div data-testid="brand-slot">Brand</div>}
+        composer={<div data-testid="composer-slot">Composer</div>}
+      >
+        {null}
+      </CopilotShell>,
+    );
+
+    expect(screen.getByTestId("copilot-empty-layout")).toBeTruthy();
+    expect(screen.getByTestId("history-slot")).toBeTruthy();
+    expect(screen.getByTestId("brand-slot")).toBeTruthy();
+    expect(screen.getByTestId("composer-slot")).toBeTruthy();
+  });
+
   it("renders active layout with scroll region and docked composer", () => {
     render(
       <CopilotShell
@@ -134,8 +153,12 @@ describe("CopilotEmptyBrand", () => {
     const brand = screen.getByTestId("copilot-empty-brand");
     expect(brand).toHaveAttribute("data-brand-variant", "full");
     expect(brand.className).toContain("mb-[var(--copilot-bar-min-height)]");
-    expect(screen.getByRole("img", { name: "Edge" }).className).toContain(
-      "h-[calc(var(--copilot-bar-min-height)*0.55)]",
+    expect(brand.className).toContain("w-full");
+
+    const logo = screen.getByRole("img", { name: "Edge" });
+    expect(logo.className).toContain(
+      "w-[min(32%,calc(var(--copilot-bar-max-width)*0.32))]",
     );
+    expect(logo.className).toContain("h-auto");
   });
 });

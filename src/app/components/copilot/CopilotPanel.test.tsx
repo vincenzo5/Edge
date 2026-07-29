@@ -367,6 +367,15 @@ describe("CopilotPanel", () => {
     });
   });
 
+  it("shows history rail on page variant in empty state", async () => {
+    renderPanel("page");
+    await waitFor(() => {
+      expect(screen.getByTestId("copilot-history-rail")).toBeTruthy();
+    });
+    expect(screen.getByTestId("copilot-empty")).toBeTruthy();
+    expect(screen.queryByTestId("copilot-thread-select")).toBeNull();
+  });
+
   it("shows history rail on page variant after first message", async () => {
     vi.spyOn(streamChatModule, "streamChat").mockResolvedValue({
       ok: true,
