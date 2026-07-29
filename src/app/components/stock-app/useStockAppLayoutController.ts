@@ -83,9 +83,15 @@ export function useStockAppLayoutController({
         return;
       }
 
-      setLayout((prevLayout) => applyLinkPropagation(prevLayout, index, next));
+      const nextLayout = applyLinkPropagation(layout, index, next);
+      const count = cellCountFor(nextLayout.layoutId);
+      for (let i = 0; i < count; i += 1) {
+        setCellConfig(cellChartId(i), nextLayout.cells[i]);
+      }
+      scheduleCellLayoutFlush();
+      setLayout(nextLayout);
     },
-    [cells, layout.layoutId, layout.linkDrawings, setLayout],
+    [cells, layout, setLayout],
   );
 
   const handleActiveCellChange = useCallback(
@@ -109,9 +115,24 @@ export function useStockAppLayoutController({
 
   const handleLayoutSyncChange = useCallback(
     (patch: Partial<LayoutSyncPrefs>) => {
+      const enablingLinkSymbol = patch.linkSymbol === true && !layout.linkSymbol;
+      if (enablingLinkSymbol) {
+        const merged = { ...layout, ...patch };
+        const activeIndex = merged.activeCellIndex ?? 0;
+        const activeCellConfig = cells[activeIndex] ?? DEFAULT_CELL;
+        const nextLayout = applyLinkPropagation(merged, activeIndex, activeCellConfig);
+        const count = cellCountFor(nextLayout.layoutId);
+        for (let i = 0; i < count; i += 1) {
+          setCellConfig(cellChartId(i), nextLayout.cells[i]);
+        }
+        scheduleCellLayoutFlush();
+        setLayout(nextLayout);
+        return;
+      }
+
       setLayout((prev) => ({ ...prev, ...patch }));
     },
-    [setLayout],
+    [cells, layout, setLayout],
   );
 
   const handleToolbarPrefsChange = useCallback(

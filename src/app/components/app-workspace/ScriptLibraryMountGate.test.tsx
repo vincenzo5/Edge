@@ -86,7 +86,7 @@ describe("ScriptLibraryMountGate", () => {
     window.localStorage.clear();
   });
 
-  it("does not mount ScriptLibraryProvider on chart-only workspace", async () => {
+  it("keeps ScriptLibraryProvider mounted on chart-only workspace without hydrating", async () => {
     renderShell();
 
     await waitFor(() => {
@@ -94,8 +94,31 @@ describe("ScriptLibraryMountGate", () => {
     });
 
     expect(screen.getByTestId("workspace-header-controls-portal")).toBeInTheDocument();
-    expect(screen.queryByTestId("script-library-provider")).not.toBeInTheDocument();
-    expect(scriptLibraryProviderSpy).not.toHaveBeenCalled();
+    expect(screen.getByTestId("script-library-provider")).toBeInTheDocument();
+    expect(scriptLibraryProviderSpy).toHaveBeenCalled();
+  });
+
+  it("preserves child DOM identity when requestScriptLibrary activates hydrate", async () => {
+    const childMountCounts = new Map<string, number>();
+
+    function StableChild() {
+      const id = "stable-child";
+      childMountCounts.set(id, (childMountCounts.get(id) ?? 0) + 1);
+      return <div data-testid={id} />;
+    }
+
+    renderShell(
+      <>
+        <StableChild />
+        <RequestScriptLibraryHarness />
+      </>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("script-library-provider")).toBeInTheDocument();
+    });
+
+    expect(childMountCounts.get("stable-child")).toBe(1);
   });
 
   it("mounts ScriptLibraryProvider when scripts tile is assigned", async () => {

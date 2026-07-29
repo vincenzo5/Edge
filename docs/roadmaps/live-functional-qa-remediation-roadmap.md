@@ -4,7 +4,7 @@ Phased closure of issues found during the 2026-07-28 live functional QA pass on 
 
 **Last updated:** 2026-07-29
 
-**Status:** Phase 0 **Passing** (2026-07-28); Phase 1 **Passing** (2026-07-28); Phase 2 **Passing** (2026-07-28); Phase 3 **Passing** (2026-07-29); Phase 4 **Passing** (2026-07-29); Phase 5 **Passing** (2026-07-29); Phase 6 **Passing** (2026-07-29); Phases 7–8 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-28); Phase 1 **Passing** (2026-07-28); Phase 2 **Passing** (2026-07-28); Phase 3 **Passing** (2026-07-29); Phase 4 **Passing** (2026-07-29); Phase 5 **Passing** (2026-07-29); Phase 6 **Passing** (2026-07-29); Phase 7 **Passing** (2026-07-29); Phase 8 **Pending**.
 
 **Related:** [Project Status](../PROJECT-STATUS.md), [Testing Verification Checklist](../checklists/testing-verification-checklist.md), [Feature Roadmaps index](./README.md), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Persistence Architecture](../../src/lib/persistence/ARCHITECTURE.md), [Research Architecture](../../src/lib/research/ARCHITECTURE.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -215,7 +215,7 @@ Restore a clean dev-session baseline: no React errors on Copilot/workspace happy
 
 ### Phase 7 — Chart grid + chrome polish (QA-08, QA-09)
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-29)
 
 **Outcome:** Linked cells reflect symbol changes; overlapping menus do not collapse chrome.
 

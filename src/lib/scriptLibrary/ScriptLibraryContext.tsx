@@ -70,7 +70,16 @@ export function resetScriptLibraryHydrateInFlightForTests(): void {
   hydrateInFlight = null;
 }
 
-export function ScriptLibraryProvider({ children }: { children: ReactNode }) {
+type ScriptLibraryProviderProps = {
+  children: ReactNode;
+  /** When false, provider stays mounted but skips remote hydrate until activated. */
+  active?: boolean;
+};
+
+export function ScriptLibraryProvider({
+  children,
+  active = true,
+}: ScriptLibraryProviderProps) {
   const [state, setState] = useState<ScriptLibraryState>(DEFAULT_SCRIPT_LIBRARY_STATE);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +146,7 @@ export function ScriptLibraryProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!active) return;
     let cancelled = false;
     void hydrateFromDb().catch((err) => {
       if (cancelled) return;
@@ -147,7 +157,7 @@ export function ScriptLibraryProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [hydrateFromDb]);
+  }, [active, hydrateFromDb]);
 
   const resolver = useMemo(() => createScriptSourceResolver(state), [state]);
 

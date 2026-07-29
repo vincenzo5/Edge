@@ -19,6 +19,7 @@ import {
 } from "@/lib/chartConfig";
 import type { DrawingStyles } from "@edge/chart-core/contracts";
 import type { ChartTimeZone } from "@edge/chart-core/timeZone";
+import { useDataHealthOptional } from "../data-health/DataHealthProvider";
 
 type Params = {
   chartRef: RefObject<ChartHandle | null>;
@@ -35,13 +36,17 @@ export function useChartCellModalState({
   appTimeZone,
   requestScriptLibrary,
 }: Params) {
+  const dataHealth = useDataHealthOptional();
   const [pickerOpen, setPickerOpenState] = useState(false);
   const setPickerOpen = useCallback(
     (open: boolean) => {
-      if (open) requestScriptLibrary();
+      if (open) {
+        requestScriptLibrary();
+        dataHealth?.setMenuOpen(false);
+      }
       setPickerOpenState(open);
     },
-    [requestScriptLibrary],
+    [dataHealth, requestScriptLibrary],
   );
 
   const [settingsIndicatorId, setSettingsIndicatorId] = useState<string | null>(null);

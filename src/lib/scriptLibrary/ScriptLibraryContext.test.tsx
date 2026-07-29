@@ -127,4 +127,28 @@ describe("ScriptLibraryProvider hydrate", () => {
     expect(window.localStorage.getItem(SCRIPT_LIBRARY_MIGRATED_KEY)).toBeNull();
     expect(document.querySelector('[data-testid="script-count"]')?.textContent).toBe("0");
   });
+
+  it("defers hydrate until active becomes true", async () => {
+    fetchScriptsListMock.mockResolvedValue({ scripts: [] });
+
+    const { rerender } = render(
+      <ScriptLibraryProvider active={false}>
+        <HydrateProbe />
+      </ScriptLibraryProvider>,
+    );
+
+    expect(document.querySelector('[data-testid="hydrated"]')?.textContent).toBe("false");
+    expect(fetchScriptsListMock).not.toHaveBeenCalled();
+
+    rerender(
+      <ScriptLibraryProvider active>
+        <HydrateProbe />
+      </ScriptLibraryProvider>,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="hydrated"]')?.textContent).toBe("true");
+    });
+    expect(fetchScriptsListMock).toHaveBeenCalledTimes(1);
+  });
 });

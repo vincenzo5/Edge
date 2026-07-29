@@ -452,6 +452,10 @@ export function useDataHealth(): DataHealthContextValue {
   return value;
 }
 
+export function useDataHealthOptional(): DataHealthContextValue | null {
+  return useContext(DataHealthContext);
+}
+
 export function useRegisterOptionsHealthMeta(
   meta: OptionsHealthMeta,
   detail?: string,

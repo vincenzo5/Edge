@@ -63,11 +63,7 @@ export function ScriptLibraryMountGate({ children }: { children: ReactNode }) {
 
   return (
     <ScriptLibraryMountContext.Provider value={mountContext}>
-      {shouldMount ? (
-        <ScriptLibraryProvider>{children}</ScriptLibraryProvider>
-      ) : (
-        children
-      )}
+      <ScriptLibraryProvider active={shouldMount}>{children}</ScriptLibraryProvider>
     </ScriptLibraryMountContext.Provider>
   );
 }
