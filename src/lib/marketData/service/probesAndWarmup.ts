@@ -12,6 +12,7 @@ import type { WarmupPhaseReport, WarmupReport } from "../telemetry/types";
 import { candlesCacheKey, quotesCacheKey } from "./cacheKeys";
 import { getOptionExpirations } from "./optionsFetch";
 import { getCandles } from "./candlesFetch";
+import { getMarketContext } from "./contextAndFundamentals";
 import {
   ensureTwsGatewayProbe,
   lastKnownTwsStatus,
@@ -371,6 +372,33 @@ export async function primeMarketData(svc: MarketDataServiceHost, args: {
   if (primaryRequest) {
     await runCandleTask(primaryRequest);
   }
+
+  const contextSymbol = (
+    args.optionsSymbol?.trim().toUpperCase() ?? primaryRequest?.symbol?.trim().toUpperCase()
+  );
+  if (contextSymbol) {
+    const phaseStart = Date.now();
+    try {
+      const ctxResult = await getMarketContext(svc, contextSymbol);
+      phases.push({
+        name: "market_context",
+        key: contextSymbol,
+        ms: Date.now() - phaseStart,
+        ok: true,
+        source: ctxResult.source,
+        cacheTier: ctxResult.cacheTier,
+      });
+    } catch (error) {
+      phases.push({
+        name: "market_context",
+        key: contextSymbol,
+        ms: Date.now() - phaseStart,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   if (secondaryRequests.length > 0) {
     await Promise.all(secondaryRequests.map((request) => runCandleTask(request)));
   }

@@ -1,0 +1,35 @@
+# APP — Live functional QA remediation — Phase 6 evidence
+# Date: 2026-07-29
+# Scope: QA-06, QA-07, QA-10 — cold warmup coalesce + context prefetch; script import dedupe; slow quote-stream observability
+
+## Delivered
+- src/app/components/MarketDataProvider.tsx — client warmup POST coalesce per layout key; recordQuoteFirstPaintTelemetry with slow-path health event
+- src/lib/marketData/service/probesAndWarmup.ts — market_context prefetch after primary candle in primeMarketData
+- src/lib/marketData/quoteStreamPolicy.ts — QUOTE_STREAM_SLOW_FIRST_PAINT_MS (10s)
+- src/lib/scriptLibrary/ScriptLibraryContext.tsx — hydrateInFlight dedupe; fail loud on import 503; migrate flag only on success/empty legacy
+- src/app/components/MarketDataProvider.test.tsx — warmup coalesce + slow first paint regressions
+- src/lib/marketData/service/marketDataService.test.ts — market_context warmup phase + contract-detail mocks
+- src/lib/scriptLibrary/ScriptLibraryContext.test.tsx — single import POST + no migrate on 503
+- src/lib/marketData/ARCHITECTURE.md — warmup context prefetch + client coalesce note
+
+## Architecture review
+Self-review Passed — warmup remains best-effort (context failure does not fail POST); script migrate semantics tightened; quote stream policy unchanged (2s/8s fallback).
+
+## Focused
+Command:
+npm test -- --run src/app/components/MarketDataProvider.test.tsx src/lib/marketData/service/marketDataService.test.ts src/lib/scriptLibrary/ScriptLibraryContext.test.tsx
+
+Output:
+Test Files  3 passed (3)
+Tests  70 passed (70)
+
+## App-level
+Route: GET /workspace 200
+Setup: local dev http://localhost:3003; warmup POST then context GET for SPY
+Observed:
+- GET /workspace → 200
+- POST /api/market-data/warmup (SPY) → 200 in 282ms (includes market_context phase)
+- GET /api/market-data/context?symbol=SPY → 200 in 49ms (vs ~2.4s cold baseline before warmup prefetch)
+- Client warmup coalesce + script import dedupe verified via focused tests (Strict Mode / double-provider regressions)
+- Quote slow-path: health event when quotes.firstPaint clientMs > 10s (SSE 2s/8s fallback unchanged)
+Closes: QA-06, QA-07, QA-10 (partial observability)

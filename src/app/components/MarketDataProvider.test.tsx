@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, waitFor, act } from "@testing-library/react";
-import { MarketDataProvider, useMarketDataQuotes, useQuote, useQuoteCount } from "./MarketDataProvider";
+import {
+  MarketDataProvider,
+  resetMarketDataWarmupInFlightForTests,
+  useMarketDataQuotes,
+  useQuote,
+  useQuoteCount,
+} from "./MarketDataProvider";
 import { clearQuotesStore } from "@/lib/marketData/quotesStore";
 import type { ChartLayout } from "@/lib/chartConfig";
 
@@ -88,6 +94,7 @@ describe("MarketDataProvider quotes", () => {
     MockEventSource.instances = [];
     recordHealthEventMock.mockClear();
     clearQuotesStore();
+    resetMarketDataWarmupInFlightForTests();
     vi.stubGlobal("EventSource", MockEventSource);
   });
 
@@ -437,6 +444,100 @@ describe("MarketDataProvider quotes", () => {
       await vi.advanceTimersByTimeAsync(3_000);
     });
     expect(quoteFetchCount).toBe(1);
+  });
+
+  it("coalesces duplicate warmup POSTs for the same layout key", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "0");
+    let warmupCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/market-data/warmup")) {
+        warmupCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return new Response(JSON.stringify({ ok: true, warmup: { phases: [] } }), {
+          status: 200,
+        });
+      }
+      if (url.includes("/api/quotes")) {
+        return new Response(JSON.stringify({ quotes: [], meta: { source: "yahoo" } }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { rerender } = render(
+      <MarketDataProvider layout={layout}>
+        <div />
+      </MarketDataProvider>,
+    );
+
+    rerender(
+      <MarketDataProvider layout={layout}>
+        <div />
+      </MarketDataProvider>,
+    );
+
+    await waitFor(() => {
+      expect(warmupCalls).toBe(1);
+    });
+  });
+
+  it("records slow first paint health event when SSE quotes exceed threshold", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-29T12:00:00.000Z"));
+    vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "1");
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/market-data/warmup")) {
+        return new Response(JSON.stringify({ ok: true, warmup: { phases: [] } }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MarketDataProvider layout={layout}>
+        <QuoteStatusProbe />
+      </MarketDataProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(MockEventSource.instances.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      vi.setSystemTime(new Date("2026-07-29T12:00:11.000Z"));
+      MockEventSource.instances[0]?.onmessage?.({
+        data: JSON.stringify({
+          type: "snapshot",
+          quotes: [
+            {
+              symbol: "AAPL",
+              price: 13.45,
+              change: 0.23,
+              changePercent: 1.72,
+              volume: 1000,
+              updatedAt: Date.now(),
+            },
+          ],
+          meta: { source: "tws" },
+        }),
+      } as MessageEvent);
+    });
+
+    expect(recordHealthEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "stream_error",
+        message: expect.stringMatching(/slow first paint/i),
+        recovered: true,
+        dataset: "watchlist",
+      }),
+    );
   });
 
   it("maps MarketQuote SSE fields (price / changePercent) into QuoteSnapshot", async () => {

@@ -46,6 +46,8 @@ type ScriptLibraryPort = import("@/lib/ai/context").ScriptLibraryPort;
 
 const ScriptLibraryContext = createContext<ScriptLibraryContextValue | null>(null);
 
+let hydrateInFlight: Promise<void> | null = null;
+
 function upsertEntry(state: ScriptLibraryState, entry: ScriptLibraryEntry): ScriptLibraryState {
   const existing = state.scripts.some((item) => item.scriptId === entry.scriptId);
   return {
@@ -63,6 +65,11 @@ function removeEntry(state: ScriptLibraryState, scriptId: string): ScriptLibrary
   };
 }
 
+/** Test-only reset for hydrate dedupe state. */
+export function resetScriptLibraryHydrateInFlightForTests(): void {
+  hydrateInFlight = null;
+}
+
 export function ScriptLibraryProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ScriptLibraryState>(DEFAULT_SCRIPT_LIBRARY_STATE);
   const [hydrated, setHydrated] = useState(false);
@@ -70,45 +77,63 @@ export function ScriptLibraryProvider({ children }: { children: ReactNode }) {
   const hydratedRef = useRef(false);
 
   const hydrateFromDb = useCallback(async () => {
-    setError(null);
-    const list = await fetchScriptsList();
-    if (!list) {
-      setError("Script library unavailable — Postgres is required.");
+    if (hydrateInFlight) {
+      return hydrateInFlight;
+    }
+
+    hydrateInFlight = (async () => {
+      setError(null);
+      const list = await fetchScriptsList();
+      if (!list) {
+        setError("Script library unavailable — Postgres is required.");
+        setHydrated(true);
+        hydratedRef.current = true;
+        return;
+      }
+
+      if (list.scripts.length === 0 && !isScriptLibraryMigratedLocally()) {
+        const legacy = await loadScriptLibraryState();
+        if (legacy.scripts.length > 0) {
+          const imported = await importScriptsSnapshot(legacy);
+          if (!imported) {
+            setError("Script library import failed — Postgres is required.");
+            setHydrated(true);
+            hydratedRef.current = true;
+            return;
+          }
+          if (imported.imported > 0) {
+            markScriptLibraryMigratedLocally();
+            const details = await Promise.all(
+              imported.scripts.map((item) => fetchScriptDetail(item.scriptId)),
+            );
+            const entries = details
+              .filter((detail): detail is NonNullable<typeof detail> => detail != null)
+              .map((detail) => detail.script);
+            setState({ version: 1, scripts: entries });
+            setHydrated(true);
+            hydratedRef.current = true;
+            return;
+          }
+        }
+        markScriptLibraryMigratedLocally();
+      }
+
+      const details = await Promise.all(
+        list.scripts.map((item) => fetchScriptDetail(item.scriptId)),
+      );
+      const entries = details
+        .filter((detail): detail is NonNullable<typeof detail> => detail != null)
+        .map((detail) => detail.script);
+      setState({ version: 1, scripts: entries });
       setHydrated(true);
       hydratedRef.current = true;
-      return;
-    }
+    })();
 
-    if (list.scripts.length === 0 && !isScriptLibraryMigratedLocally()) {
-      const legacy = await loadScriptLibraryState();
-      if (legacy.scripts.length > 0) {
-        const imported = await importScriptsSnapshot(legacy);
-        if (imported && imported.imported > 0) {
-          markScriptLibraryMigratedLocally();
-          const details = await Promise.all(
-            imported.scripts.map((item) => fetchScriptDetail(item.scriptId)),
-          );
-          const entries = details
-            .filter((detail): detail is NonNullable<typeof detail> => detail != null)
-            .map((detail) => detail.script);
-          setState({ version: 1, scripts: entries });
-          setHydrated(true);
-          hydratedRef.current = true;
-          return;
-        }
-      }
-      markScriptLibraryMigratedLocally();
+    try {
+      await hydrateInFlight;
+    } finally {
+      hydrateInFlight = null;
     }
-
-    const details = await Promise.all(
-      list.scripts.map((item) => fetchScriptDetail(item.scriptId)),
-    );
-    const entries = details
-      .filter((detail): detail is NonNullable<typeof detail> => detail != null)
-      .map((detail) => detail.script);
-    setState({ version: 1, scripts: entries });
-    setHydrated(true);
-    hydratedRef.current = true;
   }, []);
 
   useEffect(() => {

@@ -23,7 +23,7 @@ import {
   marketDataTraceHeaders,
   recordMarketDataTelemetry,
 } from "@/lib/marketData/telemetry";
-import { resolveQuoteStreamFirstPaintMs } from "@/lib/marketData/quoteStreamPolicy";
+import { resolveQuoteStreamFirstPaintMs, QUOTE_STREAM_SLOW_FIRST_PAINT_MS } from "@/lib/marketData/quoteStreamPolicy";
 import { recordHealthEvent } from "@/lib/marketData/healthEvents";
 import { getDatasetPolicy, isDisplayFresh, provenanceFromMeta } from "@/lib/marketData/trust/dataTrust";
 import { resolveWatchlistRestPollIntervalMs } from "@/lib/marketData/watchlistDeliveryFreshness";
@@ -133,19 +133,15 @@ function applyRestQuotesPayload(
   }
   const firstPaint = next.size > 0;
   if (firstPaint) {
-    recordMarketDataTelemetry("quotes.firstPaint", {
+    recordQuoteFirstPaintTelemetry({
       traceId: payload.meta?.traceId ?? options.traceId,
       scenario: options.scenario,
-      layer: "client",
-      ok: true,
+      transport: options.transport,
       clientMs: options.startedAt != null ? Date.now() - options.startedAt : undefined,
-      durationMs: options.startedAt != null ? Date.now() - options.startedAt : undefined,
       serverMs: payload.meta?.latencyMs,
       cacheTier: payload.meta?.cacheTier as ChartDataMeta["cacheTier"],
       provider: payload.meta?.source,
       source: payload.meta?.source,
-      transport: options.transport,
-      counts: { quotes: next.size },
       count: next.size,
       serverPhases: payload.meta?.phases as
         | import("@/lib/marketData/telemetry/perfPhases").MarketDataPerfPhase[]
@@ -213,6 +209,153 @@ function buildSymbolUniverse(
 
 const STREAM_SYMBOL_CAP = 32;
 const EMPTY_EXTRA_SYMBOLS: string[] = [];
+
+type WarmupInFlight = {
+  key: string;
+  promise: Promise<void>;
+};
+
+let warmupInFlight: WarmupInFlight | null = null;
+
+function buildWarmupRequestKey(
+  symbolKey: string,
+  candleKey: string,
+  activeSymbol: string | null,
+  activeCellIndex: number,
+): string {
+  return `${symbolKey}|${candleKey}|${activeSymbol ?? ""}|${activeCellIndex}`;
+}
+
+function recordQuoteFirstPaintTelemetry(options: {
+  traceId: string;
+  scenario: string;
+  transport: WatchlistQuotesTransport | "rest-fallback" | "rest-poll";
+  clientMs: number | undefined;
+  serverMs?: number;
+  cacheTier?: ChartDataMeta["cacheTier"];
+  provider?: string;
+  source?: string;
+  count: number;
+  serverPhases?: import("@/lib/marketData/telemetry/perfPhases").MarketDataPerfPhase[];
+}): void {
+  recordMarketDataTelemetry("quotes.firstPaint", {
+    traceId: options.traceId,
+    scenario: options.scenario,
+    layer: "client",
+    ok: true,
+    clientMs: options.clientMs,
+    durationMs: options.clientMs,
+    serverMs: options.serverMs,
+    cacheTier: options.cacheTier,
+    provider: options.provider,
+    source: options.source,
+    transport: options.transport,
+    counts: { quotes: options.count },
+    count: options.count,
+    serverPhases: options.serverPhases,
+  });
+  if (options.clientMs != null && options.clientMs > QUOTE_STREAM_SLOW_FIRST_PAINT_MS) {
+    recordHealthEvent({
+      kind: "stream_error",
+      message: `Quote stream slow first paint (${options.clientMs}ms)`,
+      recovered: true,
+      dataset: "watchlist",
+    });
+  }
+}
+
+async function postMarketDataWarmup(args: {
+  key: string;
+  universe: string[];
+  requests: RecoveryCandleRequest[];
+  activeSymbol: string | null;
+  activeCellIndex: number;
+}): Promise<void> {
+  if (warmupInFlight?.key === args.key) {
+    return warmupInFlight.promise;
+  }
+
+  const scenario = `warmup:layout:${args.universe.length}-symbols:${args.requests.length}-charts`;
+  const traceId = createMarketDataTraceId(scenario);
+  const startedAt = Date.now();
+  recordMarketDataTelemetry("warmup.request", {
+    traceId,
+    scenario,
+    layer: "client",
+    ok: true,
+    counts: {
+      symbols: args.universe.length,
+      candles: args.requests.length,
+    },
+    symbols: args.universe.length,
+    candles: args.requests.length,
+    optionsSymbol: args.activeSymbol,
+  });
+
+  const promise = fetch("/api/market-data/warmup", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...marketDataTraceHeaders(traceId, scenario),
+    },
+    body: JSON.stringify({
+      symbols: args.universe,
+      candleRequests: args.requests,
+      optionsSymbol: args.activeSymbol ?? undefined,
+      activeCellIndex: args.activeCellIndex,
+    }),
+  })
+    .then(async (res) => {
+      const payload = (await res.json().catch(() => ({}))) as {
+        warmup?: {
+          totalMs?: number;
+          phases?: unknown[];
+          traceId?: string;
+          apiPhases?: unknown[];
+        };
+      };
+      recordMarketDataTelemetry("warmup.response", {
+        traceId: payload.warmup?.traceId ?? traceId,
+        scenario,
+        layer: "client",
+        ok: res.ok,
+        clientMs: Date.now() - startedAt,
+        durationMs: Date.now() - startedAt,
+        serverMs: payload.warmup?.totalMs,
+        serverTotalMs: payload.warmup?.totalMs,
+        phases: payload.warmup?.phases?.length ?? 0,
+        serverPhases: [
+          ...((payload.warmup?.apiPhases as []) ?? []),
+          ...((payload.warmup?.phases as []) ?? []),
+        ],
+      });
+    })
+    .catch((error) => {
+      recordMarketDataTelemetry("warmup.response", {
+        traceId,
+        scenario,
+        layer: "client",
+        ok: false,
+        clientMs: Date.now() - startedAt,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    })
+    .then(() => undefined);
+
+  warmupInFlight = { key: args.key, promise };
+  void promise.finally(() => {
+    if (warmupInFlight?.key === args.key) {
+      warmupInFlight = null;
+    }
+  });
+  return promise;
+}
+
+/** Test-only reset for warmup coalesce state. */
+export function resetMarketDataWarmupInFlightForTests(): void {
+  warmupInFlight = null;
+}
 
 function prioritizeStreamSymbols(
   layout: ChartLayout,
@@ -331,72 +474,19 @@ export function MarketDataProvider({
     const requests = candleRequestsRef.current;
     if (universe.length === 0 && !activeSymbol) return;
 
-    const scenario = `warmup:layout:${universe.length}-symbols:${requests.length}-charts`;
-    const traceId = createMarketDataTraceId(scenario);
-    const startedAt = Date.now();
-    recordMarketDataTelemetry("warmup.request", {
-      traceId,
-      scenario,
-      layer: "client",
-      ok: true,
-      counts: {
-        symbols: universe.length,
-        candles: requests.length,
-      },
-      symbols: universe.length,
-      candles: requests.length,
-      optionsSymbol: activeSymbol,
+    const warmupKey = buildWarmupRequestKey(
+      symbolKey,
+      candleKey,
+      activeSymbol,
+      layout.activeCellIndex ?? 0,
+    );
+    void postMarketDataWarmup({
+      key: warmupKey,
+      universe,
+      requests,
+      activeSymbol,
+      activeCellIndex: layout.activeCellIndex ?? 0,
     });
-
-    void fetch("/api/market-data/warmup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...marketDataTraceHeaders(traceId, scenario),
-      },
-      body: JSON.stringify({
-        symbols: universe,
-        candleRequests: requests,
-        optionsSymbol: activeSymbol ?? undefined,
-        activeCellIndex: layout.activeCellIndex ?? 0,
-      }),
-    })
-      .then(async (res) => {
-        const payload = (await res.json().catch(() => ({}))) as {
-          warmup?: {
-            totalMs?: number;
-            phases?: unknown[];
-            traceId?: string;
-            apiPhases?: unknown[];
-          };
-        };
-        recordMarketDataTelemetry("warmup.response", {
-          traceId: payload.warmup?.traceId ?? traceId,
-          scenario,
-          layer: "client",
-          ok: res.ok,
-          clientMs: Date.now() - startedAt,
-          durationMs: Date.now() - startedAt,
-          serverMs: payload.warmup?.totalMs,
-          serverTotalMs: payload.warmup?.totalMs,
-          phases: payload.warmup?.phases?.length ?? 0,
-          serverPhases: [
-            ...((payload.warmup?.apiPhases as []) ?? []),
-            ...((payload.warmup?.phases as []) ?? []),
-          ],
-        });
-      })
-      .catch((error) => {
-        recordMarketDataTelemetry("warmup.response", {
-          traceId,
-          scenario,
-          layer: "client",
-          ok: false,
-          clientMs: Date.now() - startedAt,
-          durationMs: Date.now() - startedAt,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
   }, [symbolKey, candleKey, activeSymbol, reloadToken, layout.activeCellIndex]);
 
   useEffect(() => {
@@ -502,23 +592,16 @@ export function MarketDataProvider({
           quoteCountRef.current = getQuoteCount();
           if (!quotesFirstPaintRef.current && getQuoteCount() > 0) {
             quotesFirstPaintRef.current = true;
-            recordMarketDataTelemetry("quotes.firstPaint", {
+            recordQuoteFirstPaintTelemetry({
               traceId: streamTraceId,
               scenario: streamScenario,
-              layer: "client",
-              ok: true,
+              transport: "sse",
               clientMs:
                 quotesFetchStartedRef.current != null
                   ? Date.now() - quotesFetchStartedRef.current
                   : undefined,
-              durationMs:
-                quotesFetchStartedRef.current != null
-                  ? Date.now() - quotesFetchStartedRef.current
-                  : undefined,
-              transport: "sse",
               provider: event.meta?.source,
               source: event.meta?.source,
-              counts: { quotes: getQuoteCount() },
               count: getQuoteCount(),
             });
           }

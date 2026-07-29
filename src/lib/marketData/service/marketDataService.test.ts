@@ -81,6 +81,11 @@ function createMockIbkr(overrides: Partial<IbkrProvider> = {}): IbkrProvider {
       warnings: [],
     })),
     resolveContract: vi.fn(async () => ({ symbol: "AAPL", conid: 265598 })),
+    getContractClassification: vi.fn(async () => ({
+      category: "Technology",
+      industry: "Hardware",
+      subcategory: null,
+    })),
     getQuote: vi.fn(async () => ibkrQuotes[0]!),
     getQuotes: vi.fn(async () => ibkrQuotes),
     getQuotesBatch: vi.fn(async (symbols: string[]) => ({
@@ -154,6 +159,11 @@ function createMockTws(overrides: Partial<TwsProvider> = {}): TwsProvider {
       warnings: [],
     })),
     resolveContract: vi.fn(async () => ({ symbol: "AAPL", conid: 265598 })),
+    getContractDetails: vi.fn(async () => ({
+      category: "Technology",
+      industry: "Hardware",
+      subcategory: null,
+    })),
     warmup: vi.fn(async () => {}),
     getQuote: vi.fn(async () => ({ ...ibkrQuotes[0]!, symbol: "AAPL" })),
     getQuotes: vi.fn(async () => ibkrQuotes),
@@ -1092,6 +1102,20 @@ describe("MarketDataService", () => {
       });
       expect(order[0]).toBe("MSFT");
       expect(order[1]).toBe("AAPL");
+    });
+
+    it("prefetches active-symbol market context during warmup", async () => {
+      const tws = createMockTws();
+      const service = createService({ tws, ibkr: createMockIbkr() });
+      const report = await service.primeMarketData({
+        candleRequests: [{ symbol: "SPY", interval: "1d", range: "1mo" }],
+        optionsSymbol: "SPY",
+        activeCellIndex: 0,
+      });
+      const contextPhase = report.phases.find((phase) => phase.name === "market_context");
+      expect(contextPhase).toBeDefined();
+      expect(contextPhase?.key).toBe("SPY");
+      expect(contextPhase?.ok).toBe(true);
     });
   });
 
