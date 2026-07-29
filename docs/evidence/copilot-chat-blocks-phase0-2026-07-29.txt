@@ -1,0 +1,22 @@
+# AGENT — Copilot chat blocks — Phase 0 evidence
+# Date: 2026-07-29
+# Scope: Freeze in-thread block taxonomy as Zod contracts, mapping helpers, scroll policy
+
+## Delivered
+- src/lib/copilot/chatBlocks.ts — discriminated union (trace/media/data/action/reference/followups)
+- src/lib/copilot/chatBlockMapping.ts — hint/tool → block kind mapping
+- src/lib/copilot/chatScrollPolicy.ts — NEAR_BOTTOM_THRESHOLD_PX + isNearBottom
+- src/app/components/copilot/CopilotMessageList.tsx — imports scroll policy helper
+- src/lib/ai/ARCHITECTURE.md — Copilot chat blocks Phase 0 section
+- docs/roadmaps/copilot-chat-blocks-roadmap.md — Phase 0 Passing
+
+## Architecture review
+Self-review Passed — no stream union change; blocks in-memory only; SEC-06/SEC-20 untouched.
+
+## Focused
+Command:
+npm test -- --run src/lib/copilot/chatBlocks.test.ts src/lib/copilot/chatBlockMapping.test.ts src/lib/copilot/chatScrollPolicy.test.ts src/app/components/copilot/CopilotMessageList.test.tsx
+
+Output:
+Test Files  4 passed (4)
+Tests  37 passed (37)

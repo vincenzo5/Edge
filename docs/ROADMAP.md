@@ -2,7 +2,7 @@
 
 Single roadmap for where Edge is going and how current work fits together.
 
-**Last updated:** 2026-07-27
+**Last updated:** 2026-07-29
 
 ## Product Direction
 
@@ -27,7 +27,7 @@ The goal is not to clone all of TradingView. The goal is a fast, controllable ch
 | AI tools | Shipped foundation | Shared tool registry, HTTP adapter, MCP adapter, and in-app tool context exist. Market-data and trading tools (`preview_order` / `place_order`) run server-side; stateful chart, watchlist, screener, risk, account, and options session tools require an app session. |
 | Semantic annotations | Phase A shipped | Drawings can carry thesis, invalidation, target, and note metadata; AI drawing tools can read/write/filter metadata. |
 | Alerts | Shipped foundation (Phase 0–4) | Price/drawing/indicator/script-condition alerts, trade-plan bundles, screener match notifications, watchlist-wide scope, 2-leg AND/OR. External delivery (email/push/webhook) deferred. Semantic kind alerts + AI create deferred. Cron walks closed in Wave 1; MCP alert tools closed on [Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md) Phase 4. |
-| Copilot UI | Shipped (Grok parity) | Functional agent Phases 0–8 + Grok UX parity Phases 0–5 **Passing** ([AI Agent](./roadmaps/ai-agent-roadmap.md), [Grok Copilot UX Parity](./roadmaps/grok-copilot-parity-roadmap.md)). Light-theme Copilot tokens deferred. Agent/chrome walks closed on [Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md) Phases 1–2. |
+| Copilot UI | Shipped (Grok parity) | Functional agent Phases 0–8 + Grok UX parity Phases 0–5 **Passing** ([AI Agent](./roadmaps/ai-agent-roadmap.md), [Grok Copilot UX Parity](./roadmaps/grok-copilot-parity-roadmap.md)). In-thread block vocabulary → [Copilot Chat Blocks](./roadmaps/copilot-chat-blocks-roadmap.md) Phase 0 **Passing**. Light-theme Copilot tokens deferred. Agent/chrome walks closed on [Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md) Phases 1–2. |
 
 ## Roadmap Phases
 
@@ -249,11 +249,13 @@ Guardrails:
 
 - [AI Agent / In-App Copilot Roadmap](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing** (contracts → OpenRouter agent → chat shell → session bridge → confirmed writes → chart↔chat → thread persistence → model picker → workflows).
 - [Grok Copilot UX Parity Roadmap](./roadmaps/grok-copilot-parity-roadmap.md) — Copilot shell/composer match **grok.com**; Phases 0–5 **Passing** (track complete).
+- [Copilot Chat Blocks Roadmap](./roadmaps/copilot-chat-blocks-roadmap.md) — reusable in-thread blocks (Trace / Media / Data / Action / Reference / Follow-ups); Phase 0 **Passing**.
 - [Research UX Roadmap](./roadmaps/research-ux-roadmap.md) — AI-first research desk: Talk / Board / Desk densities; pinable artifacts; Research Board; session reel; research-default entry. Phases 0–8 **Passing** (track complete); **tiled Desk kept forever**.
 
 Future work (residual agent polish — research shell track complete):
 - No response modes — models only. Keep workspace-native tools, confirm gates, and OpenRouter allowlist — do not clone SuperGrok/Companions/Imagine as requirements.
 - Do **not** remove `/workspace` tiling; Desk stays a first-class density beside Talk and Board.
+- Chat block vocabulary → [Copilot Chat Blocks](./roadmaps/copilot-chat-blocks-roadmap.md) (freeform Talk; no Research vs Execution mode freeze yet).
 
 ## Near-Term Execution Order
 
@@ -276,6 +278,7 @@ Living feature tracks (phase detail in each file):
 - [Alerts](./roadmaps/alerts-roadmap.md) — Phases 0–4 **Passing**; external delivery / semantic AI deferred; MCP tools closed on Wave 2 Phase 4
 - [AI agent / in-app copilot](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing**; agent walks closed on Wave 2 Phase 1
 - [Grok Copilot UX parity](./roadmaps/grok-copilot-parity-roadmap.md) — Phases 0–5 **Passing** (track complete); chrome walks closed on Wave 2 Phase 2
+- [Copilot chat blocks](./roadmaps/copilot-chat-blocks-roadmap.md) — Phase 0 **Passing** (contracts → scroll/Action → Media/Data → Reference → Follow-ups → rich Action)
 - ~~[Research UX (AI-first desk)](./roadmaps/research-ux-roadmap.md)~~ — Phases 0–8 **Passing** (track complete); Desk tiling retained
 - [TypeScript indicator scripting](./roadmaps/typescript-indicator-scripting-roadmap.md) — Phases 0–5B + Scripts tile **Passing**
 - [Script depth](./roadmaps/script-depth-roadmap.md) — Phases 0–5 **Passing** — track complete
@@ -334,6 +337,7 @@ These are intentionally not near-term roadmap items:
 - [IBKR Hosted OAuth Roadmap](./roadmaps/ibkr-hosted-oauth-roadmap.md) - Browser Connect IB / Web API OAuth (vendor or first-party); separate from Connections.
 - [Alerts Roadmap](./roadmaps/alerts-roadmap.md) - industry patterns, best practices, and phased alert platform.
 - [AI Agent Roadmap](./roadmaps/ai-agent-roadmap.md) - in-app copilot, OpenRouter model gateway, session bridge, chart↔chat linkage.
+- [Copilot Chat Blocks Roadmap](./roadmaps/copilot-chat-blocks-roadmap.md) - reusable in-thread Media/Data/Action/Reference/Follow-ups; Trace have.
 - [Research UX Roadmap](./roadmaps/research-ux-roadmap.md) - Talk / Board / Desk densities; Research Session + Board; tiled Desk kept forever.
 - [Workspace State Persistence Roadmap](./roadmaps/workspace-state-persistence-roadmap.md) - per-tile charts, app-workspace sync, prefs, viewport, workflow resume.
 - [Data Serving Efficiency Roadmap](./roadmaps/data-serving-efficiency-roadmap.md) - **Complete** — client cache reuse, poll hygiene, home remote truth, screener/AI serving cost; Redis multi-instance skipped.
