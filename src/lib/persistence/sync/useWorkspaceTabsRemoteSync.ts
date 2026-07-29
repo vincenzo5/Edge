@@ -13,6 +13,7 @@ import {
   updateTabRemote,
   type WorkspaceTabsState,
 } from "@/lib/app/workspaceTabs";
+import { recordDismissedRemoteWorkspace } from "@/lib/app/workspaceTabsStorage";
 import { layoutRevisionFingerprint } from "./layoutContentFingerprint";
 import { mergeRemoteConflictLayout } from "./mergeRemoteConflictLayout";
 
@@ -76,6 +77,24 @@ async function persistActiveTab(
       updatedAt: result.current.updatedAt,
     });
     return next;
+  }
+
+  if (result.status === 404) {
+    const staleId = active.remote.resourceId;
+    recordDismissedRemoteWorkspace(staleId);
+    const created = await createChartWorkspaceRemote({
+      workspaceName: active.title,
+      chartLayoutSnapshot: active.layout,
+    });
+    if (!created) return null;
+    onRemoteResourceCreated?.(created.id);
+    const latestTabs = getLatestTabs();
+    const latestActive = getActiveTab(latestTabs);
+    return updateTabRemote(latestTabs, latestActive.id, {
+      resourceId: created.id,
+      syncRevision: created.syncRevision,
+      updatedAt: created.updatedAt,
+    });
   }
 
   return null;

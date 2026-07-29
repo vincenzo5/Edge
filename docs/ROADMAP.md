@@ -262,7 +262,7 @@ Future work (residual agent polish — research shell track complete):
 **Verification queue (shipped work, deferred walks):**
 - ~~[App-level verification Wave 1](./roadmaps/app-level-verification-roadmap.md)~~ — Phases 0–8 **Passing** (2026-07-22) — track complete.
 - ~~[App-level verification Wave 2](./roadmaps/app-level-verification-wave-2-roadmap.md)~~ — Phases 0–4 **Passing** (2026-07-24) — track complete.
-- [Live functional QA remediation](./roadmaps/live-functional-qa-remediation-roadmap.md) — Phase 0–2 **Passing**; Phases 3–8 **Pending** (2026-07-28 live QA findings → React, persistence, broker poll, screener, perf, re-verify)
+- [Live functional QA remediation](./roadmaps/live-functional-qa-remediation-roadmap.md) — Phase 0–3 **Passing**; Phases 4–8 **Pending** (2026-07-28 live QA findings → React, persistence, broker poll, screener, perf, re-verify)
 
 Living feature tracks (phase detail in each file):
 

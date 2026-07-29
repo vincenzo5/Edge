@@ -1,0 +1,35 @@
+# APP — Live functional QA remediation — Phase 3 evidence
+# Date: 2026-07-29
+# Scope: QA-03 — chart-workspace persistence recovery on stale remote id
+
+## Delivered
+- src/lib/persistence/sync/useWorkspaceTabsRemoteSync.ts — on PUT 404, dismiss stale id, POST recreate, rebind tab remote metadata, call onRemoteResourceCreated
+- src/lib/persistence/sync/useWorkspaceTabsRemoteSync.test.ts — 404 recovery + subsequent save regression tests
+
+## Architecture review
+Self-review Passed — POST recreate + rebind matches no-remote create path; no default adopt / dual truth.
+
+## Focused
+Command:
+npm test -- --run src/lib/persistence/sync/useWorkspaceTabsRemoteSync.test.ts
+
+Output:
+Test Files  1 passed (1)
+Tests  9 passed (9)
+
+## App-level
+Route: GET /workspace 200
+Setup: injected stale chart-workspace id 709905f3-bbc1-451b-9b64-8070255b3802 into tv-ai:workspace-tabs:v1, reloaded page
+Symbol change: AAPL → TSLA via symbol search
+Post-change localStorage:
+- remote.resourceId = 74947dcc-b3c5-49b7-8d6b-0f26a6020117 (rebound; not stale)
+- dismissed-remotes includes 709905f3-bbc1-451b-9b64-8070255b3802
+Browser performance entries (chart-workspaces):
+- POST /api/me/chart-workspaces
+- PUT /api/me/chart-workspaces/74947dcc-b3c5-49b7-8d6b-0f26a6020117
+Dev-server terminal (2026-07-29T15:49:55–57Z session):
+- PUT /api/me/chart-workspaces/74947dcc-b3c5-49b7-8d6b-0f26a6020117 409 (conflict retry path)
+- PUT /api/me/chart-workspaces/74947dcc-b3c5-49b7-8d6b-0f26a6020117 200
+- no PUT 404 for stale id 709905f3-bbc1-451b-9b64-8070255b3802 in session log after recovery
+
+Closes: QA-03

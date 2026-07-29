@@ -4,7 +4,7 @@ Phased closure of issues found during the 2026-07-28 live functional QA pass on 
 
 **Last updated:** 2026-07-28
 
-**Status:** Phase 0 **Passing** (2026-07-28); Phase 1 **Passing** (2026-07-28); Phase 2 **Passing** (2026-07-28); Phases 3–8 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-28); Phase 1 **Passing** (2026-07-28); Phase 2 **Passing** (2026-07-28); Phase 3 **Passing** (2026-07-29); Phases 4–8 **Pending**.
 
 **Related:** [Project Status](../PROJECT-STATUS.md), [Testing Verification Checklist](../checklists/testing-verification-checklist.md), [Feature Roadmaps index](./README.md), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Persistence Architecture](../../src/lib/persistence/ARCHITECTURE.md), [Research Architecture](../../src/lib/research/ARCHITECTURE.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -127,7 +127,7 @@ Restore a clean dev-session baseline: no React errors on Copilot/workspace happy
 
 ### Phase 3 — Chart-workspace persistence recovery (QA-03)
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-29)
 
 **Outcome:** Layout persist no longer hammers 404; stale local workspace IDs self-heal.
 

@@ -8,11 +8,16 @@ import { workspaceActiveContentKey } from "./useWorkspaceTabsRemoteSync";
 const mocks = vi.hoisted(() => ({
   createChartWorkspaceRemote: vi.fn(),
   saveChartWorkspaceRemote: vi.fn(),
+  recordDismissedRemoteWorkspace: vi.fn(),
 }));
 
 vi.mock("@/lib/persistence/client/chartWorkspaceClient", () => ({
   createChartWorkspaceRemote: mocks.createChartWorkspaceRemote,
   saveChartWorkspaceRemote: mocks.saveChartWorkspaceRemote,
+}));
+
+vi.mock("@/lib/app/workspaceTabsStorage", () => ({
+  recordDismissedRemoteWorkspace: mocks.recordDismissedRemoteWorkspace,
 }));
 
 import {
@@ -76,6 +81,168 @@ describe("useWorkspaceTabsRemoteSync", () => {
     await waitFor(() => {
       expect(mocks.createChartWorkspaceRemote).toHaveBeenCalled();
       expect(onApplyWorkspaceTabs).toHaveBeenCalled();
+    });
+  });
+
+  it("recreates remote workspace when save returns 404 for stale id", async () => {
+    const staleId = "709905f3-bbc1-451b-9b64-8070255b3802";
+    const tabs = createDefaultWorkspaceTabs(DEFAULT_LAYOUT, {
+      resourceId: staleId,
+      syncRevision: 3,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    mocks.saveChartWorkspaceRemote.mockResolvedValue({
+      ok: false,
+      status: 404,
+      code: "not_found",
+    });
+    mocks.createChartWorkspaceRemote.mockResolvedValue({
+      id: "workspace-recreated",
+      workspaceName: "Default",
+      schemaVersion: 1,
+      syncRevision: 1,
+      updatedAt: "2026-01-03T00:00:00.000Z",
+      chartLayoutSnapshot: DEFAULT_LAYOUT,
+    });
+
+    const onApplyWorkspaceTabs = vi.fn();
+    const onRemoteResourceCreated = vi.fn();
+
+    const { rerender } = renderHook(({ workspaceTabs }) =>
+      useWorkspaceTabsRemoteSync({
+        workspaceTabs,
+        hydrated: true,
+        bootstrapRemoteApplied: true,
+        onApplyWorkspaceTabs,
+        onRemoteResourceCreated,
+      }),
+    {
+      initialProps: { workspaceTabs: tabs },
+    });
+
+    rerender({
+      workspaceTabs: {
+        ...tabs,
+        tabs: [
+          {
+            ...tabs.tabs[0]!,
+            layout: { ...DEFAULT_LAYOUT, linkSymbol: true },
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+
+    await waitFor(() => {
+      expect(mocks.saveChartWorkspaceRemote).toHaveBeenCalledWith(
+        expect.objectContaining({ workspaceId: staleId }),
+      );
+      expect(mocks.recordDismissedRemoteWorkspace).toHaveBeenCalledWith(staleId);
+      expect(mocks.createChartWorkspaceRemote).toHaveBeenCalledTimes(1);
+      expect(onRemoteResourceCreated).toHaveBeenCalledWith("workspace-recreated");
+      const applied = onApplyWorkspaceTabs.mock.calls.at(-1)?.[0];
+      expect(applied.tabs[0]?.remote?.resourceId).toBe("workspace-recreated");
+      expect(applied.tabs[0]?.remote?.syncRevision).toBe(1);
+    });
+  });
+
+  it("uses recreated remote id on subsequent save without creating again", async () => {
+    const staleId = "709905f3-bbc1-451b-9b64-8070255b3802";
+    const recreatedId = "workspace-recreated";
+    const tabs = createDefaultWorkspaceTabs(DEFAULT_LAYOUT, {
+      resourceId: staleId,
+      syncRevision: 3,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    mocks.saveChartWorkspaceRemote
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        code: "not_found",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        record: {
+          id: recreatedId,
+          workspaceName: "Default",
+          schemaVersion: 1,
+          syncRevision: 2,
+          updatedAt: "2026-01-04T00:00:00.000Z",
+          chartLayoutSnapshot: DEFAULT_LAYOUT,
+        },
+      });
+    mocks.createChartWorkspaceRemote.mockResolvedValue({
+      id: recreatedId,
+      workspaceName: "Default",
+      schemaVersion: 1,
+      syncRevision: 1,
+      updatedAt: "2026-01-03T00:00:00.000Z",
+      chartLayoutSnapshot: DEFAULT_LAYOUT,
+    });
+
+    const onApplyWorkspaceTabs = vi.fn();
+    let latestTabs = tabs;
+
+    const { rerender } = renderHook(({ workspaceTabs }) => {
+      latestTabs = workspaceTabs;
+      return useWorkspaceTabsRemoteSync({
+        workspaceTabs,
+        hydrated: true,
+        bootstrapRemoteApplied: true,
+        onApplyWorkspaceTabs,
+      });
+    }, {
+      initialProps: { workspaceTabs: tabs },
+    });
+
+    rerender({
+      workspaceTabs: {
+        ...tabs,
+        tabs: [
+          {
+            ...tabs.tabs[0]!,
+            layout: { ...DEFAULT_LAYOUT, linkSymbol: true },
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+
+    await waitFor(() => {
+      expect(mocks.createChartWorkspaceRemote).toHaveBeenCalledTimes(1);
+    });
+
+    const afterRecovery = onApplyWorkspaceTabs.mock.calls.at(-1)?.[0] ?? latestTabs;
+
+    rerender({
+      workspaceTabs: {
+        ...afterRecovery,
+        tabs: [
+          {
+            ...afterRecovery.tabs[0]!,
+            layout: { ...afterRecovery.tabs[0]!.layout, linkInterval: true },
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+
+    await waitFor(() => {
+      expect(mocks.createChartWorkspaceRemote).toHaveBeenCalledTimes(1);
+      expect(mocks.saveChartWorkspaceRemote).toHaveBeenLastCalledWith(
+        expect.objectContaining({ workspaceId: recreatedId }),
+      );
     });
   });
 
