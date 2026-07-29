@@ -8,6 +8,7 @@ import type {
   WhatIfRequest,
   WhatIfResult,
 } from "../marketData/contracts/brokerage";
+import { shouldTryBrokerage } from "./brokerageHealthGate";
 import {
   BrokerageRequestError,
   getBrokerageClient,
@@ -56,6 +57,13 @@ export class BrokerageService {
     const connection = resolveConnectionByEnvironment(environment);
     const client = getBrokerageClient(connection.connectionId);
     if (!client) return EMPTY_SNAPSHOT;
+
+    if (!shouldTryBrokerage()) {
+      throw new BrokerageRequestError(
+        "sidecar_unreachable",
+        "Brokerage requests temporarily skipped after repeated failures",
+      );
+    }
 
     await awaitSidecarForBrokerage();
 

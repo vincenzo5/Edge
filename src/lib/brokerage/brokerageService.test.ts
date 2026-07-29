@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 const mockAwaitSidecarForBrokerage = vi.fn(async () => {});
 const mockProbeSidecarLiveness = vi.fn(async () => true);
+const mockShouldTryBrokerage = vi.fn(() => true);
 const mockGetStatus = vi.fn(async () => ({ enabled: true, connected: true, timestamp: 1 }));
 const mockGetSummary = vi.fn(async () => ({ tags: {}, updatedAt: 1 }));
 const mockGetPositions = vi.fn(async () => ({ positions: [], updatedAt: 1 }));
@@ -13,8 +14,19 @@ vi.mock("@/lib/marketData/providers/tws/startup", () => ({
   awaitSidecarForBrokerage: (...args: unknown[]) => mockAwaitSidecarForBrokerage(...args),
 }));
 
+vi.mock("./brokerageHealthGate", () => ({
+  shouldTryBrokerage: (...args: unknown[]) => mockShouldTryBrokerage(...args),
+}));
+
 vi.mock("./brokerageClient", () => ({
-  BrokerageRequestError: class extends Error {},
+  BrokerageRequestError: class BrokerageRequestError extends Error {
+    category: string;
+    constructor(category: string, message: string) {
+      super(message);
+      this.category = category;
+      this.name = "BrokerageRequestError";
+    }
+  },
   isBrokerageConfigured: vi.fn(() => true),
   probeSidecarLiveness: (...args: unknown[]) => mockProbeSidecarLiveness(...args),
   getBrokerageClient: vi.fn(() => ({
@@ -31,6 +43,7 @@ vi.mock("./brokerageClient", () => ({
 describe("BrokerageService", () => {
   beforeEach(() => {
     mockAwaitSidecarForBrokerage.mockClear();
+    mockShouldTryBrokerage.mockReturnValue(true);
     vi.resetModules();
   });
 
@@ -43,6 +56,15 @@ describe("BrokerageService", () => {
     await getBrokerageService().getSnapshot();
     expect(mockAwaitSidecarForBrokerage).toHaveBeenCalledOnce();
     expect(mockProbeSidecarLiveness).toHaveBeenCalled();
+  });
+
+  it("getSnapshot skips liveness probe when brokerage health gate is open", async () => {
+    mockShouldTryBrokerage.mockReturnValue(false);
+    const { getBrokerageService } = await import("./brokerageService");
+    await expect(getBrokerageService().getSnapshot()).rejects.toThrow(
+      "Brokerage requests temporarily skipped",
+    );
+    expect(mockProbeSidecarLiveness).not.toHaveBeenCalled();
   });
 
   it("getSnapshot falls back to summary pnl when pnl endpoint is empty", async () => {

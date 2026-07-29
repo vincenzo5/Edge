@@ -19,7 +19,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 |-------|------|--------|
 | **App-level verification (Wave 1)** | [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) | Phases 0–8 **Passing** (2026-07-22) — track complete |
 | **App-level verification (Wave 2)** | [app-level-verification-wave-2-roadmap.md](./app-level-verification-wave-2-roadmap.md) | Phases 0–4 **Passing** (2026-07-24) — track complete |
-| **Live functional QA remediation** | [live-functional-qa-remediation-roadmap.md](./live-functional-qa-remediation-roadmap.md) | Phase 0–3 **Passing** (2026-07-29); Phases 4–8 **Pending** — 2026-07-28 QA findings |
+| **Live functional QA remediation** | [live-functional-qa-remediation-roadmap.md](./live-functional-qa-remediation-roadmap.md) | Phase 0–4 **Passing** (2026-07-29); Phases 5–8 **Pending** — 2026-07-28 QA findings |
 | Stock screener | [screener-roadmap.md](./screener-roadmap.md) | Phases 1–5 **shipped**; product deferrals remain; app-level walks → Wave 1 Phase 5 |
 | Trading journal | [journal-roadmap.md](./journal-roadmap.md) | v1 + Tiers 1–3 **Passing** (2026-07-22); app-level walks → Wave 1 Phase 6; import chrome → Wave 2 Phase 4 |
 | Trading execution | [trading-execution-roadmap.md](./trading-execution-roadmap.md) | Phases 0–5 + **6–9 Passing** (2026-07-22); options backlog; ops walks → Wave 1 Phase 1 + 4 |

@@ -2,9 +2,9 @@
 
 Phased closure of issues found during the 2026-07-28 live functional QA pass on local dev (`http://localhost:3003`). Source evidence: [live-functional-qa-2026-07-28.txt](../evidence/live-functional-qa-2026-07-28.txt).
 
-**Last updated:** 2026-07-28
+**Last updated:** 2026-07-29
 
-**Status:** Phase 0 **Passing** (2026-07-28); Phase 1 **Passing** (2026-07-28); Phase 2 **Passing** (2026-07-28); Phase 3 **Passing** (2026-07-29); Phases 4–8 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-28); Phase 1 **Passing** (2026-07-28); Phase 2 **Passing** (2026-07-28); Phase 3 **Passing** (2026-07-29); Phase 4 **Passing** (2026-07-29); Phases 5–8 **Pending**.
 
 **Related:** [Project Status](../PROJECT-STATUS.md), [Testing Verification Checklist](../checklists/testing-verification-checklist.md), [Feature Roadmaps index](./README.md), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Persistence Architecture](../../src/lib/persistence/ARCHITECTURE.md), [Research Architecture](../../src/lib/research/ARCHITECTURE.md), [Repository Constraints](../CONSTRAINTS.md).
 
@@ -149,7 +149,7 @@ Restore a clean dev-session baseline: no React errors on Copilot/workspace happy
 
 ### Phase 4 — Broker poll calmness (QA-04)
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-29)
 
 **Outcome:** When TWS sidecar circuit is open, UI stops spamming failing brokerage polls; live snapshot suppressed in paper-only dev.
 

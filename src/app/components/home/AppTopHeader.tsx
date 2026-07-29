@@ -9,6 +9,7 @@ import EdgeIconButton from "../design-system/EdgeIconButton";
 import { useAccount } from "../AccountProvider";
 import { useAccountAliases } from "../AccountAliasesProvider";
 import { fetchTradingAccounts } from "@/lib/trading/tradingClient";
+import { fetchTwsCircuitOpen } from "@/lib/marketData/fetchTwsCircuitOpen";
 import {
   resolveActiveAccountMatch,
 } from "@/lib/trading/accountPickerOptions";
@@ -70,7 +71,16 @@ export default function AppTopHeader({ centerSlot }: Props) {
   } = useAppChromeActions();
   const brokerChrome = useShellBrokerConnectionChrome();
 
-  const loadAccounts = useCallback(async () => {
+  const loadAccounts = useCallback(async (options?: { force?: boolean }) => {
+    if (!options?.force) {
+      const circuitOpen = await fetchTwsCircuitOpen();
+      if (circuitOpen) {
+        setAccounts([]);
+        setDefaultAccountId(null);
+        setLoading(false);
+        return;
+      }
+    }
     setLoading(true);
     try {
       const tradingResult = await fetchTradingAccounts();
@@ -114,7 +124,7 @@ export default function AppTopHeader({ centerSlot }: Props) {
       } else if (event.phase === "completed") {
         setRecoveringTws(false);
         setRecoverMessage(event.message ?? null);
-        void loadAccounts();
+        void loadAccounts({ force: true });
       } else if (event.phase === "failed") {
         setRecoveringTws(false);
         if (event.message) setRecoverMessage(event.message);

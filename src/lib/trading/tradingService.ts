@@ -6,6 +6,7 @@ import {
   probeSidecarLiveness,
   BrokerageRequestError,
 } from "@/lib/brokerage/brokerageClient";
+import { shouldTryBrokerage } from "@/lib/brokerage/brokerageHealthGate";
 import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
 import { getServerMarketDataService } from "@/lib/marketData/service/server";
 import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
@@ -249,6 +250,12 @@ export class TradingService {
     const client = getBrokerageClient();
     if (!client) {
       throw new BrokerageRequestError("disabled", "Brokerage tracking unavailable.");
+    }
+    if (!shouldTryBrokerage()) {
+      throw new BrokerageRequestError(
+        "sidecar_unreachable",
+        "Brokerage requests temporarily skipped after repeated failures",
+      );
     }
     const live = await probeSidecarLiveness(client.getConfig(), 2_000);
     if (!live) {

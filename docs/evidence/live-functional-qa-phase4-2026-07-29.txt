@@ -1,0 +1,35 @@
+# APP — Live functional QA remediation — Phase 4 evidence
+# Date: 2026-07-29
+# Scope: QA-04 — broker poll calmness when TWS circuit open / paper-only lock
+
+## Delivered
+- src/lib/marketData/fetchTwsCircuitOpen.ts — client health peek for TWS circuitOpen
+- src/app/components/AccountProvider.tsx — defer snapshot until config resolve; effectiveEnvironment; circuit + lock gating; snapshotPollPaused on lock 403; force refresh after TWS recovery
+- src/app/components/home/AppTopHeader.tsx — skip /api/trading/accounts while circuit open; force after recovery
+- src/app/components/data-health/DataHealthProvider.tsx — account.refresh({ force: true }) after recovery
+- src/lib/brokerage/brokerageService.ts — shouldTryBrokerage() before probeSidecarLiveness
+- src/lib/trading/tradingService.ts — shouldTryBrokerage() before probeSidecarLiveness in listAccounts
+- Tests: AccountProvider.test.tsx, fetchTwsCircuitOpen.test.ts, brokerageService.test.ts
+
+## Architecture review
+Self-review Passed — display poll calmness only; order path and display≠order account unchanged.
+
+## Focused
+Command:
+npm test -- --run src/app/components/AccountProvider.test.tsx src/lib/marketData/fetchTwsCircuitOpen.test.ts src/lib/brokerage/brokerageService.test.ts
+
+Output:
+Test Files  3 passed (3)
+Tests  9 passed (9)
+
+## App-level
+Route: GET /workspace 200
+Setup: sidecar down; GET /api/market-data/health → providers[tws].circuitOpen=true; GET /api/trading/config → environmentLock=paper
+Browser performance entries (35s after reload, circuit open):
+- /api/market-data/health — 9 polls (shell + data-health adaptive cadence)
+- /api/brokerage/snapshot — 0 requests
+- /api/trading/accounts — 0 requests
+- /api/brokerage/snapshot?environment=live — 0 requests (no live 403 storm)
+Header: Account control disabled; Reconnect chrome from existing health projection (no new banner)
+
+Closes: QA-04

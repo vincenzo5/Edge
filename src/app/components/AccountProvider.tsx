@@ -33,6 +33,8 @@ import {
   writeTradingEnvironment,
 } from "@/lib/trading/tradingEnvironment";
 import type { TradingAccount, TradingEnvironment } from "@/lib/trading/types";
+import { fetchTwsCircuitOpen } from "@/lib/marketData/fetchTwsCircuitOpen";
+import { subscribeTwsRecovery } from "@/lib/marketData/twsRecoveryBus";
 
 export type { AccountConnectionState } from "@/lib/brokerage/accountSnapshot";
 import type { AccountConnectionState } from "@/lib/brokerage/accountSnapshot";
@@ -63,9 +65,11 @@ type AccountContextValue = {
   executions: AccountExecution[];
   error: string | null;
   disabled: boolean;
-  refresh: () => Promise<void>;
+  refresh: (options?: { force?: boolean }) => Promise<void>;
   positionForSymbol: (symbol: string) => AccountPosition | null;
 };
+
+type AccountRefreshOptions = { force?: boolean };
 
 const AccountContext = createContext<AccountContextValue | null>(null);
 
@@ -110,6 +114,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   );
   const [tradingEnvironmentLock, setTradingEnvironmentLock] =
     useState<TradingEnvironment | null>(null);
+  const [configResolved, setConfigResolved] = useState(false);
+  const [snapshotPollPaused, setSnapshotPollPaused] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -123,6 +129,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         setTradingEnvironmentLock(body.environmentLock ?? null);
       } catch {
         /* ignore config fetch errors */
+      } finally {
+        if (!cancelled) setConfigResolved(true);
       }
     })();
     return () => {
@@ -156,39 +164,75 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     [setTradingEnvironment, tradingEnvironmentLock],
   );
 
-  const refresh = useCallback(async () => {
-    try {
-      const res = await fetch(
-        `/api/brokerage/snapshot?environment=${encodeURIComponent(tradingEnvironment)}`,
-        { cache: "no-store" },
-      );
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          category?: string;
-        };
-        setDisabled(false);
-        setSidecarReachable(false);
-        setConnectionState(res.status === 503 ? "disconnected" : "error");
-        setError(body.error ?? `Account snapshot failed (${res.status})`);
+  const effectiveEnvironment = tradingEnvironmentLock ?? tradingEnvironment;
+
+  const refresh = useCallback(
+    async (options?: AccountRefreshOptions) => {
+      const force = options?.force === true;
+
+      if (
+        tradingEnvironmentLock &&
+        effectiveEnvironment !== tradingEnvironmentLock
+      ) {
         return;
       }
-      const payload = (await res.json()) as SnapshotPayload;
-      setSnapshot(payload);
-      setDisabled(false);
-      setSidecarReachable(true);
-      setConnectionState(payload.status?.connected ? "connected" : "disconnected");
-      setError(null);
-    } catch (err) {
-      setSidecarReachable(false);
-      setConnectionState("error");
-      setError(err instanceof Error ? err.message : "Account refresh failed");
-    }
-  }, [tradingEnvironment]);
+
+      if (!force && sidecarReachable !== true) {
+        const circuitOpen = await fetchTwsCircuitOpen();
+        if (circuitOpen) {
+          setDisabled(false);
+          setSidecarReachable(false);
+          setConnectionState("disconnected");
+          setError(null);
+          return;
+        }
+      }
+
+      try {
+        const res = await fetch(
+          `/api/brokerage/snapshot?environment=${encodeURIComponent(effectiveEnvironment)}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+            category?: string;
+          };
+          setDisabled(false);
+          if (res.status === 403) {
+            setSnapshotPollPaused(true);
+            setSidecarReachable(null);
+            setConnectionState("error");
+            setError(body.error ?? "Trading environment is locked for this session.");
+            return;
+          }
+          setSnapshotPollPaused(false);
+          setSidecarReachable(false);
+          setConnectionState(res.status === 503 ? "disconnected" : "error");
+          setError(body.error ?? `Account snapshot failed (${res.status})`);
+          return;
+        }
+        const payload = (await res.json()) as SnapshotPayload;
+        setSnapshot(payload);
+        setDisabled(false);
+        setSnapshotPollPaused(false);
+        setSidecarReachable(true);
+        setConnectionState(payload.status?.connected ? "connected" : "disconnected");
+        setError(null);
+      } catch (err) {
+        setSnapshotPollPaused(false);
+        setSidecarReachable(false);
+        setConnectionState("error");
+        setError(err instanceof Error ? err.message : "Account refresh failed");
+      }
+    },
+    [effectiveEnvironment, sidecarReachable, tradingEnvironmentLock],
+  );
 
   useEffect(() => {
+    if (!configResolved) return;
     void refresh();
-  }, [refresh]);
+  }, [configResolved, effectiveEnvironment, refresh]);
 
   useEffect(() => {
     const stored = readActiveTradingAccount();
@@ -201,22 +245,23 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   // sidecar; the snapshot route already fast-fails via its liveness probe.
   useEffect(() => {
     if (sidecarReachable === true) return;
+    if (snapshotPollPaused) return;
     const timer = setInterval(() => {
       if (document.visibilityState !== "visible") return;
       void refresh();
     }, 30_000);
     return () => clearInterval(timer);
-  }, [sidecarReachable, refresh]);
+  }, [sidecarReachable, snapshotPollPaused, refresh]);
 
   // Only open the SSE stream when the sidecar is actually reachable. Opening it
   // against an unresponsive sidecar holds a route handler for minutes on every
   // browser-driven reconnect and starves unrelated API traffic (e.g. /api/candles).
   useEffect(() => {
     if (sidecarReachable !== true) return;
-    if (tradingEnvironment === "live") return;
+    if (effectiveEnvironment === "live") return;
 
     const es = new EventSource(
-      `/api/brokerage/stream?environment=${encodeURIComponent(tradingEnvironment)}`,
+      `/api/brokerage/stream?environment=${encodeURIComponent(effectiveEnvironment)}`,
     );
     eventSourceRef.current = es;
     setConnectionState("connecting");
@@ -244,16 +289,16 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       es.close();
       eventSourceRef.current = null;
     };
-  }, [sidecarReachable, tradingEnvironment]);
+  }, [sidecarReachable, effectiveEnvironment]);
 
   useEffect(() => {
-    if (sidecarReachable !== true || tradingEnvironment !== "live") return;
+    if (sidecarReachable !== true || effectiveEnvironment !== "live") return;
     const timer = setInterval(() => {
       if (document.visibilityState !== "visible") return;
       void refresh();
     }, 15_000);
     return () => clearInterval(timer);
-  }, [sidecarReachable, tradingEnvironment, refresh]);
+  }, [sidecarReachable, effectiveEnvironment, refresh]);
 
   useEffect(() => {
     const onVisible = () => {
@@ -263,6 +308,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
+
+  useEffect(() => {
+    return subscribeTwsRecovery((event) => {
+      if (event.phase === "completed") {
+        void refresh({ force: true });
+      }
+    });
   }, [refresh]);
 
   useEffect(() => {

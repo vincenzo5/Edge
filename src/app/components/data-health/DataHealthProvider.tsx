@@ -156,7 +156,7 @@ export function DataHealthProvider({ children }: { children: ReactNode }) {
   const reloadFeedsAfterRecovery = useCallback(async () => {
     marketData?.reloadMarketData();
     if (account && !account.disabled) {
-      await account.refresh();
+      await account.refresh({ force: true });
     }
   }, [account, marketData]);
 
