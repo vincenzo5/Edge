@@ -17,6 +17,9 @@ import {
 } from "@/lib/screener/types";
 import { compareScreenerRows } from "@/lib/screener/deriveDefaultSort";
 import {
+  screenerHasProviderRestriction,
+} from "@/lib/screener/providerWarnings";
+import {
   copySymbolsToClipboard,
   downloadResultsCsv,
 } from "@/lib/screener/exportResults";
@@ -334,6 +337,7 @@ export default function ResultsTable({
       : `Live prices on first ${Math.min(LIVE_QUOTE_STREAM_CAP, pageRowsRaw.length)} visible rows.`;
   const showToolbar = !loading && (hasRun || rows.length > 0);
   const showLiveBadge = showToolbar && rows.length > 0 && streamSymbols.length > 0;
+  const hasProviderRestriction = screenerHasProviderRestriction(warnings);
   const warningText = warnings.length > 0 ? warnings.join(" ") : undefined;
   const watchlistItems: ResultsToolbarMenuItem[] = [
     ...(onAddAllToWatchlist
@@ -383,9 +387,13 @@ export default function ResultsTable({
       {loading ? <ScreenerLoadingPanel label={loadingLabel} /> : null}
       {!loading && warnings.length > 0 ? (
         <div
-          className="shrink-0 px-2 py-1 text-[10px] text-[var(--edge-text-secondary)]"
+          className={`shrink-0 border-b px-2 py-1.5 text-[11px] ${
+            hasProviderRestriction
+              ? "border-[var(--edge-warning)]/30 bg-[var(--edge-warning)]/10 text-[var(--edge-warning)]"
+              : "border-[var(--edge-border-subtle)] text-[var(--edge-text-secondary)]"
+          }`}
           data-testid="screener-provider-warnings"
-          role="status"
+          role={hasProviderRestriction ? "alert" : "status"}
         >
           {warnings.join(" ")}
         </div>
@@ -484,7 +492,17 @@ export default function ResultsTable({
       {!loading && hasRun && rows.length === 0 ? (
         <div data-testid="screener-results-empty">
           <EdgeEmptyState
-            message={warningText ?? "No symbols matched this screen. Adjust filters and run again."}
+            title={
+              hasProviderRestriction ? "Screener provider unavailable" : undefined
+            }
+            message={
+              warningText ?? "No symbols matched this screen. Adjust filters and run again."
+            }
+            tone={hasProviderRestriction ? "warning" : "neutral"}
+            role={hasProviderRestriction ? "alert" : "status"}
+            data-testid={
+              hasProviderRestriction ? "screener-results-empty-restriction" : undefined
+            }
           />
           {onEditFilters ? (
             <div className="mt-2 flex justify-center">

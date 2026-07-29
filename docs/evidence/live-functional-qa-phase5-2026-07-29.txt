@@ -1,0 +1,37 @@
+# APP — Live functional QA remediation — Phase 5 evidence
+# Date: 2026-07-29
+# Scope: QA-05 — screener provider resilience when FMP suspended/restricted
+
+## Delivered
+- src/lib/screener/providerWarnings.ts — FMP-specific restriction detection + isFmpOnlySavedScreen gating helpers
+- src/lib/screener/providerWarnings.test.ts — match/non-match + disable classification tests
+- src/lib/screener/index.ts — export providerWarnings
+- src/app/components/screener/ResultsTable.tsx — warning empty-state (tone/alert/title) + upgraded provider warning strip
+- src/app/components/screener/ScreenerScreensBody.tsx — sticky restriction banner; disable FMP-only preset chips/aside/recent
+- src/app/components/screener/ResultsTable.test.tsx — empty+403 warning empty-state regression
+- src/app/components/screener/ScreenerScreensBody.test.tsx — banner + disabled gainers chip after empty FMP run
+- src/lib/marketData/ARCHITECTURE.md — screener empty+restriction UX note
+
+## Architecture review
+Self-review Passed — warning presentation + reactive FMP-only preset gating; no API contract or provider adapter changes.
+
+## Focused
+Command:
+npm test -- --run src/lib/screener/providerWarnings.test.ts src/app/components/screener/ResultsTable.test.tsx src/app/components/screener/ScreenerScreensBody.test.tsx
+
+Output:
+Test Files  3 passed (3)
+Tests  25 passed (25)
+
+## App-level
+Route: GET /workspace 200
+Setup: FMP account suspended (live env — GET /api/market-data/fmp/movers?kind=gainers&limit=5 → meta.warnings FMP endpoint restricted 403 Account suspended)
+Action: Open Stock screener sidebar → click Gainers today preset chip
+Observed:
+- data-testid=screener-provider-restriction-banner visible with FMP 403 suspended message
+- data-testid=screener-results-empty-restriction title "Screener provider unavailable"
+- data-testid=screener-provider-warnings role=alert with FMP 403 text
+- data-testid=screener-screen-chip-gainers disabled=true
+Technical presets (RSI oversold) remain enabled (not FMP-only)
+
+Closes: QA-05

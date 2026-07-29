@@ -126,4 +126,30 @@ describe("ScreenerScreensBody", () => {
     expect(screen.getByTestId("screener-screens-chips")).toBeTruthy();
     expect(screen.getByTestId("screener-screen-chip-gainers")).toBeTruthy();
   });
+
+  it("surfaces FMP restriction banner and disables FMP-only presets after empty run", async () => {
+    const { fetchMarketMoverResults } = await import("@/lib/chartDataFeed/apiScreenerFeed");
+    vi.mocked(fetchMarketMoverResults).mockResolvedValueOnce({
+      rows: [],
+      meta: {
+        source: "fmp",
+        warnings: ["FMP endpoint restricted (403): account suspended"],
+        skippedSymbols: [],
+        stale: false,
+      },
+    });
+
+    renderScreensBody();
+    const gainersChip = screen.getByTestId("screener-screen-chip-gainers");
+    expect(gainersChip).not.toBeDisabled();
+
+    fireEvent.click(gainersChip);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("screener-provider-restriction-banner")).toBeTruthy();
+    });
+    expect(screen.getByTestId("screener-provider-restriction-banner")).toHaveTextContent("403");
+    expect(screen.getByTestId("screener-screen-chip-gainers")).toBeDisabled();
+    expect(screen.getByTestId("screener-results-empty-restriction")).toBeTruthy();
+  });
 });

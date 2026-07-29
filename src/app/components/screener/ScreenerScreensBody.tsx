@@ -9,6 +9,12 @@ import {
   type RefObject,
 } from "react";
 import { patchScreenerState } from "@/lib/screener";
+import {
+  isSavedScreenDisabledByProviderRestriction,
+  SCREENER_FMP_UNAVAILABLE_TITLE,
+  screenerHasProviderRestriction,
+} from "@/lib/screener/providerWarnings";
+import type { SavedScreen } from "@/lib/screener/types";
 import { resolveScreenName } from "@/lib/screener/summarizeScreen";
 import { useScreenerSessionModel } from "./useScreenerSessionModel";
 import { SCREENER_NARROW_LAYOUT_THRESHOLD } from "@/lib/responsive/layoutConstants";
@@ -24,6 +30,49 @@ import { ScreenerAlertToggle } from "./ScreenerAlertToggle";
 export type ScreenerScreensVariant = "app" | "sidebar" | "modal" | "floating";
 
 const SCREEN_LIMIT_OPTIONS = [50, 100, 200, 500] as const;
+
+function screenChipClassName(isActive: boolean, disabled: boolean): string {
+  if (disabled) {
+    return `edge-focus-ring shrink-0 cursor-not-allowed rounded-[var(--edge-radius-sm)] border px-2 ${compactControlClass()} ${bodyTextClass()} border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] text-[var(--edge-text-muted)] opacity-60`;
+  }
+  return `edge-focus-ring shrink-0 rounded-[var(--edge-radius-sm)] border px-2 ${compactControlClass()} ${bodyTextClass()} ${
+    isActive
+      ? "border-[var(--edge-accent-blue)] bg-[var(--edge-surface-active)] font-medium text-[var(--edge-text-strong)]"
+      : "border-[var(--edge-border)] bg-[var(--edge-surface-panel)] text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)]"
+  }`;
+}
+
+function ScreenerScreenChip({
+  screen,
+  isActive,
+  disabled,
+  testId,
+  onSelect,
+}: {
+  screen: SavedScreen;
+  isActive: boolean;
+  disabled: boolean;
+  testId: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      aria-current={isActive ? "true" : undefined}
+      aria-disabled={disabled || undefined}
+      disabled={disabled}
+      title={disabled ? SCREENER_FMP_UNAVAILABLE_TITLE : screen.name}
+      className={screenChipClassName(isActive, disabled)}
+      onClick={() => {
+        if (disabled) return;
+        onSelect();
+      }}
+    >
+      {screen.name}
+    </button>
+  );
+}
 
 function ScreenerRunButtonLabel({ loading }: { loading: boolean }) {
   if (loading) return <>Running…</>;
@@ -264,7 +313,15 @@ export function ScreenerScreensBody({
     filterViewMode,
     setFilterViewMode,
     rows,
+    warnings,
   } = useScreenerSessionModel(active);
+
+  const providerRestrictionActive = screenerHasProviderRestriction(warnings);
+  const isScreenDisabled = useCallback(
+    (screen: SavedScreen) =>
+      isSavedScreenDisabledByProviderRestriction(screen, warnings),
+    [warnings],
+  );
 
   const activeName = resolveScreenName(state);
   const resolvedLayoutRef = layoutRootRef ?? internalLayoutRef;
@@ -394,22 +451,16 @@ export function ScreenerScreensBody({
     >
       {state.savedScreens.map((screen) => {
         const isActive = state.activeScreenId === screen.id;
+        const disabled = isScreenDisabled(screen);
         return (
-          <button
+          <ScreenerScreenChip
             key={screen.id}
-            type="button"
-            data-testid={`screener-screen-chip-${screen.id}`}
-            aria-current={isActive ? "true" : undefined}
-            title={screen.name}
-            className={`edge-focus-ring shrink-0 rounded-[var(--edge-radius-sm)] border px-2 ${compactControlClass()} ${bodyTextClass()} ${
-              isActive
-                ? "border-[var(--edge-accent-blue)] bg-[var(--edge-surface-active)] font-medium text-[var(--edge-text-strong)]"
-                : "border-[var(--edge-border)] bg-[var(--edge-surface-panel)] text-[var(--edge-text-primary)] hover:bg-[var(--edge-surface-hover)]"
-            }`}
-            onClick={() => handleLoadScreen(screen.id)}
-          >
-            {screen.name}
-          </button>
+            screen={screen}
+            isActive={isActive}
+            disabled={disabled}
+            testId={`screener-screen-chip-${screen.id}`}
+            onSelect={() => handleLoadScreen(screen.id)}
+          />
         );
       })}
     </div>
@@ -433,22 +484,16 @@ export function ScreenerScreensBody({
         <div className="flex gap-1 overflow-x-auto pb-1">
           {recentScreens.map((screen) => {
             const isActive = state.activeScreenId === screen.id;
+            const disabled = isScreenDisabled(screen);
             return (
-              <button
+              <ScreenerScreenChip
                 key={screen.id}
-                type="button"
-                data-testid={`screener-recent-chip-${screen.id}`}
-                aria-current={isActive ? "true" : undefined}
-                title={screen.name}
-                className={`edge-focus-ring shrink-0 rounded-[var(--edge-radius-sm)] border px-2 ${compactControlClass()} ${bodyTextClass()} ${
-                  isActive
-                    ? "border-[var(--edge-accent-blue)] bg-[var(--edge-surface-active)] font-medium text-[var(--edge-text-strong)]"
-                    : "border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-hover)] hover:text-[var(--edge-text-primary)]"
-                }`}
-                onClick={() => handleLoadScreen(screen.id)}
-              >
-                {screen.name}
-              </button>
+                screen={screen}
+                isActive={isActive}
+                disabled={disabled}
+                testId={`screener-recent-chip-${screen.id}`}
+                onSelect={() => handleLoadScreen(screen.id)}
+              />
             );
           })}
         </div>
@@ -478,6 +523,7 @@ export function ScreenerScreensBody({
           <div className="space-y-0.5">
             {state.savedScreens.map((screen) => {
               const isActive = state.activeScreenId === screen.id;
+              const disabled = isScreenDisabled(screen);
               return (
                 <div
                   key={screen.id}
@@ -492,14 +538,21 @@ export function ScreenerScreensBody({
                     <button
                       type="button"
                       data-testid={`screener-screen-${screen.id}`}
-                      title={screen.name}
+                      title={disabled ? SCREENER_FMP_UNAVAILABLE_TITLE : screen.name}
                       aria-current={isActive ? "true" : undefined}
+                      aria-disabled={disabled || undefined}
+                      disabled={disabled}
                       className={`edge-focus-ring block min-w-0 flex-1 truncate px-2 text-left ${compactControlClass()} ${bodyTextClass()} ${
-                        isActive
-                          ? "font-medium text-[var(--edge-text-strong)]"
-                          : "text-[var(--edge-text-primary)] hover:text-[var(--edge-accent-blue)]"
+                        disabled
+                          ? "cursor-not-allowed text-[var(--edge-text-muted)] opacity-60"
+                          : isActive
+                            ? "font-medium text-[var(--edge-text-strong)]"
+                            : "text-[var(--edge-text-primary)] hover:text-[var(--edge-accent-blue)]"
                       }`}
-                      onClick={() => handleLoadScreen(screen.id)}
+                      onClick={() => {
+                        if (disabled) return;
+                        handleLoadScreen(screen.id);
+                      }}
                     >
                       {screen.name}
                     </button>
@@ -608,7 +661,19 @@ export function ScreenerScreensBody({
         </div>
 
         {resultsSlot ? (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{resultsSlot}</div>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {providerRestrictionActive ? (
+              <div
+                className="mb-2 shrink-0 rounded border border-[var(--edge-warning)]/30 bg-[var(--edge-warning)]/10 px-2 py-1.5 text-[11px] text-[var(--edge-warning)]"
+                data-testid="screener-provider-restriction-banner"
+                role="alert"
+              >
+                {warnings.filter((warning) => warning.trim()).join(" ") ||
+                  "FMP screener provider is unavailable."}
+              </div>
+            ) : null}
+            {resultsSlot}
+          </div>
         ) : null}
       </div>
     </div>

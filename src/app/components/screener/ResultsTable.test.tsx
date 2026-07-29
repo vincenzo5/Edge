@@ -85,6 +85,46 @@ describe("ResultsTable group actions and export", () => {
     );
   });
 
+  it("renders warning empty state when FMP provider is restricted", () => {
+    render(
+      <ResultsTable
+        rows={[]}
+        sort={{ column: "symbol", direction: "asc" }}
+        page={0}
+        hasRun
+        warnings={["FMP endpoint restricted (403): account suspended"]}
+        onSortChange={vi.fn()}
+        onPageChange={vi.fn()}
+        onSelectRow={vi.fn()}
+        onAddToWatchlist={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("screener-results-empty-restriction")).toBeTruthy();
+    expect(screen.getByText("Screener provider unavailable")).toBeTruthy();
+    expect(screen.getByTestId("screener-provider-warnings")).toHaveAttribute("role", "alert");
+    expect(screen.getByTestId("screener-provider-warnings")).toHaveTextContent("403");
+  });
+
+  it("renders neutral empty state when no provider restriction warnings", () => {
+    render(
+      <ResultsTable
+        rows={[]}
+        sort={{ column: "symbol", direction: "asc" }}
+        page={0}
+        hasRun
+        onSortChange={vi.fn()}
+        onPageChange={vi.fn()}
+        onSelectRow={vi.fn()}
+        onAddToWatchlist={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("screener-results-empty")).toBeTruthy();
+    expect(screen.queryByTestId("screener-results-empty-restriction")).toBeNull();
+    expect(screen.getByText("No symbols matched this screen. Adjust filters and run again.")).toBeTruthy();
+  });
+
   it("renders watchlist/export menus and invokes handlers", () => {
     const onAddAll = vi.fn();
     const onCreateWatchlist = vi.fn();

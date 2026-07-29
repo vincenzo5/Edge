@@ -332,7 +332,7 @@ API routes return optional `meta: { source, warnings, stale, asOf, usage, readin
 - **Weekends:** Saturday/Sunday walk back to the prior Friday.
 - **Deferred:** US market holidays (NYSE closed weekdays) are not yet modeled; holiday requests may return empty bars without a 403.
 
-Screener warning UX: provider notices stay in `meta.warnings`; per-symbol candle-fetch skips are typed as `meta.skippedSymbols` and rendered separately in the screener results table.
+Screener warning UX: provider notices stay in `meta.warnings`; per-symbol candle-fetch skips are typed as `meta.skippedSymbols` and rendered separately in the screener results table. When a run returns zero rows with FMP restriction warnings, the results empty state uses warning tone/alert with title “Screener provider unavailable”; FMP-only preset chips disable until a later run clears the restriction.
 
 **IBKR note:** This app uses the **Client Portal Web API** (`clientportal.gw` on HTTPS, port 5001 by default). That is **not** the same as **IB Gateway 10.x** (TWS socket API on 4001/7497). If you only run IB Gateway, our Client Portal probes will not work until Client Portal Gateway is installed and running (`npm run ibkr:setup` / `npm run ibkr:gateway`).
 
