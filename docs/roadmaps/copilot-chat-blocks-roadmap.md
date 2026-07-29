@@ -4,7 +4,7 @@ Phased track to evolve Edge Copilot’s **in-thread message vocabulary** into a 
 
 **Last updated:** 2026-07-29
 
-**Status:** Roadmap defined — Phase 0 **Passing**; Phase 1 **Passing**; Phase 2 **Pending**.
+**Status:** Roadmap defined — Phase 0 **Passing**; Phase 1 **Passing**; Phase 2 **Passing**; Phase 3 **Passing**; Phase 4 **Pending**.
 
 **Related:** [AI Agent / In-App Copilot](./ai-agent-roadmap.md) (Phases 0–8 **Passing**), [Grok Copilot UX Parity](./grok-copilot-parity-roadmap.md) (Phases 0–5 **Passing** — shell complete), [Research UX](./research-ux-roadmap.md) (pin / evidence / Board — side surfaces), [AI Architecture](../../src/lib/ai/ARCHITECTURE.md), [Research Architecture](../../src/lib/research/ARCHITECTURE.md), [Design System](../../src/lib/design-system/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -187,7 +187,7 @@ Phase 0 freezes the mapping; Phase 2+ may extend stream payloads beyond hint-onl
 
 **Outcome:** Generic **Media** and **Data** (table \| kv) renderers replace or wrap thin artifact cards for the highest-traffic tools; pin/Open preserved.
 
-**Status:** **Pending**
+**Status:** **Passing**
 
 | Work item | Scope |
 |-----------|--------|
@@ -204,13 +204,7 @@ Phase 0 freezes the mapping; Phase 2+ may extend stream payloads beyond hint-onl
 
 **Outcome:** Optional **Reference** chips under a turn for tool provenance and deep links (e.g. `AAPL · 1D`, provider freshness) — not a Context banner.
 
-**Status:** **Pending**
-
-| Work item | Scope |
-|-----------|--------|
-| Chip model | Label + href or in-app open handler |
-| Emission | From tool results / `dataProvenance` / snapshot fields when present |
-| Density | Cap count; collapse overflow |
+**Status:** **Passing**
 
 **Exit evidence:** Focused chip tests; app-level: turn with chart tool shows clickable reference without a Context card.
 

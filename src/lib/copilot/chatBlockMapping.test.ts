@@ -1,20 +1,25 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  attachmentToMediaBlock,
   hintToBlockKind,
   hintToBlockSketch,
   isConfirmToolStep,
   toolNameToBlockKind,
   toolStepToActionBlock,
   toolStepToBlockKind,
+  toolStepToDataBlock,
+  toolStepToMediaBlock,
+  toolStepsToReferenceBlock,
+  referenceTargetHref,
 } from "./chatBlockMapping";
 import type { CopilotToolStep } from "./types";
 
 describe("hintToBlockKind", () => {
-  it("maps chart hints to reference", () => {
+  it("maps chart hints to media", () => {
     expect(
       hintToBlockKind({ type: "chart", symbol: "AAPL", interval: "1D" }),
-    ).toBe("reference");
+    ).toBe("media");
   });
 
   it("maps screener and journal hints to data", () => {
@@ -31,21 +36,19 @@ describe("hintToBlockKind", () => {
 });
 
 describe("hintToBlockSketch", () => {
-  it("builds a reference chip for chart hints", () => {
+  it("builds a media block for chart hints", () => {
     const sketch = hintToBlockSketch({
       type: "chart",
       symbol: "TSLA",
       interval: "D",
       title: "TSLA · D",
     });
-    expect(sketch?.kind).toBe("reference");
-    if (sketch?.kind === "reference") {
-      expect(sketch.chips[0]?.label).toBe("TSLA · D");
-      expect(sketch.chips[0]?.target).toEqual({
-        type: "symbol-interval",
-        symbol: "TSLA",
-        interval: "D",
-      });
+    expect(sketch?.kind).toBe("media");
+    if (sketch?.kind === "media") {
+      expect(sketch.caption).toBe("TSLA · D");
+      expect(sketch.openLabel).toBe("Open");
+      expect(sketch.openHref).toBe("/chart?symbol=TSLA&interval=D");
+      expect(sketch.pinHint?.type).toBe("chart");
     }
   });
 
@@ -64,6 +67,51 @@ describe("hintToBlockSketch", () => {
 
   it("returns null for note hints", () => {
     expect(hintToBlockSketch({ type: "note", body: "Body text" })).toBeNull();
+  });
+});
+
+describe("attachmentToMediaBlock", () => {
+  it("maps user attachments to media blocks with open href", () => {
+    const block = attachmentToMediaBlock({
+      id: "att-1",
+      mimeType: "image/png",
+      name: "chart.png",
+    });
+
+    expect(block.kind).toBe("media");
+    expect(block.src).toContain("att-1");
+    expect(block.mimeType).toBe("image/png");
+    expect(block.caption).toBe("chart.png");
+    expect(block.openHref).toBe(block.src);
+  });
+});
+
+describe("toolStepToMediaBlock", () => {
+  it("returns media blocks for chart artifact steps", () => {
+    const block = toolStepToMediaBlock({
+      callId: "c1",
+      name: "get_chart_state",
+      status: "done",
+      artifactHint: { type: "chart", symbol: "AAPL", interval: "1D" },
+    });
+
+    expect(block?.kind).toBe("media");
+    expect(block?.pinHint?.type).toBe("chart");
+  });
+});
+
+describe("toolStepToDataBlock", () => {
+  it("returns data blocks for screener artifact steps", () => {
+    const block = toolStepToDataBlock({
+      callId: "c2",
+      name: "summarize_screen",
+      status: "done",
+      artifactHint: { type: "screener", title: "Gainers" },
+    });
+
+    expect(block?.kind).toBe("data");
+    expect(block?.shape).toBe("kv");
+    expect(block?.pinHint?.type).toBe("screener");
   });
 });
 
@@ -153,5 +201,90 @@ describe("toolStepToActionBlock", () => {
         status: "done",
       }),
     ).toBeNull();
+  });
+});
+
+describe("toolStepsToReferenceBlock", () => {
+  it("builds chips from chart artifact hints", () => {
+    const block = toolStepsToReferenceBlock([
+      {
+        callId: "c1",
+        name: "get_chart_state",
+        status: "done",
+        artifactHint: { type: "chart", symbol: "AAPL", interval: "1D" },
+      },
+    ]);
+
+    expect(block?.kind).toBe("reference");
+    expect(block?.chips).toEqual([
+      {
+        id: "c1-chart",
+        label: "AAPL · 1D",
+        target: { type: "symbol-interval", symbol: "AAPL", interval: "1D" },
+      },
+    ]);
+  });
+
+  it("parses reference tool summaries without hints", () => {
+    const block = toolStepsToReferenceBlock([
+      {
+        callId: "c2",
+        name: "set_symbol",
+        status: "done",
+        summary: "Switched to NVDA",
+      },
+    ]);
+
+    expect(block?.chips[0]).toEqual({
+      id: "c2-ref",
+      label: "NVDA · D",
+      target: { type: "symbol-interval", symbol: "NVDA", interval: "D" },
+    });
+  });
+
+  it("dedupes chips by symbol and interval", () => {
+    const block = toolStepsToReferenceBlock([
+      {
+        callId: "c1",
+        name: "get_chart_state",
+        status: "done",
+        artifactHint: { type: "chart", symbol: "AAPL", interval: "1D" },
+      },
+      {
+        callId: "c2",
+        name: "set_symbol",
+        status: "done",
+        summary: "AAPL · 1D",
+      },
+    ]);
+
+    expect(block?.chips).toHaveLength(1);
+  });
+
+  it("ignores running and non-reference tools", () => {
+    expect(
+      toolStepsToReferenceBlock([
+        {
+          callId: "c1",
+          name: "get_chart_state",
+          status: "running",
+          artifactHint: { type: "chart", symbol: "AAPL", interval: "1D" },
+        },
+        {
+          callId: "c2",
+          name: "summarize_screen",
+          status: "done",
+          artifactHint: { type: "screener", title: "Gainers" },
+        },
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe("referenceTargetHref", () => {
+  it("maps symbol-interval targets to chart hrefs", () => {
+    expect(
+      referenceTargetHref({ type: "symbol-interval", symbol: "TSLA", interval: "5" }),
+    ).toBe("/chart?symbol=TSLA&interval=5");
   });
 });

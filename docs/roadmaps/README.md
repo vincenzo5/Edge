@@ -31,7 +31,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Alerts | [alerts-roadmap.md](./alerts-roadmap.md) | Phases 0–4 **Passing** (product complete for v1); external delivery deferred; walks → Wave 1 Phase 2; MCP tools → Wave 2 Phase 4 |
 | AI agent / in-app copilot | [ai-agent-roadmap.md](./ai-agent-roadmap.md) | Phases 0–8 **Passing** — functional agent complete; deferred walks → Wave 2 Phase 1 |
 | Grok Copilot UX parity | [grok-copilot-parity-roadmap.md](./grok-copilot-parity-roadmap.md) | Phases 0–5 **Passing** (track complete); chrome walks → Wave 2 Phase 2 |
-| Copilot chat blocks | [copilot-chat-blocks-roadmap.md](./copilot-chat-blocks-roadmap.md) | Phase 0–1 **Passing** — Action shell + scroll; Phase 2 Media/Data **Pending** |
+| Copilot chat blocks | [copilot-chat-blocks-roadmap.md](./copilot-chat-blocks-roadmap.md) | Phase 0–3 **Passing** — Action shell + scroll + Media/Data + Reference; Phase 4 Follow-ups **Pending** |
 | Research UX (AI-first desk) | [research-ux-roadmap.md](./research-ux-roadmap.md) | Phases 0–8 **Passing** (2026-07-24) — track complete; Talk / Board / Desk; session reel; research-default entry |
 | TypeScript indicator scripting | [typescript-indicator-scripting-roadmap.md](./typescript-indicator-scripting-roadmap.md) | Phases 0–5B + Scripts tile **Passing**; walks → Wave 1 Phase 3 |
 | Script depth (Pine-like capability) | [script-depth-roadmap.md](./script-depth-roadmap.md) | Phases 0–5 **Passing** — track complete; walks → Wave 1 Phase 3 |

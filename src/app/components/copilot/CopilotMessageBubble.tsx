@@ -3,11 +3,19 @@
 import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import type { ResearchArtifactHint } from "@/lib/research/artifactHint";
 import { ChevronDownIcon, CopyIcon } from "../chart-chrome/ChartHeaderIcons";
-import { copilotAttachmentDisplayUrl } from "@/lib/persistence/client/copilotAttachmentsClient";
 import { formatStepsDisclosureLabel, toolStepDisplayName } from "@/lib/copilot/toolStepDisplay";
-import { toolStepToActionBlock } from "@/lib/copilot/chatBlockMapping";
+import {
+  attachmentToMediaBlock,
+  toolStepToActionBlock,
+  toolStepToDataBlock,
+  toolStepToMediaBlock,
+  toolStepsToReferenceBlock,
+} from "@/lib/copilot/chatBlockMapping";
 import { CopilotActionBlock } from "./CopilotActionBlock";
 import { CopilotArtifactCard } from "./CopilotArtifactCard";
+import { CopilotDataBlock } from "./CopilotDataBlock";
+import { CopilotMediaBlock } from "./CopilotMediaBlock";
+import { CopilotReferenceBlock } from "./CopilotReferenceBlock";
 import { CopilotWorkingIndicator } from "./CopilotWorkingIndicator";
 import type { CopilotMessage, CopilotToolStep } from "./useCopilotThread";
 
@@ -146,28 +154,79 @@ function StreamingPlaceholder() {
   return <CopilotWorkingIndicator />;
 }
 
-function MessageAttachments({
-  messageId,
-  attachments,
-}: {
-  messageId: string;
-  attachments: NonNullable<CopilotMessage["attachments"]>;
-}) {
+function renderArtifactStepBlock(
+  step: CopilotToolStep,
+  options: {
+    messageId: string;
+    testId: string;
+    pinned: boolean;
+    disabled: boolean;
+    onPinArtifact?: CopilotMessageBubbleProps["onPinArtifact"];
+    onOpenHref?: (href: string) => void;
+  },
+) {
+  const dataBlock = toolStepToDataBlock(step);
+  if (dataBlock) {
+    return (
+      <CopilotDataBlock
+        block={dataBlock}
+        testId={options.testId}
+        pinned={options.pinned}
+        disabled={options.disabled}
+        onPin={
+          options.onPinArtifact
+            ? () =>
+                options.onPinArtifact!(step.artifactHint!, {
+                  messageId: options.messageId,
+                  toolCallId: step.callId,
+                })
+            : undefined
+        }
+        onOpen={options.onOpenHref}
+      />
+    );
+  }
+
+  const mediaBlock = toolStepToMediaBlock(step);
+  if (mediaBlock) {
+    return (
+      <CopilotMediaBlock
+        block={mediaBlock}
+        testId={options.testId}
+        pinned={options.pinned}
+        disabled={options.disabled}
+        onPin={
+          options.onPinArtifact
+            ? () =>
+                options.onPinArtifact!(step.artifactHint!, {
+                  messageId: options.messageId,
+                  toolCallId: step.callId,
+                })
+            : undefined
+        }
+        onOpen={options.onOpenHref}
+      />
+    );
+  }
+
+  if (!step.artifactHint) return null;
+
   return (
-    <div
-      data-testid={`copilot-message-attachments-${messageId}`}
-      className="mb-2 flex flex-wrap gap-2"
-    >
-      {attachments.map((attachment) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={attachment.id}
-          src={copilotAttachmentDisplayUrl(attachment.id)}
-          alt={attachment.name ?? "Attached image"}
-          className="h-20 w-20 rounded-lg border border-[var(--edge-border)] object-cover"
-        />
-      ))}
-    </div>
+    <CopilotArtifactCard
+      hint={step.artifactHint}
+      pinned={options.pinned}
+      disabled={options.disabled}
+      testId={options.testId}
+      onPin={
+        options.onPinArtifact
+          ? () =>
+              options.onPinArtifact!(step.artifactHint!, {
+                messageId: options.messageId,
+                toolCallId: step.callId,
+              })
+          : undefined
+      }
+    />
   );
 }
 
@@ -188,6 +247,7 @@ export type CopilotMessageBubbleProps = {
     provenance: { messageId: string; toolCallId: string },
   ) => void;
   isArtifactPinned?: (toolCallId: string) => boolean;
+  onOpenHref?: (href: string) => void;
   measureRef?: (node: Element | null) => void;
   virtualIndex?: number;
 };
@@ -231,6 +291,7 @@ function copilotMessageBubblePropsAreEqual(
   if (prev.onRegenerate !== next.onRegenerate) return false;
   if (prev.onPinArtifact !== next.onPinArtifact) return false;
   if (prev.isArtifactPinned !== next.isArtifactPinned) return false;
+  if (prev.onOpenHref !== next.onOpenHref) return false;
   return true;
 }
 
@@ -247,11 +308,13 @@ function CopilotMessageBubble({
   actionsDisabled,
   onPinArtifact,
   isArtifactPinned,
+  onOpenHref,
   measureRef,
   virtualIndex,
 }: CopilotMessageBubbleProps) {
   const isUser = message.role === "user";
   const { confirmSteps, artifactSteps, disclosureSteps } = splitToolSteps(message.toolSteps);
+  const referenceBlock = !isUser ? toolStepsToReferenceBlock(message.toolSteps) : null;
   const bubbleClass = isUser
     ? "copilot-user-bubble"
     : "w-full bg-transparent py-1 text-[length:var(--copilot-message-body-size)] leading-relaxed text-[var(--edge-text-primary)]";
@@ -277,11 +340,23 @@ function CopilotMessageBubble({
       {!isUser && disclosureSteps.length > 0 ? (
         <ThoughtsDisclosure steps={disclosureSteps} />
       ) : null}
+      {isUser && message.attachments?.length ? (
+        <div
+          data-testid={`copilot-message-attachments-${message.id}`}
+          className="flex w-full max-w-full flex-col gap-2"
+        >
+          {message.attachments.map((attachment) => (
+            <CopilotMediaBlock
+              key={attachment.id}
+              block={attachmentToMediaBlock(attachment)}
+              testId={`copilot-media-${attachment.id}`}
+              onOpen={onOpenHref}
+            />
+          ))}
+        </div>
+      ) : null}
       <div className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}>
         <div className={`whitespace-pre-wrap ${bubbleClass}`}>
-          {isUser && message.attachments?.length ? (
-            <MessageAttachments messageId={message.id} attachments={message.attachments} />
-          ) : null}
           {message.content ||
             (message.status === "streaming" ? (
               <StreamingPlaceholder />
@@ -299,22 +374,16 @@ function CopilotMessageBubble({
         >
           {artifactSteps.map((step) =>
             step.artifactHint ? (
-              <CopilotArtifactCard
-                key={step.callId}
-                hint={step.artifactHint}
-                pinned={isArtifactPinned?.(step.callId) ?? false}
-                disabled={step.status !== "done"}
-                testId={`copilot-artifact-${step.callId}`}
-                onPin={
-                  onPinArtifact
-                    ? () =>
-                        onPinArtifact(step.artifactHint!, {
-                          messageId: message.id,
-                          toolCallId: step.callId,
-                        })
-                    : undefined
-                }
-              />
+              <div key={step.callId}>
+                {renderArtifactStepBlock(step, {
+                  messageId: message.id,
+                  testId: `copilot-artifact-${step.callId}`,
+                  pinned: isArtifactPinned?.(step.callId) ?? false,
+                  disabled: step.status !== "done",
+                  onPinArtifact,
+                  onOpenHref,
+                })}
+              </div>
             ) : null,
           )}
         </div>
@@ -335,6 +404,14 @@ function CopilotMessageBubble({
             );
           })}
         </div>
+      ) : null}
+      {referenceBlock ? (
+        <CopilotReferenceBlock
+          block={referenceBlock}
+          testId={`copilot-reference-${message.id}`}
+          onOpen={onOpenHref}
+          disabled={message.status === "streaming"}
+        />
       ) : null}
       {showActions ? (
         <div
