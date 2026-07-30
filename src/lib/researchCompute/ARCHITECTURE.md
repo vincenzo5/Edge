@@ -2,7 +2,7 @@
 
 Server-side quantitative research runtime for Copilot and (later) the Research Board. The LLM orchestrates typed experiments; a research kernel runs math on large market datasets; chat receives compact metrics and artifact refs — never full OHLCV histories.
 
-**Track:** [Quant Research Runtime Roadmap](../../../docs/roadmaps/quant-research-runtime-roadmap.md). **Phase 1 (2026-07-30):** filesystem datasets + profile jobs + server-only registry tools.
+**Track:** [Quant Research Runtime Roadmap](../../../docs/roadmaps/quant-research-runtime-roadmap.md). **Phase 3 (2026-07-30):** minimal vectorized strategy evaluation via `run_strategy_evaluation` + trades/equity artifacts.
 
 ## Purpose
 
@@ -70,6 +70,28 @@ Tools MUST NOT import React or mutate component state — use `ToolContext` faca
 | `profileMetrics.ts` | Pure-TS descriptive metrics + preview table |
 | `service.ts` | `ResearchComputeService` — jobs, artifacts, profile runs |
 | `server.ts` | Server singleton wired into AI tool context |
+
+## Phase 2 modules
+
+| Module | Role |
+|--------|------|
+| `contracts.ts` (extended) | Signal IR (`signalNodeSchema`, `signalStudySpecSchema`) + graph limits |
+| `signalStudyMetrics.ts` | JSON IR eval on `@edge/chart-core/indicators/math`; forward-return metrics; train/holdout splits |
+| `service.ts` (extended) | `runSignalStudy` via shared `runJob` |
+| `src/lib/ai/tools/researchCompute.ts` | `run_signal_study` server-only registry tool |
+
+Signal studies use curated indicator ids (`ma`, `ema`, `rsi`, `atr`, `macd`, `boll`) and transforms (`gt`/`lt`/cross/`boll_pct_b`/`and`/`or`). Default `entryLagBars: 1` avoids same-bar look-ahead. Compact results reuse `researchProfile` Copilot Data blocks.
+
+## Phase 3 modules
+
+| Module | Role |
+|--------|------|
+| `contracts.ts` (extended) | `strategyEvalSpecSchema` — required fees/slippage/fillTiming + sizing |
+| `strategyEvalMetrics.ts` | Vectorized entry/exit sim; trades + equity curve artifacts |
+| `service.ts` (extended) | `runStrategyEvaluation` via shared `runJob` |
+| `src/lib/ai/tools/researchCompute.ts` | `run_strategy_evaluation` server-only registry tool |
+
+Strategy evaluation reuses Phase 2 signal IR for entry/exit. One flat position per symbol; fees/slippage required. Full equity curve and trades stay in artifacts; compact tool result ≤20 trade preview rows + keyMetrics.
 
 Research root defaults to `data/research/` (override `EDGE_RESEARCH_ROOT` in tests).
 

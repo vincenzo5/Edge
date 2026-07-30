@@ -146,3 +146,174 @@ export const createDatasetInputSchema = z.object({
   timezone: z.string().trim().min(1).max(64).optional(),
 });
 export type CreateDatasetInput = z.infer<typeof createDatasetInputSchema>;
+
+/** Curated indicator ids for signal IR (Phase 2 v1). */
+export const signalIndicatorIdSchema = z.enum(["ma", "ema", "rsi", "atr", "macd", "boll"]);
+export type SignalIndicatorId = z.infer<typeof signalIndicatorIdSchema>;
+
+export const signalCompareOpSchema = z.enum(["gt", "lt", "gte", "lte"]);
+export type SignalCompareOp = z.infer<typeof signalCompareOpSchema>;
+
+export const signalDirectionSchema = z.enum(["long", "short"]);
+export type SignalDirection = z.infer<typeof signalDirectionSchema>;
+
+export const signalRegimeSchema = z.enum(["vol_tercile"]);
+export type SignalRegime = z.infer<typeof signalRegimeSchema>;
+
+export const signalIndicatorInputsSchema = z
+  .record(z.string(), z.number().finite())
+  .optional();
+
+export const signalSeriesRefSchema: z.ZodType<SignalSeriesRef> = z.lazy(() =>
+  z.discriminatedUnion("op", [
+    z.object({ op: z.literal("close") }),
+    z.object({
+      op: z.literal("indicator"),
+      id: signalIndicatorIdSchema,
+      inputs: signalIndicatorInputsSchema,
+      series: z.string().trim().min(1).max(32).optional(),
+    }),
+  ]),
+);
+
+export type SignalSeriesRef =
+  | { op: "close" }
+  | {
+      op: "indicator";
+      id: SignalIndicatorId;
+      inputs?: Record<string, number>;
+      series?: string;
+    };
+
+export const signalNodeSchema: z.ZodType<SignalNode> = z.lazy(() =>
+  z.discriminatedUnion("op", [
+    z.object({
+      op: z.literal("indicator"),
+      id: signalIndicatorIdSchema,
+      inputs: signalIndicatorInputsSchema,
+      series: z.string().trim().min(1).max(32).optional(),
+    }),
+    z.object({
+      op: signalCompareOpSchema,
+      left: z.union([z.number().finite(), signalSeriesRefSchema]),
+      right: z.union([z.number().finite(), signalSeriesRefSchema]),
+    }),
+    z.object({
+      op: z.enum(["cross_above", "cross_below"]),
+      left: signalSeriesRefSchema,
+      right: signalSeriesRefSchema,
+    }),
+    z.object({
+      op: z.literal("boll_pct_b"),
+      compare: signalCompareOpSchema,
+      value: z.number().finite(),
+      inputs: signalIndicatorInputsSchema,
+    }),
+    z.object({
+      op: z.enum(["and", "or"]),
+      nodes: z.array(signalNodeSchema).min(2).max(8),
+    }),
+  ]),
+);
+
+export type SignalNode =
+  | {
+      op: "indicator";
+      id: SignalIndicatorId;
+      inputs?: Record<string, number>;
+      series?: string;
+    }
+  | {
+      op: SignalCompareOp;
+      left: number | SignalSeriesRef;
+      right: number | SignalSeriesRef;
+    }
+  | {
+      op: "cross_above" | "cross_below";
+      left: SignalSeriesRef;
+      right: SignalSeriesRef;
+    }
+  | {
+      op: "boll_pct_b";
+      compare: SignalCompareOp;
+      value: number;
+      inputs?: Record<string, number>;
+    }
+  | {
+      op: "and" | "or";
+      nodes: SignalNode[];
+    };
+
+export const signalStudySpecSchema = z.object({
+  signal: signalNodeSchema,
+  horizonBars: z.number().int().min(1).max(60),
+  entryLagBars: z.number().int().min(1).max(5).default(1),
+  direction: signalDirectionSchema.default("long"),
+  trainToMs: z.number().int(),
+  bootstrapSamples: z.number().int().min(0).max(500).default(0),
+  regime: signalRegimeSchema.optional(),
+});
+export type SignalStudySpec = z.infer<typeof signalStudySpecSchema>;
+
+export const strategyFillTimingSchema = z.enum(["next_open", "next_close"]);
+export type StrategyFillTiming = z.infer<typeof strategyFillTimingSchema>;
+
+export const strategySizingSchema = z.object({
+  mode: z.literal("fixed_shares"),
+  shares: z.number().finite().positive().max(1_000_000),
+});
+export type StrategySizing = z.infer<typeof strategySizingSchema>;
+
+export const strategyEvalSpecSchema = z.object({
+  entry: signalNodeSchema,
+  exit: signalNodeSchema,
+  direction: signalDirectionSchema.default("long"),
+  entryLagBars: z.number().int().min(1).max(5).default(1),
+  maxHoldBars: z.number().int().min(1).max(252),
+  fillTiming: strategyFillTimingSchema,
+  feesBps: z.number().finite().min(0).max(500),
+  slippageBps: z.number().finite().min(0).max(500),
+  sizing: strategySizingSchema,
+  startingEquity: z.number().finite().positive().default(100_000),
+});
+export type StrategyEvalSpec = z.infer<typeof strategyEvalSpecSchema>;
+
+export const strategyTradeSchema = z.object({
+  symbol: z.string(),
+  entryT: z.number().int(),
+  exitT: z.number().int(),
+  side: signalDirectionSchema,
+  shares: z.number(),
+  entryPx: z.number(),
+  exitPx: z.number(),
+  pnl: z.number(),
+  returnPct: z.number(),
+  holdBars: z.number().int(),
+  feesPaid: z.number(),
+});
+export type StrategyTrade = z.infer<typeof strategyTradeSchema>;
+
+export const equityCurvePointSchema = z.object({
+  t: z.number().int(),
+  equity: z.number(),
+});
+export type EquityCurvePoint = z.infer<typeof equityCurvePointSchema>;
+
+export const MAX_SIGNAL_IR_DEPTH = 4;
+export const MAX_SIGNAL_IR_NODES = 32;
+
+/** Count nodes and max depth; throws if limits exceeded. */
+export function assertSignalGraphLimits(node: SignalNode, depth = 1, count = { n: 0 }): void {
+  count.n += 1;
+  if (count.n > MAX_SIGNAL_IR_NODES) {
+    throw new Error(`Signal IR exceeds max nodes (${MAX_SIGNAL_IR_NODES})`);
+  }
+  if (depth > MAX_SIGNAL_IR_DEPTH) {
+    throw new Error(`Signal IR exceeds max depth (${MAX_SIGNAL_IR_DEPTH})`);
+  }
+  if (node.op === "and" || node.op === "or") {
+    for (const child of node.nodes) {
+      assertSignalGraphLimits(child, depth + 1, count);
+    }
+  }
+}

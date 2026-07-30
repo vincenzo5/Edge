@@ -27,6 +27,8 @@ const DATA_TOOL_NAMES = new Set([
   "analyze_watchlist",
   "create_research_dataset",
   "profile_research_dataset",
+  "run_signal_study",
+  "run_strategy_evaluation",
   "get_research_job",
 ]);
 

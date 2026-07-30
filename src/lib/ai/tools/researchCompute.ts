@@ -4,6 +4,8 @@ import {
   createDatasetInputSchema,
   profileOptionsSchema,
   researchIntervalSchema,
+  signalStudySpecSchema,
+  strategyEvalSpecSchema,
 } from "@/lib/researchCompute/contracts";
 import { datasetSummaryFromManifest } from "@/lib/researchCompute/materialize";
 
@@ -73,6 +75,46 @@ export const profileResearchDatasetTool = defineTool({
   },
 });
 
+export const runSignalStudyTool = defineTool({
+  name: "run_signal_study",
+  description:
+    "Run a declarative signal / event study on a research dataset. Returns forward-return metrics, train/holdout splits, warnings, and artifact refs — not raw bars or order simulation.",
+  inputSchema: z.object({
+    datasetId: z.string().trim().min(1).max(64),
+    spec: signalStudySpecSchema,
+  }),
+  permission: "read",
+  requiresConfirmation: false,
+  async execute(input, context) {
+    const port = requireResearchCompute(context);
+    const result = await port.runSignalStudy({
+      datasetId: input.datasetId,
+      spec: input.spec,
+    });
+    return { ok: true, data: result };
+  },
+});
+
+export const runStrategyEvaluationTool = defineTool({
+  name: "run_strategy_evaluation",
+  description:
+    "Run minimal vectorized strategy evaluation on a research dataset. Requires fees, slippage, and fill timing. Returns compact metrics, trade preview, equity curve + trades artifacts — not raw bars or broker-accurate simulation.",
+  inputSchema: z.object({
+    datasetId: z.string().trim().min(1).max(64),
+    spec: strategyEvalSpecSchema,
+  }),
+  permission: "read",
+  requiresConfirmation: false,
+  async execute(input, context) {
+    const port = requireResearchCompute(context);
+    const result = await port.runStrategyEvaluation({
+      datasetId: input.datasetId,
+      spec: input.spec,
+    });
+    return { ok: true, data: result };
+  },
+});
+
 export const getResearchJobTool = defineTool({
   name: "get_research_job",
   description: "Fetch async research job status and compact results by jobId.",
@@ -114,6 +156,8 @@ export const researchComputeTools: AiTool[] = [
   createResearchDatasetTool,
   getResearchDatasetTool,
   profileResearchDatasetTool,
+  runSignalStudyTool,
+  runStrategyEvaluationTool,
   getResearchJobTool,
   getResearchArtifactTool,
 ];

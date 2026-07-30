@@ -1,0 +1,36 @@
+# AGENT — Quant research runtime — Phase 3 evidence
+# Date: 2026-07-30
+
+## Scope
+Minimal vectorized strategy evaluation via `run_strategy_evaluation`: required fees/slippage/fillTiming, entry/exit signal IR, trades + equity curve artifacts, methodology warnings. Node control plane only — not broker-accurate simulation.
+
+## Delivered
+- src/lib/researchCompute/contracts.ts — `strategyEvalSpecSchema`, trade/equity types
+- src/lib/researchCompute/strategyEvalMetrics.ts — vectorized sim, costs, metrics, artifacts payload
+- src/lib/researchCompute/strategyEvalMetrics.test.ts — Zod gates, cost parity, fill timing, maxHold
+- src/lib/researchCompute/service.ts + port.ts — `runStrategyEvaluation` via shared `runJob`
+- src/lib/ai/tools/researchCompute.ts — `run_strategy_evaluation` server-only tool
+- src/lib/ai/agent/summarizeToolResult.ts — compact strategy eval summary
+- src/lib/research/artifactHint.ts — `researchProfile` hint title "Strategy evaluation"
+- src/lib/copilot/chatBlockMapping.ts — Data block for `run_strategy_evaluation`
+- src/lib/researchCompute/phase3AppLevel.test.ts — create → eval → Data block without OHLCV
+- src/lib/researchCompute/constants.ts — COMPUTE_VERSION 1.2.0
+- docs/roadmaps/quant-research-runtime-roadmap.md — Phase 3 Passing
+- src/lib/researchCompute/ARCHITECTURE.md, src/lib/ai/ARCHITECTURE.md — Phase 3 pointers
+- docs/roadmaps/README.md, docs/ROADMAP.md — status sync
+
+## Architecture review
+Self-review Passed — reuses Phase 1 job/artifact path + Phase 2 signal IR; fees/slippage/timing required; equity/trades artifact-only; compact results only; server-only tool.
+
+## Focused
+Command: npm test -- --run src/lib/researchCompute/ src/lib/ai/tools/researchCompute.test.ts src/lib/ai/agent/summarizeToolResult.test.ts src/lib/copilot/chatBlockMapping.test.ts
+Output: Test Files 11 passed (11); Tests 69 passed (69)
+exit=0
+
+## App-level
+Command: npm test -- --run src/lib/researchCompute/phase3AppLevel.test.ts
+Output: create_research_dataset → run_strategy_evaluation via edgeToolRegistry; no candles/equityCurve in tool payloads; researchProfile Data block with title Strategy evaluation; Zod rejects missing fees
+exit=0
+
+## Next
+Phase 4 — sandboxed Python research cells (`run_research_code`).

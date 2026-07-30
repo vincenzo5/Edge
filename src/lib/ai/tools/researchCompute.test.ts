@@ -7,6 +7,8 @@ import {
   getResearchDatasetTool,
   getResearchJobTool,
   profileResearchDatasetTool,
+  runSignalStudyTool,
+  runStrategyEvaluationTool,
 } from "./researchCompute";
 
 function mockContext(port: NonNullable<ToolContext["researchCompute"]>): ToolContext {
@@ -70,6 +72,8 @@ describe("researchCompute tools", () => {
       }),
       getDataset: vi.fn(),
       profileDataset: vi.fn(),
+      runSignalStudy: vi.fn(),
+      runStrategyEvaluation: vi.fn(),
       getJob: vi.fn(),
       getArtifact: vi.fn(),
     };
@@ -104,6 +108,8 @@ describe("researchCompute tools", () => {
         artifactRefs: [{ artifactId: "art_1", kind: "metrics_json" }],
         previewTable: { columns: ["Symbol"], rows: [["AAPL"]] },
       }),
+      runSignalStudy: vi.fn(),
+      runStrategyEvaluation: vi.fn(),
       getJob: vi.fn(),
       getArtifact: vi.fn(),
     };
@@ -119,11 +125,105 @@ describe("researchCompute tools", () => {
     }
   });
 
+  it("run_signal_study returns compact metrics", async () => {
+    const port = {
+      createDataset: vi.fn(),
+      getDataset: vi.fn(),
+      profileDataset: vi.fn(),
+      runSignalStudy: vi.fn().mockResolvedValue({
+        jobId: "job_2",
+        status: "succeeded",
+        runFingerprint: "run_fp2",
+        warnings: [],
+        keyMetrics: {
+          "train.eventCount": 12,
+          "holdout.hitRate": "55.00%",
+          "holdout.meanForwardReturn": "1.20%",
+        },
+        artifactRefs: [{ artifactId: "art_2", kind: "metrics_json" }],
+        previewTable: { columns: ["Symbol"], rows: [["AAPL"]] },
+      }),
+      runStrategyEvaluation: vi.fn(),
+      getJob: vi.fn(),
+      getArtifact: vi.fn(),
+    };
+
+    const result = await runSignalStudyTool.execute(
+      {
+        datasetId: "ds_test",
+        spec: {
+          signal: { op: "gt", left: { op: "close" }, right: 100 },
+          horizonBars: 5,
+          trainToMs: 1_700_000_000_000,
+        },
+      },
+      mockContext(port),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.keyMetrics["train.eventCount"]).toBe(12);
+    }
+  });
+
+  it("run_strategy_evaluation returns compact metrics", async () => {
+    const port = {
+      createDataset: vi.fn(),
+      getDataset: vi.fn(),
+      profileDataset: vi.fn(),
+      runSignalStudy: vi.fn(),
+      runStrategyEvaluation: vi.fn().mockResolvedValue({
+        jobId: "job_3",
+        status: "succeeded",
+        runFingerprint: "run_fp3",
+        warnings: ["Vectorized research — not broker-accurate event-driven simulation"],
+        keyMetrics: {
+          "Trade count": 5,
+          "Total return": "3.50%",
+          "Max drawdown": "1.20%",
+          "Fees paid": 25,
+        },
+        artifactRefs: [
+          { artifactId: "art_3", kind: "metrics_json" },
+          { artifactId: "art_4", kind: "trades_table" },
+          { artifactId: "art_5", kind: "equity_curve" },
+        ],
+        previewTable: { columns: ["Symbol"], rows: [["AAPL"]] },
+      }),
+      getJob: vi.fn(),
+      getArtifact: vi.fn(),
+    };
+
+    const result = await runStrategyEvaluationTool.execute(
+      {
+        datasetId: "ds_test",
+        spec: {
+          entry: { op: "gt", left: { op: "close" }, right: 100 },
+          exit: { op: "gt", left: { op: "close" }, right: 200 },
+          maxHoldBars: 10,
+          fillTiming: "next_open",
+          feesBps: 10,
+          slippageBps: 5,
+          sizing: { mode: "fixed_shares", shares: 100 },
+        },
+      },
+      mockContext(port),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.keyMetrics["Trade count"]).toBe(5);
+      expect(JSON.stringify(result.data)).not.toMatch(/equityCurve/i);
+    }
+  });
+
   it("get_research_dataset/get_job/get_artifact delegate to port", async () => {
     const port = {
       createDataset: vi.fn(),
       getDataset: vi.fn().mockResolvedValue({ datasetId: "ds_test" }),
       profileDataset: vi.fn(),
+      runSignalStudy: vi.fn(),
+      runStrategyEvaluation: vi.fn(),
       getJob: vi.fn().mockResolvedValue({ jobId: "job_1", status: "succeeded" }),
       getArtifact: vi.fn().mockResolvedValue({ artifactId: "art_1", kind: "metrics_json" }),
     };

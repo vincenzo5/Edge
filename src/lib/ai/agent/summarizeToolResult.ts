@@ -181,6 +181,36 @@ function summarizeProfileResearchDataset(data: Record<string, unknown>): string 
   ]);
 }
 
+function summarizeRunSignalStudy(data: Record<string, unknown>): string {
+  const jobId = readString(data, "jobId");
+  const metrics = readKeyMetrics(data);
+  const trainEvents = metrics?.["train.eventCount"];
+  const holdoutHit = metrics?.["holdout.hitRate"];
+  const holdoutMean = metrics?.["holdout.meanForwardReturn"];
+  return joinParts([
+    jobId ? `Job ${jobId.slice(0, 8)}` : undefined,
+    trainEvents != null ? `${trainEvents} train events` : undefined,
+    holdoutHit != null ? `holdout ${holdoutHit}` : undefined,
+    holdoutMean != null ? `μ ${holdoutMean}` : undefined,
+  ]);
+}
+
+function summarizeRunStrategyEvaluation(data: Record<string, unknown>): string {
+  const jobId = readString(data, "jobId");
+  const metrics = readKeyMetrics(data);
+  const tradeCount = metrics?.["Trade count"];
+  const totalReturn = metrics?.["Total return"];
+  const maxDd = metrics?.["Max drawdown"];
+  const feesPaid = metrics?.["Fees paid"];
+  return joinParts([
+    jobId ? `Job ${jobId.slice(0, 8)}` : undefined,
+    tradeCount != null ? `${tradeCount} trades` : undefined,
+    totalReturn != null ? `return ${totalReturn}` : undefined,
+    maxDd != null ? `maxDD ${maxDd}` : undefined,
+    feesPaid != null ? `fees ${feesPaid}` : undefined,
+  ]);
+}
+
 function summarizeCreateResearchDataset(data: Record<string, unknown>): string {
   const datasetId = readString(data, "datasetId");
   const rowCount = readNumber(data, "rowCount");
@@ -246,6 +276,10 @@ function summarizeSuccess(toolName: string, data: unknown): string {
       return summarizeSummarizeScreen(record);
     case "profile_research_dataset":
       return summarizeProfileResearchDataset(record);
+    case "run_signal_study":
+      return summarizeRunSignalStudy(record);
+    case "run_strategy_evaluation":
+      return summarizeRunStrategyEvaluation(record);
     case "create_research_dataset":
       return summarizeCreateResearchDataset(record);
     default:

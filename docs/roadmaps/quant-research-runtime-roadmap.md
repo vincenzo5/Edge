@@ -4,7 +4,7 @@ Living track for a **server-side quantitative research runtime** that Copilot (a
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 1 **Passing** (2026-07-30) — datasets + profile jobs + server tools.
+**Status:** Phase 3 **Passing** (2026-07-30) — minimal vectorized strategy evaluation via `run_strategy_evaluation`.
 
 **Branch:** AGENT (secondary: DATA).
 
@@ -266,7 +266,7 @@ E2B/Modal remain optional later executors — not before Phase 4 without explici
 
 ### Phase 2 — Signal / event studies
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Declarative “when X, what happens next?” studies with holdout splits — no order simulation.
 
@@ -283,7 +283,7 @@ E2B/Modal remain optional later executors — not before Phase 4 without explici
 
 ### Phase 3 — Minimal vectorized strategy evaluation
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Explicit entry/exit, direction, sizing rule, fees, slippage, execution timing → trades + equity curve. Labeled **vectorized research**, not broker-accurate simulation.
 

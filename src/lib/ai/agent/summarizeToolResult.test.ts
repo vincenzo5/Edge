@@ -150,6 +150,42 @@ describe("summarizeToolResult", () => {
     expect(summary).not.toMatch(/[\[{]/);
   });
 
+  it("summarizes run_signal_study compactly", () => {
+    const summary = summarizeToolResult("run_signal_study", {
+      ok: true,
+      data: {
+        jobId: "job_1234567890",
+        keyMetrics: {
+          "train.eventCount": 10,
+          "holdout.hitRate": "60.00%",
+          "holdout.meanForwardReturn": "1.50%",
+        },
+      },
+    });
+    expect(summary).toContain("10 train events");
+    expect(summary).toContain("60.00%");
+    expect(summary).not.toMatch(/[\[{]/);
+  });
+
+  it("summarizes run_strategy_evaluation compactly", () => {
+    const summary = summarizeToolResult("run_strategy_evaluation", {
+      ok: true,
+      data: {
+        jobId: "job_1234567890",
+        keyMetrics: {
+          "Trade count": 8,
+          "Total return": "5.20%",
+          "Max drawdown": "2.10%",
+          "Fees paid": 42.5,
+        },
+      },
+    });
+    expect(summary).toContain("8 trades");
+    expect(summary).toContain("5.20%");
+    expect(summary).toContain("2.10%");
+    expect(summary).not.toMatch(/[\[{]/);
+  });
+
   it("summarizes create_research_dataset compactly", () => {
     const summary = summarizeToolResult("create_research_dataset", {
       ok: true,

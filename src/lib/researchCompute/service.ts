@@ -7,6 +7,8 @@ import type {
   CreateDatasetInput,
   ProfileOptions,
   RunManifest,
+  SignalStudySpec,
+  StrategyEvalSpec,
 } from "./contracts";
 import { COMPUTE_VERSION, MAX_CONCURRENT_JOBS, MAX_JOB_WALL_TIME_MS } from "./constants";
 import { requireDatasetManifest } from "./datasetStore";
@@ -19,6 +21,8 @@ import {
 import { readBarsParquet } from "./parquet";
 import { symbolPartitionPath } from "./paths";
 import { computeProfileMetrics } from "./profileMetrics";
+import { computeSignalStudyMetrics } from "./signalStudyMetrics";
+import { computeStrategyEvalMetrics } from "./strategyEvalMetrics";
 import type { ResearchArtifactPreview, ResearchComputePort, ResearchJobSummary } from "./port";
 import { writeArtifact, readArtifactPayload, requireArtifactMeta } from "./artifactStore";
 
@@ -84,6 +88,95 @@ export class ResearchComputeService implements ResearchComputePort {
           keyMetrics: profile.keyMetrics,
           artifactRefs: [metricsArtifact, previewArtifact],
           previewTable: profile.previewTable,
+        };
+      },
+    });
+  }
+
+  async runSignalStudy(args: { datasetId: string; spec: SignalStudySpec }) {
+    return this.runJob({
+      toolName: "run_signal_study",
+      datasetId: args.datasetId,
+      toolInput: args.spec,
+      execute: async (jobId, manifest) => {
+        const barsBySymbol: Record<string, import("./contracts").ResearchBar[]> = {};
+        for (const symbol of manifest.identity.symbols) {
+          barsBySymbol[symbol] = await readBarsParquet(
+            symbolPartitionPath(manifest.datasetId, symbol),
+          );
+        }
+        const study = computeSignalStudyMetrics({
+          barsBySymbol,
+          spec: args.spec,
+        });
+        const metricsArtifact = writeArtifact({
+          jobId,
+          kind: "metrics_json",
+          label: "Signal study metrics",
+          payload: study.keyMetrics,
+        });
+        const previewArtifact = writeArtifact({
+          jobId,
+          kind: "preview_table",
+          label: "Signal study preview",
+          payload: study.previewTable,
+        });
+        return {
+          warnings: study.warnings,
+          keyMetrics: study.keyMetrics,
+          artifactRefs: [metricsArtifact, previewArtifact],
+          previewTable: study.previewTable,
+        };
+      },
+    });
+  }
+
+  async runStrategyEvaluation(args: { datasetId: string; spec: StrategyEvalSpec }) {
+    return this.runJob({
+      toolName: "run_strategy_evaluation",
+      datasetId: args.datasetId,
+      toolInput: args.spec,
+      execute: async (jobId, manifest) => {
+        const barsBySymbol: Record<string, import("./contracts").ResearchBar[]> = {};
+        for (const symbol of manifest.identity.symbols) {
+          barsBySymbol[symbol] = await readBarsParquet(
+            symbolPartitionPath(manifest.datasetId, symbol),
+          );
+        }
+        const evaluation = computeStrategyEvalMetrics({
+          barsBySymbol,
+          spec: args.spec,
+          datasetIdentity: manifest.identity,
+        });
+        const metricsArtifact = writeArtifact({
+          jobId,
+          kind: "metrics_json",
+          label: "Strategy evaluation metrics",
+          payload: evaluation.keyMetrics,
+        });
+        const previewArtifact = writeArtifact({
+          jobId,
+          kind: "preview_table",
+          label: "Strategy trades preview",
+          payload: evaluation.previewTable,
+        });
+        const tradesArtifact = writeArtifact({
+          jobId,
+          kind: "trades_table",
+          label: "Trades table",
+          payload: evaluation.trades,
+        });
+        const equityArtifact = writeArtifact({
+          jobId,
+          kind: "equity_curve",
+          label: "Equity curve",
+          payload: evaluation.equityCurve,
+        });
+        return {
+          warnings: evaluation.warnings,
+          keyMetrics: evaluation.keyMetrics,
+          artifactRefs: [metricsArtifact, previewArtifact, tradesArtifact, equityArtifact],
+          previewTable: evaluation.previewTable,
         };
       },
     });
