@@ -110,14 +110,14 @@ function mockTradingPort(): TradingPort {
   };
 }
 
-function mockContext(trading: TradingPort): ToolContext {
+function mockContext(trading: TradingPort, risk?: ToolContext["risk"]): ToolContext {
   return {
     clientSession: false,
     app: null,
     chart: null,
     watchlist: null,
     screener: null,
-    risk: null,
+    risk: risk ?? null,
     account: null,
     options: null,
     trading,
@@ -147,6 +147,69 @@ const draft = {
 };
 
 describe("trading AI tools", () => {
+  it("previews risk policy with slot-complete summary", async () => {
+    const trading = mockTradingPort();
+    const result = await executeTool(
+      registry,
+      "preview_risk_policy",
+      {
+        environment: "paper",
+        side: "BUY",
+        quantity: 100,
+        dollarRisk: 1000,
+        entry: 100,
+        initialStop: 95,
+        takeProfitPrice: 110,
+        attachProtect: true,
+        managePresetId: "half_then_be",
+      },
+      mockContext(trading),
+      { permissionMode: "read" },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toMatchObject({
+        geometry: {
+          direction: "long",
+          entry: 100,
+          initialStop: 95,
+          takeProfitPrice: 110,
+        },
+        protect: { attached: true },
+        manage: { label: "Half then BE" },
+      });
+    }
+    expect(trading.previewOrder).not.toHaveBeenCalled();
+  });
+
+  it("fills dollarRisk from get_risk_settings when omitted", async () => {
+    const trading = mockTradingPort();
+    const result = await executeTool(
+      registry,
+      "preview_risk_policy",
+      {
+        side: "BUY",
+        quantity: 50,
+        entry: 200,
+        initialStop: 195,
+        attachProtect: false,
+        managePresetId: "off",
+      },
+      mockContext(trading, {
+        getRiskSettings: () => ({
+          settings: { mode: "usd", value: 500, basisAccountId: null },
+          dollarRisk: 500,
+          basisStale: false,
+        }),
+      }),
+      { permissionMode: "read" },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect((result.data as { budget: { label: string } }).budget.label).toBe("$500");
+    }
+  });
+
   it("previews orders via trading port", async () => {
     const trading = mockTradingPort();
     const result = await executeTool(

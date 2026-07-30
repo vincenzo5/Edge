@@ -91,7 +91,7 @@ Each `tools/call` through [`adapters/mcp.ts`](adapters/mcp.ts) writes one JSON l
 
 | Runs server-side | Requires client session |
 |------------------|------------------------|
-| `search_symbols`, `get_candles`, `get_quotes`, `get_fundamentals`, `preview_order`, `place_order`, `preview_playbook`, `attach_playbook`, pattern library disk tools | `set_symbol`, `add_indicator`, `add_drawing`, `*_indicator_script`, layout mutators, `find_similar_setups` / `capture_pattern_setup` (active chart), journal tools, alert tools (`list/get/create/update/dismiss/delete`, high-level create, open/preview/suggest) |
+| `search_symbols`, `get_candles`, `get_quotes`, `get_fundamentals`, `preview_risk_policy`, `preview_order`, `place_order`, `preview_playbook`, `attach_playbook`, pattern library disk tools | `set_symbol`, `add_indicator`, `add_drawing`, `*_indicator_script`, layout mutators, `find_similar_setups` / `capture_pattern_setup` (active chart), journal tools, alert tools (`list/get/create/update/dismiss/delete`, high-level create, open/preview/suggest) |
 
 ## Two Chart-Tool Products
 
@@ -205,7 +205,7 @@ npm test -- --run src/app/api/me/copilot-threads/
 | Options chain data | `OptionsChainModel` | No | `get_options_chain` (server) |
 | Options workspace | `OptionsSessionState` | No (in-memory) | `get_options_session` |
 | Account | `AccountSnapshot` | No (broker stream) | `get_account_snapshot` |
-| Trading intents / orders | `TradingService` + connection registry | No (in-memory intents; broker holds orders) | `preview_order`, `place_order` |
+| Trading intents / orders | `TradingService` + connection registry | No (in-memory intents; broker holds orders) | `preview_risk_policy`, `preview_order`, `place_order`, `preview_playbook`, `attach_playbook` |
 | Active chart | `ActiveChartReadState` | Derived from layout + runtime | `get_chart_state` |
 | My scripts library | `ScriptLibraryState` | Yes (IndexedDB + localStorage) | `list_indicator_scripts`, `get_indicator_script`, etc. |
 | Alert definitions | `AlertDefinitionResponse[]` | Yes (Postgres + localStorage) | `list_alerts`, `get_alert`, `create_alert`, etc. |

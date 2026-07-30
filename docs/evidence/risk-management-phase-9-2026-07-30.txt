@@ -1,0 +1,29 @@
+# LIVE — Risk management system — Phase 9 evidence
+# Date: 2026-07-30
+
+## Scope
+UX: Copilot RiskPolicy compose — view-only slot summary + preview_risk_policy AI tool; Budget/Sizing/Geometry/Exits/Gates/Measurement vocabulary in tool descriptions and system prompt.
+
+## Delivered
+- src/lib/risk/composeRiskPolicyView.ts — view-only RiskPolicy compose from Plan + Protect + Manage inputs
+- src/lib/risk/composeRiskPolicyView.test.ts
+- src/lib/ai/tools/trading.ts — preview_risk_policy tool; updated preview_order/preview_playbook descriptions
+- src/lib/ai/tools/trading.test.ts — preview_risk_policy + get_risk_settings Budget fill tests
+- src/lib/ai/tools/sessionState.ts — get_risk_settings RiskPolicy vocabulary
+- src/lib/ai/agent/promptBoundaries.ts — SYSTEM_PROMPT RiskPolicy slot line
+- src/lib/risk/ARCHITECTURE.md — Phase 9 section
+- src/lib/trading/ARCHITECTURE.md — Phase 9 note; view-only compose type
+- src/lib/ai/ARCHITECTURE.md — preview_risk_policy in tool tables
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 9 Passing
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — pure lib compose reuses Phase 4 summarizeSubmitRiskPlan; read-only tool; no React imports; no runtime merge.
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/composeRiskPolicyView.test.ts src/lib/ai/tools/trading.test.ts src/lib/ai/agent/promptBoundaries.test.ts
+
+Output:
+Test Files  3 passed (3)
+Tests  24 passed (24)

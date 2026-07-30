@@ -84,6 +84,12 @@ Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Bud
 
 Journal planned-risk auto-sync from PositionPlan on Manage journal sync (Phase 8 **Passing**): `playbook/journalRiskHandoff.ts` derives USD mode/value; `syncManagePlaybookToJournal` fill-if-empty; `JournalTradeDetail` Risk policy section.
 
+## Phase 9 — Copilot RiskPolicy compose (shipped)
+
+- **Compose:** `composeRiskPolicyView.ts` — view-only RiskPolicy from Plan + Protect + Manage inputs; Zod input schema; reuses `summarizeSubmitRiskPlan` for Phase 4 slot parity.
+- **AI tool:** `preview_risk_policy` in `src/lib/ai/tools/trading.ts` — read-only slot summary for Copilot; fills Budget from `get_risk_settings` when `dollarRisk` omitted.
+- **Vocabulary:** tool descriptions + `SYSTEM_PROMPT_BASE` use Budget, Sizing, Geometry, Exits, Gates, Measurement slot names.
+
 ## Failure mode (Plan layer)
 
 Plan does not place protective orders. A trade sized in the Risk panel without Protect attached has **no** `restingBroker` exit until the ticket submits a bracket/OCO or the trader attaches Protect on an open position. Manage presets **inherit** Protect from the ticket — see `playbook/presetRiskPolicy.ts` and trading ARCHITECTURE hybrid failure mode.

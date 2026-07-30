@@ -6,7 +6,7 @@ import { buildAccountSnapshot } from "@/lib/brokerage/accountSnapshot";
 export const getRiskSettingsTool = defineTool({
   name: "get_risk_settings",
   description:
-    "Read the user's risk sizing settings and resolved dollar risk for the active session.",
+    "Read the user's RiskPolicy Budget settings (session $ or % NetLiq) and resolved dollar risk. Pair with preview_risk_policy and Geometry inputs (entry/stop/qty) for a current-plan answer.",
   inputSchema: z.object({}),
   permission: "read",
   requiresConfirmation: false,

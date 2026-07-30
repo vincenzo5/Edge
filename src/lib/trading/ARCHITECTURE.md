@@ -316,7 +316,7 @@ Full track: [Trade Management Playbook Roadmap](../../../docs/roadmaps/trade-man
 
 ## RiskPolicy spine (Plan / Protect / Manage / Gates / Measurement)
 
-Shared vocabulary for every risk surface — full slot taxonomies and UX-moment phases live in the [Risk Management System Roadmap](../../../docs/roadmaps/risk-management-system-roadmap.md). This section maps **RiskPolicy slots** to shipped modules. No runtime `RiskPolicy` Zod type yet (Phase 9 compose / later UX phases).
+Shared vocabulary for every risk surface — full slot taxonomies and UX-moment phases live in the [Risk Management System Roadmap](../../../docs/roadmaps/risk-management-system-roadmap.md). This section maps **RiskPolicy slots** to shipped modules. View-only compose type: `composeRiskPolicyView.ts` (Phase 9); no runtime merge type.
 
 **One-line framing:** *Every named risk strategy is a filled RiskPolicy — not a vibe.*
 
@@ -369,6 +369,8 @@ Gap / stop-market vs stop-limit risk is acknowledged in ticket copy (Phase 7 UX)
 **Phase 7 (Risk track):** Failure-mode UX — `summarizeOpenPositionExits` warns `manage_without_protect` when active Manage (`armed` | `paused` | `pending_fill`) has no resting stop; `OpenPositionExitsStrip` shows persistent failure-mode copy when Protect attached + critical callout for Manage-without-Protect; `summarizeSubmitRiskPlan` adds gap guidance when Protect attached; `conflictPolicy.pauseAffectsProtectOrders()` documents Pause never cancels Protect (mirrors detach policy + service tests).
 
 **Phase 8 (Risk track):** Journal Measurement loop — `journalRiskHandoff` derives USD planned risk from `PositionPlan`; `syncManagePlaybookToJournal` fill-if-empty patches `plannedRisk*` + syncs manage recipe with geometry snapshot and protect summary; attach path calls `syncPlaybookJournal`; `JournalTradeDetail` Risk policy section (Budget, R, Geometry, Protect, Manage timeline) with manual override preserved in Review.
+
+**Phase 9 (Risk track):** Copilot RiskPolicy compose — `composeRiskPolicyView` view-only slot summary; `preview_risk_policy` AI tool returns Budget/Sizing/Geometry/Protect/Manage/Gates/Measurement; pairs with `get_risk_settings` for session Budget; tool descriptions + system prompt use RiskPolicy vocabulary.
 
 UX chrome for RiskPolicy slots ships in roadmap Phases 2–10 (chart draw → Risk sidebar → ticket → open position → during trade → failure mode → journal → copilot → account kills).
 
