@@ -24,6 +24,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Trading journal | [journal-roadmap.md](./journal-roadmap.md) | v1 + Tiers 1–3 **Passing** (2026-07-22); app-level walks → Wave 1 Phase 6; import chrome → Wave 2 Phase 4 |
 | Trading execution | [trading-execution-roadmap.md](./trading-execution-roadmap.md) | Phases 0–5 + **6–9 Passing** (2026-07-22); options backlog; ops walks → Wave 1 Phase 1 + 4 |
 | Trade management playbook | [trade-management-playbook-roadmap.md](./trade-management-playbook-roadmap.md) | Phase 0–7 **Passing** (2026-07-24); Phase 8 **Pending** — rule editor |
+| Risk management system | [risk-management-system-roadmap.md](./risk-management-system-roadmap.md) | Phase 0 **Passing** (2026-07-29); Phase 1 **Pending** — architecture spine; UX moments Phases 2–10 |
 | Dual connection | [dual-connection-roadmap.md](./dual-connection-roadmap.md) | Phases A–D **product complete**; both-Gateway ops proof → Wave 1 Phase 1 |
 | Connections & providers | [connections-providers-roadmap.md](./connections-providers-roadmap.md) | Phase 0–4 **Passing**; Phase 5 **Pending** (local Gateway polish); Settings/prefs walks → Wave 2 Phase 3 |
 | IBKR hosted OAuth | [ibkr-hosted-oauth-roadmap.md](./ibkr-hosted-oauth-roadmap.md) | Phase 0 **Pending** (feasibility + IB onboarding); extracted from Connections Path A |

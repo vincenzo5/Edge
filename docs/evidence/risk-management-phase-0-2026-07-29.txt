@@ -1,0 +1,41 @@
+# LIVE — Risk management system — Phase 0 evidence
+# Date: 2026-07-29
+
+## Scope
+Docs-only — freeze RiskPolicy schema, catalog filing, plug-in map, UX-moment phase map as source of truth.
+No runtime code; no Zod/types.
+
+## Delivered
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 0 Passing; 0.3 wording tightened (family→slot filing; Phase 1 for per-preset checklists)
+- docs/roadmaps/trading-execution-roadmap.md — Related + Protect pointer to Risk Management System
+- docs/roadmaps/alerts-roadmap.md — Related (notifyOnly ExitRules)
+- docs/roadmaps/journal-roadmap.md — Related (Measurement / Phase 8)
+- docs/roadmaps/ai-agent-roadmap.md — Related (Phase 9 RiskPolicy vocabulary)
+- docs/roadmaps/README.md — Phase 0 Passing row synced
+- docs/ROADMAP.md — Near-Term + index lines synced
+
+## Doc review (0.1–0.7)
+- 0.1 RiskPolicy slots + ExitRule / trigger / action taxonomies — present
+- 0.2 Completeness checklist (12 questions) — present
+- 0.3 Catalog family→slot + exit families — present; cell-by-cell deferred to Phase 1 (1.3)
+- 0.4 Application plug-in map + slot coverage gaps — present
+- 0.5 UX moments → phases (2–10) — present (9 moments mapped)
+- 0.6 Cross-links — playbook (pre-existing) + exec/alerts/journal/AI + ROADMAP index
+- 0.7 Appendices A–B worked examples — present
+- Naming: Plan / Protect / Manage consistent
+- No claim day-loss / open-heat account Gates are shipped (Phase 10 target only)
+- Open questions #1–4 remain open (Phases 3/4/10)
+
+## Architecture review
+N/A — docs/spec only; Phase 1 owns ARCHITECTURE.md spine.
+
+App-level: N/A — doc review verified 9 UX moments map to phases 2–10; 6 Related links; 12-question checklist frozen.
+
+## Focused
+Command: npm run roadmaps:status-check
+Output: roadmaps:status-check found 1 issue(s): copilot-chat-blocks README drift (pre-existing); risk-management row matches Phase 0 Passing.
+exit=1
+
+Command: npm run lint:instructions
+Output: 2 pre-existing PROJECT-STATUS issues; no instruction files changed in this phase.
+exit=1

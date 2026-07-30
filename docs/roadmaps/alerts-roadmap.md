@@ -6,6 +6,8 @@ Single roadmap for Edge price, drawing, and semantic annotation alerts — how t
 
 **Status:** Phase 0 **Passing** — Phase 1 **Passing** (2026-07-21) — Phase 2 **Passing** (2026-07-21) — Phase 3 **Passing** (2026-07-21) — Phase 4 **Passing** (2026-07-22): script condition alerts (Script Depth Phase 4 handoff). **Product complete for v1** (external delivery / semantic AI tools still deferred). Deferred app-level walks → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 2 (Wave 1, complete); MCP alert tool walk → [app-level-verification-wave-2-roadmap.md](./app-level-verification-wave-2-roadmap.md) Phase 4.
 
+**Related:** [Risk Management System](./risk-management-system-roadmap.md) (trade-plan alerts as `binding:notifyOnly` ExitRules — not order executors), [Trade Management Playbook](./trade-management-playbook-roadmap.md), [Journal](./journal-roadmap.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
+
 ## Product goal
 
 Give solo traders reliable notifications when market conditions match their chart analysis — without requiring the app tab to stay open.

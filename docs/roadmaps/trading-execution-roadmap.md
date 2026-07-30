@@ -4,7 +4,9 @@ Single roadmap for **placing and managing stock orders** through Interactive Bro
 
 **Last updated:** 2026-07-22
 
-**Current focus:** Phases 0–5 **Passing** (single-leg stocks). **Phases 6–9 Passing** (2026-07-22) — outside RTH, brackets+OCA, trailing stop legs, protective OCO. **Open-risk header chrome** shipped (ambient positions chip + popover; Account/Journal deep links). Remaining backlog: options, chart order management, AI bracket tool. Post-fill Manage → [Trade Management Playbook Roadmap](./trade-management-playbook-roadmap.md).
+**Current focus:** Phases 0–5 **Passing** (single-leg stocks). **Phases 6–9 Passing** (2026-07-22) — outside RTH, brackets+OCA, trailing stop legs, protective OCO. **Open-risk header chrome** shipped (ambient positions chip + popover; Account/Journal deep links). Remaining backlog: options, chart order management, AI bracket tool. Post-fill Manage → [Trade Management Playbook Roadmap](./trade-management-playbook-roadmap.md). Protect exits as `binding:restingBroker` → [Risk Management System Roadmap](./risk-management-system-roadmap.md).
+
+**Related:** [Risk Management System](./risk-management-system-roadmap.md) (**Protect** — shared RiskPolicy Exits), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
 **Phase 5 passed 2026-07-08** — registry (`ib-paper`/`ib-live`), dual sidecar sockets, Paper/Live UI toggle, `liveConfirmation: LIVE` gate.
 

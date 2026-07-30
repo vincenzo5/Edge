@@ -6,6 +6,8 @@ Single roadmap for Edge trading journal **reporting and review** — TradeZella-
 
 **Status:** v1 + Tiers 1–3 **Passing** (2026-07-22). Deferred app-level walks → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 6 (Wave 1, complete); import dialog / sync chrome residual → [app-level-verification-wave-2-roadmap.md](./app-level-verification-wave-2-roadmap.md) Phase 4.
 
+**Related:** [Risk Management System](./risk-management-system-roadmap.md) (Measurement — planned risk / R review; Phase 8 auto-sync), [Trade Management Playbook](./trade-management-playbook-roadmap.md), [Trading Execution](./trading-execution-roadmap.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
+
 ## Product Goal
 
 Give solo IBKR traders a durable fill → round-trip trade journal with enough **reporting depth** to spot patterns (time of day, tags, equity curve, risk) without manual spreadsheet work. Edge already owns the chart engine — journal review should deep-link into chart context with execution markers where possible.
