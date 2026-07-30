@@ -1,7 +1,10 @@
 "use client";
 
 import type { OpenPositionExitsSummary } from "@/lib/trading/summarizeOpenPositionExits";
-import { openPositionExitWarningLabel } from "@/lib/trading/summarizeOpenPositionExits";
+import {
+  OPEN_POSITION_FAILURE_MODE_COPY,
+  openPositionExitWarningLabel,
+} from "@/lib/trading/summarizeOpenPositionExits";
 import { metadataTextClass } from "@/app/components/design-system/styles";
 
 type Props = {
@@ -13,6 +16,8 @@ type Props = {
 
 export function OpenPositionExitsStrip({ summary, symbol, onProtect, compact = false }: Props) {
   const unprotected = summary.warnings.includes("unprotected");
+  const manageWithoutProtect = summary.warnings.includes("manage_without_protect");
+  const showProtectAction = unprotected || manageWithoutProtect;
 
   return (
     <div
@@ -21,8 +26,10 @@ export function OpenPositionExitsStrip({ summary, symbol, onProtect, compact = f
     >
       <div
         className={`${metadataTextClass()} ${
-          unprotected
-            ? "text-[var(--edge-warning)]"
+          showProtectAction
+            ? manageWithoutProtect
+              ? "text-[var(--edge-negative)]"
+              : "text-[var(--edge-warning)]"
             : "text-[var(--edge-text-secondary)]"
         }`}
         data-testid={`open-position-protect-${symbol}`}
@@ -67,13 +74,32 @@ export function OpenPositionExitsStrip({ summary, symbol, onProtect, compact = f
         </>
       ) : null}
 
-      {unprotected ? (
+      {summary.protect.attached ? (
+        <p
+          className={`${metadataTextClass()} text-[var(--edge-text-muted)]`}
+          data-testid={`open-position-failure-mode-${symbol}`}
+        >
+          {OPEN_POSITION_FAILURE_MODE_COPY}
+        </p>
+      ) : null}
+
+      {showProtectAction ? (
         <div className="space-y-1">
           <p
-            className={`${metadataTextClass()} text-[var(--edge-warning)]`}
-            data-testid={`open-position-unprotected-${symbol}`}
+            className={`${metadataTextClass()} ${
+              manageWithoutProtect
+                ? "text-[var(--edge-negative)]"
+                : "text-[var(--edge-warning)]"
+            }`}
+            data-testid={
+              manageWithoutProtect
+                ? `open-position-manage-without-protect-${symbol}`
+                : `open-position-unprotected-${symbol}`
+            }
           >
-            {openPositionExitWarningLabel("unprotected")}
+            {openPositionExitWarningLabel(
+              manageWithoutProtect ? "manage_without_protect" : "unprotected",
+            )}
           </p>
           {onProtect ? (
             <button

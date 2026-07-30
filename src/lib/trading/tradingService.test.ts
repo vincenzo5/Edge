@@ -633,6 +633,7 @@ describe("TradingService", () => {
 
     const paused = await service.pausePlaybookInstance(instanceId!);
     expect(paused?.status).toBe("paused");
+    expect(mockPort.cancel).not.toHaveBeenCalled();
 
     const resumed = await service.resumePlaybookInstance(instanceId!);
     expect(resumed?.status).toBe("armed");

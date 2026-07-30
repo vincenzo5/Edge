@@ -154,6 +154,86 @@ describe("summarizeOpenPositionExits", () => {
     expect(summary.manage.nextActionPreview).toContain("reduce");
     expect(summary.manage.completedLabels).toEqual([]);
     expect(summary.manage.pauseMessage).toBeNull();
+    expect(summary.warnings).toEqual([]);
+  });
+
+  it("warns manage_without_protect when Manage armed without stop", () => {
+    const plan = lockPositionPlan({
+      symbol: "AAPL",
+      accountId: "DUP586813",
+      side: "BUY",
+      entry: 100,
+      initialStop: 95,
+      qty: 10,
+      environment: "paper",
+    });
+    const instance = createPlaybookInstance({
+      id: "inst-1",
+      template: HALF_PLUS_TRAIL_PRESET,
+      positionPlan: plan,
+      status: "armed",
+    });
+
+    const summary = summarizeOpenPositionExits({
+      position: position("AAPL", 10),
+      orders: [],
+      manageInstance: instance,
+    });
+
+    expect(summary.warnings).toEqual(["manage_without_protect"]);
+    expect(summary.protect.attached).toBe(false);
+  });
+
+  it("warns manage_without_protect for paused Manage without stop", () => {
+    const plan = lockPositionPlan({
+      symbol: "AAPL",
+      accountId: "DUP586813",
+      side: "BUY",
+      entry: 100,
+      initialStop: 95,
+      qty: 10,
+      environment: "paper",
+    });
+    const instance = createPlaybookInstance({
+      id: "inst-1",
+      template: HALF_PLUS_TRAIL_PRESET,
+      positionPlan: plan,
+      status: "paused",
+    });
+
+    const summary = summarizeOpenPositionExits({
+      position: position("AAPL", 10),
+      orders: [],
+      manageInstance: instance,
+    });
+
+    expect(summary.warnings).toEqual(["manage_without_protect"]);
+  });
+
+  it("does not warn when Manage armed with resting stop", () => {
+    const plan = lockPositionPlan({
+      symbol: "AAPL",
+      accountId: "DUP586813",
+      side: "BUY",
+      entry: 100,
+      initialStop: 95,
+      qty: 10,
+      environment: "paper",
+    });
+    const instance = createPlaybookInstance({
+      id: "inst-1",
+      template: HALF_PLUS_TRAIL_PRESET,
+      positionPlan: plan,
+      status: "armed",
+    });
+
+    const summary = summarizeOpenPositionExits({
+      position: position("AAPL", 10),
+      orders: [stopOrder()],
+      manageInstance: instance,
+    });
+
+    expect(summary.warnings).toEqual([]);
   });
 
   it("includes completed manage rules and pause message", () => {

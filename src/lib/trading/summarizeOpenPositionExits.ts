@@ -7,11 +7,21 @@ import {
   resolveManagePauseMessage,
 } from "@/lib/trading/playbook/display";
 import { isProtectiveStopOrder } from "@/lib/trading/playbook/resolveStopOrder";
-import type { PlaybookInstance } from "@/lib/trading/playbook/types";
+import type {
+  PlaybookInstance,
+  PlaybookInstanceStatus,
+} from "@/lib/trading/playbook/types";
+import { SUBMIT_RISK_FAILURE_MODE_COPY } from "@/lib/risk/summarizeSubmitRiskPlan";
 
 export type OpenPositionProtectKind = "unprotected" | "stop" | "trail" | "oco" | "stop_tp";
 
-export type OpenPositionExitWarning = "unprotected";
+export type OpenPositionExitWarning = "unprotected" | "manage_without_protect";
+
+const ACTIVE_MANAGE_STATUSES: PlaybookInstanceStatus[] = [
+  "armed",
+  "paused",
+  "pending_fill",
+];
 
 export type OpenPositionExitsSummary = {
   protect: {
@@ -33,9 +43,19 @@ export type OpenPositionExitsSummary = {
 export const OPEN_POSITION_UNPROTECTED_COPY =
   "No resting broker stop — position is unprotected if Edge is down.";
 
+export const OPEN_POSITION_MANAGE_WITHOUT_PROTECT_COPY =
+  "Manage is armed but no resting broker stop — position is unprotected if Edge is down.";
+
+export { SUBMIT_RISK_FAILURE_MODE_COPY as OPEN_POSITION_FAILURE_MODE_COPY };
+
 export const DETACH_MANAGE_HINT = "Detach Manage only — broker Protect stays live.";
 
 export const PAUSE_MANAGE_HINT = "Pause Manage only — broker Protect stays live.";
+
+export function isActiveManageInstance(instance: PlaybookInstance | null | undefined): boolean {
+  if (!instance) return false;
+  return ACTIVE_MANAGE_STATUSES.includes(instance.status);
+}
 
 function formatPrice(value: number): string {
   return value.toLocaleString(undefined, {
@@ -222,7 +242,12 @@ export function summarizeOpenPositionExits(args: {
       ? resolveManagePauseMessage(args.manageInstance)
       : null;
 
-  const warnings: OpenPositionExitWarning[] = protectAttached ? [] : ["unprotected"];
+  const manageActive = isActiveManageInstance(args.manageInstance);
+  const warnings: OpenPositionExitWarning[] = protectAttached
+    ? []
+    : manageActive
+      ? ["manage_without_protect"]
+      : ["unprotected"];
 
   return {
     protect: {
@@ -246,6 +271,8 @@ export function openPositionExitWarningLabel(warning: OpenPositionExitWarning): 
   switch (warning) {
     case "unprotected":
       return OPEN_POSITION_UNPROTECTED_COPY;
+    case "manage_without_protect":
+      return OPEN_POSITION_MANAGE_WITHOUT_PROTECT_COPY;
     default:
       return warning;
   }

@@ -6,6 +6,7 @@ import {
   buildManualStopPausePatch,
   detachAffectsProtectOrders,
   instanceStatusAfterDetach,
+  pauseAffectsProtectOrders,
   rulesToPauseOnManualStopDrag,
   shouldPauseOnConflict,
 } from "./conflictPolicy";
@@ -57,10 +58,17 @@ describe("manual stop drag conflicts", () => {
   });
 });
 
+describe("pause policy", () => {
+  it("never cancels Protect orders", () => {
+    expect(pauseAffectsProtectOrders()).toBe(false);
+  });
+});
+
 describe("detach policy", () => {
   it("returns detached status without cancelling Protect", () => {
     expect(instanceStatusAfterDetach()).toBe("detached");
     expect(detachAffectsProtectOrders()).toBe(false);
+    expect(pauseAffectsProtectOrders()).toBe(false);
   });
 
   it("shouldPauseOnConflict for all rules on detach", () => {

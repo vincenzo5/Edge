@@ -48,6 +48,7 @@ Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Bud
 - **UI:** `SubmitRiskPlanSummary.tsx` on `TradeOrderForm` (compose + confirm) and `ProtectiveOcoForm`.
 - **Live without Protect:** soft warn only (`live_unprotected`); submit not blocked (hard reject deferred).
 - **Failure mode copy:** `"Broker stop stays live if Edge is down"` when Protect attached — aligns with trading ARCHITECTURE hybrid failure mode.
+- **Gap guidance:** `"Stop-market can fill through a gap; stop-limit may not fill if price jumps past the limit."` when Protect attached (Phase 7).
 
 ## Phase 5 — Open position Protect + Manage chrome (shipped)
 
@@ -61,6 +62,13 @@ Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Bud
 - **Summarizer:** `summarizeOpenPositionExits` extended with `nextActionPreview`, `completedLabels`, `pauseMessage` on the manage slot.
 - **UI:** `OpenPositionExitsStrip` — next rule line (distance · action preview), `Done:` fired rules, pause warning; same open-risk / Account surfaces as Phase 5.
 - **Chart markers:** armed manage levels already render via `manageLevelsForSymbol` in `ChartCell` (playbook track); Phase 6 verifies reuse only.
+
+## Phase 7 — App down / gap failure mode (shipped)
+
+- **Summarizer:** `summarizeOpenPositionExits` — `isActiveManageInstance`, warning `manage_without_protect` when active Manage has no resting broker stop; re-exports `OPEN_POSITION_FAILURE_MODE_COPY` from submit summary.
+- **UI:** `OpenPositionExitsStrip` — failure-mode line when Protect attached; critical `--edge-negative` callout for Manage-without-Protect; bare unprotected keeps `--edge-warning`.
+- **Submit summary:** `summarizeSubmitRiskPlan` — `gapGuidance` one-liner when Protect attached (`SUBMIT_RISK_GAP_GUIDANCE_COPY`); `SubmitRiskPlanSummary` renders under failure mode.
+- **Policy:** `conflictPolicy.pauseAffectsProtectOrders()` — Pause never cancels Protect; service test asserts `mockPort.cancel` not called on pause/detach.
 
 ## Phase 2 — Drawing geometry strip (shipped)
 

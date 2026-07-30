@@ -366,6 +366,8 @@ Gap / stop-market vs stop-limit risk is acknowledged in ticket copy (Phase 7 UX)
 
 **Phase 6 (Risk track):** During-trade Manage progress on the same strip — next-rule distance + action preview (`formatNextManageActionPreview`), completed fired rules (`formatCompletedManageRules`), pause/conflict copy (`resolveManagePauseMessage` for manual stop drag); chart manage-level markers reuse `manageLevelsForSymbol` → `ChartCell` price-axis annotations (playbook track — no new marker work).
 
+**Phase 7 (Risk track):** Failure-mode UX — `summarizeOpenPositionExits` warns `manage_without_protect` when active Manage (`armed` | `paused` | `pending_fill`) has no resting stop; `OpenPositionExitsStrip` shows persistent failure-mode copy when Protect attached + critical callout for Manage-without-Protect; `summarizeSubmitRiskPlan` adds gap guidance when Protect attached; `conflictPolicy.pauseAffectsProtectOrders()` documents Pause never cancels Protect (mirrors detach policy + service tests).
+
 UX chrome for RiskPolicy slots ships in roadmap Phases 2–10 (chart draw → Risk sidebar → ticket → open position → during trade → failure mode → journal → copilot → account kills).
 
 ## Post–Phase 5 backlog (not shipped)

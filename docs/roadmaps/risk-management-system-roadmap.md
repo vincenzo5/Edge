@@ -4,7 +4,7 @@ Living track for a **shared RiskPolicy model** that every risk strategy must fil
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome. Phase 6 **Passing** (2026-07-30) — UX: during-trade Manage progress chrome.
+**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome. Phase 6 **Passing** (2026-07-30) — UX: during-trade Manage progress chrome. Phase 7 **Passing** (2026-07-30) — UX: app down / gap failure mode.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (**Protect** — brackets / OCO / trail), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Alerts](./alerts-roadmap.md) (trade-plan notify only), [Journal](./journal-roadmap.md) (R / planned risk review), [AI Agent](./ai-agent-roadmap.md) (risk/order/playbook tools), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -585,6 +585,8 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 **Touch points:** Trade/Protect forms, open-risk, Account, conflict/detach policy tests.
 
 **Depends on:** Phase 5–6 chrome; hybrid model already in architecture.
+
+**Status:** **Passing** (2026-07-30)
 
 **Verification:** Focused safety tests; app-level: detach playbook → broker stop still listed; simulate missing stop → critical warning.
 

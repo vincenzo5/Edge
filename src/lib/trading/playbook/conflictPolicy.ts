@@ -41,6 +41,11 @@ export function detachAffectsProtectOrders(): false {
   return false;
 }
 
+/** Pause stops Manage evaluation only — never cancels Protect legs. */
+export function pauseAffectsProtectOrders(): false {
+  return false;
+}
+
 export function shouldPauseOnConflict(event: ConflictEvent, rule: PlaybookRule): boolean {
   if (event.kind === "manual_stop_drag") {
     return ruleConflictsWithManualStop(rule);

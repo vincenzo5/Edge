@@ -93,4 +93,37 @@ describe("OpenPositionExitsStrip", () => {
     fireEvent.click(screen.getByTestId("open-position-protect-action-AAPL"));
     expect(onProtect).toHaveBeenCalled();
   });
+
+  it("shows failure mode when protect attached", () => {
+    render(<OpenPositionExitsStrip summary={summary()} symbol="AAPL" />);
+    expect(screen.getByTestId("open-position-failure-mode-AAPL")).toHaveTextContent(
+      "Broker stop stays live if Edge is down",
+    );
+  });
+
+  it("shows critical manage_without_protect callout", () => {
+    const onProtect = vi.fn();
+    render(
+      <OpenPositionExitsStrip
+        summary={summary({
+          protect: { attached: false, kind: "unprotected", label: "Unprotected" },
+          manage: {
+            attached: true,
+            label: "Manage: Half + trail · armed",
+            nextDistance: "+0.8R to scale",
+            nextActionPreview: "Scale 50%",
+            completedLabels: [],
+            pauseMessage: null,
+          },
+          warnings: ["manage_without_protect"],
+        })}
+        symbol="AAPL"
+        onProtect={onProtect}
+      />,
+    );
+    expect(screen.getByTestId("open-position-manage-without-protect-AAPL")).toBeInTheDocument();
+    expect(screen.queryByTestId("open-position-failure-mode-AAPL")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("open-position-protect-action-AAPL"));
+    expect(onProtect).toHaveBeenCalled();
+  });
 });

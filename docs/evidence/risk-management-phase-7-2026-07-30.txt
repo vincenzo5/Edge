@@ -1,0 +1,36 @@
+# LIVE — Risk management system — Phase 7 evidence
+# Date: 2026-07-30
+
+## Scope
+UX: App down / gap failure mode — Protect-survives copy, Manage-without-Protect critical warning, gap guidance, Detach/Pause never cancels Protect.
+
+## Delivered
+- src/lib/trading/summarizeOpenPositionExits.ts — isActiveManageInstance, manage_without_protect warning, OPEN_POSITION_FAILURE_MODE_COPY re-export
+- src/lib/trading/summarizeOpenPositionExits.test.ts — detector tests
+- src/app/components/trading/OpenPositionExitsStrip.tsx — failure-mode line, critical manage_without_protect callout
+- src/app/components/trading/OpenPositionExitsStrip.test.tsx — strip tests
+- src/lib/risk/summarizeSubmitRiskPlan.ts — gapGuidance field + SUBMIT_RISK_GAP_GUIDANCE_COPY
+- src/lib/risk/summarizeSubmitRiskPlan.test.ts — gap guidance tests
+- src/app/components/risk/SubmitRiskPlanSummary.tsx — gap guidance render
+- src/app/components/risk/SubmitRiskPlanSummary.test.tsx — UI tests
+- src/lib/trading/playbook/conflictPolicy.ts — pauseAffectsProtectOrders()
+- src/lib/trading/playbook/conflictPolicy.test.ts — pause policy tests
+- src/lib/trading/tradingService.test.ts — pause does not call cancel
+- src/lib/trading/ARCHITECTURE.md — Phase 7 section
+- src/lib/risk/ARCHITECTURE.md — Phase 7 pointer + gap guidance
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 7 Passing
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — extends Phase 4/5/6 summary contracts; no new order types; pauseAffectsProtectOrders mirrors detach policy; critical warn uses existing --edge-negative token.
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/summarizeOpenPositionExits.test.ts src/app/components/trading/OpenPositionExitsStrip.test.tsx src/lib/risk/summarizeSubmitRiskPlan.test.ts src/app/components/risk/SubmitRiskPlanSummary.test.tsx src/lib/trading/playbook/conflictPolicy.test.ts src/lib/trading/tradingService.test.ts
+
+Output:
+Test Files  6 passed (6)
+Tests  54 passed (54)
+
+## App-level
+Manual: Manage armed + no broker stop → critical manage_without_protect callout; Protect attached → failure-mode line on open-risk strip; ticket/OCO summary shows gap guidance; detach/pause playbook → mockPort.cancel not called (service test).
