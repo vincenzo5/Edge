@@ -1,0 +1,35 @@
+# OPS — Persistent TWS sidecar — Phase 0 evidence
+# Date: 2026-07-30
+
+## Scope
+Contract freeze only — Compose-owned sidecar topology, env matrix, and doc supersede before Dockerfile/Compose work. No runtime, Dockerfile, or Python bind changes.
+
+## Delivered
+- docs/roadmaps/persistent-tws-sidecar-roadmap.md — Phase 0 contract subsection (topology, consumer env, sidecar env Phase 1+, bind risk, ops commands, health semantics); Phase 0 complete
+- src/lib/marketData/ARCHITECTURE.md — supersede operator-owned host sidecar; Compose durable owner; interim host script fallback
+- docs/roadmaps/dual-connection-roadmap.md — shared sidecar interim note + Persistent track pointer
+- src/lib/trading/ARCHITECTURE.md — environment lock + sidecar proof Compose target
+- .env.example — Phase 1+ sidecar env comments
+- services/ib-gateway/.env.example — Phase 2+ Compose sidecar env comments
+- docs/roadmaps/README.md, docs/ROADMAP.md — Phase 0 status sync
+
+## Architecture review
+Self-review complete — docs-only contract freeze; supersedes host-sidecar narrative without changing runtime code or HTTP contracts.
+
+## Focused
+Command: npm test -- --run src/lib/marketData/providers/tws/sidecarAuth.test.ts
+Output: Test Files 1 passed (1); Tests 7 passed (7)
+exit=0
+
+Command: npm run roadmaps:status-check
+Output: roadmaps:status-check found 1 issue(s): copilot-chat-blocks-roadmap.md: README max Passing phase ~3 but track ~5
+exit=1
+Note: Unrelated pre-existing drift; Persistent TWS sidecar README row matches track file (Phase 0 complete; Phases 1–5 open).
+
+## Doc link check
+- persistent-tws-sidecar-roadmap.md ↔ marketData ARCHITECTURE shared-sidecar + lifecycle sections — resolve
+- dual-connection-roadmap.md ↔ Persistent TWS Sidecar — resolve
+- local-production-containerization-roadmap.md exclusion supersede — unchanged, accurate
+
+## Next
+Phase 1 — Image + network config surface (Dockerfile, TWS_SIDECAR_BIND, per-connection hosts).

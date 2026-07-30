@@ -125,7 +125,7 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 - **Trade sidebar panel + Account panel** display the globally selected account only — no Paper/Live toggle or account picker in those surfaces.
 - **Live submit gate:** `liveConfirmation: "LIVE"` required server-side on submit/cancel/modify when `environment === "live"`. Close-position UI confirms with a single Confirm click (token sent automatically); Trade ticket / protective OCO still ask the user to type `LIVE`.
 - **Kill switch** (`EDGE_TRADING_KILL_SWITCH`) remains operator emergency stop — not the normal mode control.
-- **Environment lock** (`EDGE_TRADING_ENVIRONMENT_LOCK=paper|live`) pins each Next process to one trading environment when dev and container prod share one host sidecar. Server routes reject mismatched `environment` / draft env with **403**; market-data `connectionId` stays independent (live quotes while paper trading remain valid).
+- **Environment lock** (`EDGE_TRADING_ENVIRONMENT_LOCK=paper|live`) pins each Next process to one trading environment when dev and container prod share one sidecar. Server routes reject mismatched `environment` / draft env with **403**; market-data `connectionId` stays independent (live quotes while paper trading remain valid). Sidecar lifecycle target: Compose service beside Gateways — [Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md).
 - **`TWS_READONLY=false`** still required for mutations on any connection.
 
 ## Drawing-bound trade setup (v1)
@@ -374,7 +374,7 @@ Gap / stop-market vs stop-limit risk is acknowledged in ticket copy (Phase 7 UX)
 
 **Phase 10 (Risk track):** Account kills — optional day-loss / open-heat caps (% NetLiq) on `RiskSettings`; `accountRiskGates` + `TradingService.assertPreTrade` fail-closed block new BUY entries; `AccountRiskGateStrip` Measurement on open-risk / Account / Risk sidebar; ticket soft-warn when next entry would breach heat; auto-flatten deferred (10.3).
 
-UX chrome for RiskPolicy slots ships in roadmap Phases 2–10 (chart draw → Risk sidebar → ticket → open position → during trade → failure mode → journal → copilot → account kills).
+UX chrome for RiskPolicy slots **shipped** in roadmap Phases 2–10 (all **Passing**): chart draw → Risk sidebar → ticket → open position → during trade → failure mode → journal → copilot → account kills.
 
 ## Post–Phase 5 backlog (not shipped)
 
@@ -405,7 +405,7 @@ Run paper (4002) and live (4001) IB Gateways simultaneously for connection regis
 
 **Scripts:** `npm run ib:gateway:up` / `npm run ib:gateway:down`
 
-**Sidecar proof:** After both ports listen, restart `npm run tws:sidecar` and curl `/account/status?connectionId=ib-paper` vs `ib-live` — managed account ids must differ.
+**Sidecar proof:** After both ports listen, start/restart the sidecar (interim: `npm run tws:sidecar`; target: Compose via `npm run ib:gateway:up` — [Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md)) and curl `/account/status?connectionId=ib-paper` vs `ib-live` — managed account ids must differ.
 
 **Desktop fallback:** Two IB Gateway processes (live 4001, paper 4002); same sidecar env (`TWS_PAPER_PORT`, `TWS_LIVE_PORT`).
 

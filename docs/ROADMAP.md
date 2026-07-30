@@ -275,6 +275,7 @@ Living feature tracks (phase detail in each file):
 - [Trade management playbook](./roadmaps/trade-management-playbook-roadmap.md) — Phase 0–7 **Passing**; Phase 8 **Pending** (rule editor)
 - [Risk management system](./roadmaps/risk-management-system-roadmap.md) — Phase 0 **Passing** (2026-07-29); Phase 1 **Passing** (2026-07-30); Phase 2 **Passing** (2026-07-29); Phase 3 **Passing** (2026-07-29); Phase 4 **Passing** (2026-07-29); Phase 5 **Passing** (2026-07-30); Phase 6 **Passing** (2026-07-30); Phase 7 **Passing** (2026-07-30); Phase 8 **Passing** (2026-07-30); Phase 9 **Passing** (2026-07-30); Phase 10 **Passing** (2026-07-30)
 - [Dual connection](./roadmaps/dual-connection-roadmap.md) — Phases A–D product complete; shared sidecar env lock shipped; credential-gated both-Gateway walk remains
+- [Persistent TWS sidecar](./roadmaps/persistent-tws-sidecar-roadmap.md) — Phase 0 **Passing**; Phases 1–5 **Pending** — Compose sidecar beside Gateways so Gateways up ⇒ sidecar up (dev + app-prod)
 - [Connections & providers](./roadmaps/connections-providers-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (local Gateway polish); Settings/prefs walks closed on Wave 2 Phase 3
 - [IBKR hosted OAuth](./roadmaps/ibkr-hosted-oauth-roadmap.md) — Phase 0 **Pending** (feasibility + IB vendor/first-party onboarding); browser Connect IB — separate from Connections
 - [Stock screener](./roadmaps/screener-roadmap.md) — Phases 1–5 shipped; product deferrals remain
@@ -283,7 +284,7 @@ Living feature tracks (phase detail in each file):
 - [AI agent / in-app copilot](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing**; agent walks closed on Wave 2 Phase 1
 - [Grok Copilot UX parity](./roadmaps/grok-copilot-parity-roadmap.md) — Phases 0–5 **Passing** (track complete); chrome walks closed on Wave 2 Phase 2
 - [Copilot chat blocks](./roadmaps/copilot-chat-blocks-roadmap.md) — Phase 0–1 **Passing** (contracts + scroll/Action → Media/Data → Reference → Follow-ups → rich Action)
-- [Quant research runtime](./roadmaps/quant-research-runtime-roadmap.md) — Phase 1 **Passing** (2026-07-30) — datasets + profile jobs + server tools
+- [Quant research runtime](./roadmaps/quant-research-runtime-roadmap.md) — Phase 2 **Passing** (2026-07-30) — signal studies via `run_signal_study`
 - ~~[Research UX (AI-first desk)](./roadmaps/research-ux-roadmap.md)~~ — Phases 0–8 **Passing** (track complete); Desk tiling retained
 - [TypeScript indicator scripting](./roadmaps/typescript-indicator-scripting-roadmap.md) — Phases 0–5B + Scripts tile **Passing**
 - [Script depth](./roadmaps/script-depth-roadmap.md) — Phases 0–5 **Passing** — track complete

@@ -248,7 +248,9 @@ Development defaults to `TWS_ENABLED=false`. Full legacy topology:
 Container successor:
 [Local Production Containerization Roadmap](../../../docs/roadmaps/local-production-containerization-roadmap.md).
 
-**Shared sidecar (concurrent dev + container prod):** one operator-owned host sidecar on `:8765` connects both IB Gateways (`ib-paper` → `:4002`, `ib-live` → `:4001`). Development uses `TWS_MANAGED=external`, `TWS_SIDECAR_URL=http://127.0.0.1:8765`, and `EDGE_TRADING_ENVIRONMENT_LOCK=paper`. Container production uses `TWS_SIDECAR_URL=http://host.docker.internal:8765`, the same `TWS_SIDECAR_SECRET`, and `EDGE_TRADING_ENVIRONMENT_LOCK=live`. Start Gateways (`npm run ib:gateway:up`) then `npm run tws:sidecar` once on the host.
+**Shared sidecar (concurrent dev + container prod):** one sidecar on `:8765` connects both IB Gateways (`ib-paper` → paper socket, `ib-live` → live socket). Development uses `TWS_MANAGED=external`, `TWS_SIDECAR_URL=http://127.0.0.1:8765`, and `EDGE_TRADING_ENVIRONMENT_LOCK=paper`. Container production uses `TWS_SIDECAR_URL=http://host.docker.internal:8765`, the same `TWS_SIDECAR_SECRET`, and `EDGE_TRADING_ENVIRONMENT_LOCK=live`.
+
+**Sidecar ownership (target):** Docker Compose owns the sidecar beside both Gateways (`restart: unless-stopped`) — see [Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md). `npm run ib:gateway:up` starts Gateways + sidecar together. Until Phase 2 ships, the interim path is `npm run ib:gateway:up` then `npm run tws:sidecar` once on the host; host script remains emergency/fallback after Compose cutover.
 
 **Container TWS boundary (Phase 0):** the app container must not spawn or restart
 the sidecar. When production TWS is enabled in the container profile,
@@ -338,7 +340,7 @@ Screener warning UX: provider notices stay in `meta.warnings`; per-symbol candle
 
 **IBKR note:** This app uses the **Client Portal Web API** (`clientportal.gw` on HTTPS, port 5001 by default). That is **not** the same as **IB Gateway 10.x** (TWS socket API on 4001/7497). If you only run IB Gateway, our Client Portal probes will not work until Client Portal Gateway is installed and running (`npm run ibkr:setup` / `npm run ibkr:gateway`).
 
-**TWS note:** When `TWS_ENABLED=true`, Edge prefers the **IB Gateway socket API** via a local Python sidecar (`services/tws-sidecar/`). Start IB Gateway paper (default port `4002`; live Gateway uses `4001`), run `npm run tws:sidecar-setup` once, then `npm run tws:sidecar`. Routing becomes `tws → ibkr → yahoo` for candles/quotes and `tws → ibkr` for options. Sidecar `/health` exposes `startedAt`, version, effective host/port, and route capabilities for stale-process detection. Optional fast-fail timeouts: `TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS` (default 3000). Sidecar `/warmup` pre-resolves contracts without blocking chart loads. Historical candles accept `sessionMode`: `regular` (default, `useRTH=true`) or `extended` (`useRTH=false` for intraday pre/post-market bars). **Wedge prevention (2026-07-23):** sidecar `reqHistoricalData` uses `HISTORICAL_DATA_TIMEOUT_SEC` (12s, under the 15s IB job waiter) so stuck historical calls cannot occupy the single worker indefinitely; warm primary `/account/status` returns cached `managedAccounts` without queuing on the IB worker. In `TWS_MANAGED=local`, user Recover may kill/restart the Next-owned sidecar when the worker is wedged; in `TWS_MANAGED=external`, Recover is control-only (reconnect/warmup) and the operator must restart `npm run tws:sidecar`.
+**TWS note:** When `TWS_ENABLED=true`, Edge prefers the **IB Gateway socket API** via a local Python sidecar (`services/tws-sidecar/`). Start IB Gateway paper (default port `4002`; live Gateway uses `4001`), run `npm run tws:sidecar-setup` once, then start the sidecar — interim: `npm run tws:sidecar` on the host; target: Compose service via `npm run ib:gateway:up` ([Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md)). Routing becomes `tws → ibkr → yahoo` for candles/quotes and `tws → ibkr` for options. Sidecar `/health` exposes `startedAt`, version, effective host/port, and route capabilities for stale-process detection. Optional fast-fail timeouts: `TWS_CANDLES_TIMEOUT_MS`, `TWS_QUOTES_TIMEOUT_MS` (default 3000). Sidecar `/warmup` pre-resolves contracts without blocking chart loads. Historical candles accept `sessionMode`: `regular` (default, `useRTH=true`) or `extended` (`useRTH=false` for intraday pre/post-market bars). **Wedge prevention (2026-07-23):** sidecar `reqHistoricalData` uses `HISTORICAL_DATA_TIMEOUT_SEC` (12s, under the 15s IB job waiter) so stuck historical calls cannot occupy the single worker indefinitely; warm primary `/account/status` returns cached `managedAccounts` without queuing on the IB worker. In `TWS_MANAGED=local`, user Recover may kill/restart the Next-owned sidecar when the worker is wedged; in `TWS_MANAGED=external`, Recover is control-only (reconnect/warmup) — operator restarts the sidecar (interim: `npm run tws:sidecar`; target: restart Compose sidecar or full broker stack).
 
 **Sidecar package layout (2026-07-23 refactor):** `services/tws-sidecar/main.py` (≤150 lines) is the test facade — re-exports shared runtime state and HTTP helpers. Domain code lives under `tws_sidecar/`:
 
@@ -519,9 +521,9 @@ When IB Gateway is manually restored after a disconnect, the Data Health dropdow
 | Mode | Next spawn/kill | Boot ensure | User Reconnect spawn | Use when |
 |------|-----------------|-------------|----------------------|----------|
 | `local` | Yes | Yes | Yes (`edge-local`) | Default dev — Next owns one sidecar |
-| `external` | No | No | No (reconnect only) | Shared/operator sidecar — dev + prod both external |
+| `external` | No | No | No (reconnect only) | Shared sidecar — dev + prod both external |
 
-Docker Compose is **not** used for the sidecar. External mode skips boot ensure and user Recover never spawns or kills the shared process — unreachable or wedged sidecars require the operator to restart `npm run tws:sidecar`.
+**Sidecar lifecycle:** Docker Compose is the durable owner ([Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md) Phases 1–2). Until Compose ships, the host script (`npm run tws:sidecar`) is the interim path. External mode skips boot ensure and user Recover never spawns or kills the shared process — unreachable or wedged sidecars require operator restart (interim: host script; target: Compose container restart or `npm run ib:gateway:up`).
 
 **Brokerage readiness:** `awaitSidecarForBrokerage()` gates `/api/brokerage/*` and `BrokerageService` only — chart/quote routes keep fast Yahoo fallback.
 
@@ -616,7 +618,7 @@ TWS live probe (IB Gateway paper on port 4002 + local sidecar on 8765):
 
 ```bash
 npm run tws:sidecar-setup   # create Python venv + install ib_insync
-npm run tws:sidecar         # start sidecar — log in to IB Gateway paper first
+npm run tws:sidecar         # interim/fallback — start sidecar on host; target: npm run ib:gateway:up
 npm run tws:probe           # status / contract / quote / candles for AAPL + TSLA + SPY
 npm run tws:options-probe   # AAPL expirations + one ATM chain via TWS
 ```
