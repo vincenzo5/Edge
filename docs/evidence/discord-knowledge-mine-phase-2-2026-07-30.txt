@@ -1,0 +1,73 @@
+# OPS — Discord knowledge mine — Phase 2 evidence
+# Date: 2026-07-30
+
+## Scope
+First-server bootstrap for Active guild Algo Trading, Coding (928315068955893760).
+get_channels → meta.json, channels.json, profile.md. No Edge product code. No send_message calls.
+
+## MCP
+Command: user-discord mcp_auth
+Result: Successfully authenticated MCP server: user-discord
+
+Command: user-discord get_channels server_id=928315068955893760
+Result: 7 text channels returned
+
+Channel count: 7
+Channels (id + slug):
+- 928315319225819166 — rules-welcome-info
+- 1134300348807380992 — algo-traders (limited)
+- 928315069396303882 — general
+- 928316746992078898 — coding
+- 928316769918148609 — stratgen
+- 1204425023029379122 — strategy-indicator-share (limited)
+- 1496221590868983951 — job-postings
+
+send_message calls this session: 0
+
+## Classification
+Server class: Trading / research
+Rationale: algo trading + coding community; strategy/indicator channels; Edge overlap
+
+## Priority for Phase 3 (≤5)
+1. rules-welcome-info (928315319225819166) — rules / welcome / norms
+2. general (928315069396303882) — main community hub
+3. coding (928316746992078898) — coding overlap with Edge
+4. stratgen (928316769918148609) — strategy generation topical
+5. strategy-indicator-share (1204425023029379122) — strategy / indicator sharing
+
+## Local artifacts
+Root: /Users/vincentn/Knowledge/discord/
+Server dir: by-server/algo-trading-coding--928315068955893760/
+
+Command: ls -la /Users/vincentn/Knowledge/discord/by-server/algo-trading-coding--928315068955893760/
+Output:
+total 24
+drwxr-xr-x  5 vincentn  staff   160 Jul 29 20:50 .
+drwxr-xr-x  3 vincentn  staff    96 Jul 29 20:49 ..
+-rw-r--r--  1 vincentn  staff  1484 Jul 29 20:50 channels.json
+-rw-r--r--  1 vincentn  staff   948 Jul 29 20:50 meta.json
+-rw-r--r--  1 vincentn  staff  2204 Jul 29 20:50 profile.md
+
+Command: test -f meta.json channels.json profile.md (under server dir)
+Output: artifacts: OK
+
+Command: python3 channel_count from channels.json
+Output: channel_count: 7
+
+Command: python3 priority from meta.json
+Output: priority: ['rules-welcome-info', 'general', 'coding', 'stratgen', 'strategy-indicator-share']
+
+## Index update
+Command: grep '928315068955893760' ~/Knowledge/discord/_index.md
+Output:
+928315068955893760 — Algo Trading, Coding — status partial — last_run 2026-07-30
+Active server (WIP=1): Algo Trading, Coding (928315068955893760) — Phase 3 priority channel extract next.
+
+## Architecture review
+N/A — operator workflow + local filesystem only; no Edge runtime contracts.
+
+## App-level
+App-level: get_channels returned 7 channels; meta.json + channels.json + profile.md present; _index status partial; send_message calls 0
+
+## Next
+Phase 3 — Priority channel extract (read_messages windows for top 5 channels)
