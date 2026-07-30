@@ -13,8 +13,10 @@ const mockBinding = {
     riskRewardRatio: number;
   } | null,
   symbol: null as string | null,
+  seedQuantity: null as number | null,
   openTradeFromDrawing: vi.fn(),
   openTradePanel: vi.fn(),
+  clearSeedQuantity: vi.fn(),
   updateBoundLevels: vi.fn(),
 };
 
@@ -73,6 +75,7 @@ describe("TradeSidebarPanel", () => {
     mockBinding.bind = null;
     mockBinding.levels = null;
     mockBinding.symbol = null;
+    mockBinding.seedQuantity = null;
   });
 
   it("shows disconnected state when bound drawing is missing", async () => {

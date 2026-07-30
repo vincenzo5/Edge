@@ -16,12 +16,23 @@ export type TradeSetupBind = {
   drawingId: string;
 };
 
+export type OpenTradeFromDrawingOptions = {
+  seedQuantity?: number;
+};
+
 type TradeSetupBindingContextValue = {
   bind: TradeSetupBind | null;
   levels: PositionOrderLevels | null;
   symbol: string | null;
-  openTradeFromDrawing: (cellId: string, drawingId: string, symbol: string) => void;
+  seedQuantity: number | null;
+  openTradeFromDrawing: (
+    cellId: string,
+    drawingId: string,
+    symbol: string,
+    options?: OpenTradeFromDrawingOptions,
+  ) => void;
   openTradePanel: () => void;
+  clearSeedQuantity: () => void;
   updateBoundLevels: (levels: PositionOrderLevels | null) => void;
 };
 
@@ -34,12 +45,22 @@ export function TradeSetupBindingProvider({ children }: { children: ReactNode })
   const [bind, setBind] = useState<TradeSetupBind | null>(null);
   const [levels, setLevels] = useState<PositionOrderLevels | null>(null);
   const [symbol, setSymbol] = useState<string | null>(null);
+  const [seedQuantity, setSeedQuantity] = useState<number | null>(null);
 
   const openTradeFromDrawing = useCallback(
-    (cellId: string, drawingId: string, nextSymbol: string) => {
+    (
+      cellId: string,
+      drawingId: string,
+      nextSymbol: string,
+      options?: OpenTradeFromDrawingOptions,
+    ) => {
       setBind({ cellId, drawingId });
       setSymbol(nextSymbol.trim().toUpperCase());
       setLevels(null);
+      const nextSeed = options?.seedQuantity;
+      setSeedQuantity(
+        nextSeed != null && Number.isFinite(nextSeed) && nextSeed > 0 ? nextSeed : null,
+      );
       openPanel("trade");
     },
     [openPanel],
@@ -49,8 +70,13 @@ export function TradeSetupBindingProvider({ children }: { children: ReactNode })
     setBind(null);
     setLevels(null);
     setSymbol(null);
+    setSeedQuantity(null);
     openPanel("trade");
   }, [openPanel]);
+
+  const clearSeedQuantity = useCallback(() => {
+    setSeedQuantity(null);
+  }, []);
 
   const updateBoundLevels = useCallback((nextLevels: PositionOrderLevels | null) => {
     setLevels((prev) => {
@@ -76,11 +102,22 @@ export function TradeSetupBindingProvider({ children }: { children: ReactNode })
       bind,
       levels,
       symbol,
+      seedQuantity,
       openTradeFromDrawing,
       openTradePanel,
+      clearSeedQuantity,
       updateBoundLevels,
     }),
-    [bind, levels, symbol, openTradeFromDrawing, openTradePanel, updateBoundLevels],
+    [
+      bind,
+      levels,
+      symbol,
+      seedQuantity,
+      openTradeFromDrawing,
+      openTradePanel,
+      clearSeedQuantity,
+      updateBoundLevels,
+    ],
   );
 
   return (

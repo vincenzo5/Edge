@@ -7,6 +7,13 @@ import { RiskLiquidationOverlayProvider } from "../../risk/RiskLiquidationOverla
 import { useRiskPositionBinding } from "../../risk/RiskPositionBindingContext";
 
 const mockUseAccountOptional = vi.fn();
+const mockOpenTradeFromDrawing = vi.fn();
+
+vi.mock("../../trading/TradeSetupBindingContext", () => ({
+  useTradeSetupBinding: () => ({
+    openTradeFromDrawing: mockOpenTradeFromDrawing,
+  }),
+}));
 
 vi.mock("../../AccountProvider", () => ({
   useAccountOptional: () => mockUseAccountOptional(),
@@ -21,6 +28,12 @@ vi.mock("../../risk/useRiskMarginContext", () => ({
 vi.mock("../../ActiveChartContext", () => ({
   useActiveChart: vi.fn(() => ({
     config: { symbol: "AAPL" },
+  })),
+}));
+
+vi.mock("@/lib/marketData/useQuotes", () => ({
+  useQuote: vi.fn(() => ({
+    regularMarketPrice: 150,
   })),
 }));
 
@@ -73,6 +86,7 @@ function renderPanel() {
 describe("RiskSettingsPanel", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    mockOpenTradeFromDrawing.mockReset();
     mockUseAccountOptional.mockReturnValue({
       connectionState: "connected",
       summary: {
@@ -351,5 +365,76 @@ describe("RiskSettingsPanel", () => {
     expect(screen.getByTestId("risk-hold-to-stop")).toBeInTheDocument();
     expect(screen.getByTestId("risk-hold-verdict")).toHaveTextContent("Liq");
     expect(screen.getByTestId("risk-hold-verdict")).toHaveTextContent("Stop reachable");
+  });
+
+  it("shows plan slot strip with budget sizing and geometry when linked", async () => {
+    render(
+      <RiskPositionBindingProvider>
+        <RiskLiquidationOverlayProvider>
+          <RiskSettingsProvider>
+            <LinkedPositionHarness />
+          </RiskSettingsProvider>
+        </RiskLiquidationOverlayProvider>
+      </RiskPositionBindingProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("bind-long"));
+    });
+
+    expect(screen.getByTestId("risk-plan-slot-strip")).toBeInTheDocument();
+    expect(screen.getByTestId("risk-plan-slot-budget")).toHaveTextContent("$1,000");
+    expect(screen.getByTestId("risk-plan-slot-sizing")).toHaveTextContent("200 sh");
+    expect(screen.getByTestId("risk-plan-slot-geometry")).toHaveTextContent("Long");
+    expect(screen.getByTestId("risk-plan-bind-label")).toHaveTextContent("Long");
+  });
+
+  it("shows unlinked gap after manual entry edit", async () => {
+    render(
+      <RiskPositionBindingProvider>
+        <RiskLiquidationOverlayProvider>
+          <RiskSettingsProvider>
+            <LinkedPositionHarness />
+          </RiskSettingsProvider>
+        </RiskLiquidationOverlayProvider>
+      </RiskPositionBindingProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("bind-long"));
+    });
+
+    fireEvent.change(screen.getByTestId("risk-position-size-entry"), {
+      target: { value: "125" },
+    });
+
+    expect(screen.getByTestId("risk-plan-slot-gaps")).toHaveTextContent(/relink/i);
+  });
+
+  it("Use in Trade opens ticket with bound drawing and sized qty", async () => {
+    render(
+      <RiskPositionBindingProvider>
+        <RiskLiquidationOverlayProvider>
+          <RiskSettingsProvider>
+            <LinkedPositionHarness />
+          </RiskSettingsProvider>
+        </RiskLiquidationOverlayProvider>
+      </RiskPositionBindingProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("bind-long"));
+    });
+
+    fireEvent.click(screen.getByTestId("risk-use-in-trade"));
+
+    expect(mockOpenTradeFromDrawing).toHaveBeenCalledWith("cell-1", "d1", "AAPL", {
+      seedQuantity: 200,
+    });
+  });
+
+  it("disables Use in Trade when budget cannot size", () => {
+    renderPanel();
+    expect(screen.getByTestId("risk-use-in-trade")).toBeDisabled();
   });
 });

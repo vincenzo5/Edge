@@ -37,6 +37,7 @@ function renderForm(
     target: number;
     riskRewardRatio: number;
   } | null = null,
+  options?: { seedQuantity?: number | null; onSeedQuantityApplied?: () => void },
 ) {
   return render(
     <RiskSettingsProvider>
@@ -45,6 +46,8 @@ function renderForm(
         planLevels={planLevels}
         lastPrice={100}
         boundActive
+        seedQuantity={options?.seedQuantity ?? null}
+        onSeedQuantityApplied={options?.onSeedQuantityApplied}
         testId="trade-order-form-test"
       />
     </RiskSettingsProvider>,
@@ -67,6 +70,24 @@ describe("TradeOrderForm size for risk", () => {
 
     fireEvent.click(screen.getByTestId("trade-size-for-risk"));
     expect(quantityInput).toHaveValue(200);
+  });
+
+  it("seeds quantity from Risk Use in Trade handoff", () => {
+    const onSeedQuantityApplied = vi.fn();
+    renderForm(
+      {
+        direction: "long",
+        side: "BUY",
+        entry: 100,
+        stop: 95,
+        target: 110,
+        riskRewardRatio: 2,
+      },
+      { seedQuantity: 150, onSeedQuantityApplied },
+    );
+
+    expect(screen.getByDisplayValue("150")).toHaveValue(150);
+    expect(onSeedQuantityApplied).toHaveBeenCalled();
   });
 
   it("does not render size for risk without plan levels", () => {

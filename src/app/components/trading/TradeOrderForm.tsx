@@ -61,6 +61,9 @@ export type TradeOrderFormProps = {
   lastPrice?: number | null;
   /** When false, show empty-state guidance instead of the form. */
   boundActive?: boolean;
+  /** Applied once when plan levels arrive from a Risk / Trade setup handoff. */
+  seedQuantity?: number | null;
+  onSeedQuantityApplied?: () => void;
   testId?: string;
 };
 
@@ -125,6 +128,8 @@ export function TradeOrderForm({
   planLevels = null,
   lastPrice = null,
   boundActive = true,
+  seedQuantity = null,
+  onSeedQuantityApplied,
   testId = "trade-order-form",
 }: TradeOrderFormProps) {
   const account = useAccountOptional();
@@ -168,6 +173,19 @@ export function TradeOrderForm({
     setOrderType("MKT");
     setLimitPrice(String(planLevels.entry));
   }, [planLevels?.entry, planLevels?.side, planLevels?.stop, planLevels?.target]);
+
+  useEffect(() => {
+    if (!planLevels || seedQuantity == null) return;
+    if (!Number.isFinite(seedQuantity) || seedQuantity <= 0) return;
+    setQuantity(String(Math.round(seedQuantity)));
+    onSeedQuantityApplied?.();
+  }, [
+    planLevels?.entry,
+    planLevels?.stop,
+    planLevels?.target,
+    seedQuantity,
+    onSeedQuantityApplied,
+  ]);
 
   useEffect(() => {
     if (symbol) {

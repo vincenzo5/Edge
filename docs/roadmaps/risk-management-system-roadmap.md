@@ -4,7 +4,7 @@ Living track for a **shared RiskPolicy model** that every risk strategy must fil
 
 **Last updated:** 2026-07-29
 
-**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Pending** — UX: drawing geometry strip.
+**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (**Protect** — brackets / OCO / trail), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Alerts](./alerts-roadmap.md) (trade-plan notify only), [Journal](./journal-roadmap.md) (R / planned risk review), [AI Agent](./ai-agent-roadmap.md) (risk/order/playbook tools), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -466,7 +466,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 
 **Depends on:** Phase 0–1.
 
-**Verification:** Focused chart-risk tests; app-level: draw position with budget set → R:R + $ risk visible without opening Trade ticket.
+**Status:** **Passing** (2026-07-29)
+
+**Verification:** Focused tests — `computePositionRiskPreview`, `positionLabels`, `PositionGeometryStrip`, `position_tool`; app-level: draw/select position with budget set → R:R + $ risk + qty visible on selection strip without Trade ticket.
 
 ---
 
@@ -488,7 +490,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 
 **Depends on:** Phase 2 (drawing levels trustworthy).
 
-**Verification:** Focused binding tests; app-level: bind drawing → change stop → sidebar qty updates; Trade handoff matches.
+**Status:** **Passing** (2026-07-29)
+
+**Verification:** Focused tests — `summarizeRiskPlanSlots`, bind sync, `RiskSettingsPanel`, `TradeOrderForm` seed qty; app-level: bind drawing → change stop → sidebar qty updates; Use in Trade → ticket geometry + qty match; Trade setup on drawing B → Risk sidebar shows B.
 
 ---
 

@@ -362,6 +362,7 @@ export function useChartCellOrchestration({
     latestCrosshairPlotXRef: crosshair.latestCrosshairPlotXRef,
     sidebar,
     tradeBinding,
+    riskBinding,
     onOpenAlertFromDrawing: handleOpenAlertFromDrawing,
     onAddTradePlanAlerts: handleAddTradePlanAlerts,
     setContextMenu: modal.setContextMenu,

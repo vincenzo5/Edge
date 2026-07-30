@@ -5,6 +5,7 @@ import { useActiveChart } from "../../ActiveChartContext";
 import { useQuote } from "@/lib/marketData/useQuotes";
 import { useRiskSettings } from "../../RiskSettingsProvider";
 import { useRiskPositionBinding } from "../../risk/RiskPositionBindingContext";
+import { useTradeSetupBinding } from "../../trading/TradeSetupBindingContext";
 import { useRiskLiquidationOverlay } from "../../risk/RiskLiquidationOverlayContext";
 import {
   computeEquityPositionSize,
@@ -16,7 +17,9 @@ import {
   type RiskSizingMode,
 } from "@/lib/risk/riskSettings";
 import { RiskMarginCard } from "../../risk/RiskMarginCard";
+import { RiskPlanSlotStrip } from "../../risk/RiskPlanSlotStrip";
 import { useRiskMarginContext } from "../../risk/useRiskMarginContext";
+import { summarizeRiskPlanSlots } from "@/lib/risk/summarizeRiskPlanSlots";
 import { EdgeButton } from "../../design-system";
 import { fieldClass } from "../../design-system/styles";
 import { PanelPopOutButton } from "../PanelChromeActions";
@@ -122,6 +125,7 @@ export function RiskSettingsPanel() {
     resetSettings,
   } = useRiskSettings();
   const { bind, linked, levels, markManualOverride, relink } = useRiskPositionBinding();
+  const { openTradeFromDrawing } = useTradeSetupBinding();
   const activeChart = useActiveChart();
   const symbol = activeChart?.config.symbol?.trim().toUpperCase() ?? null;
   const quote = useQuote(symbol);
@@ -190,6 +194,26 @@ export function RiskSettingsPanel() {
     }
     return parts.join(" · ");
   }, [symbol, linked, levels]);
+
+  const slotSummary = useMemo(
+    () =>
+      summarizeRiskPlanSlots({
+        bind,
+        linked,
+        boundLevels: levels,
+        manualEntry: entry,
+        manualStop: stop,
+        dollarRisk,
+      }),
+    [bind, linked, levels, entry, stop, dollarRisk],
+  );
+
+  const handleUseInTrade = () => {
+    if (!bind || !symbol || !slotSummary.canUseInTrade) return;
+    openTradeFromDrawing(bind.cellId, bind.drawingId, symbol, {
+      seedQuantity: slotSummary.sizing.shares ?? undefined,
+    });
+  };
 
   const marginContext = useRiskMarginContext({
     symbol,
@@ -261,6 +285,20 @@ export function RiskSettingsPanel() {
           Linked to {levels.direction === "long" ? "Long" : "Short"} position on chart
         </p>
       ) : null}
+
+      <RiskPlanSlotStrip summary={slotSummary} />
+
+      <EdgeButton
+        type="button"
+        variant="secondary"
+        className="w-full"
+        data-testid="risk-use-in-trade"
+        disabled={!slotSummary.canUseInTrade}
+        title={slotSummary.useInTradeDisabledReason ?? undefined}
+        onClick={handleUseInTrade}
+      >
+        Use in Trade
+      </EdgeButton>
 
       <RiskMarginCard
         shares={positionSize?.ok ? positionSize.shares : null}

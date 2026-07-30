@@ -8,7 +8,8 @@ import { TradeOrderForm } from "../../trading/TradeOrderForm";
 import { useTradeSetupBinding } from "../../trading/TradeSetupBindingContext";
 
 export function TradeSidebarPanel() {
-  const { bind, levels, symbol: boundSymbol } = useTradeSetupBinding();
+  const { bind, levels, symbol: boundSymbol, seedQuantity, clearSeedQuantity } =
+    useTradeSetupBinding();
   const activeChart = useActiveChart();
   const symbol = boundSymbol ?? activeChart?.config.symbol ?? "";
   const quote = useQuote(symbol || null);
@@ -41,6 +42,8 @@ export function TradeSidebarPanel() {
         planLevels={levels}
         lastPrice={lastPrice}
         boundActive={bind == null ? true : boundActive}
+        seedQuantity={seedQuantity}
+        onSeedQuantityApplied={clearSeedQuantity}
         testId="trade-sidebar-panel"
       />
     </div>

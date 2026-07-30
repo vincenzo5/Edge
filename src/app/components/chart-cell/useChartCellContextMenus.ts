@@ -21,6 +21,7 @@ import {
 import type { Candle } from "@edge/chart-core/contracts";
 import type { useSidebarOptional } from "../SidebarContext";
 import type { useTradeSetupBindingOptional } from "../trading/TradeSetupBindingContext";
+import type { useRiskPositionBindingOptional } from "../risk/RiskPositionBindingContext";
 import { getCellCrosshair } from "@/lib/chart/cellCrosshairStore";
 
 type ContextMenuState = {
@@ -39,6 +40,7 @@ type Params = {
   latestCrosshairPlotXRef: RefObject<number | null>;
   sidebar: ReturnType<typeof useSidebarOptional>;
   tradeBinding: ReturnType<typeof useTradeSetupBindingOptional>;
+  riskBinding: ReturnType<typeof useRiskPositionBindingOptional>;
   onOpenAlertFromDrawing?: (overlayId: string) => void;
   onAddTradePlanAlerts?: (overlayId: string) => void;
   setContextMenu: React.Dispatch<React.SetStateAction<ContextMenuState>>;
@@ -81,6 +83,7 @@ export function useChartCellContextMenus({
   latestCrosshairPlotXRef,
   sidebar,
   tradeBinding,
+  riskBinding,
   onOpenAlertFromDrawing,
   onAddTradePlanAlerts,
   setContextMenu,
@@ -128,6 +131,7 @@ export function useChartCellContextMenus({
           {
             onTradeSetup: tradeBinding
               ? () => {
+                  riskBinding?.bindToDrawing(chartId, overlay.id);
                   tradeBinding.openTradeFromDrawing(chartId, overlay.id, config.symbol);
                   setContextMenu(null);
                 }
@@ -153,6 +157,7 @@ export function useChartCellContextMenus({
       handlePasteDrawings,
       openRenameOverlay,
       tradeBinding,
+      riskBinding,
       onOpenAlertFromDrawing,
       onAddTradePlanAlerts,
       chartId,

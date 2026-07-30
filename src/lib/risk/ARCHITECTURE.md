@@ -10,6 +10,7 @@ Full RiskPolicy slot definitions: [Risk Management System Roadmap](../../../docs
 |--------|-----------------|------|
 | `riskSettings.ts` | **Budget** | Session `$` or `% NetLiq` → `resolveDollarRisk` |
 | `equityPositionSize.ts` | **Sizing** | Shares from entry/stop + dollar risk (`stopDistance` method) |
+| `computePositionRiskPreview.ts` | **Geometry + Sizing preview** | Live drawing points + `resolveDollarRisk` → strip/summary (Phase 2) |
 | `riskPositionBinding.ts` | **Geometry (bind)** | Auto-bind newest long/short drawing on active chart → Risk panel |
 | `marginContext.ts` | Gates / Measurement (soft) | Margin / liquidation helpers for chart overlay |
 | `optionsStrategyRisk.ts` | Budget + Sizing (options) | Multi-leg max loss → contract count (calculator-only until options exec) |
@@ -20,17 +21,31 @@ Full RiskPolicy slot definitions: [Risk Management System Roadmap](../../../docs
 | Surface | Path | Slots |
 |---------|------|-------|
 | Risk sidebar | `RiskSettingsPanel.tsx` | Budget + Sizing (bound geometry) |
+| Chart selection strip | `PositionGeometryStrip.tsx` via `DrawingSelectionChrome.tsx` | Geometry + Measurement preview (Budget/Sizing read-only) |
 | Chart overlay | `useRiskDrawingBinding.ts`, chart-core `risk/*` | Geometry labels, R targets, validation |
 | Trade ticket | `TradeOrderForm.tsx` (via Trade setup bind) | Budget→Sizing handoff; separate bind from Risk panel |
 
-## Dual geometry bind (open question #3)
+## Plan geometry bind (Phase 3)
 
-Two independent binds feed Plan geometry today:
+**Plan Geometry source of truth = Risk bind** (`RiskPositionBindingContext` + `riskPositionBinding.ts` persistence).
 
-1. **Risk panel** — `RiskPositionBindingContext` + `riskPositionBinding.ts` (newest position drawing on active chart).
-2. **Trade setup** — `TradeSetupBindingContext` + context-menu **Trade setup…** (explicit `{ cellId, drawingId }`).
+Trade setup bind (`TradeSetupBindingContext`) is the **ticket consumer**: it mirrors the same `{ cellId, drawingId }` when the trader uses **Trade setup…** on a drawing or **Use in Trade** from the Risk sidebar. Risk auto-bind on newest drawing does **not** push into Trade (avoids clobbering an in-progress ticket).
 
-Both should derive levels from live drawing points (`positionTradeSetup.ts`), not stale `metadata.fields.riskSetup`. Unifying to one source of truth is Phase 3 of the risk-management track.
+Both binds derive levels from live drawing points via `positionTradeSetup.ts` — not stale `metadata.fields.riskSetup`.
+
+| Action | Risk bind | Trade bind |
+|--------|-----------|------------|
+| Auto-bind newest long/short on active chart | yes | no |
+| Chart **Trade setup…** | sync same drawing | yes + open Trade panel |
+| Risk **Use in Trade** | uses current bind | yes + seed qty from sizing |
+
+Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Budget / Sizing / Geometry + gaps).
+
+## Phase 2 — Drawing geometry strip (shipped)
+
+- **Selection strip:** `computePositionRiskPreview` + `PositionGeometryStrip` show entry/stop/target, R unit, R:R, and (when budget resolves) planned $ risk + qty on selected long/short drawings.
+- **Canvas labels:** `position_tool` uses live `boxFromPoints` for geometry; qty/$ amounts only when `metadata.fields.qty` is explicitly set — no `DEFAULT_RISK_ACCOUNT` fallback on the label path.
+- **Sizing math:** strip uses `computeEquityPositionSize` (same as Risk sidebar), not chart-core `computeRiskMetrics`.
 
 ## Measurement at Plan time
 
