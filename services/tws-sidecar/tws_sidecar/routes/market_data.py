@@ -32,7 +32,13 @@ from tws_sidecar.market_data.quotes import (
     _read_cached_quotes,
 )
 from tws_sidecar.runtime.connections import _get_ib, _resolve_connection_id
-from tws_sidecar.runtime.worker import run_on_ib_thread
+from tws_sidecar.runtime.state import (
+    _quote_sub_lock,
+    _quote_subscriptions_by_connection,
+    _recovery_lock,
+    _reconnect_paused,
+)
+from tws_sidecar.runtime.worker import enqueue_on_ib_thread, run_on_ib_thread
 from tws_sidecar.util import now_ms
 @app.post("/warmup")
 def warmup(body: WarmupRequest) -> dict[str, Any]:
@@ -265,8 +271,9 @@ def stream_quotes(
     def _schedule_quote_refresh() -> None:
         def work():
             return _fetch_quotes(symbol_list, resolved)
+
         try:
-            run_on_ib_thread(work, config.PRIORITY_QUOTES, job_name="stream_quotes_refresh")
+            enqueue_on_ib_thread(work, config.PRIORITY_QUOTES, job_name="stream_quotes_refresh")
         except Exception:  # noqa: BLE001
             pass
 

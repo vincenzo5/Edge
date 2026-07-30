@@ -23,7 +23,13 @@ import {
   marketDataTraceHeaders,
   recordMarketDataTelemetry,
 } from "@/lib/marketData/telemetry";
-import { resolveQuoteStreamFirstPaintMs, QUOTE_STREAM_SLOW_FIRST_PAINT_MS } from "@/lib/marketData/quoteStreamPolicy";
+import {
+  resolveQuoteStreamFirstPaintMs,
+  resolveSseReconnectDelayMs,
+  QUOTE_STREAM_SLOW_FIRST_PAINT_MS,
+  SSE_RECONNECT_COOLDOWN_MS,
+  SSE_RECONNECT_MAX_ATTEMPTS,
+} from "@/lib/marketData/quoteStreamPolicy";
 import { recordHealthEvent } from "@/lib/marketData/healthEvents";
 import { getDatasetPolicy, isDisplayFresh, provenanceFromMeta } from "@/lib/marketData/trust/dataTrust";
 import { resolveWatchlistRestPollIntervalMs } from "@/lib/marketData/watchlistDeliveryFreshness";
@@ -53,6 +59,8 @@ type MarketDataContextValue = {
   quoteError: string | null;
   quotesMeta: Partial<ChartDataMeta> | null;
   quotesTransport: WatchlistQuotesTransport;
+  /** True while REST fills the gap during SSE rejoin. */
+  sseRestBridge: boolean;
   watchlistSymbolCount: number;
   recoverySymbols: string[];
   recoveryCandleRequests: RecoveryCandleRequest[];
@@ -404,6 +412,8 @@ export function MarketDataProvider({
   const [quotesTransport, setQuotesTransport] = useState<WatchlistQuotesTransport>(() =>
     watchlistStreamEnabled() ? "sse" : "rest",
   );
+  const [sseRestBridge, setSseRestBridge] = useState(false);
+  const [sseReconnectToken, setSseReconnectToken] = useState(0);
   const quoteCountRef = useRef(0);
   quoteCountRef.current = getQuoteCount();
   const quotesFetchStartedRef = useRef<number | null>(null);
@@ -497,11 +507,13 @@ export function MarketDataProvider({
       setQuoteError(null);
       setQuotesMeta(null);
       setQuotesTransport("rest");
+      setSseRestBridge(false);
       return;
     }
 
     if (!watchlistStreamEnabled()) {
       setQuotesTransport("rest");
+      setSseRestBridge(false);
       setQuoteError(null);
       return;
     }
@@ -526,26 +538,53 @@ export function MarketDataProvider({
     });
     const source = new EventSource(`/api/stream/quotes?${params.toString()}`);
     let cancelled = false;
-    let restFallbackStarted = false;
+    let reconnectAttempts = 0;
+    let reconnectTimer: number | null = null;
+    let cooldownTimer: number | null = null;
 
-    const runRestFallback = (reason: string) => {
-      if (cancelled || restFallbackStarted) return;
-      restFallbackStarted = true;
-      source.close();
-      setQuotesTransport("rest");
+    const clearReconnectTimers = () => {
+      if (reconnectTimer != null) {
+        window.clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      if (cooldownTimer != null) {
+        window.clearTimeout(cooldownTimer);
+        cooldownTimer = null;
+      }
+    };
+
+    const scheduleSseReconnect = (reason: string) => {
+      if (cancelled || !watchlistStreamEnabled()) return;
+      setSseRestBridge(true);
       setQuoteError(null);
-      setQuotesLoading(quoteCountRef.current === 0);
       recordHealthEvent({
         kind: "transport_fallback",
         message: reason,
         recovered: true,
         dataset: "watchlist",
       });
+      reconnectAttempts += 1;
+      if (reconnectAttempts >= SSE_RECONNECT_MAX_ATTEMPTS) {
+        setQuotesTransport("rest");
+        cooldownTimer = window.setTimeout(() => {
+          if (cancelled) return;
+          reconnectAttempts = 0;
+          setQuotesTransport("sse");
+          setSseReconnectToken((token) => token + 1);
+        }, SSE_RECONNECT_COOLDOWN_MS);
+        return;
+      }
+      const delayMs = resolveSseReconnectDelayMs(reconnectAttempts - 1);
+      reconnectTimer = window.setTimeout(() => {
+        if (cancelled) return;
+        setSseReconnectToken((token) => token + 1);
+      }, delayMs);
     };
 
     const firstPaintDeadlineMs = resolveQuoteStreamFirstPaintMs(quoteCountRef.current > 0);
     const firstPaintTimer = window.setTimeout(() => {
-      runRestFallback("Quote stream first snapshot timeout");
+      source.close();
+      scheduleSseReconnect("Quote stream first snapshot timeout");
     }, firstPaintDeadlineMs);
 
     source.onmessage = (message) => {
@@ -568,7 +607,8 @@ export function MarketDataProvider({
           const recoverable = (event as { recoverable?: boolean }).recoverable;
           setQuoteError(event.message ?? "Quote stream error");
           if (recoverable === false) {
-            runRestFallback(event.message ?? "Quote stream error");
+            source.close();
+            scheduleSseReconnect(event.message ?? "Quote stream error");
           }
           return;
         }
@@ -587,6 +627,10 @@ export function MarketDataProvider({
               .filter((row): row is QuoteSnapshot => row != null) ?? [];
           if (rows.length === 0) return;
           window.clearTimeout(firstPaintTimer);
+          reconnectAttempts = 0;
+          clearReconnectTimers();
+          setSseRestBridge(false);
+          setQuotesTransport("sse");
           const deliveredAt = event.meta?.receivedAt ?? Date.now();
           mergeQuoteUpdates(rows);
           quoteCountRef.current = getQuoteCount();
@@ -617,19 +661,27 @@ export function MarketDataProvider({
     };
 
     source.onerror = () => {
-      runRestFallback("Quote stream disconnected");
+      source.close();
+      scheduleSseReconnect("Quote stream disconnected");
     };
 
     return () => {
       cancelled = true;
       window.clearTimeout(firstPaintTimer);
+      clearReconnectTimers();
       source.close();
     };
-  }, [streamKey, reloadToken, dataConnectionPreference, dataProviderPreference]);
+  }, [
+    streamKey,
+    reloadToken,
+    dataConnectionPreference,
+    dataProviderPreference,
+    sseReconnectToken,
+  ]);
 
   useEffect(() => {
     const symbols = streamSymbolsRef.current;
-    if (symbols.length === 0 || quotesTransport !== "rest") return;
+    if (symbols.length === 0 || (quotesTransport !== "rest" && !sseRestBridge)) return;
 
     let cancelled = false;
     let inFlight = false;
@@ -708,7 +760,7 @@ export function MarketDataProvider({
       cancelled = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [streamKey, quotesTransport, reloadToken, dataConnectionPreference, dataProviderPreference]);
+  }, [streamKey, quotesTransport, sseRestBridge, reloadToken, dataConnectionPreference, dataProviderPreference]);
 
   useEffect(() => {
     silentRevalidateKeyRef.current = null;
@@ -789,6 +841,7 @@ export function MarketDataProvider({
       quoteError,
       quotesMeta,
       quotesTransport,
+      sseRestBridge,
       watchlistSymbolCount: symbolUniverse.length,
       recoverySymbols: symbolUniverse,
       recoveryCandleRequests: candleRequests,
@@ -801,6 +854,7 @@ export function MarketDataProvider({
       quoteError,
       quotesMeta,
       quotesTransport,
+      sseRestBridge,
       symbolUniverse,
       candleRequests,
       activeSymbol,

@@ -89,6 +89,8 @@ _TRADING_MUTATION_JOB_TOKENS = ("place_order", "modify_order", "cancel_order", "
 
 _abandoned_job_ids: set[str] = set()
 _abandoned_job_ids_lock = threading.Lock()
+_fire_and_forget_job_ids: set[str] = set()
+_fire_and_forget_job_ids_lock = threading.Lock()
 
 __all__ = [
     name

@@ -2,6 +2,10 @@ import type { ChartQuoteStreamEvent, MarketQuote } from "@edge/chart-core";
 import type { MarketDataService } from "../service/marketDataService";
 import type { EquityQuote } from "../contracts/equities";
 import { dataResultToResponseMeta } from "../contracts/result";
+import {
+  resolveTwsSseReconnectDelayMs,
+  TWS_SSE_MAX_RECONNECT_ATTEMPTS,
+} from "../quoteStreamPolicy";
 import { equityQuoteToMarketQuote, quoteSnapshotToMarketQuote } from "../validation/mappers";
 import { getTwsStreamUrl } from "../providers/tws/client";
 import type { QuoteStreamQueryInput } from "./streamQuerySchemas";
@@ -158,6 +162,105 @@ export function createTwsQuoteStreamSession(
     pollTimer = setInterval(() => void pollFallback(onEvent, true), QUOTE_POLL_INTERVAL_MS);
   };
 
+  const readSidecarStream = async (onEvent: (payload: string) => void): Promise<"closed" | "failed"> => {
+    const provider = service.getTwsProvider();
+    const client = provider?.getClient?.() ?? null;
+    if (!client) {
+      throw new Error("TWS client unavailable");
+    }
+
+    const config = client.getConfig();
+    const url = getTwsStreamUrl(config.baseUrl, query.symbols, query.connectionId);
+    abortController = new AbortController();
+    const connectTimer = setTimeout(() => abortController?.abort(), TWS_STREAM_CONNECT_TIMEOUT_MS);
+    const res = await fetch(url, {
+      headers: { Accept: "text/event-stream" },
+      signal: abortController.signal,
+    });
+    clearTimeout(connectTimer);
+    if (!res.ok || !res.body) {
+      throw new Error(`TWS stream failed (${res.status})`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const firstFrameDeadline = Date.now() + TWS_STREAM_FIRST_FRAME_TIMEOUT_MS;
+
+    while (!stopped) {
+      if (!primed && Date.now() > firstFrameDeadline) {
+        throw new Error("TWS stream first frame timeout");
+      }
+
+      const readPromise = reader.read();
+      const remainingMs = Math.max(1, firstFrameDeadline - Date.now());
+      const chunk = primed
+        ? await readPromise
+        : await Promise.race([
+            readPromise,
+            sleep(remainingMs).then(() => ({ done: true as const, value: undefined })),
+          ]);
+
+      if (chunk.done) {
+        if (!primed) {
+          throw new Error("TWS stream closed before first snapshot");
+        }
+        return "closed";
+      }
+
+      buffer += decoder.decode(chunk.value, { stream: true });
+      const chunks = buffer.split("\n\n");
+      buffer = chunks.pop() ?? "";
+      for (const rawChunk of chunks) {
+        const line = rawChunk
+          .split("\n")
+          .find((row) => row.startsWith("data: "));
+        if (!line) continue;
+        const event = parseSsePayload(line.slice(6));
+        if (!event) continue;
+        if (event.type === "snapshot" || event.type === "update") {
+          const quotes = (event.quotes ?? []).map((q) => {
+            const row = q as MarketQuote & EquityQuote;
+            if ("price" in row && typeof row.price !== "undefined") {
+              return equityQuoteToMarketQuote({
+                symbol: row.symbol,
+                shortName: row.shortName,
+                exchange: row.exchange,
+                price: row.price ?? null,
+                change: row.change ?? null,
+                changePercent: row.changePercent ?? null,
+                volume: row.volume ?? null,
+                updatedAt: row.updatedAt ?? Date.now(),
+              });
+            }
+            return row as MarketQuote;
+          });
+          const eventType = !primed ? "snapshot" : "update";
+          primed = true;
+          emitQuotes(onEvent, quotes, eventType);
+          if (eventType === "snapshot" && quotes.length < query.symbols.length) {
+            void fillMissingQuotes(onEvent, quotes);
+          }
+        } else if (event.type === "error") {
+          const recoverable =
+            event.recoverable !== false &&
+            (event.message?.toLowerCase().includes("reconnect") ||
+              (event as { code?: string }).code === "reconnecting");
+          onEvent(
+            JSON.stringify({
+              ...event,
+              recoverable,
+            } satisfies ChartQuoteStreamEvent),
+          );
+        } else {
+          onEvent(JSON.stringify(event));
+        }
+      }
+    }
+
+    return "closed";
+  };
+
   return {
     start(onEvent) {
       const provider = service.getTwsProvider();
@@ -168,97 +271,27 @@ export function createTwsQuoteStreamSession(
       }
 
       void (async () => {
-        try {
-          const config = client.getConfig();
-          const url = getTwsStreamUrl(config.baseUrl, query.symbols, query.connectionId);
-          abortController = new AbortController();
-          const connectTimer = setTimeout(() => abortController?.abort(), TWS_STREAM_CONNECT_TIMEOUT_MS);
-          const res = await fetch(url, {
-            headers: { Accept: "text/event-stream" },
-            signal: abortController.signal,
-          });
-          clearTimeout(connectTimer);
-          if (!res.ok || !res.body) {
-            throw new Error(`TWS stream failed (${res.status})`);
-          }
-
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-          const firstFrameDeadline = Date.now() + TWS_STREAM_FIRST_FRAME_TIMEOUT_MS;
-
-          while (!stopped) {
-            if (!primed && Date.now() > firstFrameDeadline) {
-              throw new Error("TWS stream first frame timeout");
+        let sseFailureAttempts = 0;
+        while (!stopped && !pollFallbackActive) {
+          try {
+            const outcome = await readSidecarStream(onEvent);
+            if (stopped || pollFallbackActive) return;
+            if (outcome === "closed" && primed) {
+              sseFailureAttempts = 0;
+              await sleep(resolveTwsSseReconnectDelayMs(0));
+              continue;
             }
-
-            const readPromise = reader.read();
-            const remainingMs = Math.max(1, firstFrameDeadline - Date.now());
-            const chunk = primed
-              ? await readPromise
-              : await Promise.race([
-                  readPromise,
-                  sleep(remainingMs).then(() => ({ done: true as const, value: undefined })),
-                ]);
-
-            if (chunk.done) {
-              if (!primed) {
-                throw new Error("TWS stream closed before first snapshot");
-              }
+            break;
+          } catch {
+            if (stopped) return;
+            sseFailureAttempts += 1;
+            if (sseFailureAttempts >= TWS_SSE_MAX_RECONNECT_ATTEMPTS) {
               break;
             }
-
-            buffer += decoder.decode(chunk.value, { stream: true });
-            const chunks = buffer.split("\n\n");
-            buffer = chunks.pop() ?? "";
-            for (const rawChunk of chunks) {
-              const line = rawChunk
-                .split("\n")
-                .find((row) => row.startsWith("data: "));
-              if (!line) continue;
-              const event = parseSsePayload(line.slice(6));
-              if (!event) continue;
-              if (event.type === "snapshot" || event.type === "update") {
-                const quotes = (event.quotes ?? []).map((q) => {
-                  const row = q as MarketQuote & EquityQuote;
-                  if ("price" in row && typeof row.price !== "undefined") {
-                    return equityQuoteToMarketQuote({
-                      symbol: row.symbol,
-                      shortName: row.shortName,
-                      exchange: row.exchange,
-                      price: row.price ?? null,
-                      change: row.change ?? null,
-                      changePercent: row.changePercent ?? null,
-                      volume: row.volume ?? null,
-                      updatedAt: row.updatedAt ?? Date.now(),
-                    });
-                  }
-                  return row as MarketQuote;
-                });
-                const eventType = !primed ? "snapshot" : "update";
-                primed = true;
-                emitQuotes(onEvent, quotes, eventType);
-                if (eventType === "snapshot" && quotes.length < query.symbols.length) {
-                  void fillMissingQuotes(onEvent, quotes);
-                }
-              } else if (event.type === "error") {
-                const recoverable =
-                  event.recoverable !== false &&
-                  (event.message?.toLowerCase().includes("reconnect") ||
-                    (event as { code?: string }).code === "reconnecting");
-                onEvent(
-                  JSON.stringify({
-                    ...event,
-                    recoverable,
-                  } satisfies ChartQuoteStreamEvent),
-                );
-              } else {
-                onEvent(JSON.stringify(event));
-              }
-            }
+            await sleep(resolveTwsSseReconnectDelayMs(sseFailureAttempts - 1));
           }
-        } catch {
-          if (stopped) return;
+        }
+        if (!stopped && !pollFallbackActive) {
           startPollFallback(onEvent);
         }
       })();

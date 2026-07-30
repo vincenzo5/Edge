@@ -61,7 +61,7 @@ describe("createTwsQuoteStreamSession", () => {
     const session = createTwsQuoteStreamSession(service, { symbols: ["AAPL"] });
     session.start((payload) => events.push(payload));
 
-    await vi.advanceTimersByTimeAsync(3_500);
+    await vi.advanceTimersByTimeAsync(20_000);
 
     expect(getQuotes).toHaveBeenCalled();
     const parsed = events.map((payload) => JSON.parse(payload) as { type: string });
@@ -103,8 +103,7 @@ describe("createTwsQuoteStreamSession", () => {
     const events: string[] = [];
     const session = createTwsQuoteStreamSession(service, { symbols: ["MSFT"] });
     session.start((payload) => events.push(payload));
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(12_000);
 
     expect(getQuotes).toHaveBeenCalled();
     session.stop();

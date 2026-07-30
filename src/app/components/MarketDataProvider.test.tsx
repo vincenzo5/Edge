@@ -180,7 +180,7 @@ describe("MarketDataProvider quotes", () => {
     expect(quoteCalls.length).toBe(0);
   });
 
-  it("falls back to REST after cold SSE first-paint timeout", async () => {
+  it("uses REST bridge and schedules SSE rejoin after cold first-paint timeout", async () => {
     vi.useFakeTimers();
     vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "1");
     const fetchMock = vi.fn(async (input: RequestInfo) => {
@@ -222,9 +222,9 @@ describe("MarketDataProvider quotes", () => {
       await vi.advanceTimersByTimeAsync(2_000);
     });
 
-    expect(document.querySelector('[data-testid="quote-transport"]')?.textContent).toBe("rest");
+    expect(document.querySelector('[data-testid="quote-transport"]')?.textContent).toBe("sse");
     expect(document.querySelector('[data-testid="quote-count"]')?.textContent).toBe("1");
-    expect(document.querySelector('[data-testid="quote-last-update"]')?.textContent).not.toBe("");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/quotes"))).toBe(true);
     expect(recordHealthEventMock).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "transport_fallback",
@@ -233,21 +233,15 @@ describe("MarketDataProvider quotes", () => {
       }),
     );
 
-    const quoteCallsBefore = fetchMock.mock.calls.filter(([url]) =>
-      String(url).includes("/api/quotes"),
-    ).length;
-
+    const instancesBefore = MockEventSource.instances.length;
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(2_000);
     });
-
-    const quoteCallsAfter = fetchMock.mock.calls.filter(([url]) =>
-      String(url).includes("/api/quotes"),
-    ).length;
-    expect(quoteCallsAfter).toBeGreaterThan(quoteCallsBefore);
+    expect(MockEventSource.instances.length).toBeGreaterThan(instancesBefore);
   });
 
-  it("falls back to REST when SSE disconnects", async () => {
+  it("bridges with REST and schedules SSE rejoin when stream disconnects", async () => {
+    vi.useFakeTimers();
     vi.stubEnv("NEXT_PUBLIC_WATCHLIST_STREAM", "1");
     const fetchMock = vi.fn(async (input: RequestInfo) => {
       const url = typeof input === "string" ? input : input.url;
@@ -284,16 +278,26 @@ describe("MarketDataProvider quotes", () => {
       </MarketDataProvider>,
     );
 
-    await waitFor(() => {
-      expect(MockEventSource.instances.length).toBeGreaterThan(0);
+    await act(async () => {
+      await Promise.resolve();
     });
+    expect(MockEventSource.instances.length).toBeGreaterThan(0);
 
     MockEventSource.instances[0]?.onerror?.();
 
-    await waitFor(() => {
-      expect(document.querySelector('[data-testid="quote-transport"]')?.textContent).toBe("rest");
-      expect(document.querySelector('[data-testid="quote-count"]')?.textContent).toBe("1");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
     });
+
+    expect(document.querySelector('[data-testid="quote-transport"]')?.textContent).toBe("sse");
+    expect(document.querySelector('[data-testid="quote-count"]')?.textContent).toBe("1");
+
+    const instancesBefore = MockEventSource.instances.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    expect(MockEventSource.instances.length).toBeGreaterThan(instancesBefore);
+    expect(MockEventSource.instances.at(-1)?.url).toContain("connectionId=");
   });
 
   it("sets quoteError when REST fallback fails", async () => {

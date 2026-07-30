@@ -354,7 +354,7 @@ services/tws-sidecar/
     routes/                       # health, control, market_data, account, trading
 ```
 
-Concurrency (Phase 6): `/stream/quotes` and `/stream/account` read caches under locks and schedule background IB refresh (no per-tick `run_on_ib_thread`); per-connection IB error/disconnect handlers on paper + live; waiter timeout abandons orphan worker jobs; quote subscription setup resolves contracts outside `_quote_sub_lock`.
+Concurrency (Phase 6): `/stream/quotes` and `/stream/account` read ticker/account caches under locks and **enqueue** background IB refresh via `enqueue_on_ib_thread` (no blocking `run_on_ib_thread` on the SSE loop); sidecar quote SSE emits ~1 Hz from live `reqMktData` tickers. Client `MarketDataProvider` keeps SSE as primary transport for Gateway paper/live: on blip it runs a temporary REST bridge and reopens EventSource with bounded backoff instead of sticky 15s REST. Server `createTwsQuoteStreamSession` retries sidecar SSE before 15s REST poll fallback. Per-connection IB error/disconnect handlers on paper + live; waiter timeout abandons orphan worker jobs; quote subscription setup resolves contracts outside `_quote_sub_lock`.
 
 ### Live quote vs candle close
 

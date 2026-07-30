@@ -1,0 +1,20 @@
+
+> tv-ai@0.1.0 test
+> vitest --run src/lib/marketData/quoteStreamPolicy.test.ts src/lib/marketData/stream/twsQuoteStreamSession.test.ts src/app/components/MarketDataProvider.test.tsx
+
+
+ RUN  v4.1.9 /Users/vincentn/TV AI
+
+
+ Test Files  3 passed (3)
+      Tests  17 passed (17)
+   Start at  12:06:23
+   Duration  836ms (transform 580ms, setup 115ms, import 761ms, tests 60ms, environment 766ms)
+
+Sidecar worker:
+Ran 1 test in 0.001s
+OK (tws_sidecar.runtime.test_worker — enqueue_on_ib_thread non-blocking)
+
+Architecture review: self-review Passed
+
+App-level: deferred — IB Gateway intentionally down in operator session; verify ~1s watchlist LAST + chart live marker when paper/live connected (manual on next Gateway-up session)

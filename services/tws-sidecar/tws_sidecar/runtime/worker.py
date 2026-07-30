@@ -37,6 +37,10 @@ def _ib_worker() -> None:
                 _abandoned_job_ids.discard(job_id)
                 _ib_jobs.task_done()
                 continue
+        with _fire_and_forget_job_ids_lock:
+            fire_and_forget = job_id in _fire_and_forget_job_ids
+            if fire_and_forget:
+                _fire_and_forget_job_ids.discard(job_id)
         with _worker_lock:
             global _active_job_name, _active_job_started_at, _last_worker_error
             _active_job_name = job_name
@@ -44,11 +48,13 @@ def _ib_worker() -> None:
             _last_worker_error = None
         try:
             result = fn()
-            with _ib_results_lock:
-                _ib_results[job_id] = (True, result)
+            if not fire_and_forget:
+                with _ib_results_lock:
+                    _ib_results[job_id] = (True, result)
         except Exception as exc:  # noqa: BLE001
-            with _ib_results_lock:
-                _ib_results[job_id] = (False, exc)
+            if not fire_and_forget:
+                with _ib_results_lock:
+                    _ib_results[job_id] = (False, exc)
             with _worker_lock:
                 _last_worker_error = str(exc)
         finally:
@@ -59,6 +65,23 @@ def _ib_worker() -> None:
                 _last_completed_at = time.time()
             _ib_jobs.task_done()
             _pump_ib_loop(loop, 0)
+
+
+def enqueue_on_ib_thread(
+    fn,
+    priority: int = PRIORITY_HIGH,
+    *,
+    job_name: str = "ib_job",
+) -> None:
+    """Schedule IB work without blocking the caller; results are discarded."""
+    global _ib_job_seq
+    job_id = str(uuid.uuid4())
+    with _ib_job_seq_lock:
+        _ib_job_seq += 1
+        seq = _ib_job_seq
+    with _fire_and_forget_job_ids_lock:
+        _fire_and_forget_job_ids.add(job_id)
+    _ib_jobs.put((priority, seq, job_id, job_name, fn))
 
 
 def run_on_ib_thread(
