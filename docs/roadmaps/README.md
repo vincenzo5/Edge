@@ -33,7 +33,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | AI agent / in-app copilot | [ai-agent-roadmap.md](./ai-agent-roadmap.md) | Phases 0–8 **Passing** — functional agent complete; deferred walks → Wave 2 Phase 1 |
 | Grok Copilot UX parity | [grok-copilot-parity-roadmap.md](./grok-copilot-parity-roadmap.md) | Phases 0–5 **Passing** (track complete); chrome walks → Wave 2 Phase 2 |
 | Copilot chat blocks | [copilot-chat-blocks-roadmap.md](./copilot-chat-blocks-roadmap.md) | Phase 0–3 **Passing** — Action shell + scroll + Media/Data + Reference; Phase 4 Follow-ups **Pending** |
-| Quant research runtime | [quant-research-runtime-roadmap.md](./quant-research-runtime-roadmap.md) | Phase 1 **Passing** (2026-07-30) — datasets + profile jobs + server tools |
+| Quant research runtime | [quant-research-runtime-roadmap.md](./quant-research-runtime-roadmap.md) | Phase 2 **Passing** (2026-07-30) — signal studies via `run_signal_study` |
 | Research UX (AI-first desk) | [research-ux-roadmap.md](./research-ux-roadmap.md) | Phases 0–8 **Passing** (2026-07-24) — track complete; Talk / Board / Desk; session reel; research-default entry |
 | TypeScript indicator scripting | [typescript-indicator-scripting-roadmap.md](./typescript-indicator-scripting-roadmap.md) | Phases 0–5B + Scripts tile **Passing**; walks → Wave 1 Phase 3 |
 | Script depth (Pine-like capability) | [script-depth-roadmap.md](./script-depth-roadmap.md) | Phases 0–5 **Passing** — track complete; walks → Wave 1 Phase 3 |
@@ -58,4 +58,4 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Production observability (free stack) | [production-observability-roadmap.md](./production-observability-roadmap.md) | Phase 0–5 **Passing** (2026-07-25); track complete |
 | Plan → execute token efficiency | [plan-execute-token-efficiency-roadmap.md](./plan-execute-token-efficiency-roadmap.md) | Phase 0–9 **Passing** (2026-07-25) — track complete |
 | Sub-harness tree | [sub-harness-tree-roadmap.md](./sub-harness-tree-roadmap.md) | Phase 0–5 **Passing** (2026-07-27) — track complete |
-| Discord knowledge mine | [discord-knowledge-mine-roadmap.md](./discord-knowledge-mine-roadmap.md) | Phase 0–6 **Passing** (first-pass mines); Phase 7 **Pending** — systems: Wolves; Phases 8–11 **Pending** — Trinity, SMB, Algo, MarketLife; refresh deferred; OPS side track |
+| Discord knowledge mine | [discord-knowledge-mine-roadmap.md](./discord-knowledge-mine-roadmap.md) | Phase 0–6 **Passing** (first-pass mines); Phase 7 **Passing** (systems: Wolves); Phases 8–11 **Pending** — Trinity, SMB, Algo, MarketLife; refresh deferred; OPS side track |
