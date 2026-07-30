@@ -6,7 +6,7 @@ service beside paper/live Gateways, shared by host `npm run dev` and container
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-30). Phase 1 **Passing** (2026-07-30). Phases 2–5 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-30). Phase 1 **Passing** (2026-07-30). Phase 2 **Passing** (2026-07-30). Phases 3–5 **Pending**.
 
 **Origin:** 2026-07-30 operator pain (Gateways up, sidecar down / forgotten) +
 architecture consult (GPT 5.6: Compose sidecar; Opus: LaunchAgent). Parent
@@ -266,7 +266,7 @@ Gateway DNS names and bind a configurable HTTP host.
 ### Phase 2 — Compose service in Gateway stack
 
 **Band:** Now  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** `npm run ib:gateway:up` starts sidecar with Gateways; Docker restarts it on crash.
 

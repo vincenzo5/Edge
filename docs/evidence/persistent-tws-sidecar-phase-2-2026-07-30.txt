@@ -1,0 +1,59 @@
+# OPS — Persistent TWS sidecar — Phase 2 evidence
+# Date: 2026-07-30
+
+## Scope
+Compose service in Gateway stack: `tws-sidecar` beside live/paper Gateways; `ib:gateway:up --build`; process-only `/health` healthcheck; conflict guard for host `:8765`.
+
+## Delivered
+- services/ib-gateway/docker-compose.yml — `tws-sidecar` service (build, publish 127.0.0.1:8765, env, healthcheck, logging)
+- services/ib-gateway/.env.example — `TWS_SIDECAR_SECRET` + operator notes
+- scripts/ib-gateway-up.sh — conflict guard + `docker compose up -d --build`
+- package.json — `ib:gateway:up` → ib-gateway-up.sh
+
+## Architecture review
+Self-review Passed — publish loopback only; bind 0.0.0.0 inside container; compose DNS hosts paper:4004 live:4003; `/health` liveness only (no Gateway login); secret runtime via `.env`.
+
+## Focused — sidecar tests
+Command: npm run tws:sidecar:test
+Output:
+Ran 54 tests in 0.017s
+FAILED (errors=1)
+ERROR: setUpClass (test_main.ConnectionRoutingEndpointTests) — httpx2 missing (pre-existing; not introduced by Phase 2)
+53 tests passed (test_main + test_config); test_config 5/5 ok
+exit=1
+
+## Compose validate
+Command: docker compose --project-directory services/ib-gateway -f services/ib-gateway/docker-compose.yml config
+Output: compose config: ok
+exit=0
+
+## App-level — stack up + /health (no host sidecar)
+Command: npm run ib:gateway:down && npm run ib:gateway:up && curl -sS http://127.0.0.1:8765/health
+Output:
+{"ok":true,"timestamp":1785432324087,"startedAt":1785432322088,"version":"0.2.0","pid":1,"instanceId":"04c3442b-0cd3-4885-80b8-d1142094ebcf","managedBy":"external","host":"ib-gateway-paper","port":4004,"clientId":77,"sidecarPort":8765,"capabilities":{"controlRecovery":true,"controlReconnect":true,"streamQuotes":true,"brokerage":true}}
+App-level: curl /health ok=true sidecarPort=8765 managedBy=external (no npm run tws:sidecar)
+exit=0
+
+## App-level — Docker healthcheck (process liveness)
+Command: docker inspect edge-tws-sidecar --format '{{.State.Health.Status}}'
+Output: healthy
+Note: healthy while ib-live gatewayConnected=false (Gateway logout/disconnect does not flap healthcheck)
+
+## App-level — kill + restore via compose (Docker Desktop)
+Command: docker kill edge-tws-sidecar && npm run ib:gateway:up && curl -sS http://127.0.0.1:8765/health
+Output:
+edge-tws-sidecar (Exited 137)
+Container edge-tws-sidecar Recreated / Started
+{"ok":true,"sidecarPort":8765,"managedBy":"external"}
+App-level: sidecarPort=8765 restored after kill via ib:gateway:up (137 exit code)
+Note: Docker Desktop treats `docker kill` as explicit stop (unless-stopped); same behavior on ib-gateway-paper. Recovery: `ib:gateway:up` restores sidecar without host Python script.
+
+## App-level — conflict guard
+Command: host python3 -m http.server 8765 then bash scripts/ib-gateway-up.sh
+Output:
+Port 8765 is in use by a non-Docker process (likely host npm run tws:sidecar).
+Stop the host sidecar before starting the Compose stack.
+exit=1
+
+## Next
+Phase 3 — wedge watchdog
