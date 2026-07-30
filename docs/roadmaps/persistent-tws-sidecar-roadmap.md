@@ -6,7 +6,7 @@ service beside paper/live Gateways, shared by host `npm run dev` and container
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-30). Phases 1–5 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-30). Phase 1 **Passing** (2026-07-30). Phases 2–5 **Pending**.
 
 **Origin:** 2026-07-30 operator pain (Gateways up, sidecar down / forgotten) +
 architecture consult (GPT 5.6: Compose sidecar; Opus: LaunchAgent). Parent
@@ -242,7 +242,7 @@ primary model; config matrix and anti-goals frozen before code.
 ### Phase 1 — Image + network config surface
 
 **Band:** Now  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Reproducible `edge-tws-sidecar:<sha>` image; sidecar can target two
 Gateway DNS names and bind a configurable HTTP host.

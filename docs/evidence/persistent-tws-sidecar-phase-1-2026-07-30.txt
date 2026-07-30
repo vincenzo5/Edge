@@ -1,0 +1,50 @@
+# OPS — Persistent TWS sidecar — Phase 1 evidence
+# Date: 2026-07-30
+
+## Scope
+Image + network config surface: Edge-owned Docker image, TWS_SIDECAR_BIND, per-connection Gateway hosts. No Compose service (Phase 2).
+
+## Delivered
+- services/tws-sidecar/tws_sidecar/config.py — TWS_SIDECAR_BIND, TWS_PAPER_HOST/TWS_LIVE_HOST, host on _CONNECTION_SPECS, container-safe ROOT
+- services/tws-sidecar/tws_sidecar/runtime/connections.py — _connect_ib_to(host, port, client_id); status uses per-connection host
+- services/tws-sidecar/main.py — uvicorn host from config.TWS_SIDECAR_BIND
+- services/tws-sidecar/Dockerfile — python:3.12-slim, TWS_SIDECAR_BIND=0.0.0.0 default, no baked secrets
+- services/tws-sidecar/.dockerignore, requirements.txt (pinned)
+- services/tws-sidecar/test_config.py — bind + dual-host resolution tests
+- package.json — tws:sidecar:image; tws:sidecar:test includes test_config
+
+## Architecture review
+Self-review Passed — HTTP paths/bodies unchanged; secrets runtime-only; host-script defaults 127.0.0.1:4002/:4001 preserved.
+
+## Focused — config tests
+Command: cd services/tws-sidecar && ../../.tools/tws-sidecar-venv/bin/python -m unittest test_config -v
+Output:
+Ran 5 tests in 0.006s
+OK
+5 tests passed (test_config)
+exit=0
+
+## Focused — full sidecar suite
+Command: npm run tws:sidecar:test
+Output:
+Ran 54 tests in 0.015s
+FAILED (errors=1)
+ERROR: setUpClass (test_main.ConnectionRoutingEndpointTests) — httpx2 missing (pre-existing; not introduced by Phase 1)
+test_config 5/5 ok; remaining test_main cases ok
+exit=1
+
+## Image build
+Command: npm run tws:sidecar:image
+Output:
+naming to docker.io/library/edge-tws-sidecar:59eb97d done
+exit=0
+
+## Image smoke — /health
+Command: docker run -d --name tws-sidecar-phase1-smoke -p 127.0.0.1:8766:8765 edge-tws-sidecar:59eb97d && curl -sS http://127.0.0.1:8766/health
+Output:
+{"ok":true,"timestamp":1785431957722,"startedAt":1785431955151,"version":"0.2.0","pid":1,"sidecarPort":8765}
+App-level: curl /health ok=true sidecarPort=8765 (Gateways down; liveness only)
+exit=0
+
+## Next
+Phase 2 — Compose service in Gateway stack

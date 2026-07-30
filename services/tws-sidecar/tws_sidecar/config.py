@@ -9,12 +9,19 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# config.py lives at services/tws-sidecar/tws_sidecar/ → repo root is parents[3]
-ROOT = Path(__file__).resolve().parents[3]
+# Host: services/tws-sidecar/tws_sidecar/config.py → repo root is parents[3].
+# Container: /app/tws_sidecar/config.py → parents[1] is /app (dotenv optional).
+_cfg_path = Path(__file__).resolve()
+ROOT = _cfg_path.parents[3] if len(_cfg_path.parents) > 3 else _cfg_path.parents[1]
 load_dotenv(ROOT / ".env.local", override=False)
 load_dotenv(ROOT / ".env", override=False)
 
-TWS_HOST = os.environ.get("TWS_HOST", "127.0.0.1")
+_DEFAULT_HOST = "127.0.0.1"
+_LEGACY_TWS_HOST = os.environ.get("TWS_HOST", _DEFAULT_HOST)
+TWS_PAPER_HOST = os.environ.get("TWS_PAPER_HOST", _LEGACY_TWS_HOST).strip() or _DEFAULT_HOST
+TWS_LIVE_HOST = os.environ.get("TWS_LIVE_HOST", _LEGACY_TWS_HOST).strip() or _DEFAULT_HOST
+# Paper-host alias for health/status top-level fields and test patches on main.TWS_HOST.
+TWS_HOST = TWS_PAPER_HOST
 TWS_PAPER_PORT = int(os.environ.get("TWS_PAPER_PORT", os.environ.get("TWS_PORT", "4002")))
 TWS_LIVE_PORT = int(os.environ.get("TWS_LIVE_PORT", "4001"))
 TWS_PAPER_CLIENT_ID = int(
@@ -27,14 +34,23 @@ TWS_READONLY = os.environ.get("TWS_READONLY", "true").lower() != "false"
 TWS_ACCOUNT_ID = os.environ.get("TWS_ACCOUNT_ID", "").strip()
 TWS_LIVE_ACCOUNT_ID = os.environ.get("TWS_LIVE_ACCOUNT_ID", "").strip()
 SIDECAR_PORT = int(os.environ.get("TWS_SIDECAR_PORT", "8765"))
+TWS_SIDECAR_BIND = os.environ.get("TWS_SIDECAR_BIND", _DEFAULT_HOST).strip() or _DEFAULT_HOST
 TWS_SIDECAR_SECRET = os.environ.get("TWS_SIDECAR_SECRET", "").strip()
 EDGE_SIDECAR_SECRET_HEADER = "X-Edge-Sidecar-Secret"
 
 PRIMARY_CONNECTION_ID = "ib-paper"
 IB_LIVE_CONNECTION_ID = "ib-live"
-_CONNECTION_SPECS: dict[str, dict[str, int]] = {
-    PRIMARY_CONNECTION_ID: {"port": TWS_PAPER_PORT, "client_id": TWS_PAPER_CLIENT_ID},
-    IB_LIVE_CONNECTION_ID: {"port": TWS_LIVE_PORT, "client_id": TWS_LIVE_CLIENT_ID},
+_CONNECTION_SPECS: dict[str, dict[str, int | str]] = {
+    PRIMARY_CONNECTION_ID: {
+        "host": TWS_PAPER_HOST,
+        "port": TWS_PAPER_PORT,
+        "client_id": TWS_PAPER_CLIENT_ID,
+    },
+    IB_LIVE_CONNECTION_ID: {
+        "host": TWS_LIVE_HOST,
+        "port": TWS_LIVE_PORT,
+        "client_id": TWS_LIVE_CLIENT_ID,
+    },
 }
 
 SIDECAR_VERSION = "0.2.0"

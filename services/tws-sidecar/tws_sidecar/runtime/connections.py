@@ -43,14 +43,14 @@ def _resolve_connection_id(
         return config.IB_LIVE_CONNECTION_ID
     return config.PRIMARY_CONNECTION_ID
 
-def _connect_ib_to(port: int, client_id: int) -> IB:
+def _connect_ib_to(host: str, port: int, client_id: int) -> IB:
     last_exc: Exception | None = None
     for offset in range(4):
         candidate_id = client_id + offset
         ib = IB()
         try:
             ib.connect(
-                config.TWS_HOST,
+                host,
                 port,
                 clientId=candidate_id,
                 readonly=config.TWS_READONLY,
@@ -91,13 +91,13 @@ def _get_ib_for_connection(connection_id: str) -> IB:
             "connect_attempt",
             {
                 "connectionId": connection_id,
-                "host": config.TWS_HOST,
+                "host": spec["host"],
                 "port": spec["port"],
                 "clientId": spec["client_id"],
             },
         )
         try:
-            ib = _connect_ib_to(spec["port"], spec["client_id"])
+            ib = _connect_ib_to(str(spec["host"]), int(spec["port"]), int(spec["client_id"]))
             _attach_ib_handlers(ib, connection_id)
             _ib_extra[connection_id] = ib
             _extra_connect_errors[connection_id] = None
@@ -123,7 +123,7 @@ def _get_ib_for_connection(connection_id: str) -> IB:
             raise HTTPException(
                 status_code=503,
                 detail=(
-                    f"Not connected to IB Gateway at {config.TWS_HOST}:{spec['port']} "
+                    f"Not connected to IB Gateway at {spec['host']}:{spec['port']} "
                     f"for {connection_id} ({exc})"
                 ),
             ) from exc
@@ -142,12 +142,14 @@ def _get_ib() -> IB:
             state_mod._ib = None
         _set_connection_state("api_connecting")
         last_exc: Exception | None = None
+        paper_spec = config._CONNECTION_SPECS[config.PRIMARY_CONNECTION_ID]
+        paper_host = str(paper_spec["host"])
         for offset in range(4):
             client_id = config.TWS_CLIENT_ID + offset
             ib = IB()
             try:
                 ib.connect(
-                    config.TWS_HOST,
+                    paper_host,
                     config.TWS_PORT,
                     clientId=client_id,
                     readonly=config.TWS_READONLY,
@@ -301,7 +303,7 @@ def _connection_status_entry(connection_id: str) -> dict[str, Any]:
         "gatewayConnected": connected,
         "apiSessionConnected": connected,
         "gatewaySocketOpen": connected,
-        "host": config.TWS_HOST,
+        "host": spec["host"],
         "port": spec["port"],
         "clientId": spec["client_id"],
         "message": message,

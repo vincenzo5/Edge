@@ -58,6 +58,7 @@ TWS_READONLY = config.TWS_READONLY
 TWS_ACCOUNT_ID = config.TWS_ACCOUNT_ID
 TWS_LIVE_ACCOUNT_ID = config.TWS_LIVE_ACCOUNT_ID
 TWS_SIDECAR_SECRET = config.TWS_SIDECAR_SECRET
+TWS_SIDECAR_BIND = config.TWS_SIDECAR_BIND
 EDGE_SIDECAR_SECRET_HEADER = config.EDGE_SIDECAR_SECRET_HEADER
 PRIMARY_CONNECTION_ID = config.PRIMARY_CONNECTION_ID
 IB_LIVE_CONNECTION_ID = config.IB_LIVE_CONNECTION_ID
@@ -87,4 +88,4 @@ def __dir__() -> list[str]:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=config.SIDECAR_PORT)
+    uvicorn.run(app, host=config.TWS_SIDECAR_BIND, port=config.SIDECAR_PORT)
