@@ -4,6 +4,7 @@ import type {
   DatasetManifest,
   PreviewTable,
   ProfileOptions,
+  ResearchCodeSpec,
   SignalStudySpec,
   StrategyEvalSpec,
 } from "./contracts";
@@ -34,6 +35,11 @@ export type ResearchComputePort = {
     datasetId: string;
     spec: StrategyEvalSpec;
   }): Promise<CompactResearchResult>;
+  runResearchCode(args: {
+    datasetId: string;
+    spec: ResearchCodeSpec;
+  }): Promise<CompactResearchResult>;
+  cancelJob(jobId: string): Promise<CompactResearchResult | ResearchJobSummary>;
   getJob(jobId: string): Promise<CompactResearchResult | ResearchJobSummary>;
   getArtifact(args: {
     artifactId: string;

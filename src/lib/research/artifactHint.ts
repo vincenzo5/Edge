@@ -248,6 +248,8 @@ export function toArtifactHint(toolName: string, result: ToolResult): ResearchAr
       return hintForResearchProfile(data, "Signal study");
     case "run_strategy_evaluation":
       return hintForResearchProfile(data, "Strategy evaluation");
+    case "run_research_code":
+      return hintForResearchProfile(data, "Research code");
     case "create_research_dataset":
       return hintForCreateResearchDataset(data);
     default:

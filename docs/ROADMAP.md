@@ -284,7 +284,7 @@ Living feature tracks (phase detail in each file):
 - [AI agent / in-app copilot](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing**; agent walks closed on Wave 2 Phase 1
 - [Grok Copilot UX parity](./roadmaps/grok-copilot-parity-roadmap.md) — Phases 0–5 **Passing** (track complete); chrome walks closed on Wave 2 Phase 2
 - [Copilot chat blocks](./roadmaps/copilot-chat-blocks-roadmap.md) — Phase 0–1 **Passing** (contracts + scroll/Action → Media/Data → Reference → Follow-ups → rich Action)
-- [Quant research runtime](./roadmaps/quant-research-runtime-roadmap.md) — Phase 3 **Passing** (2026-07-30) — strategy evaluation via `run_strategy_evaluation`
+- [Quant research runtime](./roadmaps/quant-research-runtime-roadmap.md) — Phase 4 **Passing** (2026-07-30) — sandboxed Python cells via `run_research_code`
 - ~~[Research UX (AI-first desk)](./roadmaps/research-ux-roadmap.md)~~ — Phases 0–8 **Passing** (track complete); Desk tiling retained
 - [TypeScript indicator scripting](./roadmaps/typescript-indicator-scripting-roadmap.md) — Phases 0–5B + Scripts tile **Passing**
 - [Script depth](./roadmaps/script-depth-roadmap.md) — Phases 0–5 **Passing** — track complete

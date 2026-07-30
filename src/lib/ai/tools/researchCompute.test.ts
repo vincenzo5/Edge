@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ToolContext } from "../context";
 import {
+  cancelResearchJobTool,
   createResearchDatasetTool,
   getResearchArtifactTool,
   getResearchDatasetTool,
   getResearchJobTool,
   profileResearchDatasetTool,
+  runResearchCodeTool,
   runSignalStudyTool,
   runStrategyEvaluationTool,
 } from "./researchCompute";
@@ -74,6 +76,8 @@ describe("researchCompute tools", () => {
       profileDataset: vi.fn(),
       runSignalStudy: vi.fn(),
       runStrategyEvaluation: vi.fn(),
+      runResearchCode: vi.fn(),
+      cancelJob: vi.fn(),
       getJob: vi.fn(),
       getArtifact: vi.fn(),
     };
@@ -110,6 +114,8 @@ describe("researchCompute tools", () => {
       }),
       runSignalStudy: vi.fn(),
       runStrategyEvaluation: vi.fn(),
+      runResearchCode: vi.fn(),
+      cancelJob: vi.fn(),
       getJob: vi.fn(),
       getArtifact: vi.fn(),
     };
@@ -144,6 +150,8 @@ describe("researchCompute tools", () => {
         previewTable: { columns: ["Symbol"], rows: [["AAPL"]] },
       }),
       runStrategyEvaluation: vi.fn(),
+      runResearchCode: vi.fn(),
+      cancelJob: vi.fn(),
       getJob: vi.fn(),
       getArtifact: vi.fn(),
     };
@@ -217,6 +225,59 @@ describe("researchCompute tools", () => {
     }
   });
 
+  it("run_research_code returns compact metrics", async () => {
+    const port = {
+      createDataset: vi.fn(),
+      getDataset: vi.fn(),
+      profileDataset: vi.fn(),
+      runSignalStudy: vi.fn(),
+      runStrategyEvaluation: vi.fn(),
+      runResearchCode: vi.fn().mockResolvedValue({
+        jobId: "job_4",
+        status: "succeeded",
+        runFingerprint: "run_fp4",
+        warnings: [],
+        keyMetrics: { "Row count": 42 },
+        artifactRefs: [{ artifactId: "art_src", kind: "source_py" }],
+      }),
+      cancelJob: vi.fn(),
+      getJob: vi.fn(),
+      getArtifact: vi.fn(),
+    };
+
+    const result = await runResearchCodeTool.execute(
+      {
+        datasetId: "ds_test",
+        spec: { source: "research.set_metrics({'Row count': 42})" },
+      },
+      mockContext(port),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.keyMetrics["Row count"]).toBe(42);
+      expect(JSON.stringify(result.data)).not.toMatch(/candles/i);
+    }
+  });
+
+  it("cancel_research_job delegates to port", async () => {
+    const port = {
+      createDataset: vi.fn(),
+      getDataset: vi.fn(),
+      profileDataset: vi.fn(),
+      runSignalStudy: vi.fn(),
+      runStrategyEvaluation: vi.fn(),
+      runResearchCode: vi.fn(),
+      cancelJob: vi.fn().mockResolvedValue({ jobId: "job_1", status: "canceled" }),
+      getJob: vi.fn(),
+      getArtifact: vi.fn(),
+    };
+
+    const result = await cancelResearchJobTool.execute({ jobId: "job_1" }, mockContext(port));
+    expect(result.ok).toBe(true);
+    expect(port.cancelJob).toHaveBeenCalledWith("job_1");
+  });
+
   it("get_research_dataset/get_job/get_artifact delegate to port", async () => {
     const port = {
       createDataset: vi.fn(),
@@ -224,6 +285,8 @@ describe("researchCompute tools", () => {
       profileDataset: vi.fn(),
       runSignalStudy: vi.fn(),
       runStrategyEvaluation: vi.fn(),
+      runResearchCode: vi.fn(),
+      cancelJob: vi.fn(),
       getJob: vi.fn().mockResolvedValue({ jobId: "job_1", status: "succeeded" }),
       getArtifact: vi.fn().mockResolvedValue({ artifactId: "art_1", kind: "metrics_json" }),
     };

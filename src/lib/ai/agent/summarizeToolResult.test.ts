@@ -186,6 +186,32 @@ describe("summarizeToolResult", () => {
     expect(summary).not.toMatch(/[\[{]/);
   });
 
+  it("summarizes run_research_code compactly", () => {
+    const summary = summarizeToolResult("run_research_code", {
+      ok: true,
+      data: {
+        jobId: "job_1234567890",
+        keyMetrics: {
+          "Row count": 30,
+          Columns: 6,
+        },
+      },
+    });
+    expect(summary).toContain("Row count");
+    expect(summary).not.toMatch(/[\[{]/);
+  });
+
+  it("summarizes cancel_research_job compactly", () => {
+    const summary = summarizeToolResult("cancel_research_job", {
+      ok: true,
+      data: {
+        jobId: "job_1234567890",
+        status: "canceled",
+      },
+    });
+    expect(summary).toContain("canceled");
+  });
+
   it("summarizes create_research_dataset compactly", () => {
     const summary = summarizeToolResult("create_research_dataset", {
       ok: true,

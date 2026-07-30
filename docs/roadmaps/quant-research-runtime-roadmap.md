@@ -4,7 +4,7 @@ Living track for a **server-side quantitative research runtime** that Copilot (a
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 3 **Passing** (2026-07-30) — minimal vectorized strategy evaluation via `run_strategy_evaluation`.
+**Status:** Phase 4 **Passing** (2026-07-30) — sandboxed Python research cells via `run_research_code`.
 
 **Branch:** AGENT (secondary: DATA).
 
@@ -300,7 +300,7 @@ E2B/Modal remain optional later executors — not before Phase 4 without explici
 
 ### Phase 4 — Sandboxed Python research cells
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Advanced / Copilot-authored bounded Python on mounted datasets after isolation is proven.
 

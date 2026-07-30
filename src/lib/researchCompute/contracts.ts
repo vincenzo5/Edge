@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { SUPPORTED_INTERVALS } from "@edge/chart-core/dataSource";
 
+import {
+  MAX_RESEARCH_CODE_SOURCE_BYTES,
+  MAX_RESEARCH_STDOUT_CHARS,
+} from "./constants";
+
 export const researchIntervalSchema = z.enum(SUPPORTED_INTERVALS as [string, ...string[]]);
 
 export const researchAdjustmentSchema = z.enum(["split", "dividend", "none"]);
@@ -113,6 +118,7 @@ export const runManifestSchema = z.object({
   status: researchJobStatusSchema,
   warnings: z.array(z.string()),
   computeVersion: z.string(),
+  workerImageId: z.string().optional(),
   artifactRefs: z.array(artifactRefSchema),
 });
 export type RunManifest = z.infer<typeof runManifestSchema>;
@@ -126,6 +132,7 @@ export const researchJobRecordSchema = z.object({
   startedAt: z.string().datetime(),
   finishedAt: z.string().datetime().optional(),
   error: z.string().optional(),
+  containerId: z.string().optional(),
   compactResult: compactResearchResultSchema.optional(),
 });
 export type ResearchJobRecord = z.infer<typeof researchJobRecordSchema>;
@@ -298,6 +305,30 @@ export const equityCurvePointSchema = z.object({
   equity: z.number(),
 });
 export type EquityCurvePoint = z.infer<typeof equityCurvePointSchema>;
+
+export const researchCodeSpecSchema = z.object({
+  source: z
+    .string()
+    .min(1)
+    .max(MAX_RESEARCH_CODE_SOURCE_BYTES)
+    .refine(
+      (value) => Buffer.byteLength(value, "utf8") <= MAX_RESEARCH_CODE_SOURCE_BYTES,
+      `Source exceeds max bytes (${MAX_RESEARCH_CODE_SOURCE_BYTES})`,
+    ),
+  label: z.string().trim().min(1).max(120).optional(),
+});
+export type ResearchCodeSpec = z.infer<typeof researchCodeSpecSchema>;
+
+export const researchWorkerResultSchema = z.object({
+  status: z.enum(["succeeded", "failed"]),
+  stdout: z.string().max(MAX_RESEARCH_STDOUT_CHARS).optional(),
+  keyMetrics: z.record(z.string(), z.union([z.string(), z.number()])).default({}),
+  previewTable: previewTableSchema.optional(),
+  warnings: z.array(z.string()).default([]),
+  error: z.string().optional(),
+  traceback: z.string().optional(),
+});
+export type ResearchWorkerResult = z.infer<typeof researchWorkerResultSchema>;
 
 export const MAX_SIGNAL_IR_DEPTH = 4;
 export const MAX_SIGNAL_IR_NODES = 32;

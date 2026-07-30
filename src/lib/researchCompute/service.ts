@@ -6,14 +6,20 @@ import type {
   CompactResearchResult,
   CreateDatasetInput,
   ProfileOptions,
+  ResearchCodeSpec,
   RunManifest,
   SignalStudySpec,
   StrategyEvalSpec,
 } from "./contracts";
 import { COMPUTE_VERSION, MAX_CONCURRENT_JOBS, MAX_JOB_WALL_TIME_MS } from "./constants";
+import {
+  getResearchWorkerExecutor,
+  workerResultToJobPayload,
+  type ResearchWorkerExecutor,
+} from "./dockerWorker";
 import { requireDatasetManifest } from "./datasetStore";
 import { computeRunFingerprint, createJobId } from "./fingerprints";
-import { readJobRecord, requireJobRecord, writeJobRecord } from "./jobStore";
+import { readJobRecord, requireJobRecord, updateJobRecord, writeJobRecord } from "./jobStore";
 import {
   datasetSummaryFromManifest,
   materializeDataset,
@@ -27,13 +33,18 @@ import type { ResearchArtifactPreview, ResearchComputePort, ResearchJobSummary }
 import { writeArtifact, readArtifactPayload, requireArtifactMeta } from "./artifactStore";
 
 let activeJobs = 0;
+const activeJobAbortControllers = new Map<string, AbortController>();
 
 export function resetResearchComputeJobCounterForTests(): void {
   activeJobs = 0;
+  activeJobAbortControllers.clear();
 }
 
 export class ResearchComputeService implements ResearchComputePort {
-  constructor(private readonly marketData: MarketDataService) {}
+  constructor(
+    private readonly marketData: MarketDataService,
+    private readonly workerExecutor: ResearchWorkerExecutor = getResearchWorkerExecutor(),
+  ) {}
 
   async createDataset(input: CreateDatasetInput) {
     const resolvedProvider = input.provider?.trim() || "auto";
@@ -180,6 +191,75 @@ export class ResearchComputeService implements ResearchComputePort {
         };
       },
     });
+  }
+
+  async runResearchCode(args: { datasetId: string; spec: ResearchCodeSpec }) {
+    return this.runWorkerJob({
+      toolName: "run_research_code",
+      datasetId: args.datasetId,
+      toolInput: args.spec,
+      spec: args.spec,
+    });
+  }
+
+  async cancelJob(jobId: string): Promise<CompactResearchResult | ResearchJobSummary> {
+    const record = requireJobRecord(jobId);
+    if (record.status === "succeeded" || record.status === "failed" || record.status === "canceled") {
+      return record.compactResult ?? {
+        jobId: record.jobId,
+        status: record.status,
+        toolName: record.toolName,
+        datasetId: record.datasetId,
+        runFingerprint: record.runFingerprint,
+        startedAt: record.startedAt,
+        finishedAt: record.finishedAt,
+        error: record.error,
+      };
+    }
+
+    const controller = activeJobAbortControllers.get(jobId);
+    controller?.abort();
+
+    if (record.containerId) {
+      await this.workerExecutor.cancel(record.containerId);
+    } else {
+      await this.workerExecutor.cancel(`edge-research-${jobId.replace(/[^a-zA-Z0-9_.-]/g, "").slice(0, 32)}`);
+    }
+
+    const finishedAt = new Date().toISOString();
+    const canceledResult: CompactResearchResult = record.compactResult ?? {
+      jobId: record.jobId,
+      status: "canceled",
+      runFingerprint: record.runFingerprint ?? jobId,
+      datasetId: record.datasetId,
+      warnings: ["Research job canceled"],
+      keyMetrics: { Status: "canceled" },
+      artifactRefs: [],
+    };
+
+    updateJobRecord(jobId, {
+      status: "canceled",
+      finishedAt,
+      error: "Research job canceled",
+      compactResult: {
+        ...canceledResult,
+        status: "canceled",
+      },
+    });
+
+    activeJobAbortControllers.delete(jobId);
+
+    const updated = requireJobRecord(jobId);
+    return updated.compactResult ?? {
+      jobId: updated.jobId,
+      status: updated.status,
+      toolName: updated.toolName,
+      datasetId: updated.datasetId,
+      runFingerprint: updated.runFingerprint,
+      startedAt: updated.startedAt,
+      finishedAt: updated.finishedAt,
+      error: updated.error,
+    };
   }
 
   async getJob(jobId: string): Promise<CompactResearchResult | ResearchJobSummary> {
@@ -360,6 +440,184 @@ export class ResearchComputeService implements ResearchComputePort {
       throw error;
     } finally {
       clearTimeout(timeout);
+      activeJobs = Math.max(0, activeJobs - 1);
+    }
+  }
+
+  private async runWorkerJob(args: {
+    toolName: string;
+    datasetId: string;
+    toolInput: ResearchCodeSpec;
+    spec: ResearchCodeSpec;
+  }): Promise<CompactResearchResult> {
+    if (activeJobs >= MAX_CONCURRENT_JOBS) {
+      throw new Error(`Concurrent research job cap reached (${MAX_CONCURRENT_JOBS})`);
+    }
+
+    const manifest = requireDatasetManifest(args.datasetId);
+    const jobId = createJobId();
+    const startedAt = new Date().toISOString();
+    const runFingerprint = computeRunFingerprint({
+      datasetId: manifest.datasetId,
+      identityFingerprint: manifest.identityFingerprint,
+      toolName: args.toolName,
+      toolInput: args.toolInput,
+    });
+
+    writeJobRecord({
+      jobId,
+      toolName: args.toolName,
+      status: "queued",
+      datasetId: manifest.datasetId,
+      runFingerprint,
+      startedAt,
+    });
+
+    activeJobs += 1;
+    const abortController = new AbortController();
+    activeJobAbortControllers.set(jobId, abortController);
+
+    writeJobRecord({
+      jobId,
+      toolName: args.toolName,
+      status: "running",
+      datasetId: manifest.datasetId,
+      runFingerprint,
+      startedAt,
+    });
+
+    const timeout = setTimeout(() => {
+      abortController.abort();
+    }, MAX_JOB_WALL_TIME_MS);
+
+    try {
+      const execution = await this.workerExecutor.execute({
+        jobId,
+        datasetId: manifest.datasetId,
+        spec: args.spec,
+        signal: abortController.signal,
+        onContainerStart: (containerId) => {
+          updateJobRecord(jobId, { containerId });
+        },
+      });
+
+      if (abortController.signal.aborted) {
+        throw new Error("Research cell canceled");
+      }
+
+      const payload = workerResultToJobPayload(execution.workerResult);
+      const sourceArtifact = writeArtifact({
+        jobId,
+        kind: "source_py",
+        label: args.spec.label ?? "Research cell source",
+        payload: {
+          source: args.spec.source,
+          workerImageId: execution.workerImageId,
+        },
+      });
+      const metricsArtifact = writeArtifact({
+        jobId,
+        kind: "metrics_json",
+        label: "Research code metrics",
+        payload: payload.keyMetrics,
+      });
+      const artifactRefs = [sourceArtifact, metricsArtifact];
+      let previewTable = payload.previewTable;
+      if (previewTable) {
+        const previewArtifact = writeArtifact({
+          jobId,
+          kind: "preview_table",
+          label: "Research code preview",
+          payload: previewTable,
+        });
+        artifactRefs.push(previewArtifact);
+      }
+
+      const finishedAt = new Date().toISOString();
+      const runManifest: RunManifest = {
+        jobId,
+        toolName: args.toolName,
+        datasetRef: {
+          datasetId: manifest.datasetId,
+          identityFingerprint: manifest.identityFingerprint,
+        },
+        runFingerprint,
+        startedAt,
+        finishedAt,
+        status: "succeeded",
+        warnings: payload.warnings,
+        computeVersion: COMPUTE_VERSION,
+        workerImageId: execution.workerImageId,
+        artifactRefs,
+      };
+      const manifestArtifact = writeArtifact({
+        jobId,
+        kind: "run_manifest",
+        label: "Run manifest",
+        payload: runManifest,
+      });
+      artifactRefs.unshift(manifestArtifact);
+
+      const compactResult: CompactResearchResult = {
+        jobId,
+        status: "succeeded",
+        runFingerprint,
+        datasetId: manifest.datasetId,
+        datasetRef: {
+          datasetId: manifest.datasetId,
+          identityFingerprint: manifest.identityFingerprint,
+        },
+        provenance: {
+          providerRoute: manifest.acquisitionMeta.providerRoute,
+          sources: manifest.acquisitionMeta.sources,
+          contentFingerprint: manifest.contentFingerprint,
+          workerImageId: execution.workerImageId,
+        },
+        warnings: payload.warnings,
+        keyMetrics: payload.keyMetrics,
+        artifactRefs,
+        previewTable,
+      };
+
+      writeJobRecord({
+        jobId,
+        toolName: args.toolName,
+        status: "succeeded",
+        datasetId: manifest.datasetId,
+        runFingerprint,
+        startedAt,
+        finishedAt,
+        containerId: execution.containerId,
+        compactResult,
+      });
+
+      return compactResult;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Research job failed";
+      const isCanceled = abortController.signal.aborted || /canceled/i.test(message);
+      writeJobRecord({
+        jobId,
+        toolName: args.toolName,
+        status: isCanceled ? "canceled" : "failed",
+        datasetId: manifest.datasetId,
+        runFingerprint,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        error: message,
+        compactResult: {
+          jobId,
+          status: isCanceled ? "canceled" : "failed",
+          runFingerprint,
+          datasetId: manifest.datasetId,
+          warnings: [message],
+          keyMetrics: { Error: message },
+          artifactRefs: [],
+        },
+      });
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+      activeJobAbortControllers.delete(jobId);
       activeJobs = Math.max(0, activeJobs - 1);
     }
   }

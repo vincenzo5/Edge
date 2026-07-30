@@ -211,6 +211,23 @@ function summarizeRunStrategyEvaluation(data: Record<string, unknown>): string {
   ]);
 }
 
+function summarizeRunResearchCode(data: Record<string, unknown>): string {
+  const jobId = readString(data, "jobId");
+  const metrics = readKeyMetrics(data);
+  const metricKeys = metrics ? Object.keys(metrics).slice(0, 3) : [];
+  const metricParts = metricKeys.map((key) => `${key}: ${metrics![key]}`);
+  return joinParts([
+    jobId ? `Job ${jobId.slice(0, 8)}` : undefined,
+    metricParts.length > 0 ? metricParts.join(", ") : undefined,
+  ]);
+}
+
+function summarizeCancelResearchJob(data: Record<string, unknown>): string {
+  const jobId = readString(data, "jobId");
+  const status = readString(data, "status");
+  return joinParts([jobId ? `Job ${jobId.slice(0, 8)}` : undefined, status ?? "canceled"]);
+}
+
 function summarizeCreateResearchDataset(data: Record<string, unknown>): string {
   const datasetId = readString(data, "datasetId");
   const rowCount = readNumber(data, "rowCount");
@@ -280,6 +297,10 @@ function summarizeSuccess(toolName: string, data: unknown): string {
       return summarizeRunSignalStudy(record);
     case "run_strategy_evaluation":
       return summarizeRunStrategyEvaluation(record);
+    case "run_research_code":
+      return summarizeRunResearchCode(record);
+    case "cancel_research_job":
+      return summarizeCancelResearchJob(record);
     case "create_research_dataset":
       return summarizeCreateResearchDataset(record);
     default:

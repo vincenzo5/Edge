@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   createDatasetInputSchema,
   profileOptionsSchema,
+  researchCodeSpecSchema,
   researchIntervalSchema,
   signalStudySpecSchema,
   strategyEvalSpecSchema,
@@ -115,6 +116,41 @@ export const runStrategyEvaluationTool = defineTool({
   },
 });
 
+export const runResearchCodeTool = defineTool({
+  name: "run_research_code",
+  description:
+    "Run bounded Python research code on a materialized dataset inside an isolated Docker worker. Allowlisted packages only (Polars, DuckDB, NumPy, SciPy). Returns compact metrics and artifact refs — not raw bars.",
+  inputSchema: z.object({
+    datasetId: z.string().trim().min(1).max(64),
+    spec: researchCodeSpecSchema,
+  }),
+  permission: "read",
+  requiresConfirmation: false,
+  async execute(input, context) {
+    const port = requireResearchCompute(context);
+    const result = await port.runResearchCode({
+      datasetId: input.datasetId,
+      spec: input.spec,
+    });
+    return { ok: true, data: result };
+  },
+});
+
+export const cancelResearchJobTool = defineTool({
+  name: "cancel_research_job",
+  description: "Cancel a running async research job and stop its sandbox worker when applicable.",
+  inputSchema: z.object({
+    jobId: z.string().trim().min(1).max(64),
+  }),
+  permission: "read",
+  requiresConfirmation: false,
+  async execute(input, context) {
+    const port = requireResearchCompute(context);
+    const result = await port.cancelJob(input.jobId);
+    return { ok: true, data: result };
+  },
+});
+
 export const getResearchJobTool = defineTool({
   name: "get_research_job",
   description: "Fetch async research job status and compact results by jobId.",
@@ -158,6 +194,8 @@ export const researchComputeTools: AiTool[] = [
   profileResearchDatasetTool,
   runSignalStudyTool,
   runStrategyEvaluationTool,
+  runResearchCodeTool,
   getResearchJobTool,
+  cancelResearchJobTool,
   getResearchArtifactTool,
 ];

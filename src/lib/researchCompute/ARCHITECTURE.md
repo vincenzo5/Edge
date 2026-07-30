@@ -2,7 +2,7 @@
 
 Server-side quantitative research runtime for Copilot and (later) the Research Board. The LLM orchestrates typed experiments; a research kernel runs math on large market datasets; chat receives compact metrics and artifact refs — never full OHLCV histories.
 
-**Track:** [Quant Research Runtime Roadmap](../../../docs/roadmaps/quant-research-runtime-roadmap.md). **Phase 3 (2026-07-30):** minimal vectorized strategy evaluation via `run_strategy_evaluation` + trades/equity artifacts.
+**Track:** [Quant Research Runtime Roadmap](../../../docs/roadmaps/quant-research-runtime-roadmap.md). **Phase 4 (2026-07-30):** sandboxed Python research cells via `run_research_code` + local Docker worker.
 
 ## Purpose
 
@@ -31,7 +31,7 @@ ResearchComputePort  →  async jobs + artifact store
         Compact tool result → Copilot Data blocks / Research Board pins
 ```
 
-**Phases 1–3:** Node control plane + filesystem artifacts; worker isolation ships at Phase 4 (local Docker first).
+**Phases 1–3:** Node control plane + filesystem artifacts. **Phase 4+:** Python worker runs in ephemeral local Docker (`--network=none`, read-only dataset mount, allowlisted packages).
 
 ## Plug-in boundary
 
@@ -92,6 +92,19 @@ Signal studies use curated indicator ids (`ma`, `ema`, `rsi`, `atr`, `macd`, `bo
 | `src/lib/ai/tools/researchCompute.ts` | `run_strategy_evaluation` server-only registry tool |
 
 Strategy evaluation reuses Phase 2 signal IR for entry/exit. One flat position per symbol; fees/slippage required. Full equity curve and trades stay in artifacts; compact tool result ≤20 trade preview rows + keyMetrics.
+
+## Phase 4 modules
+
+| Module | Role |
+|--------|------|
+| `contracts.ts` (extended) | `researchCodeSpecSchema`, worker result envelope, `workerImageId` on run manifest |
+| `dockerWorker.ts` | `ResearchWorkerExecutor` — local Docker + mock for tests |
+| `constants.ts` (extended) | Source/output/memory/pids budgets; `RESEARCH_WORKER_IMAGE` |
+| `service.ts` (extended) | `runResearchCode`, `cancelJob` via worker executor |
+| `services/research-worker/` | Python slim image — Polars, DuckDB, NumPy, SciPy; `run_cell.py` entrypoint |
+| `src/lib/ai/tools/researchCompute.ts` | `run_research_code`, `cancel_research_job` server-only tools |
+
+Python cells receive read-only dataset mounts under `/dataset` and write result envelopes to `/out`. User code uses the injected `research` helper (`set_metrics`, `set_preview`, `warn`). Imports outside the allowlist fail closed. Full stdout and series stay in artifacts; compact tool results reuse `researchProfile` Copilot Data blocks.
 
 Research root defaults to `data/research/` (override `EDGE_RESEARCH_ROOT` in tests).
 

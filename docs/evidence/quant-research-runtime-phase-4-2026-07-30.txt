@@ -1,0 +1,37 @@
+# AGENT — Quant research runtime — Phase 4 evidence
+# Date: 2026-07-30
+
+## Scope
+Sandboxed Python research cells via `run_research_code` + `cancel_research_job`: local Docker worker (`--network=none`, read-only dataset mount, allowlisted Polars/DuckDB/NumPy/SciPy), resource budgets, hostile-code isolation, compact Copilot Data blocks.
+
+## Delivered
+- services/research-worker/ — Dockerfile, requirements.txt, run_cell.py (non-root, allowlist imports, research helper API)
+- src/lib/researchCompute/dockerWorker.ts — DockerResearchWorkerExecutor + MockResearchWorkerExecutor
+- src/lib/researchCompute/contracts.ts — researchCodeSpecSchema, workerImageId, containerId on job record
+- src/lib/researchCompute/constants.ts — Phase 4 budgets; COMPUTE_VERSION 1.3.0; RESEARCH_WORKER_IMAGE
+- src/lib/researchCompute/service.ts + port.ts — runResearchCode, cancelJob
+- src/lib/ai/tools/researchCompute.ts — run_research_code, cancel_research_job
+- src/lib/ai/agent/summarizeToolResult.ts — compact summaries
+- src/lib/copilot/chatBlockMapping.ts + src/lib/research/artifactHint.ts — Research code Data blocks
+- src/lib/researchCompute/researchCode.test.ts — mock executor + cancel
+- src/lib/researchCompute/phase4AppLevel.test.ts — Docker happy path, hostile cells, cancel
+- package.json — research:worker:image script
+- docs/roadmaps/quant-research-runtime-roadmap.md — Phase 4 Passing
+- src/lib/researchCompute/ARCHITECTURE.md, src/lib/ai/ARCHITECTURE.md — Phase 4 pointers
+- docs/roadmaps/README.md, docs/ROADMAP.md — status sync
+
+## Architecture review
+Self-review Passed — ephemeral Docker worker with network=none; no secrets in worker env; read-only dataset mount; allowlisted imports; source/output budgets; compact results only; cancel kills container.
+
+## Focused
+Command: npm test -- --run src/lib/researchCompute/ src/lib/ai/tools/researchCompute.test.ts src/lib/ai/agent/summarizeToolResult.test.ts src/lib/copilot/chatBlockMapping.test.ts
+Output: Test Files 13 passed (13); Tests 81 passed (81)
+exit=0
+
+## App-level (Docker)
+Command: npm test -- --run src/lib/researchCompute/phase4AppLevel.test.ts
+Output: create_research_dataset → run_research_code Polars cell → Data block without OHLCV; hostile import/write/subprocess fail closed; cancel_research_job stops running cell; Test Files 1 passed (1); Tests 5 passed (5)
+exit=0
+
+## Next
+Phase 5 — compare runs, pin, promote (`compare_research_runs`).
