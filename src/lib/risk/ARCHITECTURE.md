@@ -82,7 +82,7 @@ Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Bud
 - **Planned $ risk**: `resolveDollarRisk` × sized qty via `equityPositionSize`.
 - **Lock at Manage attach**: `PositionPlan` in `playbook/types.ts` freezes entry, initialStop, qty, rUnit — used for R-multiple manage rules.
 
-Journal planned-risk auto-sync from Plan/Protect attach is Phase 8.
+Journal planned-risk auto-sync from PositionPlan on Manage journal sync (Phase 8 **Passing**): `playbook/journalRiskHandoff.ts` derives USD mode/value; `syncManagePlaybookToJournal` fill-if-empty; `JournalTradeDetail` Risk policy section.
 
 ## Failure mode (Plan layer)
 

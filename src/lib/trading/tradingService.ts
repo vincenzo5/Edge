@@ -822,6 +822,7 @@ export class TradingService {
       if (args.orderIntentId) {
         const existing = await store.getByOrderIntentId(args.orderIntentId);
         if (existing) {
+          await this.syncPlaybookJournal(existing);
           return { instance: existing };
         }
       } else {
@@ -833,6 +834,7 @@ export class TradingService {
               item.status === "paused"),
         );
         if (existing) {
+          await this.syncPlaybookJournal(existing);
           return { instance: existing };
         }
       }
@@ -866,6 +868,7 @@ export class TradingService {
       if (args.notifyAtManageLevels) {
         result = await this.attachManageNotifyAlerts(result, template);
       }
+      await this.syncPlaybookJournal(result);
       return { instance: result };
     } catch (error) {
       return {

@@ -64,4 +64,24 @@ describe("rMultiple", () => {
     expect(stats.tradeCountWithR).toBe(2);
     expect(stats.avgR).toBe(0.25);
   });
+
+  it("feeds R stats from position-plan derived planned risk", () => {
+    const derivedRiskUsd = 50;
+    const r = computeRMultiple({
+      ...closedTrade,
+      plannedRiskMode: "usd",
+      plannedRiskValue: derivedRiskUsd,
+      plannedRiskUsd: derivedRiskUsd,
+    });
+    expect(r).toBe(5);
+    const stats = computeAggregateRStats([
+      {
+        status: "closed",
+        netPnL: closedTrade.netPnL,
+        plannedRiskUsd: derivedRiskUsd,
+      },
+    ]);
+    expect(stats.tradeCountWithR).toBe(1);
+    expect(stats.avgR).toBe(5);
+  });
 });

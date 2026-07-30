@@ -1,0 +1,35 @@
+# LIVE — Risk management system — Phase 8 evidence
+# Date: 2026-07-30
+
+## Scope
+UX: Journal review Measurement loop — PositionPlan → journal plannedRisk auto-fill (fill-if-empty), manage recipe geometry snapshot, Risk policy section on trade detail.
+
+## Delivered
+- src/lib/trading/playbook/journalRiskHandoff.ts — derivePlannedRiskFromPositionPlan, geometry snapshot, protect summary, fill-if-empty helpers
+- src/lib/trading/playbook/journalRiskHandoff.test.ts
+- src/lib/trading/playbook/journalRecipe.ts — sync planned risk + extended managePlaybook payload
+- src/lib/trading/playbook/journalRecipe.test.ts — build + sync tests
+- src/lib/persistence/schemas/journal.ts — managePlaybook positionPlan + protectSummary optional fields
+- src/lib/trading/tradingService.ts — syncPlaybookJournal on attach + existing instance
+- src/app/components/journal/JournalTradeDetail.tsx — Risk policy section (Budget/R/Geometry/Protect/Manage)
+- src/app/components/journal/JournalTradeDetail.test.tsx — risk policy + autofill hint tests
+- src/lib/journal/rMultiple.test.ts — R stats from derived planned risk
+- src/lib/trading/ARCHITECTURE.md — Phase 8 section + Measurement row
+- src/lib/risk/ARCHITECTURE.md — Phase 8 pointer
+- src/lib/journal/ARCHITECTURE.md — Measurement handoff + trade detail row
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 8 Passing
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — fill-if-empty mirrors adoptServerJournalTrades policy; no new journal columns; app imports pure lib helper only; sync remains best-effort on attach.
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/playbook/journalRiskHandoff.test.ts src/lib/trading/playbook/journalRecipe.test.ts src/lib/journal/rMultiple.test.ts src/app/components/journal/JournalTradeDetail.test.tsx
+
+Output:
+Test Files  4 passed (4)
+Tests  20 passed (20)
+
+## App-level
+Manual: paper trade with Manage attach → journal Risk policy shows $50 planned risk + Break-even recipe + geometry without manual edit; user override of planned risk preserved on re-sync (unit test coverage for no-overwrite path).

@@ -329,7 +329,7 @@ Shared vocabulary for every risk surface — full slot taxonomies and UX-moment 
 | **Exits — Manage** | `playbook/*`, `playbookInstanceStore`, `runPlaybookEvaluation` | `binding:managedApp` — BE, scale, trail, session flatten |
 | **Exits — notifyOnly** | `alerts/tradePlanAlerts.ts`, `manageNotifyAlerts.ts` | Geometry / manage-level notify — never mutates orders |
 | **Gates** | `validateOrder.ts`, `safetyGuards.ts`, readiness, kill switch | Operator kill, short block, PDT soft, live confirm; no day-loss / heat kill yet |
-| **Measurement** | `PositionPlan`, journal `rMultiple`, `openRiskSummary`, playbook `journalRecipe` | R lock at attach; planned risk not auto-synced from Plan attach (Phase 8) |
+| **Measurement** | `PositionPlan`, journal `rMultiple`, `openRiskSummary`, playbook `journalRecipe` | R lock at attach; planned risk auto-sync from PositionPlan on Manage journal sync (Phase 8) |
 
 Plan detail: [src/lib/risk/ARCHITECTURE.md](../risk/ARCHITECTURE.md).
 
@@ -367,6 +367,8 @@ Gap / stop-market vs stop-limit risk is acknowledged in ticket copy (Phase 7 UX)
 **Phase 6 (Risk track):** During-trade Manage progress on the same strip — next-rule distance + action preview (`formatNextManageActionPreview`), completed fired rules (`formatCompletedManageRules`), pause/conflict copy (`resolveManagePauseMessage` for manual stop drag); chart manage-level markers reuse `manageLevelsForSymbol` → `ChartCell` price-axis annotations (playbook track — no new marker work).
 
 **Phase 7 (Risk track):** Failure-mode UX — `summarizeOpenPositionExits` warns `manage_without_protect` when active Manage (`armed` | `paused` | `pending_fill`) has no resting stop; `OpenPositionExitsStrip` shows persistent failure-mode copy when Protect attached + critical callout for Manage-without-Protect; `summarizeSubmitRiskPlan` adds gap guidance when Protect attached; `conflictPolicy.pauseAffectsProtectOrders()` documents Pause never cancels Protect (mirrors detach policy + service tests).
+
+**Phase 8 (Risk track):** Journal Measurement loop — `journalRiskHandoff` derives USD planned risk from `PositionPlan`; `syncManagePlaybookToJournal` fill-if-empty patches `plannedRisk*` + syncs manage recipe with geometry snapshot and protect summary; attach path calls `syncPlaybookJournal`; `JournalTradeDetail` Risk policy section (Budget, R, Geometry, Protect, Manage timeline) with manual override preserved in Review.
 
 UX chrome for RiskPolicy slots ships in roadmap Phases 2–10 (chart draw → Risk sidebar → ticket → open position → during trade → failure mode → journal → copilot → account kills).
 

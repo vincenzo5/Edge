@@ -48,6 +48,16 @@ export const journalTradeLegSchema = z.object({
   netQuantity: z.number().nullable().optional(),
 });
 
+export const managePlaybookPositionPlanSchema = z.object({
+  entry: z.number().positive(),
+  initialStop: z.number().positive(),
+  qty: z.number().positive(),
+  rUnit: z.number().positive(),
+  side: z.enum(["BUY", "SELL"]),
+});
+
+export type ManagePlaybookPositionPlan = z.infer<typeof managePlaybookPositionPlanSchema>;
+
 export const managePlaybookJournalSchema = z.object({
   templateId: z.string().min(1),
   templateName: z.string().min(1),
@@ -55,6 +65,8 @@ export const managePlaybookJournalSchema = z.object({
   ruleTimeline: z.array(RuleRuntimeSchema),
   plannedRuleCount: z.number().int().nonnegative(),
   firedRuleCount: z.number().int().nonnegative(),
+  positionPlan: managePlaybookPositionPlanSchema.optional(),
+  protectSummary: z.string().min(1).optional(),
 });
 
 export type ManagePlaybookJournal = z.infer<typeof managePlaybookJournalSchema>;

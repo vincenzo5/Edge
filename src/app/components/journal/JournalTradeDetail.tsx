@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { JournalFillResponse, JournalTradeResponse } from "@/lib/persistence/schemas/journal";
 import { JOURNAL_SETUP_VALUES, JOURNAL_RATING_VALUES, type PlannedRiskMode } from "@/lib/journal/types";
 import { computeRMultiple } from "@/lib/journal/rMultiple";
+import { plannedRiskMatchesPositionPlanSnapshot } from "@/lib/trading/playbook/journalRiskHandoff";
 import {
   canComputeTradeExcursion,
   computeTradeExcursionForTrade,
@@ -145,6 +146,17 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
   }
 
   const rMultiple = computeRMultiple(trade);
+  const managePlaybook = trade.managePlaybook;
+  const positionPlanSnapshot = managePlaybook?.positionPlan;
+  const showRiskPolicy =
+    managePlaybook != null ||
+    trade.plannedRiskUsd != null ||
+    trade.plannedRiskMode != null ||
+    trade.plannedRiskValue != null;
+  const autoFilledFromPlan = plannedRiskMatchesPositionPlanSnapshot(
+    trade,
+    positionPlanSnapshot,
+  );
   const excursionEligible = canComputeTradeExcursion(trade);
   const mfeR =
     trade.plannedRiskUsd != null && trade.plannedRiskUsd > 0 && trade.mfeUsd != null
@@ -424,52 +436,107 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
         </div>
       ) : null}
 
-      {trade.managePlaybook ? (
-        <section data-testid="journal-trade-manage">
+      {showRiskPolicy ? (
+        <section data-testid="journal-trade-risk-policy">
           <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-            Manage
+            Risk policy
           </div>
-          <div className="mt-2 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
-            <div className="text-sm font-semibold text-[var(--edge-text-strong)]">
-              {trade.managePlaybook.templateName}
+          <div className="mt-2 space-y-3 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Budget</div>
+                <div
+                  className="mt-1 font-semibold tabular-nums text-[var(--edge-text-strong)]"
+                  data-testid="journal-trade-risk-budget"
+                >
+                  {trade.plannedRiskUsd != null
+                    ? formatTradeMoney(trade.plannedRiskUsd)
+                    : trade.plannedRiskMode === "pct" && trade.plannedRiskValue != null
+                      ? `${trade.plannedRiskValue}%`
+                      : trade.plannedRiskMode === "usd" && trade.plannedRiskValue != null
+                        ? formatTradeMoney(trade.plannedRiskValue)
+                        : "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">R</div>
+                <div
+                  className="mt-1 font-semibold tabular-nums text-[var(--edge-text-strong)]"
+                  data-testid="journal-trade-risk-r"
+                >
+                  {rMultiple != null ? `${rMultiple.toFixed(2)}R` : "—"}
+                </div>
+              </div>
             </div>
-            <p
-              className="mt-1 text-xs text-[var(--edge-text-secondary)]"
-              data-testid="journal-trade-manage-adherence"
-            >
-              {trade.managePlaybook.firedRuleCount} of {trade.managePlaybook.plannedRuleCount} rules
-              fired
-            </p>
-            <div className="mt-3 overflow-x-auto">
-              <table className="min-w-full text-xs">
-                <thead className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-                  <tr>
-                    <th className="px-2 py-1 text-left font-medium">Rule</th>
-                    <th className="px-2 py-1 text-left font-medium">Status</th>
-                    <th className="px-2 py-1 text-left font-medium">Fired</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trade.managePlaybook.ruleTimeline.map((runtime) => (
-                    <tr
-                      key={runtime.ruleId}
-                      className="border-t border-[var(--edge-border-subtle)]"
-                      data-testid={`journal-trade-manage-rule-${runtime.ruleId}`}
-                    >
-                      <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
-                        {runtime.ruleId}
-                      </td>
-                      <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
-                        {formatRuleRuntimeStatus(runtime.status)}
-                      </td>
-                      <td className="px-2 py-1.5 tabular-nums text-[var(--edge-text-secondary)]">
-                        {formatRuleRuntimeTime(runtime.firedAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
+            {positionPlanSnapshot ? (
+              <div className="text-xs" data-testid="journal-trade-risk-geometry">
+                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
+                  Geometry
+                </div>
+                <p className="mt-1 text-[var(--edge-text-primary)]">
+                  Entry {formatTradePrice(positionPlanSnapshot.entry)} · Stop{" "}
+                  {formatTradePrice(positionPlanSnapshot.initialStop)} · R unit{" "}
+                  {formatTradePrice(positionPlanSnapshot.rUnit)} · Qty {positionPlanSnapshot.qty}
+                </p>
+              </div>
+            ) : null}
+
+            {managePlaybook?.protectSummary ? (
+              <div className="text-xs" data-testid="journal-trade-risk-protect">
+                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
+                  Protect
+                </div>
+                <p className="mt-1 text-[var(--edge-text-primary)]">
+                  {managePlaybook.protectSummary}
+                </p>
+              </div>
+            ) : null}
+
+            {managePlaybook ? (
+              <div data-testid="journal-trade-risk-manage">
+                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Manage</div>
+                <div className="mt-1 text-sm font-semibold text-[var(--edge-text-strong)]">
+                  {managePlaybook.templateName}
+                </div>
+                <p
+                  className="mt-1 text-xs text-[var(--edge-text-secondary)]"
+                  data-testid="journal-trade-manage-adherence"
+                >
+                  {managePlaybook.firedRuleCount} of {managePlaybook.plannedRuleCount} rules fired
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                      <tr>
+                        <th className="px-2 py-1 text-left font-medium">Rule</th>
+                        <th className="px-2 py-1 text-left font-medium">Status</th>
+                        <th className="px-2 py-1 text-left font-medium">Fired</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {managePlaybook.ruleTimeline.map((runtime) => (
+                        <tr
+                          key={runtime.ruleId}
+                          className="border-t border-[var(--edge-border-subtle)]"
+                          data-testid={`journal-trade-manage-rule-${runtime.ruleId}`}
+                        >
+                          <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
+                            {runtime.ruleId}
+                          </td>
+                          <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
+                            {formatRuleRuntimeStatus(runtime.status)}
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums text-[var(--edge-text-secondary)]">
+                            {formatRuleRuntimeTime(runtime.firedAt)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -537,6 +604,14 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
 
         <label className="block text-xs">
           <span className="text-[var(--edge-text-secondary)]">Planned risk</span>
+          {autoFilledFromPlan ? (
+            <p
+              className="mt-0.5 text-[10px] text-[var(--edge-text-muted)]"
+              data-testid="journal-planned-risk-autofill-hint"
+            >
+              Auto-filled from Plan
+            </p>
+          ) : null}
           <div className="mt-1 flex gap-2">
             <EdgeSelect
               testId="journal-planned-risk-mode"

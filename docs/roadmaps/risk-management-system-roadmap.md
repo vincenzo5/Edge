@@ -4,7 +4,7 @@ Living track for a **shared RiskPolicy model** that every risk strategy must fil
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome. Phase 6 **Passing** (2026-07-30) — UX: during-trade Manage progress chrome. Phase 7 **Passing** (2026-07-30) — UX: app down / gap failure mode.
+**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome. Phase 6 **Passing** (2026-07-30) — UX: during-trade Manage progress chrome. Phase 7 **Passing** (2026-07-30) — UX: app down / gap failure mode. Phase 8 **Passing** (2026-07-30) — UX: journal review Measurement loop.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (**Protect** — brackets / OCO / trail), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Alerts](./alerts-roadmap.md) (trade-plan notify only), [Journal](./journal-roadmap.md) (R / planned risk review), [AI Agent](./ai-agent-roadmap.md) (risk/order/playbook tools), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -610,7 +610,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 
 **Depends on:** Phase 1 vocabulary; Phase 4 planned risk rows preferred.
 
-**Verification:** Focused journal + trading tests; app-level: one paper trade with plan → journal shows planned risk + manage recipe without manual edit.
+**Status:** **Passing** (2026-07-30)
+
+**Verification:** Focused journal + trading tests; app-level: paper trade with Manage plan → journal Risk policy shows planned risk + recipe without manual edit; manual override preserved on re-sync.
 
 ---
 

@@ -4,6 +4,7 @@ import { findTradeForOrderRef, EDGE_INTENT_ORDER_REF_PREFIX } from "@/lib/journa
 import {
   listJournalFills,
   listJournalTrades,
+  patchJournalTrade,
   patchJournalTradeManagePlaybook,
 } from "@/lib/persistence/repositories/journalRepository";
 import type { ManagePlaybookJournal } from "@/lib/persistence/schemas/journal";
@@ -11,6 +12,12 @@ import type { ManagePlaybookJournal } from "@/lib/persistence/schemas/journal";
 import { isManageActionableThen } from "./evaluateWhen";
 import { resolvePlaybookTemplateFromInstance } from "./resolveTemplate";
 import { resolvePlaybookPresetName } from "./display";
+import {
+  buildPositionPlanJournalSnapshot,
+  derivePlannedRiskFromPositionPlan,
+  formatProtectSummaryFromPositionPlan,
+  tradePlannedRiskIsEmpty,
+} from "./journalRiskHandoff";
 import type { PlaybookInstance } from "./types";
 
 export function buildManagePlaybookJournal(
@@ -23,6 +30,7 @@ export function buildManagePlaybookJournal(
   const firedRuleCount = instance.ruleRuntimes.filter(
     (item) => item.status === "fired",
   ).length;
+  const positionPlan = buildPositionPlanJournalSnapshot(instance.positionPlan);
 
   return {
     templateId: instance.templateId,
@@ -31,6 +39,8 @@ export function buildManagePlaybookJournal(
     ruleTimeline: instance.ruleRuntimes,
     plannedRuleCount,
     firedRuleCount,
+    positionPlan,
+    protectSummary: formatProtectSummaryFromPositionPlan(instance.positionPlan),
   };
 }
 
@@ -55,6 +65,16 @@ export async function syncManagePlaybookToJournal(
   ]);
   const trade = findTradeForOrderRef(fills, trades, orderRef);
   if (!trade) return;
+
+  if (tradePlannedRiskIsEmpty(trade)) {
+    const derived = derivePlannedRiskFromPositionPlan(instance.positionPlan);
+    if (derived) {
+      await patchJournalTrade(userId, trade.id, {
+        plannedRiskMode: derived.mode,
+        plannedRiskValue: derived.value,
+      });
+    }
+  }
 
   await patchJournalTradeManagePlaybook(userId, trade.id, buildManagePlaybookJournal(instance));
 }

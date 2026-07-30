@@ -94,7 +94,7 @@ Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md
 | `src/app/components/journal/JournalTradesTableControls.tsx` | Trades table toolbar — result count, columns popover (toggle + reorder + reset) |
 | `src/app/components/journal/JournalTradesTable.tsx` | Virtualized trades table (`@tanstack/react-virtual`); sortable headers (click); column reorder (header hold-drag); configurable visibility/order |
 | `src/app/components/journal/JournalTradeDetailDrawer.tsx` | Slide-over wrapper for trade review |
-| `src/app/components/journal/JournalTradeDetail.tsx` | Trade review panel — screenshot hero, outcome strip (entry/exit/P&L), readable fills table, review fields |
+| `src/app/components/journal/JournalTradeDetail.tsx` | Trade review panel — Risk policy section (Budget/R/Geometry/Protect/Manage), outcome strip, readable fills, review fields with planned-risk override |
 | `src/app/components/journal/JournalTradeDetailHeaderTitle.tsx` | Clickable symbol in drawer header → chart deep-link |
 | `src/app/components/design-system/EdgeSlideOver.tsx` | Reusable right overlay detail panel |
 | `src/lib/journal/journalTradeDisplay.ts` | Trade outcome status + day summary + dashboard list display helpers |
@@ -121,6 +121,16 @@ Journal providers must stay **inside** `AccountProvider` so `useAccountOptional(
 2. **Account scoping:** compact `{ execId, account }[]` for the loaded trades’ `fillExecIds` only (`fetchJournalFillAccountIndex` → `filterTradesByAccount` with a `Map`).
 
 Trade detail, import, and rebuild paths that need full fill bodies continue to use `fetchJournalFills` or scoped fetches outside the provider hot path. Dashboard KPIs operate over the loaded trade window (≤500 closed + all opens in window).
+
+## Risk policy Measurement handoff (Risk track Phase 8)
+
+Manage attach / fire / detach → `syncManagePlaybookToJournal` (`playbook/journalRecipe.ts`):
+
+- Fill-if-empty `plannedRiskMode` / `plannedRiskValue` from `PositionPlan` via `journalRiskHandoff`
+- Sync `managePlaybook` jsonb with geometry snapshot, protect summary, and rule timeline
+- Manual override preserved — sync never overwrites non-null planned risk
+
+UI: `JournalTradeDetail` Risk policy section reads synced fields; Review editors remain for override.
 
 ### Trades list virtualization (memory efficiency Phase 10)
 

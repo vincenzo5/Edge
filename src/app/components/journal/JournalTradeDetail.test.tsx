@@ -133,17 +133,28 @@ describe("JournalTradeDetail", () => {
     });
   });
 
-  it("renders manage playbook timeline when present", async () => {
+  it("renders risk policy section with budget, geometry, protect, and manage timeline", async () => {
     render(
       <JournalTradeDetail
         trade={{
           ...trade,
+          plannedRiskMode: "usd",
+          plannedRiskValue: 50,
+          plannedRiskUsd: 50,
           managePlaybook: {
             templateId: "break_even",
             templateName: "Break-even",
             instanceId: "inst-1",
             plannedRuleCount: 1,
             firedRuleCount: 1,
+            positionPlan: {
+              entry: 100,
+              initialStop: 95,
+              qty: 10,
+              rUnit: 5,
+              side: "BUY",
+            },
+            protectSummary: "Stop @ 95",
             ruleTimeline: [
               {
                 ruleId: "be-at-1r",
@@ -159,9 +170,17 @@ describe("JournalTradeDetail", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("journal-trade-manage")).toBeInTheDocument();
+      expect(screen.getByTestId("journal-trade-risk-policy")).toBeInTheDocument();
     });
+    expect(screen.getByTestId("journal-trade-risk-budget")).toHaveTextContent("$50.00");
+    expect(screen.getByTestId("journal-trade-risk-r")).toHaveTextContent("11.00R");
+    expect(screen.getByTestId("journal-trade-risk-geometry")).toHaveTextContent("Entry 100.00");
+    expect(screen.getByTestId("journal-trade-risk-protect")).toHaveTextContent("Stop @ 95");
     expect(screen.getByTestId("journal-trade-manage-adherence")).toHaveTextContent("1 of 1");
     expect(screen.getByTestId("journal-trade-manage-rule-be-at-1r")).toHaveTextContent("Fired");
+    expect(screen.getByTestId("journal-planned-risk-autofill-hint")).toHaveTextContent(
+      "Auto-filled from Plan",
+    );
+    expect(screen.queryByTestId("journal-trade-manage")).not.toBeInTheDocument();
   });
 });
