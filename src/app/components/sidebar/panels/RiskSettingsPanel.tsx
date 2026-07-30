@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useActiveChart } from "../../ActiveChartContext";
 import { useQuote } from "@/lib/marketData/useQuotes";
 import { useRiskSettings } from "../../RiskSettingsProvider";
+import { useAccountOptional } from "../../AccountProvider";
 import { useRiskPositionBinding } from "../../risk/RiskPositionBindingContext";
 import { useTradeSetupBinding } from "../../trading/TradeSetupBindingContext";
 import { useRiskLiquidationOverlay } from "../../risk/RiskLiquidationOverlayContext";
@@ -18,6 +19,9 @@ import {
 } from "@/lib/risk/riskSettings";
 import { RiskMarginCard } from "../../risk/RiskMarginCard";
 import { RiskPlanSlotStrip } from "../../risk/RiskPlanSlotStrip";
+import { AccountRiskGateStrip } from "../../risk/AccountRiskGateStrip";
+import { useAccountRiskGateStatus } from "../../risk/useAccountRiskGateStatus";
+import { usePlaybookInstances } from "../../trading/usePlaybookInstances";
 import { useRiskMarginContext } from "../../risk/useRiskMarginContext";
 import { summarizeRiskPlanSlots } from "@/lib/risk/summarizeRiskPlanSlots";
 import { EdgeButton } from "../../design-system";
@@ -115,6 +119,18 @@ function RefreshIcon({ size = 14, className }: { size?: number; className?: stri
   );
 }
 
+function clampCapPercent(value: number): number {
+  return Math.min(Math.max(value, 0.25), 100);
+}
+
+function parseOptionalCapInput(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  const parsed = Number.parseFloat(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return clampCapPercent(parsed);
+}
+
 export function RiskSettingsPanel() {
   const {
     settings,
@@ -135,6 +151,15 @@ export function RiskSettingsPanel() {
   const [absoluteRiskInput, setAbsoluteRiskInput] = useState(String(settings.absoluteRisk));
   const [riskPercentFocused, setRiskPercentFocused] = useState(false);
   const [absoluteRiskFocused, setAbsoluteRiskFocused] = useState(false);
+  const [periodLossCapInput, setPeriodLossCapInput] = useState(
+    settings.periodLossCapPercent != null ? String(settings.periodLossCapPercent) : "",
+  );
+  const [openHeatCapInput, setOpenHeatCapInput] = useState(
+    settings.openHeatCapPercent != null ? String(settings.openHeatCapPercent) : "",
+  );
+  const [periodLossCapFocused, setPeriodLossCapFocused] = useState(false);
+  const [openHeatCapFocused, setOpenHeatCapFocused] = useState(false);
+  const account = useAccountOptional();
 
   useEffect(() => {
     if (!riskPercentFocused) {
@@ -147,6 +172,22 @@ export function RiskSettingsPanel() {
       setAbsoluteRiskInput(String(settings.absoluteRisk));
     }
   }, [settings.absoluteRisk, absoluteRiskFocused]);
+
+  useEffect(() => {
+    if (!periodLossCapFocused) {
+      setPeriodLossCapInput(
+        settings.periodLossCapPercent != null ? String(settings.periodLossCapPercent) : "",
+      );
+    }
+  }, [settings.periodLossCapPercent, periodLossCapFocused]);
+
+  useEffect(() => {
+    if (!openHeatCapFocused) {
+      setOpenHeatCapInput(
+        settings.openHeatCapPercent != null ? String(settings.openHeatCapPercent) : "",
+      );
+    }
+  }, [settings.openHeatCapPercent, openHeatCapFocused]);
 
   useEffect(() => {
     if (!linked || !levels) return;
@@ -166,6 +207,19 @@ export function RiskSettingsPanel() {
     if (entry == null || stop == null) return null;
     return computeEquityPositionSize({ entry, stop, dollarRisk });
   }, [entry, stop, dollarRisk]);
+
+  const panelAccountId = account?.activeTradingAccountId ?? null;
+  const { instances: playbookInstances } = usePlaybookInstances(panelAccountId);
+  const openPositionCount =
+    account?.positions.filter((row) => (row.position ?? 0) !== 0).length ?? 0;
+  const accountGateStatus = useAccountRiskGateStatus({
+    settings,
+    accountSummary: account?.summary ?? null,
+    pnl: account?.pnl ?? null,
+    playbookInstances,
+    openPositionCount,
+    proposedRiskDollars: positionSize?.ok ? positionSize.actualRiskDollars : dollarRisk,
+  });
 
   const stopDistance = useMemo(() => {
     if (entry == null || stop == null) return null;
@@ -510,6 +564,77 @@ export function RiskSettingsPanel() {
             </span>
           ) : null}
         </p>
+      </section>
+
+      <section
+        data-testid="risk-account-gates-section"
+        className="space-y-2 border-t border-[var(--edge-border)] pt-3"
+      >
+        <span className="block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
+          Account gates
+        </span>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block text-[var(--edge-text-secondary)]">
+            <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
+              Max daily loss (%)
+            </span>
+            <input
+              type="number"
+              min={0.25}
+              max={100}
+              step={0.25}
+              placeholder="Off"
+              value={periodLossCapInput}
+              onFocus={() => setPeriodLossCapFocused(true)}
+              onChange={(event) => {
+                const raw = event.target.value;
+                setPeriodLossCapInput(raw);
+                updateSettings({ periodLossCapPercent: parseOptionalCapInput(raw) });
+              }}
+              onBlur={() => {
+                setPeriodLossCapFocused(false);
+                const parsed = parseOptionalCapInput(periodLossCapInput);
+                updateSettings({ periodLossCapPercent: parsed });
+                setPeriodLossCapInput(parsed != null ? String(parsed) : "");
+              }}
+              className={`edge-focus-ring w-full ${fieldClass()}`}
+              data-testid="risk-settings-day-loss-cap"
+            />
+          </label>
+          <label className="block text-[var(--edge-text-secondary)]">
+            <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
+              Max open heat (%)
+            </span>
+            <input
+              type="number"
+              min={0.25}
+              max={100}
+              step={0.25}
+              placeholder="Off"
+              value={openHeatCapInput}
+              onFocus={() => setOpenHeatCapFocused(true)}
+              onChange={(event) => {
+                const raw = event.target.value;
+                setOpenHeatCapInput(raw);
+                updateSettings({ openHeatCapPercent: parseOptionalCapInput(raw) });
+              }}
+              onBlur={() => {
+                setOpenHeatCapFocused(false);
+                const parsed = parseOptionalCapInput(openHeatCapInput);
+                updateSettings({ openHeatCapPercent: parsed });
+                setOpenHeatCapInput(parsed != null ? String(parsed) : "");
+              }}
+              className={`edge-focus-ring w-full ${fieldClass()}`}
+              data-testid="risk-settings-open-heat-cap"
+            />
+          </label>
+        </div>
+        <p className="text-[10px] text-[var(--edge-text-muted)]">
+          Blocks new entries when day P&amp;L or open planned risk exceeds cap (% of NetLiq).
+        </p>
+        {accountGateStatus ? (
+          <AccountRiskGateStrip status={accountGateStatus} compact />
+        ) : null}
       </section>
     </div>
   );

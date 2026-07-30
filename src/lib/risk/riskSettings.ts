@@ -7,11 +7,17 @@ export const RISK_SETTINGS_STORAGE_KEY = "edge.riskSettings.v1";
 
 export const RiskSizingModeSchema = z.enum(["percent", "absolute"]);
 
+const optionalAccountCapPercent = z.number().positive().max(100).nullish();
+
 export const RiskSettingsSchema = z.object({
   sizingMode: RiskSizingModeSchema,
   riskPercent: z.number().positive().max(100),
   absoluteRisk: z.number().positive().max(10_000_000),
   showLiquidationLine: z.boolean().default(true),
+  /** Daily loss kill — % of NetLiq; null/omit = disabled. */
+  periodLossCapPercent: optionalAccountCapPercent,
+  /** Max concurrent planned risk — % of NetLiq; null/omit = disabled. */
+  openHeatCapPercent: optionalAccountCapPercent,
 });
 
 export type RiskSizingMode = z.infer<typeof RiskSizingModeSchema>;

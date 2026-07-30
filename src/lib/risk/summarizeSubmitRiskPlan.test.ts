@@ -9,6 +9,8 @@ import {
   SUBMIT_RISK_FAILURE_MODE_COPY,
   SUBMIT_RISK_GAP_GUIDANCE_COPY,
 } from "./summarizeSubmitRiskPlan";
+import { evaluateAccountRiskGates } from "./accountRiskGates";
+import { DEFAULT_RISK_SETTINGS } from "./riskSettings";
 
 describe("summarizeSubmitRiskPlan", () => {
   it("reports Off protect and manage when not attached", () => {
@@ -114,18 +116,25 @@ describe("summarizeSubmitRiskPlan", () => {
     expect(summary.failureMode).toBe(SUBMIT_RISK_FAILURE_MODE_COPY);
   });
 
-  it("treats manage as off when bracket not attached", () => {
-    const summary = summarizeSubmitRiskPlanFromBracket({
+  it("warns when next entry would breach open heat cap", () => {
+    const status = evaluateAccountRiskGates({
+      settings: { ...DEFAULT_RISK_SETTINGS, openHeatCapPercent: 5 },
+      netLiquidation: 100_000,
+      dailyPnL: 0,
+      openHeatDollars: 4_000,
+    });
+    const summary = summarizeSubmitRiskPlan({
       environment: "paper",
       quantity: 100,
       dollarRisk: 1000,
-      plannedRiskDollars: 500,
-      attachProtect: false,
-      bracketPlan: null,
-      managePresetId: "break_even",
+      plannedRiskDollars: 2000,
+      protectAttached: false,
+      stopLeg: null,
+      takeProfitPrice: null,
+      managePresetId: "off",
+      accountGates: status,
+      side: "BUY",
     });
-
-    expect(summary.protect.attached).toBe(false);
-    expect(summary.manage.label).toBe("Off");
+    expect(summary.warnings).toContain("account_heat_would_breach");
   });
 });

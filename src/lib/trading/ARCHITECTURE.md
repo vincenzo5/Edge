@@ -322,13 +322,13 @@ Shared vocabulary for every risk surface — full slot taxonomies and UX-moment 
 
 | RiskPolicy slot | Primary modules | Notes |
 |-----------------|-----------------|-------|
-| **Budget** | `src/lib/risk/riskSettings.ts` (`resolveDollarRisk`) | `$` or `% NetLiq`; no user daily budget / open-heat cap yet (Phase 10) |
+| **Budget** | `src/lib/risk/riskSettings.ts` (`resolveDollarRisk`) | `$` or `% NetLiq`; optional `periodLossCapPercent` / `openHeatCapPercent` account caps (Phase 10) |
 | **Sizing** | `src/lib/risk/equityPositionSize.ts`, Trade ticket auto-qty | `stopDistance` from entry/stop + dollar risk |
 | **Geometry** | `positionTradeSetup.ts`, chart-core `risk/*`, position drawings | Live points preferred; `PositionPlan` locks R at Manage attach |
 | **Exits — Protect** | `bracketPlan.ts`, `TradingService` brackets/OCO/trail | `binding:restingBroker` — hard stop / TP / trail at broker |
 | **Exits — Manage** | `playbook/*`, `playbookInstanceStore`, `runPlaybookEvaluation` | `binding:managedApp` — BE, scale, trail, session flatten |
 | **Exits — notifyOnly** | `alerts/tradePlanAlerts.ts`, `manageNotifyAlerts.ts` | Geometry / manage-level notify — never mutates orders |
-| **Gates** | `validateOrder.ts`, `safetyGuards.ts`, readiness, kill switch | Operator kill, short block, PDT soft, live confirm; no day-loss / heat kill yet |
+| **Gates** | `validateOrder.ts`, `safetyGuards.ts`, readiness, kill switch, `accountRiskGates.ts` | Operator kill, short block, PDT soft, live confirm; account day-loss / open-heat kill on new entries (Phase 10) |
 | **Measurement** | `PositionPlan`, journal `rMultiple`, `openRiskSummary`, playbook `journalRecipe` | R lock at attach; planned risk auto-sync from PositionPlan on Manage journal sync (Phase 8) |
 
 Plan detail: [src/lib/risk/ARCHITECTURE.md](../risk/ARCHITECTURE.md).
@@ -371,6 +371,8 @@ Gap / stop-market vs stop-limit risk is acknowledged in ticket copy (Phase 7 UX)
 **Phase 8 (Risk track):** Journal Measurement loop — `journalRiskHandoff` derives USD planned risk from `PositionPlan`; `syncManagePlaybookToJournal` fill-if-empty patches `plannedRisk*` + syncs manage recipe with geometry snapshot and protect summary; attach path calls `syncPlaybookJournal`; `JournalTradeDetail` Risk policy section (Budget, R, Geometry, Protect, Manage timeline) with manual override preserved in Review.
 
 **Phase 9 (Risk track):** Copilot RiskPolicy compose — `composeRiskPolicyView` view-only slot summary; `preview_risk_policy` AI tool returns Budget/Sizing/Geometry/Protect/Manage/Gates/Measurement; pairs with `get_risk_settings` for session Budget; tool descriptions + system prompt use RiskPolicy vocabulary.
+
+**Phase 10 (Risk track):** Account kills — optional day-loss / open-heat caps (% NetLiq) on `RiskSettings`; `accountRiskGates` + `TradingService.assertPreTrade` fail-closed block new BUY entries; `AccountRiskGateStrip` Measurement on open-risk / Account / Risk sidebar; ticket soft-warn when next entry would breach heat; auto-flatten deferred (10.3).
 
 UX chrome for RiskPolicy slots ships in roadmap Phases 2–10 (chart draw → Risk sidebar → ticket → open position → during trade → failure mode → journal → copilot → account kills).
 

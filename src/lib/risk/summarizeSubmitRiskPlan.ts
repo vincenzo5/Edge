@@ -1,7 +1,11 @@
 import { resolvePlaybookPresetName } from "@/lib/trading/playbook/display";
+import type { AccountGateStatus } from "./accountRiskGates";
 import type { BracketPlan, BracketStopLeg, TradingEnvironment } from "@/lib/trading/types";
 
-export type SubmitRiskPlanWarning = "live_unprotected";
+export type SubmitRiskPlanWarning =
+  | "live_unprotected"
+  | "account_heat_would_breach"
+  | "account_heat_incomplete";
 
 export type SubmitRiskPlanSummary = {
   budget: {
@@ -36,6 +40,8 @@ export type SummarizeSubmitRiskPlanInput = {
   stopLeg: BracketStopLeg | null;
   takeProfitPrice: number | null;
   managePresetId: string;
+  accountGates?: AccountGateStatus | null;
+  side?: "BUY" | "SELL";
 };
 
 export const SUBMIT_RISK_FAILURE_MODE_COPY =
@@ -98,6 +104,10 @@ export function submitRiskWarningLabel(warning: SubmitRiskPlanWarning): string {
   switch (warning) {
     case "live_unprotected":
       return "Live order without Protect — no resting broker stop will be attached.";
+    case "account_heat_would_breach":
+      return "Next entry would exceed open heat cap.";
+    case "account_heat_incomplete":
+      return "Open heat is partial — attach Manage to track all open positions.";
     default:
       return warning;
   }
@@ -139,6 +149,27 @@ export function summarizeSubmitRiskPlan(
   if (input.environment === "live" && !input.protectAttached) {
     warnings.push("live_unprotected");
   }
+  if (input.accountGates && (input.side ?? "BUY") === "BUY") {
+    const heat = input.accountGates.openHeat;
+    if (heat.incomplete) {
+      warnings.push("account_heat_incomplete");
+    }
+    const proposed =
+      plannedRiskDollars != null && plannedRiskDollars > 0
+        ? plannedRiskDollars
+        : input.dollarRisk;
+    if (
+      heat.enabled &&
+      !heat.breached &&
+      heat.capDollars != null &&
+      proposed != null &&
+      Number.isFinite(proposed) &&
+      proposed > 0 &&
+      (heat.currentDollars ?? 0) + proposed > heat.capDollars
+    ) {
+      warnings.push("account_heat_would_breach");
+    }
+  }
 
   return {
     budget: {
@@ -173,6 +204,8 @@ export function summarizeSubmitRiskPlanFromBracket(args: {
   attachProtect: boolean;
   bracketPlan: BracketPlan | null;
   managePresetId: string;
+  accountGates?: AccountGateStatus | null;
+  side?: "BUY" | "SELL";
 }): SubmitRiskPlanSummary {
   const protectAttached = args.attachProtect && args.bracketPlan != null;
   return summarizeSubmitRiskPlan({
@@ -184,5 +217,7 @@ export function summarizeSubmitRiskPlanFromBracket(args: {
     stopLeg: protectAttached ? args.bracketPlan!.stopLeg : null,
     takeProfitPrice: protectAttached ? args.bracketPlan!.takeProfitPrice : null,
     managePresetId: protectAttached ? args.managePresetId : "off",
+    accountGates: args.accountGates,
+    side: args.side,
   });
 }

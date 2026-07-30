@@ -9,7 +9,14 @@ import {
 import { shouldTryBrokerage } from "@/lib/brokerage/brokerageHealthGate";
 import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
 import { getServerMarketDataService } from "@/lib/marketData/service/server";
-import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
+import { resolveDollarRisk } from "@/lib/risk/riskSettings";
+import {
+  accountGateBlockReasons,
+  buildAccountGateEvaluationInput,
+  evaluateAccountRiskGates,
+  isRiskIncreasingEntry,
+} from "@/lib/risk/accountRiskGates";
+import { resolveServerRiskSettings } from "@/lib/risk/resolveServerRiskSettings";
 import { evaluateTradingReadiness } from "@/lib/tradingSafety/tradingReadiness";
 import { createIbTwsTradingAdapter } from "./adapters/ibTws";
 import { appendAudit } from "./auditLog";
@@ -1099,7 +1106,8 @@ export class TradingService {
     }
 
     const preTradeFetchedAt = Date.now();
-    const [status, summary, quoteResult, positionsResult] = await Promise.all([
+    const riskSettings = await resolveServerRiskSettings();
+    const [status, summary, quoteResult, positionsResult, pnl] = await Promise.all([
       client.getStatus(),
       client.getSummary(),
       getServerMarketDataService().getQuotes([draft.symbol], {
@@ -1108,6 +1116,7 @@ export class TradingService {
         trustUsage: "trading_decision",
       }),
       client.getPositions(),
+      client.getPnL(),
     ]);
 
     const quote = quoteResult.data[0];
@@ -1119,7 +1128,7 @@ export class TradingService {
       brokerageConnected: status.connected,
       accountSummary: summary,
       accountUpdatedAt,
-      riskSettings: DEFAULT_RISK_SETTINGS,
+      riskSettings,
       quote: quote
         ? {
             source: quoteResult.source,
@@ -1137,6 +1146,32 @@ export class TradingService {
     }
 
     assertCoveredSell(draft, positionsResult.positions);
+
+    if (isRiskIncreasingEntry(draft, positionsResult.positions)) {
+      const openPositionCount = positionsResult.positions.filter(
+        (row) => (row.position ?? 0) !== 0,
+      ).length;
+      const playbookStore = await this.playbookStore();
+      const instances = await playbookStore.listByAccount(draft.accountId, {
+        activeOnly: true,
+      });
+      const proposedRiskDollars = resolveDollarRisk(riskSettings, summary);
+      const gateInput = buildAccountGateEvaluationInput({
+        settings: riskSettings,
+        accountSummary: summary,
+        pnl,
+        playbookInstances: instances,
+        openPositionCount,
+        proposedRiskDollars,
+      });
+      const gateStatus = evaluateAccountRiskGates(gateInput);
+      const gateReasons = accountGateBlockReasons(gateStatus, {
+        proposedRiskDollars,
+      });
+      if (gateReasons.length > 0) {
+        throw new TradingReadinessBlockedError(gateReasons);
+      }
+    }
 
     return { pdtWarns: pdtWarnings(summary) };
   }

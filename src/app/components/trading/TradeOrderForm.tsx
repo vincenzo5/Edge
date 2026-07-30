@@ -47,10 +47,15 @@ import {
   ManagePlaybookPicker,
   type ManagePresetSelection,
 } from "./ManagePlaybookPicker";
-import { formatManageStepPreview, resolvePlaybookPresetName } from "@/lib/trading/playbook/display";
+import { formatManageStepPreview } from "@/lib/trading/playbook/display";
 import { getPlaybookPreset } from "@/lib/trading/playbook/presets";
 import { planPlaybookSteps } from "@/lib/trading/playbook/planSteps";
 import { lockPositionPlan } from "@/lib/trading/playbook/types";
+import { summarizeSubmitRiskPlanFromBracket } from "@/lib/risk/summarizeSubmitRiskPlan";
+import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
+import { useAccountRiskGateStatus } from "../risk/useAccountRiskGateStatus";
+import { usePlaybookInstances } from "./usePlaybookInstances";
+import { SubmitRiskPlanSummary } from "../risk/SubmitRiskPlanSummary";
 
 export type { ManagePresetSelection };
 
@@ -136,12 +141,16 @@ export function TradeOrderForm({
   const accountAliases = useAccountAliasesOptional();
   const riskSettings = useRiskSettingsOptional();
   const dollarRisk = riskSettings?.dollarRisk ?? null;
+  const riskSettingsModel = riskSettings?.settings ?? null;
   const accountId = account?.activeTradingAccountId ?? "";
   const accountDisplayName = account?.activeTradingAccount
     ? (accountAliases?.displayNameFor(account.activeTradingAccount) ?? accountId)
     : accountId;
   const gatewayAccountSelected = isGatewayTradingAccount(account?.activeTradingAccount);
   const environment = account?.tradingEnvironment ?? "paper";
+  const { instances: playbookInstances } = usePlaybookInstances(accountId);
+  const openPositionCount =
+    account?.positions.filter((row) => (row.position ?? 0) !== 0).length ?? 0;
 
   const [step, setStep] = useState<Step>("form");
   const [side, setSide] = useState<OrderSide>("BUY");
@@ -315,6 +324,46 @@ export function TradeOrderForm({
       buildBracketPlanFromLevels({ entry: draft, planLevels, stopLeg }),
     );
   }, [attachBracket, draft, planLevels, stopLeg]);
+
+  const accountGates = useAccountRiskGateStatus({
+    settings: riskSettingsModel ?? DEFAULT_RISK_SETTINGS,
+    accountSummary: account?.summary ?? null,
+    pnl: account?.pnl ?? null,
+    playbookInstances,
+    openPositionCount,
+    proposedRiskDollars: plannedRisk ?? dollarRisk,
+  });
+
+  const submitRiskSummary = useMemo(() => {
+    const qty = Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : null;
+    return summarizeSubmitRiskPlanFromBracket({
+      environment,
+      quantity: qty,
+      dollarRisk,
+      plannedRiskDollars: plannedRisk,
+      attachProtect: attachBracket,
+      bracketPlan,
+      managePresetId,
+      accountGates: riskSettingsModel != null ? accountGates : null,
+      side,
+    });
+  }, [
+    attachBracket,
+    bracketPlan,
+    dollarRisk,
+    environment,
+    managePresetId,
+    plannedRisk,
+    qtyNum,
+    accountGates,
+    riskSettingsModel,
+    side,
+  ]);
+
+  const manageStepLabels = useMemo(
+    () => managePreviewSteps.map((step) => formatManageStepPreview(step)),
+    [managePreviewSteps],
+  );
 
   const handleSizeForRisk = useCallback(() => {
     if (riskSizedQuantity == null) return;
@@ -678,6 +727,16 @@ export function TradeOrderForm({
                 : "Paper stock orders — entry only"}
           </p>
 
+          {draft ? (
+            <div className="mt-3">
+              <SubmitRiskPlanSummary
+                summary={submitRiskSummary}
+                manageSteps={manageEnabled ? manageStepLabels : undefined}
+                compact
+              />
+            </div>
+          ) : null}
+
           <div className="mt-4 flex gap-2">
             <EdgeButton
               theme={theme}
@@ -703,36 +762,12 @@ export function TradeOrderForm({
               {draft.outsideRth ? " · Outside RTH" : ""}
             </div>
           </div>
-          {attachBracket && bracketPlan ? (
-            <div className="mt-2 space-y-1 rounded border border-[var(--edge-border-subtle)] px-2 py-2">
-              <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
-                Bracket legs
-              </div>
-              <div>
-                Entry · {bracketPlan.entry.side} {bracketPlan.entry.quantity}{" "}
-                {bracketPlan.entry.symbol} · {bracketPlan.entry.orderType}
-              </div>
-              <div>
-                Stop ·{" "}
-                {bracketPlan.stopLeg.mode === "trail"
-                  ? bracketPlan.stopLeg.trailAmount != null
-                    ? `TRAIL $${bracketPlan.stopLeg.trailAmount}`
-                    : `TRAIL ${bracketPlan.stopLeg.trailPercent}%`
-                  : `STP ${formatPrice(bracketPlan.stopLeg.stopPrice ?? planLevels?.stop ?? 0)}`}
-              </div>
-              <div>Take profit · LMT {formatPrice(bracketPlan.takeProfitPrice)}</div>
-            </div>
-          ) : null}
-          {manageEnabled && managePreviewSteps.length > 0 ? (
-            <div className="mt-2 space-y-1 rounded border border-[var(--edge-border-subtle)] px-2 py-2">
-              <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
-                Manage with {resolvePlaybookPresetName(managePresetId)}
-              </div>
-              {managePreviewSteps.map((step) => (
-                <div key={step.ruleId}>{formatManageStepPreview(step)}</div>
-              ))}
-            </div>
-          ) : null}
+          <div className="mt-2">
+            <SubmitRiskPlanSummary
+              summary={submitRiskSummary}
+              manageSteps={manageEnabled ? manageStepLabels : undefined}
+            />
+          </div>
           {outsideRth ? (
             <p className="mt-2 text-[var(--edge-warning)]">
               Outside RTH — liquidity may be thin; fills are not guaranteed.

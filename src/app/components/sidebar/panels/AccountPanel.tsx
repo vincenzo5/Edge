@@ -30,6 +30,10 @@ import {
   findActivePlaybookForPosition,
 } from "@/lib/trading/playbook/display";
 import { summarizeOpenPositionExits } from "@/lib/trading/summarizeOpenPositionExits";
+import { AccountRiskGateStrip } from "../../risk/AccountRiskGateStrip";
+import { useAccountRiskGateStatus } from "../../risk/useAccountRiskGateStatus";
+import { useRiskSettingsOptional } from "../../RiskSettingsProvider";
+import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
 import type { OpenPositionExitsSummary } from "@/lib/trading/summarizeOpenPositionExits";
 import {
   detachPlaybookInstance,
@@ -288,6 +292,15 @@ export function AccountPanel() {
   const { instances: playbookInstances, refresh: refreshPlaybooks } = usePlaybookInstances(
     panelAccount?.accountId,
   );
+  const riskSettings = useRiskSettingsOptional();
+  const openPositionCount = account.positions.filter((row) => (row.position ?? 0) !== 0).length;
+  const accountGateStatus = useAccountRiskGateStatus({
+    settings: riskSettings?.settings ?? DEFAULT_RISK_SETTINGS,
+    accountSummary: account.summary,
+    pnl: account.pnl,
+    playbookInstances,
+    openPositionCount,
+  });
   const header = resolveAccountPanelHeader(panelAccount, aliases);
 
   const tags = account.summary?.tags ?? {};
@@ -612,6 +625,11 @@ export function AccountPanel() {
             >
               Daily PnL {formatMoney(dailyPnl)}
             </div>
+            {accountGateStatus ? (
+              <div className="mt-2">
+                <AccountRiskGateStrip status={accountGateStatus} compact />
+              </div>
+            ) : null}
           </div>
 
           <AccountMarginSummary tags={tags} />

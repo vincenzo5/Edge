@@ -31,6 +31,10 @@ import {
   findActivePlaybookForPosition,
 } from "@/lib/trading/playbook/display";
 import { summarizeOpenPositionExits, DETACH_MANAGE_HINT, PAUSE_MANAGE_HINT } from "@/lib/trading/summarizeOpenPositionExits";
+import { AccountRiskGateStrip } from "@/app/components/risk/AccountRiskGateStrip";
+import { useAccountRiskGateStatus } from "@/app/components/risk/useAccountRiskGateStatus";
+import { useRiskSettingsOptional } from "@/app/components/RiskSettingsProvider";
+import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
 import type { AccountOrder } from "@/lib/marketData/contracts/brokerage";
 import {
   detachPlaybookInstance,
@@ -232,6 +236,14 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
   const { instances: playbookInstances, refresh: refreshPlaybooks } = usePlaybookInstances(
     panelAccount?.accountId,
   );
+  const riskSettings = useRiskSettingsOptional();
+  const accountGateStatus = useAccountRiskGateStatus({
+    settings: riskSettings?.settings ?? DEFAULT_RISK_SETTINGS,
+    accountSummary: account.summary,
+    pnl: account.pnl,
+    playbookInstances,
+    openPositionCount: openCount,
+  });
 
   useEffect(() => {
     registerOpenRiskCount(openCount);
@@ -329,6 +341,9 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
                 {environmentLabel}
                 {connectionMuted}
               </p>
+              {accountGateStatus ? (
+                <AccountRiskGateStrip status={accountGateStatus} compact />
+              ) : null}
             </div>
             <span className={`${annotationTextClass()} tabular-nums ${chipFlash.toneClass}`}>
               {formatSignedMoney(unrealized)}

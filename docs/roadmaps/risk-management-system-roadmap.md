@@ -4,7 +4,7 @@ Living track for a **shared RiskPolicy model** that every risk strategy must fil
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome. Phase 6 **Passing** (2026-07-30) — UX: during-trade Manage progress chrome. Phase 7 **Passing** (2026-07-30) — UX: app down / gap failure mode. Phase 8 **Passing** (2026-07-30) — UX: journal review Measurement loop. Phase 9 **Passing** (2026-07-30) — UX: Copilot RiskPolicy compose + preview tool.
+**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome. Phase 6 **Passing** (2026-07-30) — UX: during-trade Manage progress chrome. Phase 7 **Passing** (2026-07-30) — UX: app down / gap failure mode. Phase 8 **Passing** (2026-07-30) — UX: journal review Measurement loop. Phase 9 **Passing** (2026-07-30) — UX: Copilot RiskPolicy compose + preview tool. Phase 10 **Passing** (2026-07-30) — UX: account day-loss / open-heat kills.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (**Protect** — brackets / OCO / trail), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Alerts](./alerts-roadmap.md) (trade-plan notify only), [Journal](./journal-roadmap.md) (R / planned risk review), [AI Agent](./ai-agent-roadmap.md) (risk/order/playbook tools), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -646,9 +646,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 
 | # | Deliverable |
 |---|-------------|
-| 10.1 | Settings model + persistence: max daily loss and/or max open heat (R and/or % equity — resolve open question #2) |
+| 10.1 | Settings model + persistence: max daily loss and/or max open heat (% equity — open Q #2 resolved) |
 | 10.2 | Enforce in `TradingService` / readiness (fail closed on breach for **new** entries) |
-| 10.3 | Optional flatten / halt on breach (live confirm) |
+| 10.3 | Optional flatten / halt on breach (live confirm) — **deferred**; block-only shipped |
 | 10.4 | Open-risk chrome: heat vs cap + day P&L vs cap |
 | 10.5 | Trade ticket / Risk sidebar: soft warning when next trade would breach heat |
 | 10.6 | Focused tests + paper proof |
@@ -719,7 +719,7 @@ Phase 1 pastes the 12-question checklist onto each preset in `playbook/presetRis
 ## Open questions
 
 1. Hard-reject submit without Protect on **live** — **Phase 4:** soft warn only; hard reject deferred.
-2. Open heat unit: **R** (sum of initial risks) vs **% equity** vs both? (**Phase 10**)
+2. Open heat unit: **% equity** (sum of Manage `PositionPlan` planned `$` / NetLiq) — **Phase 10 resolved**; R-only deferred.
 3. Risk panel bind vs Trade-setup bind — unify to one Geometry source? (**Phase 3**; prefer unify)
 4. Options: keep calculator-only until options execution exists, then extend RiskPolicy compose? (**after Phase 9**)
 

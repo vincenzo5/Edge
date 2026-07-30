@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AccountSummary } from "@/lib/marketData/contracts/brokerage";
+import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
 import { createIbTwsTradingAdapter } from "./adapters/ibTws";
 import { createMemoryIntentStore } from "./intentStore";
 import { createMemoryPlaybookInstanceStore } from "./playbookInstanceStore";
@@ -21,6 +22,14 @@ const summary: AccountSummary = {
   },
   updatedAt: Date.now(),
 };
+
+const mockGetPnL = vi.fn(async () => ({
+  dailyPnL: 0,
+  unrealizedPnL: 0,
+  updatedAt: Date.now(),
+}));
+
+const mockResolveServerRiskSettings = vi.fn(async () => DEFAULT_RISK_SETTINGS);
 
 const mockGetQuotes = vi.fn(async () => ({
   data: [{ symbol: "F", price: 10, updatedAt: Date.now() }],
@@ -105,10 +114,15 @@ vi.mock("@/lib/brokerage/brokerageClient", () => ({
     })),
     getSummary: vi.fn(async () => summary),
     getPositions: mockGetPositions,
+    getPnL: mockGetPnL,
     getConfig: () => ({ baseUrl: "http://127.0.0.1:8765", timeoutMs: 1000 }),
   })),
   probeSidecarLiveness: vi.fn(async () => true),
   BrokerageRequestError: class BrokerageRequestError extends Error {},
+}));
+
+vi.mock("@/lib/risk/resolveServerRiskSettings", () => ({
+  resolveServerRiskSettings: (...args: unknown[]) => mockResolveServerRiskSettings(...args),
 }));
 
 vi.mock("@/lib/marketData/providers/tws/startup", () => ({
@@ -158,6 +172,12 @@ describe("TradingService", () => {
       stale: false,
       warnings: [],
     });
+    mockGetPnL.mockResolvedValue({
+      dailyPnL: 0,
+      unrealizedPnL: 0,
+      updatedAt: Date.now(),
+    });
+    mockResolveServerRiskSettings.mockResolvedValue(DEFAULT_RISK_SETTINGS);
     mockCreateAlertDefinition.mockClear();
     mockExpireAlertsForBundleId.mockClear();
   });
@@ -301,6 +321,35 @@ describe("TradingService", () => {
     expect(mockPort.modify).toHaveBeenCalledWith("DUP586813", 10, {
       limitPrice: 12.5,
     });
+  });
+
+  it("blocks submit when account day-loss cap is breached", async () => {
+    mockResolveServerRiskSettings.mockResolvedValue({
+      ...DEFAULT_RISK_SETTINGS,
+      periodLossCapPercent: 3,
+    });
+    mockGetPnL.mockResolvedValue({
+      dailyPnL: -4_000,
+      unrealizedPnL: 0,
+      updatedAt: Date.now(),
+    });
+
+    const service = new TradingService(createMemoryIntentStore());
+
+    await expect(
+      service.submitOrder(
+        {
+          accountId: "DUP586813",
+          symbol: "F",
+          side: "BUY",
+          quantity: 1,
+          orderType: "MKT",
+          environment: "paper",
+        },
+        "idem-day-loss",
+      ),
+    ).rejects.toBeInstanceOf(TradingReadinessBlockedError);
+    expect(listAudit().some((e) => e.outcome === "blocked")).toBe(true);
   });
 
   it("blocks submit when kill switch is on", async () => {

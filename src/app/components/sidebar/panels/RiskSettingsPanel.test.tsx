@@ -37,6 +37,10 @@ vi.mock("@/lib/marketData/useQuotes", () => ({
   })),
 }));
 
+vi.mock("../../trading/usePlaybookInstances", () => ({
+  usePlaybookInstances: () => ({ instances: [], loading: false, refresh: vi.fn() }),
+}));
+
 vi.mock("../../MarketDataProvider", () => ({
   useMarketDataQuotes: vi.fn(() => ({
     quotesBySymbol: new Map([
@@ -436,5 +440,16 @@ describe("RiskSettingsPanel", () => {
   it("disables Use in Trade when budget cannot size", () => {
     renderPanel();
     expect(screen.getByTestId("risk-use-in-trade")).toBeDisabled();
+  });
+
+  it("renders account gate cap inputs and measurement strip", () => {
+    renderPanel();
+    expect(screen.getByTestId("risk-account-gates-section")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("risk-settings-day-loss-cap"), {
+      target: { value: "3" },
+    });
+    fireEvent.blur(screen.getByTestId("risk-settings-day-loss-cap"));
+    expect(screen.getByTestId("risk-settings-day-loss-cap")).toHaveValue(3);
+    expect(screen.getByTestId("account-risk-gate-day-loss")).toHaveTextContent("Day P&L");
   });
 });

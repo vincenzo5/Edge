@@ -1,0 +1,41 @@
+# LIVE — Risk management system — Phase 10 evidence
+# Date: 2026-07-30
+
+## Scope
+UX: Account kills — day-loss and open-heat Gates (% equity); fail-closed block new BUY entries; Measurement chrome; ticket soft warn. Auto-flatten (10.3) deferred.
+
+## Delivered
+- src/lib/risk/riskSettings.ts — optional periodLossCapPercent / openHeatCapPercent on RiskSettingsSchema
+- src/lib/risk/accountRiskGates.ts — pure day-loss / open-heat evaluation + formatters
+- src/lib/risk/accountRiskGates.test.ts
+- src/lib/risk/resolveServerRiskSettings.ts — server prefs load for trading gates
+- src/lib/trading/tradingService.ts — assertPreTrade account gate enforce + user risk settings in readiness
+- src/lib/trading/tradingService.test.ts — day-loss block test
+- src/lib/risk/summarizeSubmitRiskPlan.ts — account_heat_would_breach / account_heat_incomplete soft warnings
+- src/lib/risk/summarizeSubmitRiskPlan.test.ts
+- src/app/components/risk/AccountRiskGateStrip.tsx — Measurement chrome
+- src/app/components/risk/AccountRiskGateStrip.test.tsx
+- src/app/components/risk/useAccountRiskGateStatus.ts
+- src/app/components/sidebar/panels/RiskSettingsPanel.tsx — account gate cap inputs + strip
+- src/app/components/sidebar/panels/RiskSettingsPanel.test.tsx
+- src/app/components/home/OpenRiskPositionsMenu.tsx — gate strip in popover
+- src/app/components/sidebar/panels/AccountPanel.tsx — gate strip on account summary
+- src/app/components/trading/TradeOrderForm.tsx — soft warn wiring
+- src/lib/risk/ARCHITECTURE.md — Phase 10 section
+- src/lib/trading/ARCHITECTURE.md — Budget/Gates spine + Phase 10 note
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 10 Passing; open Q #2 resolved; 10.3 deferred note
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — caps extend existing RiskSettings prefs; gates fail-closed in assertPreTrade only for risk-increasing BUY; no parallel RiskPolicy Zod; auto-flatten explicitly deferred.
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/accountRiskGates.test.ts src/lib/risk/riskSettings.test.ts src/lib/risk/summarizeSubmitRiskPlan.test.ts src/lib/trading/tradingService.test.ts src/app/components/risk/AccountRiskGateStrip.test.tsx src/app/components/sidebar/panels/RiskSettingsPanel.test.tsx
+
+Result:
+Test Files  6 passed (6)
+Tests  70 passed (70)
+
+## App-level
+Paper: set day-loss or heat cap below current usage → preview/submit new BUY blocked via TradingReadinessBlockedError; AccountRiskGateStrip shows day P&L / open heat vs cap when caps enabled (manual walkthrough aligned with unit oracles).

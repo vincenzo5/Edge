@@ -90,6 +90,14 @@ Journal planned-risk auto-sync from PositionPlan on Manage journal sync (Phase 8
 - **AI tool:** `preview_risk_policy` in `src/lib/ai/tools/trading.ts` — read-only slot summary for Copilot; fills Budget from `get_risk_settings` when `dollarRisk` omitted.
 - **Vocabulary:** tool descriptions + `SYSTEM_PROMPT_BASE` use Budget, Sizing, Geometry, Exits, Gates, Measurement slot names.
 
+## Phase 10 — Account kills (shipped)
+
+- **Settings:** `RiskSettingsSchema` optional `periodLossCapPercent` / `openHeatCapPercent` (% NetLiq; null = off) — localStorage + cloud prefs embed.
+- **Pure gates:** `accountRiskGates.ts` — day P&L vs cap; open heat = Σ Manage `PositionPlan` planned `$` / NetLiq; proposed-trade projection for soft warn.
+- **Enforce:** `TradingService.assertPreTrade` fail-closed on day-loss / heat breach for **BUY** (new risk); `resolveServerRiskSettings` loads caps from prefs when Postgres configured.
+- **Chrome:** `AccountRiskGateStrip` on Risk sidebar, open-risk popover, Account panel; soft warn via `summarizeSubmitRiskPlan` (`account_heat_would_breach`, `account_heat_incomplete`).
+- **Deferred:** auto-flatten on breach (roadmap 10.3) — block new entries only this phase.
+
 ## Failure mode (Plan layer)
 
 Plan does not place protective orders. A trade sized in the Risk panel without Protect attached has **no** `restingBroker` exit until the ticket submits a bracket/OCO or the trader attaches Protect on an open position. Manage presets **inherit** Protect from the ticket — see `playbook/presetRiskPolicy.ts` and trading ARCHITECTURE hybrid failure mode.
