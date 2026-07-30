@@ -4,7 +4,7 @@ Living track for **server-by-server Discord mining** via the Discord MCP: extrac
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0–6 **Passing** (first-pass mines complete for Algo, Trinity, Wolves, MarketLife, SMB). Phase 7 **Passing** — Systems: WolvesOfWealth. Phases 8–11 **Pending** — Trinity, SMB, Algo, MarketLife. ChadGPT / Cursor / ServiceNow **omitted**. Refresh (step D) **deferred** — not the user goal.
+**Status:** Phase 0–6 **Passing** (first-pass mines complete for Algo, Trinity, Wolves, MarketLife, SMB). Phase 7 **Passing** — Systems: WolvesOfWealth. Phase 8 **Passing** — Systems: Trinity. Phase 9 **Passing** — Systems: SMB Students. Phases 10–11 **Pending** — Algo, MarketLife. ChadGPT / Cursor / ServiceNow **omitted**. Refresh (step D) **deferred** — not the user goal.
 
 **Branch:** OPS (secondary: none). Not an Edge product surface — local operator / research knowledge workflow.
 
@@ -78,13 +78,13 @@ User selection (2026-07-30): mine servers **1–5**; omit **6–8**. Status valu
 | 8 | ServiceNow Developers | `289994252241338369` | `omitted` | — | Out of scope. |
 
 **Done (first-pass mine):** 5 / 5 chosen servers (Phases 2–6).  
-**Next:** Systems extraction Phases 8–11 (step E), one server per phase. Refresh (D) deferred.
+**Next:** Systems extraction Phases 10–11 (step E), one server per phase. Refresh (D) deferred.
 
 | # | Server | Systems phase | Systems status | Access note |
 |---|--------|---------------|----------------|-------------|
 | 3 | WolvesOfWealth | Phase 7 | **Passing** | operator-system.md; Edge `docs/trading/wolves-discord/` cited |
-| 2 | Trinity Trading Partners | Phase 8 | **Pending** | Orientation / education / FAQ deferred in first pass |
-| 5 | SMB Students | Phase 9 | **Pending** | Free tier only — **do not pay**; extract visible channels; record paywall gaps |
+| 2 | Trinity Trading Partners | Phase 8 | **Passing** | operator-system.md; orientation/education/FAQ still gated |
+| 5 | SMB Students | Phase 9 | **Passing** | Free tier only — operator-system.md; IA/trade desks largely gated |
 | 1 | Algo Trading, Coding | Phase 10 | **Pending** | Smaller surface; limited first-pass channels |
 | 4 | MarketLife | Phase 11 | **Pending** | Thin first-pass signal; extract what free access allows |
 
@@ -295,23 +295,25 @@ Each systems phase runs **E** for exactly one server. Order is by expected opera
 
 ### Phase 8 — Systems: Trinity Trading Partners
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Server:** Trinity Trading Partners (`1305230430458351626`)  
-**Process:** E — systems extraction.  
+**Process:** E — systems extraction (7 channels; 151 messages; operator-system.md).  
 **Why second:** Orientation / education / FAQ deferred in first pass — likely holds durable norms.  
-**Evidence (when done):** `docs/evidence/discord-knowledge-mine-phase-8-trinity-systems-YYYY-MM-DD.txt`
+**Channels:** commentary, watchlist, trading-qna, premium-selling-and-spreads, long-term-swings, trade-log, remz-small-account-challenge.  
+**Evidence:** `docs/evidence/discord-knowledge-mine-phase-8-trinity-systems-2026-07-30.txt`
 
 ---
 
 ### Phase 9 — Systems: SMB Students
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Server:** SMB Students (`755810120486879314`)  
-**Process:** E — systems extraction under **free-tier access only**.  
-**Access:** User will **not** pay for Training Program / Inside Access. If trade desks or course channels are locked, document the gap in `operator-system.md` and finish with whatever welcome / announcements / resources / help expose.  
-**Evidence (when done):** `docs/evidence/discord-knowledge-mine-phase-9-smb-systems-YYYY-MM-DD.txt`
+**Process:** E — systems extraction under **free-tier access only** (7 channels; 50 messages; operator-system.md).  
+**Access:** No paid tier purchase. IA info and education Q channels header-only; trade desks partially readable.  
+**Channels:** questions-to-smb, questions-about-education, books-and-videos, smb-inside-access-information, setups-trade-ideas, swing-trading, bionic-trader-code.  
+**Evidence:** `docs/evidence/discord-knowledge-mine-phase-9-smb-systems-2026-07-30.txt`
 
 ---
 
@@ -469,8 +471,8 @@ Phase 4 WolvesOfWealth           → A → B → C (Passing)
 Phase 5 MarketLife               → A → B → C (Passing)
 Phase 6 SMB Students             → A → B → C (Passing)
 Phase 7 WolvesOfWealth           → E systems (Passing)
-Phase 8 Trinity Trading Partners → E systems (Pending)  ← next
-Phase 9 SMB Students             → E systems (Pending; free-tier only)
+Phase 8 Trinity Trading Partners → E systems (Passing)
+Phase 10 Algo Trading, Coding        → E systems (Pending)  ← next
 Phase 10 Algo Trading, Coding    → E systems (Pending)
 Phase 11 MarketLife              → E systems (Pending)
 Deferred: D refresh / deep archive (only if user reopens)
