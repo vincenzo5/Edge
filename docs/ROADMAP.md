@@ -274,8 +274,8 @@ Living feature tracks (phase detail in each file):
 - [Trading execution](./roadmaps/trading-execution-roadmap.md) — Phases 0–5 + **6–9 Passing**; options backlog
 - [Trade management playbook](./roadmaps/trade-management-playbook-roadmap.md) — Phase 0–7 **Passing**; Phase 8 **Pending** (rule editor)
 - [Risk management system](./roadmaps/risk-management-system-roadmap.md) — Phase 0 **Passing** (2026-07-29); Phase 1 **Passing** (2026-07-30); Phase 2 **Passing** (2026-07-29); Phase 3 **Passing** (2026-07-29); Phase 4 **Passing** (2026-07-29); Phase 5 **Passing** (2026-07-30); Phase 6 **Passing** (2026-07-30); Phase 7 **Passing** (2026-07-30); Phase 8 **Passing** (2026-07-30); Phase 9 **Passing** (2026-07-30); Phase 10 **Passing** (2026-07-30)
-- [Dual connection](./roadmaps/dual-connection-roadmap.md) — Phases A–D product complete; shared sidecar env lock shipped; credential-gated both-Gateway walk remains
-- [Persistent TWS sidecar](./roadmaps/persistent-tws-sidecar-roadmap.md) — Phase 0 **Passing**; Phases 1–5 **Pending** — Compose sidecar beside Gateways so Gateways up ⇒ sidecar up (dev + app-prod)
+- [Dual connection](./roadmaps/dual-connection-roadmap.md) — Phases A–D product complete; Compose sidecar + env lock shipped; credential-gated both-Gateway walk remains
+- [Persistent TWS sidecar](./roadmaps/persistent-tws-sidecar-roadmap.md) — Phases 0–5 **Passing**; track complete (2026-07-30) — Compose sidecar beside Gateways (dev + app-prod)
 - [Connections & providers](./roadmaps/connections-providers-roadmap.md) — Phase 0–4 **Passing**; Phase 5 **Pending** (local Gateway polish); Settings/prefs walks closed on Wave 2 Phase 3
 - [IBKR hosted OAuth](./roadmaps/ibkr-hosted-oauth-roadmap.md) — Phase 0 **Pending** (feasibility + IB vendor/first-party onboarding); browser Connect IB — separate from Connections
 - [Stock screener](./roadmaps/screener-roadmap.md) — Phases 1–5 shipped; product deferrals remain
@@ -306,7 +306,7 @@ Broader product backlog (not feature-track owned):
 - Advanced market-context overlays — earnings, dividends, filings, news, options expirations, semantic AI annotations
 - TrendSpider competitive review — inventory started; prioritize Adopt/Adapt/Defer/Skip → [TrendSpider Competitive Roadmap](./roadmaps/trendspider-competitive-roadmap.md)
 - News flow — research captured; implementation not started → [News Flow Roadmap](./roadmaps/news-flow-roadmap.md)
-- Discord knowledge mine — OPS side track (local MCP extract, not product); Phase 0–6 **Passing** (first-pass); Phase 7 **Passing** (Wolves); Phase 8 **Passing** (Trinity); Phase 9 **Passing** (SMB); Phase 10 **Passing** (Algo); Phase 11 **Pending** — MarketLife; refresh deferred → [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md)
+- Discord knowledge mine — OPS side track (local MCP extract, not product); Phase 0–11 **Passing** (2026-07-30) — track complete; refresh deferred → [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md)
 - Day classification — Phases 1–3 **Passing** (2026-07-23); Phase 4 in-app review UI **Pending** → [Day Classification Roadmap](./roadmaps/day-classification-roadmap.md)
 - ~~Structural refactor~~ — Tiers A–E **Passing** → [Structural Refactor Roadmap](./refactor-roadmap.md)
 - Code organization — Phase 0–2 **Passing** (2026-07-24); Phase 3 **Pending** (components tree, god modules, chart shims) → [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md)
@@ -353,7 +353,7 @@ These are intentionally not near-term roadmap items:
 - [Runtime Interaction Performance Roadmap](./roadmaps/runtime-performance-roadmap.md) - frame time, crosshair cost, tip tick, React wakeups; CI budgets after interaction fixes.
 - [Plan → Execute Token Efficiency Roadmap](./roadmaps/plan-execute-token-efficiency-roadmap.md) - Phase 0–7 **Passing** (track complete).
 - [Sub-Harness Tree Roadmap](./roadmaps/sub-harness-tree-roadmap.md) - thin parent + routed domain packs (ENGINE/DATA/LIVE/AGENT/APP/OPS); Plan mode spine.
-- [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md) - OPS side track: first-pass mines complete; systems extraction (operator-system.md) Phases 7–11 next.
+- [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md) - OPS side track **complete** (Phases 0–11 Passing); five servers mined + `operator-system.md`; refresh deferred.
 - [Production Observability Roadmap](./roadmaps/production-observability-roadmap.md) - free-stack probes, logs, durable audit/errors, and alerts (no paid SaaS).
 - [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md) - sync/series consolidation and chart/app coordinator decomposition.
 - [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md) - follow-on structure: `lib`↛`app`, god-module budgets, components migration, chart shim sunset, harness hygiene.

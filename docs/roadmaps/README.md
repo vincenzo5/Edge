@@ -54,7 +54,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Structural refactor | [refactor-roadmap.md](./refactor-roadmap.md) | Tiers A–E **Passing** — track complete |
 | Code organization | [code-organization-roadmap.md](./code-organization-roadmap.md) | Phase 0–5 **Passing** (2026-07-24) — chart shims sunset complete |
 | TWS sidecar architecture | [tws-sidecar-refactor-roadmap.md](./tws-sidecar-refactor-roadmap.md) | Phases 0–7 **Passing** (2026-07-23) |
-| Persistent TWS sidecar | [persistent-tws-sidecar-roadmap.md](./persistent-tws-sidecar-roadmap.md) | Phase 0 **Passing** (2026-07-30); Phase 1 **Passing** (2026-07-30); Phase 2 **Passing** (2026-07-30); Phase 3 **Passing** (2026-07-30); Phase 4 **Passing** (2026-07-30); Phase 5 **Pending** — Compose sidecar beside Gateways (dev + app-prod) |
+| Persistent TWS sidecar | [persistent-tws-sidecar-roadmap.md](./persistent-tws-sidecar-roadmap.md) | Phases 0–5 **Passing** (2026-07-30); track complete — Compose sidecar beside Gateways (dev + app-prod) |
 | Security hardening | [security-hardening-roadmap.md](./security-hardening-roadmap.md) | Phases 0–6 **Passing** (2026-07-24) — track complete |
 | Production observability (free stack) | [production-observability-roadmap.md](./production-observability-roadmap.md) | Phase 0–5 **Passing** (2026-07-25); track complete |
 | Plan → execute token efficiency | [plan-execute-token-efficiency-roadmap.md](./plan-execute-token-efficiency-roadmap.md) | Phase 0–9 **Passing** (2026-07-25) — track complete |

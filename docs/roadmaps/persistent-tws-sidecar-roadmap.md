@@ -6,7 +6,7 @@ service beside paper/live Gateways, shared by host `npm run dev` and container
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-30). Phase 1 **Passing** (2026-07-30). Phase 2 **Passing** (2026-07-30). Phase 3 **Passing** (2026-07-30). Phase 4 **Passing** (2026-07-30). Phase 5 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-30). Phase 1 **Passing** (2026-07-30). Phase 2 **Passing** (2026-07-30). Phase 3 **Passing** (2026-07-30). Phase 4 **Passing** (2026-07-30). Phase 5 **Passing** (2026-07-30). Track **complete**.
 
 **Origin:** 2026-07-30 operator pain (Gateways up, sidecar down / forgotten) +
 architecture consult (GPT 5.6: Compose sidecar; Opus: LaunchAgent). Parent
@@ -152,12 +152,12 @@ macOS host
 |-------|------------|
 | Dual Gateway compose | Shipped (`services/ib-gateway/docker-compose.yml`) |
 | Dual-socket sidecar code | Shipped (`connectionId` + client IDs) |
-| Shared host sidecar ops | Manual `npm run tws:sidecar`; often down |
+| Shared sidecar ops | Compose via `npm run ib:gateway:up`; host `tws:sidecar` emergency-only |
 | `TWS_MANAGED=external` + secret | Shipped for concurrent dev/prod |
 | Package layout | Refactor track Phases 0–7 **Passing** |
 | Reconnect supervisor | Shipped for Gateway daily soft restart |
-| uvicorn bind | Hardcoded `127.0.0.1` — risk for container consumers |
-| Single `TWS_HOST` | Insufficient for two compose service DNS names |
+| uvicorn bind | `TWS_SIDECAR_BIND` shipped (`0.0.0.0` in container) |
+| Per-connection Gateway hosts | `TWS_PAPER_HOST`/`PORT`, `TWS_LIVE_HOST`/`PORT` shipped |
 
 ---
 
@@ -338,7 +338,7 @@ path demoted.
 ### Phase 5 — Docs, ops, harness closeout
 
 **Band:** Now (small)  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Architecture and ops match Compose ownership; track complete.
 

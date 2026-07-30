@@ -405,7 +405,7 @@ Run paper (4002) and live (4001) IB Gateways simultaneously for connection regis
 
 **Scripts:** `npm run ib:gateway:up` / `npm run ib:gateway:down`
 
-**Sidecar proof:** After both ports listen, start/restart the sidecar (interim: `npm run tws:sidecar`; target: Compose via `npm run ib:gateway:up` — [Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md)) and curl `/account/status?connectionId=ib-paper` vs `ib-live` — managed account ids must differ.
+**Sidecar proof:** `npm run ib:gateway:up` starts Gateways and the Compose sidecar together. Emergency fallback only: `npm run tws:sidecar` (stop Compose sidecar first if port `:8765` conflicts). Then curl `/account/status?connectionId=ib-paper` vs `ib-live` — managed account ids must differ. See [Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md).
 
 **Desktop fallback:** Two IB Gateway processes (live 4001, paper 4002); same sidecar env (`TWS_PAPER_PORT`, `TWS_LIVE_PORT`).
 

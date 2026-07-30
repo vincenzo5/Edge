@@ -2,9 +2,9 @@
 
 Single roadmap for running **paper and live IB Gateway simultaneously**, decoupling **market-data connection** from **order-routing account**, and folding journal fills into real Gateway accounts (no synthetic journal-only picker rows).
 
-**Last updated:** 2026-07-27
+**Last updated:** 2026-07-30
 
-**Status:** Phases A–D **product complete** (2026-07-12). Shared sidecar + process `EDGE_TRADING_ENVIRONMENT_LOCK` **shipped** for concurrent dev (paper) + container prod (live). Shared host sidecar (`npm run tws:sidecar`) is the **interim** lifecycle path — durable Compose ownership → [Persistent TWS Sidecar](./persistent-tws-sidecar-roadmap.md). Deferred credential-gated both-Gateway walk → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 1.
+**Status:** Phases A–D **product complete** (2026-07-12). Shared sidecar + process `EDGE_TRADING_ENVIRONMENT_LOCK` **shipped** for concurrent dev (paper) + container prod (live). Compose sidecar lifecycle **shipped** via [Persistent TWS Sidecar](./persistent-tws-sidecar-roadmap.md) (Phases 0–5 **Passing**); `npm run ib:gateway:up` is the primary ops path. Deferred credential-gated both-Gateway walk → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 1.
 
 **Related:** [Trading Execution Roadmap](./trading-execution-roadmap.md) (Phases 0–5 shipped), [Connections & Providers Roadmap](./connections-providers-roadmap.md) (Phase 0 contracts; Phase 1 Settings UI for paper/live controls), [Persistent TWS Sidecar](./persistent-tws-sidecar-roadmap.md) (Compose lifecycle for shared `:8765`), [Market Data Architecture](../../src/lib/marketData/ARCHITECTURE.md), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Edge Roadmap](../ROADMAP.md).
 
@@ -29,7 +29,7 @@ Let Edge:
 | Brokerage snapshot by `environment` | **Shipped** | `/api/brokerage/*?environment=` |
 | Dual Gateway sockets in sidecar code | **Shipped** | `connectionId` on MD + account routes |
 | Paper + live Gateways both listening | **Partial** | Docker compose shipped; app-level dual-port proof credential-gated |
-| Shared sidecar (dev + container prod) | **Shipped** (interim host script) | One sidecar on `:8765`; both Next processes use `TWS_MANAGED=external` (Recover is control-only). Lifecycle ownership → [Persistent TWS Sidecar](./persistent-tws-sidecar-roadmap.md) |
+| Shared sidecar (dev + container prod) | **Shipped** (Compose) | One Compose sidecar on `:8765`; both Next processes use `TWS_MANAGED=external` (Recover is control-only). Primary ops: `npm run ib:gateway:up`; host `tws:sidecar` emergency-only — [Persistent TWS Sidecar](./persistent-tws-sidecar-roadmap.md) |
 | Process environment lock | **Shipped** | `EDGE_TRADING_ENVIRONMENT_LOCK=paper\|live` — server 403 on mismatch; header account picker + `AccountProvider` pin; MD `connectionId` stays independent |
 | Chart/quotes on selectable connection | **Shipped** | Phase C — `edge:marketData:connectionId` |
 | Independent data preference vs order account | **Shipped** | Phase C — header data chip vs order picker |
@@ -104,7 +104,7 @@ Let Edge:
 5. `npm run ib:gateway:up`
 6. Open VNC at `localhost:5900` and complete IB 2FA / login for both live and paper sessions inside the container.
 7. Confirm listeners: `lsof -nP -iTCP:4001 -sTCP:LISTEN` and `lsof -nP -iTCP:4002 -sTCP:LISTEN`.
-8. Restart sidecar from current source: `npm run tws:sidecar` (kill stale sidecar first if one is running).
+8. Confirm sidecar health: `curl -s http://127.0.0.1:8765/health` (`ib:gateway:up` starts Gateways + sidecar). Emergency fallback: `npm run tws:sidecar` (stop Compose sidecar first if port `:8765` conflicts).
 9. Verify distinct accounts:
 
 ```bash

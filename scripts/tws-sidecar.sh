@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Emergency/fallback host sidecar — primary ops: npm run ib:gateway:up (Compose).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

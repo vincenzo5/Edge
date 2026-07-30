@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Start live + paper IB Gateways and the Compose TWS sidecar (primary broker stack).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

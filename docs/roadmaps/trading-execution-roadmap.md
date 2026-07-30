@@ -243,18 +243,17 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, build wh
 ### Runtime setup (next session)
 
 ```bash
-# 1. Gateways (Docker preferred)
+# 1. Broker stack (Docker preferred — Gateways + Compose sidecar on :8765)
 npm run ib:gateway:up          # paper :4002, live :4001 — approve live 2FA on IBKR Mobile
 
 # 2. Postgres (if not already up)
 npm run db:up && npm run db:migrate
 
-# 3. Sidecar — separate terminal (required with TWS_MANAGED=external)
-npm run tws:sidecar            # :8765
-
-# 4. App
+# 3. App
 npm run dev                    # :3003
 ```
+
+Emergency fallback when Compose is unavailable: `npm run tws:sidecar-setup` once, then `npm run tws:sidecar` (stop Compose sidecar first if port `:8765` conflicts).
 
 **Required `.env.local` keys:**
 
@@ -262,7 +261,7 @@ npm run dev                    # :3003
 |----------|-------|-------|
 | `TWS_ENABLED` | `true` | |
 | `TWS_READONLY` | `false` | Required for preview/place/cancel |
-| `TWS_MANAGED` | `external` | When sidecar run via `npm run tws:sidecar` |
+| `TWS_MANAGED` | `external` | Compose sidecar on `:8765`; app never spawns sidecar |
 | `DATABASE_URL` | `postgres://...` | Enables Postgres intent store |
 | `EDGE_AUTH_SECRET` | set | Dev auth |
 | `EDGE_TRADING_KILL_SWITCH` | unset or `false` | Was tested; remove after test |
