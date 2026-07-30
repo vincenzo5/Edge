@@ -4,7 +4,7 @@ Living track for a **shared RiskPolicy model** that every risk strategy must fil
 
 **Last updated:** 2026-07-29
 
-**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade.
+**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (**Protect** — brackets / OCO / trail), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Alerts](./alerts-roadmap.md) (trade-plan notify only), [Journal](./journal-roadmap.md) (R / planned risk review), [AI Agent](./ai-agent-roadmap.md) (risk/order/playbook tools), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -514,7 +514,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 
 **Depends on:** Phase 1; Phase 3 handoff preferred but not hard-blocked if ticket already binds geometry.
 
-**Verification:** Focused UI/unit tests; paper walk: summary matches attached bracket + preset before submit.
+**Status:** **Passing** (2026-07-29)
+
+**Verification:** Focused UI/unit tests; paper walk: summary matches attached bracket + preset before submit; live without Protect shows soft warn, submit still enabled.
 
 ---
 
@@ -536,7 +538,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 
 **Depends on:** Phase 4 summary vocabulary; Protect/Manage already shipped.
 
-**Verification:** Focused chrome tests; paper: position with OCO+playbook shows both; bare position shows unprotected.
+**Status:** **Passing** (2026-07-30)
+
+**Verification:** Focused tests — `summarizeOpenPositionExits`, `OpenPositionExitsStrip`, `OpenRiskPositionsMenu`, `AccountPanel`; paper: position with OCO+playbook shows both Protect + Manage; bare position shows unprotected + Protect affordance.
 
 ---
 
@@ -706,7 +710,7 @@ Phase 1 pastes the 12-question checklist onto each preset in `playbook/presetRis
 
 ## Open questions
 
-1. Hard-reject submit without Protect on **live** — default on or warn-only? (**Phase 4**)
+1. Hard-reject submit without Protect on **live** — **Phase 4:** soft warn only; hard reject deferred.
 2. Open heat unit: **R** (sum of initial risks) vs **% equity** vs both? (**Phase 10**)
 3. Risk panel bind vs Trade-setup bind — unify to one Geometry source? (**Phase 3**; prefer unify)
 4. Options: keep calculator-only until options execution exists, then extend RiskPolicy compose? (**after Phase 9**)

@@ -23,7 +23,8 @@ Full RiskPolicy slot definitions: [Risk Management System Roadmap](../../../docs
 | Risk sidebar | `RiskSettingsPanel.tsx` | Budget + Sizing (bound geometry) |
 | Chart selection strip | `PositionGeometryStrip.tsx` via `DrawingSelectionChrome.tsx` | Geometry + Measurement preview (Budget/Sizing read-only) |
 | Chart overlay | `useRiskDrawingBinding.ts`, chart-core `risk/*` | Geometry labels, R targets, validation |
-| Trade ticket | `TradeOrderForm.tsx` (via Trade setup bind) | Budget→Sizing handoff; separate bind from Risk panel |
+| Trade ticket | `TradeOrderForm.tsx`, `ProtectiveOcoForm.tsx` | Budget→Sizing handoff; pre-submit Risk plan summary (Phase 4) |
+| Open position | `OpenRiskPositionsMenu.tsx`, `AccountPanel.tsx` | Protect + Manage Exit binding chrome (Phase 5) |
 
 ## Plan geometry bind (Phase 3)
 
@@ -40,6 +41,19 @@ Both binds derive levels from live drawing points via `positionTradeSetup.ts` �
 | Risk **Use in Trade** | uses current bind | yes + seed qty from sizing |
 
 Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Budget / Sizing / Geometry + gaps).
+
+## Phase 4 — Trade ticket Risk plan summary (shipped)
+
+- **Summarizer:** `summarizeSubmitRiskPlan.ts` — Budget / Size / Protect / Manage / warnings / failure-mode one-liner from bracket plan + manage preset.
+- **UI:** `SubmitRiskPlanSummary.tsx` on `TradeOrderForm` (compose + confirm) and `ProtectiveOcoForm`.
+- **Live without Protect:** soft warn only (`live_unprotected`); submit not blocked (hard reject deferred).
+- **Failure mode copy:** `"Broker stop stays live if Edge is down"` when Protect attached — aligns with trading ARCHITECTURE hybrid failure mode.
+
+## Phase 5 — Open position Protect + Manage chrome (shipped)
+
+- **Summarizer:** `src/lib/trading/summarizeOpenPositionExits.ts` — derives Protect from open `AccountOrder` rows (closing-side STP/TRAIL + OCO TP peer) and Manage from active playbook instance.
+- **UI:** `OpenPositionExitsStrip.tsx` on open-risk popover rows and Account position rows — Protect label, Manage label/distance, unprotected warning, Protect-with-OCO action (Account opens `ProtectiveOcoForm`; open-risk deep-links to Account).
+- **Manage controls:** Pause/Resume/Detach labeled **Manage** only; tooltips note broker Protect stays live.
 
 ## Phase 2 — Drawing geometry strip (shipped)
 

@@ -23,13 +23,14 @@ import { AccountMarginSummary } from "./AccountMarginSummary";
 import { ClosePositionConfirmModal } from "./ClosePositionConfirmModal";
 import { groupAccountOrders, orderGroupLabel } from "@/lib/trading/orderGroups";
 import { ProtectiveOcoForm } from "../../trading/ProtectiveOcoForm";
+import { OpenPositionExitsStrip } from "../../trading/OpenPositionExitsStrip";
 import { usePlaybookInstances } from "../../trading/usePlaybookInstances";
 import { PlaybookAutoManageSettings } from "../../trading/PlaybookAutoManageSettings";
 import {
   findActivePlaybookForPosition,
-  formatNextManageDistance,
-  formatPlaybookManageLabel,
 } from "@/lib/trading/playbook/display";
+import { summarizeOpenPositionExits } from "@/lib/trading/summarizeOpenPositionExits";
+import type { OpenPositionExitsSummary } from "@/lib/trading/summarizeOpenPositionExits";
 import {
   detachPlaybookInstance,
   pausePlaybookInstance,
@@ -108,15 +109,15 @@ function PositionRow({
   onSelect,
   onClose,
   onContextMenu,
-  manageLabel,
-  manageDistance,
+  exitsSummary,
+  onProtect,
 }: {
   row: AccountPosition;
   onSelect: (symbol: string) => void;
   onClose: (row: AccountPosition) => void;
   onContextMenu: (row: AccountPosition, pos: { x: number; y: number }) => void;
-  manageLabel?: string | null;
-  manageDistance?: string | null;
+  exitsSummary: OpenPositionExitsSummary;
+  onProtect: () => void;
 }) {
   const symbol = row.contract.symbol ?? "—";
   const qty = row.position ?? 0;
@@ -141,24 +142,12 @@ function PositionRow({
       >
         <div className="min-w-0">
           <span className="truncate font-medium text-[var(--edge-text-strong)]">{symbol}</span>
-          {manageLabel ? (
-            <>
-              <div
-                className="truncate text-[10px] text-[var(--edge-accent-blue)]"
-                data-testid={`account-manage-${symbol}`}
-              >
-                {manageLabel}
-              </div>
-              {manageDistance ? (
-                <div
-                  className="truncate text-[10px] text-[var(--edge-text-secondary)]"
-                  data-testid={`account-manage-distance-${symbol}`}
-                >
-                  {manageDistance}
-                </div>
-              ) : null}
-            </>
-          ) : null}
+          <OpenPositionExitsStrip
+            summary={exitsSummary}
+            symbol={symbol}
+            onProtect={onProtect}
+            compact
+          />
         </div>
         <span className={qty < 0 ? "text-[var(--edge-negative)]" : ""}>{qty}</span>
         <span>{formatMoney(row.avgCost)}</span>
@@ -426,25 +415,25 @@ export function AccountPanel() {
               ? [
                   {
                     id: "resume-playbook",
-                    label: "Resume management playbook",
+                    label: "Resume Manage",
                     action: () => void handleResumePlaybook(manageInstance),
                   },
                 ]
               : [
                   {
                     id: "pause-playbook",
-                    label: "Pause management playbook",
+                    label: "Pause Manage",
                     action: () => void handlePausePlaybook(manageInstance),
                   },
                 ]),
             {
               id: "skip-playbook",
-              label: "Skip next manage rule",
+              label: "Skip next Manage rule",
               action: () => void handleSkipPlaybook(manageInstance),
             },
             {
               id: "detach-playbook",
-              label: "Detach management playbook",
+              label: "Detach Manage",
               action: () => void handleDetachPlaybook(manageInstance),
             },
           ]
@@ -658,6 +647,12 @@ export function AccountPanel() {
               </div>
               {filteredPositions.map((row, index) => {
                 const manageInstance = resolveManageInstance(row);
+                const exitsSummary = summarizeOpenPositionExits({
+                  position: row,
+                  orders: openOrders,
+                  manageInstance,
+                  lastPrice: row.marketPrice ?? null,
+                });
                 return (
                   <PositionRow
                     key={`${row.contract.conId ?? row.contract.symbol}-${index}`}
@@ -667,14 +662,8 @@ export function AccountPanel() {
                     onContextMenu={(positionRow, position) =>
                       setPositionMenu({ row: positionRow, position })
                     }
-                    manageLabel={
-                      manageInstance ? formatPlaybookManageLabel(manageInstance) : null
-                    }
-                    manageDistance={
-                      manageInstance
-                        ? formatNextManageDistance(manageInstance, row.marketPrice ?? null)
-                        : null
-                    }
+                    exitsSummary={exitsSummary}
+                    onProtect={() => setProtectivePosition(row)}
                   />
                 );
               })}

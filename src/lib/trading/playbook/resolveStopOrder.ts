@@ -2,7 +2,7 @@ import type { AccountOrder } from "@/lib/marketData/contracts/brokerage";
 
 import type { PlaybookInstance } from "./types";
 
-function isProtectiveStopOrder(order: AccountOrder): boolean {
+export function isProtectiveStopOrder(order: AccountOrder): boolean {
   const orderType = order.orderType?.trim().toUpperCase() ?? "";
   return orderType.includes("STP") || orderType === "TRAIL" || orderType.includes("TRAIL");
 }

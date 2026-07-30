@@ -44,6 +44,10 @@ function renderMenu(open = false, onOpenChange = vi.fn()) {
   );
 }
 
+vi.mock("../trading/usePlaybookInstances", () => ({
+  usePlaybookInstances: () => ({ instances: [], refresh: vi.fn() }),
+}));
+
 describe("OpenRiskPositionsMenu", () => {
   beforeEach(() => {
     handleOpenAccount.mockReset();
@@ -61,6 +65,7 @@ describe("OpenRiskPositionsMenu", () => {
       tradingEnvironment: "paper",
       connectionState: "connected",
       positions: [position("AAPL", 10, 125.5), position("BBD", 1, -0.04)],
+      ordersForActiveAccount: [],
       pnl: { unrealizedPnL: 125.46, dailyPnL: 0, realizedPnL: 0, updatedAt: Date.now() },
       refresh,
     });
@@ -135,10 +140,53 @@ describe("OpenRiskPositionsMenu", () => {
     expect(handleLoadSymbol).toHaveBeenCalledWith("AAPL");
   });
 
+  it("shows unprotected callout on bare position", () => {
+    renderMenu(true);
+    expect(screen.getByTestId("open-position-unprotected-AAPL")).toBeInTheDocument();
+    expect(screen.getByTestId("open-position-protect-AAPL")).toHaveTextContent("Protect: Unprotected");
+  });
+
+  it("shows protect label when stop order present", () => {
+    mockUseAccount.mockReturnValue({
+      activeTradingAccount: {
+        broker: "ib",
+        connectionId: "ib-paper",
+        accountId: "DUP586813",
+        environment: "paper",
+        availability: "online",
+      },
+      activeTradingAccountId: "DUP586813",
+      tradingEnvironment: "paper",
+      connectionState: "connected",
+      positions: [position("AAPL", 10, 125.5)],
+      ordersForActiveAccount: [
+        {
+          orderId: 1,
+          symbol: "AAPL",
+          account: "DUP586813",
+          action: "SELL",
+          orderType: "STP",
+          auxPrice: 180,
+          status: "Submitted",
+        },
+      ],
+      pnl: { unrealizedPnL: 125.5, dailyPnL: 0, realizedPnL: 0, updatedAt: Date.now() },
+      refresh,
+    });
+    renderMenu(true);
+    expect(screen.getByTestId("open-position-protect-AAPL")).toHaveTextContent("Protect: STP 180.00");
+    expect(screen.queryByTestId("open-position-unprotected-AAPL")).toBeNull();
+  });
+
+  it("routes protect action to open account", () => {
+    renderMenu(true);
+    fireEvent.click(screen.getByTestId("open-position-protect-action-AAPL"));
+    expect(handleOpenAccount).toHaveBeenCalled();
+  });
+
   it("opens close modal from row action", () => {
     renderMenu(true);
-    const row = screen.getByTestId("open-risk-row-AAPL");
-    fireEvent.click(row.querySelectorAll("button")[1]);
+    fireEvent.click(screen.getByTestId("open-risk-close-AAPL"));
     expect(screen.getByTestId("close-position-modal")).toBeInTheDocument();
   });
 });

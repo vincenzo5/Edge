@@ -24,7 +24,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | Trading journal | [journal-roadmap.md](./journal-roadmap.md) | v1 + Tiers 1–3 **Passing** (2026-07-22); app-level walks → Wave 1 Phase 6; import chrome → Wave 2 Phase 4 |
 | Trading execution | [trading-execution-roadmap.md](./trading-execution-roadmap.md) | Phases 0–5 + **6–9 Passing** (2026-07-22); options backlog; ops walks → Wave 1 Phase 1 + 4 |
 | Trade management playbook | [trade-management-playbook-roadmap.md](./trade-management-playbook-roadmap.md) | Phase 0–7 **Passing** (2026-07-24); Phase 8 **Pending** — rule editor |
-| Risk management system | [risk-management-system-roadmap.md](./risk-management-system-roadmap.md) | Phase 0 **Passing** (2026-07-29); Phase 1 **Passing** (2026-07-30); Phase 2 **Passing** (2026-07-29); Phase 3 **Passing** (2026-07-29); UX moments Phases 4–10 |
+| Risk management system | [risk-management-system-roadmap.md](./risk-management-system-roadmap.md) | Phase 0 **Passing** (2026-07-29); Phase 1 **Passing** (2026-07-30); Phase 2 **Passing** (2026-07-29); Phase 3 **Passing** (2026-07-29); Phase 4 **Passing** (2026-07-29); Phase 5 **Passing** (2026-07-30); UX moments Phases 6–10 |
 | Dual connection | [dual-connection-roadmap.md](./dual-connection-roadmap.md) | Phases A–D **product complete**; both-Gateway ops proof → Wave 1 Phase 1 |
 | Connections & providers | [connections-providers-roadmap.md](./connections-providers-roadmap.md) | Phase 0–4 **Passing**; Phase 5 **Pending** (local Gateway polish); Settings/prefs walks → Wave 2 Phase 3 |
 | IBKR hosted OAuth | [ibkr-hosted-oauth-roadmap.md](./ibkr-hosted-oauth-roadmap.md) | Phase 0 **Pending** (feasibility + IB onboarding); extracted from Connections Path A |
@@ -33,6 +33,7 @@ Optional check: `npm run roadmaps:status-check` compares track headers ↔ this 
 | AI agent / in-app copilot | [ai-agent-roadmap.md](./ai-agent-roadmap.md) | Phases 0–8 **Passing** — functional agent complete; deferred walks → Wave 2 Phase 1 |
 | Grok Copilot UX parity | [grok-copilot-parity-roadmap.md](./grok-copilot-parity-roadmap.md) | Phases 0–5 **Passing** (track complete); chrome walks → Wave 2 Phase 2 |
 | Copilot chat blocks | [copilot-chat-blocks-roadmap.md](./copilot-chat-blocks-roadmap.md) | Phase 0–3 **Passing** — Action shell + scroll + Media/Data + Reference; Phase 4 Follow-ups **Pending** |
+| Quant research runtime | [quant-research-runtime-roadmap.md](./quant-research-runtime-roadmap.md) | Phase 0 **Pending** — contracts + architecture freeze |
 | Research UX (AI-first desk) | [research-ux-roadmap.md](./research-ux-roadmap.md) | Phases 0–8 **Passing** (2026-07-24) — track complete; Talk / Board / Desk; session reel; research-default entry |
 | TypeScript indicator scripting | [typescript-indicator-scripting-roadmap.md](./typescript-indicator-scripting-roadmap.md) | Phases 0–5B + Scripts tile **Passing**; walks → Wave 1 Phase 3 |
 | Script depth (Pine-like capability) | [script-depth-roadmap.md](./script-depth-roadmap.md) | Phases 0–5 **Passing** — track complete; walks → Wave 1 Phase 3 |

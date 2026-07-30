@@ -27,9 +27,28 @@ vi.mock("@/lib/trading/tradingClient", () => ({
     intent: { intentId: "intent-1", updatedAt: Date.now() },
   }),
   submitOrder: vi.fn().mockResolvedValue({ orderId: 99 }),
+  fetchPlaybookInstances: vi.fn().mockResolvedValue([]),
+  detachPlaybookInstance: vi.fn(),
+  pausePlaybookInstance: vi.fn(),
+  resumePlaybookInstance: vi.fn(),
+  skipNextPlaybookRule: vi.fn(),
   TradingApiError: class TradingApiError extends Error {
     status = 500;
   },
+}));
+
+vi.mock("../../trading/usePlaybookInstances", () => ({
+  usePlaybookInstances: () => ({ instances: [], refresh: vi.fn() }),
+}));
+
+vi.mock("../../trading/ProtectiveOcoForm", () => ({
+  ProtectiveOcoForm: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="protective-oco-form">
+      <button type="button" onClick={onClose}>
+        Close OCO form
+      </button>
+    </div>
+  ),
 }));
 
 import { useAccount } from "../../AccountProvider";
@@ -595,5 +614,72 @@ describe("AccountPanel", () => {
       </ChartActionsProvider>,
     );
     expect(screen.getByTestId("position-pnl-AAPL")).toHaveAttribute("data-flash", "down");
+  });
+
+  it("shows unprotected exit strip on bare position", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccount: {
+          broker: "ib",
+          connectionId: "ib-paper",
+          accountId: "DU123",
+          environment: "paper",
+          availability: "online",
+        },
+        activeTradingAccountId: "DU123",
+        ordersForActiveAccount: [],
+      }),
+    );
+    renderPanel();
+    expect(screen.getByTestId("open-position-protect-AAPL")).toHaveTextContent("Protect: Unprotected");
+    expect(screen.getByTestId("open-position-unprotected-AAPL")).toBeInTheDocument();
+  });
+
+  it("opens protective OCO form from unprotected row action", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccount: {
+          broker: "ib",
+          connectionId: "ib-paper",
+          accountId: "DU123",
+          environment: "paper",
+          availability: "online",
+        },
+        activeTradingAccountId: "DU123",
+        ordersForActiveAccount: [],
+      }),
+    );
+    renderPanel();
+    fireEvent.click(screen.getByTestId("open-position-protect-action-AAPL"));
+    expect(screen.getByTestId("protective-oco-form")).toBeInTheDocument();
+  });
+
+  it("shows protect label when stop order is open", () => {
+    mockUseAccount.mockReturnValue(
+      connectedAccount({
+        activeTradingAccount: {
+          broker: "ib",
+          connectionId: "ib-paper",
+          accountId: "DU123",
+          environment: "paper",
+          availability: "online",
+        },
+        activeTradingAccountId: "DU123",
+        ordersForActiveAccount: [
+          {
+            orderId: 1,
+            symbol: "AAPL",
+            account: "DU123",
+            action: "SELL",
+            orderType: "STP",
+            auxPrice: 180,
+            status: "Submitted",
+          },
+        ],
+      }),
+    );
+    renderPanel();
+    expect(screen.getByTestId("open-position-protect-AAPL")).toHaveTextContent("Protect: STP 180.00");
+    expect(screen.queryByTestId("open-position-unprotected-AAPL")).toBeNull();
   });
 });

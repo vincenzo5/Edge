@@ -1,0 +1,34 @@
+# LIVE — Risk management system — Phase 5 evidence
+# Date: 2026-07-30
+
+## Scope
+UX: Open position — Protect + Manage Exit binding chrome on open-risk and Account rows.
+
+## Delivered
+- src/lib/trading/summarizeOpenPositionExits.ts — open-position Protect/Manage status derivation from orders + playbook
+- src/lib/trading/summarizeOpenPositionExits.test.ts
+- src/lib/trading/playbook/resolveStopOrder.ts — export isProtectiveStopOrder
+- src/app/components/trading/OpenPositionExitsStrip.tsx — compact Protect/Manage/unprotected strip
+- src/app/components/trading/OpenPositionExitsStrip.test.tsx
+- src/app/components/home/OpenRiskPositionsMenu.tsx — wire strip + Manage-only Pause/Detach copy
+- src/app/components/home/OpenRiskPositionsMenu.test.tsx
+- src/app/components/sidebar/panels/AccountPanel.tsx — wire strip + Protect-with-OCO row action
+- src/app/components/sidebar/panels/AccountPanel.test.tsx
+- src/lib/trading/ARCHITECTURE.md — Phase 5 section
+- src/lib/risk/ARCHITECTURE.md — Phase 5 pointer
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 5 Passing
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — pure lib summarizer in src/lib/trading; shared strip in app; no runtime RiskPolicy Zod type; Detach/Pause copy aligns with detachKeepsProtectOrders; open-risk Protect deep-links to Account only.
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/summarizeOpenPositionExits.test.ts src/app/components/trading/OpenPositionExitsStrip.test.tsx src/app/components/home/OpenRiskPositionsMenu.test.tsx src/app/components/sidebar/panels/AccountPanel.test.tsx
+
+Output:
+Test Files  4 passed (4)
+Tests  49 passed (49)
+
+## App-level
+Manual: bare paper position → open-risk + Account show Unprotected + Protect affordance; position with STP → Protect label; OCO+playbook → Protect + Manage lines; Detach Manage copy does not imply cancel Protect.

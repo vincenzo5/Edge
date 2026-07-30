@@ -360,6 +360,10 @@ Protect orders always rest at the broker; the Manage evaluator only upgrades man
 
 Gap / stop-market vs stop-limit risk is acknowledged in ticket copy (Phase 7 UX); order types unchanged here.
 
+**Phase 4 (Risk track):** Pre-submit checklist chrome on `TradeOrderForm` and `ProtectiveOcoForm` via `summarizeSubmitRiskPlan` + `SubmitRiskPlanSummary` — Budget, Size, Protect, Manage, failure-mode line; live without Protect → soft warn only.
+
+**Phase 5 (Risk track):** Open-position Exit binding chrome on `OpenRiskPositionsMenu` and `AccountPanel` via `summarizeOpenPositionExits` + `OpenPositionExitsStrip` — Protect state from open orders (stop/trail/OCO/TP), Manage preset + next-rule distance, unprotected callout + Protect-with-OCO affordance; Detach/Pause copy clarifies Manage-only (Protect stays at broker per `detachKeepsProtectOrders`).
+
 UX chrome for RiskPolicy slots ships in roadmap Phases 2–10 (chart draw → Risk sidebar → ticket → open position → during trade → failure mode → journal → copilot → account kills).
 
 ## Post–Phase 5 backlog (not shipped)

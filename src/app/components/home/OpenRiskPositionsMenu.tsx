@@ -26,11 +26,12 @@ import {
 } from "@/lib/trading/openRiskSummary";
 import { useOpenRiskNavigation } from "./OpenRiskWorkspaceBridge";
 import { usePlaybookInstances } from "@/app/components/trading/usePlaybookInstances";
+import { OpenPositionExitsStrip } from "@/app/components/trading/OpenPositionExitsStrip";
 import {
   findActivePlaybookForPosition,
-  formatNextManageDistance,
-  formatPlaybookManageLabel,
 } from "@/lib/trading/playbook/display";
+import { summarizeOpenPositionExits, DETACH_MANAGE_HINT, PAUSE_MANAGE_HINT } from "@/lib/trading/summarizeOpenPositionExits";
+import type { AccountOrder } from "@/lib/marketData/contracts/brokerage";
 import {
   detachPlaybookInstance,
   pausePlaybookInstance,
@@ -83,6 +84,8 @@ function PositionPopoverRow({
   onChart,
   onClose,
   manageInstance,
+  openOrders,
+  onProtect,
   onDetach,
   onPause,
   onResume,
@@ -92,6 +95,8 @@ function PositionPopoverRow({
   onChart: (symbol: string) => void;
   onClose: (row: AccountPosition) => void;
   manageInstance: PlaybookInstance | null;
+  openOrders: AccountOrder[];
+  onProtect: () => void;
   onDetach: (instance: PlaybookInstance) => void;
   onPause: (instance: PlaybookInstance) => void;
   onResume: (instance: PlaybookInstance) => void;
@@ -104,8 +109,12 @@ function PositionPopoverRow({
   const pnlClass = pnlFlash.toneClass || pnlColorClass(pnl);
   const canAct = qty !== 0 && symbol !== "—";
   const lastPrice = row.marketPrice ?? null;
-  const nextDistance =
-    manageInstance != null ? formatNextManageDistance(manageInstance, lastPrice) : null;
+  const exitsSummary = summarizeOpenPositionExits({
+    position: row,
+    orders: openOrders,
+    manageInstance,
+    lastPrice,
+  });
 
   return (
     <div
@@ -123,24 +132,12 @@ function PositionPopoverRow({
         <div className={`${metadataTextClass()} text-[var(--edge-text-secondary)]`}>
           {qty > 0 ? `Long ${qty}` : `Short ${Math.abs(qty)}`}
         </div>
-        {manageInstance ? (
-          <>
-            <div
-              className={`${metadataTextClass()} text-[var(--edge-accent-blue)]`}
-              data-testid={`open-risk-manage-${symbol}`}
-            >
-              {formatPlaybookManageLabel(manageInstance)}
-            </div>
-            {nextDistance ? (
-              <div
-                className={`${metadataTextClass()} text-[var(--edge-text-secondary)]`}
-                data-testid={`open-risk-manage-distance-${symbol}`}
-              >
-                {nextDistance}
-              </div>
-            ) : null}
-          </>
-        ) : null}
+        <OpenPositionExitsStrip
+          summary={exitsSummary}
+          symbol={symbol}
+          onProtect={onProtect}
+          compact
+        />
       </button>
       <span
         className={`${metadataTextClass()} tabular-nums ${pnlClass}`}
@@ -156,20 +153,22 @@ function PositionPopoverRow({
                 theme="dark"
                 className="!px-2 !py-0.5 text-[10px]"
                 disabled={!canAct}
+                title={PAUSE_MANAGE_HINT}
                 onClick={() => onResume(manageInstance)}
                 data-testid={`open-risk-resume-${symbol}`}
               >
-                Resume
+                Resume Manage
               </EdgeButton>
             ) : (
               <EdgeButton
                 theme="dark"
                 className="!px-2 !py-0.5 text-[10px]"
                 disabled={!canAct}
+                title={PAUSE_MANAGE_HINT}
                 onClick={() => onPause(manageInstance)}
                 data-testid={`open-risk-pause-${symbol}`}
               >
-                Pause
+                Pause Manage
               </EdgeButton>
             )}
             <EdgeButton
@@ -185,10 +184,11 @@ function PositionPopoverRow({
               theme="dark"
               className="!px-2 !py-0.5 text-[10px]"
               disabled={!canAct}
+              title={DETACH_MANAGE_HINT}
               onClick={() => onDetach(manageInstance)}
               data-testid={`open-risk-detach-${symbol}`}
             >
-              Detach
+              Detach Manage
             </EdgeButton>
           </>
         ) : null}
@@ -197,7 +197,7 @@ function PositionPopoverRow({
           className="!px-2 !py-0.5 text-[10px]"
           disabled={!canAct}
           onClick={() => onClose(row)}
-          data-testid={manageInstance ? `open-risk-flatten-${symbol}` : undefined}
+          data-testid={manageInstance ? `open-risk-flatten-${symbol}` : `open-risk-close-${symbol}`}
         >
           {manageInstance ? "Flatten now" : "Close"}
         </EdgeButton>
@@ -342,6 +342,8 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
                 row={row}
                 onChart={handleChart}
                 onClose={handleClosePosition}
+                openOrders={account.ordersForActiveAccount}
+                onProtect={handleOpenAccountClick}
                 manageInstance={
                   panelAccount
                     ? findActivePlaybookForPosition(
