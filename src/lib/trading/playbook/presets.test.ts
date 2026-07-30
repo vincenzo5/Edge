@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PLAYBOOK_PRESET_RISK_POLICY,
+  RISK_POLICY_COMPLETENESS_KEYS,
+} from "./presetRiskPolicy";
+import {
   getPlaybookPreset,
   PLAYBOOK_PRESET_IDS,
   PLAYBOOK_PRESET_LIST,
@@ -44,5 +48,18 @@ describe("PLAYBOOK_PRESETS", () => {
     const beRule = preset.rules.find((rule) => rule.id === "be-after-half");
     expect(beRule?.requires).toEqual(["scale-half-1r"]);
     expect(beRule?.when).toEqual({ kind: "scaleFill", ruleId: "scale-half-1r" });
+  });
+
+  it("documents RiskPolicy completeness for every shipped preset", () => {
+    for (const id of PLAYBOOK_PRESET_IDS) {
+      const checklist = PLAYBOOK_PRESET_RISK_POLICY[id];
+      expect(checklist, id).toBeDefined();
+      for (const key of RISK_POLICY_COMPLETENESS_KEYS) {
+        expect(checklist[key]?.trim(), `${id}.${key}`).not.toBe("");
+      }
+    }
+    expect(Object.keys(PLAYBOOK_PRESET_RISK_POLICY).sort()).toEqual(
+      [...PLAYBOOK_PRESET_IDS].sort(),
+    );
   });
 });

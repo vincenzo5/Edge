@@ -4,7 +4,7 @@ Living track for a **shared RiskPolicy model** that every risk strategy must fil
 
 **Last updated:** 2026-07-29
 
-**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Pending** — architecture spine + vocabulary sync.
+**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Pending** — UX: drawing geometry strip.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (**Protect** — brackets / OCO / trail), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Alerts](./alerts-roadmap.md) (trade-plan notify only), [Journal](./journal-roadmap.md) (R / planned risk review), [AI Agent](./ai-agent-roadmap.md) (risk/order/playbook tools), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -443,7 +443,9 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 
 **Depends on:** Phase 0 accepted.
 
-**Verification:** Architecture review; preset checklist present for all five shipped presets.
+**Status:** **Passing** (2026-07-30)
+
+**Verification:** Architecture self-review; `PLAYBOOK_PRESET_RISK_POLICY` completeness for all five presets; hybrid failure mode in trading ARCHITECTURE + `CONFLICT_POLICY` cite.
 
 ---
 
@@ -694,7 +696,7 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 | `scale_3x` | ⅓ at 1R / 2R; BE after first; trail runner | same |
 | `daytrade_flatten` | sessionFlatten → flatten | same |
 
-Phase 1 pastes the 12-question checklist onto each preset in code comments or `display` metadata.
+Phase 1 pastes the 12-question checklist onto each preset in `playbook/presetRiskPolicy.ts` (developer map; not UI schema).
 
 ---
 

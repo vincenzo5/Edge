@@ -314,6 +314,54 @@ UI copy: **Manage with…** / **Management playbook** — not bare “Playbook�
 
 Full track: [Trade Management Playbook Roadmap](../../../docs/roadmaps/trade-management-playbook-roadmap.md).
 
+## RiskPolicy spine (Plan / Protect / Manage / Gates / Measurement)
+
+Shared vocabulary for every risk surface — full slot taxonomies and UX-moment phases live in the [Risk Management System Roadmap](../../../docs/roadmaps/risk-management-system-roadmap.md). This section maps **RiskPolicy slots** to shipped modules. No runtime `RiskPolicy` Zod type yet (Phase 9 compose / later UX phases).
+
+**One-line framing:** *Every named risk strategy is a filled RiskPolicy — not a vibe.*
+
+| RiskPolicy slot | Primary modules | Notes |
+|-----------------|-----------------|-------|
+| **Budget** | `src/lib/risk/riskSettings.ts` (`resolveDollarRisk`) | `$` or `% NetLiq`; no user daily budget / open-heat cap yet (Phase 10) |
+| **Sizing** | `src/lib/risk/equityPositionSize.ts`, Trade ticket auto-qty | `stopDistance` from entry/stop + dollar risk |
+| **Geometry** | `positionTradeSetup.ts`, chart-core `risk/*`, position drawings | Live points preferred; `PositionPlan` locks R at Manage attach |
+| **Exits — Protect** | `bracketPlan.ts`, `TradingService` brackets/OCO/trail | `binding:restingBroker` — hard stop / TP / trail at broker |
+| **Exits — Manage** | `playbook/*`, `playbookInstanceStore`, `runPlaybookEvaluation` | `binding:managedApp` — BE, scale, trail, session flatten |
+| **Exits — notifyOnly** | `alerts/tradePlanAlerts.ts`, `manageNotifyAlerts.ts` | Geometry / manage-level notify — never mutates orders |
+| **Gates** | `validateOrder.ts`, `safetyGuards.ts`, readiness, kill switch | Operator kill, short block, PDT soft, live confirm; no day-loss / heat kill yet |
+| **Measurement** | `PositionPlan`, journal `rMultiple`, `openRiskSummary`, playbook `journalRecipe` | R lock at attach; planned risk not auto-synced from Plan attach (Phase 8) |
+
+Plan detail: [src/lib/risk/ARCHITECTURE.md](../risk/ARCHITECTURE.md).
+
+### ExitRule vocabulary bridge (roadmap ↔ playbook)
+
+Manage playbook rules are ExitRules with `binding:managedApp`. Shipped `when` / `then` kinds map to the roadmap trigger/action taxonomy:
+
+| Roadmap trigger | Playbook `when.kind` | Typical `then.kind` |
+|-----------------|----------------------|---------------------|
+| `priceLevel` | `priceCross` | `modifyStop`, `flatten`, `reduceQty` |
+| `rMultiple` | `multipleOfR` | `modifyStop`, `reduceQty`, `attachTrail` |
+| `sessionClock` | `sessionFlatten` | `flatten` |
+| `event` (fill) | `scaleFill`, `protectiveFill` | `modifyStop`, `attachTrail`, `reduceQty` |
+
+Preset completeness (12-question checklist): `playbook/presetRiskPolicy.ts` — one record per shipped `PLAYBOOK_PRESET`.
+
+### Hybrid failure mode (Protect survives Manage / app down)
+
+Protect orders always rest at the broker; the Manage evaluator only upgrades management over time. Policy is frozen in `playbook/conflictPolicy.ts`:
+
+| Policy flag | Behavior |
+|-------------|----------|
+| `hybridProtectAtBroker` | Last broker stop / OCO / trail remains the survival layer |
+| `detachKeepsProtectOrders` | Detach playbook → instance `detached`; **never** cancels Protect legs |
+| `manualStopDragPausesRules` | User stop drag → pause conflicting BE/trail manage rules |
+
+**Pause** stops Manage evaluation; it does not cancel Protect. **Detach** expires manage-notify alerts (best-effort) but leaves broker exits untouched. If Edge or Manage is down, resting Protect exits still protect the position — Manage is additive, not the primary stop.
+
+Gap / stop-market vs stop-limit risk is acknowledged in ticket copy (Phase 7 UX); order types unchanged here.
+
+UX chrome for RiskPolicy slots ships in roadmap Phases 2–10 (chart draw → Risk sidebar → ticket → open position → during trade → failure mode → journal → copilot → account kills).
+
 ## Post–Phase 5 backlog (not shipped)
 
 - Options execution

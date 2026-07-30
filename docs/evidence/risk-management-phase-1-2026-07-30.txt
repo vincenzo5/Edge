@@ -1,0 +1,31 @@
+# LIVE — Risk management system — Phase 1 evidence
+# Date: 2026-07-30
+
+## Scope
+Docs + developer completeness map — RiskPolicy architecture spine and vocabulary sync.
+No runtime RiskPolicy Zod type; no end-user chrome.
+
+## Delivered
+- src/lib/trading/ARCHITECTURE.md — RiskPolicy spine (slot→module map, ExitRule bridge, hybrid failure mode)
+- src/lib/risk/ARCHITECTURE.md — Plan Budget/Sizing/Geometry bind note
+- src/lib/trading/playbook/presetRiskPolicy.ts — 12-question completeness for all five presets
+- src/lib/trading/playbook/presets.test.ts — completeness regression test
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 1 Passing
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — spine links modules without parallel runtime types; PlaybookTemplateSchema unchanged; CONFLICT_POLICY cited for hybrid failure mode; SEC pins untouched.
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/playbook/presets.test.ts
+Output:
+Test Files  1 passed (1)
+Tests  6 passed (6)
+
+## Doc gate
+- All five PLAYBOOK_PRESET_IDS have 12-key PLAYBOOK_PRESET_RISK_POLICY entries
+- Hybrid failure mode documented in trading ARCHITECTURE (detachKeepsProtectOrders, hybridProtectAtBroker)
+- Plan layer failure note in risk ARCHITECTURE
+
+App-level: N/A — no end-user behavior.
