@@ -1,0 +1,62 @@
+# OPS — Discord knowledge mine — Phase 4 evidence
+# Date: 2026-07-30
+
+## Scope
+Context-shaped synthesis for Active guild Algo Trading, Coding (928315068955893760).
+knowledge/ pack from Phase 3 digests + profile.md. No Edge product code. No Discord MCP reads. No send_message calls.
+
+## Sources
+- Phase 3 channel digests (general, coding, stratgen, rules-welcome-info, strategy-indicator-share)
+- profile.md (Phase 2 bootstrap)
+- No new read_messages calls
+
+## Local artifacts
+Root: /Users/vincentn/Knowledge/discord/
+Server dir: by-server/algo-trading-coding--928315068955893760/
+
+Command: ls -la knowledge/ && ls knowledge/topics/
+Output:
+knowledge/overview.md
+knowledge/resources.md
+knowledge/glossary.md
+knowledge/people.md
+knowledge/open-questions.md
+knowledge/topics/stratgen-indicators.md
+knowledge/topics/ninjatrader-tooling.md
+knowledge/topics/membership-ops.md
+
+Command: wc -l knowledge/overview.md knowledge/*.md
+Output:
+52 knowledge/overview.md
+213 total (overview + 4 supporting root files)
+
+Command: python3 meta.json phase check
+Output: phase 4 status partial
+
+Command: grep 'Active server' ~/Knowledge/discord/_index.md
+Output: Phase 5 scale + refresh cadence next.
+
+Command: grep 'Phase 4' runs/2026-07-30.md
+Output: Phase 4 — Context-shaped synthesis section present; send_message calls 0; Discord MCP tools invoked 0
+
+## Knowledge pack summary
+- overview.md — purpose, audience, inferred norms, coverage gaps (52 lines)
+- topics/stratgen-indicators.md — StratGen zip, beta, AFATR/Hurst
+- topics/ninjatrader-tooling.md — ATR stops, BBR tutorial, debug
+- topics/membership-ops.md — T3 bundle, recordings, DM policy
+- resources.md, glossary.md, people.md, open-questions.md
+
+## Architecture review
+N/A — operator workflow + local filesystem only; no Edge runtime contracts.
+
+## App-level
+App-level: knowledge/overview.md non-empty (52 lines); 8 knowledge files (3 topics + 5 supporting); _index Active → Phase 5; meta.json phase=4; send_message calls 0; Discord MCP tools invoked 0
+
+## Focused
+Command: npm run roadmaps:status-check
+Output: roadmaps:status-check found 1 issue(s):
+  - copilot-chat-blocks-roadmap.md: README max Passing phase ~3 but track ~5
+exit=1; discord-knowledge-mine row matches Phase 4 Passing.
+
+## Next
+Phase 5 — Scale + refresh cadence (next server or refresh Active server windows)

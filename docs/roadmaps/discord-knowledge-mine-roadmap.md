@@ -2,9 +2,9 @@
 
 Living track for **server-by-server Discord mining** via the Discord MCP: extract what the tool surface allows, organize by each server’s context, and persist a durable local knowledge store (raw immutable + synthesized digests).
 
-**Last updated:** 2026-07-29
+**Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-29) — MCP auth + local store contract; Phase 1 **Passing** (2026-07-29) — guild inventory; Phase 2 **Passing** (2026-07-30) — first-server bootstrap (Algo Trading, Coding); Phase 3 **Passing** (2026-07-30) — priority channel extract; Phase 4 **Pending** — context synthesis.
+**Status:** Phase 0 **Passing** (2026-07-29) — MCP auth + local store contract; Phase 1 **Passing** (2026-07-29) — guild inventory; Phase 2 **Passing** (2026-07-30) — first-server bootstrap (Algo Trading, Coding); Phase 3 **Passing** (2026-07-30) — priority channel extract; Phase 4 **Passing** (2026-07-30) — context synthesis; Phase 5 **Pending** — scale + refresh cadence.
 
 **Branch:** OPS (secondary: none). Not an Edge product surface — local operator / research knowledge workflow.
 
@@ -188,7 +188,7 @@ Classify from channel names + a small sample of rules / welcome / announcements 
 
 ### Phase 4 — Context-shaped synthesis
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Server-level knowledge pack usable without re-reading raw JSON.
 

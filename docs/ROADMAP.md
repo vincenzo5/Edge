@@ -305,7 +305,7 @@ Broader product backlog (not feature-track owned):
 - Advanced market-context overlays — earnings, dividends, filings, news, options expirations, semantic AI annotations
 - TrendSpider competitive review — inventory started; prioritize Adopt/Adapt/Defer/Skip → [TrendSpider Competitive Roadmap](./roadmaps/trendspider-competitive-roadmap.md)
 - News flow — research captured; implementation not started → [News Flow Roadmap](./roadmaps/news-flow-roadmap.md)
-- Discord knowledge mine — OPS side track (local MCP extract, not product); Phase 3 **Passing** (2026-07-30); Phase 4 **Pending** → [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md)
+- Discord knowledge mine — OPS side track (local MCP extract, not product); Phase 4 **Passing** (2026-07-30); Phase 5 **Pending** → [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md)
 - Day classification — Phases 1–3 **Passing** (2026-07-23); Phase 4 in-app review UI **Pending** → [Day Classification Roadmap](./roadmaps/day-classification-roadmap.md)
 - ~~Structural refactor~~ — Tiers A–E **Passing** → [Structural Refactor Roadmap](./refactor-roadmap.md)
 - Code organization — Phase 0–2 **Passing** (2026-07-24); Phase 3 **Pending** (components tree, god modules, chart shims) → [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md)
