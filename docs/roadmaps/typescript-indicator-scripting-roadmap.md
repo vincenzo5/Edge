@@ -6,7 +6,7 @@ Build a private “My scripts” workflow where AI-generated TypeScript indicato
 
 **Status:** Phase 0 **Passing** (2026-07-19); Phase 1 **Passing** (2026-07-19); Phase 2 **Passing** (2026-07-19); Phase 3 **Passing** (2026-07-19); Phase 4 **Passing** (2026-07-19); Phase 5A **Passing** (2026-07-19); Phase 5B **Passing** (2026-07-19); Scripts workspace tile **Passing**. **Product foundation complete.** Deferred app-level walks → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 3.
 
-**Related:** [Script Depth Roadmap](./script-depth-roadmap.md) (follow-on TA/visuals/MTF/alerts/drawings), [Chart Engine Architecture](../../src/lib/chart/ARCHITECTURE.md), [Plugin API](../chart/prereqs/plugin-api.md), [Indicator Foundation Plan](../chart/indicator-foundation-plan.md), [Persistence Architecture](../../src/lib/persistence/ARCHITECTURE.md), [Design System Architecture](../../src/lib/design-system/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
+**Related:** [Script Depth Roadmap](./script-depth-roadmap.md) (follow-on TA/visuals/MTF/alerts/drawings), [Quant Research Runtime](./quant-research-runtime-roadmap.md) (strategies/backtests — separate server-side surface; do not extend QuickJS into quant compute), [Chart Engine Architecture](../../src/lib/chart/ARCHITECTURE.md), [Plugin API](../chart/prereqs/plugin-api.md), [Indicator Foundation Plan](../chart/indicator-foundation-plan.md), [Persistence Architecture](../../src/lib/persistence/ARCHITECTURE.md), [Design System Architecture](../../src/lib/design-system/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
 ---
 
@@ -315,7 +315,7 @@ Basic TypeScript editor
 
 - Pine Script syntax or compatibility.
 - Public/community/purchased script execution or publishing.
-- Strategies, backtesting, orders, bots, and automatic trading.
+- Strategies, backtesting, orders, bots, and automatic trading — see [Quant Research Runtime](./quant-research-runtime-roadmap.md) (server-side; not QuickJS).
 - Screener execution or server-side script evaluation.
 - External packages, imports, network calls, files, browser storage, or access to application internals.
 - Full IDE features such as language-server autocomplete, source control, profiler, or debugger (basic Monaco syntax highlighting in the Scripts tile is in scope; LSP and debugger are not).

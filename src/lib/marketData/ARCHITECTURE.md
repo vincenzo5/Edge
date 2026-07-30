@@ -2,6 +2,8 @@
 
 Provider-neutral stocks/options data foundation for the closed Edge app.
 
+**Research datasets (Quant Research Runtime Phase 0):** Versioned research materialization consumes `MarketDataService` acquisition and `/api/candles` pagination during dataset build only; sandboxed research workers (Phase 4+) have no network — datasets must be fully materialized before worker execution. Contracts: [Quant Research Runtime Roadmap](../../../docs/roadmaps/quant-research-runtime-roadmap.md) § 0.1; domain stub: [src/lib/researchCompute/ARCHITECTURE.md](../researchCompute/ARCHITECTURE.md).
+
 **Productization track:** Phase 0 contracts in [`src/lib/connections/`](../connections/ARCHITECTURE.md); Settings Connections, provider preference order, and ConfigSource/vault path → [Connections & Providers Roadmap](../../../docs/roadmaps/connections-providers-roadmap.md). **Phase 3 (2026-07-24):** `ConfigSource` + `EnvConfigSource` in [`config/`](config/) — adapters resolve gate/credential reads through `getConfigSource()`; env-only backend today; vault plugs in later without adapter rewrites.
 
 ## Layout
