@@ -14,6 +14,9 @@ function summary(overrides: Partial<OpenPositionExitsSummary> = {}): OpenPositio
       attached: false,
       label: "Off",
       nextDistance: null,
+      nextActionPreview: null,
+      completedLabels: [],
+      pauseMessage: null,
     },
     warnings: [],
     ...overrides,
@@ -36,6 +39,9 @@ describe("OpenPositionExitsStrip", () => {
             attached: true,
             label: "Manage: Half + trail · armed",
             nextDistance: "+0.8R to scale",
+            nextActionPreview: "Scale 50% at 105.00 → reduce 5 shares",
+            completedLabels: [],
+            pauseMessage: null,
           },
         })}
         symbol="AAPL"
@@ -44,8 +50,30 @@ describe("OpenPositionExitsStrip", () => {
     expect(screen.getByTestId("open-position-manage-AAPL")).toHaveTextContent(
       "Manage: Half + trail · armed",
     );
-    expect(screen.getByTestId("open-position-manage-distance-AAPL")).toHaveTextContent(
-      "+0.8R to scale",
+    expect(screen.getByTestId("open-position-manage-next-AAPL")).toHaveTextContent(
+      "+0.8R to scale · Scale 50% at 105.00 → reduce 5 shares",
+    );
+  });
+
+  it("shows completed rules and pause message", () => {
+    render(
+      <OpenPositionExitsStrip
+        summary={summary({
+          manage: {
+            attached: true,
+            label: "Manage: Half + trail · paused",
+            nextDistance: "trail",
+            nextActionPreview: "Trail remainder → trail remainder",
+            completedLabels: ["scale"],
+            pauseMessage: "Manage paused — stop moved manually",
+          },
+        })}
+        symbol="AAPL"
+      />,
+    );
+    expect(screen.getByTestId("open-position-manage-done-AAPL")).toHaveTextContent("Done: scale");
+    expect(screen.getByTestId("open-position-manage-pause-AAPL")).toHaveTextContent(
+      "Manage paused — stop moved manually",
     );
   });
 

@@ -1,7 +1,10 @@
 import type { AccountOrder, AccountPosition } from "@/lib/marketData/contracts/brokerage";
 import {
+  formatCompletedManageRules,
+  formatNextManageActionPreview,
   formatNextManageDistance,
   formatPlaybookManageLabel,
+  resolveManagePauseMessage,
 } from "@/lib/trading/playbook/display";
 import { isProtectiveStopOrder } from "@/lib/trading/playbook/resolveStopOrder";
 import type { PlaybookInstance } from "@/lib/trading/playbook/types";
@@ -20,6 +23,9 @@ export type OpenPositionExitsSummary = {
     attached: boolean;
     label: string;
     nextDistance: string | null;
+    nextActionPreview: string | null;
+    completedLabels: string[];
+    pauseMessage: string | null;
   };
   warnings: OpenPositionExitWarning[];
 };
@@ -198,12 +204,22 @@ export function summarizeOpenPositionExits(args: {
   const manageLabel = manageAttached
     ? formatPlaybookManageLabel(args.manageInstance)
     : "Off";
+  const lastPrice = args.lastPrice ?? args.position.marketPrice ?? null;
   const nextDistance =
     manageAttached && args.manageInstance
-      ? formatNextManageDistance(
-          args.manageInstance,
-          args.lastPrice ?? args.position.marketPrice ?? null,
-        )
+      ? formatNextManageDistance(args.manageInstance, lastPrice)
+      : null;
+  const nextActionPreview =
+    manageAttached && args.manageInstance
+      ? formatNextManageActionPreview(args.manageInstance)
+      : null;
+  const completedLabels =
+    manageAttached && args.manageInstance
+      ? formatCompletedManageRules(args.manageInstance)
+      : [];
+  const pauseMessage =
+    manageAttached && args.manageInstance
+      ? resolveManagePauseMessage(args.manageInstance)
       : null;
 
   const warnings: OpenPositionExitWarning[] = protectAttached ? [] : ["unprotected"];
@@ -218,6 +234,9 @@ export function summarizeOpenPositionExits(args: {
       attached: manageAttached,
       label: manageLabel,
       nextDistance,
+      nextActionPreview,
+      completedLabels,
+      pauseMessage,
     },
     warnings,
   };

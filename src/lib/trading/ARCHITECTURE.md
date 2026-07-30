@@ -364,6 +364,8 @@ Gap / stop-market vs stop-limit risk is acknowledged in ticket copy (Phase 7 UX)
 
 **Phase 5 (Risk track):** Open-position Exit binding chrome on `OpenRiskPositionsMenu` and `AccountPanel` via `summarizeOpenPositionExits` + `OpenPositionExitsStrip` — Protect state from open orders (stop/trail/OCO/TP), Manage preset + next-rule distance, unprotected callout + Protect-with-OCO affordance; Detach/Pause copy clarifies Manage-only (Protect stays at broker per `detachKeepsProtectOrders`).
 
+**Phase 6 (Risk track):** During-trade Manage progress on the same strip — next-rule distance + action preview (`formatNextManageActionPreview`), completed fired rules (`formatCompletedManageRules`), pause/conflict copy (`resolveManagePauseMessage` for manual stop drag); chart manage-level markers reuse `manageLevelsForSymbol` → `ChartCell` price-axis annotations (playbook track — no new marker work).
+
 UX chrome for RiskPolicy slots ships in roadmap Phases 2–10 (chart draw → Risk sidebar → ticket → open position → during trade → failure mode → journal → copilot → account kills).
 
 ## Post–Phase 5 backlog (not shipped)

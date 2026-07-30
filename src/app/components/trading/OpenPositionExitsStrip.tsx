@@ -38,12 +38,30 @@ export function OpenPositionExitsStrip({ summary, symbol, onProtect, compact = f
           >
             {summary.manage.label}
           </div>
-          {summary.manage.nextDistance ? (
+          {summary.manage.pauseMessage ? (
+            <div
+              className={`${metadataTextClass()} text-[var(--edge-warning)]`}
+              data-testid={`open-position-manage-pause-${symbol}`}
+            >
+              {summary.manage.pauseMessage}
+            </div>
+          ) : null}
+          {summary.manage.completedLabels.length > 0 ? (
             <div
               className={`${metadataTextClass()} text-[var(--edge-text-secondary)]`}
-              data-testid={`open-position-manage-distance-${symbol}`}
+              data-testid={`open-position-manage-done-${symbol}`}
             >
-              {summary.manage.nextDistance}
+              Done: {summary.manage.completedLabels.join(", ")}
+            </div>
+          ) : null}
+          {summary.manage.nextDistance || summary.manage.nextActionPreview ? (
+            <div
+              className={`${metadataTextClass()} text-[var(--edge-text-secondary)]`}
+              data-testid={`open-position-manage-next-${symbol}`}
+            >
+              {[summary.manage.nextDistance, summary.manage.nextActionPreview]
+                .filter(Boolean)
+                .join(" · ")}
             </div>
           ) : null}
         </>

@@ -2,9 +2,9 @@
 
 Living track for a **shared RiskPolicy model** that every risk strategy must fill — Budget, Sizing, Geometry, Exits, Gates, Measurement — and for wiring that model across Edge’s Plan / Protect / Manage surfaces without duplicating those tracks.
 
-**Last updated:** 2026-07-29
+**Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome.
+**Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome. Phase 6 **Passing** (2026-07-30) — UX: during-trade Manage progress chrome.
 
 **Related:** [Trading Execution](./trading-execution-roadmap.md) (**Protect** — brackets / OCO / trail), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Alerts](./alerts-roadmap.md) (trade-plan notify only), [Journal](./journal-roadmap.md) (R / planned risk review), [AI Agent](./ai-agent-roadmap.md) (risk/order/playbook tools), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -561,6 +561,8 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 **Touch points:** playbook evaluator status, `OpenRiskPositionsMenu`, Account playbook menu, optional chart overlay.
 
 **Depends on:** Phase 5 status chrome; Manage runtime Phases 0–7 shipped.
+
+**Status:** **Passing** (2026-07-30)
 
 **Verification:** Focused playbook+chrome tests; paper: attach half_then_be → chip shows “Scale 50% at +1R”; after scale → “BE” or done state.
 

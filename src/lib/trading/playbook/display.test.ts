@@ -4,9 +4,14 @@ import { createPlaybookInstance, lockPositionPlan } from "./types";
 import { BREAK_EVEN_PRESET, HALF_PLUS_TRAIL_PRESET } from "./presets";
 import {
   findActivePlaybookForPosition,
+  formatCompletedManageRules,
+  formatNextManageActionPreview,
   formatNextManageDistance,
   formatPlaybookManageLabel,
   formatManageStepPreview,
+  MANAGE_PAUSED_COPY,
+  MANAGE_PAUSED_MANUAL_STOP_COPY,
+  resolveManagePauseMessage,
 } from "./display";
 import { planPlaybookSteps } from "./planSteps";
 
@@ -75,5 +80,59 @@ describe("playbook display", () => {
         : item,
     );
     expect(formatNextManageDistance(instance, 100)).toBe("trail");
+  });
+
+  it("formats next manage action preview for scale rule", () => {
+    const instance = createPlaybookInstance({
+      id: "inst-1",
+      template: HALF_PLUS_TRAIL_PRESET,
+      positionPlan,
+      status: "armed",
+      createdAt: "2026-07-24T12:00:00.000Z",
+    });
+    expect(formatNextManageActionPreview(instance)).toContain("reduce");
+  });
+
+  it("formats completed manage rule labels", () => {
+    const instance = createPlaybookInstance({
+      id: "inst-1",
+      template: HALF_PLUS_TRAIL_PRESET,
+      positionPlan,
+      status: "armed",
+      createdAt: "2026-07-24T12:00:00.000Z",
+    });
+    instance.ruleRuntimes = instance.ruleRuntimes.map((item) =>
+      item.ruleId === "scale-half-1r"
+        ? { ...item, status: "fired", firedAt: "2026-07-24T12:01:00.000Z" }
+        : item,
+    );
+    expect(formatCompletedManageRules(instance)).toEqual(["scale"]);
+  });
+
+  it("resolves pause message for manual stop conflict", () => {
+    const instance = createPlaybookInstance({
+      id: "inst-1",
+      template: HALF_PLUS_TRAIL_PRESET,
+      positionPlan,
+      status: "paused",
+      createdAt: "2026-07-24T12:00:00.000Z",
+    });
+    instance.ruleRuntimes = instance.ruleRuntimes.map((item) =>
+      item.ruleId === "trail-remainder"
+        ? { ...item, status: "skipped", skippedReason: "manual_stop" }
+        : item,
+    );
+    expect(resolveManagePauseMessage(instance)).toBe(MANAGE_PAUSED_MANUAL_STOP_COPY);
+  });
+
+  it("resolves generic pause message", () => {
+    const instance = createPlaybookInstance({
+      id: "inst-1",
+      template: BREAK_EVEN_PRESET,
+      positionPlan,
+      status: "paused",
+      createdAt: "2026-07-24T12:00:00.000Z",
+    });
+    expect(resolveManagePauseMessage(instance)).toBe(MANAGE_PAUSED_COPY);
   });
 });

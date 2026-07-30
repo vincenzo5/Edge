@@ -151,6 +151,46 @@ describe("summarizeOpenPositionExits", () => {
     expect(summary.manage.label).toContain("Manage:");
     expect(summary.manage.label).toContain("Half + trail");
     expect(summary.manage.nextDistance).toMatch(/R to scale/);
+    expect(summary.manage.nextActionPreview).toContain("reduce");
+    expect(summary.manage.completedLabels).toEqual([]);
+    expect(summary.manage.pauseMessage).toBeNull();
+  });
+
+  it("includes completed manage rules and pause message", () => {
+    const plan = lockPositionPlan({
+      symbol: "AAPL",
+      accountId: "DUP586813",
+      side: "BUY",
+      entry: 100,
+      initialStop: 95,
+      qty: 10,
+      environment: "paper",
+    });
+    const instance = createPlaybookInstance({
+      id: "inst-1",
+      template: HALF_PLUS_TRAIL_PRESET,
+      positionPlan: plan,
+      status: "paused",
+    });
+    instance.ruleRuntimes = instance.ruleRuntimes.map((item) => {
+      if (item.ruleId === "scale-half-1r") {
+        return { ...item, status: "fired", firedAt: "2026-07-24T12:01:00.000Z" };
+      }
+      if (item.ruleId === "trail-remainder") {
+        return { ...item, status: "skipped", skippedReason: "manual_stop" };
+      }
+      return item;
+    });
+
+    const summary = summarizeOpenPositionExits({
+      position: position("AAPL", 10),
+      orders: [stopOrder()],
+      manageInstance: instance,
+      lastPrice: 100,
+    });
+
+    expect(summary.manage.completedLabels).toEqual(["scale"]);
+    expect(summary.manage.pauseMessage).toBe("Manage paused — stop moved manually");
   });
 
   it("prefers cached stopOrderId on playbook instance", () => {

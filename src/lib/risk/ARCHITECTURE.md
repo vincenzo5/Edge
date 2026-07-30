@@ -24,7 +24,7 @@ Full RiskPolicy slot definitions: [Risk Management System Roadmap](../../../docs
 | Chart selection strip | `PositionGeometryStrip.tsx` via `DrawingSelectionChrome.tsx` | Geometry + Measurement preview (Budget/Sizing read-only) |
 | Chart overlay | `useRiskDrawingBinding.ts`, chart-core `risk/*` | Geometry labels, R targets, validation |
 | Trade ticket | `TradeOrderForm.tsx`, `ProtectiveOcoForm.tsx` | Budget→Sizing handoff; pre-submit Risk plan summary (Phase 4) |
-| Open position | `OpenRiskPositionsMenu.tsx`, `AccountPanel.tsx` | Protect + Manage Exit binding chrome (Phase 5) |
+| Open position | `OpenRiskPositionsMenu.tsx`, `AccountPanel.tsx` | Protect + Manage Exit binding chrome (Phase 5); during-trade progress (Phase 6) |
 
 ## Plan geometry bind (Phase 3)
 
@@ -54,6 +54,13 @@ Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Bud
 - **Summarizer:** `src/lib/trading/summarizeOpenPositionExits.ts` — derives Protect from open `AccountOrder` rows (closing-side STP/TRAIL + OCO TP peer) and Manage from active playbook instance.
 - **UI:** `OpenPositionExitsStrip.tsx` on open-risk popover rows and Account position rows — Protect label, Manage label/distance, unprotected warning, Protect-with-OCO action (Account opens `ProtectiveOcoForm`; open-risk deep-links to Account).
 - **Manage controls:** Pause/Resume/Detach labeled **Manage** only; tooltips note broker Protect stays live.
+
+## Phase 6 — During-trade Manage progress (shipped)
+
+- **Display helpers:** `playbook/display.ts` — `formatNextManageActionPreview`, `formatCompletedManageRules`, `resolveManagePauseMessage` (manual stop → `"Manage paused — stop moved manually"`).
+- **Summarizer:** `summarizeOpenPositionExits` extended with `nextActionPreview`, `completedLabels`, `pauseMessage` on the manage slot.
+- **UI:** `OpenPositionExitsStrip` — next rule line (distance · action preview), `Done:` fired rules, pause warning; same open-risk / Account surfaces as Phase 5.
+- **Chart markers:** armed manage levels already render via `manageLevelsForSymbol` in `ChartCell` (playbook track); Phase 6 verifies reuse only.
 
 ## Phase 2 — Drawing geometry strip (shipped)
 

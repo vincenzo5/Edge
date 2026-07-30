@@ -1,7 +1,12 @@
 import type { PlaybookInstance, PlaybookRule } from "./types";
 import { getPlaybookPreset } from "./presets";
+import { planPlaybookSteps } from "./planSteps";
 import { resolvePlaybookTemplateFromInstance } from "./resolveTemplate";
 import { priceAtMultipleOfR } from "./types";
+
+export const MANAGE_PAUSED_COPY = "Manage paused";
+
+export const MANAGE_PAUSED_MANUAL_STOP_COPY = "Manage paused — stop moved manually";
 
 export function formatPlaybookStatusToken(status: PlaybookInstance["status"]): string {
   if (status === "pending_fill") return "pending";
@@ -112,6 +117,38 @@ export function formatManageStepPreview(step: {
     return `${step.label}${trigger} → stop ${step.stopPrice.toFixed(2)}`;
   }
   return step.label;
+}
+
+export function formatNextManageActionPreview(instance: PlaybookInstance): string | null {
+  const rule = resolveNextManageRule(instance);
+  if (!rule) return null;
+  const template = resolvePlaybookTemplateFromInstance(instance);
+  if (!template) return null;
+  const step = planPlaybookSteps(template, instance.positionPlan).find(
+    (item) => item.ruleId === rule.id,
+  );
+  if (!step) return null;
+  return formatManageStepPreview(step);
+}
+
+export function formatCompletedManageRules(instance: PlaybookInstance): string[] {
+  const template = resolvePlaybookTemplateFromInstance(instance);
+  if (!template) return [];
+  const ruleById = new Map(template.rules.map((rule) => [rule.id, rule]));
+  return instance.ruleRuntimes
+    .filter((item) => item.status === "fired")
+    .map((item) => {
+      const rule = ruleById.get(item.ruleId);
+      return rule ? formatRuleShortLabel(rule) : item.ruleId;
+    });
+}
+
+export function resolveManagePauseMessage(instance: PlaybookInstance): string | null {
+  if (instance.status !== "paused") return null;
+  const manualStopPause = instance.ruleRuntimes.some(
+    (item) => item.skippedReason === "manual_stop",
+  );
+  return manualStopPause ? MANAGE_PAUSED_MANUAL_STOP_COPY : MANAGE_PAUSED_COPY;
 }
 
 export function findActivePlaybookForPosition(

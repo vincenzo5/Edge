@@ -1,0 +1,31 @@
+# LIVE — Risk management system — Phase 6 evidence
+# Date: 2026-07-30
+
+## Scope
+UX: During trade — live Manage ExitRule progress on open-risk and Account rows.
+
+## Delivered
+- src/lib/trading/playbook/display.ts — formatNextManageActionPreview, formatCompletedManageRules, resolveManagePauseMessage
+- src/lib/trading/playbook/display.test.ts — helper tests
+- src/lib/trading/summarizeOpenPositionExits.ts — manage nextActionPreview, completedLabels, pauseMessage
+- src/lib/trading/summarizeOpenPositionExits.test.ts — during-trade summary tests
+- src/app/components/trading/OpenPositionExitsStrip.tsx — next rule, done, pause lines
+- src/app/components/trading/OpenPositionExitsStrip.test.tsx — strip tests
+- src/lib/trading/ARCHITECTURE.md — Phase 6 section
+- src/lib/risk/ARCHITECTURE.md — Phase 6 pointer
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 6 Passing
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — extends Phase 5 summary contract; reuses playbook display/planSteps; no runtime RiskPolicy Zod type; manual-stop pause copy aligns with conflictPolicy; chart markers verified as existing manageLevels wiring in ChartCell.
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/playbook/display.test.ts src/lib/trading/summarizeOpenPositionExits.test.ts src/app/components/trading/OpenPositionExitsStrip.test.tsx src/app/components/home/OpenRiskPositionsMenu.test.tsx
+
+Output:
+Test Files  4 passed (4)
+Tests  33 passed (33)
+
+## App-level
+Manual: paper attach half_then_be → strip shows +NR to scale · reduce preview; after scale fire → Done: scale + next trail; manual stop drag pause → Manage paused — stop moved manually; ChartCell manage level markers unchanged (manageLevelsForSymbol).
