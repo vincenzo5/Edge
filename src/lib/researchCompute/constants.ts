@@ -15,7 +15,9 @@ export const MAX_RESEARCH_STDOUT_CHARS = 8_192;
 export const RESEARCH_WORKER_IMAGE =
   process.env.EDGE_RESEARCH_WORKER_IMAGE?.trim() || "edge-research-worker:latest";
 
-export const COMPUTE_VERSION = "1.3.0";
+export const MAX_TOOL_INPUT_JSON_BYTES = 65_536;
+
+export const COMPUTE_VERSION = "1.4.0";
 export const ACQUISITION_POLICY_VERSION = "1";
 
 export const DEFAULT_RESEARCH_ADJUSTMENT = "split" as const;

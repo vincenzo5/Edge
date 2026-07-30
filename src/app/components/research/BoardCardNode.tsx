@@ -145,6 +145,14 @@ export default function BoardCardNode({
         {card.type === "deskLink" ? (
           <p>{card.label ?? "Desk workspace link"}</p>
         ) : null}
+        {card.type === "researchRun" ? (
+          <div className="space-y-1">
+            <p className="line-clamp-3">{card.summary}</p>
+            <p className="font-mono text-[10px] text-[var(--edge-text-tertiary)]">
+              {card.jobId.slice(0, 12)} · {card.runFingerprint.slice(0, 12)}
+            </p>
+          </div>
+        ) : null}
       </div>
     </article>
   );

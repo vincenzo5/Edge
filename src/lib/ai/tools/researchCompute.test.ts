@@ -80,6 +80,8 @@ describe("researchCompute tools", () => {
       cancelJob: vi.fn(),
       getJob: vi.fn(),
       getArtifact: vi.fn(),
+      compareRuns: vi.fn(),
+      exportResearchDraft: vi.fn(),
     };
 
     const result = await createResearchDatasetTool.execute(
@@ -118,6 +120,8 @@ describe("researchCompute tools", () => {
       cancelJob: vi.fn(),
       getJob: vi.fn(),
       getArtifact: vi.fn(),
+      compareRuns: vi.fn(),
+      exportResearchDraft: vi.fn(),
     };
 
     const result = await profileResearchDatasetTool.execute(
@@ -154,6 +158,8 @@ describe("researchCompute tools", () => {
       cancelJob: vi.fn(),
       getJob: vi.fn(),
       getArtifact: vi.fn(),
+      compareRuns: vi.fn(),
+      exportResearchDraft: vi.fn(),
     };
 
     const result = await runSignalStudyTool.execute(
@@ -243,6 +249,8 @@ describe("researchCompute tools", () => {
       cancelJob: vi.fn(),
       getJob: vi.fn(),
       getArtifact: vi.fn(),
+      compareRuns: vi.fn(),
+      exportResearchDraft: vi.fn(),
     };
 
     const result = await runResearchCodeTool.execute(
@@ -298,5 +306,73 @@ describe("researchCompute tools", () => {
     expect(port.getDataset).toHaveBeenCalled();
     expect(port.getJob).toHaveBeenCalled();
     expect(port.getArtifact).toHaveBeenCalled();
+  });
+
+  it("compare_research_runs delegates to port", async () => {
+    const port = {
+      createDataset: vi.fn(),
+      getDataset: vi.fn(),
+      profileDataset: vi.fn(),
+      runSignalStudy: vi.fn(),
+      runStrategyEvaluation: vi.fn(),
+      runResearchCode: vi.fn(),
+      cancelJob: vi.fn(),
+      getJob: vi.fn(),
+      getArtifact: vi.fn(),
+      compareRuns: vi.fn().mockResolvedValue({
+        compareId: "cmp_1",
+        runCount: 2,
+        refs: ["job_a", "job_b"],
+        jobIds: ["job_a", "job_b"],
+        runFingerprints: ["fp_a", "fp_b"],
+        sharedDataset: true,
+        sharedToolName: true,
+        warnings: [],
+        keyMetrics: { "Runs compared": 2 },
+        parameterDiffs: [],
+        metricRows: [],
+      }),
+      exportResearchDraft: vi.fn(),
+    };
+
+    const { compareResearchRunsTool } = await import("./researchCompute");
+    const result = await compareResearchRunsTool.execute(
+      { refs: ["job_a", "job_b"] },
+      mockContext(port),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(port.compareRuns).toHaveBeenCalledWith({ refs: ["job_a", "job_b"] });
+  });
+
+  it("export_research_draft delegates to port", async () => {
+    const port = {
+      createDataset: vi.fn(),
+      getDataset: vi.fn(),
+      profileDataset: vi.fn(),
+      runSignalStudy: vi.fn(),
+      runStrategyEvaluation: vi.fn(),
+      runResearchCode: vi.fn(),
+      cancelJob: vi.fn(),
+      getJob: vi.fn(),
+      getArtifact: vi.fn(),
+      compareRuns: vi.fn(),
+      exportResearchDraft: vi.fn().mockResolvedValue({
+        draftKind: "indicator_script",
+        title: "Research signal draft",
+        source: "// draft",
+        provenance: {
+          jobId: "job_1",
+          runFingerprint: "fp_1",
+          toolName: "run_signal_study",
+        },
+      }),
+    };
+
+    const { exportResearchDraftTool } = await import("./researchCompute");
+    const result = await exportResearchDraftTool.execute({ ref: "job_1" }, mockContext(port));
+
+    expect(result.ok).toBe(true);
+    expect(port.exportResearchDraft).toHaveBeenCalledWith({ ref: "job_1" });
   });
 });

@@ -120,6 +120,7 @@ export const runManifestSchema = z.object({
   computeVersion: z.string(),
   workerImageId: z.string().optional(),
   artifactRefs: z.array(artifactRefSchema),
+  toolInput: z.unknown().optional(),
 });
 export type RunManifest = z.infer<typeof runManifestSchema>;
 
@@ -129,6 +130,7 @@ export const researchJobRecordSchema = z.object({
   status: researchJobStatusSchema,
   datasetId: z.string().optional(),
   runFingerprint: z.string().optional(),
+  toolInput: z.unknown().optional(),
   startedAt: z.string().datetime(),
   finishedAt: z.string().datetime().optional(),
   error: z.string().optional(),
@@ -136,6 +138,43 @@ export const researchJobRecordSchema = z.object({
   compactResult: compactResearchResultSchema.optional(),
 });
 export type ResearchJobRecord = z.infer<typeof researchJobRecordSchema>;
+
+export const compareResearchRunsInputSchema = z.object({
+  refs: z.array(z.string().trim().min(1).max(128)).min(2).max(5),
+});
+export type CompareResearchRunsInput = z.infer<typeof compareResearchRunsInputSchema>;
+
+export const parameterDiffSchema = z.object({
+  path: z.string().min(1),
+  values: z.record(z.string(), z.unknown()),
+});
+export type ParameterDiff = z.infer<typeof parameterDiffSchema>;
+
+export const compareResearchRunsResultSchema = z.object({
+  compareId: z.string().min(1),
+  runCount: z.number().int().min(2).max(5),
+  refs: z.array(z.string().min(1)),
+  jobIds: z.array(z.string().min(1)),
+  runFingerprints: z.array(z.string().min(1)),
+  sharedDataset: z.boolean(),
+  sharedToolName: z.boolean(),
+  warnings: z.array(z.string()),
+  keyMetrics: z.record(z.string(), z.union([z.string(), z.number()])),
+  previewTable: previewTableSchema.optional(),
+  parameterDiffs: z.array(parameterDiffSchema),
+  metricRows: z.array(
+    z.object({
+      metric: z.string().min(1),
+      values: z.record(z.string(), z.union([z.string(), z.number()])),
+    }),
+  ),
+});
+export type CompareResearchRunsResult = z.infer<typeof compareResearchRunsResultSchema>;
+
+export const exportResearchDraftInputSchema = z.object({
+  ref: z.string().trim().min(1).max(128),
+});
+export type ExportResearchDraftInput = z.infer<typeof exportResearchDraftInputSchema>;
 
 export const profileOptionsSchema = z.object({
   rollingWindow: z.number().int().min(5).max(252).optional(),
@@ -284,6 +323,21 @@ export const strategyEvalSpecSchema = z.object({
   startingEquity: z.number().finite().positive().default(100_000),
 });
 export type StrategyEvalSpec = z.infer<typeof strategyEvalSpecSchema>;
+
+export const researchDraftExportSchema = z.object({
+  draftKind: z.enum(["indicator_script", "strategy_note"]),
+  title: z.string().min(1),
+  source: z.string().min(1),
+  signalSpec: signalStudySpecSchema.optional(),
+  strategySpec: strategyEvalSpecSchema.optional(),
+  provenance: z.object({
+    jobId: z.string().min(1),
+    runFingerprint: z.string().min(1),
+    toolName: z.string().min(1),
+    datasetId: z.string().optional(),
+  }),
+});
+export type ResearchDraftExport = z.infer<typeof researchDraftExportSchema>;
 
 export const strategyTradeSchema = z.object({
   symbol: z.string(),

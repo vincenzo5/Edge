@@ -239,6 +239,32 @@ function summarizeCreateResearchDataset(data: Record<string, unknown>): string {
   ]);
 }
 
+function summarizeCompareResearchRuns(data: Record<string, unknown>): string {
+  const runCount = readNumber(data, "runCount");
+  const metrics = readKeyMetrics(data);
+  const diffCount = metrics?.["Parameter diffs"];
+  return joinParts([
+    runCount != null ? `${runCount} runs` : undefined,
+    diffCount != null ? `${diffCount} param diffs` : undefined,
+    metrics?.["Shared dataset"] != null ? `dataset ${metrics["Shared dataset"]}` : undefined,
+  ]);
+}
+
+function summarizeExportResearchDraft(data: Record<string, unknown>): string {
+  const draftKind = readString(data, "draftKind");
+  const title = readString(data, "title");
+  const provenance = data.provenance;
+  const jobId =
+    provenance != null && typeof provenance === "object" && !Array.isArray(provenance)
+      ? readString(provenance as Record<string, unknown>, "jobId")
+      : undefined;
+  return joinParts([
+    title,
+    draftKind,
+    jobId ? `from ${jobId.slice(0, 8)}` : undefined,
+  ]);
+}
+
 function readKeyMetrics(data: Record<string, unknown>): Record<string, string | number> | undefined {
   const metrics = data.keyMetrics;
   if (!metrics || typeof metrics !== "object" || Array.isArray(metrics)) return undefined;
@@ -303,6 +329,10 @@ function summarizeSuccess(toolName: string, data: unknown): string {
       return summarizeCancelResearchJob(record);
     case "create_research_dataset":
       return summarizeCreateResearchDataset(record);
+    case "compare_research_runs":
+      return summarizeCompareResearchRuns(record);
+    case "export_research_draft":
+      return summarizeExportResearchDraft(record);
     default:
       return summarizeGenericSuccess(record);
   }

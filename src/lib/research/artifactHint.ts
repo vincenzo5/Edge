@@ -38,6 +38,8 @@ const aiCalloutArtifactHintSchema = z.object({
 const researchProfileArtifactHintSchema = z.object({
   type: z.literal("researchProfile"),
   jobId: z.string().trim().min(1).max(64),
+  runFingerprint: z.string().trim().min(1).max(128).optional(),
+  toolName: z.string().trim().min(1).max(64).optional(),
   datasetId: z.string().trim().min(1).max(64).optional(),
   title: z.string().trim().max(120).optional(),
   keyMetrics: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
@@ -49,6 +51,20 @@ const researchProfileArtifactHintSchema = z.object({
     .optional(),
 });
 
+const researchCompareArtifactHintSchema = z.object({
+  type: z.literal("researchCompare"),
+  compareId: z.string().trim().min(1).max(64),
+  title: z.string().trim().max(120).optional(),
+  keyMetrics: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  previewTable: z
+    .object({
+      columns: z.array(z.string()),
+      rows: z.array(z.array(z.union([z.string(), z.number(), z.null()]))),
+    })
+    .optional(),
+  jobIds: z.array(z.string().trim().min(1).max(64)).optional(),
+});
+
 export const researchArtifactHintSchema = z.discriminatedUnion("type", [
   chartArtifactHintSchema,
   screenerArtifactHintSchema,
@@ -56,6 +72,7 @@ export const researchArtifactHintSchema = z.discriminatedUnion("type", [
   noteArtifactHintSchema,
   aiCalloutArtifactHintSchema,
   researchProfileArtifactHintSchema,
+  researchCompareArtifactHintSchema,
 ]);
 
 export type ResearchArtifactHint = z.infer<typeof researchArtifactHintSchema>;
@@ -185,11 +202,27 @@ function readPreviewTable(data: Record<string, unknown>) {
 function hintForResearchProfile(data: Record<string, unknown>, title: string): ResearchArtifactHint {
   return {
     type: "researchProfile",
-    jobId: readString(data, "jobId") ?? "unknown",
+    jobId: readString(data, "jobId") ?? readString(data, "compareId") ?? "unknown",
+    runFingerprint: readString(data, "runFingerprint"),
+    toolName: readString(data, "toolName"),
     datasetId: readString(data, "datasetId"),
     title,
     keyMetrics: readKeyMetrics(data),
     previewTable: readPreviewTable(data),
+  };
+}
+
+function hintForResearchCompare(data: Record<string, unknown>): ResearchArtifactHint {
+  const jobIds = data.jobIds;
+  return {
+    type: "researchCompare",
+    compareId: readString(data, "compareId") ?? "unknown",
+    title: "Research run comparison",
+    keyMetrics: readKeyMetrics(data),
+    previewTable: readPreviewTable(data),
+    jobIds: Array.isArray(jobIds)
+      ? jobIds.filter((value): value is string => typeof value === "string")
+      : undefined,
   };
 }
 
@@ -250,6 +283,8 @@ export function toArtifactHint(toolName: string, result: ToolResult): ResearchAr
       return hintForResearchProfile(data, "Strategy evaluation");
     case "run_research_code":
       return hintForResearchProfile(data, "Research code");
+    case "compare_research_runs":
+      return hintForResearchCompare(data);
     case "create_research_dataset":
       return hintForCreateResearchDataset(data);
     default:

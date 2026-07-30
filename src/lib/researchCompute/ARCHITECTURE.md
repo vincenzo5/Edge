@@ -2,7 +2,7 @@
 
 Server-side quantitative research runtime for Copilot and (later) the Research Board. The LLM orchestrates typed experiments; a research kernel runs math on large market datasets; chat receives compact metrics and artifact refs — never full OHLCV histories.
 
-**Track:** [Quant Research Runtime Roadmap](../../../docs/roadmaps/quant-research-runtime-roadmap.md). **Phase 4 (2026-07-30):** sandboxed Python research cells via `run_research_code` + local Docker worker.
+**Track:** [Quant Research Runtime Roadmap](../../../docs/roadmaps/quant-research-runtime-roadmap.md). **Phase 5 (2026-07-30):** compare runs, board pins, manual promotion hooks.
 
 ## Purpose
 
@@ -107,6 +107,21 @@ Strategy evaluation reuses Phase 2 signal IR for entry/exit. One flat position p
 Python cells receive read-only dataset mounts under `/dataset` and write result envelopes to `/out`. User code uses the injected `research` helper (`set_metrics`, `set_preview`, `warn`). Imports outside the allowlist fail closed. Full stdout and series stay in artifacts; compact tool results reuse `researchProfile` Copilot Data blocks.
 
 Research root defaults to `data/research/` (override `EDGE_RESEARCH_ROOT` in tests).
+
+## Phase 5 modules
+
+| Module | Role |
+|--------|------|
+| `contracts.ts` (extended) | `compareResearchRunsResultSchema`, `researchDraftExportSchema`, `toolInput` on job/manifest |
+| `compareRuns.ts` | Pure side-by-side KPI union, parameter diffs, preview table |
+| `exportResearchDraft.ts` | Manual signal/strategy draft export (no auto chart/playbook mutation) |
+| `jobStore.ts` (extended) | `resolveJobsByRefs` fingerprint/jobId lookup |
+| `toolInput.ts` | Cap + normalize persisted tool inputs |
+| `service.ts` (extended) | `compareRuns`, `exportResearchDraft` |
+| `src/lib/ai/tools/researchCompute.ts` | `compare_research_runs`, `export_research_draft` |
+| `sessionSketch.ts` + pin path | `researchRun` card with jobId/runFingerprint provenance |
+
+Compare and export are synchronous read-only control-plane operations. Promotion is manual: `export_research_draft` returns copyable source; persist via existing `create_indicator_script` with user confirm.
 
 ## Frozen contracts (Phase 0)
 

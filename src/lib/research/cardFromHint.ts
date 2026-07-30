@@ -72,10 +72,31 @@ export function researchCardFromHint(
           : hint.title ?? hint.jobId;
       return {
         ...base,
-        type: "aiCallout",
+        type: "researchRun",
+        jobId: hint.jobId,
+        runFingerprint: hint.runFingerprint ?? hint.jobId,
+        datasetId: hint.datasetId,
+        toolName: hint.toolName ?? "research",
         summary,
-        threadId: provenance.threadId,
-        messageId: provenance.messageId,
+        keyMetrics: hint.keyMetrics,
+      };
+    }
+    case "researchCompare": {
+      const summary =
+        hint.keyMetrics != null
+          ? Object.entries(hint.keyMetrics)
+              .slice(0, 6)
+              .map(([key, value]) => `${key}: ${value}`)
+              .join(" · ")
+          : hint.title ?? hint.compareId;
+      return {
+        ...base,
+        type: "researchRun",
+        jobId: hint.compareId,
+        runFingerprint: hint.compareId,
+        toolName: "compare_research_runs",
+        summary,
+        keyMetrics: hint.keyMetrics,
       };
     }
     default: {
@@ -99,6 +120,8 @@ export function researchCardTitle(card: ResearchCardSketch): string {
       return card.summary.slice(0, 120);
     case "deskLink":
       return card.label ?? "Desk link";
+    case "researchRun":
+      return card.summary.slice(0, 120);
     default: {
       const _exhaustive: never = card;
       return _exhaustive;
@@ -120,6 +143,8 @@ export function researchCardSubtitle(card: ResearchCardSketch): string | null {
       return "AI callout";
     case "deskLink":
       return "Desk";
+    case "researchRun":
+      return card.toolName.replace(/_/g, " ");
     default: {
       const _exhaustive: never = card;
       return _exhaustive;

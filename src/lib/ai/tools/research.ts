@@ -66,6 +66,18 @@ const researchCardInputSchema = z.discriminatedUnion("type", [
       position: researchCardPositionSketchSchema.optional(),
     })
     .extend(provenanceFields),
+  z
+    .object({
+      type: z.literal("researchRun"),
+      jobId: z.string().trim().min(1).max(64),
+      runFingerprint: z.string().trim().min(1).max(128),
+      datasetId: z.string().trim().min(1).max(64).optional(),
+      toolName: z.string().trim().min(1).max(64),
+      summary: z.string().trim().min(1).max(2000),
+      keyMetrics: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+      position: researchCardPositionSketchSchema.optional(),
+    })
+    .extend(provenanceFields),
 ]);
 
 export const getResearchBoardTool = defineTool({
@@ -91,7 +103,7 @@ export const getResearchBoardTool = defineTool({
 export const addResearchCardTool = defineTool({
   name: "add_research_card",
   description:
-    "Add a card to the Research Board (chart, screener, note, journal draft, AI callout, or desk link). Marks source as ai.",
+    "Add a card to the Research Board (chart, screener, note, journal draft, AI callout, research run, or desk link). Marks source as ai.",
   inputSchema: researchCardInputSchema,
   permission: "write",
   requiresConfirmation: false,

@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 import {
+  compareResearchRunsInputSchema,
   createDatasetInputSchema,
+  exportResearchDraftInputSchema,
   profileOptionsSchema,
   researchCodeSpecSchema,
   researchIntervalSchema,
@@ -185,6 +187,34 @@ export const getResearchArtifactTool = defineTool({
   },
 });
 
+export const compareResearchRunsTool = defineTool({
+  name: "compare_research_runs",
+  description:
+    "Compare 2–5 succeeded research runs side-by-side by jobId or runFingerprint. Returns compact KPI table, parameter diffs, and warnings — not raw series.",
+  inputSchema: compareResearchRunsInputSchema,
+  permission: "read",
+  requiresConfirmation: false,
+  async execute(input, context) {
+    const port = requireResearchCompute(context);
+    const result = await port.compareRuns({ refs: input.refs });
+    return { ok: true, data: result };
+  },
+});
+
+export const exportResearchDraftTool = defineTool({
+  name: "export_research_draft",
+  description:
+    "Export a copyable draft from a succeeded signal study or strategy evaluation run. Manual promotion only — does not create scripts or attach playbooks.",
+  inputSchema: exportResearchDraftInputSchema,
+  permission: "read",
+  requiresConfirmation: false,
+  async execute(input, context) {
+    const port = requireResearchCompute(context);
+    const result = await port.exportResearchDraft({ ref: input.ref });
+    return { ok: true, data: result };
+  },
+});
+
 /** Shared interval schema for tool docs parity with chart intervals. */
 export const researchToolIntervalSchema = researchIntervalSchema;
 
@@ -198,4 +228,6 @@ export const researchComputeTools: AiTool[] = [
   getResearchJobTool,
   cancelResearchJobTool,
   getResearchArtifactTool,
+  compareResearchRunsTool,
+  exportResearchDraftTool,
 ];

@@ -4,7 +4,7 @@ Living track for a **server-side quantitative research runtime** that Copilot (a
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 4 **Passing** (2026-07-30) — sandboxed Python research cells via `run_research_code`.
+**Status:** Phase 5 **Passing** (2026-07-30) — compare runs, board pins, manual promotion hooks.
 
 **Branch:** AGENT (secondary: DATA).
 
@@ -317,7 +317,7 @@ E2B/Modal remain optional later executors — not before Phase 4 without explici
 
 ### Phase 5 — Compare, pin, promote
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Compare runs; pin to Research Sessions; promote validated signals toward indicator/playbook specs. Defer event-driven portfolios and live execution until demand is proven.
 

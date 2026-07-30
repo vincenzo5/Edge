@@ -284,7 +284,7 @@ Living feature tracks (phase detail in each file):
 - [AI agent / in-app copilot](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing**; agent walks closed on Wave 2 Phase 1
 - [Grok Copilot UX parity](./roadmaps/grok-copilot-parity-roadmap.md) — Phases 0–5 **Passing** (track complete); chrome walks closed on Wave 2 Phase 2
 - [Copilot chat blocks](./roadmaps/copilot-chat-blocks-roadmap.md) — Phase 0–1 **Passing** (contracts + scroll/Action → Media/Data → Reference → Follow-ups → rich Action)
-- [Quant research runtime](./roadmaps/quant-research-runtime-roadmap.md) — Phase 4 **Passing** (2026-07-30) — sandboxed Python cells via `run_research_code`
+- [Quant research runtime](./roadmaps/quant-research-runtime-roadmap.md) — Phase 5 **Passing** (2026-07-30) — compare runs, board pins, manual promotion; track complete (Phases 0–5)
 - ~~[Research UX (AI-first desk)](./roadmaps/research-ux-roadmap.md)~~ — Phases 0–8 **Passing** (track complete); Desk tiling retained
 - [TypeScript indicator scripting](./roadmaps/typescript-indicator-scripting-roadmap.md) — Phases 0–5B + Scripts tile **Passing**
 - [Script depth](./roadmaps/script-depth-roadmap.md) — Phases 0–5 **Passing** — track complete
@@ -306,7 +306,7 @@ Broader product backlog (not feature-track owned):
 - Advanced market-context overlays — earnings, dividends, filings, news, options expirations, semantic AI annotations
 - TrendSpider competitive review — inventory started; prioritize Adopt/Adapt/Defer/Skip → [TrendSpider Competitive Roadmap](./roadmaps/trendspider-competitive-roadmap.md)
 - News flow — research captured; implementation not started → [News Flow Roadmap](./roadmaps/news-flow-roadmap.md)
-- Discord knowledge mine — OPS side track (local MCP extract, not product); Phase 0–6 **Passing** (first-pass); Phase 7 **Pending** — systems extraction (Wolves → Trinity → SMB → Algo → MarketLife); refresh deferred → [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md)
+- Discord knowledge mine — OPS side track (local MCP extract, not product); Phase 0–6 **Passing** (first-pass); Phase 7 **Passing** (Wolves); Phase 8 **Passing** (Trinity); Phase 9 **Passing** (SMB); Phase 10 **Passing** (Algo); Phase 11 **Pending** — MarketLife; refresh deferred → [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md)
 - Day classification — Phases 1–3 **Passing** (2026-07-23); Phase 4 in-app review UI **Pending** → [Day Classification Roadmap](./roadmaps/day-classification-roadmap.md)
 - ~~Structural refactor~~ — Tiers A–E **Passing** → [Structural Refactor Roadmap](./refactor-roadmap.md)
 - Code organization — Phase 0–2 **Passing** (2026-07-24); Phase 3 **Pending** (components tree, god modules, chart shims) → [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md)

@@ -70,6 +70,16 @@ export const deskLinkResearchCardSketchSchema = researchCardBaseSchema.extend({
   label: z.string().trim().max(120).optional(),
 });
 
+export const researchRunResearchCardSketchSchema = researchCardBaseSchema.extend({
+  type: z.literal("researchRun"),
+  jobId: z.string().trim().min(1).max(64),
+  runFingerprint: z.string().trim().min(1).max(128),
+  datasetId: z.string().trim().min(1).max(64).optional(),
+  toolName: z.string().trim().min(1).max(64),
+  summary: z.string().trim().min(1).max(2000),
+  keyMetrics: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+});
+
 export const researchCardSketchSchema = z.discriminatedUnion("type", [
   chartResearchCardSketchSchema,
   screenerResearchCardSketchSchema,
@@ -77,6 +87,7 @@ export const researchCardSketchSchema = z.discriminatedUnion("type", [
   journalDraftResearchCardSketchSchema,
   aiCalloutResearchCardSketchSchema,
   deskLinkResearchCardSketchSchema,
+  researchRunResearchCardSketchSchema,
 ]);
 
 export type ResearchCardSketch = z.infer<typeof researchCardSketchSchema>;

@@ -96,7 +96,7 @@ describe("hintToBlockSketch", () => {
     expect(sketch?.kind).toBe("data");
     if (sketch?.kind === "data") {
       expect(sketch.shape).toBe("table");
-      expect(sketch.pinHint?.type).toBe("aiCallout");
+      expect(sketch.pinHint?.type).toBe("researchProfile");
     }
   });
 });

@@ -177,6 +177,7 @@ export function hintToBlockKind(hint: ResearchArtifactHint): ChatBlockKind | nul
     case "screener":
     case "journalDraft":
     case "researchProfile":
+    case "researchCompare":
       return "data";
     case "note":
     case "aiCallout":
@@ -203,7 +204,7 @@ export function hintToBlockSketch(hint: ResearchArtifactHint): ChatBlock | null 
   }
 
   if (kind === "data") {
-    if (hint.type === "researchProfile") {
+    if (hint.type === "researchProfile" || hint.type === "researchCompare") {
       const entries =
         hint.keyMetrics != null
           ? Object.entries(hint.keyMetrics).slice(0, 24).map(([key, value]) => ({
@@ -212,30 +213,26 @@ export function hintToBlockSketch(hint: ResearchArtifactHint): ChatBlock | null 
             }))
           : undefined;
       const preview = hint.previewTable;
+      const title =
+        hint.type === "researchCompare"
+          ? (hint.title ?? "Research comparison")
+          : (hint.title ?? "Research profile");
       const block: DataChatBlock =
         preview && preview.columns.length > 0 && preview.rows.length > 0
           ? {
               kind: "data",
               shape: "table",
-              title: hint.title ?? "Research profile",
+              title,
               columns: preview.columns,
               rows: preview.rows,
-              pinHint: {
-                type: "aiCallout",
-                title: hint.title ?? "Research profile",
-                summary: entries?.map(({ key, value }) => `${key}: ${value}`).join(" · ") ?? hint.jobId,
-              },
+              pinHint: hint,
             }
           : {
               kind: "data",
               shape: "kv",
-              title: hint.title ?? "Research profile",
+              title,
               entries,
-              pinHint: {
-                type: "aiCallout",
-                title: hint.title ?? "Research profile",
-                summary: entries?.map(({ key, value }) => `${key}: ${value}`).join(" · ") ?? hint.jobId,
-              },
+              pinHint: hint,
             };
       return block;
     }

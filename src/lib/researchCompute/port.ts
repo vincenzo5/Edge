@@ -1,10 +1,12 @@
 import type {
   CompactResearchResult,
+  CompareResearchRunsResult,
   CreateDatasetInput,
   DatasetManifest,
   PreviewTable,
   ProfileOptions,
   ResearchCodeSpec,
+  ResearchDraftExport,
   SignalStudySpec,
   StrategyEvalSpec,
 } from "./contracts";
@@ -45,6 +47,8 @@ export type ResearchComputePort = {
     artifactId: string;
     previewLimit?: number;
   }): Promise<ResearchArtifactPreview>;
+  compareRuns(args: { refs: string[] }): Promise<CompareResearchRunsResult>;
+  exportResearchDraft(args: { ref: string }): Promise<ResearchDraftExport>;
 };
 
 export type ResearchJobSummary = {

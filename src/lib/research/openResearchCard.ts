@@ -27,6 +27,7 @@ export function openResearchCardHref(card: ResearchCardSketch): string | null {
     }
     case "note":
     case "aiCallout":
+    case "researchRun":
       return null;
     default: {
       const _exhaustive: never = card;

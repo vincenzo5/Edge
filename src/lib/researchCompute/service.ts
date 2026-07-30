@@ -4,9 +4,11 @@ import type { MarketDataService } from "@/lib/marketData/service/marketDataServi
 
 import type {
   CompactResearchResult,
+  CompareResearchRunsResult,
   CreateDatasetInput,
   ProfileOptions,
   ResearchCodeSpec,
+  ResearchDraftExport,
   RunManifest,
   SignalStudySpec,
   StrategyEvalSpec,
@@ -19,7 +21,7 @@ import {
 } from "./dockerWorker";
 import { requireDatasetManifest } from "./datasetStore";
 import { computeRunFingerprint, createJobId } from "./fingerprints";
-import { readJobRecord, requireJobRecord, updateJobRecord, writeJobRecord } from "./jobStore";
+import { readJobRecord, requireJobRecord, resolveJobsByRefs, updateJobRecord, writeJobRecord } from "./jobStore";
 import {
   datasetSummaryFromManifest,
   materializeDataset,
@@ -31,6 +33,9 @@ import { computeSignalStudyMetrics } from "./signalStudyMetrics";
 import { computeStrategyEvalMetrics } from "./strategyEvalMetrics";
 import type { ResearchArtifactPreview, ResearchComputePort, ResearchJobSummary } from "./port";
 import { writeArtifact, readArtifactPayload, requireArtifactMeta } from "./artifactStore";
+import { compareResearchRuns } from "./compareRuns";
+import { exportResearchDraftFromJob } from "./exportResearchDraft";
+import { normalizeToolInputForStorage } from "./toolInput";
 
 let activeJobs = 0;
 const activeJobAbortControllers = new Map<string, AbortController>();
@@ -306,6 +311,27 @@ export class ResearchComputeService implements ResearchComputePort {
     };
   }
 
+  async compareRuns(args: { refs: string[] }): Promise<CompareResearchRunsResult> {
+    const records = resolveJobsByRefs(args.refs);
+    if (records.length < 2) {
+      throw new Error(
+        `Need at least 2 succeeded research runs to compare; resolved ${records.length}`,
+      );
+    }
+    if (records.length < args.refs.length) {
+      throw new Error("One or more research runs were not found or not succeeded");
+    }
+    return compareResearchRuns({ refs: args.refs, records });
+  }
+
+  async exportResearchDraft(args: { ref: string }): Promise<ResearchDraftExport> {
+    const records = resolveJobsByRefs([args.ref]);
+    if (records.length === 0) {
+      throw new Error(`Research run not found: ${args.ref}`);
+    }
+    return exportResearchDraftFromJob(records[0]!);
+  }
+
   private async runJob<TInput>(args: {
     toolName: string;
     datasetId: string;
@@ -327,11 +353,12 @@ export class ResearchComputeService implements ResearchComputePort {
     const manifest = requireDatasetManifest(args.datasetId);
     const jobId = createJobId();
     const startedAt = new Date().toISOString();
+    const storedToolInput = normalizeToolInputForStorage(args.toolInput);
     const runFingerprint = computeRunFingerprint({
       datasetId: manifest.datasetId,
       identityFingerprint: manifest.identityFingerprint,
       toolName: args.toolName,
-      toolInput: args.toolInput,
+      toolInput: storedToolInput,
     });
 
     writeJobRecord({
@@ -340,6 +367,7 @@ export class ResearchComputeService implements ResearchComputePort {
       status: "queued",
       datasetId: manifest.datasetId,
       runFingerprint,
+      toolInput: storedToolInput,
       startedAt,
     });
 
@@ -350,6 +378,7 @@ export class ResearchComputeService implements ResearchComputePort {
       status: "running",
       datasetId: manifest.datasetId,
       runFingerprint,
+      toolInput: storedToolInput,
       startedAt,
     });
 
@@ -375,6 +404,7 @@ export class ResearchComputeService implements ResearchComputePort {
         warnings: result.warnings,
         computeVersion: COMPUTE_VERSION,
         artifactRefs,
+        toolInput: storedToolInput,
       };
       const manifestArtifact = writeArtifact({
         jobId,
@@ -410,6 +440,7 @@ export class ResearchComputeService implements ResearchComputePort {
         status: "succeeded",
         datasetId: manifest.datasetId,
         runFingerprint,
+        toolInput: storedToolInput,
         startedAt,
         finishedAt,
         compactResult,
@@ -424,6 +455,7 @@ export class ResearchComputeService implements ResearchComputePort {
         status: "failed",
         datasetId: manifest.datasetId,
         runFingerprint,
+        toolInput: storedToolInput,
         startedAt,
         finishedAt: new Date().toISOString(),
         error: message,
@@ -457,11 +489,12 @@ export class ResearchComputeService implements ResearchComputePort {
     const manifest = requireDatasetManifest(args.datasetId);
     const jobId = createJobId();
     const startedAt = new Date().toISOString();
+    const storedToolInput = normalizeToolInputForStorage(args.toolInput);
     const runFingerprint = computeRunFingerprint({
       datasetId: manifest.datasetId,
       identityFingerprint: manifest.identityFingerprint,
       toolName: args.toolName,
-      toolInput: args.toolInput,
+      toolInput: storedToolInput,
     });
 
     writeJobRecord({
@@ -470,6 +503,7 @@ export class ResearchComputeService implements ResearchComputePort {
       status: "queued",
       datasetId: manifest.datasetId,
       runFingerprint,
+      toolInput: storedToolInput,
       startedAt,
     });
 
@@ -483,6 +517,7 @@ export class ResearchComputeService implements ResearchComputePort {
       status: "running",
       datasetId: manifest.datasetId,
       runFingerprint,
+      toolInput: storedToolInput,
       startedAt,
     });
 
@@ -549,6 +584,7 @@ export class ResearchComputeService implements ResearchComputePort {
         computeVersion: COMPUTE_VERSION,
         workerImageId: execution.workerImageId,
         artifactRefs,
+        toolInput: storedToolInput,
       };
       const manifestArtifact = writeArtifact({
         jobId,
@@ -585,6 +621,7 @@ export class ResearchComputeService implements ResearchComputePort {
         status: "succeeded",
         datasetId: manifest.datasetId,
         runFingerprint,
+        toolInput: storedToolInput,
         startedAt,
         finishedAt,
         containerId: execution.containerId,
@@ -601,6 +638,7 @@ export class ResearchComputeService implements ResearchComputePort {
         status: isCanceled ? "canceled" : "failed",
         datasetId: manifest.datasetId,
         runFingerprint,
+        toolInput: storedToolInput,
         startedAt,
         finishedAt: new Date().toISOString(),
         error: message,

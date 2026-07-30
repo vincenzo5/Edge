@@ -1,0 +1,41 @@
+# AGENT — Quant research runtime — Phase 5 evidence
+# Date: 2026-07-30
+
+## Scope
+Compare runs, Research Board pins, and manual promotion hooks: `compare_research_runs`, `export_research_draft`, `researchRun` card type, persisted `toolInput` on job records for parameter diffs.
+
+## Delivered
+- src/lib/researchCompute/contracts.ts — compare/export schemas; toolInput on job + run manifest
+- src/lib/researchCompute/constants.ts — COMPUTE_VERSION 1.4.0; MAX_TOOL_INPUT_JSON_BYTES
+- src/lib/researchCompute/toolInput.ts — normalizeToolInputForStorage
+- src/lib/researchCompute/jobStore.ts — listJobRecords, resolveJobsByRefs
+- src/lib/researchCompute/compareRuns.ts + compareRuns.test.ts — side-by-side KPIs + parameter diffs
+- src/lib/researchCompute/exportResearchDraft.ts + exportResearchDraft.test.ts — manual draft export
+- src/lib/researchCompute/service.ts + port.ts — compareRuns, exportResearchDraft; toolInput persistence
+- src/lib/ai/tools/researchCompute.ts — compare_research_runs, export_research_draft
+- src/lib/research/sessionSketch.ts — researchRun card type
+- src/lib/research/artifactHint.ts — researchCompare hint; runFingerprint/toolName on researchProfile
+- src/lib/research/cardFromHint.ts — researchProfile/researchCompare → researchRun pins
+- src/lib/ai/tools/research.ts — add_research_card researchRun input
+- src/lib/copilot/chatBlockMapping.ts — researchCompare Data blocks; preserve pinHint provenance
+- src/app/components/research/BoardCardNode.tsx — researchRun card host
+- src/lib/researchCompute/phase5AppLevel.test.ts — compare, pin, export app-level
+- docs/roadmaps/quant-research-runtime-roadmap.md — Phase 5 Passing
+- src/lib/researchCompute/ARCHITECTURE.md, src/lib/ai/ARCHITECTURE.md — Phase 5 pointers
+- docs/roadmaps/README.md, docs/ROADMAP.md — status sync
+
+## Architecture review
+Self-review Passed — server-only read tools; no React/chart mutation; export_research_draft is copy-only (persist via create_indicator_script + confirm); researchRun pins retain jobId/runFingerprint provenance.
+
+## Focused
+Command: npm test -- --run src/lib/researchCompute/ src/lib/ai/tools/researchCompute.test.ts src/lib/ai/agent/summarizeToolResult.test.ts src/lib/copilot/chatBlockMapping.test.ts src/lib/research/researchUxPhase2.test.ts src/lib/ai/tools/research.test.ts
+Output: Test Files 18 passed (18); Tests 107 passed (107)
+exit=0
+
+## App-level
+Command: npm test -- --run src/lib/researchCompute/phase5AppLevel.test.ts
+Output: two signal studies → compare_research_runs Data block; researchRun pin from compare hint; export_research_draft returns indicator_script draft without scriptLibrary mutation; toolInput persisted for horizonBars param diff; Test Files 1 passed (1); Tests 2 passed (2)
+exit=0
+
+## Next
+Track complete — quant research runtime Phases 0–5 Passing.
