@@ -6,7 +6,7 @@ service beside paper/live Gateways, shared by host `npm run dev` and container
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-30). Phase 1 **Passing** (2026-07-30). Phase 2 **Passing** (2026-07-30). Phases 3–5 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-30). Phase 1 **Passing** (2026-07-30). Phase 2 **Passing** (2026-07-30). Phase 3 **Passing** (2026-07-30). Phases 4–5 **Pending**.
 
 **Origin:** 2026-07-30 operator pain (Gateways up, sidecar down / forgotten) +
 architecture consult (GPT 5.6: Compose sidecar; Opus: LaunchAgent). Parent
@@ -291,7 +291,7 @@ Gateway DNS names and bind a configurable HTTP host.
 ### Phase 3 — Wedge watchdog
 
 **Band:** Now  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Alive-but-wedged sidecar exits so Docker restarts it; external-mode
 apps no longer dead-end on “restart operator sidecar” for wedge alone.

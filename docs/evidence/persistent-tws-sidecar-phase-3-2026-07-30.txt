@@ -1,0 +1,52 @@
+# OPS — Persistent TWS sidecar — Phase 3 evidence
+# Date: 2026-07-30
+
+## Scope
+Wedge watchdog: continuous workerWedged → structured log + non-zero exit so Docker restart: unless-stopped recovers alive-but-stuck sidecars.
+
+## Delivered
+- services/tws-sidecar/tws_sidecar/config.py — TWS_WORKER_WEDGE_MS, TWS_WEDGE_EXIT_AFTER_MS, TWS_WEDGE_POLL_MS, TWS_WEDGE_EXIT_ENABLED
+- services/tws-sidecar/tws_sidecar/runtime/state.py — WORKER_WEDGE_MS from config
+- services/tws-sidecar/tws_sidecar/runtime/watchdog.py — background sampler + os._exit(1) on continuous wedge
+- services/tws-sidecar/tws_sidecar/app.py — start watchdog on FastAPI lifespan startup
+- services/tws-sidecar/main.py — logging.basicConfig for watchdog visibility
+- services/tws-sidecar/test_watchdog.py — injectable loop tests (exit, clear streak, disabled, idempotent)
+- services/tws-sidecar/test_config.py — wedge env resolution tests
+- services/ib-gateway/docker-compose.yml — wedge env passthrough for compose overrides
+- package.json — tws:sidecar:test includes test_watchdog
+
+## Architecture review
+Self-review Passed — exit only on continuous workerWedged from _worker_diagnostics(); no exit on Gateway disconnect alone; /health remains process liveness; client_id_stuck deferred; external-mode app Recover unchanged.
+
+## Focused — sidecar tests
+Command: npm run tws:sidecar:test
+Output:
+Ran 62 tests in 0.028s
+FAILED (errors=1)
+ERROR: setUpClass (test_main.ConnectionRoutingEndpointTests) — httpx2 missing (pre-existing; not introduced by Phase 3)
+61 tests passed including test_watchdog 6/6 and test_config wedge env 2/2
+exit=1
+
+## Focused — watchdog unit proof
+Command: cd services/tws-sidecar && python -m unittest test_watchdog -v
+Output:
+test_continuous_wedge_exits_once ... {"event": "wedge_watchdog_exit", "workerWedged": true, "activeJob": "stream_quotes", "activeJobAgeMs": 45000, "wedgeStreakMs": 3000, "exitAfterMs": 3000}
+Ran 6 tests in 0.006s
+OK
+exit=0
+
+## App-level — Docker restart after process exit (watchdog contract)
+Command: SIGTERM PID 1 inside edge-tws-sidecar; wait; curl /health; docker inspect RestartCount
+Output:
+before startedAt=1785433165814 restartCount=0
+after status=running restartCount=1 startedAt=1785433221567
+App-level: non-zero/main-process exit → Compose restart → /health ok=true with new startedAt
+Note: wedge→exit path proven by unit tests; live IB jobs complete too fast for sub-3s docker wedge injection without test hooks.
+
+## App-level — watchdog startup in container
+Command: docker logs edge-tws-sidecar (after logging.basicConfig in main.py)
+Output:
+INFO:tws_sidecar.runtime.watchdog:wedge_watchdog_started poll_ms=2000 exit_after_ms=60000 worker_wedge_ms=30000
+
+## Next
+Phase 4 — dual-consumer cutover (dev + app-prod → Compose sidecar)

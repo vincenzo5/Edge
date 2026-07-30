@@ -11,10 +11,12 @@ from tws_sidecar import config
 from tws_sidecar.auth import _sidecar_secret_allowed
 from tws_sidecar.runtime.connections import _reset_ib_connection
 from tws_sidecar.runtime.supervisor import _set_connection_state
+from tws_sidecar.runtime.watchdog import start_wedge_watchdog
 
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
+    start_wedge_watchdog()
     yield
     _set_connection_state("shutdown")
     _reset_ib_connection()

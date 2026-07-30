@@ -523,7 +523,7 @@ When IB Gateway is manually restored after a disconnect, the Data Health dropdow
 | `local` | Yes | Yes | Yes (`edge-local`) | Default dev — Next owns one sidecar |
 | `external` | No | No | No (reconnect only) | Shared sidecar — dev + prod both external |
 
-**Sidecar lifecycle:** Docker Compose is the durable owner ([Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md) Phases 1–2). Until Compose ships, the host script (`npm run tws:sidecar`) is the interim path. External mode skips boot ensure and user Recover never spawns or kills the shared process — unreachable or wedged sidecars require operator restart (interim: host script; target: Compose container restart or `npm run ib:gateway:up`).
+**Sidecar lifecycle:** Docker Compose is the durable owner ([Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md) Phases 1–3). A background wedge watchdog exits the process after ~60s continuous `workerWedged` so Compose `restart: unless-stopped` can recover alive-but-stuck sidecars without operator intervention. Until Phase 4 cutover, the host script (`npm run tws:sidecar`) remains emergency/fallback. External mode skips boot ensure and user Recover never spawns or kills the shared process — unreachable sidecars use Compose restart or `npm run ib:gateway:up`; wedged sidecars self-exit for Docker restart when the watchdog is enabled.
 
 **Brokerage readiness:** `awaitSidecarForBrokerage()` gates `/api/brokerage/*` and `BrokerageService` only — chart/quote routes keep fast Yahoo fallback.
 

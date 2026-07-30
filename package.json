@@ -96,7 +96,7 @@
     "tws:sidecar": "bash scripts/tws-sidecar.sh",
     "tws:sidecar:image": "docker build -t edge-tws-sidecar:$(git rev-parse --short HEAD) -f services/tws-sidecar/Dockerfile services/tws-sidecar",
     "research:worker:image": "docker build -t edge-research-worker:latest -f services/research-worker/Dockerfile services/research-worker",
-    "tws:sidecar:test": "cd services/tws-sidecar && ../../.tools/tws-sidecar-venv/bin/python -m unittest test_main test_config -v",
+    "tws:sidecar:test": "cd services/tws-sidecar && ../../.tools/tws-sidecar-venv/bin/python -m unittest test_main test_config test_watchdog -v",
     "tws:probe": "npx tsx scripts/tws-probe.mts",
     "tws:options-probe": "npx tsx scripts/tws-options-probe.mts",
     "fmp:gap-probe": "npx tsx scripts/fmp-gap-probe.mts",

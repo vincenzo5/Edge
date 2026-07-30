@@ -80,6 +80,27 @@ class ConfigResolutionTests(unittest.TestCase):
         self.assertEqual(paper["host"], "paper-only")
         self.assertEqual(live["host"], "live-only")
 
+    def test_wedge_watchdog_env_defaults(self) -> None:
+        cfg = _reload_config({})
+        self.assertEqual(cfg.TWS_WORKER_WEDGE_MS, 30_000)
+        self.assertEqual(cfg.TWS_WEDGE_EXIT_AFTER_MS, 60_000)
+        self.assertEqual(cfg.TWS_WEDGE_POLL_MS, 2_000)
+        self.assertTrue(cfg.TWS_WEDGE_EXIT_ENABLED)
+
+    def test_wedge_watchdog_env_overrides(self) -> None:
+        cfg = _reload_config(
+            {
+                "TWS_WORKER_WEDGE_MS": "5000",
+                "TWS_WEDGE_EXIT_AFTER_MS": "15000",
+                "TWS_WEDGE_POLL_MS": "500",
+                "TWS_WEDGE_EXIT_ENABLED": "false",
+            }
+        )
+        self.assertEqual(cfg.TWS_WORKER_WEDGE_MS, 5_000)
+        self.assertEqual(cfg.TWS_WEDGE_EXIT_AFTER_MS, 15_000)
+        self.assertEqual(cfg.TWS_WEDGE_POLL_MS, 500)
+        self.assertFalse(cfg.TWS_WEDGE_EXIT_ENABLED)
+
 
 if __name__ == "__main__":
     unittest.main()

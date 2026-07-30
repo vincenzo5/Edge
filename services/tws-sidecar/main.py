@@ -86,6 +86,8 @@ def __dir__() -> list[str]:
 
 
 if __name__ == "__main__":
+    import logging
     import uvicorn
 
+    logging.basicConfig(level=logging.INFO)
     uvicorn.run(app, host=config.TWS_SIDECAR_BIND, port=config.SIDECAR_PORT)

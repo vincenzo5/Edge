@@ -58,6 +58,12 @@ SIDECAR_STARTED_AT_MS = int(time.time() * 1000)
 SIDECAR_INSTANCE_ID = os.environ.get("EDGE_INSTANCE_ID", "").strip() or str(uuid.uuid4())
 TWS_MANAGED_BY = os.environ.get("TWS_MANAGED_BY", "standalone").strip() or "standalone"
 
+# Wedge watchdog — continuous workerWedged → process exit for Docker restart.
+TWS_WORKER_WEDGE_MS = int(os.environ.get("TWS_WORKER_WEDGE_MS", "30000"))
+TWS_WEDGE_EXIT_AFTER_MS = int(os.environ.get("TWS_WEDGE_EXIT_AFTER_MS", "60000"))
+TWS_WEDGE_POLL_MS = int(os.environ.get("TWS_WEDGE_POLL_MS", "2000"))
+TWS_WEDGE_EXIT_ENABLED = os.environ.get("TWS_WEDGE_EXIT_ENABLED", "true").lower() != "false"
+
 PRIORITY_HIGH = 0
 PRIORITY_QUOTES = 1
 PRIORITY_OPTIONS = 2

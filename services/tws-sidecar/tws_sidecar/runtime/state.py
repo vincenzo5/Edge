@@ -8,6 +8,8 @@ from typing import Any
 
 from ib_insync import IB
 
+from tws_sidecar import config
+
 _lock = threading.Lock()
 _ib: IB | None = None
 _ib_extra: dict[str, IB] = {}
@@ -46,7 +48,7 @@ PRIORITY_OPTIONS = 2
 # Worker wait defaults — callers may override per job.
 DEFAULT_IB_JOB_WAIT_SEC = 15.0
 RECONNECT_IB_JOB_WAIT_SEC = 20.0
-WORKER_WEDGE_MS = 30_000
+WORKER_WEDGE_MS = config.TWS_WORKER_WEDGE_MS
 # Keep below DEFAULT_IB_JOB_WAIT_SEC so reqHistoricalData releases the worker before HTTP waiters expire.
 HISTORICAL_DATA_TIMEOUT_SEC = 12.0
 
