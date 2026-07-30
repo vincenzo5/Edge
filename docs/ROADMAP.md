@@ -251,7 +251,7 @@ Guardrails:
 - [AI Agent / In-App Copilot Roadmap](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing** (contracts → OpenRouter agent → chat shell → session bridge → confirmed writes → chart↔chat → thread persistence → model picker → workflows).
 - [Grok Copilot UX Parity Roadmap](./roadmaps/grok-copilot-parity-roadmap.md) — Copilot shell/composer match **grok.com**; Phases 0–5 **Passing** (track complete).
 - [Copilot Chat Blocks Roadmap](./roadmaps/copilot-chat-blocks-roadmap.md) — reusable in-thread blocks (Trace / Media / Data / Action / Reference / Follow-ups); Phase 0 **Passing**.
-- [Quant Research Runtime Roadmap](./roadmaps/quant-research-runtime-roadmap.md) — server-side experiment compute for Copilot (datasets → signal studies → vectorized eval → sandboxed Python); Phase 0 **Passing** (2026-07-30).
+- [Quant Research Runtime Roadmap](./roadmaps/quant-research-runtime-roadmap.md) — server-side experiment compute for Copilot (datasets → signal studies → vectorized eval → sandboxed Python); Phase 1 **Passing** (2026-07-30).
 - [Research UX Roadmap](./roadmaps/research-ux-roadmap.md) — AI-first research desk: Talk / Board / Desk densities; pinable artifacts; Research Board; session reel; research-default entry. Phases 0–8 **Passing** (track complete); **tiled Desk kept forever**.
 
 Future work (residual agent polish — research shell track complete):
@@ -283,7 +283,7 @@ Living feature tracks (phase detail in each file):
 - [AI agent / in-app copilot](./roadmaps/ai-agent-roadmap.md) — Phases 0–8 **Passing**; agent walks closed on Wave 2 Phase 1
 - [Grok Copilot UX parity](./roadmaps/grok-copilot-parity-roadmap.md) — Phases 0–5 **Passing** (track complete); chrome walks closed on Wave 2 Phase 2
 - [Copilot chat blocks](./roadmaps/copilot-chat-blocks-roadmap.md) — Phase 0–1 **Passing** (contracts + scroll/Action → Media/Data → Reference → Follow-ups → rich Action)
-- [Quant research runtime](./roadmaps/quant-research-runtime-roadmap.md) — Phase 0 **Passing** (2026-07-30) — contracts + architecture freeze
+- [Quant research runtime](./roadmaps/quant-research-runtime-roadmap.md) — Phase 1 **Passing** (2026-07-30) — datasets + profile jobs + server tools
 - ~~[Research UX (AI-first desk)](./roadmaps/research-ux-roadmap.md)~~ — Phases 0–8 **Passing** (track complete); Desk tiling retained
 - [TypeScript indicator scripting](./roadmaps/typescript-indicator-scripting-roadmap.md) — Phases 0–5B + Scripts tile **Passing**
 - [Script depth](./roadmaps/script-depth-roadmap.md) — Phases 0–5 **Passing** — track complete
@@ -305,7 +305,7 @@ Broader product backlog (not feature-track owned):
 - Advanced market-context overlays — earnings, dividends, filings, news, options expirations, semantic AI annotations
 - TrendSpider competitive review — inventory started; prioritize Adopt/Adapt/Defer/Skip → [TrendSpider Competitive Roadmap](./roadmaps/trendspider-competitive-roadmap.md)
 - News flow — research captured; implementation not started → [News Flow Roadmap](./roadmaps/news-flow-roadmap.md)
-- Discord knowledge mine — OPS side track (local MCP extract, not product); Phase 2 **Passing** (Algo); Phases 3–6 **Pending** (Trinity → Wolves → MarketLife → SMB) → [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md)
+- Discord knowledge mine — OPS side track (local MCP extract, not product); Phase 0–6 **Passing** (first-pass); Phase 7 **Pending** — systems extraction (Wolves → Trinity → SMB → Algo → MarketLife); refresh deferred → [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md)
 - Day classification — Phases 1–3 **Passing** (2026-07-23); Phase 4 in-app review UI **Pending** → [Day Classification Roadmap](./roadmaps/day-classification-roadmap.md)
 - ~~Structural refactor~~ — Tiers A–E **Passing** → [Structural Refactor Roadmap](./refactor-roadmap.md)
 - Code organization — Phase 0–2 **Passing** (2026-07-24); Phase 3 **Pending** (components tree, god modules, chart shims) → [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md)
@@ -352,7 +352,7 @@ These are intentionally not near-term roadmap items:
 - [Runtime Interaction Performance Roadmap](./roadmaps/runtime-performance-roadmap.md) - frame time, crosshair cost, tip tick, React wakeups; CI budgets after interaction fixes.
 - [Plan → Execute Token Efficiency Roadmap](./roadmaps/plan-execute-token-efficiency-roadmap.md) - Phase 0–7 **Passing** (track complete).
 - [Sub-Harness Tree Roadmap](./roadmaps/sub-harness-tree-roadmap.md) - thin parent + routed domain packs (ENGINE/DATA/LIVE/AGENT/APP/OPS); Plan mode spine.
-- [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md) - OPS side track: server-by-server Discord MCP extract → local knowledge store.
+- [Discord Knowledge Mine Roadmap](./roadmaps/discord-knowledge-mine-roadmap.md) - OPS side track: first-pass mines complete; systems extraction (operator-system.md) Phases 7–11 next.
 - [Production Observability Roadmap](./roadmaps/production-observability-roadmap.md) - free-stack probes, logs, durable audit/errors, and alerts (no paid SaaS).
 - [Structural Refactor Roadmap](./roadmaps/refactor-roadmap.md) - sync/series consolidation and chart/app coordinator decomposition.
 - [Code Organization Roadmap](./roadmaps/code-organization-roadmap.md) - follow-on structure: `lib`↛`app`, god-module budgets, components migration, chart shim sunset, harness hygiene.

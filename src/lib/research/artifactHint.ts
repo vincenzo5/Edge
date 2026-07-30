@@ -35,12 +35,27 @@ const aiCalloutArtifactHintSchema = z.object({
   title: z.string().trim().max(120).optional(),
 });
 
+const researchProfileArtifactHintSchema = z.object({
+  type: z.literal("researchProfile"),
+  jobId: z.string().trim().min(1).max(64),
+  datasetId: z.string().trim().min(1).max(64).optional(),
+  title: z.string().trim().max(120).optional(),
+  keyMetrics: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  previewTable: z
+    .object({
+      columns: z.array(z.string()),
+      rows: z.array(z.array(z.union([z.string(), z.number(), z.null()]))),
+    })
+    .optional(),
+});
+
 export const researchArtifactHintSchema = z.discriminatedUnion("type", [
   chartArtifactHintSchema,
   screenerArtifactHintSchema,
   journalDraftArtifactHintSchema,
   noteArtifactHintSchema,
   aiCalloutArtifactHintSchema,
+  researchProfileArtifactHintSchema,
 ]);
 
 export type ResearchArtifactHint = z.infer<typeof researchArtifactHintSchema>;
@@ -134,6 +149,72 @@ function hintForGetJournalTrade(data: Record<string, unknown>): ResearchArtifact
   };
 }
 
+function readKeyMetrics(data: Record<string, unknown>): Record<string, string | number> | undefined {
+  const metrics = data.keyMetrics;
+  if (!metrics || typeof metrics !== "object" || Array.isArray(metrics)) return undefined;
+  const entries = Object.entries(metrics as Record<string, unknown>).slice(0, 24);
+  const result: Record<string, string | number> = {};
+  for (const [key, value] of entries) {
+    if (typeof value === "string" || typeof value === "number") {
+      result[key] = value;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function readPreviewTable(data: Record<string, unknown>) {
+  const preview = data.previewTable;
+  if (!preview || typeof preview !== "object" || Array.isArray(preview)) return undefined;
+  const record = preview as Record<string, unknown>;
+  const columns = record.columns;
+  const rows = record.rows;
+  if (!Array.isArray(columns) || !Array.isArray(rows)) return undefined;
+  return {
+    columns: columns.filter((value): value is string => typeof value === "string"),
+    rows: rows
+      .slice(0, 20)
+      .filter((row): row is unknown[] => Array.isArray(row))
+      .map((row) =>
+        row.map((cell) =>
+          typeof cell === "string" || typeof cell === "number" || cell === null ? cell : String(cell),
+        ),
+      ),
+  };
+}
+
+function hintForResearchProfile(data: Record<string, unknown>, title: string): ResearchArtifactHint {
+  return {
+    type: "researchProfile",
+    jobId: readString(data, "jobId") ?? "unknown",
+    datasetId: readString(data, "datasetId"),
+    title,
+    keyMetrics: readKeyMetrics(data),
+    previewTable: readPreviewTable(data),
+  };
+}
+
+function hintForCreateResearchDataset(data: Record<string, unknown>): ResearchArtifactHint | null {
+  const datasetId = readString(data, "datasetId");
+  if (!datasetId) return null;
+  const rowCount = data.rowCount;
+  const metrics: Record<string, string | number> = {
+    "Dataset id": datasetId,
+  };
+  if (typeof rowCount === "number") metrics["Total bars"] = rowCount;
+  const provenance = asRecord(data.provenance);
+  const sources = provenance?.sources;
+  if (Array.isArray(sources) && sources.length > 0) {
+    metrics.Source = sources.map(String).join(", ");
+  }
+  return {
+    type: "researchProfile",
+    jobId: datasetId,
+    datasetId,
+    title: "Research dataset",
+    keyMetrics: metrics,
+  };
+}
+
 function fallbackCallout(summary: string): ResearchArtifactHint {
   const trimmed = summary.trim();
   return {
@@ -161,6 +242,10 @@ export function toArtifactHint(toolName: string, result: ToolResult): ResearchAr
       return hintForListJournalTrades(data);
     case "get_journal_trade":
       return hintForGetJournalTrade(data);
+    case "profile_research_dataset":
+      return hintForResearchProfile(data, "Research profile");
+    case "create_research_dataset":
+      return hintForCreateResearchDataset(data);
     default:
       return null;
   }

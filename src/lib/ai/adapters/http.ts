@@ -4,6 +4,7 @@ import { createServiceTradingPort } from "../tradingPort";
 import { getServerMarketDataService } from "@/lib/marketData/service/server";
 import { getTradingService } from "@/lib/trading/tradingService";
 import { resolveTradingAccountId } from "@/lib/trading/activeAccount";
+import { getResearchComputeService } from "@/lib/researchCompute/server";
 
 /** Build a server-side ToolContext for market-data tools (no browser session). */
 export function createServerToolContext(): ToolContext {
@@ -40,5 +41,6 @@ export function createServerToolContext(): ToolContext {
     journal: null,
     alerts: null,
     research: null,
+    researchCompute: getResearchComputeService(),
   };
 }

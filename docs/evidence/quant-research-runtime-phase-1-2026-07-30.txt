@@ -1,0 +1,35 @@
+# AGENT — Quant research runtime — Phase 1 evidence
+# Date: 2026-07-30
+
+## Scope
+Filesystem-backed dataset materialization + profile jobs, five server-only registry tools, Copilot Data-block presentation. Node control plane only — no Python worker.
+
+## Delivered
+- src/lib/researchCompute/ — contracts, materialize, profileMetrics, parquet, service, stores
+- src/lib/ai/tools/researchCompute.ts — create/get dataset, profile, get job, get artifact
+- src/lib/ai/researchComputePort.ts + ToolContext + createServerToolContext wiring
+- src/lib/research/artifactHint.ts — researchProfile hint
+- src/lib/copilot/chatBlockMapping.ts — keyMetrics/previewTable → Data block; aiCallout pin
+- src/lib/ai/agent/summarizeToolResult.ts — compact summaries for research tools
+- src/lib/research/cardFromHint.ts — researchProfile → aiCallout pin card
+- docs/roadmaps/quant-research-runtime-roadmap.md — Phase 1 Passing
+- src/lib/researchCompute/ARCHITECTURE.md, src/lib/ai/ARCHITECTURE.md — Phase 1 pointers
+- docs/roadmaps/README.md, docs/ROADMAP.md — status sync
+- .gitignore — data/research/
+- package.json — @dsnp/parquetjs dependency
+
+## Architecture review
+Self-review Passed — server-only tools via ResearchComputePort; no React imports; compact tool results only; Parquet artifacts under data/research/.
+
+## Focused
+Command: npm test -- --run src/lib/researchCompute/ src/lib/ai/tools/researchCompute.test.ts src/lib/ai/agent/summarizeToolResult.test.ts src/lib/copilot/chatBlockMapping.test.ts
+Output: Test Files 7 passed (7); Tests 49 passed (49)
+exit=0
+
+## App-level
+Command: npm test -- --run src/lib/researchCompute/phase1AppLevel.test.ts
+Output: create_research_dataset → profile_research_dataset via edgeToolRegistry; meta.source yahoo; no candles in tool payloads; researchProfile Data block rendered
+exit=0
+
+## Next
+Phase 2 — signal / event studies (run_signal_study).

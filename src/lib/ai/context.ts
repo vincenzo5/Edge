@@ -49,6 +49,7 @@ import type { OptionsSessionState } from "@/lib/options/optionsSession";
 import type { ScriptCompileResult, ScriptManifest } from "@edge/chart-core";
 import type { ScriptLibraryEntry, ScriptLibraryState } from "@/lib/scriptLibrary/types";
 import type { ResearchBoardPort } from "@/lib/research/researchBoardPort";
+import type { ResearchComputePort } from "./researchComputePort";
 
 export type ScriptLibraryPort = {
   isHydrated: () => boolean;
@@ -122,6 +123,7 @@ export type ToolContext = BaseToolContext & {
   journal: JournalPort | null;
   alerts: AlertsPort | null;
   research: ResearchBoardPort | null;
+  researchCompute: ResearchComputePort | null;
 };
 
 export type ChartRangeInput = {

@@ -30,6 +30,7 @@ function mockContext(overrides: Partial<ToolContext> = {}): ToolContext {
     journal: null,
     alerts: null,
     research: null,
+    researchCompute: null,
     ...overrides,
   };
 }

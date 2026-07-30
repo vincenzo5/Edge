@@ -133,6 +133,7 @@ export function AiToolsProvider({ children }: { children: ReactNode }) {
       journal: journalRef.current,
       alerts: alertsRef.current,
       research: app ? researchRef.current : null,
+      researchCompute: null,
     };
   }, [app, chartBridge, chartActions, watchlist, screener, risk, account, optionsSession, scriptLibrary]);
 

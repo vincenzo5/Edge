@@ -36,6 +36,16 @@ describe("hintToBlockKind", () => {
     expect(hintToBlockKind({ type: "note", body: "Takeaway" })).toBeNull();
     expect(hintToBlockKind({ type: "aiCallout", summary: "Headline" })).toBeNull();
   });
+
+  it("maps researchProfile hints to data", () => {
+    expect(
+      hintToBlockKind({
+        type: "researchProfile",
+        jobId: "job_1",
+        title: "Research profile",
+      }),
+    ).toBe("data");
+  });
 });
 
 describe("hintToBlockSketch", () => {
@@ -70,6 +80,24 @@ describe("hintToBlockSketch", () => {
 
   it("returns null for note hints", () => {
     expect(hintToBlockSketch({ type: "note", body: "Body text" })).toBeNull();
+  });
+
+  it("builds table data block for researchProfile hints", () => {
+    const sketch = hintToBlockSketch({
+      type: "researchProfile",
+      jobId: "job_1",
+      title: "Research profile",
+      keyMetrics: { Symbols: 1, "Total bars": 40 },
+      previewTable: {
+        columns: ["Symbol", "Bars"],
+        rows: [["AAPL", 40]],
+      },
+    });
+    expect(sketch?.kind).toBe("data");
+    if (sketch?.kind === "data") {
+      expect(sketch.shape).toBe("table");
+      expect(sketch.pinHint?.type).toBe("aiCallout");
+    }
   });
 });
 

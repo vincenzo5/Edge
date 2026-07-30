@@ -25,6 +25,9 @@ const DATA_TOOL_NAMES = new Set([
   "get_journal_stats",
   "compare_symbols",
   "analyze_watchlist",
+  "create_research_dataset",
+  "profile_research_dataset",
+  "get_research_job",
 ]);
 
 /** Tools that emit Reference chips (symbol / interval deep links). */
@@ -170,6 +173,7 @@ export function hintToBlockKind(hint: ResearchArtifactHint): ChatBlockKind | nul
       return "media";
     case "screener":
     case "journalDraft":
+    case "researchProfile":
       return "data";
     case "note":
     case "aiCallout":
@@ -196,6 +200,43 @@ export function hintToBlockSketch(hint: ResearchArtifactHint): ChatBlock | null 
   }
 
   if (kind === "data") {
+    if (hint.type === "researchProfile") {
+      const entries =
+        hint.keyMetrics != null
+          ? Object.entries(hint.keyMetrics).slice(0, 24).map(([key, value]) => ({
+              key,
+              value: String(value),
+            }))
+          : undefined;
+      const preview = hint.previewTable;
+      const block: DataChatBlock =
+        preview && preview.columns.length > 0 && preview.rows.length > 0
+          ? {
+              kind: "data",
+              shape: "table",
+              title: hint.title ?? "Research profile",
+              columns: preview.columns,
+              rows: preview.rows,
+              pinHint: {
+                type: "aiCallout",
+                title: hint.title ?? "Research profile",
+                summary: entries?.map(({ key, value }) => `${key}: ${value}`).join(" · ") ?? hint.jobId,
+              },
+            }
+          : {
+              kind: "data",
+              shape: "kv",
+              title: hint.title ?? "Research profile",
+              entries,
+              pinHint: {
+                type: "aiCallout",
+                title: hint.title ?? "Research profile",
+                summary: entries?.map(({ key, value }) => `${key}: ${value}`).join(" · ") ?? hint.jobId,
+              },
+            };
+      return block;
+    }
+
     const title =
       hint.type === "screener"
         ? hint.title ?? "Screener results"

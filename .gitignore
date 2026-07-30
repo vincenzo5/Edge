@@ -52,6 +52,7 @@ data/journal-screenshots/
 
 # Copilot attachment blobs (metadata in Postgres)
 data/copilot-attachments/
+data/research/
 
 # typescript
 *.tsbuildinfo

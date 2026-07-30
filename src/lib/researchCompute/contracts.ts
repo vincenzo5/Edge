@@ -1,0 +1,148 @@
+import { z } from "zod";
+import { SUPPORTED_INTERVALS } from "@edge/chart-core/dataSource";
+
+export const researchIntervalSchema = z.enum(SUPPORTED_INTERVALS as [string, ...string[]]);
+
+export const researchAdjustmentSchema = z.enum(["split", "dividend", "none"]);
+export type ResearchAdjustment = z.infer<typeof researchAdjustmentSchema>;
+
+export const researchJobStatusSchema = z.enum([
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "canceled",
+]);
+export type ResearchJobStatus = z.infer<typeof researchJobStatusSchema>;
+
+export const artifactKindSchema = z.enum([
+  "run_manifest",
+  "metrics_json",
+  "preview_table",
+  "equity_curve",
+  "trades_table",
+  "source_py",
+]);
+export type ArtifactKind = z.infer<typeof artifactKindSchema>;
+
+export const researchBarSchema = z.object({
+  t: z.number().int(),
+  o: z.number(),
+  h: z.number(),
+  l: z.number(),
+  c: z.number(),
+  v: z.number().optional(),
+});
+export type ResearchBar = z.infer<typeof researchBarSchema>;
+
+export const datasetIdentitySchema = z.object({
+  symbols: z.array(z.string().trim().min(1).max(16)).min(1).max(50),
+  interval: researchIntervalSchema,
+  fromMs: z.number().int(),
+  toMs: z.number().int(),
+  provider: z.string().trim().min(1).max(32),
+  adjustment: researchAdjustmentSchema.default("split"),
+  timezone: z.string().trim().min(1).max(64).default("UTC"),
+});
+export type DatasetIdentity = z.infer<typeof datasetIdentitySchema>;
+
+export const acquisitionMetaSchema = z.object({
+  providerRoute: z.string(),
+  sources: z.array(z.string()),
+  warnings: z.array(z.string()),
+  rowCount: z.number().int().nonnegative(),
+  paginationPages: z.number().int().nonnegative(),
+});
+export type AcquisitionMeta = z.infer<typeof acquisitionMetaSchema>;
+
+export const datasetManifestSchema = z.object({
+  datasetId: z.string().min(1),
+  identity: datasetIdentitySchema,
+  identityFingerprint: z.string().min(1),
+  contentFingerprint: z.string().min(1),
+  acquisitionMeta: acquisitionMetaSchema,
+  materializedAt: z.string().datetime(),
+  computeVersion: z.string(),
+  acquisitionPolicyVersion: z.string(),
+  symbolRowCounts: z.record(z.string(), z.number().int().nonnegative()),
+});
+export type DatasetManifest = z.infer<typeof datasetManifestSchema>;
+
+export const artifactRefSchema = z.object({
+  artifactId: z.string().min(1),
+  kind: artifactKindSchema,
+  label: z.string().optional(),
+});
+export type ArtifactRef = z.infer<typeof artifactRefSchema>;
+
+export const previewTableSchema = z.object({
+  columns: z.array(z.string().min(1)).min(1).max(12),
+  rows: z.array(z.array(z.union([z.string(), z.number(), z.null()]))).max(20),
+});
+export type PreviewTable = z.infer<typeof previewTableSchema>;
+
+export const compactResearchResultSchema = z.object({
+  jobId: z.string().min(1),
+  status: researchJobStatusSchema,
+  runFingerprint: z.string().min(1),
+  provenance: z.record(z.string(), z.unknown()).optional(),
+  warnings: z.array(z.string()),
+  keyMetrics: z.record(z.string(), z.union([z.string(), z.number()])),
+  artifactRefs: z.array(artifactRefSchema),
+  previewTable: previewTableSchema.optional(),
+  datasetId: z.string().optional(),
+  datasetRef: z
+    .object({
+      datasetId: z.string(),
+      identityFingerprint: z.string(),
+    })
+    .optional(),
+});
+export type CompactResearchResult = z.infer<typeof compactResearchResultSchema>;
+
+export const runManifestSchema = z.object({
+  jobId: z.string().min(1),
+  toolName: z.string().min(1),
+  datasetRef: z.object({
+    datasetId: z.string(),
+    identityFingerprint: z.string(),
+  }),
+  runFingerprint: z.string().min(1),
+  startedAt: z.string().datetime(),
+  finishedAt: z.string().datetime().optional(),
+  status: researchJobStatusSchema,
+  warnings: z.array(z.string()),
+  computeVersion: z.string(),
+  artifactRefs: z.array(artifactRefSchema),
+});
+export type RunManifest = z.infer<typeof runManifestSchema>;
+
+export const researchJobRecordSchema = z.object({
+  jobId: z.string().min(1),
+  toolName: z.string().min(1),
+  status: researchJobStatusSchema,
+  datasetId: z.string().optional(),
+  runFingerprint: z.string().optional(),
+  startedAt: z.string().datetime(),
+  finishedAt: z.string().datetime().optional(),
+  error: z.string().optional(),
+  compactResult: compactResearchResultSchema.optional(),
+});
+export type ResearchJobRecord = z.infer<typeof researchJobRecordSchema>;
+
+export const profileOptionsSchema = z.object({
+  rollingWindow: z.number().int().min(5).max(252).optional(),
+  correlationMaxSymbols: z.number().int().min(2).max(20).optional(),
+});
+export type ProfileOptions = z.infer<typeof profileOptionsSchema>;
+
+export const createDatasetInputSchema = z.object({
+  symbols: z.array(z.string().trim().min(1).max(16)).min(1).max(50),
+  interval: researchIntervalSchema,
+  fromMs: z.number().int(),
+  toMs: z.number().int(),
+  provider: z.string().trim().min(1).max(32).optional(),
+  adjustment: researchAdjustmentSchema.optional(),
+  timezone: z.string().trim().min(1).max(64).optional(),
+});
+export type CreateDatasetInput = z.infer<typeof createDatasetInputSchema>;

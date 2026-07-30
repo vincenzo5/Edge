@@ -132,6 +132,7 @@
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.22",
+    "@dsnp/parquetjs": "^1.8.8",
     "@edge/ai-tools-chart": "*",
     "@edge/ai-tools-core": "*",
     "@edge/chart-core": "*",

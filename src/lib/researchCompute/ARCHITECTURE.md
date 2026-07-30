@@ -2,7 +2,7 @@
 
 Server-side quantitative research runtime for Copilot and (later) the Research Board. The LLM orchestrates typed experiments; a research kernel runs math on large market datasets; chat receives compact metrics and artifact refs — never full OHLCV histories.
 
-**Track:** [Quant Research Runtime Roadmap](../../../docs/roadmaps/quant-research-runtime-roadmap.md). **Phase 0 (2026-07-30):** contracts frozen in roadmap § Phase 0; no runtime TypeScript modules yet.
+**Track:** [Quant Research Runtime Roadmap](../../../docs/roadmaps/quant-research-runtime-roadmap.md). **Phase 1 (2026-07-30):** filesystem datasets + profile jobs + server-only registry tools.
 
 ## Purpose
 
@@ -37,9 +37,9 @@ ResearchComputePort  →  async jobs + artifact store
 
 | Layer | Location | Notes |
 |-------|----------|-------|
-| Domain | `src/lib/researchCompute/` | Pure contracts + job orchestration (Phase 1+) |
-| Registry tools | `src/lib/ai/tools/researchCompute.ts` (planned) | Server-only group; not `CLIENT_AI_TOOLS` |
-| Port | `ResearchComputePort` on `ToolContext` (optional, Phase 1+) | Jobs, pagination, artifact refs |
+| Domain | `src/lib/researchCompute/` | Contracts, materialization, profile jobs, artifact store |
+| Registry tools | `src/lib/ai/tools/researchCompute.ts` | Server-only group; not `CLIENT_AI_TOOLS` |
+| Port | `ResearchComputePort` on `ToolContext` | Injected via `createServerToolContext()` |
 
 Tools MUST NOT import React or mutate component state — use `ToolContext` facades only (same as all registry tools).
 
@@ -60,6 +60,18 @@ Tools MUST NOT import React or mutate component state — use `ToolContext` faca
 | Active-chart candle windows | Ephemeral UI state; not durable datasets |
 | Screener `lastRun` | Session-scoped; not versioned research materialization |
 | Research Board stores | Presentation / pins; not execution engines |
+
+## Phase 1 modules
+
+| Module | Role |
+|--------|------|
+| `contracts.ts` | Zod schemas — dataset identity, jobs, artifacts, compact results |
+| `materialize.ts` | Paginated `MarketDataService` acquisition → Parquet partitions |
+| `profileMetrics.ts` | Pure-TS descriptive metrics + preview table |
+| `service.ts` | `ResearchComputeService` — jobs, artifacts, profile runs |
+| `server.ts` | Server singleton wired into AI tool context |
+
+Research root defaults to `data/research/` (override `EDGE_RESEARCH_ROOT` in tests).
 
 ## Frozen contracts (Phase 0)
 

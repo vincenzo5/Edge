@@ -62,6 +62,22 @@ export function researchCardFromHint(
         threadId: provenance.threadId,
         messageId: provenance.messageId,
       };
+    case "researchProfile": {
+      const summary =
+        hint.keyMetrics != null
+          ? Object.entries(hint.keyMetrics)
+              .slice(0, 6)
+              .map(([key, value]) => `${key}: ${value}`)
+              .join(" · ")
+          : hint.title ?? hint.jobId;
+      return {
+        ...base,
+        type: "aiCallout",
+        summary,
+        threadId: provenance.threadId,
+        messageId: provenance.messageId,
+      };
+    }
     default: {
       const _exhaustive: never = hint;
       return _exhaustive;

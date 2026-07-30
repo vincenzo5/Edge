@@ -4,7 +4,7 @@ Living track for a **server-side quantitative research runtime** that Copilot (a
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-30) — contracts + architecture freeze.
+**Status:** Phase 1 **Passing** (2026-07-30) — datasets + profile jobs + server tools.
 
 **Branch:** AGENT (secondary: DATA).
 
@@ -249,7 +249,7 @@ E2B/Modal remain optional later executors — not before Phase 4 without explici
 
 ### Phase 1 — Datasets + descriptive research
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Copilot can create a versioned dataset and run profiling studies; results are compact + artifact-backed.
 
