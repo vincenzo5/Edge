@@ -111,7 +111,7 @@ describe("recoverTwsSidecar", () => {
 
     expect(startSidecar).not.toHaveBeenCalled();
     expect(result.ok).toBe(false);
-    expect(result.message).toMatch(/operator-managed sidecar/i);
+    expect(result.message).toMatch(/ib:gateway:up/i);
   });
 
   it("returns operator restart message in external mode when restart is required", async () => {
@@ -145,7 +145,7 @@ describe("recoverTwsSidecar", () => {
 
     expect(restartSidecar).not.toHaveBeenCalled();
     expect(result.ok).toBe(false);
-    expect(result.message).toMatch(/operator-managed sidecar/i);
+    expect(result.message).toMatch(/ib:gateway:up/i);
   });
 
   it("returns failed when foreign edge-local sidecar owns the port", async () => {
@@ -178,7 +178,8 @@ describe("recoverTwsSidecar", () => {
 
   it("surfaces explicit port conflict copy for foreign sidecar", () => {
     expect(EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE).toMatch(/8765/);
-    expect(EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE).toMatch(/npm run tws:sidecar/i);
+    expect(EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE).toMatch(/ib:gateway:up/i);
+    expect(EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE).toMatch(/tws:sidecar/i);
   });
 
   it("starts sidecar when unreachable then reconnects", async () => {

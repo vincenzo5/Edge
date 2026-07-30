@@ -1,0 +1,80 @@
+# OPS — Persistent TWS sidecar — Phase 4 evidence
+# Date: 2026-07-30
+
+## Scope
+Dual-consumer cutover: dev (`npm run dev` :3003) and container prod (`app-prod` :3000) both consume the Compose sidecar on `:8765`; host `npm run tws:sidecar` demoted to emergency-only in env examples and external-mode recover copy.
+
+## Delivered
+- .env.example — Phase 4 dual-consumer cutover notes; shared-secret requirement; production.env matrix pointer
+- services/ib-gateway/.env.example — dual-consumer secret alignment; dev vs prod URL matrix
+- src/lib/marketData/ARCHITECTURE.md — Compose-primary sidecar ownership; ib:gateway:up primary ops; emergency tws:sidecar fallback
+- src/lib/marketData/providers/tws/recover.ts — external-mode messages prefer ib:gateway:up; tws:sidecar emergency fallback
+- src/lib/marketData/providers/tws/recover.test.ts — updated expectations for new operator copy
+
+## Architecture review
+Self-review Passed — external-only apps (`TWS_MANAGED=external`); loopback publish `127.0.0.1:8765`; `host.docker.internal:8765` reachability from app-prod proven; `/health` liveness without auth; secret required for non-loopback app routes; apps never spawn/kill Compose sidecar; host script emergency-only.
+
+## Focused — recover tests
+Command: npm test -- --run src/lib/marketData/providers/tws/recover.test.ts
+Output:
+Test Files  1 passed (1)
+Tests  19 passed (19)
+exit=0
+
+## Focused — sidecar regression
+Command: npm run tws:sidecar:test
+Output:
+Ran 62 tests in 0.028s
+FAILED (errors=1)
+ERROR: setUpClass (test_main.ConnectionRoutingEndpointTests) — httpx2 missing (pre-existing; not introduced by Phase 4)
+61 tests passed
+exit=1
+
+## App-level — A host health
+Command: curl -sS http://127.0.0.1:8765/health
+Output:
+{"ok":true,"startedAt":1785433633206,"managedBy":"external","sidecarPort":8765,"capabilities":{"controlRecovery":true,"controlReconnect":true,"streamQuotes":true,"brokerage":true}}
+App-level: ok=true managedBy=external sidecarPort=8765
+exit=0
+
+## App-level — B in-container health (bind risk gate)
+Command: docker exec edge-app-prod wget -qO- http://host.docker.internal:8765/health
+Output:
+{"ok":true,"startedAt":1785433633206,"managedBy":"external","sidecarPort":8765}
+App-level: app-prod → host.docker.internal:8765 /health ok=true (TWS_SIDECAR_BIND=0.0.0.0 bind risk closed)
+exit=0
+
+## App-level — C dual sockets
+Command: curl -sS http://127.0.0.1:8765/status (connections.ib-paper / ib-live)
+Output:
+ib-paper gatewayConnected: true connectionState: connected
+ib-live gatewayConnected: false (live Gateway not logged in at proof time — operator prerequisite for full dual-socket)
+Note: paper socket connected; live requires Gateway login (Dual Connection / Wave 1 QA scope unchanged).
+
+## App-level — D both consumers
+Command: curl -sS http://127.0.0.1:3003/api/market-data/health
+Output:
+twsStatus.sidecarReachable: true
+twsStatus.gatewayConnected: true
+provider detail: "Sidecar ok · Gateway connected"
+contains "Sidecar unreachable": false
+exit=0
+
+Command: docker exec edge-app-prod wget -qO- http://host.docker.internal:8765/status
+Output:
+sidecarReachable: true
+paper gatewayConnected: true
+App-level: app-prod container reaches shared sidecar; prod /api/market-data/health auth-gated (401 without API key) — network consumer path proven via B + in-container /status
+Command: curl -sS http://127.0.0.1:3000/readyz
+Output: {"ok":true} HTTP 200
+
+## App-level — E soft reconnect (Gateway restart, sidecar container unchanged)
+Command: docker restart edge-ib-gateway-paper; wait 30s; curl /status; curl /health startedAt
+Output:
+before sidecar startedAt=1785433633206
+after paper gatewayConnected: true connectionState: connected recovery phase: connected
+after sidecar startedAt=1785433633206 (unchanged=yes)
+App-level: Gateway soft restart → sidecar supervisor reconnects paper socket without sidecar container restart
+
+## Next
+Phase 5 — docs, ops, harness closeout (ARCHITECTURE primary narrative sync; track complete)

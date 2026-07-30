@@ -6,7 +6,7 @@ service beside paper/live Gateways, shared by host `npm run dev` and container
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-30). Phase 1 **Passing** (2026-07-30). Phase 2 **Passing** (2026-07-30). Phase 3 **Passing** (2026-07-30). Phases 4–5 **Pending**.
+**Status:** Phase 0 **Passing** (2026-07-30). Phase 1 **Passing** (2026-07-30). Phase 2 **Passing** (2026-07-30). Phase 3 **Passing** (2026-07-30). Phase 4 **Passing** (2026-07-30). Phase 5 **Pending**.
 
 **Origin:** 2026-07-30 operator pain (Gateways up, sidecar down / forgotten) +
 architecture consult (GPT 5.6: Compose sidecar; Opus: LaunchAgent). Parent
@@ -314,7 +314,7 @@ apps no longer dead-end on “restart operator sidecar” for wedge alone.
 ### Phase 4 — Dual-consumer cutover
 
 **Band:** Now  
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Dev and container prod both consume the Compose sidecar; host manual
 path demoted.

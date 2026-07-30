@@ -253,10 +253,10 @@ async function defaultWarmup(baseUrl: string, symbols: string[]): Promise<void> 
 }
 
 export const EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE =
-  "Port 8765 is in use. Stop the other process on that port, or run: npm run tws:sidecar";
+  "Port 8765 is in use. Stop the host sidecar, then run: npm run ib:gateway:up (emergency fallback: npm run tws:sidecar)";
 
 export const EXTERNAL_OPERATOR_RESTART_MESSAGE =
-  "Restart the operator-managed sidecar (npm run tws:sidecar), then retry.";
+  "Restart the Compose sidecar (npm run ib:gateway:up), then retry. Emergency fallback: npm run tws:sidecar.";
 
 function spawnManagedSidecarProcess(managedBy: "edge-local" | "standalone"): boolean {
   if (managedSidecarProcess && managedSidecarProcess.exitCode == null && !managedSidecarProcess.killed) {
@@ -385,7 +385,7 @@ export function formatTwsRecoveryPhaseMessage(status: TwsStatusProbe): string {
     if (diagnostics?.workerWedged) {
       return `Sidecar worker wedged${job} — restarting sidecar…`;
     }
-    return "Sidecar stale — restart managed sidecar (npm run tws:sidecar) to pick up current routes";
+    return "Sidecar stale — restart via npm run ib:gateway:up (emergency: npm run tws:sidecar) to pick up current routes";
   }
   if (status.subscriptionsLost) {
     return "Market data resubscribing after Gateway reconnect…";
@@ -562,7 +562,7 @@ export async function recoverTwsSidecar(
         "failed",
         "failed",
         isTwsExternalManaged()
-          ? `${EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE} If the port is free, run npm run tws:sidecar-setup, then retry.`
+          ? `${EXTERNAL_RECOVERY_PORT_CONFLICT_MESSAGE} If the port is free, run npm run ib:gateway:up, then retry.`
           : "Sidecar did not become reachable. Run npm run tws:sidecar-setup, then retry.",
         {
           configured: true,
@@ -607,7 +607,9 @@ export async function recoverTwsSidecar(
         false,
         "failed",
         "failed",
-        "Sidecar restart failed — run npm run tws:sidecar manually, then retry.",
+        isTwsExternalManaged()
+          ? `${EXTERNAL_OPERATOR_RESTART_MESSAGE}`
+          : "Sidecar restart failed — run npm run tws:sidecar manually, then retry.",
         {
           configured: true,
           sidecarReachable: false,
