@@ -4,7 +4,7 @@ Living track for **server-by-server Discord mining** via the Discord MCP: extrac
 
 **Last updated:** 2026-07-29
 
-**Status:** Phase 0 **Passing** (2026-07-29) — MCP auth + local store contract; Phase 1 **Passing** (2026-07-29) — guild inventory; Phase 2 **Passing** (2026-07-30) — first-server bootstrap (Algo Trading, Coding); Phase 3 **Pending** — priority channel extract.
+**Status:** Phase 0 **Passing** (2026-07-29) — MCP auth + local store contract; Phase 1 **Passing** (2026-07-29) — guild inventory; Phase 2 **Passing** (2026-07-30) — first-server bootstrap (Algo Trading, Coding); Phase 3 **Passing** (2026-07-30) — priority channel extract; Phase 4 **Pending** — context synthesis.
 
 **Branch:** OPS (secondary: none). Not an Edge product surface — local operator / research knowledge workflow.
 
@@ -168,7 +168,7 @@ Classify from channel names + a small sample of rules / welcome / announcements 
 
 ### Phase 3 — Priority channel extract (windowed)
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Outcome:** Raw message windows on disk for priority channels; per-channel digests started.
 
@@ -274,7 +274,7 @@ Edge `npm run check` / product tests: **not required** (outside app code unless 
 1. ~~Confirm local root path (`~/Knowledge/discord/` vs another).~~ **Resolved Phase 0** — locked to `~/Knowledge/discord/`.
 2. ~~Which server is Active first after inventory?~~ **Resolved Phase 1** — Algo Trading, Coding (`928315068955893760`).
 3. ~~Phase 2 bootstrap for Active server?~~ **Resolved Phase 2** — 7 channels; class Trading/research; priority list in `meta.json` / `profile.md`.
-4. Default window for first pass (`hours_back`: 24 vs 168)?
+4. ~~Default window for first pass (`hours_back`: 24 vs 168)?~~ **Resolved Phase 3** — locked to `hours_back=168`, `max_messages=100`; 107 messages across 5 priority channels.
 5. Is a Cursor skill worth it after the first 1–2 servers, or keep ad-hoc Agent runs?
 6. Any servers that must be skipped for policy reasons?
 
