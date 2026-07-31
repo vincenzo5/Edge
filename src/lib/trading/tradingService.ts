@@ -1,6 +1,22 @@
 import { randomUUID } from "crypto";
 import "server-only";
 
+import { applyRiskPolicy } from "@/lib/risk/policy/applyRiskPolicy";
+import {
+  ApplyRiskPolicyRequestSchema,
+  ArmPlannedScheduleRequestSchema,
+  ClearPlannedBindingRequestSchema,
+  PromotePlannedInstanceRequestSchema,
+  SyncPlannedInstanceRequestSchema,
+} from "@/lib/risk/policy/applyRequests";
+import {
+  CLASSIC_PROTECT_TEMPLATE_ID,
+  getClassicProtectTemplate,
+} from "@/lib/risk/policy/classicProtectTemplate";
+import { resolveEntryScheduleFireAt } from "@/lib/risk/policy/resolveEntrySchedule";
+import { evaluateSubmitProtectGate } from "@/lib/risk/policy/submitProtectGate";
+import { playbookTemplateToRiskPolicyTemplateFull } from "@/lib/risk/policy/templateReview";
+import type { RiskPolicyTemplate } from "@/lib/risk/policy/types";
 import {
   getBrokerageClient,
   probeSidecarLiveness,
@@ -65,6 +81,7 @@ import { buildManualStopPausePatch, detachAffectsProtectOrders, pauseAffectsProt
 import {
   materializePlannedSchedules,
   promoteDuePlannedInstances,
+  promotePlannedInstanceNow,
 } from "./playbook/promotePlannedInstances";
 import { runPlaybookEvaluation } from "./playbook/runPlaybookEvaluation";
 import type { RuleRuntime } from "./playbook/types";
@@ -569,6 +586,138 @@ export class TradingService {
   ): Promise<PlaybookInstance[]> {
     const store = await this.playbookStore();
     return store.listByAccount(accountId, options);
+  }
+
+  private async resolveRiskPolicyTemplate(
+    templateId: string,
+  ): Promise<RiskPolicyTemplate | null> {
+    if (templateId === CLASSIC_PROTECT_TEMPLATE_ID) {
+      return getClassicProtectTemplate();
+    }
+    const playbookTemplate = await this.resolveTemplateForId(templateId);
+    if (!playbookTemplate) return null;
+    return playbookTemplateToRiskPolicyTemplateFull(playbookTemplate);
+  }
+
+  async applyRiskPolicyToBinding(input: unknown): Promise<PlaybookInstance> {
+    const parsed = ApplyRiskPolicyRequestSchema.parse(input);
+    const template = await this.resolveRiskPolicyTemplate(parsed.templateId);
+    if (!template) {
+      throw new TradingValidationError(`Unknown risk policy template: ${parsed.templateId}`);
+    }
+
+    const store = await this.playbookStore();
+    const result = await applyRiskPolicy(store, {
+      template,
+      positionPlan: parsed.positionPlan,
+      bindingRef: parsed.bindingRef,
+      onConflict: parsed.onConflict ?? "swap",
+      entrySchedule: parsed.entrySchedule,
+      entryOrder: parsed.entryOrder,
+      scheduledFor: parsed.scheduledFor,
+    });
+    if (!result.ok) {
+      throw new TradingValidationError(result.error);
+    }
+    return result.playbookInstance;
+  }
+
+  async syncPlannedInstance(
+    instanceId: string,
+    input: unknown,
+  ): Promise<PlaybookInstance | null> {
+    const parsed = SyncPlannedInstanceRequestSchema.parse(input);
+    const store = await this.playbookStore();
+    const existing = await store.getById(instanceId);
+    if (!existing || existing.status !== "planned") {
+      throw new TradingValidationError("Planned instance not found");
+    }
+    return store.patch(instanceId, parsed);
+  }
+
+  async clearPlannedBinding(input: unknown): Promise<boolean> {
+    const parsed = ClearPlannedBindingRequestSchema.parse(input);
+    const store = await this.playbookStore();
+    const existing = await store.findPlannedByBinding(parsed.bindingRef);
+    if (!existing) return false;
+    await store.patch(existing.id, {
+      status: "superseded",
+      offReason: "manual",
+      detachedAt: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  async armPlannedSchedule(
+    instanceId: string,
+    input: unknown,
+  ): Promise<PlaybookInstance | null> {
+    const parsed = ArmPlannedScheduleRequestSchema.parse(input);
+    const store = await this.playbookStore();
+    const existing = await store.getById(instanceId);
+    if (!existing || existing.status !== "planned") {
+      throw new TradingValidationError("Planned instance not found");
+    }
+    const scheduledFor =
+      parsed.scheduledFor ??
+      resolveEntryScheduleFireAt(parsed.entrySchedule, new Date()) ??
+      undefined;
+    return store.patch(instanceId, {
+      entrySchedule: parsed.entrySchedule,
+      scheduledFor,
+    });
+  }
+
+  async promotePlannedInstance(
+    instanceId: string,
+    input: unknown,
+  ): Promise<PlaybookInstance> {
+    const parsed = PromotePlannedInstanceRequestSchema.parse(input);
+    const store = await this.playbookStore();
+    const existing = await store.getById(instanceId);
+    if (!existing || existing.status !== "planned") {
+      throw new TradingValidationError("Planned instance not found");
+    }
+
+    const template = existing.policySnapshot ?? null;
+    const gate = evaluateSubmitProtectGate({
+      environment: existing.positionPlan.environment,
+      template,
+      unprotectedConfirm: parsed.unprotectedConfirm,
+    });
+    if (gate.kind === "hard_block_live") {
+      throw new TradingValidationError(
+        "Live submit blocked — add a resting Protect policy or confirm unprotected submit",
+      );
+    }
+
+    assertLiveConfirmation(existing.positionPlan.environment, parsed.liveConfirmation);
+    this.ensureTradingEnabled(existing.positionPlan.environment);
+
+    const promoted = await promotePlannedInstanceNow({
+      instance: existing,
+      playbookStore: store,
+      tradingService: {
+        submitOrder: async (draftInput, idempotencyKey, previewIntentId, liveConfirmation) => {
+          const placed = await this.submitOrder(
+            draftInput,
+            idempotencyKey,
+            previewIntentId,
+            liveConfirmation,
+          );
+          return { orderRef: placed.orderRef, intent: placed.intent };
+        },
+        submitBracket: async (planInput, idempotencyKey, previewIntentId, liveConfirmation) =>
+          this.submitBracket(planInput, idempotencyKey, previewIntentId, liveConfirmation),
+      },
+      idempotencyKey: parsed.idempotencyKey,
+      previewIntentId: parsed.previewIntentId,
+      liveConfirmation: parsed.liveConfirmation,
+      takeProfitPrice: parsed.takeProfitPrice,
+    });
+
+    await this.syncPlaybookJournal(promoted);
+    return promoted;
   }
 
   async detachPlaybookInstance(instanceId: string): Promise<PlaybookInstance | null> {

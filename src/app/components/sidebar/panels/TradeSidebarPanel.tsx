@@ -6,11 +6,17 @@ import { useQuote } from "@/lib/marketData/useQuotes";
 import { PanelPopOutButton } from "../PanelChromeActions";
 import { TradeOrderForm } from "../../trading/TradeOrderForm";
 import { useTradeSetupBinding } from "../../trading/TradeSetupBindingContext";
+import { usePlaybookInstances } from "../../trading/usePlaybookInstances";
+import { useAccountOptional } from "../../AccountProvider";
 
 export function TradeSidebarPanel() {
   const { bind, levels, symbol: boundSymbol, seedQuantity, clearSeedQuantity } =
     useTradeSetupBinding();
   const activeChart = useActiveChart();
+  const account = useAccountOptional();
+  const accountId = account?.activeTradingAccountId ?? "";
+  const { instances: playbookInstances, refresh: refreshPlaybookInstances } =
+    usePlaybookInstances(accountId || null, { includePlanned: true });
   const symbol = boundSymbol ?? activeChart?.config.symbol ?? "";
   const quote = useQuote(symbol || null);
   const lastPrice = useMemo(() => {
@@ -19,6 +25,18 @@ export function TradeSidebarPanel() {
   }, [quote]);
 
   const boundActive = bind != null && levels != null;
+
+  const plannedInstance = useMemo(() => {
+    if (!bind?.drawingId) return null;
+    return (
+      playbookInstances.find(
+        (item) =>
+          item.status === "planned" &&
+          item.bindingRef?.kind === "drawing" &&
+          item.bindingRef.id === bind.drawingId,
+      ) ?? null
+    );
+  }, [bind?.drawingId, playbookInstances]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -44,6 +62,8 @@ export function TradeSidebarPanel() {
         boundActive={bind == null ? true : boundActive}
         seedQuantity={seedQuantity}
         onSeedQuantityApplied={clearSeedQuantity}
+        plannedInstance={plannedInstance}
+        onPlannedRefresh={() => void refreshPlaybookInstances()}
         testId="trade-sidebar-panel"
       />
     </div>

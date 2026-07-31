@@ -4,7 +4,7 @@ Living track for the **persisted RiskPolicy spine**: a named, reusable, composab
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-30) — data model + apply UX intent frozen (this document). Phase 1 **Passing** (2026-07-31) — Zod spine + completeness/integrity helpers + last-used preference stub. Phase 2 **Passing** (2026-07-31) — additive schema M2–M4, stores/repos, `applyRiskPolicy`, partial unique indexes. Phase 3 **Passing** (2026-07-31) — evaluator binding filter, protect reconcile persistence, cancel-protect verb, journal M5 link, schedule promote on playbook-evaluate cron. Phase 4+ **Pending** — authoring/apply UX.
+**Status:** Phase 0 **Passing** (2026-07-30) — data model + apply UX intent frozen (this document). Phase 1 **Passing** (2026-07-31) — Zod spine + completeness/integrity helpers + last-used preference stub. Phase 2 **Passing** (2026-07-31) — additive schema M2–M4, stores/repos, `applyRiskPolicy`, partial unique indexes. Phase 3 **Passing** (2026-07-31) — evaluator binding filter, protect reconcile persistence, cancel-protect verb, journal M5 link, schedule promote on playbook-evaluate cron. Phase 4 **Passing** (2026-07-31) — Risk sidebar Policies library + sectioned template editor. Phase 5 **Passing** (2026-07-31) — chart Apply UX (Plan panel + Trade ticket promote/arm).
 
 **Related:** [Risk Management System](./risk-management-system-roadmap.md) (slot vocabulary + UX moments 0–10), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (Manage runtime — evolves into this spine), [Trading Execution](./trading-execution-roadmap.md) (**Protect** effects + entry orders), [Journal](./journal-roadmap.md) (Measurement sink), [AI Agent](./ai-agent-roadmap.md), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -562,7 +562,9 @@ Risk sidebar section **Policies**:
 
 **Outcome:** Risk sidebar **Policies** list + editor per Authoring UX intent — create / duplicate / edit / archive; completeness strip; optional default EntrySchedule on template. No chart apply required to close this phase.
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-31)
+
+**Verification:** Focused `npm test -- --run src/lib/trading/playbookTemplateStore.test.ts src/lib/trading/playbookTemplateMutations.test.ts src/lib/risk/policy/ src/app/components/trading/PlaybookTemplateEditor.test.tsx src/app/components/risk/RiskPoliciesSection.test.tsx src/app/api/trading/playbooks/templates/` — Test Files 13 passed (13), Tests 52 passed (52); no chart apply.
 
 ---
 
@@ -579,7 +581,7 @@ Risk sidebar section **Policies**:
 | 5.5 | Live hard-block without Protect (soft warn paper); unprotected confirm escape |
 | 5.6 | Submit now or arm schedule; promote planned → pending_fill; pause/detach chrome |
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-31)
 
 ---
 

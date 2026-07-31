@@ -29,6 +29,7 @@ import { useOptionalAppWorkspace } from "../app-workspace/AppWorkspaceContext";
 import { useAppTimeZone } from "../AppTimeZoneProvider";
 import { useAccountTradingIdentity } from "../AccountProvider";
 import { usePlaybookInstances } from "../trading/usePlaybookInstances";
+import { useRiskSettingsOptional } from "../RiskSettingsProvider";
 import {
   manageLevelsForSymbol,
   manageLevelsToPriceAxisAnnotations,
@@ -88,7 +89,9 @@ export default memo(function ChartCell({
   const riskBinding = useRiskPositionBindingOptional();
   const account = useAccountTradingIdentity();
   const tradingAccountId = account?.activeTradingAccountId ?? "";
-  const { instances: playbookInstances } = usePlaybookInstances(tradingAccountId || null);
+  const { instances: playbookInstances, refresh: refreshPlaybookInstances } =
+    usePlaybookInstances(tradingAccountId || null, { includePlanned: true });
+  const riskSettings = useRiskSettingsOptional();
   const managePriceAxisAnnotations = useMemo((): PriceAxisAnnotation[] => {
     if (!tradingAccountId) return [];
     return manageLevelsToPriceAxisAnnotations(
@@ -261,6 +264,20 @@ export default memo(function ChartCell({
         copilot: copilotActions,
         patternLibrary,
         scriptLibrary,
+        policyApply: tradingAccountId
+          ? {
+              accountId: tradingAccountId,
+              environment: account?.tradingEnvironment ?? "paper",
+              dollarRisk: riskSettings?.dollarRisk ?? null,
+              playbookInstances,
+              onPlaybookInstancesChange: () => void refreshPlaybookInstances(),
+              onTradeSetup: (drawingId, seedQuantity) => {
+                tradeBinding?.openTradeFromDrawing(chartId, drawingId, config.symbol, {
+                  seedQuantity,
+                });
+              },
+            }
+          : undefined,
       })}
     />
   );

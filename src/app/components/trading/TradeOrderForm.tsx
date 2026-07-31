@@ -12,6 +12,8 @@ import { computeEquityPositionSize } from "@/lib/risk/equityPositionSize";
 import { LIVE_CONFIRMATION_TOKEN, PREVIEW_INTENT_MAX_AGE_MS } from "@/lib/trading/validateOrder";
 import {
   previewOrder,
+  promotePlannedInstance,
+  armPlannedSchedule,
   submitBracket,
   submitOrder,
   TradingApiError,
@@ -55,6 +57,10 @@ import { summarizeSubmitRiskPlanFromBracket } from "@/lib/risk/summarizeSubmitRi
 import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
 import { useAccountRiskGateStatus } from "../risk/useAccountRiskGateStatus";
 import { usePlaybookInstances } from "./usePlaybookInstances";
+import { evaluateSubmitProtectGate } from "@/lib/risk/policy/submitProtectGate";
+import { resolveEntryScheduleFireAt } from "@/lib/risk/policy/resolveEntrySchedule";
+import type { EntrySchedule } from "@/lib/risk/policy/slotSchemas";
+import type { PlaybookInstance } from "@/lib/trading/playbook/types";
 import { SubmitRiskPlanSummary } from "../risk/SubmitRiskPlanSummary";
 
 export type { ManagePresetSelection };
@@ -69,6 +75,10 @@ export type TradeOrderFormProps = {
   /** Applied once when plan levels arrive from a Risk / Trade setup handoff. */
   seedQuantity?: number | null;
   onSeedQuantityApplied?: () => void;
+  /** Drawing-bound planned risk policy instance. */
+  plannedInstance?: PlaybookInstance | null;
+  onChangePolicy?: () => void;
+  onPlannedRefresh?: () => void;
   testId?: string;
 };
 
@@ -135,6 +145,9 @@ export function TradeOrderForm({
   boundActive = true,
   seedQuantity = null,
   onSeedQuantityApplied,
+  plannedInstance = null,
+  onChangePolicy,
+  onPlannedRefresh,
   testId = "trade-order-form",
 }: TradeOrderFormProps) {
   const account = useAccountOptional();
@@ -150,7 +163,7 @@ export function TradeOrderForm({
   const environment = account?.tradingEnvironment ?? "paper";
   const { instances: playbookInstances } = usePlaybookInstances(accountId);
   const openPositionCount =
-    account?.positions.filter((row) => (row.position ?? 0) !== 0).length ?? 0;
+    account?.positions?.filter((row) => (row.position ?? 0) !== 0).length ?? 0;
 
   const [step, setStep] = useState<Step>("form");
   const [side, setSide] = useState<OrderSide>("BUY");
@@ -175,13 +188,45 @@ export function TradeOrderForm({
   const [placedBracket, setPlacedBracket] = useState<BracketPlacedResult | null>(null);
   const [journalTradeId, setJournalTradeId] = useState<string | null>(null);
   const [liveConfirmText, setLiveConfirmText] = useState("");
+  const [unprotectedConfirm, setUnprotectedConfirm] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState<"now" | "session" | "clock">("now");
+  const [sessionEvent, setSessionEvent] = useState<"nextRthOpen" | "nextRthClose">("nextRthOpen");
+  const [clockAt, setClockAt] = useState("");
+  const [clockTimeZone, setClockTimeZone] = useState("America/New_York");
+
+  const policyBound = plannedInstance != null && plannedInstance.status === "planned";
+  const policyTemplate = plannedInstance?.policySnapshot ?? null;
+  const policyName =
+    policyTemplate?.name ??
+    (plannedInstance ? getPlaybookPreset(plannedInstance.templateId)?.name : null) ??
+    plannedInstance?.templateId ??
+    null;
 
   useEffect(() => {
     if (!planLevels) return;
     setSide(planLevels.side);
-    setOrderType("MKT");
+    setOrderType(policyBound ? "LMT" : "MKT");
     setLimitPrice(String(planLevels.entry));
-  }, [planLevels?.entry, planLevels?.side, planLevels?.stop, planLevels?.target]);
+  }, [planLevels?.entry, planLevels?.side, planLevels?.stop, planLevels?.target, policyBound]);
+
+  useEffect(() => {
+    if (!plannedInstance?.entrySchedule) return;
+    const schedule = plannedInstance.entrySchedule;
+    if (schedule.kind === "immediate") {
+      setScheduleMode("now");
+      return;
+    }
+    if (schedule.kind === "sessionEvent") {
+      setScheduleMode("session");
+      setSessionEvent(schedule.event);
+      return;
+    }
+    if (schedule.kind === "clock") {
+      setScheduleMode("clock");
+      setClockAt(schedule.at.slice(0, 16));
+      setClockTimeZone(schedule.timeZone);
+    }
+  }, [plannedInstance?.entrySchedule, plannedInstance?.id]);
 
   useEffect(() => {
     if (!planLevels || seedQuantity == null) return;
@@ -341,9 +386,15 @@ export function TradeOrderForm({
       quantity: qty,
       dollarRisk,
       plannedRiskDollars: plannedRisk,
-      attachProtect: attachBracket,
-      bracketPlan,
-      managePresetId,
+      attachProtect: policyBound ? true : attachBracket,
+      bracketPlan: policyBound && planLevels && draft
+        ? buildBracketPlanFromLevels({
+            entry: draft,
+            planLevels,
+            stopLeg: buildFixedStopLeg(planLevels.stop),
+          })
+        : bracketPlan,
+      managePresetId: policyBound ? plannedInstance?.templateId ?? "off" : managePresetId,
       accountGates: riskSettingsModel != null ? accountGates : null,
       side,
     });
@@ -351,14 +402,39 @@ export function TradeOrderForm({
     attachBracket,
     bracketPlan,
     dollarRisk,
+    draft,
     environment,
     managePresetId,
+    planLevels,
+    plannedInstance?.templateId,
     plannedRisk,
+    policyBound,
     qtyNum,
     accountGates,
     riskSettingsModel,
     side,
   ]);
+
+  const protectGate = useMemo(
+    () =>
+      evaluateSubmitProtectGate({
+        environment,
+        template: policyTemplate,
+        unprotectedConfirm,
+      }),
+    [environment, policyTemplate, unprotectedConfirm],
+  );
+
+  const entryScheduleSelection = useMemo((): EntrySchedule => {
+    if (scheduleMode === "now") return { kind: "immediate" };
+    if (scheduleMode === "session") return { kind: "sessionEvent", event: sessionEvent };
+    const parsed = Date.parse(clockAt);
+    return {
+      kind: "clock",
+      at: Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString(),
+      timeZone: clockTimeZone,
+    };
+  }, [clockAt, clockTimeZone, scheduleMode, sessionEvent]);
 
   const manageStepLabels = useMemo(
     () => managePreviewSteps.map((step) => formatManageStepPreview(step)),
@@ -421,6 +497,58 @@ export function TradeOrderForm({
       setError("Preview refreshed — review and confirm again.");
       return;
     }
+
+    if (policyBound && plannedInstance) {
+      if (protectGate.kind === "hard_block_live") {
+        setError("Live submit blocked — add Protect or confirm unprotected submit.");
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        if (scheduleMode !== "now") {
+          const scheduledFor =
+            resolveEntryScheduleFireAt(entryScheduleSelection, new Date()) ?? undefined;
+          await armPlannedSchedule(plannedInstance.id, {
+            entrySchedule: entryScheduleSelection,
+            scheduledFor,
+          });
+          onPlannedRefresh?.();
+          setStep("success");
+          setPlaced(null);
+          setPlacedBracket(null);
+          setError(null);
+          return;
+        }
+
+        await promotePlannedInstance(plannedInstance.id, {
+          idempotencyKey: idempotencyKey || crypto.randomUUID(),
+          previewIntentId: previewIntent.intentId,
+          liveConfirmation:
+            environment === "live" ? LIVE_CONFIRMATION_TOKEN : undefined,
+          unprotectedConfirm,
+          takeProfitPrice: planLevels?.target,
+        });
+        onPlannedRefresh?.();
+        setStep("success");
+        void account?.refresh();
+        if (plannedInstance.orderRef) {
+          void resolveJournalTrade(plannedInstance.orderRef);
+        }
+        return;
+      } catch (err) {
+        if (err instanceof TradingApiError) {
+          const reasonText = err.reasons?.length ? ` (${err.reasons.join("; ")})` : "";
+          setError(`${err.message}${reasonText}`);
+        } else {
+          setError("Submit failed. Try again.");
+        }
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+
     if (attachBracket && planLevels && !bracketPlan) {
       setError(bracketGeometryError ?? "Complete bracket stop/TP before submitting.");
       return;
@@ -542,6 +670,32 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
+          {policyBound && policyName ? (
+            <div
+              className="mb-3 space-y-1 rounded border border-[var(--edge-border)] px-2 py-2"
+              data-testid="trade-policy-summary"
+            >
+              <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                Risk policy
+              </div>
+              <div className="text-[var(--edge-text-strong)]">{policyName}</div>
+              <p className="text-[10px] text-[var(--edge-text-secondary)]">
+                Protect + Manage seeded from drawing policy snapshot.
+              </p>
+              {onChangePolicy ? (
+                <EdgeButton
+                  type="button"
+                  variant="secondary"
+                  className="h-7 w-full text-[10px]"
+                  onClick={onChangePolicy}
+                  data-testid="trade-change-policy"
+                >
+                  Change…
+                </EdgeButton>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="mb-3">
             <div className="text-[var(--edge-text-secondary)]">Account</div>
             <div className="mt-1 rounded border border-[var(--edge-border)] px-2 py-1.5 text-[var(--edge-text-strong)]">
@@ -607,6 +761,66 @@ export function TradeOrderForm({
             />
           </div>
 
+          {policyBound ? (
+            <EdgeButton
+              type="button"
+              variant="secondary"
+              className="mt-2 w-full text-[10px]"
+              onClick={() => setOrderType("MKT")}
+              data-testid="trade-market-one-click"
+            >
+              Market (one-click)
+            </EdgeButton>
+          ) : null}
+
+          {policyBound ? (
+            <div className="mt-3 space-y-2" data-testid="trade-entry-schedule">
+              <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                When
+              </div>
+              <EdgeSegmentedTabs
+                segments={[
+                  { id: "now", label: "Now" },
+                  { id: "session", label: "Session" },
+                  { id: "clock", label: "Clock" },
+                ]}
+                value={scheduleMode}
+                onChange={(value) =>
+                  setScheduleMode(value as "now" | "session" | "clock")
+                }
+              />
+              {scheduleMode === "session" ? (
+                <select
+                  className={`${fieldClass({ density: "standard" })} w-full`}
+                  value={sessionEvent}
+                  onChange={(event) =>
+                    setSessionEvent(event.target.value as "nextRthOpen" | "nextRthClose")
+                  }
+                >
+                  <option value="nextRthOpen">Next RTH open</option>
+                  <option value="nextRthClose">Next RTH close</option>
+                </select>
+              ) : null}
+              {scheduleMode === "clock" ? (
+                <div className="space-y-2">
+                  <input
+                    type="datetime-local"
+                    className={`${fieldClass({ density: "standard" })} w-full`}
+                    value={clockAt}
+                    onChange={(event) => setClockAt(event.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className={`${fieldClass({ density: "standard" })} w-full`}
+                    value={clockTimeZone}
+                    onChange={(event) => setClockTimeZone(event.target.value)}
+                    placeholder="Time zone (IANA)"
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           {orderType === "LMT" ? (
             <label className="mt-3 block">
               <span className="text-[var(--edge-text-secondary)]">Limit price</span>
@@ -644,7 +858,7 @@ export function TradeOrderForm({
             </span>
           </label>
 
-          {planLevels ? (
+          {planLevels && !policyBound ? (
             <>
               <label className="mt-3 flex items-center gap-2">
                 <input
@@ -719,12 +933,34 @@ export function TradeOrderForm({
             </>
           ) : null}
 
+          {policyBound && protectGate.kind === "soft_warn_paper" ? (
+            <p className="mt-2 text-[10px] text-[var(--edge-warning)]" role="status">
+              Paper warn: policy has no resting Protect exit.
+            </p>
+          ) : null}
+
+          {policyBound && protectGate.kind === "hard_block_live" ? (
+            <label className="mt-2 flex items-center gap-2 text-[10px] text-[var(--edge-negative)]">
+              <input
+                type="checkbox"
+                checked={unprotectedConfirm}
+                onChange={(event) => setUnprotectedConfirm(event.target.checked)}
+                data-testid="trade-unprotected-confirm"
+              />
+              Submit unprotected (live escape)
+            </label>
+          ) : null}
+
           <p className="mt-3 text-[var(--edge-text-secondary)]">
             {environment === "live"
               ? "Live stock orders — real money"
-              : planLevels && attachBracket
-                ? "Paper bracket — entry + live stop/TP"
-                : "Paper stock orders — entry only"}
+              : policyBound
+                ? scheduleMode === "now"
+                  ? "Paper policy submit — entry + Protect from planned instance"
+                  : "Paper schedule arm — entry fires when due"
+                : planLevels && attachBracket
+                  ? "Paper bracket — entry + live stop/TP"
+                  : "Paper stock orders — entry only"}
           </p>
 
           {draft ? (
@@ -745,7 +981,11 @@ export function TradeOrderForm({
               disabled={loading || !draft}
               onClick={() => void handlePreview()}
             >
-              {loading ? "Previewing…" : "Preview"}
+              {loading
+                ? "Previewing…"
+                : policyBound && scheduleMode !== "now"
+                  ? "Preview schedule"
+                  : "Preview"}
             </EdgeButton>
           </div>
         </div>
@@ -816,22 +1056,36 @@ export function TradeOrderForm({
               disabled={
                 loading ||
                 !previewIntent ||
-                (environment === "live" && liveConfirmText.trim() !== LIVE_CONFIRMATION_TOKEN)
+                (environment === "live" && liveConfirmText.trim() !== LIVE_CONFIRMATION_TOKEN) ||
+                (policyBound &&
+                  protectGate.kind === "hard_block_live" &&
+                  !unprotectedConfirm)
               }
               onClick={() => void handleSubmit()}
             >
               {loading
                 ? "Submitting…"
-                : environment === "live"
-                  ? "Confirm live order"
-                  : "Confirm & submit"}
+                : policyBound && scheduleMode !== "now"
+                  ? environment === "live"
+                    ? "Confirm arm schedule"
+                    : "Arm schedule"
+                  : environment === "live"
+                    ? "Confirm live order"
+                    : "Confirm & submit"}
             </EdgeButton>
           </div>
         </div>
       ) : null}
 
-      {step === "success" && (placed || placedBracket) ? (
+      {step === "success" && (placed || placedBracket || policyBound) ? (
         <div className="space-y-2 px-3 py-3 text-xs">
+          {policyBound && !placed && !placedBracket ? (
+            <p className="text-[var(--edge-text-strong)]">
+              {scheduleMode !== "now"
+                ? `Schedule armed for ${policyName ?? "policy"} — entry will submit when due.`
+                : `Policy promoted to pending fill for ${policyName ?? "policy"}.`}
+            </p>
+          ) : null}
           {placedBracket ? (
             <>
               <p className="text-[var(--edge-text-strong)]">

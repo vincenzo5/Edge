@@ -16,6 +16,9 @@ import type {
   PreviewPlaybookRequest,
 } from "./types";
 import type { ManageStep, PlaybookInstance, PositionPlan } from "./playbook/types";
+import type { ApplyRiskPolicyRequest } from "@/lib/risk/policy/applyRequests";
+import type { EntrySchedule } from "@/lib/risk/policy/slotSchemas";
+import type { PolicyBindingRef } from "@/lib/risk/policy/slotSchemas";
 
 export class TradingApiError extends Error {
   readonly status: number;
@@ -128,11 +131,11 @@ export async function submitProtectiveOco(
 
 export async function fetchPlaybookInstances(
   accountId: string,
-  options?: { activeOnly?: boolean },
+  options?: { activeOnly?: boolean; includePlanned?: boolean },
   baseUrl = "",
 ): Promise<PlaybookInstance[]> {
   const params = new URLSearchParams({ accountId });
-  if (options?.activeOnly === false) {
+  if (options?.activeOnly === false || options?.includePlanned) {
     params.set("activeOnly", "false");
   }
   const res = await fetch(`${baseUrl}/api/trading/playbooks?${params.toString()}`, {
@@ -140,6 +143,94 @@ export async function fetchPlaybookInstances(
   });
   const body = await parseTradingResponse<{ instances: PlaybookInstance[] }>(res);
   return body.instances;
+}
+
+export async function applyRiskPolicyToBinding(
+  request: ApplyRiskPolicyRequest,
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  const res = await fetch(`${baseUrl}/api/trading/playbooks/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const body = await parseTradingResponse<{ instance: PlaybookInstance }>(res);
+  return body.instance;
+}
+
+export async function clearPlannedPolicyBinding(
+  bindingRef: PolicyBindingRef,
+  baseUrl = "",
+): Promise<boolean> {
+  const res = await fetch(`${baseUrl}/api/trading/playbooks/apply`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bindingRef }),
+  });
+  const body = await parseTradingResponse<{ cleared: boolean }>(res);
+  return body.cleared;
+}
+
+export async function syncPlannedInstance(
+  instanceId: string,
+  patch: {
+    positionPlan?: PositionPlan;
+    entryOrder?: { type: "MKT" | "LMT" | "STP" | "STP_LMT"; limitPrice?: number };
+    entrySchedule?: EntrySchedule;
+    scheduledFor?: string | null;
+  },
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  const res = await fetch(
+    `${baseUrl}/api/trading/playbooks/${encodeURIComponent(instanceId)}/planned`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    },
+  );
+  const body = await parseTradingResponse<{ instance: PlaybookInstance }>(res);
+  return body.instance;
+}
+
+export async function promotePlannedInstance(
+  instanceId: string,
+  request: {
+    idempotencyKey: string;
+    previewIntentId?: string;
+    liveConfirmation?: string;
+    unprotectedConfirm?: boolean;
+    takeProfitPrice?: number;
+  },
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  const res = await fetch(
+    `${baseUrl}/api/trading/playbooks/${encodeURIComponent(instanceId)}/planned`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    },
+  );
+  const body = await parseTradingResponse<{ instance: PlaybookInstance }>(res);
+  return body.instance;
+}
+
+export async function armPlannedSchedule(
+  instanceId: string,
+  request: { entrySchedule: EntrySchedule; scheduledFor?: string },
+  baseUrl = "",
+): Promise<PlaybookInstance> {
+  const res = await fetch(
+    `${baseUrl}/api/trading/playbooks/${encodeURIComponent(instanceId)}/planned?action=arm`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    },
+  );
+  const body = await parseTradingResponse<{ instance: PlaybookInstance }>(res);
+  return body.instance;
 }
 
 export async function previewPlaybook(

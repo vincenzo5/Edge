@@ -3,7 +3,7 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "react";
 import EdgeChart, { type ChartHandle, type DrawingScreenBounds } from "./EdgeChart";
 import DrawingToolbar from "../drawing/DrawingToolbar";
-import DrawingSelectionToolbar from "../drawing/DrawingSelectionToolbar";
+import DrawingSelectionChrome from "../drawing/DrawingSelectionChrome";
 import ChartRangeBar from "../chart-chrome/ChartRangeBar";
 import ChartCellDialogs from "./ChartCellDialogs";
 import ChartErrorBoundary from "./ChartErrorBoundary";
@@ -14,6 +14,7 @@ import MarketContextBreadcrumb from "../chart-chrome/MarketContextBreadcrumb";
 import PatternCapturePanel from "../chart-chrome/PatternCapturePanel";
 import PatternCaptureOverlay from "../chart-chrome/PatternCaptureOverlay";
 import type { Candle, DrawingStyles, SerializedDrawing } from "@edge/chart-core/contracts";
+import { applyPositionOrderLevels } from "@edge/chart-core";
 import type { ChartAnnotationChannelMarker, ChartDataMeta } from "@edge/chart-core";
 import type { MarketSessionKind } from "@edge/chart-core";
 import type {
@@ -209,6 +210,14 @@ export type ChartCellViewProps = {
   setVisibleCount: Dispatch<SetStateAction<number | null>>;
   suppressDrawingPersistRef: MutableRefObject<boolean>;
   lastAppliedDrawingRevisionRef: MutableRefObject<number>;
+  policyApply?: {
+    accountId: string;
+    environment: import("@/lib/trading/types").TradingEnvironment;
+    dollarRisk: number | null;
+    playbookInstances: import("@/lib/trading/playbook/types").PlaybookInstance[];
+    onPlaybookInstancesChange: () => void;
+    onTradeSetup: (drawingId: string, seedQuantity?: number) => void;
+  };
 };
 
 export default function ChartCellView(props: ChartCellViewProps) {
@@ -331,6 +340,7 @@ export default function ChartCellView(props: ChartCellViewProps) {
     setVisibleCount,
     suppressDrawingPersistRef,
     lastAppliedDrawingRevisionRef,
+    policyApply,
   } = props;
 
   const {
@@ -487,7 +497,7 @@ export default function ChartCellView(props: ChartCellViewProps) {
               </>
             ) : null}
             {isActive && selectedDrawing && selectedOverlayId && (
-              <DrawingSelectionToolbar
+              <DrawingSelectionChrome
                 theme={theme}
                 drawing={selectedDrawing}
                 bounds={selectedDrawingBounds}
@@ -541,6 +551,21 @@ export default function ChartCellView(props: ChartCellViewProps) {
                     handleOverlayRightClick(overlay, { x: clientX, y: clientY });
                   }
                 }}
+                onGeometryChange={(levels) => {
+                  const updated = applyPositionOrderLevels(selectedDrawing, levels);
+                  if (!updated) return;
+                  chartRef.current?.updateDrawingPoints(selectedOverlayId, updated.points);
+                  overlaysDirtyRef.current = true;
+                }}
+                symbol={config.symbol}
+                accountId={policyApply?.accountId ?? ""}
+                environment={policyApply?.environment ?? "paper"}
+                dollarRisk={policyApply?.dollarRisk ?? null}
+                playbookInstances={policyApply?.playbookInstances ?? []}
+                onPlaybookInstancesChange={policyApply?.onPlaybookInstancesChange}
+                onTradeSetup={(seedQuantity) =>
+                  policyApply?.onTradeSetup(selectedOverlayId, seedQuantity)
+                }
               />
             )}
           </div>

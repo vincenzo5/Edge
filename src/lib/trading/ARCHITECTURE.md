@@ -316,7 +316,7 @@ Full track: [Trade Management Playbook Roadmap](../../../docs/roadmaps/trade-man
 
 ## RiskPolicy spine (Plan / Protect / Manage / Gates / Measurement)
 
-Shared vocabulary for every risk surface — full slot taxonomies and UX-moment phases live in the [Risk Management System Roadmap](../../../docs/roadmaps/risk-management-system-roadmap.md). Persisted Zod spine + Postgres columns: `src/lib/risk/policy/` (Phase 1–3). `applyRiskPolicy` creates `planned` instances with reject/swap conflict policy; `evaluatePlaybooks` promotes due schedules and evaluates `managedApp` exits only. View-only compose: `composeRiskPolicyView.ts` (Phase 9). Apply UX remains Phase 5.
+Shared vocabulary for every risk surface — full slot taxonomies and UX-moment phases live in the [Risk Management System Roadmap](../../../docs/roadmaps/risk-management-system-roadmap.md). Persisted Zod spine + Postgres columns: `src/lib/risk/policy/` (Phase 1–3). `applyRiskPolicy` creates `planned` instances with reject/swap conflict policy; `evaluatePlaybooks` promotes due schedules and evaluates `managedApp` exits only. **Phase 4 (shipped):** Risk sidebar Policies library (`RiskPoliciesSection.tsx`) + sectioned `PlaybookTemplateEditor` with completeness strip; template slot PATCH via `playbookTemplateMutations.ts`. **Phase 5 (shipped):** Chart Plan panel policy apply (`PositionPlanPanel` + `usePositionPlanPolicy`); Trade ticket seeds from planned instance with LMT default, EntrySchedule, live Protect gate, and promote/arm via `/api/trading/playbooks/apply` + `/planned`. View-only compose: `composeRiskPolicyView.ts` (Phase 9).
 
 **One-line framing:** *Every named risk strategy is a filled RiskPolicy — not a vibe.*
 

@@ -1,4 +1,10 @@
 export * from "./applyRiskPolicy";
+export * from "./applyRequests";
+export * from "./buildPositionPlanFromPreview";
+export * from "./classicProtectTemplate";
+export * from "./resolveAutoApplyTemplateId";
+export * from "./submitProtectGate";
+export * from "./syncPlannedLevels";
 export * from "./bindingFilter";
 export * from "./completeness";
 export * from "./fromPlaybook";
@@ -6,4 +12,5 @@ export * from "./integrity";
 export * from "./lastUsedPreference";
 export * from "./reconcileProtect";
 export * from "./resolveEntrySchedule";
+export * from "./templateReview";
 export * from "./types";

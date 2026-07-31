@@ -40,6 +40,14 @@ type BuildParams = {
   copilot: ReturnType<typeof useCopilotActions>;
   patternLibrary: ReturnType<typeof usePatternLibraryOptional>;
   scriptLibrary: ReturnType<typeof useScriptLibraryOptional>;
+  policyApply?: {
+    accountId: string;
+    environment: import("@/lib/trading/types").TradingEnvironment;
+    dollarRisk: number | null;
+    playbookInstances: import("@/lib/trading/playbook/types").PlaybookInstance[];
+    onPlaybookInstancesChange: () => void;
+    onTradeSetup: (drawingId: string, seedQuantity?: number) => void;
+  };
 };
 
 export function buildChartCellViewProps({
@@ -68,6 +76,7 @@ export function buildChartCellViewProps({
   copilot,
   patternLibrary,
   scriptLibrary,
+  policyApply,
 }: BuildParams): ChartCellViewProps {
   const { overlays, overlaysDirtyRef, suppressDrawingPersistRef, lastAppliedDrawingRevisionRef } =
     drawing;
@@ -230,5 +239,6 @@ export function buildChartCellViewProps({
     setVisibleCount: feed.setVisibleCount,
     suppressDrawingPersistRef,
     lastAppliedDrawingRevisionRef,
+    policyApply,
   };
 }

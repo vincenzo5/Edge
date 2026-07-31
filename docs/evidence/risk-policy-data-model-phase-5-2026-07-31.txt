@@ -1,0 +1,29 @@
+# LIVE — Risk policy data model — Phase 5 evidence
+# Date: 2026-07-31
+
+## Scope
+Chart Apply UX: Plan panel policy picker + integrity chips + last-used auto-apply + Trade setup; planned instance sync; Trade ticket LMT default + EntrySchedule + policy summary + live Protect gate + promote/arm submit.
+
+## Delivered
+- src/app/api/trading/playbooks/apply/route.ts — apply + clear planned binding
+- src/app/api/trading/playbooks/[id]/planned/route.ts — sync, promote, arm schedule
+- src/lib/trading/tradingService.ts — applyRiskPolicyToBinding, sync/arm/promote planned
+- src/lib/trading/tradingClient.ts — client helpers + includePlanned fetch
+- src/lib/trading/playbook/promotePlannedInstances.ts — bracket promote on submit
+- src/lib/risk/policy/ — classicProtectTemplate, submitProtectGate, sync helpers
+- src/app/components/drawing/PositionPlanPanel.tsx — policy picker, chips, Trade setup
+- src/app/components/drawing/usePositionPlanPolicy.ts — apply/auto-apply/sync hook
+- src/app/components/trading/TradeOrderForm.tsx — policy-bound Trade UX
+- src/app/components/chart-cell/ChartCell.tsx — policyApply wiring
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/policy/ src/lib/trading/playbook/promotePlannedInstances.test.ts src/lib/trading/playbookInstanceStore.test.ts src/app/api/trading/playbooks/ src/app/components/drawing/PositionPlanPanel.test.tsx src/app/components/trading/TradeOrderForm.test.tsx
+
+Output:
+Test Files  16 passed (16)
+Tests  74 passed (74)
+exit=0
+
+## App-level
+Plan panel: policy select + chips + Trade setup on long/short drawing; Trade sidebar seeds LMT + schedule from planned instance; live hard-block without Protect with unprotected escape checkbox.
