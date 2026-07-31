@@ -4,6 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { playbookTemplates } from "@/db/schema";
+import { dualWriteTemplateRules } from "@/lib/risk/policy/templatePersistence";
 import {
   PlaybookTemplateSchema,
   type PlaybookTemplate,
@@ -24,7 +25,31 @@ function rowToTemplate(row: typeof playbookTemplates.$inferSelect): PlaybookTemp
     name: row.name,
     description: row.description,
     rules: row.rules,
+    schemaVersion: row.schemaVersion === 1 ? 1 : undefined,
+    scope: row.scope === "trade" ? "trade" : undefined,
+    budget: row.budget ?? undefined,
+    sizing: row.sizing ?? undefined,
+    geometry: row.geometry ?? undefined,
+    exits: row.exits ?? undefined,
+    gates: row.gates ?? undefined,
+    defaultEntrySchedule: row.defaultEntrySchedule ?? undefined,
   });
+}
+
+function templateToRowValues(template: PlaybookTemplate) {
+  return {
+    name: template.name,
+    description: template.description,
+    rules: dualWriteTemplateRules(template),
+    schemaVersion: template.schemaVersion ?? 1,
+    scope: template.scope ?? "trade",
+    budget: template.budget ?? null,
+    sizing: template.sizing ?? null,
+    geometry: template.geometry ?? null,
+    exits: template.exits ?? null,
+    gates: template.gates ?? null,
+    defaultEntrySchedule: template.defaultEntrySchedule ?? null,
+  };
 }
 
 function duplicateTemplateName(source: PlaybookTemplate): string {
@@ -79,15 +104,21 @@ export async function insertPlaybookTemplate(
     name: input.name?.trim() || duplicateTemplateName(source),
     description: input.description?.trim() || source.description,
     rules: source.rules,
+    schemaVersion: source.schemaVersion,
+    scope: source.scope,
+    budget: source.budget,
+    sizing: source.sizing,
+    geometry: source.geometry,
+    exits: source.exits,
+    gates: source.gates,
+    defaultEntrySchedule: source.defaultEntrySchedule,
   });
   const db = getDb();
   const now = new Date();
   await db.insert(playbookTemplates).values({
     id: template.id,
     userId,
-    name: template.name,
-    description: template.description,
-    rules: template.rules,
+    ...templateToRowValues(template),
     createdAt: now,
     updatedAt: now,
   });
@@ -107,14 +138,22 @@ export async function patchPlaybookTemplate(
     ...(patch.name != null ? { name: patch.name } : {}),
     ...(patch.description != null ? { description: patch.description } : {}),
     ...(patch.rules != null ? { rules: patch.rules } : {}),
+    ...(patch.schemaVersion != null ? { schemaVersion: patch.schemaVersion } : {}),
+    ...(patch.scope != null ? { scope: patch.scope } : {}),
+    ...(patch.budget !== undefined ? { budget: patch.budget } : {}),
+    ...(patch.sizing !== undefined ? { sizing: patch.sizing } : {}),
+    ...(patch.geometry !== undefined ? { geometry: patch.geometry } : {}),
+    ...(patch.exits !== undefined ? { exits: patch.exits } : {}),
+    ...(patch.gates !== undefined ? { gates: patch.gates } : {}),
+    ...(patch.defaultEntrySchedule !== undefined
+      ? { defaultEntrySchedule: patch.defaultEntrySchedule }
+      : {}),
   });
   const db = getDb();
   await db
     .update(playbookTemplates)
     .set({
-      name: updated.name,
-      description: updated.description,
-      rules: updated.rules,
+      ...templateToRowValues(updated),
       updatedAt: new Date(),
     })
     .where(and(eq(playbookTemplates.userId, userId), eq(playbookTemplates.id, id)));

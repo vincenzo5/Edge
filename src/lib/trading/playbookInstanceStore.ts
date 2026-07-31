@@ -1,8 +1,11 @@
 import { randomUUID } from "crypto";
 
+import type { PolicyBindingRef } from "@/lib/risk/policy/slotSchemas";
+
 import type {
   PlaybookInstance,
   PlaybookInstanceStatus,
+  PlaybookInstanceWithPolicy,
   RuleRuntime,
 } from "./playbook/types";
 import type { TradingEnvironment } from "./types";
@@ -13,24 +16,68 @@ export type PlaybookInstancePatch = {
   stopOrderId?: number | null;
   filledQty?: number | null;
   alertBundleId?: string | null;
+  controlMode?: PlaybookInstance["controlMode"];
+  offReason?: PlaybookInstance["offReason"];
+  protect?: PlaybookInstance["protect"];
+  protectState?: PlaybookInstance["protectState"];
+  protectCheckedAt?: string | null;
+  entrySchedule?: PlaybookInstance["entrySchedule"];
+  entryOrder?: PlaybookInstance["entryOrder"];
+  scheduledFor?: string | null;
+  positionPlan?: PlaybookInstance["positionPlan"];
+  detachedAt?: string | null;
+  closedAt?: string | null;
+  armedAt?: string | null;
 };
 
+export class PlaybookInstanceConflictError extends Error {
+  readonly code = "playbook_instance_conflict" as const;
+
+  constructor(
+    message: string,
+    readonly conflict: PlaybookInstanceWithPolicy,
+  ) {
+    super(message);
+    this.name = "PlaybookInstanceConflictError";
+  }
+}
+
 export type PlaybookInstanceStore = {
-  create(instance: PlaybookInstance): Promise<PlaybookInstance>;
-  getById(id: string): Promise<PlaybookInstance | null>;
-  getByOrderIntentId(orderIntentId: string): Promise<PlaybookInstance | null>;
-  listByAccount(accountId: string, options?: { activeOnly?: boolean }): Promise<PlaybookInstance[]>;
-  listActive(options?: { environment?: TradingEnvironment }): Promise<PlaybookInstance[]>;
-  updateStatus(id: string, status: PlaybookInstanceStatus): Promise<PlaybookInstance | null>;
-  patch(id: string, patch: PlaybookInstancePatch): Promise<PlaybookInstance | null>;
+  create(instance: PlaybookInstanceWithPolicy): Promise<PlaybookInstanceWithPolicy>;
+  getById(id: string): Promise<PlaybookInstanceWithPolicy | null>;
+  getByOrderIntentId(orderIntentId: string): Promise<PlaybookInstanceWithPolicy | null>;
+  findActiveByTradeKey(args: {
+    environment: TradingEnvironment;
+    accountId: string;
+    symbol: string;
+  }): Promise<PlaybookInstanceWithPolicy | null>;
+  findPlannedByBinding(bindingRef: PolicyBindingRef): Promise<PlaybookInstanceWithPolicy | null>;
+  listByAccount(
+    accountId: string,
+    options?: { activeOnly?: boolean },
+  ): Promise<PlaybookInstanceWithPolicy[]>;
+  listActive(options?: { environment?: TradingEnvironment }): Promise<PlaybookInstanceWithPolicy[]>;
+  updateStatus(
+    id: string,
+    status: PlaybookInstanceStatus,
+  ): Promise<PlaybookInstanceWithPolicy | null>;
+  patch(id: string, patch: PlaybookInstancePatch): Promise<PlaybookInstanceWithPolicy | null>;
 };
 
 const ACTIVE_STATUSES: PlaybookInstanceStatus[] = ["pending_fill", "armed", "paused"];
 
+function resolveTradeKey(instance: PlaybookInstance) {
+  return {
+    environment: instance.environment ?? instance.positionPlan.environment,
+    accountId: instance.accountId ?? instance.positionPlan.accountId,
+    symbol: (instance.symbol ?? instance.positionPlan.symbol).trim().toUpperCase(),
+  };
+}
+
 function applyPlaybookPatch(
-  existing: PlaybookInstance,
+  existing: PlaybookInstanceWithPolicy,
   patch: PlaybookInstancePatch,
-): PlaybookInstance {
+): PlaybookInstanceWithPolicy {
   const updatedAt = new Date().toISOString();
   return {
     ...existing,
@@ -50,6 +97,22 @@ function applyPlaybookPatch(
     ...(patch.alertBundleId !== undefined
       ? { alertBundleId: patch.alertBundleId ?? undefined }
       : {}),
+    ...(patch.controlMode != null ? { controlMode: patch.controlMode } : {}),
+    ...(patch.offReason != null ? { offReason: patch.offReason } : {}),
+    ...(patch.protect != null ? { protect: patch.protect } : {}),
+    ...(patch.protectState != null ? { protectState: patch.protectState } : {}),
+    ...(patch.protectCheckedAt !== undefined
+      ? { protectCheckedAt: patch.protectCheckedAt ?? undefined }
+      : {}),
+    ...(patch.entrySchedule != null ? { entrySchedule: patch.entrySchedule } : {}),
+    ...(patch.entryOrder != null ? { entryOrder: patch.entryOrder } : {}),
+    ...(patch.scheduledFor !== undefined
+      ? { scheduledFor: patch.scheduledFor ?? undefined }
+      : {}),
+    ...(patch.positionPlan != null ? { positionPlan: patch.positionPlan } : {}),
+    ...(patch.detachedAt !== undefined ? { detachedAt: patch.detachedAt ?? undefined } : {}),
+    ...(patch.closedAt !== undefined ? { closedAt: patch.closedAt ?? undefined } : {}),
+    ...(patch.armedAt !== undefined ? { armedAt: patch.armedAt ?? undefined } : {}),
     updatedAt,
   };
 }
@@ -59,11 +122,11 @@ function matchesActiveEnvironment(
   environment?: TradingEnvironment,
 ): boolean {
   if (!environment) return true;
-  return instance.positionPlan.environment === environment;
+  return resolveTradeKey(instance).environment === environment;
 }
 
 export function createMemoryPlaybookInstanceStore(): PlaybookInstanceStore {
-  const byId = new Map<string, PlaybookInstance>();
+  const byId = new Map<string, PlaybookInstanceWithPolicy>();
   const byIntentId = new Map<string, string>();
 
   return {
@@ -84,10 +147,36 @@ export function createMemoryPlaybookInstanceStore(): PlaybookInstanceStore {
       return id ? (byId.get(id) ?? null) : null;
     },
 
+    async findActiveByTradeKey(args) {
+      const normalizedSymbol = args.symbol.trim().toUpperCase();
+      return (
+        [...byId.values()].find((item) => {
+          if (!ACTIVE_STATUSES.includes(item.status)) return false;
+          const key = resolveTradeKey(item);
+          return (
+            key.environment === args.environment &&
+            key.accountId === args.accountId.trim() &&
+            key.symbol === normalizedSymbol
+          );
+        }) ?? null
+      );
+    },
+
+    async findPlannedByBinding(bindingRef) {
+      return (
+        [...byId.values()].find(
+          (item) =>
+            item.status === "planned" &&
+            item.bindingRef?.kind === bindingRef.kind &&
+            item.bindingRef?.id === bindingRef.id,
+        ) ?? null
+      );
+    },
+
     async listByAccount(accountId, options) {
       const normalized = accountId.trim();
       return [...byId.values()]
-        .filter((item) => item.positionPlan.accountId === normalized)
+        .filter((item) => resolveTradeKey(item).accountId === normalized)
         .filter((item) => !options?.activeOnly || ACTIVE_STATUSES.includes(item.status))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
@@ -119,19 +208,19 @@ export function createMemoryPlaybookInstanceStore(): PlaybookInstanceStore {
 
 const BROWSER_STORAGE_KEY = "edge:trading:playbook-instances";
 
-function readBrowserInstances(): PlaybookInstance[] {
+function readBrowserInstances(): PlaybookInstanceWithPolicy[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(BROWSER_STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as PlaybookInstance[];
+    const parsed = JSON.parse(raw) as PlaybookInstanceWithPolicy[];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-function writeBrowserInstances(records: PlaybookInstance[]): void {
+function writeBrowserInstances(records: PlaybookInstanceWithPolicy[]): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(BROWSER_STORAGE_KEY, JSON.stringify(records));
 }
@@ -156,10 +245,29 @@ export function createBrowserPlaybookInstanceStore(): PlaybookInstanceStore {
       );
     },
 
+    async findActiveByTradeKey(args) {
+      const store = createMemoryPlaybookInstanceStore();
+      for (const item of readBrowserInstances()) {
+        await store.create(item);
+      }
+      return store.findActiveByTradeKey(args);
+    },
+
+    async findPlannedByBinding(bindingRef) {
+      return (
+        readBrowserInstances().find(
+          (item) =>
+            item.status === "planned" &&
+            item.bindingRef?.kind === bindingRef.kind &&
+            item.bindingRef?.id === bindingRef.id,
+        ) ?? null
+      );
+    },
+
     async listByAccount(accountId, options) {
       const normalized = accountId.trim();
       return readBrowserInstances()
-        .filter((item) => item.positionPlan.accountId === normalized)
+        .filter((item) => resolveTradeKey(item).accountId === normalized)
         .filter((item) => !options?.activeOnly || ACTIVE_STATUSES.includes(item.status))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },

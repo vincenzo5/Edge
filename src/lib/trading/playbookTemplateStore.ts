@@ -21,6 +21,44 @@ export const PatchPlaybookTemplateSchema = z
     name: z.string().trim().min(1).max(80).optional(),
     description: z.string().trim().min(1).max(240).optional(),
     rules: z.array(PlaybookRuleSchema).min(1).optional(),
+    schemaVersion: z.literal(1).optional(),
+    scope: z.enum(["trade"]).optional(),
+    budget: z.union([
+      z.object({ kind: z.enum(["dollar", "percentNetLiq"]), value: z.number().positive() }),
+      z.object({ kind: z.literal("inherits") }),
+    ]).optional(),
+    sizing: z.union([
+      z.object({ method: z.literal("stopDistance"), maxQty: z.number().positive().optional() }),
+      z.object({ kind: z.literal("inherits") }),
+    ]).optional(),
+    geometry: z
+      .object({
+        stops: z.array(z.object({ rMultiple: z.number().positive().optional(), price: z.number().positive().optional() })).min(1).optional(),
+        targets: z.array(z.object({ rMultiple: z.number().positive().optional(), price: z.number().positive().optional() })).optional(),
+        timeHorizonMinutes: z.number().int().positive().optional(),
+      })
+      .optional(),
+    exits: z.array(PlaybookRuleSchema).optional(),
+    gates: z
+      .object({
+        minRiskReward: z.number().positive().optional(),
+        maxQty: z.number().positive().optional(),
+      })
+      .optional(),
+    defaultEntrySchedule: z
+      .discriminatedUnion("kind", [
+        z.object({ kind: z.literal("immediate") }),
+        z.object({
+          kind: z.literal("sessionEvent"),
+          event: z.enum(["nextRthOpen", "nextRthClose"]),
+        }),
+        z.object({
+          kind: z.literal("clock"),
+          at: z.string().datetime(),
+          timeZone: z.string().min(1),
+        }),
+      ])
+      .optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required",

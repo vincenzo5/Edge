@@ -1,0 +1,124 @@
+import { z } from "zod";
+
+/** Slot + schedule schemas shared by playbook templates and RiskPolicy types (no playbook import). */
+
+export const RiskPolicySchemaVersionSchema = z.literal(1);
+export type RiskPolicySchemaVersion = z.infer<typeof RiskPolicySchemaVersionSchema>;
+
+export const RiskPolicyScopeSchema = z.enum(["trade"]);
+export type RiskPolicyScope = z.infer<typeof RiskPolicyScopeSchema>;
+
+export const InheritsSlotSchema = z.object({ kind: z.literal("inherits") });
+export type InheritsSlot = z.infer<typeof InheritsSlotSchema>;
+
+export const BudgetSlotSchema = z.object({
+  kind: z.enum(["dollar", "percentNetLiq"]),
+  value: z.number().positive(),
+});
+export type BudgetSlot = z.infer<typeof BudgetSlotSchema>;
+
+export const BudgetSlotOrInheritsSchema = z.union([BudgetSlotSchema, InheritsSlotSchema]);
+
+export const SizingSlotSchema = z.object({
+  method: z.literal("stopDistance"),
+  maxQty: z.number().positive().optional(),
+});
+export type SizingSlot = z.infer<typeof SizingSlotSchema>;
+
+export const SizingSlotOrInheritsSchema = z.union([SizingSlotSchema, InheritsSlotSchema]);
+
+export const GeometryStopRecipeSchema = z.object({
+  rMultiple: z.number().positive().optional(),
+  price: z.number().positive().optional(),
+});
+
+export const GeometryTargetRecipeSchema = z.object({
+  rMultiple: z.number().positive().optional(),
+  price: z.number().positive().optional(),
+});
+
+export const GeometryRecipeSchema = z.object({
+  stops: z.array(GeometryStopRecipeSchema).min(1).optional(),
+  targets: z.array(GeometryTargetRecipeSchema).optional(),
+  timeHorizonMinutes: z.number().int().positive().optional(),
+});
+export type GeometryRecipe = z.infer<typeof GeometryRecipeSchema>;
+
+export const PolicyGatesSchema = z.object({
+  minRiskReward: z.number().positive().optional(),
+  maxQty: z.number().positive().optional(),
+});
+export type PolicyGates = z.infer<typeof PolicyGatesSchema>;
+
+export const ExitRuleRoleSchema = z.enum([
+  "protect",
+  "takeProfit",
+  "manage",
+  "flatten",
+  "hedge",
+]);
+export type ExitRuleRole = z.infer<typeof ExitRuleRoleSchema>;
+
+export const ExitRuleBindingSchema = z.enum([
+  "restingBroker",
+  "managedApp",
+  "discretionary",
+  "notifyOnly",
+]);
+export type ExitRuleBinding = z.infer<typeof ExitRuleBindingSchema>;
+
+export const ExitRuleQtyScopeSchema = z.enum(["full", "fraction", "remainder", "fixedQty"]);
+export type ExitRuleQtyScope = z.infer<typeof ExitRuleQtyScopeSchema>;
+
+export const EntryScheduleSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("immediate") }),
+  z.object({
+    kind: z.literal("sessionEvent"),
+    event: z.enum(["nextRthOpen", "nextRthClose"]),
+  }),
+  z.object({
+    kind: z.literal("clock"),
+    at: z.string().datetime(),
+    timeZone: z.string().min(1),
+  }),
+]);
+export type EntrySchedule = z.infer<typeof EntryScheduleSchema>;
+
+export const EntryOrderTypeSchema = z.enum(["MKT", "LMT", "STP", "STP_LMT"]);
+export type EntryOrderType = z.infer<typeof EntryOrderTypeSchema>;
+
+export const EntryOrderSchema = z.object({
+  type: EntryOrderTypeSchema,
+  limitPrice: z.number().positive().optional(),
+});
+export type EntryOrder = z.infer<typeof EntryOrderSchema>;
+
+export const PolicyBindingRefKindSchema = z.enum(["drawing", "ticket", "position"]);
+export type PolicyBindingRefKind = z.infer<typeof PolicyBindingRefKindSchema>;
+
+export const PolicyBindingRefSchema = z.object({
+  kind: PolicyBindingRefKindSchema,
+  id: z.string().min(1),
+});
+export type PolicyBindingRef = z.infer<typeof PolicyBindingRefSchema>;
+
+export const RiskPolicyControlModeSchema = z.enum(["automated", "paused", "manual"]);
+export type RiskPolicyControlMode = z.infer<typeof RiskPolicyControlModeSchema>;
+
+export const RiskPolicyOffReasonSchema = z.enum([
+  "manual",
+  "manual_stop_drag",
+  "gate_breach",
+  "swapped",
+  "template_missing",
+]);
+export type RiskPolicyOffReason = z.infer<typeof RiskPolicyOffReasonSchema>;
+
+export const ProtectStateSchema = z.enum([
+  "unknown",
+  "resting",
+  "partial",
+  "missing",
+  "cancelled",
+]);
+export type ProtectState = z.infer<typeof ProtectStateSchema>;

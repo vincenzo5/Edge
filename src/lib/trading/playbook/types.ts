@@ -1,5 +1,31 @@
 import { z } from "zod";
 
+import {
+  BudgetSlotOrInheritsSchema,
+  EntryScheduleSchema,
+  ExitRuleBindingSchema,
+  ExitRuleQtyScopeSchema,
+  ExitRuleRoleSchema,
+  GeometryRecipeSchema,
+  PolicyBindingRefSchema,
+  PolicyGatesSchema,
+  ProtectBindingSchema,
+  ProtectStateSchema,
+  RiskPolicyControlModeSchema,
+  RiskPolicyOffReasonSchema,
+  RiskPolicySchemaVersionSchema,
+  RiskPolicyScopeSchema,
+  SizingSlotOrInheritsSchema,
+  type EntryOrder,
+  type EntrySchedule,
+  type PolicyBindingRef,
+  type ProtectBinding,
+  type ProtectState,
+  type RiskPolicyControlMode,
+  type RiskPolicyOffReason,
+} from "@/lib/risk/policy/slotSchemas";
+import { EntryOrderSchema } from "@/lib/risk/policy/slotSchemas";
+
 import { OrderSideSchema, TradingEnvironmentSchema } from "../types";
 import { BracketStopLegSchema } from "../types";
 
@@ -132,6 +158,10 @@ export const PlaybookRuleSchema = z
     once: z.boolean().default(true),
     requires: z.array(z.string().min(1)).optional(),
     priority: z.number().int().optional(),
+    role: ExitRuleRoleSchema.optional(),
+    binding: ExitRuleBindingSchema.optional(),
+    qtyScope: ExitRuleQtyScopeSchema.optional(),
+    ocoGroup: z.string().min(1).optional(),
   })
   .superRefine((value, ctx) => {
     const { then } = value;
@@ -158,6 +188,14 @@ export const PlaybookTemplateSchema = z.object({
   name: z.string().min(1),
   description: z.string().min(1),
   rules: z.array(PlaybookRuleSchema).min(1),
+  schemaVersion: RiskPolicySchemaVersionSchema.optional(),
+  scope: RiskPolicyScopeSchema.optional(),
+  budget: BudgetSlotOrInheritsSchema.optional(),
+  sizing: SizingSlotOrInheritsSchema.optional(),
+  geometry: GeometryRecipeSchema.optional(),
+  exits: z.array(PlaybookRuleSchema).optional(),
+  gates: PolicyGatesSchema.optional(),
+  defaultEntrySchedule: EntryScheduleSchema.optional(),
 });
 
 export type PlaybookTemplate = z.infer<typeof PlaybookTemplateSchema>;
@@ -182,11 +220,14 @@ export const RuleRuntimeSchema = z.object({
 export type RuleRuntime = z.infer<typeof RuleRuntimeSchema>;
 
 export const PlaybookInstanceStatusSchema = z.enum([
+  "planned",
   "pending_fill",
   "armed",
   "paused",
   "completed",
+  "closed",
   "detached",
+  "superseded",
 ]);
 
 export type PlaybookInstanceStatus = z.infer<typeof PlaybookInstanceStatusSchema>;
@@ -199,6 +240,24 @@ export const PlaybookInstanceSchema = z.object({
   positionPlan: PositionPlanSchema,
   status: PlaybookInstanceStatusSchema,
   ruleRuntimes: z.array(RuleRuntimeSchema),
+  environment: TradingEnvironmentSchema.optional(),
+  accountId: z.string().min(1).optional(),
+  symbol: z.string().min(1).optional(),
+  side: OrderSideSchema.optional(),
+  bindingRef: PolicyBindingRefSchema.optional(),
+  controlMode: RiskPolicyControlModeSchema.optional(),
+  offReason: RiskPolicyOffReasonSchema.optional(),
+  protect: z.array(ProtectBindingSchema).optional(),
+  protectState: ProtectStateSchema.optional(),
+  protectCheckedAt: z.string().datetime().optional(),
+  entrySchedule: EntryScheduleSchema.optional(),
+  entryOrder: EntryOrderSchema.optional(),
+  scheduledFor: z.string().datetime().optional(),
+  appliedAt: z.string().datetime().optional(),
+  armedAt: z.string().datetime().optional(),
+  scheduledAt: z.string().datetime().optional(),
+  detachedAt: z.string().datetime().optional(),
+  closedAt: z.string().datetime().optional(),
   orderIntentId: z.string().min(1).optional(),
   orderRef: z.string().min(1).optional(),
   /** Cached protective stop order id after reconcile (Phase 2 manager). */
@@ -213,6 +272,11 @@ export const PlaybookInstanceSchema = z.object({
 
 export type PlaybookInstance = z.infer<typeof PlaybookInstanceSchema>;
 
+/** RiskPolicy snapshot when instance was applied via policy spine (parsed from template_snapshot). */
+export type PlaybookInstanceWithPolicy = PlaybookInstance & {
+  policySnapshot?: import("@/lib/risk/policy/types").RiskPolicyTemplate;
+};
+
 export function createPlaybookInstance(args: {
   id: string;
   template: PlaybookTemplate;
@@ -223,16 +287,24 @@ export function createPlaybookInstance(args: {
   createdAt?: string;
 }): PlaybookInstance {
   const now = args.createdAt ?? new Date().toISOString();
+  const status = args.status ?? "pending_fill";
   return PlaybookInstanceSchema.parse({
     id: args.id,
     templateId: args.template.id,
     templateSnapshot: args.template,
     positionPlan: args.positionPlan,
-    status: args.status ?? "pending_fill",
+    status,
     ruleRuntimes: args.template.rules.map((rule) => ({
       ruleId: rule.id,
       status: "pending" as const,
     })),
+    environment: args.positionPlan.environment,
+    accountId: args.positionPlan.accountId,
+    symbol: args.positionPlan.symbol,
+    side: args.positionPlan.side,
+    controlMode: status === "paused" ? "paused" : "automated",
+    protect: [],
+    protectState: "unknown",
     orderIntentId: args.orderIntentId,
     orderRef: args.orderRef,
     createdAt: now,

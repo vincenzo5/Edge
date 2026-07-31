@@ -21,7 +21,7 @@ Full RiskPolicy slot definitions: [Risk Management System Roadmap](../../../docs
 | Surface | Path | Slots |
 |---------|------|-------|
 | Risk sidebar | `RiskSettingsPanel.tsx` | Budget + Sizing (bound geometry) |
-| Chart selection strip | `PositionGeometryStrip.tsx` via `DrawingSelectionChrome.tsx` | Geometry + Measurement preview (Budget/Sizing read-only) |
+| Chart selection strip | `PositionPlanPanel.tsx` via `DrawingSelectionChrome.tsx` | Editable entry/stop/target + derived Measurement preview (Budget/Sizing read-only) |
 | Chart overlay | `useRiskDrawingBinding.ts`, chart-core `risk/*` | Geometry labels, R targets, validation |
 | Trade ticket | `TradeOrderForm.tsx`, `ProtectiveOcoForm.tsx` | Budget→Sizing handoff; pre-submit Risk plan summary (Phase 4) |
 | Open position | `OpenRiskPositionsMenu.tsx`, `AccountPanel.tsx` | Protect + Manage Exit binding chrome (Phase 5); during-trade progress (Phase 6) |
@@ -72,7 +72,7 @@ Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Bud
 
 ## Phase 2 — Drawing geometry strip (shipped)
 
-- **Selection strip:** `computePositionRiskPreview` + `PositionGeometryStrip` show entry/stop/target, R unit, R:R, and (when budget resolves) planned $ risk + qty on selected long/short drawings.
+- **Selection strip:** `computePositionRiskPreview` + `PositionPlanPanel` show editable entry/stop/target plus derived R unit, R:R, and (when budget resolves) planned $ risk + qty on selected long/short drawings.
 - **Canvas labels:** `position_tool` uses live `boxFromPoints` for geometry; qty/$ amounts only when `metadata.fields.qty` is explicitly set — no `DEFAULT_RISK_ACCOUNT` fallback on the label path.
 - **Sizing math:** strip uses `computeEquityPositionSize` (same as Risk sidebar), not chart-core `computeRiskMetrics`.
 
@@ -97,6 +97,21 @@ Journal planned-risk auto-sync from PositionPlan on Manage journal sync (Phase 8
 - **Enforce:** `TradingService.assertPreTrade` fail-closed on day-loss / heat breach for **BUY** (new risk); `resolveServerRiskSettings` loads caps from prefs when Postgres configured.
 - **Chrome:** `AccountRiskGateStrip` on Risk sidebar, open-risk popover, Account panel; soft warn via `summarizeSubmitRiskPlan` (`account_heat_would_breach`, `account_heat_incomplete`).
 - **Deferred:** auto-flatten on breach (roadmap 10.3) — block new entries only this phase.
+
+## Phase 1 — RiskPolicy Zod spine (shipped)
+
+- **Module:** `src/lib/risk/policy/` — `RiskPolicyTemplate` / `RiskPolicyInstance` / `ExitRule` / `EntrySchedule` Zod schemas; `fromPlaybook` adapter (Manage presets → incomplete templates); structural completeness + `derivePolicyIntegrity`; last-used-by-side preference stub (`edge:risk:lastUsedPolicyBySide:v1`).
+- **Playbook runtime unchanged:** Manage attach/evaluate still uses `rules`; policy slots persist beside `rules`.
+- **Roadmap:** [Risk Policy Data Model Phase 1](../../../docs/roadmaps/risk-policy-data-model-roadmap.md).
+
+## Phase 2 — RiskPolicy persistence (shipped)
+
+- **Migration:** `src/db/migrations/0039_risk_policy_spine.sql` — template slot jsonb columns; instance denormalized trade key, protect/schedule fields; partial unique indexes (one active per trade, one planned per binding); backfill from `position_plan`.
+- **Stores/repos:** `playbookTemplateRepository`, `playbookInstanceRepository`, memory/postgres playbook stores — read/write spine columns; snapshot parse via `instancePersistence.ts` (RiskPolicy or Playbook template).
+- **Apply:** `applyRiskPolicy({ onConflict: "reject" | "swap" })` in `src/lib/risk/policy/applyRiskPolicy.ts` — creates `planned` instances; swap supersedes/detaches incumbent with `offReason: swapped`.
+- **Template dual-write:** `templatePersistence.ts` — managedApp exits → `rules` column for evaluator back-compat.
+- **Not shipped:** evaluator binding filter, protect reconciler persistence, schedule worker, apply UX (Phases 3–5).
+- **Roadmap:** [Risk Policy Data Model Phase 2](../../../docs/roadmaps/risk-policy-data-model-roadmap.md).
 
 ## Failure mode (Plan layer)
 

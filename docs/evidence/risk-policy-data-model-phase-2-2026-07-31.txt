@@ -1,0 +1,43 @@
+# LIVE — Risk policy data model — Phase 2 evidence
+# Date: 2026-07-31
+
+## Scope
+Additive Postgres schema (M2–M4) on playbook_* tables; widened Zod/repos/stores;
+applyRiskPolicy reject/swap; backfill denormalized trade key. No UI, evaluator binding filter, schedule worker, or journal link.
+
+## Delivered
+- src/db/migrations/0039_risk_policy_spine.sql — template slots, instance spine columns, backfill, partial uniques
+- src/db/schema.ts — Drizzle columns for playbook_templates / playbook_instances
+- src/lib/risk/policy/slotSchemas.ts — shared slot + schedule schemas (no playbook cycle)
+- src/lib/risk/policy/types.ts — ExitRule alias; slot re-exports
+- src/lib/risk/policy/templatePersistence.ts — dual-write managedApp exits → rules
+- src/lib/risk/policy/instancePersistence.ts — rowToPlaybookInstance / instanceToRowValues
+- src/lib/risk/policy/applyRiskPolicy.ts — apply with onConflict reject or swap
+- src/lib/trading/playbook/types.ts — widened template/instance statuses + spine fields
+- src/lib/persistence/repositories/playbookTemplateRepository.ts — slot columns
+- src/lib/persistence/repositories/playbookInstanceRepository.ts — spine columns + conflict queries
+- src/lib/trading/playbookInstanceStore.ts — findActiveByTradeKey, findPlannedByBinding
+- src/lib/trading/postgresPlaybookInstanceStore.ts — wired conflict queries
+- Tests: applyRiskPolicy.test.ts, templatePersistence.test.ts
+- src/lib/risk/ARCHITECTURE.md, src/lib/trading/ARCHITECTURE.md — Phase 2 sections
+- docs/roadmaps/risk-policy-data-model-roadmap.md — Phase 2 Passing
+
+## Architecture review
+Self-review Passed — additive columns/indexes; Manage attach unchanged; no src/lib → src/app imports; no new mutate API routes.
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/policy/ src/lib/trading/playbookInstanceStore.test.ts src/lib/trading/playbook/presets.test.ts
+Output:
+Test Files  6 passed (6)
+Tests  32 passed (32)
+exit=0
+
+## Migration
+Command:
+npm run db:migrate
+Output:
+Applied migration: .../0039_risk_policy_spine.sql
+exit=0
+
+App-level: N/A — persistence/lib contracts only.
