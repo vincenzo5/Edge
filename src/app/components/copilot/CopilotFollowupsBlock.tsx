@@ -7,6 +7,7 @@ export type CopilotFollowupsBlockProps = {
   testId?: string;
   onSelect?: (prompt: string) => void;
   disabled?: boolean;
+  showLabel?: boolean;
 };
 
 export function CopilotFollowupsBlock({
@@ -14,40 +15,44 @@ export function CopilotFollowupsBlock({
   testId,
   onSelect,
   disabled = false,
+  showLabel = false,
 }: CopilotFollowupsBlockProps) {
   return (
     <div
       data-testid={testId ?? "copilot-followups-block"}
-      className="flex w-full min-w-0 flex-wrap items-center gap-1.5"
+      className={`flex w-full min-w-0 flex-col gap-1 ${showLabel ? "copilot-compose-section" : ""}`}
     >
-      {block.chips.map((chip) => {
-        const label = chip.label?.trim() || chip.prompt;
+      {showLabel ? <p className="copilot-compose-section-label">Follow-ups</p> : null}
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5">
+        {block.chips.map((chip) => {
+          const label = chip.label?.trim() || chip.prompt;
 
-        if (onSelect != null) {
+          if (onSelect != null) {
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                data-testid={`copilot-followup-chip-${chip.id}`}
+                className="copilot-followup-chip copilot-reference-chip edge-focus-ring max-w-full truncate rounded-full border border-[var(--edge-border)] bg-[var(--edge-surface-raised)] px-2.5 py-0.5 text-[12px] font-medium text-[var(--edge-text-secondary)] transition-colors hover:border-[var(--edge-text-tertiary)] hover:text-[var(--edge-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={disabled}
+                onClick={() => onSelect(chip.prompt)}
+              >
+                {label}
+              </button>
+            );
+          }
+
           return (
-            <button
+            <span
               key={chip.id}
-              type="button"
               data-testid={`copilot-followup-chip-${chip.id}`}
-              className="copilot-followup-chip copilot-reference-chip edge-focus-ring max-w-full truncate rounded-full border border-[var(--edge-border)] bg-[var(--edge-surface-raised)] px-2.5 py-0.5 text-[12px] font-medium text-[var(--edge-text-secondary)] transition-colors hover:border-[var(--edge-text-tertiary)] hover:text-[var(--edge-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={disabled}
-              onClick={() => onSelect(chip.prompt)}
+              className="max-w-full truncate rounded-full border border-[var(--edge-border)] bg-[var(--edge-surface-raised)] px-2.5 py-0.5 text-[12px] font-medium text-[var(--edge-text-tertiary)]"
             >
               {label}
-            </button>
+            </span>
           );
-        }
-
-        return (
-          <span
-            key={chip.id}
-            data-testid={`copilot-followup-chip-${chip.id}`}
-            className="max-w-full truncate rounded-full border border-[var(--edge-border)] bg-[var(--edge-surface-raised)] px-2.5 py-0.5 text-[12px] font-medium text-[var(--edge-text-tertiary)]"
-          >
-            {label}
-          </span>
-        );
-      })}
+        })}
+      </div>
     </div>
   );
 }

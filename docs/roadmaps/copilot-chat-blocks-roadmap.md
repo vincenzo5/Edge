@@ -4,7 +4,7 @@ Phased track to evolve Edge Copilot’s **in-thread message vocabulary** into a 
 
 **Last updated:** 2026-07-29
 
-**Status:** Roadmap defined — Phase 0 **Passing**; Phase 1 **Passing**; Phase 2 **Passing**; Phase 3 **Passing**; Phase 4 **Passing**; Phase 5 **Passing**.
+**Status:** Roadmap defined — Phase 0 **Passing**; Phase 1 **Passing**; Phase 2 **Passing**; Phase 3 **Passing**; Phase 4 **Passing**; Phase 5 **Passing**; Phase 6 **Passing**.
 
 **Related:** [AI Agent / In-App Copilot](./ai-agent-roadmap.md) (Phases 0–8 **Passing**), [Grok Copilot UX Parity](./grok-copilot-parity-roadmap.md) (Phases 0–5 **Passing** — shell complete), [Research UX](./research-ux-roadmap.md) (pin / evidence / Board — side surfaces), [AI Architecture](../../src/lib/ai/ARCHITECTURE.md), [Research Architecture](../../src/lib/research/ARCHITECTURE.md), [Design System](../../src/lib/design-system/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -242,6 +242,24 @@ Phase 0 freezes the mapping; Phase 2+ may extend stream payloads beyond hint-onl
 
 ---
 
+### Phase 6 — Trace chips + answer composition
+
+**Outcome:** Denser expandable Trace tool chips with action+target rows and “Thought for Ns” timing; assistant turns compose prose (streaming cursor), labeled Sources, and labeled Follow-ups in one unit — UI/derived only; no stream or confirm-gate changes.
+
+**Status:** **Passing**
+
+| Work item | Scope |
+|-----------|--------|
+| Trace timing | In-memory `startedAtMs` / `thoughtDurationSec` on assistant messages; freeze on done/error/cancelled |
+| Trace chips | Per-step expandable chips with kind icons, action+target, overflow `+K more` |
+| Disclosure label | `Thinking` / `Thought for Ns` via `formatTraceDisclosureLabel` |
+| Answer compose | `copilot-answer-compose` wraps prose + cursor + Sources + Follow-ups + actions |
+| Reference/Follow-ups | Labeled Sources (collapsible when >3); Follow-ups section heading |
+
+**Exit evidence:** Focused Copilot bubble/list/display tests; app-level: tool-using turn shows Thought for Ns, expandable chips, Sources/Follow-ups labels, streaming cursor; confirm unchanged.
+
+---
+
 ## Suggested execution order
 
 1. Phase 0 (contracts)  
@@ -249,6 +267,7 @@ Phase 0 freezes the mapping; Phase 2+ may extend stream payloads beyond hint-onl
 3. Phase 2 (Media + Data) — highest visual payoff for tools  
 4. Phase 3 (Reference) → Phase 4 (Follow-ups)  
 5. Phase 5 (richer Action) when trading/annotation UX needs it  
+6. Phase 6 (Trace chips + answer composition)
 
 ---
 

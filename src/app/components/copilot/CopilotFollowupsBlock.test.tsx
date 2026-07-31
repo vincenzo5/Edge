@@ -64,4 +64,18 @@ describe("CopilotFollowupsBlock", () => {
     fireEvent.click(chip);
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  it("renders a Follow-ups section label when showLabel is true", () => {
+    render(
+      <CopilotFollowupsBlock
+        block={{
+          kind: "followups",
+          chips: [{ id: "f1", label: "Next", prompt: "Next question" }],
+        }}
+        showLabel
+      />,
+    );
+
+    expect(screen.getByText("Follow-ups")).toBeTruthy();
+  });
 });

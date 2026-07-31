@@ -3,7 +3,15 @@
 import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import type { ResearchArtifactHint } from "@/lib/research/artifactHint";
 import { ChevronDownIcon, CopyIcon } from "../chart-chrome/ChartHeaderIcons";
-import { formatStepsDisclosureLabel, toolStepDisplayName } from "@/lib/copilot/toolStepDisplay";
+import {
+  formatTraceChipSummary,
+  formatTraceDisclosureLabel,
+  TRACE_CHIP_OVERFLOW,
+  toolStepDisplayName,
+  toolStepKind,
+  toolStepTargetLabel,
+  type ToolStepKind,
+} from "@/lib/copilot/toolStepDisplay";
 import {
   attachmentToMediaBlock,
   toolStepToActionBlock,
@@ -66,52 +74,122 @@ function splitToolSteps(steps: CopilotToolStep[]) {
   return { confirmSteps, artifactSteps, disclosureSteps };
 }
 
-function stepStatusGlyph(status: CopilotToolStep["status"]): string {
+function stepStatusTone(status: CopilotToolStep["status"]): string {
   switch (status) {
-    case "running":
-      return "◌";
     case "error":
     case "rejected":
-      return "✗";
-    case "done":
-    case "pending-confirm":
+      return "text-[var(--edge-negative)]";
+    case "running":
+      return "text-[var(--edge-text-secondary)]";
     default:
-      return "✓";
+      return "text-[var(--edge-text-tertiary)]";
   }
 }
 
-function ThoughtStepRow({ step }: { step: CopilotToolStep }) {
-  const detail =
-    step.summary ??
-    (step.status === "running" ? "running…" : step.status === "error" ? "failed" : null);
+function TraceToolIcon({ kind, status }: { kind: ToolStepKind; status: CopilotToolStep["status"] }) {
   const tone =
-    step.status === "error" || step.status === "rejected"
+    status === "error" || status === "rejected"
       ? "text-[var(--edge-negative)]"
-      : step.status === "running"
+      : status === "running"
         ? "text-[var(--edge-text-secondary)]"
         : "text-[var(--edge-text-tertiary)]";
 
   return (
-    <div
-      data-testid={`copilot-tool-${step.callId}`}
-      data-status={step.status}
-      className={`flex w-full min-w-0 items-start gap-x-1.5 text-[12px] leading-snug ${tone}`}
-    >
-      <span className="mt-px w-3 shrink-0 text-center opacity-70" aria-hidden>
-        {stepStatusGlyph(step.status)}
-      </span>
-      <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words">
-        <span className="font-normal">{toolStepDisplayName(step.name)}</span>
-        {detail ? <span className="opacity-80"> · {detail}</span> : null}
-      </span>
-    </div>
+    <span className={`copilot-trace-chip-icon shrink-0 ${tone}`} aria-hidden>
+      {kind === "read" ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <circle cx="6" cy="6" r="4.25" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M6 3.5v2.5l1.5 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      ) : kind === "write" ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M2.5 9.5h7M7.5 2.5l2 2-4.5 4.5H3v-2L7.5 2.5z"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : kind === "chart" ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 9V5.5M5 9V3M8 9V6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      ) : kind === "order" ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M2.5 3h7l-1 6H3.5l-1-6zM4.5 6h3"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : kind === "search" ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <circle cx="5.25" cy="5.25" r="2.75" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M7.5 7.5L9.5 9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M3 6h6M6 3v6"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+    </span>
   );
 }
 
-/** Grok-style thin muted disclosure — no button chrome; chevron toggles tool steps. */
-function ThoughtsDisclosure({ steps }: { steps: CopilotToolStep[] }) {
+function TraceToolChip({ step }: { step: CopilotToolStep }) {
+  const [expanded, setExpanded] = useState(false);
+  const target = toolStepTargetLabel(step);
+  const detail =
+    step.summary ??
+    (step.status === "running" ? "running…" : step.status === "error" ? "failed" : null);
+  const showDetail = expanded && detail != null;
+
+  return (
+    <button
+      type="button"
+      data-testid={`copilot-tool-${step.callId}`}
+      data-status={step.status}
+      data-expanded={expanded ? "true" : "false"}
+      className={`copilot-trace-chip edge-focus-ring flex w-full min-w-0 flex-col gap-0.5 rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-raised)] px-2 py-1.5 text-left text-[12px] leading-snug ${stepStatusTone(step.status)}`}
+      onClick={() => setExpanded((current) => !current)}
+    >
+      <span className="flex min-w-0 items-center gap-1.5">
+        <TraceToolIcon kind={toolStepKind(step)} status={step.status} />
+        <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words">
+          <span className="font-normal text-[var(--edge-text-primary)]">
+            {toolStepDisplayName(step.name)}
+          </span>
+          {!expanded && target ? (
+            <span className="text-[var(--edge-text-tertiary)]"> · {target}</span>
+          ) : null}
+        </span>
+      </span>
+      {showDetail ? (
+        <span className="pl-[18px] text-[var(--edge-text-secondary)] opacity-90">{detail}</span>
+      ) : null}
+    </button>
+  );
+}
+
+/** Grok-style thin muted disclosure — chevron toggles expandable tool chips. */
+function ThoughtsDisclosure({
+  steps,
+  thoughtDurationSec,
+}: {
+  steps: CopilotToolStep[];
+  thoughtDurationSec?: number;
+}) {
   const hasRunning = steps.some((step) => step.status === "running");
   const [open, setOpen] = useState(hasRunning);
+  const [showAllChips, setShowAllChips] = useState(false);
   const wasRunningRef = useRef(hasRunning);
 
   useEffect(() => {
@@ -125,7 +203,15 @@ function ThoughtsDisclosure({ steps }: { steps: CopilotToolStep[] }) {
 
   if (steps.length === 0) return null;
 
-  const label = formatStepsDisclosureLabel(steps.length, hasRunning);
+  const label = formatTraceDisclosureLabel({
+    stepCount: steps.length,
+    hasRunning,
+    durationSec: thoughtDurationSec,
+  });
+  const chipSummary = formatTraceChipSummary(steps.length);
+  const overflowCount = Math.max(0, steps.length - TRACE_CHIP_OVERFLOW);
+  const visibleSteps =
+    showAllChips || overflowCount === 0 ? steps : steps.slice(0, TRACE_CHIP_OVERFLOW);
 
   return (
     <details
@@ -136,6 +222,9 @@ function ThoughtsDisclosure({ steps }: { steps: CopilotToolStep[] }) {
     >
       <summary className="flex w-full min-w-0 cursor-pointer list-none items-center gap-1 text-[12px] font-normal text-[var(--edge-text-tertiary)] marker:content-none hover:text-[var(--edge-text-secondary)] [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 truncate">{label}</span>
+        {chipSummary ? (
+          <span className="shrink-0 text-[var(--edge-text-tertiary)] opacity-80">{chipSummary}</span>
+        ) : null}
         <span
           className={`inline-flex shrink-0 opacity-70 transition-transform ${open ? "rotate-180" : ""}`}
           aria-hidden
@@ -144,16 +233,26 @@ function ThoughtsDisclosure({ steps }: { steps: CopilotToolStep[] }) {
         </span>
       </summary>
       <div className="mt-1.5 flex w-full min-w-0 flex-col gap-1 pl-0">
-        {steps.map((step) => (
-          <ThoughtStepRow key={step.callId} step={step} />
+        {visibleSteps.map((step) => (
+          <TraceToolChip key={step.callId} step={step} />
         ))}
+        {!showAllChips && overflowCount > 0 ? (
+          <button
+            type="button"
+            data-testid="copilot-trace-chip-overflow"
+            className="copilot-trace-chip-overflow edge-focus-ring self-start rounded-full border border-[var(--edge-border)] bg-transparent px-2 py-0.5 text-[12px] font-medium text-[var(--edge-text-tertiary)] transition-colors hover:text-[var(--edge-text-secondary)]"
+            onClick={() => setShowAllChips(true)}
+          >
+            +{overflowCount} more
+          </button>
+        ) : null}
       </div>
     </details>
   );
 }
 
-function StreamingPlaceholder() {
-  return <CopilotWorkingIndicator />;
+function StreamingPlaceholder({ startedAt }: { startedAt?: number }) {
+  return <CopilotWorkingIndicator startedAt={startedAt} />;
 }
 
 function renderArtifactStepBlock(
@@ -290,6 +389,8 @@ function copilotMessageBubblePropsAreEqual(
   if (prev.message.content !== next.message.content) return false;
   if (prev.message.status !== next.message.status) return false;
   if (prev.message.error !== next.message.error) return false;
+  if (prev.message.startedAtMs !== next.message.startedAtMs) return false;
+  if (prev.message.thoughtDurationSec !== next.message.thoughtDurationSec) return false;
   if (!toolStepsEqual(prev.message.toolSteps, next.message.toolSteps)) return false;
   if (prev.onResolveConfirm !== next.onResolveConfirm) return false;
   if (prev.onCopy !== next.onCopy) return false;
@@ -342,14 +443,17 @@ function CopilotMessageBubble({
       data-testid={`copilot-message-${message.id}`}
       data-role={message.role}
       data-focused={isFocused ? "true" : undefined}
-      className={`group flex w-full min-w-0 max-w-full flex-col gap-2 ${isUser ? "items-end" : "items-start"} ${
+      className={`group/message flex w-full min-w-0 max-w-full flex-col gap-2 ${isUser ? "items-end" : "items-start"} ${
         isFocused
           ? "rounded ring-2 ring-[var(--edge-accent)] ring-offset-2 ring-offset-[var(--edge-surface)]"
           : ""
       }`}
     >
       {!isUser && disclosureSteps.length > 0 ? (
-        <ThoughtsDisclosure steps={disclosureSteps} />
+        <ThoughtsDisclosure
+          steps={disclosureSteps}
+          thoughtDurationSec={message.thoughtDurationSec}
+        />
       ) : null}
       {isUser && message.attachments?.length ? (
         <div
@@ -366,18 +470,92 @@ function CopilotMessageBubble({
           ))}
         </div>
       ) : null}
-      <div className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}>
-        <div className={`whitespace-pre-wrap ${bubbleClass}`}>
-          {message.content ||
-            (message.status === "streaming" ? (
-              <StreamingPlaceholder />
+      {isUser ? (
+        <div className="flex w-full justify-end">
+          <div className={`whitespace-pre-wrap ${bubbleClass}`}>{message.content}</div>
+        </div>
+      ) : (
+        <div
+          data-testid="copilot-answer-compose"
+          className="copilot-answer-compose flex w-full min-w-0 flex-col gap-2"
+        >
+          <div className={`whitespace-pre-wrap ${bubbleClass}`}>
+            {message.content ? (
+              <>
+                {message.content}
+                {message.status === "streaming" ? (
+                  <span
+                    className="copilot-streaming-cursor ml-px inline-block w-[2px] align-baseline text-[var(--edge-text-primary)]"
+                    aria-hidden
+                  >
+                    |
+                  </span>
+                ) : null}
+              </>
+            ) : message.status === "streaming" ? (
+              <StreamingPlaceholder startedAt={message.startedAtMs} />
             ) : message.attachments?.length ? (
               <span className="text-[var(--edge-text-secondary)]">Image attached</span>
             ) : (
               ""
-            ))}
+            )}
+          </div>
+          {referenceBlock ? (
+            <CopilotReferenceBlock
+              block={referenceBlock}
+              testId={`copilot-reference-${message.id}`}
+              onOpen={onOpenHref}
+              disabled={message.status === "streaming"}
+              labeled
+            />
+          ) : null}
+          {showFollowups ? (
+            <CopilotFollowupsBlock
+              block={workflowPromptsToFollowupsBlock()}
+              testId={`copilot-followups-${message.id}`}
+              onSelect={onSelectFollowup}
+              disabled={followupsDisabled}
+              showLabel
+            />
+          ) : null}
+          {showActions ? (
+            <div
+              data-testid={`copilot-message-actions-${message.id}`}
+              data-reveal={actionsReveal}
+              className={`flex items-center gap-0.5 ${
+                actionsReveal === "always"
+                  ? ""
+                  : "opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100"
+              }`}
+            >
+              <button
+                type="button"
+                className="copilot-message-action-btn edge-focus-ring"
+                data-testid={`copilot-copy-${message.id}`}
+                aria-label="Copy"
+                title="Copy"
+                disabled={actionsDisabled || !message.content || !onCopy}
+                onClick={onCopy}
+              >
+                <CopyIcon size={16} />
+              </button>
+              {onRegenerate ? (
+                <button
+                  type="button"
+                  className="copilot-message-action-btn edge-focus-ring"
+                  data-testid={`copilot-regenerate-${message.id}`}
+                  aria-label="Regenerate"
+                  title="Regenerate"
+                  disabled={actionsDisabled}
+                  onClick={onRegenerate}
+                >
+                  <RegenerateIcon size={16} />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-      </div>
+      )}
       {!isUser && artifactSteps.length > 0 ? (
         <div
           data-testid={`copilot-artifacts-${message.id}`}
@@ -414,58 +592,6 @@ function CopilotMessageBubble({
               />
             );
           })}
-        </div>
-      ) : null}
-      {referenceBlock ? (
-        <CopilotReferenceBlock
-          block={referenceBlock}
-          testId={`copilot-reference-${message.id}`}
-          onOpen={onOpenHref}
-          disabled={message.status === "streaming"}
-        />
-      ) : null}
-      {showFollowups ? (
-        <CopilotFollowupsBlock
-          block={workflowPromptsToFollowupsBlock()}
-          testId={`copilot-followups-${message.id}`}
-          onSelect={onSelectFollowup}
-          disabled={followupsDisabled}
-        />
-      ) : null}
-      {showActions ? (
-        <div
-          data-testid={`copilot-message-actions-${message.id}`}
-          data-reveal={actionsReveal}
-          className={`flex items-center gap-0.5 ${
-            actionsReveal === "always"
-              ? ""
-              : "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-          }`}
-        >
-          <button
-            type="button"
-            className="copilot-message-action-btn edge-focus-ring"
-            data-testid={`copilot-copy-${message.id}`}
-            aria-label="Copy"
-            title="Copy"
-            disabled={actionsDisabled || !message.content || !onCopy}
-            onClick={onCopy}
-          >
-            <CopyIcon size={16} />
-          </button>
-          {onRegenerate ? (
-            <button
-              type="button"
-              className="copilot-message-action-btn edge-focus-ring"
-              data-testid={`copilot-regenerate-${message.id}`}
-              aria-label="Regenerate"
-              title="Regenerate"
-              disabled={actionsDisabled}
-              onClick={onRegenerate}
-            >
-              <RegenerateIcon size={16} />
-            </button>
-          ) : null}
         </div>
       ) : null}
       {message.error ? (

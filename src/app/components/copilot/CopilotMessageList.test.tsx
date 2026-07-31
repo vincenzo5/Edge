@@ -154,7 +154,7 @@ describe("CopilotMessageList", () => {
     expect(thoughts).toBeTruthy();
     expect(thoughts.tagName).toBe("DETAILS");
     expect(thoughts.className).not.toMatch(/border|bg-\[/);
-    expect(thoughts.querySelector("summary")?.textContent).toMatch(/Steps · 1/);
+    expect(thoughts.querySelector("summary")?.textContent).toMatch(/1 tool/);
     const stepRow = screen.getByTestId("copilot-tool-c3");
     expect(stepRow.textContent).toMatch(/Symbol search/);
     expect(stepRow.textContent).toMatch(/1 symbol/);
@@ -217,6 +217,14 @@ describe("CopilotMessageList", () => {
     expect(screen.getByTestId("copilot-message-actions-a1")).toHaveAttribute(
       "data-reveal",
       "hover",
+    );
+    expect(screen.getByTestId("copilot-message-a1").className).toContain("group/message");
+    expect(screen.getByTestId("copilot-message-a1").className).not.toMatch(/\bgroup\b(?!\/)/);
+    expect(screen.getByTestId("copilot-message-actions-a1").className).toContain(
+      "group-hover/message:opacity-100",
+    );
+    expect(screen.getByTestId("copilot-message-actions-a1").className).not.toContain(
+      "group-hover:opacity-100",
     );
     expect(screen.getByTestId("copilot-copy-a1")).toBeTruthy();
     expect(screen.queryByTestId("copilot-regenerate-a1")).toBeNull();

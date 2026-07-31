@@ -50,6 +50,26 @@ function createMessageId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function finalizeThoughtDuration(message: CopilotMessage): CopilotMessage {
+  if (message.role !== "assistant") return message;
+  if (message.thoughtDurationSec != null) return message;
+  if (message.startedAtMs == null) return message;
+  if (
+    message.status !== "done" &&
+    message.status !== "error" &&
+    message.status !== "cancelled"
+  ) {
+    return message;
+  }
+  return {
+    ...message,
+    thoughtDurationSec: Math.max(
+      0,
+      Math.floor((Date.now() - message.startedAtMs) / 1000),
+    ),
+  };
+}
+
 function toApiMessages(
   messages: CopilotMessage[],
   attachmentDataUrls?: Map<string, string>,
@@ -130,16 +150,16 @@ function applyStreamEvent(
         ),
       };
     case "error":
-      return {
+      return finalizeThoughtDuration({
         ...message,
         status: "error",
         error: event.message,
-      };
+      });
     case "done":
-      return {
+      return finalizeThoughtDuration({
         ...message,
         status: message.status === "error" ? "error" : "done",
-      };
+      });
     default:
       return message;
   }
@@ -266,11 +286,11 @@ export function useCopilotThread() {
       }
       const next = [
         ...current.slice(0, -1),
-        {
+        finalizeThoughtDuration({
           ...last,
           status: "cancelled" as const,
           error: last.content ? undefined : "Cancelled",
-        },
+        }),
       ];
       schedulePersist();
       return next;
@@ -396,6 +416,7 @@ export function useCopilotThread() {
         content: "",
         toolSteps: [],
         status: "streaming",
+        startedAtMs: Date.now(),
       };
 
       const priorMessages = messages;
@@ -444,11 +465,11 @@ export function useCopilotThread() {
         setMessages((current) => {
           const next = current.map((message) =>
             message.id === assistantId
-              ? {
+              ? finalizeThoughtDuration({
                   ...message,
                   status: "error" as const,
                   error: result.error.message,
-                }
+                })
               : message,
           );
           schedulePersist();
@@ -460,7 +481,7 @@ export function useCopilotThread() {
       setMessages((current) => {
         const next = current.map((message) =>
           message.id === assistantId && message.status === "streaming"
-            ? { ...message, status: "done" as const }
+            ? finalizeThoughtDuration({ ...message, status: "done" as const })
             : message,
         );
         schedulePersist();
@@ -617,6 +638,7 @@ export function useCopilotThread() {
         content: "",
         toolSteps: [],
         status: "streaming",
+        startedAtMs: Date.now(),
       };
 
       setMessages([...truncated, assistantMessage]);
@@ -659,11 +681,11 @@ export function useCopilotThread() {
         setMessages((current) => {
           const next = current.map((message) =>
             message.id === assistantId
-              ? {
+              ? finalizeThoughtDuration({
                   ...message,
                   status: "error" as const,
                   error: result.error.message,
-                }
+                })
               : message,
           );
           schedulePersist();
@@ -675,7 +697,7 @@ export function useCopilotThread() {
       setMessages((current) => {
         const next = current.map((message) =>
           message.id === assistantId && message.status === "streaming"
-            ? { ...message, status: "done" as const }
+            ? finalizeThoughtDuration({ ...message, status: "done" as const })
             : message,
         );
         schedulePersist();

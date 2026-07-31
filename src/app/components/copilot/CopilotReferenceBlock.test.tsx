@@ -72,4 +72,46 @@ describe("CopilotReferenceBlock", () => {
     expect(screen.getByTestId("copilot-reference-chip-ref-5")).toBeTruthy();
     expect(screen.queryByTestId("copilot-reference-overflow")).toBeNull();
   });
+
+  it("renders labeled sources disclosure when chip count exceeds threshold", () => {
+    const chips = Array.from({ length: 4 }, (_, index) => ({
+      id: `ref-${index}`,
+      label: `SYM${index} · D`,
+      target: { type: "symbol-interval" as const, symbol: `SYM${index}`, interval: "D" },
+    }));
+
+    render(
+      <CopilotReferenceBlock
+        block={{ kind: "reference", chips }}
+        onOpen={vi.fn()}
+        labeled
+        collapseThreshold={3}
+      />,
+    );
+
+    expect(screen.getByTestId("copilot-sources-disclosure")).toBeTruthy();
+    expect(screen.getByText("4 sources")).toBeTruthy();
+  });
+
+  it("renders a Sources label for small labeled sets", () => {
+    render(
+      <CopilotReferenceBlock
+        block={{
+          kind: "reference",
+          chips: [
+            {
+              id: "ref-1",
+              label: "AAPL · 1D",
+              target: { type: "symbol-interval", symbol: "AAPL", interval: "1D" },
+            },
+          ],
+        }}
+        onOpen={vi.fn()}
+        labeled
+      />,
+    );
+
+    expect(screen.getByText("Sources")).toBeTruthy();
+    expect(screen.queryByTestId("copilot-sources-disclosure")).toBeNull();
+  });
 });

@@ -519,14 +519,203 @@ body {
   --copilot-menu-radius: 16px;
   --copilot-composer-body-size: 16px;
   --copilot-message-body-size: 16px;
+  /* Align message text with attach (+) glyph: query-bar px-2 + (36px control - 18px icon) / 2 */
+  --copilot-message-inline-inset: 17px;
   --copilot-history-rail-width: 280px;
   --copilot-evidence-rail-width: 280px;
+  --copilot-history-nav-hover: rgba(255, 255, 255, 0.08);
+  --copilot-user-bubble-bg: #1e1e1e;
+  --copilot-user-bubble-ring: color-mix(in oklab, var(--edge-text-strong) 10%, transparent);
+  --copilot-user-bubble-radius: 20px;
+  --copilot-user-bubble-radius-anchor: 4px;
   background-color: var(--copilot-canvas-bg);
   color: var(--edge-text-strong);
 }
 
+.copilot-shell .copilot-user-bubble {
+  max-width: 85%;
+  /* Three soft corners; tighter bottom-right so it reads as a user chat bubble. */
+  border-radius: var(--copilot-user-bubble-radius) var(--copilot-user-bubble-radius)
+    var(--copilot-user-bubble-radius-anchor) var(--copilot-user-bubble-radius);
+  background: var(--copilot-user-bubble-bg);
+  box-shadow: inset 0 0 0 1px var(--copilot-user-bubble-ring);
+  padding: 12px 18px;
+  font-size: var(--copilot-message-body-size);
+  line-height: 1.45;
+  color: var(--edge-text-primary);
+}
+
+/* Grok-style history nav rows: icon + label only until hover shades the row.
+   Height is locked to Search / New Chat (18px icon + 10px vertical padding). */
+.copilot-history-rail .copilot-history-nav-btn,
+.copilot-history-rail .copilot-history-thread-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  border-radius: 10px;
+  background: transparent;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--edge-text-primary);
+  cursor: pointer;
+  transition: background-color var(--edge-motion-fast);
+}
+
+.copilot-history-rail .copilot-history-thread-row {
+  gap: 4px;
+}
+
+/* Keep the overflow control inside the shared row height (not compact 32px). */
+.copilot-history-rail .copilot-history-thread-row .edge-icon-button {
+  height: 18px;
+  width: 18px;
+}
+
+.copilot-history-rail .edge-icon-button:not(:disabled),
+.copilot-history-rail .copilot-history-see-all:not(:disabled) {
+  cursor: pointer;
+}
+
+.copilot-history-rail .copilot-history-nav-btn:hover:not(:disabled),
+.copilot-history-rail .copilot-history-thread-row:hover {
+  background: var(--copilot-history-nav-hover);
+}
+
+.copilot-history-rail .copilot-history-thread-row.is-active {
+  background: var(--copilot-history-nav-hover);
+}
+
+/* Active thread title is disabled (already selected) — not a click target. */
+.copilot-history-rail .copilot-history-thread-row:not(.is-disabled) button:disabled {
+  cursor: default;
+}
+
+.copilot-history-rail .copilot-history-nav-btn:disabled,
+.copilot-history-rail .copilot-history-thread-row.is-disabled,
+.copilot-history-rail .copilot-history-thread-row.is-disabled button,
+.copilot-history-rail .edge-icon-button:disabled,
+.copilot-history-rail .copilot-history-see-all:disabled {
+  cursor: not-allowed;
+}
+
+.copilot-history-rail .copilot-history-nav-btn:disabled,
+.copilot-history-rail .copilot-history-thread-row.is-disabled {
+  opacity: 0.4;
+}
+
+.copilot-history-rail .copilot-history-section-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 10px;
+  background: transparent;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--edge-text-tertiary);
+  cursor: pointer;
+  transition: background-color var(--edge-motion-fast), color var(--edge-motion-fast);
+}
+
+.copilot-history-rail .copilot-history-section-toggle:hover {
+  background: var(--copilot-history-nav-hover);
+  color: var(--edge-text-secondary);
+}
+
 .copilot-shell .copilot-streaming-cursor {
   animation: copilot-streaming-cursor 1.2s steps(3, end) infinite;
+}
+
+.copilot-shell .copilot-compose-section-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--edge-text-tertiary);
+}
+
+.copilot-shell .copilot-trace-chip {
+  transition:
+    border-color var(--edge-motion-fast),
+    background-color var(--edge-motion-fast);
+}
+
+.copilot-shell .copilot-trace-chip:hover {
+  border-color: var(--edge-text-tertiary);
+}
+
+.copilot-shell .copilot-answer-compose {
+  max-width: 100%;
+}
+
+.copilot-shell .copilot-working-indicator {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.copilot-shell .copilot-working-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1.5px;
+}
+
+.copilot-shell .copilot-working-bar {
+  box-sizing: border-box;
+  display: block;
+  flex-shrink: 0;
+  border-radius: 0.5px;
+  border: 0.5px solid color-mix(in oklab, #ffffff 38%, transparent);
+  background-color: transparent;
+  animation-name: copilot-working-bar-fill;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Fixed outline; only the fill color walks left → right, one bar at a time. */
+@keyframes copilot-working-bar-fill {
+  0% {
+    background-color: transparent;
+  }
+  16.666% {
+    background-color: #ffffff;
+  }
+  33.333%,
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Grok-style message action icons: bare until hover shades the hit target. */
+.copilot-shell .copilot-message-action-btn {
+  display: inline-flex;
+  height: 32px;
+  width: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--edge-text-tertiary);
+  transition:
+    background-color var(--edge-motion-fast),
+    color var(--edge-motion-fast);
+}
+
+.copilot-shell .copilot-message-action-btn:hover:not(:disabled) {
+  background: var(--copilot-history-nav-hover);
+  color: var(--edge-text-primary);
+}
+
+.copilot-shell .copilot-message-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 .copilot-shell .copilot-attachment-preview {
@@ -606,5 +795,10 @@ body {
   .copilot-shell .copilot-hero-placeholder-line.is-entering,
   .copilot-shell .copilot-hero-placeholder-line.is-exiting {
     animation: none;
+  }
+
+  .copilot-shell .copilot-working-bar {
+    animation: none;
+    background-color: transparent;
   }
 }

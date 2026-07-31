@@ -44,6 +44,10 @@ export type CopilotMessage = {
   toolSteps: CopilotToolStep[];
   status?: CopilotMessageStatus;
   error?: string;
+  /** In-memory stream start — not persisted on Copilot thread rows. */
+  startedAtMs?: number;
+  /** Frozen trace duration when the turn completes — not persisted. */
+  thoughtDurationSec?: number;
 };
 
 export type CopilotThreadState = {
