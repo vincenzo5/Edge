@@ -100,6 +100,7 @@ export const journalTradeResponseSchema = z.object({
   excursionInterval: z.enum(["1m", "5m"]).nullable().optional(),
   excursionComputedAt: z.string().datetime({ offset: true }).nullable().optional(),
   managePlaybook: managePlaybookJournalSchema.nullable().optional(),
+  riskPolicyInstanceId: z.string().uuid().nullable().optional(),
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }),
 });

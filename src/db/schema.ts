@@ -244,6 +244,7 @@ export const journalTrades = pgTable("journal_trades", {
   excursionComputedAt: timestamp("excursion_computed_at", { withTimezone: true }),
   ignored: boolean("ignored").notNull().default(false),
   managePlaybook: jsonb("manage_playbook"),
+  riskPolicyInstanceId: uuid("risk_policy_instance_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

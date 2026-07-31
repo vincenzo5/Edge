@@ -31,6 +31,9 @@ export type PlaybookInstancePatch = {
   entrySchedule?: PlaybookInstance["entrySchedule"];
   entryOrder?: PlaybookInstance["entryOrder"];
   scheduledFor?: string | null;
+  scheduledAt?: string | null;
+  orderIntentId?: string;
+  orderRef?: string;
   positionPlan?: PlaybookInstance["positionPlan"];
   detachedAt?: string | null;
   closedAt?: string | null;
@@ -169,6 +172,9 @@ export async function patchPlaybookInstance(
     ...(patch.scheduledFor !== undefined
       ? { scheduledFor: patch.scheduledFor ?? undefined }
       : {}),
+    ...(patch.scheduledAt !== undefined ? { scheduledAt: patch.scheduledAt ?? undefined } : {}),
+    ...(patch.orderIntentId != null ? { orderIntentId: patch.orderIntentId } : {}),
+    ...(patch.orderRef != null ? { orderRef: patch.orderRef } : {}),
     ...(patch.positionPlan != null ? { positionPlan: patch.positionPlan } : {}),
     ...(patch.detachedAt !== undefined ? { detachedAt: patch.detachedAt ?? undefined } : {}),
     ...(patch.closedAt !== undefined ? { closedAt: patch.closedAt ?? undefined } : {}),
@@ -215,6 +221,52 @@ export async function listActivePlaybookInstances(
     .from(playbookInstances)
     .where(and(...conditions))
     .orderBy(sql`${playbookInstances.updatedAt} DESC`);
+
+  return rows.map(rowToPlaybookInstance);
+}
+
+export async function listPlannedPlaybookInstances(
+  userId: string,
+  options?: { environment?: TradingEnvironment },
+): Promise<PlaybookInstanceWithPolicy[]> {
+  const db = getDb();
+  const conditions = [
+    eq(playbookInstances.userId, userId),
+    eq(playbookInstances.status, "planned"),
+  ];
+  if (options?.environment) {
+    conditions.push(eq(playbookInstances.environment, options.environment));
+  }
+
+  const rows = await db
+    .select()
+    .from(playbookInstances)
+    .where(and(...conditions))
+    .orderBy(sql`${playbookInstances.updatedAt} DESC`);
+
+  return rows.map(rowToPlaybookInstance);
+}
+
+export async function listDuePlannedPlaybookInstances(
+  userId: string,
+  args: { environment?: TradingEnvironment; now: Date },
+): Promise<PlaybookInstanceWithPolicy[]> {
+  const db = getDb();
+  const conditions = [
+    eq(playbookInstances.userId, userId),
+    eq(playbookInstances.status, "planned"),
+    sql`${playbookInstances.scheduledFor} IS NOT NULL`,
+    sql`${playbookInstances.scheduledFor} <= ${args.now.toISOString()}`,
+  ];
+  if (args.environment) {
+    conditions.push(eq(playbookInstances.environment, args.environment));
+  }
+
+  const rows = await db
+    .select()
+    .from(playbookInstances)
+    .where(and(...conditions))
+    .orderBy(sql`${playbookInstances.scheduledFor} ASC`);
 
   return rows.map(rowToPlaybookInstance);
 }

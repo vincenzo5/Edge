@@ -80,6 +80,7 @@ function tradeToResponse(row: typeof journalTrades.$inferSelect, fillExecIds: st
     excursionInterval: row.excursionInterval as JournalTradeResponse["excursionInterval"],
     excursionComputedAt: row.excursionComputedAt?.toISOString() ?? null,
     managePlaybook: parseManagePlaybook(row.managePlaybook),
+    riskPolicyInstanceId: row.riskPolicyInstanceId ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -332,6 +333,7 @@ export async function patchJournalTradeManagePlaybook(
     .update(journalTrades)
     .set({
       managePlaybook,
+      riskPolicyInstanceId: managePlaybook.instanceId,
       updatedAt: new Date(),
     })
     .where(and(eq(journalTrades.id, tradeId), eq(journalTrades.userId, userId)))

@@ -45,6 +45,19 @@ const mockGetPositions = vi.fn(async () => ({
   updatedAt: Date.now(),
 }));
 
+const mockGetBrokerageSnapshot = vi.hoisted(() =>
+  vi.fn(async () => ({
+    orders: [] as Array<Record<string, unknown>>,
+    positions: [] as Array<Record<string, unknown>>,
+  })),
+);
+
+vi.mock("@/lib/brokerage/brokerageService", () => ({
+  getBrokerageService: () => ({
+    getSnapshot: (...args: unknown[]) => mockGetBrokerageSnapshot(...args),
+  }),
+}));
+
 function createMockPort(): BrokerTradingPort {
   return {
     listAccounts: vi.fn(async () => [
@@ -160,6 +173,8 @@ describe("TradingService", () => {
     resetAuditLogForTests();
     mockGetQuotes.mockReset();
     mockGetPositions.mockReset();
+    mockGetBrokerageSnapshot.mockReset();
+    mockGetBrokerageSnapshot.mockResolvedValue({ orders: [], positions: [] });
     mockGetPositions.mockResolvedValue({
       positions: [{ contract: { symbol: "F", secType: "STK" }, position: 10 }],
       updatedAt: Date.now(),
@@ -778,5 +793,47 @@ describe("TradingService", () => {
 
     await service.detachPlaybookInstance(placed.playbookInstance!.id);
     expect(mockExpireAlertsForBundleId).toHaveBeenCalledWith("user-test-id", bundleId);
+  });
+
+  it("cancelProtectForInstance cancels broker stops without detaching", async () => {
+    mockGetBrokerageSnapshot.mockImplementation(async () => ({
+      orders: [
+        {
+          orderId: 42,
+          account: "DUP586813",
+          symbol: "AAPL",
+          action: "SELL",
+          orderType: "STP",
+          totalQuantity: 10,
+          status: "Submitted",
+          contract: { symbol: "AAPL", secType: "STK" },
+        },
+      ],
+      positions: [],
+    }));
+
+    const playbookStore = createMemoryPlaybookInstanceStore();
+    const service = new TradingService(createMemoryIntentStore(), playbookStore);
+    const cancelSpy = vi.spyOn(service, "cancelOrder").mockResolvedValue({
+      order: { orderId: 42, status: "Cancelled" },
+      intent: null,
+    });
+    const instance = await service.attachManagementPlaybook({
+      templateId: "break_even",
+      accountId: "DUP586813",
+      symbol: "AAPL",
+      side: "BUY",
+      entryPrice: 100,
+      initialStop: 95,
+      qty: 10,
+      environment: "paper",
+      stopOrderId: 42,
+      filledQty: 10,
+    });
+
+    const cancelled = await service.cancelProtectForInstance(instance.id);
+    expect(cancelled?.protectState).toBe("cancelled");
+    expect(cancelled?.status).toBe("armed");
+    expect(cancelSpy).toHaveBeenCalledWith("DUP586813", 42, undefined, "paper", undefined);
   });
 });

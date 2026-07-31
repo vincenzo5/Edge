@@ -13,6 +13,8 @@ import {
   resolvePlaybookLiveConfirmation,
   type PlaybookAutoManageSettings,
 } from "@/lib/trading/playbookAutoManageStore";
+import { reconcileProtectBindings } from "@/lib/risk/policy/reconcileProtect";
+import { isManagedAppExitRule } from "@/lib/risk/policy/bindingFilter";
 import type { TradingEnvironment } from "../types";
 
 import type { PlaybookMutationPort } from "./executeThen";
@@ -181,11 +183,39 @@ async function evaluateSingleInstance(args: {
     instance = (await playbookStore.patch(instance.id, { stopOrderId })) ?? instance;
   }
 
+  const protectReconcile = reconcileProtectBindings({
+    instance,
+    orders: args.snapshot.orders,
+  });
+  if (
+    protectReconcile.protectState !== instance.protectState ||
+    protectReconcile.protectCheckedAt !== instance.protectCheckedAt
+  ) {
+    instance =
+      (await playbookStore.patch(instance.id, {
+        protect: protectReconcile.protect,
+        protectState: protectReconcile.protectState,
+        protectCheckedAt: protectReconcile.protectCheckedAt,
+      })) ?? instance;
+  }
+
   const rules = sortedRules(template.rules);
 
   for (const rule of rules) {
     const runtime = instance.ruleRuntimes.find((item) => item.ruleId === rule.id);
     if (!runtime || TERMINAL_RULE_STATUSES.has(runtime.status)) {
+      continue;
+    }
+
+    if (!isManagedAppExitRule(rule)) {
+      instance =
+        (await playbookStore.patch(instance.id, {
+          ruleRuntimes: markRuleRuntime(instance.ruleRuntimes, rule.id, {
+            status: "skipped",
+            skippedReason: "binding_not_managed_app",
+          }),
+        })) ?? instance;
+      skipped += 1;
       continue;
     }
 

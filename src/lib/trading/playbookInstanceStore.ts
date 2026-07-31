@@ -24,6 +24,9 @@ export type PlaybookInstancePatch = {
   entrySchedule?: PlaybookInstance["entrySchedule"];
   entryOrder?: PlaybookInstance["entryOrder"];
   scheduledFor?: string | null;
+  scheduledAt?: string | null;
+  orderIntentId?: string;
+  orderRef?: string;
   positionPlan?: PlaybookInstance["positionPlan"];
   detachedAt?: string | null;
   closedAt?: string | null;
@@ -57,6 +60,8 @@ export type PlaybookInstanceStore = {
     options?: { activeOnly?: boolean },
   ): Promise<PlaybookInstanceWithPolicy[]>;
   listActive(options?: { environment?: TradingEnvironment }): Promise<PlaybookInstanceWithPolicy[]>;
+  listPlanned(options?: { environment?: TradingEnvironment }): Promise<PlaybookInstanceWithPolicy[]>;
+  listDuePlanned(args: { environment?: TradingEnvironment; now: Date }): Promise<PlaybookInstanceWithPolicy[]>;
   updateStatus(
     id: string,
     status: PlaybookInstanceStatus,
@@ -109,6 +114,9 @@ function applyPlaybookPatch(
     ...(patch.scheduledFor !== undefined
       ? { scheduledFor: patch.scheduledFor ?? undefined }
       : {}),
+    ...(patch.scheduledAt !== undefined ? { scheduledAt: patch.scheduledAt ?? undefined } : {}),
+    ...(patch.orderIntentId != null ? { orderIntentId: patch.orderIntentId } : {}),
+    ...(patch.orderRef != null ? { orderRef: patch.orderRef } : {}),
     ...(patch.positionPlan != null ? { positionPlan: patch.positionPlan } : {}),
     ...(patch.detachedAt !== undefined ? { detachedAt: patch.detachedAt ?? undefined } : {}),
     ...(patch.closedAt !== undefined ? { closedAt: patch.closedAt ?? undefined } : {}),
@@ -188,6 +196,25 @@ export function createMemoryPlaybookInstanceStore(): PlaybookInstanceStore {
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
 
+    async listPlanned(options) {
+      return [...byId.values()]
+        .filter((item) => item.status === "planned")
+        .filter((item) => matchesActiveEnvironment(item, options?.environment))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+
+    async listDuePlanned(args) {
+      const nowMs = args.now.getTime();
+      return [...byId.values()]
+        .filter((item) => item.status === "planned")
+        .filter((item) => matchesActiveEnvironment(item, args.environment))
+        .filter((item) => {
+          if (!item.scheduledFor) return false;
+          return Date.parse(item.scheduledFor) <= nowMs;
+        })
+        .sort((a, b) => (a.scheduledFor ?? "").localeCompare(b.scheduledFor ?? ""));
+    },
+
     async updateStatus(id, status) {
       const existing = byId.get(id);
       if (!existing) return null;
@@ -201,6 +228,9 @@ export function createMemoryPlaybookInstanceStore(): PlaybookInstanceStore {
       if (!existing) return null;
       const updated = applyPlaybookPatch(existing, patch);
       byId.set(id, updated);
+      if (updated.orderIntentId) {
+        byIntentId.set(updated.orderIntentId, id);
+      }
       return updated;
     },
   };
@@ -277,6 +307,25 @@ export function createBrowserPlaybookInstanceStore(): PlaybookInstanceStore {
         .filter((item) => ACTIVE_STATUSES.includes(item.status))
         .filter((item) => matchesActiveEnvironment(item, options?.environment))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+
+    async listPlanned(options) {
+      return readBrowserInstances()
+        .filter((item) => item.status === "planned")
+        .filter((item) => matchesActiveEnvironment(item, options?.environment))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+
+    async listDuePlanned(args) {
+      const nowMs = args.now.getTime();
+      return readBrowserInstances()
+        .filter((item) => item.status === "planned")
+        .filter((item) => matchesActiveEnvironment(item, args.environment))
+        .filter((item) => {
+          if (!item.scheduledFor) return false;
+          return Date.parse(item.scheduledFor) <= nowMs;
+        })
+        .sort((a, b) => (a.scheduledFor ?? "").localeCompare(b.scheduledFor ?? ""));
     },
 
     async updateStatus(id, status) {

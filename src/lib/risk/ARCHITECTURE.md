@@ -113,6 +113,15 @@ Journal planned-risk auto-sync from PositionPlan on Manage journal sync (Phase 8
 - **Not shipped:** evaluator binding filter, protect reconciler persistence, schedule worker, apply UX (Phases 3–5).
 - **Roadmap:** [Risk Policy Data Model Phase 2](../../../docs/roadmaps/risk-policy-data-model-roadmap.md).
 
+## Phase 3 — RiskPolicy runtime wire (shipped)
+
+- **Evaluator:** `runPlaybookEvaluation.ts` — skips non-`managedApp` exits (`bindingFilter.ts`); persists `protectState` via `reconcileProtect.ts` each evaluate tick.
+- **Manual-off:** `pausePlaybookInstance` / `detachPlaybookInstance` assert conflict-policy invariants; `cancelProtectForInstance` + `POST .../playbooks/[id]/cancel-protect` cancels broker Protect only.
+- **Schedule:** `resolveEntrySchedule.ts`, `promotePlannedInstances.ts` — materialize `scheduledFor`, promote due `planned` → `pending_fill` inside `evaluatePlaybooks()` (reuses `/api/cron/playbook-evaluate`).
+- **Journal M5:** migration `0040_journal_risk_policy_instance_id.sql` — `journal_trades.risk_policy_instance_id`; sync from `managePlaybook.instanceId` on journal recipe write.
+- **Not shipped:** Policies library UI, chart apply UX (Phases 4–5).
+- **Roadmap:** [Risk Policy Data Model Phase 3](../../../docs/roadmaps/risk-policy-data-model-roadmap.md).
+
 ## Failure mode (Plan layer)
 
 Plan does not place protective orders. A trade sized in the Risk panel without Protect attached has **no** `restingBroker` exit until the ticket submits a bracket/OCO or the trader attaches Protect on an open position. Manage presets **inherit** Protect from the ticket — see `playbook/presetRiskPolicy.ts` and trading ARCHITECTURE hybrid failure mode.

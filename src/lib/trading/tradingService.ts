@@ -34,6 +34,8 @@ import {
 import {
   resolveServerPlaybookAutoManageStore,
   resetServerPlaybookAutoManageStoreForTests,
+  isAutoManageEnabledForEnvironment,
+  resolvePlaybookLiveConfirmation,
   type PatchPlaybookAutoManageInput,
   type PlaybookAutoManageSettings,
   type PlaybookAutoManageStore,
@@ -59,7 +61,11 @@ import { planPlaybookSteps } from "./playbook/planSteps";
 import { resolvePlaybookTemplate, resolvePlaybookTemplateFromInstance } from "./playbook/resolveTemplate";
 import { syncManagePlaybookToJournal } from "./playbook/journalRecipe";
 import { buildManageNotifyAlertInputs } from "./playbook/manageNotifyAlerts";
-import { buildManualStopPausePatch } from "./playbook/conflictPolicy";
+import { buildManualStopPausePatch, detachAffectsProtectOrders, pauseAffectsProtectOrders } from "./playbook/conflictPolicy";
+import {
+  materializePlannedSchedules,
+  promoteDuePlannedInstances,
+} from "./playbook/promotePlannedInstances";
 import { runPlaybookEvaluation } from "./playbook/runPlaybookEvaluation";
 import type { RuleRuntime } from "./playbook/types";
 import { isReconcilableError, reconcileIntentWithBroker } from "./reconcile";
@@ -566,6 +572,9 @@ export class TradingService {
   }
 
   async detachPlaybookInstance(instanceId: string): Promise<PlaybookInstance | null> {
+    if (detachAffectsProtectOrders()) {
+      throw new TradingValidationError("detachAffectsProtectOrders invariant violated");
+    }
     const store = await this.playbookStore();
     const existing = await store.getById(instanceId);
     if (!existing) return null;
@@ -579,6 +588,9 @@ export class TradingService {
   }
 
   async pausePlaybookInstance(instanceId: string): Promise<PlaybookInstance | null> {
+    if (pauseAffectsProtectOrders()) {
+      throw new TradingValidationError("pauseAffectsProtectOrders invariant violated");
+    }
     const store = await this.playbookStore();
     const existing = await store.getById(instanceId);
     if (!existing) return null;
@@ -627,15 +639,65 @@ export class TradingService {
     return store.patch(instanceId, { ruleRuntimes });
   }
 
+  async cancelProtectForInstance(
+    instanceId: string,
+    liveConfirmation?: string,
+  ): Promise<PlaybookInstance | null> {
+    const store = await this.playbookStore();
+    const existing = await store.getById(instanceId);
+    if (!existing) return null;
+    if (existing.status === "detached" || existing.status === "completed") {
+      return existing;
+    }
+
+    const environment = existing.positionPlan.environment;
+    assertLiveConfirmation(environment, liveConfirmation);
+    this.ensureTradingEnabled(environment);
+
+    const { getBrokerageService } = await import("@/lib/brokerage/brokerageService");
+    const snapshot = await getBrokerageService().getSnapshot(environment);
+    const symbol = existing.positionPlan.symbol.trim().toUpperCase();
+    const accountId = existing.positionPlan.accountId.trim();
+    const closingAction = existing.positionPlan.side === "BUY" ? "SELL" : "BUY";
+
+    const protectiveOrders = snapshot.orders.filter((order) => {
+      const orderType = order.orderType?.trim().toUpperCase() ?? "";
+      const isProtective =
+        orderType.includes("STP") || orderType === "TRAIL" || orderType.includes("TRAIL");
+      if (!isProtective) return false;
+      if (order.symbol?.trim().toUpperCase() !== symbol) return false;
+      if (order.account?.trim() && order.account.trim() !== accountId) return false;
+      return order.action?.trim().toUpperCase() === closingAction;
+    });
+
+    for (const order of protectiveOrders) {
+      if (order.orderId == null) continue;
+      await this.cancelOrder(
+        accountId,
+        order.orderId,
+        existing.orderIntentId,
+        environment,
+        liveConfirmation,
+      );
+    }
+
+    return store.patch(instanceId, {
+      protectState: "cancelled",
+      protectCheckedAt: new Date().toISOString(),
+      stopOrderId: null,
+    });
+  }
+
   async evaluatePlaybooks(): Promise<{
     evaluated: number;
     fired: number;
     skipped: number;
+    promoted: number;
     errors: string[];
   }> {
     const autoManage = await this.getPlaybookAutoManageSettings();
     if (!autoManage.paperEnabled && !(autoManage.liveEnabled && autoManage.liveConsentAt)) {
-      return { evaluated: 0, fired: 0, skipped: 0, errors: [] };
+      return { evaluated: 0, fired: 0, skipped: 0, promoted: 0, errors: [] };
     }
     if (autoManage.paperEnabled) {
       this.ensureTradingEnabled("paper");
@@ -643,14 +705,43 @@ export class TradingService {
     if (autoManage.liveEnabled && autoManage.liveConsentAt) {
       this.ensureTradingEnabled("live");
     }
+
     const playbookStore = await this.playbookStore();
     const intentStore = await this.intentStore();
-    return runPlaybookEvaluation({
+    const errors: string[] = [];
+    let promoted = 0;
+
+    await materializePlannedSchedules({ playbookStore });
+
+    const environments: TradingEnvironment[] = [];
+    if (autoManage.paperEnabled) environments.push("paper");
+    if (autoManage.liveEnabled && autoManage.liveConsentAt) environments.push("live");
+
+    for (const environment of environments) {
+      if (!isAutoManageEnabledForEnvironment(autoManage, environment)) continue;
+      const liveConfirmation = resolvePlaybookLiveConfirmation(autoManage, environment);
+      const promotion = await promoteDuePlannedInstances({
+        playbookStore,
+        tradingService: this,
+        environments: [environment],
+        liveConfirmation,
+      });
+      promoted += promotion.promoted;
+      errors.push(...promotion.errors);
+    }
+
+    const evaluation = await runPlaybookEvaluation({
       tradingService: this,
       playbookStore,
       intentStore,
       autoManage,
     });
+
+    return {
+      ...evaluation,
+      promoted,
+      errors: [...errors, ...evaluation.errors],
+    };
   }
 
   async getPlaybookAutoManageSettings(): Promise<PlaybookAutoManageSettings> {

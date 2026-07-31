@@ -4,7 +4,7 @@ Living track for the **persisted RiskPolicy spine**: a named, reusable, composab
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0 **Passing** (2026-07-30) — data model + apply UX intent frozen (this document). Phase 1 **Passing** (2026-07-31) — Zod spine + completeness/integrity helpers + last-used preference stub. Phase 2 **Passing** (2026-07-31) — additive schema M2–M4, stores/repos, `applyRiskPolicy`, partial unique indexes. Phase 3+ **Pending** — runtime wire, authoring/apply UX.
+**Status:** Phase 0 **Passing** (2026-07-30) — data model + apply UX intent frozen (this document). Phase 1 **Passing** (2026-07-31) — Zod spine + completeness/integrity helpers + last-used preference stub. Phase 2 **Passing** (2026-07-31) — additive schema M2–M4, stores/repos, `applyRiskPolicy`, partial unique indexes. Phase 3 **Passing** (2026-07-31) — evaluator binding filter, protect reconcile persistence, cancel-protect verb, journal M5 link, schedule promote on playbook-evaluate cron. Phase 4+ **Pending** — authoring/apply UX.
 
 **Related:** [Risk Management System](./risk-management-system-roadmap.md) (slot vocabulary + UX moments 0–10), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (Manage runtime — evolves into this spine), [Trading Execution](./trading-execution-roadmap.md) (**Protect** effects + entry orders), [Journal](./journal-roadmap.md) (Measurement sink), [AI Agent](./ai-agent-roadmap.md), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
@@ -552,7 +552,9 @@ Risk sidebar section **Policies**:
 
 **Outcome:** Evaluator reads binding; protect reconciler persists `protectState`; pause/detach/cancel-protect verbs honor invariants; journal link field; schedule worker/cron promotes due `planned` instances to submit → `pending_fill` (Edge-held schedule OK).
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-31)
+
+**Verification:** Focused `npm test -- --run src/lib/risk/policy/ src/lib/trading/playbook/ src/lib/trading/playbookInstanceStore.test.ts src/lib/trading/tradingService.test.ts src/lib/trading/summarizeOpenPositionExits.test.ts src/app/api/cron/playbook-evaluate/ src/app/api/trading/playbooks/` — Test Files 31 passed (31), Tests 165 passed (165); `npm run db:migrate` applied `0040_journal_risk_policy_instance_id.sql`; no apply UX.
 
 ---
 
@@ -595,7 +597,7 @@ Do not reopen slot vocabulary here — extend [risk-management-system-roadmap.md
 2. Whether `controlMode` stays separate from `status` long-term (v1: both — status = lifecycle, controlMode = who drives automation).
 3. Escape hatch for multi-position same symbol (trade-episode id) — defer until needed.
 4. Physical rename `playbook_*` → `risk_policy_*` — only after type rename + consumers migrated.
-5. Schedule executor: dedicated cron vs reuse playbook-evaluate path — decide in Phase 3.
+5. Schedule executor: dedicated cron vs reuse playbook-evaluate path — **resolved Phase 3:** reuse `/api/cron/playbook-evaluate`.
 6. Whether template default `entrySchedule` appears in completeness checklist as optional always.
 
 **Resolved (see locked recommendations):** default policy auto-apply; entry limit-from-drawing; live Protect hard-block; Plan panel primary for policy change; planned sync until submit; EntrySchedule first-class.

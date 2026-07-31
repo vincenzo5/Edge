@@ -9,6 +9,8 @@ import {
   findPlaybookInstanceByOrderIntentId,
   insertPlaybookInstance,
   listActivePlaybookInstances,
+  listDuePlannedPlaybookInstances,
+  listPlannedPlaybookInstances,
   listPlaybookInstancesByAccount,
   patchPlaybookInstance,
   patchPlaybookInstanceStatus,
@@ -54,6 +56,14 @@ export async function createPostgresPlaybookInstanceStoreIfConfigured(): Promise
 
     async listActive(options) {
       return listActivePlaybookInstances(userId, options);
+    },
+
+    async listPlanned(options) {
+      return listPlannedPlaybookInstances(userId, options);
+    },
+
+    async listDuePlanned(args) {
+      return listDuePlannedPlaybookInstances(userId, args);
     },
 
     async updateStatus(id, status) {
