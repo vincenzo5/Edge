@@ -271,9 +271,7 @@ export class TradingService {
     } else {
       assertTradingKillSwitchOff();
       if (!isTradingConfigured()) {
-        throw new TradingValidationError(
-          "Trading requires TWS_READONLY=false for the IB API session.",
-        );
+        throw new TradingValidationError("Trading is not configured.");
       }
     }
     await awaitSidecarForBrokerage();

@@ -262,13 +262,12 @@ def _setup_account_subscriptions(ib: IB) -> None:
         state_mod._account_summary_updated_at = now_ms()
     except Exception:  # noqa: BLE001
         pass
-    if not config.TWS_READONLY:
-        try:
-            ib.client.reqOpenOrders()
-            for trade in ib.openTrades():
-                _on_open_order(trade)
-        except Exception:  # noqa: BLE001
-            pass
+    try:
+        ib.client.reqOpenOrders()
+        for trade in ib.openTrades():
+            _on_open_order(trade)
+    except Exception:  # noqa: BLE001
+        pass
     try:
         for pos in ib.positions():
             key = _portfolio_key(pos.contract)

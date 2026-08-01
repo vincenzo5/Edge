@@ -168,7 +168,6 @@ vi.mock("@/lib/persistence/repositories/alertRepository", () => ({
 describe("TradingService", () => {
   beforeEach(() => {
     mockPort = createMockPort();
-    process.env.TWS_READONLY = "false";
     delete process.env.EDGE_TRADING_KILL_SWITCH;
     resetAuditLogForTests();
     mockGetQuotes.mockReset();

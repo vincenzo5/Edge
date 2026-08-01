@@ -158,10 +158,9 @@ def account_orders(
         try:
             if resolved == config.PRIMARY_CONNECTION_ID:
                 ib = _get_ib()
-                if not config.TWS_READONLY:
-                    ib.client.reqOpenOrders()
-                    for trade in ib.openTrades():
-                        _on_open_order(trade)
+                ib.client.reqOpenOrders()
+                for trade in ib.openTrades():
+                    _on_open_order(trade)
                 orders = list(_account_orders.values())
                 if accountId:
                     orders = [
@@ -219,11 +218,6 @@ def account_trades(connectionId: str | None = Query(default=None)) -> dict[str, 
 @app.post("/account/whatif")
 def account_whatif(body: WhatIfRequest) -> dict[str, Any]:
     _require_brokerage_enabled()
-    if config.TWS_READONLY:
-        raise HTTPException(
-            status_code=403,
-            detail="What-if preview requires config.TWS_READONLY=false for the IB API session.",
-        )
     resolved = _resolve_connection_id(body.connectionId)
 
     def work():

@@ -84,7 +84,7 @@ Read-only `BrokerageService` stays separate. Reconciliation matches `orderRef` /
 
 | Artifact | Location |
 |----------|----------|
-| Paper-only gate (`TWS_PORT=4002`, `TWS_READONLY=false`) | `_require_trading_enabled()` in `main.py` |
+| Paper-only gate (`TWS_PORT=4002`) | `_require_trading_enabled()` in `main.py` |
 | Explicit `accountId` on place | `PlaceOrderRequest`, `_validate_account_id()` |
 | MKT/LMT order builder | `_build_stock_order()` (shared with what-if) |
 | Place + cancel endpoints | `POST /trading/orders`, `DELETE /trading/orders/{order_id}` |
@@ -104,7 +104,7 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, build wh
 
 | Step | Deliverable | Verification |
 |------|-------------|--------------|
-| 0.1 | Paper Gateway + env (`TWS_PORT=4002`, `TWS_READONLY=false`) | `/account/status` `readOnly: false`, `accountId: DUP586813` |
+| 0.1 | Paper Gateway + env (`TWS_PORT=4002`) | `/account/status` `readOnly: false`, `accountId: DUP586813` |
 | 0.2 | What-if MKT + LMT | HTTP 200, no 403 (commission null on paper cash) |
 | 0.3 | `POST /trading/orders` MKT 1-share | `orderId: 9`, `permId: 1306430087` (F BUY MKT) |
 | 0.4 | `DELETE /trading/orders/10` LMT cancel | `status: "Cancelled"` (`permId: 1306430088`) |
@@ -210,7 +210,7 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, build wh
 ## Dependencies
 
 - IB Gateway **paper** on port **4002** and/or **live** on **4001** — sidecar connects to whichever sockets are running; user picks mode in app (Phase 5)
-- `TWS_READONLY=false` + Gateway **Read-Only API off** on the active connection for what-if, place, cancel
+- Gateway **Read-Only API off** on the active connection for what-if, place, cancel
 - Shipped: `services/tws-sidecar/` trade endpoints, `src/lib/brokerage/`, `src/lib/tradingSafety/`, journal `fillSync.ts`
 - Account tracking app-level walkthrough still **Pending** — parallel, does not block Phase 5
 
@@ -224,7 +224,7 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests, build wh
 
 | Phase | Goal | Result | Key evidence |
 |-------|------|--------|--------------|
-| 1 — Ops | Dual Gateway + 2FA + `TWS_READONLY=false` | **Done** | Both containers up (`4002` paper, `4001` live); sidecar `connections.ib-paper` + `ib-live` `gatewayConnected: true` |
+| 1 — Ops | Dual Gateway + 2FA | **Done** | Both containers up (`4002` paper, `4001` live); sidecar `connections.ib-paper` + `ib-live` `gatewayConnected: true` |
 | 2 — Paper bake | LMT/STP/cancel/idempotency/kill switch | **Done** | LMT `orderId=24` `permId=438990727` cancel `Cancelled`; STP `12`/`16` cancelled; idempotency `24==24`; kill switch blocked preview |
 | 3 — Recovery | Gateway failure + reconnect proof | **Done** (partial UI) | `docker stop edge-ib-gateway-paper` → degraded; gateway restart + sidecar reconnect → both sockets healthy; **Reconnect TWS** UI blocked in dev when port `8765` owned by another instance |
 | 4 — Postgres intents | Durable idempotency across Next restart | **Done** | Migration `0005_order_intents.sql`; restart resubmit same key → `orderId=31` (no duplicate) |
@@ -260,7 +260,6 @@ Emergency fallback when Compose is unavailable: `npm run tws:sidecar-setup` once
 | Variable | Value | Notes |
 |----------|-------|-------|
 | `TWS_ENABLED` | `true` | |
-| `TWS_READONLY` | `false` | Required for preview/place/cancel |
 | `TWS_MANAGED` | `external` | Compose sidecar on `:8765`; app never spawns sidecar |
 | `DATABASE_URL` | `postgres://...` | Enables Postgres intent store |
 | `EDGE_AUTH_SECRET` | set | Dev auth |

@@ -53,7 +53,7 @@ def _connect_ib_to(host: str, port: int, client_id: int) -> IB:
                 host,
                 port,
                 clientId=candidate_id,
-                readonly=config.TWS_READONLY,
+                readonly=config.IB_CONNECT_READONLY,
                 timeout=4,
             )
             return ib
@@ -152,7 +152,7 @@ def _get_ib() -> IB:
                     paper_host,
                     config.TWS_PORT,
                     clientId=client_id,
-                    readonly=config.TWS_READONLY,
+                    readonly=config.IB_CONNECT_READONLY,
                     timeout=4,
                 )
                 _attach_ib_handlers(ib, config.PRIMARY_CONNECTION_ID)
@@ -370,7 +370,7 @@ def _status_payload() -> dict[str, Any]:
         "host": config.TWS_HOST,
         "port": config.TWS_PORT,
         "clientId": config.TWS_CLIENT_ID,
-        "readOnly": config.TWS_READONLY,
+        "readOnly": config.IB_CONNECT_READONLY,
         "brokerageEnabled": True,
         "message": last_connect_error,
         "warnings": warnings,

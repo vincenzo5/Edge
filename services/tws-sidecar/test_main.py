@@ -324,27 +324,9 @@ class SidecarSecretTests(unittest.TestCase):
 
 
 class TradingGuardTests(unittest.TestCase):
-    def test_require_trading_enabled_rejects_readonly(self) -> None:
-        original_readonly = main.TWS_READONLY
-        original_port = main.TWS_PORT
-        try:
-            main.TWS_READONLY = True
-            main.TWS_PORT = 4002
-            with self.assertRaises(main.HTTPException) as ctx:
-                main._require_trading_enabled()
-            self.assertEqual(ctx.exception.status_code, 403)
-        finally:
-            main.TWS_READONLY = original_readonly
-            main.TWS_PORT = original_port
-
     def test_require_trading_enabled_allows_live_connection(self) -> None:
-        original_readonly = main.TWS_READONLY
-        try:
-            main.TWS_READONLY = False
-            resolved = main._require_trading_enabled(main.IB_LIVE_CONNECTION_ID)
-            self.assertEqual(resolved, main.IB_LIVE_CONNECTION_ID)
-        finally:
-            main.TWS_READONLY = original_readonly
+        resolved = main._require_trading_enabled(main.IB_LIVE_CONNECTION_ID)
+        self.assertEqual(resolved, main.IB_LIVE_CONNECTION_ID)
 
     def test_resolve_connection_id_maps_environment(self) -> None:
         self.assertEqual(main._resolve_connection_id(environment="live"), main.IB_LIVE_CONNECTION_ID)

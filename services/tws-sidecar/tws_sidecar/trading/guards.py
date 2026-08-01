@@ -6,16 +6,10 @@ from fastapi import HTTPException
 from ib_insync import IB
 
 from tws_sidecar.runtime.connections import _resolve_connection_id
-from tws_sidecar.runtime.resolve import runtime_attr
 
 
 def _require_trading_enabled(connection_id: str | None = None) -> str:
     _require_brokerage_enabled()
-    if runtime_attr("TWS_READONLY", True):
-        raise HTTPException(
-            status_code=403,
-            detail="Trading requires TWS_READONLY=false for the IB API session.",
-        )
     return _resolve_connection_id(connection_id=connection_id)
 
 

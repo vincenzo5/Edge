@@ -126,7 +126,7 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 - **Live submit gate:** `liveConfirmation: "LIVE"` required server-side on submit/cancel/modify when `environment === "live"`. Close-position UI confirms with a single Confirm click (token sent automatically); Trade ticket / protective OCO still ask the user to type `LIVE`.
 - **Kill switch** (`EDGE_TRADING_KILL_SWITCH`) remains operator emergency stop — not the normal mode control.
 - **Environment lock** (`EDGE_TRADING_ENVIRONMENT_LOCK=paper|live`) pins each Next process to one trading environment when dev and container prod share one sidecar. Server routes reject mismatched `environment` / draft env with **403**; market-data `connectionId` stays independent (live quotes while paper trading remain valid). Sidecar lifecycle target: Compose service beside Gateways — [Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md).
-- **`TWS_READONLY=false`** still required for mutations on any connection.
+- **Sidecar connect** always uses a writable IB API session (`readonly=False`). IB Gateway **Read-Only API** (Gateway UI) remains the broker-side hard stop for what-if / place / cancel.
 
 ## Drawing-bound trade setup (v1)
 

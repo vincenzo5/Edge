@@ -30,7 +30,8 @@ TWS_PAPER_CLIENT_ID = int(
 TWS_LIVE_CLIENT_ID = int(os.environ.get("TWS_LIVE_CLIENT_ID", str(TWS_PAPER_CLIENT_ID + 1)))
 TWS_PORT = TWS_PAPER_PORT
 TWS_CLIENT_ID = TWS_PAPER_CLIENT_ID
-TWS_READONLY = os.environ.get("TWS_READONLY", "true").lower() != "false"
+# Edge always connects writable; IB Gateway "Read-Only API" is the broker-side stop.
+IB_CONNECT_READONLY = False
 TWS_ACCOUNT_ID = os.environ.get("TWS_ACCOUNT_ID", "").strip()
 TWS_LIVE_ACCOUNT_ID = os.environ.get("TWS_LIVE_ACCOUNT_ID", "").strip()
 SIDECAR_PORT = int(os.environ.get("TWS_SIDECAR_PORT", "8765"))

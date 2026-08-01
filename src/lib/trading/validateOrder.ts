@@ -91,11 +91,6 @@ export function readTwsPort(): number {
   return readTwsPaperPort();
 }
 
-export function isTwsReadOnly(): boolean {
-  const raw = process.env.TWS_READONLY?.trim().toLowerCase();
-  return raw !== "false" && raw !== "0";
-}
-
 /** @deprecated Use isTradingConfigured / isTradingEnvironmentConfigured */
 export function isPaperTradingConfigured(): boolean {
   return isTradingEnvironmentConfigured("paper");
@@ -111,9 +106,7 @@ export function assertTradingEnabledForEnvironment(
 ): void {
   assertTradingEnvironmentAllowed(environment);
   if (!isTradingEnvironmentConfigured(environment)) {
-    throw new TradingValidationError(
-      "Trading requires TWS_READONLY=false for the IB API session.",
-    );
+    throw new TradingValidationError("Trading is not configured for this environment.");
   }
 }
 

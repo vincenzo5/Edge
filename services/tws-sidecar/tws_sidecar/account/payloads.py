@@ -75,7 +75,7 @@ def _account_status_payload() -> dict[str, Any]:
                 runtime_attr("_managed_accounts", state_mod._managed_accounts) or []
             ),
             "summaryUpdatedAt": state_mod._account_summary_updated_at or None,
-            "readOnly": runtime_attr("TWS_READONLY", config.TWS_READONLY),
+            "readOnly": config.IB_CONNECT_READONLY,
             "timestamp": now_ms(),
         }
 
@@ -116,7 +116,7 @@ def _ephemeral_account_status(ib: IB) -> dict[str, Any]:
         "accountId": account_id,
         "managedAccounts": managed,
         "summaryUpdatedAt": now_ms() if connected else None,
-        "readOnly": config.TWS_READONLY,
+        "readOnly": config.IB_CONNECT_READONLY,
         "timestamp": now_ms(),
     }
 

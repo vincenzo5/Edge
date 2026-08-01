@@ -2,7 +2,7 @@ import type { BrokerTradingPort } from "./ports";
 import type { TradingBroker, TradingEnvironment } from "./types";
 import { createIbTwsTradingAdapter } from "./adapters/ibTws";
 import { getStubTradingAdapter } from "./adapters/stub";
-import { isTwsReadOnly, readTwsHost, readTwsLivePort, readTwsPaperPort } from "./validateOrder";
+import { readTwsHost, readTwsLivePort, readTwsPaperPort } from "./validateOrder";
 
 export const IB_PAPER_CONNECTION_ID = "ib-paper";
 export const IB_LIVE_CONNECTION_ID = "ib-live";
@@ -116,9 +116,8 @@ export function resolveAdapter(
   return createIbTwsTradingAdapter(resolved.connectionId);
 }
 
-/** True when mutations are allowed for the given environment (non-readonly sidecar). */
+/** True when mutations are allowed for the given environment. */
 export function isTradingEnvironmentConfigured(environment: TradingEnvironment): boolean {
-  if (isTwsReadOnly()) return false;
   void environment;
   return true;
 }

@@ -119,19 +119,9 @@ describe("validateOrder", () => {
     expect(hashA).toBe(hashB);
   });
 
-  it("checks trading env gate respects readonly", () => {
-    const originalReadonly = process.env.TWS_READONLY;
-    try {
-      process.env.TWS_READONLY = "false";
-      expect(isPaperTradingConfigured()).toBe(true);
-      expect(() => assertPaperTradingEnabled()).not.toThrow();
-
-      process.env.TWS_READONLY = "true";
-      expect(isPaperTradingConfigured()).toBe(false);
-      expect(() => assertPaperTradingEnabled()).toThrow();
-    } finally {
-      process.env.TWS_READONLY = originalReadonly;
-    }
+  it("checks trading env gate is always configured", () => {
+    expect(isPaperTradingConfigured()).toBe(true);
+    expect(() => assertPaperTradingEnabled()).not.toThrow();
   });
 
   it("reads and enforces EDGE_TRADING_ENVIRONMENT_LOCK", () => {

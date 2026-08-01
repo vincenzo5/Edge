@@ -11,7 +11,7 @@ export function tradingDisabledResponse(): Response {
   return NextResponse.json(
     {
       error: "Trading unavailable",
-      hint: "Set TWS_READONLY=false and ensure IB Gateway paper (4002) or live (4001) is running.",
+      hint: "Ensure IB Gateway paper (4002) or live (4001) is running and the TWS sidecar is reachable.",
     },
     { status: 503 },
   );
