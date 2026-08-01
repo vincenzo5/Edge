@@ -1,0 +1,29 @@
+# LIVE — Orders without quote gate evidence
+# Date: 2026-08-01
+
+## Scope
+Stop blocking order preview/submit when broker price is missing or falls back to Yahoo.
+Orders still route to the selected account; connection, account, and risk gates remain.
+
+## Delivered
+- src/lib/tradingSafety/tradingReadiness.ts — remove quote hard-gate from readiness
+- src/lib/trading/tradingService.ts — drop getQuotes from assertPreTrade
+- src/lib/tradingSafety/tradingReadiness.test.ts — quote no longer blocks
+- src/lib/trading/tradingService.test.ts — yahoo/missing quote allows submit
+- src/lib/trading/ARCHITECTURE.md — submit readiness doc sync
+
+## Focused
+Command:
+npm test -- --run src/lib/tradingSafety/tradingReadiness.test.ts src/lib/trading/tradingService.test.ts
+Output:
+Test Files  2 passed (2)
+Tests  25 passed (25)
+exit=0
+
+## App-level
+Command:
+curl -sS -X POST http://127.0.0.1:3003/api/trading/preview \
+  -H 'Content-Type: application/json' \
+  -d '{"accountId":"DUP586813","symbol":"META","side":"BUY","quantity":1,"orderType":"MKT","environment":"paper"}'
+Output:
+HTTP 200 — preview returned for paper DUP586813 META MKT (no "Trading readiness blocked" / Yahoo quote reasons)

@@ -394,9 +394,11 @@ Phases A–C shipped: Docker paper+live Gateways, honest account discovery, deco
 
 ### Submit readiness vs display data
 
-Chart and watchlist meta (`usage: display`) never authorizes order submit. `TradingService.assertPreTrade` fetches a fresh quote via the **order** environment's TWS connection, then `evaluateTradingReadiness` applies `trading_decision` trust policy — only TWS/IBKR sources pass; Yahoo, mixed, and other display-only sources block submit.
+Orders always route to the **selected account** (paper or live). Chart and watchlist prices are display-only and never gate submit.
 
-**Content-timestamp gates (Phase 4):** Pre-trade quote freshness uses the provider quote's `updatedAt`/`asOf`, not the fetch/request time. Account readiness uses broker-reported account timestamps from `DATASET_POLICIES` (`account_summary.maxAgeMs`), not `preTradeFetchedAt` or other request-time substitutes.
+`TradingService.assertPreTrade` checks brokerage connection, account snapshot freshness, and risk sizing — not market-data quotes. Missing broker prices or Yahoo/chart fallback must not block preview/submit. Ticket UI may still show estimated entry from display data; that is informational only.
+
+**Content-timestamp gates (Phase 4):** Account readiness uses broker-reported account timestamps from `DATASET_POLICIES` (`account_summary.maxAgeMs`), not request-time substitutes.
 
 ## Local dual Gateway (Phase A infra)
 

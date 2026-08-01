@@ -17,61 +17,18 @@ describe("tradingReadiness", () => {
       brokerageConnected: false,
       accountSummary: null,
       riskSettings: DEFAULT_RISK_SETTINGS,
-      quote: { source: "tws", asOf: Date.now() },
     });
     expect(result.ok).toBe(false);
     expect(result.reasons).toContain("Brokerage is not connected");
   });
 
-  it("blocks yahoo quote for trading", () => {
+  it("allows submit without a quote when account and risk are fine", () => {
     const now = Date.now();
     const result = evaluateTradingReadiness({
       brokerageConnected: true,
       accountSummary: summary,
       accountUpdatedAt: now,
       riskSettings: DEFAULT_RISK_SETTINGS,
-      quote: {
-        source: "yahoo",
-        asOf: now,
-        receivedAt: now,
-      },
-      now,
-    });
-    expect(result.ok).toBe(false);
-    expect(result.quoteReadiness?.status).toBe("blocked");
-  });
-
-  it("blocks mixed quote for trading", () => {
-    const now = Date.now();
-    const result = evaluateTradingReadiness({
-      brokerageConnected: true,
-      accountSummary: summary,
-      accountUpdatedAt: now,
-      riskSettings: DEFAULT_RISK_SETTINGS,
-      quote: {
-        source: "mixed",
-        asOf: now,
-        receivedAt: now,
-      },
-      now,
-    });
-    expect(result.ok).toBe(false);
-    expect(result.quoteReadiness?.status).toBe("blocked");
-  });
-
-  it("allows connected brokerage with fresh tws quote and resolved risk", () => {
-    const now = Date.now();
-    const result = evaluateTradingReadiness({
-      brokerageConnected: true,
-      accountSummary: summary,
-      accountUpdatedAt: now,
-      riskSettings: DEFAULT_RISK_SETTINGS,
-      quote: {
-        source: "tws",
-        asOf: now - 500,
-        receivedAt: now,
-        stale: false,
-      },
       now,
     });
     expect(result.ok).toBe(true);
@@ -85,11 +42,6 @@ describe("tradingReadiness", () => {
       accountSummary: summary,
       accountUpdatedAt: now - 60_000,
       riskSettings: DEFAULT_RISK_SETTINGS,
-      quote: {
-        source: "tws",
-        asOf: now,
-        receivedAt: now,
-      },
       now,
     });
     expect(result.ok).toBe(false);

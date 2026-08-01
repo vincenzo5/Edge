@@ -24,7 +24,6 @@ import {
 } from "@/lib/brokerage/brokerageClient";
 import { shouldTryBrokerage } from "@/lib/brokerage/brokerageHealthGate";
 import { awaitSidecarForBrokerage } from "@/lib/marketData/providers/tws/startup";
-import { getServerMarketDataService } from "@/lib/marketData/service/server";
 import { resolveDollarRisk } from "@/lib/risk/riskSettings";
 import {
   accountGateBlockReasons,
@@ -1345,19 +1344,13 @@ export class TradingService {
 
     const preTradeFetchedAt = Date.now();
     const riskSettings = await resolveServerRiskSettings();
-    const [status, summary, quoteResult, positionsResult, pnl] = await Promise.all([
+    const [status, summary, positionsResult, pnl] = await Promise.all([
       client.getStatus(),
       client.getSummary(),
-      getServerMarketDataService().getQuotes([draft.symbol], {
-        twsConnectionId: connection.connectionId,
-        respectProviderPreference: false,
-        trustUsage: "trading_decision",
-      }),
       client.getPositions(),
       client.getPnL(),
     ]);
 
-    const quote = quoteResult.data[0];
     const accountUpdatedAt = Math.max(
       summary.updatedAt ?? 0,
       status.summaryUpdatedAt ?? 0,
@@ -1367,15 +1360,6 @@ export class TradingService {
       accountSummary: summary,
       accountUpdatedAt,
       riskSettings,
-      quote: quote
-        ? {
-            source: quoteResult.source,
-            asOf: quote.updatedAt ?? quoteResult.asOf,
-            receivedAt: quoteResult.receivedAt,
-            stale: quoteResult.stale,
-            warnings: quoteResult.warnings,
-          }
-        : undefined,
       now: preTradeFetchedAt,
     });
 

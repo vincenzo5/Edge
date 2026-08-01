@@ -196,7 +196,7 @@ describe("TradingService", () => {
     mockExpireAlertsForBundleId.mockClear();
   });
 
-  it("blocks submit when readiness fails", async () => {
+  it("allows submit when market data is unavailable (yahoo fallback)", async () => {
     mockGetQuotes.mockResolvedValue({
       data: [{ symbol: "F", price: 10, updatedAt: Date.now() }],
       source: "yahoo",
@@ -206,22 +206,24 @@ describe("TradingService", () => {
       warnings: [],
     });
 
-    const port = createMockPort();
     const service = new TradingService(createMemoryIntentStore());
 
-    await expect(
-      service.submitOrder(
-        {
-          accountId: "DUP586813",
-          symbol: "F",
-          side: "BUY",
-          quantity: 1,
-          orderType: "MKT",
-          environment: "paper",
-        },
-        "idem-1",
-      ),
-    ).rejects.toBeInstanceOf(TradingReadinessBlockedError);
+    const result = await service.submitOrder(
+      {
+        accountId: "DUP586813",
+        symbol: "F",
+        side: "BUY",
+        quantity: 1,
+        orderType: "MKT",
+        environment: "paper",
+      },
+      "idem-yahoo",
+    );
+
+    expect(result.order.orderId).toBe(9);
+    expect(result.intent.status).toBe("submitted");
+    expect(mockPort.place).toHaveBeenCalledOnce();
+    expect(mockGetQuotes).not.toHaveBeenCalled();
   });
 
   it("submits order and stores intent", async () => {
@@ -258,14 +260,10 @@ describe("TradingService", () => {
     );
     expect(retry.intent.intentId).toBe(result.intent.intentId);
     expect(mockPort.place).toHaveBeenCalledOnce();
-    expect(mockGetQuotes).toHaveBeenCalledWith(["F"], {
-      twsConnectionId: "ib-paper",
-      respectProviderPreference: false,
-      trustUsage: "trading_decision",
-    });
+    expect(mockGetQuotes).not.toHaveBeenCalled();
   });
 
-  it("requests pre-trade quotes from live connection for live orders", async () => {
+  it("submits live orders without fetching pre-trade quotes", async () => {
     const service = new TradingService(createMemoryIntentStore());
     await service.submitOrder(
       {
@@ -280,11 +278,7 @@ describe("TradingService", () => {
       undefined,
       "LIVE",
     );
-    expect(mockGetQuotes).toHaveBeenCalledWith(["F"], {
-      twsConnectionId: "ib-live",
-      respectProviderPreference: false,
-      trustUsage: "trading_decision",
-    });
+    expect(mockGetQuotes).not.toHaveBeenCalled();
   });
 
   it("recovers submit when broker accepted order but place timed out", async () => {

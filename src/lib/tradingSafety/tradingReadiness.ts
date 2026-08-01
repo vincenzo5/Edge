@@ -14,13 +14,6 @@ export type TradingReadinessInput = {
   accountUpdatedAt?: number;
   /** Max age for brokerage snapshot used in trade checks. */
   accountMaxAgeMs?: number;
-  quote?: {
-    source: string;
-    asOf?: number;
-    receivedAt?: number;
-    stale?: boolean;
-    warnings?: string[];
-  };
   riskSettings: RiskSettings;
   now?: number;
 };
@@ -28,7 +21,6 @@ export type TradingReadinessInput = {
 export type TradingReadinessResult = {
   ok: boolean;
   reasons: string[];
-  quoteReadiness?: DataReadiness;
   accountReadiness?: DataReadiness;
 };
 
@@ -99,28 +91,10 @@ export function evaluateTradingReadiness(
     reasons.push("Risk sizing could not be resolved");
   }
 
-  let quoteReadiness: DataReadiness | undefined;
-  if (input.quote) {
-    const quoteProv = provenanceFromMeta({
-      source: input.quote.source,
-      asOf: input.quote.asOf,
-      receivedAt: input.quote.receivedAt ?? input.quote.asOf ?? now,
-      stale: input.quote.stale ?? false,
-      warnings: input.quote.warnings ?? [],
-    });
-    quoteReadiness = evaluateReadiness("pre_trade_quote", "trading_decision", quoteProv, now);
-    if (quoteReadiness.status === "blocked") {
-      reasons.push(...quoteReadiness.reasons);
-    }
-  } else {
-    reasons.push("Pre-trade quote not provided");
-  }
-
   const unique = [...new Set(reasons)];
   return {
     ok: unique.length === 0,
     reasons: unique,
-    quoteReadiness,
     accountReadiness,
   };
 }
