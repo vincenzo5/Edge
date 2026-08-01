@@ -39,8 +39,11 @@ src/lib/trading/
 
 src/app/components/trading/
   TradeSetupBindingContext.tsx  # { cellId, drawingId } bind + live levels feed from ChartCell (context-menu initiated)
-  TradeOrderForm.tsx              # Shared preview/confirm/submit form (MKT default; plan risk display)
+  TradeOrderForm.tsx              # Shared preview/confirm/submit form (MKT default; compose Order impact)
+  TradeOrderImpact.tsx            # Compose economics: notional, margin affordability, stop risk / reward / R:R
   TradeTicketModal.tsx            # Modal wrapper (tests); primary UX is Trade sidebar panel
+
+src/lib/trading/computeOrderImpact.ts  # Pure notional + protect outcome dollars for compose Order impact
 
 src/app/components/risk/
   RiskPositionBindingContext.tsx  # Auto-bind newest long/short on active chart → Risk Position size entry/stop (independent of Trade setup bind)

@@ -128,10 +128,11 @@ export default function EdgeSelect<T extends string = string>(props: EdgeSelectP
     close();
   };
 
+  const fieldMinWidth = density === "compact" ? "min-w-0" : "min-w-[8rem]";
   const triggerClass =
     variant === "chip"
       ? `${headerChipClass(disabled)} min-w-[5rem] bg-transparent ${className}`.trim()
-      : `${fieldClass({ density, disabled, invalid })} inline-flex w-auto min-w-[8rem] justify-between gap-2 ${className}`.trim();
+      : `${fieldClass({ density, disabled, invalid })} inline-flex w-auto ${fieldMinWidth} justify-between gap-2 ${className}`.trim();
 
   const trigger = (
     <button

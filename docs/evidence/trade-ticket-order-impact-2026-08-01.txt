@@ -1,0 +1,21 @@
+# LIVE — Trade ticket order impact evidence
+# Date: 2026-08-01
+
+## Scope
+Compose Order impact block: notional, init margin (debounced what-if), affordability,
+risk to stop / reward to target / R:R when bracket attached; Risk plan demoted to disclosure;
+CTA renamed to Review buy/sell.
+
+## Delivered
+- src/lib/trading/computeOrderImpact.ts (+ test) — pure notional / risk / reward / R:R
+- src/app/components/trading/TradeOrderImpact.tsx (+ test) — Order impact UI
+- src/app/components/trading/TradeOrderForm.tsx — wire impact + useRiskMarginContext; demote Risk plan
+- src/lib/trading/ARCHITECTURE.md — module map update
+
+## Verification
+Command:
+npm test -- --run src/lib/trading/computeOrderImpact.test.ts src/app/components/trading/TradeOrderImpact.test.tsx src/app/components/trading/TradeOrderForm.test.tsx src/app/components/trading/TradeTicketModal.test.tsx src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx
+
+Result:
+ Test Files  5 passed (5)
+      Tests  33 passed (33)

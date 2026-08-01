@@ -21,18 +21,26 @@ export function EdgeToggleSwitch({
 }: SwitchProps) {
   const compact = size === "compact";
   const trackClass = compact
-    ? `relative h-4 w-7 shrink-0 rounded-full motion-safe:transition-colors ${
-        checked ? "bg-[var(--edge-text-strong)]" : "bg-[var(--edge-border-strong)]"
+    ? `relative h-4 w-7 shrink-0 overflow-hidden rounded-full border motion-safe:transition-colors ${
+        checked
+          ? "border-transparent bg-[var(--edge-accent-blue-fill)] shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+          : "border-[var(--edge-border-strong)] bg-[var(--edge-surface-active)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.18)]"
       }`
-    : `relative h-5 w-9 shrink-0 rounded-full motion-safe:transition-colors ${
-        checked ? "bg-[var(--edge-text-strong)]" : "bg-[var(--edge-surface-active)]"
+    : `relative h-5 w-9 shrink-0 overflow-hidden rounded-full border motion-safe:transition-colors ${
+        checked
+          ? "border-transparent bg-[var(--edge-accent-blue-fill)] shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+          : "border-[var(--edge-border-strong)] bg-[var(--edge-surface-active)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.18)]"
       }`;
   const thumbClass = compact
-    ? `absolute top-0.5 h-3 w-3 rounded-full bg-[var(--edge-background)] motion-safe:transition-transform ${
-        checked ? "translate-x-3.5" : "translate-x-0.5"
+    ? `absolute top-0.5 h-3 w-3 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.35)] motion-safe:transition-[left,background-color] ${
+        checked
+          ? "left-3.5 bg-[var(--edge-text-on-accent)]"
+          : "left-0.5 bg-[var(--edge-text-secondary)]"
       }`
-    : `absolute top-0.5 h-4 w-4 rounded-full bg-[var(--edge-background)] motion-safe:transition-transform ${
-        checked ? "left-[18px]" : "left-0.5"
+    : `absolute top-0.5 h-4 w-4 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.35)] motion-safe:transition-[left,background-color] ${
+        checked
+          ? "left-[18px] bg-[var(--edge-text-on-accent)]"
+          : "left-0.5 bg-[var(--edge-text-secondary)]"
       }`;
 
   return (
@@ -43,13 +51,20 @@ export function EdgeToggleSwitch({
       aria-label={ariaLabel}
       disabled={disabled}
       data-testid={testId}
-      onClick={() => onChange(!checked)}
-      className={`edge-focus-ring relative flex shrink-0 items-center justify-center rounded-[var(--edge-radius-sm)] motion-safe:transition-colors ${
-        compact ? "h-8 w-8" : "h-8 w-8"
+      onClick={() => {
+        if (!disabled) onChange(!checked);
+      }}
+      className={`edge-focus-ring relative inline-flex shrink-0 items-center justify-center rounded-[var(--edge-radius-sm)] ${
+        compact ? "h-8 min-w-8 px-0.5" : "h-8 min-w-10 px-0.5"
       } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
     >
-      <span className={trackClass}>
-        <span className={thumbClass} />
+      <span
+        className={trackClass}
+        data-checked={checked ? "true" : "false"}
+        data-size={size}
+        data-slot="track"
+      >
+        <span className={thumbClass} data-slot="thumb" />
       </span>
     </button>
   );

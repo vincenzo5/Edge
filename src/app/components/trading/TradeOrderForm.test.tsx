@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { TradeOrderForm } from "./TradeOrderForm";
+import { formatLimitPriceInput, seedLimitPriceFromLast, TradeOrderForm } from "./TradeOrderForm";
 import { RiskSettingsProvider } from "../RiskSettingsProvider";
 
 vi.mock("../AccountProvider", () => ({
@@ -15,8 +15,14 @@ vi.mock("../AccountProvider", () => ({
     activeTradingAccountId: "DUP586813",
     tradingEnvironment: "paper",
     connectionState: "connected",
+    disabled: false,
     summary: {
-      tags: { NetLiquidation: { tag: "NetLiquidation", value: "100000" } },
+      tags: {
+        NetLiquidation: { tag: "NetLiquidation", value: "100000" },
+        AvailableFunds: { tag: "AvailableFunds", value: "50000" },
+        ExcessLiquidity: { tag: "ExcessLiquidity", value: "50000" },
+        InitMarginReq: { tag: "InitMarginReq", value: "10000" },
+      },
       updatedAt: Date.now(),
     },
   }),
@@ -26,6 +32,15 @@ vi.mock("../AccountAliasesProvider", () => ({
   useAccountAliasesOptional: () => ({
     displayNameFor: () => "DUP586813",
   }),
+}));
+
+vi.mock("@/lib/brokerage/whatIfClient", () => ({
+  fetchWhatIfPreview: vi.fn().mockResolvedValue({
+    initMarginChange: 50,
+    maintMarginChange: 25,
+    warningText: null,
+  }),
+  WhatIfClientError: class WhatIfClientError extends Error {},
 }));
 
 vi.mock("@/lib/trading/tradingClient", () => ({
@@ -188,7 +203,7 @@ describe("TradeOrderForm size for risk", () => {
   it("defaults market entry to last price without plan levels", () => {
     renderForm(null);
     expect(screen.getByTestId("trade-entry-display")).toHaveTextContent("~100.00");
-    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("~100.00");
+    expect(screen.getByTestId("trade-order-impact-notional")).toHaveTextContent("100.00");
   });
 
   it("auto-fills limit entry with last price when switching to Limit", () => {
@@ -196,6 +211,17 @@ describe("TradeOrderForm size for risk", () => {
     fireEvent.click(screen.getByTestId("trade-order-type"));
     fireEvent.click(screen.getByTestId("trade-order-type-option-LMT"));
     expect(screen.getByTestId("trade-limit-price")).toHaveValue(100);
+  });
+
+  it("rounds seeded limit prices to 2 decimal places", () => {
+    expect(formatLimitPriceInput(556.7100219726562)).toBe("556.71");
+    expect(
+      seedLimitPriceFromLast({
+        currentLimitPrice: "",
+        planEntry: null,
+        lastPrice: 556.7100219726562,
+      }),
+    ).toBe("556.71");
   });
 
   it("shows bracket toggle on compose without opening Advanced", () => {
@@ -213,7 +239,7 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("trade-bracket-risk-line")).toHaveTextContent("risk");
   });
 
-  it("includes risk in compose status when bracket is on", () => {
+  it("shows Order impact risk, reward, and R:R when bracket is on", () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -222,12 +248,14 @@ describe("TradeOrderForm size for risk", () => {
       target: 110,
       riskRewardRatio: 2,
     });
-    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("Stop 95.00");
-    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("risk");
-    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("R:R 2.0");
+    expect(screen.getByTestId("trade-order-impact")).toBeInTheDocument();
+    expect(screen.getByTestId("trade-order-impact-notional")).toHaveTextContent("100.00");
+    expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("5.00");
+    expect(screen.getByTestId("trade-order-impact-reward")).toHaveTextContent("10.00");
+    expect(screen.getByTestId("trade-order-impact-rr")).toHaveTextContent("1:2.0");
   });
 
-  it("shows Bracket off in compose status when bracket is unchecked", () => {
+  it("shows Needs stop in Order impact when bracket is unchecked", () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -237,12 +265,13 @@ describe("TradeOrderForm size for risk", () => {
       riskRewardRatio: 2,
     });
     fireEvent.click(screen.getByTestId("trade-attach-bracket"));
-    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("Bracket off");
+    expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("Needs stop");
+    expect(screen.queryByTestId("trade-order-impact-reward")).not.toBeInTheDocument();
   });
 
-  it("uses Buy symbol CTA and advances to confirm on click", async () => {
+  it("uses Review buy CTA and advances to confirm on click", async () => {
     renderForm(null);
-    expect(screen.getByTestId("trade-primary-cta")).toHaveTextContent("Buy AAPL");
+    expect(screen.getByTestId("trade-primary-cta")).toHaveTextContent("Review buy");
     fireEvent.click(screen.getByTestId("trade-primary-cta"));
     await waitFor(() => {
       expect(screen.getByTestId("trade-confirm-submit")).toBeInTheDocument();
@@ -267,29 +296,42 @@ describe("TradeOrderForm size for risk", () => {
     renderForm(null);
     fireEvent.click(screen.getByTestId("trade-side"));
     fireEvent.click(screen.getByTestId("trade-side-option-SELL"));
-    expect(screen.getByTestId("trade-primary-cta")).toHaveTextContent("Sell AAPL");
+    expect(screen.getByTestId("trade-primary-cta")).toHaveTextContent("Review sell");
   });
 
-  it("shows compose status with Day while Advanced is collapsed", () => {
+  it("shows Duration and Extended hours on the session row without Advanced", () => {
     renderForm(null);
-    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("DAY");
-    expect(screen.queryByTestId("trade-outside-rth")).not.toBeInTheDocument();
+    expect(screen.getByTestId("trade-session-row")).toBeInTheDocument();
+    expect(screen.getByTestId("trade-tif")).toBeInTheDocument();
+    expect(screen.getByTestId("trade-outside-rth")).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("Needs stop");
+    expect(screen.queryByTestId("trade-advanced-toggle")).not.toBeInTheDocument();
   });
 
-  it("includes outside RTH in draft when toggled in Advanced", () => {
+  it("includes extended hours in draft when toggled on compose", async () => {
     renderForm(null);
-    openAdvanced();
     fireEvent.click(screen.getByTestId("trade-outside-rth"));
-    expect(screen.getByTestId("trade-outside-rth")).toBeChecked();
-    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("Outside RTH");
+    expect(screen.getByTestId("trade-outside-rth")).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByTestId("trade-primary-cta"));
+    await waitFor(() => {
+      expect(previewOrder).toHaveBeenCalled();
+    });
+    expect(vi.mocked(previewOrder).mock.calls.at(-1)?.[0]).toMatchObject({
+      outsideRth: true,
+    });
   });
 
-  it("carries GTC from Advanced TIF select to compose status", () => {
+  it("carries GTC from Duration select into preview draft", async () => {
     renderForm(null);
-    openAdvanced();
     fireEvent.click(screen.getByTestId("trade-tif"));
     fireEvent.click(screen.getByTestId("trade-tif-option-GTC"));
-    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("GTC");
+    fireEvent.click(screen.getByTestId("trade-primary-cta"));
+    await waitFor(() => {
+      expect(previewOrder).toHaveBeenCalled();
+    });
+    expect(vi.mocked(previewOrder).mock.calls.at(-1)?.[0]).toMatchObject({
+      tif: "GTC",
+    });
   });
 
   it("shows Manage with preset picker when bracket attach is enabled in Advanced", () => {
@@ -310,7 +352,7 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("trade-manage-preview")).toBeInTheDocument();
   });
 
-  it("shows Risk plan summary on compose with Budget, Bracket, and Manage", () => {
+  it("shows Risk plan summary behind disclosure with Budget, Bracket, and Manage", () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -320,6 +362,9 @@ describe("TradeOrderForm size for risk", () => {
       riskRewardRatio: 2,
     });
 
+    expect(screen.getByTestId("trade-risk-plan-toggle")).toBeInTheDocument();
+    expect(screen.queryByTestId("submit-risk-plan-summary")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("trade-risk-plan-toggle"));
     expect(screen.getByTestId("submit-risk-plan-summary")).toBeInTheDocument();
     expect(screen.getByTestId("submit-risk-plan-protect")).toHaveTextContent("STP 95.00");
     openAdvanced();

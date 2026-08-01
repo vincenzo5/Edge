@@ -2,13 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { EdgeButton, EdgeLabeledInput, EdgeSegmentedTabs, EdgeSelect } from "../design-system";
+import {
+  EdgeButton,
+  EdgeLabeledInput,
+  EdgeSegmentedTabs,
+  EdgeSelect,
+  EdgeToggleSwitch,
+} from "../design-system";
 import { fieldClass } from "../design-system/styles";
 import { useAccountOptional } from "../AccountProvider";
 import { useAccountAliasesOptional } from "../AccountAliasesProvider";
 import { useRiskSettingsOptional } from "../RiskSettingsProvider";
+import { useRiskMarginContext } from "../risk/useRiskMarginContext";
 import { isGatewayTradingAccount } from "@/lib/trading/accountPickerOptions";
 import { computeEquityPositionSize } from "@/lib/risk/equityPositionSize";
+import { computeOrderImpactEconomics } from "@/lib/trading/computeOrderImpact";
 import { LIVE_CONFIRMATION_TOKEN, PREVIEW_INTENT_MAX_AGE_MS } from "@/lib/trading/validateOrder";
 import {
   previewOrder,
@@ -18,6 +26,7 @@ import {
   submitOrder,
   TradingApiError,
 } from "@/lib/trading/tradingClient";
+import { TradeOrderImpact } from "./TradeOrderImpact";
 import {
   buildBracketPlanFromLevels,
   buildFixedStopLeg,
@@ -101,10 +110,6 @@ function formatPrice(value: number): string {
   });
 }
 
-function formatSideLabel(side: OrderSide): string {
-  return side === "BUY" ? "Buy" : "Sell";
-}
-
 function resolveDisplayEntry(args: {
   orderType: OrderType;
   limitPrice: string;
@@ -124,6 +129,11 @@ function resolveDisplayEntry(args: {
   return "—";
 }
 
+/** Format a price for the limit Entry input (max 2 decimal places). */
+export function formatLimitPriceInput(price: number): string {
+  return (Math.round(price * 100) / 100).toFixed(2);
+}
+
 /** Seed limit entry from plan entry, else last price. */
 export function seedLimitPriceFromLast(args: {
   currentLimitPrice: string;
@@ -132,7 +142,7 @@ export function seedLimitPriceFromLast(args: {
 }): string {
   if (args.currentLimitPrice.trim()) return args.currentLimitPrice;
   const seed = args.planEntry ?? args.lastPrice;
-  return seed != null && Number.isFinite(seed) ? String(seed) : args.currentLimitPrice;
+  return seed != null && Number.isFinite(seed) ? formatLimitPriceInput(seed) : args.currentLimitPrice;
 }
 
 export function buildOrderDraft(args: {
@@ -224,6 +234,7 @@ export function TradeOrderForm({
   const [liveConfirmText, setLiveConfirmText] = useState("");
   const [unprotectedConfirm, setUnprotectedConfirm] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [riskPlanOpen, setRiskPlanOpen] = useState(false);
   const [scheduleMode, setScheduleMode] = useState<"now" | "session" | "clock">("now");
   const [sessionEvent, setSessionEvent] = useState<"nextRthOpen" | "nextRthClose">("nextRthOpen");
   const [clockAt, setClockAt] = useState("");
@@ -241,7 +252,7 @@ export function TradeOrderForm({
     if (!planLevels) return;
     setSide(planLevels.side);
     setOrderType(policyBound ? "LMT" : "MKT");
-    setLimitPrice(String(planLevels.entry));
+    setLimitPrice(formatLimitPriceInput(planLevels.entry));
   }, [planLevels?.entry, planLevels?.side, planLevels?.stop, planLevels?.target, policyBound]);
 
   useEffect(() => {
@@ -487,47 +498,50 @@ export function TradeOrderForm({
     [lastPrice, limitPrice, orderType, planLevels?.entry],
   );
 
+  const executableEntry = useMemo(() => {
+    if (orderType === "LMT") {
+      const parsed = Number.parseFloat(limitPrice);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+      return planLevels?.entry ?? null;
+    }
+    if (lastPrice != null && Number.isFinite(lastPrice) && lastPrice > 0) return lastPrice;
+    return planLevels?.entry ?? null;
+  }, [lastPrice, limitPrice, orderType, planLevels?.entry]);
+
+  const protectionEnabled = Boolean(planLevels && attachBracket);
+
+  const orderImpact = useMemo(
+    () =>
+      computeOrderImpactEconomics({
+        quantity: Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : null,
+        executableEntry,
+        stop: protectionEnabled && planLevels ? planLevels.stop : null,
+        target: protectionEnabled && planLevels ? planLevels.target : null,
+        protectionEnabled,
+      }),
+    [executableEntry, planLevels, protectionEnabled, qtyNum],
+  );
+
+  const marginCtx = useRiskMarginContext({
+    symbol: symbol.trim() || null,
+    shares: Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : null,
+    direction: side === "BUY" ? "long" : "short",
+    notional: orderImpact.notional,
+    entryPrice: executableEntry,
+    enabled: draft != null && step === "form",
+  });
+
   const activeRiskDollars = useMemo(() => {
     if (!attachBracket || !planLevels) return null;
     if (orderType === "MKT" && marketRisk != null) return marketRisk;
     return plannedRisk;
   }, [attachBracket, marketRisk, orderType, planLevels, plannedRisk]);
 
-  const composeStatusLine = useMemo(() => {
-    if (!draft) return "";
-    const parts: string[] = [];
-    parts.push(`${displayEntry} · ${submitRiskSummary.size.label}`);
-    if (planLevels && attachBracket) {
-      parts.push(`Stop ${formatPrice(planLevels.stop)}`);
-      if (activeRiskDollars != null) {
-        parts.push(`risk ${formatMoney(activeRiskDollars)}`);
-      }
-      parts.push(`Target ${formatPrice(planLevels.target)}`);
-      if (planLevels.riskRewardRatio != null) {
-        parts.push(`R:R ${planLevels.riskRewardRatio.toFixed(1)}`);
-      }
-    } else {
-      parts.push("Bracket off");
-    }
-    parts.push(tif);
-    if (outsideRth) parts.push("Outside RTH");
-    return parts.join(" · ");
-  }, [
-    activeRiskDollars,
-    attachBracket,
-    displayEntry,
-    draft,
-    outsideRth,
-    planLevels,
-    submitRiskSummary.size.label,
-    tif,
-  ]);
-
   const primaryCtaLabel = useMemo(() => {
     if (loading) return "Previewing…";
     if (policyBound && scheduleMode !== "now") return "Preview schedule";
-    return `${formatSideLabel(side)} ${symbol.trim().toUpperCase()}`;
-  }, [loading, policyBound, scheduleMode, side, symbol]);
+    return side === "BUY" ? "Review buy" : "Review sell";
+  }, [loading, policyBound, scheduleMode, side]);
 
   const confirmSubmitLabel = useMemo(() => {
     if (loading) return "Submitting…";
@@ -828,8 +842,8 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
-          <div className="grid grid-cols-[auto_1fr_auto] items-end gap-2">
-            <div className="min-w-[4.5rem]">
+          <div className="grid grid-cols-[auto_1fr_auto] items-end gap-1.5">
+            <div className="min-w-[4rem]">
               <EdgeSelect
                 value={side}
                 onChange={(value) => setSide(value as OrderSide)}
@@ -838,7 +852,7 @@ export function TradeOrderForm({
                   { value: "SELL", label: "Sell" },
                 ]}
                 label="Side"
-                density="standard"
+                density="compact"
                 variant="field"
                 testId="trade-side"
               />
@@ -850,9 +864,10 @@ export function TradeOrderForm({
               step={1}
               value={quantity}
               onChange={(event) => setQuantity(event.target.value)}
+              density="compact"
               testId="trade-quantity"
             />
-            <div className="min-w-[7rem]">
+            <div className="min-w-[5.5rem]">
               <EdgeSelect
                 value={orderType === "LMT" ? "LMT" : "MKT"}
                 onChange={(value) => {
@@ -873,15 +888,55 @@ export function TradeOrderForm({
                   { value: "LMT", label: "Limit" },
                 ]}
                 label="Type"
-                density="standard"
+                density="compact"
                 variant="field"
                 testId="trade-order-type"
               />
             </div>
           </div>
 
+          <div
+            className="mt-2 flex items-center justify-between gap-3"
+            data-testid="trade-session-row"
+          >
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="shrink-0 text-[10px] text-[var(--edge-text-secondary)]">
+                Duration
+              </span>
+              <EdgeSelect
+                value={tif}
+                onChange={(value) => setTif(value as TimeInForce)}
+                options={[
+                  { value: "DAY", label: "Day" },
+                  { value: "GTC", label: "GTC" },
+                ]}
+                density="compact"
+                variant="chip"
+                aria-label="Duration"
+                testId="trade-tif"
+                className="min-w-[4.5rem]"
+                minWidth={120}
+              />
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <span
+                className="text-[10px] text-[var(--edge-text-secondary)]"
+                title="Allow fills in pre-market and after-hours. Liquidity may be thin."
+              >
+                Extended hours
+              </span>
+              <EdgeToggleSwitch
+                checked={outsideRth}
+                onChange={setOutsideRth}
+                size="compact"
+                ariaLabel="Allow extended hours"
+                testId="trade-outside-rth"
+              />
+            </div>
+          </div>
+
           {orderType === "LMT" ? (
-            <div className="mt-3">
+            <div className="mt-2">
               <EdgeLabeledInput
                 label="Entry"
                 type="number"
@@ -889,6 +944,7 @@ export function TradeOrderForm({
                 step="0.01"
                 value={limitPrice}
                 onChange={(event) => setLimitPrice(event.target.value)}
+                density="compact"
                 testId="trade-limit-price"
               />
             </div>
@@ -1017,36 +1073,27 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
-          {draft ? (
-            <p
-              className="mt-3 text-[10px] text-[var(--edge-text-secondary)]"
-              data-testid="trade-compose-status"
-            >
-              {composeStatusLine}
-            </p>
-          ) : null}
+          {planLevels && !policyBound && attachBracket ? (
+            <>
+              <div className="mt-3">
+                <EdgeButton
+                  type="button"
+                  variant="secondary"
+                  className="w-full justify-between"
+                  onClick={() => setAdvancedOpen((open) => !open)}
+                  data-testid="trade-advanced-toggle"
+                  aria-expanded={advancedOpen}
+                >
+                  <span>Advanced</span>
+                  <span aria-hidden>{advancedOpen ? "▾" : "▸"}</span>
+                </EdgeButton>
+              </div>
 
-          <div className="mt-3">
-            <EdgeButton
-              type="button"
-              variant="secondary"
-              className="w-full justify-between"
-              onClick={() => setAdvancedOpen((open) => !open)}
-              data-testid="trade-advanced-toggle"
-              aria-expanded={advancedOpen}
-            >
-              <span>Advanced</span>
-              <span aria-hidden>{advancedOpen ? "▾" : "▸"}</span>
-            </EdgeButton>
-          </div>
-
-          {advancedOpen ? (
-            <div
-              className="mt-2 space-y-3 rounded border border-[var(--edge-border)] px-2 py-2"
-              data-testid="trade-advanced-panel"
-            >
-              {planLevels && !policyBound && attachBracket ? (
-                <>
+              {advancedOpen ? (
+                <div
+                  className="mt-2 space-y-3 rounded border border-[var(--edge-border)] px-2 py-2"
+                  data-testid="trade-advanced-panel"
+                >
                   <div className="space-y-2">
                     <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
                       Stop leg
@@ -1094,38 +1141,9 @@ export function TradeOrderForm({
                     notifyAtManageLevels={manageNotifyAtManageLevels}
                     onNotifyChange={setManageNotifyAtManageLevels}
                   />
-                </>
-              ) : null}
-
-              <div className="space-y-2">
-                <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-                  Time in force
                 </div>
-                <EdgeSelect
-                  value={tif}
-                  onChange={(value) => setTif(value as TimeInForce)}
-                  options={[
-                    { value: "DAY", label: "Day" },
-                    { value: "GTC", label: "GTC" },
-                  ]}
-                  density="standard"
-                  variant="field"
-                  testId="trade-tif"
-                />
-              </div>
-
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={outsideRth}
-                  onChange={(event) => setOutsideRth(event.target.checked)}
-                  data-testid="trade-outside-rth"
-                />
-                <span className="text-[var(--edge-text-secondary)]">
-                  Outside regular trading hours
-                </span>
-              </label>
-            </div>
+              ) : null}
+            </>
           ) : null}
 
           {policyBound && protectGate.kind === "soft_warn_paper" ? (
@@ -1146,7 +1164,48 @@ export function TradeOrderForm({
             </label>
           ) : null}
 
-          <p className="mt-3 text-[var(--edge-text-secondary)]">
+          {draft ? (
+            <div className="mt-3 space-y-2">
+              <TradeOrderImpact
+                economics={orderImpact}
+                initMarginChange={marginCtx.impact?.initMarginChange ?? null}
+                availableAfter={marginCtx.impact?.headroomAfter ?? null}
+                impactStatus={marginCtx.impactStatus}
+                marginEstimated={marginCtx.impact?.estimated ?? true}
+                marginLoading={marginCtx.loading}
+                marginError={marginCtx.error}
+                accountConnected={marginCtx.accountConnected}
+              />
+
+              <div>
+                <EdgeButton
+                  type="button"
+                  variant="secondary"
+                  className="w-full justify-between text-[10px]"
+                  onClick={() => setRiskPlanOpen((open) => !open)}
+                  data-testid="trade-risk-plan-toggle"
+                  aria-expanded={riskPlanOpen}
+                >
+                  <span>
+                    Risk plan · {submitRiskSummary.budget.label} ·{" "}
+                    {submitRiskSummary.size.label}
+                  </span>
+                  <span aria-hidden>{riskPlanOpen ? "▾" : "›"}</span>
+                </EdgeButton>
+                {riskPlanOpen ? (
+                  <div className="mt-1.5">
+                    <SubmitRiskPlanSummary
+                      summary={submitRiskSummary}
+                      manageSteps={manageEnabled ? manageStepLabels : undefined}
+                      compact
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          <p className="mt-3 text-[10px] text-[var(--edge-text-secondary)]">
             {environment === "live"
               ? "Live stock orders — real money"
               : policyBound
@@ -1157,16 +1216,6 @@ export function TradeOrderForm({
                   ? "Paper bracket — entry + live stop/TP"
                   : "Paper stock orders — entry only"}
           </p>
-
-          {draft ? (
-            <div className="mt-3">
-              <SubmitRiskPlanSummary
-                summary={submitRiskSummary}
-                manageSteps={manageEnabled ? manageStepLabels : undefined}
-                compact
-              />
-            </div>
-          ) : null}
 
           <div className="mt-4 flex gap-2">
             <EdgeButton
@@ -1195,7 +1244,7 @@ export function TradeOrderForm({
             ) : null}
             <div className="mt-1 text-[var(--edge-text-secondary)]">
               Account {draft.accountId} · {draft.environment}
-              {draft.outsideRth ? " · Outside RTH" : ""}
+              {draft.outsideRth ? " · Extended hours" : ""}
             </div>
           </div>
           <div className="mt-2">
@@ -1206,7 +1255,7 @@ export function TradeOrderForm({
           </div>
           {outsideRth ? (
             <p className="mt-2 text-[var(--edge-warning)]">
-              Outside RTH — liquidity may be thin; fills are not guaranteed.
+              Extended hours — liquidity may be thin; fills are not guaranteed.
             </p>
           ) : null}
           {environment === "live" ? (

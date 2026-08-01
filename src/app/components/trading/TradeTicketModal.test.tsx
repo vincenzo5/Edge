@@ -9,11 +9,30 @@ vi.mock("../AccountProvider", () => ({
       connectionId: "ib-paper",
       accountId: "DUP586813",
       environment: "paper",
+      availability: "online",
     },
     activeTradingAccountId: "DUP586813",
     tradingEnvironment: "paper",
+    connectionState: "connected",
+    disabled: false,
     refresh: vi.fn(),
+    summary: {
+      tags: {
+        NetLiquidation: { tag: "NetLiquidation", value: "100000" },
+        AvailableFunds: { tag: "AvailableFunds", value: "50000" },
+      },
+      updatedAt: Date.now(),
+    },
   }),
+}));
+
+vi.mock("@/lib/brokerage/whatIfClient", () => ({
+  fetchWhatIfPreview: vi.fn().mockResolvedValue({
+    initMarginChange: 50,
+    maintMarginChange: 25,
+    warningText: null,
+  }),
+  WhatIfClientError: class WhatIfClientError extends Error {},
 }));
 
 vi.mock("@/lib/trading/tradingClient", () => ({
@@ -64,20 +83,20 @@ describe("TradeTicketModal", () => {
     );
     expect(await screen.findByTestId("trade-ticket-modal")).toBeInTheDocument();
     expect(screen.getByText(/Trade AAPL/)).toBeInTheDocument();
-    expect(screen.getByText("DUP586813")).toBeInTheDocument();
-    expect(screen.queryByText("Paper")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Preview" })).toBeInTheDocument();
+    expect(screen.getByTestId("trade-account-chip")).toHaveTextContent("DUP586813");
+    expect(screen.getByTestId("trade-account-chip")).toHaveTextContent("Paper");
+    expect(screen.getByRole("button", { name: "Review buy" })).toBeInTheDocument();
   });
 
   it("advances to confirm step after preview", async () => {
     render(
       <TradeTicketModal open symbol="AAPL" onClose={vi.fn()} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review buy" }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Confirm & submit" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Confirm buy" })).toBeInTheDocument();
     });
     expect(previewOrder).toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Confirm & submit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm buy" })).toBeInTheDocument();
   });
 });

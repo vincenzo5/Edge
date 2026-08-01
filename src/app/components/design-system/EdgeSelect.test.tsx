@@ -121,6 +121,24 @@ describe("EdgeSelect", () => {
       />,
     );
     expect(screen.getByTestId("field-select").className).toContain("--edge-border");
+    expect(screen.getByTestId("field-select").className).toContain("min-w-[8rem]");
+  });
+
+  it("uses compact field density without forced min width", () => {
+    render(
+      <EdgeSelect
+        testId="field-select-compact"
+        variant="field"
+        density="compact"
+        value="all"
+        options={[...OPTIONS]}
+        onChange={vi.fn()}
+      />,
+    );
+    const className = screen.getByTestId("field-select-compact").className;
+    expect(className).toContain("edge-control-compact");
+    expect(className).toContain("min-w-0");
+    expect(className).not.toContain("min-w-[8rem]");
   });
 
   it("does not open when disabled", () => {
