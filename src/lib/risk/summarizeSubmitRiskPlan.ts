@@ -103,7 +103,7 @@ export function formatManageLabel(managePresetId: string): string {
 export function submitRiskWarningLabel(warning: SubmitRiskPlanWarning): string {
   switch (warning) {
     case "live_unprotected":
-      return "Live order without Protect — no resting broker stop will be attached.";
+      return "Live order without Bracket — no resting broker stop will be attached.";
     case "account_heat_would_breach":
       return "Next entry would exceed open heat cap.";
     case "account_heat_incomplete":

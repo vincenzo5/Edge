@@ -1,0 +1,25 @@
+# LIVE — Trade ticket compact UX evidence
+# Date: 2026-08-01
+
+## Scope
+Compact chart trade ticket: primary Side/Qty/Type dropdown; Advanced disclosure for Bracket + TIF + Outside RTH; Bracket user-facing copy (internal protect APIs unchanged).
+
+## Delivered
+- src/app/components/trading/TradeOrderForm.tsx — compact compose layout + Advanced panel
+- src/app/components/risk/SubmitRiskPlanSummary.tsx — Bracket label
+- src/lib/risk/summarizeSubmitRiskPlan.ts — live unprotected warning copy
+- src/app/components/trading/TradeOrderForm.test.tsx — Advanced + type dropdown tests
+- src/app/components/risk/SubmitRiskPlanSummary.test.tsx — Bracket copy
+- src/lib/risk/summarizeSubmitRiskPlan.test.ts — Bracket warning copy
+- src/lib/trading/ARCHITECTURE.md — ticket layout note
+
+## Focused
+Command:
+npm test -- --run src/app/components/trading/TradeOrderForm.test.tsx src/app/components/risk/SubmitRiskPlanSummary.test.tsx src/lib/risk/summarizeSubmitRiskPlan.test.ts
+Output:
+Test Files  3 passed (3)
+Tests  17 passed (17)
+exit=0
+
+## App-level
+Deferred — paper preview/bracket walkthrough; submit payloads unchanged (OrderDraft / BracketPlan).

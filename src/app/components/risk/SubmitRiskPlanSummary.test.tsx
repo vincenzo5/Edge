@@ -5,7 +5,7 @@ import { summarizeSubmitRiskPlan } from "@/lib/risk/summarizeSubmitRiskPlan";
 import { SubmitRiskPlanSummary } from "./SubmitRiskPlanSummary";
 
 describe("SubmitRiskPlanSummary", () => {
-  it("renders Budget / Size / Protect / Manage rows", () => {
+  it("renders Budget / Size / Bracket / Manage rows", () => {
     const summary = summarizeSubmitRiskPlan({
       environment: "paper",
       quantity: 100,
@@ -50,7 +50,7 @@ describe("SubmitRiskPlanSummary", () => {
     render(<SubmitRiskPlanSummary summary={summary} />);
 
     expect(screen.getByTestId("submit-risk-plan-warnings")).toHaveTextContent(
-      "without Protect",
+      "without Bracket",
     );
     expect(screen.queryByTestId("submit-risk-plan-failure-mode")).not.toBeInTheDocument();
     expect(screen.queryByTestId("submit-risk-plan-gap-guidance")).not.toBeInTheDocument();

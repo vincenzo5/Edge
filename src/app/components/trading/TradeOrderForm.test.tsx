@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { TradeOrderForm } from "./TradeOrderForm";
 import { RiskSettingsProvider } from "../RiskSettingsProvider";
@@ -54,7 +54,27 @@ function renderForm(
   );
 }
 
+function openAdvanced() {
+  fireEvent.click(screen.getByTestId("trade-advanced-toggle"));
+}
+
 describe("TradeOrderForm size for risk", () => {
+  beforeEach(() => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ templates: [] }),
+    } as Response);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("fills quantity from plan levels and risk budget", () => {
     renderForm({
       direction: "long",
@@ -95,13 +115,35 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.queryByTestId("trade-size-for-risk")).not.toBeInTheDocument();
   });
 
-  it("includes outside RTH in draft when toggled", () => {
+  it("uses order type dropdown instead of market/limit tabs", () => {
     renderForm(null);
-    fireEvent.click(screen.getByTestId("trade-outside-rth"));
-    expect(screen.getByTestId("trade-outside-rth")).toBeChecked();
+    expect(screen.getByTestId("trade-order-type")).toHaveTextContent("Market");
+    expect(screen.queryByRole("tab", { name: "Limit" })).not.toBeInTheDocument();
   });
 
-  it("shows Manage with preset picker when bracket attach is enabled", () => {
+  it("shows compose status with Day while Advanced is collapsed", () => {
+    renderForm(null);
+    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("DAY");
+    expect(screen.queryByTestId("trade-outside-rth")).not.toBeInTheDocument();
+  });
+
+  it("includes outside RTH in draft when toggled in Advanced", () => {
+    renderForm(null);
+    openAdvanced();
+    fireEvent.click(screen.getByTestId("trade-outside-rth"));
+    expect(screen.getByTestId("trade-outside-rth")).toBeChecked();
+    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("Outside RTH");
+  });
+
+  it("carries GTC from Advanced TIF select to compose status", () => {
+    renderForm(null);
+    openAdvanced();
+    fireEvent.click(screen.getByTestId("trade-tif"));
+    fireEvent.click(screen.getByTestId("trade-tif-option-GTC"));
+    expect(screen.getByTestId("trade-compose-status")).toHaveTextContent("GTC");
+  });
+
+  it("shows Manage with preset picker when bracket attach is enabled in Advanced", () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -111,10 +153,33 @@ describe("TradeOrderForm size for risk", () => {
       riskRewardRatio: 2,
     });
 
+    openAdvanced();
     expect(screen.getByTestId("trade-manage-preset")).toBeInTheDocument();
     fireEvent.change(screen.getByTestId("trade-manage-preset"), {
       target: { value: "break_even" },
     });
     expect(screen.getByTestId("trade-manage-preview")).toBeInTheDocument();
+  });
+
+  it("shows Risk plan summary on compose with Budget, Bracket, and Manage", () => {
+    renderForm({
+      direction: "long",
+      side: "BUY",
+      entry: 100,
+      stop: 95,
+      target: 110,
+      riskRewardRatio: 2,
+    });
+
+    expect(screen.getByTestId("submit-risk-plan-summary")).toBeInTheDocument();
+    expect(screen.getByTestId("submit-risk-plan-protect")).toHaveTextContent("STP 95.00");
+    openAdvanced();
+    fireEvent.change(screen.getByTestId("trade-manage-preset"), {
+      target: { value: "break_even" },
+    });
+    expect(screen.getByTestId("submit-risk-plan-manage")).toHaveTextContent("Break-even");
+    expect(screen.getByTestId("submit-risk-plan-failure-mode")).toHaveTextContent(
+      "Broker stop stays live if Edge is down",
+    );
   });
 });

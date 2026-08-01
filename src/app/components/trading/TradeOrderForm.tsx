@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { EdgeButton, EdgeSegmentedTabs } from "../design-system";
+import { EdgeButton, EdgeSegmentedTabs, EdgeSelect } from "../design-system";
 import { fieldClass } from "../design-system/styles";
 import { useAccountOptional } from "../AccountProvider";
 import { useAccountAliasesOptional } from "../AccountAliasesProvider";
@@ -189,6 +189,7 @@ export function TradeOrderForm({
   const [journalTradeId, setJournalTradeId] = useState<string | null>(null);
   const [liveConfirmText, setLiveConfirmText] = useState("");
   const [unprotectedConfirm, setUnprotectedConfirm] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [scheduleMode, setScheduleMode] = useState<"now" | "session" | "clock">("now");
   const [sessionEvent, setSessionEvent] = useState<"nextRthOpen" | "nextRthClose">("nextRthOpen");
   const [clockAt, setClockAt] = useState("");
@@ -500,7 +501,7 @@ export function TradeOrderForm({
 
     if (policyBound && plannedInstance) {
       if (protectGate.kind === "hard_block_live") {
-        setError("Live submit blocked — add Protect or confirm unprotected submit.");
+        setError("Live submit blocked — add Bracket or confirm entry-only submit.");
         return;
       }
       setLoading(true);
@@ -639,11 +640,20 @@ export function TradeOrderForm({
       {step === "form" ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 text-xs">
           <div className="mb-3">
-            <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-              Symbol
-            </div>
-            <div className="mt-0.5 text-sm font-medium text-[var(--edge-text-strong)]">
-              {symbol}
+            <div className="text-sm font-medium text-[var(--edge-text-strong)]">{symbol}</div>
+            <div
+              className="mt-0.5 text-[10px] text-[var(--edge-text-secondary)]"
+              data-testid="trade-account-chip"
+            >
+              {environment === "live" ? "Live" : "Paper"}
+              {" · "}
+              {gatewayAccountSelected
+                ? accountDisplayName || "No account"
+                : accountDisplayName
+                  ? account?.activeTradingAccount?.availability === "offline"
+                    ? `${accountDisplayName} (offline)`
+                    : "Select Gateway account in header"
+                  : "No account"}
             </div>
           </div>
 
@@ -680,7 +690,7 @@ export function TradeOrderForm({
               </div>
               <div className="text-[var(--edge-text-strong)]">{policyName}</div>
               <p className="text-[10px] text-[var(--edge-text-secondary)]">
-                Protect + Manage seeded from drawing policy snapshot.
+                Bracket + Manage seeded from drawing policy snapshot.
               </p>
               {onChangePolicy ? (
                 <EdgeButton
@@ -696,19 +706,6 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
-          <div className="mb-3">
-            <div className="text-[var(--edge-text-secondary)]">Account</div>
-            <div className="mt-1 rounded border border-[var(--edge-border)] px-2 py-1.5 text-[var(--edge-text-strong)]">
-              {gatewayAccountSelected
-                ? accountDisplayName || "No account selected"
-                : accountDisplayName
-                  ? account?.activeTradingAccount?.availability === "offline"
-                    ? `${accountDisplayName} (live offline — connect live Gateway to trade)`
-                    : "Select a connected Gateway account in the header before trading."
-                  : "No account selected"}
-            </div>
-          </div>
-
           <EdgeSegmentedTabs
             segments={[
               { id: "BUY", label: "Buy" },
@@ -718,17 +715,47 @@ export function TradeOrderForm({
             onChange={(value) => setSide(value as OrderSide)}
           />
 
-          <label className="mt-3 block">
-            <span className="text-[var(--edge-text-secondary)]">Quantity</span>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              className={`mt-1 ${fieldClass({ density: "standard" })}`}
-              value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
-            />
-          </label>
+          <div className="mt-3 grid grid-cols-[1fr_auto] items-end gap-2">
+            <label className="block min-w-0">
+              <span className="text-[var(--edge-text-secondary)]">Quantity</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                className={`mt-1 ${fieldClass({ density: "standard" })}`}
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value)}
+              />
+            </label>
+            <div className="min-w-[7rem]">
+              <EdgeSelect
+                value={orderType === "LMT" ? "LMT" : "MKT"}
+                onChange={(value) => setOrderType(value as OrderType)}
+                options={[
+                  { value: "MKT", label: "Market" },
+                  { value: "LMT", label: "Limit" },
+                ]}
+                label="Type"
+                density="standard"
+                variant="field"
+                testId="trade-order-type"
+              />
+            </div>
+          </div>
+
+          {orderType === "LMT" ? (
+            <label className="mt-3 block">
+              <span className="text-[var(--edge-text-secondary)]">Limit price</span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={`mt-1 ${fieldClass({ density: "standard" })}`}
+                value={limitPrice}
+                onChange={(event) => setLimitPrice(event.target.value)}
+              />
+            </label>
+          ) : null}
 
           {planLevels ? (
             <EdgeButton
@@ -749,17 +776,6 @@ export function TradeOrderForm({
               Size for risk
             </EdgeButton>
           ) : null}
-
-          <div className="mt-3">
-            <EdgeSegmentedTabs
-              segments={[
-                { id: "MKT", label: "Market" },
-                { id: "LMT", label: "Limit" },
-              ]}
-              value={orderType === "LMT" ? "LMT" : "MKT"}
-              onChange={(value) => setOrderType(value as OrderType)}
-            />
-          </div>
 
           {policyBound ? (
             <EdgeButton
@@ -821,121 +837,149 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
-          {orderType === "LMT" ? (
-            <label className="mt-3 block">
-              <span className="text-[var(--edge-text-secondary)]">Limit price</span>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className={`mt-1 ${fieldClass({ density: "standard" })}`}
-                value={limitPrice}
-                onChange={(event) => setLimitPrice(event.target.value)}
-              />
-            </label>
+          {draft ? (
+            <p
+              className="mt-3 text-[10px] text-[var(--edge-text-secondary)]"
+              data-testid="trade-compose-status"
+            >
+              {submitRiskSummary.budget.label !== "—"
+                ? `${submitRiskSummary.budget.label} · `
+                : ""}
+              {submitRiskSummary.size.label} ·{" "}
+              {submitRiskSummary.protect.attached ? "Bracket on" : "Bracket off"} · {tif}
+              {outsideRth ? " · Outside RTH" : ""}
+            </p>
           ) : null}
 
           <div className="mt-3">
-            <EdgeSegmentedTabs
-              segments={[
-                { id: "DAY", label: "Day" },
-                { id: "GTC", label: "GTC" },
-              ]}
-              value={tif}
-              onChange={(value) => setTif(value as TimeInForce)}
-            />
+            <EdgeButton
+              type="button"
+              variant="secondary"
+              className="w-full justify-between"
+              onClick={() => setAdvancedOpen((open) => !open)}
+              data-testid="trade-advanced-toggle"
+              aria-expanded={advancedOpen}
+            >
+              <span>Advanced</span>
+              <span aria-hidden>{advancedOpen ? "▾" : "▸"}</span>
+            </EdgeButton>
           </div>
 
-          <label className="mt-3 flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={outsideRth}
-              onChange={(event) => setOutsideRth(event.target.checked)}
-              data-testid="trade-outside-rth"
-            />
-            <span className="text-[var(--edge-text-secondary)]">
-              Outside regular trading hours
-            </span>
-          </label>
-
-          {planLevels && !policyBound ? (
-            <>
-              <label className="mt-3 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={attachBracket}
-                  onChange={(event) => {
-                    setAttachBracket(event.target.checked);
-                    if (!event.target.checked) {
-                      setManagePresetId("off");
-                    }
-                  }}
-                  data-testid="trade-attach-bracket"
-                />
-                <span className="text-[var(--edge-text-secondary)]">
-                  Attach stop + take profit (bracket)
-                </span>
-              </label>
-
-              {attachBracket ? (
-                <div className="mt-3 space-y-2 rounded border border-[var(--edge-border)] px-2 py-2">
+          {advancedOpen ? (
+            <div
+              className="mt-2 space-y-3 rounded border border-[var(--edge-border)] px-2 py-2"
+              data-testid="trade-advanced-panel"
+            >
+              {planLevels && !policyBound ? (
+                <>
                   <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-                    Stop leg
+                    Bracket
                   </div>
-                  <EdgeSegmentedTabs
-                    segments={[
-                      { id: "fixed", label: "Fixed" },
-                      { id: "trail", label: "Trail" },
-                    ]}
-                    value={stopLegMode}
-                    onChange={(value) => setStopLegMode(value as StopLegMode)}
-                  />
-                  {stopLegMode === "trail" ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="block">
-                        <span className="text-[var(--edge-text-secondary)]">Trail $</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          className={`mt-1 ${fieldClass({ density: "standard" })}`}
-                          value={trailAmount}
-                          onChange={(event) => setTrailAmount(event.target.value)}
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-[var(--edge-text-secondary)]">Trail %</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.1"
-                          className={`mt-1 ${fieldClass({ density: "standard" })}`}
-                          value={trailPercent}
-                          onChange={(event) => setTrailPercent(event.target.value)}
-                        />
-                      </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={attachBracket}
+                      onChange={(event) => {
+                        setAttachBracket(event.target.checked);
+                        if (!event.target.checked) {
+                          setManagePresetId("off");
+                        }
+                      }}
+                      data-testid="trade-attach-bracket"
+                    />
+                    <span className="text-[var(--edge-text-secondary)]">
+                      Stop + target
+                    </span>
+                  </label>
+
+                  {attachBracket ? (
+                    <div className="space-y-2">
+                      <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                        Stop leg
+                      </div>
+                      <EdgeSegmentedTabs
+                        segments={[
+                          { id: "fixed", label: "Fixed" },
+                          { id: "trail", label: "Trail" },
+                        ]}
+                        value={stopLegMode}
+                        onChange={(value) => setStopLegMode(value as StopLegMode)}
+                      />
+                      {stopLegMode === "trail" ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block">
+                            <span className="text-[var(--edge-text-secondary)]">Trail $</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              className={`mt-1 ${fieldClass({ density: "standard" })}`}
+                              value={trailAmount}
+                              onChange={(event) => setTrailAmount(event.target.value)}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-[var(--edge-text-secondary)]">Trail %</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.1"
+                              className={`mt-1 ${fieldClass({ density: "standard" })}`}
+                              value={trailPercent}
+                              onChange={(event) => setTrailPercent(event.target.value)}
+                            />
+                          </label>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
-                </div>
+
+                  {attachBracket ? (
+                    <ManagePlaybookPicker
+                      value={managePresetId}
+                      onChange={setManagePresetId}
+                      positionPlan={managePreviewPlan}
+                      notifyAtManageLevels={manageNotifyAtManageLevels}
+                      onNotifyChange={setManageNotifyAtManageLevels}
+                    />
+                  ) : null}
+                </>
               ) : null}
 
-              {attachBracket ? (
-                <div className="mt-3">
-                  <ManagePlaybookPicker
-                    value={managePresetId}
-                    onChange={setManagePresetId}
-                    positionPlan={managePreviewPlan}
-                    notifyAtManageLevels={manageNotifyAtManageLevels}
-                    onNotifyChange={setManageNotifyAtManageLevels}
-                  />
+              <div className="space-y-2">
+                <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                  Time in force
                 </div>
-              ) : null}
-            </>
+                <EdgeSelect
+                  value={tif}
+                  onChange={(value) => setTif(value as TimeInForce)}
+                  options={[
+                    { value: "DAY", label: "Day" },
+                    { value: "GTC", label: "GTC" },
+                  ]}
+                  density="standard"
+                  variant="field"
+                  testId="trade-tif"
+                />
+              </div>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={outsideRth}
+                  onChange={(event) => setOutsideRth(event.target.checked)}
+                  data-testid="trade-outside-rth"
+                />
+                <span className="text-[var(--edge-text-secondary)]">
+                  Outside regular trading hours
+                </span>
+              </label>
+            </div>
           ) : null}
 
           {policyBound && protectGate.kind === "soft_warn_paper" ? (
             <p className="mt-2 text-[10px] text-[var(--edge-warning)]" role="status">
-              Paper warn: policy has no resting Protect exit.
+              Paper warn: policy has no resting Bracket exit.
             </p>
           ) : null}
 
@@ -947,7 +991,7 @@ export function TradeOrderForm({
                 onChange={(event) => setUnprotectedConfirm(event.target.checked)}
                 data-testid="trade-unprotected-confirm"
               />
-              Submit unprotected (live escape)
+              Submit entry only (live escape)
             </label>
           ) : null}
 
@@ -956,7 +1000,7 @@ export function TradeOrderForm({
               ? "Live stock orders — real money"
               : policyBound
                 ? scheduleMode === "now"
-                  ? "Paper policy submit — entry + Protect from planned instance"
+                  ? "Paper policy submit — entry + Bracket from planned instance"
                   : "Paper schedule arm — entry fires when due"
                 : planLevels && attachBracket
                   ? "Paper bracket — entry + live stop/TP"

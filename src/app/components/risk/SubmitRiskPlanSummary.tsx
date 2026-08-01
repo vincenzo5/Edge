@@ -42,7 +42,7 @@ export function SubmitRiskPlanSummary({ summary, manageSteps, compact = false }:
           </dd>
         </div>
         <div>
-          <dt className="text-[var(--edge-text-muted)]">Protect</dt>
+          <dt className="text-[var(--edge-text-muted)]">Bracket</dt>
           <dd
             data-testid="submit-risk-plan-protect"
             className="text-[var(--edge-text-primary)]"

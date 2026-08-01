@@ -137,6 +137,7 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 - **Protective OCO:** Open position → Account panel **Protect with OCO** (`POST /api/trading/oco`) attaches stop + TP without a new entry.
 - **Outside RTH:** Trade ticket toggle; preview + submit honor `outsideRth` (default off).
 - **Header Trade:** Opens same panel unbound (generic ticket for active chart symbol).
+- **Ticket layout (compose):** Primary row — side, quantity, order type (`EdgeSelect` MKT/LMT). Account is a header chip (global picker). **Advanced** disclosure (default collapsed) holds Bracket (stop + target, stop leg, Manage preset), TIF (Day/GTC), and Outside RTH. One-line compose status shows budget/size, Bracket on/off, and TIF when collapsed. Preview/submit payloads unchanged (`OrderDraft` / `BracketPlan` → sidecar).
 
 ## Order Types (Phase 3+)
 

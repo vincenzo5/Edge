@@ -65,7 +65,7 @@ describe("summarizeSubmitRiskPlan", () => {
     });
 
     expect(summary.warnings).toEqual(["live_unprotected"]);
-    expect(submitRiskWarningLabel(summary.warnings[0]!)).toContain("without Protect");
+    expect(submitRiskWarningLabel(summary.warnings[0]!)).toContain("without Bracket");
     expect(summary.failureMode).toBeNull();
     expect(summary.gapGuidance).toBeNull();
   });
