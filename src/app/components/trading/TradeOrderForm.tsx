@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { EdgeButton, EdgeSegmentedTabs, EdgeSelect } from "../design-system";
+import { EdgeButton, EdgeLabeledInput, EdgeSegmentedTabs, EdgeSelect } from "../design-system";
 import { fieldClass } from "../design-system/styles";
 import { useAccountOptional } from "../AccountProvider";
 import { useAccountAliasesOptional } from "../AccountAliasesProvider";
@@ -99,6 +99,40 @@ function formatPrice(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function formatSideLabel(side: OrderSide): string {
+  return side === "BUY" ? "Buy" : "Sell";
+}
+
+function resolveDisplayEntry(args: {
+  orderType: OrderType;
+  limitPrice: string;
+  planEntry: number | null;
+  lastPrice: number | null;
+}): string {
+  if (args.orderType === "LMT") {
+    const parsed = Number.parseFloat(args.limitPrice);
+    return Number.isFinite(parsed) ? formatPrice(parsed) : "—";
+  }
+  if (args.lastPrice != null && Number.isFinite(args.lastPrice)) {
+    return `~${formatPrice(args.lastPrice)}`;
+  }
+  if (args.planEntry != null) {
+    return `~${formatPrice(args.planEntry)}`;
+  }
+  return "—";
+}
+
+/** Seed limit entry from plan entry, else last price. */
+export function seedLimitPriceFromLast(args: {
+  currentLimitPrice: string;
+  planEntry: number | null;
+  lastPrice: number | null;
+}): string {
+  if (args.currentLimitPrice.trim()) return args.currentLimitPrice;
+  const seed = args.planEntry ?? args.lastPrice;
+  return seed != null && Number.isFinite(seed) ? String(seed) : args.currentLimitPrice;
 }
 
 export function buildOrderDraft(args: {
@@ -442,6 +476,94 @@ export function TradeOrderForm({
     [managePreviewSteps],
   );
 
+  const displayEntry = useMemo(
+    () =>
+      resolveDisplayEntry({
+        orderType,
+        limitPrice,
+        planEntry: planLevels?.entry ?? null,
+        lastPrice,
+      }),
+    [lastPrice, limitPrice, orderType, planLevels?.entry],
+  );
+
+  const activeRiskDollars = useMemo(() => {
+    if (!attachBracket || !planLevels) return null;
+    if (orderType === "MKT" && marketRisk != null) return marketRisk;
+    return plannedRisk;
+  }, [attachBracket, marketRisk, orderType, planLevels, plannedRisk]);
+
+  const composeStatusLine = useMemo(() => {
+    if (!draft) return "";
+    const parts: string[] = [];
+    parts.push(`${displayEntry} · ${submitRiskSummary.size.label}`);
+    if (planLevels && attachBracket) {
+      parts.push(`Stop ${formatPrice(planLevels.stop)}`);
+      if (activeRiskDollars != null) {
+        parts.push(`risk ${formatMoney(activeRiskDollars)}`);
+      }
+      parts.push(`Target ${formatPrice(planLevels.target)}`);
+      if (planLevels.riskRewardRatio != null) {
+        parts.push(`R:R ${planLevels.riskRewardRatio.toFixed(1)}`);
+      }
+    } else {
+      parts.push("Bracket off");
+    }
+    parts.push(tif);
+    if (outsideRth) parts.push("Outside RTH");
+    return parts.join(" · ");
+  }, [
+    activeRiskDollars,
+    attachBracket,
+    displayEntry,
+    draft,
+    outsideRth,
+    planLevels,
+    submitRiskSummary.size.label,
+    tif,
+  ]);
+
+  const primaryCtaLabel = useMemo(() => {
+    if (loading) return "Previewing…";
+    if (policyBound && scheduleMode !== "now") return "Preview schedule";
+    return `${formatSideLabel(side)} ${symbol.trim().toUpperCase()}`;
+  }, [loading, policyBound, scheduleMode, side, symbol]);
+
+  const confirmSubmitLabel = useMemo(() => {
+    if (loading) return "Submitting…";
+    if (policyBound && scheduleMode !== "now") {
+      return environment === "live" ? "Confirm arm schedule" : "Arm schedule";
+    }
+    if (environment === "live") {
+      return side === "BUY" ? "Confirm buy" : "Confirm sell";
+    }
+    return side === "BUY" ? "Confirm buy" : "Confirm sell";
+  }, [environment, loading, policyBound, scheduleMode, side]);
+
+  const confirmHeadline = useMemo(() => {
+    if (!draft) return "";
+    const entryToken =
+      draft.orderType === "LMT" && draft.limitPrice != null
+        ? formatPrice(draft.limitPrice)
+        : "MKT";
+    return `${draft.side} ${draft.quantity} ${draft.symbol} @ ${entryToken} · ${draft.orderType} · ${draft.tif}`;
+  }, [draft]);
+
+  const confirmBracketLine = useMemo(() => {
+    if (!planLevels || !attachBracket) return null;
+    const parts = [
+      `Stop ${formatPrice(planLevels.stop)}`,
+      `Target ${formatPrice(planLevels.target)}`,
+    ];
+    if (activeRiskDollars != null) {
+      parts.push(`Risk ${formatMoney(activeRiskDollars)}`);
+    }
+    if (planLevels.riskRewardRatio != null) {
+      parts.push(`R:R ${planLevels.riskRewardRatio.toFixed(1)}`);
+    }
+    return parts.join(" · ");
+  }, [activeRiskDollars, attachBracket, planLevels]);
+
   const handleSizeForRisk = useCallback(() => {
     if (riskSizedQuantity == null) return;
     setQuantity(String(riskSizedQuantity));
@@ -706,31 +828,46 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
-          <EdgeSegmentedTabs
-            segments={[
-              { id: "BUY", label: "Buy" },
-              { id: "SELL", label: "Sell" },
-            ]}
-            value={side}
-            onChange={(value) => setSide(value as OrderSide)}
-          />
-
-          <div className="mt-3 grid grid-cols-[1fr_auto] items-end gap-2">
-            <label className="block min-w-0">
-              <span className="text-[var(--edge-text-secondary)]">Quantity</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                className={`mt-1 ${fieldClass({ density: "standard" })}`}
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
+          <div className="grid grid-cols-[auto_1fr_auto] items-end gap-2">
+            <div className="min-w-[4.5rem]">
+              <EdgeSelect
+                value={side}
+                onChange={(value) => setSide(value as OrderSide)}
+                options={[
+                  { value: "BUY", label: "Buy" },
+                  { value: "SELL", label: "Sell" },
+                ]}
+                label="Side"
+                density="standard"
+                variant="field"
+                testId="trade-side"
               />
-            </label>
+            </div>
+            <EdgeLabeledInput
+              label="Quantity"
+              type="number"
+              min={1}
+              step={1}
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+              testId="trade-quantity"
+            />
             <div className="min-w-[7rem]">
               <EdgeSelect
                 value={orderType === "LMT" ? "LMT" : "MKT"}
-                onChange={(value) => setOrderType(value as OrderType)}
+                onChange={(value) => {
+                  const next = value as OrderType;
+                  setOrderType(next);
+                  if (next === "LMT") {
+                    setLimitPrice((current) =>
+                      seedLimitPriceFromLast({
+                        currentLimitPrice: current,
+                        planEntry: planLevels?.entry ?? null,
+                        lastPrice,
+                      }),
+                    );
+                  }
+                }}
                 options={[
                   { value: "MKT", label: "Market" },
                   { value: "LMT", label: "Limit" },
@@ -744,17 +881,60 @@ export function TradeOrderForm({
           </div>
 
           {orderType === "LMT" ? (
-            <label className="mt-3 block">
-              <span className="text-[var(--edge-text-secondary)]">Limit price</span>
-              <input
+            <div className="mt-3">
+              <EdgeLabeledInput
+                label="Entry"
                 type="number"
                 min={0}
                 step="0.01"
-                className={`mt-1 ${fieldClass({ density: "standard" })}`}
                 value={limitPrice}
                 onChange={(event) => setLimitPrice(event.target.value)}
+                testId="trade-limit-price"
               />
-            </label>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <div className="text-[10px] text-[var(--edge-text-secondary)]">Entry</div>
+              <div
+                className="mt-1 font-mono text-[var(--edge-text-strong)]"
+                data-testid="trade-entry-display"
+              >
+                {displayEntry}
+              </div>
+            </div>
+          )}
+
+          {planLevels && !policyBound ? (
+            <div className="mt-3 space-y-2" data-testid="trade-bracket-surface">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={attachBracket}
+                  onChange={(event) => {
+                    setAttachBracket(event.target.checked);
+                    if (!event.target.checked) {
+                      setManagePresetId("off");
+                    }
+                  }}
+                  data-testid="trade-attach-bracket"
+                />
+                <span className="text-[var(--edge-text-secondary)]">Bracket</span>
+              </label>
+              {attachBracket ? (
+                <p
+                  className="text-[10px] text-[var(--edge-text-secondary)]"
+                  data-testid="trade-bracket-risk-line"
+                >
+                  Stop {formatPrice(planLevels.stop)} · Target {formatPrice(planLevels.target)}
+                  {activeRiskDollars != null ? ` · risk ${formatMoney(activeRiskDollars)}` : ""}
+                  {planLevels.riskRewardRatio != null
+                    ? ` · R:R ${planLevels.riskRewardRatio.toFixed(1)}`
+                    : ""}
+                </p>
+              ) : (
+                <p className="text-[10px] text-[var(--edge-text-secondary)]">Bracket off</p>
+              )}
+            </div>
           ) : null}
 
           {planLevels ? (
@@ -842,12 +1022,7 @@ export function TradeOrderForm({
               className="mt-3 text-[10px] text-[var(--edge-text-secondary)]"
               data-testid="trade-compose-status"
             >
-              {submitRiskSummary.budget.label !== "—"
-                ? `${submitRiskSummary.budget.label} · `
-                : ""}
-              {submitRiskSummary.size.label} ·{" "}
-              {submitRiskSummary.protect.attached ? "Bracket on" : "Bracket off"} · {tif}
-              {outsideRth ? " · Outside RTH" : ""}
+              {composeStatusLine}
             </p>
           ) : null}
 
@@ -870,79 +1045,55 @@ export function TradeOrderForm({
               className="mt-2 space-y-3 rounded border border-[var(--edge-border)] px-2 py-2"
               data-testid="trade-advanced-panel"
             >
-              {planLevels && !policyBound ? (
+              {planLevels && !policyBound && attachBracket ? (
                 <>
-                  <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-                    Bracket
-                  </div>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={attachBracket}
-                      onChange={(event) => {
-                        setAttachBracket(event.target.checked);
-                        if (!event.target.checked) {
-                          setManagePresetId("off");
-                        }
-                      }}
-                      data-testid="trade-attach-bracket"
-                    />
-                    <span className="text-[var(--edge-text-secondary)]">
-                      Stop + target
-                    </span>
-                  </label>
-
-                  {attachBracket ? (
-                    <div className="space-y-2">
-                      <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-                        Stop leg
-                      </div>
-                      <EdgeSegmentedTabs
-                        segments={[
-                          { id: "fixed", label: "Fixed" },
-                          { id: "trail", label: "Trail" },
-                        ]}
-                        value={stopLegMode}
-                        onChange={(value) => setStopLegMode(value as StopLegMode)}
-                      />
-                      {stopLegMode === "trail" ? (
-                        <div className="grid grid-cols-2 gap-2">
-                          <label className="block">
-                            <span className="text-[var(--edge-text-secondary)]">Trail $</span>
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              className={`mt-1 ${fieldClass({ density: "standard" })}`}
-                              value={trailAmount}
-                              onChange={(event) => setTrailAmount(event.target.value)}
-                            />
-                          </label>
-                          <label className="block">
-                            <span className="text-[var(--edge-text-secondary)]">Trail %</span>
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.1"
-                              className={`mt-1 ${fieldClass({ density: "standard" })}`}
-                              value={trailPercent}
-                              onChange={(event) => setTrailPercent(event.target.value)}
-                            />
-                          </label>
-                        </div>
-                      ) : null}
+                  <div className="space-y-2">
+                    <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                      Stop leg
                     </div>
-                  ) : null}
-
-                  {attachBracket ? (
-                    <ManagePlaybookPicker
-                      value={managePresetId}
-                      onChange={setManagePresetId}
-                      positionPlan={managePreviewPlan}
-                      notifyAtManageLevels={manageNotifyAtManageLevels}
-                      onNotifyChange={setManageNotifyAtManageLevels}
+                    <EdgeSegmentedTabs
+                      segments={[
+                        { id: "fixed", label: "Fixed" },
+                        { id: "trail", label: "Trail" },
+                      ]}
+                      value={stopLegMode}
+                      onChange={(value) => setStopLegMode(value as StopLegMode)}
                     />
-                  ) : null}
+                    {stopLegMode === "trail" ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block">
+                          <span className="text-[var(--edge-text-secondary)]">Trail $</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className={`mt-1 ${fieldClass({ density: "standard" })}`}
+                            value={trailAmount}
+                            onChange={(event) => setTrailAmount(event.target.value)}
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-[var(--edge-text-secondary)]">Trail %</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.1"
+                            className={`mt-1 ${fieldClass({ density: "standard" })}`}
+                            value={trailPercent}
+                            onChange={(event) => setTrailPercent(event.target.value)}
+                          />
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <ManagePlaybookPicker
+                    value={managePresetId}
+                    onChange={setManagePresetId}
+                    positionPlan={managePreviewPlan}
+                    notifyAtManageLevels={manageNotifyAtManageLevels}
+                    onNotifyChange={setManageNotifyAtManageLevels}
+                  />
                 </>
               ) : null}
 
@@ -1024,12 +1175,9 @@ export function TradeOrderForm({
               className="flex-1"
               disabled={loading || !draft}
               onClick={() => void handlePreview()}
+              data-testid="trade-primary-cta"
             >
-              {loading
-                ? "Previewing…"
-                : policyBound && scheduleMode !== "now"
-                  ? "Preview schedule"
-                  : "Preview"}
+              {primaryCtaLabel}
             </EdgeButton>
           </div>
         </div>
@@ -1037,12 +1185,16 @@ export function TradeOrderForm({
 
       {step === "confirm" && preview && draft ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 text-xs">
-          <div className="rounded border border-[var(--edge-border)] px-3 py-2">
-            <div className="font-medium text-[var(--edge-text-strong)]">
-              {draft.side} {draft.quantity} {draft.symbol} · {draft.orderType}
-            </div>
+          <div
+            className="rounded border border-[var(--edge-border)] px-3 py-2"
+            data-testid="trade-confirm-headline"
+          >
+            <div className="font-medium text-[var(--edge-text-strong)]">{confirmHeadline}</div>
+            {confirmBracketLine ? (
+              <div className="mt-1 text-[var(--edge-text-secondary)]">{confirmBracketLine}</div>
+            ) : null}
             <div className="mt-1 text-[var(--edge-text-secondary)]">
-              Account {draft.accountId} · {draft.tif} · {draft.environment}
+              Account {draft.accountId} · {draft.environment}
               {draft.outsideRth ? " · Outside RTH" : ""}
             </div>
           </div>
@@ -1090,8 +1242,13 @@ export function TradeOrderForm({
             </label>
           ) : null}
           <div className="mt-4 flex gap-2">
-            <EdgeButton theme={theme} onClick={handleBackToForm} disabled={loading}>
-              Back
+            <EdgeButton
+              theme={theme}
+              onClick={handleBackToForm}
+              disabled={loading}
+              data-testid="trade-confirm-cancel"
+            >
+              Cancel
             </EdgeButton>
             <EdgeButton
               theme={theme}
@@ -1106,16 +1263,9 @@ export function TradeOrderForm({
                   !unprotectedConfirm)
               }
               onClick={() => void handleSubmit()}
+              data-testid="trade-confirm-submit"
             >
-              {loading
-                ? "Submitting…"
-                : policyBound && scheduleMode !== "now"
-                  ? environment === "live"
-                    ? "Confirm arm schedule"
-                    : "Arm schedule"
-                  : environment === "live"
-                    ? "Confirm live order"
-                    : "Confirm & submit"}
+              {confirmSubmitLabel}
             </EdgeButton>
           </div>
         </div>

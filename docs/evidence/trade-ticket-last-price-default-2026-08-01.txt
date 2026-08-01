@@ -1,0 +1,25 @@
+# LIVE — Trade ticket compact UX evidence
+# Date: 2026-08-01
+
+## Scope
+Market Entry defaults to last price (live quote, else active-chart last candle close). Limit Entry auto-fills from plan entry or last price when switching Type → Limit.
+
+## Delivered
+- src/lib/trading/resolveTradeTicketLastPrice.ts — quote-then-candle resolver
+- src/lib/trading/resolveTradeTicketLastPrice.test.ts — preference + fallback cases
+- src/app/components/sidebar/panels/TradeSidebarPanel.tsx — wire resolver into lastPrice
+- src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx — quote + candle fallback UI
+- src/app/components/trading/TradeOrderForm.tsx — seedLimitPriceFromLast on LMT switch
+- src/app/components/trading/TradeOrderForm.test.tsx — market display + limit autofill
+- src/lib/trading/ARCHITECTURE.md — ticket entry last-price contract
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/resolveTradeTicketLastPrice.test.ts src/app/components/trading/TradeOrderForm.test.tsx src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx
+Output:
+Test Files  3 passed (3)
+Tests  25 passed (25)
+exit=0
+
+## App-level
+Deferred — open Trade on a chart symbol with quote cold: Entry shows ~last candle; switch Type → Limit and confirm Entry fills same price.

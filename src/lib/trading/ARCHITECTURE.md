@@ -137,7 +137,7 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 - **Protective OCO:** Open position → Account panel **Protect with OCO** (`POST /api/trading/oco`) attaches stop + TP without a new entry.
 - **Outside RTH:** Trade ticket toggle; preview + submit honor `outsideRth` (default off).
 - **Header Trade:** Opens same panel unbound (generic ticket for active chart symbol).
-- **Ticket layout (compose):** Primary row — side, quantity, order type (`EdgeSelect` MKT/LMT). Account is a header chip (global picker). **Advanced** disclosure (default collapsed) holds Bracket (stop + target, stop leg, Manage preset), TIF (Day/GTC), and Outside RTH. One-line compose status shows budget/size, Bracket on/off, and TIF when collapsed. Preview/submit payloads unchanged (`OrderDraft` / `BracketPlan` → sidecar).
+- **Ticket layout (compose):** Primary row — side (`EdgeSelect` Buy/Sell), quantity, order type (`EdgeSelect` MKT/LMT). Entry shows limit input (LMT, auto-filled from plan entry or last price) or read-only ~last/plan (MKT; last price = live quote else active-chart last candle close). Bracket toggle + stop/target/risk/R:R line on compose when drawing-bound (not policy-bound). **Advanced** (default collapsed) holds stop leg (Fixed/Trail), Manage preset, TIF (Day/GTC), and Outside RTH. One-line compose status shows entry · size · stop · risk · target · R:R · TIF. Primary CTA is **Buy/Sell {symbol}** → preview → inline confirm (Cancel / Confirm buy|sell). Preview/submit payloads unchanged (`OrderDraft` / `BracketPlan` → sidecar).
 
 ## Order Types (Phase 3+)
 

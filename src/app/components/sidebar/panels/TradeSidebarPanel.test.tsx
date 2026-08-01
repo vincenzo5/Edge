@@ -20,32 +20,30 @@ const mockBinding = {
   updateBoundLevels: vi.fn(),
 };
 
+const mockActiveChart = {
+  config: { symbol: "AAPL" },
+  dataWindow: {
+    candles: [{ t: 1, o: 1, h: 1, l: 1, c: 148.5, v: 1 }],
+  },
+  chartCommands: {
+    getCandles: () => [{ t: 1, o: 1, h: 1, l: 1, c: 148.5, v: 1 }],
+  },
+};
+
+let mockQuote: { regularMarketPrice: number | null } | null = {
+  regularMarketPrice: 150,
+};
+
 vi.mock("../../trading/TradeSetupBindingContext", () => ({
   useTradeSetupBinding: () => mockBinding,
 }));
 
 vi.mock("../../ActiveChartContext", () => ({
-  useActiveChart: () => ({
-    config: { symbol: "AAPL" },
-  }),
+  useActiveChart: () => mockActiveChart,
 }));
 
-vi.mock("../../MarketDataProvider", () => ({
-  useMarketDataQuotes: () => ({
-    quotesBySymbol: new Map([
-      [
-        "AAPL",
-        {
-          symbol: "AAPL",
-          regularMarketPrice: 150,
-          regularMarketChange: null,
-          regularMarketChangePercent: null,
-          regularMarketVolume: null,
-          updatedAt: Date.now(),
-        },
-      ],
-    ]),
-  }),
+vi.mock("@/lib/marketData/useQuotes", () => ({
+  useQuote: () => mockQuote,
 }));
 
 vi.mock("../../AccountProvider", () => ({
@@ -62,6 +60,23 @@ vi.mock("../../AccountProvider", () => ({
   }),
 }));
 
+vi.mock("../../AccountAliasesProvider", () => ({
+  useAccountAliasesOptional: () => ({
+    displayNameFor: () => "DUP586813",
+  }),
+}));
+
+vi.mock("../../RiskSettingsProvider", () => ({
+  useRiskSettingsOptional: () => ({
+    dollarRisk: 1000,
+    settings: null,
+  }),
+}));
+
+vi.mock("../../trading/usePlaybookInstances", () => ({
+  usePlaybookInstances: () => ({ instances: [], refresh: vi.fn() }),
+}));
+
 vi.mock("@/lib/trading/tradingClient", () => ({
   previewOrder: vi.fn(),
   submitOrder: vi.fn(),
@@ -70,12 +85,17 @@ vi.mock("@/lib/trading/tradingClient", () => ({
   },
 }));
 
+vi.mock("../PanelChromeActions", () => ({
+  PanelPopOutButton: () => null,
+}));
+
 describe("TradeSidebarPanel", () => {
   beforeEach(() => {
     mockBinding.bind = null;
     mockBinding.levels = null;
     mockBinding.symbol = null;
     mockBinding.seedQuantity = null;
+    mockQuote = { regularMarketPrice: 150 };
   });
 
   it("shows disconnected state when bound drawing is missing", async () => {
@@ -87,22 +107,16 @@ describe("TradeSidebarPanel", () => {
     expect(await screen.findByText(/No trade setup linked/i)).toBeInTheDocument();
   });
 
-  it("shows plan levels when bound drawing is active", async () => {
-    mockBinding.bind = { cellId: "cell-0", drawingId: "draw-1" };
+  it("defaults market entry to quote last price", async () => {
     mockBinding.symbol = "AAPL";
-    mockBinding.levels = {
-      direction: "long",
-      side: "BUY",
-      entry: 100,
-      stop: 95,
-      target: 110,
-      riskRewardRatio: 2,
-    };
-
     render(<TradeSidebarPanel />);
-    expect(await screen.findByText(/Plan \(from drawing\)/i)).toBeInTheDocument();
-    expect(screen.getByText("100.00")).toBeInTheDocument();
-    expect(screen.getByText("95.00")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Preview" })).toBeInTheDocument();
+    expect(await screen.findByTestId("trade-entry-display")).toHaveTextContent("~150.00");
+  });
+
+  it("falls back to chart last candle close when quote is missing", async () => {
+    mockQuote = null;
+    mockBinding.symbol = "AAPL";
+    render(<TradeSidebarPanel />);
+    expect(await screen.findByTestId("trade-entry-display")).toHaveTextContent("~148.50");
   });
 });
