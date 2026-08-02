@@ -20,7 +20,8 @@ Full RiskPolicy slot definitions: [Risk Management System Roadmap](../../../docs
 
 | Surface | Path | Slots |
 |---------|------|-------|
-| Risk sidebar | `RiskSettingsPanel.tsx` | Budget + Sizing (bound geometry) |
+| Risk sidebar | `RiskSettingsPanel.tsx` | Budget + Sizing (bound geometry); account caps / gates |
+| Application settings | `AppSettingsShell.tsx` → **Risk policies** tab | Policies library (`RiskPoliciesSection.tsx`) |
 | Chart selection strip | `PositionPlanPanel.tsx` via `DrawingSelectionChrome.tsx` | Editable entry/stop/target + derived Measurement preview (Budget/Sizing read-only) |
 | Chart overlay | `useRiskDrawingBinding.ts`, chart-core `risk/*` | Geometry labels, R targets, validation |
 | Trade ticket | `TradeOrderForm.tsx`, `ProtectiveOcoForm.tsx` | Budget→Sizing handoff; pre-submit Risk plan summary (Phase 4) |
@@ -119,8 +120,15 @@ Journal planned-risk auto-sync from PositionPlan on Manage journal sync (Phase 8
 - **Manual-off:** `pausePlaybookInstance` / `detachPlaybookInstance` assert conflict-policy invariants; `cancelProtectForInstance` + `POST .../playbooks/[id]/cancel-protect` cancels broker Protect only.
 - **Schedule:** `resolveEntrySchedule.ts`, `promotePlannedInstances.ts` — materialize `scheduledFor`, promote due `planned` → `pending_fill` inside `evaluatePlaybooks()` (reuses `/api/cron/playbook-evaluate`).
 - **Journal M5:** migration `0040_journal_risk_policy_instance_id.sql` — `journal_trades.risk_policy_instance_id`; sync from `managePlaybook.instanceId` on journal recipe write.
-- **Not shipped:** Policies library UI, chart apply UX (Phases 4–5).
+- **Not shipped:** Chart apply UX (Phase 5).
 - **Roadmap:** [Risk Policy Data Model Phase 3](../../../docs/roadmaps/risk-policy-data-model-roadmap.md).
+
+## Phase 4 — Policies library authoring (shipped)
+
+- **UI:** `RiskPoliciesSection.tsx` in Application settings → **Risk policies** tab — list builtins + user templates; Open / Duplicate / Delete; New policy from preset; sectioned `PlaybookTemplateEditor` (Identity → Budget → Sizing → Geometry → Exits → Gates → Schedule → Review).
+- **Completeness:** `templateReview.ts` + `assessTemplateCompleteness` strip + failure-mode one-liner on Review.
+- **Persistence:** `playbookTemplateMutations.ts` — slot copy on create/duplicate, dual-write `rules` from `exits` on patch; shared `templateToPatchPayload` for sidebar + Trade picker saves.
+- **Roadmap:** [Risk Policy Data Model Phase 4](../../../docs/roadmaps/risk-policy-data-model-roadmap.md).
 
 ## Failure mode (Plan layer)
 

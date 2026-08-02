@@ -1,44 +1,28 @@
 "use client";
 
-import { useMemo, useRef, useSyncExternalStore } from "react";
-import EdgeSelect from "../design-system/EdgeSelect";
-import EdgeSegmentedTabs from "../design-system/EdgeSegmentedTabs";
-import { labeledFieldClass } from "../design-system/styles";
+import { useCallback, useRef, useState } from "react";
 import EdgeSlideOver from "../design-system/EdgeSlideOver";
-import { useAppTimeZone } from "../AppTimeZoneProvider";
-import { useAppTheme } from "../AppThemeProvider";
-import { buildTimeZoneMenuOptions, type ChartTimeZone } from "@edge/chart-core/timeZone";
+import { EdgeUnderlineTabs } from "../design-system";
 import {
-  PALETTES,
-  PALETTE_DESCRIPTIONS,
-  PALETTE_LABELS,
-  type PaletteId,
-} from "@/lib/design-system/palettes";
-import { getEdgeTokens } from "@/lib/design-system/edge";
-import {
-  readDefaultDensityPreference,
-  subscribeDefaultDensityPreference,
-  writeDefaultDensityPreference,
-  type DefaultResearchDensity,
-} from "@/lib/research/defaultDensityPreference";
-import { PERMANENT_DENSITY_ORDER } from "@/lib/research/densityNav";
+  readAppSettingsTabPreference,
+  writeAppSettingsTabPreference,
+  type AppSettingsTabId,
+} from "@/lib/app/appSettingsTabPreference";
 import ConnectionsSettingsSection from "./ConnectionsSettingsSection";
+import GeneralSettingsSection from "./GeneralSettingsSection";
 import MarketDataSettingsSection from "./MarketDataSettingsSection";
+import MonthlyCostsSettingsSection from "./MonthlyCostsSettingsSection";
+import { RiskPoliciesSection } from "../risk/RiskPoliciesSection";
 import { useSettingsMarketDataHealth } from "./useSettingsMarketDataHealth";
 import type { TradingAccount } from "@/lib/trading/types";
 
-const DEFAULT_DENSITY_SEGMENTS = PERMANENT_DENSITY_ORDER.map((density) => ({
-  id: density,
-  label: density,
-}));
-
-function subscribeDefaultDensitySnapshot(onStoreChange: () => void) {
-  return subscribeDefaultDensityPreference(() => onStoreChange());
-}
-
-function getDefaultDensitySnapshot(): DefaultResearchDensity {
-  return readDefaultDensityPreference();
-}
+const SETTINGS_TABS = [
+  { id: "general", label: "General" },
+  { id: "connections", label: "Connections" },
+  { id: "market-data", label: "Market data" },
+  { id: "costs", label: "Costs" },
+  { id: "risk-policies", label: "Risk policies" },
+] as const;
 
 type Props = {
   open: boolean;
@@ -51,33 +35,6 @@ type Props = {
   onRecoverTws?: () => void;
 };
 
-function PaletteSwatches({ palette, active }: { palette: PaletteId; active: boolean }) {
-  const { theme } = useAppTheme();
-  const tokens = getEdgeTokens(palette, theme);
-  const swatches = [
-    tokens.surfaceChart,
-    tokens.surfacePanel,
-    tokens.accentBlue,
-    tokens.positive,
-    tokens.negative,
-  ];
-
-  return (
-    <span className="flex gap-1" aria-hidden>
-      {swatches.map((color) => (
-        <span
-          key={color}
-          className="h-3 w-3 rounded-[2px] border border-[var(--edge-border-subtle)]"
-          style={{ backgroundColor: color }}
-        />
-      ))}
-      {active ? (
-        <span className="sr-only">Selected</span>
-      ) : null}
-    </span>
-  );
-}
-
 export default function AppSettingsShell({
   open,
   onClose,
@@ -89,25 +46,14 @@ export default function AppSettingsShell({
   onRecoverTws = () => {},
 }: Props) {
   const localTriggerRef = useRef<HTMLElement>(null);
-  const { timeZone, setTimeZone } = useAppTimeZone();
-  const { theme, palette, setPalette } = useAppTheme();
-  const defaultDensity = useSyncExternalStore(
-    subscribeDefaultDensitySnapshot,
-    getDefaultDensitySnapshot,
-    () => "Desk" as DefaultResearchDensity,
-  );
-  const { health, loading: healthLoading, error: healthError } = useSettingsMarketDataHealth(open);
+  const [activeTab, setActiveTab] = useState<AppSettingsTabId>(() => readAppSettingsTabPreference());
 
-  const timeZoneOptions = useMemo(
-    () =>
-      buildTimeZoneMenuOptions()
-        .filter((opt) => opt.id !== "exchange")
-        .map((opt) => ({
-          value: opt.id as ChartTimeZone,
-          label: opt.label,
-        })),
-    [],
-  );
+  const setTab = useCallback((next: AppSettingsTabId) => {
+    setActiveTab(next);
+    writeAppSettingsTabPreference(next);
+  }, []);
+
+  const { health, loading: healthLoading, error: healthError } = useSettingsMarketDataHealth(open);
 
   return (
     <EdgeSlideOver
@@ -118,111 +64,84 @@ export default function AppSettingsShell({
       testId="app-settings-shell"
       returnFocusRef={returnFocusRef ?? localTriggerRef}
     >
-      <div className="space-y-6 p-1">
-        <section className="space-y-3" aria-labelledby="app-settings-appearance-heading">
-          <h3
-            id="app-settings-appearance-heading"
-            className="text-sm font-semibold text-[var(--edge-text-strong)]"
-          >
-            Appearance
-          </h3>
-          <p className="text-xs text-[var(--edge-text-secondary)]">
-            Color palette applies in both light and dark mode. Switch light or dark from the sun/moon
-            control in the header.
-          </p>
+      <div className="space-y-4 p-1">
+        <div data-testid="app-settings-tablist">
+          <EdgeUnderlineTabs
+            segments={[...SETTINGS_TABS]}
+            value={activeTab}
+            onChange={(id) => setTab(id as AppSettingsTabId)}
+          />
+        </div>
+
+        {activeTab === "general" ? (
           <div
-            role="radiogroup"
-            aria-label="Color palette"
-            className="grid gap-2"
-            data-testid="app-palette-picker"
+            role="tabpanel"
+            id="app-settings-panel-general"
+            aria-labelledby="app-settings-tab-general"
+            data-testid="app-settings-panel-general"
           >
-            {PALETTES.map((option) => {
-              const selected = palette === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  data-testid={`app-palette-option-${option}`}
-                  data-selected={selected ? "true" : "false"}
-                  onClick={() => setPalette(option)}
-                  className={`flex w-full items-center justify-between gap-3 rounded-[var(--edge-radius-md)] border px-3 py-2 text-left transition-colors ${
-                    selected
-                      ? "border-[var(--edge-accent-blue)] bg-[var(--edge-surface-active)]"
-                      : "border-[var(--edge-border)] bg-[var(--edge-surface-panel)] hover:bg-[var(--edge-surface-hover)]"
-                  }`}
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-[var(--edge-text-strong)]">
-                      {PALETTE_LABELS[option]}
-                    </span>
-                    <span className="block text-xs text-[var(--edge-text-secondary)]">
-                      {PALETTE_DESCRIPTIONS[option]}
-                    </span>
-                  </span>
-                  <PaletteSwatches palette={option} active={selected} />
-                </button>
-              );
-            })}
+            <GeneralSettingsSection />
           </div>
-          <p className="text-xs text-[var(--edge-text-muted)]">
-            Preview swatches reflect the current {theme} mode.
-          </p>
-        </section>
+        ) : null}
 
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-[var(--edge-text-strong)]">Defaults</h3>
-          <div className={labeledFieldClass()}>
-            <label htmlFor="app-default-timezone" className="text-[var(--edge-text-secondary)]">
-              Default timezone
-            </label>
-            <EdgeSelect
-              value={timeZone}
-              options={timeZoneOptions}
-              onChange={setTimeZone}
-              variant="field"
-              density="standard"
-              testId="app-default-timezone"
-              aria-label="Default timezone"
+        {activeTab === "connections" ? (
+          <div
+            role="tabpanel"
+            id="app-settings-panel-connections"
+            aria-labelledby="app-settings-tab-connections"
+            data-testid="app-settings-panel-connections"
+          >
+            <ConnectionsSettingsSection
+              enabled={open}
+              health={health}
+              healthLoading={healthLoading}
+              healthError={healthError}
+              accounts={accounts}
+              accountsLoading={accountsLoading}
+              recoveringTws={recoveringTws}
+              recoverMessage={recoverMessage}
+              onRecoverTws={onRecoverTws}
             />
           </div>
-          <p className="text-xs text-[var(--edge-text-secondary)]">
-            Charts inherit this timezone until you change it from the chart clock or chart settings.
-          </p>
-          <div className={labeledFieldClass()}>
-            <span className="text-[var(--edge-text-secondary)]">Default density</span>
-            <EdgeSegmentedTabs
-              segments={DEFAULT_DENSITY_SEGMENTS}
-              value={defaultDensity}
-              onChange={(id) => writeDefaultDensityPreference(id as DefaultResearchDensity)}
+        ) : null}
+
+        {activeTab === "market-data" ? (
+          <div
+            role="tabpanel"
+            id="app-settings-panel-market-data"
+            aria-labelledby="app-settings-tab-market-data"
+            data-testid="app-settings-panel-market-data"
+          >
+            <MarketDataSettingsSection
+              enabled={open}
+              health={health}
+              healthLoading={healthLoading}
+              healthError={healthError}
             />
-            <div data-testid="app-default-density">{defaultDensity}</div>
           </div>
-          <p className="text-xs text-[var(--edge-text-secondary)]">
-            When you open Edge with no recent module, land on Talk, Board, or Desk. Recent activity
-            still wins for 24 hours.
-          </p>
-        </section>
+        ) : null}
 
-        <ConnectionsSettingsSection
-          enabled={open}
-          health={health}
-          healthLoading={healthLoading}
-          healthError={healthError}
-          accounts={accounts}
-          accountsLoading={accountsLoading}
-          recoveringTws={recoveringTws}
-          recoverMessage={recoverMessage}
-          onRecoverTws={onRecoverTws}
-        />
+        {activeTab === "costs" ? (
+          <div
+            role="tabpanel"
+            id="app-settings-panel-costs"
+            aria-labelledby="app-settings-tab-costs"
+            data-testid="app-settings-panel-costs"
+          >
+            <MonthlyCostsSettingsSection enabled={open} health={health} />
+          </div>
+        ) : null}
 
-        <MarketDataSettingsSection
-          enabled={open}
-          health={health}
-          healthLoading={healthLoading}
-          healthError={healthError}
-        />
+        {activeTab === "risk-policies" ? (
+          <div
+            role="tabpanel"
+            id="app-settings-panel-risk-policies"
+            aria-labelledby="app-settings-tab-risk-policies"
+            data-testid="app-settings-panel-risk-policies"
+          >
+            <RiskPoliciesSection />
+          </div>
+        ) : null}
       </div>
     </EdgeSlideOver>
   );

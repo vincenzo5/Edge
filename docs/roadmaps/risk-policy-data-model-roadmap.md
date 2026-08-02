@@ -27,7 +27,7 @@ A **risk policy** is a named pack of composable rules (budget, sizing, geometry 
 - Pause / Detach never cancel Protect; Cancel Protect is a separate confirmed action.
 - Broker orders remain **effects** linked by id — not reconstructed policy truth.
 - Additive migration from `PlaybookTemplate` / `PlaybookInstance` with no dual-write rewrite of live Manage.
-- **Apply UX:** long/short drawing is the policy apply surface; Trade panel is entry + schedule + confirm only; Risk sidebar is the template library.
+- **Apply UX:** long/short drawing is the policy apply surface; Trade panel is entry + schedule + confirm only; Application settings **Risk policies** tab is the template library.
 - **Scheduled entry:** `EntrySchedule` is first-class (immediate / session event / clock); “at open” is one preset, not a one-off feature.
 
 ### Non-goals (v1)
@@ -391,7 +391,7 @@ Do **not** re-litigate surface ownership or the locked recommendations below wit
 5. Open **Trade** for *how/when* to enter (MKT / LMT, schedule), confirm, submit — or leave scheduled overnight.
 6. After fill: policy automates per exits until flat, unless Pause / Detach / manual exit.
 
-**One-line UX framing:** *Chart owns what + which policy; Trade owns how/when to enter; Risk sidebar owns the recipe library.*
+**One-line UX framing:** *Chart owns what + which policy; Trade owns how/when to enter; Application settings owns the recipe library.*
 
 ### Surface ownership
 
@@ -399,7 +399,7 @@ Do **not** re-litigate surface ownership or the locked recommendations below wit
 |---------|------|--------------|
 | Long/short + Plan panel | Geometry; apply/swap policy; R/qty preview; integrity chips; **Trade setup…** | Order type, live confirm, account picker, full recipe editor |
 | Trade panel | Entry type (MKT/LMT/…); **EntrySchedule**; preview/submit; promote planned → pending_fill; read-only policy summary | Second full policy composer when drawing-bound |
-| Risk sidebar → Policies | Create / edit / duplicate / archive templates | Day-to-day apply on a live trade (apply is on chart) |
+| Application settings → Risk policies | Create / edit / duplicate / archive templates | Day-to-day apply on a live trade (apply is on chart) |
 
 Applying a policy on the drawing:
 
@@ -498,7 +498,7 @@ Policy already encodes Protect + Manage. Ticket shows a summary, not a second co
 
 ### Authoring UX (library) — intent
 
-Risk sidebar section **Policies**:
+Application settings tab **Risk policies**:
 
 - List builtins + user templates; row actions Open / Duplicate / Delete (user only).
 - Editor sections: Identity → Budget → Sizing → Geometry shape → Exits (unified) → Gates → optional default EntrySchedule → Review (completeness strip + failure-mode one-liner).
@@ -619,5 +619,5 @@ Do not reopen slot vocabulary here — extend [risk-management-system-roadmap.md
 | Plan budget | `src/lib/risk/riskSettings.ts` | Session; inherit from template |
 | Plan panel / drawing chrome | `PositionPlanPanel.tsx`, `DrawingSelectionChrome.tsx` | Phase 5 apply surface |
 | Trade ticket | `TradeOrderForm.tsx`, `ManagePlaybookPicker.tsx` | Evolve to summary + schedule |
-| Risk sidebar | `RiskSettingsPanel.tsx` | Phase 4 Policies library section |
+| Application settings | `AppSettingsShell.tsx` → **Risk policies** tab | Phase 4 Policies library |
 | Position geometry | `packages/chart-core/.../positionGeometry.ts` | Levels + future multi-TP / time |

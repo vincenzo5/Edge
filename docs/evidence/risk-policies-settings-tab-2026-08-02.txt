@@ -1,0 +1,22 @@
+# APP — Risk policies settings tab evidence
+# Date: 2026-08-02
+
+## Scope
+Move risk Policies library from Risk calculator sidebar to Application settings → Risk policies tab.
+
+## Delivered
+- src/lib/app/appSettingsTabPreference.ts — add risk-policies tab id
+- src/app/components/home/AppSettingsShell.tsx — Risk policies tab + RiskPoliciesSection mount
+- src/app/components/home/AppSettingsShell.test.tsx — tab + library test; fetch mock for templates API
+- src/app/components/sidebar/panels/RiskSettingsPanel.tsx — remove Policies section
+- src/app/components/risk/RiskPoliciesSection.tsx — update apply blurb
+- src/lib/risk/ARCHITECTURE.md, src/lib/trading/ARCHITECTURE.md, docs/roadmaps/risk-policy-data-model-roadmap.md — location sync
+
+## Focused
+Command:
+npm test -- --run src/app/components/home/AppSettingsShell.test.tsx src/app/components/risk/RiskPoliciesSection.test.tsx src/app/components/sidebar/panels/RiskSettingsPanel.test.tsx
+
+Result:
+Test Files  3 passed (3)
+Tests  33 passed (33)
+exit=0
