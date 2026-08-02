@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { MarginStatus } from "@/lib/risk/marginContext";
 import { marginStatusTextClass } from "@/lib/risk/marginContext";
 import type { OrderImpactEconomics } from "@/lib/trading/computeOrderImpact";
@@ -18,6 +19,15 @@ type Props = {
   marginLoading?: boolean;
   marginError?: string | null;
   accountConnected: boolean;
+  /** When set, "Needs stop" becomes an actionable Add stop control. */
+  onAddStop?: () => void;
+  /** Optional risk-plan teaser + expanded checklist inside Review. */
+  riskPlan?: {
+    teaser: string;
+    open: boolean;
+    onToggle: () => void;
+    detail: ReactNode;
+  } | null;
 };
 
 function ImpactRow({
@@ -25,11 +35,13 @@ function ImpactRow({
   value,
   valueClassName,
   testId,
+  valueNode,
 }: {
   label: string;
-  value: string;
+  value?: string;
   valueClassName?: string;
   testId?: string;
+  valueNode?: ReactNode;
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
@@ -38,7 +50,7 @@ function ImpactRow({
         data-testid={testId}
         className={`font-mono tabular-nums text-[var(--edge-text-primary)] ${valueClassName ?? ""}`.trim()}
       >
-        {value}
+        {valueNode ?? value}
       </dd>
     </div>
   );
@@ -97,6 +109,8 @@ export function TradeOrderImpact({
   marginLoading = false,
   marginError = null,
   accountConnected,
+  onAddStop,
+  riskPlan = null,
 }: Props) {
   const provenance = marginEstimated ? "EST." : "BROKER";
   const affordability = affordabilityLabel({
@@ -127,7 +141,7 @@ export function TradeOrderImpact({
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
-          Order impact
+          Review
         </div>
         <div
           className="text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]"
@@ -148,7 +162,7 @@ export function TradeOrderImpact({
           testId="trade-order-impact-notional"
         />
         <ImpactRow
-          label="Init margin"
+          label="Est. margin"
           value={marginValue}
           testId="trade-order-impact-margin"
         />
@@ -171,9 +185,26 @@ export function TradeOrderImpact({
         {economics.riskMissingReason === "needs_stop" ? (
           <ImpactRow
             label="Risk to stop"
-            value="Needs stop"
-            valueClassName="text-[var(--edge-text-muted)]"
             testId="trade-order-impact-risk"
+            valueClassName={
+              onAddStop
+                ? "text-[var(--edge-warning)]"
+                : "text-[var(--edge-text-muted)]"
+            }
+            valueNode={
+              onAddStop ? (
+                <button
+                  type="button"
+                  className="edge-focus-ring font-mono text-[var(--edge-warning)] hover:underline"
+                  data-testid="trade-order-impact-add-stop"
+                  onClick={onAddStop}
+                >
+                  Add stop ›
+                </button>
+              ) : (
+                "Needs stop"
+              )
+            }
           />
         ) : (
           <ImpactRow
@@ -199,6 +230,27 @@ export function TradeOrderImpact({
             valueClassName="text-[var(--edge-text-strong)]"
             testId="trade-order-impact-rr"
           />
+        ) : null}
+
+        {riskPlan ? (
+          <>
+            <div className="my-1.5 border-t border-[var(--edge-border-subtle)]" aria-hidden />
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-[var(--edge-text-muted)]">Risk plan</dt>
+              <dd>
+                <button
+                  type="button"
+                  className="edge-focus-ring font-mono text-[var(--edge-text-primary)] hover:underline"
+                  data-testid="trade-risk-plan-toggle"
+                  aria-expanded={riskPlan.open}
+                  onClick={riskPlan.onToggle}
+                >
+                  {riskPlan.teaser} {riskPlan.open ? "▾" : "›"}
+                </button>
+              </dd>
+            </div>
+            {riskPlan.open ? <div className="mt-1.5">{riskPlan.detail}</div> : null}
+          </>
         ) : null}
       </dl>
     </section>

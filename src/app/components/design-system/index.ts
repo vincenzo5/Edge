@@ -16,6 +16,8 @@ export { default as EdgeSearchInput } from "./EdgeSearchInput";
 export { default as CompactSearchFieldShell, CompactSearchIcon, compactSearchFieldClass } from "./CompactSearchFieldShell";
 export { default as EdgeSelect } from "./EdgeSelect";
 export type { EdgeSelectOption, EdgeSelectSection, EdgeSelectProps } from "./EdgeSelect";
+export { default as EdgeLabeledInput } from "./EdgeLabeledInput";
+export type { EdgeLabeledInputProps } from "./EdgeLabeledInput";
 export { default as EdgeBorderLabeledControl } from "./EdgeBorderLabeledControl";
 export type { BorderLegendSurface } from "./EdgeBorderLabeledControl";
 export { default as EdgeSegmentedTabs } from "./EdgeSegmentedTabs";
@@ -23,6 +25,12 @@ export type { EdgeSegment } from "./EdgeSegmentedTabs";
 export { default as EdgeUnderlineTabs } from "./EdgeUnderlineTabs";
 export type { EdgeUnderlineSegment } from "./EdgeUnderlineTabs";
 export { default as EdgeToggle, EdgeToggleSwitch } from "./EdgeToggle";
+export { default as EdgeFlipChip } from "./EdgeFlipChip";
+export type {
+  EdgeFlipChipOption,
+  EdgeFlipChipProps,
+  EdgeFlipChipTone,
+} from "./EdgeFlipChip";
 export { default as EdgePanelHeader } from "./EdgePanelHeader";
 export { default as EdgeEmptyState } from "./EdgeEmptyState";
 export { default as EdgeSpinner } from "./EdgeSpinner";

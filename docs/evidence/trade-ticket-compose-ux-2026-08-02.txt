@@ -1,0 +1,23 @@
+# LIVE — Trade ticket compose UX evidence
+# Date: 2026-08-02
+
+## Scope
+Compose UX: Side/Type as EdgeFlipChip (single-label flip, Buy/Sell color-coded);
+Order impact renamed Review; Risk plan folded into Review teaser; CTA Buy/Sell
+(side-tinted); Add stop action when bracket off with plan levels.
+
+## Delivered
+- src/app/components/design-system/EdgeFlipChip.tsx (+ test) — two-state flip chip
+- src/app/components/trading/TradeOrderImpact.tsx (+ test) — Review header, Add stop, risk plan slot
+- src/app/components/trading/TradeOrderForm.tsx (+ test) — wire flips, CTA, fold Risk plan
+- src/app/components/trading/TradeTicketModal.test.tsx — Buy CTA label
+- src/lib/trading/ARCHITECTURE.md + src/lib/design-system/ARCHITECTURE.md — layout sync
+
+## Verification
+Command:
+npm test -- --run src/app/components/design-system/EdgeFlipChip.test.tsx src/lib/trading/computeOrderImpact.test.ts src/app/components/trading/TradeOrderImpact.test.tsx src/app/components/trading/TradeOrderForm.test.tsx src/app/components/trading/TradeTicketModal.test.tsx src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx
+
+Result:
+ Test Files  6 passed (6)
+ Tests  37 passed (37)
+exit=0

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { TradeOrderImpact } from "./TradeOrderImpact";
 import type { OrderImpactEconomics } from "@/lib/trading/computeOrderImpact";
 
@@ -27,6 +27,7 @@ describe("TradeOrderImpact", () => {
       />,
     );
 
+    expect(screen.getByTestId("trade-order-impact")).toHaveTextContent("Review");
     expect(screen.getByTestId("trade-order-impact-notional")).toHaveTextContent("2,783.55");
     expect(screen.getByTestId("trade-order-impact-margin")).toHaveTextContent("1,391.78");
     expect(screen.getByTestId("trade-order-impact-affordability")).toHaveTextContent("Enough");
@@ -60,6 +61,32 @@ describe("TradeOrderImpact", () => {
     expect(screen.queryByTestId("trade-order-impact-reward")).not.toBeInTheDocument();
     expect(screen.queryByTestId("trade-order-impact-rr")).not.toBeInTheDocument();
     expect(screen.getByTestId("trade-order-impact-provenance")).toHaveTextContent("EST.");
+  });
+
+  it("renders Add stop action when onAddStop is provided", () => {
+    const onAddStop = vi.fn();
+    render(
+      <TradeOrderImpact
+        economics={{
+          notional: 500,
+          riskDollars: null,
+          rewardDollars: null,
+          riskRewardRatio: null,
+          riskMissingReason: "needs_stop",
+          rewardVisible: false,
+          rrVisible: false,
+        }}
+        initMarginChange={250}
+        availableAfter={1000}
+        impactStatus="ok"
+        marginEstimated
+        accountConnected
+        onAddStop={onAddStop}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("trade-order-impact-add-stop"));
+    expect(onAddStop).toHaveBeenCalledTimes(1);
   });
 
   it("flags insufficient margin", () => {

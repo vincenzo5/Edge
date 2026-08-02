@@ -85,14 +85,14 @@ describe("TradeTicketModal", () => {
     expect(screen.getByText(/Trade AAPL/)).toBeInTheDocument();
     expect(screen.getByTestId("trade-account-chip")).toHaveTextContent("DUP586813");
     expect(screen.getByTestId("trade-account-chip")).toHaveTextContent("Paper");
-    expect(screen.getByRole("button", { name: "Review buy" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Buy" })).toBeInTheDocument();
   });
 
   it("advances to confirm step after preview", async () => {
     render(
       <TradeTicketModal open symbol="AAPL" onClose={vi.fn()} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Review buy" }));
+    fireEvent.click(screen.getByRole("button", { name: "Buy" }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Confirm buy" })).toBeInTheDocument();
     });

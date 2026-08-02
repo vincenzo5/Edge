@@ -199,6 +199,7 @@ Import from `src/app/components/design-system/index.ts`:
 | `EdgeSpinner` | Loading spinners (`xs` / `sm` / `md`); uses `.edge-spinner` with reduced-motion fallback |
 | `EdgeSkeletonLine` | Pulse skeleton bars/lines; uses `.edge-skeleton-pulse` with reduced-motion fallback |
 | `EdgeToggle` / `EdgeToggleSwitch` | Boolean settings rows (`standard`) and compact menu-inline switches (`compact`) |
+| `EdgeFlipChip` | Two-state cycle control (shows current label only); optional positive/negative tone for Buy/Sell |
 
 Shared rail styling for left drawing toolbar and right sidebar: `src/app/components/chart-icons/toolbarButtonStyles.ts` — `iconRailShellClass(edge)`, `iconRailButtonClass`, `railMode` prop (`full` \| `compact`) on `DrawingToolbar`, `ChartDrawingRail`, and `SidebarRail`; icons 22/20 px via `edgeLayoutTokens.iconRailIconSize`; active state uses `surface-active` + `--edge-accent-blue` icon color.
 

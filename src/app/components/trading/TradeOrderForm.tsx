@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   EdgeButton,
+  EdgeFlipChip,
   EdgeLabeledInput,
   EdgeSegmentedTabs,
   EdgeSelect,
@@ -540,8 +541,11 @@ export function TradeOrderForm({
   const primaryCtaLabel = useMemo(() => {
     if (loading) return "Previewing…";
     if (policyBound && scheduleMode !== "now") return "Preview schedule";
-    return side === "BUY" ? "Review buy" : "Review sell";
+    return side === "BUY" ? "Buy" : "Sell";
   }, [loading, policyBound, scheduleMode, side]);
+
+  const showRiskPlan =
+    policyBound || Boolean(planLevels && attachBracket) || manageEnabled;
 
   const confirmSubmitLabel = useMemo(() => {
     if (loading) return "Submitting…";
@@ -843,20 +847,19 @@ export function TradeOrderForm({
           ) : null}
 
           <div className="grid grid-cols-[auto_1fr_auto] items-end gap-1.5">
-            <div className="min-w-[4rem]">
-              <EdgeSelect
-                value={side}
-                onChange={(value) => setSide(value as OrderSide)}
-                options={[
-                  { value: "BUY", label: "Buy" },
-                  { value: "SELL", label: "Sell" },
-                ]}
-                label="Side"
-                density="compact"
-                variant="field"
-                testId="trade-side"
-              />
-            </div>
+            <EdgeFlipChip
+              value={side}
+              options={[
+                { value: "BUY", label: "Buy" },
+                { value: "SELL", label: "Sell" },
+              ]}
+              onChange={(value) => setSide(value)}
+              ariaLabel="Side"
+              tone={(value) => (value === "BUY" ? "positive" : "negative")}
+              density="compact"
+              testId="trade-side"
+              className="min-w-[4rem]"
+            />
             <EdgeLabeledInput
               label="Quantity"
               type="number"
@@ -867,32 +870,30 @@ export function TradeOrderForm({
               density="compact"
               testId="trade-quantity"
             />
-            <div className="min-w-[5.5rem]">
-              <EdgeSelect
-                value={orderType === "LMT" ? "LMT" : "MKT"}
-                onChange={(value) => {
-                  const next = value as OrderType;
-                  setOrderType(next);
-                  if (next === "LMT") {
-                    setLimitPrice((current) =>
-                      seedLimitPriceFromLast({
-                        currentLimitPrice: current,
-                        planEntry: planLevels?.entry ?? null,
-                        lastPrice,
-                      }),
-                    );
-                  }
-                }}
-                options={[
-                  { value: "MKT", label: "Market" },
-                  { value: "LMT", label: "Limit" },
-                ]}
-                label="Type"
-                density="compact"
-                variant="field"
-                testId="trade-order-type"
-              />
-            </div>
+            <EdgeFlipChip
+              value={orderType === "LMT" ? "LMT" : "MKT"}
+              options={[
+                { value: "MKT", label: "Market" },
+                { value: "LMT", label: "Limit" },
+              ]}
+              onChange={(value) => {
+                const next = value as OrderType;
+                setOrderType(next);
+                if (next === "LMT") {
+                  setLimitPrice((current) =>
+                    seedLimitPriceFromLast({
+                      currentLimitPrice: current,
+                      planEntry: planLevels?.entry ?? null,
+                      lastPrice,
+                    }),
+                  );
+                }
+              }}
+              ariaLabel="Order type"
+              density="compact"
+              testId="trade-order-type"
+              className="min-w-[5.5rem]"
+            />
           </div>
 
           <div
@@ -1165,7 +1166,7 @@ export function TradeOrderForm({
           ) : null}
 
           {draft ? (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3">
               <TradeOrderImpact
                 economics={orderImpact}
                 initMarginChange={marginCtx.impact?.initMarginChange ?? null}
@@ -1175,33 +1176,28 @@ export function TradeOrderForm({
                 marginLoading={marginCtx.loading}
                 marginError={marginCtx.error}
                 accountConnected={marginCtx.accountConnected}
+                onAddStop={
+                  planLevels && !policyBound && !attachBracket
+                    ? () => setAttachBracket(true)
+                    : undefined
+                }
+                riskPlan={
+                  showRiskPlan
+                    ? {
+                        teaser: `${submitRiskSummary.budget.label} · ${submitRiskSummary.size.label}`,
+                        open: riskPlanOpen,
+                        onToggle: () => setRiskPlanOpen((open) => !open),
+                        detail: (
+                          <SubmitRiskPlanSummary
+                            summary={submitRiskSummary}
+                            manageSteps={manageEnabled ? manageStepLabels : undefined}
+                            compact
+                          />
+                        ),
+                      }
+                    : null
+                }
               />
-
-              <div>
-                <EdgeButton
-                  type="button"
-                  variant="secondary"
-                  className="w-full justify-between text-[10px]"
-                  onClick={() => setRiskPlanOpen((open) => !open)}
-                  data-testid="trade-risk-plan-toggle"
-                  aria-expanded={riskPlanOpen}
-                >
-                  <span>
-                    Risk plan · {submitRiskSummary.budget.label} ·{" "}
-                    {submitRiskSummary.size.label}
-                  </span>
-                  <span aria-hidden>{riskPlanOpen ? "▾" : "›"}</span>
-                </EdgeButton>
-                {riskPlanOpen ? (
-                  <div className="mt-1.5">
-                    <SubmitRiskPlanSummary
-                      summary={submitRiskSummary}
-                      manageSteps={manageEnabled ? manageStepLabels : undefined}
-                      compact
-                    />
-                  </div>
-                ) : null}
-              </div>
             </div>
           ) : null}
 
@@ -1221,7 +1217,13 @@ export function TradeOrderForm({
             <EdgeButton
               theme={theme}
               variant="primary"
-              className="flex-1"
+              className={
+                policyBound && scheduleMode !== "now"
+                  ? "flex-1"
+                  : side === "BUY"
+                    ? "flex-1 !bg-[var(--edge-positive)] hover:!bg-[color-mix(in_srgb,var(--edge-positive)_82%,black)]"
+                    : "flex-1 !bg-[var(--edge-negative)] hover:!bg-[color-mix(in_srgb,var(--edge-negative)_82%,black)]"
+              }
               disabled={loading || !draft}
               onClick={() => void handlePreview()}
               data-testid="trade-primary-cta"

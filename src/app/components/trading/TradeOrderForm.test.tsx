@@ -174,10 +174,13 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.queryByTestId("trade-size-for-risk")).not.toBeInTheDocument();
   });
 
-  it("uses order type dropdown instead of market/limit tabs", () => {
+  it("uses flip chips for side and order type instead of dropdowns or tabs", () => {
     renderForm(null);
+    expect(screen.getByTestId("trade-side")).toHaveTextContent("Buy");
     expect(screen.getByTestId("trade-order-type")).toHaveTextContent("Market");
     expect(screen.queryByRole("tab", { name: "Limit" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("trade-side-option-SELL")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("trade-order-type-option-LMT")).not.toBeInTheDocument();
   });
 
   it("places side, quantity, and type on one primary row", () => {
@@ -185,7 +188,6 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("trade-side")).toBeInTheDocument();
     expect(screen.getByTestId("trade-quantity")).toBeInTheDocument();
     expect(screen.getByTestId("trade-order-type")).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Buy" })).not.toBeInTheDocument();
   });
 
   it("shows read-only entry for market orders", () => {
@@ -209,7 +211,7 @@ describe("TradeOrderForm size for risk", () => {
   it("auto-fills limit entry with last price when switching to Limit", () => {
     renderForm(null);
     fireEvent.click(screen.getByTestId("trade-order-type"));
-    fireEvent.click(screen.getByTestId("trade-order-type-option-LMT"));
+    expect(screen.getByTestId("trade-order-type")).toHaveTextContent("Limit");
     expect(screen.getByTestId("trade-limit-price")).toHaveValue(100);
   });
 
@@ -239,7 +241,7 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("trade-bracket-risk-line")).toHaveTextContent("risk");
   });
 
-  it("shows Order impact risk, reward, and R:R when bracket is on", () => {
+  it("shows Review panel risk, reward, and R:R when bracket is on", () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -248,14 +250,14 @@ describe("TradeOrderForm size for risk", () => {
       target: 110,
       riskRewardRatio: 2,
     });
-    expect(screen.getByTestId("trade-order-impact")).toBeInTheDocument();
+    expect(screen.getByTestId("trade-order-impact")).toHaveTextContent("Review");
     expect(screen.getByTestId("trade-order-impact-notional")).toHaveTextContent("100.00");
     expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("5.00");
     expect(screen.getByTestId("trade-order-impact-reward")).toHaveTextContent("10.00");
     expect(screen.getByTestId("trade-order-impact-rr")).toHaveTextContent("1:2.0");
   });
 
-  it("shows Needs stop in Order impact when bracket is unchecked", () => {
+  it("shows Add stop in Review when bracket is unchecked and restores protect on click", () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -265,13 +267,16 @@ describe("TradeOrderForm size for risk", () => {
       riskRewardRatio: 2,
     });
     fireEvent.click(screen.getByTestId("trade-attach-bracket"));
-    expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("Needs stop");
+    expect(screen.getByTestId("trade-order-impact-add-stop")).toHaveTextContent("Add stop");
     expect(screen.queryByTestId("trade-order-impact-reward")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("trade-order-impact-add-stop"));
+    expect(screen.getByTestId("trade-attach-bracket")).toBeChecked();
+    expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("5.00");
   });
 
-  it("uses Review buy CTA and advances to confirm on click", async () => {
+  it("uses Buy CTA and advances to confirm on click", async () => {
     renderForm(null);
-    expect(screen.getByTestId("trade-primary-cta")).toHaveTextContent("Review buy");
+    expect(screen.getByTestId("trade-primary-cta")).toHaveTextContent("Buy");
     fireEvent.click(screen.getByTestId("trade-primary-cta"));
     await waitFor(() => {
       expect(screen.getByTestId("trade-confirm-submit")).toBeInTheDocument();
@@ -292,11 +297,11 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("trade-primary-cta")).toBeInTheDocument();
   });
 
-  it("updates CTA label when side changes to Sell", () => {
+  it("updates CTA label when side flips to Sell", () => {
     renderForm(null);
     fireEvent.click(screen.getByTestId("trade-side"));
-    fireEvent.click(screen.getByTestId("trade-side-option-SELL"));
-    expect(screen.getByTestId("trade-primary-cta")).toHaveTextContent("Review sell");
+    expect(screen.getByTestId("trade-side")).toHaveTextContent("Sell");
+    expect(screen.getByTestId("trade-primary-cta")).toHaveTextContent("Sell");
   });
 
   it("shows Duration and Extended hours on the session row without Advanced", () => {
@@ -352,7 +357,7 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("trade-manage-preview")).toBeInTheDocument();
   });
 
-  it("shows Risk plan summary behind disclosure with Budget, Bracket, and Manage", () => {
+  it("folds Risk plan into Review disclosure with Budget, Bracket, and Manage", () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -375,5 +380,10 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("submit-risk-plan-failure-mode")).toHaveTextContent(
       "Broker stop stays live if Edge is down",
     );
+  });
+
+  it("hides Risk plan teaser when there is no protect or manage plan", () => {
+    renderForm(null);
+    expect(screen.queryByTestId("trade-risk-plan-toggle")).not.toBeInTheDocument();
   });
 });

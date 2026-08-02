@@ -39,11 +39,11 @@ src/lib/trading/
 
 src/app/components/trading/
   TradeSetupBindingContext.tsx  # { cellId, drawingId } bind + live levels feed from ChartCell (context-menu initiated)
-  TradeOrderForm.tsx              # Shared preview/confirm/submit form (MKT default; compose Order impact)
+  TradeOrderForm.tsx              # Shared preview/confirm/submit form (MKT default; compose Review)
   TradeOrderImpact.tsx            # Compose economics: notional, margin affordability, stop risk / reward / R:R
   TradeTicketModal.tsx            # Modal wrapper (tests); primary UX is Trade sidebar panel
 
-src/lib/trading/computeOrderImpact.ts  # Pure notional + protect outcome dollars for compose Order impact
+src/lib/trading/computeOrderImpact.ts  # Pure notional + protect outcome dollars for compose Review
 
 src/app/components/risk/
   RiskPositionBindingContext.tsx  # Auto-bind newest long/short on active chart → Risk Position size entry/stop (independent of Trade setup bind)
@@ -140,7 +140,7 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 - **Protective OCO:** Open position → Account panel **Protect with OCO** (`POST /api/trading/oco`) attaches stop + TP without a new entry.
 - **Outside RTH:** Trade ticket toggle; preview + submit honor `outsideRth` (default off).
 - **Header Trade:** Opens same panel unbound (generic ticket for active chart symbol).
-- **Ticket layout (compose):** Primary row — side (`EdgeSelect` Buy/Sell), quantity, order type (`EdgeSelect` MKT/LMT). Entry shows limit input (LMT, auto-filled from plan entry or last price) or read-only ~last/plan (MKT; last price = live quote else active-chart last candle close). Bracket toggle + stop/target/risk/R:R line on compose when drawing-bound (not policy-bound). **Advanced** (default collapsed) holds stop leg (Fixed/Trail), Manage preset, TIF (Day/GTC), and Outside RTH. One-line compose status shows entry · size · stop · risk · target · R:R · TIF. Primary CTA is **Buy/Sell {symbol}** → preview → inline confirm (Cancel / Confirm buy|sell). Preview/submit payloads unchanged (`OrderDraft` / `BracketPlan` → sidecar).
+- **Ticket layout (compose):** Primary row — side (`EdgeFlipChip` Buy/Sell, color-coded), quantity, order type (`EdgeFlipChip` Market/Limit). Entry shows limit input (LMT, auto-filled from plan entry or last price) or read-only ~last/plan (MKT; last price = live quote else active-chart last candle close). Session row: Duration (Day/GTC) + Extended hours. **Review** panel (notional, est. margin, available after, affordability, risk/reward); Risk plan teaser folds into Review when protect/manage/policy exists. Bracket toggle + stop/target/risk/R:R line on compose when drawing-bound (not policy-bound). **Advanced** (default collapsed) holds stop leg (Fixed/Trail) and Manage preset. Primary CTA is **Buy** / **Sell** (side-tinted) → preview → inline confirm (Cancel / Confirm buy|sell). Preview/submit payloads unchanged (`OrderDraft` / `BracketPlan` → sidecar).
 
 ## Order Types (Phase 3+)
 
