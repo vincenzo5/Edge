@@ -210,7 +210,10 @@ export function useChartCellOrchestration({
   useTradeDrawingBinding({
     chartRef,
     chartId,
+    symbol: config.symbol,
     overlays,
+    isActive,
+    sidebar,
     tradeBinding,
   });
   useRiskDrawingBinding({ chartRef, chartId, overlays, isActive, riskBinding });

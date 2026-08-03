@@ -37,14 +37,14 @@ Both binds derive levels from live drawing points via `positionTradeSetup.ts` �
 
 | Action | Risk bind | Trade bind |
 |--------|-----------|------------|
-| Auto-bind newest long/short on active chart | yes | no |
+| Auto-bind newest long/short on active chart | yes | yes when Trade panel open and unbound |
 | Chart **Trade setup…** | sync same drawing | yes + open Trade panel |
 | Risk **Use in Trade** | uses current bind | yes + seed qty from sizing |
 | Chart trade ticket (no drawing) | no | yes — **draft apply** via `applyPolicyToTradeDraft` (ephemeral until submit or drawing link) |
 
 Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Budget / Sizing / Geometry + gaps).
 
-**Dual-mode policy apply (2026-08):** `TradePolicyPicker` always visible when an account is selected. Unbound tickets seed Protect qty / prices / Manage from `applyPolicyToTradeDraft` + `resolvePolicyTradeGeometry`. Drawing-linked tickets persist via `applyRiskPolicyToBinding` on the shared `drawingId` (same planned instance as Risk panel).
+**Dual-mode policy apply (2026-08):** `TradePolicyPicker` always visible when an account is selected. Unbound chart ticket uses `applyPolicyToTradeDraft` + `resolvePolicyTradeGeometry`. Drawing-linked tickets persist via `applyRiskPolicyToBinding` on the shared `drawingId` (same planned instance as Risk panel). **Trade size row (2026-08):** `TradeSizeBudgetField` combines Qty + Risk (%/$); policy budget resolves via `resolvePolicyTicketBudget`; `applyPolicyToTradeDraft` sizes qty from stop distance + dollar risk.
 
 ## Phase 4 — Trade ticket Risk plan summary (shipped)
 

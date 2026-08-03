@@ -15,6 +15,7 @@ const mockBinding = {
   symbol: null as string | null,
   seedQuantity: null as number | null,
   openTradeFromDrawing: vi.fn(),
+  bindToDrawing: vi.fn(),
   openTradePanel: vi.fn(),
   clearSeedQuantity: vi.fn(),
   updateBoundLevels: vi.fn(),
@@ -69,7 +70,13 @@ vi.mock("../../AccountAliasesProvider", () => ({
 vi.mock("../../RiskSettingsProvider", () => ({
   useRiskSettingsOptional: () => ({
     dollarRisk: 1000,
-    settings: null,
+    accountBasisValue: 100_000,
+    settings: {
+      sizingMode: "percent",
+      riskPercent: 1,
+      absoluteRisk: 1000,
+      showLiquidationLine: true,
+    },
   }),
 }));
 

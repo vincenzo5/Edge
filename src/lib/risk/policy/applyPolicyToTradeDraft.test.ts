@@ -20,9 +20,11 @@ describe("applyPolicyToTradeDraft", () => {
         entryQty: 200,
         side: "BUY",
         entryPrice: 100,
+        existingStop: 95,
         dollarRisk: 1000,
       }),
     ).toEqual({
+      entryQty: 200,
       takeProfitQuantity: 100,
       stopQuantity: 200,
       takeProfitPrice: 105,
@@ -32,6 +34,26 @@ describe("applyPolicyToTradeDraft", () => {
       stopLossEnabled: true,
       partialGeometry: false,
     });
+  });
+
+  it("sizes entry qty from dollar risk and stop distance", () => {
+    const patch = applyPolicyToTradeDraft({
+      template: longPolicy,
+      entryQty: 1,
+      side: "BUY",
+      planLevels: {
+        direction: "long",
+        side: "BUY",
+        entry: 100,
+        stop: 95,
+        target: 105,
+        riskRewardRatio: 1,
+      },
+      dollarRisk: 1000,
+    });
+    expect(patch.entryQty).toBe(200);
+    expect(patch.takeProfitQuantity).toBe(100);
+    expect(patch.stopQuantity).toBe(200);
   });
 
   it("seeds qty split only when geometry cannot be resolved", () => {

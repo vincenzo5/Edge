@@ -1,0 +1,24 @@
+# LIVE — Trade size budget row evidence
+# Date: 2026-08-03
+
+## Scope
+Policy budget drives trade ticket sizing; TradeSizeBudgetField (Qty + Risk %/$); auto-bind drawing when Trade panel open.
+
+## Delivered
+- src/lib/risk/policy/resolvePolicyTicketBudget.ts — policy/session budget resolution
+- src/lib/risk/ticketSizeBudget.ts — qty ↔ risk helpers
+- src/lib/risk/policy/applyPolicyToTradeDraft.ts — sized entryQty on apply
+- src/app/components/trading/TradeSizeBudgetField.tsx — combined Size row
+- src/app/components/trading/TradeOrderForm.tsx — wire size row; remove Size for risk
+- src/app/components/trading/useTradePolicyApply.ts — policy-resolved dollar risk
+- src/app/components/trading/TradeSetupBindingContext.tsx — bindToDrawing helper
+- src/app/components/chart-cell/useTradeDrawingBinding.ts — auto-bind when Trade open
+- src/lib/risk/ARCHITECTURE.md, src/lib/trading/ARCHITECTURE.md — sync
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/policy/resolvePolicyTicketBudget.test.ts src/lib/risk/ticketSizeBudget.test.ts src/lib/risk/policy/applyPolicyToTradeDraft.test.ts src/app/components/trading/TradeSizeBudgetField.test.tsx src/app/components/trading/TradeOrderForm.test.tsx src/app/components/trading/useTradePolicyApply.test.tsx src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx src/app/components/chart-cell/useTradeDrawingBinding.test.ts
+
+Result:
+Test Files  8 passed (8)
+Tests  50 passed (50)

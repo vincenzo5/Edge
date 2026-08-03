@@ -140,7 +140,7 @@ describe("TradeOrderForm size for risk", () => {
     vi.restoreAllMocks();
   });
 
-  it("fills quantity from plan levels and risk budget", () => {
+  it("sizes quantity when risk budget changes with plan levels", async () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -150,11 +150,15 @@ describe("TradeOrderForm size for risk", () => {
       riskRewardRatio: 2,
     });
 
-    const quantityInput = screen.getByTestId("trade-quantity");
-    expect(quantityInput).toHaveValue(1);
+    const qtyInput = screen.getByTestId("trade-size-qty");
+    expect(qtyInput).toHaveValue(1);
 
-    fireEvent.click(screen.getByTestId("trade-size-for-risk"));
-    expect(quantityInput).toHaveValue(200);
+    await waitFor(() => {
+      expect(screen.getByTestId("trade-size-risk")).not.toBeDisabled();
+    });
+
+    fireEvent.change(screen.getByTestId("trade-size-risk"), { target: { value: "2000" } });
+    expect(qtyInput).toHaveValue(400);
   });
 
   it("seeds quantity from Risk Use in Trade handoff", () => {
@@ -171,17 +175,17 @@ describe("TradeOrderForm size for risk", () => {
       { seedQuantity: 150, onSeedQuantityApplied },
     );
 
-    expect(screen.getByTestId("trade-quantity")).toHaveValue(150);
+    expect(screen.getByTestId("trade-size-qty")).toHaveValue(150);
     expect(onSeedQuantityApplied).toHaveBeenCalled();
   });
 
-  it("does not render size for risk without entry and stop", () => {
+  it("disables risk input without entry and stop", () => {
     render(
       <RiskSettingsProvider>
         <TradeOrderForm symbol="AAPL" lastPrice={null} boundActive testId="trade-order-form-test" />
       </RiskSettingsProvider>,
     );
-    expect(screen.queryByTestId("trade-size-for-risk")).not.toBeInTheDocument();
+    expect(screen.getByTestId("trade-size-risk")).toBeDisabled();
   });
 
   it("uses buy/sell toggle and order type tabs", () => {
@@ -497,7 +501,7 @@ describe("TradeOrderForm policy picker", () => {
         />
       </RiskSettingsProvider>,
     );
-    fireEvent.change(screen.getByTestId("trade-quantity"), { target: { value: "200" } });
+    fireEvent.change(screen.getByTestId("trade-size-qty"), { target: { value: "200" } });
     rerender(
       <RiskSettingsProvider>
         <TradeOrderForm
@@ -551,7 +555,7 @@ describe("TradeOrderForm policy picker", () => {
         />
       </RiskSettingsProvider>,
     );
-    fireEvent.change(screen.getByTestId("trade-quantity"), { target: { value: "200" } });
+    fireEvent.change(screen.getByTestId("trade-size-qty"), { target: { value: "200" } });
     expect(screen.getByTestId("trade-exit-plan")).toHaveTextContent("Runner · 100 sh");
   });
 
@@ -589,7 +593,7 @@ describe("TradeOrderForm policy picker", () => {
       </RiskSettingsProvider>,
     );
 
-    fireEvent.change(screen.getByTestId("trade-quantity"), { target: { value: "200" } });
+    fireEvent.change(screen.getByTestId("trade-size-qty"), { target: { value: "200" } });
     fireEvent.click(screen.getByTestId("trade-primary-cta"));
     await waitFor(() => expect(previewOrder).toHaveBeenCalled());
     fireEvent.click(screen.getByTestId("trade-confirm-submit"));

@@ -6,6 +6,7 @@ import { TradeOrderForm } from "./TradeOrderForm";
 import { useTradePolicyApply, type TradePolicyFormContext } from "./useTradePolicyApply";
 import { useAccountOptional } from "../AccountProvider";
 import { useRiskSettingsOptional } from "../RiskSettingsProvider";
+import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
 import { usePlaybookInstances } from "./usePlaybookInstances";
 import type { PolicyTradeDraftPatch } from "@/lib/risk/policy/applyPolicyToTradeDraft";
 
@@ -76,6 +77,8 @@ export default function TradeTicketModal({
     entryPrice: policyFormContext.entryPrice ?? initialLimitPrice ?? null,
     existingStop: policyFormContext.existingStop,
     dollarRisk: riskSettings?.dollarRisk ?? null,
+    sessionSettings: riskSettings?.settings ?? DEFAULT_RISK_SETTINGS,
+    accountBasisValue: riskSettings?.accountBasisValue ?? null,
     instances: playbookInstances,
     onInstancesChange: () => void refreshPlaybookInstances(),
     onDraftApplied,

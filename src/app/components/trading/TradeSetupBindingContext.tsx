@@ -31,6 +31,7 @@ type TradeSetupBindingContextValue = {
     symbol: string,
     options?: OpenTradeFromDrawingOptions,
   ) => void;
+  bindToDrawing: (cellId: string, drawingId: string, symbol: string) => void;
   openTradePanel: () => void;
   clearSeedQuantity: () => void;
   updateBoundLevels: (levels: PositionOrderLevels | null) => void;
@@ -65,6 +66,13 @@ export function TradeSetupBindingProvider({ children }: { children: ReactNode })
     },
     [openPanel],
   );
+
+  const bindToDrawing = useCallback((cellId: string, drawingId: string, nextSymbol: string) => {
+    setBind({ cellId, drawingId });
+    setSymbol(nextSymbol.trim().toUpperCase());
+    setLevels(null);
+    setSeedQuantity(null);
+  }, []);
 
   const openTradePanel = useCallback(() => {
     setBind(null);
@@ -104,6 +112,7 @@ export function TradeSetupBindingProvider({ children }: { children: ReactNode })
       symbol,
       seedQuantity,
       openTradeFromDrawing,
+      bindToDrawing,
       openTradePanel,
       clearSeedQuantity,
       updateBoundLevels,
@@ -114,6 +123,7 @@ export function TradeSetupBindingProvider({ children }: { children: ReactNode })
       symbol,
       seedQuantity,
       openTradeFromDrawing,
+      bindToDrawing,
       openTradePanel,
       clearSeedQuantity,
       updateBoundLevels,

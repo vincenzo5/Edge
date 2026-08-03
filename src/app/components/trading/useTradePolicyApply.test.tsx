@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useTradePolicyApply } from "./useTradePolicyApply";
 import { HALF_THEN_BE_PRESET } from "@/lib/trading/playbook/presets";
+import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
 
 const mockApplyRiskPolicyToBinding = vi.fn();
 const mockClearPlannedPolicyBinding = vi.fn();
@@ -60,6 +61,8 @@ describe("useTradePolicyApply", () => {
         side: "BUY",
         entryPrice: 100,
         dollarRisk: 1000,
+        sessionSettings: DEFAULT_RISK_SETTINGS,
+        accountBasisValue: 100_000,
         instances: [],
         onDraftApplied,
       }),
@@ -92,6 +95,8 @@ describe("useTradePolicyApply", () => {
         environment: "paper",
         entryQty: 200,
         side: "BUY",
+        sessionSettings: DEFAULT_RISK_SETTINGS,
+        accountBasisValue: 100_000,
         instances: [],
       }),
     );

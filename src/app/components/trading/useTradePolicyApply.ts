@@ -5,7 +5,9 @@ import {
   applyPolicyToTradeDraft,
   type PolicyTradeDraftPatch,
 } from "@/lib/risk/policy/applyPolicyToTradeDraft";
+import { resolvePolicyTicketBudget } from "@/lib/risk/policy/resolvePolicyTicketBudget";
 import { recordLastUsedPolicy } from "@/lib/risk/policy/lastUsedPreference";
+import type { RiskSettings } from "@/lib/risk/riskSettings";
 import type { PositionOrderLevels } from "@/lib/trading/positionTradeSetup";
 import { lockPositionPlan } from "@/lib/trading/playbook/types";
 import { PLAYBOOK_PRESET_LIST } from "@/lib/trading/playbook/presets";
@@ -54,6 +56,8 @@ export function useTradePolicyApply(args: {
   entryPrice?: number | null;
   existingStop?: number | null;
   dollarRisk?: number | null;
+  sessionSettings: RiskSettings;
+  accountBasisValue?: number | null;
   instances: PlaybookInstance[];
   onInstancesChange?: () => void;
   onDraftApplied?: (patch: PolicyTradeDraftPatch) => void;
@@ -89,18 +93,48 @@ export function useTradePolicyApply(args: {
     void fetchTemplates().then(setTemplates);
   }, []);
 
+  const resolveTemplateBudget = useCallback(
+    (template: PlaybookTemplate) =>
+      resolvePolicyTicketBudget({
+        budget: template.budget,
+        sessionSettings: args.sessionSettings,
+        accountBasisValue: args.accountBasisValue ?? null,
+        sessionDollarRisk: args.dollarRisk,
+      }),
+    [
+      args.accountBasisValue,
+      args.dollarRisk,
+      args.sessionSettings,
+    ],
+  );
+
   const persistPolicy = useCallback(
     async (templateId: string) => {
       if (!args.bind?.drawingId || !args.planLevels || !args.accountId.trim()) {
         throw new Error("Link a position drawing before persisting a policy.");
       }
+      const template = templates.find((item) => item.id === templateId);
+      if (!template) {
+        throw new Error("Policy template not found.");
+      }
+      const budget = resolveTemplateBudget(template);
+      const patch = applyPolicyToTradeDraft({
+        template,
+        entryQty: args.entryQty,
+        side: args.side,
+        planLevels: args.planLevels,
+        entryPrice: args.entryPrice,
+        existingStop: args.existingStop,
+        dollarRisk: budget.dollarRisk,
+      });
+      const sizedQty = patch.entryQty ?? args.entryQty;
       const positionPlan = lockPositionPlan({
         symbol: args.symbol.trim().toUpperCase(),
         accountId: args.accountId.trim(),
         side: args.planLevels.side,
         entry: args.planLevels.entry,
         initialStop: args.planLevels.stop,
-        qty: Math.max(1, Math.round(args.entryQty)),
+        qty: Math.max(1, Math.round(sizedQty)),
         environment: args.environment,
       });
 
@@ -111,16 +145,23 @@ export function useTradePolicyApply(args: {
         onConflict: "swap",
       });
       recordLastUsedPolicy(args.planLevels.side, templateId);
+      args.onDraftApplied?.(patch);
       await refresh();
     },
     [
       args.accountId,
       args.bind?.drawingId,
+      args.entryPrice,
       args.entryQty,
       args.environment,
+      args.existingStop,
+      args.onDraftApplied,
       args.planLevels,
+      args.side,
       args.symbol,
       refresh,
+      resolveTemplateBudget,
+      templates,
     ],
   );
 
@@ -130,6 +171,7 @@ export function useTradePolicyApply(args: {
         setError("Enter a valid quantity before applying a policy.");
         return;
       }
+      const budget = resolveTemplateBudget(template);
       const patch = applyPolicyToTradeDraft({
         template,
         entryQty: args.entryQty,
@@ -137,7 +179,7 @@ export function useTradePolicyApply(args: {
         planLevels: args.planLevels,
         entryPrice: args.entryPrice,
         existingStop: args.existingStop,
-        dollarRisk: args.dollarRisk,
+        dollarRisk: budget.dollarRisk,
       });
       setDraftPolicyId(template.id);
       recordLastUsedPolicy(args.side, template.id);
@@ -145,13 +187,13 @@ export function useTradePolicyApply(args: {
       args.onDraftApplied?.(patch);
     },
     [
-      args.dollarRisk,
       args.entryPrice,
       args.entryQty,
       args.existingStop,
       args.onDraftApplied,
       args.planLevels,
       args.side,
+      resolveTemplateBudget,
     ],
   );
 

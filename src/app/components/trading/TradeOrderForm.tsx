@@ -19,7 +19,10 @@ import { useAccountAliasesOptional } from "../AccountAliasesProvider";
 import { useRiskSettingsOptional } from "../RiskSettingsProvider";
 import { useRiskMarginContext } from "../risk/useRiskMarginContext";
 import { isGatewayTradingAccount } from "@/lib/trading/accountPickerOptions";
-import { computeEquityPositionSize } from "@/lib/risk/equityPositionSize";
+import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
+import { resolvePolicyTicketBudget } from "@/lib/risk/policy/resolvePolicyTicketBudget";
+import type { TicketBudgetUnit } from "@/lib/risk/policy/resolvePolicyTicketBudget";
+import { dollarRiskFromTicketRiskInput } from "@/lib/risk/ticketSizeBudget";
 import { computeOrderImpactEconomics } from "@/lib/trading/computeOrderImpact";
 import { LIVE_CONFIRMATION_TOKEN, PREVIEW_INTENT_MAX_AGE_MS } from "@/lib/trading/validateOrder";
 import {
@@ -81,6 +84,7 @@ import type { PlaybookInstance } from "@/lib/trading/playbook/types";
 import type { PlaybookTemplate } from "@/lib/trading/playbook/types";
 import { SubmitRiskPlanSummary } from "../risk/SubmitRiskPlanSummary";
 import type { TradePolicyFormContext } from "./useTradePolicyApply";
+import { TradeSizeBudgetField } from "./TradeSizeBudgetField";
 
 export type { ManagePresetSelection };
 
@@ -259,8 +263,9 @@ export function TradeOrderForm({
   const account = useAccountOptional();
   const accountAliases = useAccountAliasesOptional();
   const riskSettings = useRiskSettingsOptional();
-  const dollarRisk = riskSettings?.dollarRisk ?? null;
-  const riskSettingsModel = riskSettings?.settings ?? null;
+  const sessionDollarRisk = riskSettings?.dollarRisk ?? null;
+  const accountBasisValue = riskSettings?.accountBasisValue ?? null;
+  const riskSettingsModel = riskSettings?.settings ?? DEFAULT_RISK_SETTINGS;
   const accountId = account?.activeTradingAccountId ?? "";
   const accountDisplayName = account?.activeTradingAccount
     ? (accountAliases?.displayNameFor(account.activeTradingAccount) ?? accountId)
@@ -311,6 +316,10 @@ export function TradeOrderForm({
     side: "BUY",
     entry: null,
   });
+  const policyBudgetSeedRef = useRef<string | null>(null);
+  const [ticketRiskUnit, setTicketRiskUnit] = useState<TicketBudgetUnit>("absolute");
+  const [ticketRiskPercent, setTicketRiskPercent] = useState<number | null>(null);
+  const [ticketAbsoluteRisk, setTicketAbsoluteRisk] = useState<number | null>(null);
 
   const policyBound = plannedInstance != null && plannedInstance.status === "planned";
   const policyTemplate = plannedInstance?.policySnapshot ?? null;
@@ -409,7 +418,38 @@ export function TradeOrderForm({
     !policyBound && selectedPolicyId != null && activePolicyTemplate != null;
 
   useEffect(() => {
+    const seedKey = activePolicyTemplate?.id ?? "__session__";
+    if (policyBudgetSeedRef.current === seedKey) return;
+    policyBudgetSeedRef.current = seedKey;
+    const budget = resolvePolicyTicketBudget({
+      budget: activePolicyTemplate?.budget,
+      sessionSettings: riskSettingsModel,
+      accountBasisValue,
+      sessionDollarRisk,
+    });
+    setTicketRiskUnit(budget.unit);
+    setTicketRiskPercent(budget.riskPercent);
+    setTicketAbsoluteRisk(budget.absoluteRisk);
+  }, [accountBasisValue, activePolicyTemplate, riskSettingsModel, sessionDollarRisk]);
+
+  const effectiveTicketDollarRisk = useMemo(
+    () =>
+      dollarRiskFromTicketRiskInput({
+        unit: ticketRiskUnit,
+        riskPercent: ticketRiskPercent,
+        absoluteRisk: ticketAbsoluteRisk,
+        accountBasisValue,
+      }),
+    [accountBasisValue, ticketAbsoluteRisk, ticketRiskPercent, ticketRiskUnit],
+  );
+
+  const resolvedDollarRisk = effectiveTicketDollarRisk ?? sessionDollarRisk;
+
+  useEffect(() => {
     if (!policyDraftPatch) return;
+    if (policyDraftPatch.entryQty != null) {
+      setQuantity(String(Math.max(1, Math.round(policyDraftPatch.entryQty))));
+    }
     setTakeProfitQuantity(policyDraftPatch.takeProfitQuantity);
     setStopLossQuantity(policyDraftPatch.stopQuantity);
     setTakeProfitEnabled(policyDraftPatch.takeProfitEnabled);
@@ -635,7 +675,7 @@ export function TradeOrderForm({
     pnl: account?.pnl ?? null,
     playbookInstances,
     openPositionCount,
-    proposedRiskDollars: proposedRiskForGates ?? dollarRisk,
+    proposedRiskDollars: proposedRiskForGates ?? resolvedDollarRisk,
   });
 
   const bracketPlanForPolicy = useMemo(() => {
@@ -664,7 +704,7 @@ export function TradeOrderForm({
     return summarizeSubmitRiskPlanFromBracket({
       environment,
       quantity: qty,
-      dollarRisk,
+      dollarRisk: resolvedDollarRisk,
       plannedRiskDollars: proposedRiskForGates,
       attachProtect: policyBound ? true : attachBracket,
       bracketPlan: policyBound ? bracketPlanForPolicy : bracketPlan,
@@ -677,7 +717,7 @@ export function TradeOrderForm({
     attachBracket,
     bracketPlan,
     bracketPlanForPolicy,
-    dollarRisk,
+    resolvedDollarRisk,
     environment,
     effectiveManagePresetId,
     policyBound,
@@ -813,18 +853,6 @@ export function TradeOrderForm({
         )
       : null;
 
-  const riskSizedQuantity = useMemo(() => {
-    if (executableEntry == null || composeStopLossPrice == null || dollarRisk == null) {
-      return null;
-    }
-    const result = computeEquityPositionSize({
-      entry: executableEntry,
-      stop: composeStopLossPrice,
-      dollarRisk,
-    });
-    return result.ok ? result.shares : null;
-  }, [composeStopLossPrice, dollarRisk, executableEntry]);
-
   const protectionEnabled = Boolean(attachBracket && composeStopLossPrice != null && composeTakeProfitPrice != null);
 
   const orderImpact = useMemo(
@@ -918,11 +946,6 @@ export function TradeOrderForm({
     }
     return parts.join(" · ");
   }, [activeRiskDollars, attachBracket, effectivePlanLevels]);
-
-  const handleSizeForRisk = useCallback(() => {
-    if (riskSizedQuantity == null) return;
-    setQuantity(String(riskSizedQuantity));
-  }, [riskSizedQuantity]);
 
   const handlePreview = async () => {
     if (!draft) {
@@ -1100,7 +1123,7 @@ export function TradeOrderForm({
       <div className="px-3 py-6 text-xs text-[var(--edge-text-secondary)]" data-testid={testId}>
         <p className="text-[var(--edge-text-strong)]">No trade setup linked</p>
         <p className="mt-2">
-          Right-click a long or short position drawing on the chart and choose{" "}
+          Draw a long or short position on the active chart, or right-click a drawing and choose{" "}
           <span className="text-[var(--edge-text-strong)]">Trade setup…</span> to
           link entry, stop, and take profit levels here.
         </p>
@@ -1255,15 +1278,19 @@ export function TradeOrderForm({
           ) : null}
 
           <div className="mb-3">
-            <EdgeLabeledInput
-              label="Quantity"
-              type="number"
-              min={1}
-              step={1}
-              value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
-              density="compact"
-              testId="trade-quantity"
+            <TradeSizeBudgetField
+              quantity={Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 1}
+              onQuantityChange={(nextQty) => setQuantity(String(nextQty))}
+              riskUnit={ticketRiskUnit}
+              onRiskUnitChange={setTicketRiskUnit}
+              riskPercent={ticketRiskPercent}
+              absoluteRisk={ticketAbsoluteRisk}
+              onRiskPercentChange={setTicketRiskPercent}
+              onAbsoluteRiskChange={setTicketAbsoluteRisk}
+              entry={executableEntry}
+              stop={composeStopLossPrice}
+              accountBasisValue={accountBasisValue}
+              riskDisabled={ticketRiskUnit === "percent" && accountBasisValue == null}
             />
           </div>
 
@@ -1351,26 +1378,6 @@ export function TradeOrderForm({
               />
             </div>
           </div>
-
-          {executableEntry != null && composeStopLossPrice != null ? (
-            <EdgeButton
-              type="button"
-              variant="secondary"
-              className="mt-2 w-full"
-              disabled={riskSizedQuantity == null}
-              title={
-                riskSizedQuantity == null
-                  ? dollarRisk == null
-                    ? "Set a risk budget in Risk calculator"
-                    : "Stop is too wide for the current risk budget"
-                  : undefined
-              }
-              onClick={handleSizeForRisk}
-              data-testid="trade-size-for-risk"
-            >
-              Size for risk
-            </EdgeButton>
-          ) : null}
 
           {policyBound ? (
             <EdgeButton

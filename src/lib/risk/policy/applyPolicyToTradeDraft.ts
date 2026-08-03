@@ -1,3 +1,4 @@
+import { qtyFromTicketDollarRisk } from "@/lib/risk/ticketSizeBudget";
 import type { PositionOrderLevels } from "@/lib/trading/positionTradeSetup";
 import type { PlaybookTemplate } from "@/lib/trading/playbook/types";
 import type { OrderSide } from "@/lib/trading/types";
@@ -8,6 +9,7 @@ import {
 } from "./resolvePolicyTradeGeometry";
 
 export type PolicyTradeDraftPatch = {
+  entryQty?: number;
   takeProfitQuantity: number;
   stopQuantity: number;
   takeProfitPrice: number | null;
@@ -29,18 +31,48 @@ export type ApplyPolicyToTradeDraftInput = {
   dollarRisk?: number | null;
 };
 
+function resolveSizedEntryQty(input: ApplyPolicyToTradeDraftInput): number {
+  const entry =
+    input.planLevels?.entry ??
+    input.entryPrice ??
+    null;
+  const stop =
+    input.planLevels?.stop ??
+    input.existingStop ??
+    null;
+  if (
+    entry == null ||
+    stop == null ||
+    input.dollarRisk == null ||
+    !Number.isFinite(entry) ||
+    !Number.isFinite(stop)
+  ) {
+    return input.entryQty;
+  }
+  const sized = qtyFromTicketDollarRisk({
+    entry,
+    stop,
+    dollarRisk: input.dollarRisk,
+  });
+  if (sized == null || sized <= 0) {
+    return input.entryQty;
+  }
+  return sized;
+}
+
 /** Pure policy → ticket form patch (unbound draft or bound preview). */
 export function applyPolicyToTradeDraft(
   input: ApplyPolicyToTradeDraftInput,
 ): PolicyTradeDraftPatch {
-  const qtys = deriveProtectExitQuantities(input.template, input.entryQty);
+  const sizedEntryQty = resolveSizedEntryQty(input);
+  const qtys = deriveProtectExitQuantities(input.template, sizedEntryQty);
 
   const geometryInput: ResolvePolicyTradeGeometryInput = {
     side: input.side,
     planLevels: input.planLevels,
     entryPrice: input.entryPrice,
     existingStop: input.existingStop,
-    entryQty: input.entryQty,
+    entryQty: sizedEntryQty,
     dollarRisk: input.dollarRisk,
     geometry: input.template.geometry,
   };
@@ -48,6 +80,7 @@ export function applyPolicyToTradeDraft(
   const geometry = resolvePolicyTradeGeometry(geometryInput);
 
   return {
+    entryQty: sizedEntryQty,
     takeProfitQuantity: qtys.takeProfitQuantity,
     stopQuantity: qtys.stopQuantity,
     takeProfitPrice: geometry?.target ?? null,
