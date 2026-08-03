@@ -1,0 +1,28 @@
+# APP — Expectancy workspace surface evidence
+# Date: 2026-08-03
+
+## Scope
+Add Expectancy as a first-class workspace tile surface with deterministic and Monte Carlo equity projection.
+
+## Delivered
+- src/lib/trading/expectancyProjector.ts — compound math, presets, deterministic + Monte Carlo
+- src/app/components/expectancy/ExpectancyApp.tsx — params-left / projection-right UI
+- src/app/components/app-workspace/ExpectancyTileSurface.tsx — workspace tile host
+- SurfaceId "expectancy" wired through types, schema, SurfaceHost, choosers, deep links
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/expectancyProjector.test.ts src/app/components/expectancy/ src/app/components/app-workspace/ExpectancyTileSurface.test.tsx src/lib/appWorkspace/deepLinks.test.ts
+
+Result:
+Test Files  4 passed (4)
+Tests  20 passed (20)
+
+Command:
+npm run lint:app-lib-boundaries
+
+Result:
+App-lib boundary validation passed (fail-closed).
+
+## App-level
+Manual: open /workspace?surface=expectancy, assign via Change panel, tweak risk 1% vs 10%, confirm ending equity + curve update; narrow tile for compact layout.

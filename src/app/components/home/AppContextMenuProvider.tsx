@@ -23,6 +23,7 @@ const PANEL_SURFACES: AssignableSurfaceId[] = [
   "scripts",
   "alerts",
   "copilot",
+  "expectancy",
 ];
 
 const PANEL_LABELS: Record<AssignableSurfaceId, string> = {
@@ -32,6 +33,7 @@ const PANEL_LABELS: Record<AssignableSurfaceId, string> = {
   scripts: "Scripts",
   alerts: "Alerts",
   copilot: "Copilot",
+  expectancy: "Expectancy",
 };
 
 function isInsideAppContextMenuSurface(target: EventTarget | null): boolean {

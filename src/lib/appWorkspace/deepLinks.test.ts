@@ -45,6 +45,7 @@ describe("appWorkspace deepLinks", () => {
     expect(WORKSPACE_SURFACE_LINKS.chart).toBe("/workspace?surface=chart");
     expect(WORKSPACE_SURFACE_LINKS.screener).toBe("/workspace?surface=screener");
     expect(WORKSPACE_SURFACE_LINKS.scripts).toBe("/workspace?surface=scripts");
+    expect(WORKSPACE_SURFACE_LINKS.expectancy).toBe("/workspace?surface=expectancy");
     expect(WORKSPACE_SURFACE_LINKS.screenerReview).toBe(
       "/workspace?surface=screener&screenerView=screens",
     );

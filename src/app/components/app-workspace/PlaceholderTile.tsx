@@ -9,6 +9,7 @@ const ASSIGNABLE_SURFACES: { id: AssignableSurfaceId; label: string }[] = [
   { id: "scripts", label: "Scripts" },
   { id: "alerts", label: "Alerts" },
   { id: "copilot", label: "Copilot" },
+  { id: "expectancy", label: "Expectancy" },
 ];
 
 type Props = {

@@ -9,8 +9,22 @@ export const surfaceIdSchema = z.enum([
   "scripts",
   "alerts",
   "copilot",
+  "expectancy",
   "placeholder",
 ]);
+
+const expectancySurfaceParamsSchema = z.object({
+  presetId: z.string().optional(),
+  startingEquity: z.number().finite().positive(),
+  years: z.number().finite().positive(),
+  winRate: z.number().finite().min(0).max(1),
+  avgWinR: z.number().finite().positive(),
+  avgLossR: z.number().finite().positive(),
+  riskFraction: z.number().finite().positive().max(1),
+  tradesPerWeek: z.number().finite().positive(),
+  monteCarloRuns: z.number().finite().int().min(100).max(5000).optional(),
+  monteCarloSeed: z.number().finite().int().optional(),
+});
 
 export const tileSurfaceStateSchema = z.object({
   screenerView: z.enum(["review", "screens", "results", "keepers"]).optional(),
@@ -34,6 +48,8 @@ export const tileSurfaceStateSchema = z.object({
       tlExtendRight: z.boolean().optional(),
     })
     .optional(),
+  expectancyMode: z.enum(["deterministic", "monteCarlo"]).optional(),
+  expectancyParams: expectancySurfaceParamsSchema.optional(),
 });
 
 export const tileInstanceSchema = z.object({

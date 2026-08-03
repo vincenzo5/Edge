@@ -15,6 +15,7 @@ const SURFACE_LABELS: Record<SurfaceId, string> = {
   scripts: "Scripts",
   alerts: "Alerts",
   copilot: "Copilot",
+  expectancy: "Expectancy",
   placeholder: "Panel",
 };
 
@@ -25,6 +26,7 @@ const REASSIGNABLE_SURFACES: AssignableSurfaceId[] = [
   "scripts",
   "alerts",
   "copilot",
+  "expectancy",
 ];
 
 type Props = {

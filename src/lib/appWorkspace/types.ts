@@ -5,7 +5,23 @@ export type SurfaceId =
   | "scripts"
   | "alerts"
   | "copilot"
+  | "expectancy"
   | "placeholder";
+
+export type ExpectancyMode = "deterministic" | "monteCarlo";
+
+export type ExpectancySurfaceParams = {
+  presetId?: string;
+  startingEquity: number;
+  years: number;
+  winRate: number;
+  avgWinR: number;
+  avgLossR: number;
+  riskFraction: number;
+  tradesPerWeek: number;
+  monteCarloRuns?: number;
+  monteCarloSeed?: number;
+};
 
 export type SplitDirection = "row" | "column";
 
@@ -37,6 +53,8 @@ export type TileSurfaceState = {
     tlExtendLeft?: boolean;
     tlExtendRight?: boolean;
   };
+  expectancyMode?: ExpectancyMode;
+  expectancyParams?: ExpectancySurfaceParams;
 };
 
 export type TileInstance = {

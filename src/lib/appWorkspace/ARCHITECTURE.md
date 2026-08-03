@@ -71,7 +71,7 @@ In-process workspace session (React context) for Review→Chart drive. `Broadcas
 
 ## App shell and layout modes
 
-The app **is** the workspace: `/workspace` is the primary shell (not a peer module). Chart, Screener, Journal, and Scripts are **tiles** inside the active `AppWorkspaceDocument`.
+The app **is** the workspace: `/workspace` is the primary shell (not a peer module). Chart, Screener, Journal, Scripts, Copilot, Expectancy, and other surfaces are **tiles** inside the active `AppWorkspaceDocument`.
 
 | Mode | Session state | Chrome |
 |------|---------------|--------|

@@ -116,6 +116,7 @@ export const WORKSPACE_SURFACE_LINKS = {
   scripts: buildWorkspaceDeepLink({ surface: "scripts" }),
   alerts: buildWorkspaceDeepLink({ surface: "alerts" }),
   copilot: buildWorkspaceDeepLink({ surface: "copilot" }),
+  expectancy: buildWorkspaceDeepLink({ surface: "expectancy" }),
   screenerReview: buildWorkspaceDeepLink({ surface: "screener", screenerView: "screens" }),
   screenerScreens: buildWorkspaceDeepLink({ surface: "screener", screenerView: "screens" }),
   screenerResults: buildWorkspaceDeepLink({ surface: "screener", screenerView: "screens" }),

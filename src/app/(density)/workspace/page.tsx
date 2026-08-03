@@ -21,6 +21,7 @@ const WORKSPACE_SURFACES: SurfaceId[] = [
   "scripts",
   "alerts",
   "copilot",
+  "expectancy",
 ];
 
 export function buildIngressSurfaceState(

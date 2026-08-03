@@ -32,6 +32,11 @@ const CopilotTileSurface = dynamic(() => import("./CopilotTileSurface"), {
   loading: () => <TileLoadingShell label="Copilot" />,
 });
 
+const ExpectancyTileSurface = dynamic(() => import("./ExpectancyTileSurface"), {
+  ssr: false,
+  loading: () => <TileLoadingShell label="Expectancy" />,
+});
+
 type Props = {
   tile: TileInstance;
   isPrimaryChart?: boolean;
@@ -58,6 +63,8 @@ export default function SurfaceHost({ tile, isPrimaryChart = false, onAssignSurf
       return <AlertsTileSurface tileId={tile.id} surfaceState={tile.surfaceState} />;
     case "copilot":
       return <CopilotTileSurface tileId={tile.id} />;
+    case "expectancy":
+      return <ExpectancyTileSurface tileId={tile.id} surfaceState={tile.surfaceState} />;
     case "placeholder":
       return (
         <PlaceholderTile
