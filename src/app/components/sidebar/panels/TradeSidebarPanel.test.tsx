@@ -77,6 +77,10 @@ vi.mock("../../trading/usePlaybookInstances", () => ({
   usePlaybookInstances: () => ({ instances: [], refresh: vi.fn() }),
 }));
 
+vi.mock("../../trading/usePlaybookInstances", () => ({
+  usePlaybookInstances: () => ({ instances: [], refresh: vi.fn() }),
+}));
+
 vi.mock("@/lib/trading/tradingClient", () => ({
   previewOrder: vi.fn(),
   submitOrder: vi.fn(),
@@ -118,5 +122,28 @@ describe("TradeSidebarPanel", () => {
     mockBinding.symbol = "AAPL";
     render(<TradeSidebarPanel />);
     expect(await screen.findByTestId("trade-entry-display")).toHaveTextContent("~148.50");
+  });
+
+  it("shows policy picker on unbound chart trade ticket", async () => {
+    mockBinding.symbol = "AAPL";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          presets: [],
+          userTemplates: [
+            {
+              id: "user_long",
+              name: "Long half → BE → 0.5R trail",
+              description: "Half at +1R",
+              rules: [],
+            },
+          ],
+        }),
+      }),
+    );
+    render(<TradeSidebarPanel />);
+    expect(await screen.findByTestId("trade-policy-picker")).toBeInTheDocument();
   });
 });

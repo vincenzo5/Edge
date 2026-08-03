@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useActiveChart } from "../../ActiveChartContext";
 import { useQuote } from "@/lib/marketData/useQuotes";
 import { resolveTradeTicketLastPrice } from "@/lib/trading/resolveTradeTicketLastPrice";
@@ -9,16 +9,69 @@ import { TradeOrderForm } from "../../trading/TradeOrderForm";
 import { useTradeSetupBinding } from "../../trading/TradeSetupBindingContext";
 import { usePlaybookInstances } from "../../trading/usePlaybookInstances";
 import { useAccountOptional } from "../../AccountProvider";
+import { useRiskSettingsOptional } from "../../RiskSettingsProvider";
+import type { PolicyTradeDraftPatch } from "@/lib/risk/policy/applyPolicyToTradeDraft";
+import {
+  useTradePolicyApply,
+  type TradePolicyFormContext,
+} from "../../trading/useTradePolicyApply";
 
 export function TradeSidebarPanel() {
   const { bind, levels, symbol: boundSymbol, seedQuantity, clearSeedQuantity } =
     useTradeSetupBinding();
   const activeChart = useActiveChart();
   const account = useAccountOptional();
+  const riskSettings = useRiskSettingsOptional();
   const accountId = account?.activeTradingAccountId ?? "";
+  const environment = account?.tradingEnvironment ?? "paper";
   const { instances: playbookInstances, refresh: refreshPlaybookInstances } =
     usePlaybookInstances(accountId || null, { includePlanned: true });
   const symbol = boundSymbol ?? activeChart?.config.symbol ?? "";
+  const [policyFormContext, setPolicyFormContext] = useState<TradePolicyFormContext>({
+    entryQty: 1,
+    side: "BUY",
+    entryPrice: null,
+    existingStop: null,
+  });
+  const [policyDraftPatch, setPolicyDraftPatch] = useState<PolicyTradeDraftPatch | null>(
+    null,
+  );
+
+  const entryQty = useMemo(() => {
+    if (Number.isFinite(policyFormContext.entryQty) && policyFormContext.entryQty > 0) {
+      return Math.round(policyFormContext.entryQty);
+    }
+    const seeded = seedQuantity;
+    if (seeded != null && Number.isFinite(seeded) && seeded > 0) return Math.round(seeded);
+    const planned = playbookInstances.find(
+      (item) =>
+        item.status === "planned" &&
+        item.bindingRef?.kind === "drawing" &&
+        item.bindingRef.id === bind?.drawingId,
+    );
+    if (planned?.positionPlan.qty) return planned.positionPlan.qty;
+    return 1;
+  }, [bind?.drawingId, playbookInstances, policyFormContext.entryQty, seedQuantity]);
+
+  const onDraftApplied = useCallback((patch: PolicyTradeDraftPatch) => {
+    setPolicyDraftPatch(patch);
+  }, []);
+
+  const policyApply = useTradePolicyApply({
+    bind: bind?.drawingId ? { drawingId: bind.drawingId } : null,
+    planLevels: levels,
+    symbol,
+    accountId,
+    environment,
+    entryQty,
+    side: policyFormContext.side,
+    entryPrice: policyFormContext.entryPrice,
+    existingStop: policyFormContext.existingStop,
+    dollarRisk: riskSettings?.dollarRisk ?? null,
+    instances: playbookInstances,
+    onInstancesChange: () => void refreshPlaybookInstances(),
+    onDraftApplied,
+  });
   const quote = useQuote(symbol || null);
   const lastPrice = useMemo(() => {
     const candles =
@@ -31,17 +84,7 @@ export function TradeSidebarPanel() {
 
   const boundActive = bind != null && levels != null;
 
-  const plannedInstance = useMemo(() => {
-    if (!bind?.drawingId) return null;
-    return (
-      playbookInstances.find(
-        (item) =>
-          item.status === "planned" &&
-          item.bindingRef?.kind === "drawing" &&
-          item.bindingRef.id === bind.drawingId,
-      ) ?? null
-    );
-  }, [bind?.drawingId, playbookInstances]);
+  const plannedInstance = policyApply.plannedInstance;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -69,6 +112,15 @@ export function TradeSidebarPanel() {
         onSeedQuantityApplied={clearSeedQuantity}
         plannedInstance={plannedInstance}
         onPlannedRefresh={() => void refreshPlaybookInstances()}
+        policyTemplates={policyApply.templates}
+        selectedPolicyId={policyApply.selectedTemplateId}
+        onPolicyChange={(templateId) => void policyApply.applyPolicy(templateId)}
+        policyLoading={policyApply.loading}
+        policyApplyError={policyApply.error}
+        policyPickerEnabled={Boolean(accountId.trim())}
+        policyDraftPatch={policyDraftPatch}
+        onPolicyDraftConsumed={() => setPolicyDraftPatch(null)}
+        onPolicyFormContextChange={setPolicyFormContext}
         testId="trade-sidebar-panel"
       />
     </div>

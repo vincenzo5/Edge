@@ -1,0 +1,26 @@
+# LIVE — Trade policy dual-mode apply evidence
+# Date: 2026-08-03
+
+## Scope
+Policy picker on every chart trade ticket (draft apply); drawing-bound persist unchanged; bind-upgrade when drawing linked after draft select.
+
+## Delivered
+- src/lib/risk/policy/resolvePolicyTradeGeometry.ts — entry/stop/target from planLevels, form stop, or dollarRisk/qty
+- src/lib/risk/policy/applyPolicyToTradeDraft.ts — pure draft patch (qty split, prices, manage template)
+- src/app/components/trading/useTradePolicyApply.ts — draft vs persist branches + bind-upgrade effect
+- src/app/components/sidebar/panels/TradeSidebarPanel.tsx — un-gated picker; draft patch wiring
+- src/app/components/trading/TradeOrderForm.tsx — draft policy qty/runner/submit; policyDraftPatch apply
+- src/app/components/trading/TradeTicketModal.tsx — picker parity
+- src/lib/risk/ARCHITECTURE.md, src/lib/trading/ARCHITECTURE.md — dual-mode notes
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/policy/resolvePolicyTradeGeometry.test.ts src/lib/risk/policy/applyPolicyToTradeDraft.test.ts src/lib/risk/policy/deriveProtectExitQuantities.test.ts src/app/components/trading/useTradePolicyApply.test.tsx src/app/components/trading/TradePolicyPicker.test.tsx src/app/components/trading/TradeOrderForm.test.tsx src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx src/lib/trading/bracketPlan.test.ts src/lib/trading/playbook/restingScaleTp.test.ts src/lib/trading/playbook/promotePlannedInstances.test.ts
+
+Result:
+Test Files  10 passed (10)
+Tests  55 passed (55)
+
+## App-level (manual)
+- Chart ticket: META → pick Long half policy → Protect 100/200 at 200 sh → Buy paper
+- Trade setup drawing → same picker → planned instance shared with Risk panel

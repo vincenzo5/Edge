@@ -1,4 +1,6 @@
+export * from "./applyPolicyToTradeDraft";
 export * from "./applyRiskPolicy";
+export * from "./resolvePolicyTradeGeometry";
 export * from "./applyRequests";
 export * from "./buildPositionPlanFromPreview";
 export * from "./classicProtectTemplate";

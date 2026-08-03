@@ -1,15 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   EdgeButton,
-  EdgeFlipChip,
   EdgeLabeledInput,
   EdgeSegmentedTabs,
   EdgeSelect,
   EdgeToggleSwitch,
+  EdgeUnderlineTabs,
 } from "../design-system";
+import { BuySellToggle } from "./BuySellToggle";
+import { LinkedProtectLevelsEditor } from "./LinkedProtectLevelsEditor";
+import { TradePolicyPicker } from "./TradePolicyPicker";
 import { fieldClass } from "../design-system/styles";
 import { useAccountOptional } from "../AccountProvider";
 import { useAccountAliasesOptional } from "../AccountAliasesProvider";
@@ -29,11 +32,13 @@ import {
 } from "@/lib/trading/tradingClient";
 import { TradeOrderImpact } from "./TradeOrderImpact";
 import {
-  buildBracketPlanFromLevels,
+  buildBracketPlanWithPrices,
   buildFixedStopLeg,
   buildTrailStopLeg,
   validateBracketGeometry,
 } from "@/lib/trading/bracketPlan";
+import { directionFromSide, defaultProtectPrices } from "@/lib/trading/linkedProtectLevels";
+import { summarizeOrderCtaLabel } from "@/lib/trading/summarizeOrderCta";
 import type {
   BracketPlan,
   BracketPlacedResult,
@@ -68,10 +73,14 @@ import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
 import { useAccountRiskGateStatus } from "../risk/useAccountRiskGateStatus";
 import { usePlaybookInstances } from "./usePlaybookInstances";
 import { evaluateSubmitProtectGate } from "@/lib/risk/policy/submitProtectGate";
+import { deriveProtectExitQuantities } from "@/lib/risk/policy/deriveProtectExitQuantities";
+import type { PolicyTradeDraftPatch } from "@/lib/risk/policy/applyPolicyToTradeDraft";
 import { resolveEntryScheduleFireAt } from "@/lib/risk/policy/resolveEntrySchedule";
 import type { EntrySchedule } from "@/lib/risk/policy/slotSchemas";
 import type { PlaybookInstance } from "@/lib/trading/playbook/types";
+import type { PlaybookTemplate } from "@/lib/trading/playbook/types";
 import { SubmitRiskPlanSummary } from "../risk/SubmitRiskPlanSummary";
+import type { TradePolicyFormContext } from "./useTradePolicyApply";
 
 export type { ManagePresetSelection };
 
@@ -89,10 +98,53 @@ export type TradeOrderFormProps = {
   plannedInstance?: PlaybookInstance | null;
   onChangePolicy?: () => void;
   onPlannedRefresh?: () => void;
+  policyTemplates?: PlaybookTemplate[];
+  selectedPolicyId?: string | null;
+  onPolicyChange?: (templateId: string | null) => void;
+  policyLoading?: boolean;
+  policyApplyError?: string | null;
+  policyPickerEnabled?: boolean;
+  policyDraftPatch?: PolicyTradeDraftPatch | null;
+  onPolicyDraftConsumed?: () => void;
+  onPolicyFormContextChange?: (context: TradePolicyFormContext) => void;
   testId?: string;
 };
 
 type Step = "form" | "confirm" | "success";
+
+const ORDER_TYPE_TABS = [
+  { id: "MKT", label: "Market" },
+  { id: "LMT", label: "Limit" },
+  { id: "STP", label: "Stop" },
+  { id: "STP LMT", label: "Stop Limit" },
+] as const;
+
+export function handleOrderTypeTabChange(args: {
+  nextType: OrderType;
+  planEntry: number | null;
+  planStop: number | null;
+  lastPrice: number | null;
+  currentLimitPrice: string;
+  currentStopPrice: string;
+}): { limitPrice: string; stopPrice: string } {
+  let limitPrice = args.currentLimitPrice;
+  let stopPrice = args.currentStopPrice;
+  if (args.nextType === "LMT" || args.nextType === "STP LMT") {
+    limitPrice = seedLimitPriceFromLast({
+      currentLimitPrice: limitPrice,
+      planEntry: args.planEntry,
+      lastPrice: args.lastPrice,
+    });
+  }
+  if (args.nextType === "STP" || args.nextType === "STP LMT") {
+    if (!stopPrice.trim()) {
+      const seed = args.planStop ?? args.lastPrice;
+      stopPrice =
+        seed != null && Number.isFinite(seed) ? formatLimitPriceInput(seed) : stopPrice;
+    }
+  }
+  return { limitPrice, stopPrice };
+}
 
 function formatMoney(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -193,6 +245,15 @@ export function TradeOrderForm({
   plannedInstance = null,
   onChangePolicy,
   onPlannedRefresh,
+  policyTemplates = [],
+  selectedPolicyId = null,
+  onPolicyChange,
+  policyLoading = false,
+  policyApplyError = null,
+  policyPickerEnabled = false,
+  policyDraftPatch = null,
+  onPolicyDraftConsumed,
+  onPolicyFormContextChange,
   testId = "trade-order-form",
 }: TradeOrderFormProps) {
   const account = useAccountOptional();
@@ -218,7 +279,13 @@ export function TradeOrderForm({
   const [stopPrice, setStopPrice] = useState("");
   const [tif, setTif] = useState<TimeInForce>("DAY");
   const [outsideRth, setOutsideRth] = useState(false);
-  const [attachBracket, setAttachBracket] = useState(true);
+  const [takeProfitEnabled, setTakeProfitEnabled] = useState(true);
+  const [stopLossEnabled, setStopLossEnabled] = useState(true);
+  const [composeTakeProfitPrice, setComposeTakeProfitPrice] = useState<number | null>(null);
+  const [composeStopLossPrice, setComposeStopLossPrice] = useState<number | null>(null);
+  const [takeProfitQuantity, setTakeProfitQuantity] = useState(1);
+  const [stopLossQuantity, setStopLossQuantity] = useState(1);
+  const exitQtyCustomRef = useRef(false);
   const [managePresetId, setManagePresetId] = useState<ManagePresetSelection>("off");
   const [manageNotifyAtManageLevels, setManageNotifyAtManageLevels] = useState(false);
   const [stopLegMode, setStopLegMode] = useState<StopLegMode>("fixed");
@@ -240,6 +307,10 @@ export function TradeOrderForm({
   const [sessionEvent, setSessionEvent] = useState<"nextRthOpen" | "nextRthClose">("nextRthOpen");
   const [clockAt, setClockAt] = useState("");
   const [clockTimeZone, setClockTimeZone] = useState("America/New_York");
+  const protectSeedRef = useRef<{ side: OrderSide; entry: number | null }>({
+    side: "BUY",
+    entry: null,
+  });
 
   const policyBound = plannedInstance != null && plannedInstance.status === "planned";
   const policyTemplate = plannedInstance?.policySnapshot ?? null;
@@ -254,6 +325,11 @@ export function TradeOrderForm({
     setSide(planLevels.side);
     setOrderType(policyBound ? "LMT" : "MKT");
     setLimitPrice(formatLimitPriceInput(planLevels.entry));
+    setStopPrice(formatLimitPriceInput(planLevels.stop));
+    setComposeStopLossPrice(planLevels.stop);
+    setComposeTakeProfitPrice(planLevels.target);
+    setStopLossEnabled(true);
+    setTakeProfitEnabled(true);
   }, [planLevels?.entry, planLevels?.side, planLevels?.stop, planLevels?.target, policyBound]);
 
   useEffect(() => {
@@ -300,29 +376,92 @@ export function TradeOrderForm({
     }
   }, [symbol, planLevels?.entry, planLevels?.stop, planLevels?.target]);
 
-  const qtyNum = Number.parseFloat(quantity);
-  const plannedRisk =
-    planLevels && Number.isFinite(qtyNum) && qtyNum > 0
-      ? plannedRiskDollars(planLevels.entry, planLevels.stop, qtyNum)
-      : null;
-  const marketRisk =
-    planLevels &&
-    lastPrice != null &&
-    Number.isFinite(lastPrice) &&
-    Number.isFinite(qtyNum) &&
-    qtyNum > 0
-      ? atMarketRiskDollars(lastPrice, planLevels.stop, qtyNum, planLevels.direction)
-      : null;
+  const prevSymbolRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!symbol) return;
+    if (prevSymbolRef.current != null && prevSymbolRef.current !== symbol) {
+      setComposeStopLossPrice(null);
+      setComposeTakeProfitPrice(null);
+      protectSeedRef.current = { side: "BUY", entry: null };
+    }
+    prevSymbolRef.current = symbol;
+  }, [symbol]);
 
-  const riskSizedQuantity = useMemo(() => {
-    if (!planLevels || dollarRisk == null) return null;
-    const result = computeEquityPositionSize({
-      entry: planLevels.entry,
-      stop: planLevels.stop,
-      dollarRisk,
-    });
-    return result.ok ? result.shares : null;
-  }, [planLevels, dollarRisk]);
+  const qtyNum = Number.parseFloat(quantity);
+  const composeDirection = planLevels?.direction ?? directionFromSide(side);
+
+  const activePolicyTemplate = useMemo((): PlaybookTemplate | null => {
+    if (selectedPolicyId) {
+      const fromPicker = policyTemplates.find((item) => item.id === selectedPolicyId);
+      if (fromPicker) return fromPicker;
+    }
+    if (plannedInstance) {
+      const fromSnapshot = plannedInstance.policySnapshot;
+      if (fromSnapshot && fromSnapshot.id === plannedInstance.templateId) {
+        return fromSnapshot as PlaybookTemplate;
+      }
+      return getPlaybookPreset(plannedInstance.templateId) ?? null;
+    }
+    return null;
+  }, [plannedInstance, policyTemplates, selectedPolicyId]);
+
+  const draftPolicyActive =
+    !policyBound && selectedPolicyId != null && activePolicyTemplate != null;
+
+  useEffect(() => {
+    if (!policyDraftPatch) return;
+    setTakeProfitQuantity(policyDraftPatch.takeProfitQuantity);
+    setStopLossQuantity(policyDraftPatch.stopQuantity);
+    setTakeProfitEnabled(policyDraftPatch.takeProfitEnabled);
+    setStopLossEnabled(policyDraftPatch.stopLossEnabled);
+    setManagePresetId(policyDraftPatch.manageTemplateId);
+    exitQtyCustomRef.current = false;
+    if (policyDraftPatch.stopLossPrice != null) {
+      setComposeStopLossPrice(policyDraftPatch.stopLossPrice);
+    }
+    if (policyDraftPatch.takeProfitPrice != null) {
+      setComposeTakeProfitPrice(policyDraftPatch.takeProfitPrice);
+    }
+    onPolicyDraftConsumed?.();
+  }, [onPolicyDraftConsumed, policyDraftPatch]);
+
+  useEffect(() => {
+    if (!Number.isFinite(qtyNum) || qtyNum <= 0) return;
+    if (activePolicyTemplate) {
+      const derived = deriveProtectExitQuantities(activePolicyTemplate, qtyNum);
+      setTakeProfitQuantity(derived.takeProfitQuantity);
+      setStopLossQuantity(derived.stopQuantity);
+      exitQtyCustomRef.current = false;
+      return;
+    }
+    if (exitQtyCustomRef.current) return;
+    const rounded = Math.max(1, Math.round(qtyNum));
+    setTakeProfitQuantity(rounded);
+    setStopLossQuantity(rounded);
+  }, [activePolicyTemplate, policyBound, qtyNum]);
+
+  const exitQtyPlan = useMemo(() => {
+    if (!activePolicyTemplate || !Number.isFinite(qtyNum) || qtyNum <= 0) {
+      return null;
+    }
+    return deriveProtectExitQuantities(activePolicyTemplate, qtyNum);
+  }, [activePolicyTemplate, qtyNum]);
+
+  const attachBracket = useMemo(() => {
+    if (policyBound) return true;
+    return (
+      stopLossEnabled &&
+      takeProfitEnabled &&
+      composeStopLossPrice != null &&
+      composeTakeProfitPrice != null
+    );
+  }, [
+    composeStopLossPrice,
+    composeTakeProfitPrice,
+    policyBound,
+    stopLossEnabled,
+    takeProfitEnabled,
+  ]);
 
   const draft = useMemo(() => {
     if (!gatewayAccountSelected || !accountId || !symbol.trim()) return null;
@@ -358,8 +497,41 @@ export function TradeOrderForm({
     outsideRth,
   ]);
 
+  const runnerManageSteps = useMemo(() => {
+    if ((!policyBound && !draftPolicyActive) || !draft || !activePolicyTemplate || composeStopLossPrice == null) {
+      return [];
+    }
+    const entryPrice =
+      draft.orderType === "LMT" && draft.limitPrice != null
+        ? draft.limitPrice
+        : (planLevels?.entry ?? lastPrice ?? 0);
+    const plan = lockPositionPlan({
+      symbol: draft.symbol,
+      accountId: draft.accountId,
+      side: draft.side,
+      entry: entryPrice,
+      initialStop: composeStopLossPrice,
+      qty: draft.quantity,
+      environment: draft.environment,
+    });
+    const steps = planPlaybookSteps(activePolicyTemplate, plan);
+    const scaleRuleId = exitQtyPlan?.restingScaleRuleId;
+    return steps
+      .filter((step) => step.ruleId !== scaleRuleId)
+      .map((step) => formatManageStepPreview(step));
+  }, [
+    activePolicyTemplate,
+    composeStopLossPrice,
+    draft,
+    exitQtyPlan?.restingScaleRuleId,
+    lastPrice,
+    planLevels?.entry,
+    policyBound,
+    draftPolicyActive,
+  ]);
+
   const stopLeg = useMemo((): BracketStopLeg | null => {
-    if (!planLevels) return null;
+    if (composeStopLossPrice == null) return null;
     if (stopLegMode === "trail") {
       const amount = Number.parseFloat(trailAmount);
       const percent = Number.parseFloat(trailPercent);
@@ -371,51 +543,91 @@ export function TradeOrderForm({
       }
       return null;
     }
-    return buildFixedStopLeg(planLevels.stop);
-  }, [planLevels, stopLegMode, trailAmount, trailPercent]);
+    return buildFixedStopLeg(composeStopLossPrice);
+  }, [composeStopLossPrice, stopLegMode, trailAmount, trailPercent]);
 
   const bracketPlan = useMemo((): BracketPlan | null => {
-    if (!draft || !planLevels || !attachBracket || !stopLeg) return null;
-    const plan = buildBracketPlanFromLevels({
+    if (!draft || !attachBracket || !stopLeg) return null;
+    if (composeStopLossPrice == null || composeTakeProfitPrice == null) return null;
+    const plan = buildBracketPlanWithPrices({
       entry: draft,
-      planLevels,
+      stopPrice: composeStopLossPrice,
+      takeProfitPrice: composeTakeProfitPrice,
       stopLeg,
+      takeProfitQuantity: Math.max(1, Math.round(takeProfitQuantity)),
+      stopQuantity: Math.max(1, Math.round(stopLossQuantity)),
     });
     return validateBracketGeometry(plan) ? null : plan;
-  }, [attachBracket, draft, planLevels, stopLeg]);
+  }, [
+    attachBracket,
+    composeStopLossPrice,
+    composeTakeProfitPrice,
+    draft,
+    stopLeg,
+    stopLossQuantity,
+    takeProfitQuantity,
+  ]);
 
-  const manageEnabled = attachBracket && managePresetId !== "off";
+  const effectiveManagePresetId: ManagePresetSelection = policyBound
+    ? (plannedInstance?.templateId ?? "off")
+    : draftPolicyActive && activePolicyTemplate
+      ? activePolicyTemplate.id
+      : managePresetId;
+
+  const manageEnabled = attachBracket && effectiveManagePresetId !== "off";
 
   const managePreviewPlan = useMemo(() => {
-    if (!planLevels || !draft || !manageEnabled) return null;
+    if (!draft || !manageEnabled || composeStopLossPrice == null) return null;
     const entryPrice =
       draft.orderType === "LMT" && draft.limitPrice != null
         ? draft.limitPrice
-        : planLevels.entry;
+        : (planLevels?.entry ?? lastPrice ?? 0);
     return lockPositionPlan({
       symbol: draft.symbol,
       accountId: draft.accountId,
       side: draft.side,
       entry: entryPrice,
-      initialStop: planLevels.stop,
+      initialStop: composeStopLossPrice,
       qty: draft.quantity,
       environment: draft.environment,
     });
-  }, [draft, manageEnabled, planLevels]);
+  }, [composeStopLossPrice, draft, lastPrice, manageEnabled, planLevels?.entry]);
 
   const managePreviewSteps = useMemo(() => {
-    if (!managePreviewPlan || managePresetId === "off") return [];
-    const template = getPlaybookPreset(managePresetId);
+    if (!managePreviewPlan || effectiveManagePresetId === "off") return [];
+    const template =
+      activePolicyTemplate?.id === effectiveManagePresetId
+        ? activePolicyTemplate
+        : getPlaybookPreset(effectiveManagePresetId);
     if (!template) return [];
     return planPlaybookSteps(template, managePreviewPlan);
-  }, [managePreviewPlan, managePresetId]);
+  }, [activePolicyTemplate, effectiveManagePresetId, managePreviewPlan]);
 
   const bracketGeometryError = useMemo(() => {
-    if (!draft || !planLevels || !attachBracket || !stopLeg) return null;
+    if (!draft || !attachBracket || !stopLeg) return null;
+    if (composeStopLossPrice == null || composeTakeProfitPrice == null) return null;
     return validateBracketGeometry(
-      buildBracketPlanFromLevels({ entry: draft, planLevels, stopLeg }),
+      buildBracketPlanWithPrices({
+        entry: draft,
+        stopPrice: composeStopLossPrice,
+        takeProfitPrice: composeTakeProfitPrice,
+        stopLeg,
+      }),
     );
-  }, [attachBracket, draft, planLevels, stopLeg]);
+  }, [attachBracket, composeStopLossPrice, composeTakeProfitPrice, draft, stopLeg]);
+
+  const proposedRiskForGates = useMemo(() => {
+    const entry = planLevels?.entry ?? lastPrice;
+    if (
+      entry == null ||
+      composeStopLossPrice == null ||
+      !Number.isFinite(qtyNum) ||
+      qtyNum <= 0
+    ) {
+      return null;
+    }
+    return plannedRiskDollars(entry, composeStopLossPrice, qtyNum);
+  }, [composeStopLossPrice, lastPrice, planLevels?.entry, qtyNum]);
 
   const accountGates = useAccountRiskGateStatus({
     settings: riskSettingsModel ?? DEFAULT_RISK_SETTINGS,
@@ -423,8 +635,29 @@ export function TradeOrderForm({
     pnl: account?.pnl ?? null,
     playbookInstances,
     openPositionCount,
-    proposedRiskDollars: plannedRisk ?? dollarRisk,
+    proposedRiskDollars: proposedRiskForGates ?? dollarRisk,
   });
+
+  const bracketPlanForPolicy = useMemo(() => {
+    if (!policyBound || !draft || composeStopLossPrice == null || composeTakeProfitPrice == null) {
+      return null;
+    }
+    return buildBracketPlanWithPrices({
+      entry: draft,
+      stopPrice: composeStopLossPrice,
+      takeProfitPrice: composeTakeProfitPrice,
+      stopLeg: buildFixedStopLeg(composeStopLossPrice),
+      takeProfitQuantity: Math.max(1, Math.round(takeProfitQuantity)),
+      stopQuantity: Math.max(1, Math.round(stopLossQuantity)),
+    });
+  }, [
+    composeStopLossPrice,
+    composeTakeProfitPrice,
+    draft,
+    policyBound,
+    stopLossQuantity,
+    takeProfitQuantity,
+  ]);
 
   const submitRiskSummary = useMemo(() => {
     const qty = Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : null;
@@ -432,32 +665,24 @@ export function TradeOrderForm({
       environment,
       quantity: qty,
       dollarRisk,
-      plannedRiskDollars: plannedRisk,
+      plannedRiskDollars: proposedRiskForGates,
       attachProtect: policyBound ? true : attachBracket,
-      bracketPlan: policyBound && planLevels && draft
-        ? buildBracketPlanFromLevels({
-            entry: draft,
-            planLevels,
-            stopLeg: buildFixedStopLeg(planLevels.stop),
-          })
-        : bracketPlan,
-      managePresetId: policyBound ? plannedInstance?.templateId ?? "off" : managePresetId,
+      bracketPlan: policyBound ? bracketPlanForPolicy : bracketPlan,
+      managePresetId: effectiveManagePresetId,
       accountGates: riskSettingsModel != null ? accountGates : null,
       side,
     });
   }, [
+    accountGates,
     attachBracket,
     bracketPlan,
+    bracketPlanForPolicy,
     dollarRisk,
-    draft,
     environment,
-    managePresetId,
-    planLevels,
-    plannedInstance?.templateId,
-    plannedRisk,
+    effectiveManagePresetId,
     policyBound,
+    proposedRiskForGates,
     qtyNum,
-    accountGates,
     riskSettingsModel,
     side,
   ]);
@@ -500,27 +725,118 @@ export function TradeOrderForm({
   );
 
   const executableEntry = useMemo(() => {
-    if (orderType === "LMT") {
+    if (orderType === "LMT" || orderType === "STP LMT") {
       const parsed = Number.parseFloat(limitPrice);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+      return planLevels?.entry ?? null;
+    }
+    if (orderType === "STP") {
+      const parsed = Number.parseFloat(stopPrice);
       if (Number.isFinite(parsed) && parsed > 0) return parsed;
       return planLevels?.entry ?? null;
     }
     if (lastPrice != null && Number.isFinite(lastPrice) && lastPrice > 0) return lastPrice;
     return planLevels?.entry ?? null;
-  }, [lastPrice, limitPrice, orderType, planLevels?.entry]);
+  }, [lastPrice, limitPrice, orderType, planLevels?.entry, stopPrice]);
 
-  const protectionEnabled = Boolean(planLevels && attachBracket);
+  useEffect(() => {
+    onPolicyFormContextChange?.({
+      entryQty: Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 1,
+      side,
+      entryPrice: executableEntry,
+      existingStop: composeStopLossPrice,
+    });
+  }, [
+    composeStopLossPrice,
+    executableEntry,
+    onPolicyFormContextChange,
+    qtyNum,
+    side,
+  ]);
+
+  useEffect(() => {
+    if (planLevels) return;
+    if (selectedPolicyId) return;
+    if (executableEntry == null || !Number.isFinite(executableEntry)) return;
+    const defaults = defaultProtectPrices({
+      entry: executableEntry,
+      direction: directionFromSide(side),
+    });
+    const seed = protectSeedRef.current;
+    const sideChanged = seed.side !== side;
+    const needsInitialSeed = seed.entry == null;
+    if (sideChanged || needsInitialSeed) {
+      setComposeStopLossPrice(defaults.stop);
+      setComposeTakeProfitPrice(defaults.target);
+      protectSeedRef.current = { side, entry: executableEntry };
+    }
+  }, [executableEntry, planLevels, selectedPolicyId, side]);
+
+  const effectivePlanLevels = useMemo((): PositionOrderLevels | null => {
+    if (composeStopLossPrice == null || composeTakeProfitPrice == null) return null;
+    const entry = planLevels?.entry ?? executableEntry;
+    if (entry == null || !Number.isFinite(entry)) return null;
+    const risk = Math.abs(entry - composeStopLossPrice);
+    const reward = Math.abs(composeTakeProfitPrice - entry);
+    return {
+      direction: composeDirection,
+      side,
+      entry,
+      stop: composeStopLossPrice,
+      target: composeTakeProfitPrice,
+      riskRewardRatio: risk > 0 ? reward / risk : null,
+    };
+  }, [
+    composeDirection,
+    composeStopLossPrice,
+    composeTakeProfitPrice,
+    executableEntry,
+    planLevels?.entry,
+    side,
+  ]);
+
+  const plannedRisk =
+    effectivePlanLevels && Number.isFinite(qtyNum) && qtyNum > 0
+      ? plannedRiskDollars(effectivePlanLevels.entry, effectivePlanLevels.stop, qtyNum)
+      : null;
+  const marketRisk =
+    effectivePlanLevels &&
+    lastPrice != null &&
+    Number.isFinite(lastPrice) &&
+    Number.isFinite(qtyNum) &&
+    qtyNum > 0
+      ? atMarketRiskDollars(
+          lastPrice,
+          effectivePlanLevels.stop,
+          qtyNum,
+          effectivePlanLevels.direction,
+        )
+      : null;
+
+  const riskSizedQuantity = useMemo(() => {
+    if (executableEntry == null || composeStopLossPrice == null || dollarRisk == null) {
+      return null;
+    }
+    const result = computeEquityPositionSize({
+      entry: executableEntry,
+      stop: composeStopLossPrice,
+      dollarRisk,
+    });
+    return result.ok ? result.shares : null;
+  }, [composeStopLossPrice, dollarRisk, executableEntry]);
+
+  const protectionEnabled = Boolean(attachBracket && composeStopLossPrice != null && composeTakeProfitPrice != null);
 
   const orderImpact = useMemo(
     () =>
       computeOrderImpactEconomics({
         quantity: Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : null,
         executableEntry,
-        stop: protectionEnabled && planLevels ? planLevels.stop : null,
-        target: protectionEnabled && planLevels ? planLevels.target : null,
+        stop: protectionEnabled ? composeStopLossPrice : null,
+        target: protectionEnabled ? composeTakeProfitPrice : null,
         protectionEnabled,
       }),
-    [executableEntry, planLevels, protectionEnabled, qtyNum],
+    [composeStopLossPrice, composeTakeProfitPrice, executableEntry, protectionEnabled, qtyNum],
   );
 
   const marginCtx = useRiskMarginContext({
@@ -533,19 +849,40 @@ export function TradeOrderForm({
   });
 
   const activeRiskDollars = useMemo(() => {
-    if (!attachBracket || !planLevels) return null;
+    if (!attachBracket || composeStopLossPrice == null) return null;
     if (orderType === "MKT" && marketRisk != null) return marketRisk;
     return plannedRisk;
-  }, [attachBracket, marketRisk, orderType, planLevels, plannedRisk]);
+  }, [attachBracket, composeStopLossPrice, marketRisk, orderType, plannedRisk]);
+
+  const showRiskPlan = policyBound || attachBracket || manageEnabled;
 
   const primaryCtaLabel = useMemo(() => {
-    if (loading) return "Previewing…";
-    if (policyBound && scheduleMode !== "now") return "Preview schedule";
-    return side === "BUY" ? "Buy" : "Sell";
-  }, [loading, policyBound, scheduleMode, side]);
-
-  const showRiskPlan =
-    policyBound || Boolean(planLevels && attachBracket) || manageEnabled;
+    const qty = Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 0;
+    const parsedLimit = Number.parseFloat(limitPrice);
+    const parsedStop = Number.parseFloat(stopPrice);
+    return summarizeOrderCtaLabel({
+      side,
+      quantity: qty,
+      symbol,
+      orderType,
+      limitPrice: Number.isFinite(parsedLimit) ? parsedLimit : null,
+      stopPrice: Number.isFinite(parsedStop) ? parsedStop : null,
+      lastPrice,
+      loading,
+      schedulePreview: policyBound && scheduleMode !== "now",
+    });
+  }, [
+    lastPrice,
+    limitPrice,
+    loading,
+    orderType,
+    policyBound,
+    qtyNum,
+    scheduleMode,
+    side,
+    stopPrice,
+    symbol,
+  ]);
 
   const confirmSubmitLabel = useMemo(() => {
     if (loading) return "Submitting…";
@@ -568,19 +905,19 @@ export function TradeOrderForm({
   }, [draft]);
 
   const confirmBracketLine = useMemo(() => {
-    if (!planLevels || !attachBracket) return null;
+    if (!effectivePlanLevels || !attachBracket) return null;
     const parts = [
-      `Stop ${formatPrice(planLevels.stop)}`,
-      `Target ${formatPrice(planLevels.target)}`,
+      `Stop ${formatPrice(effectivePlanLevels.stop)}`,
+      `Target ${formatPrice(effectivePlanLevels.target)}`,
     ];
     if (activeRiskDollars != null) {
       parts.push(`Risk ${formatMoney(activeRiskDollars)}`);
     }
-    if (planLevels.riskRewardRatio != null) {
-      parts.push(`R:R ${planLevels.riskRewardRatio.toFixed(1)}`);
+    if (effectivePlanLevels.riskRewardRatio != null) {
+      parts.push(`R:R ${effectivePlanLevels.riskRewardRatio.toFixed(1)}`);
     }
     return parts.join(" · ");
-  }, [activeRiskDollars, attachBracket, planLevels]);
+  }, [activeRiskDollars, attachBracket, effectivePlanLevels]);
 
   const handleSizeForRisk = useCallback(() => {
     if (riskSizedQuantity == null) return;
@@ -668,7 +1005,9 @@ export function TradeOrderForm({
           liveConfirmation:
             environment === "live" ? LIVE_CONFIRMATION_TOKEN : undefined,
           unprotectedConfirm,
-          takeProfitPrice: planLevels?.target,
+          takeProfitPrice: composeTakeProfitPrice ?? planLevels?.target,
+          takeProfitQuantity: Math.max(1, Math.round(takeProfitQuantity)),
+          stopQuantity: Math.max(1, Math.round(stopLossQuantity)),
         });
         onPlannedRefresh?.();
         setStep("success");
@@ -690,7 +1029,7 @@ export function TradeOrderForm({
       }
     }
 
-    if (attachBracket && planLevels && !bracketPlan) {
+    if (attachBracket && !bracketPlan) {
       setError(bracketGeometryError ?? "Complete bracket stop/TP before submitting.");
       return;
     }
@@ -707,7 +1046,7 @@ export function TradeOrderForm({
             environment === "live" ? LIVE_CONFIRMATION_TOKEN : undefined,
           ...(manageEnabled && managePreviewPlan
             ? {
-                playbookTemplateId: managePresetId,
+                playbookTemplateId: effectiveManagePresetId,
                 playbookEntryPrice: managePreviewPlan.entry,
                 playbookInitialStop: managePreviewPlan.initialStop,
                 playbookNotifyAtManageLevels: manageNotifyAtManageLevels,
@@ -779,23 +1118,39 @@ export function TradeOrderForm({
 
       {step === "form" ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 text-xs">
-          <div className="mb-3">
-            <div className="text-sm font-medium text-[var(--edge-text-strong)]">{symbol}</div>
-            <div
-              className="mt-0.5 text-[10px] text-[var(--edge-text-secondary)]"
-              data-testid="trade-account-chip"
-            >
-              {environment === "live" ? "Live" : "Paper"}
-              {" · "}
-              {gatewayAccountSelected
-                ? accountDisplayName || "No account"
-                : accountDisplayName
-                  ? account?.activeTradingAccount?.availability === "offline"
-                    ? `${accountDisplayName} (offline)`
-                    : "Select Gateway account in header"
-                  : "No account"}
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-[var(--edge-text-strong)]">{symbol}</div>
+              <div
+                className="mt-0.5 text-[10px] text-[var(--edge-text-secondary)]"
+                data-testid="trade-account-chip"
+              >
+                {environment === "live" ? "Live" : "Paper"}
+                {" · "}
+                {gatewayAccountSelected
+                  ? accountDisplayName || "No account"
+                  : accountDisplayName
+                    ? account?.activeTradingAccount?.availability === "offline"
+                      ? `${accountDisplayName} (offline)`
+                      : "Select Gateway account in header"
+                    : "No account"}
+              </div>
             </div>
+            {policyPickerEnabled && onPolicyChange ? (
+              <TradePolicyPicker
+                templates={policyTemplates}
+                value={selectedPolicyId}
+                onChange={onPolicyChange}
+                disabled={!policyPickerEnabled}
+                loading={policyLoading}
+              />
+            ) : null}
           </div>
+          {policyApplyError ? (
+            <p className="mb-3 text-[10px] text-[var(--edge-negative)]" role="alert">
+              {policyApplyError}
+            </p>
+          ) : null}
 
           {planLevels ? (
             <div className="mb-3 space-y-1 rounded border border-[var(--edge-border)] px-2 py-2">
@@ -820,46 +1175,86 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
-          {policyBound && policyName ? (
-            <div
-              className="mb-3 space-y-1 rounded border border-[var(--edge-border)] px-2 py-2"
-              data-testid="trade-policy-summary"
-            >
-              <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-                Risk policy
+          <div className="mb-3">
+            <BuySellToggle
+              side={side}
+              onChange={setSide}
+              lastPrice={lastPrice}
+              formatLast={formatPrice}
+              testId="trade-buy-sell-toggle"
+            />
+          </div>
+
+          <div className="mb-3 w-full" data-testid="trade-order-type-tabs">
+            <EdgeUnderlineTabs
+              layout="stretch"
+              segments={ORDER_TYPE_TABS.map((tab) => ({
+                id: tab.id,
+                label: tab.label,
+              }))}
+              value={orderType}
+              onChange={(value) => {
+                const next = value as OrderType;
+                const seeded = handleOrderTypeTabChange({
+                  nextType: next,
+                  planEntry: planLevels?.entry ?? null,
+                  planStop: planLevels?.stop ?? null,
+                  lastPrice,
+                  currentLimitPrice: limitPrice,
+                  currentStopPrice: stopPrice,
+                });
+                setOrderType(next);
+                setLimitPrice(seeded.limitPrice);
+                setStopPrice(seeded.stopPrice);
+              }}
+            />
+          </div>
+
+          {orderType === "MKT" ? (
+            <div className="mb-3">
+              <div className="text-center text-[10px] text-[var(--edge-text-secondary)]">
+                Order Price
               </div>
-              <div className="text-[var(--edge-text-strong)]">{policyName}</div>
-              <p className="text-[10px] text-[var(--edge-text-secondary)]">
-                Bracket + Manage seeded from drawing policy snapshot.
-              </p>
-              {onChangePolicy ? (
-                <EdgeButton
-                  type="button"
-                  variant="secondary"
-                  className="h-7 w-full text-[10px]"
-                  onClick={onChangePolicy}
-                  data-testid="trade-change-policy"
-                >
-                  Change…
-                </EdgeButton>
-              ) : null}
+              <div
+                className="mt-1 text-center font-mono text-[var(--edge-text-strong)]"
+                data-testid="trade-entry-display"
+              >
+                {displayEntry}
+              </div>
             </div>
           ) : null}
 
-          <div className="grid grid-cols-[auto_1fr_auto] items-end gap-1.5">
-            <EdgeFlipChip
-              value={side}
-              options={[
-                { value: "BUY", label: "Buy" },
-                { value: "SELL", label: "Sell" },
-              ]}
-              onChange={(value) => setSide(value)}
-              ariaLabel="Side"
-              tone={(value) => (value === "BUY" ? "positive" : "negative")}
-              density="compact"
-              testId="trade-side"
-              className="min-w-[4rem]"
-            />
+          {orderType === "LMT" || orderType === "STP LMT" ? (
+            <div className="mb-3">
+              <EdgeLabeledInput
+                label="Order Price"
+                type="number"
+                min={0}
+                step="0.01"
+                value={limitPrice}
+                onChange={(event) => setLimitPrice(event.target.value)}
+                density="compact"
+                testId="trade-limit-price"
+              />
+            </div>
+          ) : null}
+
+          {orderType === "STP" || orderType === "STP LMT" ? (
+            <div className="mb-3">
+              <EdgeLabeledInput
+                label={orderType === "STP LMT" ? "Stop Price" : "Order Price"}
+                type="number"
+                min={0}
+                step="0.01"
+                value={stopPrice}
+                onChange={(event) => setStopPrice(event.target.value)}
+                density="compact"
+                testId="trade-stop-price"
+              />
+            </div>
+          ) : null}
+
+          <div className="mb-3">
             <EdgeLabeledInput
               label="Quantity"
               type="number"
@@ -870,39 +1265,60 @@ export function TradeOrderForm({
               density="compact"
               testId="trade-quantity"
             />
-            <EdgeFlipChip
-              value={orderType === "LMT" ? "LMT" : "MKT"}
-              options={[
-                { value: "MKT", label: "Market" },
-                { value: "LMT", label: "Limit" },
-              ]}
-              onChange={(value) => {
-                const next = value as OrderType;
-                setOrderType(next);
-                if (next === "LMT") {
-                  setLimitPrice((current) =>
-                    seedLimitPriceFromLast({
-                      currentLimitPrice: current,
-                      planEntry: planLevels?.entry ?? null,
-                      lastPrice,
-                    }),
-                  );
-                }
+          </div>
+
+          <div className="mb-3">
+            <LinkedProtectLevelsEditor
+              entry={executableEntry}
+              quantity={Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 0}
+              direction={composeDirection}
+              takeProfitEnabled={takeProfitEnabled}
+              onTakeProfitEnabledChange={(enabled) => {
+                setTakeProfitEnabled(enabled);
+                if (!enabled) setManagePresetId("off");
               }}
-              ariaLabel="Order type"
-              density="compact"
-              testId="trade-order-type"
-              className="min-w-[5.5rem]"
+              takeProfitPrice={composeTakeProfitPrice}
+              onTakeProfitPriceChange={setComposeTakeProfitPrice}
+              takeProfitQuantity={takeProfitQuantity}
+              onTakeProfitQuantityChange={(value) => {
+                exitQtyCustomRef.current = true;
+                setTakeProfitQuantity(value);
+              }}
+              stopLossEnabled={stopLossEnabled}
+              onStopLossEnabledChange={setStopLossEnabled}
+              stopLossPrice={composeStopLossPrice}
+              onStopLossPriceChange={setComposeStopLossPrice}
+              stopLossQuantity={stopLossQuantity}
+              onStopLossQuantityChange={(value) => {
+                exitQtyCustomRef.current = true;
+                setStopLossQuantity(value);
+              }}
             />
           </div>
 
+          {exitQtyPlan && exitQtyPlan.runnerQuantity > 0 && (policyBound || draftPolicyActive) ? (
+            <div
+              className="mb-3 space-y-1 rounded border border-[var(--edge-border)] px-2 py-2 text-[10px]"
+              data-testid="trade-exit-plan"
+            >
+              <div className="uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                Runner · {exitQtyPlan.runnerQuantity} sh
+              </div>
+              {runnerManageSteps.map((line) => (
+                <div key={line} className="text-[var(--edge-text-secondary)]">
+                  {line}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           <div
-            className="mt-2 flex items-center justify-between gap-3"
+            className="mb-3 flex items-center justify-between gap-3"
             data-testid="trade-session-row"
           >
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="shrink-0 text-[10px] text-[var(--edge-text-secondary)]">
-                Duration
+                Time in Force
               </span>
               <EdgeSelect
                 value={tif}
@@ -913,7 +1329,7 @@ export function TradeOrderForm({
                 ]}
                 density="compact"
                 variant="chip"
-                aria-label="Duration"
+                aria-label="Time in Force"
                 testId="trade-tif"
                 className="min-w-[4.5rem]"
                 minWidth={120}
@@ -936,65 +1352,7 @@ export function TradeOrderForm({
             </div>
           </div>
 
-          {orderType === "LMT" ? (
-            <div className="mt-2">
-              <EdgeLabeledInput
-                label="Entry"
-                type="number"
-                min={0}
-                step="0.01"
-                value={limitPrice}
-                onChange={(event) => setLimitPrice(event.target.value)}
-                density="compact"
-                testId="trade-limit-price"
-              />
-            </div>
-          ) : (
-            <div className="mt-3">
-              <div className="text-[10px] text-[var(--edge-text-secondary)]">Entry</div>
-              <div
-                className="mt-1 font-mono text-[var(--edge-text-strong)]"
-                data-testid="trade-entry-display"
-              >
-                {displayEntry}
-              </div>
-            </div>
-          )}
-
-          {planLevels && !policyBound ? (
-            <div className="mt-3 space-y-2" data-testid="trade-bracket-surface">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={attachBracket}
-                  onChange={(event) => {
-                    setAttachBracket(event.target.checked);
-                    if (!event.target.checked) {
-                      setManagePresetId("off");
-                    }
-                  }}
-                  data-testid="trade-attach-bracket"
-                />
-                <span className="text-[var(--edge-text-secondary)]">Bracket</span>
-              </label>
-              {attachBracket ? (
-                <p
-                  className="text-[10px] text-[var(--edge-text-secondary)]"
-                  data-testid="trade-bracket-risk-line"
-                >
-                  Stop {formatPrice(planLevels.stop)} · Target {formatPrice(planLevels.target)}
-                  {activeRiskDollars != null ? ` · risk ${formatMoney(activeRiskDollars)}` : ""}
-                  {planLevels.riskRewardRatio != null
-                    ? ` · R:R ${planLevels.riskRewardRatio.toFixed(1)}`
-                    : ""}
-                </p>
-              ) : (
-                <p className="text-[10px] text-[var(--edge-text-secondary)]">Bracket off</p>
-              )}
-            </div>
-          ) : null}
-
-          {planLevels ? (
+          {executableEntry != null && composeStopLossPrice != null ? (
             <EdgeButton
               type="button"
               variant="secondary"
@@ -1074,7 +1432,7 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
-          {planLevels && !policyBound && attachBracket ? (
+          {attachBracket && !policyBound ? (
             <>
               <div className="mt-3">
                 <EdgeButton
@@ -1177,8 +1535,11 @@ export function TradeOrderForm({
                 marginError={marginCtx.error}
                 accountConnected={marginCtx.accountConnected}
                 onAddStop={
-                  planLevels && !policyBound && !attachBracket
-                    ? () => setAttachBracket(true)
+                  !policyBound && !attachBracket
+                    ? () => {
+                        setStopLossEnabled(true);
+                        setTakeProfitEnabled(true);
+                      }
                     : undefined
                 }
                 riskPlan={
@@ -1200,18 +1561,6 @@ export function TradeOrderForm({
               />
             </div>
           ) : null}
-
-          <p className="mt-3 text-[10px] text-[var(--edge-text-secondary)]">
-            {environment === "live"
-              ? "Live stock orders — real money"
-              : policyBound
-                ? scheduleMode === "now"
-                  ? "Paper policy submit — entry + Bracket from planned instance"
-                  : "Paper schedule arm — entry fires when due"
-                : planLevels && attachBracket
-                  ? "Paper bracket — entry + live stop/TP"
-                  : "Paper stock orders — entry only"}
-          </p>
 
           <div className="mt-4 flex gap-2">
             <EdgeButton

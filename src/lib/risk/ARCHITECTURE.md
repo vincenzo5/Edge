@@ -22,7 +22,7 @@ Full RiskPolicy slot definitions: [Risk Management System Roadmap](../../../docs
 |---------|------|-------|
 | Risk sidebar | `RiskSettingsPanel.tsx` | Budget + Sizing (bound geometry); account caps / gates |
 | Application settings | `AppSettingsShell.tsx` → **Risk policies** tab | Policies library (`RiskPoliciesSection.tsx`) |
-| Chart selection strip | `PositionPlanPanel.tsx` via `DrawingSelectionChrome.tsx` | Editable entry/stop/target + derived Measurement preview (Budget/Sizing read-only) |
+| Chart selection toolbar | `DrawingSelectionChrome.tsx` | Drawing style/lock/delete chrome on selected overlays |
 | Chart overlay | `useRiskDrawingBinding.ts`, chart-core `risk/*` | Geometry labels, R targets, validation |
 | Trade ticket | `TradeOrderForm.tsx`, `ProtectiveOcoForm.tsx` | Budget→Sizing handoff; pre-submit Risk plan summary (Phase 4) |
 | Open position | `OpenRiskPositionsMenu.tsx`, `AccountPanel.tsx` | Protect + Manage Exit binding chrome (Phase 5); during-trade progress (Phase 6) |
@@ -40,8 +40,11 @@ Both binds derive levels from live drawing points via `positionTradeSetup.ts` �
 | Auto-bind newest long/short on active chart | yes | no |
 | Chart **Trade setup…** | sync same drawing | yes + open Trade panel |
 | Risk **Use in Trade** | uses current bind | yes + seed qty from sizing |
+| Chart trade ticket (no drawing) | no | yes — **draft apply** via `applyPolicyToTradeDraft` (ephemeral until submit or drawing link) |
 
 Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Budget / Sizing / Geometry + gaps).
+
+**Dual-mode policy apply (2026-08):** `TradePolicyPicker` always visible when an account is selected. Unbound tickets seed Protect qty / prices / Manage from `applyPolicyToTradeDraft` + `resolvePolicyTradeGeometry`. Drawing-linked tickets persist via `applyRiskPolicyToBinding` on the shared `drawingId` (same planned instance as Risk panel).
 
 ## Phase 4 — Trade ticket Risk plan summary (shipped)
 
@@ -71,11 +74,11 @@ Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Bud
 - **Submit summary:** `summarizeSubmitRiskPlan` — `gapGuidance` one-liner when Protect attached (`SUBMIT_RISK_GAP_GUIDANCE_COPY`); `SubmitRiskPlanSummary` renders under failure mode.
 - **Policy:** `conflictPolicy.pauseAffectsProtectOrders()` — Pause never cancels Protect; service test asserts `mockPort.cancel` not called on pause/detach.
 
-## Phase 2 — Drawing geometry strip (shipped)
+## Phase 2 — Drawing geometry strip (removed)
 
-- **Selection strip:** `computePositionRiskPreview` + `PositionPlanPanel` show editable entry/stop/target plus derived R unit, R:R, and (when budget resolves) planned $ risk + qty on selected long/short drawings.
+- **Former selection strip:** `PositionPlanPanel` (removed 2026-08) showed editable entry/stop/target plus derived R unit, R:R, and planned $ risk + qty on selected long/short drawings. Level editing remains on chart handles; **policy apply** is on the Trade ticket header picker (`TradePolicyPicker` + `useTradePolicyApply`).
 - **Canvas labels:** `position_tool` uses live `boxFromPoints` for geometry; qty/$ amounts only when `metadata.fields.qty` is explicitly set — no `DEFAULT_RISK_ACCOUNT` fallback on the label path.
-- **Sizing math:** strip uses `computeEquityPositionSize` (same as Risk sidebar), not chart-core `computeRiskMetrics`.
+- **Sizing math:** `computePositionRiskPreview` + `computeEquityPositionSize` (same as Risk sidebar), not chart-core `computeRiskMetrics`.
 
 ## Measurement at Plan time
 
@@ -120,12 +123,12 @@ Journal planned-risk auto-sync from PositionPlan on Manage journal sync (Phase 8
 - **Manual-off:** `pausePlaybookInstance` / `detachPlaybookInstance` assert conflict-policy invariants; `cancelProtectForInstance` + `POST .../playbooks/[id]/cancel-protect` cancels broker Protect only.
 - **Schedule:** `resolveEntrySchedule.ts`, `promotePlannedInstances.ts` — materialize `scheduledFor`, promote due `planned` → `pending_fill` inside `evaluatePlaybooks()` (reuses `/api/cron/playbook-evaluate`).
 - **Journal M5:** migration `0040_journal_risk_policy_instance_id.sql` — `journal_trades.risk_policy_instance_id`; sync from `managePlaybook.instanceId` on journal recipe write.
-- **Not shipped:** Chart apply UX (Phase 5).
+- **Not shipped:** Chart apply UX (Phase 5) — **shipped 2026-08:** Trade header policy picker applies `planned` instances; Protect legs seed per-leg qty from policy (`deriveProtectExitQuantities`).
 - **Roadmap:** [Risk Policy Data Model Phase 3](../../../docs/roadmaps/risk-policy-data-model-roadmap.md).
 
 ## Phase 4 — Policies library authoring (shipped)
 
-- **UI:** `RiskPoliciesSection.tsx` in Application settings → **Risk policies** tab — list builtins + user templates; Open / Duplicate / Delete; New policy from preset; sectioned `PlaybookTemplateEditor` (Identity → Budget → Sizing → Geometry → Exits → Gates → Schedule → Review).
+- **UI:** `RiskPoliciesSection.tsx` in Application settings → **Risk policies** tab — user policy list only with icon actions (view, edit, duplicate, delete, new); sectioned `PlaybookTemplateEditor` with optional view mode (Identity → Budget → Sizing → Geometry → Exits → Gates → Schedule → Review).
 - **Completeness:** `templateReview.ts` + `assessTemplateCompleteness` strip + failure-mode one-liner on Review.
 - **Persistence:** `playbookTemplateMutations.ts` — slot copy on create/duplicate, dual-write `rules` from `exits` on patch; shared `templateToPatchPayload` for sidebar + Trade picker saves.
 - **Roadmap:** [Risk Policy Data Model Phase 4](../../../docs/roadmaps/risk-policy-data-model-roadmap.md).
