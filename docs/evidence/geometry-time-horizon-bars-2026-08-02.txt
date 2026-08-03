@@ -1,0 +1,22 @@
+# LIVE — Geometry time horizon bars evidence
+# Date: 2026-08-02
+
+## Scope
+Rename Geometry recipe optional time horizon from minutes to bar count (`timeHorizonBars`).
+
+## Delivered
+- src/lib/risk/policy/slotSchemas.ts — timeHorizonBars on GeometryRecipeSchema
+- src/lib/trading/playbookTemplateStore.ts — patch schema aligned
+- src/app/components/trading/PlaybookTemplateEditor.tsx — editor state/label/help
+- src/app/components/trading/policyEditorCopy.ts — field help copy
+- docs/roadmaps/risk-policy-data-model-roadmap.md — recipe comment
+- src/lib/risk/policy/policy.test.ts — GeometryRecipe parse + legacy strip
+- src/lib/trading/playbookTemplateStore.test.ts — patch timeHorizonBars
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/policy/policy.test.ts src/lib/trading/playbookTemplateStore.test.ts
+Result:
+Test Files  2 passed (2)
+Tests  18 passed (18)
+exit=0

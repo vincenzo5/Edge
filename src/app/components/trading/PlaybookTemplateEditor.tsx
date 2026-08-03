@@ -1,15 +1,38 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { EdgeButton, EdgeModalShell } from "../design-system";
+import {
+  EdgeButton,
+  EdgeLabeledInput,
+  EdgeModalShell,
+  EdgeUnderlineTabs,
+} from "../design-system";
 import { fieldClass } from "../design-system/styles";
+import {
+  assessTemplateCompleteness,
+  TEMPLATE_COMPLETENESS_SLOTS,
+} from "@/lib/risk/policy/completeness";
+import {
+  COMPLETENESS_SLOT_LABELS,
+  playbookTemplateToRiskPolicyTemplateFull,
+  policyTemplateFailureModeCopy,
+} from "@/lib/risk/policy/templateReview";
+import type {
+  EntrySchedule,
+  ExitRuleBinding,
+  ExitRuleQtyScope,
+  ExitRuleRole,
+} from "@/lib/risk/policy/slotSchemas";
+import { finalizePlaybookTemplateForSave } from "@/lib/trading/playbookTemplateMutations";
 import {
   createPlaybookRuleDraft,
   reorderPlaybookRules,
-  validatePlaybookTemplateDraft,
+  resolveTemplateExitsForDraft,
+  validateRiskPolicyTemplateDraft,
 } from "@/lib/trading/playbook/editorDraft";
 import { formatManageStepPreview } from "@/lib/trading/playbook/display";
 import { planPlaybookSteps } from "@/lib/trading/playbook/planSteps";
+import { isUserPlaybookTemplateId } from "@/lib/trading/playbook/resolveTemplate";
 import type {
   PlaybookRule,
   PlaybookTemplate,
@@ -17,6 +40,16 @@ import type {
   PlaybookWhen,
   PositionPlan,
 } from "@/lib/trading/playbook/types";
+import {
+  POLICY_EDITOR_FIELD_HELP,
+  POLICY_EDITOR_SECTIONS,
+  type PolicyEditorSectionId,
+} from "./policyEditorCopy";
+import {
+  PolicyEditorLabeledSelect,
+  PolicyEditorLabeledTextarea,
+  PolicyEditorSectionHeader,
+} from "./policyEditorFields";
 
 export type PlaybookTemplateEditorProps = {
   open: boolean;
@@ -25,7 +58,35 @@ export type PlaybookTemplateEditorProps = {
   onClose: () => void;
   onSave: (template: PlaybookTemplate) => Promise<void>;
   disabled?: boolean;
+  /** View opens read-only; edit allows save for user templates. Built-ins are always read-only. */
+  mode?: "view" | "edit";
 };
+
+type EditorSection = PolicyEditorSectionId;
+
+const SECTIONS = POLICY_EDITOR_SECTIONS;
+
+const ROLE_OPTIONS: { value: ExitRuleRole; label: string }[] = [
+  { value: "protect", label: "Protect" },
+  { value: "takeProfit", label: "Take profit" },
+  { value: "manage", label: "Manage" },
+  { value: "flatten", label: "Flatten" },
+  { value: "hedge", label: "Hedge" },
+];
+
+const BINDING_OPTIONS: { value: ExitRuleBinding; label: string }[] = [
+  { value: "restingBroker", label: "Resting broker" },
+  { value: "managedApp", label: "Managed app" },
+  { value: "discretionary", label: "Discretionary" },
+  { value: "notifyOnly", label: "Notify only" },
+];
+
+const QTY_SCOPE_OPTIONS: { value: ExitRuleQtyScope; label: string }[] = [
+  { value: "full", label: "Full" },
+  { value: "fraction", label: "Fraction" },
+  { value: "remainder", label: "Remainder" },
+  { value: "fixedQty", label: "Fixed qty" },
+];
 
 const WHEN_KIND_OPTIONS: { value: PlaybookWhen["kind"]; label: string }[] = [
   { value: "multipleOfR", label: "+R multiple" },
@@ -71,6 +132,38 @@ function defaultThen(kind: PlaybookThen["kind"]): PlaybookThen {
     case "notify":
       return { kind, message: "Manage level reached" };
   }
+}
+
+function SectionNav({
+  active,
+  onChange,
+  disabled,
+}: {
+  active: EditorSection;
+  onChange: (section: EditorSection) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className="border-b border-[var(--edge-border-subtle)] px-5 pb-2"
+      data-testid="policy-editor-sections"
+    >
+      <div className="overflow-x-auto">
+        <EdgeUnderlineTabs
+          layout="content"
+          segments={SECTIONS.map((section) => ({
+            id: section.id,
+            label: section.label,
+            disabled,
+            testId: `policy-editor-section-${section.id}`,
+          }))}
+          value={active}
+          onChange={(id) => onChange(id as EditorSection)}
+          className="min-w-max gap-4"
+        />
+      </div>
+    </div>
+  );
 }
 
 function RuleEditor({
@@ -120,6 +213,64 @@ function RuleEditor({
         <EdgeButton type="button" variant="secondary" disabled={disabled} onClick={onRemove}>
           Remove
         </EdgeButton>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <PolicyEditorLabeledSelect
+          label="Role"
+          help={POLICY_EDITOR_FIELD_HELP.exitRole}
+          density="compact"
+          value={rule.role ?? "manage"}
+          onChange={(event) =>
+            onChange({ ...rule, role: event.target.value as ExitRuleRole })
+          }
+          disabled={disabled}
+        >
+          {ROLE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </PolicyEditorLabeledSelect>
+        <PolicyEditorLabeledSelect
+          label="Binding"
+          help={POLICY_EDITOR_FIELD_HELP.exitBinding}
+          density="compact"
+          value={rule.binding ?? "managedApp"}
+          onChange={(event) =>
+            onChange({ ...rule, binding: event.target.value as ExitRuleBinding })
+          }
+          disabled={disabled}
+        >
+          {BINDING_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </PolicyEditorLabeledSelect>
+        <label className="block">
+          <span className="text-[var(--edge-text-secondary)]">Qty scope</span>
+          <select
+            className={`mt-1 ${fieldClass({ density: "compact" })}`}
+            value={rule.qtyScope ?? ""}
+            onChange={(event) =>
+              onChange({
+                ...rule,
+                qtyScope: event.target.value
+                  ? (event.target.value as ExitRuleQtyScope)
+                  : undefined,
+              })
+            }
+            disabled={disabled}
+          >
+            <option value="">Default</option>
+            {QTY_SCOPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -439,6 +590,12 @@ function RuleEditor({
   );
 }
 
+function slotPresenceLabel(presence: "present" | "inherits" | "missing"): string {
+  if (presence === "present") return "Present";
+  if (presence === "inherits") return "Inherits";
+  return "Missing";
+}
+
 export function PlaybookTemplateEditor({
   open,
   template,
@@ -446,62 +603,257 @@ export function PlaybookTemplateEditor({
   onClose,
   onSave,
   disabled = false,
+  mode = "edit",
 }: PlaybookTemplateEditorProps) {
+  const readOnly =
+    disabled || mode === "view" || !isUserPlaybookTemplateId(template.id);
+  const [section, setSection] = useState<EditorSection>("identity");
   const [name, setName] = useState(template.name);
   const [description, setDescription] = useState(template.description);
-  const [rules, setRules] = useState<PlaybookRule[]>(template.rules);
+  const [exits, setExits] = useState<PlaybookRule[]>(() =>
+    resolveTemplateExitsForDraft(template),
+  );
+  const [budgetMode, setBudgetMode] = useState<"inherits" | "dollar" | "percentNetLiq">(
+    template.budget?.kind === "inherits"
+      ? "inherits"
+      : template.budget?.kind === "percentNetLiq"
+        ? "percentNetLiq"
+        : template.budget?.kind === "dollar"
+          ? "dollar"
+          : "inherits",
+  );
+  const [budgetValue, setBudgetValue] = useState(
+    template.budget && template.budget.kind !== "inherits" ? String(template.budget.value) : "1",
+  );
+  const [sizingMode, setSizingMode] = useState<"inherits" | "stopDistance">(
+    template.sizing?.kind === "inherits" ? "inherits" : "stopDistance",
+  );
+  const [maxQty, setMaxQty] = useState(
+    template.sizing && "method" in template.sizing && template.sizing.maxQty != null
+      ? String(template.sizing.maxQty)
+      : "",
+  );
+  const [stopRMultiple, setStopRMultiple] = useState(
+    template.geometry?.stops?.[0]?.rMultiple != null
+      ? String(template.geometry.stops[0].rMultiple)
+      : "1",
+  );
+  const [targetRMultiple, setTargetRMultiple] = useState(
+    template.geometry?.targets?.[0]?.rMultiple != null
+      ? String(template.geometry.targets[0].rMultiple)
+      : "",
+  );
+  const [timeHorizonBars, setTimeHorizonBars] = useState(
+    template.geometry?.timeHorizonBars != null
+      ? String(template.geometry.timeHorizonBars)
+      : "",
+  );
+  const [minRiskReward, setMinRiskReward] = useState(
+    template.gates?.minRiskReward != null ? String(template.gates.minRiskReward) : "",
+  );
+  const [maxQtyGate, setMaxQtyGate] = useState(
+    template.gates?.maxQty != null ? String(template.gates.maxQty) : "",
+  );
+  const [scheduleKind, setScheduleKind] = useState<EntrySchedule["kind"]>(
+    template.defaultEntrySchedule?.kind ?? "immediate",
+  );
+  const [sessionEvent, setSessionEvent] = useState<"nextRthOpen" | "nextRthClose">(
+    template.defaultEntrySchedule?.kind === "sessionEvent"
+      ? template.defaultEntrySchedule.event
+      : "nextRthOpen",
+  );
+  const [clockAt, setClockAt] = useState(
+    template.defaultEntrySchedule?.kind === "clock" ? template.defaultEntrySchedule.at : "",
+  );
+  const [clockTimeZone, setClockTimeZone] = useState(
+    template.defaultEntrySchedule?.kind === "clock"
+      ? template.defaultEntrySchedule.timeZone
+      : "America/New_York",
+  );
   const [issues, setIssues] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setSection("identity");
     setName(template.name);
     setDescription(template.description);
-    setRules(template.rules);
+    setExits(resolveTemplateExitsForDraft(template));
+    setBudgetMode(
+      template.budget?.kind === "inherits"
+        ? "inherits"
+        : template.budget?.kind === "percentNetLiq"
+          ? "percentNetLiq"
+          : template.budget?.kind === "dollar"
+            ? "dollar"
+            : "inherits",
+    );
+    setBudgetValue(
+      template.budget && template.budget.kind !== "inherits"
+        ? String(template.budget.value)
+        : "1",
+    );
+    setSizingMode(template.sizing?.kind === "inherits" ? "inherits" : "stopDistance");
+    setMaxQty(
+      template.sizing && "method" in template.sizing && template.sizing.maxQty != null
+        ? String(template.sizing.maxQty)
+        : "",
+    );
+    setStopRMultiple(
+      template.geometry?.stops?.[0]?.rMultiple != null
+        ? String(template.geometry.stops[0].rMultiple)
+        : "1",
+    );
+    setTargetRMultiple(
+      template.geometry?.targets?.[0]?.rMultiple != null
+        ? String(template.geometry.targets[0].rMultiple)
+        : "",
+    );
+    setTimeHorizonBars(
+      template.geometry?.timeHorizonBars != null
+        ? String(template.geometry.timeHorizonBars)
+        : "",
+    );
+    setMinRiskReward(
+      template.gates?.minRiskReward != null ? String(template.gates.minRiskReward) : "",
+    );
+    setMaxQtyGate(template.gates?.maxQty != null ? String(template.gates.maxQty) : "");
+    setScheduleKind(template.defaultEntrySchedule?.kind ?? "immediate");
+    setSessionEvent(
+      template.defaultEntrySchedule?.kind === "sessionEvent"
+        ? template.defaultEntrySchedule.event
+        : "nextRthOpen",
+    );
+    setClockAt(
+      template.defaultEntrySchedule?.kind === "clock" ? template.defaultEntrySchedule.at : "",
+    );
+    setClockTimeZone(
+      template.defaultEntrySchedule?.kind === "clock"
+        ? template.defaultEntrySchedule.timeZone
+        : "America/New_York",
+    );
     setIssues([]);
   }, [open, template]);
 
-  const draft = useMemo(
-    () => ({
+  const draft = useMemo((): PlaybookTemplate => {
+    const budget =
+      budgetMode === "inherits"
+        ? { kind: "inherits" as const }
+        : {
+            kind: budgetMode,
+            value: Number.parseFloat(budgetValue) || 1,
+          };
+    const sizing =
+      sizingMode === "inherits"
+        ? { kind: "inherits" as const }
+        : {
+            method: "stopDistance" as const,
+            ...(maxQty.trim() ? { maxQty: Number.parseFloat(maxQty) } : {}),
+          };
+    const geometry = {
+      stops: [{ rMultiple: Number.parseFloat(stopRMultiple) || 1 }],
+      ...(targetRMultiple.trim()
+        ? { targets: [{ rMultiple: Number.parseFloat(targetRMultiple) }] }
+        : {}),
+      ...(timeHorizonBars.trim()
+        ? { timeHorizonBars: Number.parseInt(timeHorizonBars, 10) }
+        : {}),
+    };
+    const gates = {
+      ...(minRiskReward.trim() ? { minRiskReward: Number.parseFloat(minRiskReward) } : {}),
+      ...(maxQtyGate.trim() ? { maxQty: Number.parseFloat(maxQtyGate) } : {}),
+    };
+    let defaultEntrySchedule: EntrySchedule = { kind: "immediate" };
+    if (scheduleKind === "sessionEvent") {
+      defaultEntrySchedule = { kind: "sessionEvent", event: sessionEvent };
+    } else if (scheduleKind === "clock" && clockAt.trim()) {
+      defaultEntrySchedule = {
+        kind: "clock",
+        at: clockAt.trim(),
+        timeZone: clockTimeZone.trim() || "America/New_York",
+      };
+    }
+    return {
       id: template.id,
       name: name.trim(),
       description: description.trim(),
-      rules,
-    }),
-    [template.id, name, description, rules],
-  );
+      rules: exits,
+      exits,
+      schemaVersion: template.schemaVersion ?? 1,
+      scope: template.scope ?? "trade",
+      budget,
+      sizing,
+      geometry,
+      gates: Object.keys(gates).length > 0 ? gates : undefined,
+      defaultEntrySchedule:
+        scheduleKind === "immediate" ? undefined : defaultEntrySchedule,
+    };
+  }, [
+    template.id,
+    template.schemaVersion,
+    template.scope,
+    name,
+    description,
+    exits,
+    budgetMode,
+    budgetValue,
+    sizingMode,
+    maxQty,
+    stopRMultiple,
+    targetRMultiple,
+    timeHorizonBars,
+    minRiskReward,
+    maxQtyGate,
+    scheduleKind,
+    sessionEvent,
+    clockAt,
+    clockTimeZone,
+  ]);
 
-  const validation = useMemo(() => validatePlaybookTemplateDraft(draft), [draft]);
+  const validation = useMemo(() => validateRiskPolicyTemplateDraft(draft), [draft]);
+  const reviewTemplate = useMemo(() => {
+    if (!validation.ok) return null;
+    return playbookTemplateToRiskPolicyTemplateFull(validation.template);
+  }, [validation]);
+  const completeness = useMemo(
+    () => (reviewTemplate ? assessTemplateCompleteness(reviewTemplate) : null),
+    [reviewTemplate],
+  );
+  const failureModeCopy = useMemo(
+    () => (reviewTemplate ? policyTemplateFailureModeCopy(reviewTemplate) : ""),
+    [reviewTemplate],
+  );
 
   const previewSteps = useMemo(() => {
     if (!positionPlan || !validation.ok) return [];
     return planPlaybookSteps(validation.template, positionPlan);
   }, [positionPlan, validation]);
 
-  function updateRule(index: number, nextRule: PlaybookRule) {
-    setRules((current) => current.map((rule, ruleIndex) => (ruleIndex === index ? nextRule : rule)));
+  function updateExit(index: number, nextRule: PlaybookRule) {
+    setExits((current) => current.map((rule, ruleIndex) => (ruleIndex === index ? nextRule : rule)));
   }
 
-  function removeRule(index: number) {
-    setRules((current) => current.filter((_, ruleIndex) => ruleIndex !== index));
+  function removeExit(index: number) {
+    setExits((current) => current.filter((_, ruleIndex) => ruleIndex !== index));
   }
 
-  function moveRule(fromIndex: number, toIndex: number) {
-    setRules((current) => reorderPlaybookRules(current, fromIndex, toIndex));
+  function moveExit(fromIndex: number, toIndex: number) {
+    setExits((current) => reorderPlaybookRules(current, fromIndex, toIndex));
   }
 
-  function addRule() {
-    setRules((current) => [...current, createPlaybookRuleDraft(current.length + 1)]);
+  function addExit() {
+    setExits((current) => [...current, createPlaybookRuleDraft(current.length + 1)]);
   }
 
   async function handleSave() {
     if (!validation.ok) {
       setIssues(validation.issues);
+      setSection("review");
       return;
     }
     setSaving(true);
     try {
-      await onSave(validation.template);
+      await onSave(finalizePlaybookTemplateForSave(validation.template));
       onClose();
     } finally {
       setSaving(false);
@@ -511,7 +863,8 @@ export function PlaybookTemplateEditor({
   return (
     <EdgeModalShell
       open={open}
-      title="Edit manage template"
+      title={readOnly ? "View risk policy" : "Edit risk policy"}
+      subtitle={name.trim() || template.name}
       onClose={onClose}
       maxWidth="md"
       align="center"
@@ -519,65 +872,274 @@ export function PlaybookTemplateEditor({
       footer={
         <div className="flex justify-end gap-2">
           <EdgeButton type="button" variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </EdgeButton>
-          <EdgeButton
-            type="button"
-            variant="primary"
-            onClick={() => void handleSave()}
-            disabled={disabled || saving || !validation.ok}
-            data-testid="playbook-template-editor-save"
-          >
-            Save template
-          </EdgeButton>
+          {!readOnly ? (
+            <EdgeButton
+              type="button"
+              variant="primary"
+              onClick={() => void handleSave()}
+              disabled={saving || !validation.ok}
+              data-testid="playbook-template-editor-save"
+            >
+              Save policy
+            </EdgeButton>
+          ) : null}
         </div>
       }
     >
-      <div className="space-y-4">
-        <label className="block">
-          <span className="text-[var(--edge-text-secondary)]">Name</span>
-          <input
-            className={`mt-1 ${fieldClass({ density: "standard" })}`}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            disabled={disabled || saving}
-            data-testid="playbook-template-editor-name"
-          />
-        </label>
+      <SectionNav active={section} onChange={setSection} disabled={saving} />
+      <div className="flex flex-col gap-4 px-5 pb-5 pt-3">
+        <PolicyEditorSectionHeader sectionId={section} />
 
-        <label className="block">
-          <span className="text-[var(--edge-text-secondary)]">Description</span>
-          <textarea
-            className={`mt-1 ${fieldClass({ density: "standard" })} min-h-[4rem]`}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            disabled={disabled || saving}
-            data-testid="playbook-template-editor-description"
-          />
-        </label>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[var(--edge-text-secondary)]">Rules</span>
-            <EdgeButton type="button" variant="secondary" onClick={addRule} disabled={disabled || saving}>
-              Add rule
-            </EdgeButton>
-          </div>
-          {rules.map((rule, index) => (
-            <RuleEditor
-              key={rule.id}
-              rule={rule}
-              siblingRules={rules}
-              onChange={(nextRule) => updateRule(index, nextRule)}
-              onRemove={() => removeRule(index)}
-              onMoveUp={() => moveRule(index, index - 1)}
-              onMoveDown={() => moveRule(index, index + 1)}
-              canMoveUp={index > 0}
-              canMoveDown={index < rules.length - 1}
-              disabled={disabled || saving}
+        {section === "identity" ? (
+          <div className="flex flex-col gap-4" data-testid="policy-editor-identity">
+            <EdgeLabeledInput
+              label="Name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              disabled={readOnly || saving}
+              testId="playbook-template-editor-name"
             />
-          ))}
-        </div>
+            <PolicyEditorLabeledTextarea
+              label="Description"
+              className="min-h-[4rem]"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              disabled={readOnly || saving}
+              data-testid="playbook-template-editor-description"
+            />
+          </div>
+        ) : null}
+
+        {section === "budget" ? (
+          <div className="flex flex-col gap-4" data-testid="policy-editor-budget">
+            <PolicyEditorLabeledSelect
+              label="Budget source"
+              help={POLICY_EDITOR_FIELD_HELP.budgetSource}
+              value={budgetMode}
+              onChange={(event) =>
+                setBudgetMode(event.target.value as typeof budgetMode)
+              }
+              disabled={readOnly || saving}
+            >
+              <option value="inherits">Inherit session budget</option>
+              <option value="dollar">Fixed dollar risk</option>
+              <option value="percentNetLiq">Percent of NetLiq</option>
+            </PolicyEditorLabeledSelect>
+            {budgetMode !== "inherits" ? (
+              <EdgeLabeledInput
+                label="Value"
+                help={POLICY_EDITOR_FIELD_HELP.budgetValue}
+                type="number"
+                min={0.01}
+                step={budgetMode === "percentNetLiq" ? 0.25 : 1}
+                value={budgetValue}
+                onChange={(event) => setBudgetValue(event.target.value)}
+                disabled={readOnly || saving}
+              />
+            ) : null}
+          </div>
+        ) : null}
+
+        {section === "sizing" ? (
+          <div className="flex flex-col gap-4" data-testid="policy-editor-sizing">
+            <PolicyEditorLabeledSelect
+              label="Sizing method"
+              help={POLICY_EDITOR_FIELD_HELP.sizingMethod}
+              value={sizingMode}
+              onChange={(event) =>
+                setSizingMode(event.target.value as typeof sizingMode)
+              }
+              disabled={readOnly || saving}
+            >
+              <option value="inherits">Inherit session sizing</option>
+              <option value="stopDistance">Stop distance</option>
+            </PolicyEditorLabeledSelect>
+            {sizingMode === "stopDistance" ? (
+              <EdgeLabeledInput
+                label="Max qty (optional)"
+                help={POLICY_EDITOR_FIELD_HELP.maxQty}
+                type="number"
+                min={1}
+                step={1}
+                value={maxQty}
+                onChange={(event) => setMaxQty(event.target.value)}
+                disabled={readOnly || saving}
+              />
+            ) : null}
+          </div>
+        ) : null}
+
+        {section === "geometry" ? (
+          <div className="flex flex-col gap-4" data-testid="policy-editor-geometry">
+            <EdgeLabeledInput
+              label="Stop (R multiple)"
+              help={POLICY_EDITOR_FIELD_HELP.stopRMultiple}
+              type="number"
+              min={0.1}
+              step={0.1}
+              value={stopRMultiple}
+              onChange={(event) => setStopRMultiple(event.target.value)}
+              disabled={readOnly || saving}
+            />
+            <EdgeLabeledInput
+              label="Target (R multiple, optional)"
+              help={POLICY_EDITOR_FIELD_HELP.targetRMultiple}
+              type="number"
+              min={0.1}
+              step={0.1}
+              value={targetRMultiple}
+              onChange={(event) => setTargetRMultiple(event.target.value)}
+              disabled={readOnly || saving}
+            />
+            <EdgeLabeledInput
+              label="Time horizon (bars, optional)"
+              help={POLICY_EDITOR_FIELD_HELP.timeHorizonBars}
+              type="number"
+              min={1}
+              step={1}
+              value={timeHorizonBars}
+              onChange={(event) => setTimeHorizonBars(event.target.value)}
+              disabled={readOnly || saving}
+            />
+          </div>
+        ) : null}
+
+        {section === "exits" ? (
+          <div className="space-y-2" data-testid="policy-editor-exits">
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--edge-text-secondary)]">Exit rules</span>
+              {!readOnly ? (
+                <EdgeButton type="button" variant="secondary" onClick={addExit} disabled={saving}>
+                  Add exit
+                </EdgeButton>
+              ) : null}
+            </div>
+            {exits.map((rule, index) => (
+              <RuleEditor
+                key={rule.id}
+                rule={rule}
+                siblingRules={exits}
+                onChange={(nextRule) => updateExit(index, nextRule)}
+                onRemove={() => removeExit(index)}
+                onMoveUp={() => moveExit(index, index - 1)}
+                onMoveDown={() => moveExit(index, index + 1)}
+                canMoveUp={index > 0}
+                canMoveDown={index < exits.length - 1}
+                disabled={readOnly || saving}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {section === "gates" ? (
+          <div className="flex flex-col gap-4" data-testid="policy-editor-gates">
+            <EdgeLabeledInput
+              label="Min risk:reward (optional)"
+              help={POLICY_EDITOR_FIELD_HELP.minRiskReward}
+              type="number"
+              min={0.1}
+              step={0.1}
+              value={minRiskReward}
+              onChange={(event) => setMinRiskReward(event.target.value)}
+              disabled={readOnly || saving}
+            />
+            <EdgeLabeledInput
+              label="Max qty (optional)"
+              help={POLICY_EDITOR_FIELD_HELP.maxQtyGate}
+              type="number"
+              min={1}
+              step={1}
+              value={maxQtyGate}
+              onChange={(event) => setMaxQtyGate(event.target.value)}
+              disabled={readOnly || saving}
+            />
+          </div>
+        ) : null}
+
+        {section === "schedule" ? (
+          <div className="flex flex-col gap-4" data-testid="policy-editor-schedule">
+            <PolicyEditorLabeledSelect
+              label="Default entry schedule"
+              help={POLICY_EDITOR_FIELD_HELP.scheduleKind}
+              value={scheduleKind}
+              onChange={(event) =>
+                setScheduleKind(event.target.value as EntrySchedule["kind"])
+              }
+              disabled={readOnly || saving}
+            >
+              <option value="immediate">Immediate (none)</option>
+              <option value="sessionEvent">Session event</option>
+              <option value="clock">Specific time</option>
+            </PolicyEditorLabeledSelect>
+            {scheduleKind === "sessionEvent" ? (
+              <PolicyEditorLabeledSelect
+                label="Event"
+                value={sessionEvent}
+                onChange={(event) =>
+                  setSessionEvent(event.target.value as typeof sessionEvent)
+                }
+                disabled={readOnly || saving}
+              >
+                <option value="nextRthOpen">Next RTH open</option>
+                <option value="nextRthClose">Next RTH close</option>
+              </PolicyEditorLabeledSelect>
+            ) : null}
+            {scheduleKind === "clock" ? (
+              <>
+                <EdgeLabeledInput
+                  label="At (ISO datetime)"
+                  value={clockAt}
+                  onChange={(event) => setClockAt(event.target.value)}
+                  disabled={readOnly || saving}
+                  placeholder="2026-07-31T09:35:00.000Z"
+                />
+                <EdgeLabeledInput
+                  label="Time zone (IANA)"
+                  value={clockTimeZone}
+                  onChange={(event) => setClockTimeZone(event.target.value)}
+                  disabled={readOnly || saving}
+                />
+              </>
+            ) : null}
+          </div>
+        ) : null}
+
+        {section === "review" ? (
+          <div className="space-y-3" data-testid="policy-editor-review">
+            {completeness ? (
+              <>
+                <div
+                  className="flex flex-wrap gap-2"
+                  data-testid="policy-editor-completeness-strip"
+                >
+                  {TEMPLATE_COMPLETENESS_SLOTS.map((slot) => (
+                    <span
+                      key={slot}
+                      className="rounded border border-[var(--edge-border-subtle)] px-2 py-1 text-[10px] uppercase"
+                      data-testid={`policy-completeness-${slot}`}
+                    >
+                      {COMPLETENESS_SLOT_LABELS[slot]}: {slotPresenceLabel(completeness.slots[slot])}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[var(--edge-text-secondary)]" data-testid="policy-editor-failure-mode">
+                  {failureModeCopy}
+                </p>
+                {completeness.isTradeComplete ? (
+                  <p className="text-[var(--edge-text-muted)]">Trade-scoped policy is structurally complete.</p>
+                ) : (
+                  <p className="text-[var(--edge-text-muted)]">
+                    Missing for trade scope: {completeness.missingForTradeScope.join(", ")}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-[var(--edge-text-muted)]">Fix validation errors to review completeness.</p>
+            )}
+          </div>
+        ) : null}
 
         {!validation.ok ? (
           <div

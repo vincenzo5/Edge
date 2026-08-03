@@ -24,6 +24,7 @@ import {
 import {
   EntryScheduleSchema,
   ExitRuleSchema,
+  GeometryRecipeSchema,
   RiskPolicyInstanceSchema,
   RiskPolicyTemplateSchema,
 } from "./types";
@@ -43,6 +44,32 @@ describe("risk policy types", () => {
         timeZone: "America/New_York",
       }).kind,
     ).toBe("clock");
+  });
+
+  it("parses GeometryRecipe with optional timeHorizonBars", () => {
+    expect(
+      GeometryRecipeSchema.parse({
+        stops: [{ rMultiple: 1 }],
+        timeHorizonBars: 10,
+      }),
+    ).toEqual({
+      stops: [{ rMultiple: 1 }],
+      timeHorizonBars: 10,
+    });
+    expect(() =>
+      GeometryRecipeSchema.parse({
+        stops: [{ rMultiple: 1 }],
+        timeHorizonBars: 0,
+      }),
+    ).toThrow();
+    expect(
+      GeometryRecipeSchema.parse({
+        stops: [{ rMultiple: 1 }],
+        timeHorizonMinutes: 60,
+      }),
+    ).toEqual({
+      stops: [{ rMultiple: 1 }],
+    });
   });
 
   it("parses a complete RiskPolicyTemplate fixture", () => {

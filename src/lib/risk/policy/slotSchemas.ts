@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { BracketStopLegSchema } from "@/lib/trading/types";
+
 /** Slot + schedule schemas shared by playbook templates and RiskPolicy types (no playbook import). */
 
 export const RiskPolicySchemaVersionSchema = z.literal(1);
@@ -40,7 +42,7 @@ export const GeometryTargetRecipeSchema = z.object({
 export const GeometryRecipeSchema = z.object({
   stops: z.array(GeometryStopRecipeSchema).min(1).optional(),
   targets: z.array(GeometryTargetRecipeSchema).optional(),
-  timeHorizonMinutes: z.number().int().positive().optional(),
+  timeHorizonBars: z.number().int().positive().optional(),
 });
 export type GeometryRecipe = z.infer<typeof GeometryRecipeSchema>;
 
@@ -122,3 +124,30 @@ export const ProtectStateSchema = z.enum([
   "cancelled",
 ]);
 export type ProtectState = z.infer<typeof ProtectStateSchema>;
+
+export const ProtectExpectedKindSchema = z.enum(["stop", "takeProfit", "trail"]);
+export type ProtectExpectedKind = z.infer<typeof ProtectExpectedKindSchema>;
+
+export const ProtectExpectedSchema = z.object({
+  kind: ProtectExpectedKindSchema,
+  stopLeg: BracketStopLegSchema.optional(),
+  price: z.number().positive().optional(),
+  qtyScope: ExitRuleQtyScopeSchema.optional(),
+});
+export type ProtectExpected = z.infer<typeof ProtectExpectedSchema>;
+
+export const ProtectObservedSchema = z.object({
+  orderId: z.number().int().positive().optional(),
+  ocaGroup: z.string().min(1).optional(),
+  orderRef: z.string().min(1).optional(),
+  seenAt: z.string().datetime().optional(),
+});
+export type ProtectObserved = z.infer<typeof ProtectObservedSchema>;
+
+export const ProtectBindingSchema = z.object({
+  exitId: z.string().min(1),
+  role: ExitRuleRoleSchema,
+  expected: ProtectExpectedSchema,
+  observed: ProtectObservedSchema.nullable().default(null),
+});
+export type ProtectBinding = z.infer<typeof ProtectBindingSchema>;

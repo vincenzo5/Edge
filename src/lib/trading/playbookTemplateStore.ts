@@ -5,8 +5,12 @@ import {
   PlaybookTemplateSchema,
   type PlaybookTemplate,
 } from "./playbook/types";
-import { createUserPlaybookTemplateId, isUserPlaybookTemplateId } from "./playbook/resolveTemplate";
+import { isUserPlaybookTemplateId } from "./playbook/resolveTemplate";
 import { getPlaybookPreset } from "./playbook/presets";
+import {
+  applyPlaybookTemplatePatch,
+  userTemplateFromSource,
+} from "./playbookTemplateMutations";
 
 export const CreatePlaybookTemplateSchema = z.object({
   sourceTemplateId: z.string().min(1),
@@ -35,7 +39,7 @@ export const PatchPlaybookTemplateSchema = z
       .object({
         stops: z.array(z.object({ rMultiple: z.number().positive().optional(), price: z.number().positive().optional() })).min(1).optional(),
         targets: z.array(z.object({ rMultiple: z.number().positive().optional(), price: z.number().positive().optional() })).optional(),
-        timeHorizonMinutes: z.number().int().positive().optional(),
+        timeHorizonBars: z.number().int().positive().optional(),
       })
       .optional(),
     exits: z.array(PlaybookRuleSchema).optional(),
@@ -86,13 +90,6 @@ function resolveSourceTemplate(
   );
 }
 
-function duplicateTemplateName(source: PlaybookTemplate): string {
-  const suffix = " (copy)";
-  const base = source.name.trim();
-  if (base.endsWith(suffix)) return `${base} 2`;
-  return `${base}${suffix}`;
-}
-
 export function createMemoryPlaybookTemplateStore(): PlaybookTemplateStore {
   const byId = new Map<string, PlaybookTemplate>();
 
@@ -111,11 +108,9 @@ export function createMemoryPlaybookTemplateStore(): PlaybookTemplateStore {
       if (!source) {
         throw new Error(`Unknown source template: ${input.sourceTemplateId}`);
       }
-      const template = PlaybookTemplateSchema.parse({
-        id: createUserPlaybookTemplateId(),
-        name: input.name?.trim() || duplicateTemplateName(source),
-        description: input.description?.trim() || source.description,
-        rules: source.rules,
+      const template = userTemplateFromSource(source, {
+        name: input.name,
+        description: input.description,
       });
       byId.set(template.id, template);
       return template;
@@ -125,12 +120,7 @@ export function createMemoryPlaybookTemplateStore(): PlaybookTemplateStore {
       if (!isUserPlaybookTemplateId(id)) return null;
       const existing = byId.get(id);
       if (!existing) return null;
-      const updated = PlaybookTemplateSchema.parse({
-        ...existing,
-        ...(patch.name != null ? { name: patch.name } : {}),
-        ...(patch.description != null ? { description: patch.description } : {}),
-        ...(patch.rules != null ? { rules: patch.rules } : {}),
-      });
+      const updated = applyPlaybookTemplatePatch(existing, patch);
       byId.set(id, updated);
       return updated;
     },
@@ -140,12 +130,7 @@ export function createMemoryPlaybookTemplateStore(): PlaybookTemplateStore {
       const source =
         getPlaybookPreset(id) ?? userTemplates.find((item) => item.id === id) ?? null;
       if (!source) return null;
-      const template = PlaybookTemplateSchema.parse({
-        id: createUserPlaybookTemplateId(),
-        name: duplicateTemplateName(source),
-        description: source.description,
-        rules: source.rules,
-      });
+      const template = userTemplateFromSource(source);
       byId.set(template.id, template);
       return template;
     },
@@ -193,11 +178,9 @@ export function createBrowserPlaybookTemplateStore(): PlaybookTemplateStore {
       if (!source) {
         throw new Error(`Unknown source template: ${input.sourceTemplateId}`);
       }
-      const template = PlaybookTemplateSchema.parse({
-        id: createUserPlaybookTemplateId(),
-        name: input.name?.trim() || duplicateTemplateName(source),
-        description: input.description?.trim() || source.description,
-        rules: source.rules,
+      const template = userTemplateFromSource(source, {
+        name: input.name,
+        description: input.description,
       });
       records.push(template);
       writeBrowserTemplates(records);
@@ -209,12 +192,7 @@ export function createBrowserPlaybookTemplateStore(): PlaybookTemplateStore {
       const records = readBrowserTemplates();
       const index = records.findIndex((item) => item.id === id);
       if (index < 0) return null;
-      const updated = PlaybookTemplateSchema.parse({
-        ...records[index]!,
-        ...(patch.name != null ? { name: patch.name } : {}),
-        ...(patch.description != null ? { description: patch.description } : {}),
-        ...(patch.rules != null ? { rules: patch.rules } : {}),
-      });
+      const updated = applyPlaybookTemplatePatch(records[index]!, patch);
       records[index] = updated;
       writeBrowserTemplates(records);
       return updated;
@@ -225,12 +203,7 @@ export function createBrowserPlaybookTemplateStore(): PlaybookTemplateStore {
       const source =
         getPlaybookPreset(id) ?? records.find((item) => item.id === id) ?? null;
       if (!source) return null;
-      const template = PlaybookTemplateSchema.parse({
-        id: createUserPlaybookTemplateId(),
-        name: duplicateTemplateName(source),
-        description: source.description,
-        rules: source.rules,
-      });
+      const template = userTemplateFromSource(source);
       records.push(template);
       writeBrowserTemplates(records);
       return template;

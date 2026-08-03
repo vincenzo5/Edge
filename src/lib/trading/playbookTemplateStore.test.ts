@@ -55,4 +55,31 @@ describe("playbookTemplateStore", () => {
     expect(patched?.rules).toEqual(nextRules);
     expect(await store.patch("break_even", { rules: nextRules })).toBeNull();
   });
+
+  it("patches geometry timeHorizonBars on user template", async () => {
+    const store = createMemoryPlaybookTemplateStore();
+    const created = await store.create({ sourceTemplateId: "break_even" });
+    const patched = await store.patch(created.id, {
+      geometry: { stops: [{ rMultiple: 1 }], timeHorizonBars: 10 },
+    });
+    expect(patched?.geometry).toEqual({
+      stops: [{ rMultiple: 1 }],
+      timeHorizonBars: 10,
+    });
+  });
+
+  it("copies slot fields on duplicate and patches budget", async () => {
+    const store = createMemoryPlaybookTemplateStore();
+    const created = await store.create({
+      sourceTemplateId: "break_even",
+      name: "Slotted",
+    });
+    await store.patch(created.id, {
+      budget: { kind: "dollar", value: 250 },
+      geometry: { stops: [{ rMultiple: 1 }] },
+    });
+    const duplicate = await store.duplicate(created.id);
+    expect(duplicate?.budget).toEqual({ kind: "dollar", value: 250 });
+    expect(duplicate?.geometry).toEqual({ stops: [{ rMultiple: 1 }] });
+  });
 });

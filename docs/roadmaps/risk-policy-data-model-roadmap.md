@@ -275,7 +275,7 @@ type RiskPolicyTemplate = {
   scope: "trade";
   budget?: BudgetSlot | { kind: "inherits" };
   sizing?: SizingSlot | { kind: "inherits" };
-  geometry?: GeometryRecipe; // stops[], targets[], timeHorizon?
+  geometry?: GeometryRecipe; // stops[], targets[], timeHorizonBars?
   exits: ExitRule[];
   gates?: PolicyGates;
   adds: []; // v1 empty
