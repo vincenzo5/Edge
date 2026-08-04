@@ -21,6 +21,7 @@ import {
   type RiskPolicyInstance,
   type RiskPolicyTemplate,
 } from "./types";
+import { seedEntryOrderPrices } from "@/lib/trading/orderExecutionRecipe";
 
 export type ApplyRiskPolicyConflictMode = "reject" | "swap";
 
@@ -44,8 +45,12 @@ function buildPlannedInstance(args: ApplyRiskPolicyInput): RiskPolicyInstance {
   const entrySchedule = args.entrySchedule ?? args.template.defaultEntrySchedule ?? defaultEntrySchedule();
   const entryOrder =
     args.entryOrder ??
+    args.template.defaultEntryOrder ??
     (args.positionPlan.entry != null
-      ? { type: "LMT" as const, limitPrice: args.positionPlan.entry }
+      ? seedEntryOrderPrices(
+          { orderType: "LMT", outsideRth: false, tif: "DAY", allOrNone: false, usePriceMgmtAlgo: false },
+          { planEntry: args.positionPlan.entry, planStop: args.positionPlan.initialStop },
+        )
       : defaultEntryOrder());
   const exits = resolveTemplateExits(args.template);
   const managedRules = managedAppRulesFromExits(exits);

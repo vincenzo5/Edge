@@ -35,5 +35,6 @@ export function riskPolicyTemplateToPlaybookTemplate(
     exits: template.exits,
     gates: template.gates,
     defaultEntrySchedule: template.defaultEntrySchedule,
+    defaultEntryOrder: template.defaultEntryOrder,
   };
 }

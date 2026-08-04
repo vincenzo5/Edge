@@ -4,10 +4,21 @@ import { policySnapshotRequiresBracket } from "@/lib/risk/policy/submitProtectGa
 import { resolveEntryScheduleFireAt } from "@/lib/risk/policy/resolveEntrySchedule";
 import type { RiskPolicyTemplate } from "@/lib/risk/policy/types";
 import type { EntryOrder } from "@/lib/risk/policy/slotSchemas";
+import { deriveProtectExitQuantities } from "@/lib/risk/policy/deriveProtectExitQuantities";
+import { riskPolicyTemplateToPlaybookTemplate } from "@/lib/risk/policy/templatePersistence";
+import {
+  clampRecipeTifForBracket,
+  defaultEntryOrder,
+  entryOrderToDraftFields,
+  seedEntryOrderPrices,
+  validateStrictEntryOrder,
+} from "@/lib/trading/orderExecutionRecipe";
 import {
   buildBracketPlanFromLevels,
   buildFixedStopLeg,
+  buildBracketPlanWithPrices,
 } from "@/lib/trading/bracketPlan";
+import { resolvePlaybookTemplateFromInstance } from "@/lib/trading/playbook/resolveTemplate";
 import type { PlaybookInstanceStore } from "@/lib/trading/playbookInstanceStore";
 import type { PlaybookInstanceWithPolicy } from "@/lib/trading/playbook/types";
 import type {
@@ -74,18 +85,54 @@ function resolveTargetFromPolicy(
   return null;
 }
 
+function resolveInstanceEntryOrder(instance: PlaybookInstanceWithPolicy): EntryOrder {
+  const plan = instance.positionPlan;
+  const base =
+    instance.entryOrder ??
+    instance.policySnapshot?.defaultEntryOrder ??
+    defaultEntryOrder();
+  return seedEntryOrderPrices(base, {
+    planEntry: plan.entry,
+    planStop: plan.initialStop,
+  });
+}
+
 export function buildBracketPlanFromPlannedInstance(
   instance: PlaybookInstanceWithPolicy,
-  takeProfitPrice?: number,
+  args?: {
+    takeProfitPrice?: number;
+    takeProfitQuantity?: number;
+    stopQuantity?: number;
+  },
 ): ReturnType<typeof buildBracketPlanFromLevels> | null {
   const draft = buildEntryDraftFromPlannedInstance(instance);
-  const planLevels = planLevelsFromInstance(instance, takeProfitPrice);
-  const template = instance.policySnapshot;
-  if (!policySnapshotRequiresBracket(template)) return null;
-  return buildBracketPlanFromLevels({
+  const planLevels = planLevelsFromInstance(instance, args?.takeProfitPrice);
+  if (!policySnapshotRequiresBracket(instance.policySnapshot)) return null;
+
+  const playbookTemplate = instance.policySnapshot
+    ? riskPolicyTemplateToPlaybookTemplate(instance.policySnapshot)
+    : resolvePlaybookTemplateFromInstance(instance);
+
+  const derived =
+    playbookTemplate != null
+      ? deriveProtectExitQuantities(playbookTemplate, draft.quantity)
+      : {
+          takeProfitQuantity: draft.quantity,
+          stopQuantity: draft.quantity,
+          runnerQuantity: 0,
+          restingScaleRuleId: null,
+        };
+
+  const takeProfitQuantity = args?.takeProfitQuantity ?? derived.takeProfitQuantity;
+  const stopQuantity = args?.stopQuantity ?? derived.stopQuantity;
+
+  return buildBracketPlanWithPrices({
     entry: draft,
-    planLevels,
+    stopPrice: planLevels.stop,
+    takeProfitPrice: planLevels.target,
     stopLeg: buildFixedStopLeg(planLevels.stop),
+    takeProfitQuantity,
+    stopQuantity,
   });
 }
 
@@ -97,6 +144,8 @@ export async function promotePlannedInstanceNow(args: {
   previewIntentId?: string;
   liveConfirmation?: string;
   takeProfitPrice?: number;
+  takeProfitQuantity?: number;
+  stopQuantity?: number;
   now?: Date;
 }): Promise<PlaybookInstanceWithPolicy> {
   const now = args.now ?? new Date();
@@ -114,10 +163,11 @@ export async function promotePlannedInstanceNow(args: {
     }
   }
 
-  const bracketPlan = buildBracketPlanFromPlannedInstance(
-    args.instance,
-    args.takeProfitPrice,
-  );
+  const bracketPlan = buildBracketPlanFromPlannedInstance(args.instance, {
+    takeProfitPrice: args.takeProfitPrice,
+    takeProfitQuantity: args.takeProfitQuantity,
+    stopQuantity: args.stopQuantity,
+  });
 
   if (bracketPlan && args.tradingService.submitBracket) {
     const placed = await args.tradingService.submitBracket(
@@ -132,6 +182,7 @@ export async function promotePlannedInstanceNow(args: {
         orderIntentId: placed.intent.intentId,
         orderRef: placed.orderRef,
         stopOrderId: placed.stopOrder.orderId ?? null,
+        takeProfitOrderId: placed.takeProfitOrder.orderId ?? null,
         scheduledAt: now.toISOString(),
       })) ?? args.instance;
     return patched;
@@ -154,31 +205,35 @@ export async function promotePlannedInstanceNow(args: {
   return patched;
 }
 
-function mapEntryOrderType(type: EntryOrder["type"]): OrderDraft["orderType"] {
-  if (type === "STP_LMT") return "STP LMT";
-  return type;
-}
-
 export function buildEntryDraftFromPlannedInstance(
   instance: PlaybookInstanceWithPolicy,
 ): OrderDraft {
   const plan = instance.positionPlan;
-  const entryOrder = instance.entryOrder ?? { type: "LMT" as const, limitPrice: plan.entry };
-  const orderType = mapEntryOrderType(entryOrder.type);
+  const entryOrder = clampRecipeTifForBracket(
+    validateStrictEntryOrder(
+      seedEntryOrderPrices(resolveInstanceEntryOrder(instance), {
+        planEntry: plan.entry,
+        planStop: plan.initialStop,
+      }),
+    ),
+  );
+  const fields = entryOrderToDraftFields(entryOrder);
 
   return {
     accountId: plan.accountId,
     symbol: plan.symbol,
     side: plan.side,
     quantity: plan.qty,
-    orderType,
-    limitPrice:
-      entryOrder.limitPrice ??
-      (orderType === "LMT" || orderType === "STP LMT" ? plan.entry : undefined),
+    orderType: fields.orderType,
+    limitPrice: fields.limitPrice,
+    stopPrice: fields.stopPrice,
+    trailPercent: fields.trailPercent,
     environment: plan.environment,
     orderRef: instance.orderRef?.trim() || `edge-policy-${instance.id}`,
-    outsideRth: false,
-    tif: "DAY",
+    outsideRth: fields.outsideRth,
+    tif: fields.tif,
+    allOrNone: fields.allOrNone,
+    usePriceMgmtAlgo: fields.usePriceMgmtAlgo,
   };
 }
 
@@ -197,20 +252,14 @@ export async function promoteDuePlannedInstances(args: {
     const due = await args.playbookStore.listDuePlanned({ environment, now });
     for (const instance of due) {
       try {
-        const draft = buildEntryDraftFromPlannedInstance(instance);
         const idempotencyKey = `policy-schedule:${instance.id}`;
-        const placed = await args.tradingService.submitOrder(
-          draft,
+        await promotePlannedInstanceNow({
+          instance,
+          playbookStore: args.playbookStore,
+          tradingService: args.tradingService,
           idempotencyKey,
-          undefined,
-          args.liveConfirmation,
-        );
-
-        await args.playbookStore.patch(instance.id, {
-          status: "pending_fill",
-          orderIntentId: placed.intent.intentId,
-          orderRef: placed.orderRef,
-          scheduledAt: now.toISOString(),
+          liveConfirmation: args.liveConfirmation,
+          now,
         });
         promoted += 1;
       } catch (error) {

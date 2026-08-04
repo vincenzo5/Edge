@@ -5,6 +5,7 @@ export type PolicyEditorSectionId =
   | "geometry"
   | "exits"
   | "gates"
+  | "entry"
   | "schedule"
   | "review";
 
@@ -21,6 +22,7 @@ export const POLICY_EDITOR_SECTIONS: { id: PolicyEditorSectionId; label: string 
   { id: "geometry", label: "Geometry" },
   { id: "exits", label: "Exits" },
   { id: "gates", label: "Gates" },
+  { id: "entry", label: "Entry order" },
   { id: "schedule", label: "Schedule" },
   { id: "review", label: "Review" },
 ];
@@ -61,6 +63,11 @@ export const POLICY_EDITOR_SECTION_COPY: Record<PolicyEditorSectionId, PolicyEdi
     blurb: "When entry may fire: now, session event, or clock.",
     help: "Controls entry timing only. Does not move stops or Manage rules.",
   },
+  entry: {
+    label: "Entry order",
+    blurb: "Default order recipe seeded on the trade ticket when this policy applies.",
+    help: "Traders can override on the ticket before submit. Protect requires native bracket parents (MKT, LMT, STP, STP LMT).",
+  },
   review: {
     label: "Review",
     blurb: "Completeness and failure-mode summary before save.",
@@ -81,6 +88,7 @@ export const POLICY_EDITOR_FIELD_HELP = {
   minRiskReward: "Block the trade when reward-to-risk is below this ratio.",
   maxQtyGate: "Block the trade when computed quantity exceeds this cap.",
   scheduleKind: "Immediate entry, next session open/close, or a specific clock time.",
+  entryTif: "How long the default entry order stays working.",
   exitRole:
     "Protect = broker stop. Manage = app-driven upgrades. Take profit / flatten / hedge = other exit roles.",
   exitBinding:

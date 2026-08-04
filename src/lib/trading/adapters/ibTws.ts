@@ -31,6 +31,7 @@ import type {
   ProtectiveOcoPlan,
   TradingAccount,
 } from "../types";
+import { resolveBracketExitQuantities, resolveProtectiveOcoExitQuantities } from "../bracketPlan";
 
 type PlaceOrderResponse = {
   order: AccountOrder;
@@ -106,7 +107,12 @@ function mapWhatIfToPreview(result: WhatIfResult): OrderPreview {
 
 function draftToWhatIf(draft: OrderDraft): WhatIfRequest {
   const orderType =
-    draft.orderType === "TRAIL" || draft.orderType === "TRAIL LIMIT" ? "MKT" : draft.orderType;
+    draft.orderType === "TRAIL" ||
+    draft.orderType === "TRAIL LIMIT" ||
+    draft.orderType === "MOC" ||
+    draft.orderType === "LOC"
+      ? "MKT"
+      : draft.orderType;
   return {
     symbol: draft.symbol.trim().toUpperCase(),
     action: draft.side,
@@ -130,6 +136,8 @@ function draftToPlaceBody(draft: OrderDraft, connectionId: string) {
     trailPercent: draft.trailPercent,
     outsideRth: draft.outsideRth ?? false,
     tif: draft.tif,
+    allOrNone: draft.allOrNone ?? false,
+    usePriceMgmtAlgo: draft.usePriceMgmtAlgo ?? false,
     orderRef: draft.orderRef,
     connectionId,
   };
@@ -146,23 +154,31 @@ function stopLegToSidecar(stopLeg: BracketPlan["stopLeg"]) {
 
 function bracketPlanToBody(plan: BracketPlan, connectionId: string, orderRef: string) {
   const entry = plan.entry;
+  const { takeProfitQuantity, stopQuantity } = resolveBracketExitQuantities(plan);
   return {
     accountId: entry.accountId.trim(),
     symbol: entry.symbol.trim().toUpperCase(),
     action: entry.side,
     quantity: entry.quantity,
-    orderType: entry.orderType === "LMT" ? "LMT" : "MKT",
+    orderType: entry.orderType,
     limitPrice: entry.limitPrice,
+    stopPrice: entry.stopPrice,
+    trailPercent: entry.trailPercent,
     stopLeg: stopLegToSidecar(plan.stopLeg),
     takeProfitPrice: plan.takeProfitPrice,
+    takeProfitQuantity,
+    stopQuantity,
     outsideRth: entry.outsideRth ?? false,
     tif: entry.tif,
+    allOrNone: entry.allOrNone ?? false,
+    usePriceMgmtAlgo: entry.usePriceMgmtAlgo ?? false,
     orderRef,
     connectionId,
   };
 }
 
 function protectiveOcoToBody(plan: ProtectiveOcoPlan, connectionId: string, orderRef: string) {
+  const { takeProfitQuantity, stopQuantity } = resolveProtectiveOcoExitQuantities(plan);
   return {
     accountId: plan.accountId.trim(),
     symbol: plan.symbol.trim().toUpperCase(),
@@ -170,6 +186,8 @@ function protectiveOcoToBody(plan: ProtectiveOcoPlan, connectionId: string, orde
     quantity: plan.quantity,
     stopLeg: stopLegToSidecar(plan.stopLeg),
     takeProfitPrice: plan.takeProfitPrice,
+    takeProfitQuantity,
+    stopQuantity,
     outsideRth: plan.outsideRth ?? false,
     tif: plan.tif,
     orderRef,

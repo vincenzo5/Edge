@@ -105,6 +105,7 @@ import {
   type OrderFamily,
   type OrderFillTiming,
 } from "@/lib/trading/orderTypeFamily";
+import { bracketEntryRejectReason } from "@/lib/trading/orderExecutionRecipe";
 
 export type { ManagePresetSelection };
 
@@ -522,6 +523,30 @@ export function TradeOrderForm({
     if (policyDraftPatch.takeProfitPrice != null) {
       setComposeTakeProfitPrice(policyDraftPatch.takeProfitPrice);
     }
+    if (policyDraftPatch.orderType) {
+      setOrderType(policyDraftPatch.orderType);
+    }
+    if (policyDraftPatch.limitPrice != null) {
+      setLimitPrice(formatLimitPriceInput(policyDraftPatch.limitPrice));
+    }
+    if (policyDraftPatch.stopPrice != null) {
+      setStopPrice(formatLimitPriceInput(policyDraftPatch.stopPrice));
+    }
+    if (policyDraftPatch.trailPercent != null) {
+      setEntryTrailPercent(String(policyDraftPatch.trailPercent));
+    }
+    if (policyDraftPatch.tif) {
+      setTif(policyDraftPatch.tif);
+    }
+    if (policyDraftPatch.outsideRth != null) {
+      setOutsideRth(policyDraftPatch.outsideRth);
+    }
+    if (policyDraftPatch.allOrNone != null) {
+      setAllOrNone(policyDraftPatch.allOrNone);
+    }
+    if (policyDraftPatch.usePriceMgmtAlgo != null) {
+      setUsePriceMgmtAlgo(policyDraftPatch.usePriceMgmtAlgo);
+    }
     onPolicyDraftConsumed?.();
   }, [onPolicyDraftConsumed, policyDraftPatch]);
 
@@ -546,6 +571,20 @@ export function TradeOrderForm({
     }
     return deriveProtectExitQuantities(activePolicyTemplate, qtyNum);
   }, [activePolicyTemplate, qtyNum]);
+
+  const protectBracketReject = useMemo(() => {
+    const protectRequested =
+      policyBound ||
+      (stopLossEnabled && takeProfitEnabled && composeStopLossPrice != null && composeTakeProfitPrice != null);
+    return bracketEntryRejectReason({ orderType, protectRequested });
+  }, [
+    composeStopLossPrice,
+    composeTakeProfitPrice,
+    orderType,
+    policyBound,
+    stopLossEnabled,
+    takeProfitEnabled,
+  ]);
 
   const attachBracket = useMemo(() => {
     if (!supportsBracketAttach(orderType)) return false;
@@ -1056,6 +1095,10 @@ export function TradeOrderForm({
   }, [activeRiskDollars, attachBracket, effectivePlanLevels]);
 
   const handlePreview = async () => {
+    if (protectBracketReject) {
+      setError(protectBracketReject);
+      return;
+    }
     if (!draft) {
       setError(
         !gatewayAccountSelected
@@ -1101,6 +1144,10 @@ export function TradeOrderForm({
 
   const handleSubmit = async () => {
     if (!draft || !previewIntent) return;
+    if (protectBracketReject) {
+      setError(protectBracketReject);
+      return;
+    }
     if (previewAgeMs(previewIntent) > PREVIEW_INTENT_MAX_AGE_MS - 5_000) {
       await handlePreview();
       setError("Preview refreshed — review and confirm again.");

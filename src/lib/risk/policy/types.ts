@@ -9,18 +9,14 @@ import {
   PositionPlanSchema,
   RuleRuntimeSchema,
 } from "@/lib/trading/playbook/types";
-import { BracketStopLegSchema } from "@/lib/trading/types";
-
 import {
   BudgetSlotOrInheritsSchema,
   EntryOrderSchema,
   EntryScheduleSchema,
-  ExitRuleBindingSchema,
-  ExitRuleQtyScopeSchema,
-  ExitRuleRoleSchema,
   GeometryRecipeSchema,
   PolicyBindingRefSchema,
   PolicyGatesSchema,
+  ProtectBindingSchema,
   ProtectStateSchema,
   RiskPolicyControlModeSchema,
   RiskPolicyOffReasonSchema,
@@ -54,35 +50,10 @@ export const RiskPolicyTemplateSchema = z.object({
   adds: z.array(z.never()).default([]),
   /** Optional default copied to instance on apply. */
   defaultEntrySchedule: EntryScheduleSchema.optional(),
+  /** Optional default entry order recipe copied to instance on apply. */
+  defaultEntryOrder: EntryOrderSchema.optional(),
 });
 export type RiskPolicyTemplate = z.infer<typeof RiskPolicyTemplateSchema>;
-
-export const ProtectExpectedKindSchema = z.enum(["stop", "takeProfit", "trail"]);
-export type ProtectExpectedKind = z.infer<typeof ProtectExpectedKindSchema>;
-
-export const ProtectExpectedSchema = z.object({
-  kind: ProtectExpectedKindSchema,
-  stopLeg: BracketStopLegSchema.optional(),
-  price: z.number().positive().optional(),
-  qtyScope: ExitRuleQtyScopeSchema.optional(),
-});
-export type ProtectExpected = z.infer<typeof ProtectExpectedSchema>;
-
-export const ProtectObservedSchema = z.object({
-  orderId: z.number().int().positive().optional(),
-  ocaGroup: z.string().min(1).optional(),
-  orderRef: z.string().min(1).optional(),
-  seenAt: z.string().datetime().optional(),
-});
-export type ProtectObserved = z.infer<typeof ProtectObservedSchema>;
-
-export const ProtectBindingSchema = z.object({
-  exitId: z.string().min(1),
-  role: ExitRuleRoleSchema,
-  expected: ProtectExpectedSchema,
-  observed: ProtectObservedSchema.nullable().default(null),
-});
-export type ProtectBinding = z.infer<typeof ProtectBindingSchema>;
 
 export const RiskPolicyInstanceStatusSchema = z.enum([
   "planned",
@@ -138,7 +109,7 @@ export function resolveTemplateExits(template: RiskPolicyTemplate): ExitRule[] {
 export function hasInheritsSlot(
   slot: z.infer<typeof BudgetSlotOrInheritsSchema> | z.infer<typeof SizingSlotOrInheritsSchema> | undefined,
 ): slot is { kind: "inherits" } {
-  return slot?.kind === "inherits";
+  return slot != null && "kind" in slot && slot.kind === "inherits";
 }
 
 export function isRestingBrokerProtectExit(rule: ExitRule): boolean {
@@ -149,6 +120,4 @@ export function defaultEntrySchedule(): EntrySchedule {
   return { kind: "immediate" };
 }
 
-export function defaultEntryOrder(): EntryOrder {
-  return { type: "LMT" };
-}
+export { defaultEntryOrder } from "@/lib/trading/orderExecutionRecipe";

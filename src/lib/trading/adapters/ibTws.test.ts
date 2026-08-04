@@ -214,4 +214,88 @@ describe("IbTwsTradingAdapter", () => {
     expect(body.outsideRth).toBe(false);
     expect(body.connectionId).toBe("ib-paper");
   });
+
+  it("forwards allOrNone and usePriceMgmtAlgo on place", async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          order: { orderId: 12, status: "Submitted" },
+          updatedAt: 1,
+        }),
+    });
+
+    const adapter = new IbTwsTradingAdapter({
+      baseUrl: "http://127.0.0.1:8765",
+      timeoutMs: 1000,
+    });
+
+    await adapter.place({
+      accountId: "DUP586813",
+      symbol: "F",
+      side: "BUY",
+      quantity: 1,
+      orderType: "LMT",
+      limitPrice: 10,
+      allOrNone: true,
+      usePriceMgmtAlgo: true,
+      tif: "IOC",
+      environment: "paper",
+      orderRef: "edge-intent-aon",
+    });
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]?.[1] as RequestInit).body as string,
+    );
+    expect(body.allOrNone).toBe(true);
+    expect(body.usePriceMgmtAlgo).toBe(true);
+    expect(body.tif).toBe("IOC");
+  });
+
+  it("forwards STP parent fields on bracket place", async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          orders: {
+            entryOrder: { orderId: 1, status: "Submitted" },
+            stopOrder: { orderId: 2, status: "Submitted" },
+            takeProfitOrder: { orderId: 3, status: "Submitted" },
+          },
+          orderRef: "edge-bracket-stp",
+        }),
+    });
+
+    const adapter = new IbTwsTradingAdapter({
+      baseUrl: "http://127.0.0.1:8765",
+      timeoutMs: 1000,
+    });
+
+    await adapter.placeBracket(
+      {
+        entry: {
+          accountId: "DUP586813",
+          symbol: "F",
+          side: "BUY",
+          quantity: 10,
+          orderType: "STP",
+          stopPrice: 99,
+          environment: "paper",
+          outsideRth: false,
+          tif: "DAY",
+        },
+        stopLeg: { mode: "fixed", stopPrice: 95 },
+        takeProfitPrice: 110,
+      },
+      "edge-bracket-stp",
+    );
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]?.[1] as RequestInit).body as string,
+    );
+    expect(body.orderType).toBe("STP");
+    expect(body.stopPrice).toBe(99);
+  });
 });

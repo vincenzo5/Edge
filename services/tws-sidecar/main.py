@@ -43,7 +43,7 @@ from tws_sidecar.account.payloads import (
 )
 from tws_sidecar.account.pricing import _seed_ephemeral_position_market_data
 from tws_sidecar.trading.guards import _require_trading_enabled, _validate_account_id
-from tws_sidecar.trading.models import ModifyOrderRequest, PlaceOrderRequest
+from tws_sidecar.trading.models import BracketOrderRequest, ModifyOrderRequest, PlaceOrderRequest
 from tws_sidecar.trading.orders import _apply_order_modify_patch, _build_stock_order
 from tws_sidecar.routes.health import health
 from tws_sidecar.routes.account import account_status

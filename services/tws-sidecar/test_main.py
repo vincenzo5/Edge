@@ -413,6 +413,47 @@ class TradingGuardTests(unittest.TestCase):
         self.assertEqual(order.auxPrice, 9.0)
         self.assertEqual(order.lmtPrice, 9.25)
 
+    def test_build_stock_order_moc_sets_order_type(self) -> None:
+        order = main._build_stock_order(
+            action="BUY",
+            quantity=1,
+            order_type="MOC",
+            limit_price=None,
+            account="DUP586813",
+            transmit=True,
+            tif="DAY",
+        )
+        self.assertEqual(order.orderType, "MOC")
+        self.assertEqual(order.tif, "DAY")
+
+    def test_build_stock_order_loc_sets_limit(self) -> None:
+        order = main._build_stock_order(
+            action="BUY",
+            quantity=1,
+            order_type="LOC",
+            limit_price=88.5,
+            account="DUP586813",
+            transmit=True,
+        )
+        self.assertEqual(order.orderType, "LOC")
+        self.assertEqual(order.lmtPrice, 88.5)
+
+    def test_build_stock_order_sets_aon_and_pma(self) -> None:
+        order = main._build_stock_order(
+            action="BUY",
+            quantity=1,
+            order_type="LMT",
+            limit_price=10,
+            account="DUP586813",
+            transmit=True,
+            tif="IOC",
+            all_or_none=True,
+            use_price_mgmt_algo=True,
+        )
+        self.assertTrue(order.allOrNone)
+        self.assertTrue(order.usePriceMgmtAlgo)
+        self.assertEqual(order.tif, "IOC")
+
     def test_place_order_request_accepts_stp(self) -> None:
         req = main.PlaceOrderRequest(
             accountId="DUP586813",
@@ -424,6 +465,20 @@ class TradingGuardTests(unittest.TestCase):
         )
         self.assertEqual(req.orderType, "STP")
         self.assertEqual(req.stopPrice, 8.5)
+
+    def test_bracket_order_request_accepts_stp_parent(self) -> None:
+        req = main.BracketOrderRequest(
+            accountId="DUP586813",
+            symbol="F",
+            action="BUY",
+            quantity=10,
+            orderType="STP",
+            stopPrice=99,
+            stopLeg={"mode": "fixed", "stopPrice": 95},
+            takeProfitPrice=110,
+        )
+        self.assertEqual(req.orderType, "STP")
+        self.assertEqual(req.stopPrice, 99)
 
     def test_validate_account_id_rejects_unknown(self) -> None:
         class _FakeIb:

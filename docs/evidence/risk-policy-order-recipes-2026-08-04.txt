@@ -1,0 +1,33 @@
+# LIVE — Risk policy order recipes evidence
+# Date: 2026-08-04
+
+## Scope
+Shared OrderExecutionRecipe for policy entry + manage placement; native bracket parent expansion (STP/STP LMT); policy editor Entry order section; ticket apply seeds full order fields; scheduled promote uses bracket path when Protect requires it.
+
+## Delivered
+- src/lib/trading/orderExecutionRecipe.ts — recipe schema, bracket parent matrix, legacy entry parse
+- src/lib/trading/types.ts — BracketPlan validates recipe + bracket parents
+- src/lib/trading/adapters/ibTws.ts — forward full parent fields (no MKT coercion)
+- services/tws-sidecar/tws_sidecar/trading/{models,orders}.py — STP/STP LMT bracket parents + AON/PMA
+- src/lib/risk/policy/{slotSchemas,applyPolicyToTradeDraft,syncPlannedLevels,applyRiskPolicy}.ts
+- src/lib/trading/playbook/{promotePlannedInstances,executeThen,attachTrail}.ts — placement recipes
+- src/app/components/trading/{PolicyEntryOrderEditor,PlaybookTemplateEditor,TradeOrderForm}.tsx
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/orderExecutionRecipe.test.ts src/lib/trading/orderTicketOptions.test.ts src/lib/trading/bracketPlan.test.ts src/lib/trading/adapters/ibTws.test.ts src/lib/trading/playbook/promotePlannedInstances.test.ts src/lib/trading/playbook/executeThen.test.ts src/lib/trading/playbook/attachTrail.test.ts src/lib/risk/policy/applyPolicyToTradeDraft.test.ts src/lib/risk/policy/policy.test.ts src/lib/risk/policy/applyRiskPolicy.test.ts src/app/components/trading/TradeOrderForm.test.tsx src/app/components/trading/PlaybookTemplateEditor.test.tsx
+
+Result:
+Test Files  12 passed (12)
+Tests  96 passed (96)
+exit=0
+
+Command:
+cd services/tws-sidecar && python3 -m pytest test_main.py -k "bracket or Bracket or build_stock_order" -q
+
+Result:
+9 passed, 49 deselected
+exit=0
+
+## App-level (paper Gateway)
+Deferred — IB Gateway paper not exercised in this session. Sidecar + adapter tests verify STP parent bracket body fields. Manual when Gateway up: long STP bracket + fixed stop + TP; STP LMT bracket; negative TRAIL+MOC+LOC + Protect rejected on ticket.

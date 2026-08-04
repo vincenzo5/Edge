@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { BracketStopLegSchema } from "@/lib/trading/types";
 
-/** Slot + schedule schemas shared by playbook templates and RiskPolicy types (no playbook import). */
+export { EntryOrderSchema, type EntryOrder } from "@/lib/trading/orderExecutionRecipe";
 
 export const RiskPolicySchemaVersionSchema = z.literal(1);
 export type RiskPolicySchemaVersion = z.infer<typeof RiskPolicySchemaVersionSchema>;
@@ -20,6 +20,8 @@ export const BudgetSlotSchema = z.object({
 export type BudgetSlot = z.infer<typeof BudgetSlotSchema>;
 
 export const BudgetSlotOrInheritsSchema = z.union([BudgetSlotSchema, InheritsSlotSchema]);
+export type BudgetSlotOrInherits = z.infer<typeof BudgetSlotOrInheritsSchema>;
+
 
 export const SizingSlotSchema = z.object({
   method: z.literal("stopDistance"),
@@ -85,15 +87,6 @@ export const EntryScheduleSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type EntrySchedule = z.infer<typeof EntryScheduleSchema>;
-
-export const EntryOrderTypeSchema = z.enum(["MKT", "LMT", "STP", "STP_LMT"]);
-export type EntryOrderType = z.infer<typeof EntryOrderTypeSchema>;
-
-export const EntryOrderSchema = z.object({
-  type: EntryOrderTypeSchema,
-  limitPrice: z.number().positive().optional(),
-});
-export type EntryOrder = z.infer<typeof EntryOrderSchema>;
 
 export const PolicyBindingRefKindSchema = z.enum(["drawing", "ticket", "position"]);
 export type PolicyBindingRefKind = z.infer<typeof PolicyBindingRefKindSchema>;

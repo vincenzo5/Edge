@@ -165,7 +165,7 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 | `MOC` | IB MOC | — (DAY TIF only) |
 | `LOC` | IB LOC | `limitPrice` (DAY TIF only) |
 
-**TIF:** `DAY`, `GTC`, `IOC`, `OPG` (validated per order type via `orderTicketOptions.ts`). **Flags:** `outsideRth` (default false), `allOrNone`, `usePriceMgmtAlgo` (limit-like types). Bracket attach remains **MKT/LMT** entry only. Overnight TIF excluded (requires separate routing).
+**TIF:** `DAY`, `GTC`, `IOC`, `OPG` (validated per order type via `orderTicketOptions.ts`). **Flags:** `outsideRth` (default false), `allOrNone`, `usePriceMgmtAlgo` (limit-like types). **Native bracket parents:** `MKT`, `LMT`, `STP`, `STP LMT` (`orderExecutionRecipe.ts` matrix); `TRAIL` / `MOC` / `LOC` entry + Protect reject until paper-enabled. Bracket parent TIF: `DAY`/`GTC` only. Overnight TIF excluded (requires separate routing).
 
 `outsideRth` defaults **false** on all drafts; Trade ticket exposes toggle.
 

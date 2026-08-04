@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   BudgetSlotOrInheritsSchema,
+  EntryOrderSchema,
   EntryScheduleSchema,
   ExitRuleBindingSchema,
   ExitRuleQtyScopeSchema,
@@ -24,7 +25,7 @@ import {
   type RiskPolicyControlMode,
   type RiskPolicyOffReason,
 } from "@/lib/risk/policy/slotSchemas";
-import { EntryOrderSchema } from "@/lib/risk/policy/slotSchemas";
+import { OrderExecutionRecipeSchema } from "@/lib/trading/orderExecutionRecipe";
 
 import { OrderSideSchema, TradingEnvironmentSchema } from "../types";
 import { BracketStopLegSchema } from "../types";
@@ -133,13 +134,16 @@ export const PlaybookThenSchema = z.discriminatedUnion("kind", [
     kind: z.literal("reduceQty"),
     /** Fraction of filled qty to exit (0–1). */
     fraction: z.number().positive().max(1),
+    placement: OrderExecutionRecipeSchema.optional(),
   }),
   z.object({
     kind: z.literal("attachTrail"),
     stopLeg: BracketStopLegSchema,
+    placement: OrderExecutionRecipeSchema.optional(),
   }),
   z.object({
     kind: z.literal("flatten"),
+    placement: OrderExecutionRecipeSchema.optional(),
   }),
   z.object({
     kind: z.literal("notify"),
@@ -196,6 +200,7 @@ export const PlaybookTemplateSchema = z.object({
   exits: z.array(PlaybookRuleSchema).optional(),
   gates: PolicyGatesSchema.optional(),
   defaultEntrySchedule: EntryScheduleSchema.optional(),
+  defaultEntryOrder: EntryOrderSchema.optional(),
 });
 
 export type PlaybookTemplate = z.infer<typeof PlaybookTemplateSchema>;
@@ -262,6 +267,8 @@ export const PlaybookInstanceSchema = z.object({
   orderRef: z.string().min(1).optional(),
   /** Cached protective stop order id after reconcile (Phase 2 manager). */
   stopOrderId: z.number().int().positive().nullable().optional(),
+  /** Cached take-profit order id when bracket uses split exit qty. */
+  takeProfitOrderId: z.number().int().positive().nullable().optional(),
   /** Filled entry qty observed at arm time — basis for scale-out fractions. */
   filledQty: z.number().positive().nullable().optional(),
   /** Notify-only alert bundle linked at attach (Phase 6). */

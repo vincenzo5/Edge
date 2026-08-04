@@ -27,7 +27,7 @@ A **risk policy** is a named pack of composable rules (budget, sizing, geometry 
 - Pause / Detach never cancel Protect; Cancel Protect is a separate confirmed action.
 - Broker orders remain **effects** linked by id — not reconstructed policy truth.
 - Additive migration from `PlaybookTemplate` / `PlaybookInstance` with no dual-write rewrite of live Manage.
-- **Apply UX:** long/short drawing is the policy apply surface; Trade panel is entry + schedule + confirm only; Application settings **Risk policies** tab is the template library.
+- **Apply UX:** long/short drawing is the policy apply surface; Trade panel seeds entry recipe defaults (ticket may override before submit); Application settings **Risk policies** tab is the template library with optional `defaultEntryOrder`.
 - **Scheduled entry:** `EntrySchedule` is first-class (immediate / session event / clock); “at open” is one preset, not a one-off feature.
 
 ### Non-goals (v1)

@@ -1,5 +1,10 @@
 import { appendAudit } from "../auditLog";
 import { LIVE_CONFIRMATION_TOKEN } from "../validateOrder";
+import {
+  defaultManagePlacementRecipe,
+  entryOrderToDraftFields,
+  type OrderExecutionRecipe,
+} from "../orderExecutionRecipe";
 import type { OrderDraft, PlacedOrderResult, TradingEnvironment } from "../types";
 
 import { buildTrailOrderDraft, resolveAttachTrailRule } from "./attachTrail";
@@ -57,17 +62,28 @@ function resolveStopPrice(rule: PlaybookRule, instance: PlaybookInstance): numbe
   return rule.then.stopPrice ?? null;
 }
 
-function buildReduceDraft(instance: PlaybookInstance, qty: number): OrderDraft {
+function buildReduceDraft(
+  instance: PlaybookInstance,
+  qty: number,
+  placement?: OrderExecutionRecipe,
+): OrderDraft {
   const plan = instance.positionPlan;
+  const recipe = placement ?? defaultManagePlacementRecipe();
+  const fields = entryOrderToDraftFields(recipe);
   return {
     accountId: plan.accountId,
     symbol: plan.symbol,
     side: plan.side === "BUY" ? "SELL" : "BUY",
     quantity: qty,
-    orderType: "MKT",
+    orderType: fields.orderType,
+    limitPrice: fields.limitPrice,
+    stopPrice: fields.stopPrice,
+    trailPercent: fields.trailPercent,
     environment: plan.environment,
-    outsideRth: false,
-    tif: "DAY",
+    outsideRth: fields.outsideRth,
+    tif: fields.tif,
+    allOrNone: fields.allOrNone,
+    usePriceMgmtAlgo: fields.usePriceMgmtAlgo,
   };
 }
 
@@ -126,7 +142,11 @@ export async function executePlaybookThen(
       return { ok: false, error: "Reduce qty rounds to zero", skippedReason: "zero_qty" };
     }
 
-    const draft = buildReduceDraft(instance, qty);
+    const draft = buildReduceDraft(
+      instance,
+      qty,
+      rule.then.kind === "reduceQty" ? rule.then.placement : undefined,
+    );
     const idempotencyKey = `playbook-${instance.id}-${rule.id}-reduce`;
 
     try {
@@ -196,7 +216,12 @@ export async function executePlaybookThen(
         );
       }
 
-      const draft = buildTrailOrderDraft({ instance, stopLeg, quantity: filledQty });
+      const draft = buildTrailOrderDraft({
+        instance,
+        stopLeg,
+        quantity: filledQty,
+        placement: rule.then.kind === "attachTrail" ? rule.then.placement : undefined,
+      });
       const placed = await tradingService.submitOrder(
         draft,
         idempotencyKey,
@@ -221,6 +246,38 @@ export async function executePlaybookThen(
         detail: `playbook:${instance.id}:${rule.id}:attachTrail:${stopOrderId}`,
       });
       return { ok: true, stopOrderId };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      appendAudit({
+        action: "submit",
+        outcome: "failed",
+        accountId: plan.accountId,
+        intentId: instance.orderIntentId,
+        orderRef: instance.orderRef,
+        detail: `playbook:${instance.id}:${rule.id}:${message}`,
+      });
+      return { ok: false, error: message };
+    }
+  }
+
+  if (rule.then.kind === "flatten") {
+    const qty = filledQty;
+    if (qty <= 0) {
+      return { ok: false, error: "No remaining qty to flatten", skippedReason: "zero_qty" };
+    }
+    const draft = buildReduceDraft(instance, qty, rule.then.placement);
+    const idempotencyKey = `playbook-${instance.id}-${rule.id}-flatten`;
+    try {
+      await tradingService.submitOrder(draft, idempotencyKey, undefined, liveConfirmation);
+      appendAudit({
+        action: "submit",
+        outcome: "success",
+        accountId: plan.accountId,
+        intentId: instance.orderIntentId,
+        orderRef: instance.orderRef,
+        detail: `playbook:${instance.id}:${rule.id}:flatten:${qty}`,
+      });
+      return { ok: true, stopOrderId: null };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       appendAudit({

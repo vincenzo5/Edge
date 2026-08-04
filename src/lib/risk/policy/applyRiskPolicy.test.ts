@@ -119,7 +119,7 @@ describe("applyRiskPolicy", () => {
       bindingRef,
     });
     expect(instance.entrySchedule).toEqual({ kind: "immediate" });
-    expect(instance.entryOrder.type).toBe("LMT");
+    expect(instance.entryOrder.orderType).toBe("LMT");
     expect(instance.entryOrder.limitPrice).toBe(100);
   });
 });

@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { AccountOrderSchema } from "@/lib/marketData/contracts/brokerage";
+import { isTifValidForOrderType, supportsPriceMgmtAlgo } from "./orderTicketOptions";
+import { supportsBracketAttach } from "./orderExecutionRecipe";
+import { OrderExecutionRecipeSchema } from "./orderExecutionRecipe";
 
 export const TradingBrokerSchema = z.enum(["ib", "stub"]);
 export type TradingBroker = z.infer<typeof TradingBrokerSchema>;
@@ -17,10 +20,12 @@ export const OrderTypeSchema = z.enum([
   "STP LMT",
   "TRAIL",
   "TRAIL LIMIT",
+  "MOC",
+  "LOC",
 ]);
 export type OrderType = z.infer<typeof OrderTypeSchema>;
 
-export const TimeInForceSchema = z.enum(["DAY", "GTC"]);
+export const TimeInForceSchema = z.enum(["DAY", "GTC", "IOC", "OPG"]);
 export type TimeInForce = z.infer<typeof TimeInForceSchema>;
 
 export const TradingAccountAvailabilitySchema = z.enum(["online", "offline"]);
@@ -48,6 +53,8 @@ export const OrderDraftSchema = z
     trailPercent: z.number().positive().optional(),
     outsideRth: z.boolean().default(false),
     tif: TimeInForceSchema.default("DAY"),
+    allOrNone: z.boolean().default(false),
+    usePriceMgmtAlgo: z.boolean().default(false),
     orderRef: z.string().optional(),
     environment: TradingEnvironmentSchema,
   })
@@ -104,6 +111,43 @@ export const OrderDraftSchema = z
           path: ["limitPrice"],
         });
       }
+    }
+    if (value.orderType === "LOC" && value.limitPrice == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "limitPrice required for LOC orders",
+        path: ["limitPrice"],
+      });
+    }
+    if (value.orderType === "MOC") {
+      if (value.limitPrice != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "limitPrice must not be set for MOC orders",
+          path: ["limitPrice"],
+        });
+      }
+      if (value.stopPrice != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "stopPrice must not be set for MOC orders",
+          path: ["stopPrice"],
+        });
+      }
+    }
+    if (!isTifValidForOrderType(value.orderType, value.tif)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `tif ${value.tif} is not valid for ${value.orderType} orders`,
+        path: ["tif"],
+      });
+    }
+    if (value.usePriceMgmtAlgo && !supportsPriceMgmtAlgo(value.orderType)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "usePriceMgmtAlgo is only supported for LMT, STP LMT, TRAIL LIMIT, and LOC orders",
+        path: ["usePriceMgmtAlgo"],
+      });
     }
   });
 
@@ -205,6 +249,8 @@ export const BracketStopLegSchema = z
     stopPrice: z.number().positive().optional(),
     trailAmount: z.number().positive().optional(),
     trailPercent: z.number().positive().optional(),
+    /** Trail distance as a multiple of locked R; resolved to dollars at attach. */
+    trailRMultiple: z.number().positive().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.mode === "fixed" && value.stopPrice == null) {
@@ -214,10 +260,15 @@ export const BracketStopLegSchema = z
         path: ["stopPrice"],
       });
     }
-    if (value.mode === "trail" && value.trailAmount == null && value.trailPercent == null) {
+    if (
+      value.mode === "trail" &&
+      value.trailAmount == null &&
+      value.trailPercent == null &&
+      value.trailRMultiple == null
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "trailAmount or trailPercent required for trail stop leg",
+        message: "trailAmount, trailPercent, or trailRMultiple required for trail stop leg",
       });
     }
   });
@@ -229,8 +280,54 @@ export const BracketPlanSchema = z
     entry: OrderDraftSchema,
     stopLeg: BracketStopLegSchema,
     takeProfitPrice: z.number().positive(),
+    /** Resting TP size; defaults to entry.quantity when omitted. */
+    takeProfitQuantity: z.number().positive().optional(),
+    /** Resting stop size; defaults to entry.quantity when omitted. */
+    stopQuantity: z.number().positive().optional(),
   })
   .superRefine((value, ctx) => {
+    const entryQty = value.entry.quantity;
+    const tpQty = value.takeProfitQuantity ?? entryQty;
+    const stopQty = value.stopQuantity ?? entryQty;
+    if (!supportsBracketAttach(value.entry.orderType)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Bracket entry orderType ${value.entry.orderType} is not supported for native Protect attach`,
+        path: ["entry", "orderType"],
+      });
+    }
+    const recipeCheck = OrderExecutionRecipeSchema.safeParse({
+      orderType: value.entry.orderType,
+      limitPrice: value.entry.limitPrice,
+      stopPrice: value.entry.stopPrice,
+      trailPercent: value.entry.trailPercent,
+      outsideRth: value.entry.outsideRth,
+      tif: value.entry.tif,
+      allOrNone: value.entry.allOrNone,
+      usePriceMgmtAlgo: value.entry.usePriceMgmtAlgo,
+    });
+    if (!recipeCheck.success) {
+      for (const issue of recipeCheck.error.issues) {
+        ctx.addIssue({
+          ...issue,
+          path: ["entry", ...(issue.path ?? [])],
+        });
+      }
+    }
+    if (tpQty > entryQty) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "takeProfitQuantity cannot exceed entry quantity",
+        path: ["takeProfitQuantity"],
+      });
+    }
+    if (stopQty > entryQty) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "stopQuantity cannot exceed entry quantity",
+        path: ["stopQuantity"],
+      });
+    }
     const entry = value.entry;
     const stopPrice = value.stopLeg.stopPrice;
     if (stopPrice == null) return;
@@ -261,18 +358,39 @@ export const BracketPlanSchema = z
 
 export type BracketPlan = z.infer<typeof BracketPlanSchema>;
 
-export const ProtectiveOcoPlanSchema = z.object({
-  accountId: z.string().min(1),
-  symbol: z.string().min(1),
-  quantity: z.number().positive(),
-  side: OrderSideSchema,
-  stopLeg: BracketStopLegSchema,
-  takeProfitPrice: z.number().positive(),
-  outsideRth: z.boolean().default(false),
-  tif: TimeInForceSchema.default("DAY"),
-  environment: TradingEnvironmentSchema,
-  orderRef: z.string().optional(),
-});
+export const ProtectiveOcoPlanSchema = z
+  .object({
+    accountId: z.string().min(1),
+    symbol: z.string().min(1),
+    quantity: z.number().positive(),
+    side: OrderSideSchema,
+    stopLeg: BracketStopLegSchema,
+    takeProfitPrice: z.number().positive(),
+    takeProfitQuantity: z.number().positive().optional(),
+    stopQuantity: z.number().positive().optional(),
+    outsideRth: z.boolean().default(false),
+    tif: TimeInForceSchema.default("DAY"),
+    environment: TradingEnvironmentSchema,
+    orderRef: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const tpQty = value.takeProfitQuantity ?? value.quantity;
+    const stopQty = value.stopQuantity ?? value.quantity;
+    if (tpQty > value.quantity) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "takeProfitQuantity cannot exceed quantity",
+        path: ["takeProfitQuantity"],
+      });
+    }
+    if (stopQty > value.quantity) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "stopQuantity cannot exceed quantity",
+        path: ["stopQuantity"],
+      });
+    }
+  });
 
 export type ProtectiveOcoPlan = z.infer<typeof ProtectiveOcoPlanSchema>;
 

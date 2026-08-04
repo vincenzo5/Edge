@@ -17,8 +17,7 @@ import type {
 } from "./types";
 import type { ManageStep, PlaybookInstance, PositionPlan } from "./playbook/types";
 import type { ApplyRiskPolicyRequest } from "@/lib/risk/policy/applyRequests";
-import type { EntrySchedule } from "@/lib/risk/policy/slotSchemas";
-import type { PolicyBindingRef } from "@/lib/risk/policy/slotSchemas";
+import type { EntryOrder, EntrySchedule, PolicyBindingRef } from "@/lib/risk/policy/slotSchemas";
 
 export class TradingApiError extends Error {
   readonly status: number;
@@ -175,7 +174,7 @@ export async function syncPlannedInstance(
   instanceId: string,
   patch: {
     positionPlan?: PositionPlan;
-    entryOrder?: { type: "MKT" | "LMT" | "STP" | "STP_LMT"; limitPrice?: number };
+    entryOrder?: EntryOrder;
     entrySchedule?: EntrySchedule;
     scheduledFor?: string | null;
   },
@@ -201,6 +200,8 @@ export async function promotePlannedInstance(
     liveConfirmation?: string;
     unprotectedConfirm?: boolean;
     takeProfitPrice?: number;
+    takeProfitQuantity?: number;
+    stopQuantity?: number;
   },
   baseUrl = "",
 ): Promise<PlaybookInstance> {

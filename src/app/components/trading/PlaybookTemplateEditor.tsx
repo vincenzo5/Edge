@@ -18,11 +18,14 @@ import {
   policyTemplateFailureModeCopy,
 } from "@/lib/risk/policy/templateReview";
 import type {
+  EntryOrder,
   EntrySchedule,
   ExitRuleBinding,
   ExitRuleQtyScope,
   ExitRuleRole,
 } from "@/lib/risk/policy/slotSchemas";
+import { EntryOrderSchema, OrderExecutionRecipeSchema, defaultEntryOrder } from "@/lib/trading/orderExecutionRecipe";
+import { PolicyEntryOrderEditor } from "./PolicyEntryOrderEditor";
 import { finalizePlaybookTemplateForSave } from "@/lib/trading/playbookTemplateMutations";
 import {
   createPlaybookRuleDraft,
@@ -491,26 +494,64 @@ function RuleEditor({
       ) : null}
 
       {rule.then.kind === "attachTrail" ? (
-        <label className="block">
-          <span className="text-[var(--edge-text-secondary)]">Trail amount ($)</span>
-          <input
-            type="number"
-            min={0.01}
-            step={0.01}
-            className={`mt-1 ${fieldClass({ density: "compact" })}`}
-            value={rule.then.stopLeg.trailAmount ?? ""}
-            onChange={(event) =>
-              onChange({
-                ...rule,
-                then: {
-                  kind: "attachTrail",
-                  stopLeg: { mode: "trail", trailAmount: Number(event.target.value) },
-                },
-              })
-            }
-            disabled={disabled}
-          />
-        </label>
+        (() => {
+          const trailThen = rule.then;
+          return (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-[var(--edge-text-secondary)]">Trail amount ($)</span>
+                <input
+                  type="number"
+                  min={0.01}
+                  step={0.01}
+                  className={`mt-1 ${fieldClass({ density: "compact" })}`}
+                  value={trailThen.stopLeg.trailAmount ?? ""}
+                  onChange={(event) => {
+                    const amount = Number(event.target.value);
+                    onChange({
+                      ...rule,
+                      then: {
+                        kind: "attachTrail",
+                        stopLeg: {
+                          mode: "trail",
+                          trailAmount: Number.isFinite(amount) && amount > 0 ? amount : undefined,
+                          trailRMultiple: trailThen.stopLeg.trailRMultiple,
+                        },
+                      },
+                    });
+                  }}
+                  disabled={disabled}
+                />
+              </label>
+              <label className="block">
+                <span className="text-[var(--edge-text-secondary)]">Trail (R)</span>
+                <input
+                  type="number"
+                  min={0.01}
+                  step={0.1}
+                  className={`mt-1 ${fieldClass({ density: "compact" })}`}
+                  value={trailThen.stopLeg.trailRMultiple ?? ""}
+                  onChange={(event) => {
+                    const multiple = Number(event.target.value);
+                    onChange({
+                      ...rule,
+                      then: {
+                        kind: "attachTrail",
+                        stopLeg: {
+                          mode: "trail",
+                          trailAmount: trailThen.stopLeg.trailAmount,
+                          trailRMultiple:
+                            Number.isFinite(multiple) && multiple > 0 ? multiple : undefined,
+                        },
+                      },
+                    });
+                  }}
+                  disabled={disabled}
+                />
+              </label>
+            </div>
+          );
+        })()
       ) : null}
 
       {rule.then.kind === "notify" ? (
@@ -626,7 +667,7 @@ export function PlaybookTemplateEditor({
     template.budget && template.budget.kind !== "inherits" ? String(template.budget.value) : "1",
   );
   const [sizingMode, setSizingMode] = useState<"inherits" | "stopDistance">(
-    template.sizing?.kind === "inherits" ? "inherits" : "stopDistance",
+    template.sizing && "kind" in template.sizing && template.sizing.kind === "inherits" ? "inherits" : "stopDistance",
   );
   const [maxQty, setMaxQty] = useState(
     template.sizing && "method" in template.sizing && template.sizing.maxQty != null
@@ -670,6 +711,9 @@ export function PlaybookTemplateEditor({
       ? template.defaultEntrySchedule.timeZone
       : "America/New_York",
   );
+  const [entryOrder, setEntryOrder] = useState<EntryOrder>(
+    () => template.defaultEntryOrder ?? defaultEntryOrder(),
+  );
   const [issues, setIssues] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -693,7 +737,7 @@ export function PlaybookTemplateEditor({
         ? String(template.budget.value)
         : "1",
     );
-    setSizingMode(template.sizing?.kind === "inherits" ? "inherits" : "stopDistance");
+    setSizingMode(template.sizing && "kind" in template.sizing && template.sizing.kind === "inherits" ? "inherits" : "stopDistance");
     setMaxQty(
       template.sizing && "method" in template.sizing && template.sizing.maxQty != null
         ? String(template.sizing.maxQty)
@@ -732,6 +776,7 @@ export function PlaybookTemplateEditor({
         ? template.defaultEntrySchedule.timeZone
         : "America/New_York",
     );
+    setEntryOrder(template.defaultEntryOrder ?? defaultEntryOrder());
     setIssues([]);
   }, [open, template]);
 
@@ -773,6 +818,7 @@ export function PlaybookTemplateEditor({
         timeZone: clockTimeZone.trim() || "America/New_York",
       };
     }
+    const parsedEntryOrder = OrderExecutionRecipeSchema.safeParse(entryOrder);
     return {
       id: template.id,
       name: name.trim(),
@@ -787,6 +833,7 @@ export function PlaybookTemplateEditor({
       gates: Object.keys(gates).length > 0 ? gates : undefined,
       defaultEntrySchedule:
         scheduleKind === "immediate" ? undefined : defaultEntrySchedule,
+      defaultEntryOrder: parsedEntryOrder.success ? parsedEntryOrder.data : undefined,
     };
   }, [
     template.id,
@@ -808,6 +855,7 @@ export function PlaybookTemplateEditor({
     sessionEvent,
     clockAt,
     clockTimeZone,
+    entryOrder,
   ]);
 
   const validation = useMemo(() => validateRiskPolicyTemplateDraft(draft), [draft]);
@@ -1056,6 +1104,17 @@ export function PlaybookTemplateEditor({
               disabled={readOnly || saving}
             />
           </div>
+        ) : null}
+
+        {section === "entry" ? (
+          <PolicyEntryOrderEditor
+            value={entryOrder}
+            onChange={setEntryOrder}
+            protectConfigured={exits.some(
+              (rule) => rule.role === "protect" && (rule.binding ?? "managedApp") === "restingBroker",
+            )}
+            disabled={readOnly || saving}
+          />
         ) : null}
 
         {section === "schedule" ? (
