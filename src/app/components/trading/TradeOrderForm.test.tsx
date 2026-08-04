@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
+  buildOrderDraft,
   formatLimitPriceInput,
   handleOrderTypeTabChange,
   seedLimitPriceFromLast,
@@ -348,6 +349,13 @@ describe("TradeOrderForm size for risk", () => {
     renderForm(null);
     expect(screen.getByTestId("trade-session-row")).toBeInTheDocument();
     expect(screen.getByTestId("trade-tif")).toBeInTheDocument();
+    expect(screen.getByText("All or none")).toBeInTheDocument();
+    expect(screen.getByLabelText("Time in Force help")).toBeInTheDocument();
+    expect(screen.getByLabelText("All or none help")).toBeInTheDocument();
+    expect(screen.getByLabelText("Extended hours help")).toBeInTheDocument();
+    expect(screen.getByTestId("trade-all-or-none")).toHaveAttribute("role", "switch");
+    expect(screen.getByTestId("trade-all-or-none")).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByTestId("trade-outside-rth")).toHaveAttribute("role", "switch");
     expect(screen.getByTestId("trade-outside-rth")).toHaveAttribute("aria-checked", "false");
     expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("2.00");
     expect(screen.getByTestId("trade-advanced-toggle")).toBeInTheDocument();
@@ -599,5 +607,51 @@ describe("TradeOrderForm policy picker", () => {
       }),
       playbookTemplateId: "user_long",
     });
+  });
+
+  it("shows expanded order type tabs including Trail and MOC", () => {
+    renderForm(null);
+    expect(screen.getByRole("tab", { name: "Trail" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "MOC" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "LOC" })).toBeInTheDocument();
+  });
+
+  it("hides attach orders for Trail entry type", () => {
+    renderForm(null);
+    fireEvent.click(screen.getByRole("tab", { name: "Trail" }));
+    expect(screen.getByTestId("trade-protect-unavailable")).toBeInTheDocument();
+    expect(screen.queryByTestId("trade-advanced-toggle")).not.toBeInTheDocument();
+  });
+
+  it("offers IOC in TIF for market orders", () => {
+    renderForm(null);
+    fireEvent.click(screen.getByTestId("trade-tif"));
+    expect(screen.getByTestId("trade-tif-option-IOC")).toBeInTheDocument();
+  });
+
+  it("carries AON into preview draft", async () => {
+    renderForm(null);
+    fireEvent.click(screen.getByTestId("trade-all-or-none"));
+    fireEvent.click(screen.getByTestId("trade-primary-cta"));
+    await waitFor(() => expect(previewOrder).toHaveBeenCalled());
+    expect(vi.mocked(previewOrder).mock.calls.at(-1)?.[0]).toMatchObject({
+      allOrNone: true,
+    });
+  });
+
+  it("buildOrderDraft maps trail amount to stopPrice", () => {
+    const draft = buildOrderDraft({
+      accountId: "DUP586813",
+      symbol: "AAPL",
+      side: "BUY",
+      quantity: 1,
+      orderType: "TRAIL",
+      limitPrice: "",
+      stopPrice: "1.50",
+      entryTrailPercent: "",
+      tif: "DAY",
+      environment: "paper",
+    });
+    expect(draft.stopPrice).toBe(1.5);
   });
 });

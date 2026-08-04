@@ -1,0 +1,19 @@
+# LIVE — Trade session row toggles
+# Date: 2026-08-04
+
+## Scope
+Stack Time in Force / All or none / Extended hours as label-left control-right rows.
+Replace All-or-None native checkbox with EdgeToggleSwitch (compact), matching Extended hours.
+
+## Delivered
+- src/app/components/trading/TradeOrderForm.tsx — stacked session rows; AON → EdgeToggleSwitch
+- src/app/components/trading/TradeOrderForm.test.tsx — assert both session booleans are role=switch
+
+## Focused
+Command:
+npm test -- --run src/app/components/trading/TradeOrderForm.test.tsx
+
+Result:
+Test Files  1 passed (1)
+Tests  33 passed (33)
+exit=0

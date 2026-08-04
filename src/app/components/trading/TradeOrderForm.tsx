@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   EdgeButton,
+  EdgeHelpIcon,
   EdgeLabeledInput,
   EdgeSegmentedTabs,
   EdgeSelect,
@@ -85,6 +86,13 @@ import type { PlaybookTemplate } from "@/lib/trading/playbook/types";
 import { SubmitRiskPlanSummary } from "../risk/SubmitRiskPlanSummary";
 import type { TradePolicyFormContext } from "./useTradePolicyApply";
 import { TradeSizeBudgetField } from "./TradeSizeBudgetField";
+import {
+  isTifValidForOrderType,
+  supportsBracketAttach,
+  supportsPriceMgmtAlgo,
+  tifLabel,
+  tifOptionsForOrderType,
+} from "@/lib/trading/orderTicketOptions";
 
 export type { ManagePresetSelection };
 
@@ -119,7 +127,19 @@ const ORDER_TYPE_TABS = [
   { id: "LMT", label: "Limit" },
   { id: "STP", label: "Stop" },
   { id: "STP LMT", label: "Stop Limit" },
+  { id: "TRAIL", label: "Trail" },
+  { id: "TRAIL LIMIT", label: "Trail Lmt" },
+  { id: "MOC", label: "MOC" },
+  { id: "LOC", label: "LOC" },
 ] as const;
+
+const SESSION_FIELD_HELP = {
+  tif: "How long the order stays active. Day expires at the close. GTC stays until filled or canceled. IOC fills immediately or cancels the rest. At the Opening applies at the market open.",
+  allOrNone:
+    "Fill the entire quantity in one execution, or do not fill at all. Partial fills are not allowed.",
+  extendedHours:
+    "Allow fills in pre-market and after-hours, not only regular session hours. Liquidity may be thinner.",
+} as const;
 
 export function handleOrderTypeTabChange(args: {
   nextType: OrderType;
@@ -144,6 +164,20 @@ export function handleOrderTypeTabChange(args: {
       stopPrice =
         seed != null && Number.isFinite(seed) ? formatLimitPriceInput(seed) : stopPrice;
     }
+  }
+  if (args.nextType === "TRAIL" || args.nextType === "TRAIL LIMIT") {
+    if (!stopPrice.trim()) {
+      const seed = args.planStop ?? args.lastPrice;
+      stopPrice =
+        seed != null && Number.isFinite(seed) ? formatLimitPriceInput(seed) : stopPrice;
+    }
+  }
+  if (args.nextType === "TRAIL LIMIT" || args.nextType === "LOC") {
+    limitPrice = seedLimitPriceFromLast({
+      currentLimitPrice: limitPrice,
+      planEntry: args.planEntry,
+      lastPrice: args.lastPrice,
+    });
   }
   return { limitPrice, stopPrice };
 }
@@ -174,6 +208,12 @@ function resolveDisplayEntry(args: {
   if (args.orderType === "LMT") {
     const parsed = Number.parseFloat(args.limitPrice);
     return Number.isFinite(parsed) ? formatPrice(parsed) : "—";
+  }
+  if (args.orderType === "MOC") {
+    if (args.lastPrice != null && Number.isFinite(args.lastPrice)) {
+      return `~${formatPrice(args.lastPrice)} close`;
+    }
+    return "At close";
   }
   if (args.lastPrice != null && Number.isFinite(args.lastPrice)) {
     return `~${formatPrice(args.lastPrice)}`;
@@ -208,9 +248,12 @@ export function buildOrderDraft(args: {
   orderType: OrderType;
   limitPrice: string;
   stopPrice: string;
+  entryTrailPercent: string;
   tif: TimeInForce;
   environment: TradingEnvironment;
   outsideRth?: boolean;
+  allOrNone?: boolean;
+  usePriceMgmtAlgo?: boolean;
 }): OrderDraft {
   const draft: OrderDraft = {
     accountId: args.accountId,
@@ -221,12 +264,28 @@ export function buildOrderDraft(args: {
     environment: args.environment,
     outsideRth: args.outsideRth ?? false,
     tif: args.tif,
+    allOrNone: args.allOrNone ?? false,
+    usePriceMgmtAlgo: args.usePriceMgmtAlgo ?? false,
   };
-  if (args.orderType === "LMT" || args.orderType === "STP LMT") {
+  if (
+    args.orderType === "LMT" ||
+    args.orderType === "STP LMT" ||
+    args.orderType === "TRAIL LIMIT" ||
+    args.orderType === "LOC"
+  ) {
     draft.limitPrice = Number.parseFloat(args.limitPrice);
   }
   if (args.orderType === "STP" || args.orderType === "STP LMT") {
     draft.stopPrice = Number.parseFloat(args.stopPrice);
+  }
+  if (args.orderType === "TRAIL" || args.orderType === "TRAIL LIMIT") {
+    const trailAmount = Number.parseFloat(args.stopPrice);
+    const trailPct = Number.parseFloat(args.entryTrailPercent);
+    if (Number.isFinite(trailAmount) && trailAmount > 0) {
+      draft.stopPrice = trailAmount;
+    } else if (Number.isFinite(trailPct) && trailPct > 0) {
+      draft.trailPercent = trailPct;
+    }
   }
   return draft;
 }
@@ -281,6 +340,9 @@ export function TradeOrderForm({
   const [stopPrice, setStopPrice] = useState("");
   const [tif, setTif] = useState<TimeInForce>("DAY");
   const [outsideRth, setOutsideRth] = useState(false);
+  const [allOrNone, setAllOrNone] = useState(false);
+  const [usePriceMgmtAlgo, setUsePriceMgmtAlgo] = useState(false);
+  const [entryTrailPercent, setEntryTrailPercent] = useState("");
   const [takeProfitEnabled, setTakeProfitEnabled] = useState(true);
   const [stopLossEnabled, setStopLossEnabled] = useState(true);
   const [composeTakeProfitPrice, setComposeTakeProfitPrice] = useState<number | null>(null);
@@ -485,6 +547,7 @@ export function TradeOrderForm({
   }, [activePolicyTemplate, qtyNum]);
 
   const attachBracket = useMemo(() => {
+    if (!supportsBracketAttach(orderType)) return false;
     if (policyBound) return true;
     return (
       stopLossEnabled &&
@@ -495,10 +558,32 @@ export function TradeOrderForm({
   }, [
     composeStopLossPrice,
     composeTakeProfitPrice,
+    orderType,
     policyBound,
     stopLossEnabled,
     takeProfitEnabled,
   ]);
+
+  const tifOptions = useMemo(
+    () =>
+      tifOptionsForOrderType(orderType).map((value) => ({
+        value,
+        label: tifLabel(value),
+      })),
+    [orderType],
+  );
+
+  useEffect(() => {
+    if (!isTifValidForOrderType(orderType, tif)) {
+      setTif(tifOptionsForOrderType(orderType)[0] ?? "DAY");
+    }
+  }, [orderType, tif]);
+
+  useEffect(() => {
+    if (!supportsPriceMgmtAlgo(orderType) && usePriceMgmtAlgo) {
+      setUsePriceMgmtAlgo(false);
+    }
+  }, [orderType, usePriceMgmtAlgo]);
 
   const draft = useMemo(() => {
     if (!gatewayAccountSelected || !accountId || !symbol.trim()) return null;
@@ -513,9 +598,12 @@ export function TradeOrderForm({
         orderType,
         limitPrice,
         stopPrice,
+        entryTrailPercent,
         tif,
         environment,
         outsideRth,
+        allOrNone,
+        usePriceMgmtAlgo,
       });
     } catch {
       return null;
@@ -529,9 +617,12 @@ export function TradeOrderForm({
     orderType,
     limitPrice,
     stopPrice,
+    entryTrailPercent,
     tif,
     environment,
     outsideRth,
+    allOrNone,
+    usePriceMgmtAlgo,
   ]);
 
   const runnerManageSteps = useMemo(() => {
@@ -1217,7 +1308,7 @@ export function TradeOrderForm({
             />
           </div>
 
-          {orderType === "MKT" ? (
+          {orderType === "MKT" || orderType === "MOC" ? (
             <div className="mb-3">
               <div className="text-center text-[10px] text-[var(--edge-text-secondary)]">
                 Order Price
@@ -1231,10 +1322,13 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
-          {orderType === "LMT" || orderType === "STP LMT" ? (
+          {orderType === "LMT" ||
+          orderType === "STP LMT" ||
+          orderType === "TRAIL LIMIT" ||
+          orderType === "LOC" ? (
             <div className="mb-3">
               <EdgeLabeledInput
-                label="Order Price"
+                label={orderType === "LOC" ? "Limit Price" : "Order Price"}
                 type="number"
                 min={0}
                 step="0.01"
@@ -1261,6 +1355,43 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
+          {orderType === "TRAIL" || orderType === "TRAIL LIMIT" ? (
+            <div className="mb-3 space-y-2">
+              <EdgeLabeledInput
+                label="Trail amount ($)"
+                type="number"
+                min={0}
+                step="0.01"
+                value={stopPrice}
+                onChange={(event) => setStopPrice(event.target.value)}
+                density="compact"
+                testId="trade-trail-amount"
+              />
+              <EdgeLabeledInput
+                label="Trail %"
+                type="number"
+                min={0}
+                step="0.01"
+                value={entryTrailPercent}
+                onChange={(event) => setEntryTrailPercent(event.target.value)}
+                density="compact"
+                testId="trade-trail-percent"
+              />
+            </div>
+          ) : null}
+
+          {supportsPriceMgmtAlgo(orderType) ? (
+            <label className="mb-3 flex items-center gap-2 text-[10px] text-[var(--edge-text-secondary)]">
+              <input
+                type="checkbox"
+                checked={usePriceMgmtAlgo}
+                onChange={(event) => setUsePriceMgmtAlgo(event.target.checked)}
+                data-testid="trade-price-mgmt-algo"
+              />
+              Price mgmt algo
+            </label>
+          ) : null}
+
           <div className="mb-3">
             <TradeSizeBudgetField
               quantity={Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 1}
@@ -1278,34 +1409,43 @@ export function TradeOrderForm({
             />
           </div>
 
-          <div className="mb-3">
-            <LinkedProtectLevelsEditor
-              entry={executableEntry}
-              quantity={Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 0}
-              direction={composeDirection}
-              takeProfitEnabled={takeProfitEnabled}
-              onTakeProfitEnabledChange={(enabled) => {
-                setTakeProfitEnabled(enabled);
-                if (!enabled) setManagePresetId("off");
-              }}
-              takeProfitPrice={composeTakeProfitPrice}
-              onTakeProfitPriceChange={setComposeTakeProfitPrice}
-              takeProfitQuantity={takeProfitQuantity}
-              onTakeProfitQuantityChange={(value) => {
-                exitQtyCustomRef.current = true;
-                setTakeProfitQuantity(value);
-              }}
-              stopLossEnabled={stopLossEnabled}
-              onStopLossEnabledChange={setStopLossEnabled}
-              stopLossPrice={composeStopLossPrice}
-              onStopLossPriceChange={setComposeStopLossPrice}
-              stopLossQuantity={stopLossQuantity}
-              onStopLossQuantityChange={(value) => {
-                exitQtyCustomRef.current = true;
-                setStopLossQuantity(value);
-              }}
-            />
-          </div>
+          {supportsBracketAttach(orderType) || policyBound ? (
+            <div className="mb-3">
+              <LinkedProtectLevelsEditor
+                entry={executableEntry}
+                quantity={Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 0}
+                direction={composeDirection}
+                takeProfitEnabled={takeProfitEnabled}
+                onTakeProfitEnabledChange={(enabled) => {
+                  setTakeProfitEnabled(enabled);
+                  if (!enabled) setManagePresetId("off");
+                }}
+                takeProfitPrice={composeTakeProfitPrice}
+                onTakeProfitPriceChange={setComposeTakeProfitPrice}
+                takeProfitQuantity={takeProfitQuantity}
+                onTakeProfitQuantityChange={(value) => {
+                  exitQtyCustomRef.current = true;
+                  setTakeProfitQuantity(value);
+                }}
+                stopLossEnabled={stopLossEnabled}
+                onStopLossEnabledChange={setStopLossEnabled}
+                stopLossPrice={composeStopLossPrice}
+                onStopLossPriceChange={setComposeStopLossPrice}
+                stopLossQuantity={stopLossQuantity}
+                onStopLossQuantityChange={(value) => {
+                  exitQtyCustomRef.current = true;
+                  setStopLossQuantity(value);
+                }}
+              />
+            </div>
+          ) : (
+            <p
+              className="mb-3 text-[10px] text-[var(--edge-text-secondary)]"
+              data-testid="trade-protect-unavailable"
+            >
+              Attach orders available for Market and Limit entry only.
+            </p>
+          )}
 
           {exitQtyPlan && exitQtyPlan.runnerQuantity > 0 && (policyBound || draftPolicyActive) ? (
             <div
@@ -1323,21 +1463,22 @@ export function TradeOrderForm({
             </div>
           ) : null}
 
-          <div
-            className="mb-3 flex items-center justify-between gap-3"
-            data-testid="trade-session-row"
-          >
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span className="shrink-0 text-[10px] text-[var(--edge-text-secondary)]">
-                Time in Force
-              </span>
+          <div className="mb-3 space-y-1.5" data-testid="trade-session-row">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-1">
+                <span className="shrink-0 text-[10px] text-[var(--edge-text-secondary)]">
+                  Time in Force
+                </span>
+                <EdgeHelpIcon
+                  content={SESSION_FIELD_HELP.tif}
+                  ariaLabel="Time in Force help"
+                  side="top"
+                />
+              </div>
               <EdgeSelect
                 value={tif}
                 onChange={(value) => setTif(value as TimeInForce)}
-                options={[
-                  { value: "DAY", label: "Day" },
-                  { value: "GTC", label: "GTC" },
-                ]}
+                options={tifOptions}
                 density="compact"
                 variant="chip"
                 aria-label="Time in Force"
@@ -1346,13 +1487,34 @@ export function TradeOrderForm({
                 minWidth={120}
               />
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <span
-                className="text-[10px] text-[var(--edge-text-secondary)]"
-                title="Allow fills in pre-market and after-hours. Liquidity may be thin."
-              >
-                Extended hours
-              </span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-1">
+                <span className="text-[10px] text-[var(--edge-text-secondary)]">All or none</span>
+                <EdgeHelpIcon
+                  content={SESSION_FIELD_HELP.allOrNone}
+                  ariaLabel="All or none help"
+                  side="top"
+                />
+              </div>
+              <EdgeToggleSwitch
+                checked={allOrNone}
+                onChange={setAllOrNone}
+                size="compact"
+                ariaLabel="All or none"
+                testId="trade-all-or-none"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-1">
+                <span className="text-[10px] text-[var(--edge-text-secondary)]">
+                  Extended hours
+                </span>
+                <EdgeHelpIcon
+                  content={SESSION_FIELD_HELP.extendedHours}
+                  ariaLabel="Extended hours help"
+                  side="top"
+                />
+              </div>
               <EdgeToggleSwitch
                 checked={outsideRth}
                 onChange={setOutsideRth}
