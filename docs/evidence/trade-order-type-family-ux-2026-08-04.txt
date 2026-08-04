@@ -1,0 +1,23 @@
+# LIVE — Trade order type family UX evidence
+# Date: 2026-08-04
+
+## Scope
+Regroup eight flat order-type tabs into four primary families (Market / Limit / Stop / Trail) with secondary Fill (Now / On close) or Type (Market / Limit) controls composing to existing OrderType values.
+
+## Delivered
+- src/lib/trading/orderTypeFamily.ts — compose/decompose helpers + segment constants
+- src/lib/trading/orderTypeFamily.test.ts — round-trip all eight types; defaults
+- src/app/components/trading/TradeOrderForm.tsx — 4 primary tabs + Fill/Type secondary row
+- src/app/components/trading/TradeOrderForm.test.tsx — updated assertions for regrouped UX
+- src/lib/trading/ARCHITECTURE.md — ticket UX mapping table
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/orderTypeFamily.test.ts src/lib/trading/orderTicketOptions.test.ts src/app/components/trading/TradeOrderForm.test.tsx
+Result:
+Test Files  3 passed (3)
+Tests  48 passed (48)
+exit=0
+
+## Backend
+No API/sidecar contract changes — UI maps to existing eight OrderType values.

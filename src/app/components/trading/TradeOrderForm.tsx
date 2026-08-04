@@ -93,6 +93,17 @@ import {
   tifLabel,
   tifOptionsForOrderType,
 } from "@/lib/trading/orderTicketOptions";
+import {
+  composeOrderType,
+  composeOrderTypeForFamily,
+  decomposeOrderType,
+  EXEC_TYPE_SEGMENTS,
+  FILL_SEGMENTS,
+  ORDER_FAMILY_TABS,
+  type OrderExecType,
+  type OrderFamily,
+  type OrderFillTiming,
+} from "@/lib/trading/orderTypeFamily";
 
 export type { ManagePresetSelection };
 
@@ -121,17 +132,6 @@ export type TradeOrderFormProps = {
 };
 
 type Step = "form" | "confirm" | "success";
-
-const ORDER_TYPE_TABS = [
-  { id: "MKT", label: "Market" },
-  { id: "LMT", label: "Limit" },
-  { id: "STP", label: "Stop" },
-  { id: "STP LMT", label: "Stop Limit" },
-  { id: "TRAIL", label: "Trail" },
-  { id: "TRAIL LIMIT", label: "Trail Lmt" },
-  { id: "MOC", label: "MOC" },
-  { id: "LOC", label: "LOC" },
-] as const;
 
 const SESSION_FIELD_HELP = {
   tif: "How long the order stays active. Day expires at the close. GTC stays until filled or canceled. IOC fills immediately or cancels the rest. At the Opening applies at the market open.",
@@ -571,6 +571,25 @@ export function TradeOrderForm({
         label: tifLabel(value),
       })),
     [orderType],
+  );
+
+  const orderTypeFamily = useMemo(() => decomposeOrderType(orderType), [orderType]);
+
+  const applyOrderTypeChange = useCallback(
+    (nextType: OrderType) => {
+      const seeded = handleOrderTypeTabChange({
+        nextType,
+        planEntry: planLevels?.entry ?? null,
+        planStop: planLevels?.stop ?? null,
+        lastPrice,
+        currentLimitPrice: limitPrice,
+        currentStopPrice: stopPrice,
+      });
+      setOrderType(nextType);
+      setLimitPrice(seeded.limitPrice);
+      setStopPrice(seeded.stopPrice);
+    },
+    [lastPrice, limitPrice, planLevels?.entry, planLevels?.stop, stopPrice],
   );
 
   useEffect(() => {
@@ -1286,27 +1305,64 @@ export function TradeOrderForm({
           <div className="mb-3 w-full" data-testid="trade-order-type-tabs">
             <EdgeUnderlineTabs
               layout="stretch"
-              segments={ORDER_TYPE_TABS.map((tab) => ({
+              segments={ORDER_FAMILY_TABS.map((tab) => ({
                 id: tab.id,
                 label: tab.label,
               }))}
-              value={orderType}
+              value={orderTypeFamily.family}
               onChange={(value) => {
-                const next = value as OrderType;
-                const seeded = handleOrderTypeTabChange({
-                  nextType: next,
-                  planEntry: planLevels?.entry ?? null,
-                  planStop: planLevels?.stop ?? null,
-                  lastPrice,
-                  currentLimitPrice: limitPrice,
-                  currentStopPrice: stopPrice,
-                });
-                setOrderType(next);
-                setLimitPrice(seeded.limitPrice);
-                setStopPrice(seeded.stopPrice);
+                applyOrderTypeChange(composeOrderTypeForFamily(value as OrderFamily));
               }}
             />
           </div>
+
+          {orderTypeFamily.family === "market" || orderTypeFamily.family === "limit" ? (
+            <div
+              className="mb-3 flex items-center justify-between gap-3"
+              data-testid="trade-order-fill"
+            >
+              <span className="text-[10px] text-[var(--edge-text-secondary)]">Fill</span>
+              <EdgeSegmentedTabs
+                segments={FILL_SEGMENTS.map((segment) => ({
+                  id: segment.id,
+                  label: segment.label,
+                }))}
+                value={orderTypeFamily.fill ?? "now"}
+                onChange={(value) => {
+                  applyOrderTypeChange(
+                    composeOrderType({
+                      family: orderTypeFamily.family,
+                      fill: value as OrderFillTiming,
+                    }),
+                  );
+                }}
+                className="min-w-[10rem]"
+              />
+            </div>
+          ) : (
+            <div
+              className="mb-3 flex items-center justify-between gap-3"
+              data-testid="trade-order-exec-type"
+            >
+              <span className="text-[10px] text-[var(--edge-text-secondary)]">Type</span>
+              <EdgeSegmentedTabs
+                segments={EXEC_TYPE_SEGMENTS.map((segment) => ({
+                  id: segment.id,
+                  label: segment.label,
+                }))}
+                value={orderTypeFamily.execType ?? "market"}
+                onChange={(value) => {
+                  applyOrderTypeChange(
+                    composeOrderType({
+                      family: orderTypeFamily.family,
+                      execType: value as OrderExecType,
+                    }),
+                  );
+                }}
+                className="min-w-[10rem]"
+              />
+            </div>
+          )}
 
           {orderType === "MKT" || orderType === "MOC" ? (
             <div className="mb-3">
