@@ -138,6 +138,8 @@ export interface DrawingPlugin {
     candles: Candle[],
     showTimeAxis?: boolean
   ) => SerializedDrawing;
+  /** Data-point index used as magnet anchor during whole-tool drag (default 0). */
+  magnetAnchorIndex?: (drawing: SerializedDrawing) => number;
   /** Optional price-axis labels for horizontal / price-level drawings. */
   axisAnnotations?: (
     drawing: SerializedDrawing,

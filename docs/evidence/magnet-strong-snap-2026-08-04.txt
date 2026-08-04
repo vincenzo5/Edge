@@ -1,0 +1,22 @@
+# ENGINE — Magnet strong snap evidence
+# Date: 2026-08-04
+
+## Scope
+TradingView-style strong magnet: always snap to nearest OHLC on price pane; whole-tool drag snaps plugin magnet anchor and translates other points rigidly; CP drag snaps only the dragged handle.
+
+## Delivered
+- packages/chart-core/src/drawingCoords.ts — strong nearest-OHLC snap; magnet-anchor translateDrawingPoints
+- packages/chart-core/src/plugin-api.ts — optional magnetAnchorIndex hook
+- packages/chart-core/src/drawings/position_tool.ts — entry anchor (index 0)
+- packages/chart-react/src/drawing/applyDrawingPointerTransition.ts — whole-tool drag magnet wiring
+- Tests: drawingCoords, applyDrawingPointerTransition, position_tool
+- Docs: docs/chart/features.md, src/lib/chart/ARCHITECTURE.md
+
+## Focused
+Command:
+npm test -- --run src/lib/chart/drawingCoords.test.ts packages/chart-react/src/drawing/applyDrawingPointerTransition.test.ts src/lib/chart/drawings/position_tool.test.ts
+
+Result:
+Test Files  3 passed (3)
+Tests  40 passed (40)
+exit=0

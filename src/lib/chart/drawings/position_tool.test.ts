@@ -2,9 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { createViewport } from '@edge/chart-react/engine/viewport';
 import type { Candle } from '@edge/chart-core/contracts';
 import { longPosition } from '@edge/chart-core/drawings/long_position';
-import { shouldShowPositionLabels } from '@edge/chart-core/drawings/position_tool';
+import {
+  positionAxisAnnotations,
+  shouldShowPositionLabels,
+} from '@edge/chart-core/drawings/position_tool';
 import { shortPosition } from '@edge/chart-core/drawings/short_position';
 import { POSITION_CP } from '@edge/chart-core/drawings/positionGeometry';
+import { formatPrice } from '@edge/chart-core/format';
 
 const candles: Candle[] = [
   { t: 1000, o: 100, h: 110, l: 90, c: 105 },
@@ -24,6 +28,68 @@ describe('position label visibility', () => {
     expect(shouldShowPositionLabels(true)).toBe(true);
     expect(shouldShowPositionLabels(true, { preview: true })).toBe(false);
     expect(shouldShowPositionLabels(false, { hovered: true, preview: true })).toBe(false);
+  });
+});
+
+describe('position price-axis annotations', () => {
+  it('emits entry, stop, and take-profit axis labels for long position', () => {
+    const draft = longPosition.create(
+      { timestamp: 1000, value: 100, dataIndex: 0 },
+      vp(),
+      candles,
+    );
+    const final = longPosition.finalize!(draft, vp(), candles);
+    const anns = longPosition.axisAnnotations!(final, vp(), candles, 'dark');
+    expect(anns).toHaveLength(3);
+
+    const byRole = Object.fromEntries(
+      anns.map((a) => [a.id.split(':').pop()!, a]),
+    );
+    expect(byRole.target?.value).toBe(final.points[2]?.value);
+    expect(byRole.entry?.value).toBe(final.points[0]?.value);
+    expect(byRole.stop?.value).toBe(final.points[1]?.value);
+    expect(byRole.target?.label).toBe(formatPrice(final.points[2]!.value!));
+    expect(byRole.entry?.label).toBe(formatPrice(final.points[0]!.value!));
+    expect(byRole.stop?.label).toBe(formatPrice(final.points[1]!.value!));
+    expect(byRole.target?.color).toBe('#15803d');
+    expect(byRole.stop?.color).toBe('#b91c1c');
+    expect(anns.every((a) => a.source === 'drawing' && a.showLabel === true)).toBe(true);
+  });
+
+  it('emits entry, stop, and take-profit axis labels for short position', () => {
+    const draft = shortPosition.create(
+      { timestamp: 1000, value: 100, dataIndex: 0 },
+      vp(),
+      candles,
+    );
+    const final = shortPosition.finalize!(draft, vp(), candles);
+    const anns = positionAxisAnnotations(final, 'short', candles);
+    expect(anns.map((a) => a.value).sort((a, b) => a - b)).toEqual(
+      [final.points[2]!.value!, final.points[0]!.value!, final.points[1]!.value!].sort(
+        (a, b) => a - b,
+      ),
+    );
+    // Short: stop above entry, target below
+    expect(final.points[1]!.value!).toBeGreaterThan(final.points[0]!.value!);
+    expect(final.points[2]!.value!).toBeLessThan(final.points[0]!.value!);
+  });
+
+  it('returns empty annotations for incomplete drawings', () => {
+    expect(
+      positionAxisAnnotations(
+        {
+          id: 'x',
+          name: 'long_position',
+          label: 'Long',
+          points: [{ timestamp: 1000, value: 100 }],
+          visible: true,
+          locked: false,
+          zLevel: 0,
+        },
+        'long',
+        candles,
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -68,6 +134,17 @@ describe('long_position drawing plugin', () => {
     expect(final.points).toHaveLength(4);
     expect(final.metadata?.fields?.riskSetup).toBeDefined();
     expect(final.metadata?.computed?.riskRewardRatio).toBeGreaterThan(0);
+  });
+
+  it('uses entry as magnet anchor for whole-tool drag', () => {
+    expect(longPosition.magnetAnchorIndex?.({
+      name: 'long_position',
+      label: 'Long',
+      points: [],
+      visible: true,
+      locked: false,
+      zLevel: 0,
+    })).toBe(0);
   });
 
   it('hit-tests inside the profit/loss box', () => {

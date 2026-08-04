@@ -96,17 +96,62 @@ describe('drawingCoords', () => {
     const candle = candles[1];
     const highY = yForPricePlot(candle.h, vp, true);
     const plotY = highY + 3;
-    const snapped = snapToOhlc(plotY, 1, candle, vp, true, MAGNET_THRESHOLD_PX);
+    const snapped = snapToOhlc(plotY, 1, candle, vp, true);
     expect(snapped).toBe(candle.h);
   });
 
-  it('magnet does not snap when beyond threshold', () => {
+  it('magnet always snaps to nearest OHLC even far from levels', () => {
     const vp = makeVp();
     const candle = candles[1];
     const highY = yForPricePlot(candle.h, vp, true);
-    const plotY = highY + MAGNET_THRESHOLD_PX + 10;
-    const snapped = snapToOhlc(plotY, 1, candle, vp, true, MAGNET_THRESHOLD_PX);
-    expect(snapped).toBeCloseTo(priceForPlotY(plotY, vp, true), 4);
+    const plotY = highY + 50;
+    const snapped = snapToOhlc(plotY, 1, candle, vp, true);
+    expect([candle.o, candle.h, candle.l, candle.c]).toContain(snapped);
+  });
+
+  it('snapToOhlc sticks to nearest OHLC until midpoint to next level', () => {
+    const vp = makeVp();
+    const candle = candles[1];
+    const highY = yForPricePlot(candle.h, vp, true);
+    const closeY = yForPricePlot(candle.c, vp, true);
+    const midY = (highY + closeY) / 2;
+
+    expect(snapToOhlc(highY + 1, 1, candle, vp, true)).toBe(candle.h);
+    expect(snapToOhlc(midY - 1, 1, candle, vp, true)).toBe(candle.h);
+    expect(snapToOhlc(midY + 1, 1, candle, vp, true)).toBe(candle.c);
+  });
+
+  it('translateDrawingPoints with magnet snaps anchor and preserves rigid offsets', () => {
+    const vp = makeVp();
+    const entry = 100;
+    const stop = 95;
+    const target = 110;
+    const points = [
+      { timestamp: candles[0].t, value: entry, dataIndex: 0 },
+      { timestamp: candles[0].t, value: stop, dataIndex: 0 },
+      { timestamp: candles[0].t, value: target, dataIndex: 0 },
+      { timestamp: candles[2].t, value: entry, dataIndex: 2 },
+    ];
+    const candle2 = candles[2]!;
+    const startX = vp.xForIndex(0);
+    const startY = yForPricePlot(entry, vp, true);
+    const endX = vp.xForIndex(2);
+    const endY = yForPricePlot(candle2.h, vp, true) + 2;
+
+    const moved = translateDrawingPoints(
+      points,
+      { x: startX, y: startY },
+      { x: endX, y: endY },
+      vp,
+      candles,
+      { magnet: true, magnetAnchorIndex: 0, showTimeAxis: true },
+    );
+
+    const priceDelta = candle2.h - entry;
+    expect(moved[0]?.value).toBe(candle2.h);
+    expect(moved[0]?.dataIndex).toBe(2);
+    expect(moved[1]?.value).toBeCloseTo(stop + priceDelta, 4);
+    expect(moved[2]?.value).toBeCloseTo(target + priceDelta, 4);
   });
 
   it('plotToPoint with magnet enabled snaps value', () => {

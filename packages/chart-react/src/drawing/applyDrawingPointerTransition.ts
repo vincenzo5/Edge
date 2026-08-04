@@ -9,7 +9,7 @@ import {
   entryValueChanged,
   withStickEntryDisabled,
 } from '@edge/chart-core';
-import { plotToPoint, translateDrawingPoints } from '@edge/chart-core/drawingCoords';
+import { plotToPoint, pointToPlot, translateDrawingPoints } from '@edge/chart-core/drawingCoords';
 import { scheduleDragReplace, flushDragReplace } from './drawingDragCoalesce';
 import {
   type DrawingControllerState,
@@ -110,16 +110,25 @@ export function applyDrawingPointerTransition(
     point ??= plotToPoint(event.plotX, event.plotY, vp, candlesRef.current, plotOpts);
     return point;
   };
-  const translateSnapshotPoints = (points: SerializedDrawing['points']) => {
+  const translateSnapshotPoints = (
+    points: SerializedDrawing['points'],
+    drawing?: SerializedDrawing,
+  ) => {
     const start = drawingDragStartRef.current;
     if (!start) return points.map((p) => ({ ...p }));
+    const plugin = drawing ? getPluginForTool(drawing.name) : undefined;
+    const anchorIndex = plugin?.magnetAnchorIndex?.(drawing!) ?? 0;
     return translateDrawingPoints(
       points,
       { x: start.plotX, y: start.plotY },
       { x: event.plotX, y: event.plotY },
       vp,
       candlesRef.current,
-      plotOpts,
+      {
+        ...plotOpts,
+        magnet: magnetEnabledRef.current,
+        magnetAnchorIndex: anchorIndex,
+      },
     );
   };
   const paneDrawings = drawingsRef.current.filter((d) => (d.paneId ?? 'price') === paneId);
@@ -129,7 +138,7 @@ export function applyDrawingPointerTransition(
     const drawing = paneDrawings.find((d) => d.id === state.draggingDrawingId);
     const before = cpDragPointsSnapshotRef.current;
     if (drawing && before && !drawing.locked) {
-      const nextPoints = translateSnapshotPoints(before);
+      const nextPoints = translateSnapshotPoints(before, drawing);
       scheduleDragReplace(drawingStoreRef.current, drawing.id!, {
         ...drawing,
         points: nextPoints,
@@ -142,11 +151,12 @@ export function applyDrawingPointerTransition(
     const drawing = paneDrawings.find((d) => d.id === state.draggingDrawingId);
     const plugin = drawing ? getPluginForTool(drawing.name) : undefined;
     if (drawing && plugin?.updateFromControl && !drawing.locked) {
+      const snappedPlot = pointToPlot(getPoint(), vp, candlesRef.current, showTimeAxis);
       const updated = plugin.updateFromControl(
         drawing,
         state.draggingCpIndex,
-        event.plotX,
-        event.plotY,
+        snappedPlot.x,
+        snappedPlot.y,
         vp,
         candlesRef.current,
         showTimeAxis,

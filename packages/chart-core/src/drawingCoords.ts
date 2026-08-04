@@ -125,13 +125,13 @@ export function snapPlotXToCandle(
   return { plotX, dataIndex: idx };
 }
 
+/** Nearest OHLC price for the candle under the pointer (strong magnet). */
 export function snapToOhlc(
   plotY: number,
-  dataIndex: number,
+  _dataIndex: number,
   candle: Candle | null,
   vp: VisibleRange,
   showTimeAxis = true,
-  thresholdPx = MAGNET_THRESHOLD_PX
 ): number {
   if (!candle) {
     return priceForPlotY(plotY, vp, showTimeAxis);
@@ -147,8 +147,7 @@ export function snapToOhlc(
       bestPrice = price;
     }
   }
-  if (bestDist <= thresholdPx) return bestPrice;
-  return priceForPlotY(plotY, vp, showTimeAxis);
+  return bestPrice;
 }
 
 export type PlotToPointOptions = {
@@ -157,6 +156,8 @@ export type PlotToPointOptions = {
   snapXCandle?: boolean;
   paneId?: string;
   indicators?: IndicatorConfig[];
+  /** Whole-tool drag: snap this point index to OHLC; others follow rigidly. */
+  magnetAnchorIndex?: number;
 };
 
 function snapToIndicatorValue(
@@ -320,6 +321,43 @@ export function translateDrawingPoints(
   const deltaX = currentPlot.x - startPlot.x;
   const deltaY = currentPlot.y - startPlot.y;
   const showTimeAxis = opts.showTimeAxis ?? true;
+  const magnet = opts.magnet ?? false;
+  const anchorIndex = opts.magnetAnchorIndex ?? 0;
+
+  if (magnet && points.length > 0 && anchorIndex >= 0 && anchorIndex < points.length) {
+    const anchorOrigin = pointToPlot(points[anchorIndex]!, vp, candles, showTimeAxis);
+    const snappedAnchorPlot = pointToPlot(
+      plotToPoint(
+        anchorOrigin.x + deltaX,
+        anchorOrigin.y + deltaY,
+        vp,
+        candles,
+        { ...opts, magnet: true },
+      ),
+      vp,
+      candles,
+      showTimeAxis,
+    );
+    const correctedDeltaX = snappedAnchorPlot.x - anchorOrigin.x;
+    const correctedDeltaY = snappedAnchorPlot.y - anchorOrigin.y;
+
+    return points.map((p) => {
+      const origin = pointToPlot(p, vp, candles, showTimeAxis);
+      const translated = plotToPoint(
+        origin.x + correctedDeltaX,
+        origin.y + correctedDeltaY,
+        vp,
+        candles,
+        { ...opts, magnet: false },
+      );
+      return {
+        ...p,
+        timestamp: translated.timestamp,
+        value: translated.value,
+        dataIndex: translated.dataIndex,
+      };
+    });
+  }
 
   return points.map((p) => {
     const origin = pointToPlot(p, vp, candles, showTimeAxis);

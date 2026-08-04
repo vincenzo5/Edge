@@ -1,12 +1,13 @@
 import type { DrawingPlugin } from '../plugin-api';
 import type { Candle, SerializedDrawing, Theme } from '../contracts';
+import type { PriceAxisAnnotation } from '../priceAxisTypes';
 import { plotToPoint } from '../drawingCoords';
+import { formatPrice } from '../format';
 import {
   computeRiskMetrics,
 } from '../risk/riskCompute';
 import { validateTradeSetup } from '../risk/riskValidation';
 import {
-  readTradeSetupFromDrawing,
   riskComputedPayload,
   tradeSetupFromPoints,
 } from '../risk/riskDrawing';
@@ -15,6 +16,7 @@ import {
   formatStopLabel,
   formatTargetLabel,
   resolvePositionQty,
+  resolvePositionQtyForDisplay,
 } from '../risk/positionLabels';
 import type { RiskDirection } from '../risk/riskTypes';
 import { drawControlPoints } from './primitives';
@@ -22,6 +24,7 @@ import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUti
 import {
   boxFromPoints,
   defaultPositionPoints,
+  DEFAULT_POSITION_TARGET_R_MULTIPLE,
   expandTwoPointDraft,
   positionControlPoints,
   positionHitTest,
@@ -30,6 +33,7 @@ import {
   repairPositionPoints,
   updatePositionFromControl,
 } from './positionGeometry';
+import { consumePendingPositionPlacementOptions } from './positionPlacementContext';
 import { plotWidth } from '../layout';
 
 const PROFIT_FILL_DARK = 'rgba(34, 197, 94, 0.15)';
@@ -37,6 +41,9 @@ const PROFIT_FILL_LIGHT = 'rgba(34, 197, 94, 0.2)';
 const LOSS_FILL_DARK = 'rgba(239, 68, 68, 0.15)';
 const LOSS_FILL_LIGHT = 'rgba(239, 68, 68, 0.2)';
 const ENTRY_LINE_COLOR = '#94a3b8';
+const TARGET_AXIS_COLOR = '#15803d';
+const STOP_AXIS_COLOR = '#b91c1c';
+const ENTRY_AXIS_COLOR = '#64748b';
 const R_TICK_COLOR_DARK = 'rgba(34, 197, 94, 0.75)';
 const R_TICK_COLOR_LIGHT = 'rgba(22, 163, 74, 0.85)';
 const R_TICK_LENGTH_PX = 12;
@@ -185,6 +192,58 @@ export function shouldShowPositionLabels(
   return (selected || opts?.hovered === true) && !opts?.preview;
 }
 
+/** Price-axis badges for entry / stop / take-profit on long/short position drawings. */
+export function positionAxisAnnotations(
+  drawing: SerializedDrawing,
+  direction: RiskDirection,
+  candles: Candle[],
+): PriceAxisAnnotation[] {
+  if (drawing.points.length < 2) return [];
+  const expanded =
+    drawing.points.length >= 4 ? drawing : expandTwoPointDraft(drawing, direction);
+  const repairedPoints = repairPositionPoints(expanded.points, candles);
+  const box = boxFromPoints(repairedPoints, direction);
+  if (!box) return [];
+
+  const idBase = `drawing:${drawing.id ?? drawing.name}`;
+  const paneId = drawing.paneId ?? 'price';
+  return [
+    {
+      id: `${idBase}:target`,
+      paneId,
+      source: 'drawing',
+      value: box.target,
+      label: formatPrice(box.target),
+      color: TARGET_AXIS_COLOR,
+      line: 'hidden',
+      showLabel: true,
+      priority: 42,
+    },
+    {
+      id: `${idBase}:entry`,
+      paneId,
+      source: 'drawing',
+      value: box.entry,
+      label: formatPrice(box.entry),
+      color: ENTRY_AXIS_COLOR,
+      line: 'hidden',
+      showLabel: true,
+      priority: 41,
+    },
+    {
+      id: `${idBase}:stop`,
+      paneId,
+      source: 'drawing',
+      value: box.stop,
+      label: formatPrice(box.stop),
+      color: STOP_AXIS_COLOR,
+      line: 'hidden',
+      showLabel: true,
+      priority: 40,
+    },
+  ];
+}
+
 export function createPositionPlugin(
   direction: RiskDirection,
   registryName: string,
@@ -194,8 +253,12 @@ export function createPositionPlugin(
     name: registryName,
     defaultLabel,
     placement: 'instant',
+    magnetAnchorIndex: () => 0,
     create(start, _vp, candles) {
-      const defaults = defaultPositionPoints(direction, candles);
+      const placement = consumePendingPositionPlacementOptions();
+      const targetR =
+        placement.targetRMultiple ?? DEFAULT_POSITION_TARGET_R_MULTIPLE;
+      const defaults = defaultPositionPoints(direction, candles, targetR);
       if (defaults) {
         return baseDrawing(registryName, defaultLabel, defaults);
       }
@@ -206,6 +269,9 @@ export function createPositionPlugin(
     },
     finalize(draft) {
       return finalizePosition(draft, direction);
+    },
+    axisAnnotations(d, _vp, candles) {
+      return positionAxisAnnotations(d, direction, candles);
     },
     draw(ctx, d, vp, theme, selected, candles, opts) {
       if (d.points.length < 2) return;
@@ -274,43 +340,34 @@ export function createPositionPlugin(
       }
 
       if (shouldShowPositionLabels(selected, opts)) {
-        const setup = readTradeSetupFromDrawing(repaired);
-        if (box && setup) {
-          try {
-            const metrics = computeRiskMetrics(setup);
-            const qty = resolvePositionQty(
-              repaired.metadata?.fields?.qty,
-              metrics.positionSize,
-            );
-            const lastPrice = lastCandleClose(candles);
-            const labelInput = { ...box, direction, qty, lastPrice };
-            const centerX = clipLeft + clipWidth / 2;
+        if (box) {
+          const qty = resolvePositionQtyForDisplay(repaired.metadata?.fields?.qty);
+          const lastPrice = lastCandleClose(candles);
+          const labelInput = { ...box, direction, qty, lastPrice };
+          const centerX = clipLeft + clipWidth / 2;
 
-            drawSingleLabel(
-              ctx,
-              formatTargetLabel(labelInput),
-              centerX,
-              targetY,
-              '#15803d',
-            );
-            drawPositionLabelBox(
-              ctx,
-              formatEntryLabels(labelInput),
-              centerX,
-              entryY,
-              '#b91c1c',
-              '#ffffff',
-            );
-            drawSingleLabel(
-              ctx,
-              formatStopLabel(labelInput),
-              centerX,
-              stopY,
-              '#b91c1c',
-            );
-          } catch {
-            // Skip labels until setup is valid.
-          }
+          drawSingleLabel(
+            ctx,
+            formatTargetLabel(labelInput),
+            centerX,
+            targetY,
+            '#15803d',
+          );
+          drawPositionLabelBox(
+            ctx,
+            formatEntryLabels(labelInput),
+            centerX,
+            entryY,
+            '#b91c1c',
+            '#ffffff',
+          );
+          drawSingleLabel(
+            ctx,
+            formatStopLabel(labelInput),
+            centerX,
+            stopY,
+            '#b91c1c',
+          );
         }
       }
 
