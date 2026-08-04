@@ -1314,55 +1314,64 @@ export function TradeOrderForm({
                 applyOrderTypeChange(composeOrderTypeForFamily(value as OrderFamily));
               }}
             />
+            <div className="mt-1.5 grid grid-cols-4">
+              <div
+                className={`flex justify-center ${
+                  orderTypeFamily.family === "market"
+                    ? "col-start-1"
+                    : orderTypeFamily.family === "limit"
+                      ? "col-start-2"
+                      : orderTypeFamily.family === "stop"
+                        ? "col-start-3"
+                        : "col-start-4"
+                }`}
+              >
+                {orderTypeFamily.family === "market" || orderTypeFamily.family === "limit" ? (
+                  <EdgeSelect
+                    variant="chip"
+                    aria-label="Fill timing"
+                    testId="trade-order-fill"
+                    value={orderTypeFamily.fill ?? "now"}
+                    options={FILL_SEGMENTS.map((segment) => ({
+                      value: segment.id,
+                      label: segment.label,
+                    }))}
+                    onChange={(value) => {
+                      applyOrderTypeChange(
+                        composeOrderType({
+                          family: orderTypeFamily.family,
+                          fill: value as OrderFillTiming,
+                        }),
+                      );
+                    }}
+                    minWidth={120}
+                    className="min-w-[5.5rem]"
+                  />
+                ) : (
+                  <EdgeSelect
+                    variant="chip"
+                    aria-label="Execution type"
+                    testId="trade-order-exec-type"
+                    value={orderTypeFamily.execType ?? "market"}
+                    options={EXEC_TYPE_SEGMENTS.map((segment) => ({
+                      value: segment.id,
+                      label: segment.label,
+                    }))}
+                    onChange={(value) => {
+                      applyOrderTypeChange(
+                        composeOrderType({
+                          family: orderTypeFamily.family,
+                          execType: value as OrderExecType,
+                        }),
+                      );
+                    }}
+                    minWidth={120}
+                    className="min-w-[5.5rem]"
+                  />
+                )}
+              </div>
+            </div>
           </div>
-
-          {orderTypeFamily.family === "market" || orderTypeFamily.family === "limit" ? (
-            <div
-              className="mb-3 flex items-center justify-between gap-3"
-              data-testid="trade-order-fill"
-            >
-              <span className="text-[10px] text-[var(--edge-text-secondary)]">Fill</span>
-              <EdgeSegmentedTabs
-                segments={FILL_SEGMENTS.map((segment) => ({
-                  id: segment.id,
-                  label: segment.label,
-                }))}
-                value={orderTypeFamily.fill ?? "now"}
-                onChange={(value) => {
-                  applyOrderTypeChange(
-                    composeOrderType({
-                      family: orderTypeFamily.family,
-                      fill: value as OrderFillTiming,
-                    }),
-                  );
-                }}
-                className="min-w-[10rem]"
-              />
-            </div>
-          ) : (
-            <div
-              className="mb-3 flex items-center justify-between gap-3"
-              data-testid="trade-order-exec-type"
-            >
-              <span className="text-[10px] text-[var(--edge-text-secondary)]">Type</span>
-              <EdgeSegmentedTabs
-                segments={EXEC_TYPE_SEGMENTS.map((segment) => ({
-                  id: segment.id,
-                  label: segment.label,
-                }))}
-                value={orderTypeFamily.execType ?? "market"}
-                onChange={(value) => {
-                  applyOrderTypeChange(
-                    composeOrderType({
-                      family: orderTypeFamily.family,
-                      execType: value as OrderExecType,
-                    }),
-                  );
-                }}
-                className="min-w-[10rem]"
-              />
-            </div>
-          )}
 
           {orderType === "MKT" || orderType === "MOC" ? (
             <div className="mb-3">

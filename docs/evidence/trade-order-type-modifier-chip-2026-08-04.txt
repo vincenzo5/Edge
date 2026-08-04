@@ -1,0 +1,22 @@
+# LIVE — Trade order type modifier chip evidence
+# Date: 2026-08-04
+
+## Scope
+Replace the full-width Fill / Type secondary segmented rows under order-type tabs with a compact EdgeSelect chip aligned under the active family tab (Option A). Market/Limit → Fill (Now / On close); Stop/Trail → Type (Market / Limit). Compose/decompose OrderType mapping unchanged.
+
+## Delivered
+- src/app/components/trading/TradeOrderForm.tsx — chip under active tab via 4-col grid; EdgeSelect variant=chip
+- src/app/components/trading/TradeOrderForm.test.tsx — chip open/select helpers; assertions for Fill/Type chips
+- src/lib/trading/ARCHITECTURE.md — ticket layout note updated for modifier chip
+
+## Focused
+Command:
+npm test -- --run src/app/components/trading/TradeOrderForm.test.tsx src/lib/trading/orderTypeFamily.test.ts
+
+Result:
+Test Files  2 passed (2)
+Tests  43 passed (43)
+exit=0
+
+## App-level
+Deferred — UI-only regroup of existing Fill/Type controls; domain compose/decompose unchanged (orderTypeFamily tests still cover round-trip).

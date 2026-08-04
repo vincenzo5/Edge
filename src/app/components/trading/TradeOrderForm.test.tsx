@@ -127,12 +127,14 @@ function primaryOrderTabs() {
   return within(screen.getByTestId("trade-order-type-tabs"));
 }
 
-function fillTabs() {
-  return within(screen.getByTestId("trade-order-fill"));
+function selectFillTiming(value: "now" | "close") {
+  fireEvent.click(screen.getByTestId("trade-order-fill"));
+  fireEvent.click(screen.getByTestId(`trade-order-fill-option-${value}`));
 }
 
-function execTypeTabs() {
-  return within(screen.getByTestId("trade-order-exec-type"));
+function selectExecType(value: "market" | "limit") {
+  fireEvent.click(screen.getByTestId("trade-order-exec-type"));
+  fireEvent.click(screen.getByTestId(`trade-order-exec-type-option-${value}`));
 }
 
 describe("TradeOrderForm size for risk", () => {
@@ -212,8 +214,8 @@ describe("TradeOrderForm size for risk", () => {
     expect(primaryOrderTabs().getByRole("tab", { name: "Limit" })).toBeInTheDocument();
     expect(primaryOrderTabs().getByRole("tab", { name: "Stop" })).toBeInTheDocument();
     expect(primaryOrderTabs().getByRole("tab", { name: "Trail" })).toBeInTheDocument();
-    expect(screen.getByTestId("trade-order-fill")).toBeInTheDocument();
-    expect(fillTabs().getByRole("tab", { name: "Now" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("trade-order-fill")).toHaveTextContent("Now");
+    expect(screen.getByTestId("trade-order-fill")).toHaveAttribute("aria-label", "Fill timing");
   });
 
   it("shows read-only entry for market orders", () => {
@@ -628,18 +630,19 @@ describe("TradeOrderForm policy picker", () => {
     });
   });
 
-  it("shows four primary order families with Fill and Type secondary controls", () => {
+  it("shows four primary order families with Fill and Type modifier chips", () => {
     renderForm(null);
     expect(primaryOrderTabs().getByRole("tab", { name: "Trail" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "MOC" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "LOC" })).not.toBeInTheDocument();
 
-    fireEvent.click(fillTabs().getByRole("tab", { name: "On close" }));
+    selectFillTiming("close");
     expect(screen.getByTestId("trade-entry-display")).toHaveTextContent(/close/);
+    expect(screen.getByTestId("trade-order-fill")).toHaveTextContent("On close");
 
     fireEvent.click(primaryOrderTabs().getByRole("tab", { name: "Limit" }));
     expect(screen.getByTestId("trade-order-fill")).toBeInTheDocument();
-    fireEvent.click(fillTabs().getByRole("tab", { name: "On close" }));
+    selectFillTiming("close");
     expect(screen.getByTestId("trade-limit-price")).toBeInTheDocument();
   });
 
@@ -653,7 +656,8 @@ describe("TradeOrderForm policy picker", () => {
       riskRewardRatio: 2,
     });
     fireEvent.click(primaryOrderTabs().getByRole("tab", { name: "Stop" }));
-    fireEvent.click(execTypeTabs().getByRole("tab", { name: "Limit" }));
+    expect(screen.getByTestId("trade-order-exec-type")).toHaveTextContent("Market");
+    selectExecType("limit");
     expect(screen.getByTestId("trade-limit-price")).toBeInTheDocument();
     expect(screen.getByTestId("trade-stop-price")).toBeInTheDocument();
   });
@@ -668,7 +672,7 @@ describe("TradeOrderForm policy picker", () => {
   it("shows trail limit fields when Trail Type is Limit", () => {
     renderForm(null);
     fireEvent.click(primaryOrderTabs().getByRole("tab", { name: "Trail" }));
-    fireEvent.click(execTypeTabs().getByRole("tab", { name: "Limit" }));
+    selectExecType("limit");
     expect(screen.getByTestId("trade-limit-price")).toBeInTheDocument();
     expect(screen.getByTestId("trade-trail-amount")).toBeInTheDocument();
   });
