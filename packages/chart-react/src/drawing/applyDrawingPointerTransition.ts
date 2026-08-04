@@ -9,7 +9,8 @@ import {
   entryValueChanged,
   withStickEntryDisabled,
 } from '@edge/chart-core';
-import { plotToPoint, pointToPlot, translateDrawingPoints } from '@edge/chart-core/drawingCoords';
+import { plotToPoint, pointToPlot, translateDrawingPoints, resolveMagnetDragPlot } from '@edge/chart-core/drawingCoords';
+import { resolveMagnetDragAxisForCp } from '@edge/chart-core/drawings/positionGeometry';
 import { scheduleDragReplace, flushDragReplace } from './drawingDragCoalesce';
 import {
   type DrawingControllerState,
@@ -151,12 +152,37 @@ export function applyDrawingPointerTransition(
     const drawing = paneDrawings.find((d) => d.id === state.draggingDrawingId);
     const plugin = drawing ? getPluginForTool(drawing.name) : undefined;
     if (drawing && plugin?.updateFromControl && !drawing.locked) {
-      const snappedPlot = pointToPlot(getPoint(), vp, candlesRef.current, showTimeAxis);
+      let plotX = event.plotX;
+      let plotY = event.plotY;
+      if (magnetEnabledRef.current) {
+        const cps =
+          plugin.getControlPoints?.(drawing, vp, candlesRef.current, showTimeAxis) ?? [];
+        const cp = cps[state.draggingCpIndex];
+        const axis = resolveMagnetDragAxisForCp(
+          drawing.name,
+          state.draggingCpIndex,
+          cp?.role,
+        );
+        const snapped = resolveMagnetDragPlot(
+          event.plotX,
+          event.plotY,
+          vp,
+          candlesRef.current,
+          axis,
+          {
+            showTimeAxis,
+            fixedHandleX: axis === 'price' ? cp?.x : undefined,
+            fixedHandleY: axis === 'time' ? cp?.y : undefined,
+          },
+        );
+        plotX = snapped.x;
+        plotY = snapped.y;
+      }
       const updated = plugin.updateFromControl(
         drawing,
         state.draggingCpIndex,
-        snappedPlot.x,
-        snappedPlot.y,
+        plotX,
+        plotY,
         vp,
         candlesRef.current,
         showTimeAxis,

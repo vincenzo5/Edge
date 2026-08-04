@@ -1,5 +1,5 @@
 import type { Candle, SerializedDrawing } from '../contracts';
-import type { DrawingPoint } from '../drawingCoords';
+import type { DrawingPoint, MagnetDragAxis } from '../drawingCoords';
 import { timestampForDataIndex } from '../drawingCoords';
 import { targetPriceForRMultiple } from '../risk/riskCompute';
 import type { RiskDirection } from '../risk/riskTypes';
@@ -77,6 +77,87 @@ export function entryValueChanged(
   const b = after[0]?.value;
   if (a == null || b == null) return a !== b;
   return Math.abs(a - b) >= 1e-12;
+}
+
+export type PositionOrderLevelsPatch = {
+  entry: number;
+  stop: number;
+  target: number;
+};
+
+function directionFromPositionName(name: string): RiskDirection | null {
+  if (name === 'long_position') return 'long';
+  if (name === 'short_position') return 'short';
+  return null;
+}
+
+function validPositionOrderLevels(
+  direction: RiskDirection,
+  entry: number,
+  stop: number,
+  target: number,
+): boolean {
+  if (
+    !Number.isFinite(entry) ||
+    !Number.isFinite(stop) ||
+    !Number.isFinite(target)
+  ) {
+    return false;
+  }
+  const riskDist = Math.abs(entry - stop);
+  const rewardDist = Math.abs(target - entry);
+  if (
+    riskDist < MIN_POSITION_PRICE_DELTA ||
+    rewardDist < MIN_POSITION_PRICE_DELTA
+  ) {
+    return false;
+  }
+  if (direction === 'long') {
+    return stop < entry && target > entry;
+  }
+  return stop > entry && target < entry;
+}
+
+/**
+ * Apply typed entry/stop/target prices to a four-point position drawing.
+ * Returns null when levels are invalid for the tool direction.
+ * Manual entry edits persist stick-off via `withStickEntryDisabled`.
+ */
+export function applyPositionOrderLevels(
+  drawing: SerializedDrawing,
+  levels: PositionOrderLevelsPatch,
+): SerializedDrawing | null {
+  if (!isPositionDrawingName(drawing.name) || drawing.points.length < 4) {
+    return null;
+  }
+  const direction = directionFromPositionName(drawing.name);
+  if (!direction) return null;
+
+  const { entry, stop, target } = levels;
+  if (!validPositionOrderLevels(direction, entry, stop, target)) {
+    return null;
+  }
+
+  const before = drawing.points;
+  const points = drawing.points.map((p, i) => {
+    switch (i) {
+      case 0:
+      case 3:
+        return { ...p, value: entry };
+      case 1:
+        return { ...p, value: stop };
+      case 2:
+        return { ...p, value: target };
+      default:
+        return { ...p };
+    }
+  });
+
+  let next: SerializedDrawing = { ...drawing, points };
+  if (entryValueChanged(before, points)) {
+    next = withStickEntryDisabled(next);
+  }
+  return next;
 }
 
 export type PositionPlotBounds = {
@@ -189,16 +270,20 @@ export function boxFromPoints(
   };
 }
 
+/** Default target R when no policy Geometry is available. */
+export const DEFAULT_POSITION_TARGET_R_MULTIPLE = 2;
+
 /**
  * Default long/short anchors at the live edge:
  * - entry = last bar close
  * - left edge = last bar index (xForIndex = bar slot left)
- * - stop/target from last-bar range (or 0.5% of price), 2R target
+ * - stop/target from last-bar range (or 0.5% of price)
  * - right edge = left + DEFAULT_POSITION_WIDTH_BARS (may be virtual)
  */
 export function defaultPositionPoints(
   direction: RiskDirection,
   candles: Candle[],
+  targetRMultiple: number = DEFAULT_POSITION_TARGET_R_MULTIPLE,
 ): DrawingPoint[] | null {
   if (candles.length === 0) return null;
   const leftDi = candles.length - 1;
@@ -213,10 +298,14 @@ export function defaultPositionPoints(
   const leftTs = timestampForDataIndex(candles, leftDi);
   const rightTs = timestampForDataIndex(candles, rightDi);
 
+  const targetR =
+    Number.isFinite(targetRMultiple) && targetRMultiple > 0
+      ? targetRMultiple
+      : DEFAULT_POSITION_TARGET_R_MULTIPLE;
   const stop =
     direction === 'long' ? entry - riskDist : entry + riskDist;
   const target =
-    direction === 'long' ? entry + riskDist * 2 : entry - riskDist * 2;
+    direction === 'long' ? entry + riskDist * targetR : entry - riskDist * targetR;
 
   return [
     { timestamp: leftTs, value: entry, dataIndex: leftDi },
@@ -346,13 +435,43 @@ export const POSITION_CP = {
   RIGHT: 3,
 } as const;
 
-export function positionControlPoints(bounds: PositionPlotBounds): Array<{ x: number; y: number }> {
+/** Strong-magnet axis for a control point (position left handles are Y-only). */
+export function resolveMagnetDragAxisForCp(
+  drawingName: string,
+  cpIndex: number,
+  role?: string,
+): MagnetDragAxis {
+  if (drawingName === 'long_position' || drawingName === 'short_position') {
+    if (
+      cpIndex === POSITION_CP.TARGET ||
+      cpIndex === POSITION_CP.ENTRY_LEFT ||
+      cpIndex === POSITION_CP.STOP
+    ) {
+      return 'price';
+    }
+    if (cpIndex === POSITION_CP.RIGHT) {
+      return 'time';
+    }
+  }
+  switch (role) {
+    case 'price':
+      return 'price';
+    case 'time':
+      return 'time';
+    default:
+      return 'xy';
+  }
+}
+
+export function positionControlPoints(
+  bounds: PositionPlotBounds,
+): Array<{ x: number; y: number; role?: string }> {
   const { leftX, rightX, entryY, stopY, targetY } = bounds;
   return [
-    { x: leftX, y: targetY },
-    { x: leftX, y: entryY },
-    { x: leftX, y: stopY },
-    { x: rightX, y: entryY },
+    { x: leftX, y: targetY, role: 'price' },
+    { x: leftX, y: entryY, role: 'move' },
+    { x: leftX, y: stopY, role: 'price' },
+    { x: rightX, y: entryY, role: 'time' },
   ];
 }
 

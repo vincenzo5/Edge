@@ -1,0 +1,21 @@
+# ENGINE — Magnet TV parity evidence
+# Date: 2026-08-04
+
+## Scope
+TradingView-style strong magnet for CP drag: OHLC from candle under cursor; long/short left handles snap price only (no horizontal jump); role-aware price/time/xy axes.
+
+## Delivered
+- packages/chart-core/src/drawingCoords.ts — resolveMagnetDragPlot (price/time/xy)
+- packages/chart-core/src/drawings/positionGeometry.ts — resolveMagnetDragAxisForCp
+- packages/chart-react/src/drawing/applyDrawingPointerTransition.ts — role-aware CP magnet wiring
+- Tests: drawingCoords, applyDrawingPointerTransition, position_tool
+- Docs: docs/chart/features.md, src/lib/chart/ARCHITECTURE.md
+
+## Focused
+Command:
+npm test -- --run src/lib/chart/drawingCoords.test.ts packages/chart-react/src/drawing/applyDrawingPointerTransition.test.ts src/lib/chart/drawings/position_tool.test.ts
+
+Result:
+Test Files  3 passed (3)
+Tests  46 passed (46)
+exit=0

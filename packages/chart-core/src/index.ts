@@ -228,10 +228,20 @@ export {
   boxFromPoints,
   stickEntryToLastPriceEnabled,
   applyStickEntryPrice,
+  applyPositionOrderLevels,
   withStickEntryDisabled,
   entryValueChanged,
+  resolveMagnetDragAxisForCp,
 } from './drawings/positionGeometry';
-export type { PositionBox } from './drawings/positionGeometry';
+export type { PositionBox, PositionOrderLevelsPatch } from './drawings/positionGeometry';
+export type { MagnetDragAxis } from './drawingCoords';
+export {
+  setPendingPositionPlacementOptions,
+  consumePendingPositionPlacementOptions,
+  resetPendingPositionPlacementOptions,
+} from './drawings/positionPlacementContext';
+export type { PositionPlacementOptions } from './drawings/positionPlacementContext';
+export { DEFAULT_POSITION_TARGET_R_MULTIPLE } from './drawings/positionGeometry';
 export type {
   TradeSetup,
   RiskMetrics,

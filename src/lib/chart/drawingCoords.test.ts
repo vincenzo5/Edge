@@ -12,6 +12,7 @@ import {
   priceForPlotY,
   yForPricePlot,
   snapToOhlc,
+  resolveMagnetDragPlot,
   MAGNET_THRESHOLD_PX,
   lowerBoundCandleIndex,
   resolveDataIndexFromTimestamp,
@@ -119,6 +120,57 @@ describe('drawingCoords', () => {
     expect(snapToOhlc(highY + 1, 1, candle, vp, true)).toBe(candle.h);
     expect(snapToOhlc(midY - 1, 1, candle, vp, true)).toBe(candle.h);
     expect(snapToOhlc(midY + 1, 1, candle, vp, true)).toBe(candle.c);
+  });
+
+  it('resolveMagnetDragPlot price axis keeps handle X and snaps Y from cursor candle', () => {
+    const vp = makeVp();
+    const cursorIdx = 2;
+    const cursorCandle = candles[cursorIdx]!;
+    const leftX = vp.xForIndex(0);
+    const cursorX = vp.xForIndex(cursorIdx);
+    const highY = yForPricePlot(cursorCandle.h, vp, true);
+
+    const snapped = resolveMagnetDragPlot(
+      cursorX,
+      highY + 2,
+      vp,
+      candles,
+      'price',
+      { showTimeAxis: true, fixedHandleX: leftX },
+    );
+
+    expect(snapped.x).toBe(leftX);
+    expect(snapped.y).toBeCloseTo(highY, 0);
+  });
+
+  it('resolveMagnetDragPlot xy axis snaps both axes to cursor candle OHLC', () => {
+    const vp = makeVp();
+    const cursorIdx = 2;
+    const cursorCandle = candles[cursorIdx]!;
+    const cursorX = vp.xForIndex(cursorIdx);
+    const highY = yForPricePlot(cursorCandle.h, vp, true);
+
+    const snapped = resolveMagnetDragPlot(cursorX, highY + 2, vp, candles, 'xy', {
+      showTimeAxis: true,
+    });
+
+    expect(snapped.x).toBeCloseTo(cursorX, 0);
+    expect(snapped.y).toBeCloseTo(highY, 0);
+  });
+
+  it('resolveMagnetDragPlot time axis snaps X and keeps handle Y', () => {
+    const vp = makeVp();
+    const cursorIdx = 2;
+    const entryY = yForPricePlot(100, vp, true);
+    const cursorX = vp.xForIndex(cursorIdx) + 5;
+
+    const snapped = resolveMagnetDragPlot(cursorX, entryY, vp, candles, 'time', {
+      showTimeAxis: true,
+      fixedHandleY: entryY,
+    });
+
+    expect(snapped.x).toBeCloseTo(vp.xForIndex(cursorIdx), 0);
+    expect(snapped.y).toBe(entryY);
   });
 
   it('translateDrawingPoints with magnet snaps anchor and preserves rigid offsets', () => {

@@ -250,5 +250,140 @@ describe('applyDrawingPointerTransition position magnet', () => {
     expect(drawings[0]?.points[1]?.value).toBe(candle.h);
     expect(drawings[0]?.points[0]?.value).toBe(100);
     expect(drawings[0]?.points[2]?.value).toBe(110);
+    expect(drawings[0]?.points[0]?.timestamp).toBe(1_000);
+    expect(drawings[0]?.points[1]?.timestamp).toBe(1_000);
+    expect(drawings[0]?.points[2]?.timestamp).toBe(1_000);
+  });
+
+  it('target handle drag snaps target to cursor-candle OHLC without moving left edge', async () => {
+    const existing = sampleLongPosition();
+    const deps = makeDrawingControllerDeps([existing]);
+    const vp = deps.latestVpRef.current!;
+    const plugin = DrawingRegistry.get('long_position');
+    const cps = plugin!.getControlPoints!(existing, vp, testCandles, true);
+    const targetCp = cps[POSITION_CP.TARGET]!;
+
+    const candle = testCandles[2]!;
+    const highY = yForPricePlot(candle.h, vp, true);
+    const plotX = vp.xForIndex(2);
+
+    const { result } = renderHook(() => useDrawingController(deps));
+
+    act(() => {
+      result.current.drawingHandleSlice.selectDrawing('d-long');
+      result.current.drawingHandleSlice.setMagnet(true);
+    });
+
+    act(() => {
+      result.current.handleDrawingPointer({
+        phase: 'down',
+        plotX: targetCp.x,
+        plotY: targetCp.y,
+        button: 0,
+        paneId: 'price',
+      });
+      result.current.handleDrawingPointer({
+        phase: 'move',
+        plotX,
+        plotY: highY + 2,
+        button: 0,
+        paneId: 'price',
+      });
+    });
+
+    await flushDragRaf();
+
+    const drawings = result.current.drawingHandleSlice.serializeDrawings();
+    expect(drawings[0]?.points[2]?.value).toBe(candle.h);
+    expect(drawings[0]?.points[0]?.timestamp).toBe(1_000);
+    expect(drawings[0]?.points[0]?.dataIndex).toBe(0);
+    expect(drawings[0]?.points[1]?.value).toBe(95);
+  });
+
+  it('entry-left handle drag with magnet snaps price only and keeps left edge', async () => {
+    const existing = sampleLongPosition();
+    const deps = makeDrawingControllerDeps([existing]);
+    const vp = deps.latestVpRef.current!;
+    const plugin = DrawingRegistry.get('long_position');
+    const cps = plugin!.getControlPoints!(existing, vp, testCandles, true);
+    const entryCp = cps[POSITION_CP.ENTRY_LEFT]!;
+
+    const candle = testCandles[2]!;
+    const highY = yForPricePlot(candle.h, vp, true);
+    const plotX = vp.xForIndex(2);
+
+    const { result } = renderHook(() => useDrawingController(deps));
+
+    act(() => {
+      result.current.drawingHandleSlice.selectDrawing('d-long');
+      result.current.drawingHandleSlice.setMagnet(true);
+    });
+
+    act(() => {
+      result.current.handleDrawingPointer({
+        phase: 'down',
+        plotX: entryCp.x,
+        plotY: entryCp.y,
+        button: 0,
+        paneId: 'price',
+      });
+      result.current.handleDrawingPointer({
+        phase: 'move',
+        plotX,
+        plotY: highY + 2,
+        button: 0,
+        paneId: 'price',
+      });
+    });
+
+    await flushDragRaf();
+
+    const drawings = result.current.drawingHandleSlice.serializeDrawings();
+    expect(drawings[0]?.points[0]?.value).toBe(candle.h);
+    expect(drawings[0]?.points[0]?.timestamp).toBe(1_000);
+    expect(drawings[0]?.points[0]?.dataIndex).toBe(0);
+    expect(drawings[0]?.points[3]?.timestamp).toBe(3_000);
+  });
+
+  it('entry-left handle drag without magnet still moves left edge horizontally', async () => {
+    const existing = sampleLongPosition();
+    const deps = makeDrawingControllerDeps([existing]);
+    const vp = deps.latestVpRef.current!;
+    const plugin = DrawingRegistry.get('long_position');
+    const cps = plugin!.getControlPoints!(existing, vp, testCandles, true);
+    const entryCp = cps[POSITION_CP.ENTRY_LEFT]!;
+
+    const plotX = vp.xForIndex(2);
+    const plotY = entryCp.y;
+
+    const { result } = renderHook(() => useDrawingController(deps));
+
+    act(() => {
+      result.current.drawingHandleSlice.selectDrawing('d-long');
+      result.current.drawingHandleSlice.setMagnet(false);
+    });
+
+    act(() => {
+      result.current.handleDrawingPointer({
+        phase: 'down',
+        plotX: entryCp.x,
+        plotY: entryCp.y,
+        button: 0,
+        paneId: 'price',
+      });
+      result.current.handleDrawingPointer({
+        phase: 'move',
+        plotX,
+        plotY,
+        button: 0,
+        paneId: 'price',
+      });
+    });
+
+    await flushDragRaf();
+
+    const drawings = result.current.drawingHandleSlice.serializeDrawings();
+    expect(drawings[0]?.points[0]?.timestamp).toBe(testCandles[2]!.t);
+    expect(drawings[0]?.points[0]?.dataIndex).toBe(2);
   });
 });

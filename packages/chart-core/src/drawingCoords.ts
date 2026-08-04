@@ -125,6 +125,59 @@ export function snapPlotXToCandle(
   return { plotX, dataIndex: idx };
 }
 
+/** Which axes strong magnet may adjust during control-point drag. */
+export type MagnetDragAxis = 'price' | 'time' | 'xy';
+
+export type ResolveMagnetDragPlotOptions = {
+  showTimeAxis?: boolean;
+  /** Keep handle X (price-only drag). */
+  fixedHandleX?: number;
+  /** Keep handle Y (time-only drag). */
+  fixedHandleY?: number;
+};
+
+/**
+ * Resolve plot coords for magnet CP drag.
+ * Price: OHLC from candle under cursor X; X stays on handle unless omitted.
+ * Time: bar snap on X; Y stays on handle unless omitted.
+ * XY: full strong magnet (bar + OHLC under cursor).
+ */
+export function resolveMagnetDragPlot(
+  cursorPlotX: number,
+  cursorPlotY: number,
+  vp: VisibleRange,
+  candles: Candle[],
+  axis: MagnetDragAxis,
+  opts: ResolveMagnetDragPlotOptions = {},
+): PlotCoords {
+  const showTimeAxis = opts.showTimeAxis ?? true;
+
+  if (axis === 'xy') {
+    const snapped = plotToPoint(cursorPlotX, cursorPlotY, vp, candles, {
+      magnet: true,
+      showTimeAxis,
+      snapXCandle: true,
+    });
+    return pointToPlot(snapped, vp, candles, showTimeAxis);
+  }
+
+  if (axis === 'time') {
+    const { plotX } = snapPlotXToCandle(cursorPlotX, vp, candles);
+    return {
+      x: plotX,
+      y: opts.fixedHandleY ?? cursorPlotY,
+    };
+  }
+
+  const { dataIndex } = snapPlotXToCandle(cursorPlotX, vp, candles);
+  const candle = dataIndex >= 0 && dataIndex < candles.length ? candles[dataIndex] : null;
+  const snappedPrice = snapToOhlc(cursorPlotY, dataIndex, candle, vp, showTimeAxis);
+  return {
+    x: opts.fixedHandleX ?? cursorPlotX,
+    y: yForPricePlot(snappedPrice, vp, showTimeAxis),
+  };
+}
+
 /** Nearest OHLC price for the candle under the pointer (strong magnet). */
 export function snapToOhlc(
   plotY: number,

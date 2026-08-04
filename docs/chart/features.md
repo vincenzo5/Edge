@@ -341,11 +341,11 @@ Optional overrides: `legendAt` beats declarative outputs; `valueAt` beats `defau
 | Object Tree pane labels (platform 4.2) | **Done** | Data window section headers; object tree uses flat labels |
 | Serialize to `CellConfig.drawings` | **Done** | `timestamp`+`value` points; debounced 500 ms |
 | Hit test / select | **Done** | 4px tolerance; topmost z-order |
-| Edit control points | **Done** | Magnet applies on CP drag (nearest OHLC) |
+| Edit control points | **Done** | Magnet applies on CP drag (role-aware: price/time/xy; long/short left handles Y-only) |
 | Delete selected drawing | **Done** | Toolbar ⌫ + `onSelectionChange` sync |
 | Floating selection toolbar | **Done** | `DrawingSelectionToolbar` — 28px clearance from drawing; flips below when viewport lacks room above; edge-clamped |
 | AI annotation chart↔chat linkage | **Done** | Phase 5 — `threadId`/`messageId` on agent drawings; “Open in chat” + Copilot focus; accept→`accepted` — [ai-agent-roadmap.md](../roadmaps/ai-agent-roadmap.md) |
-| Magnet (snap OHLC) | **Done** | Strong nearest-OHLC on price pane; whole-tool drag snaps plugin magnet anchor |
+| Magnet (snap OHLC) | **Done** | Strong nearest-OHLC from candle under cursor; CP drag role-aware; long/short left handles price-only while magnet on |
 | Drawing context menu (rename/lock/hide/z) | **Done** | Canvas right-click hit-test → overlay menu — see [context-menu-reference.md §2](./context-menu-reference.md#2-drawing--overlay-context-menu) |
 | Z-order / duplicate | **Done** | `bringForward`/`sendBackward`/`duplicateOverlay` |
 | Object Tree drawings section | **Done** | Flat tracked overlay list; reorder via z-level drag |
