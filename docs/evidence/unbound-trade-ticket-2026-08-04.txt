@@ -1,0 +1,25 @@
+# LIVE — Unbound trade ticket evidence
+# Date: 2026-08-04
+
+## Scope
+Long/short position drawing is optional for the Trade panel. Manual chart ticket always available; Unlink + drawing delete fall back to unbound mode.
+
+## Delivered
+- src/app/components/trading/TradeSetupBindingContext.tsx — clearTradeBind API; openTradePanel refactored
+- src/app/components/sidebar/panels/TradeSidebarPanel.tsx — always show ticket; Unlink control
+- src/app/components/trading/TradeOrderForm.tsx — remove boundActive empty-state gate
+- src/app/components/chart-cell/useTradeDrawingBinding.ts — clearTradeBind when bound drawing missing
+- src/lib/trading/ARCHITECTURE.md, src/lib/risk/ARCHITECTURE.md — contract notes
+
+## Focused
+Command:
+npm test -- --run src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx src/app/components/chart-cell/useTradeDrawingBinding.test.ts src/app/components/trading/TradeOrderForm.test.tsx
+
+Result:
+Test Files  3 passed (3)
+Tests  35 passed (35)
+
+## App-level (manual)
+- Header Trade with no long/short → compose ticket usable
+- Trade setup… link → Unlink → manual ticket restored
+- Delete linked drawing → manual ticket remains usable

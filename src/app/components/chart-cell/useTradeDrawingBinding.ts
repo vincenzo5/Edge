@@ -36,6 +36,7 @@ export function useTradeDrawingBinding({
   const boundCellId = tradeBinding?.bind?.cellId ?? null;
   const boundDrawingId = tradeBinding?.bind?.drawingId ?? null;
   const bindToDrawing = tradeBinding?.bindToDrawing;
+  const clearTradeBind = tradeBinding?.clearTradeBind;
   const updateBoundLevels = tradeBinding?.updateBoundLevels;
 
   useEffect(() => {
@@ -83,7 +84,7 @@ export function useTradeDrawingBinding({
 
     const drawing = findPositionDrawingById(drawings, boundDrawingId);
     if (!drawing) {
-      updateBoundLevels(null);
+      clearTradeBind?.();
       return;
     }
 
@@ -96,6 +97,7 @@ export function useTradeDrawingBinding({
     boundCellId,
     boundDrawingId,
     bindToDrawing,
+    clearTradeBind,
     updateBoundLevels,
     chartId,
     chartRef,

@@ -110,7 +110,6 @@ function renderForm(
         symbol="AAPL"
         planLevels={planLevels}
         lastPrice={100}
-        boundActive
         seedQuantity={options?.seedQuantity ?? null}
         onSeedQuantityApplied={options?.onSeedQuantityApplied}
         testId="trade-order-form-test"
@@ -182,7 +181,7 @@ describe("TradeOrderForm size for risk", () => {
   it("disables risk input without entry and stop", () => {
     render(
       <RiskSettingsProvider>
-        <TradeOrderForm symbol="AAPL" lastPrice={null} boundActive testId="trade-order-form-test" />
+        <TradeOrderForm symbol="AAPL" lastPrice={null} testId="trade-order-form-test" />
       </RiskSettingsProvider>,
     );
     expect(screen.getByTestId("trade-size-risk")).toBeDisabled();
@@ -475,7 +474,6 @@ describe("TradeOrderForm policy picker", () => {
         <TradeOrderForm
           symbol="META"
           lastPrice={100}
-          boundActive
           policyPickerEnabled
           policyTemplates={[userLongPolicy]}
           onPolicyChange={vi.fn()}
@@ -493,7 +491,6 @@ describe("TradeOrderForm policy picker", () => {
         <TradeOrderForm
           symbol="META"
           lastPrice={100}
-          boundActive
           selectedPolicyId="user_long"
           policyTemplates={[userLongPolicy]}
           onPolicyDraftConsumed={onConsumed}
@@ -507,7 +504,6 @@ describe("TradeOrderForm policy picker", () => {
         <TradeOrderForm
           symbol="META"
           lastPrice={100}
-          boundActive
           selectedPolicyId="user_long"
           policyTemplates={[userLongPolicy]}
           policyDraftPatch={{
@@ -536,7 +532,6 @@ describe("TradeOrderForm policy picker", () => {
         <TradeOrderForm
           symbol="META"
           lastPrice={100}
-          boundActive
           selectedPolicyId="user_long"
           policyTemplates={[userLongPolicy]}
           policyPickerEnabled
@@ -573,7 +568,6 @@ describe("TradeOrderForm policy picker", () => {
         <TradeOrderForm
           symbol="META"
           lastPrice={100}
-          boundActive
           selectedPolicyId="user_long"
           policyTemplates={[userLongPolicy]}
           policyPickerEnabled

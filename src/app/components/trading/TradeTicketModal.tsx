@@ -98,7 +98,6 @@ export default function TradeTicketModal({
         symbol={symbol}
         theme={theme}
         planLevels={planLevels}
-        boundActive
         policyTemplates={policyApply.templates}
         selectedPolicyId={policyApply.selectedTemplateId}
         onPolicyChange={(templateId) => void policyApply.applyPolicy(templateId)}

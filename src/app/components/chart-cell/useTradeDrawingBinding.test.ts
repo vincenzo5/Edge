@@ -48,4 +48,49 @@ describe("useTradeDrawingBinding", () => {
     expect(bindToDrawing).toHaveBeenCalledWith("cell-1", "draw-new", "AAPL");
     expect(updateBoundLevels).toHaveBeenCalled();
   });
+
+  it("clears trade bind when the bound drawing is removed", () => {
+    const clearTradeBind = vi.fn();
+    const updateBoundLevels = vi.fn();
+    const chartRef = {
+      current: {
+        serializeDrawings: vi.fn().mockReturnValue([
+          {
+            id: "draw-bound",
+            name: "long_position",
+            points: [
+              { x: 0, y: 100 },
+              { x: 1, y: 95 },
+              { x: 2, y: 110 },
+            ],
+          },
+        ]),
+      } as unknown as ChartHandle,
+    };
+
+    const { rerender } = renderHook(
+      (props: { overlays: unknown[] }) =>
+        useTradeDrawingBinding({
+          chartRef,
+          chartId: "cell-1",
+          symbol: "AAPL",
+          overlays: props.overlays,
+          isActive: true,
+          sidebar: { activePanel: "trade" } as never,
+          tradeBinding: {
+            bind: { cellId: "cell-1", drawingId: "draw-bound" },
+            bindToDrawing: vi.fn(),
+            clearTradeBind,
+            updateBoundLevels,
+          } as never,
+        }),
+      { initialProps: { overlays: [] as unknown[] } },
+    );
+
+    chartRef.current!.serializeDrawings = vi.fn().mockReturnValue([]);
+    updateBoundLevels.mockClear();
+    rerender({ overlays: [{}] });
+
+    expect(clearTradeBind).toHaveBeenCalled();
+  });
 });

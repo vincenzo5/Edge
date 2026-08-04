@@ -139,7 +139,7 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 - **Bracket attach:** Trade setup can submit entry + stop + take-profit as IB bracket with OCA children (`POST /api/trading/brackets`). Fixed or trail stop leg; preview what-if on entry only.
 - **Protective OCO:** Open position → Account panel **Protect with OCO** (`POST /api/trading/oco`) attaches stop + TP without a new entry.
 - **Outside RTH:** Trade ticket toggle; preview + submit honor `outsideRth` (default off).
-- **Header Trade:** Opens same panel unbound (generic ticket for active chart symbol).
+- **Header Trade:** Opens same panel unbound (generic ticket for active chart symbol). Long/short position drawings are optional — they seed entry/stop/TP and enable policy persist; **Unlink** or drawing delete falls back to manual ticket.
 - **Ticket layout (compose):** TradingView-style stack — symbol row includes **Risk policy** picker (user templates; hover = recipe). `BuySellToggle`, order-type tabs, quantity, linked TP/SL editor with **per-leg Qty** plus Offset/Price/USD/%, runner strip when policy scales at TP. Time in Force + Extended hours. **Advanced** when bracket on (non-policy): stop leg + Manage preset. **Review** + side-tinted CTA → preview → confirm.
 - **Bracket qty:** `BracketPlan` / `ProtectiveOcoPlan` optional `takeProfitQuantity` + `stopQuantity` (default entry qty). Split exits use IBKR OCA **reduce** when TP qty &lt; stop qty; Manage skips duplicate `reduceQty` when resting TP covers the scale rule (`restingScaleTp.ts`).
 

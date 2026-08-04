@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { TradeSidebarPanel } from "./TradeSidebarPanel";
 
 const mockBinding = {
@@ -17,6 +17,7 @@ const mockBinding = {
   openTradeFromDrawing: vi.fn(),
   bindToDrawing: vi.fn(),
   openTradePanel: vi.fn(),
+  clearTradeBind: vi.fn(),
   clearSeedQuantity: vi.fn(),
   updateBoundLevels: vi.fn(),
 };
@@ -109,13 +110,32 @@ describe("TradeSidebarPanel", () => {
     mockQuote = { regularMarketPrice: 150 };
   });
 
-  it("shows disconnected state when bound drawing is missing", async () => {
+  it("shows manual ticket when bind exists but levels are missing", async () => {
     mockBinding.bind = { cellId: "cell-0", drawingId: "draw-1" };
     mockBinding.symbol = "AAPL";
     mockBinding.levels = null;
 
     render(<TradeSidebarPanel />);
-    expect(await screen.findByText(/No trade setup linked/i)).toBeInTheDocument();
+    expect(await screen.findByTestId("trade-buy-sell-toggle")).toBeInTheDocument();
+    expect(screen.queryByText(/No trade setup linked/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("trade-unlink-drawing")).toBeInTheDocument();
+  });
+
+  it("unlink clears bind and shows chart trade ticket label", async () => {
+    mockBinding.bind = { cellId: "cell-0", drawingId: "draw-1" };
+    mockBinding.symbol = "AAPL";
+    mockBinding.levels = {
+      direction: "long",
+      side: "BUY",
+      entry: 100,
+      stop: 95,
+      target: 110,
+      riskRewardRatio: 2,
+    };
+
+    render(<TradeSidebarPanel />);
+    fireEvent.click(await screen.findByTestId("trade-unlink-drawing"));
+    expect(mockBinding.clearTradeBind).toHaveBeenCalled();
   });
 
   it("defaults market entry to quote last price", async () => {

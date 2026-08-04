@@ -72,7 +72,7 @@ import { getPlaybookPreset } from "@/lib/trading/playbook/presets";
 import { planPlaybookSteps } from "@/lib/trading/playbook/planSteps";
 import { lockPositionPlan } from "@/lib/trading/playbook/types";
 import { summarizeSubmitRiskPlanFromBracket } from "@/lib/risk/summarizeSubmitRiskPlan";
-import { DEFAULT_RISK_SETTINGS } from "@/lib/risk/riskSettings";
+import { riskPolicyTemplateToPlaybookTemplate } from "@/lib/risk/policy/templatePersistence";
 import { useAccountRiskGateStatus } from "../risk/useAccountRiskGateStatus";
 import { usePlaybookInstances } from "./usePlaybookInstances";
 import { evaluateSubmitProtectGate } from "@/lib/risk/policy/submitProtectGate";
@@ -80,7 +80,7 @@ import { deriveProtectExitQuantities } from "@/lib/risk/policy/deriveProtectExit
 import type { PolicyTradeDraftPatch } from "@/lib/risk/policy/applyPolicyToTradeDraft";
 import { resolveEntryScheduleFireAt } from "@/lib/risk/policy/resolveEntrySchedule";
 import type { EntrySchedule } from "@/lib/risk/policy/slotSchemas";
-import type { PlaybookInstance } from "@/lib/trading/playbook/types";
+import type { PlaybookInstance, PlaybookInstanceWithPolicy } from "@/lib/trading/playbook/types";
 import type { PlaybookTemplate } from "@/lib/trading/playbook/types";
 import { SubmitRiskPlanSummary } from "../risk/SubmitRiskPlanSummary";
 import type { TradePolicyFormContext } from "./useTradePolicyApply";
@@ -93,13 +93,11 @@ export type TradeOrderFormProps = {
   theme?: "dark" | "light";
   planLevels?: PositionOrderLevels | null;
   lastPrice?: number | null;
-  /** When false, show empty-state guidance instead of the form. */
-  boundActive?: boolean;
   /** Applied once when plan levels arrive from a Risk / Trade setup handoff. */
   seedQuantity?: number | null;
   onSeedQuantityApplied?: () => void;
   /** Drawing-bound planned risk policy instance. */
-  plannedInstance?: PlaybookInstance | null;
+  plannedInstance?: PlaybookInstanceWithPolicy | null;
   onChangePolicy?: () => void;
   onPlannedRefresh?: () => void;
   policyTemplates?: PlaybookTemplate[];
@@ -243,7 +241,6 @@ export function TradeOrderForm({
   theme = "dark",
   planLevels = null,
   lastPrice = null,
-  boundActive = true,
   seedQuantity = null,
   onSeedQuantityApplied,
   plannedInstance = null,
@@ -407,7 +404,7 @@ export function TradeOrderForm({
     if (plannedInstance) {
       const fromSnapshot = plannedInstance.policySnapshot;
       if (fromSnapshot && fromSnapshot.id === plannedInstance.templateId) {
-        return fromSnapshot as PlaybookTemplate;
+        return riskPolicyTemplateToPlaybookTemplate(fromSnapshot);
       }
       return getPlaybookPreset(plannedInstance.templateId) ?? null;
     }
@@ -1117,19 +1114,6 @@ export function TradeOrderForm({
     setStep("form");
     setError(null);
   }, []);
-
-  if (!boundActive) {
-    return (
-      <div className="px-3 py-6 text-xs text-[var(--edge-text-secondary)]" data-testid={testId}>
-        <p className="text-[var(--edge-text-strong)]">No trade setup linked</p>
-        <p className="mt-2">
-          Draw a long or short position on the active chart, or right-click a drawing and choose{" "}
-          <span className="text-[var(--edge-text-strong)]">Trade setup…</span> to
-          link entry, stop, and take profit levels here.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid={testId}>
