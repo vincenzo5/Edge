@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyPositionOrderLevels,
   applyStickEntryPrice,
   boxFromPoints,
+  clampPositionPoints,
   DEFAULT_POSITION_WIDTH_BARS,
   defaultPositionPoints,
   entryValueChanged,
@@ -9,6 +11,7 @@ import {
   MAX_POSITION_R_LEVELS,
   POSITION_CP,
   positionControlPoints,
+  positionPointsFromClick,
   positionPlotBounds,
   profitRLevels,
   repairPositionPoints,
@@ -58,6 +61,61 @@ describe('positionGeometry', () => {
     expect(fixed[3]?.dataIndex).toBe(10);
   });
 
+  it('positionPointsFromClick anchors entry at click and sizes stop/target', () => {
+    const candles = [
+      { t: 1000, o: 100, h: 110, l: 90, c: 105 },
+      { t: 2000, o: 105, h: 115, l: 95, c: 110 },
+    ];
+    const click = { timestamp: 1000, value: 102, dataIndex: 0 };
+    const points = positionPointsFromClick('long', click, candles, 2);
+    expect(points).not.toBeNull();
+    expect(points![0]?.value).toBe(102);
+    expect(points![0]?.dataIndex).toBe(0);
+    expect(points![1]?.value).toBeLessThan(102);
+    expect(points![2]?.value).toBeGreaterThan(102);
+    expect(points![3]?.dataIndex).toBe(DEFAULT_POSITION_WIDTH_BARS);
+  });
+
+  it('clampPositionPoints keeps long stop below entry and target above', () => {
+    const clamped = clampPositionPoints(fourPoints, 'long');
+    expect(clamped[1]?.value).toBeLessThan(clamped[0]?.value!);
+    expect(clamped[2]?.value).toBeGreaterThan(clamped[0]?.value!);
+  });
+
+  it('updatePositionFromControl clamps long target above entry', () => {
+    const d = {
+      name: 'long_position',
+      label: 'Long',
+      points: fourPoints.map((p) => ({ ...p })),
+      visible: true,
+      locked: false,
+      zLevel: 0,
+    };
+    const next = updatePositionFromControl(d, POSITION_CP.TARGET, {
+      timestamp: 1000,
+      value: 99,
+      dataIndex: 0,
+    });
+    expect(next.points[2]?.value).toBeGreaterThan(next.points[0]?.value!);
+  });
+
+  it('updatePositionFromControl clamps long stop below entry', () => {
+    const d = {
+      name: 'long_position',
+      label: 'Long',
+      points: fourPoints.map((p) => ({ ...p })),
+      visible: true,
+      locked: false,
+      zLevel: 0,
+    };
+    const next = updatePositionFromControl(d, POSITION_CP.STOP, {
+      timestamp: 1000,
+      value: 101,
+      dataIndex: 0,
+    });
+    expect(next.points[1]?.value).toBeLessThan(next.points[0]?.value!);
+  });
+
   it('defaultPositionPoints anchors entry to last-bar close and left edge', () => {
     const candles = [
       { t: 1000, o: 100, h: 110, l: 90, c: 105 },
@@ -72,6 +130,13 @@ describe('positionGeometry', () => {
     expect(points![3]?.dataIndex).toBe(2 + DEFAULT_POSITION_WIDTH_BARS);
     expect(points![1]?.value).toBeLessThan(115);
     expect(points![2]?.value).toBeGreaterThan(115);
+  });
+
+  it('defaultPositionPoints uses custom target R multiple', () => {
+    const candles = [{ t: 1000, o: 100, h: 110, l: 90, c: 100 }];
+    const points = defaultPositionPoints('long', candles, 1);
+    const risk = 100 - points![1]!.value!;
+    expect(points![2]!.value).toBeCloseTo(100 + risk, 5);
   });
 
   it('defaultPositionPoints mirrors stop/target for shorts', () => {
@@ -205,10 +270,10 @@ describe('positionGeometry', () => {
       { x: 100, y: 50 },
     );
     expect(positionControlPoints(bounds)).toEqual([
-      { x: 10, y: 20 },
-      { x: 10, y: 50 },
-      { x: 10, y: 80 },
-      { x: 100, y: 50 },
+      { x: 10, y: 20, role: 'price' },
+      { x: 10, y: 50, role: 'move' },
+      { x: 10, y: 80, role: 'price' },
+      { x: 100, y: 50, role: 'time' },
     ]);
   });
 
@@ -337,21 +402,24 @@ describe('positionGeometry', () => {
       zLevel: 0,
     };
 
-    it('defaults to enabled when style is omitted', () => {
-      expect(stickEntryToLastPriceEnabled(longDrawing)).toBe(true);
+    it('defaults to disabled when style is omitted', () => {
+      expect(stickEntryToLastPriceEnabled(longDrawing)).toBe(false);
     });
 
-    it('respects explicit false', () => {
+    it('respects explicit true', () => {
       expect(
         stickEntryToLastPriceEnabled({
           ...longDrawing,
-          styles: { stickEntryToLastPrice: false },
+          styles: { stickEntryToLastPrice: true },
         }),
-      ).toBe(false);
+      ).toBe(true);
     });
 
     it('moves entry only; stop and target stay fixed', () => {
-      const next = applyStickEntryPrice(longDrawing, 103.5);
+      const next = applyStickEntryPrice(
+        { ...longDrawing, styles: { stickEntryToLastPrice: true } },
+        103.5,
+      );
       expect(next).not.toBeNull();
       expect(next!.points[0]?.value).toBe(103.5);
       expect(next!.points[3]?.value).toBe(103.5);
@@ -367,6 +435,12 @@ describe('positionGeometry', () => {
         ),
       ).toBeNull();
       expect(applyStickEntryPrice(longDrawing, 100)).toBeNull();
+      expect(
+        applyStickEntryPrice(
+          { ...longDrawing, styles: { stickEntryToLastPrice: true } },
+          100,
+        ),
+      ).toBeNull();
     });
 
     it('withStickEntryDisabled persists false', () => {
@@ -412,6 +486,86 @@ describe('positionGeometry', () => {
 
     it('returns empty when risk distance is zero', () => {
       expect(profitRLevels(100, 100, 110, 'long')).toEqual([]);
+    });
+  });
+
+  describe('applyPositionOrderLevels', () => {
+    const longDrawing = {
+      name: 'long_position',
+      label: 'Long',
+      points: fourPoints,
+      visible: true,
+      locked: false,
+      zLevel: 0,
+      styles: { stickEntryToLastPrice: true },
+    };
+
+    it('updates entry, stop, and target on four-point long drawings', () => {
+      const next = applyPositionOrderLevels(longDrawing, {
+        entry: 105,
+        stop: 98,
+        target: 119,
+      });
+      expect(next).not.toBeNull();
+      expect(next!.points[0]?.value).toBe(105);
+      expect(next!.points[1]?.value).toBe(98);
+      expect(next!.points[2]?.value).toBe(119);
+      expect(next!.points[3]?.value).toBe(105);
+    });
+
+    it('disables stick entry when entry price changes', () => {
+      const next = applyPositionOrderLevels(longDrawing, {
+        entry: 101,
+        stop: 95,
+        target: 110,
+      });
+      expect(next?.styles?.stickEntryToLastPrice).toBe(false);
+    });
+
+    it('keeps stick when only stop/target change', () => {
+      const next = applyPositionOrderLevels(longDrawing, {
+        entry: 100,
+        stop: 94,
+        target: 112,
+      });
+      expect(next?.styles?.stickEntryToLastPrice).toBe(true);
+    });
+
+    it('rejects invalid long geometry', () => {
+      expect(
+        applyPositionOrderLevels(longDrawing, {
+          entry: 100,
+          stop: 101,
+          target: 110,
+        }),
+      ).toBeNull();
+      expect(
+        applyPositionOrderLevels(longDrawing, {
+          entry: 100,
+          stop: 95,
+          target: 99,
+        }),
+      ).toBeNull();
+    });
+
+    it('rejects invalid short geometry', () => {
+      const shortDrawing = {
+        ...longDrawing,
+        name: 'short_position',
+        points: [
+          { timestamp: 1000, value: 100, dataIndex: 0 },
+          { timestamp: 1000, value: 105, dataIndex: 0 },
+          { timestamp: 1000, value: 90, dataIndex: 0 },
+          { timestamp: 3000, value: 100, dataIndex: 2 },
+        ],
+      };
+      expect(
+        applyPositionOrderLevels(shortDrawing, {
+          entry: 100,
+          stop: 99,
+          target: 90,
+        }),
+      ).toBeNull();
     });
   });
 });

@@ -49,7 +49,7 @@ export default function DrawingSettingsModal({
   const [fillOpacity, setFillOpacity] = useState(0);
   const [text, setText] = useState("");
   const [fontSize, setFontSize] = useState(12);
-  const [stickEntryToLastPrice, setStickEntryToLastPrice] = useState(true);
+  const [stickEntryToLastPrice, setStickEntryToLastPrice] = useState(false);
 
   useEffect(() => {
     if (!resolved) return;
@@ -62,7 +62,7 @@ export default function DrawingSettingsModal({
     setFillOpacity(resolved.fillOpacity ?? 0);
     setText(resolved.text ?? drawing?.label ?? "");
     setFontSize(resolved.fontSize ?? 12);
-    setStickEntryToLastPrice(resolved.stickEntryToLastPrice !== false);
+    setStickEntryToLastPrice(resolved.stickEntryToLastPrice === true);
   }, [resolved, drawing?.label]);
 
   const handleSave = useCallback(() => {

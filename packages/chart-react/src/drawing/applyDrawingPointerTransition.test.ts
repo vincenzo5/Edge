@@ -216,9 +216,9 @@ describe('applyDrawingPointerTransition position magnet', () => {
     const cps = plugin!.getControlPoints!(existing, vp, testCandles, true);
     const stopCp = cps[POSITION_CP.STOP]!;
 
-    const candle = testCandles[2]!;
-    const highY = yForPricePlot(candle.h, vp, true);
-    const plotX = vp.xForIndex(2);
+    const candle = testCandles[1]!;
+    const lowY = yForPricePlot(candle.l, vp, true);
+    const plotX = vp.xForIndex(1);
 
     const { result } = renderHook(() => useDrawingController(deps));
 
@@ -238,7 +238,7 @@ describe('applyDrawingPointerTransition position magnet', () => {
       result.current.handleDrawingPointer({
         phase: 'move',
         plotX,
-        plotY: highY + 2,
+        plotY: lowY + 2,
         button: 0,
         paneId: 'price',
       });
@@ -247,7 +247,8 @@ describe('applyDrawingPointerTransition position magnet', () => {
     await flushDragRaf();
 
     const drawings = result.current.drawingHandleSlice.serializeDrawings();
-    expect(drawings[0]?.points[1]?.value).toBe(candle.h);
+    expect(drawings[0]?.points[1]?.value).toBe(candle.l);
+    expect(drawings[0]?.points[1]?.value).toBeLessThan(drawings[0]?.points[0]?.value!);
     expect(drawings[0]?.points[0]?.value).toBe(100);
     expect(drawings[0]?.points[2]?.value).toBe(110);
     expect(drawings[0]?.points[0]?.timestamp).toBe(1_000);

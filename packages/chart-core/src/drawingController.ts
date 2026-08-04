@@ -162,6 +162,13 @@ export function isInstantTool(toolName: string): boolean {
   return plugin?.placement === 'instant';
 }
 
+/** Position tools commit on one click but select + disarm like instant place. */
+export function selectsAfterOnePointCommit(toolName: string): boolean {
+  if (isInstantTool(toolName)) return true;
+  const plugin = getPluginForTool(toolName);
+  return plugin?.name === 'long_position' || plugin?.name === 'short_position';
+}
+
 export function isMultiPointTool(toolName: string): boolean {
   const plugin = getPluginForTool(toolName);
   return plugin?.placement === 'multi-point';

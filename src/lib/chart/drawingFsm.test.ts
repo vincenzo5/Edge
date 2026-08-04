@@ -92,9 +92,9 @@ describe('drawingController FSM', () => {
     expect(s.placingDraft?.name).toBe('ruler');
   });
 
-  it('recognizes long/short position as instant tools', () => {
-    expect(isInstantTool('longPosition')).toBe(true);
-    expect(isInstantTool('shortPosition')).toBe(true);
+  it('recognizes long/short position as one-point tools', () => {
+    expect(isInstantTool('longPosition')).toBe(false);
+    expect(isInstantTool('shortPosition')).toBe(false);
     expect(isInstantTool('straightLine')).toBe(false);
   });
 });

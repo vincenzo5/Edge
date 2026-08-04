@@ -23,7 +23,7 @@ import { drawControlPoints } from './primitives';
 import { baseDrawing, plotsForPoints, updateTwoPointPreview } from './drawingUtils';
 import {
   boxFromPoints,
-  defaultPositionPoints,
+  positionPointsFromClick,
   DEFAULT_POSITION_TARGET_R_MULTIPLE,
   expandTwoPointDraft,
   positionControlPoints,
@@ -148,27 +148,20 @@ function drawSingleLabel(
 }
 
 function finalizePosition(draft: SerializedDrawing, direction: RiskDirection): SerializedDrawing {
-  let expanded = draft.points.length < 4 ? expandTwoPointDraft(draft, direction) : draft;
+  const expanded = draft.points.length < 4 ? expandTwoPointDraft(draft, direction) : draft;
   // Candles are not available here; timestamp-0 repair happens at draw time via repairPositionPoints.
-  const withStickDefault: SerializedDrawing = {
-    ...expanded,
-    styles: {
-      stickEntryToLastPrice: true,
-      ...expanded.styles,
-    },
-  };
-  const setup = tradeSetupFromPoints(withStickDefault.points.slice(0, 3));
-  if (!setup) return withStickDefault;
+  const setup = tradeSetupFromPoints(expanded.points.slice(0, 3));
+  if (!setup) return expanded;
   try {
     const validated = validateTradeSetup({ ...setup, direction });
     const metrics = computeRiskMetrics(validated);
-    const qty = resolvePositionQty(withStickDefault.metadata?.fields?.qty, metrics.positionSize);
+    const qty = resolvePositionQty(expanded.metadata?.fields?.qty, metrics.positionSize);
     return {
-      ...withStickDefault,
+      ...expanded,
       metadata: {
-        ...withStickDefault.metadata,
+        ...expanded.metadata,
         fields: {
-          ...withStickDefault.metadata?.fields,
+          ...expanded.metadata?.fields,
           riskSetup: validated,
           qty,
         },
@@ -176,7 +169,7 @@ function finalizePosition(draft: SerializedDrawing, direction: RiskDirection): S
       },
     };
   } catch {
-    return withStickDefault;
+    return expanded;
   }
 }
 
@@ -252,15 +245,15 @@ export function createPositionPlugin(
   return {
     name: registryName,
     defaultLabel,
-    placement: 'instant',
+    placement: 'one-point',
     magnetAnchorIndex: () => 0,
     create(start, _vp, candles) {
       const placement = consumePendingPositionPlacementOptions();
       const targetR =
         placement.targetRMultiple ?? DEFAULT_POSITION_TARGET_R_MULTIPLE;
-      const defaults = defaultPositionPoints(direction, candles, targetR);
-      if (defaults) {
-        return baseDrawing(registryName, defaultLabel, defaults);
+      const fromClick = positionPointsFromClick(direction, start, candles, targetR);
+      if (fromClick) {
+        return baseDrawing(registryName, defaultLabel, fromClick);
       }
       return baseDrawing(registryName, defaultLabel, [start, { ...start }]);
     },

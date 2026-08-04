@@ -94,15 +94,17 @@ describe('position price-axis annotations', () => {
 });
 
 describe('long_position drawing plugin', () => {
-  it('creates an instant draft at the last bar by default', () => {
-    const start = { timestamp: 1000, value: 100, dataIndex: 0 };
+  it('creates a one-point draft at the click anchor', () => {
+    const start = { timestamp: 1000, value: 102, dataIndex: 0 };
     const draft = longPosition.create(start, vp(), candles);
     expect(draft.name).toBe('long_position');
     expect(draft.points).toHaveLength(4);
-    expect(draft.points[0]?.dataIndex).toBe(2);
-    expect(draft.points[0]?.value).toBe(115);
-    expect(draft.points[0]?.timestamp).toBe(3000);
-    expect(longPosition.placement).toBe('instant');
+    expect(draft.points[0]?.dataIndex).toBe(0);
+    expect(draft.points[0]?.value).toBe(102);
+    expect(draft.points[0]?.timestamp).toBe(1000);
+    expect(draft.points[1]?.value).toBeLessThan(102);
+    expect(draft.points[2]?.value).toBeGreaterThan(102);
+    expect(longPosition.placement).toBe('one-point');
   });
 
   it('updates preview to track cursor on second point', () => {
@@ -156,7 +158,7 @@ describe('long_position drawing plugin', () => {
     const midX = (plots[POSITION_CP.ENTRY_LEFT]!.x + plots[POSITION_CP.RIGHT]!.x) / 2;
     const midY = (plots[POSITION_CP.ENTRY_LEFT]!.y + plots[POSITION_CP.STOP]!.y) / 2;
     expect(longPosition.hitTest(midX, midY, final, vp(), candles)).toBe(true);
-    expect(longPosition.hitTest(0, 0, final, vp(), candles)).toBe(false);
+    expect(longPosition.hitTest(-500, -500, final, vp(), candles)).toBe(false);
   });
 
   it('control-point drag updates target without moving entry', () => {
@@ -207,14 +209,16 @@ describe('long_position drawing plugin', () => {
 });
 
 describe('short_position drawing plugin', () => {
-  it('creates an instant draft at the last bar by default', () => {
-    const start = { timestamp: 1000, value: 100, dataIndex: 0 };
+  it('creates a one-point draft at the click anchor', () => {
+    const start = { timestamp: 2000, value: 108, dataIndex: 1 };
     const draft = shortPosition.create(start, vp(), candles);
     expect(draft.name).toBe('short_position');
     expect(draft.points).toHaveLength(4);
-    expect(draft.points[0]?.dataIndex).toBe(2);
-    expect(draft.points[0]?.value).toBe(115);
-    expect(shortPosition.placement).toBe('instant');
+    expect(draft.points[0]?.dataIndex).toBe(1);
+    expect(draft.points[0]?.value).toBe(108);
+    expect(draft.points[1]?.value).toBeGreaterThan(108);
+    expect(draft.points[2]?.value).toBeLessThan(108);
+    expect(shortPosition.placement).toBe('one-point');
   });
 
   it('updates preview to track cursor on second point', () => {

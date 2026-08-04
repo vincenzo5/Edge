@@ -226,6 +226,8 @@ export {
 } from './risk/riskDrawing';
 export {
   boxFromPoints,
+  clampPositionPoints,
+  positionPointsFromClick,
   stickEntryToLastPriceEnabled,
   applyStickEntryPrice,
   applyPositionOrderLevels,

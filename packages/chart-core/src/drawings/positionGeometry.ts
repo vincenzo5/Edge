@@ -33,10 +33,10 @@ export function isPositionDrawingName(name: string): boolean {
   return POSITION_TOOL_NAMES.has(name);
 }
 
-/** Default ON for long/short; explicit `false` pins entry. */
+/** Opt-in via Settings; default OFF (TradingView parity — entry stays at place). */
 export function stickEntryToLastPriceEnabled(drawing: SerializedDrawing): boolean {
   if (!isPositionDrawingName(drawing.name)) return false;
-  return drawing.styles?.stickEntryToLastPrice !== false;
+  return drawing.styles?.stickEntryToLastPrice === true;
 }
 
 /**
@@ -56,7 +56,9 @@ export function applyStickEntryPrice(
   const points = drawing.points.map((p, i) =>
     i === 0 || i === 3 ? { ...p, value: price } : { ...p },
   );
-  return { ...drawing, points };
+  const direction = directionFromPositionName(drawing.name);
+  if (!direction) return null;
+  return { ...drawing, points: clampPositionPoints(points, direction) };
 }
 
 /** Persist stick-off when the user manually changes entry price. */
@@ -272,6 +274,94 @@ export function boxFromPoints(
 
 /** Default target R when no policy Geometry is available. */
 export const DEFAULT_POSITION_TARGET_R_MULTIPLE = 2;
+
+/**
+ * Keep stop/target on the correct side of entry after CP drag or stick apply.
+ */
+export function clampPositionPoints(
+  points: SerializedDrawing['points'],
+  direction: RiskDirection,
+): SerializedDrawing['points'] {
+  if (points.length < 4) return points;
+  const entry = points[0]?.value;
+  if (entry == null || !Number.isFinite(entry)) return points;
+
+  let stop = points[1]?.value ?? entry;
+  let target = points[2]?.value ?? entry;
+
+  if (direction === 'long') {
+    if (stop >= entry - MIN_POSITION_PRICE_DELTA) {
+      stop = entry - MIN_POSITION_PRICE_DELTA;
+    }
+    if (target <= entry + MIN_POSITION_PRICE_DELTA) {
+      target = entry + MIN_POSITION_PRICE_DELTA;
+    }
+  } else {
+    if (stop <= entry + MIN_POSITION_PRICE_DELTA) {
+      stop = entry + MIN_POSITION_PRICE_DELTA;
+    }
+    if (target >= entry - MIN_POSITION_PRICE_DELTA) {
+      target = entry - MIN_POSITION_PRICE_DELTA;
+    }
+  }
+
+  return points.map((p, i) => {
+    if (i === 1) return { ...p, value: stop };
+    if (i === 2) return { ...p, value: target };
+    if (i === 0) return { ...p, value: entry };
+    if (i === 3) return { ...p, value: entry };
+    return p;
+  });
+}
+
+/**
+ * Four anchors from a chart click (TradingView one-click place):
+ * - entry + left edge = click
+ * - stop/target from bar range at click (or pct floor)
+ * - width = DEFAULT_POSITION_WIDTH_BARS
+ */
+export function positionPointsFromClick(
+  direction: RiskDirection,
+  click: DrawingPoint,
+  candles: Candle[],
+  targetRMultiple: number = DEFAULT_POSITION_TARGET_R_MULTIPLE,
+): DrawingPoint[] | null {
+  const entry = click.value;
+  if (entry == null || !Number.isFinite(entry)) return null;
+  if (candles.length === 0) return null;
+
+  const lastDi = candles.length - 1;
+  let leftDi = click.dataIndex ?? lastDi;
+  if (!Number.isFinite(leftDi) || leftDi < 0) leftDi = lastDi;
+  const barDi = Math.min(Math.max(0, leftDi), lastDi);
+  const bar = candles[barDi]!;
+
+  const barRange = Math.abs(bar.h - bar.l);
+  const pctRisk = Math.abs(entry) * DEFAULT_POSITION_RISK_PCT;
+  const riskDist = Math.max(barRange, pctRisk, MIN_POSITION_PRICE_DELTA);
+  const rightDi = leftDi + DEFAULT_POSITION_WIDTH_BARS;
+  const leftTs =
+    click.timestamp != null && click.timestamp !== 0 && Number.isFinite(click.timestamp)
+      ? click.timestamp
+      : timestampForDataIndex(candles, barDi);
+  const rightTs = timestampForDataIndex(candles, rightDi);
+
+  const targetR =
+    Number.isFinite(targetRMultiple) && targetRMultiple > 0
+      ? targetRMultiple
+      : DEFAULT_POSITION_TARGET_R_MULTIPLE;
+  const stop =
+    direction === 'long' ? entry - riskDist : entry + riskDist;
+  const target =
+    direction === 'long' ? entry + riskDist * targetR : entry - riskDist * targetR;
+
+  return [
+    { timestamp: leftTs, value: entry, dataIndex: leftDi },
+    { timestamp: leftTs, value: stop, dataIndex: leftDi },
+    { timestamp: leftTs, value: target, dataIndex: leftDi },
+    { timestamp: rightTs, value: entry, dataIndex: rightDi },
+  ];
+}
 
 /**
  * Default long/short anchors at the live edge:
@@ -513,7 +603,9 @@ export function updatePositionFromControl(
       break;
   }
 
-  return { ...d, points };
+  const direction = directionFromPositionName(d.name);
+  if (!direction) return { ...d, points };
+  return { ...d, points: clampPositionPoints(points, direction) };
 }
 
 export function positionHitTest(

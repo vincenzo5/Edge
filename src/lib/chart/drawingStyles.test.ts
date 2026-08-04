@@ -39,7 +39,7 @@ describe('drawingStyles', () => {
     expect(styles.lineColor).toBe('#00FF88');
   });
 
-  it('resolveDrawingStyles defaults stickEntryToLastPrice on for positions', () => {
+  it('resolveDrawingStyles defaults stickEntryToLastPrice off for positions', () => {
     const d: SerializedDrawing = {
       name: 'long_position',
       label: 'Long',
@@ -49,7 +49,7 @@ describe('drawingStyles', () => {
       zLevel: 0,
     };
     const styles = resolveDrawingStyles(d, 'dark', false);
-    expect(styles.stickEntryToLastPrice).toBe(true);
+    expect(styles.stickEntryToLastPrice).toBe(false);
   });
 
   it('extendSegmentEndpoints extends to plot edges when flags set', () => {

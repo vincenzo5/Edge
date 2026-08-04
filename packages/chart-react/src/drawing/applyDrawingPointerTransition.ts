@@ -24,6 +24,7 @@ import {
   isOnePointTool,
   isTwoPointTool,
   isInstantTool,
+  selectsAfterOnePointCommit,
   isMultiPointTool,
   advancePlacing,
   supportsDoubleClickFinish,
@@ -348,11 +349,11 @@ export function applyDrawingPointerTransition(
         );
         const id = addCommittedDrawing(drawing);
         const after = finishAfterCommit(nextState);
-        const selected = isInstantTool(tool)
+        const selected = selectsAfterOnePointCommit(tool)
           ? selectDrawingState(disarmTool(after), id)
           : after;
         syncDrawingState(selected);
-        if (isInstantTool(tool)) notifySelectionChange(id);
+        if (selectsAfterOnePointCommit(tool)) notifySelectionChange(id);
         return true;
       }
       if (isTwoPointTool(tool) || isMultiPointTool(tool)) {
