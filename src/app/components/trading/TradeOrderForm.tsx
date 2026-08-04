@@ -6,6 +6,7 @@ import {
   EdgeButton,
   EdgeHelpIcon,
   EdgeLabeledInput,
+  EdgeMicroSelect,
   EdgeSegmentedTabs,
   EdgeSelect,
   EdgeToggleSwitch,
@@ -1225,6 +1226,45 @@ export function TradeOrderForm({
     setError(null);
   }, []);
 
+  const orderTypeModifier =
+    orderTypeFamily.family === "market" || orderTypeFamily.family === "limit" ? (
+      <EdgeMicroSelect
+        aria-label="Fill timing"
+        testId="trade-order-fill"
+        value={orderTypeFamily.fill ?? "now"}
+        options={FILL_SEGMENTS.map((segment) => ({
+          value: segment.id,
+          label: segment.id === "close" ? "Close" : segment.label,
+        }))}
+        onChange={(value) => {
+          applyOrderTypeChange(
+            composeOrderType({
+              family: orderTypeFamily.family,
+              fill: value as OrderFillTiming,
+            }),
+          );
+        }}
+      />
+    ) : (
+      <EdgeMicroSelect
+        aria-label="Execution type"
+        testId="trade-order-exec-type"
+        value={orderTypeFamily.execType ?? "market"}
+        options={EXEC_TYPE_SEGMENTS.map((segment) => ({
+          value: segment.id,
+          label: segment.label,
+        }))}
+        onChange={(value) => {
+          applyOrderTypeChange(
+            composeOrderType({
+              family: orderTypeFamily.family,
+              execType: value as OrderExecType,
+            }),
+          );
+        }}
+      />
+    );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid={testId}>
       {error ? (
@@ -1314,67 +1354,11 @@ export function TradeOrderForm({
                 applyOrderTypeChange(composeOrderTypeForFamily(value as OrderFamily));
               }}
             />
-            <div className="mt-1.5 grid grid-cols-4">
-              <div
-                className={`flex justify-center ${
-                  orderTypeFamily.family === "market"
-                    ? "col-start-1"
-                    : orderTypeFamily.family === "limit"
-                      ? "col-start-2"
-                      : orderTypeFamily.family === "stop"
-                        ? "col-start-3"
-                        : "col-start-4"
-                }`}
-              >
-                {orderTypeFamily.family === "market" || orderTypeFamily.family === "limit" ? (
-                  <EdgeSelect
-                    variant="chip"
-                    aria-label="Fill timing"
-                    testId="trade-order-fill"
-                    value={orderTypeFamily.fill ?? "now"}
-                    options={FILL_SEGMENTS.map((segment) => ({
-                      value: segment.id,
-                      label: segment.label,
-                    }))}
-                    onChange={(value) => {
-                      applyOrderTypeChange(
-                        composeOrderType({
-                          family: orderTypeFamily.family,
-                          fill: value as OrderFillTiming,
-                        }),
-                      );
-                    }}
-                    minWidth={120}
-                    className="min-w-[5.5rem]"
-                  />
-                ) : (
-                  <EdgeSelect
-                    variant="chip"
-                    aria-label="Execution type"
-                    testId="trade-order-exec-type"
-                    value={orderTypeFamily.execType ?? "market"}
-                    options={EXEC_TYPE_SEGMENTS.map((segment) => ({
-                      value: segment.id,
-                      label: segment.label,
-                    }))}
-                    onChange={(value) => {
-                      applyOrderTypeChange(
-                        composeOrderType({
-                          family: orderTypeFamily.family,
-                          execType: value as OrderExecType,
-                        }),
-                      );
-                    }}
-                    minWidth={120}
-                    className="min-w-[5.5rem]"
-                  />
-                )}
-              </div>
-            </div>
           </div>
 
           {orderType === "MKT" || orderType === "MOC" ? (
-            <div className="mb-3">
+            <div className="relative mb-3">
+              <div className="absolute left-0 top-0">{orderTypeModifier}</div>
               <div className="text-center text-[10px] text-[var(--edge-text-secondary)]">
                 Order Price
               </div>
@@ -1385,65 +1369,69 @@ export function TradeOrderForm({
                 {displayEntry}
               </div>
             </div>
-          ) : null}
-
-          {orderType === "LMT" ||
-          orderType === "STP LMT" ||
-          orderType === "TRAIL LIMIT" ||
-          orderType === "LOC" ? (
+          ) : (
             <div className="mb-3">
-              <EdgeLabeledInput
-                label={orderType === "LOC" ? "Limit Price" : "Order Price"}
-                type="number"
-                min={0}
-                step="0.01"
-                value={limitPrice}
-                onChange={(event) => setLimitPrice(event.target.value)}
-                density="compact"
-                testId="trade-limit-price"
-              />
-            </div>
-          ) : null}
+              <div className="mb-1">{orderTypeModifier}</div>
 
-          {orderType === "STP" || orderType === "STP LMT" ? (
-            <div className="mb-3">
-              <EdgeLabeledInput
-                label={orderType === "STP LMT" ? "Stop Price" : "Order Price"}
-                type="number"
-                min={0}
-                step="0.01"
-                value={stopPrice}
-                onChange={(event) => setStopPrice(event.target.value)}
-                density="compact"
-                testId="trade-stop-price"
-              />
-            </div>
-          ) : null}
+              {orderType === "LMT" ||
+              orderType === "STP LMT" ||
+              orderType === "TRAIL LIMIT" ||
+              orderType === "LOC" ? (
+                <div className="mb-2 last:mb-0">
+                  <EdgeLabeledInput
+                    label={orderType === "LOC" ? "Limit Price" : "Order Price"}
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={limitPrice}
+                    onChange={(event) => setLimitPrice(event.target.value)}
+                    density="compact"
+                    testId="trade-limit-price"
+                  />
+                </div>
+              ) : null}
 
-          {orderType === "TRAIL" || orderType === "TRAIL LIMIT" ? (
-            <div className="mb-3 space-y-2">
-              <EdgeLabeledInput
-                label="Trail amount ($)"
-                type="number"
-                min={0}
-                step="0.01"
-                value={stopPrice}
-                onChange={(event) => setStopPrice(event.target.value)}
-                density="compact"
-                testId="trade-trail-amount"
-              />
-              <EdgeLabeledInput
-                label="Trail %"
-                type="number"
-                min={0}
-                step="0.01"
-                value={entryTrailPercent}
-                onChange={(event) => setEntryTrailPercent(event.target.value)}
-                density="compact"
-                testId="trade-trail-percent"
-              />
+              {orderType === "STP" || orderType === "STP LMT" ? (
+                <div className="mb-2 last:mb-0">
+                  <EdgeLabeledInput
+                    label={orderType === "STP LMT" ? "Stop Price" : "Order Price"}
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={stopPrice}
+                    onChange={(event) => setStopPrice(event.target.value)}
+                    density="compact"
+                    testId="trade-stop-price"
+                  />
+                </div>
+              ) : null}
+
+              {orderType === "TRAIL" || orderType === "TRAIL LIMIT" ? (
+                <div className="space-y-2">
+                  <EdgeLabeledInput
+                    label="Trail amount ($)"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={stopPrice}
+                    onChange={(event) => setStopPrice(event.target.value)}
+                    density="compact"
+                    testId="trade-trail-amount"
+                  />
+                  <EdgeLabeledInput
+                    label="Trail %"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={entryTrailPercent}
+                    onChange={(event) => setEntryTrailPercent(event.target.value)}
+                    density="compact"
+                    testId="trade-trail-percent"
+                  />
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          )}
 
           {supportsPriceMgmtAlgo(orderType) ? (
             <label className="mb-3 flex items-center gap-2 text-[10px] text-[var(--edge-text-secondary)]">

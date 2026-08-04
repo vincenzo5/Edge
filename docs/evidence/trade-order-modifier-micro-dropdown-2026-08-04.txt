@@ -1,0 +1,24 @@
+# LIVE — Trade order modifier micro dropdown evidence
+# Date: 2026-08-04
+
+## Scope
+Replace the under-tab EdgeSelect chip with a new annotation-sized EdgeMicroSelect. Fixed left position for every family: Market shares the Order Price row; Limit/Stop/Trail place the control just above the first price field. Short Close label for fill timing.
+
+## Delivered
+- src/app/components/design-system/EdgeMicroSelect.tsx — 18px annotation dropdown + test
+- src/app/components/design-system/index.ts — export
+- src/app/components/trading/TradeOrderForm.tsx — relocate modifier into price block
+- src/app/components/trading/TradeOrderForm.test.tsx — Close label + chip helpers
+- src/lib/trading/ARCHITECTURE.md, src/lib/design-system/ARCHITECTURE.md — notes
+
+## Focused
+Command:
+npm test -- --run src/app/components/design-system/EdgeMicroSelect.test.tsx src/app/components/trading/TradeOrderForm.test.tsx src/lib/trading/orderTypeFamily.test.ts
+
+Result:
+Test Files  3 passed (3)
+Tests  45 passed (45)
+exit=0
+
+## App-level
+Deferred — UI density/placement change; compose/decompose unchanged.

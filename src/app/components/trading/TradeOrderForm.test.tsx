@@ -638,7 +638,7 @@ describe("TradeOrderForm policy picker", () => {
 
     selectFillTiming("close");
     expect(screen.getByTestId("trade-entry-display")).toHaveTextContent(/close/);
-    expect(screen.getByTestId("trade-order-fill")).toHaveTextContent("On close");
+    expect(screen.getByTestId("trade-order-fill")).toHaveTextContent("Close");
 
     fireEvent.click(primaryOrderTabs().getByRole("tab", { name: "Limit" }));
     expect(screen.getByTestId("trade-order-fill")).toBeInTheDocument();

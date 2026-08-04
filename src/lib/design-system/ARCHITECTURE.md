@@ -52,6 +52,7 @@ Use shared field helpers before inventing inline border/bg classes on native `<i
 |--------|---------|
 | `fieldClass({ density, disabled, invalid })` | Text/number inputs — compact (32px) or standard (36px) |
 | `EdgeSelect` | Single-value pickers — `variant="chip"` for toolbar chrome, `variant="field"` for forms/drawers |
+| `EdgeMicroSelect` | Annotation-sized (18px) dropdown for dense form chrome — trade ticket Fill/Type modifiers |
 | `EdgeBorderLabeledControl` | Border-legend rim label on custom bordered triggers (app header account/data pickers) |
 | `EdgeSegmentedTabs` | Exclusive short preset lists (≤4 options) — e.g. List/Heat map, Linear/Log |
 | `EdgeUnderlineTabs` | Section navigation (2–4 views) — underline active tab, shrink-to-content; journal Dashboard/Trades |
