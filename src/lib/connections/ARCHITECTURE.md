@@ -10,7 +10,7 @@ Product vocabulary for **broker Connections** and **market-data provider prefere
 |---------|--------|-------|
 | Product `Connection` / `ConnectionKind` | `src/lib/connections/` | 0 (this) |
 | Runtime IB Gateway wiring | `src/lib/trading/connectionRegistry.ts` | Shipped |
-| TWS display connection pref | `src/lib/marketData/dataConnectionPreference.ts` | Shipped |
+| TWS display connection pref | `src/lib/marketData/dataConnectionPreference.ts` | Shipped — fixed `ib-live` (no picker) |
 | Provider waterfall prefs | `DataProviderPreference` here → store in Phase 2 | 2 |
 | Durable user connections | Postgres `connections` + `/api/me/connections` | 4 |
 
@@ -40,7 +40,7 @@ Selection prefs (`edge:marketData:connectionId`, trading env/account) reference 
 | Repository | `connectionsRepository.ts` — `ensureSeeded`, list/get/patch/disconnect |
 | API | `GET/PATCH /api/me/connections/[id]`; `POST …/reconnect`, `POST …/disconnect` |
 | Client | `useConnectionsList`, `connectionsClient` patch/reconnect/disconnect |
-| UI | `ConnectionsSettingsSection`, `MarketDataConnectionMenu` |
+| UI | `ConnectionsSettingsSection` |
 
 **Seed:** first `GET /api/me/connections` upserts missing rows from `SEED_CONNECTIONS` + `listIbConnections()` host/port into non-secret `metadata`. **Reconnect** delegates to existing TWS recover; **disconnect** is soft (status only — does not kill shared sidecar).
 

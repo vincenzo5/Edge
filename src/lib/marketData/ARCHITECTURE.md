@@ -552,22 +552,22 @@ Live IB account data (positions, PnL, summary, orders, executions) is a **separa
 
 ### TWS-only connection preference (display data)
 
-Chart and watchlist market data can target a specific IB Gateway socket independently of the order account. This preference is **TWS-specific** — other providers ignore it.
+Chart and watchlist market data always use the **live** IB Gateway socket (`ib-live`). This is platform policy — IBKR grants market data to one Gateway session when both paper and live run, so paper quotes are typically null. There is no user-facing picker; order account selection remains independent in the header Account chip.
 
 | Layer | Field | Values |
 |-------|-------|--------|
-| Client storage | `edge:marketData:connectionId` | `ib-paper` \| `ib-live` |
-| API request body / query | `connectionId` | Same |
-| `MarketDataService` internal | `twsConnectionId` | Same — scoped to TWS cache keys and adapter options only |
-| TWS sidecar | `?connectionId=` | Routes to paper (4002) or live (4001) socket |
+| Client storage | `edge:marketData:connectionId` | Migration-only; forced to `ib-live` on read |
+| API request body / query | `connectionId` | App always sends `ib-live` for display data |
+| `MarketDataService` internal | `twsConnectionId` | `ib-live` for TWS cache keys and adapter options |
+| TWS sidecar | `?connectionId=` | Routes to live (4001) socket for display data |
 
 **Threading:** `ChartDataFeed` (`apiChartDataFeed.ts`) → `/api/candles|quotes|stream` → `MarketDataService` → TWS adapter `options.connectionId` → sidecar. Yahoo, IBKR Client Portal, Massive, FRED, and SEC paths never receive `connectionId`; the provider waterfall is unchanged.
 
 **UI rule:** App components must not import `src/lib/marketData/providers/tws/*`. Use `dataConnectionPreference`, `MarketDataProvider`, and API routes only.
 
-**Trading rule:** Display preference does not authorize submit. Pre-trade quotes follow the order environment (`ib-paper` or `ib-live` per `draft.environment`), gated by `trading_decision` trust policy (TWS/IBKR only; Yahoo/mixed/display-only blocked).
+**Trading rule:** Display connection does not authorize submit. Pre-trade readiness follows the order environment (`ib-paper` or `ib-live` per `draft.environment`), gated by `trading_decision` trust policy (TWS/IBKR only; Yahoo/mixed/display-only blocked). **Manage automation** (`runPlaybookEvaluation`) always requests trading-decision quotes from `ib-live` (`resolveManageQuoteConnectionId`) while order/account paths stay on the instance environment.
 
-**Data Health:** When dual Gateways are configured, Data Health shows paper socket, live socket, and active chart data preference as separate connection rows (see `health.ts` Connections section).
+**Data Health:** When dual Gateways are configured, Data Health shows paper socket, live socket, and fixed "Live data" preference row (see `health.ts` Connections section).
 
 ### Display provider preference (Phase 2)
 

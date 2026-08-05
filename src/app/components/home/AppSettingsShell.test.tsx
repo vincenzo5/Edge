@@ -10,15 +10,6 @@ import { RESEARCH_DEFAULT_DENSITY_KEY } from "@/lib/research/defaultDensityPrefe
 import { BREAK_EVEN_PRESET } from "@/lib/trading/playbook/presets";
 import type { ServerHealthPayload } from "@/lib/marketData/health";
 
-const setPreference = vi.fn();
-
-vi.mock("@/lib/marketData/useDataConnectionPreference", () => ({
-  useDataConnectionPreference: () => ({
-    preference: "ib-paper",
-    setPreference,
-  }),
-}));
-
 vi.mock("@/lib/connections/useConnectionsList", () => ({
   useConnectionsList: () => ({
     connections: [
@@ -171,7 +162,6 @@ function settingsTablist() {
 
 describe("AppSettingsShell", () => {
   beforeEach(() => {
-    setPreference.mockClear();
     localStorageMock.clear();
     sessionStorageMock.clear();
     Object.defineProperty(window, "localStorage", { value: localStorageMock, configurable: true });
@@ -330,20 +320,6 @@ describe("AppSettingsShell", () => {
 
     fireEvent.click(screen.getByTestId("app-settings-recover-tws"));
     expect(onRecoverTws).toHaveBeenCalledTimes(1);
-  });
-
-  it("updates chart data connection preference via settings select", async () => {
-    renderShell();
-
-    fireEvent.click(within(settingsTablist()).getByRole("tab", { name: "Connections" }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId("app-settings-data-connection")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId("app-settings-data-connection"));
-    fireEvent.click(screen.getByTestId("app-settings-data-connection-option-ib-live"));
-    expect(setPreference).toHaveBeenCalledWith("ib-live");
   });
 
   it("does not fetch health when settings are closed", async () => {

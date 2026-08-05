@@ -109,7 +109,7 @@ Brokerage snapshot/stream accept `?environment=paper|live` and route to the matc
               GET /account/*?connectionId=
 ```
 
-Market-data routes on the sidecar accept optional `connectionId` on `/candles`, `/quotes`, `/warmup`, and `/stream/quotes`. Display preference is persisted separately at `edge:marketData:connectionId` (header chip in `AppTopHeader`); order routing and brokerage still follow `edge:trading:activeAccount`.
+Market-data routes on the sidecar accept optional `connectionId` on `/candles`, `/quotes`, `/warmup`, and `/stream/quotes`. Display data always uses `ib-live` (platform policy in `dataConnectionPreference.ts`); order routing and brokerage follow `edge:trading:activeAccount`.
 
 **Live account panel:** paper uses SSE via `/stream/account`; live uses a 15s poll in `AccountProvider` (labeled in Account panel).
 
@@ -127,8 +127,10 @@ Market-data routes on the sidecar accept optional `connectionId` on `/candles`, 
 - **Account-as-context.** Selecting an account in `AppTopHeader` persists `edge:trading:activeAccount` and sets `edge:trading:environment` from that account’s `environment` field.
 - **Trade sidebar panel + Account panel** display the globally selected account only — no Paper/Live toggle or account picker in those surfaces.
 - **Live submit gate:** `liveConfirmation: "LIVE"` required server-side on submit/cancel/modify when `environment === "live"`. Close-position UI confirms with a single Confirm click (token sent automatically); Trade ticket / protective OCO still ask the user to type `LIVE`.
-- **Kill switch** (`EDGE_TRADING_KILL_SWITCH`) remains operator emergency stop — not the normal mode control.
-- **Environment lock** (`EDGE_TRADING_ENVIRONMENT_LOCK=paper|live`) pins each Next process to one trading environment when dev and container prod share one sidecar. Server routes reject mismatched `environment` / draft env with **403**; market-data `connectionId` stays independent (live quotes while paper trading remain valid). Sidecar lifecycle target: Compose service beside Gateways — [Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md).
+- **Kill switch** (`EDGE_TRADING_KILL_SWITCH`) blocks new entries globally; **`exitAndCleanup`** and env-scoped **kill-and-flatten** bypass it for emergency exits only.
+- **Manage worker** (`EDGE_MANAGE_WORKER`, default on in dev/local prod when TWS enabled): 2s tick when armed playbook instances exist, 15s idle poll otherwise; calls `evaluatePlaybooks`. Cron `/api/cron/playbook-evaluate` remains watchdog/recovery.
+- **Env kill** (`paperKillActive` / `liveKillActive` on auto-manage settings): blocks new entries for that environment; `POST /api/trading/playbooks/kill-flatten` flattens all managed instances in scope.
+- **Environment lock** (`EDGE_TRADING_ENVIRONMENT_LOCK=paper|live`) pins each Next process to one trading environment when dev and container prod share one sidecar. Server routes reject mismatched `environment` / draft env with **403**; market-data `connectionId` stays independent (live quotes while paper trading remain valid). **Manage evaluator** (`runPlaybookEvaluation`) always prices from `ib-live` via `resolveManageQuoteConnectionId` — IBKR grants market data to one Gateway session when both run; paper orders, positions, and stop modifies stay on `ib-paper`. Sidecar lifecycle target: Compose service beside Gateways — [Persistent TWS Sidecar Roadmap](../../../docs/roadmaps/persistent-tws-sidecar-roadmap.md).
 - **Sidecar connect** always uses a writable IB API session (`readonly=False`). IB Gateway **Read-Only API** (Gateway UI) remains the broker-side hard stop for what-if / place / cancel.
 
 ## Drawing-bound trade setup (v1)
@@ -188,7 +190,7 @@ Preview expiry: submit with `previewIntentId` must be within **30s** (`PREVIEW_I
 | Readiness | TWS quote ≤ 5s, account ≤ 30s, risk sizing resolved |
 | Short-sale | Hard block: `SELL` qty > long position for symbol |
 | PDT | Soft warning on preview when `DayTradesRemaining` ≤ 0 |
-| Kill switch | `EDGE_TRADING_KILL_SWITCH=true` blocks all mutations (503) |
+| Kill switch | `EDGE_TRADING_KILL_SWITCH=true` blocks new-risk mutations; emergency `exitAndCleanup` / kill-flatten bypass |
 | Live confirm | `liveConfirmation: "LIVE"` on live mutations |
 | Audit log | In-memory ring (500 entries) on preview/submit/modify/cancel/block; **Postgres dual-write** when `DATABASE_URL` set — see [Production observability Phase 3](../../../docs/roadmaps/production-observability-roadmap.md) |
 
@@ -363,6 +365,8 @@ Manage playbook rules are ExitRules with `binding:managedApp`. Shipped `when` / 
 | `event` (fill) | `scaleFill`, `protectiveFill` | `modifyStop`, `attachTrail`, `reduceQty` |
 
 Preset completeness (12-question checklist): `playbook/presetRiskPolicy.ts` — one record per shipped `PLAYBOOK_PRESET`.
+
+`modifyStop.stopRMultiple` resolves to entry ± R×rUnit in `executeThen` / `planSteps` (0 = BE). Step-trail user policies can be built with `playbook/stepTrail.ts` (`buildStepTrailRules` / `buildStepTrailPreset`).
 
 ### Hybrid failure mode (Protect survives Manage / app down)
 

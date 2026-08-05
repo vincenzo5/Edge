@@ -36,21 +36,30 @@ describe("AppContextMenuProvider", () => {
     vi.clearAllMocks();
   });
 
-  it("opens the app menu on control right-click", () => {
-    renderShell();
-    fireEvent.contextMenu(screen.getByText("Chart tile"), {
-      ctrlKey: true,
-      button: 2,
-    });
-    expect(screen.getByRole("menu", { name: "Application menu" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Settings" })).toBeInTheDocument();
-  });
-
   it("opens the app menu on plain right-click in the app header", () => {
     renderShell();
     fireEvent.contextMenu(screen.getByText("App header"), { button: 2 });
     expect(screen.getByRole("menu", { name: "Application menu" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Order account" })).toBeInTheDocument();
+  });
+
+  it("opens the app menu on control right-click in the app header", () => {
+    renderShell();
+    fireEvent.contextMenu(screen.getByText("App header"), {
+      ctrlKey: true,
+      button: 2,
+    });
+    expect(screen.getByRole("menu", { name: "Application menu" })).toBeInTheDocument();
+  });
+
+  it("does not open on control right-click outside the app header", () => {
+    renderShell();
+    fireEvent.contextMenu(screen.getByText("Chart tile"), {
+      ctrlKey: true,
+      button: 2,
+    });
+    expect(screen.queryByRole("menu", { name: "Application menu" })).not.toBeInTheDocument();
   });
 
   it("does not open on plain right-click outside the app header", () => {
@@ -61,30 +70,21 @@ describe("AppContextMenuProvider", () => {
 
   it("does not open on control primary-click", () => {
     renderShell();
-    fireEvent.contextMenu(screen.getByText("Chart tile"), { ctrlKey: true, button: 0 });
+    fireEvent.contextMenu(screen.getByText("App header"), { ctrlKey: true, button: 0 });
     expect(screen.queryByRole("menu", { name: "Application menu" })).not.toBeInTheDocument();
   });
 
-  it("lists Change panel options inline when workspace context and tile are present", () => {
+  it("does not list Change panel options in the header app menu", () => {
     renderShell(true);
-    fireEvent.contextMenu(screen.getByText("Chart tile"), {
-      ctrlKey: true,
-      button: 2,
-    });
-    expect(screen.getByText("Change panel")).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Chart" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Screener" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Journal" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Copilot" })).toBeInTheDocument();
+    fireEvent.contextMenu(screen.getByText("App header"), { button: 2 });
+    expect(screen.queryByText("Change panel")).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Journal" })).not.toBeInTheDocument();
   });
 
   it("opens settings from the app menu", () => {
     renderShell();
     expect(screen.getByTestId("settings-open")).toHaveTextContent("false");
-    fireEvent.contextMenu(screen.getByText("Chart tile"), {
-      ctrlKey: true,
-      button: 2,
-    });
+    fireEvent.contextMenu(screen.getByText("App header"), { button: 2 });
     fireEvent.click(screen.getByRole("menuitem", { name: "Settings" }));
     expect(screen.getByTestId("settings-open")).toHaveTextContent("true");
   });

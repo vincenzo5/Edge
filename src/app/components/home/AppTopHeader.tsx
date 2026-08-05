@@ -15,15 +15,7 @@ import {
 } from "@/lib/trading/accountPickerOptions";
 import type { TradingAccount } from "@/lib/trading/types";
 import { subscribeTwsRecovery } from "@/lib/marketData/twsRecoveryBus";
-import {
-  applyDefaultDataConnectionPreferenceIfNeeded,
-} from "@/lib/marketData/dataConnectionPreference";
-import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
-import {
-  IB_LIVE_CONNECTION_ID,
-} from "@/lib/trading/connectionRegistry";
 import AccountPickerMenu from "./AccountPickerMenu";
-import MarketDataConnectionMenu from "./MarketDataConnectionMenu";
 import AppSettingsShell from "./AppSettingsShell";
 import NotificationBellMenu from "../notifications/NotificationBellMenu";
 import OpenRiskPositionsMenu from "./OpenRiskPositionsMenu";
@@ -45,7 +37,6 @@ export default function AppTopHeader({ centerSlot }: Props) {
   const { theme, toggleTheme } = useAppTheme();
   const account = useAccount();
   const { aliases, setAlias } = useAccountAliases();
-  useDataConnectionPreference();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [defaultAccountId, setDefaultAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,9 +50,6 @@ export default function AppTopHeader({ centerSlot }: Props) {
     orderAccountMenuOpen,
     openOrderAccountMenu,
     closeOrderAccountMenu,
-    marketDataMenuOpen,
-    openMarketDataMenu,
-    closeMarketDataMenu,
     positionsMenuOpen,
     openPositionsMenu,
     closePositionsMenu,
@@ -114,6 +102,16 @@ export default function AppTopHeader({ centerSlot }: Props) {
     };
   }, [loadAccounts]);
 
+  // Retry while empty: circuit-open at mount clears accounts, and positions can
+  // recover via AccountProvider polling without a recovery bus event.
+  useEffect(() => {
+    if (loading || accounts.length > 0) return;
+    const timer = window.setInterval(() => {
+      void loadAccounts();
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [accounts.length, loading, loadAccounts]);
+
   useEffect(() => {
     return subscribeTwsRecovery((event) => {
       if (event.phase === "started") {
@@ -139,20 +137,6 @@ export default function AppTopHeader({ centerSlot }: Props) {
   const recoverTwsFromHeader = useCallback(async () => {
     await runTwsRecoveryClient({ source: "data-health", symbols: [], candleRequests: [] });
   }, []);
-
-  const liveGatewayOnline = useMemo(
-    () =>
-      accounts.some(
-        (row) =>
-          row.connectionId === IB_LIVE_CONNECTION_ID && row.availability === "online",
-      ),
-    [accounts],
-  );
-
-  useEffect(() => {
-    if (accounts.length === 0) return;
-    applyDefaultDataConnectionPreferenceIfNeeded({ liveConnected: liveGatewayOnline });
-  }, [accounts, liveGatewayOnline]);
 
   useEffect(() => {
     if (accounts.length === 0) return;
@@ -260,19 +244,6 @@ export default function AppTopHeader({ centerSlot }: Props) {
               ) : null}
             </div>
           ) : null}
-          <MarketDataConnectionMenu
-            open={marketDataMenuOpen}
-            onOpenChange={(next) => {
-              if (next) {
-                closeOrderAccountMenu();
-                closePositionsMenu();
-                closeNotificationsMenu();
-                openMarketDataMenu();
-              } else {
-                closeMarketDataMenu();
-              }
-            }}
-          />
           <label className="sr-only" htmlFor="app-account-picker">
             Trading account
           </label>
@@ -299,7 +270,6 @@ export default function AppTopHeader({ centerSlot }: Props) {
             onOpenChange={(next) => {
               if (next) {
                 closeOrderAccountMenu();
-                closeMarketDataMenu();
                 closeNotificationsMenu();
                 openPositionsMenu();
               } else {

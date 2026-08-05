@@ -6,6 +6,8 @@ import {
   resolveDefaultDataConnectionPreference,
   readEffectiveDataConnectionPreference,
   readDataConnectionPreference,
+  DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY,
+  DATA_CONNECTION_PREFERENCE_KEY,
 } from "./dataConnectionPreference";
 import { IB_LIVE_CONNECTION_ID, IB_PAPER_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
 
@@ -14,37 +16,34 @@ describe("dataConnectionPreference", () => {
     window.localStorage.clear();
   });
 
-  it("returns null when unset", () => {
-    expect(readDataConnectionPreference()).toBeNull();
-    expect(hasExplicitDataConnectionPreference()).toBe(false);
-  });
-
-  it("persists valid connection ids", () => {
-    writeExplicitDataConnectionPreference(IB_LIVE_CONNECTION_ID);
+  it("always resolves to live", () => {
     expect(readDataConnectionPreference()).toBe(IB_LIVE_CONNECTION_ID);
-    expect(hasExplicitDataConnectionPreference()).toBe(true);
-  });
-
-  it("applies default without marking explicit", () => {
-    const resolved = applyDefaultDataConnectionPreferenceIfNeeded({ liveConnected: true });
-    expect(resolved).toBe(IB_LIVE_CONNECTION_ID);
-    expect(readDataConnectionPreference()).toBe(IB_LIVE_CONNECTION_ID);
-    expect(hasExplicitDataConnectionPreference()).toBe(false);
-  });
-
-  it("defaults to live when live gateway is connected", () => {
-    expect(resolveDefaultDataConnectionPreference({ liveConnected: true })).toBe(
+    expect(readEffectiveDataConnectionPreference({ liveConnected: false })).toBe(
       IB_LIVE_CONNECTION_ID,
     );
     expect(resolveDefaultDataConnectionPreference({ liveConnected: false })).toBe(
-      IB_PAPER_CONNECTION_ID,
+      IB_LIVE_CONNECTION_ID,
+    );
+    expect(applyDefaultDataConnectionPreferenceIfNeeded({ liveConnected: false })).toBe(
+      IB_LIVE_CONNECTION_ID,
     );
   });
 
-  it("uses stored preference over default", () => {
+  it("migrates stale paper preference to live on read", () => {
+    window.localStorage.setItem(DATA_CONNECTION_PREFERENCE_KEY, IB_PAPER_CONNECTION_ID);
+    window.localStorage.setItem(DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY, "1");
+
+    expect(readDataConnectionPreference()).toBe(IB_LIVE_CONNECTION_ID);
+    expect(window.localStorage.getItem(DATA_CONNECTION_PREFERENCE_KEY)).toBe(IB_LIVE_CONNECTION_ID);
+    expect(window.localStorage.getItem(DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY)).toBeNull();
+    expect(hasExplicitDataConnectionPreference()).toBe(false);
+  });
+
+  it("write paths force live and clear explicit flag", () => {
     writeExplicitDataConnectionPreference(IB_PAPER_CONNECTION_ID);
-    expect(
-      readEffectiveDataConnectionPreference({ liveConnected: true }),
-    ).toBe(IB_PAPER_CONNECTION_ID);
+    expect(readDataConnectionPreference()).toBe(IB_LIVE_CONNECTION_ID);
+    expect(window.localStorage.getItem(DATA_CONNECTION_PREFERENCE_KEY)).toBe(IB_LIVE_CONNECTION_ID);
+    expect(window.localStorage.getItem(DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY)).toBeNull();
+    expect(hasExplicitDataConnectionPreference()).toBe(false);
   });
 });

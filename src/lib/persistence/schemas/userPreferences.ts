@@ -57,8 +57,8 @@ export const userPreferencesSnapshotSchema = z.object({
   theme: z.enum(THEMES),
   palette: z.enum(PALETTES).default(DEFAULT_PALETTE),
   timeZone: z.string().min(1),
-  dataConnectionId: z.string().min(1).nullable(),
-  dataConnectionExplicit: z.boolean(),
+  dataConnectionId: z.string().min(1).nullable(), // Deprecated: always ib-live; kept for pack compatibility
+  dataConnectionExplicit: z.boolean(), // Deprecated: always false
   dataProviderPreference: DataProviderPreferenceSchema,
   tradingEnvironment: TradingEnvironmentSchema,
   activeAccount: TradingAccountSchema.nullable(),

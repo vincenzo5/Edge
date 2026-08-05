@@ -15,7 +15,7 @@ Single roadmap for running **paper and live IB Gateway simultaneously**, decoupl
 Let Edge:
 
 1. Run **paper (4002) and live (4001) Gateways at the same time** (Docker preferred).
-2. Keep **chart/watchlist market data** on a stable preference (default: **live**) while the user switches **order account** between paper and live.
+2. Keep **chart/watchlist market data** on the **live** Gateway (`ib-live`) while the user switches **order account** between paper and live.
 3. Show only **real Gateway accounts** in the header picker — fold journal history by fill `account` into those ids.
 4. Preserve provider-neutral market-data abstraction so future vendors plug in without touching order code.
 
@@ -31,8 +31,8 @@ Let Edge:
 | Paper + live Gateways both listening | **Partial** | Docker compose shipped; app-level dual-port proof credential-gated |
 | Shared sidecar (dev + container prod) | **Shipped** (Compose) | One Compose sidecar on `:8765`; both Next processes use `TWS_MANAGED=external` (Recover is control-only). Primary ops: `npm run ib:gateway:up`; host `tws:sidecar` emergency-only — [Persistent TWS Sidecar](./persistent-tws-sidecar-roadmap.md) |
 | Process environment lock | **Shipped** | `EDGE_TRADING_ENVIRONMENT_LOCK=paper\|live` — server 403 on mismatch; header account picker + `AccountProvider` pin; MD `connectionId` stays independent |
-| Chart/quotes on selectable connection | **Shipped** | Phase C — `edge:marketData:connectionId` |
-| Independent data preference vs order account | **Shipped** | Phase C — header data chip vs order picker |
+| Chart/quotes on live connection | **Shipped** | Display MD fixed to `ib-live` — no user picker |
+| Independent data preference vs order account | **Shipped** | Architectural split: live MD + paper/live order account via header Account chip |
 | Journal-only synthetic picker rows | **Removed** | Phase B — real Gateway ids only |
 | Docker dual Gateway compose | **Shipped** | Phase A |
 | Data Health paper/live/preference split | **Shipped** | Phase D — Connections section in health panel |
@@ -44,7 +44,7 @@ Let Edge:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ App UI                                                      │
-│  dataConnectionPreference  (default: live)                  │
+│  displayConnection       (fixed: ib-live)                 │
 │  activeTradingAccount      (paper DUP… or live U…)          │
 └───────────────┬─────────────────────────────┬───────────────┘
                 │                             │

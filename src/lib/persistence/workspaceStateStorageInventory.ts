@@ -153,12 +153,14 @@ export const WORKSPACE_STATE_STORAGE_INVENTORY: StorageKeyInventoryEntry[] = [
     owner: "src/lib/marketData/dataConnectionPreference.ts",
     phase: "3",
     postgres: true,
+    notes: "Migration-only; forced to ib-live on read",
   },
   {
     key: "edge:marketData:connectionId:explicit",
     owner: "src/lib/marketData/dataConnectionPreference.ts",
     phase: "3",
     postgres: true,
+    notes: "Deprecated; cleared on read",
   },
   {
     key: "edge:marketData:providerPreference:v1",

@@ -1,35 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import {
   type DataConnectionId,
   readDataConnectionPreference,
-  writeExplicitDataConnectionPreference,
 } from "./dataConnectionPreference";
-import { IB_PAPER_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
+import { IB_LIVE_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
 
 export function useDataConnectionPreference() {
-  // SSR-stable default — never read localStorage in useState (hydration mismatch).
-  const [preference, setPreferenceState] = useState<DataConnectionId>(IB_PAPER_CONNECTION_ID);
-
   useEffect(() => {
-    const stored = readDataConnectionPreference();
-    if (stored) setPreferenceState(stored);
-
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<DataConnectionId>).detail;
-      if (detail) {
-        setPreferenceState(detail);
-      }
-    };
-    window.addEventListener("edge:dataConnectionPreference", handler);
-    return () => window.removeEventListener("edge:dataConnectionPreference", handler);
+    readDataConnectionPreference();
   }, []);
 
-  const setPreference = useCallback((connectionId: DataConnectionId) => {
-    writeExplicitDataConnectionPreference(connectionId);
-    setPreferenceState(connectionId);
+  const setPreference = useCallback((_connectionId: DataConnectionId) => {
+    // Display market data is fixed to ib-live — no user override.
   }, []);
 
-  return { preference, setPreference };
+  return { preference: IB_LIVE_CONNECTION_ID, setPreference };
 }

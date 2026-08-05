@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import EdgeSelect from "../design-system/EdgeSelect";
-import { labeledFieldClass, annotationTextClass } from "../design-system/styles";
 import TwsRecoverButton from "../data-health/TwsRecoverButton";
 import AccountAliasEditor from "./AccountAliasEditor";
 import { useAccountAliases } from "../AccountAliasesProvider";
@@ -19,12 +17,12 @@ import {
 import {
   type DataConnectionId,
 } from "@/lib/marketData/dataConnectionPreference";
-import { useDataConnectionPreference } from "@/lib/marketData/useDataConnectionPreference";
 import type { TradingAccount } from "@/lib/trading/types";
 import {
   connectionStatusLabel,
   connectionStatusTone,
 } from "./connectionStatusLabel";
+import { annotationTextClass } from "../design-system/styles";
 
 type Props = {
   enabled: boolean;
@@ -121,7 +119,6 @@ export default function ConnectionsSettingsSection({
   recoverMessage,
   onRecoverTws,
 }: Props) {
-  const { preference, setPreference } = useDataConnectionPreference();
   const { aliases, setAlias } = useAccountAliases();
   const { connections, source, loading: connectionsLoading, refresh } = useConnectionsList({
     enabled,
@@ -141,15 +138,6 @@ export default function ConnectionsSettingsSection({
   const showRecovery = shouldShowTwsRecovery(twsProvider);
   const recoveryLabel = twsRecoveryButtonLabel(twsProvider);
 
-  const dataConnectionOptions = useMemo(
-    () =>
-      connections.map((connection) => ({
-        value: connection.id as DataConnectionId,
-        label: connection.displayName,
-      })),
-    [connections],
-  );
-
   if (!enabled) return null;
 
   return (
@@ -166,8 +154,8 @@ export default function ConnectionsSettingsSection({
           Connections
         </h3>
         <p className="text-xs text-[var(--edge-text-secondary)]">
-          Manage IB Gateway connections, chart data preference, and account display names. The header
-          Data and Account chips use the same settings.
+          Manage IB Gateway connections and account display names. Chart market data always uses the
+          live Gateway; the header Account chip selects the trading account.
         </p>
       </div>
 
@@ -223,39 +211,12 @@ export default function ConnectionsSettingsSection({
                         <p className="mt-0.5 text-xs text-[var(--edge-text-muted)]">{socket.detail}</p>
                       ) : null}
                     </div>
-                    {preference === connection.id ? (
-                      <span
-                        className="shrink-0 rounded-[var(--edge-radius-sm)] bg-[var(--edge-surface-active)] px-2 py-0.5 text-xs text-[var(--edge-accent-blue)]"
-                        data-testid={`app-settings-connection-active-${connection.id}`}
-                      >
-                        Chart data
-                      </span>
-                    ) : null}
                   </div>
                 </li>
               );
             })}
           </ul>
         )}
-      </div>
-
-      <div className={labeledFieldClass()}>
-        <label htmlFor="app-settings-data-connection" className="text-[var(--edge-text-secondary)]">
-          Chart data connection
-        </label>
-        <EdgeSelect
-          value={preference}
-          options={dataConnectionOptions}
-          onChange={setPreference}
-          variant="field"
-          density="standard"
-          testId="app-settings-data-connection"
-          aria-label="Chart data connection"
-        />
-        <p className="text-xs text-[var(--edge-text-secondary)]">
-          Controls which IB Gateway supplies chart candles and quotes. Same preference as the header
-          Data chip.
-        </p>
       </div>
 
       {showRecovery ? (

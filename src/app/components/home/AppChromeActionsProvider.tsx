@@ -24,9 +24,6 @@ type AppChromeActionsContextValue = {
   orderAccountMenuOpen: boolean;
   openOrderAccountMenu: () => void;
   closeOrderAccountMenu: () => void;
-  marketDataMenuOpen: boolean;
-  openMarketDataMenu: () => void;
-  closeMarketDataMenu: () => void;
   positionsMenuOpen: boolean;
   openPositionsMenu: () => void;
   closePositionsMenu: () => void;
@@ -47,7 +44,6 @@ const AppChromeActionsContext = createContext<AppChromeActionsContextValue | nul
 export function AppChromeActionsProvider({ children }: { children: ReactNode }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [orderAccountMenuOpen, setOrderAccountMenuOpen] = useState(false);
-  const [marketDataMenuOpen, setMarketDataMenuOpen] = useState(false);
   const [positionsMenuOpen, setPositionsMenuOpen] = useState(false);
   const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -58,8 +54,6 @@ export function AppChromeActionsProvider({ children }: { children: ReactNode }) 
   const closeAppSettings = useCallback(() => setSettingsOpen(false), []);
   const openOrderAccountMenu = useCallback(() => setOrderAccountMenuOpen(true), []);
   const closeOrderAccountMenu = useCallback(() => setOrderAccountMenuOpen(false), []);
-  const openMarketDataMenu = useCallback(() => setMarketDataMenuOpen(true), []);
-  const closeMarketDataMenu = useCallback(() => setMarketDataMenuOpen(false), []);
   const openNotificationsMenu = useCallback(() => setNotificationsMenuOpen(true), []);
   const closeNotificationsMenu = useCallback(() => setNotificationsMenuOpen(false), []);
   const openPositionsMenu = useCallback(() => setPositionsMenuOpen(true), []);
@@ -102,9 +96,6 @@ export function AppChromeActionsProvider({ children }: { children: ReactNode }) 
       orderAccountMenuOpen,
       openOrderAccountMenu,
       closeOrderAccountMenu,
-      marketDataMenuOpen,
-      openMarketDataMenu,
-      closeMarketDataMenu,
       positionsMenuOpen,
       openPositionsMenu,
       closePositionsMenu,
@@ -126,9 +117,6 @@ export function AppChromeActionsProvider({ children }: { children: ReactNode }) 
       orderAccountMenuOpen,
       openOrderAccountMenu,
       closeOrderAccountMenu,
-      marketDataMenuOpen,
-      openMarketDataMenu,
-      closeMarketDataMenu,
       positionsMenuOpen,
       openPositionsMenu,
       closePositionsMenu,

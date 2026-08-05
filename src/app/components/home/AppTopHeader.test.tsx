@@ -28,6 +28,8 @@ vi.mock("../AccountProvider", () => ({
 }));
 
 const setAlias = vi.fn();
+const routerPrefetch = vi.fn();
+const usePathnameMock = vi.fn(() => "/home");
 
 const mockUseAccountAliases = vi.fn(() => ({
   aliases: {} as Record<string, string>,
@@ -39,10 +41,6 @@ const mockUseAccountAliases = vi.fn(() => ({
 vi.mock("../AccountAliasesProvider", () => ({
   useAccountAliases: () => mockUseAccountAliases(),
 }));
-
-const setDataConnectionPreference = vi.fn();
-const routerPrefetch = vi.fn();
-const usePathnameMock = vi.fn(() => "/home");
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -58,18 +56,6 @@ vi.mock("../AppActionsContext", () => ({
 
 vi.mock("../ChartActionsContext", () => ({
   useChartActions: () => null,
-}));
-
-vi.mock("@/lib/marketData/useDataConnectionPreference", () => ({
-  useDataConnectionPreference: () => ({
-    preference: "ib-paper",
-    setPreference: setDataConnectionPreference,
-  }),
-}));
-
-vi.mock("@/lib/marketData/dataConnectionPreference", () => ({
-  applyDefaultDataConnectionPreferenceIfNeeded: vi.fn(),
-  dataConnectionLabel: (id: string) => (id === "ib-live" ? "Live data" : "Paper data"),
 }));
 
 vi.mock("@/lib/connections/useConnectionsList", () => ({
@@ -149,6 +135,10 @@ let shellBrokerChrome = {
   showRecovery: false,
 };
 
+vi.mock("@/lib/marketData/fetchTwsCircuitOpen", () => ({
+  fetchTwsCircuitOpen: vi.fn().mockResolvedValue(false),
+}));
+
 vi.mock("@/lib/marketData/twsRecoveryClient", () => ({
   runTwsRecoveryClient: (...args: unknown[]) => mockRunTwsRecoveryClient(...args),
 }));
@@ -178,7 +168,6 @@ describe("AppTopHeader", () => {
       displayNameFor: (account: { accountId: string } | null | undefined) =>
         account?.accountId ?? "",
     });
-    setDataConnectionPreference.mockReset();
     routerPrefetch.mockReset();
     usePathnameMock.mockReturnValue("/home");
     vi.mocked(fetchTradingAccounts).mockClear();
@@ -282,17 +271,6 @@ describe("AppTopHeader", () => {
       environment: "live",
       availability: "online",
     });
-  });
-
-  it("selects market data preference independently of order account", async () => {
-    renderHeader();
-    await waitFor(() => {
-      expect(screen.getByTestId("app-market-data-picker")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("app-market-data-picker"));
-    fireEvent.click(screen.getByTestId("app-market-data-option-ib-live"));
-    expect(setDataConnectionPreference).toHaveBeenCalledWith("ib-live");
-    expect(setActiveTradingAccount).not.toHaveBeenCalled();
   });
 
   it("toggles global theme from the header control", async () => {
@@ -400,4 +378,46 @@ describe("AppTopHeader", () => {
     });
     expect(screen.getByTestId("app-account-picker")).toHaveTextContent("No accounts");
   });
+
+  it(
+    "retries account load after an empty circuit-open result",
+    async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        vi.mocked(fetchTradingAccounts)
+          .mockResolvedValueOnce({
+            accounts: [],
+            defaultAccountId: null,
+          })
+          .mockResolvedValueOnce({
+            accounts: [
+              {
+                broker: "ib",
+                connectionId: "ib-paper",
+                accountId: "DUP586813",
+                environment: "paper",
+                availability: "online",
+              },
+            ],
+            defaultAccountId: "DUP586813",
+          });
+
+        renderHeader();
+
+        await waitFor(() => {
+          expect(screen.getByTestId("app-account-picker")).toHaveTextContent("No accounts");
+        });
+
+        await vi.advanceTimersByTimeAsync(5_000);
+
+        await waitFor(() => {
+          expect(screen.getByTestId("app-account-picker")).toHaveTextContent("Paper (DUP586813)");
+        });
+        expect(fetchTradingAccounts).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+    10_000,
+  );
 });

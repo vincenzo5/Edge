@@ -1,0 +1,26 @@
+# DATA — Live-only display market data — 2026-08-05
+
+## Scope
+Hardwire chart/watchlist display market data to `ib-live`; remove header Data picker, Settings chart-data select, and context-menu Market data entry.
+
+## Delivered
+- `src/lib/marketData/dataConnectionPreference.ts` — always returns `ib-live`; migrates stale paper prefs on read
+- `src/lib/marketData/useDataConnectionPreference.ts` — fixed live preference; setPreference no-op
+- Removed `MarketDataConnectionMenu.tsx`; updated `AppTopHeader`, `ConnectionsSettingsSection`, `AppContextMenuProvider`, `AppChromeActionsProvider`
+- `assembleUserPreferencesSnapshot` / `applyUserPreferencesSnapshot` — force live; ignore remote paper
+- Docs: marketData, connections, trading ARCHITECTURE; dual-connection-roadmap note
+
+## Focused tests
+Command:
+npm test -- --run src/lib/marketData/dataConnectionPreference.test.ts src/lib/userPreferences/userPreferences.test.ts src/app/components/home/AppTopHeader.test.tsx src/app/components/home/AppContextMenuProvider.test.tsx src/lib/marketData/health.test.ts src/lib/chartDataFeed/apiChartDataFeed.test.ts src/app/components/home/AppSettingsShell.test.tsx
+
+```
+Test Files  7 passed (7)
+Tests  92 passed (92)
+```
+
+## Behavior
+- Display MD always uses `ib-live` regardless of selected paper/live trading account
+- Stale `edge:marketData:connectionId` paper + explicit flag cleared on read
+- Account picker unchanged for order environment selection
+- Settings → Market data provider waterfall unchanged

@@ -8,22 +8,6 @@ export const DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY = "edge:marketData:connecti
 
 export type DataConnectionId = typeof IB_PAPER_CONNECTION_ID | typeof IB_LIVE_CONNECTION_ID;
 
-const VALID_IDS = new Set<DataConnectionId>([IB_PAPER_CONNECTION_ID, IB_LIVE_CONNECTION_ID]);
-
-function isDataConnectionId(value: string | null | undefined): value is DataConnectionId {
-  return value != null && VALID_IDS.has(value as DataConnectionId);
-}
-
-export function readDataConnectionPreference(): DataConnectionId | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(DATA_CONNECTION_PREFERENCE_KEY);
-    return isDataConnectionId(raw) ? raw : null;
-  } catch {
-    return null;
-  }
-}
-
 const DATA_CONNECTION_PREFERENCE_EVENT = "edge:dataConnectionPreference";
 
 function notifyDataConnectionPreferenceChange(connectionId: DataConnectionId): void {
@@ -35,60 +19,60 @@ function notifyDataConnectionPreferenceChange(connectionId: DataConnectionId): v
   );
 }
 
-export function writeDataConnectionPreference(connectionId: DataConnectionId): void {
+/** Platform policy: display market data always uses the live IB Gateway socket. */
+export function ensureLiveDataConnectionPreference(): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(DATA_CONNECTION_PREFERENCE_KEY, connectionId);
-    notifyDataConnectionPreferenceChange(connectionId);
-    void import("@/lib/userPreferences/userPreferencesSync").then(({ notifyUserPreferencesChanged }) =>
-      notifyUserPreferencesChanged(),
-    );
+    window.localStorage.setItem(DATA_CONNECTION_PREFERENCE_KEY, IB_LIVE_CONNECTION_ID);
+    window.localStorage.removeItem(DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY);
   } catch {
     // Ignore quota / privacy mode failures.
   }
 }
 
-export function writeExplicitDataConnectionPreference(connectionId: DataConnectionId): void {
-  writeDataConnectionPreference(connectionId);
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY, "1");
-  } catch {
-    // Ignore quota / privacy mode failures.
+export function readDataConnectionPreference(): DataConnectionId {
+  if (typeof window !== "undefined") {
+    ensureLiveDataConnectionPreference();
   }
+  return IB_LIVE_CONNECTION_ID;
+}
+
+export function writeDataConnectionPreference(_connectionId?: DataConnectionId): void {
+  if (typeof window === "undefined") return;
+  ensureLiveDataConnectionPreference();
+  notifyDataConnectionPreferenceChange(IB_LIVE_CONNECTION_ID);
+  void import("@/lib/userPreferences/userPreferencesSync").then(({ notifyUserPreferencesChanged }) =>
+    notifyUserPreferencesChanged(),
+  );
+}
+
+export function writeExplicitDataConnectionPreference(_connectionId?: DataConnectionId): void {
+  writeDataConnectionPreference(IB_LIVE_CONNECTION_ID);
 }
 
 export function hasExplicitDataConnectionPreference(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY) === "1";
-  } catch {
-    return false;
+  return false;
+}
+
+export function applyDefaultDataConnectionPreferenceIfNeeded(_options?: {
+  liveConnected: boolean;
+}): DataConnectionId {
+  if (typeof window !== "undefined") {
+    ensureLiveDataConnectionPreference();
   }
+  return IB_LIVE_CONNECTION_ID;
 }
 
-export function applyDefaultDataConnectionPreferenceIfNeeded(options: {
+export function resolveDefaultDataConnectionPreference(_options?: {
   liveConnected: boolean;
 }): DataConnectionId {
-  const stored = readDataConnectionPreference();
-  if (hasExplicitDataConnectionPreference() && stored) {
-    return stored;
-  }
-  const resolved = resolveDefaultDataConnectionPreference(options);
-  writeDataConnectionPreference(resolved);
-  return resolved;
+  return IB_LIVE_CONNECTION_ID;
 }
 
-export function resolveDefaultDataConnectionPreference(options: {
+export function readEffectiveDataConnectionPreference(_options?: {
   liveConnected: boolean;
 }): DataConnectionId {
-  return options.liveConnected ? IB_LIVE_CONNECTION_ID : IB_PAPER_CONNECTION_ID;
-}
-
-export function readEffectiveDataConnectionPreference(options: {
-  liveConnected: boolean;
-}): DataConnectionId {
-  return readDataConnectionPreference() ?? resolveDefaultDataConnectionPreference(options);
+  return readDataConnectionPreference();
 }
 
 export function dataConnectionLabel(connectionId: DataConnectionId): string {

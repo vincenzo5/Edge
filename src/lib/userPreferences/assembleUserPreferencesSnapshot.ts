@@ -8,13 +8,9 @@ import {
   defaultJournalTradesTablePrefs,
   readJournalTradesTablePrefs,
 } from "@/lib/journal/journalTradesTableControls";
-import {
-  hasExplicitDataConnectionPreference,
-  readDataConnectionPreference,
-} from "@/lib/marketData/dataConnectionPreference";
 import { readDataProviderPreference } from "@/lib/marketData/dataProviderPreference";
 import { createDefaultDataProviderPreference } from "@/lib/marketData/providerWaterfall";
-import { IB_PAPER_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
+import { IB_LIVE_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
 import { SCHEMA_VERSION } from "@/lib/persistence/common";
 import type { UserPreferencesSnapshot } from "@/lib/persistence/schemas/userPreferences";
 import { DEFAULT_RISK_SETTINGS, loadRiskSettingsFromStorage } from "@/lib/risk/riskSettings";
@@ -29,7 +25,7 @@ export function createDefaultUserPreferencesSnapshot(): UserPreferencesSnapshot 
     theme: DEFAULT_LAYOUT.theme,
     palette: DEFAULT_PALETTE,
     timeZone: DEFAULT_CHART_TIMEZONE,
-    dataConnectionId: IB_PAPER_CONNECTION_ID,
+    dataConnectionId: IB_LIVE_CONNECTION_ID,
     dataConnectionExplicit: false,
     dataProviderPreference: createDefaultDataProviderPreference(),
     tradingEnvironment: "paper",
@@ -66,8 +62,8 @@ export function assembleUserPreferencesSnapshot(): UserPreferencesSnapshot {
     theme: resolveInitialAppTheme(),
     palette: resolveInitialAppPalette(),
     timeZone: resolveInitialAppTimeZone(),
-    dataConnectionId: readDataConnectionPreference(),
-    dataConnectionExplicit: hasExplicitDataConnectionPreference(),
+    dataConnectionId: IB_LIVE_CONNECTION_ID,
+    dataConnectionExplicit: false,
     dataProviderPreference: readDataProviderPreference(),
     tradingEnvironment: readTradingEnvironment(),
     activeAccount,

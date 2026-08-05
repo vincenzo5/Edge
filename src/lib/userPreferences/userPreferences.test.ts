@@ -13,7 +13,7 @@ import { JOURNAL_TRADES_TABLE_STORAGE_KEY } from "@/lib/journal/journalTradesTab
 import { DEFAULT_RISK_SETTINGS, RISK_SETTINGS_STORAGE_KEY } from "@/lib/risk/riskSettings";
 import { ACCOUNT_ALIASES_STORAGE_KEY } from "@/lib/trading/accountAliases";
 import { ACTIVE_TRADING_ACCOUNT_KEY } from "@/lib/trading/activeAccount";
-import { IB_PAPER_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
+import { IB_LIVE_CONNECTION_ID, IB_PAPER_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
 import { TRADING_ENVIRONMENT_KEY } from "@/lib/trading/tradingEnvironment";
 import {
   assembleUserPreferencesSnapshot,
@@ -36,7 +36,7 @@ describe("assembleUserPreferencesSnapshot", () => {
     expect(snapshot.schemaVersion).toBe(1);
     expect(snapshot.theme).toBe("dark");
     expect(snapshot.palette).toBe("midnight");
-    expect(snapshot.dataConnectionId).toBeNull();
+    expect(snapshot.dataConnectionId).toBe(IB_LIVE_CONNECTION_ID);
     expect(snapshot.dataConnectionExplicit).toBe(false);
     expect(snapshot.dataProviderPreference).toEqual(createDefaultDataProviderPreference());
     expect(snapshot.tradingEnvironment).toBe("paper");
@@ -44,7 +44,7 @@ describe("assembleUserPreferencesSnapshot", () => {
     expect(snapshot.timeZone.length).toBeGreaterThan(0);
   });
 
-  it("reads persisted local keys into the pack", () => {
+  it("always reports live display data even when stale paper keys exist", () => {
     localStorage.setItem(APP_THEME_PREFERENCE_KEY, "light");
     localStorage.setItem(APP_PALETTE_PREFERENCE_KEY, "graphite");
     localStorage.setItem(APP_TIMEZONE_PREFERENCE_KEY, "Europe/London");
@@ -65,7 +65,8 @@ describe("assembleUserPreferencesSnapshot", () => {
     expect(snapshot.theme).toBe("light");
     expect(snapshot.palette).toBe("graphite");
     expect(snapshot.timeZone).toBe("Europe/London");
-    expect(snapshot.dataConnectionExplicit).toBe(true);
+    expect(snapshot.dataConnectionId).toBe(IB_LIVE_CONNECTION_ID);
+    expect(snapshot.dataConnectionExplicit).toBe(false);
     expect(snapshot.tradingEnvironment).toBe("live");
     expect(snapshot.journalTradesTablePrefs.pageSize).toBe(25);
   });
@@ -100,7 +101,8 @@ describe("applyUserPreferencesSnapshot", () => {
     expect(localStorage.getItem(APP_THEME_PREFERENCE_KEY)).toBe("light");
     expect(localStorage.getItem(APP_PALETTE_PREFERENCE_KEY)).toBe("slate");
     expect(localStorage.getItem(APP_TIMEZONE_PREFERENCE_KEY)).toBe("Europe/London");
-    expect(localStorage.getItem(DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY)).toBe("1");
+    expect(localStorage.getItem(DATA_CONNECTION_PREFERENCE_KEY)).toBe(IB_LIVE_CONNECTION_ID);
+    expect(localStorage.getItem(DATA_CONNECTION_PREFERENCE_EXPLICIT_KEY)).toBeNull();
     expect(localStorage.getItem(TRADING_ENVIRONMENT_KEY)).toBe("live");
     expect(localStorage.getItem(ACCOUNT_ALIASES_STORAGE_KEY)).toContain("Desk");
     expect(localStorage.getItem(ACTIVE_TRADING_ACCOUNT_KEY)).toContain("DU123");
