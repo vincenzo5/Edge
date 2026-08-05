@@ -4,7 +4,7 @@ import type { AiTool } from "../types";
 import type { ToolContext } from "../context";
 import type { JournalPort } from "../journalPort";
 import type { JournalTradeResponse } from "@/lib/persistence/schemas/journal";
-import { JOURNAL_SETUP_VALUES } from "@/lib/journal/types";
+import { journalSetupValueSchema } from "@/lib/journal/journalSetupPreference";
 import {
   buildComparePresetSlices,
   computeBreakdownReport,
@@ -38,9 +38,11 @@ const journalTradeListInputSchema = z.object({
   limit: z.number().int().min(1).max(500).optional(),
 });
 
+const journalSetupFilterSchema = z.union([journalSetupValueSchema, z.literal("all")]);
+
 const journalStatsInputSchema = journalTradeListInputSchema.extend({
   window: z.enum(["today", "7d", "30d", "all"]).default("all"),
-  setup: z.enum([...JOURNAL_SETUP_VALUES, "all"] as unknown as [string, ...string[]]).optional(),
+  setup: journalSetupFilterSchema.optional(),
   outcome: z.enum(["all", "win", "loss"]).optional(),
 });
 
@@ -52,7 +54,7 @@ const journalReviewPatchSchema = z
   .object({
     tradeId: z.string().uuid(),
     tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
-    setup: z.enum(JOURNAL_SETUP_VALUES as [string, ...string[]]).nullable().optional(),
+    setup: journalSetupValueSchema.nullable().optional(),
     reviewNote: z.string().trim().max(10000).nullable().optional(),
     plannedRiskMode: z.enum(["usd", "pct"]).nullable().optional(),
     plannedRiskValue: z.number().finite().positive().nullable().optional(),
@@ -75,7 +77,7 @@ const compareSliceSchema = z
   .object({
     status: z.enum(["all", "open", "closed"]).optional(),
     symbol: z.string().trim().max(16).optional(),
-    setup: z.enum([...JOURNAL_SETUP_VALUES, "all"] as unknown as [string, ...string[]]).optional(),
+    setup: journalSetupFilterSchema.optional(),
     tag: z.string().trim().max(40).optional(),
     outcome: z.enum(["all", "win", "loss"]).optional(),
     closedFrom: z.string().optional(),

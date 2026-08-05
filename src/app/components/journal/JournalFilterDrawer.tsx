@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { EdgeButton, EdgeSelect, EdgeSlideOver } from "@/app/components/design-system";
 import { fieldClass, labeledFieldClass } from "@/app/components/design-system/styles";
 import type { JournalFilterHelpersMode } from "@/lib/journal/journalFilterHelpers";
 import { EMPTY_JOURNAL_FILTERS, type JournalFilters } from "@/lib/journal/journalStats";
-import { JOURNAL_SETUP_VALUES } from "@/lib/journal/types";
+import { journalSetupSelectOptions, useJournalSetupValues } from "./useJournalSetupValues";
 
 type Props = {
   open: boolean;
@@ -17,6 +17,14 @@ type Props = {
 
 export default function JournalFilterDrawer({ open, mode, filters, onClose, onApply }: Props) {
   const [draft, setDraft] = useState<JournalFilters>(filters);
+  const setupCatalog = useJournalSetupValues();
+  const setupOptions = useMemo(() => {
+    const current = draft.setup && draft.setup !== "all" ? draft.setup : null;
+    return [
+      { value: "all", label: "All setups" },
+      ...journalSetupSelectOptions(setupCatalog, current),
+    ];
+  }, [draft.setup, setupCatalog]);
 
   useEffect(() => {
     if (open) setDraft(filters);
@@ -76,10 +84,7 @@ export default function JournalFilterDrawer({ open, mode, filters, onClose, onAp
               setup: next === "all" ? "all" : (next as JournalFilters["setup"]),
             })
           }
-          options={[
-            { value: "all", label: "All setups" },
-            ...JOURNAL_SETUP_VALUES.map((value) => ({ value, label: value })),
-          ]}
+          options={setupOptions}
         />
 
         <Field label="Tag">

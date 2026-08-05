@@ -8,6 +8,10 @@ import {
   defaultJournalTradesTablePrefs,
   readJournalTradesTablePrefs,
 } from "@/lib/journal/journalTradesTableControls";
+import {
+  DEFAULT_JOURNAL_SETUP_VALUES,
+  readJournalSetupValues,
+} from "@/lib/journal/journalSetupPreference";
 import { readDataProviderPreference } from "@/lib/marketData/dataProviderPreference";
 import { createDefaultDataProviderPreference } from "@/lib/marketData/providerWaterfall";
 import { IB_LIVE_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
@@ -42,6 +46,7 @@ export function createDefaultUserPreferencesSnapshot(): UserPreferencesSnapshot 
           ? journalTradesTablePrefs.pageSize
           : 50,
     },
+    journalSetupValues: [...DEFAULT_JOURNAL_SETUP_VALUES],
   };
 }
 
@@ -79,5 +84,6 @@ export function assembleUserPreferencesSnapshot(): UserPreferencesSnapshot {
           ? journalTradesTablePrefs.pageSize
           : 50,
     },
+    journalSetupValues: [...readJournalSetupValues()],
   };
 }

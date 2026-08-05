@@ -68,7 +68,8 @@ Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md
 | `src/app/components/journal/JournalChartOverlayProvider.tsx` | Heavy journal overlay provider — fetches trades/fills + execution markers when URL has `journalTrade` (dynamic import from `ChartTileHost`) |
 | `src/app/components/journal/journalChartOverlayContext.ts` | Light overlay context + `useJournalChartOverlay` (default empty markers — safe without provider) |
 | `src/app/components/journal/useChartDeepLinkBootstrap.ts` | Thin URL bootstrap for symbol/interval/goto (no journal fetch on chart-only load) |
-| `src/lib/journal/journalFilterHelpers.ts` | Scope bar helpers — period labels, active filter chips/count, default scope state |
+| `src/lib/journal/journalSetupPreference.ts` | User setup catalog — localStorage + cloud userPreferences sync; defaults seed trade detail + filter dropdowns |
+| `src/app/components/journal/JournalSetupsSettingsSection.tsx` | Journal Settings editor — add/rename/reorder/delete setup labels |
 | `src/app/components/journal/JournalScopeBar.tsx` | Compact header scope bar — period select, symbol search, filter drawer trigger, chips |
 | `src/app/components/journal/JournalFilterDrawer.tsx` | Advanced filters slide-over (setup, tag, outcome, status on Trades, custom date range) |
 | `src/lib/journal/localJournalStore.ts` | localStorage mirror when Postgres unavailable; mirrors server trade ids when online |
@@ -213,7 +214,7 @@ Attach an editable, live-data chart fork to a journal trade — independent from
 | Client | `journalClient.ts` chart-snapshot helpers |
 | Offline fallback | `localChartSnapshotStore.ts` — IndexedDB `edge.journal.chartSnapshots.v1` |
 | Capture | `captureTradeChartFork.ts` — deep-clones `CellConfig`, optional screenshot upload, position plan levels |
-| Windowed capture | `captureSeed.ts`, `captureChannel.ts`, `openJournalCaptureWindow.ts`, `JournalCaptureStudio.tsx` — popup markup studio at `/journal/capture` |
+| Windowed capture | `captureSeed.ts`, `captureChannel.ts`, `openJournalCaptureWindow.ts`, `JournalCaptureStudio.tsx` — popup markup studio at `/journal/capture`; requires `MarketDataProvider` + `DataHealthProvider` (active chart data-health overlay) |
 | Attach UX | `ChartSnapshotMenu` → **Attach to journal trade…** (`AttachJournalTradeModal.tsx`) |
 | Review UX | `JournalTradeChartSnapshots.tsx` in trade detail — capture active chart, list/open/delete forks |
 | Fork viewer | `TradeChartForkModal.tsx` — isolated `ChartCell` (`isActive={false}`), live feed, entry/exit markers, debounced save, reset-to-capture |

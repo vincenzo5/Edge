@@ -38,12 +38,7 @@ export type JournalTradeLeg = {
 
 export type JournalTradeStatus = "open" | "closed";
 export type JournalTradeDirection = "long" | "short";
-export type JournalSetup =
-  | "breakout"
-  | "pullback"
-  | "earnings"
-  | "spread"
-  | "other";
+export type JournalSetup = string;
 
 export type PlannedRiskMode = "usd" | "pct";
 
@@ -112,10 +107,7 @@ export const JOURNAL_CHART_SNAPSHOTS_IDB_STORE = "chartSnapshots";
 
 export type JournalScreenshotSource = "upload" | "paste" | "chart_capture";
 
-export const JOURNAL_SETUP_VALUES: JournalSetup[] = [
-  "breakout",
-  "pullback",
-  "earnings",
-  "spread",
-  "other",
-];
+export {
+  DEFAULT_JOURNAL_SETUP_VALUES as JOURNAL_SETUP_VALUES,
+  type DefaultJournalSetupValue,
+} from "@/lib/journal/journalSetupPreference";

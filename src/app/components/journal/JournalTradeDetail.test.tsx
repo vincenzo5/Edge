@@ -29,6 +29,10 @@ vi.mock("@/app/components/ActiveChartContext", () => ({
 }));
 
 import JournalTradeDetail from "./JournalTradeDetail";
+import {
+  JOURNAL_SETUP_VALUES_STORAGE_KEY,
+  writeJournalSetupValues,
+} from "@/lib/journal/journalSetupPreference";
 
 const trade: JournalTradeResponse = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -81,18 +85,41 @@ const fills: JournalFillResponse[] = [
 describe("JournalTradeDetail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mocks.fetchJournalFills.mockResolvedValue(fills);
   });
 
-  it("shows outcome strip with entry in risk block, exit, and P&L", async () => {
+  it("shows scoreboard with entry, stop, exit, and P&L", async () => {
     render(<JournalTradeDetail trade={trade} onUpdated={vi.fn()} embedded />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("journal-trade-risk-entry")).toHaveTextContent("150.25");
+      expect(screen.getByTestId("journal-trade-scoreboard")).toBeInTheDocument();
     });
+    expect(screen.getByTestId("journal-trade-risk-entry")).toHaveTextContent("150.25");
     expect(screen.getByTestId("journal-trade-outcome-exit")).toHaveTextContent("155.75");
     expect(screen.getByTestId("journal-trade-outcome-pnl")).toHaveTextContent("$550.00");
     expect(screen.getByTestId("journal-trade-outcome-badge")).toHaveTextContent("WIN");
+  });
+
+  it("keeps scoreboard outside scroll region and orders review before screenshots", async () => {
+    render(<JournalTradeDetail trade={trade} onUpdated={vi.fn()} embedded />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-detail-scroll")).toBeInTheDocument();
+    });
+
+    const scoreboard = screen.getByTestId("journal-trade-scoreboard");
+    const scroll = screen.getByTestId("journal-trade-detail-scroll");
+    const review = screen.getByTestId("journal-trade-review");
+    const screenshots = screen.getByTestId("journal-trade-screenshots");
+
+    expect(scroll.contains(scoreboard)).toBe(false);
+    expect(scroll.contains(review)).toBe(true);
+    expect(scroll.contains(screenshots)).toBe(true);
+
+    const reviewBeforeScreenshots =
+      review.compareDocumentPosition(screenshots) & Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(reviewBeforeScreenshots).toBeTruthy();
   });
 
   it("renders human-readable fills instead of raw exec IDs", async () => {
@@ -185,11 +212,15 @@ describe("JournalTradeDetail", () => {
     expect(screen.getByTestId("journal-trade-risk-manage")).toBeInTheDocument();
   });
 
-  it("saves initialStop and review fields together", async () => {
+  it("saves stop, setup, tags, rating, and review note together", async () => {
     const onUpdated = vi.fn();
     mocks.patchJournalTradeRemote.mockResolvedValue({
       ...trade,
       initialStop: 145,
+      setup: "breakout",
+      tags: ["momentum"],
+      rating: 4,
+      reviewNote: "Clean entry",
       plannedRiskMode: "usd",
       plannedRiskValue: 525,
       plannedRiskUsd: 525,
@@ -204,16 +235,57 @@ describe("JournalTradeDetail", () => {
     fireEvent.change(screen.getByTestId("journal-trade-risk-stop"), {
       target: { value: "145" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+    fireEvent.change(screen.getByPlaceholderText("comma separated"), {
+      target: { value: "momentum" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Review note" }), {
+      target: { value: "Clean entry" },
+    });
+    fireEvent.click(screen.getByTestId("journal-trade-rating-star-4"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
       expect(mocks.patchJournalTradeRemote).toHaveBeenCalledWith(
         trade.id,
         expect.objectContaining({
           initialStop: 145,
+          tags: ["momentum"],
+          reviewNote: "Clean entry",
+          rating: 4,
         }),
       );
       expect(onUpdated).toHaveBeenCalled();
     });
+  });
+
+  it("shows custom setup options from journal settings", async () => {
+    writeJournalSetupValues(["VWAP reclaim", "Opening drive"]);
+    render(<JournalTradeDetail trade={trade} onUpdated={vi.fn()} embedded />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-setup")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("journal-trade-setup"));
+    expect(screen.getByTestId("journal-trade-setup-option-VWAP reclaim")).toBeInTheDocument();
+  });
+
+  it("keeps orphan setup values selectable when not in catalog", async () => {
+    writeJournalSetupValues(["breakout"]);
+    render(
+      <JournalTradeDetail
+        trade={{ ...trade, setup: "legacy setup" }}
+        onUpdated={vi.fn()}
+        embedded
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-setup")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("journal-trade-setup"));
+    expect(screen.getByTestId("journal-trade-setup-option-legacy setup")).toBeInTheDocument();
+    expect(localStorage.getItem(JOURNAL_SETUP_VALUES_STORAGE_KEY)).toContain("breakout");
   });
 });

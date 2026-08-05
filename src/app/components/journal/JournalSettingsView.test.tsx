@@ -26,10 +26,11 @@ vi.mock("@/app/components/journal/JournalImportDialog", () => ({
 }));
 
 describe("JournalSettingsView", () => {
-  it("shows placeholder message", () => {
+  it("renders setups settings", () => {
     render(<JournalSettingsView />);
     expect(screen.getByTestId("journal-settings-view")).toBeInTheDocument();
-    expect(screen.getByText("Settings coming soon.")).toBeInTheDocument();
+    expect(screen.getByTestId("journal-setups-settings")).toBeInTheDocument();
+    expect(screen.queryByText("Settings coming soon.")).not.toBeInTheDocument();
   });
 
   it("keeps journal header tabs and scope controls while settings is open", () => {

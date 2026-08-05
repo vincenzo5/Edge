@@ -1,5 +1,5 @@
 import type { JournalSetup, JournalTrade, JournalTradeRating } from "@/lib/journal/types";
-import { JOURNAL_RATING_VALUES, JOURNAL_SETUP_VALUES } from "@/lib/journal/types";
+import { JOURNAL_RATING_VALUES } from "@/lib/journal/types";
 import type {
   JournalTradePatch,
   JournalTradeResponse,
@@ -96,9 +96,8 @@ function buildMetadataPatch(
 
 function parseJournalSetup(value: string | null | undefined): JournalSetup | null {
   if (value == null) return null;
-  return (JOURNAL_SETUP_VALUES as readonly string[]).includes(value)
-    ? (value as JournalSetup)
-    : null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function parseJournalRating(value: number | null | undefined): JournalTradeRating | null {

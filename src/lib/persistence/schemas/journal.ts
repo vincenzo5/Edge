@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { BrokerageContractSchema } from "@/lib/marketData/contracts/brokerage";
-import { JOURNAL_SETUP_VALUES } from "@/lib/journal/types";
+import { journalSetupValueSchema } from "@/lib/journal/journalSetupPreference";
 import { cellConfigSchema } from "@/lib/persistence/schemas/chartWorkspace";
 import { RuleRuntimeSchema } from "@/lib/trading/playbook/types";
 
@@ -88,7 +88,7 @@ export const journalTradeResponseSchema = z.object({
   legs: z.array(journalTradeLegSchema).optional(),
   fillExecIds: z.array(z.string()),
   tags: z.array(z.string()).optional(),
-  setup: z.enum(JOURNAL_SETUP_VALUES as [string, ...string[]]).nullable().optional(),
+  setup: journalSetupValueSchema.nullable().optional(),
   reviewNote: z.string().max(10000).nullable().optional(),
   plannedRiskMode: z.enum(["usd", "pct"]).nullable().optional(),
   plannedRiskValue: z.number().finite().positive().nullable().optional(),
@@ -109,7 +109,7 @@ export const journalTradeResponseSchema = z.object({
 export const journalTradePatchSchema = z
   .object({
     tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
-    setup: z.enum(JOURNAL_SETUP_VALUES as [string, ...string[]]).nullable().optional(),
+    setup: journalSetupValueSchema.nullable().optional(),
     reviewNote: z.string().trim().max(10000).nullable().optional(),
     plannedRiskMode: z.enum(["usd", "pct"]).nullable().optional(),
     plannedRiskValue: z.number().finite().positive().nullable().optional(),

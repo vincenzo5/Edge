@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { JournalFillResponse, JournalTradeResponse } from "@/lib/persistence/schemas/journal";
-import { JOURNAL_SETUP_VALUES } from "@/lib/journal/types";
+import { journalSetupSelectOptions, useJournalSetupValues } from "./useJournalSetupValues";
 import { computeRMultiple } from "@/lib/journal/rMultiple";
 import {
   computeStopDistancePerShare,
@@ -249,6 +249,15 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
     return formatTradeMoney(trade.netPnL);
   }, [trade.netPnL, trade.status]);
 
+  const setupCatalog = useJournalSetupValues();
+  const setupOptions = useMemo(
+    () => [
+      { value: "__empty__", label: "—" },
+      ...journalSetupSelectOptions(setupCatalog, setup || trade.setup),
+    ],
+    [setup, setupCatalog, trade.setup],
+  );
+
   const reviewSection = (
     <section className="space-y-3" data-testid="journal-trade-review">
       <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
@@ -262,12 +271,10 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
             <EdgeSelect
               variant="field"
               density="compact"
+              testId="journal-trade-setup"
               value={setup || "__empty__"}
               onChange={(next) => setSetup(next === "__empty__" ? "" : next)}
-              options={[
-                { value: "__empty__", label: "—" },
-                ...JOURNAL_SETUP_VALUES.map((value) => ({ value, label: value })),
-              ]}
+              options={setupOptions}
               className="w-full"
             />
           </div>
@@ -637,6 +644,7 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
           symbol={trade.symbol}
           openedAt={trade.openedAt}
           closedAt={trade.closedAt}
+          fillExecIds={trade.fillExecIds}
         />
         {executionDetails}
       </div>

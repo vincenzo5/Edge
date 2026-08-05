@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { EdgeEmptyState } from "@/app/components/design-system";
+import JournalSetupsSettingsSection from "@/app/components/journal/JournalSetupsSettingsSection";
 import {
   JournalTileActions,
   JournalTileTitle,
@@ -42,7 +42,7 @@ export default function JournalSettingsView() {
         </JournalModuleHeader>
       ) : null}
       <main className="min-h-0 flex-1 overflow-y-auto p-4" data-testid="journal-settings-view">
-        <EdgeEmptyState message="Settings coming soon." />
+        <JournalSetupsSettingsSection />
       </main>
     </>
   );

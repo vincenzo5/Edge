@@ -10,6 +10,10 @@ import {
 import { DATA_PROVIDER_PREFERENCE_KEY } from "@/lib/marketData/dataProviderPreference";
 import { createDefaultDataProviderPreference } from "@/lib/marketData/providerWaterfall";
 import { JOURNAL_TRADES_TABLE_STORAGE_KEY } from "@/lib/journal/journalTradesTableControls";
+import {
+  DEFAULT_JOURNAL_SETUP_VALUES,
+  JOURNAL_SETUP_VALUES_STORAGE_KEY,
+} from "@/lib/journal/journalSetupPreference";
 import { DEFAULT_RISK_SETTINGS, RISK_SETTINGS_STORAGE_KEY } from "@/lib/risk/riskSettings";
 import { ACCOUNT_ALIASES_STORAGE_KEY } from "@/lib/trading/accountAliases";
 import { ACTIVE_TRADING_ACCOUNT_KEY } from "@/lib/trading/activeAccount";
@@ -42,6 +46,7 @@ describe("assembleUserPreferencesSnapshot", () => {
     expect(snapshot.tradingEnvironment).toBe("paper");
     expect(snapshot.activeAccount).toBeNull();
     expect(snapshot.timeZone.length).toBeGreaterThan(0);
+    expect(snapshot.journalSetupValues).toEqual([...DEFAULT_JOURNAL_SETUP_VALUES]);
   });
 
   it("always reports live display data even when stale paper keys exist", () => {
@@ -60,6 +65,10 @@ describe("assembleUserPreferencesSnapshot", () => {
         pageSize: 25,
       }),
     );
+    localStorage.setItem(
+      JOURNAL_SETUP_VALUES_STORAGE_KEY,
+      JSON.stringify(["VWAP reclaim", "Opening drive"]),
+    );
 
     const snapshot = assembleUserPreferencesSnapshot();
     expect(snapshot.theme).toBe("light");
@@ -69,6 +78,7 @@ describe("assembleUserPreferencesSnapshot", () => {
     expect(snapshot.dataConnectionExplicit).toBe(false);
     expect(snapshot.tradingEnvironment).toBe("live");
     expect(snapshot.journalTradesTablePrefs.pageSize).toBe(25);
+    expect(snapshot.journalSetupValues).toEqual(["VWAP reclaim", "Opening drive"]);
   });
 });
 
@@ -94,6 +104,7 @@ describe("applyUserPreferencesSnapshot", () => {
         accountId: "DU123",
         environment: "paper" as const,
       },
+      journalSetupValues: ["custom setup"],
     };
 
     applyUserPreferencesSnapshot(remote);
@@ -106,6 +117,7 @@ describe("applyUserPreferencesSnapshot", () => {
     expect(localStorage.getItem(TRADING_ENVIRONMENT_KEY)).toBe("live");
     expect(localStorage.getItem(ACCOUNT_ALIASES_STORAGE_KEY)).toContain("Desk");
     expect(localStorage.getItem(ACTIVE_TRADING_ACCOUNT_KEY)).toContain("DU123");
+    expect(localStorage.getItem(JOURNAL_SETUP_VALUES_STORAGE_KEY)).toContain("custom setup");
     expect(getUserPreferencesGeneration()).toBe(0);
   });
 

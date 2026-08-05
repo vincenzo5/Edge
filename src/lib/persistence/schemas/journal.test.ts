@@ -33,4 +33,14 @@ describe("journal schemas", () => {
     const parsed = journalTradePatchSchema.safeParse({ initialStop: null });
     expect(parsed.success).toBe(true);
   });
+
+  it("accepts custom setup labels within bounds", () => {
+    const parsed = journalTradePatchSchema.safeParse({ setup: "VWAP reclaim" });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects empty setup labels", () => {
+    const parsed = journalTradePatchSchema.safeParse({ setup: "   " });
+    expect(parsed.success).toBe(false);
+  });
 });

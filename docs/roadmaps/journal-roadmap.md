@@ -21,9 +21,9 @@ Give solo IBKR traders a durable fill → round-trip trade journal with enough *
 | Persistence | Shipped | Postgres (`journal_fills`, `journal_trades`) + `edge.journal.v1` localStorage fallback |
 | Core stats | Shipped | Win rate, net/gross P&L, avg win/loss, profit factor, expectancy (`journalStats.ts`) |
 | Daily P&L aggregation | Backend only | `computeDailyPnL()` exists; no UI yet |
-| `/journal` UI | Shipped | Module sub-nav (Dashboard / Trades / Settings); Dashboard = KPIs + calendar + reports + compact table; Trades = full list with status pills + detail panel; Settings placeholder |
+| `/journal` UI | Shipped | Module sub-nav (Dashboard / Trades / Settings); Dashboard = KPIs + calendar + reports + compact table; Trades = full list with status pills + detail panel; Settings = user-configurable setup catalog |
 | Home hub | Shipped | Recent-trades panel (5 rows) |
-| Per-trade metadata | Shipped | Fixed setup enum, freeform tags, `reviewNote` |
+| Per-trade metadata | Shipped | User-configurable setup labels (Journal → Settings), freeform tags, `reviewNote` |
 
 Evidence and verification commands: [Journal Architecture](../../src/lib/journal/ARCHITECTURE.md), [Project Status](../PROJECT-STATUS.md) (Trading journal v1 row).
 
@@ -136,7 +136,7 @@ Explicitly out of scope: Zella-style auto-tagging / session-review agents; Flex 
 ## Architecture Decisions
 
 - **Single broker path:** IBKR only — live sidecar + Flex CSV/API. No broker abstraction layer for journal v2.
-- **Tags over playbooks:** Freeform tags + fixed setup enum remain the strategy taxonomy; no user-defined playbook documents or template library.
+- **Tags over playbooks:** Freeform tags + user-configurable setup catalog remain the strategy taxonomy; no user-defined playbook documents or template library.
 - **Notes per trade only:** No session-level notebook; `reviewNote` on `JournalTrade` is the qualitative layer.
 - **Stats client-first:** Tier 1–2 can compute from loaded trades client-side; add API aggregation only if trade volume requires it.
 - **Chart integration:** Prefer execution overlay pins / reference lines on Edge chart over rebuilding TradeZella-style replay.

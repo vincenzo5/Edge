@@ -94,4 +94,14 @@ describe("adoptServerJournalTrades", () => {
     });
     expect(adopted[0]?.reviewNote).toBe("Local setup note");
   });
+
+  it("preserves custom setup values from the server", async () => {
+    const adopted = await adoptServerJournalTrades(
+      [serverTrade({ id: "server-brun", fillExecIds: ["exec-1"], setup: "VWAP reclaim" })],
+      [localTrade({ id: "local-brun", fillExecIds: ["exec-1"] })],
+    );
+
+    expect(adopted[0]?.setup).toBe("VWAP reclaim");
+    expect(readLocalJournalSnapshot().trades[0]?.setup).toBe("VWAP reclaim");
+  });
 });

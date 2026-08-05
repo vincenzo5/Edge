@@ -9,6 +9,10 @@ import {
   type JournalTradesTableColumnId,
   type JournalTradesTableSortKey,
 } from "@/lib/journal/journalTradesTableControls";
+import {
+  DEFAULT_JOURNAL_SETUP_VALUES,
+  journalSetupValuesSchema,
+} from "@/lib/journal/journalSetupPreference";
 import { TradingEnvironmentSchema, TradingAccountSchema } from "@/lib/trading/types";
 import { SCHEMA_VERSION } from "@/lib/persistence/common";
 
@@ -65,6 +69,7 @@ export const userPreferencesSnapshotSchema = z.object({
   accountAliases: z.record(z.string(), z.string()),
   riskSettings: RiskSettingsSchema,
   journalTradesTablePrefs: journalTradesTablePrefsSchema,
+  journalSetupValues: journalSetupValuesSchema.default([...DEFAULT_JOURNAL_SETUP_VALUES]),
 });
 
 export type UserPreferencesSnapshot = z.infer<typeof userPreferencesSnapshotSchema>;
@@ -82,6 +87,7 @@ export const USER_PREFERENCES_LOCAL_SOURCE_KEYS = {
   accountAliases: "edge:trading:accountAliases.v1",
   riskSettings: "edge.riskSettings.v1",
   journalTradesTablePrefs: "edge.journal.tradesTable.v1",
+  journalSetupValues: "edge.journal.setupValues.v1",
 } as const;
 
 export const userPreferencesLibraryWriteSchema = z.object({
