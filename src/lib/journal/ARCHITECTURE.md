@@ -176,9 +176,9 @@ Attach one or more PNG/JPEG/WebP images per trade from the detail drawer.
 | API | `GET/POST /api/me/journal/trades/[id]/screenshots`; `GET/PATCH/DELETE .../[shotId]` |
 | Client | `journalClient.ts` screenshot helpers |
 | Offline fallback | `localScreenshotStore.ts` — IndexedDB `edge.journal.screenshots.v1` |
-| UI | `JournalTradeScreenshots.tsx` in `JournalTradeDetail` — hero preview, upload, paste, chart capture, lightbox; raw exec IDs under collapsed Tech details |
+| UI | `JournalTradeScreenshots.tsx` in `JournalTradeDetail` — hero preview, upload, paste, windowed chart capture, lightbox; raw exec IDs under collapsed Tech details |
 
-Limits: **10** images/trade, **5 MB**/image. Chart capture uses `ActiveChartCommands.captureSnapshot` when a chart is mounted.
+Limits: **10** images/trade, **5 MB**/image. **Capture chart** opens `/journal/capture` in a popup window seeded from the active workspace cell (cloned `CellConfig`, trade symbol forced). The capture studio saves PNG + chart fork via `captureTradeChartFork`; completion returns through `edge-journal-capture-v1` BroadcastChannel and refreshes the trade screenshot gallery. Seed handoff uses `sessionStorage` (`captureSeed.ts`); popup blocked surfaces an inline error.
 
 Fill sync rebuilds (`rebuildJournalTrades`) delete/reinsert trade rows; screenshot and chart-fork metadata are snapshotted first and restored onto remapped trade ids (`preserveTradeAttachments.ts`) so attachments survive ingest rebuilds. Lightbox preview portals to `document.body` above the trade detail slide-over.
 
@@ -213,6 +213,7 @@ Attach an editable, live-data chart fork to a journal trade — independent from
 | Client | `journalClient.ts` chart-snapshot helpers |
 | Offline fallback | `localChartSnapshotStore.ts` — IndexedDB `edge.journal.chartSnapshots.v1` |
 | Capture | `captureTradeChartFork.ts` — deep-clones `CellConfig`, optional screenshot upload, position plan levels |
+| Windowed capture | `captureSeed.ts`, `captureChannel.ts`, `openJournalCaptureWindow.ts`, `JournalCaptureStudio.tsx` — popup markup studio at `/journal/capture` |
 | Attach UX | `ChartSnapshotMenu` → **Attach to journal trade…** (`AttachJournalTradeModal.tsx`) |
 | Review UX | `JournalTradeChartSnapshots.tsx` in trade detail — capture active chart, list/open/delete forks |
 | Fork viewer | `TradeChartForkModal.tsx` — isolated `ChartCell` (`isActive={false}`), live feed, entry/exit markers, debounced save, reset-to-capture |

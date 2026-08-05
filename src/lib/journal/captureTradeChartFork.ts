@@ -12,7 +12,7 @@ import {
 } from "@/lib/persistence/client/journalClient";
 
 export type CaptureTradeChartForkResult =
-  | { ok: true; snapshotId: string }
+  | { ok: true; snapshotId: string; screenshotId: string | null }
   | { ok: false; error: string };
 
 export function symbolsMatchForTradeCapture(
@@ -96,7 +96,7 @@ export async function captureTradeChartFork(args: {
       return { ok: false, error: "Could not save chart snapshot to journal trade." };
     }
 
-    return { ok: true, snapshotId: snapshot.id };
+    return { ok: true, snapshotId: snapshot.id, screenshotId };
   } catch (error) {
     const reason = error instanceof Error ? ` ${error.message}` : "";
     return { ok: false, error: `Could not save chart snapshot to journal trade.${reason}` };

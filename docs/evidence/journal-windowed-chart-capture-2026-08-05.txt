@@ -1,0 +1,43 @@
+# Journal windowed chart capture — 2026-08-05
+
+## Focused tests
+
+Command:
+npm test -- --run \
+  src/lib/journal/captureSeed.test.ts \
+  src/lib/journal/captureChannel.test.ts \
+  src/lib/journal/openJournalCaptureWindow.test.ts \
+  src/lib/journal/captureTradeChartFork.test.ts \
+  src/app/components/journal/JournalTradeScreenshots.test.tsx \
+  src/app/components/journal/JournalCaptureStudio.test.tsx \
+  src/app/journal/capture/page.test.tsx
+
+```
+Test Files  7 passed (7)
+Tests  27 passed (27)
+```
+
+## Broader journal suite
+
+Command:
+npm test -- --run src/lib/journal src/app/components/journal
+
+```
+Test Files  69 passed (69)
+Tests  377 passed (377)
+```
+
+## Behavior
+
+- Screenshots **Capture chart** opens `/journal/capture?token=…&tradeId=…` in a popup window.
+- Seed clones active workspace cell config (or default cell) with trade symbol forced; stored in sessionStorage.
+- Capture studio mounts live ChartCell with drawing rail; **Capture** saves screenshot + chart fork via `captureTradeChartFork`.
+- Parent trade pop-up listens on `edge-journal-capture-v1` BroadcastChannel and reloads screenshot gallery on `captureDone`.
+- Popup blocked shows inline error; Cancel publishes `captureCancelled` without persisting.
+
+## App-level (manual)
+
+1. Open journal trade detail → Screenshots → **Capture chart** → popup opens on trade symbol.
+2. Add markup → **Capture** → popup closes → hero screenshot appears in trade detail.
+3. Trade charts section gains new fork (Execution details).
+4. Main workspace layout unchanged (isolated fork clone).

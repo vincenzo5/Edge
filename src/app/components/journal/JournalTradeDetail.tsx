@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { JournalFillResponse, JournalTradeResponse } from "@/lib/persistence/schemas/journal";
-import { JOURNAL_SETUP_VALUES, JOURNAL_RATING_VALUES } from "@/lib/journal/types";
+import { JOURNAL_SETUP_VALUES } from "@/lib/journal/types";
 import { computeRMultiple } from "@/lib/journal/rMultiple";
 import {
   computeStopDistancePerShare,
@@ -20,18 +20,18 @@ import {
 } from "@/lib/journal/correlateOrderRef";
 import {
   deriveTradeOutcomeStatus,
-  formatDirectionLabel,
   formatTradeCloseTime,
   formatTradeMoney,
   formatTradePrice,
-  pnlToneClass,
   tradeOutcomeLabel,
 } from "@/lib/journal/journalTradeDisplay";
 import { fetchJournalFills, patchJournalTradeRemote } from "@/lib/persistence/client/journalClient";
 import { EdgeButton, EdgeSelect, EdgeToggle } from "../design-system";
 import JournalTradeDetailHeaderTitle from "./JournalTradeDetailHeaderTitle";
-import { journalTradeDetailSubtitle } from "./journalTradeDetailTitle";
+import JournalTradeDetailHeaderSubtitle from "./JournalTradeDetailHeaderSubtitle";
+import JournalTradeScoreboard from "./JournalTradeScoreboard";
 import JournalTradeScreenshots from "./JournalTradeScreenshots";
+import JournalTradeStarRating from "./JournalTradeStarRating";
 import JournalTradeChartSnapshots from "./JournalTradeChartSnapshots";
 
 type Props = {
@@ -74,7 +74,7 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
   const [setup, setSetup] = useState<string>("");
   const [reviewNote, setReviewNote] = useState("");
   const [initialStopInput, setInitialStopInput] = useState("");
-  const [rating, setRating] = useState<string>("");
+  const [rating, setRating] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [ignoring, setIgnoring] = useState(false);
@@ -90,7 +90,7 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
     const persistedStop = trade.initialStop ?? null;
     const seededStop = persistedStop ?? resolveEffectiveInitialStop(trade);
     setInitialStopInput(seededStop != null ? String(seededStop) : "");
-    setRating(trade.rating != null ? String(trade.rating) : "");
+    setRating(trade.rating ?? null);
     setSaveError(null);
   }, [trade]);
 
@@ -124,7 +124,7 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
     }
   }
 
-  async function saveNotes() {
+  async function saveTrade() {
     setSaving(true);
     setSaveError(null);
     try {
@@ -147,12 +147,12 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
         setup: setup ? (setup as typeof trade.setup) : null,
         reviewNote: reviewNote.trim() || null,
         initialStop: parsedStop,
-        rating: rating ? (Number.parseInt(rating, 10) as typeof trade.rating) : null,
+        rating: rating ?? null,
       });
       if (updated) {
         onUpdated(updated);
       } else {
-        setSaveError("Could not save trade review.");
+        setSaveError("Could not save trade.");
       }
     } finally {
       setSaving(false);
@@ -241,139 +241,21 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
   const outcomeStatus = deriveTradeOutcomeStatus(trade);
   const outcomeLabel = tradeOutcomeLabel(outcomeStatus);
   const shellClass = embedded
-    ? "space-y-4"
-    : "space-y-4 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] p-4";
+    ? "flex max-h-[min(80vh,880px)] flex-col"
+    : "flex flex-col rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)]";
 
   const pnlDisplay = useMemo(() => {
     if (trade.status === "open") return "OPEN";
     return formatTradeMoney(trade.netPnL);
   }, [trade.netPnL, trade.status]);
 
-  return (
-    <div data-testid="journal-trade-detail" className={shellClass}>
-      {!embedded ? (
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--edge-text-strong)]">
-            <JournalTradeDetailHeaderTitle trade={trade} />
-          </h2>
-          <p className="text-xs text-[var(--edge-text-secondary)]">
-            {journalTradeDetailSubtitle(trade)}
-          </p>
-        </div>
-      ) : null}
+  const reviewSection = (
+    <section className="space-y-3" data-testid="journal-trade-review">
+      <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+        Review
+      </div>
 
-      <JournalTradeScreenshots tradeId={trade.id} />
-
-      <section data-testid="journal-trade-risk">
-        <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-          Risk
-        </div>
-        <div className="mt-2 space-y-3 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
-            <label className="block text-xs">
-              <span className="text-[var(--edge-text-secondary)]">Entry</span>
-              <div
-                className="mt-1 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] px-2 py-1.5 text-sm font-semibold tabular-nums text-[var(--edge-text-strong)]"
-                data-testid="journal-trade-risk-entry"
-              >
-                {formatTradePrice(trade.avgEntry)}
-              </div>
-              <p className="mt-1 text-[10px] text-[var(--edge-text-muted)]">From fills</p>
-            </label>
-            <div className="hidden text-center text-lg text-[var(--edge-text-muted)] sm:block" aria-hidden>
-              →
-            </div>
-            <label className="block text-xs">
-              <span className="text-[var(--edge-text-secondary)]">Stop</span>
-              {stopSeededFromPlan ? (
-                <p
-                  className="mt-0.5 text-[10px] text-[var(--edge-text-muted)]"
-                  data-testid="journal-trade-stop-plan-hint"
-                >
-                  Seeded from plan — save to persist
-                </p>
-              ) : null}
-              <input
-                className="mt-1 w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5 text-sm tabular-nums"
-                type="number"
-                min="0"
-                step="any"
-                placeholder="Set stop price"
-                value={initialStopInput}
-                onChange={(event) => setInitialStopInput(event.target.value)}
-                data-testid="journal-trade-risk-stop"
-              />
-            </label>
-          </div>
-
-          {draftRiskPreview && "error" in draftRiskPreview ? (
-            <p className="text-xs text-[var(--edge-danger)]" data-testid="journal-trade-risk-error">
-              {draftRiskPreview.error}
-            </p>
-          ) : draftRiskPreview ? (
-            <p className="text-xs text-[var(--edge-text-secondary)]" data-testid="journal-trade-risk-summary">
-              Distance {formatTradePrice(draftRiskPreview.distance)}/sh · Qty{" "}
-              {trade.netQuantity ?? "—"} · Risk {formatTradeMoney(draftRiskPreview.riskUsd)}
-              {draftRiskPreview.r != null ? ` · Result ${draftRiskPreview.r.toFixed(2)}R` : ""}
-            </p>
-          ) : (
-            <p className="text-xs text-[var(--edge-text-secondary)]">
-              Set a stop to define 1R from entry distance.
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section data-testid="journal-trade-outcome">
-        <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-          Outcome
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
-          <div>
-            <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Exit</div>
-            <div
-              className="mt-1 text-sm font-semibold tabular-nums text-[var(--edge-text-strong)]"
-              data-testid="journal-trade-outcome-exit"
-            >
-              {formatTradePrice(trade.avgExit)}
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Net P&L</div>
-            <div
-              className={`mt-1 flex items-center gap-2 text-sm font-semibold tabular-nums ${pnlToneClass(trade.netPnL)}`}
-              data-testid="journal-trade-outcome-pnl"
-            >
-              <span>{pnlDisplay}</span>
-              <span
-                className="rounded bg-[var(--edge-surface-active)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--edge-text-secondary)]"
-                data-testid="journal-trade-outcome-badge"
-              >
-                {outcomeLabel}
-              </span>
-            </div>
-          </div>
-        </div>
-        <p className="mt-2 text-xs text-[var(--edge-text-secondary)]">
-          {formatDirectionLabel(trade.direction)} · Qty {trade.netQuantity ?? "—"} · Comm{" "}
-          {formatTradeMoney(trade.totalCommission)}
-        </p>
-      </section>
-
-      <section className="space-y-3" data-testid="journal-trade-review">
-        <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-          Review
-        </div>
-
-        <EdgeToggle
-          testId="journal-trade-ignore-stats"
-          label="Ignore from stats"
-          info="Keep this trade in history but exclude it from performance metrics."
-          checked={trade.ignored ?? false}
-          disabled={ignoring}
-          onChange={(checked) => void toggleIgnored(checked)}
-        />
-
+      <div className="grid gap-3 sm:grid-cols-3">
         <label className="block text-xs">
           <span className="text-[var(--edge-text-secondary)]">Setup</span>
           <div className="mt-1">
@@ -392,9 +274,10 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
         </label>
 
         <label className="block text-xs">
-          <span className="text-[var(--edge-text-secondary)]">Tags (comma separated)</span>
+          <span className="text-[var(--edge-text-secondary)]">Tags</span>
           <input
             className="mt-1 w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1"
+            placeholder="comma separated"
             value={tags}
             onChange={(event) => setTags(event.target.value)}
           />
@@ -403,35 +286,33 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
         <label className="block text-xs">
           <span className="text-[var(--edge-text-secondary)]">Rating</span>
           <div className="mt-1">
-            <EdgeSelect
-              testId="journal-trade-rating"
-              variant="field"
-              density="compact"
-              value={rating || "__empty__"}
-              onChange={(next) => setRating(next === "__empty__" ? "" : next)}
-              options={[
-                { value: "__empty__", label: "—" },
-                ...JOURNAL_RATING_VALUES.map((value) => ({
-                  value: String(value),
-                  label: `${value}`,
-                })),
-              ]}
-              className="w-full"
-            />
+            <JournalTradeStarRating value={rating} onChange={setRating} />
           </div>
         </label>
+      </div>
 
-        <label className="block text-xs">
-          <span className="text-[var(--edge-text-secondary)]">Review note</span>
-          <textarea
-            className="mt-1 min-h-24 w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1"
-            value={reviewNote}
-            onChange={(event) => setReviewNote(event.target.value)}
-          />
-        </label>
-      </section>
+      <label className="block text-xs">
+        <span className="text-[var(--edge-text-secondary)]">Review note</span>
+        <textarea
+          className="mt-1 min-h-20 w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1"
+          value={reviewNote}
+          onChange={(event) => setReviewNote(event.target.value)}
+        />
+      </label>
 
-      <details className="rounded border border-[var(--edge-border-subtle)] px-3 py-2" data-testid="journal-trade-secondary-details">
+      <EdgeToggle
+        testId="journal-trade-ignore-stats"
+        label="Ignore from stats"
+        info="Keep this trade in history but exclude it from performance metrics."
+        checked={trade.ignored ?? false}
+        disabled={ignoring}
+        onChange={(checked) => void toggleIgnored(checked)}
+      />
+    </section>
+  );
+
+  const executionDetails = (
+    <details className="rounded border border-[var(--edge-border-subtle)] px-3 py-2" data-testid="journal-trade-secondary-details">
         <summary className="cursor-pointer text-xs font-medium text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-primary)]">
           Execution details
         </summary>
@@ -703,16 +584,64 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
           ) : null}
         </div>
       </details>
+  );
 
+  const saveFooter = (
+    <div
+      className="flex shrink-0 flex-col gap-2 border-t border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-5 py-3"
+      data-testid="journal-trade-detail-footer"
+    >
       {saveError ? (
         <p className="text-xs text-[var(--edge-danger)]" data-testid="journal-trade-save-error">
           {saveError}
         </p>
       ) : null}
+      <div className="flex justify-end">
+        <EdgeButton variant="primary" disabled={saving} onClick={() => void saveTrade()}>
+          {saving ? "Saving…" : "Save"}
+        </EdgeButton>
+      </div>
+    </div>
+  );
 
-      <EdgeButton variant="primary" disabled={saving} onClick={() => void saveNotes()}>
-        Save notes
-      </EdgeButton>
+  return (
+    <div data-testid="journal-trade-detail" className={shellClass}>
+      {!embedded ? (
+        <div className="border-b border-[var(--edge-border)] px-4 py-3">
+          <h2 className="text-sm font-semibold text-[var(--edge-text-strong)]">
+            <JournalTradeDetailHeaderTitle trade={trade} />
+          </h2>
+          <p className="text-xs text-[var(--edge-text-secondary)]">
+            <JournalTradeDetailHeaderSubtitle trade={trade} />
+          </p>
+        </div>
+      ) : null}
+
+      <JournalTradeScoreboard
+        trade={trade}
+        initialStopInput={initialStopInput}
+        onStopChange={setInitialStopInput}
+        stopSeededFromPlan={stopSeededFromPlan}
+        draftRiskPreview={draftRiskPreview}
+        pnlDisplay={pnlDisplay}
+        outcomeLabel={outcomeLabel}
+      />
+
+      <div
+        data-testid="journal-trade-detail-scroll"
+        className="flex-1 space-y-4 overflow-y-auto px-5 py-4"
+      >
+        {reviewSection}
+        <JournalTradeScreenshots
+          tradeId={trade.id}
+          symbol={trade.symbol}
+          openedAt={trade.openedAt}
+          closedAt={trade.closedAt}
+        />
+        {executionDetails}
+      </div>
+
+      {saveFooter}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+/** @vitest-environment jsdom */
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
@@ -16,24 +17,62 @@ const mocks = vi.hoisted(() => ({
     createdAt: "2026-07-20T12:00:00.000Z",
     updatedAt: "2026-07-20T12:00:00.000Z",
   })),
-  resolveJournalTradeScreenshotBlobUrl: vi.fn(async () => "blob:preview"),
+  writeCaptureSeed: vi.fn(),
+  buildJournalCaptureSeed: vi.fn(() => ({
+    requestId: "req-1",
+    tradeId: "trade-1",
+    symbol: "BRUN",
+    cellConfig: { symbol: "BRUN" },
+    theme: "dark" as const,
+  })),
+  createCaptureToken: vi.fn(() => "token-1"),
+  openJournalCaptureWindow: vi.fn(() => ({ ok: true as const, window: {} as Window })),
+  publishCaptureDone: vi.fn(),
 }));
 
 vi.mock("@/app/components/ActiveChartContext", () => ({
-  useActiveChart: () => ({
-    chartCommands: {
-      canCaptureSnapshot: () => false,
-      captureSnapshot: vi.fn(),
-    },
-  }),
+  useActiveChart: () => null,
 }));
+
+vi.mock("@/app/components/AppThemeProvider", () => ({
+  useAppThemeOptional: () => ({ theme: "dark" }),
+}));
+
+vi.mock("@/lib/journal/captureSeed", () => ({
+  buildJournalCaptureSeed: mocks.buildJournalCaptureSeed,
+  createCaptureToken: mocks.createCaptureToken,
+  writeCaptureSeed: mocks.writeCaptureSeed,
+}));
+
+vi.mock("@/lib/journal/openJournalCaptureWindow", () => ({
+  openJournalCaptureWindow: mocks.openJournalCaptureWindow,
+}));
+
+vi.mock("@/lib/journal/captureChannel", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/journal/captureChannel")>();
+  return {
+    ...actual,
+    subscribeCaptureChannel: (handler: (message: unknown) => void) => {
+      mocks.publishCaptureDone.mockImplementation(() => {
+        handler({
+          type: "captureDone",
+          requestId: "req-1",
+          tradeId: "trade-1",
+          screenshotId: "shot-new",
+          snapshotId: "snap-1",
+        });
+      });
+      return () => {};
+    },
+  };
+});
 
 vi.mock("@/lib/persistence/client/journalClient", () => ({
   fetchJournalTradeScreenshots: mocks.fetchJournalTradeScreenshots,
   uploadJournalTradeScreenshot: mocks.uploadJournalTradeScreenshot,
   deleteJournalTradeScreenshotRemote: vi.fn(async () => true),
   patchJournalTradeScreenshotRemote: vi.fn(async () => null),
-  resolveJournalTradeScreenshotBlobUrl: mocks.resolveJournalTradeScreenshotBlobUrl,
+  resolveJournalTradeScreenshotBlobUrl: vi.fn(async () => "blob:preview"),
   journalTradeScreenshotImageUrl: (tradeId: string, shotId: string) =>
     `/api/me/journal/trades/${tradeId}/screenshots/${shotId}`,
 }));
@@ -60,26 +99,65 @@ describe("JournalTradeScreenshots", () => {
     ]);
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("renders screenshot gallery and upload controls", async () => {
-    render(<JournalTradeScreenshots tradeId="trade-1" />);
+    render(<JournalTradeScreenshots tradeId="trade-1" symbol="BRUN" />);
     await waitFor(() => {
       expect(screen.getByTestId("journal-trade-screenshots-hero")).toBeInTheDocument();
     });
     expect(screen.getByTestId("journal-trade-screenshots-upload")).toBeInTheDocument();
-    expect(screen.getByTestId("journal-trade-screenshots-capture")).toBeDisabled();
-    expect(screen.queryByTestId("journal-trade-screenshot-shot-1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("journal-trade-screenshots-capture")).toBeEnabled();
   });
 
   it("renders empty hero drop zone when no screenshots", async () => {
     mocks.fetchJournalTradeScreenshots.mockResolvedValue([]);
-    render(<JournalTradeScreenshots tradeId="trade-1" />);
+    render(<JournalTradeScreenshots tradeId="trade-1" symbol="BRUN" />);
     await waitFor(() => {
       expect(screen.getByTestId("journal-trade-screenshots-empty")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("journal-trade-screenshots-capture")).toBeEnabled();
+  });
+
+  it("opens capture window and writes seed on capture click", async () => {
+    mocks.fetchJournalTradeScreenshots.mockResolvedValue([]);
+    render(<JournalTradeScreenshots tradeId="trade-1" symbol="BRUN" />);
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-screenshots-capture")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("journal-trade-screenshots-capture"));
+
+    expect(mocks.buildJournalCaptureSeed).toHaveBeenCalled();
+    expect(mocks.writeCaptureSeed).toHaveBeenCalledWith("token-1", expect.any(Object));
+    expect(mocks.openJournalCaptureWindow).toHaveBeenCalledWith({
+      token: "token-1",
+      tradeId: "trade-1",
+    });
+  });
+
+  it("shows popup blocked error when capture window fails to open", async () => {
+    mocks.fetchJournalTradeScreenshots.mockResolvedValue([]);
+    mocks.openJournalCaptureWindow.mockReturnValueOnce({ ok: false, reason: "popup_blocked" });
+
+    render(<JournalTradeScreenshots tradeId="trade-1" symbol="BRUN" />);
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-screenshots-capture")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("journal-trade-screenshots-capture"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-screenshots-error")).toHaveTextContent(
+        "Popup blocked",
+      );
     });
   });
 
   it("uploads a selected file", async () => {
-    render(<JournalTradeScreenshots tradeId="trade-1" />);
+    render(<JournalTradeScreenshots tradeId="trade-1" symbol="BRUN" />);
     await waitFor(() => {
       expect(screen.getByTestId("journal-trade-screenshots-upload")).toBeInTheDocument();
     });
@@ -94,7 +172,7 @@ describe("JournalTradeScreenshots", () => {
   });
 
   it("opens the screenshot lightbox on document.body", async () => {
-    render(<JournalTradeScreenshots tradeId="trade-1" />);
+    render(<JournalTradeScreenshots tradeId="trade-1" symbol="BRUN" />);
     await waitFor(() => {
       expect(screen.getByTestId("journal-trade-screenshots-hero")).toBeInTheDocument();
     });

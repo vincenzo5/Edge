@@ -3,15 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useActiveChart } from "@/app/components/ActiveChartContext";
+import { useAppThemeOptional } from "@/app/components/AppThemeProvider";
 import { EdgeButton } from "@/app/components/design-system";
+import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
+import { subscribeCaptureChannel } from "@/lib/journal/captureChannel";
 import {
-  SnapshotCaptureError,
-  snapshotErrorMessage,
-} from "@/lib/chart/chartSnapshot";
+  buildJournalCaptureSeed,
+  createCaptureToken,
+  writeCaptureSeed,
+} from "@/lib/journal/captureSeed";
 import {
   JOURNAL_SCREENSHOT_MAX_PER_TRADE,
   normalizeScreenshotFile,
 } from "@/lib/journal/localScreenshotStore";
+import { openJournalCaptureWindow } from "@/lib/journal/openJournalCaptureWindow";
 import type { JournalScreenshotResponse } from "@/lib/persistence/schemas/journal";
 import {
   deleteJournalTradeScreenshotRemote,
@@ -24,18 +29,29 @@ import {
 
 type Props = {
   tradeId: string;
+  symbol: string;
+  openedAt?: string;
+  closedAt?: string | null;
 };
 
 type ThumbnailState = JournalScreenshotResponse & {
   previewUrl: string;
 };
 
-export default function JournalTradeScreenshots({ tradeId }: Props) {
+export default function JournalTradeScreenshots({
+  tradeId,
+  symbol,
+  openedAt,
+  closedAt,
+}: Props) {
   const activeChart = useActiveChart();
+  const theme = useAppThemeOptional()?.theme ?? DEFAULT_LAYOUT.theme;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingRequestIdRef = useRef<string | null>(null);
   const [screenshots, setScreenshots] = useState<ThumbnailState[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [openingCapture, setOpeningCapture] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lightboxId, setLightboxId] = useState<string | null>(null);
   const [portalReady, setPortalReady] = useState(false);
@@ -82,7 +98,6 @@ export default function JournalTradeScreenshots({ tradeId }: Props) {
     }
   }, [tradeId]);
 
-  // Revoke superseded blob URLs only after the new <img src> values have painted.
   useEffect(() => {
     const toRevoke = pendingRevokeRef.current;
     if (toRevoke.length === 0) return;
@@ -102,6 +117,35 @@ export default function JournalTradeScreenshots({ tradeId }: Props) {
       pendingRevokeRef.current = [];
     };
   }, [loadScreenshots, revokePreviewUrls]);
+
+  useEffect(() => {
+    return subscribeCaptureChannel((message) => {
+      if (message.tradeId !== tradeId) return;
+      if (pendingRequestIdRef.current && message.requestId !== pendingRequestIdRef.current) {
+        return;
+      }
+
+      if (message.type === "captureDone") {
+        pendingRequestIdRef.current = null;
+        setOpeningCapture(false);
+        setError(null);
+        void loadScreenshots();
+        return;
+      }
+
+      if (message.type === "captureFailed") {
+        pendingRequestIdRef.current = null;
+        setOpeningCapture(false);
+        setError(message.error);
+        return;
+      }
+
+      if (message.type === "captureCancelled") {
+        pendingRequestIdRef.current = null;
+        setOpeningCapture(false);
+      }
+    });
+  }, [loadScreenshots, tradeId]);
 
   async function handleUpload(file: Blob, source: "upload" | "paste" | "chart_capture") {
     if (screenshots.length >= JOURNAL_SCREENSHOT_MAX_PER_TRADE) {
@@ -148,20 +192,29 @@ export default function JournalTradeScreenshots({ tradeId }: Props) {
     );
   }
 
-  async function handleCaptureChart() {
-    if (!activeChart?.chartCommands.canCaptureSnapshot()) {
-      setError("No chart available to capture.");
+  function handleCaptureChart() {
+    if (screenshots.length >= JOURNAL_SCREENSHOT_MAX_PER_TRADE) {
+      setError(`Maximum ${JOURNAL_SCREENSHOT_MAX_PER_TRADE} screenshots per trade.`);
       return;
     }
-    try {
-      const blob = await activeChart.chartCommands.captureSnapshot({ includeCrosshair: false });
-      await handleUpload(blob, "chart_capture");
-    } catch (captureError) {
-      if (captureError instanceof SnapshotCaptureError) {
-        setError(snapshotErrorMessage(captureError.reason));
-        return;
-      }
-      setError("Chart capture failed.");
+
+    const token = createCaptureToken();
+    const seed = buildJournalCaptureSeed({
+      trade: { id: tradeId, symbol, openedAt, closedAt },
+      activeCellConfig: activeChart?.config ?? null,
+      theme,
+    });
+
+    writeCaptureSeed(token, seed);
+    pendingRequestIdRef.current = seed.requestId;
+    setOpeningCapture(true);
+    setError(null);
+
+    const opened = openJournalCaptureWindow({ token, tradeId });
+    if (!opened.ok) {
+      pendingRequestIdRef.current = null;
+      setOpeningCapture(false);
+      setError("Popup blocked. Allow popups for this site, then try again.");
     }
   }
 
@@ -178,11 +231,11 @@ export default function JournalTradeScreenshots({ tradeId }: Props) {
     }
   }
 
-  const canCapture = activeChart?.chartCommands.canCaptureSnapshot() ?? false;
   const lightbox = lightboxId ? screenshots.find((row) => row.id === lightboxId) ?? null : null;
   const heroShot = screenshots[0] ?? null;
   const thumbShots = screenshots.slice(1);
   const atLimit = screenshots.length >= JOURNAL_SCREENSHOT_MAX_PER_TRADE;
+  const captureDisabled = uploading || openingCapture || atLimit;
 
   return (
     <section
@@ -257,12 +310,12 @@ export default function JournalTradeScreenshots({ tradeId }: Props) {
             </EdgeButton>
             <EdgeButton
               variant="secondary"
-              disabled={uploading || atLimit || !canCapture}
-              onClick={() => void handleCaptureChart()}
+              disabled={captureDisabled}
+              onClick={handleCaptureChart}
               data-testid="journal-trade-screenshots-capture"
-              title={canCapture ? "Capture active chart" : "Open a chart to capture"}
+              title="Open a chart window to mark up and capture"
             >
-              Capture chart
+              {openingCapture ? "Opening chart…" : "Capture chart"}
             </EdgeButton>
           </div>
           <p className="text-[10px] text-[var(--edge-text-secondary)]">
@@ -342,12 +395,12 @@ export default function JournalTradeScreenshots({ tradeId }: Props) {
             </EdgeButton>
             <EdgeButton
               variant="secondary"
-              disabled={uploading || atLimit || !canCapture}
-              onClick={() => void handleCaptureChart()}
+              disabled={captureDisabled}
+              onClick={handleCaptureChart}
               data-testid="journal-trade-screenshots-capture"
-              title={canCapture ? "Capture active chart" : "Open a chart to capture"}
+              title="Open a chart window to mark up and capture"
             >
-              Capture chart
+              {openingCapture ? "Opening chart…" : "Capture chart"}
             </EdgeButton>
           </div>
           <p className="text-[10px] text-[var(--edge-text-secondary)]">
