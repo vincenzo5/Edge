@@ -58,7 +58,7 @@ Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md
 | `src/app/components/journal/JournalMetricGrid.tsx` | Reusable label/value metric grid |
 | `src/app/components/journal/JournalDayTradesTable.tsx` | Day summary trades table |
 | `src/app/components/journal/JournalEquityChart.tsx` | Daily cumulative P&L area chart (TradeZella-style axes, gradient fill, hover tooltip) |
-| `src/app/components/journal/JournalSummaryCards.tsx` | Dashboard hero KPI cards — density-safe 3-row stack; account equity (live IB NetLiquidation) with filter-scoped net P&L on secondary row + direction flash on update; trade win %, profit factor, avg win/loss |
+| `src/app/components/journal/JournalSummaryCards.tsx` | Dashboard hero KPI cards — account equity (live IB NetLiquidation) with scoped net P&L, percent change, and net R; trade win %; expected value + avg win/loss with $/%/R toggle; max drawdown with % and R secondary |
 | `src/app/components/journal/JournalHistorySyncChip.tsx` | Compact chrome chip when journal open trades ≠ live IB positions (`History lagging` / `Catching up`); tooltip holds full sync explanation |
 | `src/app/components/journal/useJournalHistoryOutOfSync.ts` | Hook wrapping `reconcileJournalOpensWithPositions` for sync chip |
 | `src/app/components/journal/JournalTradeListCard.tsx` | Dashboard recent closed trades list card |

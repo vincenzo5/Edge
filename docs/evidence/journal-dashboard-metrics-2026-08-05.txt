@@ -1,0 +1,25 @@
+# Journal dashboard metrics — 2026-08-05
+
+## Focused tests
+Command:
+npm test -- --run src/lib/journal/journalStats.test.ts src/lib/journal/rMultiple.test.ts src/app/components/journal/JournalSummaryCards.test.tsx
+
+```
+Test Files  3 passed (3)
+Tests  75 passed (75)
+```
+
+## Broader journal suite
+Command:
+npm test -- --run src/lib/journal src/app/components/journal/JournalSummaryCards.test.tsx
+
+```
+Test Files  37 passed (37)
+Tests  251 passed (251)
+```
+
+## Behavior
+- Account equity card: $ primary + scoped net P&L, % change from inferred starting equity, net R when planned risk exists
+- Expected value card replaces profit factor; $/%/R unit toggle rescales EV and avg win/loss bar
+- Max drawdown card replaces standalone avg win/loss; shows $ hero with % and R secondary + current-vs-max bar
+- Win % card unchanged; profit factor remains in breakdown/compare reports only

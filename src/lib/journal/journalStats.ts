@@ -1,5 +1,10 @@
 import type { JournalSetup, JournalTradeStatus } from "@/lib/journal/types";
-import { computeAggregateRStats, type PlannedRiskTradeInput } from "@/lib/journal/rMultiple";
+import {
+  computeAggregateRStats,
+  computeJournalDashboardRStats,
+  type JournalDashboardRStats,
+  type PlannedRiskTradeInput,
+} from "@/lib/journal/rMultiple";
 
 export type JournalStatsWindow = "today" | "7d" | "30d" | "all";
 
@@ -81,6 +86,19 @@ export type EquityCurvePoint = {
   date: string;
   tradePnL: number;
   cumulativePnL: number;
+};
+
+export type JournalDrawdownStats = {
+  maxDdUsd: number;
+  maxDdPct: number | null;
+  currentDdUsd: number;
+};
+
+export type JournalDashboardMetrics = {
+  startingEquity: number | null;
+  equityChangePct: number | null;
+  drawdown: JournalDrawdownStats;
+  rStats: JournalDashboardRStats;
 };
 
 export type IntradayPnLPoint = {
@@ -479,6 +497,76 @@ export function computeDaySummaryStats(trades: DaySummaryTradeInput[]): DaySumma
   };
 }
 
+export function resolveJournalStartingEquity(
+  accountEquity: number | null,
+  netPnL: number,
+): number | null {
+  if (accountEquity == null) return null;
+  const starting = accountEquity - netPnL;
+  return Number.isFinite(starting) && starting > 0 ? starting : null;
+}
+
+export function computeJournalEquityChangePct(
+  startingEquity: number | null,
+  netPnL: number,
+): number | null {
+  if (startingEquity == null || startingEquity <= 0) return null;
+  return netPnL / startingEquity;
+}
+
+export function scaleJournalMetricByStartingEquity(
+  value: number | null,
+  startingEquity: number | null,
+): number | null {
+  if (value == null || startingEquity == null || startingEquity <= 0) return null;
+  return value / startingEquity;
+}
+
+export function computeJournalDrawdown(
+  equityCurve: EquityCurvePoint[],
+  startingEquity: number | null,
+): JournalDrawdownStats {
+  if (equityCurve.length === 0) {
+    return { maxDdUsd: 0, maxDdPct: null, currentDdUsd: 0 };
+  }
+
+  let equity = startingEquity ?? 0;
+  let peak = equity;
+  let maxDdUsd = 0;
+  let currentDdUsd = 0;
+
+  for (const point of equityCurve) {
+    equity = (startingEquity ?? 0) + point.cumulativePnL;
+    peak = Math.max(peak, equity);
+    const drawdown = Math.max(0, peak - equity);
+    maxDdUsd = Math.max(maxDdUsd, drawdown);
+    currentDdUsd = drawdown;
+  }
+
+  const maxDdPct =
+    startingEquity != null && startingEquity > 0 ? maxDdUsd / startingEquity : null;
+
+  return { maxDdUsd, maxDdPct, currentDdUsd };
+}
+
+export function computeJournalDashboardMetrics(
+  trades: JournalReportTradeInput[],
+  accountEquity: number | null,
+): JournalDashboardMetrics {
+  const stats = computeJournalStats(trades, "all");
+  const startingEquity = resolveJournalStartingEquity(accountEquity, stats.netPnL);
+  const equityCurve = computeEquityCurve(trades);
+  const drawdown = computeJournalDrawdown(equityCurve, startingEquity);
+  const rStats = computeJournalDashboardRStats(trades);
+
+  return {
+    startingEquity,
+    equityChangePct: computeJournalEquityChangePct(startingEquity, stats.netPnL),
+    drawdown,
+    rStats,
+  };
+}
+
 export function computeEquityCurve(trades: JournalStatsTradeInput[]): EquityCurvePoint[] {
   const byDate = new Map<string, number>();
   for (const trade of trades) {
@@ -748,7 +836,9 @@ export function computeCalendarWeekTotals(cells: CalendarMonthCell[]): number[] 
   const totals: number[] = [];
   for (let i = 0; i < cells.length; i += CALENDAR_WEEKDAY_COLUMNS) {
     const row = cells.slice(i, i + CALENDAR_WEEKDAY_COLUMNS);
-    totals.push(row.reduce((sum, cell) => sum + (cell.netPnL ?? 0), 0));
+    totals.push(
+      row.reduce((sum, cell) => sum + (cell.inMonth ? (cell.netPnL ?? 0) : 0), 0),
+    );
   }
   return totals;
 }

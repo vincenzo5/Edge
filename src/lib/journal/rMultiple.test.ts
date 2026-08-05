@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   computeAggregateRStats,
+  computeJournalDashboardRStats,
   computePlannedRiskUsd,
   computePositionNotional,
   computeRMultiple,
@@ -63,6 +64,35 @@ describe("rMultiple", () => {
     ]);
     expect(stats.tradeCountWithR).toBe(2);
     expect(stats.avgR).toBe(0.25);
+  });
+
+  it("computes dashboard R stats including max drawdown in R", () => {
+    const stats = computeJournalDashboardRStats([
+      {
+        status: "closed",
+        closedAt: "2026-06-01T16:00:00.000Z",
+        netPnL: 100,
+        plannedRiskUsd: 100,
+      },
+      {
+        status: "closed",
+        closedAt: "2026-06-02T16:00:00.000Z",
+        netPnL: -200,
+        plannedRiskUsd: 100,
+      },
+      {
+        status: "closed",
+        closedAt: "2026-06-03T16:00:00.000Z",
+        netPnL: 50,
+        plannedRiskUsd: 100,
+      },
+    ]);
+    expect(stats.netR).toBe(-0.5);
+    expect(stats.expectancyR).toBeCloseTo(-0.5 / 3);
+    expect(stats.avgWinR).toBeCloseTo(0.75);
+    expect(stats.avgLossR).toBe(-2);
+    expect(stats.maxDdR).toBe(2);
+    expect(stats.tradeCountWithR).toBe(3);
   });
 
   it("feeds R stats from position-plan derived planned risk", () => {

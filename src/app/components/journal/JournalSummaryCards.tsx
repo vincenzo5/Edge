@@ -2,28 +2,33 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Tooltip from "@/app/components/Tooltip";
+import { EdgeSegmentedTabs } from "@/app/components/design-system";
 import { useTileDensity } from "@/app/components/app-workspace/TileDensityContext";
 import { toneTextClass, type EdgeTone } from "@/lib/design-system/edge";
 import {
   journalHeroCardSpanClass,
   journalSummaryGridClass,
 } from "@/lib/responsive/tileDensity";
-import type { JournalStats } from "@/lib/journal/journalStats";
+import {
+  scaleJournalMetricByStartingEquity,
+  type JournalDashboardMetrics,
+  type JournalStats,
+} from "@/lib/journal/journalStats";
 
 const ACCOUNT_EQUITY_HELP =
-  "Total portfolio value (net liquidation) from your connected IB account.";
+  "Total portfolio value (net liquidation) from your connected IB account. Secondary lines show scoped net P&L, percent change from the inferred starting equity, and net R when planned risk is available.";
 
 const NET_PNL_HELP =
-  "The total realized net profit and loss for all closed trades.";
+  "The total realized net profit and loss for all closed trades in the current scope.";
 
 const WIN_RATE_HELP =
   "Reflects the percentage of your winning trades out of total trades taken.";
 
-const PROFIT_FACTOR_HELP =
-  "Total profits divided by total losses. A profit factor above 1.0 indicates a profitable trading system.";
+const EXPECTED_VALUE_HELP =
+  "Average profit or loss per trade in the current scope (expectancy). The bar compares average win and average loss magnitudes.";
 
-const AVG_WIN_LOSS_HELP =
-  "The average profit on all winning and losing trades (avg win/loss trade).";
+const DRAWDOWN_HELP =
+  "Maximum peak-to-trough decline on the scoped equity curve. Secondary lines show max drawdown as a percent of starting equity and in R when planned risk is available.";
 
 const EQUITY_FLASH_MS = 2_000;
 
@@ -33,16 +38,15 @@ const GAUGE_CY = GAUGE_SIZE / 2 + 6;
 const GAUGE_R = 32;
 const GAUGE_STROKE = 7;
 
-const DONUT_SIZE = 56;
-const DONUT_CX = DONUT_SIZE / 2;
-const DONUT_CY = DONUT_SIZE / 2;
-const DONUT_R = 22;
-const DONUT_STROKE = 6;
-const DONUT_START = -Math.PI / 2;
-
 type OutcomeSegment = "win" | "breakeven" | "loss";
-type ProfitFactorSegment = "profit" | "loss";
 type AvgWinLossSegment = "win" | "loss";
+type JournalMetricUnit = "usd" | "pct" | "r";
+
+const METRIC_UNIT_SEGMENTS = [
+  { id: "usd", label: "$" },
+  { id: "pct", label: "%" },
+  { id: "r", label: "R" },
+] as const;
 
 function formatMoney(value: number, missing = false): string {
   if (missing) return "—";
@@ -76,6 +80,20 @@ function formatPercent(value: number | null): string {
   return `${Math.round(value * 1000) / 10}%`;
 }
 
+function formatSignedPercent(value: number | null): string {
+  if (value == null) return "—";
+  const pct = Math.round(value * 1000) / 10;
+  const sign = pct > 0 ? "+" : "";
+  return `${sign}${pct}%`;
+}
+
+function formatR(value: number | null, missing = false): string {
+  if (missing || value == null) return "—";
+  const rounded = Math.round(value * 100) / 100;
+  const sign = rounded > 0 ? "+" : "";
+  return `${sign}${rounded.toFixed(2).replace(/\.?0+$/, "")}R`;
+}
+
 function pnlTone(netPnL: number): EdgeTone {
   if (netPnL > 0) return "positive";
   if (netPnL < 0) return "negative";
@@ -103,46 +121,6 @@ function describeArc(
   return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} ${sweep} ${end.x} ${end.y}`;
 }
 
-function describeCircleSegment(
-  cx: number,
-  cy: number,
-  r: number,
-  startAngle: number,
-  sweep: number,
-): string {
-  if (sweep >= Math.PI * 2 - 1e-6) {
-    const mid = startAngle + Math.PI;
-    return `${describeArc(cx, cy, r, startAngle, mid)} ${describeArc(cx, cy, r, mid, startAngle + Math.PI * 2)}`;
-  }
-  return describeArc(cx, cy, r, startAngle, startAngle + sweep);
-}
-
-function buildProfitFactorDonutSweeps(totalProfit: number, totalLoss: number): {
-  profitSweep: number;
-  lossSweep: number;
-  hasData: boolean;
-} {
-  const absLoss = Math.abs(totalLoss);
-  const gross = totalProfit + absLoss;
-  if (gross === 0) {
-    return { profitSweep: 0, lossSweep: 0, hasData: false };
-  }
-  const fullCircle = Math.PI * 2;
-  const profitSweep = (totalProfit / gross) * fullCircle;
-  const lossSweep = (absLoss / gross) * fullCircle;
-  return { profitSweep, lossSweep, hasData: true };
-}
-
-function profitFactorHoverPillLabel(
-  segment: ProfitFactorSegment,
-  totalProfit: number,
-  totalLoss: number,
-): string {
-  return segment === "profit"
-    ? `${formatMoney(totalProfit)} Total Profit`
-    : `${formatMoney(totalLoss)} Total Loss`;
-}
-
 function buildAvgWinLossBarWidths(
   avgWin: number | null,
   avgLoss: number | null,
@@ -164,10 +142,79 @@ function avgWinLossHoverPillLabel(
   segment: AvgWinLossSegment,
   avgWin: number | null,
   avgLoss: number | null,
+  unit: JournalMetricUnit,
 ): string {
+  if (unit === "r") {
+    return segment === "win"
+      ? `${formatR(avgWin)} Avg Win`
+      : `${formatR(avgLoss)} Avg Loss`;
+  }
+  if (unit === "pct") {
+    return segment === "win"
+      ? `${formatSignedPercent(avgWin)} Avg Win`
+      : `${formatSignedPercent(avgLoss)} Avg Loss`;
+  }
   return segment === "win"
     ? `${formatMoney(avgWin ?? 0, avgWin == null)} Avg Win`
     : `${formatMoney(avgLoss ?? 0, avgLoss == null)} Avg Loss`;
+}
+
+function resolveExpectedValueDisplay(
+  stats: JournalStats,
+  dashboardMetrics: JournalDashboardMetrics,
+  unit: JournalMetricUnit,
+): {
+  expectancy: number | null;
+  avgWin: number | null;
+  avgLoss: number | null;
+  missing: boolean;
+} {
+  const { startingEquity, rStats } = dashboardMetrics;
+  if (unit === "r") {
+    const missing = rStats.tradeCountWithR === 0;
+    return {
+      expectancy: rStats.expectancyR,
+      avgWin: rStats.avgWinR,
+      avgLoss: rStats.avgLossR,
+      missing,
+    };
+  }
+  if (unit === "pct") {
+    const missing = startingEquity == null;
+    return {
+      expectancy: scaleJournalMetricByStartingEquity(stats.expectancy, startingEquity),
+      avgWin: scaleJournalMetricByStartingEquity(stats.avgWin, startingEquity),
+      avgLoss: scaleJournalMetricByStartingEquity(stats.avgLoss, startingEquity),
+      missing,
+    };
+  }
+  return {
+    expectancy: stats.expectancy,
+    avgWin: stats.avgWin,
+    avgLoss: stats.avgLoss,
+    missing: stats.expectancy == null,
+  };
+}
+
+function formatExpectedValue(
+  value: number | null,
+  unit: JournalMetricUnit,
+  missing: boolean,
+): string {
+  if (missing || value == null) return "—";
+  if (unit === "r") return formatR(value);
+  if (unit === "pct") return formatSignedPercent(value);
+  return formatMoney(value);
+}
+
+function formatAvgWinLossLabel(
+  value: number | null,
+  unit: JournalMetricUnit,
+): string {
+  if (value == null) return "—";
+  if (unit === "r") return formatR(value);
+  if (unit === "pct") return formatSignedPercent(value);
+  return formatCompactMoney(value);
 }
 
 function tradeCountLabel(count: number, singular: string, plural: string): string {
@@ -238,9 +285,14 @@ function buildGaugeArcSegments(
 type Props = {
   stats: JournalStats;
   accountEquity: number | null;
+  dashboardMetrics: JournalDashboardMetrics;
 };
 
-export default function JournalSummaryCards({ stats, accountEquity }: Props) {
+export default function JournalSummaryCards({
+  stats,
+  accountEquity,
+  dashboardMetrics,
+}: Props) {
   const { mode } = useTileDensity();
   const heroSpan = journalHeroCardSpanClass(mode);
 
@@ -251,6 +303,9 @@ export default function JournalSummaryCards({ stats, accountEquity }: Props) {
           accountEquity={accountEquity}
           netPnL={stats.netPnL}
           closedCount={stats.closedCount}
+          equityChangePct={dashboardMetrics.equityChangePct}
+          netR={dashboardMetrics.rStats.netR}
+          tradeCountWithR={dashboardMetrics.rStats.tradeCountWithR}
           heroSpan={heroSpan}
         />
         <WinRateMetricCard
@@ -260,18 +315,12 @@ export default function JournalSummaryCards({ stats, accountEquity }: Props) {
           closedCount={stats.closedCount}
           heroSpan={heroSpan}
         />
-        <ProfitFactorMetricCard
-          profitFactor={stats.profitFactor}
-          totalProfit={stats.totalProfit}
-          totalLoss={stats.totalLoss}
+        <ExpectedValueMetricCard
+          stats={stats}
+          dashboardMetrics={dashboardMetrics}
           heroSpan={heroSpan}
         />
-        <AvgWinLossMetricCard
-          expectancy={stats.expectancy}
-          avgWin={stats.avgWin}
-          avgLoss={stats.avgLoss}
-          heroSpan={heroSpan}
-        />
+        <DrawdownMetricCard dashboardMetrics={dashboardMetrics} heroSpan={heroSpan} />
       </div>
     </section>
   );
@@ -373,11 +422,17 @@ function AccountEquityMetricCard({
   accountEquity,
   netPnL,
   closedCount,
+  equityChangePct,
+  netR,
+  tradeCountWithR,
   heroSpan,
 }: {
   accountEquity: number | null;
   netPnL: number;
   closedCount: number;
+  equityChangePct: number | null;
+  netR: number | null;
+  tradeCountWithR: number;
   heroSpan: string;
 }) {
   const prevEquityRef = useRef<number | null>(null);
@@ -460,14 +515,32 @@ function AccountEquityMetricCard({
           </span>
         }
         secondary={
-          <span className="flex min-w-0 flex-wrap items-center gap-1">
-            <span
-              data-testid="journal-net-pnl-suffix"
-              className={`text-sm font-medium tabular-nums ${toneTextClass(pnlTone(netPnL))}`}
-            >
-              {formatCompactMoney(netPnL)}
+          <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <span
+                data-testid="journal-net-pnl-suffix"
+                className={`text-sm font-medium tabular-nums ${toneTextClass(pnlTone(netPnL))}`}
+              >
+                {formatCompactMoney(netPnL)}
+              </span>
+              <MetricHelpIcon content={NET_PNL_HELP} ariaLabel="Net P&L help" />
             </span>
-            <MetricHelpIcon content={NET_PNL_HELP} ariaLabel="Net P&L help" />
+            <span
+              data-testid="journal-equity-change-pct"
+              className={`text-sm font-medium tabular-nums ${
+                equityChangePct == null
+                  ? "text-[var(--edge-text-muted)]"
+                  : toneTextClass(pnlTone(equityChangePct))
+              }`}
+            >
+              {formatSignedPercent(equityChangePct)}
+            </span>
+            <span
+              data-testid="journal-equity-net-r"
+              className={`text-sm font-medium tabular-nums ${tradeCountWithR > 0 && netR != null ? toneTextClass(pnlTone(netR)) : "text-[var(--edge-text-muted)]"}`}
+            >
+              {tradeCountWithR > 0 ? formatR(netR) : "—"}
+            </span>
           </span>
         }
       />
@@ -669,142 +742,15 @@ function WinRateMetricCard({
   );
 }
 
-function ProfitFactorDonut({
-  totalProfit,
-  totalLoss,
-  onSegmentHover,
-}: {
-  totalProfit: number;
-  totalLoss: number;
-  onSegmentHover: (segment: ProfitFactorSegment | null) => void;
-}) {
-  const { profitSweep, lossSweep, hasData } = buildProfitFactorDonutSweeps(
-    totalProfit,
-    totalLoss,
-  );
-  const backgroundCircle = describeCircleSegment(
-    DONUT_CX,
-    DONUT_CY,
-    DONUT_R,
-    DONUT_START,
-    Math.PI * 2,
-  );
-  const profitEnd = DONUT_START + profitSweep;
-
-  return (
-    <div
-      data-testid="journal-profit-factor-donut"
-      className="relative shrink-0"
-      style={{ width: DONUT_SIZE, height: DONUT_SIZE }}
-    >
-      <svg
-        width={DONUT_SIZE}
-        height={DONUT_SIZE}
-        viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`}
-        aria-hidden
-      >
-        <path
-          d={backgroundCircle}
-          fill="none"
-          stroke="var(--edge-border)"
-          strokeWidth={DONUT_STROKE}
-          strokeLinecap="butt"
-        />
-        {hasData && profitSweep > 0 && (
-          <path
-            data-testid="journal-profit-factor-segment-profit"
-            d={describeCircleSegment(DONUT_CX, DONUT_CY, DONUT_R, DONUT_START, profitSweep)}
-            fill="none"
-            stroke="var(--edge-positive)"
-            strokeWidth={DONUT_STROKE}
-            strokeLinecap="butt"
-            className="cursor-help"
-            onMouseEnter={() => onSegmentHover("profit")}
-            onMouseLeave={() => onSegmentHover(null)}
-          />
-        )}
-        {hasData && lossSweep > 0 && (
-          <path
-            data-testid="journal-profit-factor-segment-loss"
-            d={describeCircleSegment(DONUT_CX, DONUT_CY, DONUT_R, profitEnd, lossSweep)}
-            fill="none"
-            stroke="var(--edge-negative)"
-            strokeWidth={DONUT_STROKE}
-            strokeLinecap="butt"
-            className="cursor-help"
-            onMouseEnter={() => onSegmentHover("loss")}
-            onMouseLeave={() => onSegmentHover(null)}
-          />
-        )}
-      </svg>
-    </div>
-  );
-}
-
-function ProfitFactorMetricCard({
-  profitFactor,
-  totalProfit,
-  totalLoss,
-  heroSpan,
-}: {
-  profitFactor: number | null;
-  totalProfit: number;
-  totalLoss: number;
-  heroSpan: string;
-}) {
-  const [hoveredSegment, setHoveredSegment] = useState<ProfitFactorSegment | null>(null);
-
-  const hoverPillText =
-    hoveredSegment != null
-      ? profitFactorHoverPillLabel(hoveredSegment, totalProfit, totalLoss)
-      : null;
-
-  return (
-    <HeroMetricCardShell
-      testId="journal-profit-factor-card"
-      heroSpan={heroSpan}
-      hoverPill={
-        <HeroHoverPill
-          testId="journal-profit-factor-hover-pill"
-          visible={hoverPillText != null}
-        >
-          {hoverPillText ?? ""}
-        </HeroHoverPill>
-      }
-    >
-      <HeroMetricCardLayout
-        label="Profit factor"
-        helpContent={PROFIT_FACTOR_HELP}
-        helpAriaLabel="Profit factor help"
-        value={
-          <div
-            data-testid="journal-profit-factor-value"
-            className="text-2xl font-semibold tabular-nums text-[var(--edge-text-strong)]"
-            onMouseEnter={() => setHoveredSegment("profit")}
-            onMouseLeave={() => setHoveredSegment(null)}
-          >
-            {profitFactor?.toFixed(2) ?? "—"}
-          </div>
-        }
-        visual={
-          <ProfitFactorDonut
-            totalProfit={totalProfit}
-            totalLoss={totalLoss}
-            onSegmentHover={setHoveredSegment}
-          />
-        }
-      />
-    </HeroMetricCardShell>
-  );
-}
-
 function AvgWinLossBar({
   avgWin,
   avgLoss,
+  unit,
   onSegmentHover,
 }: {
   avgWin: number | null;
   avgLoss: number | null;
+  unit: JournalMetricUnit;
   onSegmentHover: (segment: AvgWinLossSegment | null) => void;
 }) {
   const { winPct, lossPct, hasData } = buildAvgWinLossBarWidths(avgWin, avgLoss);
@@ -836,47 +782,54 @@ function AvgWinLossBar({
           data-testid="journal-avg-win-loss-label-win"
           className="text-[var(--edge-positive)]"
         >
-          {formatCompactMoney(avgWin)}
+          {formatAvgWinLossLabel(avgWin, unit)}
         </span>
         <span
           data-testid="journal-avg-win-loss-label-loss"
           className="text-right text-[var(--edge-negative)]"
         >
-          {formatCompactMoney(avgLoss)}
+          {formatAvgWinLossLabel(avgLoss, unit)}
         </span>
       </div>
     </div>
   );
 }
 
-function AvgWinLossMetricCard({
-  expectancy,
-  avgWin,
-  avgLoss,
+function ExpectedValueMetricCard({
+  stats,
+  dashboardMetrics,
   heroSpan,
 }: {
-  expectancy: number | null;
-  avgWin: number | null;
-  avgLoss: number | null;
+  stats: JournalStats;
+  dashboardMetrics: JournalDashboardMetrics;
   heroSpan: string;
 }) {
+  const [unit, setUnit] = useState<JournalMetricUnit>("usd");
   const [hoveredSegment, setHoveredSegment] = useState<AvgWinLossSegment | null>(null);
+  const display = resolveExpectedValueDisplay(stats, dashboardMetrics, unit);
 
   const hoverPillText =
     hoveredSegment != null
-      ? avgWinLossHoverPillLabel(hoveredSegment, avgWin, avgLoss)
+      ? avgWinLossHoverPillLabel(
+          hoveredSegment,
+          display.avgWin,
+          display.avgLoss,
+          unit,
+        )
       : null;
 
   const expectancyTone =
-    expectancy != null ? pnlTone(expectancy) : ("neutral" as EdgeTone);
+    display.expectancy != null && !display.missing
+      ? pnlTone(display.expectancy)
+      : ("neutral" as EdgeTone);
 
   return (
     <HeroMetricCardShell
-      testId="journal-avg-win-loss-card"
+      testId="journal-expected-value-card"
       heroSpan={heroSpan}
       hoverPill={
         <HeroHoverPill
-          testId="journal-avg-win-loss-hover-pill"
+          testId="journal-expected-value-hover-pill"
           visible={hoverPillText != null}
         >
           {hoverPillText ?? ""}
@@ -884,22 +837,112 @@ function AvgWinLossMetricCard({
       }
     >
       <HeroMetricCardLayout
-        label="Avg win/loss"
-        helpContent={AVG_WIN_LOSS_HELP}
-        helpAriaLabel="Avg win/loss help"
+        label="Expected value"
+        helpContent={EXPECTED_VALUE_HELP}
+        helpAriaLabel="Expected value help"
+        headerTrailing={
+          <EdgeSegmentedTabs
+            segments={[...METRIC_UNIT_SEGMENTS]}
+            value={unit}
+            onChange={(next) => setUnit(next as JournalMetricUnit)}
+            className="w-[7.5rem]"
+          />
+        }
         value={
           <div
-            data-testid="journal-avg-win-loss-expectancy"
+            data-testid="journal-expected-value"
             className={`text-2xl font-semibold tabular-nums ${toneTextClass(expectancyTone)}`}
           >
-            {formatMoney(expectancy ?? 0, expectancy == null)}
+            {formatExpectedValue(display.expectancy, unit, display.missing)}
           </div>
         }
         secondary={
           <AvgWinLossBar
-            avgWin={avgWin}
-            avgLoss={avgLoss}
+            avgWin={display.avgWin}
+            avgLoss={display.avgLoss}
+            unit={unit}
             onSegmentHover={setHoveredSegment}
+          />
+        }
+      />
+    </HeroMetricCardShell>
+  );
+}
+
+function DrawdownBar({
+  currentDdUsd,
+  maxDdUsd,
+}: {
+  currentDdUsd: number;
+  maxDdUsd: number;
+}) {
+  const ratio = maxDdUsd > 0 ? Math.min(1, currentDdUsd / maxDdUsd) : 0;
+
+  return (
+    <div data-testid="journal-drawdown-bar" className="w-full min-w-[5.5rem]">
+      <div className="flex h-2.5 overflow-hidden rounded-full bg-[var(--edge-border)]">
+        {maxDdUsd > 0 && (
+          <div
+            data-testid="journal-drawdown-bar-fill"
+            className="h-full bg-[var(--edge-negative)]"
+            style={{ width: `${ratio * 100}%` }}
+          />
+        )}
+      </div>
+      <div className="mt-1 text-[10px] tabular-nums text-[var(--edge-text-muted)]">
+        Current {formatCompactMoney(-currentDdUsd)}
+      </div>
+    </div>
+  );
+}
+
+function DrawdownMetricCard({
+  dashboardMetrics,
+  heroSpan,
+}: {
+  dashboardMetrics: JournalDashboardMetrics;
+  heroSpan: string;
+}) {
+  const { drawdown, rStats } = dashboardMetrics;
+  const hasDrawdown = drawdown.maxDdUsd > 0;
+  const tone = hasDrawdown ? "negative" : "neutral";
+
+  return (
+    <HeroMetricCardShell testId="journal-drawdown-card" heroSpan={heroSpan}>
+      <HeroMetricCardLayout
+        label="Max drawdown"
+        helpContent={DRAWDOWN_HELP}
+        helpAriaLabel="Max drawdown help"
+        value={
+          <div
+            data-testid="journal-drawdown-value"
+            className={`text-2xl font-semibold tabular-nums ${toneTextClass(tone)}`}
+          >
+            {hasDrawdown ? formatCompactMoney(-drawdown.maxDdUsd) : "—"}
+          </div>
+        }
+        secondary={
+          <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm tabular-nums">
+            <span
+              data-testid="journal-drawdown-pct"
+              className={`font-medium ${drawdown.maxDdPct != null ? toneTextClass("negative") : "text-[var(--edge-text-muted)]"}`}
+            >
+              {drawdown.maxDdPct != null ? formatPercent(drawdown.maxDdPct) : "—"}
+            </span>
+            <span
+              data-testid="journal-drawdown-r"
+              className={`font-medium ${rStats.maxDdR != null && rStats.tradeCountWithR > 0 ? toneTextClass("negative") : "text-[var(--edge-text-muted)]"}`}
+            >
+              {rStats.tradeCountWithR > 0 && rStats.maxDdR != null
+                ? formatR(-rStats.maxDdR)
+                : "—"}
+            </span>
+          </span>
+        }
+        visual={
+          <DrawdownBar
+            currentDdUsd={drawdown.currentDdUsd}
+            maxDdUsd={drawdown.maxDdUsd}
           />
         }
       />

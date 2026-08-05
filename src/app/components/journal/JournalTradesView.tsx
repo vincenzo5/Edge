@@ -5,7 +5,7 @@ import { useAccountOptional } from "@/app/components/AccountProvider";
 import JournalSummaryCards from "@/app/components/journal/JournalSummaryCards";
 import JournalTradesTable from "@/app/components/journal/JournalTradesTable";
 import JournalTradesTableControls from "@/app/components/journal/JournalTradesTableControls";
-import JournalTradeDetailDrawer from "@/app/components/journal/JournalTradeDetailDrawer";
+import JournalTradeDetailModal from "@/app/components/journal/JournalTradeDetailModal";
 import JournalScopeBar from "@/app/components/journal/JournalScopeBar";
 import JournalModuleHeader from "@/app/components/journal/JournalModuleHeader";
 import JournalViewTabs from "@/app/components/journal/JournalViewTabs";
@@ -22,6 +22,7 @@ import {
 } from "@/lib/journal/journalFilterHelpers";
 import {
   computeJournalStats,
+  computeJournalDashboardMetrics,
   EMPTY_JOURNAL_FILTERS,
   filterJournalTrades,
   filterOpenJournalTrades,
@@ -143,6 +144,11 @@ export default function JournalTradesView({ variant = "trades" }: Props) {
     "NetLiquidation",
   );
 
+  const dashboardMetrics = useMemo(
+    () => computeJournalDashboardMetrics(scopedClosedTrades, accountEquity),
+    [scopedClosedTrades, accountEquity],
+  );
+
   const liveUnrealizedByTradeId = useMemo(() => {
     if (!isOpenView) return {};
     const positions = account?.positions ?? [];
@@ -189,7 +195,11 @@ export default function JournalTradesView({ variant = "trades" }: Props) {
         data-testid={isOpenView ? "journal-open-positions-view" : "journal-trades-view"}
       >
         <JournalContentGate variant="trades" onImported={() => void loadTrades()}>
-          <JournalSummaryCards stats={stats} accountEquity={accountEquity} />
+          <JournalSummaryCards
+            stats={stats}
+            accountEquity={accountEquity}
+            dashboardMetrics={dashboardMetrics}
+          />
           <div className="mt-4 flex min-h-0 flex-1 flex-col">
             {emptyVariant === "none" ? (
               <JournalTradesTableControls
@@ -217,7 +227,7 @@ export default function JournalTradesView({ variant = "trades" }: Props) {
           </div>
         </JournalContentGate>
       </main>
-      <JournalTradeDetailDrawer
+      <JournalTradeDetailModal
         trade={selectedTrade}
         onClose={() => setSelectedTradeId(null)}
         onUpdated={(trade) => {

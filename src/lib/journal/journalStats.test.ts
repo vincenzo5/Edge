@@ -14,6 +14,11 @@ import {
   computeDaySummaryStats,
   computeEquityCurve,
   computeIntradayPnLCurve,
+  computeJournalDashboardMetrics,
+  computeJournalDrawdown,
+  computeJournalEquityChangePct,
+  resolveJournalStartingEquity,
+  scaleJournalMetricByStartingEquity,
   computeJournalStats,
   computeTimeBreakdownReport,
   filterJournalTrades,
@@ -42,6 +47,9 @@ const closedTrade = (
   setup: overrides.setup,
   rating: overrides.rating,
   ignored: overrides.ignored,
+  plannedRiskMode: overrides.plannedRiskMode,
+  plannedRiskValue: overrides.plannedRiskValue,
+  plannedRiskUsd: overrides.plannedRiskUsd,
 });
 
 describe("journalStats", () => {
@@ -252,6 +260,58 @@ describe("journalStats", () => {
     });
   });
 
+  describe("journal dashboard metrics helpers", () => {
+    it("resolves starting equity from live account and scoped net P&L", () => {
+      expect(resolveJournalStartingEquity(125_430, 420)).toBe(125_010);
+      expect(resolveJournalStartingEquity(null, 420)).toBeNull();
+      expect(resolveJournalStartingEquity(100, 200)).toBeNull();
+    });
+
+    it("computes equity change percent from starting equity", () => {
+      expect(computeJournalEquityChangePct(125_010, 420)).toBeCloseTo(420 / 125_010);
+      expect(computeJournalEquityChangePct(null, 420)).toBeNull();
+    });
+
+    it("computes max drawdown from equity curve and starting equity", () => {
+      const curve = computeEquityCurve([
+        closedTrade({ netPnL: 100, closedAt: "2026-06-01T16:00:00.000Z" }),
+        closedTrade({ netPnL: -180, closedAt: "2026-06-02T16:00:00.000Z" }),
+        closedTrade({ netPnL: 50, closedAt: "2026-06-03T16:00:00.000Z" }),
+      ]);
+      const drawdown = computeJournalDrawdown(curve, 10_000);
+      expect(drawdown.maxDdUsd).toBe(180);
+      expect(drawdown.maxDdPct).toBeCloseTo(180 / 10_000);
+      expect(drawdown.currentDdUsd).toBe(130);
+    });
+
+    it("scales dollar metrics by starting equity for percent mode", () => {
+      expect(scaleJournalMetricByStartingEquity(45, 10_000)).toBeCloseTo(0.0045);
+      expect(scaleJournalMetricByStartingEquity(45, null)).toBeNull();
+    });
+
+    it("bundles dashboard metrics from scoped trades and account equity", () => {
+      const trades = [
+        closedTrade({
+          netPnL: 100,
+          closedAt: "2026-06-01T16:00:00.000Z",
+          plannedRiskUsd: 100,
+        }),
+        closedTrade({
+          netPnL: -50,
+          closedAt: "2026-06-02T16:00:00.000Z",
+          plannedRiskUsd: 100,
+        }),
+      ];
+      const metrics = computeJournalDashboardMetrics(trades, 10_050);
+      expect(metrics.startingEquity).toBe(10_000);
+      expect(metrics.equityChangePct).toBeCloseTo(50 / 10_000);
+      expect(metrics.drawdown.maxDdUsd).toBe(50);
+      expect(metrics.rStats.netR).toBe(0.5);
+      expect(metrics.rStats.expectancyR).toBe(0.25);
+      expect(metrics.rStats.tradeCountWithR).toBe(2);
+    });
+  });
+
   describe("computeBreakdownReport", () => {
     it("groups by setup including no setup bucket", () => {
       const rows = computeBreakdownReport(
@@ -393,6 +453,23 @@ describe("journalStats", () => {
     it("computes week totals per Mon-Fri row", () => {
       const totals = computeCalendarWeekTotals(cells);
       expect(totals[0]).toBe(260);
+    });
+
+    it("week totals exclude out-of-month days on crossover weeks", () => {
+      // July 2026 starts Wednesday — first week includes Mon–Tue from June.
+      const julyCells = buildCalendarMonth(2026, 6, [
+        { date: "2026-06-29", netPnL: 500, tradeCount: 1, winCount: 1, lossCount: 0 },
+        { date: "2026-06-30", netPnL: 300, tradeCount: 1, winCount: 1, lossCount: 0 },
+        { date: "2026-07-01", netPnL: 100, tradeCount: 1, winCount: 1, lossCount: 0 },
+        { date: "2026-07-02", netPnL: -40, tradeCount: 1, winCount: 0, lossCount: 1 },
+        { date: "2026-07-03", netPnL: 20, tradeCount: 1, winCount: 1, lossCount: 0 },
+      ]).cells;
+      const june29 = julyCells.find((cell) => cell.date === "2026-06-29");
+      const july1 = julyCells.find((cell) => cell.date === "2026-07-01");
+      expect(june29?.inMonth).toBe(false);
+      expect(july1?.inMonth).toBe(true);
+      const totals = computeCalendarWeekTotals(julyCells);
+      expect(totals[0]).toBe(80);
     });
 
     it("scales heat intensity by month max abs P&L", () => {

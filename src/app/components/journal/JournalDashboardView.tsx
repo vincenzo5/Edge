@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useAccountOptional } from "@/app/components/AccountProvider";
 import JournalSummaryCards from "@/app/components/journal/JournalSummaryCards";
-import JournalTradeDetailDrawer from "@/app/components/journal/JournalTradeDetailDrawer";
+import JournalTradeDetailModal from "@/app/components/journal/JournalTradeDetailModal";
 import JournalScopeBar from "@/app/components/journal/JournalScopeBar";
 import JournalCalendar from "@/app/components/journal/JournalCalendar";
 import JournalDaySummaryModal from "@/app/components/journal/JournalDaySummaryModal";
@@ -32,6 +32,7 @@ import {
   computeJournalStats,
   computeBreakdownReport,
   computeTimeBreakdownReport,
+  computeJournalDashboardMetrics,
   EMPTY_JOURNAL_FILTERS,
   filterJournalTrades,
   scopeClosedTradesForReporting,
@@ -145,6 +146,11 @@ export default function JournalDashboardView() {
     "NetLiquidation",
   );
 
+  const dashboardMetrics = useMemo(
+    () => computeJournalDashboardMetrics(scopedClosedTrades, accountEquity),
+    [scopedClosedTrades, accountEquity],
+  );
+
   return (
     <>
       <JournalModuleHeader
@@ -165,7 +171,11 @@ export default function JournalDashboardView() {
       <main className="min-h-0 flex-1 overflow-y-auto p-4" data-testid="journal-dashboard-view">
         <JournalContentGate variant="dashboard" onImported={() => void loadTrades()}>
           <div>
-            <JournalSummaryCards stats={stats} accountEquity={accountEquity} />
+            <JournalSummaryCards
+              stats={stats}
+              accountEquity={accountEquity}
+              dashboardMetrics={dashboardMetrics}
+            />
           </div>
           <div className={journalDashboardSectionGridClass(mode, "min-h-96")}>
             <div className="h-full min-h-0">
@@ -210,7 +220,7 @@ export default function JournalDashboardView() {
         onClose={() => setDaySummaryDate(null)}
         onSelectTrade={setSelectedTradeId}
       />
-      <JournalTradeDetailDrawer
+      <JournalTradeDetailModal
         trade={selectedTrade}
         onClose={() => setSelectedTradeId(null)}
         onUpdated={(trade) => {
