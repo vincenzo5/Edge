@@ -575,7 +575,9 @@ export function TradeOrderForm({
   const protectBracketReject = useMemo(() => {
     const protectRequested =
       policyBound ||
-      (stopLossEnabled && takeProfitEnabled && composeStopLossPrice != null && composeTakeProfitPrice != null);
+      (stopLossEnabled &&
+        composeStopLossPrice != null &&
+        (takeProfitEnabled ? composeTakeProfitPrice != null : true));
     return bracketEntryRejectReason({ orderType, protectRequested });
   }, [
     composeStopLossPrice,
@@ -588,12 +590,13 @@ export function TradeOrderForm({
 
   const attachBracket = useMemo(() => {
     if (!supportsBracketAttach(orderType)) return false;
-    if (policyBound) return true;
+    if (policyBound) {
+      return composeStopLossPrice != null;
+    }
     return (
       stopLossEnabled &&
-      takeProfitEnabled &&
       composeStopLossPrice != null &&
-      composeTakeProfitPrice != null
+      (!takeProfitEnabled || composeTakeProfitPrice != null)
     );
   }, [
     composeStopLossPrice,
@@ -735,11 +738,13 @@ export function TradeOrderForm({
 
   const bracketPlan = useMemo((): BracketPlan | null => {
     if (!draft || !attachBracket || !stopLeg) return null;
-    if (composeStopLossPrice == null || composeTakeProfitPrice == null) return null;
+    if (composeStopLossPrice == null) return null;
     const plan = buildBracketPlanWithPrices({
       entry: draft,
       stopPrice: composeStopLossPrice,
-      takeProfitPrice: composeTakeProfitPrice,
+      ...(takeProfitEnabled && composeTakeProfitPrice != null
+        ? { takeProfitPrice: composeTakeProfitPrice }
+        : {}),
       stopLeg,
       takeProfitQuantity: Math.max(1, Math.round(takeProfitQuantity)),
       stopQuantity: Math.max(1, Math.round(stopLossQuantity)),
@@ -752,6 +757,7 @@ export function TradeOrderForm({
     draft,
     stopLeg,
     stopLossQuantity,
+    takeProfitEnabled,
     takeProfitQuantity,
   ]);
 
@@ -792,16 +798,25 @@ export function TradeOrderForm({
 
   const bracketGeometryError = useMemo(() => {
     if (!draft || !attachBracket || !stopLeg) return null;
-    if (composeStopLossPrice == null || composeTakeProfitPrice == null) return null;
+    if (composeStopLossPrice == null) return null;
     return validateBracketGeometry(
       buildBracketPlanWithPrices({
         entry: draft,
         stopPrice: composeStopLossPrice,
-        takeProfitPrice: composeTakeProfitPrice,
+        ...(takeProfitEnabled && composeTakeProfitPrice != null
+          ? { takeProfitPrice: composeTakeProfitPrice }
+          : {}),
         stopLeg,
       }),
     );
-  }, [attachBracket, composeStopLossPrice, composeTakeProfitPrice, draft, stopLeg]);
+  }, [
+    attachBracket,
+    composeStopLossPrice,
+    composeTakeProfitPrice,
+    draft,
+    stopLeg,
+    takeProfitEnabled,
+  ]);
 
   const proposedRiskForGates = useMemo(() => {
     const entry = planLevels?.entry ?? lastPrice;
@@ -826,13 +841,13 @@ export function TradeOrderForm({
   });
 
   const bracketPlanForPolicy = useMemo(() => {
-    if (!policyBound || !draft || composeStopLossPrice == null || composeTakeProfitPrice == null) {
+    if (!policyBound || !draft || composeStopLossPrice == null) {
       return null;
     }
     return buildBracketPlanWithPrices({
       entry: draft,
       stopPrice: composeStopLossPrice,
-      takeProfitPrice: composeTakeProfitPrice,
+      ...(composeTakeProfitPrice != null ? { takeProfitPrice: composeTakeProfitPrice } : {}),
       stopLeg: buildFixedStopLeg(composeStopLossPrice),
       takeProfitQuantity: Math.max(1, Math.round(takeProfitQuantity)),
       stopQuantity: Math.max(1, Math.round(stopLossQuantity)),
@@ -1000,7 +1015,9 @@ export function TradeOrderForm({
         )
       : null;
 
-  const protectionEnabled = Boolean(attachBracket && composeStopLossPrice != null && composeTakeProfitPrice != null);
+  const protectionEnabled = Boolean(
+    attachBracket && composeStopLossPrice != null && (takeProfitEnabled ? composeTakeProfitPrice != null : true),
+  );
 
   const orderImpact = useMemo(
     () =>
@@ -1787,6 +1804,8 @@ export function TradeOrderForm({
                 marginLoading={marginCtx.loading}
                 marginError={marginCtx.error}
                 accountConnected={marginCtx.accountConnected}
+                maxAffordable={marginCtx.maxAffordable}
+                maxSizeLoading={marginCtx.loading}
                 onAddStop={
                   !policyBound && !attachBracket
                     ? () => {
@@ -1943,9 +1962,9 @@ export function TradeOrderForm({
                   Entry order {placedBracket.entryOrder.orderId ?? "—"}
                 </div>
                 <div>Stop order {placedBracket.stopOrder.orderId ?? "—"}</div>
-                <div>
-                  Take profit order {placedBracket.takeProfitOrder.orderId ?? "—"}
-                </div>
+                {placedBracket.takeProfitOrder ? (
+                  <div>Take profit order {placedBracket.takeProfitOrder.orderId ?? "—"}</div>
+                ) : null}
                 <div className="text-[var(--edge-text-secondary)]">Order ref</div>
                 <div className="font-mono text-[11px] break-all">{placedBracket.orderRef}</div>
               </div>

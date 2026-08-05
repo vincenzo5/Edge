@@ -7,11 +7,13 @@ import type { WhatIfResult } from "@/lib/marketData/contracts/brokerage";
 import {
   classifyMarginStatus,
   classifyUtilizationStatus,
+  computeMaxAffordableShares,
   parseMarginSnapshot,
   resolveMarginImpact,
   type MarginImpact,
   type MarginSnapshot,
   type MarginStatus,
+  type MaxAffordableShares,
 } from "@/lib/risk/marginContext";
 import { useAccountOptional } from "../AccountProvider";
 
@@ -35,6 +37,8 @@ export type RiskMarginContextValue = {
   impactStatus: MarginStatus | null;
   /** Health of current book utilization. */
   currentStatus: MarginStatus | null;
+  /** Largest affordable share count for the symbol from AvailableFunds. */
+  maxAffordable: MaxAffordableShares | null;
   loading: boolean;
   error: string | null;
 };
@@ -53,19 +57,21 @@ export function useRiskMarginContext(input: RiskMarginContextInput): RiskMarginC
     return parseMarginSnapshot(account?.summary?.tags);
   }, [account?.summary?.tags, accountConnected]);
 
-  const previewReady =
-    input.enabled &&
-    input.symbol != null &&
-    input.shares != null &&
-    input.shares > 0 &&
-    input.direction != null;
+  const marginProbeReady =
+    input.enabled && input.symbol != null && input.direction != null && accountConnected;
 
-  const previewKey = previewReady
-    ? `${input.symbol}:${input.shares}:${input.direction}:${input.notional ?? 0}`
+  const previewReady =
+    marginProbeReady && input.shares != null && input.shares > 0;
+
+  const whatIfQuantity =
+    previewReady && input.shares != null && input.shares > 0 ? input.shares : 1;
+
+  const whatIfKey = marginProbeReady
+    ? `${input.symbol}:${whatIfQuantity}:${input.direction}`
     : null;
 
   useEffect(() => {
-    if (!previewKey || !input.symbol || input.shares == null || !input.direction) {
+    if (!whatIfKey || !input.symbol || !input.direction) {
       setWhatIf(null);
       setLoading(false);
       setError(null);
@@ -83,7 +89,7 @@ export function useRiskMarginContext(input: RiskMarginContextInput): RiskMarginC
         {
           symbol: input.symbol!,
           action,
-          quantity: input.shares!,
+          quantity: whatIfQuantity,
           orderType: "MKT",
           outsideRth: false,
         },
@@ -111,7 +117,13 @@ export function useRiskMarginContext(input: RiskMarginContextInput): RiskMarginC
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [previewKey, input.symbol, input.shares, input.direction, account?.tradingEnvironment]);
+  }, [
+    whatIfKey,
+    input.symbol,
+    input.direction,
+    whatIfQuantity,
+    account?.tradingEnvironment,
+  ]);
 
   const impact = useMemo(() => {
     if (!current || !previewReady) return null;
@@ -141,13 +153,40 @@ export function useRiskMarginContext(input: RiskMarginContextInput): RiskMarginC
     return classifyUtilizationStatus(current.utilization);
   }, [current]);
 
+  const maxAffordable = useMemo(() => {
+    if (!marginProbeReady || !current) return null;
+
+    const initMarginChange =
+      impact?.initMarginChange ??
+      (whatIf?.initMarginChange != null && whatIf.initMarginChange > 0
+        ? whatIf.initMarginChange
+        : null);
+
+    return computeMaxAffordableShares({
+      availableFunds: current.availableFunds,
+      initMarginChange,
+      quantity: whatIfQuantity,
+      pricePerShare: input.entryPrice ?? null,
+      direction: input.direction === "short" ? "short" : "long",
+    });
+  }, [
+    marginProbeReady,
+    current,
+    impact?.initMarginChange,
+    whatIf?.initMarginChange,
+    whatIfQuantity,
+    input.entryPrice,
+    input.direction,
+  ]);
+
   return {
     accountConnected,
     current,
     impact,
     impactStatus,
     currentStatus,
-    loading: previewReady && loading,
+    maxAffordable,
+    loading: marginProbeReady && loading,
     error: previewReady && error != null && impact == null ? error : null,
   };
 }

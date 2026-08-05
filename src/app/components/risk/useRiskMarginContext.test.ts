@@ -90,6 +90,7 @@ describe("useRiskMarginContext", () => {
         action: "BUY",
         quantity: 200,
         orderType: "MKT",
+        outsideRth: false,
       },
       expect.objectContaining({ environment: "paper" }),
     );
@@ -218,5 +219,39 @@ describe("useRiskMarginContext", () => {
     });
 
     expect(result.current.impactStatus).toBe("over");
+  });
+
+  it("computes maxAffordable from what-if when shares are unset", async () => {
+    mockFetchWhatIfPreview.mockResolvedValue({
+      symbol: "AAPL",
+      action: "BUY",
+      quantity: 1,
+      orderType: "MKT",
+      initMarginChange: 75,
+      maintMarginChange: 50,
+      updatedAt: 1,
+    });
+
+    const { result } = renderHook(() =>
+      useRiskMarginContext({
+        symbol: "AAPL",
+        shares: null,
+        direction: "long",
+        notional: null,
+        entryPrice: 100,
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    expect(mockFetchWhatIfPreview).toHaveBeenCalledWith(
+      expect.objectContaining({ quantity: 1 }),
+      expect.any(Object),
+    );
+    expect(result.current.maxAffordable?.shares).toBe(Math.floor(41000 / 75));
+    expect(result.current.impact).toBeNull();
   });
 });

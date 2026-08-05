@@ -4,6 +4,7 @@ import {
   classifyUtilizationStatus,
   computeMarginBarSegments,
   computeMarginImpact,
+  computeMaxAffordableShares,
   estimateMarginImpactFromNotional,
   formatHoldToStopSummary,
   formatMarginUtilRange,
@@ -144,6 +145,75 @@ describe("estimateMarginImpactFromNotional", () => {
     });
     expect(impact.initMarginChange).toBe(10000);
     expect(impact.maintMarginChange).toBe(5000);
+  });
+});
+
+describe("computeMaxAffordableShares", () => {
+  it("derives max shares from broker what-if init margin per share", () => {
+    const result = computeMaxAffordableShares({
+      availableFunds: 28000,
+      initMarginChange: 75,
+      quantity: 1,
+      pricePerShare: 100,
+      direction: "long",
+    });
+
+    expect(result).toEqual({
+      shares: 373,
+      notional: 37300,
+      estimated: false,
+    });
+  });
+
+  it("uses order quantity to scale what-if init margin", () => {
+    const result = computeMaxAffordableShares({
+      availableFunds: 41000,
+      initMarginChange: 4200,
+      quantity: 100,
+      pricePerShare: 84,
+      direction: "long",
+    });
+
+    expect(result?.shares).toBe(976);
+    expect(result?.notional).toBeCloseTo(976 * 84);
+    expect(result?.estimated).toBe(false);
+  });
+
+  it("falls back to Reg T estimate when what-if delta is zero", () => {
+    const result = computeMaxAffordableShares({
+      availableFunds: 36948,
+      initMarginChange: 0,
+      quantity: 1,
+      pricePerShare: 111.5,
+      direction: "short",
+    });
+
+    expect(result?.shares).toBe(Math.floor(36948 / (111.5 * 0.5)));
+    expect(result?.estimated).toBe(true);
+  });
+
+  it("returns null when available funds are missing", () => {
+    expect(
+      computeMaxAffordableShares({
+        availableFunds: null,
+        initMarginChange: 75,
+        quantity: 1,
+        pricePerShare: 100,
+        direction: "long",
+      }),
+    ).toBeNull();
+  });
+
+  it("returns zero shares when margin per share exceeds available funds", () => {
+    const result = computeMaxAffordableShares({
+      availableFunds: 50,
+      initMarginChange: 100,
+      quantity: 1,
+      pricePerShare: 200,
+      direction: "long",
+    });
+
+    expect(result?.shares).toBe(0);
   });
 });
 

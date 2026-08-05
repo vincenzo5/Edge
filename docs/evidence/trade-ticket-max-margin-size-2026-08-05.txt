@@ -1,0 +1,27 @@
+# Trade ticket max margin size — 2026-08-05
+
+## Focused tests
+
+Command:
+npm test -- --run src/lib/risk/marginContext.test.ts src/app/components/risk/useRiskMarginContext.test.ts src/app/components/trading/TradeOrderImpact.test.tsx src/app/components/trading/TradeOrderForm.test.tsx
+
+```
+Test Files  4 passed (4)
+Tests  89 passed (89)
+```
+
+## Behavior
+
+- `computeMaxAffordableShares` derives max shares from AvailableFunds and broker what-if init margin per share (Reg T fallback).
+- `useRiskMarginContext` exposes `maxAffordable`; probes what-if qty=1 when order shares unset.
+- Trade ticket Review shows **Max size** row (shares + notional) under Available after.
+
+## Files
+
+- src/lib/risk/marginContext.ts
+- src/lib/risk/marginContext.test.ts
+- src/app/components/risk/useRiskMarginContext.ts
+- src/app/components/risk/useRiskMarginContext.test.ts
+- src/app/components/trading/TradeOrderImpact.tsx
+- src/app/components/trading/TradeOrderImpact.test.tsx
+- src/app/components/trading/TradeOrderForm.tsx

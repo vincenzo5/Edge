@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { MarginStatus } from "@/lib/risk/marginContext";
+import type { MarginStatus, MaxAffordableShares } from "@/lib/risk/marginContext";
 import { marginStatusTextClass } from "@/lib/risk/marginContext";
 import type { OrderImpactEconomics } from "@/lib/trading/computeOrderImpact";
 import {
@@ -19,6 +19,8 @@ type Props = {
   marginLoading?: boolean;
   marginError?: string | null;
   accountConnected: boolean;
+  maxAffordable?: MaxAffordableShares | null;
+  maxSizeLoading?: boolean;
   /** When set, "Needs stop" becomes an actionable Add stop control. */
   onAddStop?: () => void;
   /** Optional risk-plan teaser + expanded checklist inside Review. */
@@ -100,6 +102,23 @@ function affordabilityLabel(args: {
   };
 }
 
+function formatMaxSize(args: {
+  maxAffordable: MaxAffordableShares | null | undefined;
+  accountConnected: boolean;
+  maxSizeLoading: boolean;
+}): string {
+  if (!args.accountConnected) return "—";
+  if (args.maxSizeLoading) return "Updating…";
+  if (args.maxAffordable == null) return "—";
+  const { shares, notional } = args.maxAffordable;
+  if (shares <= 0) return "0 sh";
+  const notionalLabel =
+    notional != null && Number.isFinite(notional)
+      ? ` · ~${formatOrderImpactMoney(notional)}`
+      : "";
+  return `${shares.toLocaleString()} sh${notionalLabel}`;
+}
+
 export function TradeOrderImpact({
   economics,
   initMarginChange,
@@ -109,6 +128,8 @@ export function TradeOrderImpact({
   marginLoading = false,
   marginError = null,
   accountConnected,
+  maxAffordable = null,
+  maxSizeLoading = false,
   onAddStop,
   riskPlan = null,
 }: Props) {
@@ -133,6 +154,12 @@ export function TradeOrderImpact({
     availableAfter == null || !Number.isFinite(availableAfter)
       ? "—"
       : formatOrderImpactMoney(availableAfter);
+
+  const maxSizeValue = formatMaxSize({
+    maxAffordable,
+    accountConnected,
+    maxSizeLoading,
+  });
 
   return (
     <section
@@ -170,6 +197,11 @@ export function TradeOrderImpact({
           label="Available after"
           value={afterValue}
           testId="trade-order-impact-available-after"
+        />
+        <ImpactRow
+          label="Max size"
+          value={maxSizeValue}
+          testId="trade-order-impact-max-size"
         />
         <div className="flex justify-end">
           <span

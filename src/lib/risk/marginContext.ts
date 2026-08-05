@@ -187,6 +187,67 @@ export function estimateMarginImpactFromNotional(
   };
 }
 
+export type MaxAffordableShares = {
+  shares: number;
+  notional: number | null;
+  /** True when margin per share came from Reg T estimate, not broker what-if. */
+  estimated: boolean;
+};
+
+export type ComputeMaxAffordableSharesInput = {
+  availableFunds: number | null;
+  initMarginChange: number | null;
+  /** Quantity used in the what-if probe (order size or 1). */
+  quantity: number | null;
+  pricePerShare: number | null;
+  direction: EquityMarginDirection;
+};
+
+/** Largest share count affordable from AvailableFunds for one symbol. */
+export function computeMaxAffordableShares(
+  input: ComputeMaxAffordableSharesInput,
+): MaxAffordableShares | null {
+  const { availableFunds, initMarginChange, quantity, pricePerShare, direction } = input;
+
+  if (availableFunds == null || !Number.isFinite(availableFunds) || availableFunds <= 0) {
+    return null;
+  }
+
+  let marginPerShare: number | null = null;
+  let estimated = false;
+
+  if (
+    initMarginChange != null &&
+    Number.isFinite(initMarginChange) &&
+    initMarginChange > 0 &&
+    quantity != null &&
+    Number.isFinite(quantity) &&
+    quantity > 0
+  ) {
+    marginPerShare = initMarginChange / quantity;
+  } else if (
+    pricePerShare != null &&
+    Number.isFinite(pricePerShare) &&
+    pricePerShare > 0
+  ) {
+    const rates = resolveIbkrStockMarginRates({ direction, pricePerShare });
+    marginPerShare = pricePerShare * rates.initRatio;
+    estimated = true;
+  }
+
+  if (marginPerShare == null || !Number.isFinite(marginPerShare) || marginPerShare <= 0) {
+    return null;
+  }
+
+  const shares = Math.max(0, Math.floor(availableFunds / marginPerShare));
+  const notional =
+    pricePerShare != null && Number.isFinite(pricePerShare) && pricePerShare > 0
+      ? shares * pricePerShare
+      : null;
+
+  return { shares, notional, estimated };
+}
+
 export function resolveMarginImpact(
   current: MarginSnapshot,
   whatIf: Pick<WhatIfResult, "initMarginChange" | "maintMarginChange" | "warningText"> | null,

@@ -104,4 +104,37 @@ describe("TradeOrderImpact", () => {
       "Insufficient margin",
     );
   });
+
+  it("shows max affordable shares and notional", () => {
+    render(
+      <TradeOrderImpact
+        economics={baseEconomics}
+        initMarginChange={1391.78}
+        availableAfter={8608.22}
+        impactStatus="ok"
+        marginEstimated={false}
+        accountConnected
+        maxAffordable={{ shares: 373, notional: 37300, estimated: false }}
+      />,
+    );
+
+    expect(screen.getByTestId("trade-order-impact-max-size")).toHaveTextContent("373 sh");
+    expect(screen.getByTestId("trade-order-impact-max-size")).toHaveTextContent("37,300");
+  });
+
+  it("shows dash for max size when account disconnected", () => {
+    render(
+      <TradeOrderImpact
+        economics={baseEconomics}
+        initMarginChange={1391.78}
+        availableAfter={8608.22}
+        impactStatus="ok"
+        marginEstimated={false}
+        accountConnected={false}
+        maxAffordable={null}
+      />,
+    );
+
+    expect(screen.getByTestId("trade-order-impact-max-size")).toHaveTextContent("—");
+  });
 });
