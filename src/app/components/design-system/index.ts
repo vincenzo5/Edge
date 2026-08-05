@@ -42,6 +42,8 @@ export { default as EdgeToastViewport } from "./EdgeToastViewport";
 export type { EdgeToastItem } from "./EdgeToastViewport";
 export { default as EdgeFilterChip } from "./EdgeFilterChip";
 export { default as EdgeMetricTile } from "./EdgeMetricTile";
+export { default as EdgeReadout } from "./EdgeReadout";
+export type { EdgeReadoutProps } from "./EdgeReadout";
 export { default as EdgeHelpIcon } from "./EdgeHelpIcon";
 export * from "./symbol-search";
 export * from "./styles";

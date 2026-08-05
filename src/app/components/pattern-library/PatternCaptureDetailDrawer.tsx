@@ -7,6 +7,7 @@ import type { PatternRecord } from "@/lib/patternLibrary/types";
 import type { SetupQuality } from "@/lib/patternLibrary/types";
 import { rangeForManualInterval } from "@edge/chart-react/engine/rangeInterval";
 import { EdgeButton, EdgeSlideOver, EdgeSelect } from "@/app/components/design-system";
+import { fieldClass } from "@/app/components/design-system/styles";
 import { invalidatePatternLibraryRecordsCache } from "@/lib/persistence/client/patternLibraryRecordsClient";
 import { useAppActions } from "../AppActionsContext";
 import { usePatternLibrary } from "./PatternLibraryContext";
@@ -258,7 +259,7 @@ export default function PatternCaptureDetailDrawer({
                     void saveMetadata({ thesis: next });
                   }
                 }}
-                className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-chart)] px-2 py-1.5 text-[var(--edge-text-primary)]"
+                className={`${fieldClass({ density: "standard", disabled: saving })} min-h-0 resize-y py-1.5`}
               />
             </label>
 
@@ -274,7 +275,7 @@ export default function PatternCaptureDetailDrawer({
                     void saveMetadata({ notes: next });
                   }
                 }}
-                className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-chart)] px-2 py-1.5 text-[var(--edge-text-primary)]"
+                className={`${fieldClass({ density: "standard", disabled: saving })} min-h-0 resize-y py-1.5`}
               />
             </label>
           </div>

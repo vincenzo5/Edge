@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   EdgeButton,
-  EdgeLabeledInput,
   EdgeModalShell,
+  EdgeReadout,
   EdgeUnderlineTabs,
 } from "../design-system";
 import { fieldClass } from "../design-system/styles";
@@ -52,6 +52,8 @@ import {
   PolicyEditorLabeledSelect,
   PolicyEditorLabeledTextarea,
   PolicyEditorSectionHeader,
+  PolicyNumberField,
+  PolicyTextField,
 } from "./policyEditorFields";
 
 export type PlaybookTemplateEditorProps = {
@@ -178,7 +180,8 @@ function RuleEditor({
   onMoveDown,
   canMoveUp,
   canMoveDown,
-  disabled,
+  readOnly,
+  disabled: saving,
 }: {
   rule: PlaybookRule;
   siblingRules: PlaybookRule[];
@@ -188,9 +191,11 @@ function RuleEditor({
   onMoveDown: () => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  readOnly?: boolean;
   disabled?: boolean;
 }) {
   const requiresOptions = siblingRules.filter((item) => item.id !== rule.id);
+  const inputDisabled = saving === true;
 
   return (
     <div
@@ -198,24 +203,34 @@ function RuleEditor({
       data-testid={`playbook-rule-${rule.id}`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          className={`${fieldClass({ density: "compact" })} min-w-[8rem] flex-1`}
-          value={rule.label ?? ""}
-          onChange={(event) => onChange({ ...rule, label: event.target.value })}
-          placeholder="Rule label"
-          disabled={disabled}
-          aria-label="Rule label"
-        />
+        {readOnly ? (
+          <span className="min-w-[8rem] flex-1 text-sm font-semibold text-[var(--edge-text-strong)]">
+            {rule.label?.trim() || "Untitled rule"}
+          </span>
+        ) : (
+          <input
+            className={`${fieldClass({ density: "compact" })} min-w-[8rem] flex-1`}
+            value={rule.label ?? ""}
+            onChange={(event) => onChange({ ...rule, label: event.target.value })}
+            placeholder="Rule label"
+            disabled={inputDisabled}
+            aria-label="Rule label"
+          />
+        )}
         <span className="text-[10px] text-[var(--edge-text-secondary)]">{rule.id}</span>
-        <EdgeButton type="button" variant="secondary" disabled={disabled || !canMoveUp} onClick={onMoveUp}>
-          Up
-        </EdgeButton>
-        <EdgeButton type="button" variant="secondary" disabled={disabled || !canMoveDown} onClick={onMoveDown}>
-          Down
-        </EdgeButton>
-        <EdgeButton type="button" variant="secondary" disabled={disabled} onClick={onRemove}>
-          Remove
-        </EdgeButton>
+        {!readOnly ? (
+          <>
+            <EdgeButton type="button" variant="secondary" disabled={inputDisabled || !canMoveUp} onClick={onMoveUp}>
+              Up
+            </EdgeButton>
+            <EdgeButton type="button" variant="secondary" disabled={inputDisabled || !canMoveDown} onClick={onMoveDown}>
+              Down
+            </EdgeButton>
+            <EdgeButton type="button" variant="secondary" disabled={inputDisabled} onClick={onRemove}>
+              Remove
+            </EdgeButton>
+          </>
+        ) : null}
       </div>
 
       <div className="grid gap-2 sm:grid-cols-3">
@@ -227,7 +242,7 @@ function RuleEditor({
           onChange={(event) =>
             onChange({ ...rule, role: event.target.value as ExitRuleRole })
           }
-          disabled={disabled}
+          disabled={readOnly || inputDisabled}
         >
           {ROLE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -243,7 +258,7 @@ function RuleEditor({
           onChange={(event) =>
             onChange({ ...rule, binding: event.target.value as ExitRuleBinding })
           }
-          disabled={disabled}
+          disabled={readOnly || inputDisabled}
         >
           {BINDING_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -264,7 +279,7 @@ function RuleEditor({
                   : undefined,
               })
             }
-            disabled={disabled}
+            disabled={readOnly || inputDisabled}
           >
             <option value="">Default</option>
             {QTY_SCOPE_OPTIONS.map((option) => (
@@ -285,7 +300,7 @@ function RuleEditor({
             onChange={(event) =>
               onChange({ ...rule, when: defaultWhen(event.target.value as PlaybookWhen["kind"]) })
             }
-            disabled={disabled}
+            disabled={readOnly || inputDisabled}
           >
             {WHEN_KIND_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -303,7 +318,7 @@ function RuleEditor({
             onChange={(event) =>
               onChange({ ...rule, then: defaultThen(event.target.value as PlaybookThen["kind"]) })
             }
-            disabled={disabled}
+            disabled={readOnly || inputDisabled}
           >
             {THEN_KIND_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -315,49 +330,45 @@ function RuleEditor({
       </div>
 
       {rule.when.kind === "multipleOfR" ? (
-        <label className="block">
-          <span className="text-[var(--edge-text-secondary)]">R multiple</span>
-          <input
-            type="number"
-            min={0.1}
-            step={0.1}
-            className={`mt-1 ${fieldClass({ density: "compact" })}`}
-            value={rule.when.multiple}
-            onChange={(event) =>
-              onChange({
-                ...rule,
-                when: { kind: "multipleOfR", multiple: Number(event.target.value) },
-              })
-            }
-            disabled={disabled}
-          />
-        </label>
+        <PolicyNumberField
+          label="R multiple"
+          density="compact"
+          min={0.1}
+          step={0.1}
+          value={String(rule.when.multiple)}
+          onChange={(event) =>
+            onChange({
+              ...rule,
+              when: { kind: "multipleOfR", multiple: Number(event.target.value) },
+            })
+          }
+          readOnly={readOnly}
+          disabled={inputDisabled}
+        />
       ) : null}
 
       {rule.when.kind === "priceCross" ? (
         <div className="grid gap-2 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-[var(--edge-text-secondary)]">Price</span>
-            <input
-              type="number"
-              min={0.01}
-              step={0.01}
-              className={`mt-1 ${fieldClass({ density: "compact" })}`}
-              value={rule.when.price}
-              onChange={(event) =>
-                onChange({
-                  ...rule,
-                  when: {
-                    kind: "priceCross",
-                    price: Number(event.target.value),
-                    direction:
-                      rule.when.kind === "priceCross" ? (rule.when.direction ?? "above") : "above",
-                  },
-                })
-              }
-              disabled={disabled}
-            />
-          </label>
+          <PolicyNumberField
+            label="Price"
+            density="compact"
+            min={0.01}
+            step={0.01}
+            value={String(rule.when.price)}
+            onChange={(event) =>
+              onChange({
+                ...rule,
+                when: {
+                  kind: "priceCross",
+                  price: Number(event.target.value),
+                  direction:
+                    rule.when.kind === "priceCross" ? (rule.when.direction ?? "above") : "above",
+                },
+              })
+            }
+            readOnly={readOnly}
+            disabled={inputDisabled}
+          />
           <label className="block">
             <span className="text-[var(--edge-text-secondary)]">Direction</span>
             <select
@@ -373,7 +384,7 @@ function RuleEditor({
                   },
                 })
               }
-              disabled={disabled}
+              disabled={readOnly || inputDisabled}
             >
               <option value="above">Above</option>
               <option value="below">Below</option>
@@ -383,26 +394,24 @@ function RuleEditor({
       ) : null}
 
       {rule.when.kind === "sessionFlatten" ? (
-        <label className="block">
-          <span className="text-[var(--edge-text-secondary)]">Minutes before close</span>
-          <input
-            type="number"
-            min={1}
-            step={1}
-            className={`mt-1 ${fieldClass({ density: "compact" })}`}
-            value={rule.when.minutesBeforeClose}
-            onChange={(event) =>
-              onChange({
-                ...rule,
-                when: {
-                  kind: "sessionFlatten",
-                  minutesBeforeClose: Number(event.target.value),
-                },
-              })
-            }
-            disabled={disabled}
-          />
-        </label>
+        <PolicyNumberField
+          label="Minutes before close"
+          density="compact"
+          min={1}
+          step={1}
+          value={String(rule.when.minutesBeforeClose)}
+          onChange={(event) =>
+            onChange({
+              ...rule,
+              when: {
+                kind: "sessionFlatten",
+                minutesBeforeClose: Number(event.target.value),
+              },
+            })
+          }
+          readOnly={readOnly}
+          disabled={inputDisabled}
+        />
       ) : null}
 
       {rule.when.kind === "scaleFill" ? (
@@ -420,7 +429,7 @@ function RuleEditor({
                 },
               })
             }
-            disabled={disabled}
+            disabled={readOnly || inputDisabled}
           >
             <option value="">Any prior scale</option>
             {requiresOptions.map((item) => (
@@ -434,63 +443,87 @@ function RuleEditor({
 
       {rule.then.kind === "modifyStop" ? (
         <div className="space-y-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={rule.then.breakEven === true}
-              onChange={(event) =>
-                onChange({
-                  ...rule,
-                  then: event.target.checked
-                    ? { kind: "modifyStop", breakEven: true }
-                    : { kind: "modifyStop", stopPrice: 100 },
-                })
-              }
-              disabled={disabled}
+          {readOnly ? (
+            <EdgeReadout
+              label="Break-even (stop to entry)"
+              value={rule.then.breakEven === true ? "Yes" : "No"}
             />
-            <span className="text-[var(--edge-text-secondary)]">Break-even (stop to entry)</span>
-          </label>
-          {rule.then.breakEven !== true ? (
-            <label className="block">
-              <span className="text-[var(--edge-text-secondary)]">Stop price</span>
+          ) : (
+            <label className="flex items-center gap-2">
               <input
-                type="number"
+                type="checkbox"
+                checked={rule.then.breakEven === true}
+                onChange={(event) =>
+                  onChange({
+                    ...rule,
+                    then: event.target.checked
+                      ? { kind: "modifyStop", breakEven: true }
+                      : { kind: "modifyStop", stopRMultiple: 0.25 },
+                  })
+                }
+                disabled={inputDisabled}
+              />
+              <span className="text-[var(--edge-text-secondary)]">Break-even (stop to entry)</span>
+            </label>
+          )}
+          {rule.then.breakEven !== true ? (
+            <>
+              <PolicyNumberField
+                label="Stop (R multiple)"
+                density="compact"
+                min={0}
+                step={0.25}
+                value={rule.then.stopRMultiple != null ? String(rule.then.stopRMultiple) : ""}
+                onChange={(event) =>
+                  onChange({
+                    ...rule,
+                    then: {
+                      kind: "modifyStop",
+                      stopRMultiple: Number(event.target.value),
+                    },
+                  })
+                }
+                readOnly={readOnly}
+                disabled={inputDisabled}
+                placeholder="e.g. 0.25"
+              />
+              <PolicyNumberField
+                label="Or absolute stop price"
+                density="compact"
                 min={0.01}
                 step={0.01}
-                className={`mt-1 ${fieldClass({ density: "compact" })}`}
-                value={rule.then.stopPrice ?? ""}
+                value={rule.then.stopPrice != null ? String(rule.then.stopPrice) : ""}
                 onChange={(event) =>
                   onChange({
                     ...rule,
                     then: { kind: "modifyStop", stopPrice: Number(event.target.value) },
                   })
                 }
-                disabled={disabled}
+                readOnly={readOnly}
+                disabled={inputDisabled}
               />
-            </label>
+            </>
           ) : null}
         </div>
       ) : null}
 
       {rule.then.kind === "reduceQty" ? (
-        <label className="block">
-          <span className="text-[var(--edge-text-secondary)]">Fraction (0–1)</span>
-          <input
-            type="number"
-            min={0.01}
-            max={1}
-            step={0.05}
-            className={`mt-1 ${fieldClass({ density: "compact" })}`}
-            value={rule.then.fraction}
-            onChange={(event) =>
-              onChange({
-                ...rule,
-                then: { kind: "reduceQty", fraction: Number(event.target.value) },
-              })
-            }
-            disabled={disabled}
-          />
-        </label>
+        <PolicyNumberField
+          label="Fraction (0–1)"
+          density="compact"
+          min={0.01}
+          max={1}
+          step={0.05}
+          value={String(rule.then.fraction)}
+          onChange={(event) =>
+            onChange({
+              ...rule,
+              then: { kind: "reduceQty", fraction: Number(event.target.value) },
+            })
+          }
+          readOnly={readOnly}
+          disabled={inputDisabled}
+        />
       ) : null}
 
       {rule.then.kind === "attachTrail" ? (
@@ -498,105 +531,109 @@ function RuleEditor({
           const trailThen = rule.then;
           return (
             <div className="grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="text-[var(--edge-text-secondary)]">Trail amount ($)</span>
-                <input
-                  type="number"
-                  min={0.01}
-                  step={0.01}
-                  className={`mt-1 ${fieldClass({ density: "compact" })}`}
-                  value={trailThen.stopLeg.trailAmount ?? ""}
-                  onChange={(event) => {
-                    const amount = Number(event.target.value);
-                    onChange({
-                      ...rule,
-                      then: {
-                        kind: "attachTrail",
-                        stopLeg: {
-                          mode: "trail",
-                          trailAmount: Number.isFinite(amount) && amount > 0 ? amount : undefined,
-                          trailRMultiple: trailThen.stopLeg.trailRMultiple,
-                        },
+              <PolicyNumberField
+                label="Trail amount ($)"
+                density="compact"
+                min={0.01}
+                step={0.01}
+                value={
+                  trailThen.stopLeg.trailAmount != null ? String(trailThen.stopLeg.trailAmount) : ""
+                }
+                onChange={(event) => {
+                  const amount = Number(event.target.value);
+                  onChange({
+                    ...rule,
+                    then: {
+                      kind: "attachTrail",
+                      stopLeg: {
+                        mode: "trail",
+                        trailAmount: Number.isFinite(amount) && amount > 0 ? amount : undefined,
+                        trailRMultiple: trailThen.stopLeg.trailRMultiple,
                       },
-                    });
-                  }}
-                  disabled={disabled}
-                />
-              </label>
-              <label className="block">
-                <span className="text-[var(--edge-text-secondary)]">Trail (R)</span>
-                <input
-                  type="number"
-                  min={0.01}
-                  step={0.1}
-                  className={`mt-1 ${fieldClass({ density: "compact" })}`}
-                  value={trailThen.stopLeg.trailRMultiple ?? ""}
-                  onChange={(event) => {
-                    const multiple = Number(event.target.value);
-                    onChange({
-                      ...rule,
-                      then: {
-                        kind: "attachTrail",
-                        stopLeg: {
-                          mode: "trail",
-                          trailAmount: trailThen.stopLeg.trailAmount,
-                          trailRMultiple:
-                            Number.isFinite(multiple) && multiple > 0 ? multiple : undefined,
-                        },
+                    },
+                  });
+                }}
+                readOnly={readOnly}
+                disabled={inputDisabled}
+              />
+              <PolicyNumberField
+                label="Trail (R)"
+                density="compact"
+                min={0.01}
+                step={0.1}
+                value={
+                  trailThen.stopLeg.trailRMultiple != null
+                    ? String(trailThen.stopLeg.trailRMultiple)
+                    : ""
+                }
+                onChange={(event) => {
+                  const multiple = Number(event.target.value);
+                  onChange({
+                    ...rule,
+                    then: {
+                      kind: "attachTrail",
+                      stopLeg: {
+                        mode: "trail",
+                        trailAmount: trailThen.stopLeg.trailAmount,
+                        trailRMultiple:
+                          Number.isFinite(multiple) && multiple > 0 ? multiple : undefined,
                       },
-                    });
-                  }}
-                  disabled={disabled}
-                />
-              </label>
+                    },
+                  });
+                }}
+                readOnly={readOnly}
+                disabled={inputDisabled}
+              />
             </div>
           );
         })()
       ) : null}
 
       {rule.then.kind === "notify" ? (
-        <label className="block">
-          <span className="text-[var(--edge-text-secondary)]">Message</span>
-          <input
-            className={`mt-1 ${fieldClass({ density: "compact" })}`}
-            value={rule.then.message ?? ""}
-            onChange={(event) =>
-              onChange({
-                ...rule,
-                then: { kind: "notify", message: event.target.value || undefined },
-              })
-            }
-            disabled={disabled}
-          />
-        </label>
+        <PolicyTextField
+          label="Message"
+          density="compact"
+          value={rule.then.message ?? ""}
+          onChange={(event) =>
+            onChange({
+              ...rule,
+              then: { kind: "notify", message: event.target.value || undefined },
+            })
+          }
+          readOnly={readOnly}
+          disabled={inputDisabled}
+        />
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={rule.once}
-            onChange={(event) => onChange({ ...rule, once: event.target.checked })}
-            disabled={disabled}
-          />
-          <span className="text-[var(--edge-text-secondary)]">Once</span>
-        </label>
-        <label className="block">
-          <span className="text-[var(--edge-text-secondary)]">Priority</span>
-          <input
-            type="number"
-            step={1}
-            className={`mt-1 ${fieldClass({ density: "compact" })} w-20`}
-            value={rule.priority ?? ""}
-            onChange={(event) =>
-              onChange({
-                ...rule,
-                priority: event.target.value === "" ? undefined : Number(event.target.value),
-              })
-            }
-            disabled={disabled}
-          />
-        </label>
+        {readOnly ? (
+          <EdgeReadout label="Once" value={rule.once ? "Yes" : "No"} />
+        ) : (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={rule.once}
+              onChange={(event) => onChange({ ...rule, once: event.target.checked })}
+              disabled={inputDisabled}
+            />
+            <span className="text-[var(--edge-text-secondary)]">Once</span>
+          </label>
+        )}
+        <PolicyNumberField
+          label="Priority"
+          density="compact"
+          step={1}
+          className="w-20"
+          value={rule.priority != null ? String(rule.priority) : ""}
+          onChange={(event) =>
+            onChange({
+              ...rule,
+              priority: event.target.value === "" ? undefined : Number(event.target.value),
+            })
+          }
+          readOnly={readOnly}
+          disabled={inputDisabled}
+        />
       </div>
 
       {requiresOptions.length > 0 ? (
@@ -606,21 +643,25 @@ function RuleEditor({
             const checked = rule.requires?.includes(item.id) ?? false;
             return (
               <label key={item.id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(event) => {
-                    const current = rule.requires ?? [];
-                    const next = event.target.checked
-                      ? [...current, item.id]
-                      : current.filter((id) => id !== item.id);
-                    onChange({
-                      ...rule,
-                      requires: next.length > 0 ? next : undefined,
-                    });
-                  }}
-                  disabled={disabled}
-                />
+                {readOnly ? (
+                  <span>{checked ? "☑" : "☐"}</span>
+                ) : (
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      const current = rule.requires ?? [];
+                      const next = event.target.checked
+                        ? [...current, item.id]
+                        : current.filter((id) => id !== item.id);
+                      onChange({
+                        ...rule,
+                        requires: next.length > 0 ? next : undefined,
+                      });
+                    }}
+                    disabled={inputDisabled}
+                  />
+                )}
                 <span>{item.label ?? item.id}</span>
               </label>
             );
@@ -942,11 +983,12 @@ export function PlaybookTemplateEditor({
 
         {section === "identity" ? (
           <div className="flex flex-col gap-4" data-testid="policy-editor-identity">
-            <EdgeLabeledInput
+            <PolicyTextField
               label="Name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              disabled={readOnly || saving}
+              readOnly={readOnly}
+              disabled={saving}
               testId="playbook-template-editor-name"
             />
             <PolicyEditorLabeledTextarea
@@ -954,7 +996,8 @@ export function PlaybookTemplateEditor({
               className="min-h-[4rem]"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              disabled={readOnly || saving}
+              readOnly={readOnly}
+              disabled={saving}
               data-testid="playbook-template-editor-description"
             />
           </div>
@@ -976,15 +1019,15 @@ export function PlaybookTemplateEditor({
               <option value="percentNetLiq">Percent of NetLiq</option>
             </PolicyEditorLabeledSelect>
             {budgetMode !== "inherits" ? (
-              <EdgeLabeledInput
+              <PolicyNumberField
                 label="Value"
                 help={POLICY_EDITOR_FIELD_HELP.budgetValue}
-                type="number"
                 min={0.01}
                 step={budgetMode === "percentNetLiq" ? 0.25 : 1}
                 value={budgetValue}
                 onChange={(event) => setBudgetValue(event.target.value)}
-                disabled={readOnly || saving}
+                readOnly={readOnly}
+                disabled={saving}
               />
             ) : null}
           </div>
@@ -1005,15 +1048,15 @@ export function PlaybookTemplateEditor({
               <option value="stopDistance">Stop distance</option>
             </PolicyEditorLabeledSelect>
             {sizingMode === "stopDistance" ? (
-              <EdgeLabeledInput
+              <PolicyNumberField
                 label="Max qty (optional)"
                 help={POLICY_EDITOR_FIELD_HELP.maxQty}
-                type="number"
                 min={1}
                 step={1}
                 value={maxQty}
                 onChange={(event) => setMaxQty(event.target.value)}
-                disabled={readOnly || saving}
+                readOnly={readOnly}
+                disabled={saving}
               />
             ) : null}
           </div>
@@ -1021,35 +1064,35 @@ export function PlaybookTemplateEditor({
 
         {section === "geometry" ? (
           <div className="flex flex-col gap-4" data-testid="policy-editor-geometry">
-            <EdgeLabeledInput
+            <PolicyNumberField
               label="Stop (R multiple)"
               help={POLICY_EDITOR_FIELD_HELP.stopRMultiple}
-              type="number"
               min={0.1}
               step={0.1}
               value={stopRMultiple}
               onChange={(event) => setStopRMultiple(event.target.value)}
-              disabled={readOnly || saving}
+              readOnly={readOnly}
+              disabled={saving}
             />
-            <EdgeLabeledInput
+            <PolicyNumberField
               label="Target (R multiple, optional)"
               help={POLICY_EDITOR_FIELD_HELP.targetRMultiple}
-              type="number"
               min={0.1}
               step={0.1}
               value={targetRMultiple}
               onChange={(event) => setTargetRMultiple(event.target.value)}
-              disabled={readOnly || saving}
+              readOnly={readOnly}
+              disabled={saving}
             />
-            <EdgeLabeledInput
+            <PolicyNumberField
               label="Time horizon (bars, optional)"
               help={POLICY_EDITOR_FIELD_HELP.timeHorizonBars}
-              type="number"
               min={1}
               step={1}
               value={timeHorizonBars}
               onChange={(event) => setTimeHorizonBars(event.target.value)}
-              disabled={readOnly || saving}
+              readOnly={readOnly}
+              disabled={saving}
             />
           </div>
         ) : null}
@@ -1075,7 +1118,8 @@ export function PlaybookTemplateEditor({
                 onMoveDown={() => moveExit(index, index + 1)}
                 canMoveUp={index > 0}
                 canMoveDown={index < exits.length - 1}
-                disabled={readOnly || saving}
+                readOnly={readOnly}
+                disabled={saving}
               />
             ))}
           </div>
@@ -1083,25 +1127,25 @@ export function PlaybookTemplateEditor({
 
         {section === "gates" ? (
           <div className="flex flex-col gap-4" data-testid="policy-editor-gates">
-            <EdgeLabeledInput
+            <PolicyNumberField
               label="Min risk:reward (optional)"
               help={POLICY_EDITOR_FIELD_HELP.minRiskReward}
-              type="number"
               min={0.1}
               step={0.1}
               value={minRiskReward}
               onChange={(event) => setMinRiskReward(event.target.value)}
-              disabled={readOnly || saving}
+              readOnly={readOnly}
+              disabled={saving}
             />
-            <EdgeLabeledInput
+            <PolicyNumberField
               label="Max qty (optional)"
               help={POLICY_EDITOR_FIELD_HELP.maxQtyGate}
-              type="number"
               min={1}
               step={1}
               value={maxQtyGate}
               onChange={(event) => setMaxQtyGate(event.target.value)}
-              disabled={readOnly || saving}
+              readOnly={readOnly}
+              disabled={saving}
             />
           </div>
         ) : null}
@@ -1147,18 +1191,20 @@ export function PlaybookTemplateEditor({
             ) : null}
             {scheduleKind === "clock" ? (
               <>
-                <EdgeLabeledInput
+                <PolicyTextField
                   label="At (ISO datetime)"
                   value={clockAt}
                   onChange={(event) => setClockAt(event.target.value)}
-                  disabled={readOnly || saving}
+                  readOnly={readOnly}
+                  disabled={saving}
                   placeholder="2026-07-31T09:35:00.000Z"
                 />
-                <EdgeLabeledInput
+                <PolicyTextField
                   label="Time zone (IANA)"
                   value={clockTimeZone}
                   onChange={(event) => setClockTimeZone(event.target.value)}
-                  disabled={readOnly || saving}
+                  readOnly={readOnly}
+                  disabled={saving}
                 />
               </>
             ) : null}

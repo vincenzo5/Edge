@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { EdgeButton, EdgeSelect } from "@/app/components/design-system";
+import { EdgeButton, EdgeReadout, EdgeSelect } from "@/app/components/design-system";
 import { fieldClass } from "@/app/components/design-system/styles";
 import { useWatchlistActions } from "@/app/components/watchlist/WatchlistContext";
 import {
@@ -369,16 +369,24 @@ function ConditionLegEditor({
             />
           </div>
           <div>
-            <label className={labelClass}>
-              {drawingKind === "rectangle" ? "Zone low" : "Price"}
-            </label>
-            <input
-              className={inputClass}
-              inputMode="decimal"
-              value={leg.price}
-              readOnly={readOnlyPrice}
-              onChange={(event) => setLeg({ ...leg, price: event.target.value })}
-            />
+            {readOnlyPrice ? (
+              <EdgeReadout
+                label={drawingKind === "rectangle" ? "Zone low" : "Price"}
+                value={leg.price}
+              />
+            ) : (
+              <>
+                <label className={labelClass}>
+                  {drawingKind === "rectangle" ? "Zone low" : "Price"}
+                </label>
+                <input
+                  className={inputClass}
+                  inputMode="decimal"
+                  value={leg.price}
+                  onChange={(event) => setLeg({ ...leg, price: event.target.value })}
+                />
+              </>
+            )}
           </div>
         </>
       ) : (
@@ -907,18 +915,7 @@ export default function AlertsConfigPane({
               )}
             </>
           ) : (
-            <div>
-              <label className={labelClass} htmlFor="alert-symbol">
-                Symbol
-              </label>
-              <input
-                id="alert-symbol"
-                data-testid="alert-symbol-input"
-                className={inputClass}
-                value={symbol}
-                readOnly
-              />
-            </div>
+            <EdgeReadout label="Symbol" value={symbol} testId="alert-symbol-input" />
           )}
 
           <ConditionLegEditor
@@ -970,19 +967,11 @@ export default function AlertsConfigPane({
           ) : null}
 
           {drawingKind === "rectangle" && priceHigh != null ? (
-            <div>
-              <label className={labelClass} htmlFor="alert-price-high">
-                Zone high
-              </label>
-              <input
-                id="alert-price-high"
-                data-testid="alert-price-high-input"
-                className={inputClass}
-                inputMode="decimal"
-                value={String(priceHigh)}
-                readOnly
-              />
-            </div>
+            <EdgeReadout
+              label="Zone high"
+              value={String(priceHigh)}
+              testId="alert-price-high-input"
+            />
           ) : null}
 
           <div>

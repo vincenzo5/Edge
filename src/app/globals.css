@@ -8,6 +8,7 @@
   --edge-surface-toolbar: #ffffff;
   --edge-surface-rail: #ffffff;
   --edge-surface-panel: #ffffff;
+  --edge-surface-input: #f0f3fa;
   --edge-surface-popover: #ffffff;
   --edge-surface-hover: #f0f3fa;
   --edge-surface-active: #e0e3eb;
@@ -61,6 +62,7 @@
   --edge-surface-toolbar: #0d111a;
   --edge-surface-rail: #080a0f;
   --edge-surface-panel: #111827;
+  --edge-surface-input: #0d111a;
   --edge-surface-popover: #172033;
   --edge-surface-hover: #1d2940;
   --edge-surface-active: #263653;
@@ -111,6 +113,7 @@
   --edge-surface-toolbar: #ffffff;
   --edge-surface-rail: #ffffff;
   --edge-surface-panel: #ffffff;
+  --edge-surface-input: #f4f4f5;
   --edge-surface-popover: #ffffff;
   --edge-surface-hover: #f4f4f5;
   --edge-surface-active: #e4e4e7;
@@ -139,6 +142,7 @@
   --edge-surface-toolbar: #121214;
   --edge-surface-rail: #0b0b0d;
   --edge-surface-panel: #18181b;
+  --edge-surface-input: #121214;
   --edge-surface-popover: #222225;
   --edge-surface-hover: #2a2a2e;
   --edge-surface-active: #35353a;
@@ -167,6 +171,7 @@
   --edge-surface-toolbar: #ffffff;
   --edge-surface-rail: #ffffff;
   --edge-surface-panel: #ffffff;
+  --edge-surface-input: #e8eef4;
   --edge-surface-popover: #ffffff;
   --edge-surface-hover: #e8eef4;
   --edge-surface-active: #d8e2ec;
@@ -195,6 +200,7 @@
   --edge-surface-toolbar: #151b23;
   --edge-surface-rail: #0c1015;
   --edge-surface-panel: #1a222d;
+  --edge-surface-input: #151b23;
   --edge-surface-popover: #222c3a;
   --edge-surface-hover: #2a3545;
   --edge-surface-active: #334155;

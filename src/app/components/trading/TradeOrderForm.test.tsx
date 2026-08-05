@@ -193,13 +193,14 @@ describe("TradeOrderForm size for risk", () => {
     expect(onSeedQuantityApplied).toHaveBeenCalled();
   });
 
-  it("disables risk input without entry and stop", () => {
+  it("shows risk readout without entry and stop", () => {
     render(
       <RiskSettingsProvider>
         <TradeOrderForm symbol="AAPL" lastPrice={null} testId="trade-order-form-test" />
       </RiskSettingsProvider>,
     );
-    expect(screen.getByTestId("trade-size-risk")).toBeDisabled();
+    expect(screen.getByTestId("trade-size-risk-readout")).toHaveTextContent("—");
+    expect(screen.queryByTestId("trade-size-risk")).not.toBeInTheDocument();
   });
 
   it("uses buy/sell toggle and order type family tabs", () => {
@@ -301,7 +302,7 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("trade-linked-protect-take-profit-enabled")).toBeChecked();
   });
 
-  it("shows Review panel risk, reward, and R:R when bracket is on", () => {
+  it("shows Review panel notional, risk, and capacity when bracket is on", () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -310,11 +311,35 @@ describe("TradeOrderForm size for risk", () => {
       target: 110,
       riskRewardRatio: 2,
     });
-    expect(screen.getByTestId("trade-order-impact")).toHaveTextContent("Review");
+    expect(screen.getByTestId("trade-order-impact")).toBeInTheDocument();
     expect(screen.getByTestId("trade-order-impact-notional")).toHaveTextContent("100.00");
     expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("5.00");
-    expect(screen.getByTestId("trade-order-impact-reward")).toHaveTextContent("10.00");
-    expect(screen.getByTestId("trade-order-impact-rr")).toHaveTextContent("1:2.0");
+    expect(screen.queryByTestId("trade-order-impact-reward")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("trade-order-impact-rr")).not.toBeInTheDocument();
+  });
+
+  it("hides protect fields when unchecked but retains values on re-check", () => {
+    renderForm({
+      direction: "long",
+      side: "BUY",
+      entry: 100,
+      stop: 95,
+      target: 110,
+      riskRewardRatio: 2,
+    });
+    expect(screen.getByTestId("trade-linked-protect-take-profit-price")).toHaveValue(110);
+    expect(screen.getByTestId("trade-linked-protect-take-profit-qty")).toHaveValue(1);
+
+    fireEvent.click(screen.getByTestId("trade-linked-protect-take-profit-enabled"));
+    expect(screen.getByTestId("trade-linked-protect-take-profit-price")).not.toBeVisible();
+    expect(screen.getByTestId("trade-linked-protect-take-profit-qty")).not.toBeVisible();
+    expect(screen.getByTestId("trade-linked-protect-stop-loss-price")).toBeVisible();
+    expect(screen.getByTestId("trade-linked-protect-stop-loss-price")).toHaveValue(95);
+
+    fireEvent.click(screen.getByTestId("trade-linked-protect-take-profit-enabled"));
+    expect(screen.getByTestId("trade-linked-protect-take-profit-price")).toBeVisible();
+    expect(screen.getByTestId("trade-linked-protect-take-profit-price")).toHaveValue(110);
+    expect(screen.getByTestId("trade-linked-protect-take-profit-qty")).toHaveValue(1);
   });
 
   it("shows Add stop in Review when protect is unchecked and restores on click", () => {
@@ -426,48 +451,13 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("trade-manage-preview")).toBeInTheDocument();
   });
 
-  it("folds Risk plan into Review disclosure with Budget, Bracket, and Manage", () => {
-    renderForm({
-      direction: "long",
-      side: "BUY",
-      entry: 100,
-      stop: 95,
-      target: 110,
-      riskRewardRatio: 2,
-    });
-
-    expect(screen.getByTestId("trade-risk-plan-toggle")).toBeInTheDocument();
-    expect(screen.queryByTestId("submit-risk-plan-summary")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("trade-risk-plan-toggle"));
-    expect(screen.getByTestId("submit-risk-plan-summary")).toBeInTheDocument();
-    expect(screen.getByTestId("submit-risk-plan-protect")).toHaveTextContent("STP 95.00");
-    openAdvanced();
-    fireEvent.change(screen.getByTestId("trade-manage-preset"), {
-      target: { value: "break_even" },
-    });
-    expect(screen.getByTestId("submit-risk-plan-manage")).toHaveTextContent("Break-even");
-    expect(screen.getByTestId("submit-risk-plan-failure-mode")).toHaveTextContent(
-      "Broker stop stays live if Edge is down",
-    );
-  });
-
-  it("shows Risk plan teaser when bracket defaults are seeded", () => {
+  it("places Review in a sticky header above the scrollable form", () => {
     renderForm(null);
-    expect(screen.getByTestId("trade-risk-plan-toggle")).toBeInTheDocument();
-  });
-
-  it("hides Risk plan teaser when protect is disabled", () => {
-    renderForm(null);
-    fireEvent.click(screen.getByTestId("trade-linked-protect-stop-loss-enabled"));
-    fireEvent.click(screen.getByTestId("trade-linked-protect-take-profit-enabled"));
-    expect(screen.queryByTestId("trade-risk-plan-toggle")).not.toBeInTheDocument();
-  });
-
-  it("places Review directly above the primary CTA", () => {
-    renderForm(null);
+    const header = screen.getByTestId("trade-review-header");
     const review = screen.getByTestId("trade-order-impact");
-    const cta = screen.getByTestId("trade-primary-cta");
-    expect(review.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const symbol = screen.getByText("AAPL");
+    expect(header).toContainElement(review);
+    expect(header.compareDocumentPosition(symbol) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
@@ -628,6 +618,59 @@ describe("TradeOrderForm policy picker", () => {
       }),
       playbookTemplateId: "user_long",
     });
+  });
+
+  it("submits stop-only bracket with playbook template on unbound draft policy", async () => {
+    vi.mocked(submitBracket).mockResolvedValue({
+      orderRef: "parent-stop-only",
+      entryOrder: { orderId: "entry-stop-only" },
+      stopOrder: { orderId: "stop-stop-only" },
+      intent: { intentId: "intent-stop-only" },
+    } as never);
+
+    render(
+      <RiskSettingsProvider>
+        <TradeOrderForm
+          symbol="META"
+          lastPrice={100}
+          selectedPolicyId="user_long"
+          policyTemplates={[userLongPolicy]}
+          policyPickerEnabled
+          onPolicyChange={vi.fn()}
+          policyDraftPatch={{
+            takeProfitQuantity: 0,
+            stopQuantity: 200,
+            takeProfitPrice: null,
+            stopLossPrice: 95,
+            manageTemplateId: "user_long",
+            takeProfitEnabled: false,
+            stopLossEnabled: true,
+            partialGeometry: false,
+          }}
+          testId="trade-order-form-test"
+        />
+      </RiskSettingsProvider>,
+    );
+
+    fireEvent.change(screen.getByTestId("trade-size-qty"), { target: { value: "200" } });
+    fireEvent.click(screen.getByTestId("trade-primary-cta"));
+    await waitFor(() => expect(previewOrder).toHaveBeenCalled());
+    fireEvent.click(screen.getByTestId("trade-confirm-submit"));
+    await waitFor(() => expect(submitBracket).toHaveBeenCalled());
+
+    const submit = vi.mocked(submitBracket).mock.calls.at(-1)?.[0];
+    expect(submit).toMatchObject({
+      plan: expect.objectContaining({
+        stopLeg: expect.objectContaining({
+          stopPrice: 95,
+        }),
+        stopQuantity: 200,
+      }),
+      playbookTemplateId: "user_long",
+      playbookEntryPrice: 100,
+      playbookInitialStop: 95,
+    });
+    expect(submit?.plan).not.toHaveProperty("takeProfitPrice");
   });
 
   it("shows four primary order families with Fill and Type modifier chips", () => {

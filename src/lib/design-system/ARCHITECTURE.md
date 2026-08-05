@@ -60,8 +60,22 @@ Use shared field helpers before inventing inline border/bg classes on native `<i
 | `labeledFieldClass()` | Inline label + control rows for non-select fields (e.g. journal exact-symbol input) |
 | `searchInputShellClass()` + `EdgeSearchInput` | Modal/search fields with optional leading icon, clear, `aria-busy`, `aria-invalid` |
 | `clearButtonClass()` | Icon-only clear controls inside search shells |
+| `EdgeReadout` | Computed or fixed values — label + strong value, no border/fill/focus (never `disabled`/`readOnly` inputs for view-only data) |
 
 When `EdgeSelect` receives a `label`, the category sits on the top outline (border-legend) via `EdgeBorderLabeledControl` — not left of the trigger. Pass `labelSurface="toolbar"` for app-header chips; default `panel` for journal/screener/form contexts. Unlabeled selects keep value-only triggers with `aria-label` when needed. App header workspace/account/data pickers use `EdgeBorderLabeledControl` directly on custom menu triggers.
+
+### Interaction affordance ladder
+
+Every value in form chrome belongs to one rung — style by role, not by whichever component was handy:
+
+| Rung | Meaning | Visual | Primitives |
+|------|---------|--------|------------|
+| **Editable** | User types or changes now | Recessed well (`--edge-surface-input`), strong border, text cursor | `fieldClass`, `EdgeLabeledInput` |
+| **Selectable** | User picks from a list | Same well + chevron | `EdgeSelect` `variant="field"` |
+| **Readout** | Computed, broker, or policy-fixed — not typed | Flush label + strong value, no box | `EdgeReadout`, plain `EdgeMetricTile` |
+| **Locked** | Temporarily unavailable (submitting, gated) | `opacity-40` + `cursor-not-allowed` on real controls | Native `disabled` only — never view-mode |
+
+**Principle:** Inputs sink; data floats. Do not use `disabled` or `readOnly` on inputs to mean view-only — render `EdgeReadout` instead. Do not use `EdgeMetricTile variant="bordered"` for single static values (bordered is for grouped metric cards only). Toolbar chips (`headerChipClass`), Copilot composer pill, and `EdgeMicroSelect` are documented exceptions.
 
 Accessible naming: search fields must expose `aria-label` (placeholders alone are insufficient). Journal exact-symbol filtering keeps equality semantics with local uppercase normalization — it does **not** use the symbol-discovery hook/dialog.
 
@@ -239,7 +253,7 @@ Settings actions use the single closed-outline `SettingsIcon` from `chart-chrome
 | Chart error fallback | `chart-cell/ChartErrorBoundary.tsx` — in-cell error UI with retry and copy-error actions |
 | App hydration placeholder | `chart-cell/AppHydrationShell.tsx` — full chrome skeleton (header, rails, chart grid, range bar; residual top skeleton strip) until `StockApp` layout hydrates; also used by `src/app/loading.tsx` during route load |
 | App home hub | `home/HomeShell.tsx` — responsive Layout 1 tri-pane (≥2560) with dual-stack/tabbed/drawer/hub fallbacks; Continue card + workspace cards; journal preview (recent trades) + research preview; no chart bootstrap |
-| App module shell | `home/AppModuleShell.tsx` wraps `AppThemeProvider` + `AppChromeActionsProvider` + `AppContextMenuProvider` + `home/AppTopHeader.tsx` — full-height module routes with full-width top header (clickable `logo-full-light` → `/home`, centered workspace controls on `/workspace`, right cluster: **Market data** selector, order **account** picker, **theme** toggle, **application settings** gear → `AppSettingsShell` with timezone defaults + **Appearance** palette picker); plain right-click on the header (`data-app-context-menu-surface`) or Control+right-click anywhere opens app context menu; no left module rail |
+| App module shell | `home/AppModuleShell.tsx` wraps `AppThemeProvider` + `AppChromeActionsProvider` + `AppContextMenuProvider` + `home/AppTopHeader.tsx` — full-height module routes with full-width top header (clickable `logo-full-light` → `/home`, centered workspace controls on `/workspace`, right cluster: **Market data** selector, order **account** picker, **theme** toggle, **application settings** gear → `AppSettingsShell` with timezone defaults + **Appearance** palette picker); plain/Control right-click on the header (`data-app-context-menu-surface`) opens app context menu; workspace tile Control+right-click Change panel lives in `WorkspacePanelContextMenu`; no left module rail |
 | App-level theme | `src/lib/app/appThemePreference.ts` + `src/lib/app/appPalettePreference.ts` + `AppThemeProvider.tsx` — persisted `edge:app:theme:v1` + `edge:app:palette:v1`; user-preferences pack sync; pre-hydration script in `src/app/layout.tsx`; header sun/moon toggles mode; Application settings **Appearance** picks palette (Midnight / Graphite / Deep Slate); chart tiles consume provider theme + palette |
 | App default timezone | `src/lib/app/appTimeZonePreference.ts` + `AppTimeZoneProvider.tsx` — persisted `edge:app:timeZone:v1`; Application settings slide-over sets default; chart clock inherits via `mergeChartSettings(..., { defaultTimeZone })` unless per-chart override; saves use `persistChartSettings` so the app default is not baked as a per-chart `UTC` override |
 | App workspace (app shell) | `app-workspace/AppWorkspaceShell.tsx` + `LayoutTreeView.tsx` + `SplitPane.tsx` + `TileFrame.tsx` + `TileDensityContext.tsx` + `WorkspacePill.tsx` + `WorkspaceHeaderControls.tsx` + `WorkspaceLayoutPresetPicker.tsx` — `/workspace` binary split-tree tiles (Chart, Screener, Journal); **Use** vs **Edit layout** modes; `SplitPane` drag-resize (row → horizontal, column → vertical) with 8px hit target over a 1px hairline; tile content width drives **compact / standard / wide** density (520 / 900 px thresholds); Use-mode workspace pill (switch/rename/new/duplicate); edit-mode **Layout** preset picker → placeholder panes → per-pane assign; drag-to-dock in edit only; module routes redirect via `deepLinks.ts`; in-process Review→Chart via `WorkspaceDriveContext` |

@@ -14,7 +14,7 @@ export function compactSearchFieldClass(extra = ""): string {
   const field = fieldClass({ density: "compact" })
     .replace("rounded-[var(--edge-radius-sm)]", "rounded-full")
     .replace("px-[var(--edge-space-2)]", "pl-3 pr-9");
-  return `edge-focus-ring w-full ${field} bg-transparent ${extra}`.trim();
+  return `edge-focus-ring w-full ${field} ${extra}`.trim();
 }
 
 export function CompactSearchIcon() {

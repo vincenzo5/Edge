@@ -1,108 +1,51 @@
 "use client";
 
-import type { ReactNode } from "react";
 import type { MarginStatus, MaxAffordableShares } from "@/lib/risk/marginContext";
-import { marginStatusTextClass } from "@/lib/risk/marginContext";
-import type { OrderImpactEconomics } from "@/lib/trading/computeOrderImpact";
 import {
-  formatOrderImpactMoney,
-  formatOrderImpactRatio,
-} from "@/lib/trading/computeOrderImpact";
+  marginStatusBarColor,
+  marginStatusTextClass,
+} from "@/lib/risk/marginContext";
+import type { OrderImpactEconomics } from "@/lib/trading/computeOrderImpact";
+import { formatOrderImpactMoney } from "@/lib/trading/computeOrderImpact";
 
 type Props = {
   economics: OrderImpactEconomics;
-  initMarginChange: number | null;
+  /** Selected order quantity — drives the capacity bar. */
+  quantity: number | null;
   availableAfter: number | null;
   impactStatus: MarginStatus | null;
-  /** True when margin came from notional Reg-T estimate, not broker what-if. */
-  marginEstimated: boolean;
-  marginLoading?: boolean;
   marginError?: string | null;
   accountConnected: boolean;
   maxAffordable?: MaxAffordableShares | null;
   maxSizeLoading?: boolean;
   /** When set, "Needs stop" becomes an actionable Add stop control. */
   onAddStop?: () => void;
-  /** Optional risk-plan teaser + expanded checklist inside Review. */
-  riskPlan?: {
-    teaser: string;
-    open: boolean;
-    onToggle: () => void;
-    detail: ReactNode;
-  } | null;
 };
 
-function ImpactRow({
-  label,
-  value,
-  valueClassName,
-  testId,
-  valueNode,
-}: {
-  label: string;
-  value?: string;
-  valueClassName?: string;
-  testId?: string;
-  valueNode?: ReactNode;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-[var(--edge-text-muted)]">{label}</dt>
-      <dd
-        data-testid={testId}
-        className={`font-mono tabular-nums text-[var(--edge-text-primary)] ${valueClassName ?? ""}`.trim()}
-      >
-        {valueNode ?? value}
-      </dd>
-    </div>
-  );
-}
-
-function affordabilityLabel(args: {
+function afterStatusChip(args: {
   status: MarginStatus | null;
-  availableAfter: number | null;
   accountConnected: boolean;
   marginError: string | null | undefined;
 }): { text: string; className: string } {
   if (!args.accountConnected) {
-    return {
-      text: "Account data unavailable",
-      className: "text-[var(--edge-text-muted)]",
-    };
+    return { text: "—", className: "text-[var(--edge-text-muted)]" };
   }
   if (args.marginError && args.status == null) {
-    return {
-      text: "Preview unavailable",
-      className: "text-[var(--edge-text-muted)]",
-    };
+    return { text: "—", className: "text-[var(--edge-text-muted)]" };
   }
   if (args.status === "over") {
-    return {
-      text: "Insufficient margin",
-      className: marginStatusTextClass("over"),
-    };
+    return { text: "OVER", className: marginStatusTextClass("over") };
   }
   if (args.status === "tight") {
-    const after =
-      args.availableAfter != null ? formatOrderImpactMoney(args.availableAfter) : null;
-    return {
-      text: after ? `Tight · ${after} after` : "Tight",
-      className: marginStatusTextClass("tight"),
-    };
+    return { text: "!", className: marginStatusTextClass("tight") };
   }
   if (args.status === "ok") {
-    return {
-      text: "✓ Enough",
-      className: marginStatusTextClass("ok"),
-    };
+    return { text: "✓", className: marginStatusTextClass("ok") };
   }
-  return {
-    text: "—",
-    className: "text-[var(--edge-text-muted)]",
-  };
+  return { text: "—", className: "text-[var(--edge-text-muted)]" };
 }
 
-function formatMaxSize(args: {
+function formatMaxSizeLine(args: {
   maxAffordable: MaxAffordableShares | null | undefined;
   accountConnected: boolean;
   maxSizeLoading: boolean;
@@ -114,177 +57,184 @@ function formatMaxSize(args: {
   if (shares <= 0) return "0 sh";
   const notionalLabel =
     notional != null && Number.isFinite(notional)
-      ? ` · ~${formatOrderImpactMoney(notional)}`
+      ? ` · ${formatOrderImpactMoney(notional)}`
       : "";
   return `${shares.toLocaleString()} sh${notionalLabel}`;
 }
 
+function capacityState(args: {
+  quantity: number | null;
+  maxAffordable: MaxAffordableShares | null | undefined;
+  accountConnected: boolean;
+  maxSizeLoading: boolean;
+}): { visible: boolean; fillPct: number; label: string } {
+  const qty =
+    args.quantity != null && Number.isFinite(args.quantity) && args.quantity > 0
+      ? Math.round(args.quantity)
+      : null;
+  const maxShares =
+    args.maxAffordable != null &&
+    Number.isFinite(args.maxAffordable.shares) &&
+    args.maxAffordable.shares > 0
+      ? Math.round(args.maxAffordable.shares)
+      : null;
+
+  if (
+    !args.accountConnected ||
+    args.maxSizeLoading ||
+    qty == null ||
+    maxShares == null
+  ) {
+    return { visible: false, fillPct: 0, label: "" };
+  }
+
+  return {
+    visible: true,
+    fillPct: Math.min(100, (qty / maxShares) * 100),
+    label: `${qty.toLocaleString()} / ${maxShares.toLocaleString()}`,
+  };
+}
+
 export function TradeOrderImpact({
   economics,
-  initMarginChange,
+  quantity,
   availableAfter,
   impactStatus,
-  marginEstimated,
-  marginLoading = false,
   marginError = null,
   accountConnected,
   maxAffordable = null,
   maxSizeLoading = false,
   onAddStop,
-  riskPlan = null,
 }: Props) {
-  const provenance = marginEstimated ? "EST." : "BROKER";
-  const affordability = affordabilityLabel({
+  const afterChip = afterStatusChip({
     status: impactStatus,
-    availableAfter,
     accountConnected,
     marginError,
   });
 
-  const marginValue =
-    initMarginChange == null || !Number.isFinite(initMarginChange)
-      ? marginLoading
-        ? "Updating…"
-        : marginError
-          ? "—"
-          : "—"
-      : formatOrderImpactMoney(initMarginChange);
-
   const afterValue =
-    availableAfter == null || !Number.isFinite(availableAfter)
+    impactStatus === "over"
       ? "—"
-      : formatOrderImpactMoney(availableAfter);
+      : availableAfter == null || !Number.isFinite(availableAfter)
+        ? "—"
+        : formatOrderImpactMoney(availableAfter);
 
-  const maxSizeValue = formatMaxSize({
+  const maxSizeLine = formatMaxSizeLine({
     maxAffordable,
     accountConnected,
     maxSizeLoading,
   });
 
+  const capacity = capacityState({
+    quantity,
+    maxAffordable,
+    accountConnected,
+    maxSizeLoading,
+  });
+
+  const barColor =
+    impactStatus != null ? marginStatusBarColor(impactStatus) : "var(--edge-accent)";
+
+  const notionalValue =
+    economics.notional != null
+      ? `~${formatOrderImpactMoney(economics.notional)}`
+      : "—";
+
   return (
-    <section
-      data-testid="trade-order-impact"
-      className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-2"
-    >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
-          Review
+    <section data-testid="trade-order-impact" className="space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div
+            className="font-mono text-sm tabular-nums text-[var(--edge-text-strong)]"
+            data-testid="trade-order-impact-notional"
+          >
+            {notionalValue}
+          </div>
+          <div className="text-[10px] text-[var(--edge-text-muted)]">notional</div>
         </div>
-        <div
-          className="text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]"
-          data-testid="trade-order-impact-provenance"
-        >
-          {marginLoading ? "Updating…" : provenance}
+        <div className="shrink-0 text-right">
+          <div className="text-[10px] text-[var(--edge-text-muted)]">Max size</div>
+          <div
+            className="font-mono text-[10px] tabular-nums text-[var(--edge-text-primary)]"
+            data-testid="trade-order-impact-max-size"
+          >
+            {maxSizeLine}
+          </div>
         </div>
       </div>
 
-      <dl className="space-y-1 text-[10px]">
-        <ImpactRow
-          label="Notional"
-          value={
-            economics.notional != null
-              ? `~${formatOrderImpactMoney(economics.notional)}`
-              : "—"
-          }
-          testId="trade-order-impact-notional"
-        />
-        <ImpactRow
-          label="Est. margin"
-          value={marginValue}
-          testId="trade-order-impact-margin"
-        />
-        <ImpactRow
-          label="Available after"
-          value={afterValue}
-          testId="trade-order-impact-available-after"
-        />
-        <ImpactRow
-          label="Max size"
-          value={maxSizeValue}
-          testId="trade-order-impact-max-size"
-        />
-        <div className="flex justify-end">
+      {capacity.visible ? (
+        <div className="mt-2" data-testid="trade-order-impact-capacity">
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-[var(--edge-border-subtle)]"
+            role="progressbar"
+            aria-valuenow={capacity.fillPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className="h-full rounded-full transition-[width] duration-150"
+              style={{
+                width: `${capacity.fillPct}%`,
+                backgroundColor: barColor,
+              }}
+            />
+          </div>
+          <div className="mt-0.5 text-right font-mono text-[10px] tabular-nums text-[var(--edge-text-secondary)]">
+            {capacity.label}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-2 flex items-baseline justify-between gap-3 text-[10px]">
+        <div className="flex min-w-0 items-baseline gap-1.5">
+          <span className="text-[var(--edge-text-muted)]">After</span>
+          <span
+            className="font-mono tabular-nums text-[var(--edge-text-primary)]"
+            data-testid="trade-order-impact-available-after"
+          >
+            {afterValue}
+          </span>
           <span
             data-testid="trade-order-impact-affordability"
-            className={`text-[10px] font-medium ${affordability.className}`}
+            className={`font-medium ${afterChip.className}`}
           >
-            {affordability.text}
+            {afterChip.text}
           </span>
         </div>
 
-        <div className="my-1.5 border-t border-[var(--edge-border-subtle)]" aria-hidden />
-
         {economics.riskMissingReason === "needs_stop" ? (
-          <ImpactRow
-            label="Risk to stop"
-            testId="trade-order-impact-risk"
-            valueClassName={
-              onAddStop
-                ? "text-[var(--edge-warning)]"
-                : "text-[var(--edge-text-muted)]"
-            }
-            valueNode={
-              onAddStop ? (
-                <button
-                  type="button"
-                  className="edge-focus-ring font-mono text-[var(--edge-warning)] hover:underline"
-                  data-testid="trade-order-impact-add-stop"
-                  onClick={onAddStop}
-                >
-                  Add stop ›
-                </button>
-              ) : (
-                "Needs stop"
-              )
-            }
-          />
+          <div className="shrink-0 text-right">
+            {onAddStop ? (
+              <button
+                type="button"
+                className="edge-focus-ring font-mono text-[var(--edge-warning)] hover:underline"
+                data-testid="trade-order-impact-add-stop"
+                onClick={onAddStop}
+              >
+                Add stop ›
+              </button>
+            ) : (
+              <span
+                className="font-mono text-[var(--edge-text-muted)]"
+                data-testid="trade-order-impact-risk"
+              >
+                Needs stop
+              </span>
+            )}
+          </div>
         ) : (
-          <ImpactRow
-            label="Risk to stop"
-            value={formatOrderImpactMoney(economics.riskDollars)}
-            valueClassName="text-[var(--edge-text-strong)]"
-            testId="trade-order-impact-risk"
-          />
+          <div className="flex shrink-0 items-baseline gap-1.5">
+            <span className="text-[var(--edge-text-muted)]">Risk</span>
+            <span
+              className="font-mono tabular-nums text-[var(--edge-text-strong)]"
+              data-testid="trade-order-impact-risk"
+            >
+              {formatOrderImpactMoney(economics.riskDollars)}
+            </span>
+          </div>
         )}
-
-        {economics.rewardVisible ? (
-          <ImpactRow
-            label="Reward to target"
-            value={formatOrderImpactMoney(economics.rewardDollars)}
-            testId="trade-order-impact-reward"
-          />
-        ) : null}
-
-        {economics.rrVisible ? (
-          <ImpactRow
-            label="Risk : reward"
-            value={formatOrderImpactRatio(economics.riskRewardRatio)}
-            valueClassName="text-[var(--edge-text-strong)]"
-            testId="trade-order-impact-rr"
-          />
-        ) : null}
-
-        {riskPlan ? (
-          <>
-            <div className="my-1.5 border-t border-[var(--edge-border-subtle)]" aria-hidden />
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-[var(--edge-text-muted)]">Risk plan</dt>
-              <dd>
-                <button
-                  type="button"
-                  className="edge-focus-ring font-mono text-[var(--edge-text-primary)] hover:underline"
-                  data-testid="trade-risk-plan-toggle"
-                  aria-expanded={riskPlan.open}
-                  onClick={riskPlan.onToggle}
-                >
-                  {riskPlan.teaser} {riskPlan.open ? "▾" : "›"}
-                </button>
-              </dd>
-            </div>
-            {riskPlan.open ? <div className="mt-1.5">{riskPlan.detail}</div> : null}
-          </>
-        ) : null}
-      </dl>
+      </div>
     </section>
   );
 }

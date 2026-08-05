@@ -20,6 +20,7 @@ export type EdgeColorTokenSet = {
   surfaceToolbar: string;
   surfaceRail: string;
   surfacePanel: string;
+  surfaceInput: string;
   surfacePopover: string;
   surfaceHover: string;
   surfaceActive: string;
@@ -50,6 +51,7 @@ const midnightLight: EdgeColorTokenSet = {
   surfaceToolbar: "#ffffff",
   surfaceRail: "#ffffff",
   surfacePanel: "#ffffff",
+  surfaceInput: "#f0f3fa",
   surfacePopover: "#ffffff",
   surfaceHover: "#f0f3fa",
   surfaceActive: "#e0e3eb",
@@ -78,6 +80,7 @@ const midnightDark: EdgeColorTokenSet = {
   surfaceToolbar: "#0d111a",
   surfaceRail: "#080a0f",
   surfacePanel: "#111827",
+  surfaceInput: "#0d111a",
   surfacePopover: "#172033",
   surfaceHover: "#1d2940",
   surfaceActive: "#263653",
@@ -106,6 +109,7 @@ const graphiteLight: EdgeColorTokenSet = {
   surfaceToolbar: "#ffffff",
   surfaceRail: "#ffffff",
   surfacePanel: "#ffffff",
+  surfaceInput: "#f4f4f5",
   surfacePopover: "#ffffff",
   surfaceHover: "#f4f4f5",
   surfaceActive: "#e4e4e7",
@@ -134,6 +138,7 @@ const graphiteDark: EdgeColorTokenSet = {
   surfaceToolbar: "#121214",
   surfaceRail: "#0b0b0d",
   surfacePanel: "#18181b",
+  surfaceInput: "#121214",
   surfacePopover: "#222225",
   surfaceHover: "#2a2a2e",
   surfaceActive: "#35353a",
@@ -162,6 +167,7 @@ const slateLight: EdgeColorTokenSet = {
   surfaceToolbar: "#ffffff",
   surfaceRail: "#ffffff",
   surfacePanel: "#ffffff",
+  surfaceInput: "#e8eef4",
   surfacePopover: "#ffffff",
   surfaceHover: "#e8eef4",
   surfaceActive: "#d8e2ec",
@@ -190,6 +196,7 @@ const slateDark: EdgeColorTokenSet = {
   surfaceToolbar: "#151b23",
   surfaceRail: "#0c1015",
   surfacePanel: "#1a222d",
+  surfaceInput: "#151b23",
   surfacePopover: "#222c3a",
   surfaceHover: "#2a3545",
   surfaceActive: "#334155",

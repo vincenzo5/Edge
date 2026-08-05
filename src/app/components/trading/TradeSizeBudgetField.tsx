@@ -164,26 +164,32 @@ export function TradeSizeBudgetField({
         <div className="flex min-w-0 flex-[1.15] items-end gap-1 px-2 py-1">
           <div className="min-w-0 flex-1">
             <span className="text-[10px] text-[var(--edge-text-secondary)]">Risk</span>
-            <input
-              type="number"
-              min={0}
-              step={riskUnit === "percent" ? 0.25 : 1}
-              value={riskValue}
-              disabled={riskFieldDisabled}
-              data-testid="trade-size-risk"
-              title={
-                riskFieldDisabled && !canSize
-                  ? "Set entry and stop before sizing from risk"
-                  : riskDisabled
-                    ? "Connect account NetLiq to edit percent risk"
-                    : undefined
-              }
-              className={`${fieldClass({
-                density: "compact",
-                disabled: riskFieldDisabled,
-              })} w-full min-w-0 border-0 bg-transparent px-0 shadow-none focus:ring-0`}
-              onChange={(event) => handleRiskChange(event.target.value)}
-            />
+            {!canSize ? (
+              <div
+                className="text-sm font-semibold tabular-nums text-[var(--edge-text-strong)]"
+                data-testid="trade-size-risk-readout"
+                title="Set entry and stop before sizing from risk"
+              >
+                —
+              </div>
+            ) : (
+              <input
+                type="number"
+                min={0}
+                step={riskUnit === "percent" ? 0.25 : 1}
+                value={riskValue}
+                disabled={riskFieldDisabled}
+                data-testid="trade-size-risk"
+                title={
+                  riskDisabled ? "Connect account NetLiq to edit percent risk" : undefined
+                }
+                className={`${fieldClass({
+                  density: "compact",
+                  disabled: riskFieldDisabled,
+                })} w-full min-w-0 border-0 bg-transparent px-0 shadow-none focus:ring-0`}
+                onChange={(event) => handleRiskChange(event.target.value)}
+              />
+            )}
           </div>
           <EdgeSegmentedTabs
             segments={[...RISK_UNIT_SEGMENTS]}

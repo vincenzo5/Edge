@@ -59,14 +59,14 @@ function fieldHeightClass(density: FieldDensity): string {
 /** Shared text input surface — compact (32px) or standard (36px). */
 export function fieldClass(options: FieldStateOptions = {}): string {
   const density = options.density ?? "standard";
-  const base = `edge-focus-ring w-full min-w-0 rounded-[var(--edge-radius-sm)] border bg-[var(--edge-surface-panel)] px-[var(--edge-space-2)] ${bodyTextClass()} text-[var(--edge-text-primary)] placeholder:text-[var(--edge-text-muted)] ${fieldHeightClass(density)} ${motionFast}`;
+  const base = `edge-focus-ring w-full min-w-0 rounded-[var(--edge-radius-sm)] border bg-[var(--edge-surface-input)] px-[var(--edge-space-2)] ${bodyTextClass()} text-[var(--edge-text-primary)] placeholder:text-[var(--edge-text-muted)] ${fieldHeightClass(density)} ${motionFast}`;
   if (options.disabled) {
-    return `${base} cursor-not-allowed border-[var(--edge-border)] opacity-40`;
+    return `${base} cursor-not-allowed border-[var(--edge-border-strong)] opacity-40`;
   }
   if (options.invalid) {
     return `${base} border-[var(--edge-negative)]`;
   }
-  return `${base} border-[var(--edge-border)]`;
+  return `${base} border-[var(--edge-border-strong)]`;
 }
 
 /** Shared native select surface — compact (32px) or standard (36px). */
@@ -195,7 +195,7 @@ export function popoverPanelClass(theme: Theme): string {
 
 export function menuItemClass(theme: Theme, selected?: boolean, disabled?: boolean): string {
   void theme;
-  const base = `edge-focus-ring flex w-full min-h-[var(--edge-control-height-compact)] items-center gap-[var(--edge-space-2)] px-[var(--edge-space-3)] text-left ${bodyTextClass()} ${motionFast}`;
+  const base = `edge-focus-ring flex w-full min-h-[var(--edge-control-height-compact)] cursor-pointer items-center gap-[var(--edge-space-2)] px-[var(--edge-space-3)] text-left ${bodyTextClass()} ${motionFast}`;
   if (disabled) {
     return `${base} cursor-not-allowed opacity-40`;
   }
@@ -221,6 +221,7 @@ export function modalBackdropClass(options?: { contained?: boolean }): string {
     return "pointer-events-auto absolute inset-0 z-[100] flex edge-modal-backdrop px-5";
   }
   // Viewport modals portal to document.body and sit above workspace chrome (z-[210]).
+  // EdgeAnchoredPopover uses z-[1400] so selects inside modals stay visible.
   return "fixed inset-0 z-[1300] flex edge-modal-backdrop px-5";
 }
 
@@ -237,7 +238,7 @@ export function slideOverPanelClass(width: "third" | "half"): string {
 }
 
 export function searchInputShellClass(): string {
-  return "flex h-[var(--edge-control-height-standard)] items-center gap-[var(--edge-space-2)] rounded-[var(--edge-radius-lg)] border border-[var(--edge-border-strong)] bg-[var(--edge-surface-panel)] px-[var(--edge-space-3)]";
+  return "flex h-[var(--edge-control-height-standard)] items-center gap-[var(--edge-space-2)] rounded-[var(--edge-radius-lg)] border border-[var(--edge-border-strong)] bg-[var(--edge-surface-input)] px-[var(--edge-space-3)]";
 }
 
 export function segmentedTabClass(active: boolean): string {

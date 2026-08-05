@@ -325,7 +325,6 @@ export default function ExpectancyApp({ mode, params, onModeChange, onParamsChan
             <EdgeMetricTile
               label="Ending equity"
               value={endingEquity != null ? formatExpectancyMoney(endingEquity) : "—"}
-              variant="bordered"
               labelUppercase
               data-testid="expectancy-ending-equity"
             />
@@ -334,21 +333,18 @@ export default function ExpectancyApp({ mode, params, onModeChange, onParamsChan
                 <EdgeMetricTile
                   label="Multiple"
                   value={formatExpectancyMultiple(deterministic.multiple)}
-                  variant="bordered"
                   labelUppercase
                   data-testid="expectancy-multiple"
                 />
                 <EdgeMetricTile
                   label="CAGR"
                   value={formatExpectancyPercent(deterministic.cagr)}
-                  variant="bordered"
                   labelUppercase
                   data-testid="expectancy-cagr"
                 />
                 <EdgeMetricTile
                   label="EV / trade"
                   value={`${deterministic.evR.toFixed(2)}R`}
-                  variant="bordered"
                   labelUppercase
                   data-testid="expectancy-ev"
                 />
@@ -359,28 +355,24 @@ export default function ExpectancyApp({ mode, params, onModeChange, onParamsChan
                 <EdgeMetricTile
                   label="P10 ending"
                   value={formatExpectancyMoney(monteCarlo.p10Ending)}
-                  variant="bordered"
                   labelUppercase
                   data-testid="expectancy-p10"
                 />
                 <EdgeMetricTile
                   label="P90 ending"
                   value={formatExpectancyMoney(monteCarlo.p90Ending)}
-                  variant="bordered"
                   labelUppercase
                   data-testid="expectancy-p90"
                 />
                 <EdgeMetricTile
                   label="Ruin rate"
                   value={formatExpectancyPercent(monteCarlo.ruinRate)}
-                  variant="bordered"
                   labelUppercase
                   data-testid="expectancy-ruin-rate"
                 />
                 <EdgeMetricTile
                   label="Median max DD"
                   value={formatExpectancyPercent(monteCarlo.medianMaxDrawdown)}
-                  variant="bordered"
                   labelUppercase
                   data-testid="expectancy-median-dd"
                 />
@@ -393,19 +385,16 @@ export default function ExpectancyApp({ mode, params, onModeChange, onParamsChan
               <EdgeMetricTile
                 label="Trades total"
                 value={String(deterministic.tradeCount)}
-                variant="bordered"
                 labelUppercase
               />
               <EdgeMetricTile
                 label="5-loss streak DD"
                 value={formatExpectancyPercent(deterministic.drawdownStreak5)}
-                variant="bordered"
                 labelUppercase
               />
               <EdgeMetricTile
                 label="8-loss streak DD"
                 value={formatExpectancyPercent(deterministic.drawdownStreak8)}
-                variant="bordered"
                 labelUppercase
               />
             </div>

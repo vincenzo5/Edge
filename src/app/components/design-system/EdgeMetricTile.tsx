@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Tooltip from "@/app/components/Tooltip";
+import EdgeHelpIcon from "./EdgeHelpIcon";
 import { toneTextClass, type EdgeTone } from "@/lib/design-system/edge";
 
 type Props = {
@@ -10,32 +10,22 @@ type Props = {
   help?: string;
   helpAriaLabel?: string;
   tone?: EdgeTone;
+  /**
+   * Visual shell for the tile. Default `plain` — label + value readout with no border.
+   * Use plain for standalone metrics; prefer {@link EdgeReadout} for static values in forms.
+   *
+   * `bordered` adds a panel shell (border + padding) for tiles inside a **grouped metric card**
+   * container. Do not use bordered on individual metrics to mimic input fields.
+   *
+   * @deprecated `bordered` on standalone tiles — migrate to plain or wrap metrics in a shared
+   * card container instead of faking per-field borders.
+   */
   variant?: "plain" | "bordered";
   labelUppercase?: boolean;
   valueClassName?: string;
   className?: string;
   "data-testid"?: string;
 };
-
-function MetricHelpIcon({
-  content,
-  ariaLabel,
-}: {
-  content: string;
-  ariaLabel: string;
-}) {
-  return (
-    <Tooltip content={content} theme="dark" side="top" portaled>
-      <span
-        className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-[var(--edge-border)] text-[9px] leading-none text-[var(--edge-text-secondary)]"
-        aria-label={ariaLabel}
-        tabIndex={0}
-      >
-        i
-      </span>
-    </Tooltip>
-  );
-}
 
 export default function EdgeMetricTile({
   label,
@@ -68,7 +58,7 @@ export default function EdgeMetricTile({
       <div className={`flex items-center gap-1 ${labelClass}`}>
         <span>{label}</span>
         {help ? (
-          <MetricHelpIcon content={help} ariaLabel={helpAriaLabel ?? `${label} help`} />
+          <EdgeHelpIcon content={help} ariaLabel={helpAriaLabel ?? `${label} help`} />
         ) : null}
       </div>
       <div

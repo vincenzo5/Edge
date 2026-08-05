@@ -62,11 +62,12 @@ describe("design-system styles", () => {
   });
 
   it("exposes field and select density/state helpers", () => {
-    expect(fieldClass()).toContain("--edge-surface-panel");
+    expect(fieldClass()).toContain("--edge-surface-input");
+    expect(fieldClass()).toContain("--edge-border-strong");
     expect(fieldClass({ density: "compact" })).toContain(compactControlClass());
     expect(fieldClass({ disabled: true })).toContain("opacity-40");
     expect(fieldClass({ invalid: true })).toContain("--edge-negative");
-    expect(selectClass({ density: "standard" })).toContain("--edge-border");
+    expect(selectClass({ density: "standard" })).toContain("--edge-border-strong");
     expect(clearButtonClass()).toContain("--edge-surface-active");
     expect(headerChipClass(true)).toContain("opacity-40");
   });

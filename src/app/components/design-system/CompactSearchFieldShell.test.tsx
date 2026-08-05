@@ -19,7 +19,7 @@ describe("CompactSearchFieldShell", () => {
   });
 
   it("exposes compact field class recipe", () => {
-    expect(compactSearchFieldClass()).toContain("bg-transparent");
+    expect(compactSearchFieldClass()).toContain("--edge-surface-input");
     expect(compactSearchFieldClass()).toContain("pr-9");
     expect(compactSearchFieldClass()).toContain("rounded-full");
     expect(compactSearchFieldClass()).not.toContain("rounded-[var(--edge-radius-sm)]");

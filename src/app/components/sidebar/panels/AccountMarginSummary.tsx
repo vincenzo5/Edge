@@ -110,14 +110,12 @@ export function AccountMarginSummary({ tags }: Props) {
           label="Buying power"
           value={formatMoney(buyingPower)}
           help={METRIC_HELP.buyingPower}
-          variant="bordered"
           labelUppercase
         />
         <EdgeMetricTile
           label="Excess liquidity"
           value={formatMoney(snapshot.excessLiquidity)}
           help={METRIC_HELP.excessLiquidity}
-          variant="bordered"
           labelUppercase
         />
       </div>
@@ -139,28 +137,24 @@ export function AccountMarginSummary({ tags }: Props) {
             label="Available funds"
             value={formatMoney(snapshot.availableFunds)}
             help={METRIC_HELP.availableFunds}
-            variant="bordered"
             labelUppercase
           />
           <EdgeMetricTile
             label="Init margin"
             value={formatMoney(snapshot.initMarginReq)}
             help={METRIC_HELP.initMargin}
-            variant="bordered"
             labelUppercase
           />
           <EdgeMetricTile
             label="Maint margin"
             value={formatMoney(snapshot.maintMarginReq)}
             help={METRIC_HELP.maintMargin}
-            variant="bordered"
             labelUppercase
           />
           <EdgeMetricTile
             label="Leverage"
             value={leverage != null ? leverage.toFixed(2) : "—"}
             help={METRIC_HELP.leverage}
-            variant="bordered"
             labelUppercase
           />
         </div>

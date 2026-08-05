@@ -17,7 +17,8 @@ import {
   type PayoffCell,
   type StrategyLegInput,
 } from "@/lib/risk/optionsStrategyRisk";
-import { EdgeButton, EdgeSelect } from "../design-system";
+import { EdgeButton, EdgeLabeledInput, EdgeReadout, EdgeSelect } from "../design-system";
+import { fieldClass } from "../design-system/styles";
 import type { OptionsCalculatorState } from "@/lib/options/optionsSession";
 import type { RiskCalculatorSeedLeg } from "@/lib/options/optionsSession";
 import type { OptionsChainModel } from "./useOptionsChainModel";
@@ -355,17 +356,16 @@ export function OptionsRiskCalculator({
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs text-[var(--edge-text-secondary)]">
-              <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
-                Max risk $
-              </span>
-              <input
+            <div>
+              <EdgeLabeledInput
+                label="Max risk $"
                 type="number"
                 min={1}
                 value={maxRisk}
                 onChange={handleMaxRiskChange}
-                className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
-                data-testid="options-calc-max-risk"
+                density="compact"
+                labelSurface="panel"
+                testId="options-calc-max-risk"
               />
               {autoSizingActive && evaluation?.summary ? (
                 <p
@@ -388,34 +388,25 @@ export function OptionsRiskCalculator({
                   Set risk in the Risk sidebar panel or enter max risk manually.
                 </p>
               ) : null}
-            </label>
+            </div>
             {!autoSizingActive ? (
-              <label className="text-xs text-[var(--edge-text-secondary)]">
-                <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
-                  Contracts {manualContractsRequired ? "" : "(optional)"}
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  placeholder="Auto"
-                  value={manualContracts}
-                  onChange={(event) => setManualContracts(event.target.value)}
-                  className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
-                  data-testid="options-calc-manual-contracts"
-                />
-              </label>
+              <EdgeLabeledInput
+                label={`Contracts ${manualContractsRequired ? "" : "(optional)"}`}
+                type="number"
+                min={1}
+                placeholder="Auto"
+                value={manualContracts}
+                onChange={(event) => setManualContracts(event.target.value)}
+                density="compact"
+                labelSurface="panel"
+                testId="options-calc-manual-contracts"
+              />
             ) : (
-              <div className="text-xs text-[var(--edge-text-secondary)]">
-                <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
-                  Contracts
-                </span>
-                <div
-                  className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-[10px]"
-                  data-testid="options-calc-auto-contracts-readonly"
-                >
-                  Sized from max risk
-                </div>
-              </div>
+              <EdgeReadout
+                label="Contracts"
+                value="Sized from max risk"
+                testId="options-calc-auto-contracts-readonly"
+              />
             )}
           </div>
 
@@ -594,7 +585,7 @@ export function OptionsRiskCalculator({
                             quantity: Number.parseInt(event.target.value, 10) || 1,
                           })
                         }
-                        className="rounded border border-[var(--edge-border)] bg-[var(--edge-surface-toolbar)] px-1 py-0.5"
+                        className={fieldClass({ density: "compact" })}
                       />
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-2">

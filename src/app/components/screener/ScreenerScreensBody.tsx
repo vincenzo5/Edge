@@ -19,7 +19,7 @@ import { resolveScreenName } from "@/lib/screener/summarizeScreen";
 import { useScreenerSessionModel } from "./useScreenerSessionModel";
 import { SCREENER_NARROW_LAYOUT_THRESHOLD } from "@/lib/responsive/layoutConstants";
 import { EdgeButton, EdgeIconButton, EdgeSelect } from "../design-system";
-import { bodyTextClass, compactControlClass, annotationTextClass, headerIconButtonClass } from "../design-system/styles";
+import { bodyTextClass, compactControlClass, annotationTextClass, fieldClass, headerIconButtonClass } from "../design-system/styles";
 import { PencilIcon } from "../chart-chrome/ChartHeaderIcons";
 import { useTileDensityOptional } from "../app-workspace/TileDensityContext";
 import { useSidebarPanelWidth } from "../sidebar/SidebarPanelWidthContext";
@@ -118,7 +118,7 @@ export function ScreenerSaveControls({ active }: { active: boolean }) {
         onChange={(event) => setSaveName(event.target.value)}
         placeholder="Screen name"
         autoFocus
-        className="edge-focus-ring w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-2 py-1 text-xs"
+        className={fieldClass({ density: "compact" })}
         data-testid="screener-save-name"
         onKeyDown={(event) => {
           if (event.key === "Escape") {
@@ -229,7 +229,7 @@ function ScreenerScreenNameSave({
             aria-label="Screen name"
             data-testid="screener-save-name"
             autoFocus
-            className={`edge-focus-ring ${compactControlClass()} box-border w-44 max-w-[220px] shrink-0 rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] px-[var(--edge-space-2)] ${bodyTextClass()} text-[var(--edge-text-primary)] placeholder:text-[var(--edge-text-muted)]`}
+            className={`${fieldClass({ density: "compact" })} box-border w-44 max-w-[220px] shrink-0`}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.preventDefault();

@@ -15,29 +15,31 @@ const baseEconomics: OrderImpactEconomics = {
 };
 
 describe("TradeOrderImpact", () => {
-  it("renders notional, margin, risk, reward, and R:R", () => {
+  it("renders hero notional, max size, capacity bar, after, and risk", () => {
     render(
       <TradeOrderImpact
         economics={baseEconomics}
-        initMarginChange={1391.78}
+        quantity={100}
         availableAfter={8608.22}
         impactStatus="ok"
-        marginEstimated={false}
         accountConnected
+        maxAffordable={{ shares: 373, notional: 37300, estimated: false }}
       />,
     );
 
-    expect(screen.getByTestId("trade-order-impact")).toHaveTextContent("Review");
+    expect(screen.getByTestId("trade-order-impact").className).not.toContain("--edge-surface-panel");
     expect(screen.getByTestId("trade-order-impact-notional")).toHaveTextContent("2,783.55");
-    expect(screen.getByTestId("trade-order-impact-margin")).toHaveTextContent("1,391.78");
-    expect(screen.getByTestId("trade-order-impact-affordability")).toHaveTextContent("Enough");
+    expect(screen.getByTestId("trade-order-impact-max-size")).toHaveTextContent("373 sh");
+    expect(screen.getByTestId("trade-order-impact-max-size")).toHaveTextContent("37,300");
+    expect(screen.getByTestId("trade-order-impact-capacity")).toHaveTextContent("100 / 373");
+    expect(screen.getByTestId("trade-order-impact-available-after")).toHaveTextContent("8,608.22");
+    expect(screen.getByTestId("trade-order-impact-affordability")).toHaveTextContent("✓");
     expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("33.55");
-    expect(screen.getByTestId("trade-order-impact-reward")).toHaveTextContent("66.45");
-    expect(screen.getByTestId("trade-order-impact-rr")).toHaveTextContent("1:2.0");
-    expect(screen.getByTestId("trade-order-impact-provenance")).toHaveTextContent("BROKER");
+    expect(screen.queryByTestId("trade-order-impact-reward")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("trade-order-impact-rr")).not.toBeInTheDocument();
   });
 
-  it("shows Needs stop and hides reward when unprotected", () => {
+  it("shows Needs stop and no reward when unprotected", () => {
     render(
       <TradeOrderImpact
         economics={{
@@ -49,18 +51,17 @@ describe("TradeOrderImpact", () => {
           rewardVisible: false,
           rrVisible: false,
         }}
-        initMarginChange={250}
+        quantity={10}
         availableAfter={1000}
         impactStatus="ok"
-        marginEstimated
         accountConnected
+        maxAffordable={{ shares: 50, notional: 2500, estimated: true }}
       />,
     );
 
     expect(screen.getByTestId("trade-order-impact-risk")).toHaveTextContent("Needs stop");
     expect(screen.queryByTestId("trade-order-impact-reward")).not.toBeInTheDocument();
     expect(screen.queryByTestId("trade-order-impact-rr")).not.toBeInTheDocument();
-    expect(screen.getByTestId("trade-order-impact-provenance")).toHaveTextContent("EST.");
   });
 
   it("renders Add stop action when onAddStop is provided", () => {
@@ -76,10 +77,9 @@ describe("TradeOrderImpact", () => {
           rewardVisible: false,
           rrVisible: false,
         }}
-        initMarginChange={250}
+        quantity={10}
         availableAfter={1000}
         impactStatus="ok"
-        marginEstimated
         accountConnected
         onAddStop={onAddStop}
       />,
@@ -89,52 +89,37 @@ describe("TradeOrderImpact", () => {
     expect(onAddStop).toHaveBeenCalledTimes(1);
   });
 
-  it("flags insufficient margin", () => {
+  it("flags over margin with OVER chip and clamps capacity bar label", () => {
     render(
       <TradeOrderImpact
         economics={baseEconomics}
-        initMarginChange={50_000}
+        quantity={450}
         availableAfter={-100}
         impactStatus="over"
-        marginEstimated={false}
-        accountConnected
-      />,
-    );
-    expect(screen.getByTestId("trade-order-impact-affordability")).toHaveTextContent(
-      "Insufficient margin",
-    );
-  });
-
-  it("shows max affordable shares and notional", () => {
-    render(
-      <TradeOrderImpact
-        economics={baseEconomics}
-        initMarginChange={1391.78}
-        availableAfter={8608.22}
-        impactStatus="ok"
-        marginEstimated={false}
         accountConnected
         maxAffordable={{ shares: 373, notional: 37300, estimated: false }}
       />,
     );
 
-    expect(screen.getByTestId("trade-order-impact-max-size")).toHaveTextContent("373 sh");
-    expect(screen.getByTestId("trade-order-impact-max-size")).toHaveTextContent("37,300");
+    expect(screen.getByTestId("trade-order-impact-affordability")).toHaveTextContent("OVER");
+    expect(screen.getByTestId("trade-order-impact-available-after")).toHaveTextContent("—");
+    expect(screen.getByTestId("trade-order-impact-capacity")).toHaveTextContent("450 / 373");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
   });
 
-  it("shows dash for max size when account disconnected", () => {
+  it("shows dash for max size and hides capacity bar when account disconnected", () => {
     render(
       <TradeOrderImpact
         economics={baseEconomics}
-        initMarginChange={1391.78}
+        quantity={100}
         availableAfter={8608.22}
         impactStatus="ok"
-        marginEstimated={false}
         accountConnected={false}
         maxAffordable={null}
       />,
     );
 
     expect(screen.getByTestId("trade-order-impact-max-size")).toHaveTextContent("—");
+    expect(screen.queryByTestId("trade-order-impact-capacity")).not.toBeInTheDocument();
   });
 });

@@ -83,4 +83,26 @@ describe("TradeSizeBudgetField", () => {
     expect(onRiskPercentChange).toHaveBeenCalledWith(2);
     expect(onAbsoluteRiskChange).toHaveBeenCalledWith(2000);
   });
+
+  it("shows em-dash risk readout when entry and stop are missing", () => {
+    render(
+      <TradeSizeBudgetField
+        quantity={1}
+        onQuantityChange={vi.fn()}
+        riskUnit="absolute"
+        onRiskUnitChange={vi.fn()}
+        riskPercent={null}
+        absoluteRisk={1000}
+        onRiskPercentChange={vi.fn()}
+        onAbsoluteRiskChange={vi.fn()}
+        entry={null}
+        stop={null}
+        accountBasisValue={100_000}
+      />,
+    );
+
+    expect(screen.getByTestId("trade-size-risk-readout")).toHaveTextContent("—");
+    expect(screen.queryByTestId("trade-size-risk")).not.toBeInTheDocument();
+    expect(screen.getByTestId("trade-size-qty")).not.toBeDisabled();
+  });
 });

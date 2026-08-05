@@ -1,0 +1,44 @@
+# APP — Input affordance ladder — 2026-08-05
+
+## Foundation (Wave A)
+- Added `--edge-surface-input` / `surfaceInput` token (edge.ts + globals.css all palettes)
+- fieldClass + searchInputShellClass → recessed input well + strong border
+- compactSearchFieldClass → inherits recessed fill (no bg-transparent override)
+- New EdgeReadout primitive + Affordance Ladder in ARCHITECTURE.md
+
+## Focused DS tests
+Command:
+npm test -- --run src/app/components/design-system/EdgeReadout.test.tsx src/app/components/design-system/styles.test.ts src/app/components/design-system/EdgeMetricTile.test.tsx src/app/components/design-system/CompactSearchFieldShell.test.tsx src/app/components/design-system/EdgeLabeledInput.test.tsx
+
+```
+Test Files  5 passed (5)
+     Tests  17 passed (17)
+```
+
+## Token sync
+Command:
+npm test -- --run src/lib/design-system/edge.test.ts -t edgeTokens
+
+```
+Test Files  1 passed (1)
+     Tests  5 passed | 5 skipped (10)
+```
+
+## Product surfaces (Waves B–D)
+Command:
+npm test -- --run src/app/components/trading/TradeOrderForm.test.tsx src/app/components/trading/TradeSizeBudgetField.test.tsx src/app/components/trading/PlaybookTemplateEditor.test.tsx src/app/components/trading/TradeOrderImpact.test.tsx src/app/components/options/OptionsRiskCalculator.test.tsx src/app/components/expectancy src/app/components/sidebar/panels/AccountMarginSummary.test.tsx src/app/components/screener/QueryBuilder.test.tsx
+
+```
+Test Files  8 passed (8)
+     Tests  82 passed (82)
+```
+
+## Behavior
+- Editable controls use recessed `--edge-surface-input` wells
+- MKT entry, policy view mode, alerts drawing-bound fields, scoreboard entry/exit/pnl, options auto-contracts use EdgeReadout (no fake fields)
+- Policy view mode no longer uses disabled inputs
+- Bordered EdgeMetricTile removed from expectancy + account margin
+- TradeOrderImpact derived metrics are flush readouts
+
+## App-level
+Deferred: manual glance test on http://localhost:3003 (trade ticket MKT vs LMT, policy view/edit, alerts from drawing, journal scoreboard)

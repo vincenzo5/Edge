@@ -421,7 +421,7 @@ function TechnicalRuleEditor({
               type="number"
               value={technical.threshold}
               onChange={(event) => patchIndicator({ threshold: Number(event.target.value) })}
-              className="edge-focus-ring w-24 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
+              className={`${fieldClass({ density: "compact" })} w-24`}
               data-testid={`screener-technical-threshold-${rule.id}`}
             />
             {technical.indicator === "BOLL" ? (
@@ -507,7 +507,7 @@ function RuleEditor({
               value={typeof rule.value === "string" ? rule.value : ""}
               onChange={(event) => onChange({ value: event.target.value })}
               placeholder={meta.label}
-              className="edge-focus-ring min-w-[140px] flex-1 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
+              className={`${fieldClass({ density: "compact" })} min-w-[140px] flex-1`}
             />
           ) : null}
 
@@ -538,7 +538,7 @@ function RuleEditor({
                   })
                 }
                 placeholder="Min"
-                className="edge-focus-ring w-24 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
+                className={`${fieldClass({ density: "compact" })} w-24`}
               />
               <input
                 type="number"
@@ -549,7 +549,7 @@ function RuleEditor({
                   })
                 }
                 placeholder="Max"
-                className="edge-focus-ring w-24 rounded border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-2 py-1 text-xs"
+                className={`${fieldClass({ density: "compact" })} w-24`}
               />
             </>
           ) : null}

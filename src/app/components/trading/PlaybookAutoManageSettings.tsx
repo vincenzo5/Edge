@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { EdgeButton } from "@/app/components/design-system";
-import { metadataTextClass } from "@/app/components/design-system/styles";
+import { fieldClass, metadataTextClass } from "@/app/components/design-system/styles";
 import { LIVE_CONFIRMATION_TOKEN } from "@/lib/trading/validateOrder";
 import {
   fetchPlaybookAutoManageSettings,
+  killAndFlattenEnvironment,
   patchPlaybookAutoManageSettings,
-  type PlaybookAutoManageSettings,
+  type PlaybookAutoManageClientSettings,
 } from "@/lib/trading/tradingClient";
 
 type Props = {
@@ -15,8 +16,9 @@ type Props = {
 };
 
 export function PlaybookAutoManageSettings({ tradingEnvironment }: Props) {
-  const [settings, setSettings] = useState<PlaybookAutoManageSettings | null>(null);
+  const [settings, setSettings] = useState<PlaybookAutoManageClientSettings | null>(null);
   const [liveConfirmDraft, setLiveConfirmDraft] = useState("");
+  const [killConfirmDraft, setKillConfirmDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -91,7 +93,7 @@ export function PlaybookAutoManageSettings({ tradingEnvironment }: Props) {
               value={liveConfirmDraft}
               disabled={saving}
               onChange={(event) => setLiveConfirmDraft(event.target.value)}
-              className="min-w-0 flex-1 rounded border border-[var(--edge-border)] bg-[var(--edge-surface)] px-2 py-1 text-[11px]"
+              className={`${fieldClass({ density: "compact" })} min-w-0 flex-1`}
               data-testid="playbook-auto-manage-live-confirm"
             />
             <EdgeButton
@@ -118,6 +120,72 @@ export function PlaybookAutoManageSettings({ tradingEnvironment }: Props) {
       {error ? (
         <div className={`${metadataTextClass()} mt-1 text-[var(--edge-negative)]`}>{error}</div>
       ) : null}
+      <div className="mt-2 border-t border-[var(--edge-border-subtle)] pt-2">
+        <div className="mb-1 text-[10px] font-semibold uppercase text-[var(--edge-negative)]">
+          Emergency kill
+        </div>
+        {settings.paperKillActive ? (
+          <div className={`${metadataTextClass()} text-[var(--edge-negative)]`}>
+            Paper kill active — new entries blocked
+          </div>
+        ) : (
+          <EdgeButton
+            theme="dark"
+            variant="destructive"
+            className="!px-2 !py-1 text-[10px]"
+            disabled={saving || tradingEnvironment !== "paper"}
+            data-testid="playbook-kill-paper"
+            onClick={() =>
+              void killAndFlattenEnvironment({ environment: "paper" }).then(() => refresh())
+            }
+          >
+            Kill paper & flatten
+          </EdgeButton>
+        )}
+        {settings.liveKillActive ? (
+          <div className={`${metadataTextClass()} mt-1 text-[var(--edge-negative)]`}>
+            Live kill active — new entries blocked
+          </div>
+        ) : settings.liveConsentAt ? (
+          <div className="mt-1 flex flex-col gap-1">
+            <span className={`${metadataTextClass()} text-[var(--edge-text-secondary)]`}>
+              Type {LIVE_CONFIRMATION_TOKEN} to kill live & flatten all managed positions
+            </span>
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={killConfirmDraft}
+                disabled={saving}
+                onChange={(event) => setKillConfirmDraft(event.target.value)}
+                className={`${fieldClass({ density: "compact" })} min-w-0 flex-1`}
+                data-testid="playbook-kill-live-confirm"
+              />
+              <EdgeButton
+                theme="dark"
+                variant="destructive"
+                className="!px-2 !py-1 text-[10px]"
+                disabled={
+                  saving ||
+                  tradingEnvironment !== "live" ||
+                  killConfirmDraft.trim() !== LIVE_CONFIRMATION_TOKEN
+                }
+                data-testid="playbook-kill-live"
+                onClick={() =>
+                  void killAndFlattenEnvironment({
+                    environment: "live",
+                    liveConfirmation: killConfirmDraft.trim(),
+                  }).then(() => {
+                    setKillConfirmDraft("");
+                    void refresh();
+                  })
+                }
+              >
+                Kill live
+              </EdgeButton>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

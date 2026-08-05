@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import type { ResearchSessionSummary } from "@/lib/persistence/schemas/researchSessions";
 import { EdgeButton, EdgeIconButton } from "../design-system";
+import { fieldClass } from "../design-system/styles";
 
 type Props = {
   sessionId: string;
@@ -153,7 +154,7 @@ export default function ResearchBoardSessionRail({
                 {editingId === entry.id ? (
                   <input
                     data-testid={`research-session-rename-${entry.id}`}
-                    className="w-full rounded border border-[var(--edge-border)] bg-[var(--edge-surface-base)] px-2 py-1 text-xs"
+                    className={fieldClass({ density: "compact" })}
                     value={draftTitle}
                     autoFocus
                     onChange={(event) => setDraftTitle(event.target.value)}

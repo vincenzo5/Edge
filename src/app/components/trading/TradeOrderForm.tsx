@@ -7,6 +7,7 @@ import {
   EdgeHelpIcon,
   EdgeLabeledInput,
   EdgeMicroSelect,
+  EdgeReadout,
   EdgeSegmentedTabs,
   EdgeSelect,
   EdgeToggleSwitch,
@@ -368,7 +369,6 @@ export function TradeOrderForm({
   const [liveConfirmText, setLiveConfirmText] = useState("");
   const [unprotectedConfirm, setUnprotectedConfirm] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [riskPlanOpen, setRiskPlanOpen] = useState(false);
   const [scheduleMode, setScheduleMode] = useState<"now" | "session" | "clock">("now");
   const [sessionEvent, setSessionEvent] = useState<"nextRthOpen" | "nextRthClose">("nextRthOpen");
   const [clockAt, setClockAt] = useState("");
@@ -1046,7 +1046,6 @@ export function TradeOrderForm({
     return plannedRisk;
   }, [attachBracket, composeStopLossPrice, marketRisk, orderType, plannedRisk]);
 
-  const showRiskPlan = policyBound || attachBracket || manageEnabled;
 
   const primaryCtaLabel = useMemo(() => {
     const qty = Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 0;
@@ -1338,7 +1337,34 @@ export function TradeOrderForm({
       ) : null}
 
       {step === "form" ? (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 text-xs">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden text-xs">
+          {draft ? (
+            <div
+              className="shrink-0 border-b border-[var(--edge-border)] bg-[var(--edge-surface)] px-3 pt-3 pb-2"
+              data-testid="trade-review-header"
+            >
+              <TradeOrderImpact
+                economics={orderImpact}
+                quantity={Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : null}
+                availableAfter={marginCtx.impact?.headroomAfter ?? null}
+                impactStatus={marginCtx.impactStatus}
+                marginError={marginCtx.error}
+                accountConnected={marginCtx.accountConnected}
+                maxAffordable={marginCtx.maxAffordable}
+                maxSizeLoading={marginCtx.loading}
+                onAddStop={
+                  !policyBound && !attachBracket
+                    ? () => {
+                        setStopLossEnabled(true);
+                        setTakeProfitEnabled(true);
+                      }
+                    : undefined
+                }
+              />
+            </div>
+          ) : null}
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
           <div className="mb-3 flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="text-sm font-medium text-[var(--edge-text-strong)]">{symbol}</div>
@@ -1423,15 +1449,12 @@ export function TradeOrderForm({
           {orderType === "MKT" || orderType === "MOC" ? (
             <div className="relative mb-3">
               <div className="absolute left-0 top-0">{orderTypeModifier}</div>
-              <div className="text-center text-[10px] text-[var(--edge-text-secondary)]">
-                Order Price
-              </div>
-              <div
-                className="mt-1 text-center font-mono text-[var(--edge-text-strong)]"
-                data-testid="trade-entry-display"
-              >
-                {displayEntry}
-              </div>
+              <EdgeReadout
+                label="Order Price"
+                value={displayEntry}
+                align="center"
+                testId="trade-entry-display"
+              />
             </div>
           ) : (
             <div className="mb-3">
@@ -1793,47 +1816,6 @@ export function TradeOrderForm({
             </label>
           ) : null}
 
-          {draft ? (
-            <div className="mt-3">
-              <TradeOrderImpact
-                economics={orderImpact}
-                initMarginChange={marginCtx.impact?.initMarginChange ?? null}
-                availableAfter={marginCtx.impact?.headroomAfter ?? null}
-                impactStatus={marginCtx.impactStatus}
-                marginEstimated={marginCtx.impact?.estimated ?? true}
-                marginLoading={marginCtx.loading}
-                marginError={marginCtx.error}
-                accountConnected={marginCtx.accountConnected}
-                maxAffordable={marginCtx.maxAffordable}
-                maxSizeLoading={marginCtx.loading}
-                onAddStop={
-                  !policyBound && !attachBracket
-                    ? () => {
-                        setStopLossEnabled(true);
-                        setTakeProfitEnabled(true);
-                      }
-                    : undefined
-                }
-                riskPlan={
-                  showRiskPlan
-                    ? {
-                        teaser: `${submitRiskSummary.budget.label} · ${submitRiskSummary.size.label}`,
-                        open: riskPlanOpen,
-                        onToggle: () => setRiskPlanOpen((open) => !open),
-                        detail: (
-                          <SubmitRiskPlanSummary
-                            summary={submitRiskSummary}
-                            manageSteps={manageEnabled ? manageStepLabels : undefined}
-                            compact
-                          />
-                        ),
-                      }
-                    : null
-                }
-              />
-            </div>
-          ) : null}
-
           <div className="mt-4 flex gap-2">
             <EdgeButton
               theme={theme}
@@ -1851,6 +1833,7 @@ export function TradeOrderForm({
             >
               {primaryCtaLabel}
             </EdgeButton>
+          </div>
           </div>
         </div>
       ) : null}

@@ -80,20 +80,15 @@ function parseDraftNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-const riskBudgetInputShellClass =
-  "flex min-w-0 items-stretch overflow-hidden rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] edge-type-body text-[var(--edge-text-primary)] edge-control-standard";
+const compositeFieldShellClass =
+  "flex min-w-0 items-stretch overflow-hidden rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] edge-control-standard";
 
-const riskBudgetInputClass =
-  "min-w-0 flex-1 border-0 bg-transparent px-[var(--edge-space-2)] text-[var(--edge-text-primary)] outline-none placeholder:text-[var(--edge-text-muted)]";
+const compositeFieldInnerClass = `${fieldClass({ density: "compact" })} min-w-0 flex-1 rounded-none border-0 shadow-none`;
 
 const riskBudgetToggleClass =
   "edge-focus-ring flex w-8 shrink-0 items-center justify-center border-0 bg-transparent text-[11px] font-semibold text-[var(--edge-text-muted)] hover:text-[var(--edge-text-strong)]";
 
-const levelFieldShellClass =
-  "flex min-w-0 items-stretch overflow-hidden rounded-[var(--edge-radius-sm)] border border-[var(--edge-border)] bg-[var(--edge-surface-panel)] edge-control-standard";
-
-const levelFieldInputClass =
-  "min-w-0 flex-1 border-0 bg-transparent px-[var(--edge-space-2)] text-[var(--edge-text-primary)] outline-none placeholder:text-[var(--edge-text-muted)]";
+const compactFieldClass = fieldClass({ density: "compact" });
 
 const inlineRefreshButtonClass =
   "edge-focus-ring flex w-7 shrink-0 items-center justify-center border-0 border-l border-[var(--edge-border)] bg-transparent text-[var(--edge-text-muted)] hover:text-[var(--edge-text-strong)] disabled:cursor-not-allowed disabled:opacity-40";
@@ -404,7 +399,7 @@ export function RiskSettingsPanel() {
             <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
               Entry
             </span>
-            <div className={levelFieldShellClass}>
+            <div className={compositeFieldShellClass}>
               <input
                 type="number"
                 min={0}
@@ -414,7 +409,7 @@ export function RiskSettingsPanel() {
                   markManualOverride();
                   setEntryInput(event.target.value);
                 }}
-                className={`edge-focus-ring ${levelFieldInputClass}`}
+                className={compositeFieldInnerClass}
                 data-testid="risk-position-size-entry"
               />
               <button
@@ -450,7 +445,7 @@ export function RiskSettingsPanel() {
                 markManualOverride();
                 setStopInput(event.target.value);
               }}
-              className={`edge-focus-ring w-full ${fieldClass()}`}
+              className={compactFieldClass}
               data-testid="risk-position-size-stop"
             />
           </label>
@@ -468,7 +463,7 @@ export function RiskSettingsPanel() {
           <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-muted)]">
             {settings.sizingMode === "percent" ? "Risk percent" : "Risk amount"}
           </span>
-          <div className={riskBudgetInputShellClass}>
+          <div className={compositeFieldShellClass}>
             {settings.sizingMode === "percent" ? (
               <input
                 type="number"
@@ -495,7 +490,7 @@ export function RiskSettingsPanel() {
                   updateSettings({ riskPercent: next });
                   setRiskPercentInput(String(next));
                 }}
-                className={`edge-focus-ring ${riskBudgetInputClass}`}
+                className={compositeFieldInnerClass}
                 data-testid="risk-settings-percent"
               />
             ) : (
@@ -522,7 +517,7 @@ export function RiskSettingsPanel() {
                   updateSettings({ absoluteRisk: next });
                   setAbsoluteRiskInput(String(next));
                 }}
-                className={`edge-focus-ring ${riskBudgetInputClass}`}
+                className={compositeFieldInnerClass}
                 data-testid="risk-settings-absolute"
               />
             )}
@@ -597,7 +592,7 @@ export function RiskSettingsPanel() {
                 updateSettings({ periodLossCapPercent: parsed });
                 setPeriodLossCapInput(parsed != null ? String(parsed) : "");
               }}
-              className={`edge-focus-ring w-full ${fieldClass()}`}
+              className={compactFieldClass}
               data-testid="risk-settings-day-loss-cap"
             />
           </label>
@@ -624,7 +619,7 @@ export function RiskSettingsPanel() {
                 updateSettings({ openHeatCapPercent: parsed });
                 setOpenHeatCapInput(parsed != null ? String(parsed) : "");
               }}
-              className={`edge-focus-ring w-full ${fieldClass()}`}
+              className={compactFieldClass}
               data-testid="risk-settings-open-heat-cap"
             />
           </label>
