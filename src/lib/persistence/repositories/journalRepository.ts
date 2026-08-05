@@ -16,6 +16,7 @@ import {
 } from "@/lib/journal/preserveTradeAttachments";
 import { rebuildTrades } from "@/lib/journal/rebuildTrades";
 import { computePlannedRiskUsd } from "@/lib/journal/rMultiple";
+import { applyInitialStopPlannedRisk } from "@/lib/journal/tradeRiskGeometry";
 import type { JournalFill, JournalImportResult, JournalTrade } from "@/lib/journal/types";
 import type {
   JournalFillAccountIndexEntry,
@@ -73,6 +74,7 @@ function tradeToResponse(row: typeof journalTrades.$inferSelect, fillExecIds: st
     plannedRiskMode: row.plannedRiskMode as JournalTradeResponse["plannedRiskMode"],
     plannedRiskValue: row.plannedRiskValue,
     plannedRiskUsd: row.plannedRiskUsd,
+    initialStop: row.initialStop,
     rating: row.rating as JournalTradeResponse["rating"],
     ignored: row.ignored ?? false,
     mfeUsd: row.mfeUsd,
@@ -274,14 +276,23 @@ export async function patchJournalTrade(
   const existing = await getJournalTradeById(userId, tradeId);
   if (!existing) return null;
 
-  const nextMode =
+  let nextMode =
     patch.plannedRiskMode !== undefined ? patch.plannedRiskMode : existing.plannedRiskMode;
-  const nextValue =
+  let nextValue =
     patch.plannedRiskValue !== undefined ? patch.plannedRiskValue : existing.plannedRiskValue;
-  const nextPlannedRiskUsd =
-    patch.plannedRiskMode !== undefined || patch.plannedRiskValue !== undefined
-      ? computePlannedRiskUsd(existing, nextMode ?? null, nextValue ?? null)
-      : existing.plannedRiskUsd ?? null;
+  let nextInitialStop =
+    patch.initialStop !== undefined ? patch.initialStop : existing.initialStop ?? null;
+  let nextPlannedRiskUsd = existing.plannedRiskUsd ?? null;
+
+  if (patch.initialStop !== undefined) {
+    const applied = applyInitialStopPlannedRisk(existing, patch.initialStop);
+    nextInitialStop = applied.initialStop;
+    nextMode = applied.plannedRiskMode;
+    nextValue = applied.plannedRiskValue;
+    nextPlannedRiskUsd = applied.plannedRiskUsd;
+  } else if (patch.plannedRiskMode !== undefined || patch.plannedRiskValue !== undefined) {
+    nextPlannedRiskUsd = computePlannedRiskUsd(existing, nextMode ?? null, nextValue ?? null);
+  }
 
   const db = getDb();
   const rows = await db
@@ -293,6 +304,7 @@ export async function patchJournalTrade(
       plannedRiskMode: nextMode ?? null,
       plannedRiskValue: nextValue ?? null,
       plannedRiskUsd: nextPlannedRiskUsd,
+      initialStop: nextInitialStop,
       rating: patch.rating !== undefined ? patch.rating : existing.rating ?? null,
       ignored: patch.ignored !== undefined ? patch.ignored : existing.ignored ?? false,
       mfeUsd: patch.mfeUsd !== undefined ? patch.mfeUsd : existing.mfeUsd ?? null,

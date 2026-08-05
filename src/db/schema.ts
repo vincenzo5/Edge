@@ -237,6 +237,7 @@ export const journalTrades = pgTable("journal_trades", {
   plannedRiskMode: text("planned_risk_mode"),
   plannedRiskValue: doublePrecision("planned_risk_value"),
   plannedRiskUsd: doublePrecision("planned_risk_usd"),
+  initialStop: doublePrecision("initial_stop"),
   rating: integer("rating"),
   mfeUsd: doublePrecision("mfe_usd"),
   mfaUsd: doublePrecision("mfa_usd"),
@@ -394,6 +395,8 @@ export const playbookInstances = pgTable("playbook_instances", {
   orderRef: text("order_ref"),
   stopOrderId: integer("stop_order_id"),
   filledQty: integer("filled_qty"),
+  takeProfitOrderId: integer("take_profit_order_id"),
+  manageState: jsonb("manage_state"),
   alertBundleId: uuid("alert_bundle_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -430,6 +433,8 @@ export const playbookAutoManage = pgTable("playbook_auto_manage", {
   paperEnabled: boolean("paper_enabled").notNull().default(true),
   liveEnabled: boolean("live_enabled").notNull().default(false),
   liveConsentAt: timestamp("live_consent_at", { withTimezone: true }),
+  paperKillActive: boolean("paper_kill_active").notNull().default(false),
+  liveKillActive: boolean("live_kill_active").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

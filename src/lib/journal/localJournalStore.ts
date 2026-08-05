@@ -2,6 +2,7 @@ import type { JournalFill, JournalSnapshot, JournalTrade } from "@/lib/journal/t
 import { JOURNAL_LOCAL_STORAGE_KEY } from "@/lib/journal/types";
 import { mergeJournalFills } from "@/lib/journal/mapExecutionToFill";
 import { computePlannedRiskUsd } from "@/lib/journal/rMultiple";
+import { applyInitialStopPlannedRisk } from "@/lib/journal/tradeRiskGeometry";
 
 const EMPTY_SNAPSHOT: JournalSnapshot = {
   fills: [],
@@ -70,6 +71,7 @@ export function patchLocalJournalTrade(
       | "plannedRiskMode"
       | "plannedRiskValue"
       | "plannedRiskUsd"
+      | "initialStop"
       | "rating"
       | "ignored"
       | "mfeUsd"
@@ -84,17 +86,27 @@ export function patchLocalJournalTrade(
   const trades = current.trades.map((trade) => {
     if (trade.id !== tradeId) return trade;
     const merged = { ...trade, ...patch };
-    const plannedRiskUsd =
-      patch.plannedRiskMode !== undefined || patch.plannedRiskValue !== undefined
-        ? computePlannedRiskUsd(
-            merged,
-            merged.plannedRiskMode ?? null,
-            merged.plannedRiskValue ?? null,
-          )
-        : (patch.plannedRiskUsd ?? merged.plannedRiskUsd ?? null);
+
+    if (patch.initialStop !== undefined) {
+      const applied = applyInitialStopPlannedRisk(merged, patch.initialStop);
+      merged.initialStop = applied.initialStop;
+      merged.plannedRiskMode = applied.plannedRiskMode;
+      merged.plannedRiskValue = applied.plannedRiskValue;
+      merged.plannedRiskUsd = applied.plannedRiskUsd;
+    } else {
+      const plannedRiskUsd =
+        patch.plannedRiskMode !== undefined || patch.plannedRiskValue !== undefined
+          ? computePlannedRiskUsd(
+              merged,
+              merged.plannedRiskMode ?? null,
+              merged.plannedRiskValue ?? null,
+            )
+          : (patch.plannedRiskUsd ?? merged.plannedRiskUsd ?? null);
+      merged.plannedRiskUsd = plannedRiskUsd;
+    }
+
     updated = {
       ...merged,
-      plannedRiskUsd,
       updatedAt: new Date().toISOString(),
     };
     return updated;

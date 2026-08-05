@@ -23,4 +23,14 @@ describe("journal schemas", () => {
     const parsed = journalTradePatchSchema.safeParse({ ignored: true });
     expect(parsed.success).toBe(true);
   });
+
+  it("validates trade patch with initialStop", () => {
+    const parsed = journalTradePatchSchema.safeParse({ initialStop: 12.1 });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("validates trade patch clearing initialStop", () => {
+    const parsed = journalTradePatchSchema.safeParse({ initialStop: null });
+    expect(parsed.success).toBe(true);
+  });
 });

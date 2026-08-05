@@ -1,0 +1,22 @@
+# Journal trade stop risk — 2026-08-05
+
+## Focused tests
+Command: `npm test -- --run src/app/components/journal/JournalTradeDetail.test.tsx src/lib/persistence/schemas/journal.test.ts src/lib/journal/tradeRiskGeometry.test.ts src/lib/journal/localJournalStore.test.ts`
+```
+Test Files  4 passed (4)
+Tests  18 passed (18)
+```
+
+## Broader journal suite
+Command: `npm test -- --run src/lib/journal src/app/components/journal/JournalTradeDetail.test.tsx src/app/journal/JournalPage.test.tsx`
+```
+Test Files  33 passed (33)
+Tests  227 passed (227)
+```
+
+## Behavior
+- Added `initial_stop` column on `journal_trades`; PATCH accepts `initialStop`
+- Saving stop derives `plannedRiskMode=usd`, `plannedRiskValue`, `plannedRiskUsd` from entry→stop×qty
+- Trade detail modal: Risk block under screenshot (entry auto, stop editable, live R preview)
+- Fills, excursion, chart snapshots, risk policy collapsed under Execution details
+- Removed planned risk $/% from Review section

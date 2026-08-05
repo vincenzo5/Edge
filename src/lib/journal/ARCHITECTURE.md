@@ -94,9 +94,10 @@ Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md
 | `src/lib/journal/journalTradesTableControls.ts` | Trades table sort/paginate helpers, column metadata, column order/visibility prefs, result labels, localStorage prefs |
 | `src/app/components/journal/JournalTradesTableControls.tsx` | Trades table toolbar — result count, columns popover (toggle + reorder + reset) |
 | `src/app/components/journal/JournalTradesTable.tsx` | Virtualized trades table (`@tanstack/react-virtual`); sortable headers (click); column reorder (header hold-drag); configurable visibility/order |
-| `src/app/components/journal/JournalTradeDetailDrawer.tsx` | Slide-over wrapper for trade review |
-| `src/app/components/journal/JournalTradeDetail.tsx` | Trade review panel — Risk policy section (Budget/R/Geometry/Protect/Manage), outcome strip, readable fills, review fields with planned-risk override |
-| `src/app/components/journal/JournalTradeDetailHeaderTitle.tsx` | Clickable symbol in drawer header → chart deep-link |
+| `src/app/components/journal/JournalTradeDetailModal.tsx` | Centered modal wrapper for trade review |
+| `src/app/components/journal/JournalTradeDetail.tsx` | Trade review panel — primary Risk block (entry from fills + editable stop → derived 1R), outcome strip, review fields; execution details collapsed |
+| `src/lib/journal/tradeRiskGeometry.ts` | Stop validation + `initialStop` → planned risk USD derivation |
+| `src/app/components/journal/JournalTradeDetailHeaderTitle.tsx` | Clickable symbol in modal header → chart deep-link |
 | `src/app/components/design-system/EdgeSlideOver.tsx` | Reusable right overlay detail panel |
 | `src/lib/journal/journalTradeDisplay.ts` | Trade outcome status + day summary + dashboard list display helpers |
 | `src/app/journal/{layout,dashboard,trades,open,settings}/` | Journal module routes |
@@ -130,8 +131,9 @@ Manage attach / fire / detach → `syncManagePlaybookToJournal` (`playbook/journ
 - Fill-if-empty `plannedRiskMode` / `plannedRiskValue` from `PositionPlan` via `journalRiskHandoff`
 - Sync `managePlaybook` jsonb with geometry snapshot, protect summary, and rule timeline
 - Manual override preserved — sync never overwrites non-null planned risk
+- User-defined `initialStop` on `journal_trades` derives planned risk USD on patch (`tradeRiskGeometry.ts`)
 
-UI: `JournalTradeDetail` Risk policy section reads synced fields; Review editors remain for override.
+UI: `JournalTradeDetail` Risk block is the primary stop editor; saving stop writes `initialStop` and derived planned risk. Risk policy / manage playbook details live under collapsed Execution details.
 
 ### Trades list virtualization (memory efficiency Phase 10)
 

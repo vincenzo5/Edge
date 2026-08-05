@@ -479,6 +479,7 @@ export async function patchJournalTradeRemote(
       reviewNote: patch.reviewNote,
       plannedRiskMode: patch.plannedRiskMode as JournalTrade["plannedRiskMode"],
       plannedRiskValue: patch.plannedRiskValue,
+      initialStop: patch.initialStop,
       rating: patch.rating as JournalTrade["rating"],
       ignored: patch.ignored,
       mfeUsd: patch.mfeUsd,
@@ -488,11 +489,9 @@ export async function patchJournalTradeRemote(
     });
     if (!local) return null;
     const now = new Date().toISOString();
-    const plannedRiskUsd = computePlannedRiskUsd(
-      local,
-      local.plannedRiskMode ?? null,
-      local.plannedRiskValue ?? null,
-    );
+    const plannedRiskUsd =
+      local.plannedRiskUsd ??
+      computePlannedRiskUsd(local, local.plannedRiskMode ?? null, local.plannedRiskValue ?? null);
     return {
       ...local,
       closedAt: local.closedAt ?? null,
@@ -502,6 +501,7 @@ export async function patchJournalTradeRemote(
       plannedRiskMode: local.plannedRiskMode ?? null,
       plannedRiskValue: local.plannedRiskValue ?? null,
       plannedRiskUsd,
+      initialStop: local.initialStop ?? null,
       rating: local.rating ?? null,
       ignored: local.ignored ?? false,
       mfeUsd: local.mfeUsd ?? null,

@@ -79,6 +79,7 @@ export type JournalTrade = {
   plannedRiskMode?: PlannedRiskMode | null;
   plannedRiskValue?: number | null;
   plannedRiskUsd?: number | null;
+  initialStop?: number | null;
   rating?: JournalTradeRating | null;
   ignored?: boolean;
   mfeUsd?: number | null;

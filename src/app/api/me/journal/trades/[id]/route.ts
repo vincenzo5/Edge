@@ -38,8 +38,15 @@ export async function PATCH(request: Request, context: RouteContext) {
       return persistenceError(400, "validation", parsed.error, { details: parsed.details });
     }
 
-    const trade = await patchJournalTrade(userId, id, parsed.data);
-    if (!trade) return persistenceError(404, "not_found", "Journal trade not found.");
-    return NextResponse.json(trade);
+    try {
+      const trade = await patchJournalTrade(userId, id, parsed.data);
+      if (!trade) return persistenceError(404, "not_found", "Journal trade not found.");
+      return NextResponse.json(trade);
+    } catch (error) {
+      if (error instanceof Error) {
+        return persistenceError(400, "validation", error.message);
+      }
+      throw error;
+    }
   });
 }

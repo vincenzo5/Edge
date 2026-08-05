@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import type { JournalFillResponse, JournalTradeResponse } from "@/lib/persistence/schemas/journal";
 
 const mocks = vi.hoisted(() => ({
@@ -84,11 +84,11 @@ describe("JournalTradeDetail", () => {
     mocks.fetchJournalFills.mockResolvedValue(fills);
   });
 
-  it("shows outcome strip with entry, exit, and P&L", async () => {
+  it("shows outcome strip with entry in risk block, exit, and P&L", async () => {
     render(<JournalTradeDetail trade={trade} onUpdated={vi.fn()} embedded />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("journal-trade-outcome-entry")).toHaveTextContent("150.25");
+      expect(screen.getByTestId("journal-trade-risk-entry")).toHaveTextContent("150.25");
     });
     expect(screen.getByTestId("journal-trade-outcome-exit")).toHaveTextContent("155.75");
     expect(screen.getByTestId("journal-trade-outcome-pnl")).toHaveTextContent("$550.00");
@@ -178,9 +178,42 @@ describe("JournalTradeDetail", () => {
     expect(screen.getByTestId("journal-trade-risk-protect")).toHaveTextContent("Stop @ 95");
     expect(screen.getByTestId("journal-trade-manage-adherence")).toHaveTextContent("1 of 1");
     expect(screen.getByTestId("journal-trade-manage-rule-be-at-1r")).toHaveTextContent("Fired");
-    expect(screen.getByTestId("journal-planned-risk-autofill-hint")).toHaveTextContent(
-      "Auto-filled from Plan",
+    expect(screen.getByTestId("journal-trade-stop-plan-hint")).toHaveTextContent(
+      "Seeded from plan — save to persist",
     );
-    expect(screen.queryByTestId("journal-trade-manage")).not.toBeInTheDocument();
+    expect(screen.getByTestId("journal-trade-risk-stop")).toHaveValue(95);
+    expect(screen.getByTestId("journal-trade-risk-manage")).toBeInTheDocument();
+  });
+
+  it("saves initialStop and review fields together", async () => {
+    const onUpdated = vi.fn();
+    mocks.patchJournalTradeRemote.mockResolvedValue({
+      ...trade,
+      initialStop: 145,
+      plannedRiskMode: "usd",
+      plannedRiskValue: 525,
+      plannedRiskUsd: 525,
+    });
+
+    render(<JournalTradeDetail trade={trade} onUpdated={onUpdated} embedded />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-risk-stop")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId("journal-trade-risk-stop"), {
+      target: { value: "145" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+
+    await waitFor(() => {
+      expect(mocks.patchJournalTradeRemote).toHaveBeenCalledWith(
+        trade.id,
+        expect.objectContaining({
+          initialStop: 145,
+        }),
+      );
+      expect(onUpdated).toHaveBeenCalled();
+    });
   });
 });

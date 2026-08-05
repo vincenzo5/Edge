@@ -2,9 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { JournalFillResponse, JournalTradeResponse } from "@/lib/persistence/schemas/journal";
-import { JOURNAL_SETUP_VALUES, JOURNAL_RATING_VALUES, type PlannedRiskMode } from "@/lib/journal/types";
+import { JOURNAL_SETUP_VALUES, JOURNAL_RATING_VALUES } from "@/lib/journal/types";
 import { computeRMultiple } from "@/lib/journal/rMultiple";
-import { plannedRiskMatchesPositionPlanSnapshot } from "@/lib/trading/playbook/journalRiskHandoff";
+import {
+  computeStopDistancePerShare,
+  derivePlannedRiskFromStop,
+  resolveEffectiveInitialStop,
+  validateInitialStop,
+} from "@/lib/journal/tradeRiskGeometry";
 import {
   canComputeTradeExcursion,
   computeTradeExcursionForTrade,
@@ -68,10 +73,10 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
   const [tags, setTags] = useState("");
   const [setup, setSetup] = useState<string>("");
   const [reviewNote, setReviewNote] = useState("");
-  const [plannedRiskMode, setPlannedRiskMode] = useState<PlannedRiskMode | "">("");
-  const [plannedRiskValue, setPlannedRiskValue] = useState("");
+  const [initialStopInput, setInitialStopInput] = useState("");
   const [rating, setRating] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [ignoring, setIgnoring] = useState(false);
   const [excursionLoading, setExcursionLoading] = useState(false);
   const [excursionError, setExcursionError] = useState<string | null>(null);
@@ -82,11 +87,11 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
     setTags((trade.tags ?? []).join(", "));
     setSetup(trade.setup ?? "");
     setReviewNote(trade.reviewNote ?? "");
-    setPlannedRiskMode(trade.plannedRiskMode ?? "");
-    setPlannedRiskValue(
-      trade.plannedRiskValue != null ? String(trade.plannedRiskValue) : "",
-    );
+    const persistedStop = trade.initialStop ?? null;
+    const seededStop = persistedStop ?? resolveEffectiveInitialStop(trade);
+    setInitialStopInput(seededStop != null ? String(seededStop) : "");
     setRating(trade.rating != null ? String(trade.rating) : "");
+    setSaveError(null);
   }, [trade]);
 
   useEffect(() => {
@@ -121,10 +126,19 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
 
   async function saveNotes() {
     setSaving(true);
+    setSaveError(null);
     try {
-      const parsedRiskValue = plannedRiskValue.trim()
-        ? Number.parseFloat(plannedRiskValue)
-        : null;
+      const parsedStop = initialStopInput.trim() ? Number.parseFloat(initialStopInput) : null;
+      if (parsedStop != null && !Number.isFinite(parsedStop)) {
+        setSaveError("Stop must be a valid price.");
+        return;
+      }
+      const stopValidationError = validateInitialStop(trade.direction, trade.avgEntry, parsedStop);
+      if (stopValidationError) {
+        setSaveError(stopValidationError);
+        return;
+      }
+
       const updated = await patchJournalTradeRemote(trade.id, {
         tags: tags
           .split(",")
@@ -132,14 +146,14 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
           .filter(Boolean),
         setup: setup ? (setup as typeof trade.setup) : null,
         reviewNote: reviewNote.trim() || null,
-        plannedRiskMode: plannedRiskMode || null,
-        plannedRiskValue:
-          plannedRiskMode && parsedRiskValue != null && Number.isFinite(parsedRiskValue)
-            ? parsedRiskValue
-            : null,
+        initialStop: parsedStop,
         rating: rating ? (Number.parseInt(rating, 10) as typeof trade.rating) : null,
       });
-      if (updated) onUpdated(updated);
+      if (updated) {
+        onUpdated(updated);
+      } else {
+        setSaveError("Could not save trade review.");
+      }
     } finally {
       setSaving(false);
     }
@@ -153,10 +167,30 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
     trade.plannedRiskUsd != null ||
     trade.plannedRiskMode != null ||
     trade.plannedRiskValue != null;
-  const autoFilledFromPlan = plannedRiskMatchesPositionPlanSnapshot(
-    trade,
-    positionPlanSnapshot,
-  );
+  const stopSeededFromPlan =
+    trade.initialStop == null && positionPlanSnapshot?.initialStop != null;
+  const draftStop = initialStopInput.trim() ? Number.parseFloat(initialStopInput) : null;
+  const draftRiskPreview = useMemo(() => {
+    if (draftStop == null || !Number.isFinite(draftStop)) return null;
+    const validationError = validateInitialStop(trade.direction, trade.avgEntry, draftStop);
+    if (validationError) return { error: validationError } as const;
+    const qty = Math.abs(trade.netQuantity ?? 0);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      return { error: "Quantity is required to compute risk." } as const;
+    }
+    const derived = derivePlannedRiskFromStop({
+      entry: trade.avgEntry!,
+      initialStop: draftStop,
+      qty,
+    });
+    if (!derived) return { error: "Could not compute risk from entry and stop." } as const;
+    const previewR = computeRMultiple({ ...trade, plannedRiskUsd: derived.usd });
+    return {
+      distance: computeStopDistancePerShare(trade.avgEntry!, draftStop),
+      riskUsd: derived.usd,
+      r: previewR,
+    } as const;
+  }, [draftStop, trade]);
   const excursionEligible = canComputeTradeExcursion(trade);
   const mfeR =
     trade.plannedRiskUsd != null && trade.plannedRiskUsd > 0 && trade.mfeUsd != null
@@ -229,22 +263,72 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
       ) : null}
 
       <JournalTradeScreenshots tradeId={trade.id} />
-      <JournalTradeChartSnapshots trade={trade} fills={tradeFills} />
+
+      <section data-testid="journal-trade-risk">
+        <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+          Risk
+        </div>
+        <div className="mt-2 space-y-3 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
+            <label className="block text-xs">
+              <span className="text-[var(--edge-text-secondary)]">Entry</span>
+              <div
+                className="mt-1 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] px-2 py-1.5 text-sm font-semibold tabular-nums text-[var(--edge-text-strong)]"
+                data-testid="journal-trade-risk-entry"
+              >
+                {formatTradePrice(trade.avgEntry)}
+              </div>
+              <p className="mt-1 text-[10px] text-[var(--edge-text-muted)]">From fills</p>
+            </label>
+            <div className="hidden text-center text-lg text-[var(--edge-text-muted)] sm:block" aria-hidden>
+              →
+            </div>
+            <label className="block text-xs">
+              <span className="text-[var(--edge-text-secondary)]">Stop</span>
+              {stopSeededFromPlan ? (
+                <p
+                  className="mt-0.5 text-[10px] text-[var(--edge-text-muted)]"
+                  data-testid="journal-trade-stop-plan-hint"
+                >
+                  Seeded from plan — save to persist
+                </p>
+              ) : null}
+              <input
+                className="mt-1 w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1.5 text-sm tabular-nums"
+                type="number"
+                min="0"
+                step="any"
+                placeholder="Set stop price"
+                value={initialStopInput}
+                onChange={(event) => setInitialStopInput(event.target.value)}
+                data-testid="journal-trade-risk-stop"
+              />
+            </label>
+          </div>
+
+          {draftRiskPreview && "error" in draftRiskPreview ? (
+            <p className="text-xs text-[var(--edge-danger)]" data-testid="journal-trade-risk-error">
+              {draftRiskPreview.error}
+            </p>
+          ) : draftRiskPreview ? (
+            <p className="text-xs text-[var(--edge-text-secondary)]" data-testid="journal-trade-risk-summary">
+              Distance {formatTradePrice(draftRiskPreview.distance)}/sh · Qty{" "}
+              {trade.netQuantity ?? "—"} · Risk {formatTradeMoney(draftRiskPreview.riskUsd)}
+              {draftRiskPreview.r != null ? ` · Result ${draftRiskPreview.r.toFixed(2)}R` : ""}
+            </p>
+          ) : (
+            <p className="text-xs text-[var(--edge-text-secondary)]">
+              Set a stop to define 1R from entry distance.
+            </p>
+          )}
+        </div>
+      </section>
 
       <section data-testid="journal-trade-outcome">
         <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
           Outcome
         </div>
-        <div className="mt-2 grid grid-cols-3 gap-2 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
-          <div>
-            <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Entry</div>
-            <div
-              className="mt-1 text-sm font-semibold tabular-nums text-[var(--edge-text-strong)]"
-              data-testid="journal-trade-outcome-entry"
-            >
-              {formatTradePrice(trade.avgEntry)}
-            </div>
-          </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
           <div>
             <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Exit</div>
             <div
@@ -272,274 +356,9 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
         </div>
         <p className="mt-2 text-xs text-[var(--edge-text-secondary)]">
           {formatDirectionLabel(trade.direction)} · Qty {trade.netQuantity ?? "—"} · Comm{" "}
-          {formatTradeMoney(trade.totalCommission)} · R{" "}
-          {rMultiple != null ? `${rMultiple.toFixed(2)}R` : "—"}
+          {formatTradeMoney(trade.totalCommission)}
         </p>
       </section>
-
-      <section data-testid="journal-trade-excursion">
-        <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-          Excursion
-        </div>
-        {!excursionEligible ? (
-          <p className="mt-2 text-xs text-[var(--edge-text-secondary)]">
-            MFE/MFA available for closed stock trades with entry price.
-          </p>
-        ) : trade.mfeUsd != null && trade.mfaUsd != null ? (
-          <div className="mt-2 grid grid-cols-2 gap-2 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
-            <div>
-              <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">MFE</div>
-              <div className="mt-1 text-sm font-semibold tabular-nums text-[var(--edge-text-strong)]">
-                {formatTradeMoney(trade.mfeUsd)}
-                {mfeR != null ? ` · ${mfeR.toFixed(2)}R` : ""}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">MFA</div>
-              <div className="mt-1 text-sm font-semibold tabular-nums text-[var(--edge-text-strong)]">
-                {formatTradeMoney(trade.mfaUsd)}
-                {mfaR != null ? ` · ${mfaR.toFixed(2)}R` : ""}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <p className="mt-2 text-xs text-[var(--edge-text-secondary)]">
-            Compute max favorable and adverse excursion from intraday bars.
-          </p>
-        )}
-        {excursionEligible ? (
-          <div className="mt-2 flex items-center gap-2">
-            <EdgeButton
-              variant="secondary"
-              data-testid="journal-trade-compute-excursion"
-              disabled={excursionLoading}
-              onClick={() => void computeExcursion()}
-            >
-              {excursionLoading ? "Computing…" : trade.mfeUsd != null ? "Recompute excursion" : "Compute excursion"}
-            </EdgeButton>
-            {trade.excursionInterval ? (
-              <span className="text-[10px] text-[var(--edge-text-muted)]">
-                {trade.excursionInterval} bars
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-        {excursionError ? (
-          <p className="mt-2 text-xs text-[var(--edge-danger)]">{excursionError}</p>
-        ) : null}
-      </section>
-
-      <section data-testid="journal-trade-fills">
-        <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-          Fills
-        </div>
-        {tradeFills.length > 0 ? (
-          <div className="mt-2 overflow-x-auto rounded border border-[var(--edge-border-subtle)]">
-            <table className="min-w-full text-xs">
-              <thead className="bg-[var(--edge-surface-hover)] text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-                <tr>
-                  <th className="px-2 py-1.5 text-left font-medium">Time</th>
-                  <th className="px-2 py-1.5 text-left font-medium">Side</th>
-                  <th className="px-2 py-1.5 text-right font-medium">Qty</th>
-                  <th className="px-2 py-1.5 text-right font-medium">Price</th>
-                  <th className="px-2 py-1.5 text-left font-medium">Order</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tradeFills.map((fill) => (
-                  <tr
-                    key={fill.execId}
-                    className="border-t border-[var(--edge-border-subtle)]"
-                    data-testid={`journal-trade-fill-${fill.execId}`}
-                  >
-                    <td className="px-2 py-1.5 tabular-nums text-[var(--edge-text-primary)]">
-                      {formatTradeCloseTime(fill.fillTime, FILL_TIME_ZONE)}
-                    </td>
-                    <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
-                      {formatFillSide(fill.side)}
-                    </td>
-                    <td className="px-2 py-1.5 text-right tabular-nums text-[var(--edge-text-primary)]">
-                      {fill.quantity}
-                    </td>
-                    <td className="px-2 py-1.5 text-right tabular-nums text-[var(--edge-text-primary)]">
-                      {formatTradePrice(fill.price)}
-                    </td>
-                    <td className="px-2 py-1.5 font-mono text-[11px] text-[var(--edge-text-secondary)]">
-                      {fill.orderRef?.trim() || fill.orderId?.toString() || "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="mt-2 text-xs text-[var(--edge-text-secondary)]">No fill details loaded.</p>
-        )}
-
-        {(trade.fillExecIds.length > 0 || orderRefs.length > 0) ? (
-          <details className="mt-2 text-xs" data-testid="journal-trade-tech-details">
-            <summary className="cursor-pointer text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-primary)]">
-              Tech details
-            </summary>
-            <div className="mt-2 space-y-2">
-              {trade.fillExecIds.length > 0 ? (
-                <div>
-                  <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
-                    Exec IDs
-                  </div>
-                  <ul className="mt-1 space-y-1 font-mono text-[11px] text-[var(--edge-text-secondary)]">
-                    {trade.fillExecIds.map((execId) => (
-                      <li key={execId} className="break-all">
-                        {execId}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {orderRefs.length > 0 ? (
-                <div>
-                  <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
-                    Order refs
-                  </div>
-                  <ul className="mt-1 space-y-1">
-                    {orderRefs.map((orderRef) => (
-                      <li
-                        key={orderRef}
-                        className="break-all font-mono text-[11px] text-[var(--edge-text-secondary)]"
-                      >
-                        {orderRef}
-                        {isEdgeIntentOrderRef(orderRef) ? (
-                          <span className="ml-2 rounded bg-[var(--edge-surface-active)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide">
-                            Edge
-                          </span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          </details>
-        ) : null}
-      </section>
-
-      {trade.legs && trade.legs.length > 0 ? (
-        <div>
-          <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Legs</div>
-          <ul className="mt-1 space-y-1 text-xs">
-            {trade.legs.map((leg, index) => (
-              <li key={`${leg.conId ?? index}`} className="rounded border border-[var(--edge-border-subtle)] px-2 py-1">
-                {leg.localSymbol ?? leg.symbol} · {leg.strike ?? ""}{leg.right ?? ""} · qty {leg.netQuantity ?? "—"}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {showRiskPolicy ? (
-        <section data-testid="journal-trade-risk-policy">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-            Risk policy
-          </div>
-          <div className="mt-2 space-y-3 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Budget</div>
-                <div
-                  className="mt-1 font-semibold tabular-nums text-[var(--edge-text-strong)]"
-                  data-testid="journal-trade-risk-budget"
-                >
-                  {trade.plannedRiskUsd != null
-                    ? formatTradeMoney(trade.plannedRiskUsd)
-                    : trade.plannedRiskMode === "pct" && trade.plannedRiskValue != null
-                      ? `${trade.plannedRiskValue}%`
-                      : trade.plannedRiskMode === "usd" && trade.plannedRiskValue != null
-                        ? formatTradeMoney(trade.plannedRiskValue)
-                        : "—"}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">R</div>
-                <div
-                  className="mt-1 font-semibold tabular-nums text-[var(--edge-text-strong)]"
-                  data-testid="journal-trade-risk-r"
-                >
-                  {rMultiple != null ? `${rMultiple.toFixed(2)}R` : "—"}
-                </div>
-              </div>
-            </div>
-
-            {positionPlanSnapshot ? (
-              <div className="text-xs" data-testid="journal-trade-risk-geometry">
-                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
-                  Geometry
-                </div>
-                <p className="mt-1 text-[var(--edge-text-primary)]">
-                  Entry {formatTradePrice(positionPlanSnapshot.entry)} · Stop{" "}
-                  {formatTradePrice(positionPlanSnapshot.initialStop)} · R unit{" "}
-                  {formatTradePrice(positionPlanSnapshot.rUnit)} · Qty {positionPlanSnapshot.qty}
-                </p>
-              </div>
-            ) : null}
-
-            {managePlaybook?.protectSummary ? (
-              <div className="text-xs" data-testid="journal-trade-risk-protect">
-                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
-                  Protect
-                </div>
-                <p className="mt-1 text-[var(--edge-text-primary)]">
-                  {managePlaybook.protectSummary}
-                </p>
-              </div>
-            ) : null}
-
-            {managePlaybook ? (
-              <div data-testid="journal-trade-risk-manage">
-                <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Manage</div>
-                <div className="mt-1 text-sm font-semibold text-[var(--edge-text-strong)]">
-                  {managePlaybook.templateName}
-                </div>
-                <p
-                  className="mt-1 text-xs text-[var(--edge-text-secondary)]"
-                  data-testid="journal-trade-manage-adherence"
-                >
-                  {managePlaybook.firedRuleCount} of {managePlaybook.plannedRuleCount} rules fired
-                </p>
-                <div className="mt-3 overflow-x-auto">
-                  <table className="min-w-full text-xs">
-                    <thead className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
-                      <tr>
-                        <th className="px-2 py-1 text-left font-medium">Rule</th>
-                        <th className="px-2 py-1 text-left font-medium">Status</th>
-                        <th className="px-2 py-1 text-left font-medium">Fired</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {managePlaybook.ruleTimeline.map((runtime) => (
-                        <tr
-                          key={runtime.ruleId}
-                          className="border-t border-[var(--edge-border-subtle)]"
-                          data-testid={`journal-trade-manage-rule-${runtime.ruleId}`}
-                        >
-                          <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
-                            {runtime.ruleId}
-                          </td>
-                          <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
-                            {formatRuleRuntimeStatus(runtime.status)}
-                          </td>
-                          <td className="px-2 py-1.5 tabular-nums text-[var(--edge-text-secondary)]">
-                            {formatRuleRuntimeTime(runtime.firedAt)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
 
       <section className="space-y-3" data-testid="journal-trade-review">
         <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
@@ -603,45 +422,6 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
         </label>
 
         <label className="block text-xs">
-          <span className="text-[var(--edge-text-secondary)]">Planned risk</span>
-          {autoFilledFromPlan ? (
-            <p
-              className="mt-0.5 text-[10px] text-[var(--edge-text-muted)]"
-              data-testid="journal-planned-risk-autofill-hint"
-            >
-              Auto-filled from Plan
-            </p>
-          ) : null}
-          <div className="mt-1 flex gap-2">
-            <EdgeSelect
-              testId="journal-planned-risk-mode"
-              variant="field"
-              density="compact"
-              value={plannedRiskMode || "__empty__"}
-              onChange={(next) =>
-                setPlannedRiskMode(next === "__empty__" ? "" : (next as PlannedRiskMode))
-              }
-              options={[
-                { value: "__empty__", label: "—" },
-                { value: "usd", label: "$" },
-                { value: "pct", label: "%" },
-              ]}
-              className="min-w-[4rem]"
-            />
-            <input
-              className="min-w-0 flex-1 rounded border border-[var(--edge-border)] bg-transparent px-2 py-1"
-              type="number"
-              min="0"
-              step="any"
-              placeholder={plannedRiskMode === "pct" ? "Percent" : "Dollars"}
-              value={plannedRiskValue}
-              onChange={(event) => setPlannedRiskValue(event.target.value)}
-              data-testid="journal-planned-risk-value"
-            />
-          </div>
-        </label>
-
-        <label className="block text-xs">
           <span className="text-[var(--edge-text-secondary)]">Review note</span>
           <textarea
             className="mt-1 min-h-24 w-full rounded border border-[var(--edge-border)] bg-transparent px-2 py-1"
@@ -650,6 +430,285 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
           />
         </label>
       </section>
+
+      <details className="rounded border border-[var(--edge-border-subtle)] px-3 py-2" data-testid="journal-trade-secondary-details">
+        <summary className="cursor-pointer text-xs font-medium text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-primary)]">
+          Execution details
+        </summary>
+        <div className="mt-3 space-y-4">
+          <JournalTradeChartSnapshots trade={trade} fills={tradeFills} />
+
+          <section data-testid="journal-trade-excursion">
+            <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+              Excursion
+            </div>
+            {!excursionEligible ? (
+              <p className="mt-2 text-xs text-[var(--edge-text-secondary)]">
+                MFE/MFA available for closed stock trades with entry price.
+              </p>
+            ) : trade.mfeUsd != null && trade.mfaUsd != null ? (
+              <div className="mt-2 grid grid-cols-2 gap-2 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
+                <div>
+                  <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">MFE</div>
+                  <div className="mt-1 text-sm font-semibold tabular-nums text-[var(--edge-text-strong)]">
+                    {formatTradeMoney(trade.mfeUsd)}
+                    {mfeR != null ? ` · ${mfeR.toFixed(2)}R` : ""}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">MFA</div>
+                  <div className="mt-1 text-sm font-semibold tabular-nums text-[var(--edge-text-strong)]">
+                    {formatTradeMoney(trade.mfaUsd)}
+                    {mfaR != null ? ` · ${mfaR.toFixed(2)}R` : ""}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--edge-text-secondary)]">
+                Compute max favorable and adverse excursion from intraday bars.
+              </p>
+            )}
+            {excursionEligible ? (
+              <div className="mt-2 flex items-center gap-2">
+                <EdgeButton
+                  variant="secondary"
+                  data-testid="journal-trade-compute-excursion"
+                  disabled={excursionLoading}
+                  onClick={() => void computeExcursion()}
+                >
+                  {excursionLoading ? "Computing…" : trade.mfeUsd != null ? "Recompute excursion" : "Compute excursion"}
+                </EdgeButton>
+                {trade.excursionInterval ? (
+                  <span className="text-[10px] text-[var(--edge-text-muted)]">
+                    {trade.excursionInterval} bars
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {excursionError ? (
+              <p className="mt-2 text-xs text-[var(--edge-danger)]">{excursionError}</p>
+            ) : null}
+          </section>
+
+          <section data-testid="journal-trade-fills">
+            <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+              Fills
+            </div>
+            {tradeFills.length > 0 ? (
+              <div className="mt-2 overflow-x-auto rounded border border-[var(--edge-border-subtle)]">
+                <table className="min-w-full text-xs">
+                  <thead className="bg-[var(--edge-surface-hover)] text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                    <tr>
+                      <th className="px-2 py-1.5 text-left font-medium">Time</th>
+                      <th className="px-2 py-1.5 text-left font-medium">Side</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Qty</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Price</th>
+                      <th className="px-2 py-1.5 text-left font-medium">Order</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tradeFills.map((fill) => (
+                      <tr
+                        key={fill.execId}
+                        className="border-t border-[var(--edge-border-subtle)]"
+                        data-testid={`journal-trade-fill-${fill.execId}`}
+                      >
+                        <td className="px-2 py-1.5 tabular-nums text-[var(--edge-text-primary)]">
+                          {formatTradeCloseTime(fill.fillTime, FILL_TIME_ZONE)}
+                        </td>
+                        <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
+                          {formatFillSide(fill.side)}
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums text-[var(--edge-text-primary)]">
+                          {fill.quantity}
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums text-[var(--edge-text-primary)]">
+                          {formatTradePrice(fill.price)}
+                        </td>
+                        <td className="px-2 py-1.5 font-mono text-[11px] text-[var(--edge-text-secondary)]">
+                          {fill.orderRef?.trim() || fill.orderId?.toString() || "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--edge-text-secondary)]">No fill details loaded.</p>
+            )}
+
+            {(trade.fillExecIds.length > 0 || orderRefs.length > 0) ? (
+              <details className="mt-2 text-xs" data-testid="journal-trade-tech-details">
+                <summary className="cursor-pointer text-[var(--edge-text-secondary)] hover:text-[var(--edge-text-primary)]">
+                  Tech details
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {trade.fillExecIds.length > 0 ? (
+                    <div>
+                      <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
+                        Exec IDs
+                      </div>
+                      <ul className="mt-1 space-y-1 font-mono text-[11px] text-[var(--edge-text-secondary)]">
+                        {trade.fillExecIds.map((execId) => (
+                          <li key={execId} className="break-all">
+                            {execId}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {orderRefs.length > 0 ? (
+                    <div>
+                      <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
+                        Order refs
+                      </div>
+                      <ul className="mt-1 space-y-1">
+                        {orderRefs.map((orderRef) => (
+                          <li
+                            key={orderRef}
+                            className="break-all font-mono text-[11px] text-[var(--edge-text-secondary)]"
+                          >
+                            {orderRef}
+                            {isEdgeIntentOrderRef(orderRef) ? (
+                              <span className="ml-2 rounded bg-[var(--edge-surface-active)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide">
+                                Edge
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            ) : null}
+          </section>
+
+          {trade.legs && trade.legs.length > 0 ? (
+            <div>
+              <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Legs</div>
+              <ul className="mt-1 space-y-1 text-xs">
+                {trade.legs.map((leg, index) => (
+                  <li key={`${leg.conId ?? index}`} className="rounded border border-[var(--edge-border-subtle)] px-2 py-1">
+                    {leg.localSymbol ?? leg.symbol} · {leg.strike ?? ""}{leg.right ?? ""} · qty {leg.netQuantity ?? "—"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {showRiskPolicy ? (
+            <section data-testid="journal-trade-risk-policy">
+              <div className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                Risk policy
+              </div>
+              <div className="mt-2 space-y-3 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] p-3">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Budget</div>
+                    <div
+                      className="mt-1 font-semibold tabular-nums text-[var(--edge-text-strong)]"
+                      data-testid="journal-trade-risk-budget"
+                    >
+                      {trade.plannedRiskUsd != null
+                        ? formatTradeMoney(trade.plannedRiskUsd)
+                        : trade.plannedRiskMode === "pct" && trade.plannedRiskValue != null
+                          ? `${trade.plannedRiskValue}%`
+                          : trade.plannedRiskMode === "usd" && trade.plannedRiskValue != null
+                            ? formatTradeMoney(trade.plannedRiskValue)
+                            : "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">R</div>
+                    <div
+                      className="mt-1 font-semibold tabular-nums text-[var(--edge-text-strong)]"
+                      data-testid="journal-trade-risk-r"
+                    >
+                      {rMultiple != null ? `${rMultiple.toFixed(2)}R` : "—"}
+                    </div>
+                  </div>
+                </div>
+
+                {positionPlanSnapshot ? (
+                  <div className="text-xs" data-testid="journal-trade-risk-geometry">
+                    <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
+                      Geometry
+                    </div>
+                    <p className="mt-1 text-[var(--edge-text-primary)]">
+                      Entry {formatTradePrice(positionPlanSnapshot.entry)} · Stop{" "}
+                      {formatTradePrice(positionPlanSnapshot.initialStop)} · R unit{" "}
+                      {formatTradePrice(positionPlanSnapshot.rUnit)} · Qty {positionPlanSnapshot.qty}
+                    </p>
+                  </div>
+                ) : null}
+
+                {managePlaybook?.protectSummary ? (
+                  <div className="text-xs" data-testid="journal-trade-risk-protect">
+                    <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">
+                      Protect
+                    </div>
+                    <p className="mt-1 text-[var(--edge-text-primary)]">
+                      {managePlaybook.protectSummary}
+                    </p>
+                  </div>
+                ) : null}
+
+                {managePlaybook ? (
+                  <div data-testid="journal-trade-risk-manage">
+                    <div className="text-[10px] uppercase text-[var(--edge-text-secondary)]">Manage</div>
+                    <div className="mt-1 text-sm font-semibold text-[var(--edge-text-strong)]">
+                      {managePlaybook.templateName}
+                    </div>
+                    <p
+                      className="mt-1 text-xs text-[var(--edge-text-secondary)]"
+                      data-testid="journal-trade-manage-adherence"
+                    >
+                      {managePlaybook.firedRuleCount} of {managePlaybook.plannedRuleCount} rules fired
+                    </p>
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="min-w-full text-xs">
+                        <thead className="text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                          <tr>
+                            <th className="px-2 py-1 text-left font-medium">Rule</th>
+                            <th className="px-2 py-1 text-left font-medium">Status</th>
+                            <th className="px-2 py-1 text-left font-medium">Fired</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {managePlaybook.ruleTimeline.map((runtime) => (
+                            <tr
+                              key={runtime.ruleId}
+                              className="border-t border-[var(--edge-border-subtle)]"
+                              data-testid={`journal-trade-manage-rule-${runtime.ruleId}`}
+                            >
+                              <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
+                                {runtime.ruleId}
+                              </td>
+                              <td className="px-2 py-1.5 text-[var(--edge-text-primary)]">
+                                {formatRuleRuntimeStatus(runtime.status)}
+                              </td>
+                              <td className="px-2 py-1.5 tabular-nums text-[var(--edge-text-secondary)]">
+                                {formatRuleRuntimeTime(runtime.firedAt)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </details>
+
+      {saveError ? (
+        <p className="text-xs text-[var(--edge-danger)]" data-testid="journal-trade-save-error">
+          {saveError}
+        </p>
+      ) : null}
 
       <EdgeButton variant="primary" disabled={saving} onClick={() => void saveNotes()}>
         Save notes
