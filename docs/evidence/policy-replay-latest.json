@@ -1,0 +1,1840 @@
+{
+  "source": "IBKR live U25026894 via Edge journal (read-only)",
+  "note": "1R = plannedRiskUsd/openQty when present, else ATR(14) near entry. Paths = Yahoo daily CLOSES only (confirmed moves). Step trail: at +step → BE; each further step milestone moves stop up by step (stop = lastMilestone − step). Continuous trails arm after +1R and follow peak − width on every new high close.",
+  "excluded": [],
+  "account": "U25026894",
+  "fetchedAt": "2026-08-05T01:18:15.798Z",
+  "pathModel": "daily closes",
+  "tradeCount": 9,
+  "longCount": 8,
+  "shortCount": 1,
+  "names": {
+    "actual": "Actual (what you did)",
+    "fixed_1r": "Fixed 1R TP",
+    "fixed_2r": "Fixed 2R TP",
+    "fixed_3r": "Fixed 3R TP",
+    "be_only": "BE at +1R",
+    "half_be": "Half then BE",
+    "half_trail": "Half + 0.75R trail",
+    "scale_3x": "Scale 3×",
+    "full_trail_tight": "Full trail 0.5R (continuous)",
+    "full_trail_wide": "Full trail 1R (continuous)",
+    "swing_harvest": "Swing harvest",
+    "step_trail_025": "Step trail 0.25R",
+    "step_trail_05": "Step trail 0.5R",
+    "step_trail_1": "Step trail 1R"
+  },
+  "levers": {
+    "actual": "Your real exits from IB fills",
+    "fixed_1r": "Hard TP @ +1R · stop −1R",
+    "fixed_2r": "Hard TP @ +2R · stop −1R",
+    "fixed_3r": "Hard TP @ +3R · stop −1R",
+    "be_only": "No TP · stop → BE at +1R",
+    "half_be": "50% @ +1R · remainder BE",
+    "half_trail": "50% @ +1R · continuous trail 0.75R",
+    "scale_3x": "⅓@1R · BE · ⅓@2R · trail runner",
+    "full_trail_tight": "After +1R: stop = peak − 0.5R on every new high close",
+    "full_trail_wide": "After +1R: stop = peak − 1R on every new high close",
+    "swing_harvest": "40% @1R · BE · continuous 0.75R trail on 60%",
+    "step_trail_025": "At +0.25R → BE; each next +0.25R milestone → stop up 0.25R",
+    "step_trail_05": "At +0.5R → BE; each next +0.5R milestone → stop up 0.5R",
+    "step_trail_1": "At +1R → BE; each next +1R milestone → stop up 1R"
+  },
+  "policyOrder": [
+    "actual",
+    "fixed_1r",
+    "fixed_2r",
+    "fixed_3r",
+    "be_only",
+    "half_be",
+    "half_trail",
+    "scale_3x",
+    "full_trail_tight",
+    "full_trail_wide",
+    "swing_harvest",
+    "step_trail_025",
+    "step_trail_05",
+    "step_trail_1"
+  ],
+  "trades": [
+    {
+      "id": "5d79d546",
+      "symbol": "NOW",
+      "direction": "long",
+      "openedAt": "2026-05-22",
+      "closedAt": "2026-06-12",
+      "openQty": 150,
+      "avgEntry": 102.115,
+      "avgExit": 101.5253,
+      "netPnl": -92.8,
+      "rUnitPrice": 5.615,
+      "rUnitSource": "atr14",
+      "riskDollarsAt1R": 842.25,
+      "actualR": -0.11,
+      "mfeR": 6.6,
+      "maeR": 0.66,
+      "results": {
+        "fixed_1r": {
+          "r": 1,
+          "x": "TP 1R"
+        },
+        "fixed_2r": {
+          "r": 2,
+          "x": "TP 2R"
+        },
+        "fixed_3r": {
+          "r": 3,
+          "x": "TP 3R"
+        },
+        "be_only": {
+          "r": 0,
+          "x": "gap/through stop"
+        },
+        "half_be": {
+          "r": 0.5,
+          "x": "gap/through stop"
+        },
+        "half_trail": {
+          "r": 3.13,
+          "x": "gap/through stop"
+        },
+        "scale_3x": {
+          "r": 2.75,
+          "x": "gap/through stop"
+        },
+        "full_trail_tight": {
+          "r": 5.51,
+          "x": "gap/through stop"
+        },
+        "full_trail_wide": {
+          "r": 5.01,
+          "x": "gap/through stop"
+        },
+        "swing_harvest": {
+          "r": 3.56,
+          "x": "gap/through stop"
+        },
+        "step_trail_025": {
+          "r": 5.75,
+          "x": "gap/through stop"
+        },
+        "step_trail_05": {
+          "r": 5.5,
+          "x": "gap/through stop"
+        },
+        "step_trail_1": {
+          "r": 5,
+          "x": "gap/through stop"
+        },
+        "actual": {
+          "r": -0.11,
+          "x": "actual fill exit"
+        }
+      }
+    },
+    {
+      "id": "e0a7c957",
+      "symbol": "BRUN",
+      "direction": "long",
+      "openedAt": "2026-06-04",
+      "closedAt": "2026-06-22",
+      "openQty": 865,
+      "avgEntry": 31.7614,
+      "avgExit": 35.1187,
+      "netPnl": 2892.25,
+      "rUnitPrice": 5.2657,
+      "rUnitSource": "atr14",
+      "riskDollarsAt1R": 4554.84,
+      "actualR": 0.63,
+      "mfeR": 1.65,
+      "maeR": 0.86,
+      "results": {
+        "fixed_1r": {
+          "r": 1,
+          "x": "TP 1R"
+        },
+        "fixed_2r": {
+          "r": 0.64,
+          "x": "path end / actual window end"
+        },
+        "fixed_3r": {
+          "r": 0.64,
+          "x": "path end / actual window end"
+        },
+        "be_only": {
+          "r": 0.64,
+          "x": "path end / actual window end"
+        },
+        "half_be": {
+          "r": 0.82,
+          "x": "path end / actual window end"
+        },
+        "half_trail": {
+          "r": 0.82,
+          "x": "path end / actual window end"
+        },
+        "scale_3x": {
+          "r": 0.76,
+          "x": "path end / actual window end"
+        },
+        "full_trail_tight": {
+          "r": 0.58,
+          "x": "gap/through stop"
+        },
+        "full_trail_wide": {
+          "r": 0.64,
+          "x": "path end / actual window end"
+        },
+        "swing_harvest": {
+          "r": 0.78,
+          "x": "path end / actual window end"
+        },
+        "step_trail_025": {
+          "r": 0.5,
+          "x": "gap/through stop"
+        },
+        "step_trail_05": {
+          "r": 0,
+          "x": "gap/through stop"
+        },
+        "step_trail_1": {
+          "r": 0.64,
+          "x": "path end / actual window end"
+        },
+        "actual": {
+          "r": 0.63,
+          "x": "actual fill exit"
+        }
+      }
+    },
+    {
+      "id": "568fb297",
+      "symbol": "AAPL",
+      "direction": "short",
+      "openedAt": "2026-06-24",
+      "closedAt": "2026-06-25",
+      "openQty": 200,
+      "avgEntry": 296.06,
+      "avgExit": 279.925,
+      "netPnl": 3223.74,
+      "rUnitPrice": 7.85,
+      "rUnitSource": "atr14",
+      "riskDollarsAt1R": 1570,
+      "actualR": 2.05,
+      "mfeR": 2.06,
+      "maeR": 0,
+      "results": {
+        "fixed_1r": {
+          "r": 1,
+          "x": "TP 1R"
+        },
+        "fixed_2r": {
+          "r": 2,
+          "x": "TP 2R"
+        },
+        "fixed_3r": {
+          "r": 2.06,
+          "x": "path end / actual window end"
+        },
+        "be_only": {
+          "r": 2.06,
+          "x": "path end / actual window end"
+        },
+        "half_be": {
+          "r": 1.53,
+          "x": "path end / actual window end"
+        },
+        "half_trail": {
+          "r": 1.53,
+          "x": "path end / actual window end"
+        },
+        "scale_3x": {
+          "r": 1.69,
+          "x": "path end / actual window end"
+        },
+        "full_trail_tight": {
+          "r": 2.16,
+          "x": "gap/through stop"
+        },
+        "full_trail_wide": {
+          "r": 2.06,
+          "x": "path end / actual window end"
+        },
+        "swing_harvest": {
+          "r": 1.63,
+          "x": "path end / actual window end"
+        },
+        "step_trail_025": {
+          "r": 2.25,
+          "x": "gap/through stop"
+        },
+        "step_trail_05": {
+          "r": 2.06,
+          "x": "path end / actual window end"
+        },
+        "step_trail_1": {
+          "r": 2.06,
+          "x": "path end / actual window end"
+        },
+        "actual": {
+          "r": 2.05,
+          "x": "actual fill exit"
+        }
+      }
+    },
+    {
+      "id": "1158ba2d",
+      "symbol": "OUST",
+      "direction": "long",
+      "openedAt": "2026-06-25",
+      "closedAt": "2026-06-29",
+      "openQty": 1000,
+      "avgEntry": 42.825,
+      "avgExit": 52.7253,
+      "netPnl": 9888.97,
+      "rUnitPrice": 5.9854,
+      "rUnitSource": "atr14",
+      "riskDollarsAt1R": 5985.36,
+      "actualR": 1.65,
+      "mfeR": 3.5,
+      "maeR": 0.62,
+      "results": {
+        "fixed_1r": {
+          "r": 1,
+          "x": "TP 1R"
+        },
+        "fixed_2r": {
+          "r": 2,
+          "x": "TP 2R"
+        },
+        "fixed_3r": {
+          "r": 3,
+          "x": "TP 3R"
+        },
+        "be_only": {
+          "r": 1.65,
+          "x": "path end / actual window end"
+        },
+        "half_be": {
+          "r": 1.33,
+          "x": "path end / actual window end"
+        },
+        "half_trail": {
+          "r": 1.77,
+          "x": "gap/through stop"
+        },
+        "scale_3x": {
+          "r": 1.85,
+          "x": "gap/through stop"
+        },
+        "full_trail_tight": {
+          "r": 2.79,
+          "x": "gap/through stop"
+        },
+        "full_trail_wide": {
+          "r": 2.29,
+          "x": "gap/through stop"
+        },
+        "swing_harvest": {
+          "r": 1.92,
+          "x": "gap/through stop"
+        },
+        "step_trail_025": {
+          "r": 3,
+          "x": "gap/through stop"
+        },
+        "step_trail_05": {
+          "r": 2.5,
+          "x": "gap/through stop"
+        },
+        "step_trail_1": {
+          "r": 2,
+          "x": "gap/through stop"
+        },
+        "actual": {
+          "r": 1.65,
+          "x": "actual fill exit"
+        }
+      }
+    },
+    {
+      "id": "4125ebd7",
+      "symbol": "NBIS",
+      "direction": "long",
+      "openedAt": "2026-06-29",
+      "closedAt": "2026-07-01",
+      "openQty": 160,
+      "avgEntry": 261.7313,
+      "avgExit": 239,
+      "netPnl": -3639.82,
+      "rUnitPrice": 27.1916,
+      "rUnitSource": "atr14",
+      "riskDollarsAt1R": 4350.65,
+      "actualR": -0.84,
+      "mfeR": 1.06,
+      "maeR": 1.23,
+      "results": {
+        "fixed_1r": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "fixed_2r": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "fixed_3r": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "be_only": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "half_be": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "half_trail": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "scale_3x": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "full_trail_tight": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "full_trail_wide": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "swing_harvest": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "step_trail_025": {
+          "r": 0.25,
+          "x": "gap/through stop"
+        },
+        "step_trail_05": {
+          "r": 0,
+          "x": "gap/through stop"
+        },
+        "step_trail_1": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "actual": {
+          "r": -0.84,
+          "x": "actual fill exit"
+        }
+      }
+    },
+    {
+      "id": "ac0ecfa1",
+      "symbol": "HOOD",
+      "direction": "long",
+      "openedAt": "2026-07-01",
+      "closedAt": "2026-07-02",
+      "openQty": 700,
+      "avgEntry": 103.0993,
+      "avgExit": 111.3798,
+      "netPnl": 5787.63,
+      "rUnitPrice": 7.1241,
+      "rUnitSource": "atr14",
+      "riskDollarsAt1R": 4986.85,
+      "actualR": 1.16,
+      "mfeR": 2.38,
+      "maeR": 0.38,
+      "results": {
+        "fixed_1r": {
+          "r": 1,
+          "x": "TP 1R"
+        },
+        "fixed_2r": {
+          "r": 1.16,
+          "x": "path end / actual window end"
+        },
+        "fixed_3r": {
+          "r": 1.16,
+          "x": "path end / actual window end"
+        },
+        "be_only": {
+          "r": 1.16,
+          "x": "path end / actual window end"
+        },
+        "half_be": {
+          "r": 1.08,
+          "x": "path end / actual window end"
+        },
+        "half_trail": {
+          "r": 1.08,
+          "x": "path end / actual window end"
+        },
+        "scale_3x": {
+          "r": 1.11,
+          "x": "path end / actual window end"
+        },
+        "full_trail_tight": {
+          "r": 1.16,
+          "x": "path end / actual window end"
+        },
+        "full_trail_wide": {
+          "r": 1.16,
+          "x": "path end / actual window end"
+        },
+        "swing_harvest": {
+          "r": 1.1,
+          "x": "path end / actual window end"
+        },
+        "step_trail_025": {
+          "r": 1.16,
+          "x": "path end / actual window end"
+        },
+        "step_trail_05": {
+          "r": 1.16,
+          "x": "path end / actual window end"
+        },
+        "step_trail_1": {
+          "r": 1.16,
+          "x": "path end / actual window end"
+        },
+        "actual": {
+          "r": 1.16,
+          "x": "actual fill exit"
+        }
+      }
+    },
+    {
+      "id": "e2601f45",
+      "symbol": "NBIS",
+      "direction": "long",
+      "openedAt": "2026-07-08",
+      "closedAt": "2026-07-13",
+      "openQty": 370,
+      "avgEntry": 215.313,
+      "avgExit": 206.7095,
+      "netPnl": -3188.65,
+      "rUnitPrice": 27.5298,
+      "rUnitSource": "atr14",
+      "riskDollarsAt1R": 10186.02,
+      "actualR": -0.31,
+      "mfeR": 0.52,
+      "maeR": 0.81,
+      "results": {
+        "fixed_1r": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "fixed_2r": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "fixed_3r": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "be_only": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "half_be": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "half_trail": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "scale_3x": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "full_trail_tight": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "full_trail_wide": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "swing_harvest": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "step_trail_025": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "step_trail_05": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "step_trail_1": {
+          "r": -0.31,
+          "x": "path end / actual window end"
+        },
+        "actual": {
+          "r": -0.31,
+          "x": "actual fill exit"
+        }
+      }
+    },
+    {
+      "id": "902abf65",
+      "symbol": "BB",
+      "direction": "long",
+      "openedAt": "2026-07-13",
+      "closedAt": "2026-07-16",
+      "openQty": 5800,
+      "avgEntry": 10.7351,
+      "avgExit": 10.3492,
+      "netPnl": -2298.28,
+      "rUnitPrice": 1.0029,
+      "rUnitSource": "atr14",
+      "riskDollarsAt1R": 5816.57,
+      "actualR": -0.4,
+      "mfeR": 0.67,
+      "maeR": 1.68,
+      "results": {
+        "fixed_1r": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "fixed_2r": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "fixed_3r": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "be_only": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "half_be": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "half_trail": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "scale_3x": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "full_trail_tight": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "full_trail_wide": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "swing_harvest": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "step_trail_025": {
+          "r": 0,
+          "x": "gap/through stop"
+        },
+        "step_trail_05": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "step_trail_1": {
+          "r": -1,
+          "x": "gap/through stop"
+        },
+        "actual": {
+          "r": -0.4,
+          "x": "actual fill exit"
+        }
+      }
+    },
+    {
+      "id": "fecd892e",
+      "symbol": "BRUN",
+      "direction": "long",
+      "openedAt": "2026-07-20",
+      "closedAt": "2026-07-22",
+      "openQty": 1400,
+      "avgEntry": 24.9088,
+      "avgExit": 24.0506,
+      "netPnl": -1216.43,
+      "rUnitPrice": 3.2425,
+      "rUnitSource": "atr14",
+      "riskDollarsAt1R": 4539.5,
+      "actualR": -0.27,
+      "mfeR": 0.48,
+      "maeR": 0.61,
+      "results": {
+        "fixed_1r": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "fixed_2r": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "fixed_3r": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "be_only": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "half_be": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "half_trail": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "scale_3x": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "full_trail_tight": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "full_trail_wide": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "swing_harvest": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "step_trail_025": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "step_trail_05": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "step_trail_1": {
+          "r": -0.26,
+          "x": "path end / actual window end"
+        },
+        "actual": {
+          "r": -0.27,
+          "x": "actual fill exit"
+        }
+      }
+    }
+  ],
+  "scoreboard": {
+    "actual": {
+      "n": 9,
+      "netR": 3.56,
+      "winRate": 44.4,
+      "wins": 4,
+      "losses": 5,
+      "avgWin": 1.37,
+      "avgLoss": 0.39,
+      "profitFactor": 2.84,
+      "expectancy": 0.4,
+      "maxDdR": 0.98
+    },
+    "fixed_1r": {
+      "n": 9,
+      "netR": 2.43,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1,
+      "avgLoss": 0.64,
+      "profitFactor": 1.95,
+      "expectancy": 0.27,
+      "maxDdR": 1.57
+    },
+    "fixed_2r": {
+      "n": 9,
+      "netR": 5.23,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.56,
+      "avgLoss": 0.64,
+      "profitFactor": 3.04,
+      "expectancy": 0.58,
+      "maxDdR": 1.57
+    },
+    "fixed_3r": {
+      "n": 9,
+      "netR": 7.29,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.97,
+      "avgLoss": 0.64,
+      "profitFactor": 3.84,
+      "expectancy": 0.81,
+      "maxDdR": 1.57
+    },
+    "be_only": {
+      "n": 9,
+      "netR": 2.94,
+      "winRate": 44.4,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.38,
+      "avgLoss": 0.64,
+      "profitFactor": 2.14,
+      "expectancy": 0.33,
+      "maxDdR": 1.57
+    },
+    "half_be": {
+      "n": 9,
+      "netR": 2.69,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.05,
+      "avgLoss": 0.64,
+      "profitFactor": 2.05,
+      "expectancy": 0.3,
+      "maxDdR": 1.57
+    },
+    "half_trail": {
+      "n": 9,
+      "netR": 5.76,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.67,
+      "avgLoss": 0.64,
+      "profitFactor": 3.24,
+      "expectancy": 0.64,
+      "maxDdR": 1.57
+    },
+    "scale_3x": {
+      "n": 9,
+      "netR": 5.59,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.63,
+      "avgLoss": 0.64,
+      "profitFactor": 3.18,
+      "expectancy": 0.62,
+      "maxDdR": 1.57
+    },
+    "full_trail_tight": {
+      "n": 9,
+      "netR": 9.63,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 2.44,
+      "avgLoss": 0.64,
+      "profitFactor": 4.75,
+      "expectancy": 1.07,
+      "maxDdR": 1.57
+    },
+    "full_trail_wide": {
+      "n": 9,
+      "netR": 8.59,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 2.23,
+      "avgLoss": 0.64,
+      "profitFactor": 4.34,
+      "expectancy": 0.95,
+      "maxDdR": 1.57
+    },
+    "swing_harvest": {
+      "n": 9,
+      "netR": 6.42,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.8,
+      "avgLoss": 0.64,
+      "profitFactor": 3.5,
+      "expectancy": 0.71,
+      "maxDdR": 1.57
+    },
+    "step_trail_025": {
+      "n": 9,
+      "netR": 12.34,
+      "winRate": 66.7,
+      "wins": 6,
+      "losses": 2,
+      "avgWin": 2.15,
+      "avgLoss": 0.29,
+      "profitFactor": 22.65,
+      "expectancy": 1.37,
+      "maxDdR": 0.57
+    },
+    "step_trail_05": {
+      "n": 9,
+      "netR": 9.65,
+      "winRate": 44.4,
+      "wins": 4,
+      "losses": 3,
+      "avgWin": 2.81,
+      "avgLoss": 0.52,
+      "profitFactor": 7.15,
+      "expectancy": 1.07,
+      "maxDdR": 1.57
+    },
+    "step_trail_1": {
+      "n": 9,
+      "netR": 8.29,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 2.17,
+      "avgLoss": 0.64,
+      "profitFactor": 4.23,
+      "expectancy": 0.92,
+      "maxDdR": 1.57
+    }
+  },
+  "scoreboardLong": {
+    "actual": {
+      "n": 8,
+      "netR": 1.51,
+      "winRate": 37.5,
+      "wins": 3,
+      "losses": 5,
+      "avgWin": 1.15,
+      "avgLoss": 0.39,
+      "profitFactor": 1.78,
+      "expectancy": 0.19,
+      "maxDdR": 0.98
+    },
+    "fixed_1r": {
+      "n": 8,
+      "netR": 1.43,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1,
+      "avgLoss": 0.64,
+      "profitFactor": 1.56,
+      "expectancy": 0.18,
+      "maxDdR": 1.57
+    },
+    "fixed_2r": {
+      "n": 8,
+      "netR": 3.23,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.45,
+      "avgLoss": 0.64,
+      "profitFactor": 2.26,
+      "expectancy": 0.4,
+      "maxDdR": 1.57
+    },
+    "fixed_3r": {
+      "n": 8,
+      "netR": 5.23,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.95,
+      "avgLoss": 0.64,
+      "profitFactor": 3.04,
+      "expectancy": 0.65,
+      "maxDdR": 1.57
+    },
+    "be_only": {
+      "n": 8,
+      "netR": 0.88,
+      "winRate": 37.5,
+      "wins": 3,
+      "losses": 4,
+      "avgWin": 1.15,
+      "avgLoss": 0.64,
+      "profitFactor": 1.34,
+      "expectancy": 0.11,
+      "maxDdR": 1.57
+    },
+    "half_be": {
+      "n": 8,
+      "netR": 1.16,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 0.93,
+      "avgLoss": 0.64,
+      "profitFactor": 1.45,
+      "expectancy": 0.14,
+      "maxDdR": 1.57
+    },
+    "half_trail": {
+      "n": 8,
+      "netR": 4.23,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.7,
+      "avgLoss": 0.64,
+      "profitFactor": 2.65,
+      "expectancy": 0.53,
+      "maxDdR": 1.57
+    },
+    "scale_3x": {
+      "n": 8,
+      "netR": 3.9,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.62,
+      "avgLoss": 0.64,
+      "profitFactor": 2.52,
+      "expectancy": 0.49,
+      "maxDdR": 1.57
+    },
+    "full_trail_tight": {
+      "n": 8,
+      "netR": 7.47,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 2.51,
+      "avgLoss": 0.64,
+      "profitFactor": 3.91,
+      "expectancy": 0.93,
+      "maxDdR": 1.57
+    },
+    "full_trail_wide": {
+      "n": 8,
+      "netR": 6.53,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 2.28,
+      "avgLoss": 0.64,
+      "profitFactor": 3.54,
+      "expectancy": 0.82,
+      "maxDdR": 1.57
+    },
+    "swing_harvest": {
+      "n": 8,
+      "netR": 4.79,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.84,
+      "avgLoss": 0.64,
+      "profitFactor": 2.86,
+      "expectancy": 0.6,
+      "maxDdR": 1.57
+    },
+    "step_trail_025": {
+      "n": 8,
+      "netR": 10.09,
+      "winRate": 62.5,
+      "wins": 5,
+      "losses": 2,
+      "avgWin": 2.13,
+      "avgLoss": 0.29,
+      "profitFactor": 18.7,
+      "expectancy": 1.26,
+      "maxDdR": 0.57
+    },
+    "step_trail_05": {
+      "n": 8,
+      "netR": 7.59,
+      "winRate": 37.5,
+      "wins": 3,
+      "losses": 3,
+      "avgWin": 3.05,
+      "avgLoss": 0.52,
+      "profitFactor": 5.83,
+      "expectancy": 0.95,
+      "maxDdR": 1.57
+    },
+    "step_trail_1": {
+      "n": 8,
+      "netR": 6.23,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 2.2,
+      "avgLoss": 0.64,
+      "profitFactor": 3.42,
+      "expectancy": 0.78,
+      "maxDdR": 1.57
+    }
+  },
+  "scoreboardShort": {
+    "actual": {
+      "n": 1,
+      "netR": 2.05,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.05,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.05,
+      "maxDdR": 0
+    },
+    "fixed_1r": {
+      "n": 1,
+      "netR": 1,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1,
+      "maxDdR": 0
+    },
+    "fixed_2r": {
+      "n": 1,
+      "netR": 2,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2,
+      "maxDdR": 0
+    },
+    "fixed_3r": {
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    },
+    "be_only": {
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    },
+    "half_be": {
+      "n": 1,
+      "netR": 1.53,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1.53,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1.53,
+      "maxDdR": 0
+    },
+    "half_trail": {
+      "n": 1,
+      "netR": 1.53,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1.53,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1.53,
+      "maxDdR": 0
+    },
+    "scale_3x": {
+      "n": 1,
+      "netR": 1.69,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1.69,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1.69,
+      "maxDdR": 0
+    },
+    "full_trail_tight": {
+      "n": 1,
+      "netR": 2.16,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.16,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.16,
+      "maxDdR": 0
+    },
+    "full_trail_wide": {
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    },
+    "swing_harvest": {
+      "n": 1,
+      "netR": 1.63,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1.63,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1.63,
+      "maxDdR": 0
+    },
+    "step_trail_025": {
+      "n": 1,
+      "netR": 2.25,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.25,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.25,
+      "maxDdR": 0
+    },
+    "step_trail_05": {
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    },
+    "step_trail_1": {
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    }
+  },
+  "rankAll": [
+    {
+      "id": "step_trail_025",
+      "name": "Step trail 0.25R",
+      "n": 9,
+      "netR": 12.34,
+      "winRate": 66.7,
+      "wins": 6,
+      "losses": 2,
+      "avgWin": 2.15,
+      "avgLoss": 0.29,
+      "profitFactor": 22.65,
+      "expectancy": 1.37,
+      "maxDdR": 0.57
+    },
+    {
+      "id": "step_trail_05",
+      "name": "Step trail 0.5R",
+      "n": 9,
+      "netR": 9.65,
+      "winRate": 44.4,
+      "wins": 4,
+      "losses": 3,
+      "avgWin": 2.81,
+      "avgLoss": 0.52,
+      "profitFactor": 7.15,
+      "expectancy": 1.07,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "full_trail_tight",
+      "name": "Full trail 0.5R (continuous)",
+      "n": 9,
+      "netR": 9.63,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 2.44,
+      "avgLoss": 0.64,
+      "profitFactor": 4.75,
+      "expectancy": 1.07,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "full_trail_wide",
+      "name": "Full trail 1R (continuous)",
+      "n": 9,
+      "netR": 8.59,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 2.23,
+      "avgLoss": 0.64,
+      "profitFactor": 4.34,
+      "expectancy": 0.95,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "step_trail_1",
+      "name": "Step trail 1R",
+      "n": 9,
+      "netR": 8.29,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 2.17,
+      "avgLoss": 0.64,
+      "profitFactor": 4.23,
+      "expectancy": 0.92,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "fixed_3r",
+      "name": "Fixed 3R TP",
+      "n": 9,
+      "netR": 7.29,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.97,
+      "avgLoss": 0.64,
+      "profitFactor": 3.84,
+      "expectancy": 0.81,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "swing_harvest",
+      "name": "Swing harvest",
+      "n": 9,
+      "netR": 6.42,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.8,
+      "avgLoss": 0.64,
+      "profitFactor": 3.5,
+      "expectancy": 0.71,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "half_trail",
+      "name": "Half + 0.75R trail",
+      "n": 9,
+      "netR": 5.76,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.67,
+      "avgLoss": 0.64,
+      "profitFactor": 3.24,
+      "expectancy": 0.64,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "scale_3x",
+      "name": "Scale 3×",
+      "n": 9,
+      "netR": 5.59,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.63,
+      "avgLoss": 0.64,
+      "profitFactor": 3.18,
+      "expectancy": 0.62,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "fixed_2r",
+      "name": "Fixed 2R TP",
+      "n": 9,
+      "netR": 5.23,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.56,
+      "avgLoss": 0.64,
+      "profitFactor": 3.04,
+      "expectancy": 0.58,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "actual",
+      "name": "Actual (what you did)",
+      "n": 9,
+      "netR": 3.56,
+      "winRate": 44.4,
+      "wins": 4,
+      "losses": 5,
+      "avgWin": 1.37,
+      "avgLoss": 0.39,
+      "profitFactor": 2.84,
+      "expectancy": 0.4,
+      "maxDdR": 0.98
+    },
+    {
+      "id": "be_only",
+      "name": "BE at +1R",
+      "n": 9,
+      "netR": 2.94,
+      "winRate": 44.4,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.38,
+      "avgLoss": 0.64,
+      "profitFactor": 2.14,
+      "expectancy": 0.33,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "half_be",
+      "name": "Half then BE",
+      "n": 9,
+      "netR": 2.69,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1.05,
+      "avgLoss": 0.64,
+      "profitFactor": 2.05,
+      "expectancy": 0.3,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "fixed_1r",
+      "name": "Fixed 1R TP",
+      "n": 9,
+      "netR": 2.43,
+      "winRate": 55.6,
+      "wins": 5,
+      "losses": 4,
+      "avgWin": 1,
+      "avgLoss": 0.64,
+      "profitFactor": 1.95,
+      "expectancy": 0.27,
+      "maxDdR": 1.57
+    }
+  ],
+  "rankLong": [
+    {
+      "id": "step_trail_025",
+      "name": "Step trail 0.25R",
+      "n": 8,
+      "netR": 10.09,
+      "winRate": 62.5,
+      "wins": 5,
+      "losses": 2,
+      "avgWin": 2.13,
+      "avgLoss": 0.29,
+      "profitFactor": 18.7,
+      "expectancy": 1.26,
+      "maxDdR": 0.57
+    },
+    {
+      "id": "step_trail_05",
+      "name": "Step trail 0.5R",
+      "n": 8,
+      "netR": 7.59,
+      "winRate": 37.5,
+      "wins": 3,
+      "losses": 3,
+      "avgWin": 3.05,
+      "avgLoss": 0.52,
+      "profitFactor": 5.83,
+      "expectancy": 0.95,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "full_trail_tight",
+      "name": "Full trail 0.5R (continuous)",
+      "n": 8,
+      "netR": 7.47,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 2.51,
+      "avgLoss": 0.64,
+      "profitFactor": 3.91,
+      "expectancy": 0.93,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "full_trail_wide",
+      "name": "Full trail 1R (continuous)",
+      "n": 8,
+      "netR": 6.53,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 2.28,
+      "avgLoss": 0.64,
+      "profitFactor": 3.54,
+      "expectancy": 0.82,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "step_trail_1",
+      "name": "Step trail 1R",
+      "n": 8,
+      "netR": 6.23,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 2.2,
+      "avgLoss": 0.64,
+      "profitFactor": 3.42,
+      "expectancy": 0.78,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "fixed_3r",
+      "name": "Fixed 3R TP",
+      "n": 8,
+      "netR": 5.23,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.95,
+      "avgLoss": 0.64,
+      "profitFactor": 3.04,
+      "expectancy": 0.65,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "swing_harvest",
+      "name": "Swing harvest",
+      "n": 8,
+      "netR": 4.79,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.84,
+      "avgLoss": 0.64,
+      "profitFactor": 2.86,
+      "expectancy": 0.6,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "half_trail",
+      "name": "Half + 0.75R trail",
+      "n": 8,
+      "netR": 4.23,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.7,
+      "avgLoss": 0.64,
+      "profitFactor": 2.65,
+      "expectancy": 0.53,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "scale_3x",
+      "name": "Scale 3×",
+      "n": 8,
+      "netR": 3.9,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.62,
+      "avgLoss": 0.64,
+      "profitFactor": 2.52,
+      "expectancy": 0.49,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "fixed_2r",
+      "name": "Fixed 2R TP",
+      "n": 8,
+      "netR": 3.23,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1.45,
+      "avgLoss": 0.64,
+      "profitFactor": 2.26,
+      "expectancy": 0.4,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "actual",
+      "name": "Actual (what you did)",
+      "n": 8,
+      "netR": 1.51,
+      "winRate": 37.5,
+      "wins": 3,
+      "losses": 5,
+      "avgWin": 1.15,
+      "avgLoss": 0.39,
+      "profitFactor": 1.78,
+      "expectancy": 0.19,
+      "maxDdR": 0.98
+    },
+    {
+      "id": "fixed_1r",
+      "name": "Fixed 1R TP",
+      "n": 8,
+      "netR": 1.43,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 1,
+      "avgLoss": 0.64,
+      "profitFactor": 1.56,
+      "expectancy": 0.18,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "half_be",
+      "name": "Half then BE",
+      "n": 8,
+      "netR": 1.16,
+      "winRate": 50,
+      "wins": 4,
+      "losses": 4,
+      "avgWin": 0.93,
+      "avgLoss": 0.64,
+      "profitFactor": 1.45,
+      "expectancy": 0.14,
+      "maxDdR": 1.57
+    },
+    {
+      "id": "be_only",
+      "name": "BE at +1R",
+      "n": 8,
+      "netR": 0.88,
+      "winRate": 37.5,
+      "wins": 3,
+      "losses": 4,
+      "avgWin": 1.15,
+      "avgLoss": 0.64,
+      "profitFactor": 1.34,
+      "expectancy": 0.11,
+      "maxDdR": 1.57
+    }
+  ],
+  "rankShort": [
+    {
+      "id": "step_trail_025",
+      "name": "Step trail 0.25R",
+      "n": 1,
+      "netR": 2.25,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.25,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.25,
+      "maxDdR": 0
+    },
+    {
+      "id": "full_trail_tight",
+      "name": "Full trail 0.5R (continuous)",
+      "n": 1,
+      "netR": 2.16,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.16,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.16,
+      "maxDdR": 0
+    },
+    {
+      "id": "fixed_3r",
+      "name": "Fixed 3R TP",
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    },
+    {
+      "id": "be_only",
+      "name": "BE at +1R",
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    },
+    {
+      "id": "full_trail_wide",
+      "name": "Full trail 1R (continuous)",
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    },
+    {
+      "id": "step_trail_05",
+      "name": "Step trail 0.5R",
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    },
+    {
+      "id": "step_trail_1",
+      "name": "Step trail 1R",
+      "n": 1,
+      "netR": 2.06,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.06,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.06,
+      "maxDdR": 0
+    },
+    {
+      "id": "actual",
+      "name": "Actual (what you did)",
+      "n": 1,
+      "netR": 2.05,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2.05,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2.05,
+      "maxDdR": 0
+    },
+    {
+      "id": "fixed_2r",
+      "name": "Fixed 2R TP",
+      "n": 1,
+      "netR": 2,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 2,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 2,
+      "maxDdR": 0
+    },
+    {
+      "id": "scale_3x",
+      "name": "Scale 3×",
+      "n": 1,
+      "netR": 1.69,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1.69,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1.69,
+      "maxDdR": 0
+    },
+    {
+      "id": "swing_harvest",
+      "name": "Swing harvest",
+      "n": 1,
+      "netR": 1.63,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1.63,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1.63,
+      "maxDdR": 0
+    },
+    {
+      "id": "half_be",
+      "name": "Half then BE",
+      "n": 1,
+      "netR": 1.53,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1.53,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1.53,
+      "maxDdR": 0
+    },
+    {
+      "id": "half_trail",
+      "name": "Half + 0.75R trail",
+      "n": 1,
+      "netR": 1.53,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1.53,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1.53,
+      "maxDdR": 0
+    },
+    {
+      "id": "fixed_1r",
+      "name": "Fixed 1R TP",
+      "n": 1,
+      "netR": 1,
+      "winRate": 100,
+      "wins": 1,
+      "losses": 0,
+      "avgWin": 1,
+      "avgLoss": 0,
+      "profitFactor": null,
+      "expectancy": 1,
+      "maxDdR": 0
+    }
+  ]
+}

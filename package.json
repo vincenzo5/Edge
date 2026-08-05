@@ -109,6 +109,7 @@
     "report:local-errors": "npx tsx scripts/report-local-errors.mts",
     "report:memory": "npx tsx scripts/report-memory.mts",
     "report:trading-audit": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/report-trading-audit.mts",
+    "journal:policy-replay": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/journal-policy-replay.mts",
     "report:production-errors": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/report-production-errors.mts",
     "watch:readyz": "npx tsx scripts/watch-readyz.mts",
     "smoke:data-providers": "npx tsx scripts/run-data-provider-smoke.mts",

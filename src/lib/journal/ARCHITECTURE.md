@@ -49,6 +49,7 @@ Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md
 | `src/lib/journal/flexImport/flexWebService.ts` | Optional server Flex Web Service pull |
 | `src/lib/journal/journalStats.ts` | Win rate, P&L, profit factor, filters, daily P&L, equity curve, intraday curve, day summary stats, breakdown reports, time breakdown, calendar builder |
 | `src/lib/journal/rMultiple.ts` | Planned risk ($/%) and R-multiple math |
+| `src/lib/journal/policyReplay/` | CLI-backed journal→policy replay (daily close paths, scoreboards) — `npm run journal:policy-replay` |
 | `src/lib/journal/chartDeepLink.ts` | Chart deep-link with journalTrade + goto params |
 | `src/lib/journal/journalExecutionMarkers.ts` | Entry/exit annotation markers from fills |
 | `src/app/components/journal/JournalCalendar.tsx` | Mon–Fri month P&L grid with week column, heatmap intensity, month rollup, today/selected chrome; day click opens day summary modal |
