@@ -429,6 +429,14 @@ body {
     animation: edge-popover-enter var(--edge-motion-fast) ease-out forwards;
   }
 
+  .edge-split-settle {
+    animation: edge-split-settle var(--edge-motion-normal) ease-out;
+  }
+
+  [data-resizing="true"] [data-split-handle] {
+    background-color: var(--edge-accent-blue);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .edge-icon-button,
     .edge-menu-item {
@@ -454,6 +462,10 @@ body {
       animation: none;
       opacity: 1;
       transform: none;
+    }
+
+    .edge-split-settle {
+      animation: none;
     }
   }
 }
@@ -494,6 +506,16 @@ body {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes edge-split-settle {
+  from {
+    background-color: var(--edge-accent-blue);
+  }
+
+  to {
+    background-color: var(--edge-border-subtle);
   }
 }
 

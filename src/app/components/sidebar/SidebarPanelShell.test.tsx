@@ -95,4 +95,33 @@ describe('SidebarPanelShell', () => {
     expect(onWidthChange).toHaveBeenCalledTimes(1);
     expect(onWidthChange).toHaveBeenCalledWith(320);
   });
+
+  it('ignores Escape while exiting', () => {
+    const onClose = vi.fn();
+    render(
+      <SidebarPanelShell panelId="watchlist" mode="overlay" width={320} visible={false} onClose={onClose}>
+        <div>Panel content</div>
+      </SidebarPanelShell>,
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('applies shell motion classes from visible state', () => {
+    const { rerender } = render(
+      <SidebarPanelShell panelId="watchlist" mode="overlay" width={320} visible>
+        <div>Panel content</div>
+      </SidebarPanelShell>,
+    );
+
+    expect(screen.getByTestId('sidebar-panel').className).toContain('translate-x-0');
+
+    rerender(
+      <SidebarPanelShell panelId="watchlist" mode="overlay" width={320} visible={false}>
+        <div>Panel content</div>
+      </SidebarPanelShell>,
+    );
+    expect(screen.getByTestId('sidebar-panel').className).toContain('translate-x-full');
+  });
 });

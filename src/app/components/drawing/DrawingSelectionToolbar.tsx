@@ -25,6 +25,7 @@ import {
 } from "./drawingSelectionToolbarPosition";
 import { SettingsIcon } from "../chart-chrome/ChartHeaderIcons";
 import EdgeSelect from "../design-system/EdgeSelect";
+import { popoverEnterClass } from "../design-system/styles";
 
 type Props = {
   theme: Theme;
@@ -43,6 +44,7 @@ type Props = {
   onToggleLock: () => void;
   onDelete: () => void;
   onMore: (clientX: number, clientY: number) => void;
+  onToolbarSizeChange?: (size: { width: number; height: number }) => void;
 };
 
 const LINE_WIDTHS = [1, 1.5, 2, 3, 4] as const;
@@ -82,6 +84,7 @@ export default function DrawingSelectionToolbar({
   onToggleLock,
   onDelete,
   onMore,
+  onToolbarSizeChange,
 }: Props) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
@@ -105,6 +108,10 @@ export default function DrawingSelectionToolbar({
     setSize({ width: el.offsetWidth, height: el.offsetHeight });
     return () => ro.disconnect();
   }, [drawing.id]);
+
+  useEffect(() => {
+    onToolbarSizeChange?.(size);
+  }, [onToolbarSizeChange, size]);
 
   const { left, top } = resolveDrawingToolbarPosition({
     bounds,
@@ -162,7 +169,7 @@ export default function DrawingSelectionToolbar({
       ref={toolbarRef}
       role="toolbar"
       aria-label="Drawing tools"
-      className="pointer-events-auto absolute z-30 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-1 py-0.5 text-[var(--edge-text-primary)] shadow-[var(--edge-shadow-popover)]"
+      className={`pointer-events-auto absolute z-30 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-md border border-[var(--edge-border)] bg-[var(--edge-surface-popover)] px-1 py-0.5 text-[var(--edge-text-primary)] shadow-[var(--edge-shadow-popover)] ${popoverEnterClass()}`}
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}

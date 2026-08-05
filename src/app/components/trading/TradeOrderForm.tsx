@@ -7,7 +7,6 @@ import {
   EdgeHelpIcon,
   EdgeLabeledInput,
   EdgeMicroSelect,
-  EdgeReadout,
   EdgeSegmentedTabs,
   EdgeSelect,
   EdgeToggleSwitch,
@@ -16,7 +15,7 @@ import {
 import { BuySellToggle } from "./BuySellToggle";
 import { LinkedProtectLevelsEditor } from "./LinkedProtectLevelsEditor";
 import { TradePolicyPicker } from "./TradePolicyPicker";
-import { fieldClass } from "../design-system/styles";
+import { fieldClass, popoverEnterClass } from "../design-system/styles";
 import { useAccountOptional } from "../AccountProvider";
 import { useAccountAliasesOptional } from "../AccountAliasesProvider";
 import { useRiskSettingsOptional } from "../RiskSettingsProvider";
@@ -200,31 +199,6 @@ function formatPrice(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-}
-
-function resolveDisplayEntry(args: {
-  orderType: OrderType;
-  limitPrice: string;
-  planEntry: number | null;
-  lastPrice: number | null;
-}): string {
-  if (args.orderType === "LMT") {
-    const parsed = Number.parseFloat(args.limitPrice);
-    return Number.isFinite(parsed) ? formatPrice(parsed) : "—";
-  }
-  if (args.orderType === "MOC") {
-    if (args.lastPrice != null && Number.isFinite(args.lastPrice)) {
-      return `~${formatPrice(args.lastPrice)} close`;
-    }
-    return "At close";
-  }
-  if (args.lastPrice != null && Number.isFinite(args.lastPrice)) {
-    return `~${formatPrice(args.lastPrice)}`;
-  }
-  if (args.planEntry != null) {
-    return `~${formatPrice(args.planEntry)}`;
-  }
-  return "—";
 }
 
 /** Format a price for the limit Entry input (max 2 decimal places). */
@@ -915,17 +889,6 @@ export function TradeOrderForm({
     [managePreviewSteps],
   );
 
-  const displayEntry = useMemo(
-    () =>
-      resolveDisplayEntry({
-        orderType,
-        limitPrice,
-        planEntry: planLevels?.entry ?? null,
-        lastPrice,
-      }),
-    [lastPrice, limitPrice, orderType, planLevels?.entry],
-  );
-
   const executableEntry = useMemo(() => {
     if (orderType === "LMT" || orderType === "STP LMT") {
       const parsed = Number.parseFloat(limitPrice);
@@ -1447,15 +1410,7 @@ export function TradeOrderForm({
           </div>
 
           {orderType === "MKT" || orderType === "MOC" ? (
-            <div className="relative mb-3">
-              <div className="absolute left-0 top-0">{orderTypeModifier}</div>
-              <EdgeReadout
-                label="Order Price"
-                value={displayEntry}
-                align="center"
-                testId="trade-entry-display"
-              />
-            </div>
+            <div className="mb-3">{orderTypeModifier}</div>
           ) : (
             <div className="mb-3">
               <div className="mb-1">{orderTypeModifier}</div>
@@ -1927,7 +1882,10 @@ export function TradeOrderForm({
       ) : null}
 
       {step === "success" && (placed || placedBracket || policyBound) ? (
-        <div className="space-y-2 px-3 py-3 text-xs">
+        <div
+          className={`space-y-2 px-3 py-3 text-xs ${popoverEnterClass()}`}
+          data-testid="trade-order-success"
+        >
           {policyBound && !placed && !placedBracket ? (
             <p className="text-[var(--edge-text-strong)]">
               {scheduleMode !== "now"

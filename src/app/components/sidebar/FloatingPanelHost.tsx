@@ -1,11 +1,13 @@
 "use client";
 
+import { useRef } from "react";
 import dynamic from "next/dynamic";
 import type { FloatingPanelGeometry, SidebarPanelId, SidebarPrefs } from "@/lib/chartConfig";
 import {
   defaultFloatingGeometry,
   getPanelPresentation,
 } from "@/lib/sidebar/floatingPanelGeometry";
+import { usePresence } from "../design-system/usePresence";
 import FloatingPanelShell from "./FloatingPanelShell";
 import SidebarPanelLoading from "./SidebarPanelLoading";
 import { SIDEBAR_PANEL_MAP } from "./registry";
@@ -34,33 +36,41 @@ export default function FloatingPanelHost({
   onDock,
   onClose,
 }: Props) {
-  if (!activePanel) return null;
+  const presentation =
+    activePanel != null ? getPanelPresentation(sidebar, activePanel) : "docked";
+  const open = activePanel != null && presentation === "floating";
+  const { mounted, visible } = usePresence(open);
+  const lastPanelRef = useRef<SidebarPanelId | null>(null);
+  if (activePanel != null) {
+    lastPanelRef.current = activePanel;
+  }
+  const renderPanel = activePanel ?? lastPanelRef.current;
 
-  const presentation = getPanelPresentation(sidebar, activePanel);
-  if (presentation !== "floating") return null;
+  if (!mounted || !renderPanel) return null;
 
-  const panelDef = SIDEBAR_PANEL_MAP[activePanel];
+  const panelDef = SIDEBAR_PANEL_MAP[renderPanel];
   const geometry =
-    sidebar?.floatingGeometry?.[activePanel] ?? defaultFloatingGeometry(activePanel);
+    sidebar?.floatingGeometry?.[renderPanel] ?? defaultFloatingGeometry(renderPanel);
 
   const handleGeometryChange = (next: FloatingPanelGeometry) => {
-    onGeometryChange(activePanel, next);
+    onGeometryChange(renderPanel, next);
   };
 
-  const handleDock = () => onDock(activePanel);
+  const handleDock = () => onDock(renderPanel);
 
-  if (activePanel === "options") {
+  if (renderPanel === "options") {
     return (
       <OptionsFloatingPanel
         geometry={geometry}
         onGeometryChange={handleGeometryChange}
         onDock={handleDock}
         onClose={onClose}
+        visible={visible}
       />
     );
   }
 
-  if (activePanel === "screener") {
+  if (renderPanel === "screener") {
     return (
       <FloatingPanelShell
         panelId="screener"
@@ -69,6 +79,7 @@ export default function FloatingPanelHost({
         onGeometryChange={handleGeometryChange}
         onDock={handleDock}
         onClose={onClose}
+        visible={visible}
       >
         <ScreenerPanelContent active variant="floating" onClose={onClose} />
       </FloatingPanelShell>
@@ -78,12 +89,13 @@ export default function FloatingPanelHost({
   const Panel = panelDef.Panel;
   return (
     <FloatingPanelShell
-      panelId={activePanel}
+      panelId={renderPanel}
       title={panelDef.label}
       geometry={geometry}
       onGeometryChange={handleGeometryChange}
       onDock={handleDock}
       onClose={onClose}
+      visible={visible}
     >
       <Panel />
     </FloatingPanelShell>

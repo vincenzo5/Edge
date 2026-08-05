@@ -104,11 +104,13 @@ export default function LayoutTreeInner({
                 />
               </>
             ) : null}
-            <SurfaceHost
-              tile={tile}
-              isPrimaryChart={primaryChartTileId != null && tile.id === primaryChartTileId}
-              onAssignSurface={(surfaceId) => assignWorkspaceTileSurface(tile.id, surfaceId)}
-            />
+            <div key={tile.surfaceId} className="edge-app-enter h-full min-h-0">
+              <SurfaceHost
+                tile={tile}
+                isPrimaryChart={primaryChartTileId != null && tile.id === primaryChartTileId}
+                onAssignSurface={(surfaceId) => assignWorkspaceTileSurface(tile.id, surfaceId)}
+              />
+            </div>
           </div>
         </TileFrame>
       );

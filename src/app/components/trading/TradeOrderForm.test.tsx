@@ -91,7 +91,7 @@ vi.mock("@/lib/trading/tradingClient", () => ({
   },
 }));
 
-import { previewOrder, submitBracket } from "@/lib/trading/tradingClient";
+import { previewOrder, submitBracket, submitOrder } from "@/lib/trading/tradingClient";
 import { HALF_THEN_BE_PRESET } from "@/lib/trading/playbook/presets";
 
 function renderForm(
@@ -219,7 +219,7 @@ describe("TradeOrderForm size for risk", () => {
     expect(screen.getByTestId("trade-order-fill")).toHaveAttribute("aria-label", "Fill timing");
   });
 
-  it("shows read-only entry for market orders", () => {
+  it("hides order price readout for market orders", () => {
     renderForm({
       direction: "long",
       side: "BUY",
@@ -228,12 +228,15 @@ describe("TradeOrderForm size for risk", () => {
       target: 110,
       riskRewardRatio: 2,
     });
-    expect(screen.getByTestId("trade-entry-display")).toHaveTextContent("~100.00");
+    expect(screen.queryByTestId("trade-entry-display")).not.toBeInTheDocument();
+    expect(screen.getByTestId("trade-order-fill")).toBeInTheDocument();
+    expect(screen.getByTestId("trade-last-price-pill")).toHaveTextContent("100.00");
   });
 
   it("defaults market entry to last price without plan levels", () => {
     renderForm(null);
-    expect(screen.getByTestId("trade-entry-display")).toHaveTextContent("~100.00");
+    expect(screen.queryByTestId("trade-entry-display")).not.toBeInTheDocument();
+    expect(screen.getByTestId("trade-last-price-pill")).toHaveTextContent("100.00");
     expect(screen.getByTestId("trade-order-impact-notional")).toHaveTextContent("100.00");
   });
 
@@ -382,6 +385,45 @@ describe("TradeOrderForm size for risk", () => {
     });
     fireEvent.click(screen.getByTestId("trade-confirm-cancel"));
     expect(screen.getByTestId("trade-primary-cta")).toBeInTheDocument();
+  });
+
+  it("applies popover enter class on order success", async () => {
+    vi.mocked(submitOrder).mockResolvedValue({
+      order: { orderId: 123, status: "Submitted" },
+      orderRef: "edge-order-ref-1",
+      intent: {
+        intentId: "intent-1",
+        idempotencyKey: "key",
+        draft: {
+          accountId: "DUP586813",
+          symbol: "AAPL",
+          side: "BUY",
+          quantity: 1,
+          orderType: "MKT",
+          environment: "paper",
+          outsideRth: false,
+          tif: "DAY",
+        },
+        status: "submitted",
+        orderRef: "edge-order-ref-1",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    });
+
+    renderForm(null);
+    fireEvent.click(screen.getByTestId("trade-linked-protect-stop-loss-enabled"));
+    fireEvent.click(screen.getByTestId("trade-linked-protect-take-profit-enabled"));
+    fireEvent.click(screen.getByTestId("trade-primary-cta"));
+    await waitFor(() => {
+      expect(screen.getByTestId("trade-confirm-submit")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("trade-confirm-submit"));
+    await waitFor(() => {
+      expect(screen.getByTestId("trade-order-success")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("trade-order-success")).toHaveClass("edge-popover-enter");
+    expect(submitOrder).toHaveBeenCalled();
   });
 
   it("updates CTA label when side changes to Sell", () => {
@@ -680,7 +722,7 @@ describe("TradeOrderForm policy picker", () => {
     expect(screen.queryByRole("tab", { name: "LOC" })).not.toBeInTheDocument();
 
     selectFillTiming("close");
-    expect(screen.getByTestId("trade-entry-display")).toHaveTextContent(/close/);
+    expect(screen.queryByTestId("trade-entry-display")).not.toBeInTheDocument();
     expect(screen.getByTestId("trade-order-fill")).toHaveTextContent("Close");
 
     fireEvent.click(primaryOrderTabs().getByRole("tab", { name: "Limit" }));

@@ -1,6 +1,7 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
 import EdgeSlideOver from "./EdgeSlideOver";
+import { PRESENCE_EXIT_MS } from "./usePresence";
 
 describe("EdgeSlideOver", () => {
   it("renders dialog when open", () => {
@@ -21,6 +22,35 @@ describe("EdgeSlideOver", () => {
       </EdgeSlideOver>,
     );
     expect(screen.queryByTestId("edge-slide-over-panel")).not.toBeInTheDocument();
+  });
+
+  it("stays mounted through exit animation before unmounting", () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <EdgeSlideOver open title="Trade detail" onClose={onClose}>
+        <div>Panel body</div>
+      </EdgeSlideOver>,
+    );
+    expect(screen.getByTestId("edge-slide-over-panel")).toBeInTheDocument();
+
+    rerender(
+      <EdgeSlideOver open={false} title="Trade detail" onClose={onClose}>
+        <div>Panel body</div>
+      </EdgeSlideOver>,
+    );
+    expect(screen.getByTestId("edge-slide-over-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("edge-slide-over-panel")).toHaveClass("translate-x-full");
+
+    act(() => {
+      vi.advanceTimersByTime(PRESENCE_EXIT_MS);
+    });
+    expect(screen.queryByTestId("edge-slide-over-panel")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it("uses ariaLabel when title is not a plain string", () => {

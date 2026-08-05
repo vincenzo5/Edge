@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import type { FloatingPanelGeometry, SidebarPanelId } from "@/lib/chartConfig";
 import { PanelDockIcon } from "../chart-chrome/ChartHeaderIcons";
 import EdgeIconButton from "../design-system/EdgeIconButton";
-import { panelTitleClass } from "../design-system/styles";
+import { floatingPanelExitClass, panelTitleClass, popoverEnterClass } from "../design-system/styles";
+import { useFocusTrap } from "../design-system/useFocusTrap";
 import { useFloatingPanel } from "./useFloatingPanel";
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
   headerActions?: ReactNode;
   children: ReactNode;
   testId?: string;
+  visible?: boolean;
 };
 
 export default function FloatingPanelShell({
@@ -29,6 +31,7 @@ export default function FloatingPanelShell({
   headerActions,
   children,
   testId,
+  visible = true,
 }: Props) {
   const {
     panelRef,
@@ -40,21 +43,40 @@ export default function FloatingPanelShell({
     handleResizePointerDown,
   } = useFloatingPanel({ geometry, onGeometryChange });
 
+  const mergedPanelRef = useRef<HTMLDivElement | null>(null);
+  const setPanelRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      mergedPanelRef.current = node;
+      panelRef.current = node;
+    },
+    [panelRef],
+  );
+
+  const handleClose = useCallback(() => {
+    if (!visible) return;
+    onClose();
+  }, [onClose, visible]);
+
+  useFocusTrap(true, mergedPanelRef, { onEscape: handleClose });
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      if (!visible) return;
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, visible]);
 
   return (
     <div
-      ref={panelRef}
+      ref={setPanelRef}
       role="dialog"
       aria-label={title}
       data-testid={testId ?? `floating-panel-${panelId}`}
-      className="pointer-events-auto absolute z-40 flex flex-col overflow-hidden rounded-lg border border-[var(--edge-border-strong)] bg-[var(--edge-surface-popover)] shadow-2xl"
+      data-floating-visible={visible ? "true" : "false"}
+      className={`pointer-events-auto absolute z-40 flex flex-col overflow-hidden rounded-lg border border-[var(--edge-border-strong)] bg-[var(--edge-surface-popover)] shadow-2xl ${popoverEnterClass()} ${floatingPanelExitClass(visible)}`}
       style={{
         left: displayGeometry.x,
         top: displayGeometry.y,
@@ -100,7 +122,7 @@ export default function FloatingPanelShell({
           <EdgeIconButton
             type="button"
             data-testid={`${testId ?? `floating-panel-${panelId}`}-close`}
-            onClick={onClose}
+            onClick={handleClose}
             size="compact"
             aria-label={`Close ${title}`}
             title={`Close ${title}`}
@@ -109,7 +131,9 @@ export default function FloatingPanelShell({
           </EdgeIconButton>
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+      <div key={panelId} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {children}
+      </div>
       <div
         data-testid={`${testId ?? `floating-panel-${panelId}`}-resize`}
         className="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize"

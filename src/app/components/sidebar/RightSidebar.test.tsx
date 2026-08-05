@@ -1,7 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+/** @vitest-environment jsdom */
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import RightSidebar from './RightSidebar';
 import { resolveScreenerSidebarPanelMax } from '@/lib/responsive/sidebarWidth';
+import { PRESENCE_EXIT_MS } from '../design-system/usePresence';
 import { ScreenerProvider } from '../screener/ScreenerProvider';
 
 describe('RightSidebar', () => {
@@ -54,5 +56,44 @@ describe('RightSidebar', () => {
 
     const handle = screen.getByTestId('sidebar-resize-handle');
     expect(handle).toHaveAttribute('aria-valuemax', String(resolveScreenerSidebarPanelMax(1600)));
+  });
+
+  it('stays mounted through exit animation before unmounting', () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+
+    const { rerender } = render(
+      <RightSidebar activePanel="object-tree" mode="overlay" width={300} viewportWidth={1440} />,
+    );
+    expect(screen.getByTestId('sidebar-panel')).toBeInTheDocument();
+
+    rerender(<RightSidebar activePanel={null} mode="overlay" width={300} viewportWidth={1440} />);
+    expect(screen.getByTestId('sidebar-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-panel')).toHaveAttribute('data-sidebar-visible', 'false');
+
+    act(() => {
+      vi.advanceTimersByTime(PRESENCE_EXIT_MS);
+    });
+    expect(screen.queryByTestId('sidebar-panel')).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it('switches panels without exit animation on the shell', () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+
+    const { rerender } = render(
+      <RightSidebar activePanel="object-tree" mode="overlay" width={360} viewportWidth={1440} />,
+    );
+    expect(screen.getByTestId('sidebar-panel')).toHaveAttribute('data-sidebar-visible', 'true');
+
+    rerender(<RightSidebar activePanel="watchlist" mode="overlay" width={360} viewportWidth={1440} />);
+    expect(screen.getByTestId('sidebar-panel')).toHaveAttribute('data-sidebar-visible', 'true');
+    expect(screen.getByTestId('sidebar-panel-watchlist')).toBeInTheDocument();
   });
 });

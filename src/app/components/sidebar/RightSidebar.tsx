@@ -1,9 +1,11 @@
 "use client";
 
+import { useRef } from "react";
 import type { SidebarPanelId } from "@/lib/chartConfig";
 import type { SidebarMode } from "@/lib/responsive/responsiveLayout";
 import { LAYOUT_DIMENSIONS } from "@/lib/responsive/layoutConstants";
 import { resolveSidebarPanelMaxWidth } from "@/lib/responsive/sidebarWidth";
+import { usePresence } from "../design-system/usePresence";
 import SidebarPanelShell from "./SidebarPanelShell";
 import { SIDEBAR_PANEL_MAP } from "./registry";
 
@@ -28,19 +30,27 @@ export default function RightSidebar({
   onWidthChange,
   onClose,
 }: Props) {
-  const panelDef = activePanel ? SIDEBAR_PANEL_MAP[activePanel] : null;
+  const open = activePanel != null && !isFloating;
+  const { mounted, visible } = usePresence(open);
+  const lastPanelRef = useRef<SidebarPanelId | null>(null);
+  if (activePanel != null) {
+    lastPanelRef.current = activePanel;
+  }
+  const renderPanel = activePanel ?? lastPanelRef.current;
+  const panelDef = renderPanel ? SIDEBAR_PANEL_MAP[renderPanel] : null;
 
-  if (!panelDef || !activePanel || isFloating) {
+  if (!mounted || !panelDef || !renderPanel) {
     return null;
   }
 
-  const resizeMaxWidth = resolveSidebarPanelMaxWidth(activePanel, viewportWidth, railWidth);
+  const resizeMaxWidth = resolveSidebarPanelMaxWidth(renderPanel, viewportWidth, railWidth);
 
   return (
     <SidebarPanelShell
       panelId={panelDef.id}
       mode={mode}
       width={width}
+      visible={visible}
       onWidthChange={onWidthChange}
       onClose={onClose}
       resizeMaxWidth={resizeMaxWidth}
@@ -50,4 +60,3 @@ export default function RightSidebar({
     </SidebarPanelShell>
   );
 }
-

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { modalBackdropClass, modalShellClass } from "./styles";
+import { modalBackdropClass, modalShellClass, popoverEnterClass } from "./styles";
 import { useFocusTrap } from "./useFocusTrap";
 import {
   useModalContainment,
@@ -101,7 +101,7 @@ export default function EdgeModalShell({
         aria-modal="true"
         aria-label={typeof title === "string" ? undefined : dialogLabel}
         aria-labelledby={typeof title === "string" ? titleId : undefined}
-        className={`${modalShellClass()} w-full ${maxWidthClass[maxWidth]}`}
+        className={`${modalShellClass()} ${popoverEnterClass()} w-full ${maxWidthClass[maxWidth]}`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 border-b border-[var(--edge-border)] px-5 py-4">

@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import EdgeMenuItem from "./design-system/EdgeMenuItem";
 import { useMenuKeyboardNav } from "./design-system/useMenuKeyboardNav";
-import { popoverPanelClass } from "./design-system/styles";
+import { popoverEnterClass, popoverPanelClass } from "./design-system/styles";
 
 export type ContextMenuItem = {
   id: string;
@@ -58,7 +58,7 @@ export function resolveSubmenuPlacement(
   return leftSpace > rightSpace ? "left" : "right";
 }
 
-const menuShellClass = `${popoverPanelClass("dark")} fixed z-50 min-w-[220px] py-1`;
+const menuShellClass = `${popoverPanelClass("dark")} ${popoverEnterClass()} fixed z-50 min-w-[220px] py-1`;
 
 export default function ContextMenu({
   open,

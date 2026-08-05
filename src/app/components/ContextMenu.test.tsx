@@ -76,6 +76,7 @@ describe('ContextMenu', () => {
     const button = screen.getByRole('menuitem', { name: 'Reset chart view' });
     const menu = button.closest('.fixed') as HTMLElement;
     expect(menu).toBeTruthy();
+    expect(menu.className).toContain('edge-popover-enter');
 
     const left = parseFloat(menu.style.left);
     const top = parseFloat(menu.style.top);

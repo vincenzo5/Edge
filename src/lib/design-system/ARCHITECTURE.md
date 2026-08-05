@@ -123,7 +123,7 @@ Shared chrome communicates availability through one recipe set before route-spec
 | Destructive | `destructiveButtonClass()` or `.edge-menu-item[data-danger="true"]` | Menu + outline actions |
 | Error / alert | `role="alert"` on blocking error surfaces (e.g. chart cell fallback) | Blocking errors only |
 | Toast | `EdgeToastViewport` via `NotificationProvider` | Ephemeral in-app notifications; bell inbox for history |
-| Motion | `--edge-motion-fast/normal`; `.edge-popover-enter`; reduced-motion fallbacks in `globals.css` | Popovers use restrained fade/scale |
+| Motion | `--edge-motion-fast/normal`; `.edge-popover-enter`; `usePresence` for enter+exit shells; reduced-motion fallbacks in `globals.css` | Popovers/modals use restrained fade/scale enter; sidebar/slide-over use presence exit (180ms). Tile surface swap and trade success are enter-only. Chart pan/zoom/drag stays unanimated. |
 
 Modal/slide-over focus: `useFocusTrap` in `EdgeModalShell` / `EdgeSlideOver` — initial focus, Tab wrap, Escape dismiss, restore focus on close. Menu popovers use `EdgeAnchoredPopover` + `useMenuKeyboardNav` for Arrow/Home/End on `[role="menuitem"]` rows. Column pickers use the same anchored dismiss/focus-return shell with checkbox rows (not menuitem roving focus).
 

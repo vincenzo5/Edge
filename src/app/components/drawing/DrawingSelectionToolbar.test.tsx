@@ -54,6 +54,7 @@ describe('DrawingSelectionToolbar', () => {
     );
 
     expect(screen.getByRole('toolbar', { name: 'Drawing tools' })).toBeInTheDocument();
+    expect(screen.getByRole('toolbar', { name: 'Drawing tools' })).toHaveClass('edge-popover-enter');
     expect(screen.getByLabelText('Line color')).toBeInTheDocument();
     expect(screen.getByLabelText('Annotation kind')).toBeInTheDocument();
     expect(

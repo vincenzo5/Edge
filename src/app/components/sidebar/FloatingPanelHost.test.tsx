@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import FloatingPanelHost from "./FloatingPanelHost";
+import { PRESENCE_EXIT_MS } from "../design-system/usePresence";
 import { PanelPresentationProvider } from "./PanelPresentationContext";
 import { ScreenerProvider } from "../screener/ScreenerProvider";
 import { ChartActionsProvider } from "../ChartActionsContext";
@@ -86,5 +87,64 @@ describe("FloatingPanelHost", () => {
     );
 
     expect(screen.getByTestId("floating-panel-screener")).toBeInTheDocument();
+  });
+
+  it("stays mounted through exit animation before unmounting", () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+
+    const { rerender } = render(
+      <WatchlistProvider>
+        <ChartActionsProvider activeCellSymbol="AAPL" loadSymbolIntoActiveChart={vi.fn()}>
+          <div className="relative h-[800px] w-[1200px]">
+            <FloatingPanelHost
+              activePanel="watchlist"
+              sidebar={{
+                activePanel: "watchlist",
+                presentation: { watchlist: "floating" },
+                floatingGeometry: {
+                  watchlist: { x: 48, y: 48, width: 480, height: 400 },
+                },
+              }}
+              onGeometryChange={vi.fn()}
+              onDock={vi.fn()}
+              onClose={vi.fn()}
+            />
+          </div>
+        </ChartActionsProvider>
+      </WatchlistProvider>,
+    );
+
+    expect(screen.getByTestId("floating-panel-watchlist")).toBeInTheDocument();
+
+    rerender(
+      <WatchlistProvider>
+        <ChartActionsProvider activeCellSymbol="AAPL" loadSymbolIntoActiveChart={vi.fn()}>
+          <div className="relative h-[800px] w-[1200px]">
+            <FloatingPanelHost
+              activePanel={null}
+              sidebar={{ activePanel: null }}
+              onGeometryChange={vi.fn()}
+              onDock={vi.fn()}
+              onClose={vi.fn()}
+            />
+          </div>
+        </ChartActionsProvider>
+      </WatchlistProvider>,
+    );
+
+    expect(screen.getByTestId("floating-panel-watchlist")).toHaveAttribute(
+      "data-floating-visible",
+      "false",
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(PRESENCE_EXIT_MS);
+    });
+    expect(screen.queryByTestId("floating-panel-watchlist")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 });

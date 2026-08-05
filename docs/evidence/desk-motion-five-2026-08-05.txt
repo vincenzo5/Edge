@@ -1,0 +1,24 @@
+# APP — Desk motion five — 2026-08-05
+
+## Foundation
+- Fixed `popoverEnterClass()` → `"edge-popover-enter"` only
+- Added `usePresence` hook (180ms exit, reduced-motion instant unmount)
+- `EdgeSlideOver` uses presence for exit slide
+
+## Surfaces
+- Sidebar docked/floating: translate-x + opacity enter/exit via presence
+- Overlays: `EdgeModalShell` + `ContextMenu` popover enter
+- Trade success + drawing toolbar: popover enter settle
+- Workspace tiles: `edge-app-enter` on surface swap; split settle pulse
+
+## Focused tests
+Command:
+npm test -- --run src/app/components/design-system/styles.test.ts src/app/components/design-system/usePresence.test.ts src/app/components/design-system/EdgeSlideOver.test.tsx src/app/components/design-system/EdgeModalShell.test.tsx src/app/components/ContextMenu.test.tsx src/app/components/trading/TradeOrderForm.test.tsx src/app/components/drawing/DrawingSelectionToolbar.test.tsx src/app/components/sidebar/RightSidebar.test.tsx src/app/components/sidebar/SidebarPanelShell.test.tsx src/app/components/sidebar/FloatingPanelShell.test.tsx src/app/components/sidebar/FloatingPanelHost.test.tsx src/app/components/app-workspace/SplitPane.test.tsx
+
+```
+Test Files  12 passed (12)
+Tests  100 passed (100)
+```
+
+## App-level
+Deferred: manual glance on http://localhost:3003 (sidebar open/close, command palette, drawing toolbar, trade submit success, tile surface swap, split release pulse, reduced-motion once)

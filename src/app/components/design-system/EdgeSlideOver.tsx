@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { slideOverBackdropClass, slideOverPanelClass } from "./styles";
 import { useFocusTrap } from "./useFocusTrap";
+import { usePresence } from "./usePresence";
 
 type Props = {
   open: boolean;
@@ -36,45 +37,36 @@ export default function EdgeSlideOver({
   width = "third",
   returnFocusRef,
 }: Props) {
-  const [mounted, setMounted] = useState(false);
-  const [visible, setVisible] = useState(false);
+  const [clientMounted, setClientMounted] = useState(false);
+  const { mounted: presenceMounted, visible } = usePresence(open);
   const panelRef = useRef<HTMLDivElement>(null);
   const dialogLabel = resolveAriaLabel(title, ariaLabel);
 
-  useFocusTrap(open, panelRef, { onEscape: onClose, returnFocusRef });
+  useFocusTrap(presenceMounted, panelRef, { onEscape: onClose, returnFocusRef });
 
   useEffect(() => {
-    setMounted(true);
+    setClientMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!open) {
-      setVisible(false);
-      return;
-    }
-    const frame = window.requestAnimationFrame(() => setVisible(true));
-    return () => window.cancelAnimationFrame(frame);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
+    if (!presenceMounted) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [open]);
+  }, [presenceMounted]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!presenceMounted) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [presenceMounted, onClose]);
 
-  if (!mounted || !open) return null;
+  if (!clientMounted || !presenceMounted) return null;
 
   return createPortal(
     <div data-testid={testId}>

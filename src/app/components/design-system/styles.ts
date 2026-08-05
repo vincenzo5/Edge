@@ -146,7 +146,22 @@ export function statusAlertClass(): string {
 }
 
 export function popoverEnterClass(): string {
-  return "edge-popover-enter motion-safe:animate-none";
+  return "edge-popover-enter";
+}
+
+/** Docked sidebar shell — slide from right with opacity (open/close). */
+export function sidebarPanelShellMotionClass(visible: boolean): string {
+  return `${motionNormal} ${visible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}`;
+}
+
+/** Docked sidebar inner content — enter on panel-to-panel switch only. */
+export function sidebarPanelContentMotionClass(visible: boolean): string {
+  return `${motionNormal} ${visible ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"}`;
+}
+
+/** Floating panel exit — fade out while presence keeps the node mounted. */
+export function floatingPanelExitClass(visible: boolean): string {
+  return visible ? "" : `${motionNormal} opacity-0`;
 }
 
 export function primaryButtonClass(theme: Theme, disabled?: boolean): string {

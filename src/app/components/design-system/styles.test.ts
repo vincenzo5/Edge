@@ -13,6 +13,7 @@ import {
   menuItemClass,
   modalShellClass,
   panelTitleClass,
+  popoverEnterClass,
   popoverPanelClass,
   primaryButtonClass,
   secondaryButtonClass,
@@ -29,6 +30,8 @@ describe("design-system styles", () => {
   });
 
   it("returns Edge token-based chrome classes", () => {
+    expect(popoverEnterClass()).toBe("edge-popover-enter");
+    expect(popoverEnterClass()).not.toContain("animate-none");
     expect(popoverPanelClass("dark")).toContain("edge-popover");
     expect(popoverPanelClass("dark")).toContain("--edge-radius-lg");
     expect(modalShellClass()).toContain("edge-modal-shell");

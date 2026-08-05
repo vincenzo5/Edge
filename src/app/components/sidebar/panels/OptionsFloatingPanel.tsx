@@ -15,6 +15,7 @@ type Props = {
   onGeometryChange: (geometry: FloatingPanelGeometry) => void;
   onClose: () => void;
   onDock?: () => void;
+  visible?: boolean;
 };
 
 export function OptionsFloatingPanel({
@@ -22,6 +23,7 @@ export function OptionsFloatingPanel({
   onGeometryChange,
   onClose,
   onDock,
+  visible = true,
 }: Props) {
   const workspace = useOptionsWorkspaceModel();
   const { dollarRisk, basisStale } = useRiskSettings();
@@ -36,6 +38,7 @@ export function OptionsFloatingPanel({
       onGeometryChange={onGeometryChange}
       onDock={onDock}
       onClose={onClose}
+      visible={visible}
       testId="options-chain-dialog"
       headerActions={
         <EdgeSegmentedTabs

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import SplitPane from "./SplitPane";
 
@@ -135,5 +135,90 @@ describe("SplitPane", () => {
     fireEvent.pointerUp(handle, { clientX: -100, pointerId: 1 });
 
     expect(onResizeCommit).toHaveBeenCalledWith("clamp", [0.08, 0.92]);
+  });
+
+  it("sets data-resizing on the pane while dragging", () => {
+    render(
+      <SplitPane
+        splitId="resize-flag"
+        direction="row"
+        sizes={[0.5, 0.5]}
+        onResizeCommit={vi.fn()}
+        first={<div>A</div>}
+        second={<div>B</div>}
+      />,
+    );
+
+    const pane = screen.getByTestId("split-pane-resize-flag");
+    mockPaneBounds(pane, 400, 300);
+
+    const handle = screen.getByTestId("split-handle-resize-flag");
+    expect(pane).not.toHaveAttribute("data-resizing");
+
+    fireEvent.pointerDown(handle, { button: 0, clientX: 200, pointerId: 1 });
+    expect(pane).toHaveAttribute("data-resizing", "true");
+
+    fireEvent.pointerUp(handle, { clientX: 200, pointerId: 1 });
+    expect(pane).not.toHaveAttribute("data-resizing");
+  });
+
+  it("applies edge-split-settle on divider and handle after pointer up", () => {
+    render(
+      <SplitPane
+        splitId="settle"
+        direction="row"
+        sizes={[0.5, 0.5]}
+        onResizeCommit={vi.fn()}
+        first={<div>A</div>}
+        second={<div>B</div>}
+      />,
+    );
+
+    const pane = screen.getByTestId("split-pane-settle");
+    mockPaneBounds(pane, 400, 300);
+
+    const handle = screen.getByTestId("split-handle-settle");
+    const divider = handle.parentElement;
+
+    fireEvent.pointerDown(handle, { button: 0, clientX: 200, pointerId: 1 });
+    fireEvent.pointerUp(handle, { clientX: 200, pointerId: 1 });
+
+    expect(divider?.className).toContain("edge-split-settle");
+    expect(handle.className).toContain("edge-split-settle");
+  });
+
+  it("removes edge-split-settle after the motion duration", () => {
+    vi.useFakeTimers();
+
+    render(
+      <SplitPane
+        splitId="settle-clear"
+        direction="row"
+        sizes={[0.5, 0.5]}
+        onResizeCommit={vi.fn()}
+        first={<div>A</div>}
+        second={<div>B</div>}
+      />,
+    );
+
+    const pane = screen.getByTestId("split-pane-settle-clear");
+    mockPaneBounds(pane, 400, 300);
+
+    const handle = screen.getByTestId("split-handle-settle-clear");
+    const divider = handle.parentElement;
+
+    fireEvent.pointerDown(handle, { button: 0, clientX: 200, pointerId: 1 });
+    fireEvent.pointerUp(handle, { clientX: 200, pointerId: 1 });
+
+    expect(divider?.className).toContain("edge-split-settle");
+
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+
+    expect(divider?.className).not.toContain("edge-split-settle");
+    expect(handle.className).not.toContain("edge-split-settle");
+
+    vi.useRealTimers();
   });
 });

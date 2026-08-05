@@ -16,6 +16,7 @@ describe("EdgeModalShell", () => {
     const dialog = screen.getByRole("dialog", { name: "Import trades" });
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(dialog).toHaveAttribute("aria-labelledby");
+    expect(dialog.className).toContain("edge-popover-enter");
   });
 
   it("calls onClose from close button", () => {
