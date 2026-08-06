@@ -348,6 +348,7 @@ export async function rebuildJournalTrades(userId: string): Promise<JournalImpor
         plannedRiskMode: trade.plannedRiskMode ?? null,
         plannedRiskValue: trade.plannedRiskValue ?? null,
         plannedRiskUsd: trade.plannedRiskUsd ?? null,
+        initialStop: trade.initialStop ?? null,
         rating: trade.rating ?? null,
         ignored: trade.ignored ?? false,
         mfeUsd: trade.mfeUsd ?? null,

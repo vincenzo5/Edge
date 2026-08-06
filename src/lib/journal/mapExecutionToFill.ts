@@ -1,18 +1,13 @@
+import { flexDateTimeToUtcIso } from "@/lib/journal/flexImport/flexDateTime";
 import type { AccountExecution } from "@/lib/marketData/contracts/brokerage";
 import type { JournalFill, JournalFillSource } from "@/lib/journal/types";
 
 function parseFillTime(raw: string | null | undefined): string {
   if (!raw?.trim()) return new Date().toISOString();
   const trimmed = raw.trim();
-  if (/^\d{8};\d{6}$/.test(trimmed)) {
-    const y = trimmed.slice(0, 4);
-    const mo = trimmed.slice(4, 6);
-    const d = trimmed.slice(6, 8);
-    const h = trimmed.slice(9, 11);
-    const mi = trimmed.slice(11, 13);
-    const s = trimmed.slice(13, 15);
-    return new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}Z`).toISOString();
-  }
+  // Flex-format DateTime is America/New_York wall clock (not forced Z).
+  const flexIso = flexDateTimeToUtcIso(trimmed);
+  if (flexIso) return flexIso;
   const parsed = Date.parse(trimmed);
   if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
   return new Date().toISOString();

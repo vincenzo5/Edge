@@ -24,6 +24,22 @@ describe("tradeGrouping", () => {
     expect(trades[0].status).toBe("closed");
     expect(trades[0].symbol).toBe("AAPL");
     expect(trades[0].fillExecIds).toEqual(["1", "2"]);
+    expect(trades[0].netQuantity).toBe(100);
+  });
+
+  it("keeps open size on closed LQDA-shaped partial exits", () => {
+    const trades = groupFillsIntoTrades([
+      fill({ execId: "o1", side: "BOT", quantity: 100, price: 83.57, fillTime: "2026-08-03T13:30:00.000Z" }),
+      fill({ execId: "o2", side: "BOT", quantity: 100, price: 83.57, fillTime: "2026-08-03T13:31:00.000Z" }),
+      fill({ execId: "o3", side: "BOT", quantity: 100, price: 83.57, fillTime: "2026-08-03T13:32:00.000Z" }),
+      fill({ execId: "o4", side: "BOT", quantity: 100, price: 83.57, fillTime: "2026-08-03T13:33:00.000Z" }),
+      fill({ execId: "c1", side: "SLD", quantity: 198, price: 89.59, fillTime: "2026-08-05T18:35:00.000Z", realizedPNL: 1189 }),
+      fill({ execId: "c2", side: "SLD", quantity: 122, price: 89.58, fillTime: "2026-08-05T18:35:01.000Z", realizedPNL: 731 }),
+      fill({ execId: "c3", side: "SLD", quantity: 80, price: 89.59, fillTime: "2026-08-05T18:35:02.000Z", realizedPNL: 480 }),
+    ]);
+    expect(trades).toHaveLength(1);
+    expect(trades[0].status).toBe("closed");
+    expect(trades[0].netQuantity).toBe(400);
   });
 
   it("aggregates partial stock fills", () => {

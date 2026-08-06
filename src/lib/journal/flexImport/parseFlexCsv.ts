@@ -1,3 +1,4 @@
+import { flexDateTimeToUtcIso } from "@/lib/journal/flexImport/flexDateTime";
 import type { JournalFill } from "@/lib/journal/types";
 
 const COLUMN_ALIASES: Record<string, keyof ParsedFlexRow> = {
@@ -115,19 +116,9 @@ function normalizeSide(raw: string | undefined): string {
 
 function normalizeFillTime(raw: string | undefined): string {
   if (!raw?.trim()) return new Date().toISOString();
-  const flexMatch = raw.trim().match(/^(\d{4})(\d{2})(\d{2});(\d{2})(\d{2})(\d{2})$/);
-  if (flexMatch) {
-    const [, year, month, day, hour, minute, second] = flexMatch;
-    const parsed = new Date(
-      Number(year),
-      Number(month) - 1,
-      Number(day),
-      Number(hour),
-      Number(minute),
-      Number(second),
-    );
-    if (Number.isFinite(parsed.getTime())) return parsed.toISOString();
-  }
+  // IB Flex DateTime is America/New_York wall clock — not process-local, not Z.
+  const flexIso = flexDateTimeToUtcIso(raw);
+  if (flexIso) return flexIso;
   const parsed = Date.parse(raw);
   if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
   return new Date().toISOString();

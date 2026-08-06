@@ -61,13 +61,58 @@ describe("tradeRiskGeometry", () => {
     });
   });
 
-  it("resolveTradeRiskQuantity uses fill quantities when netQuantity is zero on closed trades", () => {
+  it("resolveTradeRiskQuantity sums open-role fills when netQuantity is zero", () => {
     expect(
       resolveTradeRiskQuantity({
+        direction: "long",
+        netQuantity: 0,
+        fills: [
+          { quantity: 50, role: "open" },
+          { quantity: 50, role: "close" },
+        ],
+      }),
+    ).toBe(50);
+  });
+
+  it("resolveTradeRiskQuantity does not use max single fill for bare quantities", () => {
+    expect(
+      resolveTradeRiskQuantity({
+        direction: "long",
         netQuantity: 0,
         fillQuantities: [50, 50],
       }),
-    ).toBe(50);
+    ).toBeNull();
+  });
+
+  it("resolveTradeRiskQuantity sums entry-side fills for LQDA-shaped round trip", () => {
+    expect(
+      resolveTradeRiskQuantity({
+        direction: "long",
+        netQuantity: 0,
+        fills: [
+          { quantity: 100, side: "BOT" },
+          { quantity: 100, side: "BOT" },
+          { quantity: 100, side: "BOT" },
+          { quantity: 100, side: "BOT" },
+          { quantity: 198, side: "SLD" },
+          { quantity: 122, side: "SLD" },
+          { quantity: 80, side: "SLD" },
+        ],
+      }),
+    ).toBe(400);
+  });
+
+  it("resolveTradeRiskQuantity prefers positive netQuantity (closed open-size)", () => {
+    expect(
+      resolveTradeRiskQuantity({
+        direction: "long",
+        netQuantity: 400,
+        fills: [
+          { quantity: 198, role: "close" },
+          { quantity: 122, role: "close" },
+        ],
+      }),
+    ).toBe(400);
   });
 
   it("applyInitialStopPlannedRisk uses fill quantities for closed short trades", () => {
@@ -76,7 +121,10 @@ describe("tradeRiskGeometry", () => {
         direction: "short",
         avgEntry: 308.43,
         netQuantity: 0,
-        fillQuantities: [25],
+        fills: [
+          { quantity: 25, role: "open", side: "SLD" },
+          { quantity: 25, role: "close", side: "BOT" },
+        ],
       },
       312,
     );
@@ -84,5 +132,17 @@ describe("tradeRiskGeometry", () => {
     expect(applied.plannedRiskMode).toBe("usd");
     expect(applied.plannedRiskValue).toBeCloseTo(89.25, 2);
     expect(applied.plannedRiskUsd).toBeCloseTo(89.25, 2);
+  });
+
+  it("LQDA stop 77.57 on 400 shares yields ~$2400 risk", () => {
+    const applied = applyInitialStopPlannedRisk(
+      {
+        direction: "long",
+        avgEntry: 83.57,
+        netQuantity: 400,
+      },
+      77.57,
+    );
+    expect(applied.plannedRiskUsd).toBeCloseTo(2400, 0);
   });
 });

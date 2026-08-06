@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { getDb } from "@/db";
-import { journalFills, journalTrades } from "@/db/schema";
+import { journalFills, journalTradeFills, journalTrades } from "@/db/schema";
 import { computePlannedRiskUsd } from "@/lib/journal/rMultiple";
 import { applyInitialStopPlannedRisk } from "@/lib/journal/tradeRiskGeometry";
 import type {
@@ -28,17 +28,31 @@ import {
   tradeToResponse,
 } from "@/lib/persistence/repositories/journalIngestRepository";
 
-async function loadFillQuantitiesForExecIds(
+async function loadFillsForRiskQuantity(
   userId: string,
+  tradeId: string,
   execIds: string[],
-): Promise<number[]> {
+): Promise<Array<{ quantity: number; role: "open" | "close" | null; side: string | null }>> {
   if (execIds.length === 0) return [];
   const db = getDb();
   const rows = await db
-    .select({ quantity: journalFills.quantity })
+    .select({
+      execId: journalFills.execId,
+      quantity: journalFills.quantity,
+      side: journalFills.side,
+      role: journalTradeFills.role,
+    })
     .from(journalFills)
+    .leftJoin(
+      journalTradeFills,
+      and(eq(journalTradeFills.fillId, journalFills.id), eq(journalTradeFills.tradeId, tradeId)),
+    )
     .where(and(eq(journalFills.userId, userId), inArray(journalFills.execId, execIds)));
-  return rows.map((row) => row.quantity);
+  return rows.map((row) => ({
+    quantity: row.quantity,
+    side: row.side,
+    role: row.role === "open" || row.role === "close" ? row.role : null,
+  }));
 }
 
 export async function patchJournalTrade(
@@ -58,11 +72,11 @@ export async function patchJournalTrade(
   let nextPlannedRiskUsd = existing.plannedRiskUsd ?? null;
 
   if (patch.initialStop !== undefined) {
-    // Closed trades store netQuantity=0; resolve size from linked fills (same as client preview).
-    const fillQuantities =
+    // Prefer open/round-trip size on the trade; fall back to open-role / entry-side fills.
+    const fills =
       (existing.netQuantity == null || existing.netQuantity === 0) &&
       existing.fillExecIds.length > 0
-        ? await loadFillQuantitiesForExecIds(userId, existing.fillExecIds)
+        ? await loadFillsForRiskQuantity(userId, tradeId, existing.fillExecIds)
         : undefined;
     const applied = applyInitialStopPlannedRisk(
       {
@@ -71,7 +85,7 @@ export async function patchJournalTrade(
         netQuantity: existing.netQuantity,
         legs: existing.legs,
         managePlaybook: existing.managePlaybook,
-        fillQuantities,
+        fills,
       },
       patch.initialStop,
     );

@@ -1,0 +1,68 @@
+# Journal production trade audit — 2026-08-06
+
+## Scope
+- DB: edge_prod (container edge-app-prod)
+- Account: U25026894 (ib-live)
+- IB Gateway live + paper both connected via sidecar :8765
+
+## LQDA (latest closed)
+Trade id: a074a348-cf6e-491a-95aa-df4e8c850396
+Direction: long STK
+Entry avg: 83.56985 (400 sh from 4 Flex BOT fills @ 2026-08-03)
+Exit avg:  89.58695 (400 sh from 3 live SLD fills @ 2026-08-05 18:35:35Z)
+Gross PnL: 2402.021404 (= sum IB realizedPNL on exits)
+Net PnL:   2401.205208
+planned_risk_usd: 1187.9703 (preserved)
+initial_stop: NULL (wiped on rebuild)
+Displayed R: 2401.205208 / 1187.9703 = 2.0213R
+Implied stop from risk: 83.56985 - 1187.9703/400 = 80.5999
+Price move R: (89.58695-83.56985)/2.9699 = 2.026R
+Stop that would make this 1.00R: ~77.57
+
+## IB Gateway live comparison (reqExecutions cache)
+connectionId=ib-live account=U25026894
+Positions: [] (flat)
+Executions available now: only 3 LQDA exits — exact match to journal live fills:
+  0000d8a2.6a7359f2.01.01 SLD 198 @ 89.59 realizedPNL=1189.594482
+  0000d8a2.6a7359f4.01.01 SLD 122 @ 89.58 realizedPNL=731.778646
+  00019367.6a733a3b.01.01 SLD 80 @ 89.59 realizedPNL=480.648276
+Entry fills not in IB session cache (expected; came from Flex CSV).
+
+## Root cause A — Flex fill timestamps shifted -4h in production
+edge-app-prod TZ=UTC.
+parseFlexCsv.normalizeFillTime uses `new Date(y,m,d,h,mi,s)` (process local time).
+IB Flex DateTime values are US/Eastern clock times (e.g. 20260624;093542 = 09:35:42 ET).
+In UTC container they are stored as 09:35:42Z → UI shows 05:35 ET.
+Evidence in edge_prod journal_fills:
+  flex_csv total: 92
+  flex fills with ET hour 5-6: 32
+  flex fills exactly 05:30 ET: 13 (classic RTH open mis-labeled)
+Live fills (IB API ISO+offset) are correct — LQDA exit 14:35 ET.
+
+## Root cause B — rebuild wipes initial_stop, keeps planned risk
+rebuildJournalTrades deletes+reinserts trades without initialStop column.
+rebuildTrades() preserve list includes plannedRisk* but NOT initialStop.
+Last ingest rebuild: 2026-08-06 ~18:00:35Z — all 14 trades recreated; all initial_stop NULL.
+LQDA still has planned_risk_usd=1187.97 → UI R stays 2.02R even with empty stop field.
+
+## All non-ignored closed trades (prod)
+sym    dir   entry    exit     qty   risk     pnl       R      implStop
+LQDA   long   83.5699   89.587   400  1187.97   2401.21   2.02 80.60
+MRNA   short  54.7468   55.925   400   2101.3   -475.83  -0.23 60.00
+CLSK   long   13.4582  12.3324  1600  1547.08  -1817.97  -1.18 12.49
+BRUN   long   24.9088  24.0506  1400  1520.19  -1216.43   -0.8 23.82
+BB     long   10.7351  10.3492  5800  4732.31  -2298.28  -0.49 9.92
+NBIS   long   215.313 206.7095   370  6044.83  -3188.65  -0.53 198.98
+HOOD   long  103.0993 111.3798   700  2049.64   5787.63   2.82 100.17
+NBIS   long  261.7313    239.0   160   4251.4  -3639.82  -0.86 235.16
+OUST   long    42.825  52.7253  1000   2055.0   9888.97   4.81 40.77
+AAPL   short   296.06  279.925   200   1400.0   3223.74    2.3 303.06
+BRUN   long   31.7614  35.1187   865   850.27   2892.25    3.4 30.78
+NOW    long   102.115 101.5253   150   792.75     -92.8  -0.12 96.83
+
+## Verdict
+1. LQDA exit prices/qty/PnL match IB Gateway live executions exactly.
+2. 2.02R is consistent with planned_risk implying ~80.60 stop on 400 shares.
+3. If the true original stop was ~77.57, planned risk is wrong/stale; if stop was ~80.60, 2.02R is correct and the trade simply exited ~2R.
+4. Widespread wrong times are from Flex Eastern→UTC mis-parse in the prod container.
+5. initial_stop is not surviving ingest rebuilds.

@@ -53,10 +53,8 @@ describe("parseFlexCsv", () => {
       realizedPNL: 0,
       contract: { symbol: "AAPL", secType: "STK" },
     });
-    expect(sell?.fillTime.startsWith("2026-06-24")).toBe(true);
-    const sellTime = new Date(sell!.fillTime);
-    expect(sellTime.getHours()).toBe(9);
-    expect(sellTime.getMinutes()).toBe(35);
+    // Flex DateTime is America/New_York; 2026-06-24 is EDT (UTC-4).
+    expect(sell?.fillTime).toBe("2026-06-24T13:35:42.000Z");
 
     const buy = parsed.fills.find((fill) => fill.side === "BOT");
     expect(buy).toMatchObject({
@@ -84,10 +82,10 @@ describe("parseFlexCsv", () => {
       commission: -2.2593672,
       account: "U25026894",
     });
-    expect(sell?.fillTime.startsWith("2026-06-24")).toBe(true);
+    expect(sell?.fillTime).toBe("2026-06-24T13:35:42.000Z");
     expect(sell?.realizedPNL).toBeNull();
 
     const buy = parsed.fills.find((fill) => fill.execId === "00015e71.6a3d4a43.01.01");
-    expect(buy?.fillTime.startsWith("2026-06-25")).toBe(true);
+    expect(buy?.fillTime).toBe("2026-06-25T13:41:55.000Z");
   });
 });

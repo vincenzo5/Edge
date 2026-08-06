@@ -285,6 +285,9 @@ function processSingleLegFifo(fills: JournalFill[]): JournalTrade[] {
       if (trade && net === 0) {
         trade.status = "closed";
         trade.closedAt = fill.fillTime;
+        // Keep open/round-trip size on closed trades (status already signals flat).
+        // netQuantity===0 broke risk qty (max single exit fill) and list Qty.
+        trade.netQuantity = entryQty > 0 ? entryQty : trade.netQuantity;
         trades.push(
           finalizeTrade(
             trade,

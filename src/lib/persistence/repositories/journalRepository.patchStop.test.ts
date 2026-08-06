@@ -31,7 +31,7 @@ describe("patchJournalTrade initialStop on closed trades", () => {
     vi.clearAllMocks();
   });
 
-  it("loads fill quantities when netQuantity is 0 so stop risk can be saved", async () => {
+  it("loads open/entry fills when netQuantity is 0 so stop risk can be saved", async () => {
     mocks.getJournalTradeById.mockResolvedValueOnce({
       id: "trade-1",
       status: "closed",
@@ -60,12 +60,14 @@ describe("patchJournalTrade initialStop on closed trades", () => {
     });
 
     const fillSelectWhere = vi.fn().mockResolvedValue([
-      { quantity: 200 },
-      { quantity: 200 },
+      { execId: "exec-a", quantity: 200, side: "BOT", role: "open" },
+      { execId: "exec-b", quantity: 200, side: "SLD", role: "close" },
     ]);
     mocks.select.mockReturnValue({
       from: vi.fn().mockReturnValue({
-        where: fillSelectWhere,
+        leftJoin: vi.fn().mockReturnValue({
+          where: fillSelectWhere,
+        }),
       }),
     });
 

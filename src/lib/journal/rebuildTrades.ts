@@ -15,6 +15,7 @@ export type RebuildTradesResult = {
       | "plannedRiskMode"
       | "plannedRiskValue"
       | "plannedRiskUsd"
+      | "initialStop"
       | "rating"
       | "ignored"
       | "mfeUsd"
@@ -34,6 +35,7 @@ type PreservedReview = Pick<
   | "plannedRiskMode"
   | "plannedRiskValue"
   | "plannedRiskUsd"
+  | "initialStop"
   | "rating"
   | "ignored"
   | "mfeUsd"
@@ -61,6 +63,7 @@ export function rebuildTrades(
       plannedRiskMode: trade.plannedRiskMode,
       plannedRiskValue: trade.plannedRiskValue,
       plannedRiskUsd: trade.plannedRiskUsd,
+      initialStop: trade.initialStop,
       rating: trade.rating,
       ignored: trade.ignored,
       mfeUsd: trade.mfeUsd,
@@ -93,6 +96,7 @@ export function rebuildTrades(
             plannedRiskMode: preservedFromPrevious.plannedRiskMode,
             plannedRiskValue: preservedFromPrevious.plannedRiskValue,
             plannedRiskUsd: preservedFromPrevious.plannedRiskUsd,
+            initialStop: preservedFromPrevious.initialStop,
             rating: preservedFromPrevious.rating,
             ignored: preservedFromPrevious.ignored,
             mfeUsd: preservedFromPrevious.mfeUsd,
@@ -113,6 +117,7 @@ export function rebuildTrades(
       plannedRiskMode: preserved?.plannedRiskMode ?? trade.plannedRiskMode,
       plannedRiskValue: preserved?.plannedRiskValue ?? trade.plannedRiskValue,
       plannedRiskUsd: preserved?.plannedRiskUsd ?? trade.plannedRiskUsd,
+      initialStop: preserved?.initialStop ?? trade.initialStop,
       rating: preserved?.rating ?? trade.rating,
       ignored: preserved?.ignored ?? trade.ignored,
       mfeUsd: preserved?.mfeUsd ?? trade.mfeUsd,

@@ -104,6 +104,34 @@ describe("rebuildTrades", () => {
     expect(trades[0].id).toBe("old");
   });
 
+  it("preserves initialStop from previous trades", () => {
+    const fills = [
+      baseFill({ execId: "1", side: "BOT", quantity: 10, price: 10 }),
+      baseFill({ execId: "2", side: "SLD", quantity: 10, price: 12 }),
+    ];
+    const previous: JournalTrade[] = [
+      {
+        id: "old",
+        status: "closed",
+        direction: "long",
+        symbol: "AAPL",
+        secType: "STK",
+        openedAt: fills[0].fillTime,
+        closedAt: fills[1].fillTime,
+        fillExecIds: ["1", "2"],
+        initialStop: 77.57,
+        plannedRiskMode: "usd",
+        plannedRiskValue: 2400,
+        plannedRiskUsd: 2400,
+      },
+    ];
+    const { trades } = rebuildTrades(fills, previous);
+    expect(trades[0].id).toBe("old");
+    expect(trades[0].initialStop).toBe(77.57);
+    expect(trades[0].plannedRiskUsd).toBe(2400);
+    expect(trades[0].netQuantity).toBe(10);
+  });
+
   it("preserves managePlaybook from previous trades", () => {
     const fills = [
       baseFill({ execId: "1", side: "BOT", quantity: 10, price: 10 }),
