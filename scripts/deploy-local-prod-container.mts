@@ -93,7 +93,7 @@ Options:
   --skip-infra          Skip docker compose up before migrate/start
   --skip-startup        Skip npm run check:startup gate
   --skip-chart-perf     Skip CHART_PERF_BUDGET_STRICT=1 npm run perf:chart gate
-  --skip-typecheck      Skip npx tsc -p tsconfig.json --noEmit gate
+  --skip-typecheck      Skip npx tsc -p tsconfig.prod-check.json --noEmit gate
 
 Examples:
   npm run local:prod:container:deploy -- --revision HEAD
@@ -444,7 +444,7 @@ export function defaultDeployLocalProdContainerDeps(): DeployLocalProdContainerD
     },
     runTypecheckCheck: () => {
       try {
-        execFileSync("npx", ["tsc", "-p", "tsconfig.json", "--noEmit"], {
+        execFileSync("npx", ["tsc", "-p", "tsconfig.prod-check.json", "--noEmit"], {
           cwd: process.cwd(),
           stdio: "inherit",
           env: process.env,
