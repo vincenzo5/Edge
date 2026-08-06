@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { usePersistedJournalComparePreset } from "@/app/components/journal/useJournalUiState";
 import {
   buildComparePresetSlices,
   computeCompareReport,
@@ -35,7 +36,7 @@ const PRESETS: { id: ComparePresetId; label: string }[] = [
 ];
 
 export default function JournalCompareReport({ baseTrades }: Props) {
-  const [preset, setPreset] = useState<ComparePresetId>("wins_vs_losses");
+  const { comparePreset: preset, setComparePreset: setPreset } = usePersistedJournalComparePreset();
 
   const report: CompareReportResult = useMemo(() => {
     const { sliceA, sliceB, labelA, labelB } = buildComparePresetSlices(preset);

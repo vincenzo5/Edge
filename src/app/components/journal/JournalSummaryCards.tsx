@@ -9,6 +9,7 @@ import {
   journalHeroCardSpanClass,
   journalSummaryGridClass,
 } from "@/lib/responsive/tileDensity";
+import { usePersistedJournalMetricUnit } from "@/app/components/journal/useJournalUiState";
 import {
   EMPTY_JOURNAL_TRADE_FREQUENCY,
   scaleJournalMetricByStartingEquity,
@@ -16,15 +17,16 @@ import {
   type JournalStats,
   type JournalTradeFrequency,
 } from "@/lib/journal/journalStats";
+import type { JournalMetricUnit } from "@/lib/journal/journalUiStatePreference";
 
 const ACCOUNT_EQUITY_HELP =
-  "Total portfolio value (net liquidation) from your connected IB account. Secondary lines show scoped net P&L, percent change vs starting equity, and net R when planned risk is available.";
+  "Total portfolio value (net liquidation) from your connected IB account. Secondary lines show change vs capital base (Journal Settings → Capital net deposits when set; otherwise inferred from live equity and scoped trade P&L), percent of that base, and net R when planned risk is available.";
 
 const TRADE_PACE_HELP =
   "Observed closed-trade pace for the current scope: trades per week and per month (count ÷ elapsed calendar days in the selected period).";
 
 const NET_PNL_HELP =
-  "The total realized net profit and loss for all closed trades in the current scope.";
+  "Change versus starting capital: live account equity minus capital base when both are available; otherwise scoped closed-trade net P&L.";
 
 const WIN_RATE_HELP =
   "Reflects the percentage of your winning trades out of total trades taken.";
@@ -45,7 +47,6 @@ const GAUGE_STROKE = 7;
 
 type OutcomeSegment = "win" | "breakeven" | "loss";
 type AvgWinLossSegment = "win" | "loss";
-type JournalMetricUnit = "usd" | "pct" | "r";
 
 const METRIC_UNIT_SEGMENTS = [
   { id: "usd", label: "$" },
@@ -314,7 +315,7 @@ export default function JournalSummaryCards({
       <div className={journalSummaryGridClass(mode)}>
         <AccountEquityMetricCard
           accountEquity={accountEquity}
-          netPnL={stats.netPnL}
+          equityChangeUsd={dashboardMetrics.equityChangeUsd}
           closedCount={stats.closedCount}
           equityChangePct={dashboardMetrics.equityChangePct}
           netR={dashboardMetrics.rStats.netR}
@@ -434,7 +435,7 @@ function HeroMetricCardLayout({
 
 function AccountEquityMetricCard({
   accountEquity,
-  netPnL,
+  equityChangeUsd,
   closedCount,
   equityChangePct,
   netR,
@@ -443,7 +444,7 @@ function AccountEquityMetricCard({
   heroSpan,
 }: {
   accountEquity: number | null;
-  netPnL: number;
+  equityChangeUsd: number;
   closedCount: number;
   equityChangePct: number | null;
   netR: number | null;
@@ -548,9 +549,9 @@ function AccountEquityMetricCard({
             <span className="inline-flex min-w-0 items-center gap-1">
               <span
                 data-testid="journal-net-pnl-suffix"
-                className={`text-sm font-medium tabular-nums ${toneTextClass(pnlTone(netPnL))}`}
+                className={`text-sm font-medium tabular-nums ${toneTextClass(pnlTone(equityChangeUsd))}`}
               >
-                {formatCompactMoney(netPnL)}
+                {formatCompactMoney(equityChangeUsd)}
               </span>
               <MetricHelpIcon content={NET_PNL_HELP} ariaLabel="Net P&L help" />
             </span>
@@ -833,7 +834,7 @@ function ExpectedValueMetricCard({
   dashboardMetrics: JournalDashboardMetrics;
   heroSpan: string;
 }) {
-  const [unit, setUnit] = useState<JournalMetricUnit>("usd");
+  const { metricUnit: unit, setMetricUnit: setUnit } = usePersistedJournalMetricUnit();
   const [hoveredSegment, setHoveredSegment] = useState<AvgWinLossSegment | null>(null);
   const display = resolveExpectedValueDisplay(stats, dashboardMetrics, unit);
 

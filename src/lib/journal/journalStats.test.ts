@@ -17,6 +17,7 @@ import {
   computeJournalDashboardMetrics,
   computeJournalDrawdown,
   computeJournalEquityChangePct,
+  resolveJournalEquityChangeUsd,
   resolveJournalStartingEquity,
   scaleJournalMetricByStartingEquity,
   computeJournalStats,
@@ -328,6 +329,18 @@ describe("journalStats", () => {
       expect(resolveJournalStartingEquity(100, 200)).toBeNull();
     });
 
+    it("prefers configured capital base over inferred starting equity", () => {
+      expect(resolveJournalStartingEquity(36_648.17, 11_460, 28_000)).toBe(28_000);
+      expect(resolveJournalStartingEquity(null, 11_460, 28_000)).toBe(28_000);
+      expect(resolveJournalStartingEquity(36_648.17, 11_460, null)).toBeCloseTo(25_188.17);
+    });
+
+    it("resolves equity change dollars from live equity when starting base exists", () => {
+      expect(resolveJournalEquityChangeUsd(36_648.17, 28_000, 11_460)).toBeCloseTo(8_648.17);
+      expect(resolveJournalEquityChangeUsd(null, 28_000, 11_460)).toBe(11_460);
+      expect(resolveJournalEquityChangeUsd(10_050, 10_000, 50)).toBe(50);
+    });
+
     it("computes equity change percent from starting equity", () => {
       expect(computeJournalEquityChangePct(125_010, 420)).toBeCloseTo(420 / 125_010);
       expect(computeJournalEquityChangePct(null, 420)).toBeNull();
@@ -365,11 +378,32 @@ describe("journalStats", () => {
       ];
       const metrics = computeJournalDashboardMetrics(trades, 10_050);
       expect(metrics.startingEquity).toBe(10_000);
+      expect(metrics.equityChangeUsd).toBe(50);
       expect(metrics.equityChangePct).toBeCloseTo(50 / 10_000);
       expect(metrics.drawdown.maxDdUsd).toBe(50);
       expect(metrics.rStats.netR).toBe(0.5);
       expect(metrics.rStats.expectancyR).toBe(0.25);
       expect(metrics.rStats.tradeCountWithR).toBe(2);
+    });
+
+    it("uses configured capital for starting equity, dollar change, and percent", () => {
+      const trades = [
+        closedTrade({
+          netPnL: 100,
+          closedAt: "2026-06-01T16:00:00.000Z",
+          plannedRiskUsd: 100,
+        }),
+        closedTrade({
+          netPnL: -50,
+          closedAt: "2026-06-02T16:00:00.000Z",
+          plannedRiskUsd: 100,
+        }),
+      ];
+      const metrics = computeJournalDashboardMetrics(trades, 36_648.17, 28_000);
+      expect(metrics.startingEquity).toBe(28_000);
+      expect(metrics.equityChangeUsd).toBeCloseTo(8_648.17);
+      expect(metrics.equityChangePct).toBeCloseTo(8_648.17 / 28_000);
+      expect(metrics.drawdown.maxDdPct).toBeCloseTo(50 / 28_000);
     });
   });
 

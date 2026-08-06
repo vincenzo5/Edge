@@ -8,6 +8,7 @@ import type {
   JournalStats,
   JournalTradeFrequency,
 } from "@/lib/journal/journalStats";
+import { JOURNAL_UI_STATE_STORAGE_KEY } from "@/lib/journal/journalUiStatePreference";
 
 const stats: JournalStats = {
   tradeCount: 10,
@@ -29,6 +30,7 @@ const accountEquity = 125_430;
 
 const defaultDashboardMetrics: JournalDashboardMetrics = {
   startingEquity: accountEquity - stats.netPnL,
+  equityChangeUsd: stats.netPnL,
   equityChangePct: stats.netPnL / (accountEquity - stats.netPnL),
   drawdown: {
     maxDdUsd: 180,
@@ -77,13 +79,20 @@ function renderCards(
 
   if (equity == null) {
     dashboardMetrics.startingEquity = null;
+    dashboardMetrics.equityChangeUsd =
+      dashboardMetricsOverrides.equityChangeUsd ?? mergedStats.netPnL;
     dashboardMetrics.equityChangePct = null;
   } else if (dashboardMetricsOverrides.startingEquity === undefined) {
     dashboardMetrics.startingEquity = equity - mergedStats.netPnL;
+    dashboardMetrics.equityChangeUsd =
+      dashboardMetricsOverrides.equityChangeUsd ??
+      equity - dashboardMetrics.startingEquity;
     dashboardMetrics.equityChangePct =
       dashboardMetrics.startingEquity > 0
-        ? mergedStats.netPnL / dashboardMetrics.startingEquity
+        ? dashboardMetrics.equityChangeUsd / dashboardMetrics.startingEquity
         : null;
+  } else if (dashboardMetricsOverrides.equityChangeUsd === undefined) {
+    dashboardMetrics.equityChangeUsd = equity - (dashboardMetrics.startingEquity ?? 0);
   }
 
   return render(
@@ -100,10 +109,12 @@ function renderCards(
 
 describe("JournalSummaryCards", () => {
   beforeEach(() => {
+    localStorage.removeItem(JOURNAL_UI_STATE_STORAGE_KEY);
     vi.useFakeTimers();
   });
 
   afterEach(() => {
+    localStorage.removeItem(JOURNAL_UI_STATE_STORAGE_KEY);
     vi.useRealTimers();
   });
 
@@ -226,6 +237,17 @@ describe("JournalSummaryCards", () => {
     expect(screen.getByTestId("journal-net-pnl-closed-count")).toHaveTextContent("8 trades");
     expect(screen.getByTestId("journal-trade-pace")).toHaveTextContent("2.5/wk · 10.9/mo");
     expect(screen.getByTestId("journal-account-equity-card").className).toContain("md:col-span-2");
+  });
+
+  it("renders capital-base equity change dollars and percent", () => {
+    renderCards({}, 36_648.17, {
+      startingEquity: 28_000,
+      equityChangeUsd: 8_648.17,
+      equityChangePct: 8_648.17 / 28_000,
+    });
+
+    expect(screen.getByTestId("journal-net-pnl-suffix")).toHaveTextContent("$8.65K");
+    expect(screen.getByTestId("journal-equity-change-pct")).toHaveTextContent("+30.9%");
   });
 
   it("renders empty trade pace placeholders when frequency is missing", () => {

@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import JournalCompareReport from "./JournalCompareReport";
 import type { JournalReportTradeInput } from "@/lib/journal/journalStats";
+import { JOURNAL_UI_STATE_STORAGE_KEY } from "@/lib/journal/journalUiStatePreference";
 
 const baseTrades: JournalReportTradeInput[] = [
   {
@@ -27,6 +28,10 @@ const baseTrades: JournalReportTradeInput[] = [
 ];
 
 describe("JournalCompareReport", () => {
+  beforeEach(() => {
+    localStorage.removeItem(JOURNAL_UI_STATE_STORAGE_KEY);
+  });
+
   it("renders wins vs losses by default", () => {
     render(<JournalCompareReport baseTrades={baseTrades} />);
     expect(screen.getByTestId("journal-compare-a")).toHaveTextContent("Wins");

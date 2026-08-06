@@ -58,7 +58,7 @@ Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md
 | `src/app/components/journal/JournalMetricGrid.tsx` | Reusable label/value metric grid |
 | `src/app/components/journal/JournalDayTradesTable.tsx` | Day summary trades table |
 | `src/app/components/journal/JournalEquityChart.tsx` | Daily cumulative P&L area chart (TradeZella-style axes, gradient fill, hover tooltip) |
-| `src/app/components/journal/JournalSummaryCards.tsx` | Dashboard hero KPI cards — account equity (live IB NetLiquidation) with scoped net P&L, percent change, net R, and trade pace (`/wk` · `/mo`); trade win %; expected value + avg win/loss with $/%/R toggle; max drawdown with % and R secondary |
+| `src/app/components/journal/JournalSummaryCards.tsx` | Dashboard hero KPI cards — account equity (live IB NetLiquidation) with $/% change vs capital base (Settings → Capital net deposits when set; else inferred), net R, and trade pace (`/wk` · `/mo`); trade win %; expected value + avg win/loss with $/%/R toggle; max drawdown with % and R secondary |
 | `src/app/components/journal/JournalHistorySyncChip.tsx` | Compact chrome chip when journal open trades ≠ live IB positions (`History lagging` / `Catching up`); tooltip holds full sync explanation |
 | `src/app/components/journal/useJournalHistoryOutOfSync.ts` | Hook wrapping `reconcileJournalOpensWithPositions` for sync chip |
 | `src/app/components/journal/JournalTradeListCard.tsx` | Dashboard recent closed trades list card |
@@ -69,9 +69,13 @@ Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md
 | `src/app/components/journal/journalChartOverlayContext.ts` | Light overlay context + `useJournalChartOverlay` (default empty markers — safe without provider) |
 | `src/app/components/journal/useChartDeepLinkBootstrap.ts` | Thin URL bootstrap for symbol/interval/goto (no journal fetch on chart-only load) |
 | `src/lib/journal/journalSetupPreference.ts` | User setup catalog — localStorage + cloud userPreferences sync; defaults seed trade detail + filter dropdowns |
+| `src/lib/journal/journalCapitalPreference.ts` | Deposit/withdrawal capital events — localStorage + cloud userPreferences; net deposits feed Account equity $/% and max drawdown % starting base |
 | `src/app/components/journal/JournalSetupsSettingsSection.tsx` | Journal Settings editor — add/rename/reorder/delete setup labels |
+| `src/app/components/journal/JournalCapitalSettingsSection.tsx` | Journal Settings Capital editor — statement-seeded net deposits + manual add/remove |
 | `src/app/components/journal/JournalScopeBar.tsx` | Compact header scope bar — period select, symbol search, filter drawer trigger, chips |
 | `src/app/components/journal/JournalFilterDrawer.tsx` | Advanced filters slide-over (setup, tag, outcome, status on Trades, custom date range) |
+| `src/lib/journal/journalUiStatePreference.ts` | Shared journal UI state in `edge.journal.uiState.v1` (filters, period, sort, EV unit, compare preset, calendar month) |
+| `src/app/components/journal/useJournalUiState.ts` | SSR-safe hydrate + persist hooks for journal UI state |
 | `src/lib/journal/localJournalStore.ts` | localStorage mirror when Postgres unavailable; mirrors server trade ids when online |
 | `src/lib/persistence/repositories/journalRepository.ts` | Postgres CRUD |
 | `src/app/api/me/journal/*` | REST routes |
@@ -280,6 +284,34 @@ Switch into the demo user:
 Journal filters fills by picker `accountId` (`DEMO0001`). Account equity hero still reads live IB `NetLiquidation` — shows `—` without Gateway (fills-driven KPIs populate). Trading stays disabled for offline Demo.
 
 Modules: `src/lib/journal/demoSeed/*`, `scripts/seed-journal-demo.mts`, `src/lib/trading/demoJournalAccount.ts`.
+
+## UI state retention (refresh)
+
+Shared client state lives in `edge.journal.uiState.v1` (localStorage; not cloud-synced). Scope is shared across Dashboard / Trades / Open so a refresh or view switch keeps the same filters and period.
+
+| Retains across refresh | Storage |
+|------------------------|---------|
+| Period window + filters (symbol, setup, tag, outcome, rating, status, custom date range) | `edge.journal.uiState.v1` |
+| Trades table sort | `edge.journal.uiState.v1` |
+| Expected-value unit toggle ($ / % / R) | `edge.journal.uiState.v1` |
+| Compare report preset | `edge.journal.uiState.v1` |
+| Calendar month | `edge.journal.uiState.v1` |
+| Column visibility / order | `edge.journal.tradesTable.v1` (+ cloud userPreferences) |
+| Setup catalog, capital events | localStorage + cloud userPreferences |
+| Active trading account | `edge.trading.activeAccount` (+ preferences) |
+| Journal view tab (standalone routes) | URL (`/journal/dashboard` etc.) |
+| Journal view tab (workspace tile) | Workspace layout `journalView` |
+
+| Does **not** retain (ephemeral by design) | Why |
+|------------------------------------------|-----|
+| Open trade detail modal / selected trade | Session interaction |
+| Day summary modal / selected calendar day | Session interaction |
+| Filter drawer open/closed | Transient chrome |
+| Hover / flash UI on KPI cards | Transient chrome |
+| Settings page scope bar (if shown) | Decorative; not wired to list scope |
+| Scroll position in dashboard / trades list | Not persisted |
+| Lightbox / caption draft / capture studio popup | Session interaction |
+| `closedDate` / `includeIgnored` filter fields | Day modal + list override; never written to UI state |
 
 ## Roadmap (post-v1)
 

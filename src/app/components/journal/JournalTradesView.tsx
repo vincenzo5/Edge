@@ -17,6 +17,10 @@ import {
 import { useJournalTileViewOptional } from "@/app/components/app-workspace/JournalTileViewContext";
 import { useJournalTrades } from "@/app/components/journal/JournalTradesProvider";
 import {
+  usePersistedJournalScope,
+  usePersistedJournalSort,
+} from "@/app/components/journal/useJournalUiState";
+import {
   countActiveJournalFilters,
   defaultTradesScopeState,
 } from "@/lib/journal/journalFilterHelpers";
@@ -24,24 +28,22 @@ import {
   computeJournalStats,
   computeJournalDashboardMetrics,
   computeTradeFrequency,
-  EMPTY_JOURNAL_FILTERS,
   filterJournalTrades,
   filterOpenJournalTrades,
   scopeClosedTradesForReporting,
   scopeTradesForTradesView,
   type JournalFilters,
   type JournalReportTradeInput,
-  type JournalStatsWindow,
 } from "@/lib/journal/journalStats";
+import { sumJournalNetDeposits } from "@/lib/journal/journalCapitalPreference";
 import {
-  DEFAULT_JOURNAL_TRADES_TABLE_SORT,
   defaultJournalTradesTablePrefs,
   readJournalTradesTablePrefs,
   sortJournalTrades,
   writeJournalTradesTablePrefs,
   type JournalTradesTableColumnId,
-  type JournalTradesTableSort,
 } from "@/lib/journal/journalTradesTableControls";
+import { useJournalCapitalEvents } from "@/app/components/journal/useJournalCapitalEvents";
 import { parseSummaryTagNumber } from "@/lib/marketData/contracts/brokerage";
 import { resolveLiveUnrealizedPnL } from "@/lib/journal/reconcileJournalOpens";
 
@@ -56,9 +58,8 @@ export default function JournalTradesView({ variant = "trades" }: Props) {
   const tileView = useJournalTileViewOptional();
   const { loading, allTrades, loadTrades, setAllTrades } = useJournalTrades();
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<JournalFilters>(EMPTY_JOURNAL_FILTERS);
-  const [window, setWindow] = useState<JournalStatsWindow>("all");
-  const [sort, setSort] = useState<JournalTradesTableSort>(DEFAULT_JOURNAL_TRADES_TABLE_SORT);
+  const { filters, setFilters, window, setWindow } = usePersistedJournalScope();
+  const { sort, setSort } = usePersistedJournalSort();
   const [visibleColumns, setVisibleColumns] = useState<JournalTradesTableColumnId[]>(
     defaultJournalTradesTablePrefs().visibleColumns,
   );
@@ -144,10 +145,17 @@ export default function JournalTradesView({ variant = "trades" }: Props) {
     account?.summary?.tags ?? {},
     "NetLiquidation",
   );
+  const capitalEvents = useJournalCapitalEvents();
+  const configuredStartingEquity = sumJournalNetDeposits(capitalEvents);
 
   const dashboardMetrics = useMemo(
-    () => computeJournalDashboardMetrics(scopedClosedTrades, accountEquity),
-    [scopedClosedTrades, accountEquity],
+    () =>
+      computeJournalDashboardMetrics(
+        scopedClosedTrades,
+        accountEquity,
+        configuredStartingEquity,
+      ),
+    [scopedClosedTrades, accountEquity, configuredStartingEquity],
   );
 
   const tradeFrequency = useMemo(

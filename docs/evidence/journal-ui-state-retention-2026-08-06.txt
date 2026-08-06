@@ -1,0 +1,38 @@
+# APP — Journal UI state retention — 2026-08-06
+Task: APP — Journal UI state retention
+Branch: APP
+
+## Behavior
+- Period window + filters (symbol, setup, tag, outcome, rating, status, custom dates) persist across refresh via edge.journal.uiState.v1
+- Also retained: trades table sort, EV unit toggle, compare preset, calendar month
+- Shared scope across Dashboard / Trades / Open
+- Catalog of non-retained (ephemeral) state recorded in src/lib/journal/ARCHITECTURE.md
+
+## Focused tests
+Command:
+npm test -- --run \
+  src/lib/journal/journalUiStatePreference.test.ts \
+  src/lib/journal/journalFilterHelpers.test.ts \
+  src/lib/journal/journalTradesTableControls.test.ts \
+  src/app/components/journal/JournalScopeBar.test.tsx \
+  src/app/components/journal/JournalFilterDrawer.test.tsx \
+  src/app/components/journal/JournalSummaryCards.test.tsx \
+  src/app/components/journal/JournalCompareReport.test.tsx \
+  src/app/components/journal/JournalTradesTable.test.tsx
+
+```
+ Test Files  8 passed (8)
+ Tests  83 passed (83)
+```
+
+## Files
+- src/lib/journal/journalUiStatePreference.ts
+- src/lib/journal/journalUiStatePreference.test.ts
+- src/app/components/journal/useJournalUiState.ts
+- src/app/components/journal/JournalDashboardView.tsx
+- src/app/components/journal/JournalTradesView.tsx
+- src/app/components/journal/JournalSummaryCards.tsx
+- src/app/components/journal/JournalSummaryCards.test.tsx
+- src/app/components/journal/JournalCompareReport.tsx
+- src/app/components/journal/JournalCompareReport.test.tsx
+- src/lib/journal/ARCHITECTURE.md

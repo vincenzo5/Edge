@@ -96,6 +96,8 @@ export type JournalDrawdownStats = {
 
 export type JournalDashboardMetrics = {
   startingEquity: number | null;
+  /** Dollar change vs starting equity (live equity − base when both exist; else scoped net P&L). */
+  equityChangeUsd: number;
   equityChangePct: number | null;
   drawdown: JournalDrawdownStats;
   rStats: JournalDashboardRStats;
@@ -601,10 +603,29 @@ export function computeDaySummaryStats(trades: DaySummaryTradeInput[]): DaySumma
 export function resolveJournalStartingEquity(
   accountEquity: number | null,
   netPnL: number,
+  configuredStartingEquity: number | null = null,
 ): number | null {
+  if (
+    configuredStartingEquity != null &&
+    Number.isFinite(configuredStartingEquity) &&
+    configuredStartingEquity > 0
+  ) {
+    return configuredStartingEquity;
+  }
   if (accountEquity == null) return null;
   const starting = accountEquity - netPnL;
   return Number.isFinite(starting) && starting > 0 ? starting : null;
+}
+
+export function resolveJournalEquityChangeUsd(
+  accountEquity: number | null,
+  startingEquity: number | null,
+  netPnL: number,
+): number {
+  if (accountEquity != null && startingEquity != null) {
+    return accountEquity - startingEquity;
+  }
+  return netPnL;
 }
 
 export function computeJournalEquityChangePct(
@@ -653,16 +674,27 @@ export function computeJournalDrawdown(
 export function computeJournalDashboardMetrics(
   trades: JournalReportTradeInput[],
   accountEquity: number | null,
+  configuredStartingEquity: number | null = null,
 ): JournalDashboardMetrics {
   const stats = computeJournalStats(trades, "all");
-  const startingEquity = resolveJournalStartingEquity(accountEquity, stats.netPnL);
+  const startingEquity = resolveJournalStartingEquity(
+    accountEquity,
+    stats.netPnL,
+    configuredStartingEquity,
+  );
+  const equityChangeUsd = resolveJournalEquityChangeUsd(
+    accountEquity,
+    startingEquity,
+    stats.netPnL,
+  );
   const equityCurve = computeEquityCurve(trades);
   const drawdown = computeJournalDrawdown(equityCurve, startingEquity);
   const rStats = computeJournalDashboardRStats(trades);
 
   return {
     startingEquity,
-    equityChangePct: computeJournalEquityChangePct(startingEquity, stats.netPnL),
+    equityChangeUsd,
+    equityChangePct: computeJournalEquityChangePct(startingEquity, equityChangeUsd),
     drawdown,
     rStats,
   };

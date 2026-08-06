@@ -18,6 +18,10 @@ import JournalContentGate from "@/app/components/journal/JournalContentGate";
 import JournalHistorySyncChip from "@/app/components/journal/JournalHistorySyncChip";
 import JournalViewTabs from "@/app/components/journal/JournalViewTabs";
 import {
+  usePersistedJournalCalendarMonth,
+  usePersistedJournalScope,
+} from "@/app/components/journal/useJournalUiState";
+import {
   JournalTileActions,
   JournalTileTitle,
 } from "@/app/components/app-workspace/JournalTileChrome";
@@ -34,20 +38,13 @@ import {
   computeTimeBreakdownReport,
   computeJournalDashboardMetrics,
   computeTradeFrequency,
-  EMPTY_JOURNAL_FILTERS,
   filterJournalTrades,
   scopeClosedTradesForReporting,
-  type JournalFilters,
-  type JournalStatsWindow,
   type JournalReportTradeInput,
 } from "@/lib/journal/journalStats";
-import { defaultJournalScopeState } from "@/lib/journal/journalFilterHelpers";
+import { sumJournalNetDeposits } from "@/lib/journal/journalCapitalPreference";
+import { useJournalCapitalEvents } from "@/app/components/journal/useJournalCapitalEvents";
 import { parseSummaryTagNumber } from "@/lib/marketData/contracts/brokerage";
-
-function currentCalendarMonth(): { year: number; month: number } {
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() };
-}
 
 export default function JournalDashboardView() {
   const account = useAccountOptional();
@@ -55,9 +52,8 @@ export default function JournalDashboardView() {
   const { mode } = useTileDensity();
   const { allTrades, loadTrades, setAllTrades } = useJournalTrades();
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
-  const [window, setWindow] = useState<JournalStatsWindow>(defaultJournalScopeState().window);
-  const [filters, setFilters] = useState<JournalFilters>(EMPTY_JOURNAL_FILTERS);
-  const [calendarMonth, setCalendarMonth] = useState(currentCalendarMonth);
+  const { filters, setFilters, window, setWindow } = usePersistedJournalScope();
+  const { calendarMonth, setCalendarMonth } = usePersistedJournalCalendarMonth();
   const [daySummaryDate, setDaySummaryDate] = useState<string | null>(null);
 
   const reportTrades = allTrades as JournalReportTradeInput[];
@@ -146,10 +142,17 @@ export default function JournalDashboardView() {
     account?.summary?.tags ?? {},
     "NetLiquidation",
   );
+  const capitalEvents = useJournalCapitalEvents();
+  const configuredStartingEquity = sumJournalNetDeposits(capitalEvents);
 
   const dashboardMetrics = useMemo(
-    () => computeJournalDashboardMetrics(scopedClosedTrades, accountEquity),
-    [scopedClosedTrades, accountEquity],
+    () =>
+      computeJournalDashboardMetrics(
+        scopedClosedTrades,
+        accountEquity,
+        configuredStartingEquity,
+      ),
+    [scopedClosedTrades, accountEquity, configuredStartingEquity],
   );
 
   const tradeFrequency = useMemo(

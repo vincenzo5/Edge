@@ -1,0 +1,27 @@
+# Journal capital baseline wiring — 2026-08-06
+Task: Journal capital baseline wiring
+Branch: APP
+
+## Behavior
+- Account equity $/% use Journal Settings → Capital net deposits as starting base when set
+- Dollar secondary = live NetLiquidation − capital base (fallback: scoped trade net P&L)
+- Percent and max drawdown % use the same capital starting base
+- Without capital events, inferred starting equity (equity − scoped net P&L) remains
+
+## Focused tests
+Command:
+npm test -- --run src/lib/journal/journalStats.test.ts src/app/components/journal/JournalSummaryCards.test.tsx
+
+```
+ Test Files  2 passed (2)
+      Tests  77 passed (77)
+```
+
+## Files
+- src/lib/journal/journalStats.ts
+- src/lib/journal/journalStats.test.ts
+- src/app/components/journal/JournalSummaryCards.tsx
+- src/app/components/journal/JournalSummaryCards.test.tsx
+- src/app/components/journal/JournalDashboardView.tsx
+- src/app/components/journal/JournalTradesView.tsx
+- src/lib/journal/ARCHITECTURE.md
