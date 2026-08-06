@@ -108,6 +108,7 @@ export function useCrosshairCoordinator(deps: CrosshairCoordinatorDeps): Crossha
         interval: intervalRef.current,
         segment,
       });
+      if (crosshairStatesEqual(crosshairStateRef.current, nextCrosshair)) return;
       crosshairStateRef.current = nextCrosshair;
       setCrosshair(nextCrosshair);
       onCrosshairMoveRef.current?.({

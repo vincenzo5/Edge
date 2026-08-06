@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import type {
   Candle,
   VisibleRange,
@@ -31,6 +31,23 @@ import { useViewportLifecycle } from './useViewportLifecycle';
 import { useCanvasRenderer } from './useCanvasRenderer';
 import { useCanvasCursor, useCanvasCursorRefs } from './useCanvasCursor';
 import { useCanvasGestures } from './useCanvasGestures';
+import {
+  EMPTY_ANNOTATION_MARKERS,
+  EMPTY_DRAWINGS,
+  EMPTY_EVENT_MARKERS,
+  EMPTY_INDICATORS,
+  EMPTY_PRICE_AXIS_ANNOTATIONS,
+  EMPTY_REFERENCE_LINES,
+} from './stableEmptyProps';
+
+export {
+  EMPTY_ANNOTATION_MARKERS,
+  EMPTY_DRAWINGS,
+  EMPTY_EVENT_MARKERS,
+  EMPTY_INDICATORS,
+  EMPTY_PRICE_AXIS_ANNOTATIONS,
+  EMPTY_REFERENCE_LINES,
+} from './stableEmptyProps';
 
 type Props = {
   candles: Candle[];
@@ -91,11 +108,11 @@ export default function ChartCanvas({
   palette = DEFAULT_PALETTE,
   width,
   height,
-  drawings = [],
+  drawings = EMPTY_DRAWINGS,
   previewDrawing = null,
   selectedDrawingId = null,
   drawingMode = 'navigate',
-  indicators = [],
+  indicators = EMPTY_INDICATORS,
   paneId = 'price',
   interval,
   showTimeAxis = true,
@@ -113,18 +130,21 @@ export default function ChartCanvas({
   chartSettings: chartSettingsProp,
   mainSeriesVisible = true,
   onUserTimePan,
-  eventMarkers = [],
-  referenceLines = [],
-  annotationMarkers = [],
+  eventMarkers = EMPTY_EVENT_MARKERS,
+  referenceLines = EMPTY_REFERENCE_LINES,
+  annotationMarkers = EMPTY_ANNOTATION_MARKERS,
   livePrice = null,
   liveMarketSession = null,
   selectedEventBadgeId = null,
   onEventBadgeClick,
   onEventBadgeHover,
   indicatorResultProvider = null,
-  extraPriceAxisAnnotations = [],
+  extraPriceAxisAnnotations = EMPTY_PRICE_AXIS_ANNOTATIONS,
 }: Props) {
-  const chartSettings = mergeChartSettings(chartSettingsProp);
+  const chartSettings = useMemo(
+    () => mergeChartSettings(chartSettingsProp),
+    [chartSettingsProp],
+  );
   const chartSettingsRef = useRef(chartSettings);
   chartSettingsRef.current = chartSettings;
   const isPricePane = paneId === 'price';

@@ -33,6 +33,7 @@ import {
 import { drawPaneLayers } from './paneRenderer';
 import type { EventBadgeGroup } from './eventBadges';
 import type { IndicatorResultProvider } from './indicatorResultProvider';
+import { EMPTY_PRICE_AXIS_ANNOTATIONS } from './stableEmptyProps';
 
 type CanvasRendererParams = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -103,7 +104,7 @@ export function useCanvasRenderer({
   drawRef,
   schedulerRef,
   indicatorResultProvider = null,
-  extraPriceAxisAnnotations = [],
+  extraPriceAxisAnnotations = EMPTY_PRICE_AXIS_ANNOTATIONS,
 }: CanvasRendererParams) {
   const backgroundCacheRef = useRef(new BackgroundLayerCache());
   const seriesCacheRef = useRef(new SeriesLayerCache());
@@ -282,9 +283,40 @@ export function useCanvasRenderer({
     };
   }, [schedulerRef]);
 
+  // Depend on semantic inputs, not drawWithReasons identity. Unstable object/array
+  // identities (fresh `[]`, mergeChartSettings()) used to retrigger full 'data'
+  // redraws on every parent re-render — including crosshair-only React updates.
   useEffect(() => {
     drawNow('data');
-  }, [drawWithReasons, drawNow]);
+  }, [
+    candles,
+    chartType,
+    theme,
+    palette,
+    width,
+    height,
+    drawings,
+    previewDrawing,
+    selectedDrawingId,
+    indicators,
+    paneId,
+    interval,
+    isPricePane,
+    showTimeAxis,
+    chartSettings,
+    layoutViewport,
+    priceScaleSide,
+    mainSeriesVisible,
+    eventMarkers,
+    referenceLines,
+    annotationMarkers,
+    livePrice,
+    liveMarketSession,
+    selectedEventBadgeId,
+    indicatorResultProvider,
+    extraPriceAxisAnnotations,
+    drawNow,
+  ]);
 
   return {
     requestDraw,

@@ -392,6 +392,10 @@ describe('@edge/chart-react EdgeChart', () => {
         }),
       );
     });
+
+    onCrosshairMove.mockClear();
+    ref.current!.setCrosshairFromSync(FIXTURE_CANDLES[1]!.t);
+    expect(onCrosshairMove).not.toHaveBeenCalled();
   });
 
   it('shifts viewport indices when older history prepends', async () => {

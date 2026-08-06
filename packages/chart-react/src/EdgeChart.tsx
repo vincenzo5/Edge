@@ -13,8 +13,10 @@ import type { Pane } from '@edge/chart-core/panes';
 import { PANE_SEPARATOR_HEIGHT } from '@edge/chart-core/panes';
 import type { VisibleRange, PaneSegment } from '@edge/chart-core';
 import ChartCanvas from './engine/canvas';
+import { EMPTY_DRAWINGS } from './engine/stableEmptyProps';
 import CrosshairOverlay from './engine/CrosshairOverlay';
 import { mergeChartSettings, resolvePriceScaleSide } from './engine/chartSettings';
+import type { IndicatorConfig } from '@edge/chart-core';
 import ChartLegendBar from './components/ChartLegendBar';
 import PaneLegendBar from './components/PaneLegendBar';
 import PaneSeparators from './components/PaneSeparators';
@@ -355,17 +357,26 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
     wheelingRef,
     overlayRef: historyNavigatorRef,
   });
+  const onHistoryNavigatorViewportChange = historyNavigator.onViewportChange;
 
   const handleViewport = useCallback(
     (vp: VisibleRange, paneId: string) => {
       handleViewportBase(vp, paneId);
       if (paneId === 'price') {
-        historyNavigator.onViewportChange(vp);
+        onHistoryNavigatorViewportChange(vp);
         onViewportChangeRef.current?.();
       }
     },
-    [handleViewportBase, historyNavigator],
+    [handleViewportBase, onHistoryNavigatorViewportChange],
   );
+
+  const subIndicatorByPaneKey = useMemo(() => {
+    const map = new Map<string, IndicatorConfig[]>();
+    for (const ind of visibleIndicators) {
+      map.set(indicatorKey(ind), [ind]);
+    }
+    return map;
+  }, [visibleIndicators]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -476,7 +487,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                     visibleCount={visibleCount}
                     width={dims.width}
                     height={pane.height}
-                    drawings={paneDrawingsMap.get('price') ?? []}
+                    drawings={paneDrawingsMap.get('price') ?? EMPTY_DRAWINGS}
                     previewDrawing={previewForPane(PRICE_PANE_KEY)}
                     selectedDrawingId={selectedDrawingId}
                     drawingMode={drawingMode}
@@ -572,7 +583,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                   visibleCount={visibleCount}
                   width={dims.width}
                   height={pane.height}
-                  drawings={paneDrawingsMap.get(pane.key) ?? []}
+                  drawings={paneDrawingsMap.get(pane.key) ?? EMPTY_DRAWINGS}
                   previewDrawing={previewForPane(pane.key)}
                   selectedDrawingId={selectedDrawingId}
                   drawingMode={drawingMode}
@@ -580,7 +591,7 @@ const EdgeChart = forwardRef<EdgeChartHandle, EdgeChartProps>(function EdgeChart
                   chartSettings={chartSettings}
                   onDrawingPointer={handleDrawingPointer}
                   onDrawingContextMenu={handleDrawingContextMenu}
-                  indicators={[subInd]}
+                  indicators={subIndicatorByPaneKey.get(pane.key) ?? [subInd]}
                   registerPane={registerPane}
                   wheelingRef={wheelingRef}
                   interval={displayInterval}
