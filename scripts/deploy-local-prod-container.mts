@@ -62,12 +62,14 @@ export type DeployLocalProdContainerOptions = {
   skipInfra: boolean;
   skipStartup: boolean;
   skipChartPerf: boolean;
+  skipTypecheck: boolean;
 };
 
 export type DeployLocalProdContainerDeps = LocalProdDeps & {
   buildDeps: BuildAppImageDeps;
   runStartupCheck: () => number;
   runChartPerfCheck: () => number;
+  runTypecheckCheck: () => number;
   runInfraUp: () => number;
   runContainerMigrate: (options: LocalProdContainerOptions) => number;
   runContainerStart: (options: LocalProdContainerOptions) => number;
@@ -91,6 +93,7 @@ Options:
   --skip-infra          Skip docker compose up before migrate/start
   --skip-startup        Skip npm run check:startup gate
   --skip-chart-perf     Skip CHART_PERF_BUDGET_STRICT=1 npm run perf:chart gate
+  --skip-typecheck      Skip npx tsc -p tsconfig.json --noEmit gate
 
 Examples:
   npm run local:prod:container:deploy -- --revision HEAD
@@ -126,6 +129,7 @@ export function parseDeployLocalProdContainerArgs(
   let skipInfra = false;
   let skipStartup = false;
   let skipChartPerf = false;
+  let skipTypecheck = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -144,6 +148,10 @@ export function parseDeployLocalProdContainerArgs(
       skipChartPerf = true;
       continue;
     }
+    if (flag === "--skip-typecheck") {
+      skipTypecheck = true;
+      continue;
+    }
     const value = args[index + 1];
     if (!value || value.startsWith("--")) {
       throw new Error(`${flag ?? "argument"} requires a value`);
@@ -158,7 +166,7 @@ export function parseDeployLocalProdContainerArgs(
     index += 1;
   }
 
-  return { command, developmentRoot, revision, skipInfra, skipStartup, skipChartPerf };
+  return { command, developmentRoot, revision, skipInfra, skipStartup, skipChartPerf, skipTypecheck };
 }
 
 export function loadContainerDeployInputSync(
@@ -434,6 +442,18 @@ export function defaultDeployLocalProdContainerDeps(): DeployLocalProdContainerD
         return 1;
       }
     },
+    runTypecheckCheck: () => {
+      try {
+        execFileSync("npx", ["tsc", "-p", "tsconfig.json", "--noEmit"], {
+          cwd: process.cwd(),
+          stdio: "inherit",
+          env: process.env,
+        });
+        return 0;
+      } catch {
+        return 1;
+      }
+    },
     runInfraUp: () => {
       try {
         return runLocalInfraUp();
@@ -524,6 +544,14 @@ export async function runContainerDeployCommand(
     if (chartPerf !== 0) {
       console.error("Deploy blocked: chart perf budgets failed.");
       return chartPerf;
+    }
+  }
+
+  if (!options.skipTypecheck) {
+    const typecheck = deps.runTypecheckCheck();
+    if (typecheck !== 0) {
+      console.error("Deploy blocked: TypeScript typecheck failed.");
+      return typecheck;
     }
   }
 

@@ -1,0 +1,19 @@
+# OPS — deploy ship pipeline — evidence
+# Date: 2026-08-06
+
+## Scope
+Ship script, early typecheck gate, and LLM skill/rule/command updates for deploy-to-prod.
+
+## Delivered
+- scripts/ship-local-prod.mts + ship-local-prod.sh + local:prod:ship
+- deploy-local-prod-container.mts — tsc gate before image build (--skip-typecheck)
+- .cursor/skills/deploy-local-prod/SKILL.md — ship/promote/rollback + gate playbooks
+- .cursor/rules/deploy-local-prod.mdc, .cursor/commands/deploy-prod.md
+- docs/harness/branches/OPS.md, src/lib/observability/ARCHITECTURE.md
+
+## Focused
+Command: npm test -- --run scripts/ship-local-prod.test.ts scripts/deploy-local-prod-container.test.ts
+Result: Test Files  2 passed (2); Tests  31 passed (31)
+
+Command: npm run lint:instructions
+Result: Instruction architecture validation passed.

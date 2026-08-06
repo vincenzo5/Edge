@@ -23,11 +23,12 @@ Scoped to change:
 npm run local:prod:container:status
 npm run local:prod:verify
 npm run local:deploy:preflight
+npm run local:prod:ship
 npm run watch:readyz   # when health/readyz touched
 npm run report:production-errors   # when prod error surfaces touched
 ```
 
-Promote/rollback: `/deploy-prod` or `local:prod:container:deploy` / `rollback` per skill.
+Promote/rollback: `/deploy-prod` or `local:prod:ship` / `local:prod:container:deploy` / `rollback` per skill.
 
 App-level: probe `http://127.0.0.1:3000/readyz` — JSON must be secret-free.
 

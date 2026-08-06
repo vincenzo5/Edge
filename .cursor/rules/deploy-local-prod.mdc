@@ -1,14 +1,14 @@
 ---
-description: When the user wants to deploy, promote, or rollback local Docker production (deploy to prod, push to production, rollback prod), read the deploy-local-prod skill and run the container promote/rollback pipeline.
+description: When the user wants to deploy, ship, promote, or rollback local Docker production (deploy to prod, ship to prod, push to production, rollback prod), read the deploy-local-prod skill and run the ship/promote/rollback pipeline.
 alwaysApply: false
 ---
 
 # Local Production Deploy
 
-**OPS-forced entry** — deploy/promote/rollback is the **OPS** specialty side door. When planning, emit `Branch: OPS` and load [`docs/harness/branches/OPS.md`](../../docs/harness/branches/OPS.md) (Sensors + Security pins). Execute stays this rule + skill — no alternate paths.
-
 Router only — read and follow [`.cursor/skills/deploy-local-prod/SKILL.md`](../skills/deploy-local-prod/SKILL.md).
 
-Manual entry: `/deploy-prod` (optional revision in input).
+- **Ship (default):** "deploy" / "ship to prod" → commit if dirty → `npm run local:prod:ship`
+- **Promote:** explicit SHA/tag or `/deploy-prod <rev>` → container deploy only
+- **Rollback:** "rollback production" → container rollback
 
-Do not invent alternate deploy paths. Container production (`local:prod:container:*`) is the only supported promote/rollback path.
+Do not invent alternate deploy paths. Container production (`local:prod:container:*`, `local:prod:ship`) is the only supported path.

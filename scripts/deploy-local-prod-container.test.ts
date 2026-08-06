@@ -95,6 +95,7 @@ function deployOptions(overrides: Partial<{
   skipInfra: boolean;
   skipStartup: boolean;
   skipChartPerf: boolean;
+  skipTypecheck: boolean;
   developmentRoot: string;
 }> = {}) {
   const { devRoot } = makeFixtureRoots();
@@ -105,6 +106,7 @@ function deployOptions(overrides: Partial<{
     skipInfra: true,
     skipStartup: true,
     skipChartPerf: true,
+    skipTypecheck: true,
     ...overrides,
   };
 }
@@ -228,6 +230,7 @@ function mockContainerDeployDeps(
     },
     runStartupCheck: vi.fn(() => 0),
     runChartPerfCheck: vi.fn(() => 0),
+    runTypecheckCheck: vi.fn(() => 0),
     runInfraUp: vi.fn(() => 0),
     runContainerMigrate: vi.fn(() => 0),
     runContainerStart: vi.fn(() => 0),
@@ -259,6 +262,7 @@ describe("parseDeployLocalProdContainerArgs", () => {
     expect(options.revision).toBe(FULL_SHA);
     expect(options.skipStartup).toBe(false);
     expect(options.skipChartPerf).toBe(false);
+    expect(options.skipTypecheck).toBe(false);
   });
 
   it("parses --skip-chart-perf", () => {
@@ -267,6 +271,14 @@ describe("parseDeployLocalProdContainerArgs", () => {
       "/tmp/dev",
     );
     expect(options.skipChartPerf).toBe(true);
+  });
+
+  it("parses --skip-typecheck", () => {
+    const options = parseDeployLocalProdContainerArgs(
+      ["deploy", "--revision", FULL_SHA, "--skip-typecheck"],
+      "/tmp/dev",
+    );
+    expect(options.skipTypecheck).toBe(true);
   });
 
   it("throws help for empty argv", () => {
@@ -389,6 +401,28 @@ describe("runContainerDeployCommand", () => {
     const code = await runContainerDeployCommand(options, deps);
     expect(code).toBe(1);
     expect(deps.runChartPerfCheck).toHaveBeenCalled();
+    expect(deps.buildRuntimeAndMigrateImages).not.toHaveBeenCalled();
+  });
+
+  it("runs typecheck gate before build when not skipped", async () => {
+    const options = deployOptions({ skipTypecheck: false });
+    const deps = mockContainerDeployDeps();
+
+    const code = await runContainerDeployCommand(options, deps);
+    expect(code).toBe(0);
+    expect(deps.runTypecheckCheck).toHaveBeenCalled();
+    expect(deps.buildRuntimeAndMigrateImages).toHaveBeenCalled();
+  });
+
+  it("blocks deploy when typecheck fails", async () => {
+    const options = deployOptions({ skipTypecheck: false });
+    const deps = mockContainerDeployDeps({
+      runTypecheckCheck: vi.fn(() => 1),
+    });
+
+    const code = await runContainerDeployCommand(options, deps);
+    expect(code).toBe(1);
+    expect(deps.runTypecheckCheck).toHaveBeenCalled();
     expect(deps.buildRuntimeAndMigrateImages).not.toHaveBeenCalled();
   });
 

@@ -319,6 +319,7 @@ and secret-free; production deploy health gate still requires Redis
 | Did users hit errors overnight? | `npm run report:production-errors -- --limit 50` or `GET /api/me/production-errors` |
 | Do I need to wake up? | `npm run watch:readyz` (cron) + `EDGE_ALERT_WEBHOOK_URL`; Data Health UI for human triage after alert |
 | Local CI (no GitHub Actions)? | `npm run ci:local` / pre-push via `npm run hooks:install`; full `npm run check`; chart perf + promote via container deploy |
+| Ship latest on main? | `npm run local:prod:ship` (clean main → ci → push → deploy HEAD → status) |
 | Promote a tested revision? | `npm run local:prod:container:deploy -- --revision <sha>` then `npm run local:prod:container:status` shows deploy.current + digest + ready probes |
 | Recover from a bad deploy? | `npm run local:prod:container:rollback` |
 | Browse production as `https://edge.local`? | Optional loopback HTTPS front door — [docs/ops/local-https.md](../../../docs/ops/local-https.md); `npm run local:https:status` |
