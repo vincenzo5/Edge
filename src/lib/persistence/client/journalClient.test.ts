@@ -463,6 +463,22 @@ describe("journalClient sync", () => {
 
     await expect(
       patchJournalTradeRemote("missing-trade", { rating: 3 }),
-    ).resolves.toBeNull();
+    ).rejects.toThrow("Invalid request body");
+  });
+
+  it("throws server validation message when stop risk cannot be computed", async () => {
+    persistenceFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: "validation",
+          error: "Quantity is required to compute risk from stop.",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await expect(
+      patchJournalTradeRemote("remote-only-trade", { initialStop: 80 }),
+    ).rejects.toThrow("Quantity is required to compute risk from stop.");
   });
 });

@@ -157,6 +157,8 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
       } else {
         setSaveError("Could not save trade.");
       }
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Could not save trade.");
     } finally {
       setSaving(false);
     }

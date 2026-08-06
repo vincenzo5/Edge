@@ -513,7 +513,13 @@ export async function patchJournalTradeRemote(
     };
   }
 
-  if (!response.ok) return null;
+  if (!response.ok) {
+    const body = await parseJsonResponse<PersistenceErrorBody>(response);
+    if (typeof body?.error === "string" && body.error.trim()) {
+      throw new Error(body.error);
+    }
+    return null;
+  }
   const patched = await parseJsonResponse<JournalTradeResponse>(response);
   if (patched) invalidateJournalPersistenceCache();
   return patched;
@@ -572,7 +578,8 @@ async function shouldUseLocalJournalTradePatchFallback(
 ): Promise<boolean> {
   if (shouldUseLocalJournalTradeStore(response.status, tradeId)) return true;
   if (!localJournalTradeExists(tradeId) || response.status !== 400) return false;
-  const body = await parseJsonResponse<PersistenceErrorBody>(response);
+  // Clone so callers can still read the error body when fallback is declined.
+  const body = await parseJsonResponse<PersistenceErrorBody>(response.clone());
   return isDatabaseUnavailablePersistenceBody(body);
 }
 
