@@ -71,13 +71,22 @@ describe("PlaybookRuleSchema", () => {
     expect(parsed.success).toBe(true);
   });
 
-  it("rejects modifyStop without stopPrice or breakEven", () => {
+  it("rejects modifyStop without stopPrice, breakEven, or stopRMultiple", () => {
     const parsed = PlaybookRuleSchema.safeParse({
       id: "bad",
       when: { kind: "multipleOfR", multiple: 1 },
       then: { kind: "modifyStop" },
     });
     expect(parsed.success).toBe(false);
+  });
+
+  it("accepts modifyStop with stopRMultiple", () => {
+    const parsed = PlaybookRuleSchema.safeParse({
+      id: "lock-025",
+      when: { kind: "multipleOfR", multiple: 0.5 },
+      then: { kind: "modifyStop", stopRMultiple: 0.25 },
+    });
+    expect(parsed.success).toBe(true);
   });
 
   it("rejects attachTrail with fixed stop leg", () => {
@@ -87,6 +96,15 @@ describe("PlaybookRuleSchema", () => {
       then: { kind: "attachTrail", stopLeg: { mode: "fixed", stopPrice: 95 } },
     });
     expect(parsed.success).toBe(false);
+  });
+
+  it("accepts attachTrail with trailRMultiple only", () => {
+    const parsed = PlaybookRuleSchema.safeParse({
+      id: "r-trail",
+      when: { kind: "multipleOfR", multiple: 1.5 },
+      then: { kind: "attachTrail", stopLeg: { mode: "trail", trailRMultiple: 0.5 } },
+    });
+    expect(parsed.success).toBe(true);
   });
 });
 

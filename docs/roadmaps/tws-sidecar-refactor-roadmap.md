@@ -6,7 +6,7 @@ Behavior-preserving structural refactor of `services/tws-sidecar/main.py` into a
 
 **Status:** Phases 0–7 **Passing** (2026-07-23) — `main.py` 90 lines; max module 378 lines; `Ran 55 tests OK`.
 
-**Related:** [marketData ARCHITECTURE](../../src/lib/marketData/ARCHITECTURE.md), [trading ARCHITECTURE](../../src/lib/trading/ARCHITECTURE.md), [dual-connection-roadmap.md](./dual-connection-roadmap.md), [refactor-planning-checklist.md](../checklists/refactor-planning-checklist.md), [Project Status](../PROJECT-STATUS.md).
+**Related:** [marketData ARCHITECTURE](../../src/lib/marketData/ARCHITECTURE.md), [trading ARCHITECTURE](../../src/lib/trading/ARCHITECTURE.md), [dual-connection-roadmap.md](./dual-connection-roadmap.md), [Persistent TWS Sidecar](./persistent-tws-sidecar-roadmap.md) (lifecycle/topology — Compose always-on), [refactor-planning-checklist.md](../checklists/refactor-planning-checklist.md), [Project Status](../PROJECT-STATUS.md).
 
 ---
 

@@ -1,0 +1,37 @@
+# LIVE — Risk management system — Phase 2 evidence
+# Date: 2026-07-29
+
+## Scope
+UX: drawing geometry strip on selected long/short position drawings.
+Geometry + R:R + budget-backed $ risk/qty preview; canvas labels use live points only.
+
+## Delivered
+- src/lib/risk/computePositionRiskPreview.ts — live drawing + dollarRisk → geometry + sizing preview
+- src/lib/risk/computePositionRiskPreview.test.ts
+- src/app/components/drawing/PositionGeometryStrip.tsx — selection strip (Plan: entry/stop/target/R/R:R/risk/qty)
+- src/app/components/drawing/PositionGeometryStrip.test.tsx
+- src/app/components/drawing/DrawingSelectionChrome.tsx — toolbar + strip wrapper
+- src/app/components/chart-cell/ChartCellView.tsx — wires DrawingSelectionChrome
+- packages/chart-core/src/risk/positionLabels.ts — optional qty; resolvePositionQtyForDisplay
+- packages/chart-core/src/risk/positionLabels.test.ts — updated for optional qty path
+- packages/chart-core/src/drawings/position_tool.ts — live box labels; no computeRiskMetrics on draw path
+- src/lib/risk/ARCHITECTURE.md — Phase 2 section
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 2 Passing
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — strip uses computeEquityPositionSize (app lib); chart-core draw path geometry-only unless metadata.fields.qty set; no DrawingDrawOptions budget plumbing; package/app boundary preserved via preview computed in src/lib.
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/computePositionRiskPreview.test.ts packages/chart-core/src/risk/positionLabels.test.ts src/app/components/drawing/PositionGeometryStrip.test.tsx src/lib/chart/drawings/position_tool.test.ts
+Output:
+Test Files  4 passed (4)
+Tests  27 passed (27)
+
+Command:
+npm run build:packages
+Output: exit 0 (chart-core, chart-react, packages build clean)
+
+## App-level
+Manual: set Risk budget → draw/select long or short → selection strip shows R:R + planned $ risk + qty without Trade ticket; drag stop → strip updates; absolute budget uses session dollarRisk not DEFAULT_RISK_ACCOUNT $500.

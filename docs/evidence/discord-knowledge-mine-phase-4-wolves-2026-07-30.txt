@@ -1,0 +1,73 @@
+# OPS — Discord knowledge mine — Phase 4 evidence (Wolves)
+# Date: 2026-07-30
+
+## Scope
+Full mine phase A → B → C for WolvesOfWealth (783160857139740713).
+Bootstrap + read_messages hours_back=168 max_messages=100 for 5 priority channels.
+Knowledge synthesis from digests. No Edge product code. No send_message calls.
+
+## MCP
+Command: user-discord get_servers
+Result: WolvesOfWealth (783160857139740713) present in guild list
+
+Command: user-discord get_channels server_id=783160857139740713
+Result: 41 text channels returned
+
+Channel count: 41
+
+Command: user-discord read_messages (x5 priority channels)
+Parameters: server_id=783160857139740713, hours_back=168, max_messages=100
+
+Channel results:
+- read-first (808230912902692895): 0 messages — gap: no messages in window (168h)
+- announcements (783164101383421983): 19 messages captured
+- banks (1394077757490593922): 5 messages captured
+- morning-watchlist (1064418474451009546): 10 messages captured
+- daytrades (797685616401580042): 50 messages captured
+
+send_message calls this session: 0
+
+## Classification
+Server class: Trading / research
+Rationale: Banks-led day/swing desk; index GAMEPLANs; break-and-retest education; live options callouts
+
+## Priority channels (≤5)
+1. read-first (808230912902692895) — rules / welcome / onboarding
+2. announcements (783164101383421983) — server announcements / norms
+3. banks (1394077757490593922) — host weekly overview / market structure
+4. morning-watchlist (1064418474451009546) — daily GAMEPLAN + Morning Watch
+5. daytrades (797685616401580042) — live single-name callouts
+
+## Local artifacts
+Root: /Users/vincentn/Knowledge/discord/
+Server dir: by-server/wolvesofwealth--783160857139740713/
+
+Command: ls -la /Users/vincentn/Knowledge/discord/by-server/wolvesofwealth--783160857139740713/
+Output:
+meta.json channels.json profile.md channels/ knowledge/ runs/
+
+Command: ls knowledge/ && ls knowledge/topics/
+Output:
+overview.md resources.md glossary.md people.md open-questions.md topics/
+daily-desk.md banks-weekly-overview.md
+
+Command: find channels -name '*.json' then wc -l
+Output: 5
+
+Command: test -f meta.json channels.json profile.md knowledge/overview.md runs/2026-07-30.md
+Output: artifacts: OK
+
+## Index update
+WolvesOfWealth: not_started → partial
+last_run: 2026-07-30
+phase: 4 Passing
+Active server: none — next Phase 5 MarketLife
+
+## Architecture review
+N/A — operator workflow + local filesystem only; no Edge runtime contracts.
+
+## App-level
+App-level: get_channels returned 41 channels; 5 raw JSON files; 84 messages captured; 7 knowledge files; _index status partial; send_message calls 0
+
+## Next
+Phase 5 — Mine MarketLife (778344907378655283)

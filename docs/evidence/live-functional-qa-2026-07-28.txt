@@ -1,0 +1,94 @@
+# Live Functional QA — evidence
+# Date: 2026-07-28
+# Environment: local dev http://localhost:3003 (npm run dev)
+# Scope: full product surface — workspace/chart, copilot, research, journal, screener, settings/connections
+
+## Prep
+- Dev server: UP (HTTP 200 on /)
+- check:startup: FAILED (harness doc lint only — Session Log date + missing Task Contract for Talk UX row; not app runtime)
+- Console capture: browser CDP Log/Network + dev-server [browser] logs
+
+## Route smoke (HTTP)
+All primary routes returned 200:
+/ /home /workspace /chart /copilot /research /journal /journal/dashboard /journal/trades /journal/open /journal/settings /screener /screener/screens /screener/results /screener/review /screener/keepers
+
+Routing behavior:
+- / → redirects to /workspace
+- /chart, /journal/*, /screener/* → embed as workspace tiles (not standalone pages)
+- /copilot, /research → standalone module pages
+
+No white-screen crashes observed on any route.
+
+## Workspace trader loop (/workspace)
+PASS:
+- Chart grid loads with SPY default; candles paint
+- Symbol search: SPY → AAPL; title updates to "AAPL 340.08 ▲ +0.94% · Edge"
+- Indicators panel opens; MA added (Indicator settings control appeared)
+- Data menu: IB Gateway (Paper) selected; provider chip shows "Fallback · YAHOO · streaming"
+- Hard reload: AAPL symbol + MA indicator restored from persistence
+- Sidebar modules: Watchlist, Copilot, Screener, Journal tiles open without route crash
+
+ISSUES:
+- Brief UI collapse when Indicators clicked while Data menu open (recovered within ~5s)
+- Multi-cell legend text showed mixed SPY rows while active symbol AAPL (possible stale peer cells)
+- Broker disconnected + Reconnect banner when TWS sidecar unreachable
+
+## Copilot / AGENT (/copilot + workspace sidebar)
+PASS:
+- Thread history restores; prior "Are you alive?" conversation loads with Thoughts/Copy/Regenerate
+- No workflow pills on composer (matches recent UX spec)
+- Idle placeholder rotator observed ("Compare symbols?")
+- Model chip present (Grok 4.5); in-bar composer works
+- Settings panel opens from Application settings (Appearance themes visible)
+
+ISSUES (see P0/P1):
+- Next.js dev issues overlay on /copilot load ("Call Stack 21") and workspace Copilot sidebar ("Call Stack 38")
+- New chat click did not reliably switch to empty hero in automation (overlay interference); empty hero not verified with data-testid when prior thread auto-selected
+
+## Research / Journal / Screener
+PASS:
+- /research: Board tab, session rail, empty board state ("No sessions yet")
+- /journal/dashboard → workspace Journal tile with Dashboard subnav, metrics (11 trades, win % 36.4%)
+- /screener/screens → workspace Screener tile with presets + Run control
+
+ISSUES:
+- Screener API: POST /api/screener/run returned 200 but 0 rows — meta.warnings FMP account suspended (403)
+- Journal/screener standalone URLs redirect to workspace (by design, but can confuse direct-link testing)
+
+## Settings / Connections / DATA
+API probes:
+- GET /api/market-data/health → 200 ok:true; tws status degraded (sidecar_unreachable, circuitOpen)
+- GET /api/trading/accounts → 503
+- GET /api/brokerage/snapshot?environment=paper → 503
+- GET /api/brokerage/snapshot?environment=live → 403 (expected dev paper-only lock)
+
+Recurring failed requests during session:
+- PUT /api/me/chart-workspaces/709905f3-bbc1-451b-9b64-8070255b3802 → 404 (every layout persist)
+- POST /api/me/scripts/import → 503 then 200 retry on same page load
+- GET /api/stream/quotes → 15s duration observed once
+
+Cold-load latency:
+- GET /api/market-data/context?symbol=SPY → 2.4s
+- POST /api/market-data/warmup → 3.0–3.4s
+
+LIVE path: Skipped — TWS/Gateway not connected; Account header disabled.
+
+## Console / React errors (dev-server [browser] logs)
+1. useResearchEvidence → CopilotPanel:
+   "The result of getServerSnapshot should be cached to avoid an infinite loop"
+   File: src/app/components/research/useResearchEvidence.ts (getServerSnapshot: () => [])
+
+2. StockApp render:
+   "Cannot update a component (ChartCell) while rendering a different component (StockApp)"
+
+## Finding counts by severity
+- P0: 0 (no crash/white-screen blocking core loop)
+- P1: 4
+- P2: 7
+- P3: 3
+
+## App-level summary
+Core chart + symbol + indicator + persistence loop is usable on local dev with Yahoo fallback. Copilot surfaces load but emit React errors via useResearchEvidence. Stale chart-workspace ID causes silent 404 on remote layout sync. Broker/TWS paths degrade gracefully but poll 503/403 on every tick when sidecar down.
+
+## Remediation roadmap
+Phased fix plan: docs/roadmaps/live-functional-qa-remediation-roadmap.md

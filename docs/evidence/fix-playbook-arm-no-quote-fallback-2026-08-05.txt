@@ -1,0 +1,19 @@
+Fix playbook arm No quote for F — 2026-08-05
+
+Behavior: Playbook evaluation no longer hard-fails when MDS/TWS quote.price is null
+if brokerage snapshot has usable marketPrice (manage path) or avgCost (pending_fill arm).
+
+Files:
+- src/lib/trading/playbook/runPlaybookEvaluation.ts
+- src/lib/trading/playbook/runPlaybookEvaluation.test.ts
+
+Focused verify:
+Command: npm test -- --run src/lib/trading/playbook/runPlaybookEvaluation.test.ts src/lib/trading/playbook/stepTrailRatchet.test.ts src/lib/trading/manageWorker.test.ts
+Output:
+ Test Files  3 passed (3)
+      Tests  9 passed (9)
+ Duration  1.66s
+exit=0
+
+Result: Passing
+Next: Re-run paper TC-02 (arm after fill) with Step trail on F.

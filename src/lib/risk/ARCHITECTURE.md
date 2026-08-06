@@ -47,7 +47,7 @@ Sidebar slot summary: `summarizeRiskPlanSlots.ts` + `RiskPlanSlotStrip.tsx` (Bud
 
 **Dual-mode policy apply (2026-08):** `TradePolicyPicker` always visible when an account is selected. Unbound chart ticket uses `applyPolicyToTradeDraft` + `resolvePolicyTradeGeometry`. Drawing-linked tickets persist via `applyRiskPolicyToBinding` on the shared `drawingId` (same planned instance as Risk panel). **Trade size row (2026-08):** `TradeSizeBudgetField` combines Qty + Risk (%/$); policy budget resolves via `resolvePolicyTicketBudget`; `applyPolicyToTradeDraft` sizes qty from stop distance + dollar risk.
 
-**Policy geometry on drawings (2026-08):** Application settings **Risk policies** tab stores an explicit default policy per side (`defaultPolicyPreference.ts`) that seeds new long/short box target R at placement only — no planned-instance attach on create. Trade remains the policy cockpit: bound apply reshapes the drawing target from template Geometry (`reshapeFromRecipe`) while keeping entry+stop; handle drags stay source of truth after that.
+**Policy geometry on drawings (2026-08):** Application settings **Risk policies** tab stores an explicit default policy per side (`defaultPolicyPreference.ts`) that seeds new long/short box target R at placement and pre-selects the Trade panel policy picker when unbound — no planned-instance attach on create. Trade remains the policy cockpit: bound apply reshapes the drawing target from template Geometry (`reshapeFromRecipe`) while keeping entry+stop; handle drags stay source of truth after that.
 
 ## Phase 4 — Trade ticket Risk plan summary (shipped)
 

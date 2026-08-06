@@ -21,6 +21,7 @@ import {
   ensureRightMarginBars,
   applyPriceScaleLayout,
   clampTimeWindow,
+  isCrushedLeftLiveEdge,
   MIN_CANDLES,
 } from './viewport';
 import type { ViewportPersistSnapshot } from './paneHandle';
@@ -180,7 +181,12 @@ export function useViewportLifecycle({
     }
 
     if (dimsChanged) {
+      // Tiny first layout can bake an oversized right margin; growing the
+      // canvas must not keep bars crushed into the left edge.
       let vp = refreshViewportForDataChange(vpRef.current, candles, width, height);
+      if (isPricePane && isCrushedLeftLiveEdge(vp, candles.length)) {
+        vp = buildSessionViewport();
+      }
       vp = fitPriceScaleIfAuto(vp);
       vpRef.current = vp;
       emitViewport(vp);
@@ -290,8 +296,16 @@ export function useViewportLifecycle({
         ...vpRef.current,
         startIndex: clamped.start,
         endIndex: clamped.end,
+        width,
+        height,
       } as VisibleRange;
       next = attachViewportHelpers(next, candles.length);
+
+      // Reject pan-into-future / stale-index snapshots that crush bars left.
+      // Persist sync clears CellConfig.viewport when this returns null.
+      if (isCrushedLeftLiveEdge(next, candles.length)) {
+        return null;
+      }
 
       if (snapshot.priceScaleMode === 'manual') {
         next = attachViewportHelpers(

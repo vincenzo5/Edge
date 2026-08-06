@@ -1,0 +1,24 @@
+# LIVE — Trade panel default policy evidence
+# Date: 2026-08-05
+
+## Scope
+Shared long/short default risk policy (App Settings + Risk Policies) seeds Trade panel picker when unbound, in addition to new drawing target R.
+
+## Delivered
+- src/app/components/trading/useTradePolicyApply.ts — seed from readDefaultPolicyForSide; side-change re-seed; manual clear respected
+- src/app/components/risk/RiskPoliciesSection.tsx — "Default policy" copy; Trade panel seed note
+- src/lib/risk/ARCHITECTURE.md — default-by-side covers Trade draft seed
+- src/app/components/trading/useTradePolicyApply.test.tsx — seed/clear/side/planned-instance tests
+- src/app/components/risk/RiskPoliciesSection.test.tsx — default policy label assertion
+
+## Focused
+Command:
+npm test -- --run src/app/components/trading/useTradePolicyApply.test.tsx src/app/components/risk/RiskPoliciesSection.test.tsx src/lib/risk/policy/defaultPolicyPreference.test.ts
+
+Result:
+Test Files  3 passed (3)
+Tests  18 passed (18)
+exit=0
+
+## App-level
+Deferred — Settings → Risk policies set Long default → open Trade (BUY) → picker shows policy; switch Short → Short default; bound planned instance overrides.

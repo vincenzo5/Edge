@@ -54,7 +54,9 @@ export function buildWorkspaceDeepLink(params: WorkspaceDeepLinkParams): string 
 /** Path after one-shot ingress — drops surface/prefill keys, keeps e.g. `scriptFixture`. */
 export function workspacePathAfterIngress(search: URLSearchParams): string {
   const next = new URLSearchParams(search.toString());
+  const preserveSymbolForJournalChart = next.has("journalTrade");
   for (const key of WORKSPACE_INGRESS_PARAM_KEYS) {
+    if (key === "symbol" && preserveSymbolForJournalChart) continue;
     next.delete(key);
   }
   const qs = next.toString();

@@ -73,6 +73,9 @@ export function formatProtectStopLegLabel(stopLeg: BracketStopLeg, fallbackStop?
     if (stopLeg.trailPercent != null) {
       return `TRAIL ${stopLeg.trailPercent}%`;
     }
+    if (stopLeg.trailRMultiple != null) {
+      return `TRAIL ${stopLeg.trailRMultiple}R`;
+    }
     return "TRAIL";
   }
   const stopPrice = stopLeg.stopPrice ?? fallbackStop;

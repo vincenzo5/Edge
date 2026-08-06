@@ -1,0 +1,18 @@
+# ENGINE — Magnet CP drag evidence
+# Date: 2026-08-03
+
+## Scope
+Wire existing OHLC magnet into control-point drag so reshaping drawings snaps like place/preview.
+
+## Delivered
+- packages/chart-react/src/drawing/applyDrawingPointerTransition.ts — pre-snap CP drag via getPoint + pointToPlot
+- packages/chart-react/src/drawing/applyDrawingPointerTransition.test.ts — magnet on/off CP drag tests
+
+## Focused
+Command:
+npm test -- --run packages/chart-react/src/drawing/applyDrawingPointerTransition.test.ts src/lib/chart/drawingCoords.test.ts
+
+Result:
+Test Files  2 passed (2)
+Tests  20 passed (20)
+exit=0

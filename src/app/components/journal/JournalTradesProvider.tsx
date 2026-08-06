@@ -23,6 +23,7 @@ import { useAccountOptional } from "@/app/components/AccountProvider";
 import { collectFillExecIds } from "@/lib/journal/journalProviderLoad";
 import { JOURNAL_PROVIDER_TRADE_LIMIT } from "@/lib/journal/journalProviderConstants";
 import { filterTradesByAccount } from "@/lib/journal/filterTradesByAccount";
+import { ensureJournalPersistenceUserScope } from "@/lib/journal/ensureJournalPersistenceUserScope";
 
 const LOAD_TRADES_ERROR_MESSAGE = "Could not load journal trades. Check your connection and try again.";
 
@@ -47,6 +48,7 @@ export function JournalTradesProvider({ children }: { children: ReactNode }) {
     ReadonlyMap<string, string | null>
   >(() => new Map());
   const hasTradesRef = useRef(false);
+  const previousAccountIdRef = useRef<string | null | undefined>(undefined);
 
   hasTradesRef.current = rawTrades.length > 0;
 
@@ -60,6 +62,7 @@ export function JournalTradesProvider({ children }: { children: ReactNode }) {
       setLoading(true);
     }
     try {
+      await ensureJournalPersistenceUserScope();
       const tradesResult = await fetchJournalProviderTrades();
       const boundedTrades =
         tradesResult.length > JOURNAL_PROVIDER_TRADE_LIMIT
@@ -92,6 +95,17 @@ export function JournalTradesProvider({ children }: { children: ReactNode }) {
     invalidateJournalPersistenceCache();
     void loadTrades(true);
   }, [lastSyncedAt, loadTrades]);
+
+  useEffect(() => {
+    const accountId = account?.activeTradingAccountId ?? null;
+    if (previousAccountIdRef.current === undefined) {
+      previousAccountIdRef.current = accountId;
+      return;
+    }
+    if (previousAccountIdRef.current === accountId) return;
+    previousAccountIdRef.current = accountId;
+    void loadTrades(true);
+  }, [account?.activeTradingAccountId, loadTrades]);
 
   const value = useMemo(
     () => ({

@@ -13,6 +13,7 @@ import { fetchTwsCircuitOpen } from "@/lib/marketData/fetchTwsCircuitOpen";
 import {
   resolveActiveAccountMatch,
 } from "@/lib/trading/accountPickerOptions";
+import { isDemoJournalUserEmail } from "@/lib/trading/demoJournalAccount";
 import type { TradingAccount } from "@/lib/trading/types";
 import { subscribeTwsRecovery } from "@/lib/marketData/twsRecoveryBus";
 import AccountPickerMenu from "./AccountPickerMenu";
@@ -156,6 +157,36 @@ export default function AppTopHeader({ centerSlot }: Props) {
     accounts,
     defaultAccountId,
     account.activeTradingAccount,
+    account.activeTradingAccountId,
+    account.setActiveTradingAccount,
+  ]);
+
+  useEffect(() => {
+    if (accounts.length === 0 || !defaultAccountId) return;
+
+    let cancelled = false;
+    void fetch("/api/auth/dev-session", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: { user?: { email?: string } | null } | null) => {
+        if (cancelled || !body?.user?.email) return;
+        if (!isDemoJournalUserEmail(body.user.email)) return;
+        if (account.activeTradingAccountId === defaultAccountId) return;
+
+        const demoAccount = accounts.find((row) => row.accountId === defaultAccountId);
+        if (demoAccount) {
+          account.setActiveTradingAccount(demoAccount);
+        }
+      })
+      .catch(() => {
+        /* ignore session probe errors */
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    accounts,
+    defaultAccountId,
     account.activeTradingAccountId,
     account.setActiveTradingAccount,
   ]);

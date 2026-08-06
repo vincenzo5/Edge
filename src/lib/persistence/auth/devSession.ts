@@ -21,8 +21,7 @@ export function isDevPassphraseRequired(): boolean {
 
 export function isOpenDevSessionAllowed(): boolean {
   const raw = process.env.EDGE_ALLOW_OPEN_DEV_SESSION?.trim().toLowerCase();
-  const enabled = raw === "1" || raw === "true";
-  return enabled && process.env.NODE_ENV !== "production";
+  return raw === "1" || raw === "true";
 }
 
 function readDevPassphrase(): string | null {
@@ -45,9 +44,13 @@ export function validateDevPassphrase(passphrase: string): boolean {
   }
 }
 
+export function resolveConfiguredDevUserEmail(): string {
+  return process.env.EDGE_DEV_USER_EMAIL?.trim() || "dev@localhost";
+}
+
 async function findOrCreateDevUser(): Promise<CurrentUser> {
   const db = getDb();
-  const email = process.env.EDGE_DEV_USER_EMAIL?.trim() || "dev@localhost";
+  const email = resolveConfiguredDevUserEmail();
   const existing = await db.select().from(appUsers).where(eq(appUsers.email, email)).limit(1);
   const row = existing[0];
   if (row) {

@@ -1,0 +1,29 @@
+# LIVE — User risk policies not presets evidence
+# Date: 2026-08-02
+
+## Scope
+User wanted only two editable account-owned policies (not read-only builtins).
+Revert Risk policies tab to user-only; remove long/short from PLAYBOOK_PRESET_IDS;
+seed editable user templates into Postgres for app_users.
+
+## Delivered
+- Reverted RiskPoliciesSection to user templates only
+- Removed long_half_be_trail_05r / short_full_tp_1r from built-in presets
+- CreatePlaybookTemplateSchema accepts inline definition (no preset source)
+- scripts/seed-user-risk-policies.mts — seeded both policies for local users
+- Kept trailRMultiple support for 0.5R trail distance
+
+## Seed
+Command:
+npx tsx scripts/seed-user-risk-policies.mts
+
+Result (abridged):
+create Long half → BE → 0.5R trail; create Short full TP 1R (for each app_users row)
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/playbook/ src/lib/trading/playbookTemplateStore.test.ts src/lib/trading/playbookTemplateMutations.test.ts src/app/components/risk/RiskPoliciesSection.test.tsx src/lib/risk/policy/policy.test.ts
+
+Result:
+Test Files  22 passed (22)
+Tests  109 passed (109)

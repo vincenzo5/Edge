@@ -57,7 +57,7 @@ describe("captureSeed", () => {
     expect(seed.cellConfig.drawings[0]?.id).not.toBe(activeCell.drawings[0]?.id);
   });
 
-  it("falls back to default cell and trade interval when no active chart", () => {
+  it("falls back to default daily interval when no active chart", () => {
     const seed = buildJournalCaptureSeed({
       trade: {
         id: "trade-1",
@@ -68,7 +68,7 @@ describe("captureSeed", () => {
     });
 
     expect(seed.cellConfig.symbol).toBe("AAPL");
-    expect(seed.cellConfig.interval).toBe("5m");
+    expect(seed.cellConfig.interval).toBe("1d");
     expect(seed.cellConfig.range).toBe(DEFAULT_CELL.range);
   });
 

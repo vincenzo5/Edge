@@ -1,17 +1,18 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PencilIcon, PlusIcon } from "../chart-chrome/ChartHeaderIcons";
+import { PencilIcon } from "../chart-chrome/ChartHeaderIcons";
 import { TrashIcon } from "../chart-icons/ChartToolIcons";
-import { CompactSearchIcon, EdgeButton, EdgeIconButton } from "../design-system";
+import { EdgeIconButton } from "../design-system";
 import EdgeAnchoredPopover from "../design-system/EdgeAnchoredPopover";
 import { menuItemClass } from "../design-system/styles";
 import {
   groupCopilotThreadsByRecency,
   limitCopilotThreads,
   readCopilotHistoryRailCollapsed,
+  readCopilotHistorySectionCollapsed,
   writeCopilotHistoryRailCollapsed,
+  writeCopilotHistorySectionCollapsed,
 } from "@/lib/copilot/groupCopilotThreadsByRecency";
 import type { CopilotThreadSummary } from "@/lib/persistence/schemas/copilotThreads";
 
@@ -23,7 +24,6 @@ type Props = {
   onSwitchThread: (threadId: string) => void;
   onDeleteThread: (threadId: string) => void;
   onSearchOpen: () => void;
-  onSeeAll: () => void;
   onRenameThread: (threadId: string) => void;
 };
 
@@ -35,6 +35,54 @@ function CollapseIcon({ collapsed }: { collapsed: boolean }) {
         stroke="currentColor"
         strokeWidth="1.2"
         strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SectionChevron({ collapsed }: { collapsed: boolean }) {
+  return (
+    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d={collapsed ? "M6 4l4 4-4 4" : "M4 6l4 4 4-4"}
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Grok-style thin magnifying glass for history nav rows. */
+function HistorySearchIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="10.5" cy="10.5" r="6.25" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M15.25 15.25L20 20"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Grok-style compose / new-chat icon (rounded square + pencil). */
+function ComposeChatIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5.5 7.25c0-.97.78-1.75 1.75-1.75h6.5c.97 0 1.75.78 1.75 1.75v6.5c0 .97-.78 1.75-1.75 1.75h-6.5A1.75 1.75 0 0 1 5.5 13.75v-6.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M13.25 10.75 19.5 4.5l1.5 1.5-6.25 6.25H13.25v-1.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
         strokeLinejoin="round"
       />
     </svg>
@@ -73,7 +121,7 @@ function ThreadOverflowMenu({
         aria-label={`Actions for ${thread.title}`}
         title="Thread actions"
         data-testid={`copilot-history-menu-${thread.id}`}
-        className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+        className="cursor-pointer opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100 disabled:cursor-not-allowed"
         data-open={open ? "true" : undefined}
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
@@ -136,17 +184,15 @@ function ThreadRow({
 }) {
   return (
     <div
-      className={`group flex min-w-0 items-center gap-1 rounded px-2 py-1.5 ${
-        isActive
-          ? "bg-[var(--edge-surface-raised)] text-[var(--edge-text-primary)]"
-          : "text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-raised)]"
+      className={`group copilot-history-thread-row ${isActive ? "is-active" : ""} ${
+        disabled ? "is-disabled" : ""
       }`}
     >
       <button
         type="button"
         data-testid={`copilot-history-thread-${thread.id}`}
         data-active={isActive ? "true" : undefined}
-        className="min-w-0 flex-1 truncate text-left text-sm"
+        className="min-w-0 flex-1 cursor-pointer truncate text-left disabled:cursor-default"
         disabled={disabled || isActive}
         onClick={() => onSwitchThread(thread.id)}
         aria-current={isActive ? "true" : undefined}
@@ -171,13 +217,14 @@ export function CopilotHistoryRail({
   onSwitchThread,
   onDeleteThread,
   onSearchOpen,
-  onSeeAll,
   onRenameThread,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+  const [historySectionCollapsed, setHistorySectionCollapsed] = useState(false);
 
   useEffect(() => {
     setCollapsed(readCopilotHistoryRailCollapsed());
+    setHistorySectionCollapsed(readCopilotHistorySectionCollapsed());
   }, []);
 
   const setCollapsedState = (next: boolean) => {
@@ -185,7 +232,12 @@ export function CopilotHistoryRail({
     writeCopilotHistoryRailCollapsed(next);
   };
 
-  const { visible: visibleThreads, hasMore } = useMemo(
+  const setHistorySectionCollapsedState = (next: boolean) => {
+    setHistorySectionCollapsed(next);
+    writeCopilotHistorySectionCollapsed(next);
+  };
+
+  const { visible: visibleThreads } = useMemo(
     () => limitCopilotThreads(threads),
     [threads],
   );
@@ -208,6 +260,7 @@ export function CopilotHistoryRail({
             aria-label="Expand history"
             title="Expand history"
             data-testid="copilot-history-expand"
+            className="cursor-pointer"
             onClick={() => setCollapsedState(false)}
           >
             <CollapseIcon collapsed />
@@ -217,20 +270,22 @@ export function CopilotHistoryRail({
             aria-label="Search chats"
             title="Search"
             data-testid="copilot-history-search"
+            className="cursor-pointer disabled:cursor-not-allowed"
             disabled={disabled}
             onClick={onSearchOpen}
           >
-            <CompactSearchIcon />
+            <HistorySearchIcon size={16} />
           </EdgeIconButton>
           <EdgeIconButton
             type="button"
             aria-label="New chat"
             title="New chat"
             data-testid="copilot-history-new-chat"
+            className="cursor-pointer disabled:cursor-not-allowed"
             disabled={disabled}
             onClick={onNewChat}
           >
-            <PlusIcon />
+            <ComposeChatIcon size={16} />
           </EdgeIconButton>
         </div>
       </aside>
@@ -243,96 +298,103 @@ export function CopilotHistoryRail({
       data-collapsed="false"
       className="copilot-history-rail flex w-[var(--copilot-history-rail-width)] shrink-0 flex-col border-r border-[var(--edge-border)] bg-[var(--copilot-canvas-bg)]"
     >
-      <div className="flex items-center justify-between gap-2 px-[var(--edge-space-3)] py-[var(--edge-space-3)]">
-        <div className="flex min-w-0 items-center gap-2">
-          <Image
-            src="/brand/icon-mono-white.svg"
-            alt="Edge"
-            width={24}
-            height={24}
-            className="opacity-90"
-          />
-        </div>
+      <div className="flex items-center justify-between gap-1 px-[var(--edge-space-3)] pb-2 pt-[var(--edge-space-3)]">
+        <h2
+          data-testid="copilot-history-title"
+          className="px-3 text-sm font-bold text-[var(--edge-text-primary)]"
+        >
+          Copilot
+        </h2>
         <EdgeIconButton
           type="button"
           aria-label="Collapse history"
           title="Collapse history"
           data-testid="copilot-history-collapse"
+          className="cursor-pointer"
           onClick={() => setCollapsedState(true)}
         >
           <CollapseIcon collapsed={false} />
         </EdgeIconButton>
       </div>
 
-      <div className="flex flex-col gap-2 px-[var(--edge-space-3)] pb-2">
+      <div className="flex flex-col gap-0.5 px-[var(--edge-space-3)] pb-2">
         <button
           type="button"
           data-testid="copilot-history-search"
           disabled={disabled}
           onClick={onSearchOpen}
-          className="edge-focus-ring flex w-full items-center gap-2 rounded-[var(--edge-radius-lg)] px-2 py-2 text-sm text-[var(--edge-text-secondary)] hover:bg-[var(--edge-surface-raised)]"
+          className="copilot-history-nav-btn edge-focus-ring cursor-pointer disabled:cursor-not-allowed"
         >
-          <CompactSearchIcon />
+          <HistorySearchIcon />
           Search
         </button>
-        <EdgeButton
+        <button
           type="button"
-          variant="secondary"
           data-testid="copilot-history-new-chat"
           disabled={disabled}
           onClick={onNewChat}
-          className="w-full justify-center gap-2"
+          className="copilot-history-nav-btn edge-focus-ring cursor-pointer disabled:cursor-not-allowed"
         >
-          <PencilIcon size={14} />
-          New chat
-        </EdgeButton>
+          <ComposeChatIcon />
+          New Chat
+        </button>
       </div>
 
-      <div className="px-[var(--edge-space-3)] pb-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[var(--edge-text-tertiary)]">History</span>
-        </div>
+      <div className="px-[var(--edge-space-3)] pb-1">
+        <button
+          type="button"
+          data-testid="copilot-history-section-toggle"
+          aria-expanded={!historySectionCollapsed}
+          aria-controls="copilot-history-list"
+          onClick={() => setHistorySectionCollapsedState(!historySectionCollapsed)}
+          className="copilot-history-section-toggle edge-focus-ring cursor-pointer"
+        >
+          <span>History</span>
+          <SectionChevron collapsed={historySectionCollapsed} />
+        </button>
       </div>
 
-      <div
-        data-testid="copilot-history-list"
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 pb-2"
-      >
-        {visibleGroups.length === 0 ? (
-          <p className="px-2 py-3 text-xs text-[var(--edge-text-tertiary)]">No conversations yet</p>
-        ) : (
-          visibleGroups.map((group) => (
-            <section key={group.bucket} data-testid={`copilot-history-group-${group.bucket}`}>
-              <div className="mb-1 flex items-center gap-2 px-2">
-                <span className="text-xs text-[var(--edge-text-tertiary)]">{group.label}</span>
-                <div className="h-px flex-1 bg-[var(--edge-border)]" />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                {group.threads.map((thread) => (
-                  <ThreadRow
-                    key={thread.id}
-                    thread={thread}
-                    isActive={thread.id === threadId}
-                    disabled={disabled}
-                    onSwitchThread={onSwitchThread}
-                    onDeleteThread={onDeleteThread}
-                    onRenameThread={onRenameThread}
-                  />
-                ))}
-              </div>
-            </section>
-          ))
-        )}
-      </div>
-
-      {hasMore || threads.length > 0 ? (
-        <div className="border-t border-[var(--edge-border)] px-[var(--edge-space-3)] py-2">
+      {!historySectionCollapsed ? (
+        <div
+          id="copilot-history-list"
+          data-testid="copilot-history-list"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[var(--edge-space-3)] pb-2"
+        >
+          <div className="flex flex-col gap-3">
+            {visibleGroups.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-[var(--edge-text-muted)]">
+                No conversations yet
+              </p>
+            ) : (
+              visibleGroups.map((group) => (
+                <section key={group.bucket} data-testid={`copilot-history-group-${group.bucket}`}>
+                  <div className="mb-1 flex items-center gap-2 px-3">
+                    <span className="text-xs text-[var(--edge-text-muted)]">{group.label}</span>
+                    <div className="h-px flex-1 bg-[var(--edge-border)]" />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    {group.threads.map((thread) => (
+                      <ThreadRow
+                        key={thread.id}
+                        thread={thread}
+                        isActive={thread.id === threadId}
+                        disabled={disabled}
+                        onSwitchThread={onSwitchThread}
+                        onDeleteThread={onDeleteThread}
+                        onRenameThread={onRenameThread}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
           <button
             type="button"
             data-testid="copilot-history-see-all"
             disabled={disabled}
-            onClick={onSeeAll}
-            className="edge-focus-ring text-sm text-[var(--edge-text-tertiary)] hover:text-[var(--edge-text-secondary)]"
+            onClick={onSearchOpen}
+            className="copilot-history-see-all edge-focus-ring mt-0.5 w-full cursor-pointer px-3 py-2 text-left text-sm font-medium text-[var(--edge-text-muted)] transition-colors hover:text-[var(--edge-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             See all
           </button>

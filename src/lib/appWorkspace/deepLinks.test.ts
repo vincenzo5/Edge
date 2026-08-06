@@ -68,6 +68,16 @@ describe("appWorkspace deepLinks", () => {
     ).toBe("/workspace");
   });
 
+  it("preserves chart deep link params after workspace ingress", () => {
+    expect(
+      workspacePathAfterIngress(
+        new URLSearchParams(
+          "surface=chart&symbol=AAPL&interval=5m&journalTrade=trade-1&goto=123",
+        ),
+      ),
+    ).toBe("/workspace?symbol=AAPL&interval=5m&journalTrade=trade-1&goto=123");
+  });
+
   it("tracks same-tab ingress lock for sticky surface queries", () => {
     clearWorkspaceIngressLock();
     expect(readWorkspaceIngressLock()).toBeNull();

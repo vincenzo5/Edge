@@ -1,4 +1,5 @@
 import { resolveAccountDisplayName, type AccountAliases } from "./accountAliases";
+import { isDemoJournalAccountId } from "./demoJournalAccount";
 import type { TradingAccount } from "./types";
 
 /** Legacy persisted connection id — remapped to gateway/offline live on load. */
@@ -38,9 +39,11 @@ export function accountPickerLabel(
   const label =
     displayName !== account.accountId
       ? displayName
-      : account.environment === "live"
-        ? "Live"
-        : "Paper";
+      : isDemoJournalAccountId(account.accountId)
+        ? "Demo"
+        : account.environment === "live"
+          ? "Live"
+          : "Paper";
   if (account.availability === "offline") {
     return `${label} (${account.accountId}, offline)`;
   }

@@ -348,7 +348,7 @@ export default function ChartCanvas({
       onMouseMove={handleMouseMove}
       onMouseUp={(e) => handleMouseUp(e)}
       onMouseLeave={(e) => {
-        handleMouseUp(e);
+        if (!drawingDragRef.current) handleMouseUp(e);
         if (hoveredDrawingIdRef.current) {
           hoveredDrawingIdRef.current = null;
           requestDraw('selection');

@@ -4,7 +4,7 @@ import type { PositionBox } from '../drawings/positionGeometry';
 
 export type PositionLabelInput = PositionBox & {
   direction: RiskDirection;
-  qty: number;
+  qty?: number | null;
   lastPrice?: number | null;
 };
 
@@ -33,25 +33,45 @@ export function computeOpenPnl(
 export function formatTargetLabel(input: PositionLabelInput): string {
   const delta = Math.abs(input.target - input.entry);
   const pct = pctChange(delta, input.entry);
+  const base = `Target: ${formatPrice(delta)} (${formatPrice(pct)}%)`;
+  if (input.qty == null || !Number.isFinite(input.qty) || input.qty <= 0) {
+    return base;
+  }
   const amount = delta * input.qty;
-  return `Target: ${formatPrice(delta)} (${formatPrice(pct)}%) Amount: ${formatPrice(amount)}`;
+  return `${base} Amount: ${formatPrice(amount)}`;
 }
 
 export function formatStopLabel(input: PositionLabelInput): string {
   const delta = Math.abs(input.entry - input.stop);
   const pct = pctChange(delta, input.entry);
+  const base = `Stop: ${formatPrice(delta)} (${formatPrice(pct)}%)`;
+  if (input.qty == null || !Number.isFinite(input.qty) || input.qty <= 0) {
+    return base;
+  }
   const amount = delta * input.qty;
-  return `Stop: ${formatPrice(delta)} (${formatPrice(pct)}%) Amount: ${formatPrice(amount)}`;
+  return `${base} Amount: ${formatPrice(amount)}`;
 }
 
 export function formatEntryLabels(input: PositionLabelInput): [string, string] {
   const rr = computeRiskRewardRatio(input);
+  const qtyLabel =
+    input.qty != null && Number.isFinite(input.qty) && input.qty > 0
+      ? String(input.qty)
+      : '—';
   const lastPrice = input.lastPrice ?? input.entry;
-  const pnl = computeOpenPnl(input.entry, lastPrice, input.qty, input.direction);
-  return [
-    `Open PnL: ${formatPrice(pnl)}, Qty: ${input.qty}`,
-    `Risk/reward ratio: ${formatPrice(rr, 1)}`,
-  ];
+  const pnlLine =
+    input.qty != null && Number.isFinite(input.qty) && input.qty > 0
+      ? `Open PnL: ${formatPrice(computeOpenPnl(input.entry, lastPrice, input.qty, input.direction))}, Qty: ${qtyLabel}`
+      : `Qty: ${qtyLabel}`;
+  return [pnlLine, `Risk/reward ratio: ${formatPrice(rr, 1)}`];
+}
+
+/** Stored drawing qty only — no computed fallback from DEFAULT_RISK_ACCOUNT. */
+export function resolvePositionQtyForDisplay(drawingQty: unknown): number | null {
+  if (typeof drawingQty === 'number' && Number.isFinite(drawingQty) && drawingQty > 0) {
+    return Math.floor(drawingQty);
+  }
+  return null;
 }
 
 export function resolvePositionQty(

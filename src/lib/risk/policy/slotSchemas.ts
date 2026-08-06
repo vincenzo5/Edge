@@ -97,7 +97,7 @@ export const PolicyBindingRefSchema = z.object({
 });
 export type PolicyBindingRef = z.infer<typeof PolicyBindingRefSchema>;
 
-export const RiskPolicyControlModeSchema = z.enum(["automated", "paused", "manual"]);
+export const RiskPolicyControlModeSchema = z.enum(["automated", "paused", "manual", "off"]);
 export type RiskPolicyControlMode = z.infer<typeof RiskPolicyControlModeSchema>;
 
 export const RiskPolicyOffReasonSchema = z.enum([
@@ -106,6 +106,11 @@ export const RiskPolicyOffReasonSchema = z.enum([
   "gate_breach",
   "swapped",
   "template_missing",
+  "exit_cleanup",
+  "position_flat",
+  "env_kill",
+  "rule_flatten",
+  "manual_flatten",
 ]);
 export type RiskPolicyOffReason = z.infer<typeof RiskPolicyOffReasonSchema>;
 

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
   CHANNEL_NAME,
+  STORAGE_KEY,
   parseCaptureChannelMessage,
   publishCaptureCancelled,
   publishCaptureDone,
@@ -60,6 +61,8 @@ describe("captureChannel", () => {
   beforeEach(() => {
     MockBroadcastChannel.instances = [];
     vi.stubGlobal("BroadcastChannel", MockBroadcastChannel);
+    window.localStorage.clear();
+    Object.defineProperty(window, "opener", { configurable: true, value: null });
   });
 
   afterEach(() => {
@@ -134,5 +137,49 @@ describe("captureChannel", () => {
     });
 
     subscriber.close();
+  });
+
+  it("publishes to the opener when BroadcastChannel is unavailable", () => {
+    vi.stubGlobal("BroadcastChannel", undefined);
+    const postMessage = vi.fn();
+    Object.defineProperty(window, "opener", {
+      configurable: true,
+      value: { postMessage },
+    });
+
+    publishCaptureDone({
+      requestId: "req-1",
+      tradeId: "trade-1",
+      screenshotId: "shot-1",
+      snapshotId: "snap-1",
+    });
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "captureDone", requestId: "req-1" }),
+      window.location.origin,
+    );
+  });
+
+  it("subscribes through the storage event fallback", () => {
+    vi.stubGlobal("BroadcastChannel", undefined);
+    const handler = vi.fn();
+    const unsubscribe = subscribeCaptureChannel(handler);
+    const message = {
+      type: "captureDone",
+      requestId: "req-storage",
+      tradeId: "trade-1",
+      screenshotId: "shot-1",
+      snapshotId: "snap-1",
+    };
+
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: STORAGE_KEY,
+        newValue: JSON.stringify({ message, nonce: "unique" }),
+      }),
+    );
+
+    expect(handler).toHaveBeenCalledWith(message);
+    unsubscribe();
   });
 });

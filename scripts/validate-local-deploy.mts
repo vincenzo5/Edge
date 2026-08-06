@@ -594,13 +594,22 @@ function validateProfile(
       "Production EDGE_API_KEY must be a non-placeholder value of at least 32 characters.",
     );
   }
-  if (!isFalse(trimmed(env, "EDGE_ALLOW_OPEN_DEV_SESSION"))) {
+  if (!isTrue(trimmed(env, "EDGE_ALLOW_OPEN_DEV_SESSION"))) {
     addIssue(
       issues,
       "production.open_dev_session",
       profile,
       "EDGE_ALLOW_OPEN_DEV_SESSION",
-      "Production EDGE_ALLOW_OPEN_DEV_SESSION must be disabled.",
+      "Production EDGE_ALLOW_OPEN_DEV_SESSION must be enabled for single-user local cloud sync.",
+    );
+  }
+  if (trimmed(env, "EDGE_DEV_PASSPHRASE")) {
+    addIssue(
+      issues,
+      "production.dev_passphrase",
+      profile,
+      "EDGE_DEV_PASSPHRASE",
+      "Production EDGE_DEV_PASSPHRASE must not be set; local prod uses open cloud sync.",
     );
   }
 
@@ -969,13 +978,22 @@ function validateContainerProductionProfile(
       "Container production EDGE_API_KEY must be a non-placeholder value of at least 32 characters.",
     );
   }
-  if (!isFalse(trimmed(env, "EDGE_ALLOW_OPEN_DEV_SESSION"))) {
+  if (!isTrue(trimmed(env, "EDGE_ALLOW_OPEN_DEV_SESSION"))) {
     addIssue(
       issues,
       "production.open_dev_session",
       "production",
       "EDGE_ALLOW_OPEN_DEV_SESSION",
-      "Container production EDGE_ALLOW_OPEN_DEV_SESSION must be disabled.",
+      "Container production EDGE_ALLOW_OPEN_DEV_SESSION must be enabled for single-user local cloud sync.",
+    );
+  }
+  if (trimmed(env, "EDGE_DEV_PASSPHRASE")) {
+    addIssue(
+      issues,
+      "production.dev_passphrase",
+      "production",
+      "EDGE_DEV_PASSPHRASE",
+      "Container production EDGE_DEV_PASSPHRASE must not be set; local prod uses open cloud sync.",
     );
   }
 

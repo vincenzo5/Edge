@@ -14,6 +14,8 @@ describe("playbookAutoManageStore", () => {
     expect(DEFAULT_PLAYBOOK_AUTO_MANAGE).toEqual({
       paperEnabled: true,
       liveEnabled: false,
+      paperKillActive: false,
+      liveKillActive: false,
     });
   });
 

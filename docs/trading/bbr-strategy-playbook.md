@@ -8,6 +8,7 @@ Research reconstruction of **Justin “Mr. Banks” Banks** / **Wolves of Wealth
 |------------------|----------|
 | Visual schematics (Canvas) | Cursor canvas `bbr-system-visual-guide.canvas.tsx` |
 | Source transcripts | `yt/transcript/bbr-system/yt/transcript/` (~19 videos) |
+| Discord mine archive | [wolves-discord/](./wolves-discord/) (context, desk ops, EP, bots) |
 | Community | Discord `WolvesOfWealth` · Whop [wolves-of-wealth](https://whop.com/wolves-of-wealth/) |
 | X | [@RealJGBanks](https://x.com/RealJGBanks) |
 | Edge day-type research (separate) | [day-classification-visual-guide.md](./day-classification-visual-guide.md) |

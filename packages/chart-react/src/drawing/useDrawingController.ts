@@ -52,6 +52,8 @@ export type DrawingControllerDeps = {
   overlayChangeCbsRef: MutableRefObject<Set<() => void>>;
   onDrawingDisarmed?: () => void;
   onOverlayRightClick?: (overlay: TrackedOverlay, pos: { x: number; y: number }) => void;
+  /** Double-click on a drawing — host opens that drawing's settings panel. */
+  onDrawingOpenSettings?: (id: string) => void;
   /** Restore drawings after data load and when parent state changes externally. */
   loading: boolean;
   error: string | null;
@@ -93,6 +95,7 @@ export type DrawingHandleSlice = {
   subscribeOverlayChange: (cb: () => void) => () => void;
   updateDrawingStyles: (id: string, patch: Partial<DrawingStyles>) => void;
   updateDrawingMetadata: (id: string, patch: DrawingMetadata) => void;
+  updateDrawingPoints: (id: string, after: SerializedDrawing['points']) => void;
   undo: () => boolean;
   redo: () => boolean;
   canUndo: () => boolean;
@@ -115,6 +118,7 @@ export function useDrawingController(deps: DrawingControllerDeps) {
     overlayChangeCbsRef,
     onDrawingDisarmed,
     onOverlayRightClick,
+    onDrawingOpenSettings,
     loading,
     error,
     displayCandlesLength,
@@ -139,6 +143,8 @@ export function useDrawingController(deps: DrawingControllerDeps) {
   const selectionChangeCbsRef = useRef<Set<(id: string | null) => void>>(new Set());
   const onOverlayRightClickRef = useRef(onOverlayRightClick);
   onOverlayRightClickRef.current = onOverlayRightClick;
+  const onDrawingOpenSettingsRef = useRef(onDrawingOpenSettings);
+  onDrawingOpenSettingsRef.current = onDrawingOpenSettings;
   const placingAnchorRef = useRef<{ plotX: number; plotY: number } | null>(null);
   const drawingFsmRef = useRef(drawingFsm);
   drawingFsmRef.current = drawingFsm;
@@ -179,6 +185,10 @@ export function useDrawingController(deps: DrawingControllerDeps) {
 
   const notifySelectionChange = useCallback((id: string | null) => {
     selectionChangeCbsRef.current.forEach((cb) => cb(id));
+  }, []);
+
+  const notifyOpenSettings = useCallback((id: string) => {
+    onDrawingOpenSettingsRef.current?.(id);
   }, []);
 
   const { getPaneShowTimeAxis, getPaneIndicators } = useMemo(
@@ -223,6 +233,7 @@ export function useDrawingController(deps: DrawingControllerDeps) {
       placingAnchorRef,
       syncDrawingState,
       notifySelectionChange,
+      onDrawingOpenSettings: notifyOpenSettings,
       addCommittedDrawing,
       stampPaneId,
       finishAfterCommit,
@@ -241,6 +252,7 @@ export function useDrawingController(deps: DrawingControllerDeps) {
       drawingStoreRef,
       syncDrawingState,
       notifySelectionChange,
+      notifyOpenSettings,
       addCommittedDrawing,
       stampPaneId,
       finishAfterCommit,

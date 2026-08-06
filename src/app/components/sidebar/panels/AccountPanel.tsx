@@ -282,6 +282,7 @@ export function AccountPanel() {
     position: { x: number; y: number };
   } | null>(null);
   const [closeDraft, setCloseDraft] = useState<OrderDraft | null>(null);
+  const [closePlaybookInstanceId, setClosePlaybookInstanceId] = useState<string | null>(null);
   const [protectivePosition, setProtectivePosition] = useState<AccountPosition | null>(null);
 
   const panelAccount = resolvePanelTradingAccount(
@@ -355,6 +356,7 @@ export function AccountPanel() {
     const draft = buildClosePositionDraft({ position: row, account: panelAccount });
     if (!draft) return;
     setCloseDraft(draft);
+    setClosePlaybookInstanceId(resolveManageInstance(row)?.id ?? null);
   };
 
   const resolveManageInstance = (row: AccountPosition): PlaybookInstance | null => {
@@ -837,8 +839,15 @@ export function AccountPanel() {
         open={closeDraft != null}
         draft={closeDraft}
         environment={account.tradingEnvironment}
-        onClose={() => setCloseDraft(null)}
-        onSuccess={() => account.refresh()}
+        playbookInstanceId={closePlaybookInstanceId}
+        onClose={() => {
+          setCloseDraft(null);
+          setClosePlaybookInstanceId(null);
+        }}
+        onSuccess={async () => {
+          await account.refresh();
+          await refreshPlaybooks();
+        }}
       />
 
       {protectivePosition && panelAccount ? (

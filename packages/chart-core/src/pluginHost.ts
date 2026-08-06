@@ -176,6 +176,32 @@ export function hitTestAll(
   return null;
 }
 
+export type ControlPointHit = {
+  index: number;
+  role?: string;
+};
+
+export function hitTestControlPointDetailed(
+  plotX: number,
+  plotY: number,
+  drawing: SerializedDrawing,
+  vp: VisibleRange,
+  candles: Candle[],
+  showTimeAxis = true,
+  tolerance = CONTROL_POINT_HIT_RADIUS,
+): ControlPointHit | null {
+  const plugin = getDrawing(drawing.name);
+  if (!plugin?.getControlPoints) return null;
+  const cps = plugin.getControlPoints(drawing, vp, candles, showTimeAxis);
+  for (let i = 0; i < cps.length; i++) {
+    const cp = cps[i];
+    if (Math.hypot(plotX - cp.x, plotY - cp.y) <= tolerance) {
+      return { index: i, role: cp.role };
+    }
+  }
+  return null;
+}
+
 export function hitTestControlPoint(
   plotX: number,
   plotY: number,
@@ -185,12 +211,15 @@ export function hitTestControlPoint(
   showTimeAxis = true,
   tolerance = CONTROL_POINT_HIT_RADIUS
 ): number {
-  const plugin = getDrawing(drawing.name);
-  if (!plugin?.getControlPoints) return -1;
-  const cps = plugin.getControlPoints(drawing, vp, candles, showTimeAxis);
-  for (let i = 0; i < cps.length; i++) {
-    const cp = cps[i];
-    if (Math.hypot(plotX - cp.x, plotY - cp.y) <= tolerance) return i;
-  }
-  return -1;
+  return (
+    hitTestControlPointDetailed(
+      plotX,
+      plotY,
+      drawing,
+      vp,
+      candles,
+      showTimeAxis,
+      tolerance,
+    )?.index ?? -1
+  );
 }

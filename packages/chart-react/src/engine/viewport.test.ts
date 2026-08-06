@@ -25,6 +25,8 @@ import {
   liveEdgeMarginBars,
   liveEdgeEndIndex,
   defaultLiveEdgeCandleX,
+  defaultLiveEdgeCandleRatio,
+  isCrushedLeftLiveEdge,
   isViewportModified,
   isTimeWindowModified,
   adjustViewportForPrepend,
@@ -706,6 +708,50 @@ describe('price scale context', () => {
     const price = 105;
     const y = vp.yForPrice(price);
     expect(vp.priceForY(y)).toBeCloseTo(price, 2);
+  });
+});
+
+describe('isCrushedLeftLiveEdge', () => {
+  it('detects pan-into-future that parks the latest bar on the left', () => {
+    const width = 1400;
+    const n = 2000;
+    const startIndex = 1779;
+    const endIndex = 3871.91;
+    expect(isCrushedLeftLiveEdge({ startIndex, endIndex, width }, n)).toBe(true);
+  });
+
+  it('accepts the default live-edge landing', () => {
+    const width = 1400;
+    const candles = Array.from({ length: 500 }, (_, i) => ({
+      t: i,
+      o: 10,
+      h: 12,
+      l: 9,
+      c: 11,
+    }));
+    const vp = getLiveEdgeViewport(candles, width, 800);
+    expect(isCrushedLeftLiveEdge(vp, candles.length)).toBe(false);
+    expect(defaultLiveEdgeCandleRatio(width)).toBeGreaterThan(0.8);
+  });
+
+  it('detects oversized right margin kept after a narrow→wide resize', () => {
+    const candles = Array.from({ length: 500 }, (_, i) => ({
+      t: i,
+      o: 10,
+      h: 12,
+      l: 9,
+      c: 11,
+    }));
+    const narrow = getLiveEdgeViewport(candles, 100, 400);
+    const grown = refreshViewportForDataChange(narrow, candles, 1400, 800);
+    expect(isCrushedLeftLiveEdge(grown, candles.length)).toBe(true);
+  });
+
+  it('ignores history windows where the latest bar is off-screen right', () => {
+    const width = 1400;
+    expect(
+      isCrushedLeftLiveEdge({ startIndex: 100, endIndex: 250, width }, 2000),
+    ).toBe(false);
   });
 });
 

@@ -11,6 +11,7 @@ import { AppWorkspaceProvider, useAppWorkspace } from "./AppWorkspaceContext";
 import LayoutTreeView from "./LayoutTreeView";
 import WorkspaceBrowserTabQuote from "./WorkspaceBrowserTabQuote";
 import WorkspaceHeaderControls from "./WorkspaceHeaderControls";
+import WorkspacePanelContextMenu from "./WorkspacePanelContextMenu";
 import { WorkspaceDriveProvider } from "./WorkspaceDriveContext";
 
 type Props = {
@@ -86,6 +87,7 @@ export default function AppWorkspaceShell({ children }: Props) {
             <ModuleRouteTracker module="workspace" />
             <WorkspaceEscListener />
             <WorkspaceBrowserTabQuote />
+            <WorkspacePanelContextMenu />
             <WorkspaceBody />
             {children}
           </div>

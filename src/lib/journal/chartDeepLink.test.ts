@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  appendChartDeepLinkSearchParams,
   buildChartDeepLink,
   parseChartDeepLinkParams,
   resolveChartInterval,
@@ -46,5 +47,18 @@ describe("chartDeepLink", () => {
       journalTrade: "abc",
       goto: 1000,
     });
+  });
+
+  it("copies chart deep link params into a workspace search", () => {
+    const target = new URLSearchParams("surface=chart");
+    appendChartDeepLinkSearchParams(
+      target,
+      new URLSearchParams(
+        "symbol=AAPL&interval=5m&journalTrade=trade-1&goto=1234567890&ignored=1",
+      ),
+    );
+    expect(target.toString()).toBe(
+      "surface=chart&symbol=AAPL&interval=5m&journalTrade=trade-1&goto=1234567890",
+    );
   });
 });

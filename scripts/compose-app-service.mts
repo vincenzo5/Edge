@@ -247,7 +247,7 @@ export function ensureComposeValidateEnvFile(cwd: string): { createdStub: boolea
       "EDGE_AUTH_SECRET=compose-validate-secret-abcdefghijklmnopqrstuvwxyz",
       "EDGE_API_AUTH_MODE=key",
       "EDGE_API_KEY=compose-validate-api-key-abcdefghijklmnopqrstuvwxyz",
-      "EDGE_ALLOW_OPEN_DEV_SESSION=0",
+      "EDGE_ALLOW_OPEN_DEV_SESSION=1",
       "EDGE_READYZ_URL=http://127.0.0.1:3000/readyz",
       "TWS_ENABLED=false",
       "",

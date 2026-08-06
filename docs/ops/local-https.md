@@ -80,11 +80,17 @@ Add to ignored `.edge/local-prod/production.env` (not committed):
 
 ```bash
 EDGE_PUBLIC_APP_URL=https://edge.local
+EDGE_TRUSTED_PROXY_COUNT=1
 ```
 
-Then restart the app container so OpenRouter referer and any absolute URLs use the friendly hostname.
+Then restart the app container. `EDGE_PUBLIC_APP_URL` makes OpenRouter referer and
+absolute URLs use the friendly hostname. `EDGE_TRUSTED_PROXY_COUNT=1` trusts only
+the loopback Caddy hop, whose committed config sets `X-Real-IP` from its
+`remote_host`. This lets loopback browser requests use `EDGE_TRUST_LOCALHOST`
+without putting the API key in browser code.
 
-Leave `EDGE_TRUSTED_PROXY_COUNT` unset unless you see wrong client IP / rate-limit behavior through the proxy. If needed, set `EDGE_TRUSTED_PROXY_COUNT=1` and document why here.
+Do not use this setting if Caddy binds to a non-loopback address. Do not increase
+the count unless another trusted proxy is added.
 
 ---
 
@@ -110,6 +116,7 @@ Open `https://edge.local/workspace` in the browser — valid cert, no port in th
 | `edge.local` resolves slowly | `.local` can interact with mDNS; `/etc/hosts` line should be first choice |
 | 502 / bad gateway | Production not up — `npm run local:prod:container:status` |
 | Auth/cookies odd over HTTPS | Confirm `NODE_ENV=production` and `EDGE_PUBLIC_APP_URL=https://edge.local` |
+| Sensitive API returns 401 in the browser | Confirm Caddy is loopback-only, `EDGE_TRUSTED_PROXY_COUNT=1` is in production env, and restart app-prod |
 
 ---
 

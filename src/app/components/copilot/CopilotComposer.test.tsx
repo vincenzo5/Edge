@@ -62,6 +62,15 @@ describe("CopilotComposer", () => {
     expect(screen.getByLabelText("Submit")).toBeTruthy();
   });
 
+  it("uses pointer cursor on enabled query-bar buttons", () => {
+    renderComposer();
+
+    expect(screen.getByTestId("copilot-attach").className).toContain("cursor-pointer");
+    expect(screen.getByTestId("copilot-model-chip").className).toContain("cursor-pointer");
+    expect(screen.getByTestId("copilot-send").className).toContain("cursor-pointer");
+    expect(screen.getByTestId("copilot-send").className).toContain("disabled:cursor-not-allowed");
+  });
+
   it("shows model label on chip", () => {
     renderComposer();
 
@@ -209,7 +218,7 @@ describe("CopilotComposer", () => {
     expect(uploadCopilotAttachment).not.toHaveBeenCalled();
   });
 
-  it("shows hero idle placeholder and rotates after 3 seconds", () => {
+  it("shows hero idle placeholder and rotates after 5 seconds", () => {
     vi.useFakeTimers();
     try {
       renderComposer({ mode: "hero" });
@@ -219,7 +228,7 @@ describe("CopilotComposer", () => {
       );
 
       act(() => {
-        vi.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(5000);
       });
 
       expect(screen.getByTestId("copilot-hero-placeholder")).toHaveTextContent(
@@ -238,6 +247,18 @@ describe("CopilotComposer", () => {
     });
 
     expect(screen.queryByTestId("copilot-hero-placeholder")).toBeNull();
+  });
+
+  it("centers hero placeholder and single-line textarea in the query bar", () => {
+    renderComposer({ mode: "hero" });
+
+    const textarea = screen.getByTestId("copilot-composer-input");
+    const middleColumn = textarea.parentElement;
+    const placeholderOverlay = screen.getByTestId("copilot-hero-placeholder").parentElement;
+
+    expect(middleColumn).toHaveClass("flex", "items-center");
+    expect(placeholderOverlay).toHaveClass("absolute", "inset-0", "flex", "items-center", "px-1");
+    expect(textarea).toHaveClass("px-1", "py-0", "leading-[1.375]");
   });
 
   it("grows textarea height with multiline draft", () => {

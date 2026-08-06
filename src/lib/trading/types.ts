@@ -279,7 +279,8 @@ export const BracketPlanSchema = z
   .object({
     entry: OrderDraftSchema,
     stopLeg: BracketStopLegSchema,
-    takeProfitPrice: z.number().positive(),
+    /** Omitted for stop-only protect (e.g. step-trail manage policies). */
+    takeProfitPrice: z.number().positive().optional(),
     /** Resting TP size; defaults to entry.quantity when omitted. */
     takeProfitQuantity: z.number().positive().optional(),
     /** Resting stop size; defaults to entry.quantity when omitted. */
@@ -328,6 +329,7 @@ export const BracketPlanSchema = z
         path: ["stopQuantity"],
       });
     }
+    if (value.takeProfitPrice == null) return;
     const entry = value.entry;
     const stopPrice = value.stopLeg.stopPrice;
     if (stopPrice == null) return;
@@ -365,7 +367,7 @@ export const ProtectiveOcoPlanSchema = z
     quantity: z.number().positive(),
     side: OrderSideSchema,
     stopLeg: BracketStopLegSchema,
-    takeProfitPrice: z.number().positive(),
+    takeProfitPrice: z.number().positive().optional(),
     takeProfitQuantity: z.number().positive().optional(),
     stopQuantity: z.number().positive().optional(),
     outsideRth: z.boolean().default(false),
@@ -428,7 +430,7 @@ export type SubmitBracketRequest = z.infer<typeof SubmitBracketRequestSchema>;
 export const BracketPlacedResultSchema = z.object({
   entryOrder: AccountOrderSchema,
   stopOrder: AccountOrderSchema,
-  takeProfitOrder: AccountOrderSchema,
+  takeProfitOrder: AccountOrderSchema.optional(),
   orderRef: z.string(),
   intent: OrderIntentSchema,
   playbookInstance: z.unknown().optional(),

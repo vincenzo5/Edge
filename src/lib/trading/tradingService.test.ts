@@ -131,7 +131,13 @@ vi.mock("@/lib/brokerage/brokerageClient", () => ({
     getConfig: () => ({ baseUrl: "http://127.0.0.1:8765", timeoutMs: 1000 }),
   })),
   probeSidecarLiveness: vi.fn(async () => true),
-  BrokerageRequestError: class BrokerageRequestError extends Error {},
+  BrokerageRequestError: class BrokerageRequestError extends Error {
+    category: string;
+    constructor(category: string, message: string) {
+      super(message);
+      this.category = category;
+    }
+  },
 }));
 
 vi.mock("@/lib/risk/resolveServerRiskSettings", () => ({
@@ -558,6 +564,37 @@ describe("TradingService", () => {
       },
     ]);
     delete process.env.TWS_LIVE_ACCOUNT_ID;
+  });
+
+  it("appends offline demo account when EDGE_DEMO_JOURNAL_ACCOUNT_ID is set", async () => {
+    process.env.EDGE_DEMO_JOURNAL_ACCOUNT_ID = "DEMO0001";
+    const service = new TradingService(createMemoryIntentStore());
+    const accounts = await service.listAccounts();
+
+    expect(accounts.some((row) => row.accountId === "DEMO0001" && row.availability === "offline")).toBe(
+      true,
+    );
+    delete process.env.EDGE_DEMO_JOURNAL_ACCOUNT_ID;
+  });
+
+  it("returns demo account only when sidecar is down and demo env is set", async () => {
+    process.env.EDGE_DEMO_JOURNAL_ACCOUNT_ID = "DEMO0001";
+    const { probeSidecarLiveness } = await import("@/lib/brokerage/brokerageClient");
+    vi.mocked(probeSidecarLiveness).mockResolvedValueOnce(false);
+
+    const service = new TradingService(createMemoryIntentStore());
+    const accounts = await service.listAccounts();
+
+    expect(accounts).toEqual([
+      {
+        broker: "ib",
+        connectionId: "ib-paper",
+        accountId: "DEMO0001",
+        environment: "paper",
+        availability: "offline",
+      },
+    ]);
+    delete process.env.EDGE_DEMO_JOURNAL_ACCOUNT_ID;
   });
 
   it("creates playbook instance after bracket submit without rolling back Protect", async () => {

@@ -13,6 +13,8 @@ import {
 } from "@/lib/trading/playbook/presets";
 import { isUserPlaybookTemplateId } from "@/lib/trading/playbook/resolveTemplate";
 import type { PlaybookTemplate, PositionPlan } from "@/lib/trading/playbook/types";
+import { templateToPatchPayload } from "@/lib/trading/playbookTemplateMutations";
+import { normalizePlaybookTemplates } from "@/lib/trading/playbookTemplateCache";
 
 export type ManagePresetSelection = PlaybookPresetId | string | "off";
 
@@ -27,16 +29,25 @@ export type ManagePlaybookPickerProps = {
 };
 
 type TemplateLibraryResponse = {
-  presets: PlaybookTemplate[];
-  userTemplates: PlaybookTemplate[];
+  presets?: PlaybookTemplate[] | null;
+  userTemplates?: PlaybookTemplate[] | null;
 };
 
-async function fetchPlaybookTemplates(): Promise<TemplateLibraryResponse> {
+async function fetchPlaybookTemplates(): Promise<{
+  presets: PlaybookTemplate[];
+  userTemplates: PlaybookTemplate[];
+}> {
   const response = await fetch("/api/trading/playbooks/templates");
   if (!response.ok) {
     return { presets: PLAYBOOK_PRESET_LIST, userTemplates: [] };
   }
-  return (await response.json()) as TemplateLibraryResponse;
+  const body = (await response.json()) as TemplateLibraryResponse;
+  const presets = normalizePlaybookTemplates(body.presets);
+  const userTemplates = normalizePlaybookTemplates(body.userTemplates);
+  return {
+    presets: presets.length > 0 ? presets : PLAYBOOK_PRESET_LIST,
+    userTemplates,
+  };
 }
 
 export function ManagePlaybookPicker({
@@ -143,11 +154,7 @@ export function ManagePlaybookPicker({
       const response = await fetch(`/api/trading/playbooks/templates/${value}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: template.name,
-          description: template.description,
-          rules: template.rules,
-        }),
+        body: JSON.stringify(templateToPatchPayload(template)),
       });
       if (!response.ok) {
         throw new Error("Failed to save template");

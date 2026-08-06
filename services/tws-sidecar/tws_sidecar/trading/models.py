@@ -120,7 +120,7 @@ class BracketOrderRequest(BaseModel):
     stopPrice: float | None = None
     trailPercent: float | None = None
     stopLeg: BracketStopLegRequest
-    takeProfitPrice: float = Field(gt=0)
+    takeProfitPrice: float | None = Field(default=None, gt=0)
     takeProfitQuantity: float | None = Field(default=None, gt=0)
     stopQuantity: float | None = Field(default=None, gt=0)
     outsideRth: bool = False
@@ -157,7 +157,7 @@ class ProtectiveOcoRequest(BaseModel):
     action: str = Field(pattern="^(BUY|SELL)$")
     quantity: float = Field(gt=0)
     stopLeg: BracketStopLegRequest
-    takeProfitPrice: float = Field(gt=0)
+    takeProfitPrice: float | None = Field(default=None, gt=0)
     takeProfitQuantity: float | None = Field(default=None, gt=0)
     stopQuantity: float | None = Field(default=None, gt=0)
     outsideRth: bool = False

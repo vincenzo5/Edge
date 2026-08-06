@@ -1,0 +1,45 @@
+# Journal QA bugfixes — 2026-08-05
+
+Task: APP — Journal QA bugfixes
+Branch: APP
+
+## Fixes
+
+1. **HIGH — Offline trade PATCH fallback**
+   - Server: `PATCH /api/me/journal/trades/:id` maps DB-unavailable errors to 503 (not 400 validation).
+   - Client: `patchJournalTradeRemote` falls back to localStorage on 503, 404 (local trade), or 400 with DB-unavailable body/legacy "Failed query" message.
+
+2. **MEDIUM — Chart deep-link loses journalTrade query**
+   - `ModuleToWorkspaceRedirect` forwards chart deep-link params (`symbol`, `interval`, `journalTrade`, `goto`) from `/chart` to `/workspace`.
+   - `workspacePathAfterIngress` preserves `symbol` when `journalTrade` is present.
+
+3. **MEDIUM — Stop risk quantity on closed short**
+   - Added `resolveTradeRiskQuantity` (netQuantity → plan qty → legs → fill quantities).
+   - `JournalTradeDetail` draft risk preview uses fill-derived qty when closed trade netQuantity is 0.
+
+## Verification
+
+```bash
+npm test -- --run \
+  src/lib/persistence/client/journalClient.test.ts \
+  src/app/api/me/journal/ \
+  src/lib/journal/tradeRiskGeometry.test.ts \
+  src/app/components/journal/JournalTradeDetail.test.tsx \
+  src/lib/journal/chartDeepLink.test.ts \
+  src/lib/appWorkspace/deepLinks.test.ts \
+  src/app/components/app-workspace/ModuleToWorkspaceRedirect.test.tsx
+```
+
+```
+ Test Files  8 passed (8)
+      Tests  56 passed (56)
+   Duration  3.02s
+```
+
+Parent re-verify (same command): Test Files 8 passed (8); Tests 56 passed (56); Duration 3.02s.
+Harness: closeout complete — Active Work → Passing.
+
+## Residual
+
+- Browser re-check Packs C/D/E with Postgres up recommended for full green (review-save + deep-link marker bootstrap).
+- Server-side `patchJournalTrade` still uses trade.netQuantity=0 for closed trades when computing stop risk on API path; client preview fixed; API path may need fill context in a follow-up if stop-save hits server with zero qty.

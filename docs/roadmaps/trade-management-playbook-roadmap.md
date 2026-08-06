@@ -6,7 +6,7 @@ Phased track for **automated post-fill trade management** — reusable rule reci
 
 **Status:** Phase 0–7 **Passing** (2026-07-24); Phase 8 **Pending** — rule editor.
 
-**Related:** [Trading Execution](./trading-execution-roadmap.md) (brackets / OCO / trail — **Protect**), [Alerts](./alerts-roadmap.md) (trade-plan bundles — **notify only**), [Journal](./journal-roadmap.md) (review; strategy docs deferred), [AI Agent](./ai-agent-roadmap.md) (annotation “playbooks” Phase D — **different concept**), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
+**Related:** [Trading Execution](./trading-execution-roadmap.md) (brackets / OCO / trail — **Protect**), [Risk Management System](./risk-management-system-roadmap.md) (shared RiskPolicy slots — Plan/Protect/Manage/Gates), [Risk Policy Data Model](./risk-policy-data-model-roadmap.md) (persisted spine — playbook tables evolve into RiskPolicy*), [Alerts](./alerts-roadmap.md) (trade-plan bundles — **notify only**), [Journal](./journal-roadmap.md) (review; strategy docs deferred), [AI Agent](./ai-agent-roadmap.md) (annotation “playbooks” Phase D — **different concept**), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
 ---
 

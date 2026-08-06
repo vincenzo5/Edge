@@ -80,6 +80,7 @@ export {
   transformCandlesForChartType,
   mergeCandlesByTimestamp,
   mergeCandlesPrepend,
+  dedupeCandlesByIntervalBucket,
   applyCandleSnapshot,
   applyCandleAppend,
   applyCandleReplaceLatest,
@@ -113,6 +114,7 @@ export {
 export type {
   ApplyCandleStreamResult,
   EnsureCandlesCoverResult,
+  MergeCandlesPrependOptions,
   TrimResidentBarsResult,
 } from './series';
 export type {
@@ -236,6 +238,22 @@ export {
   resolveMagnetDragAxisForCp,
 } from './drawings/positionGeometry';
 export type { PositionBox, PositionOrderLevelsPatch } from './drawings/positionGeometry';
+export {
+  inferPositionTickSize,
+  directionFromPositionDrawing,
+  ticksBetweenPrices,
+  priceFromEntryTicks,
+  levelsAfterEntryChange,
+  readPositionSettingsDraft,
+  formatPositionPrice,
+  parseFiniteNumber,
+  clampMinLevelDistance,
+} from './drawings/positionSettingsInputs';
+export type {
+  PositionRiskUnit,
+  PositionSettingsLevels,
+  PositionSettingsDraft,
+} from './drawings/positionSettingsInputs';
 export type { MagnetDragAxis } from './drawingCoords';
 export {
   setPendingPositionPlacementOptions,

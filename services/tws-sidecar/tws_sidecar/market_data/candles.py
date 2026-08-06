@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-
+import re
+from datetime import datetime, timezone
 from typing import Any
 
-from tws_sidecar.util import now_ms, safe_float
+from tws_sidecar.util import safe_float
+
+
 def _map_bar(bar) -> dict[str, Any]:
     ts = bar.date
     if isinstance(ts, datetime):

@@ -4,7 +4,7 @@ import { getBrokerageService } from "@/lib/brokerage/brokerageService";
 import type { BrokerageSnapshot } from "@/lib/brokerage/brokerageService";
 import { getServerMarketDataService } from "@/lib/marketData/service/server";
 import type { AccountOrder, AccountPosition } from "@/lib/marketData/contracts/brokerage";
-import { resolveConnectionByEnvironment } from "@/lib/trading/connectionRegistry";
+import { resolveManageQuoteConnectionId } from "@/lib/trading/connectionRegistry";
 import type { TradingService } from "../tradingService";
 import type { PlaybookInstanceStore } from "@/lib/trading/playbookInstanceStore";
 import type { OrderIntentStore } from "@/lib/trading/intentStore";
@@ -30,6 +30,15 @@ import { resolvePlaybookTemplateFromInstance } from "./resolveTemplate";
 import { syncManagePlaybookToJournal } from "./journalRecipe";
 import { resolveEffectiveFilledQty, resolveReduceQtyFromFilled } from "./reduceQty";
 import { resolveProtectiveStopOrderId } from "./resolveStopOrder";
+import {
+  computeStepTrailRatchet,
+  lockPositionPlanOnFill,
+  shouldTightenStop,
+} from "./stepTrailRatchet";
+import {
+  reconcileRestingScaleFromTpFill,
+  shouldSkipReduceQtyForRestingTp,
+} from "./restingScaleTp";
 import type { PlaybookInstance, PlaybookRule, RuleRuntime } from "./types";
 
 export type PlaybookEvaluationResult = {
@@ -61,16 +70,31 @@ async function resolveQuotePrice(
   symbol: string,
   environment: PlaybookInstance["positionPlan"]["environment"],
 ): Promise<number | null> {
-  const connection = resolveConnectionByEnvironment(environment);
   const quoteResult = await getServerMarketDataService().getQuotes([symbol], {
-    twsConnectionId: connection.connectionId,
+    twsConnectionId: resolveManageQuoteConnectionId(environment),
     respectProviderPreference: false,
     trustUsage: "trading_decision",
   });
   const quote = quoteResult.data.find(
     (row) => row.symbol.trim().toUpperCase() === symbol.trim().toUpperCase(),
   );
-  return quote?.price ?? null;
+  return resolveUsablePrice(quote?.price);
+}
+
+function resolveUsablePrice(value: number | null | undefined): number | null {
+  return value != null && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function resolveEvaluationPrice(args: {
+  quotePrice: number | null;
+  position: AccountPosition | null;
+  includeAvgCost: boolean;
+}): number | null {
+  return (
+    args.quotePrice ??
+    resolveUsablePrice(args.position?.marketPrice) ??
+    (args.includeAvgCost ? resolveUsablePrice(args.position?.avgCost) : null)
+  );
 }
 
 function markRuleRuntime(
@@ -153,21 +177,65 @@ async function evaluateSingleInstance(args: {
     positionQty,
   );
 
+  if (instance.status === "armed" && (positionQty == null || positionQty === 0)) {
+    if (
+      "exitAndCleanup" in tradingService &&
+      typeof tradingService.exitAndCleanup === "function"
+    ) {
+      try {
+        await tradingService.exitAndCleanup({
+          instanceId: instance.id,
+          liveConfirmation,
+          reason: "position_flat",
+        });
+      } catch (error) {
+        errors.push(
+          `${instance.id}/flat: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      return { fired, skipped, errors };
+    }
+    await playbookStore.patch(instance.id, {
+      status: "closed",
+      closedAt: new Date().toISOString(),
+      controlMode: "off",
+      offReason: "position_flat",
+    });
+    return { fired, skipped, errors };
+  }
+
+  const quotePrice = await resolveQuotePrice(instance.positionPlan.symbol, environment);
+  const lastPrice = resolveEvaluationPrice({
+    quotePrice,
+    position,
+    includeAvgCost: instance.status === "pending_fill",
+  });
+  if (lastPrice == null) {
+    errors.push(`No quote for ${instance.positionPlan.symbol} (${instance.id})`);
+    return { fired, skipped, errors };
+  }
+
   if (instance.status === "pending_fill") {
     if (positionQty == null || positionQty === 0) {
       return { fired, skipped, errors };
     }
+    const fillPrice = resolveUsablePrice(position?.avgCost) ?? lastPrice;
+    const lockedPlan = lockPositionPlanOnFill(instance.positionPlan, fillPrice);
     instance =
       (await playbookStore.patch(instance.id, {
         status: "armed",
         filledQty,
+        positionPlan: lockedPlan,
+        armedAt: new Date().toISOString(),
+        ...(instance.manageState
+          ? {
+              manageState: {
+                ...instance.manageState,
+                entryFillPrice: fillPrice,
+              },
+            }
+          : {}),
       })) ?? instance;
-  }
-
-  const lastPrice = await resolveQuotePrice(instance.positionPlan.symbol, environment);
-  if (lastPrice == null) {
-    errors.push(`No quote for ${instance.positionPlan.symbol} (${instance.id})`);
-    return { fired, skipped, errors };
   }
 
   const entryOrderId = resolveEntryOrderId(args.snapshot.orders, instance);
@@ -199,11 +267,79 @@ async function evaluateSingleInstance(args: {
       })) ?? instance;
   }
 
+  const restingScaleFill = reconcileRestingScaleFromTpFill({
+    instance,
+    orders: args.snapshot.orders,
+    template,
+  });
+  if (restingScaleFill) {
+    filledQty = Math.max(0, filledQty - restingScaleFill.filledQty);
+    instance =
+      (await playbookStore.patch(instance.id, {
+        ruleRuntimes: markRuleRuntime(instance.ruleRuntimes, restingScaleFill.ruleId, {
+          status: "fired",
+          firedAt: new Date().toISOString(),
+        }),
+        filledQty,
+      })) ?? instance;
+  }
+
+  if (
+    instance.manageState?.kind === "stepTrailR" &&
+    stopOrderId != null &&
+    instance.status === "armed"
+  ) {
+    const ratchet = computeStepTrailRatchet({
+      plan: instance.positionPlan,
+      manageState: instance.manageState,
+      lastPrice,
+    });
+    if (
+      ratchet &&
+      shouldTightenStop(
+        instance.positionPlan,
+        instance.manageState.lastAppliedStopPrice,
+        ratchet.nextStopPrice,
+      )
+    ) {
+      try {
+        await tradingService.modifyOrder(
+          instance.positionPlan.accountId,
+          stopOrderId,
+          { stopPrice: ratchet.nextStopPrice },
+          instance.orderIntentId,
+          environment,
+          liveConfirmation,
+        );
+        fired += 1;
+        instance =
+          (await playbookStore.patch(instance.id, {
+            manageState: {
+              ...instance.manageState,
+              highestMilestoneR: Math.max(
+                instance.manageState.highestMilestoneR ?? 0,
+                ratchet.nextMilestoneR,
+              ),
+              lastAppliedStopPrice: ratchet.nextStopPrice,
+            },
+          })) ?? instance;
+      } catch (error) {
+        errors.push(
+          `${instance.id}/stepTrail: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
+
   const rules = sortedRules(template.rules);
 
   for (const rule of rules) {
     const runtime = instance.ruleRuntimes.find((item) => item.ruleId === rule.id);
     if (!runtime || TERMINAL_RULE_STATUSES.has(runtime.status)) {
+      continue;
+    }
+
+    if (instance.manageState?.kind === "stepTrailR" && rule.id.startsWith("step-")) {
       continue;
     }
 
@@ -252,6 +388,10 @@ async function evaluateSingleInstance(args: {
       ruleRuntimes: instance.ruleRuntimes,
     });
     if (!whenSatisfied) {
+      continue;
+    }
+
+    if (shouldSkipReduceQtyForRestingTp({ rule, instance, template })) {
       continue;
     }
 

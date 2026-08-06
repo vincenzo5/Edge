@@ -91,6 +91,24 @@ describe("applyPolicyToTradeDraft", () => {
     expect(patch.partialGeometry).toBe(true);
   });
 
+  it("leaves take profit disabled for targetless step-trail policy", () => {
+    const patch = applyPolicyToTradeDraft({
+      template: {
+        ...longPolicy,
+        id: "step_trail_025",
+        name: "Step trail 0.25R",
+        geometry: { stops: [{ rMultiple: 1 }] },
+      },
+      entryQty: 10,
+      side: "BUY",
+      entryPrice: 100,
+      existingStop: 95,
+    });
+    expect(patch.takeProfitEnabled).toBe(false);
+    expect(patch.takeProfitPrice).toBeNull();
+    expect(patch.stopLossEnabled).toBe(true);
+  });
+
   it("seeds default entry order recipe from template", () => {
     const patch = applyPolicyToTradeDraft({
       template: {

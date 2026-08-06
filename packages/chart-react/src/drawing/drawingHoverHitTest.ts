@@ -3,13 +3,18 @@ import {
   getHitTestCandidates,
   getVisibleDrawingsSorted,
   hitTestAll,
-  hitTestControlPoint,
 } from '@edge/chart-core';
+import { hitTestControlPointDetailed } from '@edge/chart-core/pluginHost';
+import {
+  cursorForControlPointRole,
+  type ChartCursor,
+} from '@edge/chart-core/layout';
 
 export type DrawingHoverHit = {
   hoveredDrawingId: string | null;
   overControlPoint: boolean;
   controlPointLocked: boolean;
+  controlPointCursor: ChartCursor;
   overDrawing: boolean;
 };
 
@@ -27,11 +32,13 @@ export function computeDrawingHoverHit(
 
   let overControlPoint = false;
   let controlPointLocked = false;
+  let controlPointCursor: ChartCursor = 'grab';
   for (const drawing of visibleSorted) {
-    const cpIdx = hitTestControlPoint(plotX, plotY, drawing, vp, candles, showTimeAxis);
-    if (cpIdx >= 0) {
+    const hit = hitTestControlPointDetailed(plotX, plotY, drawing, vp, candles, showTimeAxis);
+    if (hit) {
       overControlPoint = true;
       controlPointLocked = Boolean(drawing.locked);
+      controlPointCursor = cursorForControlPointRole(hit.role);
       break;
     }
   }
@@ -50,6 +57,7 @@ export function computeDrawingHoverHit(
     hoveredDrawingId,
     overControlPoint,
     controlPointLocked,
+    controlPointCursor,
     overDrawing: hoveredDrawingId != null,
   };
 }

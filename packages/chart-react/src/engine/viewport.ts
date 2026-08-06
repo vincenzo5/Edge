@@ -428,6 +428,39 @@ export function liveEdgeEndIndex(startIndex: number, candleCount: number, width:
 }
 
 /**
+ * Fraction of default live-edge landing used as the crushed-left cutoff.
+ * Below this, bars sit in empty future space (stale persist / tiny-width init).
+ */
+export const CRUSHED_LEFT_LIVE_EDGE_FACTOR = 0.55;
+
+/**
+ * True when the latest bar is still in-window but sits too far left of the
+ * default live-edge landing — typically an oversized right margin that should
+ * not be restored or kept across a resize.
+ */
+export function isCrushedLeftLiveEdge(
+  vp: Pick<ViewportState, 'startIndex' | 'endIndex' | 'width'>,
+  candleCount: number,
+): boolean {
+  const n = candleCount;
+  if (n <= 0) return false;
+  const last = n - 1;
+  if (vp.endIndex < last - 0.5) return false;
+
+  const pw = plotWidth(vp.width);
+  if (pw <= 0) return false;
+
+  const visible = Math.max(MIN_CANDLES, vp.endIndex - vp.startIndex);
+  if (visible <= 0) return false;
+
+  const lastX = ((last - vp.startIndex) / visible) * pw;
+  const ratio = lastX / pw;
+  const expected = defaultLiveEdgeCandleRatio(vp.width);
+  if (expected <= 0) return false;
+  return ratio < expected * CRUSHED_LEFT_LIVE_EDGE_FACTOR;
+}
+
+/**
  * Virtual margin bars after the last candle for a live-edge window with `visibleDataBars` data bars.
  * Prefer `liveEdgeEndIndex` when startIndex is known.
  */

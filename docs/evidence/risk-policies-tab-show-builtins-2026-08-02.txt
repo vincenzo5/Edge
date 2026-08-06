@@ -1,0 +1,20 @@
+# LIVE — Risk policies tab show built-in presets evidence
+# Date: 2026-08-02
+
+## Scope
+Risk policies settings tab only listed user templates, so new built-in presets
+(long_half_be_trail_05r, short_full_tp_1r, etc.) were invisible. Show Built-in
+section from API presets; Yours for user templates.
+
+## Delivered
+- src/app/components/risk/RiskPoliciesSection.tsx — fetch presets + userTemplates;
+  Built-in (view/duplicate) and Yours (full CRUD) sections
+- src/app/components/risk/RiskPoliciesSection.test.tsx — assert builtins visible
+
+## Focused
+Command:
+npm test -- --run src/app/components/risk/RiskPoliciesSection.test.tsx src/app/components/home/AppSettingsShell.test.tsx src/app/api/trading/playbooks/templates/templates.routes.test.ts
+
+Result:
+Test Files  3 passed (3)
+Tests  22 passed (22)

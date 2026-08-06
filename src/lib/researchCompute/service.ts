@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Interval } from "@edge/chart-core/contracts";
 import type { MarketDataService } from "@/lib/marketData/service/marketDataService";
 
 import type {
@@ -84,7 +85,7 @@ export class ResearchComputeService implements ResearchComputePort {
         }
         const profile = computeProfileMetrics({
           barsBySymbol,
-          interval: manifest.identity.interval,
+          interval: manifest.identity.interval as Interval,
           options: args.options,
         });
         const metricsArtifact = writeArtifact({

@@ -1,0 +1,151 @@
+# Journal functional QA — 2026-08-05
+
+Serial browser packs (Composer 2.5 Fast), one agent at a time.
+App: http://localhost:3003
+Unit baseline (prior): Test Files 74 passed (74); Tests 434 passed (434); 5 unhandled indexedDB rejections in JournalPage.test.tsx
+
+Environment (from Pack A):
+- Auth: local dev, no sign-in gate
+- Data: trades present via localStorage fallback
+- GET /api/me/journal/trades → 503 database_unavailable
+- Broker/sync APIs may 503/500; Sync still completes spinner→idle
+
+---
+
+## Pack A — Chrome & navigation — PASS
+
+Agent: 7d0a41a0-c7fc-4642-93cc-65f971a40ea6
+Tooling note: cursor-ide-browser MCP unavailable in agent session; used Playwright headless against live app.
+
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Journal module loads | PASS | journal-module-header + journal-dashboard-view |
+| 2 | View tabs | PASS | Dashboard→Trades→Open→Dashboard; aria-selected OK; URL stays /workspace after ingress (by design) |
+| 3 | Settings accessible | PASS | cog → journal-settings-view; return restores dashboard |
+| 4 | Module header chrome | PASS | title, 3 tabs, period, sync, import |
+| 5 | Sync control | PASS | aria-busy spinner → idle ~15s despite DB/broker 503 |
+| 6 | Import dialog | PASS | dropzone + help expand + Cancel closes |
+| 7 | Empty vs ready gate | PASS | ready path (trades present); empty not exercised |
+| 8 | Scope bar | PASS | Period change OK; symbol search accepted AAPL |
+
+Bugs: none blocking. Info — API 503 noise; tab URL one-shot ingress; journal-tile-nav testid not in codebase (journal-tile-actions).
+
+---
+
+## Pack B — Dashboard reporting — PASS
+
+Agent: d1158b3a-e810-4584-9342-908ad353ad61
+Tooling: Playwright (browser MCP unavailable). Local journal data; account DUP586813.
+KPI sample: netPnl=$405.00; winRate=75%; pf=10.00; avg=$101.25; equity=— (no live IB NL).
+
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Summary KPI cards | PASS | journal-summary-cards populated |
+| 2 | Calendar P&L | PASS | journal-calendar; day 2026-08-04 $80 / 1 trade |
+| 3 | Day summary modal | PASS | journal-day-summary-modal; close OK |
+| 4 | Equity curve | PASS | journal-equity-chart + hover tooltip |
+| 5 | Breakdown setup/tag | PASS | setup rows=2; Tags tab rows=3 |
+| 6 | Compare report | PASS | compare A/B + last30_vs_prior30 preset |
+| 7 | Time report | PASS | Hour rows=4; Weekday rows=3 |
+| 8 | Recent trades → detail | PASS | row → journal-trade-detail-modal; close OK |
+| 9 | Live positions card | PASS | empty copy, no crash |
+| 10 | Period filter | PASS | Today → 0 closed / $0; All restored |
+
+Bugs: none.
+
+---
+
+## Pack C — Trades, filters, detail — PASS WITH GAPS
+
+Agent: 6e2e88a6-38ec-4033-b45a-7369371b950c
+Tooling: Playwright. 24 trades in localStorage; table shows 16 (account scope).
+
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Trades table + badges | PASS | 16 rows; open + loss badges |
+| 2 | Sortable headers | PASS | Symbol aria-sort none→desc→asc |
+| 3 | Columns popover | PASS | toggled setup off → reset |
+| 4 | Scope bar | PASS | period, symbol, filter trigger |
+| 5 | Filter drawer | PASS | 24→22 trades; clear restored |
+| 6 | Open detail modal | PASS | journal-trade-detail-modal |
+| 7 | Risk block / stop | PASS | entry 308.43; stop validation on closed short; reverted |
+| 8 | Review fields save | FAIL | Save → PATCH HTTP 400; Could not save trade |
+| 9 | Ignore-from-stats | FAIL | PATCH 400; aria-checked stays false |
+| 10 | Outcome / P&L / status | PASS | scoreboard coherent |
+| 11 | Execution details | PASS | expand/collapse OK |
+| 12 | Close/reopen persist | FAIL | rating not sticky after failed save |
+
+Bugs:
+- HIGH: PATCH returns 400 (DB error as validation) when DB down; localStorage fallback only on 503 → review edits don't persist offline.
+- MEDIUM: closed short stop edit → "Quantity is required to compute risk."
+- Info: 24 vs 16 row count = account scoping.
+
+---
+
+## Pack D — Screenshots, capture, chart — PASS WITH GAPS
+
+Agent: c6d38f94-cad0-49ce-8026-0fa691db347e
+Tooling: Playwright. Screenshot POST 404 → localStorage fallback succeeds.
+
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Screenshots section | PASS | closed AAPL trade detail |
+| 2 | Empty Upload + Capture | PASS | both buttons when empty |
+| 3 | Upload PNG | PASS | setInputFiles → gallery; local fallback |
+| 4 | Capture chart click | PASS | popup /journal/capture?token&tradeId |
+| 5 | Capture studio Cancel | PASS | journal-capture-studio; Cancel no save |
+| 6 | Lightbox / caption / delete | PASS/SKIP/SKIP | lightbox OK; caption/delete skipped |
+| 7 | Chart deep-link | FAIL | href has journalTrade params; click → /workspace query stripped |
+| 8 | Chart fork modal | SKIP | no forks on tested trades |
+
+Bugs:
+- MEDIUM: trade→chart deep-link loses query on workspace redirect; markers not confirmed.
+- INFO: screenshot POST 404 still falls back locally (better than trade PATCH 400).
+
+---
+
+## Pack E — Settings & sync — PASS WITH GAPS
+
+Agent: 654a9cb2-86ba-4b30-8f4e-66776e6cfe86
+Tooling: Playwright. Cleaned up qa-setup-* after run.
+
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Settings view | PASS | journal-settings-view |
+| 2 | Setups editor chrome | PASS | add/rename/reorder/delete/reset present |
+| 3 | Add temp setup | PASS | qa-setup-20260805 row |
+| 4 | Rename | PASS | → qa-setup-20260805-renamed |
+| 5 | Reorder | PASS | move up index 5→4 |
+| 6 | Trade detail setup option | PASS (save FAIL) | option present; PATCH 400 on save |
+| 7 | Filter drawer setup option | PASS | option present |
+| 8 | Delete / orphan | PASS (partial) | deleted; orphan N/A (never persisted on trade) |
+| 9 | History sync chip | PASS | absent (in sync) |
+| 10 | Open Positions | PASS | 1 open AAPL; unrealized −$5.13 |
+| 11 | Reload cleanup | PASS | 0 leftover qa-setup-* |
+
+Bugs: HIGH known PATCH 400 on trade save when DB down. INFO move-down disabled on last row (expected).
+
+---
+
+## Overall — PASS WITH GAPS
+
+| Pack | Verdict |
+|------|---------|
+| A Chrome & navigation | PASS |
+| B Dashboard reporting | PASS |
+| C Trades / filters / detail | PASS WITH GAPS |
+| D Screenshots / capture / chart | PASS WITH GAPS |
+| E Settings & sync | PASS WITH GAPS |
+| Unit baseline | 74 files / 434 tests passed (+ 5 indexedDB unhandled rejections) |
+
+### Cross-pack findings (priority)
+
+1. **HIGH — Offline trade PATCH fallback broken:** When DB is down, `PATCH /api/me/journal/trades/:id` returns **400** (DB error as validation) instead of **503**. Client localStorage fallback only runs on 503 → rating, ignore-from-stats, setup/tags/notes do not persist. Screenshots tolerate 404 with local fallback (inconsistent).
+2. **MEDIUM — Chart deep-link loses query:** Trade symbol `href` includes `journalTrade`+`goto`, but navigation to `/workspace` strips query; execution markers not confirmed.
+3. **MEDIUM — Stop risk on closed short:** "Quantity is required to compute risk." when editing stop.
+4. **INFO — Env:** `database_unavailable` throughout session; Sync/Import/read paths still usable via localStorage.
+
+### Suggested next steps
+- Fix PATCH offline path: map DB-unavailable to 503 (or broaden client fallback beyond 503).
+- Preserve `journalTrade` (and related) query params across workspace redirect / overlay bootstrap.
+- Re-run Packs C/D/E review-save + deep-link checks with Postgres up for full green.

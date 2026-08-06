@@ -3,6 +3,7 @@ import {
   PRICE_AXIS_WIDTH,
   TIME_AXIS_HEIGHT,
   EVENT_RAIL_HEIGHT,
+  cursorForControlPointRole,
   isPriceAxisHit,
   resolveDragMode,
   resolveHoverCursor,
@@ -48,6 +49,16 @@ describe('isPriceAxisHit', () => {
     expect(isPriceAxisHit(10, WIDTH, 'right')).toBe(false);
     expect(isPriceAxisHit(10, WIDTH, 'left')).toBe(true);
     expect(isPriceAxisHit(WIDTH - 10, WIDTH, 'left')).toBe(false);
+  });
+});
+
+describe('cursorForControlPointRole', () => {
+  it('maps price/time/move roles to cursors', () => {
+    expect(cursorForControlPointRole('price')).toBe('ns-resize');
+    expect(cursorForControlPointRole('time')).toBe('ew-resize');
+    expect(cursorForControlPointRole('move')).toBe('move');
+    expect(cursorForControlPointRole()).toBe('grab');
+    expect(cursorForControlPointRole('entry')).toBe('grab');
   });
 });
 
@@ -119,6 +130,36 @@ describe('resolveHoverCursor', () => {
         overControlPoint: true,
       })
     ).toBe('grab');
+  });
+
+  it('returns ns-resize when hovering a price-role control point', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        overControlPoint: true,
+        controlPointCursor: 'ns-resize',
+      })
+    ).toBe('ns-resize');
+  });
+
+  it('returns ew-resize when hovering a time-role control point', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        overControlPoint: true,
+        controlPointCursor: 'ew-resize',
+      })
+    ).toBe('ew-resize');
+  });
+
+  it('returns move when hovering a move-role control point', () => {
+    expect(
+      resolveHoverCursor(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, {
+        ...navigateCtx,
+        overControlPoint: true,
+        controlPointCursor: 'move',
+      })
+    ).toBe('move');
   });
 
   it('returns grab when hovering a drawing body without selection', () => {

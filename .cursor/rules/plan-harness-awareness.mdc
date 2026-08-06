@@ -23,6 +23,9 @@ Classify **Branch** after Plan vs Execute routing, before deep topic loads — u
 
 ```md
 ## Intent Classification
+- What: <one plain-language line — what this plan builds for the user>
+- Roadmap: <one plain-language line — role in the larger capability (not "after N / before N+1")>
+- Why: <one plain-language line — benefit once this ships>
 - Branch: <ENGINE|DATA|LIVE|AGENT|APP|OPS|HARNESS> (secondary: <lane|none>)
 - Primary / Secondary. Arch: N/A (reason) | Required (reviewer, Pending|Passed|Blocked).
 - Assumptions: only non-obvious deltas (omit checklist file lists).
@@ -46,8 +49,16 @@ Classify **Branch** after Plan vs Execute routing, before deep topic loads — u
 - Plan mode: do **not** run efficiency scripts (`harness:activate`, `harness:closeout`, `efficiency:*`) — tracking is ambient via project hooks + execute closeout.
 ```
 
+**What / Roadmap / Why writing rules** (Intent Classification opener — glance layer for humans):
+
+- Plain language only — no API paths, type names, file paths, or cron/route IDs (those belong in Checklist Review / Proposed Plan / Assumptions).
+- ≤1 line each.
+- **Roadmap** names the larger capability and this plan’s **role** in it (e.g. “policies stop being plans on paper and start controlling live trades”). Do **not** write ordinal glue (“Phase 3 after Phase 2 before Phase 4”).
+- When work is not on a named roadmap, still fill **Roadmap** with the product arc (e.g. “standalone fix in chart drawings — not a roadmap phase”).
+
 ## Do not drop
 
+- What / Roadmap / Why (plain language; required on every full plan)
 - Branch line (primary ± secondary; BRAND is a side door — not in the enum)
 - Architecture review decision line (N/A reason or Required + reviewer)
 - Focused verify command when code changes

@@ -4,9 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useActiveChart } from "@/app/components/ActiveChartContext";
 import { useAppThemeOptional } from "@/app/components/AppThemeProvider";
+import {
+  CaptionIcon,
+  CheckIcon,
+  CloseIcon,
+  TrashIcon,
+} from "@/app/components/chart-chrome/ChartHeaderIcons";
 import { EdgeButton } from "@/app/components/design-system";
+import EdgeIconButton from "@/app/components/design-system/EdgeIconButton";
 import { DEFAULT_LAYOUT } from "@/lib/chartConfig";
-import { subscribeCaptureChannel } from "@/lib/journal/captureChannel";
+import {
+  subscribeCaptureChannel,
+  type CaptureDoneMessage,
+} from "@/lib/journal/captureChannel";
 import {
   buildJournalCaptureSeed,
   createCaptureToken,
@@ -17,6 +27,7 @@ import {
   normalizeScreenshotFile,
 } from "@/lib/journal/localScreenshotStore";
 import { openJournalCaptureWindow } from "@/lib/journal/openJournalCaptureWindow";
+import { resolveJournalTradeIdForPersistence } from "@/lib/journal/resolveJournalTradeIdForPersistence";
 import type { JournalScreenshotResponse } from "@/lib/persistence/schemas/journal";
 import {
   deleteJournalTradeScreenshotRemote,
@@ -32,6 +43,7 @@ type Props = {
   symbol: string;
   openedAt?: string;
   closedAt?: string | null;
+  fillExecIds?: string[];
 };
 
 type ThumbnailState = JournalScreenshotResponse & {
@@ -43,20 +55,52 @@ export default function JournalTradeScreenshots({
   symbol,
   openedAt,
   closedAt,
+  fillExecIds,
 }: Props) {
   const activeChart = useActiveChart();
   const theme = useAppThemeOptional()?.theme ?? DEFAULT_LAYOUT.theme;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingRequestIdRef = useRef<string | null>(null);
+  const captureWindowRef = useRef<Window | null>(null);
+  const [effectiveTradeId, setEffectiveTradeId] = useState(tradeId);
+  const effectiveTradeIdRef = useRef(tradeId);
   const [screenshots, setScreenshots] = useState<ThumbnailState[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [openingCapture, setOpeningCapture] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lightboxId, setLightboxId] = useState<string | null>(null);
+  const [activeScreenshotId, setActiveScreenshotId] = useState<string | null>(null);
+  const [captionPopoverOpen, setCaptionPopoverOpen] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState("");
+  const [captionSaving, setCaptionSaving] = useState(false);
+  const captionEditorRef = useRef<HTMLDivElement>(null);
+  const previousActiveScreenshotIdRef = useRef<string | null>(null);
   const [portalReady, setPortalReady] = useState(false);
   const previewUrlsRef = useRef<string[]>([]);
   const pendingRevokeRef = useRef<string[]>([]);
+  const loadSequenceRef = useRef(0);
+
+  useEffect(() => {
+    if (screenshots.length === 0) {
+      setActiveScreenshotId(null);
+      return;
+    }
+    setActiveScreenshotId((current) =>
+      current && screenshots.some((row) => row.id === current) ? current : screenshots[0]!.id,
+    );
+  }, [screenshots]);
+
+  useEffect(() => {
+    const previousActiveScreenshotId = previousActiveScreenshotIdRef.current;
+    previousActiveScreenshotIdRef.current = activeScreenshotId;
+    if (
+      previousActiveScreenshotId !== null &&
+      previousActiveScreenshotId !== activeScreenshotId
+    ) {
+      setCaptionPopoverOpen(false);
+    }
+  }, [activeScreenshotId]);
 
   useEffect(() => {
     setPortalReady(true);
@@ -68,35 +112,117 @@ export default function JournalTradeScreenshots({
     }
   }, []);
 
-  const loadScreenshots = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const loadScreenshots = useCallback(
+    async (
+      overrideTradeId?: string,
+      options?: {
+        preserveExistingOnEmpty?: boolean;
+        background?: boolean;
+      },
+    ) => {
+    const persistedTradeId = overrideTradeId ?? effectiveTradeIdRef.current;
+    const loadSequence = ++loadSequenceRef.current;
+    const background = options?.background ?? false;
+    if (!background) {
+      setLoading(true);
+      setError(null);
+    }
     const previousUrls = previewUrlsRef.current;
     try {
-      const rows = await fetchJournalTradeScreenshots(tradeId);
+      const rows = await fetchJournalTradeScreenshots(persistedTradeId);
       const withUrls: ThumbnailState[] = [];
       const nextPreviewUrls: string[] = [];
       for (const row of rows) {
         const previewUrl =
-          (await resolveJournalTradeScreenshotBlobUrl(tradeId, row.id)) ??
-          journalTradeScreenshotImageUrl(tradeId, row.id);
+          (await resolveJournalTradeScreenshotBlobUrl(persistedTradeId, row.id)) ??
+          journalTradeScreenshotImageUrl(persistedTradeId, row.id);
         if (previewUrl.startsWith("blob:")) {
           nextPreviewUrls.push(previewUrl);
         }
         withUrls.push({ ...row, previewUrl });
       }
+      if (loadSequence !== loadSequenceRef.current) {
+        revokePreviewUrls(nextPreviewUrls);
+        return;
+      }
+      if (withUrls.length === 0 && options?.preserveExistingOnEmpty) {
+        return;
+      }
       previewUrlsRef.current = nextPreviewUrls;
       pendingRevokeRef.current = previousUrls;
       setScreenshots(withUrls);
     } catch {
+      if (loadSequence !== loadSequenceRef.current) return;
+      if (options?.preserveExistingOnEmpty) return;
       setError("Could not load screenshots.");
       setScreenshots([]);
       previewUrlsRef.current = [];
       pendingRevokeRef.current = previousUrls;
     } finally {
-      setLoading(false);
+      if (loadSequence === loadSequenceRef.current && !background) setLoading(false);
     }
-  }, [tradeId]);
+  },
+    [revokePreviewUrls],
+  );
+
+  const applyCaptureDone = useCallback(
+    async (message: CaptureDoneMessage) => {
+      pendingRequestIdRef.current = null;
+      captureWindowRef.current = null;
+      setOpeningCapture(false);
+      setError(null);
+      effectiveTradeIdRef.current = message.tradeId;
+      setEffectiveTradeId(message.tradeId);
+
+      const previewUrl =
+        (await resolveJournalTradeScreenshotBlobUrl(message.tradeId, message.screenshotId)) ??
+        journalTradeScreenshotImageUrl(message.tradeId, message.screenshotId);
+
+      const optimistic: ThumbnailState = {
+        id: message.screenshotId,
+        tradeId: message.tradeId,
+        sortIndex: 0,
+        caption: null,
+        mimeType: "image/png",
+        byteSize: 0,
+        width: null,
+        height: null,
+        source: "chart_capture",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        previewUrl,
+      };
+
+      setScreenshots((prev) => {
+        if (prev.some((row) => row.id === message.screenshotId)) return prev;
+        return [optimistic, ...prev];
+      });
+
+      void loadScreenshots(message.tradeId, {
+        preserveExistingOnEmpty: true,
+        background: true,
+      });
+    },
+    [loadScreenshots],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    effectiveTradeIdRef.current = tradeId;
+    setEffectiveTradeId(tradeId);
+
+    void (async () => {
+      const resolved = await resolveJournalTradeIdForPersistence({ tradeId, fillExecIds });
+      if (!cancelled && resolved) {
+        effectiveTradeIdRef.current = resolved;
+        setEffectiveTradeId(resolved);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tradeId, fillExecIds]);
 
   useEffect(() => {
     const toRevoke = pendingRevokeRef.current;
@@ -116,25 +242,28 @@ export default function JournalTradeScreenshots({
       revokePreviewUrls(pendingRevokeRef.current);
       pendingRevokeRef.current = [];
     };
-  }, [loadScreenshots, revokePreviewUrls]);
+  }, [effectiveTradeId, loadScreenshots, revokePreviewUrls]);
 
   useEffect(() => {
     return subscribeCaptureChannel((message) => {
-      if (message.tradeId !== tradeId) return;
-      if (pendingRequestIdRef.current && message.requestId !== pendingRequestIdRef.current) {
+      const pendingRequestId = pendingRequestIdRef.current;
+      if (pendingRequestId) {
+        if (message.requestId !== pendingRequestId) return;
+      } else if (
+        message.tradeId !== effectiveTradeIdRef.current &&
+        message.tradeId !== tradeId
+      ) {
         return;
       }
 
       if (message.type === "captureDone") {
-        pendingRequestIdRef.current = null;
-        setOpeningCapture(false);
-        setError(null);
-        void loadScreenshots();
+        void applyCaptureDone(message);
         return;
       }
 
       if (message.type === "captureFailed") {
         pendingRequestIdRef.current = null;
+        captureWindowRef.current = null;
         setOpeningCapture(false);
         setError(message.error);
         return;
@@ -142,10 +271,72 @@ export default function JournalTradeScreenshots({
 
       if (message.type === "captureCancelled") {
         pendingRequestIdRef.current = null;
+        captureWindowRef.current = null;
         setOpeningCapture(false);
       }
     });
-  }, [loadScreenshots, tradeId]);
+  }, [applyCaptureDone, loadScreenshots, tradeId]);
+
+  useEffect(() => {
+    if (!openingCapture) return;
+
+    const pollCaptureWindow = window.setInterval(() => {
+      const captureWindow = captureWindowRef.current;
+      if (captureWindow && !captureWindow.closed) return;
+      if (!pendingRequestIdRef.current) return;
+
+      void (async () => {
+        const resolvedTradeId = await resolveJournalTradeIdForPersistence({
+          tradeId,
+          fillExecIds,
+        });
+        const persistedTradeId = resolvedTradeId ?? effectiveTradeIdRef.current;
+        effectiveTradeIdRef.current = persistedTradeId;
+        setEffectiveTradeId(persistedTradeId);
+        await loadScreenshots(persistedTradeId);
+        pendingRequestIdRef.current = null;
+        captureWindowRef.current = null;
+        setOpeningCapture(false);
+      })();
+    }, 400);
+
+    return () => window.clearInterval(pollCaptureWindow);
+  }, [fillExecIds, loadScreenshots, openingCapture, tradeId]);
+
+  useEffect(() => {
+    const refreshAfterPopupActivity = () => {
+      if (!pendingRequestIdRef.current) return;
+      window.setTimeout(() => {
+        void (async () => {
+          const resolvedTradeId = await resolveJournalTradeIdForPersistence({
+            tradeId,
+            fillExecIds,
+          });
+          const persistedTradeId = resolvedTradeId ?? effectiveTradeIdRef.current;
+          effectiveTradeIdRef.current = persistedTradeId;
+          setEffectiveTradeId(persistedTradeId);
+          await loadScreenshots(persistedTradeId);
+
+          if (!captureWindowRef.current || captureWindowRef.current.closed) {
+            pendingRequestIdRef.current = null;
+            captureWindowRef.current = null;
+            setOpeningCapture(false);
+          }
+        })();
+      }, 100);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshAfterPopupActivity();
+    };
+
+    window.addEventListener("focus", refreshAfterPopupActivity);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", refreshAfterPopupActivity);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fillExecIds, loadScreenshots, tradeId]);
 
   async function handleUpload(file: Blob, source: "upload" | "paste" | "chart_capture") {
     if (screenshots.length >= JOURNAL_SCREENSHOT_MAX_PER_TRADE) {
@@ -156,7 +347,7 @@ export default function JournalTradeScreenshots({
     setError(null);
     try {
       const normalized = normalizeScreenshotFile(file);
-      const created = await uploadJournalTradeScreenshot(tradeId, normalized.blob, {
+      const created = await uploadJournalTradeScreenshot(effectiveTradeId, normalized.blob, {
         source,
         filename: source === "chart_capture" ? "chart-capture.png" : "screenshot.png",
       });
@@ -173,49 +364,119 @@ export default function JournalTradeScreenshots({
   }
 
   async function handleDelete(screenshotId: string) {
-    const deleted = await deleteJournalTradeScreenshotRemote(tradeId, screenshotId);
+    const deleted = await deleteJournalTradeScreenshotRemote(effectiveTradeId, screenshotId);
     if (!deleted) {
       setError("Could not delete screenshot.");
       return;
     }
     if (lightboxId === screenshotId) setLightboxId(null);
+    if (activeScreenshotId === screenshotId) setActiveScreenshotId(null);
     await loadScreenshots();
   }
 
   async function handleCaptionChange(screenshotId: string, caption: string) {
-    const updated = await patchJournalTradeScreenshotRemote(tradeId, screenshotId, {
+    const updated = await patchJournalTradeScreenshotRemote(effectiveTradeId, screenshotId, {
       caption: caption.trim() || null,
     });
-    if (!updated) return;
+    if (!updated) return false;
     setScreenshots((prev) =>
       prev.map((row) => (row.id === screenshotId ? { ...row, caption: updated.caption ?? null } : row)),
     );
+    return true;
   }
 
-  function handleCaptureChart() {
+  async function saveCaptionDraft() {
+    if (!activeShot) {
+      setCaptionPopoverOpen(false);
+      return;
+    }
+    const trimmed = captionDraft.trim();
+    if (trimmed !== (activeShot.caption ?? "").trim()) {
+      setCaptionSaving(true);
+      setError(null);
+      try {
+        const saved = await handleCaptionChange(activeShot.id, captionDraft);
+        if (!saved) {
+          setError("Could not save screenshot caption.");
+          return;
+        }
+      } catch {
+        setError("Could not save screenshot caption.");
+        return;
+      } finally {
+        setCaptionSaving(false);
+      }
+    }
+    setCaptionPopoverOpen(false);
+  }
+
+  function cancelCaptionDraft() {
+    setCaptionDraft(activeShot?.caption ?? "");
+    setCaptionPopoverOpen(false);
+  }
+
+  useEffect(() => {
+    if (!captionPopoverOpen) return;
+    const handleMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (captionEditorRef.current?.contains(target)) return;
+      setCaptionPopoverOpen(false);
+      setCaptionDraft(() => {
+        const shot =
+          screenshots.find((row) => row.id === activeScreenshotId) ?? screenshots[0] ?? null;
+        return shot?.caption ?? "";
+      });
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [captionPopoverOpen, screenshots, activeScreenshotId]);
+
+  function openCaptionPopover() {
+    if (!activeShot) return;
+    setCaptionDraft(activeShot.caption ?? "");
+    setCaptionPopoverOpen(true);
+  }
+
+  async function handleCaptureChart() {
     if (screenshots.length >= JOURNAL_SCREENSHOT_MAX_PER_TRADE) {
       setError(`Maximum ${JOURNAL_SCREENSHOT_MAX_PER_TRADE} screenshots per trade.`);
       return;
     }
 
+    setOpeningCapture(true);
+    setError(null);
+
+    const resolvedTradeId = await resolveJournalTradeIdForPersistence({
+      tradeId,
+      fillExecIds,
+    });
+    if (!resolvedTradeId) {
+      setOpeningCapture(false);
+      setError("Journal trade not found. Sync journal and try again.");
+      return;
+    }
+
+    effectiveTradeIdRef.current = resolvedTradeId;
+    setEffectiveTradeId(resolvedTradeId);
+
     const token = createCaptureToken();
     const seed = buildJournalCaptureSeed({
-      trade: { id: tradeId, symbol, openedAt, closedAt },
+      trade: { id: resolvedTradeId, symbol, openedAt, closedAt, fillExecIds },
       activeCellConfig: activeChart?.config ?? null,
       theme,
     });
 
     writeCaptureSeed(token, seed);
     pendingRequestIdRef.current = seed.requestId;
-    setOpeningCapture(true);
-    setError(null);
 
-    const opened = openJournalCaptureWindow({ token, tradeId });
+    const opened = openJournalCaptureWindow({ token, tradeId: resolvedTradeId });
     if (!opened.ok) {
       pendingRequestIdRef.current = null;
       setOpeningCapture(false);
       setError("Popup blocked. Allow popups for this site, then try again.");
+      return;
     }
+    captureWindowRef.current = opened.window;
   }
 
   function handlePaste(event: React.ClipboardEvent<HTMLDivElement>) {
@@ -232,8 +493,12 @@ export default function JournalTradeScreenshots({
   }
 
   const lightbox = lightboxId ? screenshots.find((row) => row.id === lightboxId) ?? null : null;
-  const heroShot = screenshots[0] ?? null;
-  const thumbShots = screenshots.slice(1);
+  const activeShot =
+    screenshots.find((row) => row.id === activeScreenshotId) ?? screenshots[0] ?? null;
+  const filmstripShots = activeShot
+    ? screenshots.filter((row) => row.id !== activeShot.id)
+    : [];
+  const activeCaption = activeShot?.caption?.trim() ?? "";
   const atLimit = screenshots.length >= JOURNAL_SCREENSHOT_MAX_PER_TRADE;
   const captureDisabled = uploading || openingCapture || atLimit;
 
@@ -260,38 +525,133 @@ export default function JournalTradeScreenshots({
         >
           <p className="text-xs text-[var(--edge-text-secondary)]">Loading screenshots…</p>
         </div>
-      ) : heroShot ? (
+      ) : activeShot ? (
         <div
-          className="group relative overflow-hidden rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)]"
+          className="flex gap-3 rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)]"
           data-testid="journal-trade-screenshots-hero"
         >
-          <button
-            type="button"
-            className="block w-full px-1 py-1"
-            onClick={() => setLightboxId(heroShot.id)}
-            aria-label="Open screenshot preview"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={heroShot.previewUrl}
-              alt={heroShot.caption ?? "Trade screenshot"}
-              className="mx-auto max-h-80 w-full object-contain"
-            />
-          </button>
-          <button
-            type="button"
-            className="absolute right-2 top-2 rounded bg-[var(--edge-surface-panel)]/90 px-2 py-1 text-[10px] text-[var(--edge-text-secondary)] opacity-0 transition group-hover:opacity-100"
-            onClick={() => void handleDelete(heroShot.id)}
-            aria-label="Delete screenshot"
-          >
-            Delete
-          </button>
-          <input
-            className="w-full border-t border-[var(--edge-border-subtle)] bg-transparent px-2 py-1.5 text-xs text-[var(--edge-text-primary)]"
-            placeholder="Caption"
-            defaultValue={heroShot.caption ?? ""}
-            onBlur={(event) => void handleCaptionChange(heroShot.id, event.target.value)}
-          />
+          {activeCaption ? (
+            <aside
+              className="flex w-[5.5rem] shrink-0 items-start px-2 py-3"
+              data-testid="journal-trade-screenshots-caption"
+            >
+              <p className="break-words text-[11px] leading-snug text-[var(--edge-text-secondary)]">
+                {activeCaption}
+              </p>
+            </aside>
+          ) : null}
+          <div className="group/image relative min-w-0 flex-1">
+            <button
+              type="button"
+              className="block w-full px-1 py-1"
+              onClick={() => {
+                if (captionPopoverOpen) return;
+                setLightboxId(activeShot.id);
+              }}
+              aria-label="Open screenshot preview"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={activeShot.previewUrl}
+                alt={activeShot.caption ?? "Trade screenshot"}
+                className="mx-auto max-h-80 w-full object-contain"
+              />
+            </button>
+            <div className="absolute right-2 top-2 z-20">
+              <div
+                ref={captionEditorRef}
+                className={`flex flex-col items-end gap-1 transition ${
+                  captionPopoverOpen ? "opacity-100" : "opacity-0 group-hover/image:opacity-100"
+                }`}
+              >
+                <div className="flex items-center gap-1">
+                  <EdgeIconButton
+                    size="compact"
+                    aria-label="Edit caption"
+                    aria-expanded={captionPopoverOpen}
+                    data-testid="journal-trade-screenshots-caption-trigger"
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      event.preventDefault();
+                      openCaptionPopover();
+                    }}
+                  >
+                    <CaptionIcon size={14} />
+                  </EdgeIconButton>
+                  <EdgeIconButton
+                    size="compact"
+                    aria-label="Delete screenshot"
+                    data-testid="journal-trade-screenshots-delete"
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleDelete(activeShot.id);
+                    }}
+                  >
+                    <TrashIcon size={14} />
+                  </EdgeIconButton>
+                </div>
+                {captionPopoverOpen ? (
+                  <div
+                    className="w-56 rounded-[var(--edge-radius-lg)] border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-popover)] p-2 shadow-[var(--edge-shadow-popover)]"
+                    data-testid="journal-trade-screenshots-caption-popover"
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <label className="block">
+                      <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--edge-text-secondary)]">
+                        Caption
+                      </span>
+                      <input
+                        type="text"
+                        autoFocus
+                        data-testid="journal-trade-screenshots-caption-input"
+                        value={captionDraft}
+                        onChange={(event) => setCaptionDraft(event.target.value)}
+                        placeholder="Add a caption…"
+                        className="w-full rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-panel)] px-2 py-1.5 text-xs text-[var(--edge-text-primary)] outline-none focus:border-[var(--edge-border-strong)]"
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void saveCaptionDraft();
+                          }
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            cancelCaptionDraft();
+                          }
+                        }}
+                      />
+                    </label>
+                    <div className="mt-2 flex justify-end gap-1">
+                      <EdgeIconButton
+                        size="compact"
+                        aria-label="Save caption"
+                        data-testid="journal-trade-screenshots-caption-save"
+                        disabled={captionSaving}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void saveCaptionDraft();
+                        }}
+                      >
+                        <CheckIcon size={14} />
+                      </EdgeIconButton>
+                      <EdgeIconButton
+                        size="compact"
+                        aria-label="Cancel caption"
+                        data-testid="journal-trade-screenshots-caption-cancel"
+                        disabled={captionSaving}
+                        onClick={cancelCaptionDraft}
+                      >
+                        <CloseIcon size={14} />
+                      </EdgeIconButton>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div
@@ -330,44 +690,30 @@ export default function JournalTradeScreenshots({
         </p>
       ) : null}
 
-      {heroShot ? (
+      {activeShot ? (
         <>
-          {thumbShots.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
-              {thumbShots.map((shot) => (
-                <div
+          {filmstripShots.length > 0 ? (
+            <div
+              className="flex gap-1.5 overflow-x-auto pb-0.5"
+              data-testid="journal-trade-screenshots-filmstrip"
+            >
+              {filmstripShots.map((shot) => (
+                <button
                   key={shot.id}
-                  className="group relative overflow-hidden rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)]"
+                  type="button"
+                  className="relative h-12 w-[4.5rem] shrink-0 overflow-hidden rounded border border-[var(--edge-border-subtle)] bg-[var(--edge-surface-elevated)] hover:border-[var(--edge-border-strong)]"
                   data-testid={`journal-trade-screenshot-${shot.id}`}
+                  onClick={() => setActiveScreenshotId(shot.id)}
+                  aria-label={shot.caption?.trim() || "View screenshot"}
+                  title={shot.caption?.trim() || undefined}
                 >
-                  <button
-                    type="button"
-                    className="block aspect-[4/3] w-full"
-                    onClick={() => setLightboxId(shot.id)}
-                    aria-label="Open screenshot preview"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={shot.previewUrl}
-                      alt={shot.caption ?? "Trade screenshot"}
-                      className="h-full w-full bg-[var(--edge-surface-panel)] object-contain"
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    className="absolute right-1 top-1 rounded bg-[var(--edge-surface-panel)]/90 px-1.5 py-0.5 text-[10px] text-[var(--edge-text-secondary)] opacity-0 transition group-hover:opacity-100"
-                    onClick={() => void handleDelete(shot.id)}
-                    aria-label="Delete screenshot"
-                  >
-                    Delete
-                  </button>
-                  <input
-                    className="w-full border-t border-[var(--edge-border-subtle)] bg-transparent px-1.5 py-1 text-[10px] text-[var(--edge-text-primary)]"
-                    placeholder="Caption"
-                    defaultValue={shot.caption ?? ""}
-                    onBlur={(event) => void handleCaptionChange(shot.id, event.target.value)}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={shot.previewUrl}
+                    alt={shot.caption ?? "Trade screenshot thumbnail"}
+                    className="h-full w-full object-cover"
                   />
-                </div>
+                </button>
               ))}
             </div>
           ) : null}

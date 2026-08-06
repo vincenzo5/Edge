@@ -7,7 +7,7 @@ describe("resolvePolicyTradeGeometry", () => {
     targets: [{ rMultiple: 1 }],
   };
 
-  it("uses planLevels when drawing-bound", () => {
+  it("uses planLevels when drawing-bound without recipe reshape", () => {
     expect(
       resolvePolicyTradeGeometry({
         side: "BUY",
@@ -25,6 +25,29 @@ describe("resolvePolicyTradeGeometry", () => {
       stop: 95,
       target: 110,
       source: "planLevels",
+    });
+  });
+
+  it("reshapes bound plan target from policy geometry recipe", () => {
+    expect(
+      resolvePolicyTradeGeometry({
+        side: "BUY",
+        planLevels: {
+          direction: "long",
+          side: "BUY",
+          entry: 100,
+          stop: 95,
+          target: 110,
+          riskRewardRatio: 2,
+        },
+        geometry,
+        reshapeFromRecipe: true,
+      }),
+    ).toEqual({
+      entry: 100,
+      stop: 95,
+      target: 105,
+      source: "planLevelsAndRecipe",
     });
   });
 

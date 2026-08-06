@@ -261,6 +261,26 @@ npm run build
 
 App-level: `npm run dev:with-db` → import Flex CSV → calendar/breakdown/time reports visible → set R on trade → open chart with entry/exit markers → filters still scope reports.
 
+### Demo journal seed (local dashboard viz)
+
+Isolated demo user + synthetic history for `/journal/dashboard` without polluting `dev@localhost` or needing Flex exports. Each trade is patched with full review/risk UI fields: setup, tags, rating, review note, initial stop, planned risk, MFE/MFA (closed), and a manage-playbook snapshot (rule timeline + position geometry).
+
+```bash
+npm run journal:seed-demo          # Yahoo daily bars (default)
+npm run journal:seed-demo -- --reset  # wipe demo user journal rows first
+npm run journal:seed-demo -- --synthetic  # placeholder prices (offline)
+```
+
+Switch into the demo user:
+
+1. Set `EDGE_DEV_USER_EMAIL=demo@localhost` and `EDGE_DEMO_JOURNAL_ACCOUNT_ID=DEMO0001` in `.env.local`
+2. Clear session: `curl -X DELETE http://localhost:3003/api/auth/dev-session`
+3. Reload app → select **Demo** in the account picker → open `/journal/dashboard`
+
+Journal filters fills by picker `accountId` (`DEMO0001`). Account equity hero still reads live IB `NetLiquidation` — shows `—` without Gateway (fills-driven KPIs populate). Trading stays disabled for offline Demo.
+
+Modules: `src/lib/journal/demoSeed/*`, `scripts/seed-journal-demo.mts`, `src/lib/trading/demoJournalAccount.ts`.
+
 ## Roadmap (post-v1)
 
 Tiers 1–3 journal reporting (calendar, tag/setup breakdown, equity curve, time analysis, chart execution overlay, R-multiple, trade rating, compare reports, STK MFE/MFA) are **Passing** — see [docs/roadmaps/journal-roadmap.md](../../../docs/roadmaps/journal-roadmap.md).

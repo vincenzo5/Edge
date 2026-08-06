@@ -13,6 +13,7 @@ describe("CopilotEvidenceRail", () => {
   it("shows empty state when no cards are pinned", () => {
     render(<CopilotEvidenceRail onOpenHref={vi.fn()} />);
     expect(screen.getByTestId("copilot-evidence-empty")).toBeTruthy();
+    expect(screen.getByText("Pinned")).toBeTruthy();
   });
 
   it("lists pinned cards with open and unpin actions", () => {

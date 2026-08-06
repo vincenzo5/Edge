@@ -209,6 +209,7 @@ export default function EdgeSelect<T extends string = string>(props: EdgeSelectP
         label={label}
         labelId={labelId}
         labelSurface={surface}
+        fullWidth={variant === "field"}
         className={variant === "field" ? "w-full" : undefined}
       >
         {trigger}

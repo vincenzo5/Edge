@@ -1,0 +1,57 @@
+# OPS — Discord knowledge mine — Phase 1 evidence
+# Date: 2026-07-29
+
+## Scope
+Guild inventory via get_servers → _index.md; choose Active server for Phase 2. No Edge product code. No send_message calls.
+
+## MCP inventory
+Command: user-discord get_servers (no mcp_auth required — server enabled)
+Result: 8 guilds returned
+
+Guild count: 8
+Full list (id + name):
+- 1345810177135476768 — ChadGPT Course's Discord Community
+- 1305230430458351626 — Trinity Trading Partners
+- 1074847526655643750 — Cursor
+- 928315068955893760 — Algo Trading, Coding
+- 783160857139740713 — WolvesOfWealth
+- 778344907378655283 — MarketLife
+- 755810120486879314 — SMB Students
+- 289994252241338369 — ServiceNow Developers - Ask questions, get help, or find a ServiceNow job!
+
+send_message calls this session: 0
+
+## Active server (WIP=1)
+Chosen: Algo Trading, Coding (928315068955893760)
+Rationale: trading + coding overlap with Edge; first in proposed mine order
+
+## Local index
+Root: /Users/vincentn/Knowledge/discord/
+
+Command: wc -l ~/Knowledge/discord/_index.md && grep -c 'not_started' ~/Knowledge/discord/_index.md
+Output:
+      29 /Users/vincentn/Knowledge/discord/_index.md
+8
+
+Command: grep 'Active server' ~/Knowledge/discord/_index.md
+Output:
+**Active server (WIP=1):** Algo Trading, Coding (`928315068955893760`) — Phase 2 bootstrap next.
+
+Guild rows in index: 8 (all status not_started until Phase 2+)
+
+Command: ls -la ~/Knowledge/discord/by-server/
+Output:
+total 0
+drwxr-xr-x  2 vincentn  staff   64 Jul 29 20:40 .
+drwxr-xr-x  5 vincentn  staff  160 Jul 29 20:41 ..
+
+(by-server/ empty — Phase 2 creates first server folder)
+
+## Architecture review
+N/A — operator workflow + local filesystem only; no Edge runtime contracts.
+
+## App-level
+App-level: get_servers returned 8 guilds; _index.md lists all 8 with Active Algo Trading Coding; by-server/ empty; send_message calls 0
+
+## Next
+Phase 2 — First-server bootstrap (get_channels → meta.json, channels.json, profile.md for Active server)

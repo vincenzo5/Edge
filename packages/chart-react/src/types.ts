@@ -95,6 +95,7 @@ export type EdgeChartHandle = {
   areAllDrawingsHidden: () => boolean;
   updateDrawingStyles: (id: string, patch: Partial<DrawingStyles>) => void;
   updateDrawingMetadata: (id: string, patch: DrawingMetadata) => void;
+  updateDrawingPoints: (id: string, after: SerializedDrawing['points']) => void;
   undo: () => boolean;
   redo: () => boolean;
   canUndo: () => boolean;
@@ -155,6 +156,8 @@ export type EdgeChartProps = {
   paneOrder?: string[];
   onStateChange?: (state: SerializedChartState) => void;
   onOverlayRightClick?: (overlay: TrackedOverlay, pos: { x: number; y: number }) => void;
+  /** Double-click on a drawing — host opens that drawing's settings panel. */
+  onDrawingOpenSettings?: (id: string) => void;
   onChartContextMenu?: (pos: { x: number; y: number }) => void;
   onPriceScaleContextMenu?: (pos: {
     clientX: number;

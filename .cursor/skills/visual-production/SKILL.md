@@ -1,22 +1,23 @@
 ---
 name: visual-production
-description: Orchestrate visual asset production for the Edge landing page. Coordinates LogoLoom (brand identity), QuiverAI (icons), Dashmotion (animations), and Superdesign (mockups) in the correct production order. Use when starting visual asset production for the landing page, when the user asks to generate logos/icons/mockups/animations, or when the edge-landing-page skill reaches Phase 2 (Visual & Interactive).
+description: Orchestrate visual asset production for the Edge landing page. Coordinates LogoLoom (brand identity), QuiverAI (icons), Higgsfield (characters, logo concepts, marketing media), Dashmotion (animations), and Superdesign (mockups) in the correct production order. Use when starting visual asset production for the landing page, when the user asks to generate logos/icons/characters/mockups/animations, or when the edge-landing-page skill reaches Phase 2 (Visual & Interactive).
 ---
 
 # Visual Production Orchestrator
 
 **BRAND side door** — router index: [docs/harness/README.md](../../../docs/harness/README.md) (no peer branch pack).
 
-Coordinates the four visual asset tools in the correct production order. Called by the `edge-landing-page` skill when it reaches Phase 2, or directly when the user asks to produce visual assets.
+Coordinates the visual asset tools in the correct production order. Called by the `edge-landing-page` skill when it reaches Phase 2, or directly when the user asks to produce visual assets.
 
 ## Prerequisites
 
 Before starting, verify:
 
 1. **Design tokens exist** — read `docs/foundation/design-system.md` for colors, fonts, motion specs. If missing, halt and create it first.
-2. **MCP servers are connected** — LogoLoom and QuiverAI should appear as available MCP tools. If not, check `.cursor/mcp.json`.
+2. **MCP servers are connected** — LogoLoom, QuiverAI, and Higgsfield should appear as available MCP tools (`ready`, not `needsAuth`). If not, check `.cursor/mcp.json`.
 3. **Dashmotion skill is present** — should be in `.cursor/skills/dashmotion/`.
-4. **Output directories exist** — create `public/brand/`, `public/icons/`, `public/mockups/`, `public/animations/` if missing.
+4. **Output directories exist** — create `public/brand/`, `public/brand/character/`, `public/brand/logo-concepts/`, `public/icons/`, `public/mockups/`, `public/animations/` if missing.
+5. **Higgsfield credits** — call `balance` before character/concept/video batches; free plan = 1 concurrent job.
 
 ## Production Order
 
@@ -24,7 +25,7 @@ Execute phases sequentially. Each phase depends on the previous one.
 
 ### Phase 1: Brand Identity (Assets 1.1, 1.2, 1.3)
 
-**Tool:** LogoLoom MCP
+**Tool:** LogoLoom MCP (production). Optional explore first with Higgsfield concept sheets — see Phase 1b.
 
 1. Call `text_to_path` with the logo SVG:
    - Font: Space Grotesk Bold
@@ -44,6 +45,19 @@ Execute phases sequentially. Each phase depends on the previous one.
 - All PNG sizes exported correctly
 - Favicon.ico exists
 - OG image is 1200×630
+
+### Phase 1b: Characters & Logo Concepts (optional / on request)
+
+**Tool:** Higgsfield MCP — full instructions in `visual-assets/SKILL.md` (Higgsfield section).
+
+Run when the user asks for mascot/character art, logo moodboards, cinematic stills, or short marketing video:
+
+1. `balance` → confirm credits; free plan max 1 concurrent job
+2. Character sheets → `public/brand/character/`
+3. Logo concept grids → `public/brand/logo-concepts/` (not final logos)
+4. Winners for production wordmark/favicon → rebuild in Phase 1 LogoLoom
+
+Do not treat Higgsfield PNG moodboards as shipped brand kit replacements.
 
 ### Phase 2: Custom Icons (Assets 3.1–3.6)
 
@@ -112,6 +126,7 @@ After all phases complete, verify:
 - [ ] Both animated diagrams render correctly in browser
 - [ ] All assets use Edge design tokens (no off-brand colors)
 - [ ] No asset exceeds performance budget (individual SVGs < 10KB, animations < 50KB)
+- [ ] If Higgsfield was used: character/concept PNGs under `public/brand/character/` or `logo-concepts/`; production logo still from LogoLoom when shipping
 
 ## Updating the Visual Assets Doc
 

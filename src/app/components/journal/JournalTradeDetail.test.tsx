@@ -46,6 +46,7 @@ const trade: JournalTradeResponse = {
   avgEntry: 150.25,
   avgExit: 155.75,
   netPnL: 550,
+  grossPnL: 552.1,
   totalCommission: 2.1,
   fillExecIds: ["exec-1", "exec-2"],
   tags: [],
@@ -99,6 +100,36 @@ describe("JournalTradeDetail", () => {
     expect(screen.getByTestId("journal-trade-outcome-exit")).toHaveTextContent("155.75");
     expect(screen.getByTestId("journal-trade-outcome-pnl")).toHaveTextContent("$550.00");
     expect(screen.getByTestId("journal-trade-outcome-badge")).toHaveTextContent("WIN");
+    expect(screen.getByTestId("journal-trade-qty-summary")).toHaveTextContent(
+      "Qty 100 sh ($15,025.00)",
+    );
+    expect(screen.getByTestId("journal-trade-comm")).toHaveTextContent("Comm $2.10");
+    expect(screen.getByTestId("journal-trade-net-roi")).toHaveTextContent("Net ROI 3.66%");
+  });
+
+  it("shows commission immediately followed by net ROI for a closed trade", async () => {
+    render(
+      <JournalTradeDetail
+        trade={{
+          ...trade,
+          avgEntry: 644.62,
+          netQuantity: 100,
+          netPnL: 676,
+          totalCommission: 2,
+        }}
+        onUpdated={vi.fn()}
+        embedded
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-comm-roi")).toHaveTextContent(
+        "Comm $2.00 · Net ROI 1.05%",
+      );
+    });
+    expect(screen.getByTestId("journal-trade-qty-summary")).toHaveTextContent(
+      "Qty 100 sh ($64,462.00)",
+    );
   });
 
   it("keeps scoreboard outside scroll region and orders review before screenshots", async () => {
@@ -209,6 +240,10 @@ describe("JournalTradeDetail", () => {
       "Seeded from plan — save to persist",
     );
     expect(screen.getByTestId("journal-trade-risk-stop")).toHaveValue(95);
+    expect(screen.getByTestId("journal-trade-risk-summary")).toBeInTheDocument();
+    expect(screen.getByTestId("journal-trade-comm-roi")).toHaveTextContent(
+      "Comm $2.10 · Net ROI 3.66%",
+    );
     expect(screen.getByTestId("journal-trade-risk-manage")).toBeInTheDocument();
   });
 
@@ -287,5 +322,51 @@ describe("JournalTradeDetail", () => {
     fireEvent.click(screen.getByTestId("journal-trade-setup"));
     expect(screen.getByTestId("journal-trade-setup-option-legacy setup")).toBeInTheDocument();
     expect(localStorage.getItem(JOURNAL_SETUP_VALUES_STORAGE_KEY)).toContain("breakout");
+  });
+
+  it("computes stop risk preview for closed short trades with zero netQuantity using fills", async () => {
+    const shortTrade: JournalTradeResponse = {
+      ...trade,
+      direction: "short",
+      netQuantity: 0,
+      avgEntry: 308.43,
+      avgExit: 305.1,
+      netPnL: 83.25,
+      fillExecIds: ["exec-short-open", "exec-short-close"],
+    };
+    const shortFills: JournalFillResponse[] = [
+      {
+        ...fills[0],
+        execId: "exec-short-open",
+        side: "SLD",
+        quantity: 25,
+        price: 308.43,
+      },
+      {
+        ...fills[1],
+        execId: "exec-short-close",
+        side: "BOT",
+        quantity: 25,
+        price: 305.1,
+      },
+    ];
+    mocks.fetchJournalFills.mockResolvedValue(shortFills);
+
+    render(<JournalTradeDetail trade={shortTrade} onUpdated={vi.fn()} embedded />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("journal-trade-risk-stop")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId("journal-trade-risk-stop"), {
+      target: { value: "312" },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Quantity is required to compute risk.")).not.toBeInTheDocument();
+      expect(screen.getByTestId("journal-trade-comm-roi")).toHaveTextContent(
+        "Comm $2.10 · Net ROI 1.08%",
+      );
+    });
   });
 });

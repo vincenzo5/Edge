@@ -65,7 +65,7 @@ function makeFixtureRoots() {
       "EDGE_AUTH_SECRET=" + PROD_SECRET,
       "EDGE_API_AUTH_MODE=key",
       "EDGE_API_KEY=" + API_KEY,
-      "EDGE_ALLOW_OPEN_DEV_SESSION=0",
+      "EDGE_ALLOW_OPEN_DEV_SESSION=1",
       "EDGE_READYZ_URL=http://127.0.0.1:3000/readyz",
       "TWS_ENABLED=false",
     ].join("\n") + "\n",
@@ -101,7 +101,7 @@ function validInput(overrides: Partial<LocalDeployInput> = {}): LocalDeployInput
       EDGE_AUTH_SECRET: PROD_SECRET,
       EDGE_API_AUTH_MODE: "key",
       EDGE_API_KEY: API_KEY,
-      EDGE_ALLOW_OPEN_DEV_SESSION: "0",
+      EDGE_ALLOW_OPEN_DEV_SESSION: "1",
       EDGE_READYZ_URL: "http://127.0.0.1:3000/readyz",
       TWS_ENABLED: "false",
     },
@@ -368,7 +368,7 @@ describe("loadDeployInputSync", () => {
       if (String(path).endsWith(".env.local")) {
         return "EDGE_APP_HOST=127.0.0.1\nEDGE_APP_PORT=3003\nDATABASE_URL=postgres://edge:dev-password@localhost:5432/edge_dev\nEDGE_CACHE_ENV=dev\nEDGE_REQUIRE_REDIS=0\nEDGE_AUTH_SECRET=" + DEV_SECRET + "\nEDGE_API_AUTH_MODE=dev-open\nTWS_ENABLED=false\nREDIS_URL=redis://localhost:6379\nEDGE_MARKET_DATA_CACHE_BACKEND=redis\nEDGE_ALLOW_OPEN_DEV_SESSION=1\n";
       }
-      return "EDGE_APP_HOST=127.0.0.1\nEDGE_APP_PORT=3000\nDATABASE_URL=postgres://edge:prod-password@localhost:5432/edge_prod\nEDGE_CACHE_ENV=prod\nEDGE_REQUIRE_REDIS=1\nEDGE_AUTH_SECRET=" + PROD_SECRET + "\nEDGE_API_KEY=" + API_KEY + "\nEDGE_API_AUTH_MODE=key\nTWS_ENABLED=false\nREDIS_URL=redis://localhost:6379\nEDGE_MARKET_DATA_CACHE_BACKEND=redis\nEDGE_ALLOW_OPEN_DEV_SESSION=0\nEDGE_READYZ_URL=http://127.0.0.1:3000/readyz\n";
+      return "EDGE_APP_HOST=127.0.0.1\nEDGE_APP_PORT=3000\nDATABASE_URL=postgres://edge:prod-password@localhost:5432/edge_prod\nEDGE_CACHE_ENV=prod\nEDGE_REQUIRE_REDIS=1\nEDGE_AUTH_SECRET=" + PROD_SECRET + "\nEDGE_API_KEY=" + API_KEY + "\nEDGE_API_AUTH_MODE=key\nTWS_ENABLED=false\nREDIS_URL=redis://localhost:6379\nEDGE_MARKET_DATA_CACHE_BACKEND=redis\nEDGE_ALLOW_OPEN_DEV_SESSION=1\nEDGE_READYZ_URL=http://127.0.0.1:3000/readyz\n";
     } }));
     const issues = validateLocalDeploy({
       ...input,

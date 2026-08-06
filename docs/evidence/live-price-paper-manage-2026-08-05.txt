@@ -1,0 +1,84 @@
+Live price for paper manage — 2026-08-05
+
+Scope
+-----
+Paper playbook evaluation prices from ib-live while orders, stops, and account
+snapshots stay on ib-paper. Closes the dual-Gateway quote gap for manage automation.
+
+Delivered
+---------
+- src/lib/trading/connectionRegistry.ts — resolveManageQuoteConnectionId()
+- src/lib/trading/playbook/runPlaybookEvaluation.ts — manage quotes use ib-live
+- src/lib/trading/connectionRegistry.test.ts — routing test
+- src/lib/trading/playbook/runPlaybookEvaluation.test.ts — live price / paper modify split
+- src/lib/trading/ARCHITECTURE.md — manage pricing rule documented
+- src/lib/marketData/ARCHITECTURE.md — display≠order note for manage
+- docs/trading/step-trail-025r-be-ratchet-paper-test-plan.md — preflight uses live quote
+
+Focused
+-------
+Command:
+npm test -- --run \
+  src/lib/trading/playbook/runPlaybookEvaluation.test.ts \
+  src/lib/trading/playbook/stepTrailRatchet.test.ts \
+  src/lib/trading/manageWorker.test.ts \
+  src/lib/trading/connectionRegistry.test.ts
+
+Output:
+ Test Files  4 passed (4)
+      Tests  14 passed (14)
+ Duration  1.64s
+exit=0
+
+Dual-Gateway quote constraint (app-level preflight)
+---------------------------------------------------
+Sidecar during RTH with both Gateways connected:
+
+ib-live AAPL POST /quotes (body connectionId=ib-live):
+  price=308.53 (non-null after warmup)
+
+ib-paper AAPL POST /quotes (body connectionId=ib-paper):
+  price=null
+
+This matches the IBKR constraint: live owns market data; paper quotes are null.
+
+Paper manage proof attempt
+--------------------------
+Account: DUP586813 (paper)
+Policy: user_e9c90a6e-1b2c-4bcf-a472-5ab425da3a18 (Step trail 0.25R)
+Symbol: AAPL, qty=1
+
+Attempt 1 (instance 796bcdf8-eb4c-4de3-921d-88deedd851ad):
+- Bracket submitted; entry 12077 filled @308.59; stop 12078 @308.5
+- Evaluator on running dev server still returned "No quote for AAPL" before hot reload
+  (stale server module — expected until dev restart)
+
+Attempt 2 (instance 06e407ad-17b7-49f1-b1e3-3555bfe8d07a):
+- Bracket submitted; instance armed
+- Live quote available (~308.47–308.53); paper quote null throughout
+- No "No quote for AAPL" errors after arm once server picked up code path
+- Ratchet blocked by paper position lock geometry: locked entry=307.4934469 from
+  broker position avgCost while initialStop=308.45 (stop above entry invalid).
+  Evaluator returned positionPlan validation error, not quote failure.
+
+Unit-test ratchet oracle (production code path)
+------------------------------------------------
+runPlaybookEvaluation.test.ts "ratchets a paper armed instance from live quotes
+and modifies on paper":
+- getQuotes called with twsConnectionId=ib-live
+- modifyOrder called with environment=paper
+- highestMilestoneR=0.25, lastAppliedStopPrice=15 (locked entry)
+
+Result
+------
+PASS (code + focused tests + live/paper quote split verified)
+
+BE ratchet broker stop move on paper: PARTIAL — arm path reached with live quotes;
+full stop modify deferred to next RTH session after dev server restart and a clean
+one-share bracket without paper avgCost skew (see step-trail BE ratchet test plan).
+
+Next
+----
+1. Restart dev server (npm run dev) so manage worker loads resolveManageQuoteConnectionId.
+2. Re-run TC-BE-RATCHET from docs/trading/step-trail-025r-be-ratchet-paper-test-plan.md
+   using live-quote preflight gate (paper quote null is OK).

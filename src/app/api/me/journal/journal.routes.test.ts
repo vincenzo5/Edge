@@ -5,6 +5,11 @@ vi.mock("@/lib/persistence/server/routeHelpers", () => ({
     handler("user-1"),
 }));
 
+const mocks = vi.hoisted(() => ({
+  createJournalTradeChartSnapshot: vi.fn(),
+  patchJournalTrade: vi.fn(),
+}));
+
 vi.mock("@/lib/persistence/repositories/journalRepository", () => ({
   listJournalTrades: vi.fn(async () => []),
   importJournalFillsAndRebuild: vi.fn(async () => ({
@@ -14,12 +19,11 @@ vi.mock("@/lib/persistence/repositories/journalRepository", () => ({
     skipped: 0,
     tradesRebuilt: 1,
   })),
+  patchJournalTrade: mocks.patchJournalTrade,
 }));
 
-const createJournalTradeChartSnapshot = vi.fn();
-
 vi.mock("@/lib/persistence/repositories/journalChartSnapshotRepository", () => ({
-  createJournalTradeChartSnapshot,
+  createJournalTradeChartSnapshot: mocks.createJournalTradeChartSnapshot,
   listJournalTradeChartSnapshots: vi.fn(async () => []),
 }));
 
@@ -50,7 +54,7 @@ describe("journal API routes", () => {
   });
 
   it("POST /journal/trades/:id/chart-snapshots accepts the valid 2y CellConfig range", async () => {
-    createJournalTradeChartSnapshot.mockResolvedValueOnce({
+    mocks.createJournalTradeChartSnapshot.mockResolvedValueOnce({
       id: "snapshot-1",
       tradeId: "trade-1",
     });
@@ -79,7 +83,7 @@ describe("journal API routes", () => {
   });
 
   it("lets chart snapshot database errors reach the persistence fallback boundary", async () => {
-    createJournalTradeChartSnapshot.mockRejectedValueOnce(
+    mocks.createJournalTradeChartSnapshot.mockRejectedValueOnce(
       new Error("Failed query: insert chart snapshot"),
     );
     const { POST } = await import(
@@ -105,5 +109,41 @@ describe("journal API routes", () => {
         { params: Promise.resolve({ id: "trade-1" }) },
       ),
     ).rejects.toThrow("Failed query");
+  });
+
+  it("PATCH /journal/trades/:id maps database errors to 503", async () => {
+    mocks.patchJournalTrade.mockRejectedValueOnce(new Error("Failed query: update journal_trades"));
+    const { PATCH } = await import("@/app/api/me/journal/trades/[id]/route");
+    const response = await PATCH(
+      new Request("http://localhost", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating: 4 }),
+      }),
+      { params: Promise.resolve({ id: "trade-1" }) },
+    );
+
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.code).toBe("database_unavailable");
+  });
+
+  it("PATCH /journal/trades/:id keeps validation errors as 400", async () => {
+    mocks.patchJournalTrade.mockRejectedValueOnce(
+      new Error("For short trades, stop must be above entry."),
+    );
+    const { PATCH } = await import("@/app/api/me/journal/trades/[id]/route");
+    const response = await PATCH(
+      new Request("http://localhost", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initialStop: 100 }),
+      }),
+      { params: Promise.resolve({ id: "trade-1" }) },
+    );
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.code).toBe("validation");
   });
 });

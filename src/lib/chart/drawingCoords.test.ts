@@ -92,6 +92,33 @@ describe('drawingCoords', () => {
     expect(moved[1].value).toBeCloseTo(115, 4);
   });
 
+  it('translateDrawingPoints preserves a position span across the live edge', () => {
+    const base = createViewport(candles, 800, 400, 3, 0);
+    const vp = attachViewportHelpers({ ...base, startIndex: 0, endIndex: 20 }, candles.length);
+    const points = [
+      { timestamp: candles[2]!.t, value: 100, dataIndex: 2 },
+      { timestamp: candles[2]!.t, value: 95, dataIndex: 2 },
+      { timestamp: candles[2]!.t, value: 110, dataIndex: 2 },
+      { timestamp: 13_000, value: 100, dataIndex: 12 },
+    ];
+
+    const moved = translateDrawingPoints(
+      points,
+      { x: vp.xForIndex(7), y: yForPricePlot(100, vp, true) },
+      { x: vp.xForIndex(8), y: yForPricePlot(100, vp, true) },
+      vp,
+      candles,
+      { showTimeAxis: true, preserveTimeSpan: true },
+    );
+
+    expect(moved[0]?.dataIndex).toBe(3);
+    expect(moved[1]?.dataIndex).toBe(3);
+    expect(moved[2]?.dataIndex).toBe(3);
+    expect(moved[3]?.dataIndex).toBe(13);
+    expect(moved[3]!.dataIndex! - moved[0]!.dataIndex!).toBe(10);
+    expect(moved[3]!.timestamp - moved[0]!.timestamp).toBe(10_000);
+  });
+
   it('magnet snaps to nearest OHLC within threshold', () => {
     const vp = makeVp();
     const candle = candles[1];

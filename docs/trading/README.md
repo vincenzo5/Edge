@@ -21,3 +21,9 @@ npm run journal:policy-replay
 ```
 
 Skill: [`.cursor/skills/journal-policy-replay/SKILL.md`](../../.cursor/skills/journal-policy-replay/SKILL.md). Outputs `docs/evidence/policy-replay-latest.json` and refreshes the IB live policy comparison canvas.
+
+## Paper functional verification (Edge product)
+
+| Doc | Topic |
+|-----|--------|
+| [step-trail-025r-paper-functional-test-plan.md](./step-trail-025r-paper-functional-test-plan.md) | LLM-handoff plan to verify **Step trail 0.25R** trade lifecycle automation on paper IBKR (bracket → arm → ratchet → flatten → kill) |

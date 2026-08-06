@@ -35,6 +35,14 @@ const offlineLiveAccount: TradingAccount = {
   availability: "offline",
 };
 
+const demoAccount: TradingAccount = {
+  broker: "ib",
+  connectionId: "ib-paper",
+  accountId: "DEMO0001",
+  environment: "paper",
+  availability: "offline",
+};
+
 describe("accountPickerOptions", () => {
   it("builds distinct composite keys for paper and live with same accountId", () => {
     const sharedIdPaper: TradingAccount = { ...paperAccount, accountId: "DUP586813" };
@@ -54,6 +62,12 @@ describe("accountPickerOptions", () => {
 
   it("labels offline live accounts", () => {
     expect(accountPickerLabel(offlineLiveAccount)).toBe("Live (U25026894, offline)");
+  });
+
+  it("labels demo journal account as Demo", () => {
+    process.env.EDGE_DEMO_JOURNAL_ACCOUNT_ID = "DEMO0001";
+    expect(accountPickerLabel(demoAccount)).toBe("Demo (DEMO0001, offline)");
+    delete process.env.EDGE_DEMO_JOURNAL_ACCOUNT_ID;
   });
 
   it("uses alias in picker label when provided", () => {

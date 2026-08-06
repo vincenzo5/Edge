@@ -1,0 +1,44 @@
+# LIVE — Policy geometry on drawings evidence
+# Date: 2026-08-03
+
+## Scope
+Default risk-policy Geometry seeds new long/short box target R (Settings per side). Trade policy apply reshapes bound drawing target from recipe. No planned-instance attach on create.
+
+## Delivered
+- src/lib/risk/policy/defaultPolicyPreference.ts — explicit default policy per side (localStorage)
+- src/lib/risk/policy/resolveDefaultPositionTargetR.ts — target R from default template Geometry
+- src/lib/trading/playbookTemplateCache.ts — client template cache for placement
+- packages/chart-core/src/drawings/positionPlacementContext.ts — pending target R at instant create
+- packages/chart-core/src/drawings/positionGeometry.ts — defaultPositionPoints(targetRMultiple)
+- packages/chart-core/src/drawings/position_tool.ts — consume placement context on create
+- src/lib/chart/armPositionPlacement.ts — arm default target R before toolbar place
+- src/lib/chart/reshapePositionDrawing.ts — applyPositionOrderLevels wrapper
+- src/app/components/risk/RiskPoliciesSection.tsx — Default for new drawings pickers
+- src/app/components/chart-cell/useDrawingToolbarCommands.ts — arm + reshapePositionDrawing command
+- src/lib/risk/policy/resolvePolicyTradeGeometry.ts — planLevelsAndRecipe reshape
+- src/lib/risk/policy/applyPolicyToTradeDraft.ts — reshapeFromRecipe on bound apply
+- src/app/components/trading/useTradePolicyApply.ts — onDrawingLevelsReshaped callback
+- src/app/components/sidebar/panels/TradeSidebarPanel.tsx — wire chart reshape + bind sync
+- src/lib/risk/ARCHITECTURE.md, src/lib/chart/ARCHITECTURE.md — sync
+
+## Focused
+Command:
+npm test -- --run \
+  packages/chart-core/src/drawings/positionGeometry.test.ts \
+  src/lib/chart/drawings/position_tool.test.ts \
+  src/lib/risk/policy/resolvePolicyTradeGeometry.test.ts \
+  src/lib/risk/policy/applyPolicyToTradeDraft.test.ts \
+  src/lib/risk/policy/defaultPolicyPreference.test.ts \
+  src/lib/risk/policy/resolveDefaultPositionTargetR.test.ts \
+  src/app/components/risk/RiskPoliciesSection.test.tsx \
+  src/app/components/trading/useTradePolicyApply.test.tsx \
+  src/app/components/trading/TradeOrderForm.test.tsx \
+  src/app/components/chart-cell/useTradeDrawingBinding.test.ts
+
+Result:
+Test Files  10 passed (10)
+Tests  102 passed (102)
+exit=0
+
+## App-level
+Deferred — Settings set long default to 1R policy → place Long → confirm ~1R; Trade change policy → box target moves; drag target after → stays.

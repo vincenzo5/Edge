@@ -220,10 +220,11 @@ def _place_bracket_orders(
         quantity=stop_qty,
         stop_leg=body.stopLeg,
     )
+    stop_only = body.takeProfitPrice is None
     _apply_child_order_fields(
         stop_order,
         account=account,
-        transmit=False,
+        transmit=stop_only,
         tif=body.tif,
         outside_rth=body.outsideRth,
         order_ref=f"{order_ref}-stop",
@@ -233,26 +234,31 @@ def _place_bracket_orders(
     )
     stop_trade = ib.placeOrder(contract, stop_order)
 
-    tp_order = LimitOrder(exit_action.upper(), tp_qty, body.takeProfitPrice)
-    _apply_child_order_fields(
-        tp_order,
-        account=account,
-        transmit=True,
-        tif=body.tif,
-        outside_rth=body.outsideRth,
-        order_ref=f"{order_ref}-tp",
-        parent_id=int(parent_id),
-        oca_group=oca_group,
-        oca_type=oca_type,
-    )
-    tp_trade = ib.placeOrder(contract, tp_order)
-    ib.sleep(0.5)
-
-    return {
+    result: dict[str, Any] = {
         "entryOrder": _map_order(parent_trade.order, parent_trade.contract, parent_trade),
         "stopOrder": _map_order(stop_trade.order, stop_trade.contract, stop_trade),
-        "takeProfitOrder": _map_order(tp_trade.order, tp_trade.contract, tp_trade),
     }
+
+    if body.takeProfitPrice is not None:
+        tp_order = LimitOrder(exit_action.upper(), tp_qty, body.takeProfitPrice)
+        _apply_child_order_fields(
+            tp_order,
+            account=account,
+            transmit=True,
+            tif=body.tif,
+            outside_rth=body.outsideRth,
+            order_ref=f"{order_ref}-tp",
+            parent_id=int(parent_id),
+            oca_group=oca_group,
+            oca_type=oca_type,
+        )
+        tp_trade = ib.placeOrder(contract, tp_order)
+        result["takeProfitOrder"] = _map_order(tp_trade.order, tp_trade.contract, tp_trade)
+        ib.sleep(0.5)
+    else:
+        ib.sleep(0.5)
+
+    return result
 
 
 def _place_protective_oco_orders(
@@ -271,10 +277,11 @@ def _place_protective_oco_orders(
         quantity=stop_qty,
         stop_leg=body.stopLeg,
     )
+    stop_only = body.takeProfitPrice is None
     _apply_child_order_fields(
         stop_order,
         account=account,
-        transmit=False,
+        transmit=stop_only,
         tif=body.tif,
         outside_rth=body.outsideRth,
         order_ref=f"{order_ref}-stop",
@@ -283,24 +290,29 @@ def _place_protective_oco_orders(
     )
     stop_trade = ib.placeOrder(contract, stop_order)
 
-    tp_order = LimitOrder(exit_action.upper(), tp_qty, body.takeProfitPrice)
-    _apply_child_order_fields(
-        tp_order,
-        account=account,
-        transmit=True,
-        tif=body.tif,
-        outside_rth=body.outsideRth,
-        order_ref=f"{order_ref}-tp",
-        oca_group=oca_group,
-        oca_type=oca_type,
-    )
-    tp_trade = ib.placeOrder(contract, tp_order)
-    ib.sleep(0.5)
-
-    return {
+    result: dict[str, Any] = {
         "stopOrder": _map_order(stop_trade.order, stop_trade.contract, stop_trade),
-        "takeProfitOrder": _map_order(tp_trade.order, tp_trade.contract, tp_trade),
     }
+
+    if body.takeProfitPrice is not None:
+        tp_order = LimitOrder(exit_action.upper(), tp_qty, body.takeProfitPrice)
+        _apply_child_order_fields(
+            tp_order,
+            account=account,
+            transmit=True,
+            tif=body.tif,
+            outside_rth=body.outsideRth,
+            order_ref=f"{order_ref}-tp",
+            oca_group=oca_group,
+            oca_type=oca_type,
+        )
+        tp_trade = ib.placeOrder(contract, tp_order)
+        result["takeProfitOrder"] = _map_order(tp_trade.order, tp_trade.contract, tp_trade)
+        ib.sleep(0.5)
+    else:
+        ib.sleep(0.5)
+
+    return result
 
 
 def _find_open_trade(ib: IB, order_id: int):

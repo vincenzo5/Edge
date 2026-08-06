@@ -14,8 +14,17 @@ import {
 } from "@/lib/trading/bracketPlan";
 import type { BracketStopLeg, StopLegMode } from "@/lib/trading/types";
 import type { PositionOrderLevels } from "@/lib/trading/positionTradeSetup";
-import { directionFromDrawingName } from "@/lib/trading/positionTradeSetup";
+import {
+  directionFromDrawingName,
+  plannedRiskDollars,
+} from "@/lib/trading/positionTradeSetup";
 import { lockPositionPlan } from "@/lib/trading/playbook/types";
+import { formatManageStepPreview } from "@/lib/trading/playbook/display";
+import { getPlaybookPreset } from "@/lib/trading/playbook/presets";
+import { planPlaybookSteps } from "@/lib/trading/playbook/planSteps";
+import { summarizeSubmitRiskPlan } from "@/lib/risk/summarizeSubmitRiskPlan";
+import { useRiskSettingsOptional } from "../RiskSettingsProvider";
+import { SubmitRiskPlanSummary } from "../risk/SubmitRiskPlanSummary";
 import {
   ManagePlaybookPicker,
   type ManagePresetSelection,
@@ -52,6 +61,8 @@ export function ProtectiveOcoForm({
   onClose,
   onSubmitted,
 }: ProtectiveOcoFormProps) {
+  const riskSettings = useRiskSettingsOptional();
+  const dollarRisk = riskSettings?.dollarRisk ?? null;
   const symbol = position.contract.symbol?.trim().toUpperCase() ?? "";
   const quantity = Math.abs(position.position ?? 0);
   const baseLevels = useMemo(() => levelsFromPosition(position), [position]);
@@ -102,6 +113,58 @@ export function ProtectiveOcoForm({
       environment: account.environment,
     });
   }, [account.accountId, account.environment, baseLevels, managePresetId, quantity, stopLeg, stopPrice, symbol]);
+
+  const takeProfitNum = Number.parseFloat(takeProfitPrice);
+  const protectComplete =
+    stopLeg != null && Number.isFinite(takeProfitNum) && takeProfitNum > 0 && quantity > 0;
+
+  const plannedRisk =
+    baseLevels && protectComplete
+      ? plannedRiskDollars(
+          baseLevels.entry,
+          stopLeg?.stopPrice ??
+            (Number.isFinite(Number.parseFloat(stopPrice))
+              ? Number.parseFloat(stopPrice)
+              : baseLevels.stop),
+          quantity,
+        )
+      : null;
+
+  const managePreviewSteps = useMemo(() => {
+    if (!managePreviewPlan || managePresetId === "off") return [];
+    const template = getPlaybookPreset(managePresetId);
+    if (!template) return [];
+    return planPlaybookSteps(template, managePreviewPlan);
+  }, [managePreviewPlan, managePresetId]);
+
+  const submitRiskSummary = useMemo(
+    () =>
+      summarizeSubmitRiskPlan({
+        environment: account.environment,
+        quantity: quantity > 0 ? quantity : null,
+        dollarRisk,
+        plannedRiskDollars: plannedRisk,
+        protectAttached: protectComplete,
+        stopLeg: protectComplete ? stopLeg : null,
+        takeProfitPrice: protectComplete ? takeProfitNum : null,
+        managePresetId,
+      }),
+    [
+      account.environment,
+      dollarRisk,
+      managePresetId,
+      plannedRisk,
+      protectComplete,
+      quantity,
+      stopLeg,
+      takeProfitNum,
+    ],
+  );
+
+  const manageStepLabels = useMemo(
+    () => managePreviewSteps.map((step) => formatManageStepPreview(step)),
+    [managePreviewSteps],
+  );
 
   const handleSubmit = async () => {
     const tp = Number.parseFloat(takeProfitPrice);
@@ -273,6 +336,10 @@ export function ProtectiveOcoForm({
           />
         </label>
       ) : null}
+      <SubmitRiskPlanSummary
+        summary={submitRiskSummary}
+        manageSteps={managePresetId !== "off" ? manageStepLabels : undefined}
+      />
       <EdgeButton
         theme="dark"
         variant="primary"

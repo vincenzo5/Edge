@@ -11,6 +11,7 @@ import {
   type RefObject,
 } from 'react';
 import type { Candle, Interval, Range, SerializedChartState, VisibleRange } from '@edge/chart-core';
+import { intervalToMs } from '@edge/chart-core';
 import { applyVisibleSlice, mergeCandlesPrepend, transformCandlesForChartType, ensureCandlesCover, RESIDENT_BAR_SOFT_MAX, trimResidentBars, trimResidentBarsAfterPrepend } from '@edge/chart-core/series';
 import { createHistoryPrefetchController, type HistoryPrefetchController } from './engine/historyPrefetchController';
 import { buildCandleSessionKey, resolveViewportRevision } from './engine/rangePresetTransition';
@@ -176,7 +177,9 @@ export function useCandleSession(deps: CandleSessionDeps): CandleSession {
               hasMoreHistoryRef.current = false;
               return { addedBars: 0, hasMore: false };
             }
-            const mergedRaw = mergeCandlesPrepend(base, older);
+            const mergedRaw = mergeCandlesPrepend(base, older, {
+              intervalMs: intervalToMs(intervalRef.current),
+            });
             const added = mergedRaw.length - base.length;
             if (added <= 0) {
               hasMoreHistoryRef.current = false;

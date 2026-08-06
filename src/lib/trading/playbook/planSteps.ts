@@ -4,6 +4,10 @@ import { priceAtMultipleOfR } from "./types";
 function resolveStopPrice(then: PlaybookRule["then"], plan: PositionPlan): number | undefined {
   if (then.kind !== "modifyStop") return undefined;
   if (then.breakEven) return plan.entry;
+  if (then.stopRMultiple != null) {
+    if (then.stopRMultiple === 0) return plan.entry;
+    return priceAtMultipleOfR(plan, then.stopRMultiple);
+  }
   return then.stopPrice;
 }
 

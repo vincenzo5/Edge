@@ -1,0 +1,25 @@
+# LIVE — Risk policy data model — Phase 4 evidence
+# Date: 2026-07-31
+
+## Scope
+Risk sidebar Policies library + sectioned template editor with completeness strip and optional default EntrySchedule. No chart apply.
+
+## Delivered
+- src/lib/trading/playbookTemplateMutations.ts — slot copy, dual-write rules, patch payload
+- src/lib/risk/policy/templateReview.ts — completeness review + failure-mode copy
+- src/app/components/risk/RiskPoliciesSection.tsx — Policies list in Risk sidebar
+- src/app/components/trading/PlaybookTemplateEditor.tsx — sectioned risk policy editor
+- src/app/components/trading/ManagePlaybookPicker.tsx — full slot PATCH on save
+- src/lib/trading/playbookTemplateStore.ts — memory/browser slot parity
+- src/app/components/sidebar/panels/RiskSettingsPanel.tsx — compose Policies section
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/playbookTemplateStore.test.ts src/lib/trading/playbookTemplateMutations.test.ts src/lib/risk/policy/ src/app/components/trading/PlaybookTemplateEditor.test.tsx src/app/components/risk/RiskPoliciesSection.test.tsx src/app/api/trading/playbooks/templates/
+
+Output:
+Test Files  13 passed (13)
+Tests  52 passed (52)
+exit=0
+
+App-level: Risk sidebar Policies list renders builtins + user rows; Duplicate/Open/Delete wired to template API; editor Review shows completeness strip.

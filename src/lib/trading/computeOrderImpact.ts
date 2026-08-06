@@ -54,8 +54,9 @@ export function computeOrderImpactEconomics(args: {
   }
 
   const riskDollars = Math.abs(entry - args.stop) * qty;
-  const hasTarget = finitePrice(args.target);
-  const rewardDollars = hasTarget ? Math.abs(args.target - entry) * qty : null;
+  const target = args.target;
+  const hasTarget = finitePrice(target);
+  const rewardDollars = hasTarget ? Math.abs(target - entry) * qty : null;
   const riskRewardRatio =
     hasTarget && riskDollars > 0 && rewardDollars != null ? rewardDollars / riskDollars : null;
 

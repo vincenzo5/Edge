@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveTradingAccountId } from "@/lib/trading/activeAccount";
+import { resolveDefaultTradingAccountIdForUser } from "@/lib/trading/demoJournalAccount";
 import { TradingEnvironmentSchema } from "@/lib/trading/types";
 import {
   getTradingService,
@@ -10,6 +10,8 @@ import {
   tradingErrorResponse,
 } from "@/lib/trading/routeHelpers";
 import { readTradingEnvironmentLock } from "@/lib/trading/validateOrder";
+import { getPersistenceUserOrBootstrap } from "@/lib/persistence/server/routeHelpers";
+import { getCurrentUser } from "@/lib/persistence/auth/getCurrentUser";
 
 export const runtime = "nodejs";
 
@@ -29,7 +31,11 @@ export async function GET(request: Request): Promise<Response> {
     const accounts = await getTradingService().listAccounts(
       environment?.success ? environment.data : undefined,
     );
-    const defaultAccountId = resolveTradingAccountId(accounts);
+    const user = (await getPersistenceUserOrBootstrap()) ?? (await getCurrentUser());
+    const defaultAccountId = resolveDefaultTradingAccountIdForUser(
+      accounts,
+      user?.email,
+    );
     return NextResponse.json({
       accounts,
       defaultAccountId,

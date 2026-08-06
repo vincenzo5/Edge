@@ -16,6 +16,10 @@ vi.mock("@/app/components/AccountProvider", () => ({
   }),
 }));
 
+vi.mock("@/lib/journal/ensureJournalPersistenceUserScope", () => ({
+  ensureJournalPersistenceUserScope: vi.fn(async () => "test-user"),
+}));
+
 vi.mock("@/app/components/journal/JournalSyncProvider", () => ({
   useJournalSync: () => ({
     lastSyncedAt: null,

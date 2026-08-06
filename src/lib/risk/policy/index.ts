@@ -13,6 +13,8 @@ export * from "./completeness";
 export * from "./fromPlaybook";
 export * from "./integrity";
 export * from "./lastUsedPreference";
+export * from "./defaultPolicyPreference";
+export * from "./resolveDefaultPositionTargetR";
 export * from "./reconcileProtect";
 export * from "./resolveEntrySchedule";
 export * from "./templateReview";

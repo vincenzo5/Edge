@@ -111,7 +111,7 @@ export function applyPolicyToTradeDraft(
     takeProfitPrice: geometry?.target ?? null,
     stopLossPrice: geometry?.stop ?? null,
     manageTemplateId: input.template.id,
-    takeProfitEnabled: true,
+    takeProfitEnabled: geometry?.target != null,
     stopLossEnabled: true,
     partialGeometry: geometry == null,
     orderType: entryOrder.orderType,

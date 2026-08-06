@@ -35,6 +35,10 @@ vi.mock("@/lib/journal/captureTradeChartFork", () => ({
   captureTradeChartFork: mocks.captureTradeChartFork,
 }));
 
+vi.mock("@/lib/journal/resolveJournalTradeIdForPersistence", () => ({
+  resolveJournalTradeIdForPersistence: vi.fn(async ({ tradeId }: { tradeId: string }) => tradeId),
+}));
+
 vi.mock("@/lib/journal/captureChannel", () => ({
   publishCaptureDone: mocks.publishCaptureDone,
   publishCaptureCancelled: mocks.publishCaptureCancelled,
@@ -55,6 +59,10 @@ vi.mock("@/app/components/ChartCell", () => ({
 
 vi.mock("@/app/components/MarketDataProvider", () => ({
   MarketDataProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/app/components/data-health", () => ({
+  DataHealthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@/app/components/home/AppChromeProviders", () => ({
@@ -127,8 +135,14 @@ describe("JournalCaptureStudio", () => {
         snapshotId: "snap-1",
       });
       expect(mocks.clearCaptureSeed).toHaveBeenCalledWith("token-1");
-      expect(mocks.closeWindow).toHaveBeenCalled();
     });
+
+    await waitFor(
+      () => {
+        expect(mocks.closeWindow).toHaveBeenCalled();
+      },
+      { timeout: 500 },
+    );
   });
 
   it("publishes cancelled and closes on cancel", async () => {
@@ -169,5 +183,14 @@ describe("JournalCaptureStudio", () => {
       expect(mocks.publishCaptureFailed).toHaveBeenCalled();
     });
     expect(mocks.closeWindow).not.toHaveBeenCalled();
+  });
+
+  it("renders interval picker in capture header", async () => {
+    render(<JournalCaptureStudio />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chart-interval-trigger")).toBeInTheDocument();
+      expect(screen.getByText(/Interval: D/i)).toBeInTheDocument();
+    });
   });
 });

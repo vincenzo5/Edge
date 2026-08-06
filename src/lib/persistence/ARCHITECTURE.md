@@ -69,7 +69,7 @@ Drizzle ORM + Postgres
 - Rotating `EDGE_AUTH_SECRET` invalidates all existing session cookies (global logout).
 - Legacy `userId.sig` cookies are rejected; users must re-establish via `POST /api/auth/dev-session`.
 - `POST /api/auth/dev-session` establishes a session (passphrase required when `EDGE_DEV_PASSPHRASE` is set).
-- Silent bootstrap (`GET /api/auth/dev-session`, `/api/me/*`) runs only when `EDGE_ALLOW_OPEN_DEV_SESSION=1` (or `true`) **and** `NODE_ENV !== "production"`, and no passphrase is configured.
+- Silent bootstrap (`GET /api/auth/dev-session`, `/api/me/*`) runs when `EDGE_ALLOW_OPEN_DEV_SESSION=1` (or `true`) and no passphrase is configured.
 - When a passphrase is required, `DevPersistenceLoginBanner` prompts via `GET`/`POST /api/auth/dev-session` until authenticated.
 - When persistence is on but neither open-dev nor passphrase is configured, routes return **401** until `POST /api/auth/dev-session` succeeds.
 - `getCurrentUser()` resolves a verified cookie only — it does not auto-create users.
@@ -126,7 +126,7 @@ npm run dev:lite
 - **`npm run dev`** — starts shared Docker Postgres and Redis (`local:infra:up`), provisions `edge_dev` and `edge_prod`, waits until `DATABASE_URL` accepts connections, applies SQL migrations, then runs the Next.js dev server. Use this when cloud sync (workspaces, journal, libraries) should work on first load.
 - **`npm run dev:lite`** — app only, no infrastructure bootstrap. Persistence sync hooks still run when `DATABASE_URL` is set, but without Postgres you get `401` on `/api/me/*` and localStorage remains the effective store (including `edge.journal.v1` for the trading journal).
 - **Shutdown** — Ctrl+C stops only the Next.js dev server. Postgres and Redis keep running (`restart: unless-stopped`). Stop containers with `npm run db:down`.
-- **Requirements** — `DATABASE_URL` targeting `edge_dev`, `EDGE_AUTH_SECRET` (non-placeholder), and Docker. Optional `EDGE_DEV_PASSPHRASE` requires the login banner before sync works. Local dev may set `EDGE_ALLOW_OPEN_DEV_SESSION=1` for silent bootstrap (non-production only).
+- **Requirements** — `DATABASE_URL` targeting `edge_dev`, `EDGE_AUTH_SECRET` (non-placeholder), and Docker. Local dev and local container prod set `EDGE_ALLOW_OPEN_DEV_SESSION=1` for silent cloud sync. Do not set `EDGE_DEV_PASSPHRASE` on local prod (deploy preflight rejects it).
 - **Isolation proof** — `npm run local:infra:verify` checks Postgres and Redis separation for concurrent dev/prod profiles; `npm run local:prod:verify -- database-isolation` re-probes cross-database writes.
 
 ## Verification

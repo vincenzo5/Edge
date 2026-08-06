@@ -1,0 +1,27 @@
+# Drawing undo Cmd+Z evidence
+# Date: 2026-08-03
+
+## Scope
+Cmd+Z / chart undo for drawing changes was wired in shortcuts but undo history
+was cleared on every layout persist echo (hydrate/restoreDrawings).
+
+## Root cause
+1. useDrawingStoreSync hydrated whenever drawingsRevision (configRevision) bumped,
+   even when props matched the live store — DrawingStore.hydrate clears undo.
+2. useDrawingLayoutSync restore effect re-applied local persists the same way.
+
+## Fix
+- Skip hydrate when incoming drawings equal serializeAll(store).
+- Skip restoreDrawings when chart drawing revision already matches lastApplied.
+
+## Verification
+npm test -- --run \
+  src/app/components/chart-cell/EdgeChart.drawing.test.tsx \
+  src/app/components/chart-cell/useDrawingLayoutSync.test.ts \
+  src/app/components/shortcuts/ShortcutProvider.test.tsx
+
+Result: Test Files  3 passed (3); Tests  18 passed (18)
+
+## Bindings
+- undo: Cmd/Ctrl+Z → activeChart.headerCommands.undo
+- redo: Cmd/Ctrl+Shift+Z → activeChart.headerCommands.redo

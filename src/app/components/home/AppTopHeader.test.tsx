@@ -237,6 +237,42 @@ describe("AppTopHeader", () => {
     });
   });
 
+  it("activates the server demo default for the demo session", async () => {
+    const demoAccount = {
+      broker: "ib" as const,
+      connectionId: "ib-paper",
+      accountId: "DEMO0001",
+      environment: "paper" as const,
+      availability: "offline" as const,
+    };
+    vi.mocked(fetchTradingAccounts).mockResolvedValueOnce({
+      accounts: [
+        {
+          broker: "ib",
+          connectionId: "ib-paper",
+          accountId: "DUP586813",
+          environment: "paper",
+          availability: "online",
+        },
+        demoAccount,
+      ],
+      defaultAccountId: "DEMO0001",
+    });
+    const sessionFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        authenticated: true,
+        user: { id: "demo-user", email: "demo@localhost" },
+      }),
+    );
+
+    renderHeader();
+
+    await waitFor(() => {
+      expect(setActiveTradingAccount).toHaveBeenCalledWith(demoAccount);
+    });
+    sessionFetch.mockRestore();
+  });
+
   it("selects live gateway account when paper and live share accountId", async () => {
     vi.mocked(fetchTradingAccounts).mockResolvedValueOnce({
       accounts: [

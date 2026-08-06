@@ -55,7 +55,7 @@ type Props = {
   onCaptureChart?: () => Promise<Blob | null>;
 };
 
-const HERO_PLACEHOLDER_ROTATE_MS = 3000;
+const HERO_PLACEHOLDER_ROTATE_MS = 5000;
 
 function usePrefersReducedMotion(): boolean {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -80,7 +80,7 @@ function CopilotHeroIdlePlaceholder({ active }: { active: boolean }) {
   );
   const [index, setIndex] = useState(0);
   const [exitingText, setExitingText] = useState<string | null>(null);
-  const [enteringText, setEnteringText] = useState(COPILOT_HERO_DEFAULT_PLACEHOLDER);
+  const [enteringText, setEnteringText] = useState<string>(COPILOT_HERO_DEFAULT_PLACEHOLDER);
   const indexRef = useRef(0);
 
   useEffect(() => {
@@ -195,10 +195,10 @@ function truncateChipLabel(label: string, maxChars: number): string {
 }
 
 const queryBarClass =
-  "flex min-h-[var(--copilot-bar-min-height)] w-full items-end gap-1 rounded-[var(--copilot-pill-radius)] bg-[var(--copilot-query-bar-bg)] px-2 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.24)] ring-1 ring-inset ring-[var(--copilot-query-bar-ring)]";
+  "flex min-h-[var(--copilot-bar-min-height)] w-full items-center gap-1 rounded-[var(--copilot-pill-radius)] bg-[var(--copilot-query-bar-bg)] px-2 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.24)] ring-1 ring-inset ring-[var(--copilot-query-bar-ring)]";
 
 const circularControlClass =
-  "edge-focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed";
+  "edge-focus-ring flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed";
 
 /** Grok-parity submit: white disc + black ↑ when enabled; muted disc when idle. */
 const sendButtonEnabledClass = "bg-white text-black hover:bg-white/90";
@@ -213,7 +213,7 @@ const attachMenuPanelClass =
   "rounded-[var(--copilot-menu-radius)] border border-[color-mix(in_oklab,var(--edge-text-strong)_10%,transparent)] bg-[var(--copilot-menu-bg)] py-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)]";
 
 const textareaClass =
-  "min-h-[calc(var(--copilot-bar-min-height)-16px)] max-h-[50vh] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-1 py-2 text-[length:var(--copilot-composer-body-size,16px)] leading-snug text-[var(--edge-text-primary)] outline-none placeholder:text-[var(--edge-text-secondary)] disabled:opacity-60";
+  "min-h-[1.375em] max-h-[50vh] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-1 py-0 text-[length:var(--copilot-composer-body-size,16px)] leading-[1.375] text-[var(--edge-text-primary)] outline-none placeholder:text-[var(--edge-text-secondary)] disabled:opacity-60";
 
 async function uploadDraftAttachment(
   file: Blob,
@@ -455,7 +455,7 @@ export function CopilotComposer({
                 type="button"
                 aria-label="Remove attachment"
                 data-testid={`copilot-attachment-remove-${attachment.id}`}
-                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--copilot-canvas-bg)_72%,transparent)] text-[var(--edge-text-primary)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                className="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--copilot-canvas-bg)_72%,transparent)] text-[var(--edge-text-primary)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                 onClick={() => removeAttachment(attachment.id)}
               >
                 <CloseIcon size={10} />
@@ -520,9 +520,9 @@ export function CopilotComposer({
           <PlusIcon size={18} />
         </button>
 
-        <div className="relative min-w-0 flex-1 self-stretch">
+        <div className="relative flex min-h-[calc(var(--copilot-bar-min-height)-8px)] min-w-0 flex-1 items-center">
           {showHeroPlaceholder ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center px-1 py-2">
+            <div className="pointer-events-none absolute inset-0 flex items-center px-1">
               <CopilotHeroIdlePlaceholder active={!disabled} />
             </div>
           ) : null}
@@ -549,7 +549,7 @@ export function CopilotComposer({
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           disabled={modelChipDisabled}
-          className="edge-focus-ring flex max-w-[9rem] shrink-0 items-center gap-1 rounded-[var(--copilot-pill-radius)] px-2.5 py-1.5 text-sm text-[var(--edge-text-primary)] hover:bg-[color-mix(in_oklab,var(--edge-text-strong)_6%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="edge-focus-ring flex max-w-[9rem] shrink-0 cursor-pointer items-center gap-1 rounded-[var(--copilot-pill-radius)] px-2.5 py-1.5 text-sm text-[var(--edge-text-primary)] hover:bg-[color-mix(in_oklab,var(--edge-text-strong)_6%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => {
             if (!modelChipDisabled) {
               setMenuOpen((open) => !open);

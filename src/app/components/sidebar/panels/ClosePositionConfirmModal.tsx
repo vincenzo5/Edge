@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { EdgeButton } from "../../design-system";
 import EdgeModalShell from "../../design-system/EdgeModalShell";
 import { LIVE_CONFIRMATION_TOKEN } from "@/lib/trading/validateOrder";
-import { previewOrder, submitOrder, TradingApiError } from "@/lib/trading/tradingClient";
+import { exitAndCleanupPlaybookInstance, previewOrder, submitOrder, TradingApiError } from "@/lib/trading/tradingClient";
 import { describeClosePositionAction } from "@/lib/trading/closePositionDraft";
 import type { OrderDraft, OrderIntent, OrderPreview, TradingEnvironment } from "@/lib/trading/types";
 
@@ -12,6 +12,7 @@ type Props = {
   open: boolean;
   draft: OrderDraft | null;
   environment: TradingEnvironment;
+  playbookInstanceId?: string | null;
   onClose: () => void;
   onSuccess: () => void | Promise<void>;
 };
@@ -20,6 +21,7 @@ export function ClosePositionConfirmModal({
   open,
   draft,
   environment,
+  playbookInstanceId,
   onClose,
   onSuccess,
 }: Props) {
@@ -37,6 +39,15 @@ export function ClosePositionConfirmModal({
       setIdempotencyKey("");
       setLoading(false);
       setSubmitting(false);
+      setError(null);
+      return;
+    }
+
+    if (playbookInstanceId?.trim()) {
+      setPreview(null);
+      setPreviewIntent(null);
+      setIdempotencyKey(crypto.randomUUID());
+      setLoading(false);
       setError(null);
       return;
     }
@@ -63,22 +74,30 @@ export function ClosePositionConfirmModal({
     return () => {
       cancelled = true;
     };
-  }, [open, draft]);
+  }, [open, draft, playbookInstanceId]);
 
   const actionLabel = draft ? describeClosePositionAction(draft) : "";
 
   const handleSubmit = async () => {
-    if (!draft || !previewIntent) return;
+    if (!draft) return;
     setSubmitting(true);
     setError(null);
     try {
-      await submitOrder({
-        draft,
-        idempotencyKey: idempotencyKey || crypto.randomUUID(),
-        previewIntentId: previewIntent.intentId,
-        // Server still requires the token for live mutations; confirm click is the UX gate.
-        liveConfirmation: environment === "live" ? LIVE_CONFIRMATION_TOKEN : undefined,
-      });
+      if (playbookInstanceId?.trim()) {
+        await exitAndCleanupPlaybookInstance(playbookInstanceId.trim(), {
+          liveConfirmation: environment === "live" ? LIVE_CONFIRMATION_TOKEN : undefined,
+          reason: "manual_flatten",
+        });
+      } else if (previewIntent) {
+        await submitOrder({
+          draft,
+          idempotencyKey: idempotencyKey || crypto.randomUUID(),
+          previewIntentId: previewIntent.intentId,
+          liveConfirmation: environment === "live" ? LIVE_CONFIRMATION_TOKEN : undefined,
+        });
+      } else {
+        return;
+      }
       await onSuccess();
       onClose();
     } catch (err) {
@@ -91,7 +110,7 @@ export function ClosePositionConfirmModal({
   return (
     <EdgeModalShell
       open={open}
-      title="Close position"
+      title={playbookInstanceId ? "Flatten position" : "Close position"}
       subtitle={draft ? `${draft.symbol} · ${actionLabel}` : undefined}
       onClose={onClose}
       maxWidth="sm"
@@ -104,10 +123,20 @@ export function ClosePositionConfirmModal({
           <EdgeButton
             theme="dark"
             variant="destructive"
-            disabled={loading || submitting || !previewIntent}
+            disabled={
+              loading ||
+              submitting ||
+              (!playbookInstanceId?.trim() && !previewIntent)
+            }
             onClick={() => void handleSubmit()}
           >
-            {submitting ? "Submitting…" : loading ? "Loading…" : "Confirm close"}
+            {submitting
+              ? "Submitting…"
+              : loading
+                ? "Loading…"
+                : playbookInstanceId
+                  ? "Confirm flatten"
+                  : "Confirm close"}
           </EdgeButton>
         </div>
       }
@@ -119,9 +148,11 @@ export function ClosePositionConfirmModal({
       ) : null}
 
       <p className="text-[11px] text-[var(--edge-text-secondary)]">
-        {environment === "live"
-          ? `This will submit a live market order to flatten your ${draft?.symbol ?? "position"} position.`
-          : `This will submit a market order to flatten your ${draft?.symbol ?? "position"} position.`}
+        {playbookInstanceId
+          ? `This will cancel protective orders and flatten your ${draft?.symbol ?? "position"} position.`
+          : environment === "live"
+            ? `This will submit a live market order to flatten your ${draft?.symbol ?? "position"} position.`
+            : `This will submit a market order to flatten your ${draft?.symbol ?? "position"} position.`}
       </p>
 
       {preview?.warnings?.length ? (

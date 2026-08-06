@@ -1,0 +1,27 @@
+# LIVE — Trade panel risk policy picker evidence
+# Date: 2026-08-03
+
+## Scope
+Trade header policy picker; per-leg Protect qty (default full, policy-seeded split); sidecar OCA reduce; Manage dedupe for resting half TP.
+
+## Delivered
+- src/lib/trading/types.ts — optional takeProfitQuantity/stopQuantity on BracketPlan + ProtectiveOcoPlan
+- src/lib/trading/bracketPlan.ts — resolve exit qty helpers; builder args
+- src/lib/trading/adapters/ibTws.ts — pass split qty to sidecar
+- services/tws-sidecar/tws_sidecar/trading/models.py + orders.py — split qty + OCA reduce
+- src/lib/risk/policy/deriveProtectExitQuantities.ts — policy → TP/stop/runner sizes
+- src/lib/trading/playbook/restingScaleTp.ts — skip duplicate reduceQty; reconcile TP fill
+- src/lib/trading/playbook/promotePlannedInstances.ts — split bracket on promote
+- src/app/components/trading/TradePolicyPicker.tsx + useTradePolicyApply.ts
+- src/app/components/trading/LinkedProtectLevelsEditor.tsx — per-leg Qty row
+- src/app/components/trading/TradeOrderForm.tsx — header picker, runner strip, split submit
+- src/app/components/sidebar/panels/TradeSidebarPanel.tsx — wire apply hook
+- src/lib/risk/ARCHITECTURE.md, src/lib/trading/ARCHITECTURE.md — sync
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/policy/deriveProtectExitQuantities.test.ts src/lib/trading/bracketPlan.test.ts src/lib/trading/playbook/restingScaleTp.test.ts src/lib/trading/playbook/promotePlannedInstances.test.ts src/app/components/trading/TradePolicyPicker.test.tsx src/app/components/trading/TradeOrderForm.test.tsx src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx
+
+Result:
+Test Files  7 passed (7)
+Tests  42 passed (42)

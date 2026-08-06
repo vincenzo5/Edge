@@ -28,4 +28,18 @@ describe("EdgeBorderLabeledControl", () => {
 
     expect(screen.getByText("Account").className).toContain("--edge-surface-toolbar");
   });
+
+  it("stretches to full width when fullWidth is set", () => {
+    render(
+      <EdgeBorderLabeledControl label="Name" labelId="name-label" fullWidth className="w-full">
+        <input aria-labelledby="name-label" data-testid="name-input" />
+      </EdgeBorderLabeledControl>,
+    );
+
+    const input = screen.getByTestId("name-input");
+    const inner = input.parentElement;
+    const outer = inner?.parentElement;
+    expect(outer?.className).toContain("w-full");
+    expect(inner?.className).toContain("w-full");
+  });
 });

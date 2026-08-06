@@ -1,0 +1,76 @@
+# OPS — Discord knowledge mine — Phase 5 evidence (MarketLife)
+# Date: 2026-07-30
+
+## Scope
+Full mine phase A → B → C for MarketLife (778344907378655283).
+Bootstrap + read_messages hours_back=168 max_messages=100 for 5 priority channels.
+Knowledge synthesis from digests. No Edge product code. No send_message calls.
+
+## MCP
+Command: user-discord mcp_auth
+Result: Successfully authenticated MCP server: user-discord
+
+Command: user-discord get_servers
+Result: MarketLife (778344907378655283) present in guild list
+
+Command: user-discord get_channels server_id=778344907378655283
+Result: 16 text channels returned
+
+Channel count: 16
+
+Command: user-discord read_messages (x5 priority channels)
+Parameters: server_id=778344907378655283, hours_back=168, max_messages=100
+
+Channel results:
+- rules (778363235618521109): 1 message — gap: channel-start header only
+- welcome2 (778344907931648042): 8 messages captured
+- announcements (778363211081973770): 0 messages — gap: no messages in window (168h)
+- trading-chat (778649370715095070): 0 messages — gap: no messages in window (168h)
+- day-trading (778648739346382849): 3 messages captured
+
+send_message calls this session: 0
+
+## Classification
+Server class: Trading / research
+Rationale: Adam Grimes / MarketLife education community; style-split trading channels; TAAS course track
+
+## Priority channels (≤5)
+1. rules (778363235618521109) — rules / norms / onboarding
+2. welcome2 (778344907931648042) — welcome / onboarding
+3. announcements (778363211081973770) — server announcements / events
+4. trading-chat (778649370715095070) — general trading discussion
+5. day-trading (778648739346382849) — day-trading desk / member discussion
+
+## Local artifacts
+Root: /Users/vincentn/Knowledge/discord/
+Server dir: by-server/marketlife--778344907378655283/
+
+Command: ls -la /Users/vincentn/Knowledge/discord/by-server/marketlife--778344907378655283/
+Output:
+meta.json channels.json profile.md channels/ knowledge/ runs/
+
+Command: ls knowledge/ && ls knowledge/topics/
+Output:
+overview.md resources.md glossary.md people.md open-questions.md topics/
+member-onboarding-culture.md
+
+Command: find channels -name '*.json' then wc -l
+Output: 5
+
+Command: test -f meta.json channels.json profile.md knowledge/overview.md runs/2026-07-30.md
+Output: artifacts: OK
+
+## Index update
+MarketLife: not_started → partial
+last_run: 2026-07-30
+phase: 5 Passing
+Active server: none — next Phase 6 SMB Students
+
+## Architecture review
+N/A — operator workflow + local filesystem only; no Edge runtime contracts.
+
+## App-level
+App-level: get_channels returned 16 channels; 5 raw JSON files; 12 messages captured; 6 knowledge files; _index updated; send_message calls 0
+
+## Next
+Phase 6 — Mine SMB Students (755810120486879314)

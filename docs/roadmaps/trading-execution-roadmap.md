@@ -50,7 +50,7 @@ Keep broker stream types (`AccountOrder`, `AccountExecution`) — do not duplica
 | `OrderPreview` | Commission, margin impact, warnings — broker what-if result |
 | `OrderIntent` | Durable Edge record: intentId, idempotencyKey, status, permId link |
 
-Order types in model: `MKT`, `LMT`, `STP`, `STP LMT`. TIF: `DAY`, `GTC`.
+Order types in model: `MKT`, `LMT`, `STP`, `STP LMT`, `TRAIL`, `TRAIL LIMIT`, `MOC`, `LOC`. TIF: `DAY`, `GTC`, `IOC`, `OPG`. Flags: `allOrNone`, `usePriceMgmtAlgo`. Overnight/Close tab excluded.
 
 Planned module layout: `src/lib/trading/types.ts`, `validateOrder.ts`, `intentStore.ts`, `tradingService.ts`, `adapters/ibTws.ts`.
 

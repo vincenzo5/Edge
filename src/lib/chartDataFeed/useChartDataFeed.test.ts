@@ -669,6 +669,59 @@ describe('useChartDataFeed', () => {
     expect(result.current.candles.map((c) => c.t)).toEqual([500, 1000, 2000]);
   });
 
+  it('does not double daily bars when cache (TWS midnight) refreshes with Yahoo RTH stamps', async () => {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const twsDay1 = Math.floor(Date.UTC(2026, 4, 7) / dayMs) * dayMs;
+    const twsDay2 = twsDay1 + dayMs;
+    const yahooDay1 = twsDay1 + 13.5 * 60 * 60 * 1000;
+    const yahooDay2 = yahooDay1 + dayMs;
+    const twsCandles: Candle[] = [
+      { t: twsDay1, o: 10, h: 12, l: 9, c: 11 },
+      { t: twsDay2, o: 11, h: 13, l: 10, c: 12 },
+    ];
+    const yahooCandles: Candle[] = [
+      { t: yahooDay1, o: 10, h: 12, l: 9, c: 11 },
+      { t: yahooDay2, o: 11, h: 13, l: 10, c: 12 },
+    ];
+
+    const cacheKey = buildChartClientCacheKey({
+      symbol: 'MRNA',
+      interval: '1d',
+      range: '3mo',
+    });
+    const { writeChartClientCache } = await import('./chartClientCache');
+    writeChartClientCache(cacheKey, {
+      candles: twsCandles,
+      meta: { source: 'tws', asOf: Date.now(), stale: false, warnings: [] },
+      hasMore: true,
+      asOf: Date.now(),
+    });
+
+    const loadCandles = vi.fn(async (request) => ({
+      symbol: request.symbol,
+      interval: request.interval,
+      candles: yahooCandles,
+      hasMore: true,
+      meta: { source: 'yahoo', asOf: Date.now(), stale: false, warnings: [] },
+    }));
+    const feed = createStreamingFeed({ loadCandles, subscribeCandles: undefined });
+
+    const { result } = renderHook(() =>
+      useChartDataFeed({
+        feed,
+        symbol: 'MRNA',
+        interval: '1d',
+        range: '3mo',
+        live: false,
+      }),
+    );
+
+    await waitFor(() => expect(loadCandles).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.refreshing).toBe(false));
+    expect(result.current.candles).toHaveLength(2);
+    expect(result.current.candles.map((c) => c.t)).toEqual([yahooDay1, yahooDay2]);
+  });
+
   it('reloadKey refresh replaces cache without merging prior prepended history', async () => {
     const loadCandles = vi.fn(async (request) => ({
       symbol: request.symbol,

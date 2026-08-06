@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTrailOrderDraft } from "./attachTrail";
+import { buildTrailOrderDraft, resolveTrailAmountDollars } from "./attachTrail";
 import { HALF_PLUS_TRAIL_PRESET } from "./presets";
 import { createPlaybookInstance, lockPositionPlan } from "./types";
 
@@ -33,5 +33,21 @@ describe("attachTrail helpers", () => {
       quantity: 50,
       stopPrice: 1,
     });
+  });
+
+  it("resolves trailRMultiple to dollars from locked R", () => {
+    expect(resolveTrailAmountDollars({ mode: "trail", trailRMultiple: 0.5 }, 5)).toBe(2.5);
+    const instance = createPlaybookInstance({
+      id: "inst-r",
+      template: HALF_PLUS_TRAIL_PRESET,
+      positionPlan,
+    });
+    const draft = buildTrailOrderDraft({
+      instance,
+      stopLeg: { mode: "trail", trailRMultiple: 0.5 },
+      quantity: 50,
+    });
+    // rUnit = |100 − 95| = 5 → 0.5R = $2.50
+    expect(draft.stopPrice).toBe(2.5);
   });
 });

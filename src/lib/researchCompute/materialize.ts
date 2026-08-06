@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Interval } from "@edge/chart-core/contracts";
 import type { CandleResponse } from "@/lib/marketData/contracts/equities";
 import type { DataResult } from "@/lib/marketData/contracts/result";
 import type { MarketDataService } from "@/lib/marketData/service/marketDataService";
@@ -75,7 +76,7 @@ export async function fetchSymbolBars(args: {
     paginationPages += 1;
     const result: DataResult<CandleResponse> = await args.marketData.getCandles({
       symbol: args.symbol,
-      interval: args.interval,
+      interval: args.interval as Interval,
       ...(before == null
         ? { range: "max" as const }
         : { beforeTimestamp: before, barCount: PAGE_SIZE }),

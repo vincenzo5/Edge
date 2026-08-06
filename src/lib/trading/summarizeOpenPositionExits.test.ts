@@ -5,6 +5,7 @@ import { createPlaybookInstance, lockPositionPlan } from "@/lib/trading/playbook
 import { HALF_PLUS_TRAIL_PRESET } from "@/lib/trading/playbook/presets";
 import {
   formatProtectOrderLabel,
+  resolveOpenPositionProtectStop,
   summarizeOpenPositionExits,
 } from "./summarizeOpenPositionExits";
 
@@ -300,6 +301,35 @@ describe("summarizeOpenPositionExits", () => {
     });
 
     expect(summary.protect.label).toBe("STP 180.00");
+  });
+});
+
+describe("resolveOpenPositionProtectStop", () => {
+  it("returns null when unprotected", () => {
+    expect(
+      resolveOpenPositionProtectStop({
+        position: position("AAPL", 10),
+        orders: [],
+      }),
+    ).toEqual({ kind: null, stopPrice: null, trailAmount: null });
+  });
+
+  it("returns stop price for STP protect", () => {
+    expect(
+      resolveOpenPositionProtectStop({
+        position: position("AAPL", 10),
+        orders: [stopOrder()],
+      }),
+    ).toEqual({ kind: "stop", stopPrice: 180, trailAmount: null });
+  });
+
+  it("returns trail amount without stop price for TRAIL protect", () => {
+    expect(
+      resolveOpenPositionProtectStop({
+        position: position("AAPL", 10),
+        orders: [stopOrder({ orderType: "TRAIL", auxPrice: 1.5 })],
+      }),
+    ).toEqual({ kind: "trail", stopPrice: null, trailAmount: 1.5 });
   });
 });
 

@@ -7,6 +7,7 @@ export type EdgeUnderlineSegment = {
   id: string;
   label: string;
   disabled?: boolean;
+  testId?: string;
 };
 
 type Props = {
@@ -14,9 +15,17 @@ type Props = {
   value: string;
   onChange: (id: string) => void;
   className?: string;
+  /** `content` — shrink-to-fit (default). `stretch` — equal-width tabs across full row. */
+  layout?: "content" | "stretch";
 };
 
-export default function EdgeUnderlineTabs({ segments, value, onChange, className = "" }: Props) {
+export default function EdgeUnderlineTabs({
+  segments,
+  value,
+  onChange,
+  className = "",
+  layout = "content",
+}: Props) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const enabledIndices = segments
@@ -81,9 +90,11 @@ export default function EdgeUnderlineTabs({ segments, value, onChange, className
     }
   };
 
+  const stretch = layout === "stretch";
+
   return (
     <div
-      className={`flex shrink-0 items-end gap-4 ${className}`.trim()}
+      className={`flex items-end ${stretch ? "w-full" : "shrink-0 gap-4"} ${className}`.trim()}
       role="tablist"
       onKeyDown={onKeyDown}
     >
@@ -102,9 +113,10 @@ export default function EdgeUnderlineTabs({ segments, value, onChange, className
             disabled={segment.disabled}
             onClick={() => onChange(segment.id)}
             onFocus={() => focusSegmentAt(index)}
-            className={`edge-focus-ring -mb-px inline-flex min-h-[var(--edge-control-height-compact)] shrink-0 items-center px-0.5 pb-1.5 ${compactControlClass()} ${bodyTextClass()} motion-safe:transition-colors ${underlineTabClass(active)} ${
-              segment.disabled ? "cursor-not-allowed opacity-40" : ""
-            }`.trim()}
+            data-testid={segment.testId}
+            className={`edge-focus-ring -mb-px flex min-h-[var(--edge-control-height-compact)] items-center px-0.5 pb-1.5 ${compactControlClass()} ${bodyTextClass()} motion-safe:transition-colors ${underlineTabClass(active)} ${
+              stretch ? "min-w-0 flex-1 justify-center" : "inline-flex shrink-0"
+            } ${segment.disabled ? "cursor-not-allowed opacity-40" : ""}`.trim()}
           >
             {segment.label}
           </button>

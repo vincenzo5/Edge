@@ -6,9 +6,10 @@ import type { GeometryRecipe } from "./slotSchemas";
 export type ResolvedPolicyTradeGeometry = {
   entry: number;
   stop: number;
-  target: number;
+  /** Absent when policy geometry has no targets (stop-only manage policies). */
+  target?: number;
   /** How prices were derived — for diagnostics only. */
-  source: "planLevels" | "entryAndStop" | "entryAndDollarRisk";
+  source: "planLevels" | "planLevelsAndRecipe" | "entryAndStop" | "entryAndDollarRisk";
 };
 
 function directionFromSide(side: OrderSide): RiskDirection {
@@ -39,26 +40,51 @@ function firstRMultiple(
   return fallback;
 }
 
+function geometryHasTargets(geometry: GeometryRecipe | undefined): boolean {
+  const targets = geometry?.targets;
+  if (!targets?.length) return false;
+  const leg = targets[0];
+  return (
+    (leg?.price != null && Number.isFinite(leg.price)) ||
+    (leg?.rMultiple != null && Number.isFinite(leg.rMultiple) && leg.rMultiple > 0)
+  );
+}
+
+function resolveTargetFromRecipe(args: {
+  entry: number;
+  stop: number;
+  direction: RiskDirection;
+  geometry: GeometryRecipe | undefined;
+}): number | undefined {
+  if (!geometryHasTargets(args.geometry)) return undefined;
+  const targetR = firstRMultiple(args.geometry?.targets, 1);
+  const targetLeg = args.geometry?.targets?.[0];
+  if (targetLeg?.price != null && Number.isFinite(targetLeg.price)) {
+    return targetLeg.price;
+  }
+  return targetPriceForRMultiple(args.entry, args.stop, args.direction, targetR);
+}
+
 function resolveFromRecipe(args: {
   entry: number;
   direction: RiskDirection;
   geometry: GeometryRecipe | undefined;
   riskDistance: number;
-}): { stop: number; target: number } {
+}): { stop: number; target?: number } {
   const stopR = firstRMultiple(args.geometry?.stops, 1);
-  const targetR = firstRMultiple(args.geometry?.targets, 1);
   const stopLeg = args.geometry?.stops?.[0];
-  const targetLeg = args.geometry?.targets?.[0];
 
   const stop =
     stopLeg?.price != null && Number.isFinite(stopLeg.price)
       ? stopLeg.price
       : stopPriceForRMultiple(args.entry, args.riskDistance, args.direction, stopR);
 
-  const target =
-    targetLeg?.price != null && Number.isFinite(targetLeg.price)
-      ? targetLeg.price
-      : targetPriceForRMultiple(args.entry, stop, args.direction, targetR);
+  const target = resolveTargetFromRecipe({
+    entry: args.entry,
+    stop,
+    direction: args.direction,
+    geometry: args.geometry,
+  });
 
   return { stop, target };
 }
@@ -71,6 +97,8 @@ export type ResolvePolicyTradeGeometryInput = {
   entryQty?: number | null;
   dollarRisk?: number | null;
   geometry?: GeometryRecipe;
+  /** When true with planLevels, keep entry/stop and recompute target from recipe. */
+  reshapeFromRecipe?: boolean;
 };
 
 /** Resolve entry/stop/target for policy draft apply — never invents silent bad prices. */
@@ -78,6 +106,24 @@ export function resolvePolicyTradeGeometry(
   input: ResolvePolicyTradeGeometryInput,
 ): ResolvedPolicyTradeGeometry | null {
   if (input.planLevels) {
+    if (input.reshapeFromRecipe && input.geometry) {
+      const direction = directionFromSide(input.side);
+      const { entry, stop } = input.planLevels;
+      const riskDistance = Math.abs(entry - stop);
+      if (riskDistance <= 0) return null;
+      const target = resolveTargetFromRecipe({
+        entry,
+        stop,
+        direction,
+        geometry: input.geometry,
+      });
+      return {
+        entry,
+        stop,
+        ...(target != null ? { target } : {}),
+        source: "planLevelsAndRecipe",
+      };
+    }
     return {
       entry: input.planLevels.entry,
       stop: input.planLevels.stop,
@@ -97,16 +143,16 @@ export function resolvePolicyTradeGeometry(
   if (existingStop != null && Number.isFinite(existingStop) && existingStop > 0) {
     const riskDistance = Math.abs(entry - existingStop);
     if (riskDistance <= 0) return null;
-    const targetR = firstRMultiple(input.geometry?.targets, 1);
-    const targetLeg = input.geometry?.targets?.[0];
-    const target =
-      targetLeg?.price != null && Number.isFinite(targetLeg.price)
-        ? targetLeg.price
-        : targetPriceForRMultiple(entry, existingStop, direction, targetR);
+    const target = resolveTargetFromRecipe({
+      entry,
+      stop: existingStop,
+      direction,
+      geometry: input.geometry,
+    });
     return {
       entry,
       stop: existingStop,
-      target,
+      ...(target != null ? { target } : {}),
       source: "entryAndStop",
     };
   }
@@ -137,7 +183,7 @@ export function resolvePolicyTradeGeometry(
   return {
     entry,
     stop,
-    target,
+    ...(target != null ? { target } : {}),
     source: "entryAndDollarRisk",
   };
 }

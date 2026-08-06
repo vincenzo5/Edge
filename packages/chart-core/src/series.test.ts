@@ -7,6 +7,7 @@ import {
   applyCandleStreamEvent,
   applyVisibleSlice,
   ensureCandlesCover,
+  dedupeCandlesByIntervalBucket,
   mergeCandlesByTimestamp,
   mergeCandlesPrepend,
   RESIDENT_BAR_SOFT_MAX,
@@ -35,6 +36,59 @@ describe('mergeCandlesByTimestamp', () => {
     const merged = mergeCandlesByTimestamp(base, [{ t: 2000, o: 9, h: 9, l: 9, c: 9 }]);
     expect(merged).toHaveLength(2);
     expect(merged[1]?.c).toBe(9);
+  });
+});
+
+describe('mergeCandlesPrepend interval buckets', () => {
+  const dayMs = 24 * 60 * 60 * 1000;
+  // TWS stamps daily bars at UTC midnight; Yahoo uses RTH open (~13:30 UTC).
+  const twsDay1 = Math.floor(1_700_000_000_000 / dayMs) * dayMs;
+  const yahooDay1 = twsDay1 + 13.5 * 60 * 60 * 1000;
+  const twsDay2 = twsDay1 + dayMs;
+  const yahooDay2 = yahooDay1 + dayMs;
+
+  it('collapses cross-provider daily twins when intervalMs is set', () => {
+    const yahoo: Candle[] = [
+      { t: yahooDay1, o: 10, h: 12, l: 9, c: 11 },
+      { t: yahooDay2, o: 11, h: 13, l: 10, c: 12 },
+    ];
+    const tws: Candle[] = [
+      { t: twsDay1, o: 10, h: 12, l: 9, c: 11 },
+      { t: twsDay2, o: 11, h: 13, l: 10, c: 12 },
+    ];
+    const merged = mergeCandlesPrepend(yahoo, tws, { intervalMs: dayMs });
+    expect(merged).toHaveLength(2);
+    expect(merged.map((c) => c.t)).toEqual([yahooDay1, yahooDay2]);
+  });
+
+  it('keeps true older history outside the fresh window', () => {
+    const yahoo: Candle[] = [
+      { t: yahooDay2, o: 11, h: 13, l: 10, c: 12 },
+    ];
+    const history: Candle[] = [
+      { t: twsDay1, o: 10, h: 12, l: 9, c: 11 },
+      { t: twsDay2, o: 99, h: 99, l: 99, c: 99 },
+    ];
+    const merged = mergeCandlesPrepend(yahoo, history, { intervalMs: dayMs });
+    expect(merged.map((c) => c.t)).toEqual([twsDay1, yahooDay2]);
+    expect(merged[0]?.c).toBe(11);
+  });
+});
+
+describe('dedupeCandlesByIntervalBucket', () => {
+  it('prefers later stamp within a bucket when no prefer set', () => {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const midnight = Math.floor(1_700_000_000_000 / dayMs) * dayMs;
+    const open = midnight + 13.5 * 60 * 60 * 1000;
+    const out = dedupeCandlesByIntervalBucket(
+      [
+        { t: midnight, o: 1, h: 1, l: 1, c: 1 },
+        { t: open, o: 2, h: 2, l: 2, c: 2 },
+      ],
+      dayMs,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]?.c).toBe(2);
   });
 });
 

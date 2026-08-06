@@ -349,6 +349,48 @@ export function createDrawingHandleSlice(ctx: DrawingHandleSliceContext): Drawin
         after: { metadata: after },
       });
     },
+    updateDrawingPoints: (id, afterPoints) => {
+      const d = drawingsRef.current.find((x) => x.id === id);
+      if (!d) return;
+      const before = d.points.map((p) => ({ ...p }));
+      const after = afterPoints.map((p) => ({ ...p }));
+      if (pointsEqual(before, after)) return;
+
+      const disableStick = entryValueChanged(before, after);
+      const pinned = disableStick ? withStickEntryDisabled({ ...d, points: after }) : { ...d, points: after };
+      const commands: Array<
+        | {
+            type: 'updatePoints';
+            id: string;
+            before: SerializedDrawing['points'];
+            after: SerializedDrawing['points'];
+          }
+        | {
+            type: 'updateMeta';
+            id: string;
+            before: { styles?: SerializedDrawing['styles'] };
+            after: { styles?: SerializedDrawing['styles'] };
+          }
+      > = [
+        {
+          type: 'updatePoints',
+          id,
+          before,
+          after: pinned.points.map((p) => ({ ...p })),
+        },
+      ];
+      if (disableStick && pinned.styles?.stickEntryToLastPrice === false) {
+        commands.push({
+          type: 'updateMeta',
+          id,
+          before: { styles: d.styles },
+          after: { styles: pinned.styles },
+        });
+      }
+      drawingStoreRef.current.execute(
+        commands.length === 1 ? commands[0]! : { type: 'batch', commands },
+      );
+    },
     undo: () => drawingStoreRef.current.undo(),
     redo: () => drawingStoreRef.current.redo(),
     canUndo: () => drawingStoreRef.current.canUndo(),

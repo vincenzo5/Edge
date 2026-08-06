@@ -6,7 +6,7 @@ Living track for a **shared RiskPolicy model** that every risk strategy must fil
 
 **Status:** Phase 0 **Passing** (2026-07-29). Phase 1 **Passing** (2026-07-30) — architecture spine + vocabulary sync. Phase 2 **Passing** (2026-07-29) — UX: drawing geometry strip. Phase 3 **Passing** (2026-07-29) — UX: Risk sidebar slot strip + unified bind + Use in Trade. Phase 4 **Passing** (2026-07-29) — UX: Trade ticket Risk plan summary. Phase 5 **Passing** (2026-07-30) — UX: open position Protect + Manage status chrome. Phase 6 **Passing** (2026-07-30) — UX: during-trade Manage progress chrome. Phase 7 **Passing** (2026-07-30) — UX: app down / gap failure mode. Phase 8 **Passing** (2026-07-30) — UX: journal review Measurement loop. Phase 9 **Passing** (2026-07-30) — UX: Copilot RiskPolicy compose + preview tool. Phase 10 **Passing** (2026-07-30) — UX: account day-loss / open-heat kills.
 
-**Related:** [Trading Execution](./trading-execution-roadmap.md) (**Protect** — brackets / OCO / trail), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Alerts](./alerts-roadmap.md) (trade-plan notify only), [Journal](./journal-roadmap.md) (R / planned risk review), [AI Agent](./ai-agent-roadmap.md) (risk/order/playbook tools), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
+**Related:** [Risk Policy Data Model](./risk-policy-data-model-roadmap.md) (persisted Template / Instance spine — Phase 0 frozen), [Trading Execution](./trading-execution-roadmap.md) (**Protect** — brackets / OCO / trail), [Trade Management Playbook](./trade-management-playbook-roadmap.md) (**Manage**), [Alerts](./alerts-roadmap.md) (trade-plan notify only), [Journal](./journal-roadmap.md) (R / planned risk review), [AI Agent](./ai-agent-roadmap.md) (risk/order/playbook tools), [Trading Architecture](../../src/lib/trading/ARCHITECTURE.md), [Risk lib](../../src/lib/risk/), [Project Status](../PROJECT-STATUS.md), [Constraints](../CONSTRAINTS.md).
 
 ---
 
@@ -51,7 +51,7 @@ Give Edge one systematic answer to:
 | **Plan** | Pre-trade Budget + Sizing + Geometry | `src/lib/risk/` + chart drawings |
 | **Protect** | Resting broker ExitRules that survive app death | Trading execution |
 | **Manage** | Post-fill ExitRules that upgrade stops/qty over time | Trade management playbook |
-| **Gate** | Pre-trade / in-trade / account block or kill | Safety + future portfolio caps |
+| **Gate** | Pre-trade / in-trade / account block or kill | Safety + account caps (Phase 10) |
 | **Trade-plan alerts** | Notify at geometry levels | Alerts (not exits) |
 | **Bundle / recipe** | Named preset filling many slots | Playbook presets + future RiskPolicy presets |
 
@@ -223,7 +223,7 @@ Edge playbook presets are **Manage bundles**. Full trade RiskPolicy bundles also
 
 ## Strategy catalog → slots
 
-Use this to re-file catalog items. Phase 0 freezes family→slot filing below; per-preset 12-question checklists land in Phase 1 (1.3).
+Use this to re-file catalog items. Phase 0 freezes family→slot filing below; per-preset 12-question checklists shipped in Phase 1 (1.3).
 
 | Catalog family | Primary slot(s) |
 |----------------|-----------------|
@@ -260,7 +260,7 @@ Use this to re-file catalog items. Phase 0 freezes family→slot filing below; p
 
 ## Application plug-in map (where this is useful)
 
-Edge already implements large parts of RiskPolicy under Plan / Protect / Manage. This track makes that explicit and closes cross-cutting gaps.
+Edge already implements large parts of RiskPolicy under Plan / Protect / Manage. Phases 0–10 **Passing** (2026-07-30) ship the UX spine and account kills; this document tracks the model, plug-in map, and **remaining** gaps (not a live phase backlog).
 
 ```text
 Chart position / risk_ruler drawing
@@ -275,14 +275,14 @@ Chart position / risk_ruler drawing
 
 ### Slot coverage today
 
-| Slot | Strongest surfaces today | Biggest gap |
-|------|--------------------------|-------------|
-| **Budget** | `riskSettings` + Risk panel; options `maxRisk` | No user daily budget / open-heat cap |
+| Slot | Strongest surfaces today | Current gaps |
+|------|--------------------------|--------------|
+| **Budget** | `riskSettings` + Risk panel; options `maxRisk`; account `periodLossCapPercent` / `openHeatCapPercent` (Phase 10) | Weekly loss cap; R-only open-heat unit deferred |
 | **Sizing** | `equityPositionSize`, Trade ticket auto-qty, `optionsStrategyRisk` | Not enforced on every unbound ticket path |
-| **Geometry** | Position drawings + `positionTradeSetup` + chart-core risk | Dual binds (Risk panel vs Trade setup); stale metadata if not live-derived |
+| **Geometry** | Position drawings + `positionTradeSetup` + chart-core risk | Dual binds (Risk panel vs Trade setup) documented in Phase 3; stale metadata if not live-derived |
 | **Exits** | Brackets / trail / protective OCO; playbook BE / scale / trail / session flatten | Chart-native order management backlog; options Manage excluded |
-| **Gates** | `EDGE_TRADING_KILL_SWITCH`, readiness, short block, PDT soft, live confirm | No user day-loss / portfolio heat kill |
-| **Measurement** | Journal R, open-risk unrealized $, plan risk rows, options summary | Planned risk not auto-synced from Plan/Protect attach |
+| **Gates** | Kill switch, readiness, short block, PDT soft, live confirm; account day-loss / open-heat block via `accountRiskGates` + `assertPreTrade` (Phase 10) | Sector / correlation caps; min R:R hard reject; live Protect hard-reject deferred; auto-flatten on breach deferred (10.3) |
+| **Measurement** | Journal R, open-risk unrealized $, plan risk rows, options summary; journal `plannedRisk*` fill-if-empty from `PositionPlan` (Phase 8); account heat / day P&L chrome (Phase 10) | Open heat incomplete without Manage attach; no runtime RiskPolicy Zod merge type (compose view only, Phase 9) |
 
 ### Surface → slot detail
 
@@ -333,7 +333,7 @@ Maps cleanly to Edge playbook vocabulary already shipped:
 |------|------------|-------|
 | `OpenRiskPositionsMenu.tsx` | Header chip: Close, chart, Pause/Resume/Skip/Detach | Measurement + Manage controls |
 | `AccountPanel.tsx` | Positions, Protect with OCO, playbook menu | Exits + Manage + Measurement |
-| `openRiskSummary.ts` | Count + unrealized $ | Measurement (not planned heat) |
+| `openRiskSummary.ts` | Count + unrealized $ | Measurement (unrealized $; planned heat via `AccountRiskGateStrip` when Manage plans present) |
 
 #### Alerts (notify only)
 
@@ -358,7 +358,7 @@ Maps cleanly to Edge playbook vocabulary already shipped:
 | `preview_order` / `place_order` | What-if / submit | Gates + single-leg Exits |
 | `preview_playbook` / `attach_playbook` | Manage plan / attach | Manage Exits |
 
-#### Gates already present vs missing
+#### Gates — shipped vs remaining
 
 | Gate | Status |
 |------|--------|
@@ -366,14 +366,16 @@ Maps cleanly to Edge playbook vocabulary already shipped:
 | Trading readiness (fresh quote/account, resolved dollar risk) | Shipped |
 | Uncovered short hard block; PDT soft warning | Shipped |
 | Live confirm for live mutates | Shipped |
-| User daily loss / weekly loss kill | **Missing** (playbook non-goal; candidate for this track) |
-| Open-heat / max concurrent R | **Missing** |
-| Sector / correlation caps | **Missing** |
-| Min R:R hard reject on submit | Soft / display only today |
+| User daily loss kill (`periodLossCapPercent`) | Shipped (Phase 10) — block new BUY entries; auto-flatten deferred (10.3) |
+| Open-heat cap (`openHeatCapPercent`, % NetLiq from Manage `PositionPlan`) | Shipped (Phase 10) — R-only heat unit deferred |
+| Weekly loss kill | Not shipped |
+| Sector / correlation caps | Not shipped |
+| Min R:R hard reject on submit | Soft / display only |
+| Live submit without Protect — hard reject | Deferred (Phase 4 soft warn only) |
 
 ### UX moments → phases (product spine)
 
-Every product moment below has a dedicated phase. Phase 0–1 freeze the model; Phases 2–10 ship the UX.
+Every product moment below has a dedicated phase. Phases 0–10 are **Passing** (model frozen + UX spine + account kills shipped).
 
 | # | UX moment | Phase | Outcome in one line |
 |---|-----------|-------|---------------------|
@@ -400,13 +402,13 @@ Every product moment below has a dedicated phase. Phase 0–1 freeze the model; 
 | [AI agent](./ai-agent-roadmap.md) | Phase 9 extends risk/order/playbook tools |
 | Options exec (exec backlog) | Options RiskPolicy execution when options place exists |
 
-**Boundary rule:** Portfolio-level heat / day-loss kills are **account Gates** (Phase 10) — not playbook rules on one symbol (playbook roadmap non-goal stands).
+**Boundary rule:** Portfolio-level heat / day-loss kills are **account Gates** (Phase 10 **Passing**) — not playbook rules on one symbol (playbook roadmap non-goal stands).
 
 ---
 
 ## Phasing
 
-Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code changes, an Active Work row, and architecture notes when behavior ships.
+Phases 0–10 are **Passing** (2026-07-30). Future work (deferred items in Open questions and slot gaps above) should still follow WIP=1 with focused tests and architecture notes when behavior ships.
 
 ### Phase 0 — Freeze schema + catalog + UX-moment map
 
@@ -659,6 +661,8 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 
 **Depends on:** Phase 0 vocabulary; Phase 5 chrome for heat display; reuses kill-switch patterns.
 
+**Status:** **Passing** (2026-07-30)
+
 **Verification:** Focused safety tests; paper: breach blocks new entry; chrome shows heat/day loss vs cap.
 
 ---
@@ -689,7 +693,7 @@ Execute **one phase at a time** (WIP=1). Each phase gets focused tests when code
 | Binding | Manage via app evaluator; Protect still resting |
 | Failure mode | Last Protect stop/trail at broker if manager down |
 
-### A3. Day-loss account Gate (Phase 10 target)
+### A3. Day-loss account Gate (Phase 10 shipped)
 
 | Slot | Value |
 |------|-------|
@@ -725,7 +729,7 @@ Phase 1 pastes the 12-question checklist onto each preset in `playbook/presetRis
 
 ---
 
-## Source / touch points (when implementation begins)
+## Source / touch points (by phase)
 
 | Area | Path | Phases |
 |------|------|--------|

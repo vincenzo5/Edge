@@ -24,4 +24,20 @@ describe("EdgeUnderlineTabs", () => {
     fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
     expect(onChange).toHaveBeenCalledWith("trades");
   });
+
+  it("stretches tabs evenly across full width when layout is stretch", () => {
+    render(
+      <EdgeUnderlineTabs
+        segments={segments}
+        value="dashboard"
+        onChange={vi.fn()}
+        layout="stretch"
+        className="w-full"
+      />,
+    );
+    expect(screen.getByRole("tablist").className).toContain("w-full");
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab.className).toContain("flex-1");
+    }
+  });
 });

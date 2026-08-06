@@ -1,0 +1,24 @@
+# Risk policies — long half-BE-trail + short full TP evidence
+# Date: 2026-08-02
+
+## Scope
+Ship two Manage presets matching trader recipe:
+- Long: 1R/1R geometry; 50% at +1R → BE → 0.5R trail after +1.5R
+- Short: 1R/1R geometry; flatten full at +1R
+Plus trailRMultiple on BracketStopLeg resolved to dollars at attach.
+
+## Delivered
+- src/lib/trading/types.ts — trailRMultiple on BracketStopLeg
+- src/lib/trading/playbook/attachTrail.ts — resolveTrailAmountDollars
+- src/lib/trading/playbook/presets.ts — long_half_be_trail_05r, short_full_tp_1r
+- src/lib/trading/playbook/presetRiskPolicy.ts — completeness map
+- src/lib/risk/policy/fromPlaybook.ts — pass geometry through
+- src/app/components/trading/PlaybookTemplateEditor.tsx — Trail (R) field
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/playbook/ src/lib/risk/policy/ src/app/components/trading/ManagePlaybookPicker.test.tsx src/app/components/risk/RiskPoliciesSection.test.tsx
+
+Result:
+Test Files  29 passed (29)
+Tests  129 passed (129)

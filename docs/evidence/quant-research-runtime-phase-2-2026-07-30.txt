@@ -1,0 +1,36 @@
+# AGENT — Quant research runtime — Phase 2 evidence
+# Date: 2026-07-30
+
+## Scope
+Declarative signal / event studies via `run_signal_study`: JSON IR + curated chart-core indicators, forward-return metrics, train/holdout partitions, look-ahead gates. Node control plane only — no order simulation or Python worker.
+
+## Delivered
+- src/lib/researchCompute/contracts.ts — signal IR (`signalNodeSchema`, `signalStudySpecSchema`) + graph limits
+- src/lib/researchCompute/signalStudyMetrics.ts — IR eval, forward returns, train/holdout, optional bootstrap CI / vol tercile
+- src/lib/researchCompute/signalStudyMetrics.test.ts — golden MA cross, look-ahead, partition tests
+- src/lib/researchCompute/service.ts + port.ts — `runSignalStudy` via shared `runJob`
+- src/lib/ai/tools/researchCompute.ts — `run_signal_study` server-only tool
+- src/lib/ai/agent/summarizeToolResult.ts — compact signal study summary
+- src/lib/research/artifactHint.ts — `researchProfile` hint title "Signal study"
+- src/lib/copilot/chatBlockMapping.ts — Data block for `run_signal_study`
+- src/lib/researchCompute/phase2AppLevel.test.ts — create → study → Data block without OHLCV
+- src/lib/researchCompute/constants.ts — COMPUTE_VERSION 1.1.0
+- docs/roadmaps/quant-research-runtime-roadmap.md — Phase 2 Passing
+- src/lib/researchCompute/ARCHITECTURE.md, src/lib/ai/ARCHITECTURE.md — Phase 2 pointers
+- docs/roadmaps/README.md, docs/ROADMAP.md — status sync
+
+## Architecture review
+Self-review Passed — reuses Phase 1 job/artifact path; chart-core math only (no QuickJS); default entryLagBars=1; compact results only; server-only tool.
+
+## Focused
+Command: npm test -- --run src/lib/researchCompute/ src/lib/ai/tools/researchCompute.test.ts src/lib/ai/agent/summarizeToolResult.test.ts src/lib/copilot/chatBlockMapping.test.ts src/lib/research/artifactHint.test.ts
+Output: Test Files 9 passed (9); Tests 58 passed (58)
+exit=0
+
+## App-level
+Command: npm test -- --run src/lib/researchCompute/phase2AppLevel.test.ts
+Output: create_research_dataset → run_signal_study via edgeToolRegistry; no candles in tool payloads; researchProfile Data block with title Signal study
+exit=0
+
+## Next
+Phase 3 — minimal vectorized strategy evaluation (`run_strategy_evaluation`).

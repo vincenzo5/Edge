@@ -16,7 +16,7 @@ export function CopilotEmptyBrand({ variant }: Props) {
         className="mb-[var(--edge-space-4)] flex items-center justify-center"
       >
         <Image
-          src="/brand/icon-mono-white.svg"
+          src="/brand/favicon.svg"
           alt="Edge"
           width={40}
           height={40}
@@ -31,15 +31,15 @@ export function CopilotEmptyBrand({ variant }: Props) {
     <div
       data-testid="copilot-empty-brand"
       data-brand-variant="full"
-      className="mb-[var(--copilot-bar-min-height)] flex items-center justify-center"
+      className="mb-[var(--copilot-bar-min-height)] flex w-full items-center justify-center"
     >
       <Image
         src="/brand/logo-full-mono-white.svg"
         alt="Edge"
-        width={120}
-        height={48}
+        width={148}
+        height={124}
         priority
-        className="h-[calc(var(--copilot-bar-min-height)*0.55)] w-auto opacity-90"
+        className="h-auto w-[min(32%,calc(var(--copilot-bar-max-width)*0.32))] opacity-90"
       />
     </div>
   );

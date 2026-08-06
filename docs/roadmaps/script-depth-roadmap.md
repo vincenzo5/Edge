@@ -6,7 +6,7 @@ Deepen private Edge TypeScript indicator scripts toward Pine-like *capability* �
 
 **Status:** Phase 0 **Passing**; Phase 1 **Passing** — TA helper expansion shipped (`edge-indicator-sdk-2`); Phase 2 **Passing** — richer declarative plot visuals shipped (`edge-indicator-sdk-3`); Phase 3 **Passing** — multi-timeframe / multi-symbol `request.series` shipped (`edge-indicator-sdk-4`); Phase 4 **Passing** — script condition alerts handoff (`edge-indicator-sdk-5`); Phase 5 **Passing** — script-managed drawing objects (`edge-indicator-sdk-6`). **Track complete.** Deferred app-level walks → [app-level-verification-roadmap.md](./app-level-verification-roadmap.md) Phase 3. V1 scripting foundation is **Passing** via [typescript-indicator-scripting-roadmap.md](./typescript-indicator-scripting-roadmap.md).
 
-**Related:** [TypeScript Indicator Scripting Roadmap](./typescript-indicator-scripting-roadmap.md), [Alerts Roadmap](./alerts-roadmap.md), [Chart Engine Architecture](../../src/lib/chart/ARCHITECTURE.md), [Indicator Runtime Architecture](../../packages/indicator-runtime/ARCHITECTURE.md), [Plugin API](../chart/prereqs/plugin-api.md), [User Script Examples](../chart/script-examples.md), [TradingView Reference §5](../chart/tradingview-reference.md#58-tradingview-vs-edge--indicators-summary), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
+**Related:** [TypeScript Indicator Scripting Roadmap](./typescript-indicator-scripting-roadmap.md), [Quant Research Runtime](./quant-research-runtime-roadmap.md) (strategies / backtests — separate surface), [Alerts Roadmap](./alerts-roadmap.md), [Chart Engine Architecture](../../src/lib/chart/ARCHITECTURE.md), [Indicator Runtime Architecture](../../packages/indicator-runtime/ARCHITECTURE.md), [Plugin API](../chart/prereqs/plugin-api.md), [User Script Examples](../chart/script-examples.md), [TradingView Reference §5](../chart/tradingview-reference.md#58-tradingview-vs-edge--indicators-summary), [Project Status](../PROJECT-STATUS.md), [Repository Constraints](../CONSTRAINTS.md).
 
 ---
 
@@ -105,7 +105,7 @@ Disposition key: **Adopt** = Edge-native helper/API; **Adapt** = declarative Edg
 | Script alert conditions | `alertcondition`, `alert()` | **Adapt** | 4 | Handoff to [alerts-roadmap.md](./alerts-roadmap.md); client-side eval v1 |
 | Script-managed objects | `line.new`, `box.new`, `label.new` | **Adapt** / **Defer** | 5 | Bounded declarative objects; not arbitrary canvas |
 | Pine syntax / import TV scripts | Pine Script language | **Skip** | — | Edge TypeScript only |
-| Strategies / backtests / orders | `strategy()` | **Skip** | — | Separate product surface |
+| Strategies / backtests / orders | `strategy()` | **Skip** | — | Separate product surface → [Quant Research Runtime](./quant-research-runtime-roadmap.md) |
 | Public / community marketplace | TradingView library | **Skip** | — | Private My scripts only |
 | Arbitrary Canvas / DOM / WebGL from guest | Pine `draw()`-class access | **Skip** | — | Security boundary unchanged |
 | Screener-wide script evaluation | Pine on watchlists | **Skip** | — | Chart-scoped only |

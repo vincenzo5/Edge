@@ -480,6 +480,17 @@ class TradingGuardTests(unittest.TestCase):
         self.assertEqual(req.orderType, "STP")
         self.assertEqual(req.stopPrice, 99)
 
+    def test_bracket_order_request_allows_stop_only(self) -> None:
+        req = main.BracketOrderRequest(
+            accountId="DUP586813",
+            symbol="F",
+            action="BUY",
+            quantity=10,
+            orderType="MKT",
+            stopLeg={"mode": "fixed", "stopPrice": 95},
+        )
+        self.assertIsNone(req.takeProfitPrice)
+
     def test_validate_account_id_rejects_unknown(self) -> None:
         class _FakeIb:
             def managedAccounts(self):

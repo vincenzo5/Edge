@@ -122,4 +122,22 @@ describe("bracketPlan", () => {
     expect(plan.entry.orderType).toBe("STP");
     expect(validateBracketGeometry(plan)).toBeNull();
   });
+
+  it("supports stop-only bracket without take profit", () => {
+    const plan = buildBracketPlanWithPrices({
+      entry: {
+        accountId: "DUP586813",
+        symbol: "AAPL",
+        side: "BUY",
+        quantity: 10,
+        orderType: "MKT",
+        environment: "paper",
+        outsideRth: false,
+        tif: "DAY",
+      },
+      stopPrice: 95,
+    });
+    expect(plan.takeProfitPrice).toBeUndefined();
+    expect(validateBracketGeometry(plan)).toBeNull();
+  });
 });

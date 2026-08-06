@@ -7,6 +7,9 @@
     "quiverai": {
       "url": "https://app.quiver.ai/mcp"
     },
+    "higgsfield": {
+      "url": "https://mcp.higgsfield.ai/mcp"
+    },
     "edge": {
       "type": "stdio",
       "command": "/bin/bash",

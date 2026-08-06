@@ -159,6 +159,47 @@ describe('EdgeChart drawing handle', () => {
     expect(ref.current!.serializeDrawings()[0].styles?.lineColor).toBeUndefined();
   });
 
+  it('keeps undo history after drawingsRevision echo of the same drawings', async () => {
+    const ref = { current: null as import('./EdgeChart').ChartHandle | null };
+    const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };
+    const { rerender } = render(
+      <EdgeChart
+        ref={ref}
+        config={config}
+        drawingsRevision={1}
+        theme="dark"
+        feed={testFeed}
+        chartId="t1"
+      />,
+    );
+    await waitFor(() => expect(ref.current?.getTrackedOverlays()).toHaveLength(1));
+
+    act(() => {
+      ref.current!.updateDrawingStyles('d1', { lineColor: '#00FF88' });
+    });
+    expect(ref.current!.canUndo()).toBe(true);
+    const afterEdit = ref.current!.serializeDrawings();
+
+    // Simulate layout persist writing the same drawings back with a new revision.
+    rerender(
+      <EdgeChart
+        ref={ref}
+        config={{ ...config, drawings: afterEdit }}
+        drawingsRevision={2}
+        theme="dark"
+        feed={testFeed}
+        chartId="t1"
+      />,
+    );
+
+    await act(async () => {});
+    expect(ref.current!.canUndo()).toBe(true);
+    act(() => {
+      expect(ref.current!.undo()).toBe(true);
+    });
+    expect(ref.current!.serializeDrawings()[0].styles?.lineColor).toBeUndefined();
+  });
+
   it('updateDrawingMetadata patches serialized metadata and undo reverts', async () => {
     const ref = { current: null as import('./EdgeChart').ChartHandle | null };
     const config: CellConfig = { ...baseConfig, drawings: [persistedDrawing] };

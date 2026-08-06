@@ -45,6 +45,9 @@ export function resolveNextManageRule(instance: PlaybookInstance): PlaybookRule 
 
 function formatRuleShortLabel(rule: PlaybookRule): string {
   if (rule.then.kind === "modifyStop" && rule.then.breakEven) return "BE";
+  if (rule.then.kind === "modifyStop" && rule.then.stopRMultiple != null) {
+    return rule.then.stopRMultiple === 0 ? "BE" : `lock ${rule.then.stopRMultiple}R`;
+  }
   if (rule.then.kind === "reduceQty") return "scale";
   if (rule.then.kind === "attachTrail") return "trail";
   return rule.label ?? rule.id;

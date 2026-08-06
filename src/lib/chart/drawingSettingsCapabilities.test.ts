@@ -24,6 +24,12 @@ describe('drawingSettingsCapabilities', () => {
     expect(drawingSettingsCapabilities('trend_line').showStickEntryToLastPrice).toBe(false);
   });
 
+  it('enables position Inputs for long/short tools only', () => {
+    expect(drawingSettingsCapabilities('long_position').showPositionInputs).toBe(true);
+    expect(drawingSettingsCapabilities('short_position').showPositionInputs).toBe(true);
+    expect(drawingSettingsCapabilities('trend_line').showPositionInputs).toBe(false);
+  });
+
   it('maps dash presets', () => {
     expect(dashPresetFromArray([])).toBe('solid');
     expect(dashPresetFromArray(LINE_DASH_PRESETS.dashed)).toBe('dashed');

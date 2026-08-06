@@ -220,7 +220,7 @@ Mark **Skipped** only with a one-line reason (e.g. “superseded by Phase 1 live
 | 6.7 | Candlestick skeleton | Cold-load overlay looks like candles | **PASS** — `skeleton-candle-bars` wick+body candles in `ChartLoadingOverlay`; **Focused:** `Test Files 2 passed (2)`, `Tests 7 passed (7)`; warm-cache poll missed overlay |
 | 6.8 | Journal Open Positions + Calendar | Tab + heatmap/selected-day chrome | **PASS** — `journalView=open` **Open Positions**; `journal-calendar-day-2026-07-22` **`data-selected="true"`** **22 −$1.2k 2 trades · 0%** |
 | 6.9 | Journal KPI + columns | Equity flash; Columns reorder + reload | **PASS** — `journal-account-equity-value` **$36,948.70**; `edge.journal.tradesTable.v1` **`columnOrder` [`symbol`,`openDate`,…]** after reload; equity flash **Skipped** (Phase 1.2 live flash) |
-| 6.10 | Screenshots + forks | Attach/persist/delete; BRUN fork isolated from main chart | **PASS** — BRUN → `journal-trade-detail-drawer-panel`; `journal-trade-screenshots` Upload; capture gated **`Active chart is NVDA, not BRUN`**; **Focused:** `Test Files 2 passed (2)`, `Tests 6 passed (6)`; full capture/fork cycle **Skipped** (no BRUN chart tile) |
+| 6.10 | Screenshots + forks | Attach/persist/delete; BRUN fork isolated from main chart | **PASS** — BRUN → `journal-trade-detail-modal`; `journal-trade-screenshots` Upload; capture gated **`Active chart is NVDA, not BRUN`**; **Focused:** `Test Files 2 passed (2)`, `Tests 6 passed (6)`; full capture/fork cycle **Skipped** (no BRUN chart tile) |
 | 6.11 | Journal chrome density | Tile toolbar + underline tabs | **PASS** — `journal-tile-nav` + `journal-module-header`; underline **Dashboard** / **Trades** / **Open Positions** + **Period** |
 
 ---

@@ -1,0 +1,144 @@
+Step trail 0.25R — paper functional validation — 2026-08-05
+Tester: Cursor agent (execute-from-plan)
+Environment: paper / http://127.0.0.1:3003
+Account: DUP586813
+Policy template id: user_e9c90a6e-1b2c-4bcf-a472-5ab425da3a18
+
+Preflight: PASS
+- .env.local exists. DATABASE_URL and EDGE_AUTH_SECRET are set; no secret values were printed.
+- TWS_ENABLED=true. EDGE_TRADING_ENVIRONMENT_LOCK=paper. Global kill and manage-worker disable flags were unset.
+- Sidecar /health returned 200. Dev app :3003 returned 200.
+- Paper account DUP586813 was flat before TC-01.
+- DB policy exists. manage_state and take_profit_order_id migration columns exist.
+- Paper auto-manage was ON and paper_kill_active was false.
+- Focused sanity: 2 files passed, 40 tests passed:
+  npm test -- --run src/app/components/trading/TradeOrderForm.test.tsx src/lib/trading/playbook/runPlaybookEvaluation.test.ts
+- npm run check:startup was blocked by two pre-existing harness lint findings:
+  1. docs/PROJECT-STATUS.md lacks a 2026-08-05 Session Log entry while Current is Passing.
+  2. Active Work "APP — Journal trade stop risk" lacks its required Task Contract heading.
+- The requested cursor-ide-browser MCP was not available in this agent session. UI validation used an isolated authenticated Playwright browser against only http://127.0.0.1:3003.
+
+TC-01 stop-only UI bracket: PASS
+- Chart symbol F. Trade ticket account Paper · DUP586813.
+- Selected Step trail 0.25R.
+- Policy changed risk-sized quantity to thousands; Size and stop quantity were forced back to 1.
+- Take Profit was OFF. Stop Loss was ON at 13.97.
+- UI flow: Market Buy → Preview → Confirm buy.
+- A fetch interceptor was installed before confirmation.
+- Captured UI request: POST /api/trading/brackets, HTTP 200.
+- The response included playbookInstance.
+- No POST /api/trading/orders was used for this submission.
+- instance_id=e9d16f8b-9b81-43cf-a686-88d9c55e577d
+- entry_order_id=11365
+- stop_order_id=11366
+- order_ref=edge-intent-5b53c427-789c-4c6a-bed3-f27dfde58bdb
+- DB immediately after submit:
+  status=pending_fill
+  manage_state={"kind":"stepTrailR","stepR":0.25,"highestMilestoneR":0}
+  take_profit_order_id=null
+- Sidecar:
+  11365 BUY 1 MKT Filled avgFillPrice=14.26
+  11366 SELL 1 STP PreSubmitted auxPrice=13.97 parentId=11365
+  No TP limit exit was created.
+
+TC-02 fill arm after null-quote fix: PASS
+- Before manual evaluation, the broker position was F qty=1 while the instance was pending_fill.
+- Sidecar position fallback values:
+  marketPrice=14.2539997
+  avgCost=14.405603
+- Authenticated browser POST /api/cron/playbook-evaluate returned:
+  {"evaluated":1,"fired":0,"skipped":0,"errors":[],"promoted":0}
+- The instance then became armed:
+  armed_at=2026-08-05T16:52:07.131Z
+  filled_qty=1
+  manage_state.entryFillPrice=14.405603
+  position_plan.entry=14.405603
+  position_plan.rUnit=0.43560299999999863
+- Arming used the broker position fallback, specifically avgCost, because the trading-decision quote path was unavailable/null.
+- The prior "No quote for F" error did not recur.
+
+TC-03 break-even ratchet at +0.25R: SKIP (market)
+- ENTRY=14.405603
+- INITIAL_STOP=13.97
+- R_UNIT=0.43560299999999863
+- BE_TRIGGER=ENTRY + 0.25R = 14.51450375
+- Market price observed during the ratchet check: 14.2539997.
+- Chart day high shown during the session: 14.48, below the 14.51450375 trigger.
+- The market did not reach the trigger during this test window.
+- Stop 11366 remained at 13.97. highestMilestoneR remained 0.
+- TC-03b forced evaluator result was clean: evaluated=1, errors=[].
+- No extra or risky limit entry was invented.
+
+TC-04 managed UI flatten cleanup: PASS
+- Open Risk showed:
+  F Long 1
+  Protect: STP 13.97
+  Manage: Step trail 0.25R · armed
+  data-testid=open-risk-flatten-F
+- Used Flatten now → Confirm flatten.
+- Exit order 11536 SELL 1 MKT filled at 14.26.
+- Stop order 11366 became Cancelled.
+- DB:
+  status=closed
+  closed_at=2026-08-05T16:53:42.745Z
+  off_reason=manual_flatten
+  stop_order_id=null
+  take_profit_order_id=null
+- Sidecar position after cleanup: [].
+- Audit:
+  exitAndCleanup:e9d16f8b-9b81-43cf-a686-88d9c55e577d:cancelled=1:flat=true:qty=0
+
+TC-05 paper kill blocks new entry: PASS
+- Account panel Kill paper & flatten activated the paper kill with no open positions.
+- API/DB while testing showed paperEnabled=true and paperKillActive=true.
+- A second UI Step trail 0.25R Market Buy 1 F attempt reached Confirm buy.
+- Captured POST /api/trading/brackets returned HTTP 400:
+  {"error":"Trading kill is active for paper. New entries blocked."}
+- No POST /api/trading/orders was used and no new order was accepted.
+- Audit recorded:
+  Trading kill is active for paper. New entries blocked.
+- Teardown reset paper_kill_active=false by SQL.
+- Final DB: paper_enabled=true, paper_kill_active=false.
+- Final sidecar F positions: [].
+
+TC-06 second ratchet (optional): SKIP
+
+Overall: PASS
+
+Pass basis:
+- TC-01, TC-02, TC-04, and TC-05 passed.
+- TC-03 was SKIP (market), with the trigger and observed market recorded.
+- TC-03b was clean with errors=[].
+- The required post-fix chain passed: UI stop-only attach → fill → fallback arm → clean evaluation → managed flatten cleanup → kill blocks new entry.
+- A live ratchet price modification was not observed because the market did not reach +0.25R.
+
+Commands and checks run:
+- npm run harness:activate -- --name "Step trail 0.25R paper validate after arm fix"
+- Environment checks through Node parsing .env.local without printing secret values
+- Sidecar /health, positions, orders, and app :3003 checks
+- Postgres policy, migration columns, auto-manage, and instance lifecycle checks
+- npm test -- --run src/app/components/trading/TradeOrderForm.test.tsx src/lib/trading/playbook/runPlaybookEvaluation.test.ts
+  Test Files 2 passed (2); Tests 40 passed (40)
+- npm run check:startup
+  Blocked only by the two pre-existing harness lint findings listed in Preflight
+- Isolated Playwright UI for ticket, request capture, evaluator, Open Risk flatten, Account kill, and blocked-entry attempt
+- npm run report:trading-audit -- --limit 30
+
+Audit excerpt:
+[2026-08-05T16:56:26.672Z] blocked blocked
+detail: Trading kill is active for paper. New entries blocked.
+
+[2026-08-05T16:55:40.725Z] submit success
+detail: killAndFlatten:paper:instances=0:errors=0
+
+[2026-08-05T16:53:42.763Z] submit success intent=5b53c427-789c-4c6a-bed3-f27dfde58bdb
+detail: exitAndCleanup:e9d16f8b-9b81-43cf-a686-88d9c55e577d:cancelled=1:flat=true:qty=0
+
+[2026-08-05T16:49:37.680Z] submit success intent=5b53c427-789c-4c6a-bed3-f27dfde58bdb
+detail: bracket
+
+Blockers / follow-ups:
+- No functional blocker.
+- Market movement did not permit a live +0.25R stop ratchet observation.
+- The startup readiness gate still has the two unrelated, pre-existing harness lint findings listed above.
+- Harness closeout could not find an Active Work row named "Step trail 0.25R paper validate after arm fix" after the requested activation command succeeded. No manual harness edit was made.

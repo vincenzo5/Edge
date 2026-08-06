@@ -39,7 +39,7 @@ from tws_sidecar.runtime.state import (
     _reconnect_paused,
 )
 from tws_sidecar.runtime.worker import enqueue_on_ib_thread, run_on_ib_thread
-from tws_sidecar.util import now_ms
+from tws_sidecar.util import expiration_from_yyyymmdd, now_ms
 @app.post("/warmup")
 def warmup(body: WarmupRequest) -> dict[str, Any]:
     symbols = sorted({s.strip().upper() for s in body.symbols if s.strip()})
@@ -218,7 +218,7 @@ def option_expirations(underlying: str = Query(min_length=1)) -> dict[str, Any]:
             for chain in chains:
                 for raw in chain.expirations or []:
                     if len(raw) == 8 and raw.isdigit():
-                        expirations.add(_expiration_from_yyyymmdd(raw))
+                        expirations.add(expiration_from_yyyymmdd(raw))
             rows = [{"underlying": sym, "expiration": exp} for exp in sorted(expirations)]
             if not rows:
                 warnings.append("TWS returned no option expirations")

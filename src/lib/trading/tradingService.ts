@@ -42,6 +42,11 @@ import {
   isTradingConfigured,
 } from "./connectionRegistry";
 import {
+  appendDemoJournalAccountIfMissing,
+  isListAccountsInfrastructureError,
+  resolveDemoJournalTradingAccount,
+} from "./demoJournalAccount";
+import {
   resolveServerIntentStore,
   resetServerIntentStoreForTests,
   type OrderIntentStore,
@@ -50,6 +55,7 @@ import {
   resolveServerPlaybookAutoManageStore,
   resetServerPlaybookAutoManageStoreForTests,
   isAutoManageEnabledForEnvironment,
+  isEnvironmentKillActive,
   resolvePlaybookLiveConfirmation,
   type PatchPlaybookAutoManageInput,
   type PlaybookAutoManageSettings,
@@ -76,6 +82,12 @@ import { planPlaybookSteps } from "./playbook/planSteps";
 import { resolvePlaybookTemplate, resolvePlaybookTemplateFromInstance } from "./playbook/resolveTemplate";
 import { syncManagePlaybookToJournal } from "./playbook/journalRecipe";
 import { buildManageNotifyAlertInputs } from "./playbook/manageNotifyAlerts";
+import { initialManageStateForTemplate } from "./playbook/stepTrailRatchet";
+import {
+  buildFlattenDraftForInstance,
+  ordersCorrelatedWithInstance,
+  positionQtyForInstance,
+} from "./exitAndCleanup";
 import { buildManualStopPausePatch, detachAffectsProtectOrders, pauseAffectsProtectOrders } from "./playbook/conflictPolicy";
 import {
   materializePlannedSchedules,
@@ -263,75 +275,84 @@ export class TradingService {
   }
 
   async listAccounts(environment?: TradingEnvironment): Promise<TradingAccount[]> {
-    const lock = readTradingEnvironmentLock();
-    const effectiveEnvironment = environment ?? lock ?? undefined;
-    if (effectiveEnvironment) {
-      this.ensureTradingEnabled(effectiveEnvironment);
-    } else {
-      assertTradingKillSwitchOff();
-      if (!isTradingConfigured()) {
-        throw new TradingValidationError("Trading is not configured.");
-      }
-    }
-    await awaitSidecarForBrokerage();
-    const client = getBrokerageClient();
-    if (!client) {
-      throw new BrokerageRequestError("disabled", "Brokerage tracking unavailable.");
-    }
-    if (!shouldTryBrokerage()) {
-      throw new BrokerageRequestError(
-        "sidecar_unreachable",
-        "Brokerage requests temporarily skipped after repeated failures",
-      );
-    }
-    const live = await probeSidecarLiveness(client.getConfig(), 2_000);
-    if (!live) {
-      throw new BrokerageRequestError(
-        "sidecar_unreachable",
-        "TWS sidecar did not respond to /status within 2s.",
-      );
-    }
+    const demoFallback = resolveDemoJournalTradingAccount();
 
-    const targets = effectiveEnvironment
-      ? [resolveConnectionByEnvironment(effectiveEnvironment)]
-      : listIbConnections();
-
-    const accounts: TradingAccount[] = [];
-    let liveDiscoveryFailed = false;
-
-    for (const connection of targets) {
-      try {
-        const adapter = createIbTwsTradingAdapter(connection.connectionId);
-        const rows = await adapter.listAccounts();
-        accounts.push(
-          ...rows.map((row) => ({
-            ...row,
-            availability: row.availability ?? ("online" as const),
-          })),
-        );
-      } catch {
-        if (connection.connectionId === IB_LIVE_CONNECTION_ID) {
-          liveDiscoveryFailed = true;
+    try {
+      const lock = readTradingEnvironmentLock();
+      const effectiveEnvironment = environment ?? lock ?? undefined;
+      if (effectiveEnvironment) {
+        this.ensureTradingEnabled(effectiveEnvironment);
+      } else {
+        assertTradingKillSwitchOff();
+        if (!isTradingConfigured()) {
+          throw new TradingValidationError("Trading is not configured.");
         }
-        // Live gateway may be offline — omit unavailable connection.
       }
-    }
-
-    if (liveDiscoveryFailed) {
-      const offlineLiveId = process.env.TWS_LIVE_ACCOUNT_ID?.trim();
-      const hasLiveRow = accounts.some((row) => row.environment === "live");
-      if (offlineLiveId && !hasLiveRow) {
-        accounts.push({
-          broker: "ib",
-          connectionId: IB_LIVE_CONNECTION_ID,
-          accountId: offlineLiveId,
-          environment: "live",
-          availability: "offline",
-        });
+      await awaitSidecarForBrokerage();
+      const client = getBrokerageClient();
+      if (!client) {
+        throw new BrokerageRequestError("disabled", "Brokerage tracking unavailable.");
       }
-    }
+      if (!shouldTryBrokerage()) {
+        throw new BrokerageRequestError(
+          "sidecar_unreachable",
+          "Brokerage requests temporarily skipped after repeated failures",
+        );
+      }
+      const live = await probeSidecarLiveness(client.getConfig(), 2_000);
+      if (!live) {
+        throw new BrokerageRequestError(
+          "sidecar_unreachable",
+          "TWS sidecar did not respond to /status within 2s.",
+        );
+      }
 
-    return accounts;
+      const targets = effectiveEnvironment
+        ? [resolveConnectionByEnvironment(effectiveEnvironment)]
+        : listIbConnections();
+
+      const accounts: TradingAccount[] = [];
+      let liveDiscoveryFailed = false;
+
+      for (const connection of targets) {
+        try {
+          const adapter = createIbTwsTradingAdapter(connection.connectionId);
+          const rows = await adapter.listAccounts();
+          accounts.push(
+            ...rows.map((row) => ({
+              ...row,
+              availability: row.availability ?? ("online" as const),
+            })),
+          );
+        } catch {
+          if (connection.connectionId === IB_LIVE_CONNECTION_ID) {
+            liveDiscoveryFailed = true;
+          }
+          // Live gateway may be offline — omit unavailable connection.
+        }
+      }
+
+      if (liveDiscoveryFailed) {
+        const offlineLiveId = process.env.TWS_LIVE_ACCOUNT_ID?.trim();
+        const hasLiveRow = accounts.some((row) => row.environment === "live");
+        if (offlineLiveId && !hasLiveRow) {
+          accounts.push({
+            broker: "ib",
+            connectionId: IB_LIVE_CONNECTION_ID,
+            accountId: offlineLiveId,
+            environment: "live",
+            availability: "offline",
+          });
+        }
+      }
+
+      return appendDemoJournalAccountIfMissing(accounts);
+    } catch (error) {
+      if (demoFallback && isListAccountsInfrastructureError(error)) {
+        return [demoFallback];
+      }
+      throw error;
+    }
   }
 
   async previewOrder(input: unknown): Promise<{ preview: OrderPreview; intent: OrderIntent }> {
@@ -375,6 +396,7 @@ export class TradingService {
     idempotencyKey: string,
     previewIntentId?: string,
     liveConfirmation?: string,
+    options?: { emergencyExit?: boolean },
   ): Promise<PlacedOrderResult> {
     const draft = parseOrderDraft(draftInput);
     assertLiveConfirmation(draft.environment, liveConfirmation);
@@ -398,7 +420,11 @@ export class TradingService {
     }
 
     try {
-      this.ensureTradingEnabled(draft.environment);
+      if (options?.emergencyExit) {
+        this.ensureTradingEnabled(draft.environment, { emergencyExit: true });
+      } else {
+        await this.assertNewRiskAllowed(draft.environment);
+      }
       if (previewIntentId) {
         await this.validatePreviewIntent(draft, previewIntentId);
       }
@@ -505,11 +531,15 @@ export class TradingService {
           account: plan.entry.accountId,
           status: "Submitted",
         },
-        takeProfitOrder: {
-          orderId: existing.takeProfitOrderId ?? null,
-          account: plan.entry.accountId,
-          status: "Submitted",
-        },
+        ...(existing.takeProfitOrderId != null
+          ? {
+              takeProfitOrder: {
+                orderId: existing.takeProfitOrderId,
+                account: plan.entry.accountId,
+                status: "Submitted",
+              },
+            }
+          : {}),
         orderRef: existing.orderRef,
         intent: existing,
         playbookInstance: existingPlaybook,
@@ -517,7 +547,7 @@ export class TradingService {
     }
 
     try {
-      this.ensureTradingEnabled(plan.entry.environment);
+      await this.assertNewRiskAllowed(plan.entry.environment);
       if (previewIntentId) {
         await this.validatePreviewIntent(plan.entry, previewIntentId);
       }
@@ -538,7 +568,7 @@ export class TradingService {
           bracketStopPrice: plan.stopLeg.stopPrice ?? null,
           bracketTakeProfitPrice: plan.takeProfitPrice,
           stopOrderId: placed.stopOrder.orderId ?? null,
-          takeProfitOrderId: placed.takeProfitOrder.orderId ?? null,
+          takeProfitOrderId: placed.takeProfitOrder?.orderId ?? null,
         })) ?? intent;
 
       appendAudit({
@@ -559,6 +589,8 @@ export class TradingService {
             plan,
             intent: updated,
             orderRef: placed.orderRef,
+            stopOrderId: placed.stopOrder.orderId ?? null,
+            takeProfitOrderId: placed.takeProfitOrder?.orderId ?? null,
           })
         : {};
 
@@ -711,6 +743,8 @@ export class TradingService {
       previewIntentId: parsed.previewIntentId,
       liveConfirmation: parsed.liveConfirmation,
       takeProfitPrice: parsed.takeProfitPrice,
+      takeProfitQuantity: parsed.takeProfitQuantity,
+      stopQuantity: parsed.stopQuantity,
     });
 
     await this.syncPlaybookJournal(promoted);
@@ -1092,6 +1126,7 @@ export class TradingService {
         qty: args.qty,
         environment: args.environment,
       });
+      const manageState = initialManageStateForTemplate(template) ?? undefined;
       const instance = createPlaybookInstance({
         id: createPlaybookInstanceId(),
         template,
@@ -1099,6 +1134,7 @@ export class TradingService {
         status: args.status,
         orderIntentId: args.orderIntentId,
         orderRef: args.orderRef,
+        ...(manageState ? { manageState } : {}),
       });
       const created = await store.create(instance);
       let result = created;
@@ -1107,6 +1143,7 @@ export class TradingService {
           (await store.patch(created.id, {
             stopOrderId: args.stopOrderId ?? undefined,
             filledQty: args.filledQty ?? undefined,
+            ...(manageState ? { manageState } : {}),
           })) ?? created;
       }
       if (args.notifyAtManageLevels) {
@@ -1129,8 +1166,10 @@ export class TradingService {
     plan: BracketPlan;
     intent: OrderIntent;
     orderRef: string;
+    stopOrderId?: number | null;
+    takeProfitOrderId?: number | null;
   }): Promise<{ instance?: PlaybookInstance; error?: string }> {
-    return this.attachManagementPlaybookInternal({
+    const attach = await this.attachManagementPlaybookInternal({
       templateId: args.templateId,
       entryPrice: args.entryPrice,
       initialStop: args.initialStop,
@@ -1143,7 +1182,17 @@ export class TradingService {
       orderRef: args.orderRef,
       status: "pending_fill",
       orderIntentId: args.intent.intentId,
+      stopOrderId: args.stopOrderId ?? null,
     });
+    if (attach.instance && args.takeProfitOrderId != null) {
+      const store = await this.playbookStore();
+      const patched =
+        (await store.patch(attach.instance.id, {
+          takeProfitOrderId: args.takeProfitOrderId,
+        })) ?? attach.instance;
+      return { instance: patched, error: attach.error };
+    }
+    return attach;
   }
 
   async submitProtectiveOco(
@@ -1161,7 +1210,7 @@ export class TradingService {
     assertLiveConfirmation(plan.environment, liveConfirmation);
 
     try {
-      this.ensureTradingEnabled(plan.environment);
+      await this.assertNewRiskAllowed(plan.environment);
       const port = this.portForEnvironment(plan.environment);
       const orderRef = plan.orderRef?.trim() || `edge-oco-${randomUUID()}`;
       const placed = await port.placeProtectiveOco({ ...plan, orderRef }, orderRef);
@@ -1203,6 +1252,155 @@ export class TradingService {
       this.auditBlockedOrFailed("submit", plan.accountId, error);
       throw error;
     }
+  }
+
+  async listActivePlaybookInstances(options?: {
+    environment?: TradingEnvironment;
+  }): Promise<PlaybookInstance[]> {
+    const store = await this.playbookStore();
+    return store.listActive(options);
+  }
+
+  async exitAndCleanup(args: {
+    instanceId: string;
+    liveConfirmation?: string;
+    reason?: string;
+  }): Promise<{
+    instance: PlaybookInstance;
+    cancelledOrderIds: number[];
+    flattened: boolean;
+  }> {
+    const store = await this.playbookStore();
+    const existing = await store.getById(args.instanceId);
+    if (!existing) {
+      throw new TradingValidationError(`Playbook instance ${args.instanceId} not found`);
+    }
+
+    const environment = existing.positionPlan.environment;
+    assertLiveConfirmation(environment, args.liveConfirmation);
+    this.ensureTradingEnabled(environment, { emergencyExit: true });
+
+    if (
+      existing.status === "closed" ||
+      existing.status === "completed" ||
+      existing.status === "detached"
+    ) {
+      return { instance: existing, cancelledOrderIds: [], flattened: false };
+    }
+
+    let instance =
+      (await store.patch(existing.id, {
+        controlMode: "paused",
+        offReason: "exit_cleanup",
+      })) ?? existing;
+
+    const { getBrokerageService } = await import("@/lib/brokerage/brokerageService");
+    let snapshot = await getBrokerageService().getSnapshot(environment);
+    const autoManage = await this.getPlaybookAutoManageSettings();
+    const liveConfirmation =
+      resolvePlaybookLiveConfirmation(autoManage, environment) ?? args.liveConfirmation;
+
+    const correlated = ordersCorrelatedWithInstance(instance, snapshot.orders);
+    const cancelledOrderIds: number[] = [];
+    for (const order of correlated) {
+      if (order.orderId == null) continue;
+      try {
+        await this.cancelOrder(
+          instance.positionPlan.accountId,
+          order.orderId,
+          instance.orderIntentId,
+          environment,
+          liveConfirmation,
+          { emergencyExit: true },
+        );
+        cancelledOrderIds.push(order.orderId);
+      } catch {
+        // Best-effort cancel before flatten.
+      }
+    }
+
+    let flattened = false;
+    let qty = positionQtyForInstance(instance, snapshot);
+    if (Math.abs(qty) > 0) {
+      const draft = buildFlattenDraftForInstance(instance, snapshot);
+      if (draft) {
+        const idempotencyKey = `exit-cleanup-${instance.id}-${Date.now()}`;
+        await this.submitOrder(draft, idempotencyKey, undefined, liveConfirmation, {
+          emergencyExit: true,
+        });
+        flattened = true;
+        snapshot = await getBrokerageService().getSnapshot(environment);
+        qty = positionQtyForInstance(instance, snapshot);
+      }
+    }
+
+    instance =
+      (await store.patch(instance.id, {
+        status: "closed",
+        closedAt: new Date().toISOString(),
+        controlMode: "off",
+        offReason: args.reason ?? "exit_cleanup",
+        stopOrderId: null,
+        takeProfitOrderId: null,
+        protectState: "cancelled",
+      })) ?? instance;
+
+    await this.syncPlaybookJournal(instance);
+
+    appendAudit({
+      action: "submit",
+      outcome: "success",
+      accountId: instance.positionPlan.accountId,
+      intentId: instance.orderIntentId,
+      orderRef: instance.orderRef,
+      detail: `exitAndCleanup:${instance.id}:cancelled=${cancelledOrderIds.length}:flat=${flattened}:qty=${qty}`,
+    });
+
+    return { instance, cancelledOrderIds, flattened };
+  }
+
+  async killAndFlattenEnvironment(args: {
+    environment: TradingEnvironment;
+    liveConfirmation?: string;
+  }): Promise<{ flattened: number; errors: string[] }> {
+    assertLiveConfirmation(args.environment, args.liveConfirmation);
+    this.ensureTradingEnabled(args.environment, { emergencyExit: true });
+
+    const autoStore = await this.autoManageStore();
+    await autoStore.patch(
+      args.environment === "paper"
+        ? { paperKillActive: true }
+        : { liveKillActive: true, liveConfirmation: args.liveConfirmation },
+    );
+
+    const playbookStore = await this.playbookStore();
+    const instances = await playbookStore.listActive({ environment: args.environment });
+    const errors: string[] = [];
+    let flattened = 0;
+
+    for (const instance of instances) {
+      try {
+        await this.exitAndCleanup({
+          instanceId: instance.id,
+          liveConfirmation: args.liveConfirmation,
+          reason: "env_kill",
+        });
+        flattened += 1;
+      } catch (error) {
+        errors.push(
+          `${instance.id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    appendAudit({
+      action: "submit",
+      outcome: errors.length === 0 ? "success" : "failed",
+      accountId: instances[0]?.positionPlan.accountId ?? "unknown",
+      detail: `killAndFlatten:${args.environment}:instances=${flattened}:errors=${errors.length}`,
+    });
+
+    return { flattened, errors };
   }
 
   async modifyOrder(
@@ -1274,10 +1472,11 @@ export class TradingService {
     intentId?: string,
     environment: TradingEnvironment = "paper",
     liveConfirmation?: string,
+    options?: { emergencyExit?: boolean },
   ): Promise<{ order: PlacedOrderResult["order"]; intent: OrderIntent | null }> {
     try {
       assertLiveConfirmation(environment, liveConfirmation);
-      this.ensureTradingEnabled(environment);
+      this.ensureTradingEnabled(environment, options);
       await awaitSidecarForBrokerage();
       const port = this.portForEnvironment(environment);
       const result = await port.cancel(accountId, orderId);
@@ -1299,9 +1498,24 @@ export class TradingService {
     }
   }
 
-  private ensureTradingEnabled(environment: TradingEnvironment = "paper"): void {
+  private ensureTradingEnabled(
+    environment: TradingEnvironment = "paper",
+    options?: { emergencyExit?: boolean },
+  ): void {
     assertTradingEnabledForEnvironment(environment);
-    assertTradingKillSwitchOff();
+    if (!options?.emergencyExit) {
+      assertTradingKillSwitchOff();
+    }
+  }
+
+  private async assertNewRiskAllowed(environment: TradingEnvironment): Promise<void> {
+    this.ensureTradingEnabled(environment);
+    const settings = await this.getPlaybookAutoManageSettings();
+    if (isEnvironmentKillActive(settings, environment)) {
+      throw new TradingValidationError(
+        `Trading kill is active for ${environment}. New entries blocked.`,
+      );
+    }
   }
 
   private async validatePreviewIntent(

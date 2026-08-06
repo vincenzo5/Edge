@@ -4,6 +4,7 @@ import {
   applyInitialStopPlannedRisk,
   derivePlannedRiskFromStop,
   isValidStopForDirection,
+  resolveTradeRiskQuantity,
   validateInitialStop,
 } from "@/lib/journal/tradeRiskGeometry";
 
@@ -58,5 +59,30 @@ describe("tradeRiskGeometry", () => {
       plannedRiskValue: 50,
       plannedRiskUsd: 50,
     });
+  });
+
+  it("resolveTradeRiskQuantity uses fill quantities when netQuantity is zero on closed trades", () => {
+    expect(
+      resolveTradeRiskQuantity({
+        netQuantity: 0,
+        fillQuantities: [50, 50],
+      }),
+    ).toBe(50);
+  });
+
+  it("applyInitialStopPlannedRisk uses fill quantities for closed short trades", () => {
+    const applied = applyInitialStopPlannedRisk(
+      {
+        direction: "short",
+        avgEntry: 308.43,
+        netQuantity: 0,
+        fillQuantities: [25],
+      },
+      312,
+    );
+    expect(applied.initialStop).toBe(312);
+    expect(applied.plannedRiskMode).toBe("usd");
+    expect(applied.plannedRiskValue).toBeCloseTo(89.25, 2);
+    expect(applied.plannedRiskUsd).toBeCloseTo(89.25, 2);
   });
 });

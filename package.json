@@ -110,6 +110,8 @@
     "report:memory": "npx tsx scripts/report-memory.mts",
     "report:trading-audit": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/report-trading-audit.mts",
     "journal:policy-replay": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/journal-policy-replay.mts",
+    "journal:seed-demo": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/seed-journal-demo.mts",
+    "journal:reset-dev-session": "curl -s -X DELETE http://localhost:3003/api/auth/dev-session && echo 'Dev session cleared — hard refresh the app.'",
     "report:production-errors": "npx tsx --import ./scripts/register-server-only-stub.mts scripts/report-production-errors.mts",
     "watch:readyz": "npx tsx scripts/watch-readyz.mts",
     "smoke:data-providers": "npx tsx scripts/run-data-provider-smoke.mts",

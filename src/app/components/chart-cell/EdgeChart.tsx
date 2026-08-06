@@ -70,6 +70,8 @@ type Props = {
   chartId: string;
   onConfigChange?: (next: CellConfig) => void;
   onOverlayRightClick?: (overlay: TrackedOverlay, pos: { x: number; y: number }) => void;
+  /** Double-click on a drawing — open that drawing's settings panel. */
+  onDrawingOpenSettings?: (id: string) => void;
   onChartContextMenu?: (pos: { x: number; y: number }) => void;
   onPriceScaleContextMenu?: (pos: {
     clientX: number;
@@ -364,6 +366,7 @@ const EdgeChart = forwardRef<ChartHandle, Props>(function EdgeChart(props, ref) 
       areAllDrawingsHidden: () => innerRef.current?.areAllDrawingsHidden() ?? false,
       updateDrawingStyles: (id, patch) => innerRef.current?.updateDrawingStyles(id, patch),
       updateDrawingMetadata: (id, patch) => innerRef.current?.updateDrawingMetadata(id, patch),
+      updateDrawingPoints: (id, after) => innerRef.current?.updateDrawingPoints(id, after),
       undo: () => innerRef.current?.undo() ?? false,
       redo: () => innerRef.current?.redo() ?? false,
       canUndo: () => innerRef.current?.canUndo() ?? false,

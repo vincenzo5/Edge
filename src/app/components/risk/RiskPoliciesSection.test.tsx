@@ -12,6 +12,7 @@ const userTemplate = {
 
 describe("RiskPoliciesSection", () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo) => {
@@ -36,31 +37,66 @@ describe("RiskPoliciesSection", () => {
     );
   });
 
-  it("lists built-in and user policies", async () => {
+  it("lists user policies only", async () => {
     render(<RiskPoliciesSection />);
     await waitFor(() => {
-      expect(screen.getByTestId("risk-policy-row-break_even")).toBeTruthy();
       expect(screen.getByTestId("risk-policy-row-user_abc123")).toBeTruthy();
     });
+    expect(screen.queryByTestId("risk-policy-row-break_even")).toBeNull();
   });
 
-  it("opens read-only editor for built-in policy", async () => {
+  it("opens editable editor when editing a user policy", async () => {
     render(<RiskPoliciesSection />);
-    await waitFor(() => screen.getByTestId("risk-policy-open-break_even"));
-    fireEvent.click(screen.getByTestId("risk-policy-open-break_even"));
+    await waitFor(() => screen.getByTestId("risk-policy-edit-user_abc123"));
+    fireEvent.click(screen.getByTestId("risk-policy-edit-user_abc123"));
+    expect(screen.getByTestId("playbook-template-editor")).toBeTruthy();
+    expect(screen.getByTestId("playbook-template-editor-save")).toBeTruthy();
+  });
+
+  it("opens read-only editor when viewing a user policy", async () => {
+    render(<RiskPoliciesSection />);
+    await waitFor(() => screen.getByTestId("risk-policy-view-user_abc123"));
+    fireEvent.click(screen.getByTestId("risk-policy-view-user_abc123"));
     expect(screen.getByTestId("playbook-template-editor")).toBeTruthy();
     expect(screen.queryByTestId("playbook-template-editor-save")).toBeNull();
   });
 
-  it("duplicates a built-in policy", async () => {
+  it("duplicates a user policy", async () => {
     render(<RiskPoliciesSection />);
-    await waitFor(() => screen.getByTestId("risk-policy-duplicate-break_even"));
-    fireEvent.click(screen.getByTestId("risk-policy-duplicate-break_even"));
+    await waitFor(() => screen.getByTestId("risk-policy-duplicate-user_abc123"));
+    fireEvent.click(screen.getByTestId("risk-policy-duplicate-user_abc123"));
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        "/api/trading/playbooks/templates/break_even/duplicate",
+        "/api/trading/playbooks/templates/user_abc123/duplicate",
         expect.objectContaining({ method: "POST" }),
       );
     });
+  });
+
+  it("renders default policy pickers", async () => {
+    render(<RiskPoliciesSection />);
+    await waitFor(() => {
+      expect(screen.getByTestId("risk-policy-defaults")).toBeTruthy();
+    });
+    expect(screen.getByText("Default policy")).toBeTruthy();
+    expect(screen.getByTestId("risk-policy-default-long")).toBeTruthy();
+    expect(screen.getByTestId("risk-policy-default-short")).toBeTruthy();
+  });
+
+  it("shows empty state when there are no user policies", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({ presets: [BREAK_EVEN_PRESET], userTemplates: [] }),
+          { status: 200 },
+        ),
+      ),
+    );
+    render(<RiskPoliciesSection />);
+    await waitFor(() => {
+      expect(screen.getByText("No policies yet.")).toBeTruthy();
+    });
+    expect(screen.queryByTestId("risk-policy-row-break_even")).toBeNull();
   });
 });

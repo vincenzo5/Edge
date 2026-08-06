@@ -27,6 +27,10 @@ export function artifactHintTitle(hint: ResearchArtifactHint): string {
       return hint.title ?? hint.body.slice(0, 80);
     case "aiCallout":
       return hint.summary.slice(0, 120);
+    case "researchProfile":
+      return hint.title ?? hint.jobId;
+    case "researchCompare":
+      return hint.title ?? hint.compareId ?? "Research compare";
     default: {
       const _exhaustive: never = hint;
       return _exhaustive;
@@ -46,6 +50,10 @@ function artifactHintKind(hint: ResearchArtifactHint): string {
       return "Note";
     case "aiCallout":
       return "AI callout";
+    case "researchProfile":
+      return "Research run";
+    case "researchCompare":
+      return "Research compare";
     default: {
       const _exhaustive: never = hint;
       return _exhaustive;

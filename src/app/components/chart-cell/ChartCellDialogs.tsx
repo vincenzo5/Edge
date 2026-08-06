@@ -9,7 +9,7 @@ import DrawingRenameModal from "../drawing/DrawingRenameModal";
 import TemplatePickerModal from "../chart-chrome/TemplatePickerModal";
 import BarReplay from "../chart-chrome/BarReplay";
 import type { ChartHandle } from "./EdgeChart";
-import type { DrawingStyles } from "@edge/chart-core/contracts";
+import type { DrawingStyles, PositionOrderLevelsPatch } from "@edge/chart-core";
 import type { GoToRequest } from "@edge/chart-react/engine/goTo";
 import type {
   CellConfig,
@@ -20,6 +20,7 @@ import type {
 } from "@/lib/chartConfig";
 import type { ChartTimeZone } from "@edge/chart-core/timeZone";
 import type { PresetEnvelope } from "@/lib/chart/presets/types";
+import { reshapePositionDrawingPoints } from "@/lib/chart/reshapePositionDrawing";
 
 type ChartTemplatePreset = Extract<PresetEnvelope, { kind: "chart" }>;
 
@@ -161,6 +162,20 @@ export default function ChartCellDialogs({
         theme={theme}
         onClose={onSettingsOverlayClose}
         onSave={onDrawingStylesSave}
+        onSaveLevels={(id, levels: PositionOrderLevelsPatch) => {
+          const drawing =
+            settingsDrawing?.id === id
+              ? settingsDrawing
+              : (chartRef.current?.serializeDrawings().find((d) => d.id === id) ??
+                null);
+          if (!drawing) return;
+          const next = reshapePositionDrawingPoints(drawing, levels);
+          if (!next) return;
+          chartRef.current?.updateDrawingPoints(id, next.points);
+          if (next.styles && next.styles !== drawing.styles) {
+            chartRef.current?.updateDrawingStyles(id, next.styles);
+          }
+        }}
       />
 
       <ChartSettingsModal

@@ -97,6 +97,62 @@ describe("validateOrder", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("accepts LOC with limit and DAY tif", () => {
+    const parsed = OrderDraftSchema.safeParse({
+      accountId: "DUP586813",
+      symbol: "AAPL",
+      side: "BUY",
+      quantity: 1,
+      orderType: "LOC",
+      limitPrice: 88.5,
+      tif: "DAY",
+      environment: "paper",
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects MOC with limitPrice", () => {
+    const parsed = OrderDraftSchema.safeParse({
+      accountId: "DUP586813",
+      symbol: "AAPL",
+      side: "BUY",
+      quantity: 1,
+      orderType: "MOC",
+      limitPrice: 88.5,
+      environment: "paper",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects IOC on stop orders", () => {
+    const parsed = OrderDraftSchema.safeParse({
+      accountId: "DUP586813",
+      symbol: "AAPL",
+      side: "BUY",
+      quantity: 1,
+      orderType: "STP",
+      stopPrice: 85,
+      tif: "IOC",
+      environment: "paper",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("accepts AON and price mgmt algo on limit", () => {
+    const parsed = OrderDraftSchema.safeParse({
+      accountId: "DUP586813",
+      symbol: "AAPL",
+      side: "BUY",
+      quantity: 1,
+      orderType: "LMT",
+      limitPrice: 88.5,
+      allOrNone: true,
+      usePriceMgmtAlgo: true,
+      environment: "paper",
+    });
+    expect(parsed.success).toBe(true);
+  });
+
   it("normalizes draft hash consistently", () => {
     const hashA = normalizeDraftForHash({
       accountId: " dup ",

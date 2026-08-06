@@ -18,6 +18,9 @@ type Props = {
   testId?: string;
 };
 
+const overlayTopChromeClassName =
+  "absolute right-0 top-0 z-10 flex items-center justify-end gap-2 px-[var(--edge-space-4)] py-[var(--edge-space-3)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100";
+
 export function CopilotShell({
   variant,
   isEmpty,
@@ -32,18 +35,19 @@ export function CopilotShell({
   testId = "copilot-panel",
 }: Props) {
   const isWideHost = variant === "page" || variant === "tile";
+  const hasSideRails = Boolean(history || evidence);
+  const overlayTopChrome = isWideHost || isEmpty;
+
+  const topChromeOverlay = topChrome ? (
+    <div data-testid="copilot-top-chrome" className={overlayTopChromeClassName}>
+      {topChrome}
+    </div>
+  ) : null;
 
   if (isEmpty) {
     const emptyHero = (
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        {topChrome ? (
-          <div
-            data-testid="copilot-top-chrome"
-            className="absolute right-0 top-0 z-10 flex items-center justify-end gap-2 px-[var(--edge-space-4)] py-[var(--edge-space-3)]"
-          >
-            {topChrome}
-          </div>
-        ) : null}
+      <div className="group relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        {topChromeOverlay}
         <div
           data-testid="copilot-empty"
           className="flex min-h-0 flex-1 flex-col items-center justify-center px-[var(--edge-space-4)]"
@@ -62,7 +66,7 @@ export function CopilotShell({
       </div>
     );
 
-    if (history) {
+    if (hasSideRails) {
       return (
         <div
           data-testid={testId}
@@ -76,6 +80,7 @@ export function CopilotShell({
           >
             {history}
             {emptyHero}
+            {evidence}
           </div>
         </div>
       );
@@ -96,7 +101,7 @@ export function CopilotShell({
   const composerDock = (
     <div
       data-testid="copilot-composer-dock"
-      className={`shrink-0 px-[var(--edge-space-4)] py-[var(--edge-space-3)] ${
+      className={`shrink-0 px-[var(--edge-space-4)] pb-[calc(var(--edge-space-3)*3)] pt-0 ${
         isWideHost ? "flex justify-center" : ""
       }`}
     >
@@ -107,7 +112,12 @@ export function CopilotShell({
   );
 
   const mainColumn = (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div
+      className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
+        overlayTopChrome ? "group relative" : ""
+      }`}
+    >
+      {overlayTopChrome ? topChromeOverlay : null}
       {children}
       {composerDock}
     </div>
@@ -119,9 +129,9 @@ export function CopilotShell({
       data-copilot-shell-variant={variant}
       className="copilot-shell flex h-full min-h-0 flex-col"
     >
-      {topChrome}
+      {!overlayTopChrome && topChrome ? topChrome : null}
       {banners}
-      {history || evidence ? (
+      {hasSideRails ? (
         <div
           data-testid="copilot-active-layout"
           className="flex min-h-0 flex-1 overflow-hidden"

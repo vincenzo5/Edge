@@ -20,6 +20,43 @@ describe("executePlaybookThen", () => {
     environment: "paper",
   });
 
+  it("modifyStop resolves stopRMultiple to a locked profit price", async () => {
+    const modifyOrder = vi.fn(async () => ({ order: {}, intent: null }));
+    const instance = createPlaybookInstance({
+      id: "inst-r",
+      template: BREAK_EVEN_PRESET,
+      positionPlan,
+      status: "armed",
+      orderIntentId: "intent-r",
+    });
+
+    const result = await executePlaybookThen(
+      {
+        id: "lock-025",
+        when: { kind: "multipleOfR", multiple: 0.5 },
+        then: { kind: "modifyStop", stopRMultiple: 0.25 },
+        once: true,
+      },
+      {
+        tradingService: { modifyOrder, submitOrder: vi.fn() },
+        instance,
+        stopOrderId: 55,
+        filledQty: 100,
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    // entry 100, rUnit 5 → +0.25R = 101.25
+    expect(modifyOrder).toHaveBeenCalledWith(
+      "DUP586813",
+      55,
+      { stopPrice: 101.25 },
+      "intent-r",
+      "paper",
+      undefined,
+    );
+  });
+
   it("modifyStop sends break-even stop price", async () => {
     const modifyOrder = vi.fn(async () => ({ order: {}, intent: null }));
     const instance = createPlaybookInstance({

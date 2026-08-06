@@ -61,6 +61,26 @@ describe('positionGeometry', () => {
     expect(fixed[3]?.dataIndex).toBe(10);
   });
 
+  it('repairPositionPoints preserves valid future anchors after a body drag', () => {
+    const candles = [
+      { t: 1000, o: 100, h: 110, l: 90, c: 105 },
+      { t: 2000, o: 105, h: 115, l: 95, c: 110 },
+      { t: 3000, o: 110, h: 120, l: 100, c: 115 },
+    ];
+    const future = [
+      { timestamp: 16_000, value: 100, dataIndex: 15 },
+      { timestamp: 16_000, value: 95, dataIndex: 15 },
+      { timestamp: 16_000, value: 110, dataIndex: 15 },
+      { timestamp: 26_000, value: 100, dataIndex: 25 },
+    ];
+
+    const repaired = repairPositionPoints(future, candles);
+
+    expect(repaired).toBe(future);
+    expect(repaired[0]?.dataIndex).toBe(15);
+    expect(repaired[3]!.dataIndex! - repaired[0]!.dataIndex!).toBe(10);
+  });
+
   it('positionPointsFromClick anchors entry at click and sizes stop/target', () => {
     const candles = [
       { t: 1000, o: 100, h: 110, l: 90, c: 105 },

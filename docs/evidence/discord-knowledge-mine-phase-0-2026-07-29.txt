@@ -1,0 +1,57 @@
+# OPS — Discord knowledge mine — Phase 0 evidence
+# Date: 2026-07-29
+
+## Scope
+MCP auth + local store contract. No Edge product code. No send_message calls.
+
+## MCP auth
+Command: user-discord get_servers (no prior mcp_auth required — server enabled)
+Result: 8 guilds returned
+
+Guild count: 8
+Sample (id + name only):
+- 1345810177135476768 — ChadGPT Course's Discord Community
+- 1305230430458351626 — Trinity Trading Partners
+- 1074847526655643750 — Cursor
+- 928315068955893760 — Algo Trading, Coding
+- 783160857139740713 — WolvesOfWealth
+- 778344907378655283 — MarketLife
+- 755810120486879314 — SMB Students
+- 289994252241338369 — ServiceNow Developers - Ask questions, get help, or find a ServiceNow job!
+
+send_message calls this session: 0
+
+## Local store skeleton
+Root: /Users/vincentn/Knowledge/discord/ (outside Edge git tree)
+
+Command: ls -la ~/Knowledge/discord
+Output:
+total 16
+drwxr-xr-x  5 vincentn  staff  160 Jul 29 20:40 .
+drwxr-xr-x  3 vincentn  staff   96 Jul 29 20:40 ..
+-rw-r--r--  1 vincentn  staff  _index.md
+-rw-r--r--  1 vincentn  staff  _taxonomy.md
+drwxr-xr-x  2 vincentn  staff   64 Jul 29 20:40 by-server
+
+Files:
+- _index.md — empty guild table stub; Phase 1 fills inventory
+- _taxonomy.md — server classes, mine order, refresh placeholder, safety rules
+- by-server/ — empty (no server folders yet)
+
+## Contract
+Source of truth: docs/roadmaps/discord-knowledge-mine-roadmap.md (MCP table, layout, read-only rule)
+Root path locked: ~/Knowledge/discord/
+
+## Architecture review
+N/A — operator workflow + local filesystem only; no Edge runtime contracts.
+
+## App-level
+App-level: get_servers returned 8 guilds; ls ~/Knowledge/discord shows 5 entries (_index.md, _taxonomy.md, by-server/); send_message calls 0
+
+## Focused
+Command: npm run roadmaps:status-check
+Output: roadmaps:status-check found 1 issue(s): copilot-chat-blocks README drift (pre-existing); discord-knowledge-mine row matches Phase 0 Passing.
+exit=1
+
+## Next
+Phase 1 — Guild inventory (get_servers → _index.md; choose Active server)

@@ -14,29 +14,7 @@ from tws_sidecar.market_data.contracts import _resolve_stock
 from tws_sidecar.runtime.connections import _get_ib, _get_ib_for_connection
 from tws_sidecar.runtime.state import *
 
-def _map_ticker_quote(symbol: str, ticker) -> dict[str, Any]:
-    last = safe_float(getattr(ticker, "last", None))
-    bid = safe_float(getattr(ticker, "bid", None))
-    ask = safe_float(getattr(ticker, "ask", None))
-    close = safe_float(getattr(ticker, "close", None))
-    price = last if last is not None else close
-    change = safe_float(getattr(ticker, "change", None)) or (
-        (price - close) if price is not None and close not in (None, 0) else None
-    )
-    change_percent = None
-    if change is not None and close not in (None, 0):
-        change_percent = (change / close) * 100
-    return {
-        "symbol": symbol,
-        "shortName": getattr(ticker.contract, "localSymbol", None) or symbol,
-        "exchange": getattr(ticker.contract, "primaryExchange", None)
-        or getattr(ticker.contract, "exchange", None),
-        "price": price,
-        "change": change,
-        "changePercent": change_percent,
-        "volume": safe_float(getattr(ticker, "volume", None)),
-        "updatedAt": now_ms(),
-    }
+
 def _ticker_has_data(ticker) -> bool:
     if getattr(ticker, "modelGreeks", None) is not None:
         return True

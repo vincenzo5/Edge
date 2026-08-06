@@ -17,6 +17,9 @@ const ACTIVE_MANAGE_STATUSES = new Set<PlaybookInstance["status"]>([
 
 function stepMarkerLabel(step: ManageStep): string {
   if (step.then.kind === "modifyStop" && step.then.breakEven) return "BE";
+  if (step.then.kind === "modifyStop" && step.then.stopRMultiple != null) {
+    return step.then.stopRMultiple === 0 ? "BE" : `${step.then.stopRMultiple}R lock`;
+  }
   if (step.then.kind === "reduceQty") {
     const fraction = step.then.fraction;
     if (fraction === 0.5) return "½";

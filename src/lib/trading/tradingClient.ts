@@ -16,7 +16,6 @@ import type {
   PreviewPlaybookRequest,
 } from "./types";
 import type { ManageStep, PlaybookInstance, PositionPlan } from "./playbook/types";
-import type { ApplyRiskPolicyRequest } from "@/lib/risk/policy/applyRequests";
 import type { EntryOrder, EntrySchedule, PolicyBindingRef } from "@/lib/risk/policy/slotSchemas";
 
 export class TradingApiError extends Error {
@@ -315,15 +314,17 @@ export async function skipNextPlaybookRule(
   return postPlaybookInstanceAction(instanceId, "skip", baseUrl);
 }
 
-export type PlaybookAutoManageSettings = {
+export type PlaybookAutoManageClientSettings = {
   paperEnabled: boolean;
   liveEnabled: boolean;
   liveConsentAt?: string;
+  paperKillActive: boolean;
+  liveKillActive: boolean;
 };
 
 export async function fetchPlaybookAutoManageSettings(
   baseUrl = "",
-): Promise<PlaybookAutoManageSettings> {
+): Promise<PlaybookAutoManageClientSettings> {
   const res = await fetch(`${baseUrl}/api/trading/playbooks/auto-manage`, {
     cache: "no-store",
   });
@@ -336,9 +337,11 @@ export async function patchPlaybookAutoManageSettings(
     paperEnabled?: boolean;
     liveEnabled?: boolean;
     liveConfirmation?: string;
+    paperKillActive?: boolean;
+    liveKillActive?: boolean;
   },
   baseUrl = "",
-): Promise<PlaybookAutoManageSettings> {
+): Promise<PlaybookAutoManageClientSettings> {
   const res = await fetch(`${baseUrl}/api/trading/playbooks/auto-manage`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -401,4 +404,39 @@ export async function modifyOrder(
     },
   );
   return parseTradingResponse<{ order: unknown; intent?: OrderIntent | null }>(res);
+}
+
+export async function exitAndCleanupPlaybookInstance(
+  instanceId: string,
+  options?: {
+    liveConfirmation?: string;
+    reason?: string;
+  },
+  baseUrl = "",
+): Promise<{
+  instance: PlaybookInstance;
+  cancelledOrderIds: number[];
+  flattened: boolean;
+}> {
+  const res = await fetch(`${baseUrl}/api/trading/playbooks/${instanceId}/exit-cleanup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options ?? {}),
+  });
+  return parseTradingResponse(res);
+}
+
+export async function killAndFlattenEnvironment(
+  args: {
+    environment: TradingEnvironment;
+    liveConfirmation?: string;
+  },
+  baseUrl = "",
+): Promise<{ flattened: number; errors: string[] }> {
+  const res = await fetch(`${baseUrl}/api/trading/playbooks/kill-flatten`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
+  return parseTradingResponse(res);
 }

@@ -9,7 +9,13 @@ from typing import Any
 from fastapi import HTTPException
 from ib_insync import IB, Option
 
-from tws_sidecar.util import build_occ_symbol, expiration_to_yyyymmdd, safe_float
+from tws_sidecar.util import (
+    build_occ_symbol,
+    expiration_from_yyyymmdd,
+    expiration_to_yyyymmdd,
+    now_ms,
+    safe_float,
+)
 from tws_sidecar.market_data.contracts import _resolve_stock
 from tws_sidecar.market_data.quotes import _spot_from_stock, _ticker_has_data
 from tws_sidecar.runtime.worker import run_on_ib_thread
@@ -37,7 +43,7 @@ def _map_option_contract(
         "contractSymbol": build_occ_symbol(underlying, maturity_yyyymmdd, right, strike),
         "underlying": underlying,
         "type": opt_type,
-        "expiration": _expiration_from_yyyymmdd(maturity_yyyymmdd),
+        "expiration": expiration_from_yyyymmdd(maturity_yyyymmdd),
         "strike": strike,
         "bid": bid,
         "ask": ask,

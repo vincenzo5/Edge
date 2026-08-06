@@ -25,7 +25,8 @@ Read the project skills for full instructions — this rule is a router only.
 
 ## MCP Tools
 
-- **LogoLoom** (`logoloom`) — logo, favicon, OG image, brand kit PNGs
+- **LogoLoom** (`logoloom`) — production SVG logos, favicon, OG image, brand kit PNGs
 - **QuiverAI** (`quiverai`) — custom SVG icons and illustrations
+- **Higgsfield** (`higgsfield` / `user-higgsfield`) — character sheets, logo *concepts*/moodboards, cinematic stills & short video, marketing raster (not production SVG)
 
 Design tokens: `docs/foundation/design-system.md` (or `public/brand/BRAND.md` for shipped brand assets).

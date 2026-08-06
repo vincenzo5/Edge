@@ -5,6 +5,7 @@ import {
   establishDevSession,
   isDevPassphraseRequired,
   isOpenDevSessionAllowed,
+  resolveConfiguredDevUserEmail,
 } from "@/lib/persistence/auth/devSession";
 import { getCurrentUser, isPersistenceEnabled } from "@/lib/persistence/auth/getCurrentUser";
 
@@ -32,6 +33,7 @@ export async function GET() {
     persistenceEnabled: true,
     authenticated: user != null,
     passphraseRequired: isDevPassphraseRequired(),
+    configuredDevEmail: resolveConfiguredDevUserEmail(),
     user: user
       ? { id: user.id, email: user.email, displayName: user.displayName }
       : null,

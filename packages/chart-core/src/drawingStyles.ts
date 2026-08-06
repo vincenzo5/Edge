@@ -15,7 +15,7 @@ export function defaultStylesForTool(toolName: string): DrawingStyles {
     extendRight: false,
   };
   if (toolName === 'long_position' || toolName === 'short_position') {
-    return { ...base, stickEntryToLastPrice: false };
+    return { ...base, stickEntryToLastPrice: false, riskPercent: 1 };
   }
   return base;
 }

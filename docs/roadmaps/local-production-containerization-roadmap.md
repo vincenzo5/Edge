@@ -126,8 +126,10 @@ macOS host
   exposure.
 - Zero-downtime, blue/green, or multi-replica production.
 - Separate Postgres or Redis servers for each environment.
-- Containerizing IB Gateway or the TWS sidecar unless the authenticated macOS
-  host bridge cannot meet the broker readiness gate.
+- Containerizing IB Gateway (unchanged). TWS sidecar Compose ownership is now
+  tracked in [Persistent TWS Sidecar](./persistent-tws-sidecar-roadmap.md)
+  (this track’s earlier “do not containerize sidecar” exclusion is superseded
+  for that service only; apps remain `TWS_MANAGED=external`).
 - Production authentication redesign.
 
 ---

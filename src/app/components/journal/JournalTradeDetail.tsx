@@ -8,6 +8,7 @@ import {
   computeStopDistancePerShare,
   derivePlannedRiskFromStop,
   resolveEffectiveInitialStop,
+  resolveTradeRiskQuantity,
   validateInitialStop,
 } from "@/lib/journal/tradeRiskGeometry";
 import {
@@ -27,7 +28,9 @@ import {
 } from "@/lib/journal/journalTradeDisplay";
 import { fetchJournalFills, patchJournalTradeRemote } from "@/lib/persistence/client/journalClient";
 import { EdgeButton, EdgeSelect, EdgeToggle } from "../design-system";
-import JournalTradeDetailHeaderTitle from "./JournalTradeDetailHeaderTitle";
+import JournalTradeDetailHeaderTitle, {
+  JournalTradeDetailHeaderMeta,
+} from "./JournalTradeDetailHeaderTitle";
 import JournalTradeDetailHeaderSubtitle from "./JournalTradeDetailHeaderSubtitle";
 import JournalTradeScoreboard from "./JournalTradeScoreboard";
 import JournalTradeScreenshots from "./JournalTradeScreenshots";
@@ -170,18 +173,30 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
   const stopSeededFromPlan =
     trade.initialStop == null && positionPlanSnapshot?.initialStop != null;
   const draftStop = initialStopInput.trim() ? Number.parseFloat(initialStopInput) : null;
+  const riskQuantityInput = useMemo(
+    () => ({
+      netQuantity: trade.netQuantity,
+      legs: trade.legs,
+      managePlaybook: trade.managePlaybook,
+      fillQuantities: tradeFills.map((fill) => fill.quantity),
+    }),
+    [trade.legs, trade.managePlaybook, trade.netQuantity, tradeFills],
+  );
+  const shareQuantity = useMemo(
+    () => resolveTradeRiskQuantity(riskQuantityInput),
+    [riskQuantityInput],
+  );
   const draftRiskPreview = useMemo(() => {
     if (draftStop == null || !Number.isFinite(draftStop)) return null;
     const validationError = validateInitialStop(trade.direction, trade.avgEntry, draftStop);
     if (validationError) return { error: validationError } as const;
-    const qty = Math.abs(trade.netQuantity ?? 0);
-    if (!Number.isFinite(qty) || qty <= 0) {
+    if (shareQuantity == null || shareQuantity <= 0) {
       return { error: "Quantity is required to compute risk." } as const;
     }
     const derived = derivePlannedRiskFromStop({
       entry: trade.avgEntry!,
       initialStop: draftStop,
-      qty,
+      qty: shareQuantity,
     });
     if (!derived) return { error: "Could not compute risk from entry and stop." } as const;
     const previewR = computeRMultiple({ ...trade, plannedRiskUsd: derived.usd });
@@ -190,7 +205,7 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
       riskUsd: derived.usd,
       r: previewR,
     } as const;
-  }, [draftStop, trade]);
+  }, [draftStop, shareQuantity, trade]);
   const excursionEligible = canComputeTradeExcursion(trade);
   const mfeR =
     trade.plannedRiskUsd != null && trade.plannedRiskUsd > 0 && trade.mfeUsd != null
@@ -614,13 +629,16 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
   return (
     <div data-testid="journal-trade-detail" className={shellClass}>
       {!embedded ? (
-        <div className="border-b border-[var(--edge-border)] px-4 py-3">
-          <h2 className="text-sm font-semibold text-[var(--edge-text-strong)]">
-            <JournalTradeDetailHeaderTitle trade={trade} />
-          </h2>
-          <p className="text-xs text-[var(--edge-text-secondary)]">
-            <JournalTradeDetailHeaderSubtitle trade={trade} />
-          </p>
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--edge-border)] px-4 py-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-[var(--edge-text-strong)]">
+              <JournalTradeDetailHeaderTitle trade={trade} />
+            </h2>
+            <p className="text-xs text-[var(--edge-text-secondary)]">
+              <JournalTradeDetailHeaderSubtitle trade={trade} />
+            </p>
+          </div>
+          <JournalTradeDetailHeaderMeta trade={trade} />
         </div>
       ) : null}
 
@@ -630,6 +648,7 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
         onStopChange={setInitialStopInput}
         stopSeededFromPlan={stopSeededFromPlan}
         draftRiskPreview={draftRiskPreview}
+        shareQuantity={shareQuantity}
         pnlDisplay={pnlDisplay}
         outcomeLabel={outcomeLabel}
       />

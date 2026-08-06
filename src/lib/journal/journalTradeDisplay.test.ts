@@ -6,8 +6,12 @@ import {
   formatInstrumentLabel,
   formatNetRoi,
   formatTradeCloseTime,
+  formatTradeHeaderStatus,
   formatTradeListDate,
   formatTradeMoney,
+  formatTradeShares,
+  formatTradeSharesAndNotional,
+  outcomeToneClass,
   pnlToneClass,
   tradeOutcomeLabel,
 } from "@/lib/journal/journalTradeDisplay";
@@ -61,6 +65,18 @@ describe("journalTradeDisplay", () => {
     expect(formatDirectionLabel("short")).toBe("SHORT");
   });
 
+  it("formats share quantity and notional", () => {
+    expect(formatTradeShares(100)).toBe("100 sh");
+    expect(formatTradeShares(-50)).toBe("50 sh");
+    expect(formatTradeShares(null)).toBe("—");
+    expect(
+      formatTradeSharesAndNotional(
+        baseTrade({ avgEntry: 150.25, netQuantity: 100, secType: "STK" }),
+        100,
+      ),
+    ).toBe("Qty 100 sh ($15,025.00)");
+  });
+
   it("formats net ROI from position notional", () => {
     expect(
       formatNetRoi(
@@ -83,6 +99,19 @@ describe("journalTradeDisplay", () => {
     expect(formatNetRoi(baseTrade({ netPnL: 100, avgEntry: null }))).toBe("—");
   });
 
+  it("formats net ROI with a resolved share quantity for closed flat positions", () => {
+    expect(
+      formatNetRoi(
+        baseTrade({
+          avgEntry: 644.62,
+          netQuantity: 0,
+          netPnL: 676,
+        }),
+        100,
+      ),
+    ).toBe("1.05%");
+  });
+
   it("formats instrument label", () => {
     expect(formatInstrumentLabel(baseTrade({ symbol: "BTCUSD" }))).toBe("BTCUSD");
     expect(
@@ -99,6 +128,26 @@ describe("journalTradeDisplay", () => {
   it("formats trade list date as MM/DD/YYYY in ET", () => {
     expect(formatTradeListDate("2024-07-08T16:00:00.000Z")).toBe("07/08/2024");
     expect(formatTradeListDate(null)).toBe("—");
+  });
+
+  it("formats trade header status for open and closed trades", () => {
+    expect(formatTradeHeaderStatus(baseTrade({ status: "open", closedAt: null, netPnL: null }))).toEqual({
+      label: "OPEN",
+      pnl: null,
+      tone: "open",
+    });
+    expect(formatTradeHeaderStatus(baseTrade({ netPnL: 50 }))).toEqual({
+      label: "WIN",
+      pnl: "$50.00",
+      tone: "win",
+    });
+    expect(formatTradeHeaderStatus(baseTrade({ netPnL: -20 }))).toEqual({
+      label: "LOSS",
+      pnl: "-$20.00",
+      tone: "loss",
+    });
+    expect(outcomeToneClass("win")).toContain("edge-positive");
+    expect(outcomeToneClass("loss")).toContain("edge-negative");
   });
 
   it("formats trade money and pnl tone class", () => {

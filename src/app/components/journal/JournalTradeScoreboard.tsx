@@ -8,6 +8,8 @@ import {
   deriveTradeOutcomeStatus,
   formatTradeMoney,
   formatTradePrice,
+  formatTradeSharesAndNotional,
+  formatNetRoi,
   outcomeToneClass,
 } from "@/lib/journal/journalTradeDisplay";
 
@@ -22,6 +24,7 @@ type Props = {
   onStopChange: (value: string) => void;
   stopSeededFromPlan: boolean;
   draftRiskPreview: DraftRiskPreview;
+  shareQuantity: number | null;
   pnlDisplay: string;
   outcomeLabel: string;
 };
@@ -48,11 +51,36 @@ export default function JournalTradeScoreboard({
   onStopChange,
   stopSeededFromPlan,
   draftRiskPreview,
+  shareQuantity,
   pnlDisplay,
   outcomeLabel,
 }: Props) {
   const outcomeStatus = deriveTradeOutcomeStatus(trade);
   const outcomeClass = outcomeToneClass(outcomeStatus);
+  const sharesAndNotional = formatTradeSharesAndNotional(trade, shareQuantity);
+  const commissionLabel =
+    trade.totalCommission != null ? `Comm ${formatTradeMoney(trade.totalCommission)}` : null;
+  const formattedNetRoi = formatNetRoi(trade, shareQuantity);
+  const netRoiLabel =
+    trade.status === "closed" && formattedNetRoi !== "—"
+      ? `Net ROI ${formattedNetRoi}`
+      : null;
+
+  function renderCommissionAndRoiInline() {
+    if (!commissionLabel && !netRoiLabel) return null;
+    return (
+      <>
+        {" · "}
+        <span className="tabular-nums" data-testid="journal-trade-comm-roi">
+          {commissionLabel ? (
+            <span data-testid="journal-trade-comm">{commissionLabel}</span>
+          ) : null}
+          {commissionLabel && netRoiLabel ? " · " : null}
+          {netRoiLabel ? <span data-testid="journal-trade-net-roi">{netRoiLabel}</span> : null}
+        </span>
+      </>
+    );
+  }
 
   const pnlValue: ReactNode = (
     <span className="inline-flex items-center gap-2">
@@ -88,7 +116,7 @@ export default function JournalTradeScoreboard({
               type="number"
               min={0}
               step="any"
-              placeholder="Set stop"
+              placeholder="Set a stop to define 1R"
               value={initialStopInput}
               onChange={(event) => onStopChange(event.target.value)}
               density="compact"
@@ -131,16 +159,22 @@ export default function JournalTradeScoreboard({
             {draftRiskPreview.error}
           </p>
         ) : draftRiskPreview ? (
-          <p className="mt-2 text-xs text-[var(--edge-text-secondary)]" data-testid="journal-trade-risk-summary">
-            Dist {formatTradePrice(draftRiskPreview.distance)}/sh · Qty {trade.netQuantity ?? "—"} · Risk{" "}
+          <p
+            className="mt-2 text-xs text-[var(--edge-text-secondary)]"
+            data-testid="journal-trade-risk-summary"
+          >
+            {sharesAndNotional} · Risk{" "}
             {formatTradeMoney(draftRiskPreview.riskUsd)}
             {draftRiskPreview.r != null ? ` · ${draftRiskPreview.r.toFixed(2)}R` : ""}
-            {trade.totalCommission != null ? ` · Comm ${formatTradeMoney(trade.totalCommission)}` : ""}
+            {renderCommissionAndRoiInline()}
           </p>
         ) : (
-          <p className="mt-2 text-xs text-[var(--edge-text-secondary)]">
-            Set a stop to define 1R · Qty {trade.netQuantity ?? "—"}
-            {trade.totalCommission != null ? ` · Comm ${formatTradeMoney(trade.totalCommission)}` : ""}
+          <p
+            className="mt-2 text-xs text-[var(--edge-text-secondary)]"
+            data-testid="journal-trade-qty-summary"
+          >
+            {sharesAndNotional}
+            {renderCommissionAndRoiInline()}
           </p>
         )}
       </section>

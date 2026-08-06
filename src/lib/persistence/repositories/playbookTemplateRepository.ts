@@ -18,6 +18,8 @@ import type {
   CreatePlaybookTemplateInput,
   PatchPlaybookTemplateInput,
 } from "@/lib/trading/playbookTemplateStore";
+import { isCreateFromSource } from "@/lib/trading/playbookTemplateStore";
+import { userTemplateFromDefinition } from "@/lib/trading/playbookTemplateMutations";
 
 function rowToTemplate(row: typeof playbookTemplates.$inferSelect): PlaybookTemplate {
   return PlaybookTemplateSchema.parse({
@@ -95,24 +97,29 @@ export async function insertPlaybookTemplate(
   userId: string,
   input: CreatePlaybookTemplateInput,
 ): Promise<PlaybookTemplate> {
-  const source = await resolveSourceTemplate(userId, input.sourceTemplateId);
-  if (!source) {
-    throw new Error(`Unknown source template: ${input.sourceTemplateId}`);
+  let template: PlaybookTemplate;
+  if (isCreateFromSource(input)) {
+    const source = await resolveSourceTemplate(userId, input.sourceTemplateId);
+    if (!source) {
+      throw new Error(`Unknown source template: ${input.sourceTemplateId}`);
+    }
+    template = PlaybookTemplateSchema.parse({
+      id: createUserPlaybookTemplateId(),
+      name: input.name?.trim() || duplicateTemplateName(source),
+      description: input.description?.trim() || source.description,
+      rules: source.rules,
+      schemaVersion: source.schemaVersion,
+      scope: source.scope,
+      budget: source.budget,
+      sizing: source.sizing,
+      geometry: source.geometry,
+      exits: source.exits,
+      gates: source.gates,
+      defaultEntrySchedule: source.defaultEntrySchedule,
+    });
+  } else {
+    template = userTemplateFromDefinition(input);
   }
-  const template = PlaybookTemplateSchema.parse({
-    id: createUserPlaybookTemplateId(),
-    name: input.name?.trim() || duplicateTemplateName(source),
-    description: input.description?.trim() || source.description,
-    rules: source.rules,
-    schemaVersion: source.schemaVersion,
-    scope: source.scope,
-    budget: source.budget,
-    sizing: source.sizing,
-    geometry: source.geometry,
-    exits: source.exits,
-    gates: source.gates,
-    defaultEntrySchedule: source.defaultEntrySchedule,
-  });
   const db = getDb();
   const now = new Date();
   await db.insert(playbookTemplates).values({

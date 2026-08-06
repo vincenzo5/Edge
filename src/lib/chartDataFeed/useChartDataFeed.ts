@@ -11,7 +11,15 @@ import type {
   MarketSessionMode,
   Range,
 } from '@edge/chart-core';
-import { applyCandleStreamEvent, intervalToMs, mergeCandlesPrependWithIdentity, trimResidentBarsWithIdentity, createCandleSeriesIdentity, type CandleSeriesIdentity } from '@edge/chart-core';
+import {
+  applyCandleStreamEvent,
+  dedupeCandlesByIntervalBucket,
+  intervalToMs,
+  mergeCandlesPrependWithIdentity,
+  trimResidentBarsWithIdentity,
+  createCandleSeriesIdentity,
+  type CandleSeriesIdentity,
+} from '@edge/chart-core';
 import { recordMarketDataTelemetry, type MarketDataPerfPhase } from '@/lib/marketData/telemetry';
 import { advanceChartHistoryExtent } from './historyExtent';
 import {
@@ -148,16 +156,26 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
     requestKeyRef.current = requestKey;
     reloadKeyRef.current = reloadKey;
 
+    const intervalMs = intervalToMs(interval);
     let paintedFromCache = false;
     if (keyChanged || reloadTriggered) {
       if (keyChanged && !reloadTriggered) {
         const cached = readChartClientCache(requestKey);
         if (cached) {
           paintedFromCache = true;
-          candlesRef.current = cached.candles;
-          seriesIdentityRef.current = createCandleSeriesIdentity(cached.candles);
+          // Collapse cross-provider day twins (e.g. TWS midnight + Yahoo RTH) left in cache.
+          const cachedCandles = dedupeCandlesByIntervalBucket(cached.candles, intervalMs);
+          if (cachedCandles.length !== cached.candles.length) {
+            writeChartClientCache(requestKey, {
+              ...cached,
+              candles: cachedCandles,
+              asOf: cached.asOf,
+            });
+          }
+          candlesRef.current = cachedCandles;
+          seriesIdentityRef.current = createCandleSeriesIdentity(cachedCandles);
           setSeriesIdentity(seriesIdentityRef.current);
-          setCandles(cached.candles);
+          setCandles(cachedCandles);
           setHasMore(cached.hasMore);
           historyExtentRef.current = cached.historyExtent ?? null;
           setHistoryExtent(cached.historyExtent ?? null);
@@ -332,7 +350,12 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
         const leftHistory = reloadTriggered ? [] : candlesRef.current;
         const prepended =
           !reloadTriggered && leftHistory.length > 0
-            ? mergeCandlesPrependWithIdentity(result.candles, leftHistory, seriesIdentityRef.current)
+            ? mergeCandlesPrependWithIdentity(
+                result.candles,
+                leftHistory,
+                seriesIdentityRef.current,
+                { intervalMs },
+              )
             : {
                 candles: result.candles,
                 identity: createCandleSeriesIdentity(result.candles),
@@ -406,6 +429,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
             hasMore: mergedHasMore,
             historyExtent: mergedExtent,
             asOf: loadedAt,
+            intervalMs,
           });
         }
 
@@ -476,6 +500,7 @@ export function useChartDataFeed(options: UseChartDataFeedOptions): ChartDataFee
       candlesRef.current,
       result.candles,
       seriesIdentityRef.current,
+      { intervalMs: intervalToMs(interval) },
     );
     const trimmed = trimResidentBarsWithIdentity(prepended.candles, prepended.identity);
     const merged = trimmed.candles;

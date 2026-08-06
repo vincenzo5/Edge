@@ -7,6 +7,8 @@ export const PlaybookAutoManageSettingsSchema = z.object({
   paperEnabled: z.boolean(),
   liveEnabled: z.boolean(),
   liveConsentAt: z.string().datetime().optional(),
+  paperKillActive: z.boolean().default(false),
+  liveKillActive: z.boolean().default(false),
 });
 
 export type PlaybookAutoManageSettings = z.infer<typeof PlaybookAutoManageSettingsSchema>;
@@ -14,6 +16,8 @@ export type PlaybookAutoManageSettings = z.infer<typeof PlaybookAutoManageSettin
 export const DEFAULT_PLAYBOOK_AUTO_MANAGE: PlaybookAutoManageSettings = {
   paperEnabled: true,
   liveEnabled: false,
+  paperKillActive: false,
+  liveKillActive: false,
 };
 
 export const PatchPlaybookAutoManageSchema = z
@@ -21,6 +25,8 @@ export const PatchPlaybookAutoManageSchema = z
     paperEnabled: z.boolean().optional(),
     liveEnabled: z.boolean().optional(),
     liveConfirmation: z.string().optional(),
+    paperKillActive: z.boolean().optional(),
+    liveKillActive: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.liveEnabled === true) {
@@ -28,6 +34,15 @@ export const PatchPlaybookAutoManageSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Enabling live auto-manage requires liveConfirmation: "${LIVE_CONFIRMATION_TOKEN}"`,
+          path: ["liveConfirmation"],
+        });
+      }
+    }
+    if (value.liveKillActive === true) {
+      if (value.liveConfirmation?.trim() !== LIVE_CONFIRMATION_TOKEN) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Live kill-and-flatten requires liveConfirmation: "${LIVE_CONFIRMATION_TOKEN}"`,
           path: ["liveConfirmation"],
         });
       }
@@ -44,6 +59,8 @@ export function mergePlaybookAutoManagePatch(
     paperEnabled: patch.paperEnabled ?? existing.paperEnabled,
     liveEnabled: patch.liveEnabled ?? existing.liveEnabled,
     liveConsentAt: existing.liveConsentAt,
+    paperKillActive: patch.paperKillActive ?? existing.paperKillActive,
+    liveKillActive: patch.liveKillActive ?? existing.liveKillActive,
   };
 
   if (patch.liveEnabled === true) {
@@ -62,6 +79,13 @@ export function isAutoManageEnabledForEnvironment(
 ): boolean {
   if (environment === "paper") return settings.paperEnabled;
   return settings.liveEnabled && settings.liveConsentAt != null;
+}
+
+export function isEnvironmentKillActive(
+  settings: PlaybookAutoManageSettings,
+  environment: TradingEnvironment,
+): boolean {
+  return environment === "paper" ? settings.paperKillActive : settings.liveKillActive;
 }
 
 export function resolvePlaybookLiveConfirmation(

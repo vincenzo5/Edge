@@ -21,8 +21,11 @@ const previewOrderInputSchema = z.object({
   orderType: OrderTypeSchema.default("MKT"),
   limitPrice: z.number().positive().optional(),
   stopPrice: z.number().positive().optional(),
+  trailPercent: z.number().positive().optional(),
   outsideRth: z.boolean().default(false),
   tif: TimeInForceSchema.default("DAY"),
+  allOrNone: z.boolean().default(false),
+  usePriceMgmtAlgo: z.boolean().default(false),
   orderRef: z.string().optional(),
   environment: TradingEnvironmentSchema.default("paper"),
 });

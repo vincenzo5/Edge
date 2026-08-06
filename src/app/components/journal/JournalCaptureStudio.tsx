@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { ActiveChartProvider, useActiveChart } from "@/app/components/ActiveChartContext";
-import { AppTimeZoneProvider } from "@/app/components/AppTimeZoneProvider";
 import ChartCell from "@/app/components/ChartCell";
 import { ChartSyncProvider } from "@/app/components/ChartSyncContext";
 import { MarketDataProvider } from "@/app/components/MarketDataProvider";
+import { DataHealthProvider } from "@/app/components/data-health";
 import { EdgeButton } from "@/app/components/design-system";
+import ChartIntervalMenu from "@/app/components/chart-chrome/ChartIntervalMenu";
+import { intervalShortLabel } from "@/lib/chart/chartHeaderMetadata";
 import AppChromeProviders from "@/app/components/home/AppChromeProviders";
 import {
   publishCaptureCancelled,
@@ -16,6 +18,7 @@ import {
   publishCaptureFailed,
 } from "@/lib/journal/captureChannel";
 import { captureTradeChartFork } from "@/lib/journal/captureTradeChartFork";
+import { resolveJournalTradeIdForPersistence } from "@/lib/journal/resolveJournalTradeIdForPersistence";
 import {
   clearCaptureSeed,
   readCaptureSeed,
@@ -27,6 +30,7 @@ import {
   type CellConfig,
   type ChartLayout,
 } from "@/lib/chartConfig";
+import type { Interval } from "@edge/chart-core/contracts";
 
 type StudioInnerProps = {
   seed: JournalCaptureSeed;
@@ -71,8 +75,23 @@ function JournalCaptureStudioInner({ seed, token }: StudioInnerProps) {
     setError(null);
 
     try {
+      const resolvedTradeId = await resolveJournalTradeIdForPersistence({
+        tradeId: seed.tradeId,
+        fillExecIds: seed.fillExecIds,
+      });
+      if (!resolvedTradeId) {
+        const message = "Journal trade not found. Sync journal and try again.";
+        publishCaptureFailed({
+          requestId: seed.requestId,
+          tradeId: seed.tradeId,
+          error: message,
+        });
+        setError(message);
+        return;
+      }
+
       const result = await captureTradeChartFork({
-        trade: { id: seed.tradeId, symbol: seed.symbol },
+        trade: { id: resolvedTradeId, symbol: seed.symbol },
         cellConfig,
         captureScreenshot: () =>
           activeChart.chartCommands.captureSnapshot({ includeCrosshair: false }),
@@ -101,11 +120,14 @@ function JournalCaptureStudioInner({ seed, token }: StudioInnerProps) {
 
       publishCaptureDone({
         requestId: seed.requestId,
-        tradeId: seed.tradeId,
+        tradeId: resolvedTradeId,
         screenshotId: result.screenshotId,
         snapshotId: result.snapshotId,
       });
       clearCaptureSeed(token);
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 200);
+      });
       closeWindow();
     } catch (captureError) {
       const message =
@@ -121,21 +143,32 @@ function JournalCaptureStudioInner({ seed, token }: StudioInnerProps) {
     }
   }, [activeChart, cellConfig, closeWindow, seed, token]);
 
+  const handleIntervalChange = useCallback((interval: Interval) => {
+    setCellConfig((current) => ({ ...current, interval }));
+  }, []);
+
   return (
     <MarketDataProvider layout={layout}>
-      <div
-        className="flex h-screen min-h-0 flex-col bg-[var(--edge-background)]"
-        data-testid="journal-capture-studio"
-      >
-        <header className="flex items-center justify-between border-b border-[var(--edge-border)] px-4 py-2">
-          <div>
+      <DataHealthProvider>
+        <div
+          className="flex h-screen min-h-0 flex-col bg-[var(--edge-background)]"
+          data-testid="journal-capture-studio"
+        >
+        <header className="flex items-center justify-between gap-3 border-b border-[var(--edge-border)] px-4 py-2">
+          <div className="min-w-0">
             <h1 className="text-sm font-semibold text-[var(--edge-text-strong)]">
               Capture {seed.symbol} chart
             </h1>
             <p className="text-xs text-[var(--edge-text-secondary)]">
-              Mark up the chart, then capture it to the trade journal.
+              Mark up the chart, then capture it to the trade journal. Interval:{" "}
+              {intervalShortLabel(cellConfig.interval)}.
             </p>
           </div>
+          <ChartIntervalMenu
+            theme={seed.theme}
+            value={cellConfig.interval}
+            onChange={handleIntervalChange}
+          />
         </header>
 
         <div className="relative min-h-0 flex-1">
@@ -181,7 +214,8 @@ function JournalCaptureStudioInner({ seed, token }: StudioInnerProps) {
             {capturing ? "Capturing…" : "Capture"}
           </EdgeButton>
         </footer>
-      </div>
+        </div>
+      </DataHealthProvider>
     </MarketDataProvider>
   );
 }
@@ -236,13 +270,11 @@ export default function JournalCaptureStudio() {
 
   return (
     <AppChromeProviders>
-      <AppTimeZoneProvider>
-        <ChartSyncProvider linkCrosshair={false} linkDrawings={false}>
-          <ActiveChartProvider>
-            <JournalCaptureStudioInner seed={seed} token={token} />
-          </ActiveChartProvider>
-        </ChartSyncProvider>
-      </AppTimeZoneProvider>
+      <ChartSyncProvider linkCrosshair={false} linkDrawings={false}>
+        <ActiveChartProvider>
+          <JournalCaptureStudioInner seed={seed} token={token} />
+        </ActiveChartProvider>
+      </ChartSyncProvider>
     </AppChromeProviders>
   );
 }

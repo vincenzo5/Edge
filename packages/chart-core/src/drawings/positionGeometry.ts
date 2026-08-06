@@ -408,7 +408,7 @@ export function defaultPositionPoints(
 /**
  * Repair legacy/corrupt position anchors before plot:
  * - timestamp 0 → extrapolate from dataIndex (or last bar)
- * - left anchors (0–2) must not sit on virtual indices past the series
+ * - missing-timestamp left anchors (0–2) must not sit past the series
  */
 export function repairPositionPoints(
   points: SerializedDrawing['points'],
@@ -432,14 +432,6 @@ export function repairPositionPoints(
       ts = timestampForDataIndex(candles, di);
       changed = true;
       return { ...p, timestamp: ts, dataIndex: di };
-    }
-    if (i < 3 && di != null && di > lastDi) {
-      changed = true;
-      return {
-        ...p,
-        timestamp: candles[lastDi]!.t,
-        dataIndex: lastDi,
-      };
     }
     return p;
   });

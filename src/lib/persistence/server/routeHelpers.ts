@@ -33,6 +33,10 @@ async function resolvePersistenceUser() {
   return user;
 }
 
+export async function getPersistenceUserOrBootstrap() {
+  return resolvePersistenceUser();
+}
+
 export async function withPersistenceAuth<T>(
   handler: (userId: string) => Promise<T>,
 ): Promise<Response | T> {

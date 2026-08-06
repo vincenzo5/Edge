@@ -7,7 +7,7 @@ import {
   type MutableRefObject,
 } from 'react';
 import type { SerializedDrawing, TrackedOverlay } from '@edge/chart-core';
-import { DrawingStore, restoreAll } from '@edge/chart-core';
+import { DrawingStore, restoreAll, serializeAll } from '@edge/chart-core';
 import { newDrawingId } from '@edge/chart-core/drawingController';
 
 type UseDrawingStoreSyncParams = {
@@ -106,27 +106,39 @@ export function useDrawingStoreSync({
   useEffect(() => {
     if (loading || error || displayCandlesLength === 0) return;
 
+    const incoming = stateDrawings ?? [];
+    const signature = JSON.stringify(incoming);
+
+    // Local persist echo: layout wrote serializeAll(store) back as props.
+    // Compare against the same serialization so undo/redo history is preserved.
+    const alreadyInStore =
+      trackedRef.current.size > 0 &&
+      signature === JSON.stringify(serializeAll(drawingsRef.current));
+
     if (stateDrawingsRevision != null) {
       if (trackedRef.current.size === 0) {
-        if (stateDrawings?.length) hydrateDrawings(stateDrawings);
+        if (incoming.length) hydrateDrawings(incoming);
         lastExternalRevisionRef.current = stateDrawingsRevision;
+        drawingsSignatureRef.current = signature;
         return;
       }
       if (stateDrawingsRevision === lastExternalRevisionRef.current) return;
       lastExternalRevisionRef.current = stateDrawingsRevision;
-      hydrateDrawings(stateDrawings ?? []);
+      drawingsSignatureRef.current = signature;
+      if (alreadyInStore) return;
+      hydrateDrawings(incoming);
       return;
     }
 
-    const signature = JSON.stringify(stateDrawings ?? []);
     if (trackedRef.current.size === 0) {
-      if (stateDrawings?.length) hydrateDrawings(stateDrawings);
+      if (incoming.length) hydrateDrawings(incoming);
       drawingsSignatureRef.current = signature;
       return;
     }
     if (signature === drawingsSignatureRef.current) return;
     drawingsSignatureRef.current = signature;
-    hydrateDrawings(stateDrawings ?? []);
+    if (alreadyInStore) return;
+    hydrateDrawings(incoming);
   }, [loading, error, displayCandlesLength, stateDrawings, stateDrawingsRevision, hydrateDrawings]);
 
   return {

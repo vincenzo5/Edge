@@ -179,7 +179,7 @@ export default function EdgeAnchoredPopover({
               overflowY: 'visible',
             }
       }
-      className={`fixed z-[1200] py-1 ${popoverEnterClass()} ${panelClassName} ${className ?? ''}`}
+      className={`fixed z-[1400] py-1 ${popoverEnterClass()} ${panelClassName} ${className ?? ''}`}
     >
       <div ref={contentRef}>{children}</div>
     </div>

@@ -51,8 +51,32 @@ describe("CopilotShell", () => {
       </CopilotShell>,
     );
 
-    expect(screen.getByTestId("copilot-top-chrome")).toBeTruthy();
+    const chrome = screen.getByTestId("copilot-top-chrome");
+    expect(chrome).toBeTruthy();
+    expect(chrome.className).toContain("opacity-0");
+    expect(chrome.className).toContain("group-hover:opacity-100");
     expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy();
+  });
+
+  it("overlays hover-only top chrome on wide active chat column", () => {
+    render(
+      <CopilotShell
+        variant="page"
+        isEmpty={false}
+        history={<aside data-testid="history-slot">History</aside>}
+        topChrome={<button type="button">Settings</button>}
+        composer={<div>Composer</div>}
+      >
+        <div data-testid="messages-slot">Messages</div>
+      </CopilotShell>,
+    );
+
+    const chrome = screen.getByTestId("copilot-top-chrome");
+    expect(chrome.className).toContain("absolute");
+    expect(chrome.className).toContain("opacity-0");
+    expect(chrome.className).toContain("group-hover:opacity-100");
+    expect(screen.getByTestId("copilot-active-layout").contains(chrome)).toBe(true);
+    expect(screen.queryByRole("heading", { name: "Copilot" })).toBeNull();
   });
 
   it("renders empty layout with history beside hero cluster", () => {
@@ -121,6 +145,7 @@ describe("CopilotShell", () => {
 
     const dock = screen.getByTestId("copilot-composer-dock");
     expect(dock.className).toContain("justify-center");
+    expect(dock.className).toContain("pt-0");
     expect(dock.querySelector(".max-w-\\[var\\(--copilot-bar-max-width\\)\\]")).toBeTruthy();
   });
 

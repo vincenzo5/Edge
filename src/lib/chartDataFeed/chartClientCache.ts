@@ -185,6 +185,8 @@ export type WriteMergedChartClientCacheParams = {
   hasMore: boolean;
   historyExtent?: ChartHistoryExtent | null;
   asOf: number;
+  /** Collapse cross-provider bars that share an interval bucket. */
+  intervalMs?: number;
 };
 
 /** Merge right-edge + left history then persist under one cache key. */
@@ -194,7 +196,9 @@ export function writeMergedChartClientCache(
 ): ChartClientCacheEntry {
   const merged =
     params.leftHistoryCandles && params.leftHistoryCandles.length > 0
-      ? mergeCandlesPrepend(params.rightEdgeCandles, params.leftHistoryCandles)
+      ? mergeCandlesPrepend(params.rightEdgeCandles, params.leftHistoryCandles, {
+          intervalMs: params.intervalMs,
+        })
       : params.rightEdgeCandles;
   writeChartClientCache(key, {
     candles: merged,

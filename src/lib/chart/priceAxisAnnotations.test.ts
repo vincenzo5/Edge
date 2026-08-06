@@ -114,6 +114,29 @@ describe('collectDrawingAnnotations', () => {
     const anns = collectDrawingAnnotations([drawing], vp, candles, settings, 'dark', 'price');
     expect(anns.some((a) => a.source === 'drawing' && a.value === 42.5)).toBe(true);
   });
+
+  it('collects entry/stop/target axis labels from long_position drawings', () => {
+    const drawing: SerializedDrawing = {
+      id: 'pos1',
+      name: 'long_position',
+      label: 'Long Position',
+      points: [
+        { timestamp: candles[0].t, value: 11, dataIndex: 0 },
+        { timestamp: candles[0].t, value: 9.5, dataIndex: 0 },
+        { timestamp: candles[0].t, value: 13, dataIndex: 0 },
+        { timestamp: candles[1].t, value: 11, dataIndex: 1 },
+      ],
+      visible: true,
+      locked: false,
+      zLevel: 0,
+      paneId: 'price',
+    };
+    const settings = mergeChartSettings({ scales: { drawingPriceLabels: 'visible' } });
+    const anns = collectDrawingAnnotations([drawing], vp, candles, settings, 'dark', 'price');
+    const values = anns.map((a) => a.value).sort((a, b) => a - b);
+    expect(values).toEqual([9.5, 11, 13]);
+    expect(anns.every((a) => a.source === 'drawing' && a.showLabel !== false)).toBe(true);
+  });
 });
 
 describe('layoutPriceAxisAnnotations', () => {

@@ -203,6 +203,8 @@ export function normalizeDraftForHash(draft: OrderDraft): string {
     trailPercent: draft.trailPercent ?? null,
     outsideRth: draft.outsideRth ?? false,
     tif: draft.tif,
+    allOrNone: draft.allOrNone ?? false,
+    usePriceMgmtAlgo: draft.usePriceMgmtAlgo ?? false,
     environment: draft.environment,
   });
 }

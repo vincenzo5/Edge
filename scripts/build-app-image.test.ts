@@ -244,7 +244,7 @@ describe("validateContainerLocalDeploy image facts integration", () => {
         EDGE_AUTH_SECRET: "prod-secret-abcdefghijklmnopqrstuvwxyz-456",
         EDGE_API_AUTH_MODE: "key",
         EDGE_API_KEY: "api-key-abcdefghijklmnopqrstuvwxyz-789",
-        EDGE_ALLOW_OPEN_DEV_SESSION: "0",
+        EDGE_ALLOW_OPEN_DEV_SESSION: "1",
         EDGE_READYZ_URL: "http://127.0.0.1:3000/readyz",
         TWS_ENABLED: "false",
         TWS_MANAGED: "external",

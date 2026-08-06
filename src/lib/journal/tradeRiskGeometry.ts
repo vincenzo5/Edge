@@ -5,7 +5,36 @@ export type TradeRiskGeometryInput = {
   direction: JournalTradeDirection;
   avgEntry?: number | null;
   netQuantity?: number | null;
+  legs?: Array<{ netQuantity?: number | null }> | null;
+  managePlaybook?: { positionPlan?: { qty?: number } | null } | null;
+  fillQuantities?: number[] | null;
 };
+
+export function resolveTradeRiskQuantity(trade: TradeRiskGeometryInput): number | null {
+  const direct = Math.abs(trade.netQuantity ?? 0);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+
+  const planQty = trade.managePlaybook?.positionPlan?.qty;
+  if (planQty != null && Number.isFinite(planQty) && planQty > 0) {
+    return Math.abs(planQty);
+  }
+
+  let legMax = 0;
+  for (const leg of trade.legs ?? []) {
+    const qty = Math.abs(leg.netQuantity ?? 0);
+    if (qty > legMax) legMax = qty;
+  }
+  if (legMax > 0) return legMax;
+
+  let fillMax = 0;
+  for (const qty of trade.fillQuantities ?? []) {
+    const abs = Math.abs(qty);
+    if (abs > fillMax) fillMax = abs;
+  }
+  if (fillMax > 0) return fillMax;
+
+  return null;
+}
 
 export function isValidStopForDirection(
   direction: JournalTradeDirection,
@@ -86,8 +115,8 @@ export function applyInitialStopPlannedRisk(
     throw new Error(validationError);
   }
 
-  const qty = Math.abs(trade.netQuantity ?? 0);
-  if (!Number.isFinite(qty) || qty <= 0) {
+  const qty = resolveTradeRiskQuantity(trade);
+  if (qty == null || qty <= 0) {
     throw new Error("Quantity is required to compute risk from stop.");
   }
 

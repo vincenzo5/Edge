@@ -109,7 +109,9 @@ describe("CopilotPanel", () => {
       "full",
     );
     expect(screen.queryByTestId("copilot-model-select")).toBeNull();
+    expect(screen.getByTestId("copilot-history-title")).toHaveTextContent("Copilot");
     expect(screen.getByTestId("copilot-settings")).toBeTruthy();
+    expect(screen.getByTestId("copilot-top-chrome").className).toContain("opacity-0");
   });
 
   it("shows mark-only brand in sidebar empty state", async () => {
@@ -315,6 +317,30 @@ describe("CopilotPanel", () => {
     expect(streamChatSpy.mock.calls.at(-1)?.[0]).toMatchObject({
       modelId: "openai/gpt-5.6-sol",
     });
+  });
+
+  it("toggles the pinned rail from the header pin icon", async () => {
+    renderPanel("page");
+    await waitFor(() => {
+      expect(screen.getByTestId("copilot-pinned-toggle")).toBeTruthy();
+    });
+
+    expect(screen.queryByTestId("copilot-evidence-rail")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("copilot-pinned-toggle"));
+    expect(screen.getByTestId("copilot-evidence-rail")).toBeTruthy();
+    expect(screen.getByTestId("copilot-evidence-empty")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("copilot-pinned-toggle"));
+    expect(screen.queryByTestId("copilot-evidence-rail")).toBeNull();
+  });
+
+  it("does not show pinned toggle in sidebar variant", async () => {
+    renderPanel("sidebar");
+    await waitFor(() => {
+      expect(screen.getByTestId("copilot-settings")).toBeTruthy();
+    });
+    expect(screen.queryByTestId("copilot-pinned-toggle")).toBeNull();
   });
 
   it("opens Copilot model settings from the header cog", async () => {

@@ -24,13 +24,19 @@ import {
   formatSignedMoney,
   resolveOpenRiskUnrealized,
 } from "@/lib/trading/openRiskSummary";
+import {
+  computeOpenPositionEconomics,
+  formatOpenPositionEconomicsLine,
+  formatOpenRiskAccountMarginChip,
+} from "@/lib/trading/openPositionEconomics";
+import { parseSummaryTagNumber } from "@/lib/marketData/contracts/brokerage";
 import { useOpenRiskNavigation } from "./OpenRiskWorkspaceBridge";
 import { usePlaybookInstances } from "@/app/components/trading/usePlaybookInstances";
 import { OpenPositionExitsStrip } from "@/app/components/trading/OpenPositionExitsStrip";
 import {
   findActivePlaybookForPosition,
 } from "@/lib/trading/playbook/display";
-import { summarizeOpenPositionExits, DETACH_MANAGE_HINT, PAUSE_MANAGE_HINT } from "@/lib/trading/summarizeOpenPositionExits";
+import { summarizeOpenPositionExits, resolveOpenPositionProtectStop, DETACH_MANAGE_HINT, PAUSE_MANAGE_HINT } from "@/lib/trading/summarizeOpenPositionExits";
 import { AccountRiskGateStrip } from "@/app/components/risk/AccountRiskGateStrip";
 import { useAccountRiskGateStatus } from "@/app/components/risk/useAccountRiskGateStatus";
 import { useRiskSettingsOptional } from "@/app/components/RiskSettingsProvider";
@@ -94,10 +100,11 @@ function PositionPopoverRow({
   onPause,
   onResume,
   onSkip,
+  netLiquidation,
 }: {
   row: AccountPosition;
   onChart: (symbol: string) => void;
-  onClose: (row: AccountPosition) => void;
+  onClose: (row: AccountPosition, manageInstance: PlaybookInstance | null) => void;
   manageInstance: PlaybookInstance | null;
   openOrders: AccountOrder[];
   onProtect: () => void;
@@ -105,6 +112,7 @@ function PositionPopoverRow({
   onPause: (instance: PlaybookInstance) => void;
   onResume: (instance: PlaybookInstance) => void;
   onSkip: (instance: PlaybookInstance) => void;
+  netLiquidation: number | null;
 }) {
   const symbol = row.contract.symbol?.trim().toUpperCase() ?? "—";
   const qty = row.position ?? 0;
@@ -119,6 +127,17 @@ function PositionPopoverRow({
     manageInstance,
     lastPrice,
   });
+  const protectStop = resolveOpenPositionProtectStop({
+    position: row,
+    orders: openOrders,
+    manageInstance,
+  });
+  const economics = computeOpenPositionEconomics({
+    position: row,
+    protectStop,
+    netLiquidation,
+  });
+  const economicsLine = formatOpenPositionEconomicsLine(economics);
 
   return (
     <div
@@ -136,6 +155,13 @@ function PositionPopoverRow({
         <div className={`${metadataTextClass()} text-[var(--edge-text-secondary)]`}>
           {qty > 0 ? `Long ${qty}` : `Short ${Math.abs(qty)}`}
         </div>
+        <p
+          className={`${metadataTextClass()} truncate tabular-nums text-[var(--edge-text-muted)]`}
+          data-testid={`open-risk-economics-${symbol}`}
+          title={economicsLine}
+        >
+          {economicsLine}
+        </p>
         <OpenPositionExitsStrip
           summary={exitsSummary}
           symbol={symbol}
@@ -200,7 +226,7 @@ function PositionPopoverRow({
           theme="dark"
           className="!px-2 !py-0.5 text-[10px]"
           disabled={!canAct}
-          onClick={() => onClose(row)}
+          onClick={() => onClose(row, manageInstance)}
           data-testid={manageInstance ? `open-risk-flatten-${symbol}` : `open-risk-close-${symbol}`}
         >
           {manageInstance ? "Flatten now" : "Close"}
@@ -216,6 +242,7 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { handleOpenAccount, handleLoadSymbol } = useOpenRiskNavigation();
   const [closeDraft, setCloseDraft] = useState<OrderDraft | null>(null);
+  const [closePlaybookInstanceId, setClosePlaybookInstanceId] = useState<string | null>(null);
 
   const openPositions = useMemo(
     () =>
@@ -253,11 +280,12 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
     return null;
   }
 
-  const handleClosePosition = (row: AccountPosition) => {
+  const handleClosePosition = (row: AccountPosition, manageInstance: PlaybookInstance | null) => {
     if (!panelAccount) return;
     const draft = buildClosePositionDraft({ position: row, account: panelAccount });
     if (!draft) return;
     setCloseDraft(draft);
+    setClosePlaybookInstanceId(manageInstance?.id ?? null);
     onOpenChange(false);
   };
 
@@ -294,6 +322,8 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
 
   const chipTone = pnlTone(unrealized);
   const chipToneClass = chipFlash.toneClass || pnlColorClass(unrealized);
+  const netLiquidation = parseSummaryTagNumber(account.summary?.tags ?? {}, "NetLiquidation");
+  const marginChip = formatOpenRiskAccountMarginChip(account.summary?.tags);
 
   return (
     <>
@@ -324,12 +354,12 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
         anchorRef={triggerRef}
         onClose={() => onOpenChange(false)}
         align="end"
-        minWidth={360}
+        minWidth={420}
         role="dialog"
         aria-label="Open positions"
       >
         <div
-          className="flex max-h-[min(24rem,70vh)] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden bg-[var(--edge-surface-popover)]"
+          className="flex max-h-[min(24rem,70vh)] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden bg-[var(--edge-surface-popover)]"
           data-testid="open-risk-positions-popover"
         >
           <div className="flex items-center justify-between border-b border-[var(--edge-border-subtle)] px-3 py-2">
@@ -341,6 +371,14 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
                 {environmentLabel}
                 {connectionMuted}
               </p>
+              {marginChip ? (
+                <p
+                  className={`${metadataTextClass()} tabular-nums text-[var(--edge-text-muted)]`}
+                  data-testid="open-risk-margin-chip"
+                >
+                  {marginChip}
+                </p>
+              ) : null}
               {accountGateStatus ? (
                 <AccountRiskGateStrip status={accountGateStatus} compact />
               ) : null}
@@ -372,6 +410,7 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
                 onPause={(instance) => void handlePausePlaybook(instance)}
                 onResume={(instance) => void handleResumePlaybook(instance)}
                 onSkip={(instance) => void handleSkipPlaybook(instance)}
+                netLiquidation={netLiquidation}
               />
             ))}
           </div>
@@ -401,8 +440,15 @@ export default function OpenRiskPositionsMenu({ open, onOpenChange }: Props) {
         open={closeDraft != null}
         draft={closeDraft}
         environment={account.tradingEnvironment}
-        onClose={() => setCloseDraft(null)}
-        onSuccess={() => account.refresh()}
+        playbookInstanceId={closePlaybookInstanceId}
+        onClose={() => {
+          setCloseDraft(null);
+          setClosePlaybookInstanceId(null);
+        }}
+        onSuccess={async () => {
+          await account.refresh();
+          await refreshPlaybooks();
+        }}
       />
     </>
   );

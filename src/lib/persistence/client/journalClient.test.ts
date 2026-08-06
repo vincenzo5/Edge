@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { clearLocalJournalSnapshot, upsertLocalJournalFills } from "@/lib/journal/localJournalStore";
+import { clearLocalJournalSnapshot, replaceLocalJournalTrades, upsertLocalJournalFills } from "@/lib/journal/localJournalStore";
 import type { JournalFill } from "@/lib/journal/types";
 
 const persistenceFetch = vi.fn();
 const localStores = vi.hoisted(() => ({
   addScreenshot: vi.fn(),
+  listScreenshots: vi.fn(async () => []),
+  patchScreenshot: vi.fn(),
   addChartSnapshot: vi.fn(),
 }));
 
@@ -16,6 +18,8 @@ vi.mock("@/lib/persistence/client/persistenceFetch", () => ({
 vi.mock("@/lib/journal/localScreenshotStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/journal/localScreenshotStore")>()),
   addLocalJournalTradeScreenshot: localStores.addScreenshot,
+  listLocalJournalTradeScreenshots: localStores.listScreenshots,
+  patchLocalJournalTradeScreenshot: localStores.patchScreenshot,
   migrateLocalJournalTradeScreenshots: vi.fn(async () => 0),
 }));
 
@@ -27,8 +31,11 @@ vi.mock("@/lib/journal/localChartSnapshotStore", async (importOriginal) => ({
 
 import {
   createJournalTradeChartSnapshotRemote,
+  fetchJournalTradeScreenshots,
   fetchJournalTrades,
   importJournalCsvRemote,
+  patchJournalTradeRemote,
+  patchJournalTradeScreenshotRemote,
   uploadJournalTradeScreenshot,
 } from "@/lib/persistence/client/journalClient";
 
@@ -57,6 +64,9 @@ describe("journalClient sync", () => {
     clearLocalJournalSnapshot();
     persistenceFetch.mockReset();
     localStores.addScreenshot.mockReset();
+    localStores.listScreenshots.mockReset();
+    localStores.listScreenshots.mockResolvedValue([]);
+    localStores.patchScreenshot.mockReset();
     localStores.addChartSnapshot.mockReset();
   });
 
@@ -267,5 +277,192 @@ describe("journalClient sync", () => {
         },
       }),
     ).resolves.toBe(snapshot);
+  });
+
+  it("merges local screenshots when the server GET succeeds with an empty gallery", async () => {
+    const localScreenshot = {
+      id: "local-shot",
+      tradeId: "trade-1",
+      sortIndex: 0,
+      caption: null,
+      mimeType: "image/png",
+      byteSize: 1,
+      width: null,
+      height: null,
+      source: "chart_capture",
+      createdAt: "2026-08-05T12:00:00.000Z",
+      updatedAt: "2026-08-05T12:00:00.000Z",
+      blob: new Blob([Uint8Array.from([1])], { type: "image/png" }),
+    };
+    localStores.listScreenshots.mockResolvedValueOnce([localScreenshot]);
+    persistenceFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ screenshots: [] }), { status: 200 }),
+    );
+
+    await expect(fetchJournalTradeScreenshots("trade-1")).resolves.toEqual([
+      expect.objectContaining({ id: "local-shot", tradeId: "trade-1" }),
+    ]);
+  });
+
+  it("uses local stores when screenshot and chart snapshot APIs return 404 for a mirrored trade", async () => {
+    replaceLocalJournalTrades([
+      {
+        id: "local-trade-1",
+        status: "open",
+        direction: "long",
+        symbol: "F",
+        secType: "STK",
+        openedAt: "2026-07-01T13:30:00.000Z",
+        closedAt: null,
+        fillExecIds: ["exec-1"],
+        tags: [],
+        setup: null,
+        reviewNote: null,
+        legs: [],
+        createdAt: "2026-07-01T13:30:00.000Z",
+        updatedAt: "2026-07-01T13:30:00.000Z",
+      },
+    ]);
+
+    const screenshot = { id: "local-shot" };
+    const snapshot = { id: "local-snapshot" };
+    localStores.addScreenshot.mockResolvedValueOnce(screenshot);
+    localStores.addChartSnapshot.mockResolvedValueOnce(snapshot);
+    persistenceFetch
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+    await expect(
+      uploadJournalTradeScreenshot(
+        "local-trade-1",
+        new Blob([Uint8Array.from([1])], { type: "image/png" }),
+      ),
+    ).resolves.toBe(screenshot);
+    await expect(
+      createJournalTradeChartSnapshotRemote("local-trade-1", {
+        cellConfig: {
+          symbol: "F",
+          range: "2y",
+          interval: "1d",
+          chartType: "candle_solid",
+          indicators: [],
+          drawings: [],
+        },
+      }),
+    ).resolves.toBe(snapshot);
+  });
+
+  it("patches a local screenshot when persistence returns 404 for a mirrored trade", async () => {
+    replaceLocalJournalTrades([
+      {
+        id: "local-trade-1",
+        status: "open",
+        direction: "long",
+        symbol: "F",
+        secType: "STK",
+        openedAt: "2026-07-01T13:30:00.000Z",
+        closedAt: null,
+        fillExecIds: ["exec-1"],
+        tags: [],
+        setup: null,
+        reviewNote: null,
+        legs: [],
+        createdAt: "2026-07-01T13:30:00.000Z",
+        updatedAt: "2026-07-01T13:30:00.000Z",
+      },
+    ]);
+    const screenshot = { id: "local-shot", caption: "Exit at resistance" };
+    localStores.patchScreenshot.mockResolvedValueOnce(screenshot);
+    persistenceFetch.mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+    await expect(
+      patchJournalTradeScreenshotRemote("local-trade-1", "local-shot", {
+        caption: "Exit at resistance",
+      }),
+    ).resolves.toBe(screenshot);
+    expect(localStores.patchScreenshot).toHaveBeenCalledWith("local-trade-1", "local-shot", {
+      caption: "Exit at resistance",
+    });
+  });
+
+  it("patches a local trade when persistence returns 503", async () => {
+    replaceLocalJournalTrades([
+      {
+        id: "local-trade-1",
+        status: "closed",
+        direction: "long",
+        symbol: "AAPL",
+        secType: "STK",
+        openedAt: "2026-07-01T13:30:00.000Z",
+        closedAt: "2026-07-01T16:00:00.000Z",
+        netQuantity: 100,
+        avgEntry: 150,
+        fillExecIds: ["exec-1"],
+        tags: [],
+        setup: null,
+        reviewNote: null,
+        legs: [],
+        createdAt: "2026-07-01T13:30:00.000Z",
+        updatedAt: "2026-07-01T16:00:00.000Z",
+      },
+    ]);
+    persistenceFetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    const updated = await patchJournalTradeRemote("local-trade-1", {
+      rating: 4,
+      ignored: true,
+    });
+    expect(updated?.rating).toBe(4);
+    expect(updated?.ignored).toBe(true);
+  });
+
+  it("patches a local trade when persistence returns 400 database error for a mirrored trade", async () => {
+    replaceLocalJournalTrades([
+      {
+        id: "local-trade-1",
+        status: "closed",
+        direction: "long",
+        symbol: "AAPL",
+        secType: "STK",
+        openedAt: "2026-07-01T13:30:00.000Z",
+        closedAt: "2026-07-01T16:00:00.000Z",
+        netQuantity: 100,
+        avgEntry: 150,
+        fillExecIds: ["exec-1"],
+        tags: [],
+        setup: null,
+        reviewNote: null,
+        legs: [],
+        createdAt: "2026-07-01T13:30:00.000Z",
+        updatedAt: "2026-07-01T16:00:00.000Z",
+      },
+    ]);
+    persistenceFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: "validation",
+          error: "Failed query: update journal_trades",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const updated = await patchJournalTradeRemote("local-trade-1", {
+      reviewNote: "Offline save",
+    });
+    expect(updated?.reviewNote).toBe("Offline save");
+  });
+
+  it("does not patch locally on validation 400 when no local trade exists", async () => {
+    persistenceFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ code: "validation", error: "Invalid request body" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await expect(
+      patchJournalTradeRemote("missing-trade", { rating: 3 }),
+    ).resolves.toBeNull();
   });
 });

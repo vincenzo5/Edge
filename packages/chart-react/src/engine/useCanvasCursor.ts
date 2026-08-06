@@ -1,6 +1,7 @@
 import { useCallback, useRef, type RefObject } from 'react';
 import type { Candle, SerializedDrawing, VisibleRange } from '@edge/chart-core';
 import {
+  cursorForControlPointRole,
   resolveDragMode,
   resolveHoverCursor,
   plotLeftOffset,
@@ -8,7 +9,8 @@ import {
   type DragMode,
   type PriceScaleSide,
 } from '@edge/chart-core/layout';
-import { hitTestAll, hitTestControlPoint, getVisibleDrawingsSorted } from '@edge/chart-core';
+import { hitTestAll, getVisibleDrawingsSorted } from '@edge/chart-core';
+import { hitTestControlPointDetailed } from '@edge/chart-core/pluginHost';
 import { clampPlot } from '@edge/chart-core/drawingCoords';
 import { hitTestEventBadge, type EventBadgeGroup } from './eventBadges';
 import type { DrawInvalidationReason } from './renderScheduler';
@@ -95,6 +97,7 @@ export function useCanvasCursor({
 
       let overControlPoint = false;
       let controlPointLocked = false;
+      let controlPointCursor: ChartCursor = 'grab';
       let overDrawing = false;
       if (
         !isDragging &&
@@ -104,6 +107,7 @@ export function useCanvasCursor({
         if (hoverHit) {
           overControlPoint = hoverHit.overControlPoint;
           controlPointLocked = hoverHit.controlPointLocked;
+          controlPointCursor = hoverHit.controlPointCursor;
           overDrawing = hoverHit.overDrawing;
         } else {
           const plot = clampPlot(x, y, width, height, showTimeAxis);
@@ -113,7 +117,7 @@ export function useCanvasCursor({
           const visibleSorted = getVisibleDrawingsSorted(paneDrawings);
 
           for (const drawing of visibleSorted) {
-            const cpIdx = hitTestControlPoint(
+            const hit = hitTestControlPointDetailed(
               plot.x,
               plot.y,
               drawing,
@@ -121,9 +125,10 @@ export function useCanvasCursor({
               candles,
               showTimeAxis,
             );
-            if (cpIdx >= 0) {
+            if (hit) {
               overControlPoint = true;
               controlPointLocked = Boolean(drawing.locked);
+              controlPointCursor = cursorForControlPointRole(hit.role);
               break;
             }
           }
@@ -144,6 +149,7 @@ export function useCanvasCursor({
         shiftHeld,
         overControlPoint,
         controlPointLocked,
+        controlPointCursor,
         overDrawing,
       });
       if (appliedCursorRef.current === cursor) return;

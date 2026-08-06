@@ -9,16 +9,91 @@ import { isUserPlaybookTemplateId } from "./playbook/resolveTemplate";
 import { getPlaybookPreset } from "./playbook/presets";
 import {
   applyPlaybookTemplatePatch,
+  userTemplateFromDefinition,
   userTemplateFromSource,
 } from "./playbookTemplateMutations";
 
-export const CreatePlaybookTemplateSchema = z.object({
+const CreateFromSourceSchema = z.object({
   sourceTemplateId: z.string().min(1),
   name: z.string().trim().min(1).max(80).optional(),
   description: z.string().trim().min(1).max(240).optional(),
 });
 
+const CreateFromDefinitionSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().min(1).max(240),
+  rules: z.array(PlaybookRuleSchema).min(1),
+  schemaVersion: z.literal(1).optional(),
+  scope: z.enum(["trade"]).optional(),
+  budget: z
+    .union([
+      z.object({ kind: z.enum(["dollar", "percentNetLiq"]), value: z.number().positive() }),
+      z.object({ kind: z.literal("inherits") }),
+    ])
+    .optional(),
+  sizing: z
+    .union([
+      z.object({ method: z.literal("stopDistance"), maxQty: z.number().positive().optional() }),
+      z.object({ kind: z.literal("inherits") }),
+    ])
+    .optional(),
+  geometry: z
+    .object({
+      stops: z
+        .array(
+          z.object({
+            rMultiple: z.number().positive().optional(),
+            price: z.number().positive().optional(),
+          }),
+        )
+        .min(1)
+        .optional(),
+      targets: z
+        .array(
+          z.object({
+            rMultiple: z.number().positive().optional(),
+            price: z.number().positive().optional(),
+          }),
+        )
+        .optional(),
+      timeHorizonBars: z.number().int().positive().optional(),
+    })
+    .optional(),
+  exits: z.array(PlaybookRuleSchema).optional(),
+  gates: z
+    .object({
+      minRiskReward: z.number().positive().optional(),
+      maxQty: z.number().positive().optional(),
+    })
+    .optional(),
+  defaultEntrySchedule: z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("immediate") }),
+      z.object({
+        kind: z.literal("sessionEvent"),
+        event: z.enum(["nextRthOpen", "nextRthClose"]),
+      }),
+      z.object({
+        kind: z.literal("clock"),
+        at: z.string().datetime(),
+        timeZone: z.string().min(1),
+      }),
+    ])
+    .optional(),
+});
+
+export const CreatePlaybookTemplateSchema = z.union([
+  CreateFromSourceSchema,
+  CreateFromDefinitionSchema,
+]);
+
 export type CreatePlaybookTemplateInput = z.infer<typeof CreatePlaybookTemplateSchema>;
+
+export function isCreateFromSource(
+  input: CreatePlaybookTemplateInput,
+): input is z.infer<typeof CreateFromSourceSchema> {
+  return "sourceTemplateId" in input && typeof input.sourceTemplateId === "string";
+}
 
 export const PatchPlaybookTemplateSchema = z
   .object({
@@ -103,15 +178,19 @@ export function createMemoryPlaybookTemplateStore(): PlaybookTemplateStore {
     },
 
     async create(input) {
-      const userTemplates = [...byId.values()];
-      const source = resolveSourceTemplate(input.sourceTemplateId, userTemplates);
-      if (!source) {
-        throw new Error(`Unknown source template: ${input.sourceTemplateId}`);
-      }
-      const template = userTemplateFromSource(source, {
-        name: input.name,
-        description: input.description,
-      });
+      const template = isCreateFromSource(input)
+        ? (() => {
+            const userTemplates = [...byId.values()];
+            const source = resolveSourceTemplate(input.sourceTemplateId, userTemplates);
+            if (!source) {
+              throw new Error(`Unknown source template: ${input.sourceTemplateId}`);
+            }
+            return userTemplateFromSource(source, {
+              name: input.name,
+              description: input.description,
+            });
+          })()
+        : userTemplateFromDefinition(input);
       byId.set(template.id, template);
       return template;
     },
@@ -174,14 +253,18 @@ export function createBrowserPlaybookTemplateStore(): PlaybookTemplateStore {
 
     async create(input) {
       const records = readBrowserTemplates();
-      const source = resolveSourceTemplate(input.sourceTemplateId, records);
-      if (!source) {
-        throw new Error(`Unknown source template: ${input.sourceTemplateId}`);
-      }
-      const template = userTemplateFromSource(source, {
-        name: input.name,
-        description: input.description,
-      });
+      const template = isCreateFromSource(input)
+        ? (() => {
+            const source = resolveSourceTemplate(input.sourceTemplateId, records);
+            if (!source) {
+              throw new Error(`Unknown source template: ${input.sourceTemplateId}`);
+            }
+            return userTemplateFromSource(source, {
+              name: input.name,
+              description: input.description,
+            });
+          })()
+        : userTemplateFromDefinition(input);
       records.push(template);
       writeBrowserTemplates(records);
       return template;

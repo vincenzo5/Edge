@@ -55,9 +55,64 @@ export function formatTradeMoney(value: number | null | undefined): string {
   });
 }
 
+export function formatTradeShares(qty: number | null | undefined): string {
+  if (qty == null || !Number.isFinite(qty)) return "—";
+  const shares = Math.abs(qty);
+  const formatted = Number.isInteger(shares)
+    ? shares.toLocaleString()
+    : shares.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return `${formatted} sh`;
+}
+
+export function formatTradeSharesAndNotional(
+  trade: Pick<JournalTradeResponse, "avgEntry" | "secType" | "legs">,
+  shareQuantity: number | null | undefined,
+): string {
+  const shares = formatTradeShares(shareQuantity);
+  const notional =
+    shareQuantity != null && Number.isFinite(shareQuantity)
+      ? computePositionNotional({
+          avgEntry: trade.avgEntry,
+          netQuantity: shareQuantity,
+          secType: trade.secType,
+          legs: trade.legs,
+        })
+      : null;
+  return `Qty ${shares} (${formatTradeMoney(notional)})`;
+}
+
 export function pnlToneClass(value: number | null | undefined): string {
   if (value == null || value === 0) return "";
   return value > 0 ? "text-[var(--edge-positive)]" : "text-[var(--edge-negative)]";
+}
+
+export function outcomeToneClass(status: TradeOutcomeStatus): string {
+  switch (status) {
+    case "win":
+      return "text-[var(--edge-positive)]";
+    case "loss":
+      return "text-[var(--edge-negative)]";
+    case "breakeven":
+      return "text-[var(--edge-text-secondary)]";
+    case "open":
+      return "text-[var(--edge-text-secondary)]";
+  }
+}
+
+export function formatTradeHeaderStatus(trade: JournalTradeResponse): {
+  label: string;
+  pnl: string | null;
+  tone: TradeOutcomeStatus;
+} {
+  const tone = deriveTradeOutcomeStatus(trade);
+  if (trade.status === "open") {
+    return { label: tradeOutcomeLabel("open"), pnl: null, tone: "open" };
+  }
+  return {
+    label: tradeOutcomeLabel(tone),
+    pnl: formatTradeMoney(trade.netPnL),
+    tone,
+  };
 }
 
 const DAY_SUMMARY_TIME_ZONE = "America/New_York";
@@ -88,10 +143,13 @@ export function formatDirectionLabel(direction: "long" | "short"): string {
   return direction === "short" ? "SHORT" : "LONG";
 }
 
-export function formatNetRoi(trade: JournalTradeResponse): string {
+export function formatNetRoi(
+  trade: JournalTradeResponse,
+  shareQuantity: number | null | undefined = trade.netQuantity,
+): string {
   const netPnL = trade.netPnL ?? trade.grossPnL;
   if (netPnL == null || !Number.isFinite(netPnL)) return "—";
-  const notional = computePositionNotional(trade);
+  const notional = computePositionNotional({ ...trade, netQuantity: shareQuantity });
   if (notional == null || notional <= 0) return "—";
   const roi = (netPnL / notional) * 100;
   const formatted = `${Math.abs(roi).toFixed(2)}%`;

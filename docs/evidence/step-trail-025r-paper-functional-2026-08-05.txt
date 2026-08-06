@@ -1,0 +1,79 @@
+Step trail 0.25R — paper functional test — 2026-08-05
+Tester: Cursor agent (execute-from-plan)
+Environment: paper / http://127.0.0.1:3003
+Account: DUP586813
+Policy template id: user_e9c90a6e-1b2c-4bcf-a472-5ab425da3a18
+
+Preflight: PASS — notes below
+- .env.local present; DATABASE_URL, EDGE_AUTH_SECRET, TWS_ENABLED=true, EDGE_TRADING_ENVIRONMENT_LOCK=paper
+- Kill switch unset; EDGE_MANAGE_WORKER unset (enabled by default)
+- Sidecar /health ok; app :3003 → 200; npm run db:migrate (no pending); seed already had Step trail 0.25R
+- Migration columns manage_state + take_profit_order_id present
+- UI: IB Gateway (Paper), Paper (DUP586813); Paper auto-manage ON
+- Unit tests §1.6: 5 files / 19 tests passed
+- check:startup FAILED (harness Session Log date lint) — non-blocking for paper TCs; services up
+- Pre-test hygiene: flattened orphan naked F qty 4
+
+TC-01 stop-only bracket: FAIL (UI free-ticket path) — recovery PASS via API
+- UI: selected Step trail 0.25R → TP off / SL on; Market Buy qty 1
+- UI submit used POST /api/trading/orders (naked MKT), NOT /api/trading/brackets
+- Root cause: TradeOrderForm attachBracket for unbound draft requires takeProfitEnabled && stopLossEnabled; Step trail disables TP → attachBracket=false
+- Recovery after sidecar rebuild (stop-only schema) + trading.py state import fix:
+  POST /api/trading/brackets → 200
+  instance_id=664cf32e-4ffa-482b-bf9d-2cf3bfce3311
+  stop_order_id=10677 STP aux=13.93
+  take_profit_order_id=null
+  manage_state.kind=stepTrailR stepR=0.25 status=pending_fill
+
+TC-02 fill arm: PASS — armed_at=2026-08-05 16:01:04.343+00 fill=14.324803 r_unit≈0.3948 filled_qty=1
+- Auto manageWorker did not arm within ~20s; manual POST /api/cron/playbook-evaluate (session cookie) → evaluated:1 then armed
+
+TC-03 BE ratchet at +0.25R: SKIP (market) — trigger=14.4235 observed_mkt≈14.17 expected_stop=14.3248
+- Price never reached +0.25R during session (need_move≈+$0.25)
+- TC-03b: POST /api/cron/playbook-evaluate → {"evaluated":1,"fired":0,"skipped":0,"errors":[],"promoted":0}
+
+TC-04 flatten cleanup: PASS — closed_at=2026-08-05 16:01:42.192+00 orders_after=0
+- Open Risk UI showed Close (not Flatten now) — manageInstance not bound in menu for this path
+- Used plan API alternative: POST .../exit-cleanup {reason:llm_functional_test}
+- DB: status=closed off_reason=llm_functional_test stop_order_id null
+- Sidecar: position [] ; no open F protective orders
+- Audit: exitAndCleanup:664cf32e-…:cancelled=1:flat=true:qty=0
+
+TC-05 kill blocks entry: PASS — paper_kill_active=true submit_blocked=true
+- Kill paper & flatten → GET auto-manage {"paperKillActive":true}
+- POST brackets while kill active → 400 "Trading kill is active for paper. New entries blocked."
+
+TC-06 second ratchet (optional): SKIP
+
+Overall: FAIL
+
+Reason: TC-01 required UI path failed to attach stop-only bracket/playbook (attachBracket requires TP on unbound ticket). Lifecycle oracles for TC-02/04/05 verified via API recovery after sidecar refresh; TC-03 market SKIP + TC-03b clean.
+
+Commands run:
+- npm run check:startup (FAIL: Session Log date)
+- npm test -- --run bracketPlan/stepTrailRatchet/manageWorker/exitAndCleanup/applyPolicyToTradeDraft → 19 passed
+- npm run db:migrate; npx tsx scripts/seed-user-risk-policies.mts
+- docker rebuild edge-tws-sidecar:local + compose recreate (stale image required takeProfitPrice; trading routes missing state imports)
+- curl sidecar /health, /account/positions, /account/orders
+- Browser fetch POST /api/trading/brackets (recovery)
+- Browser fetch POST /api/cron/playbook-evaluate
+- Browser fetch POST /api/trading/playbooks/<id>/exit-cleanup
+- Kill paper UI + auto-manage GET + blocked brackets POST
+- npm run report:trading-audit -- --limit 15
+
+Audit excerpt:
+[2026-08-05T16:01:42.204Z] submit success … detail: exitAndCleanup:664cf32e-4ffa-482b-bf9d-2cf3bfce3311:cancelled=1:flat=true:qty=0
+[2026-08-05T16:00:06.841Z] submit success … detail: bracket
+[2026-08-05T15:55:18.745Z] submit success … (naked MKT — TC-01 UI fail path)
+
+Teardown:
+- Positions flat
+- paper_kill_active reset to false; paper_enabled left true
+- Sidecar left on rebuilt image with trading.py state import fix
+
+Blockers / follow-ups:
+1. BUG: Unbound trade ticket + stop-only policy (Step trail 0.25R) does not set attachBracket — submits naked entry via /api/trading/orders. Fix attachBracket for draftPolicyActive when stopLossEnabled && (!takeProfitEnabled || TP price set).
+2. OPS: edge-tws-sidecar:local was stale (required takeProfitPrice). Rebuilt during session.
+3. BUGFIX applied in session: services/tws-sidecar/tws_sidecar/routes/trading.py — import runtime state (* / _account_lock,_account_orders) so bracket/cancel responses don't 503 after broker accept.
+4. Manage worker did not arm pending_fill until manual cron evaluate (session). Investigate why in-process manageWorker tick did not run / see instance.
+5. Open Risk menu showed Close not Flatten for API-attached instance (manageInstance mapping gap) — exit-cleanup API worked.

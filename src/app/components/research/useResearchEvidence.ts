@@ -14,6 +14,8 @@ import {
 } from "@/lib/research/evidenceStore";
 import type { ResearchCardSketch } from "@/lib/research/sessionSketch";
 
+const EMPTY_EVIDENCE_CARDS: ResearchCardSketch[] = [];
+
 function subscribe(callback: () => void): () => void {
   return subscribeResearchEvidence(callback);
 }
@@ -22,8 +24,12 @@ function getSnapshot(): ResearchCardSketch[] {
   return listEvidenceCards();
 }
 
+function getServerSnapshot(): ResearchCardSketch[] {
+  return EMPTY_EVIDENCE_CARDS;
+}
+
 export function useResearchEvidence() {
-  const cards = useSyncExternalStore(subscribe, getSnapshot, () => []);
+  const cards = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const pinFromHint = useCallback(
     (hint: ResearchArtifactHint, provenance: PinProvenance) => {

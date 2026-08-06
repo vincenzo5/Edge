@@ -58,13 +58,84 @@ export function mergeCandlesByTimestamp(existing: Candle[], incoming: Candle[]):
   return [...byTimestamp.values()].sort((a, b) => a.t - b.t);
 }
 
+export type MergeCandlesPrependOptions = {
+  /**
+   * When set, collapse bars that land in the same interval bucket
+   * (e.g. TWS daily midnight UTC vs Yahoo RTH open) into one bar.
+   */
+  intervalMs?: number;
+};
+
+/** Real market bars are epoch ms; fixtures often use tiny counters with real intervals. */
+const INTERVAL_DEDUPE_EPOCH_GUARD_MS = Date.UTC(2000, 0, 1);
+
+function canApplyIntervalBucketDedupe(candles: Candle[], intervalMs: number): boolean {
+  if (!(intervalMs > 0) || candles.length === 0) return false;
+  let minT = Number.POSITIVE_INFINITY;
+  for (const candle of candles) {
+    if (candle.t < minT) minT = candle.t;
+  }
+  return minT >= INTERVAL_DEDUPE_EPOCH_GUARD_MS;
+}
+
+/**
+ * Collapse bars that share an interval bucket.
+ * Prefer timestamps in `preferTimestamps` (typically the fresh right-edge);
+ * otherwise keep the later stamp within the bucket.
+ */
+export function dedupeCandlesByIntervalBucket(
+  candles: Candle[],
+  intervalMs: number,
+  preferTimestamps?: ReadonlySet<number>,
+): Candle[] {
+  if (!canApplyIntervalBucketDedupe(candles, intervalMs)) return candles;
+  const byBucket = new Map<number, Candle>();
+  for (const candle of candles) {
+    const key = Math.floor(candle.t / intervalMs);
+    const prev = byBucket.get(key);
+    if (!prev) {
+      byBucket.set(key, candle);
+      continue;
+    }
+    const preferNext = preferTimestamps?.has(candle.t) === true;
+    const preferPrev = preferTimestamps?.has(prev.t) === true;
+    if (preferNext && !preferPrev) {
+      byBucket.set(key, candle);
+    } else if (preferPrev && !preferNext) {
+      // keep prev
+    } else if (candle.t >= prev.t) {
+      byBucket.set(key, candle);
+    }
+  }
+  return [...byBucket.values()].sort((a, b) => a.t - b.t);
+}
+
 /** Merge older candles before existing series; dedupe by timestamp, sort ascending. */
-export function mergeCandlesPrepend(existing: Candle[], older: Candle[]): Candle[] {
+export function mergeCandlesPrepend(
+  existing: Candle[],
+  older: Candle[],
+  options?: MergeCandlesPrependOptions,
+): Candle[] {
   if (older.length === 0) return existing;
   const seen = new Set(existing.map((c) => c.t));
-  const merged = [...older.filter((c) => !seen.has(c.t)), ...existing];
+  const intervalMs = options?.intervalMs;
+  const applyBuckets =
+    intervalMs != null &&
+    canApplyIntervalBucketDedupe([...existing, ...older], intervalMs);
+  const existingBuckets = applyBuckets
+    ? new Set(existing.map((c) => Math.floor(c.t / intervalMs)))
+    : null;
+
+  const filtered = older.filter((c) => {
+    if (seen.has(c.t)) return false;
+    if (existingBuckets?.has(Math.floor(c.t / intervalMs!))) return false;
+    return true;
+  });
+  const merged = [...filtered, ...existing];
   merged.sort((a, b) => a.t - b.t);
-  return merged;
+  if (!applyBuckets) return merged;
+  // Collapse twins already present inside `older` (e.g. a previously doubled cache).
+  return dedupeCandlesByIntervalBucket(merged, intervalMs!, seen);
 }
 
 /** Replace the full candle series with a sorted snapshot. */
@@ -159,8 +230,9 @@ export function mergeCandlesPrependWithIdentity(
   existing: Candle[],
   older: Candle[],
   prevIdentity?: CandleSeriesIdentity,
+  options?: MergeCandlesPrependOptions,
 ): { candles: Candle[]; identity: CandleSeriesIdentity } {
-  const candles = mergeCandlesPrepend(existing, older);
+  const candles = mergeCandlesPrepend(existing, older, options);
   return {
     candles,
     identity: advanceCandleSeriesIdentity(prevIdentity, candles, 'prepend'),

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const CHANNEL_NAME = "edge-journal-capture-v1";
+export const STORAGE_KEY = "edge-journal-capture-event-v1";
 
 const captureDoneMessageSchema = z.object({
   type: z.literal("captureDone"),
@@ -50,11 +51,32 @@ function openChannel(): BroadcastChannel | null {
 
 function publishCaptureChannelMessage(message: CaptureChannelMessage): void {
   const channel = openChannel();
-  if (!channel) return;
+  if (channel) {
+    try {
+      channel.postMessage(message);
+    } finally {
+      channel.close();
+    }
+  }
+
+  if (typeof window === "undefined") return;
+
   try {
-    channel.postMessage(message);
-  } finally {
-    channel.close();
+    window.opener?.postMessage(message, window.location.origin);
+  } catch {
+    // BroadcastChannel and storage remain available when opener messaging is blocked.
+  }
+
+  try {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        message,
+        nonce: `${Date.now()}-${Math.random()}`,
+      }),
+    );
+  } catch {
+    // Cross-window storage can be unavailable in privacy-restricted contexts.
   }
 }
 
@@ -74,18 +96,49 @@ export function subscribeCaptureChannel(
   handler: (message: CaptureChannelMessage) => void,
 ): () => void {
   const channel = openChannel();
-  if (!channel) {
-    return () => {};
-  }
+  const delivered = new Set<string>();
 
-  const listener = (event: MessageEvent) => {
-    const parsed = parseCaptureChannelMessage(event.data);
-    if (parsed) handler(parsed);
+  const deliver = (raw: unknown) => {
+    const parsed = parseCaptureChannelMessage(raw);
+    if (!parsed) return;
+    const key = JSON.stringify(parsed);
+    if (delivered.has(key)) return;
+    delivered.add(key);
+    globalThis.setTimeout(() => delivered.delete(key), 2_000);
+    handler(parsed);
   };
 
-  channel.addEventListener("message", listener);
+  const listener = (event: MessageEvent) => {
+    deliver(event.data);
+  };
+
+  const windowMessageListener = (event: MessageEvent) => {
+    if (event.origin !== window.location.origin) return;
+    deliver(event.data);
+  };
+
+  const storageListener = (event: StorageEvent) => {
+    if (event.key !== STORAGE_KEY || !event.newValue) return;
+    try {
+      const payload = JSON.parse(event.newValue) as { message?: unknown };
+      deliver(payload.message);
+    } catch {
+      // Ignore malformed or unrelated local storage values.
+    }
+  };
+
+  channel?.addEventListener("message", listener);
+  if (typeof window !== "undefined") {
+    window.addEventListener("message", windowMessageListener);
+    window.addEventListener("storage", storageListener);
+  }
+
   return () => {
-    channel.removeEventListener("message", listener);
-    channel.close();
+    channel?.removeEventListener("message", listener);
+    channel?.close();
+    if (typeof window !== "undefined") {
+      window.removeEventListener("message", windowMessageListener);
+      window.removeEventListener("storage", storageListener);
+    }
   };
 }

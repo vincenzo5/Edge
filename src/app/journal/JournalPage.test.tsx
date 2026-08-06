@@ -212,11 +212,11 @@ describe("JournalDashboardView", () => {
     expect(screen.getByTestId("journal-open-positions-card-row-SPY")).toBeInTheDocument();
   });
 
-  it("opens trade detail drawer from recent trades card row", () => {
+  it("opens trade detail modal from recent trades card row", () => {
     render(<JournalDashboardView />);
     fireEvent.click(screen.getByTestId("journal-recent-trades-card-row-t1"));
-    expect(screen.getByTestId("journal-trade-detail-drawer-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("journal-trade-detail-drawer-panel")).toHaveTextContent("AAPL");
+    expect(screen.getByTestId("journal-trade-detail-modal")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /AAPL/i })).toBeInTheDocument();
   });
 
   it("shows loading skeleton without scoped empty flash when fetching", () => {
@@ -254,6 +254,8 @@ describe("JournalDashboardView", () => {
   });
 
   it("opens day summary modal when calendar day is clicked", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-02T20:00:00.000Z"));
     render(<JournalDashboardView />);
     fireEvent.click(screen.getByTestId("journal-calendar-day-2026-07-01"));
     expect(screen.getByTestId("journal-day-summary-modal")).toBeInTheDocument();
@@ -261,6 +263,8 @@ describe("JournalDashboardView", () => {
   });
 
   it("opens empty day summary modal for days without trades", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-02T20:00:00.000Z"));
     render(<JournalDashboardView />);
     fireEvent.click(screen.getByTestId("journal-calendar-day-2026-07-08"));
     expect(screen.getByTestId("journal-day-summary-modal")).toBeInTheDocument();
@@ -268,27 +272,32 @@ describe("JournalDashboardView", () => {
   });
 
   it("does not show trade detail before a row is selected", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-02T20:00:00.000Z"));
     render(<JournalDashboardView />);
     fireEvent.click(screen.getByTestId("journal-calendar-day-2026-07-01"));
-    expect(screen.queryByTestId("journal-trade-detail-drawer-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("journal-trade-detail-modal")).not.toBeInTheDocument();
   });
 
-  it("opens slide-over trade detail from day summary row", () => {
+  it("opens centered trade detail modal from day summary row", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-02T20:00:00.000Z"));
     render(<JournalDashboardView />);
     fireEvent.click(screen.getByTestId("journal-calendar-day-2026-07-01"));
     fireEvent.click(screen.getByTestId("journal-day-trades-row-t1"));
-    expect(screen.getByTestId("journal-trade-detail-drawer-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("journal-trade-detail-drawer-panel")).toHaveTextContent("AAPL");
-    expect(screen.getByTestId("journal-trade-detail-drawer-panel")).toHaveTextContent("STK");
+    expect(screen.getByTestId("journal-trade-detail-modal")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /AAPL/i })).toHaveTextContent("WIN");
     expect(screen.getByTestId("journal-trade-detail")).toHaveTextContent("breakout");
   });
 
-  it("closes slide-over trade detail from backdrop", () => {
+  it("closes trade detail modal from backdrop", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-02T20:00:00.000Z"));
     render(<JournalDashboardView />);
     fireEvent.click(screen.getByTestId("journal-calendar-day-2026-07-01"));
     fireEvent.click(screen.getByTestId("journal-day-trades-row-t1"));
-    fireEvent.click(screen.getByTestId("journal-trade-detail-drawer-backdrop"));
-    expect(screen.queryByTestId("journal-trade-detail-drawer-panel")).not.toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByTestId("journal-trade-detail-modal"));
+    expect(screen.queryByTestId("journal-trade-detail-modal")).not.toBeInTheDocument();
   });
 });
 
@@ -416,15 +425,15 @@ describe("JournalTradesView", () => {
   it("does not show trade detail before a row is selected", async () => {
     render(<JournalTradesView />);
     await screen.findByTestId("journal-trades-table");
-    expect(screen.queryByTestId("journal-trade-detail-drawer-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("journal-trade-detail-modal")).not.toBeInTheDocument();
   });
 
-  it("opens slide-over trade detail when a trades row is selected", async () => {
+  it("opens centered trade detail modal when a trades row is selected", async () => {
     render(<JournalTradesView />);
     await screen.findByTestId("journal-trades-row-t1");
     fireEvent.click(screen.getByTestId("journal-trades-row-t1"));
-    expect(screen.getByTestId("journal-trade-detail-drawer-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("journal-trade-detail-drawer-panel")).toHaveTextContent("AAPL");
+    expect(screen.getByTestId("journal-trade-detail-modal")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /AAPL/i })).toBeInTheDocument();
   });
 
   it("sorts by activity desc by default (most recent first)", async () => {

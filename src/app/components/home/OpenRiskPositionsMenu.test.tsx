@@ -30,8 +30,10 @@ function position(symbol: string, qty: number, unrealizedPNL: number): AccountPo
   return {
     contract: { symbol },
     position: qty,
+    avgCost: 100,
+    marketPrice: 112.55,
     unrealizedPNL,
-    marketValue: Math.abs(qty) * 100,
+    marketValue: Math.abs(qty) * 112.55,
     updatedAt: Date.now(),
   };
 }
@@ -66,6 +68,13 @@ describe("OpenRiskPositionsMenu", () => {
       connectionState: "connected",
       positions: [position("AAPL", 10, 125.5), position("BBD", 1, -0.04)],
       ordersForActiveAccount: [],
+      summary: {
+        tags: {
+          NetLiquidation: { tag: "NetLiquidation", value: "100000" },
+          ExcessLiquidity: { tag: "ExcessLiquidity", value: "30000" },
+          MaintMarginReq: { tag: "MaintMarginReq", value: "45000" },
+        },
+      },
       pnl: { unrealizedPnL: 125.46, dailyPnL: 0, realizedPnL: 0, updatedAt: Date.now() },
       refresh,
     });
@@ -188,5 +197,69 @@ describe("OpenRiskPositionsMenu", () => {
     renderMenu(true);
     fireEvent.click(screen.getByTestId("open-risk-close-AAPL"));
     expect(screen.getByTestId("close-position-modal")).toBeInTheDocument();
+  });
+
+  it("shows economics line with notional and cost on each row", () => {
+    renderMenu(true);
+    const economics = screen.getByTestId("open-risk-economics-AAPL");
+    expect(economics).toHaveTextContent("Notional");
+    expect(economics).toHaveTextContent("Cost");
+    expect(economics).toHaveTextContent("Risk —");
+  });
+
+  it("shows account margin chip in popover header", () => {
+    renderMenu(true);
+    const chip = screen.getByTestId("open-risk-margin-chip");
+    expect(chip).toHaveTextContent("Excess");
+    expect(chip).toHaveTextContent("Maint");
+    expect(chip).toHaveTextContent("30,000");
+    expect(chip).toHaveTextContent("45,000");
+  });
+
+  it("shows open risk and R when stop is present", () => {
+    mockUseAccount.mockReturnValue({
+      activeTradingAccount: {
+        broker: "ib",
+        connectionId: "ib-paper",
+        accountId: "DUP586813",
+        environment: "paper",
+        availability: "online",
+      },
+      activeTradingAccountId: "DUP586813",
+      tradingEnvironment: "paper",
+      connectionState: "connected",
+      positions: [
+        {
+          contract: { symbol: "AAPL" },
+          position: 10,
+          avgCost: 150,
+          marketPrice: 155,
+          marketValue: 1550,
+          unrealizedPNL: 50,
+        },
+      ],
+      ordersForActiveAccount: [
+        {
+          orderId: 1,
+          symbol: "AAPL",
+          account: "DUP586813",
+          action: "SELL",
+          orderType: "STP",
+          auxPrice: 140,
+          status: "Submitted",
+        },
+      ],
+      summary: {
+        tags: {
+          NetLiquidation: { tag: "NetLiquidation", value: "100000" },
+        },
+      },
+      pnl: { unrealizedPnL: 50, dailyPnL: 0, realizedPnL: 0, updatedAt: Date.now() },
+      refresh,
+    });
+    renderMenu(true);
+    const economics = screen.getByTestId("open-risk-economics-AAPL");
+    expect(economics).toHaveTextContent("0.5R");
+    expect(economics).not.toHaveTextContent("Risk —");
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 import type { ChartHandle } from "./EdgeChart";
 import {
   copyDrawings,
@@ -22,6 +22,16 @@ import type { DrawingToolName } from "../chart-icons/toolGroups";
 import type { CellConfig, PriceScaleType, ToolbarPrefs, TrackedOverlay } from "@/lib/chartConfig";
 import { mergeChartSettings, patchChartSettings } from "@/lib/chartConfig";
 import { getCellCrosshair } from "@/lib/chart/cellCrosshairStore";
+import {
+  armPositionPlacementFromDefaultPolicy,
+  armPositionPlacementFromDefaultPolicySync,
+  isPositionDrawingTool,
+} from "@/lib/chart/armPositionPlacement";
+import { reshapePositionDrawingPoints } from "@/lib/chart/reshapePositionDrawing";
+import {
+  ensurePlaybookTemplatesCached,
+  isPlaybookTemplateCacheWarm,
+} from "@/lib/trading/playbookTemplateCache";
 
 type Params = {
   chartRef: RefObject<ChartHandle | null>;
@@ -105,12 +115,25 @@ export function useDrawingToolbarCommands({
 
   pasteDrawingsRef.current = handlePasteDrawings;
 
+  useEffect(() => {
+    void ensurePlaybookTemplatesCached();
+  }, []);
+
   const handleToolSelect = useCallback(
     (toolName: string) => {
       if (!isActive || captureActive) return;
       setActiveTool(toolName);
       if (toolName === "__cursor__") {
         chartRef.current?.stopDrawing();
+      } else if (isPositionDrawingTool(toolName)) {
+        if (isPlaybookTemplateCacheWarm()) {
+          armPositionPlacementFromDefaultPolicySync(toolName);
+          chartRef.current?.startDrawing(toolName);
+        } else {
+          void armPositionPlacementFromDefaultPolicy(toolName).then(() => {
+            chartRef.current?.startDrawing(toolName);
+          });
+        }
       } else {
         chartRef.current?.startDrawing(toolName);
       }
@@ -263,6 +286,16 @@ export function useDrawingToolbarCommands({
         patch: Parameters<NonNullable<typeof chartRef.current>["updateDrawingStyles"]>[1],
       ) => chartRef.current?.updateDrawingStyles(id, patch),
       restoreDrawings: (data: SerializedDrawing[]) => chartRef.current?.restoreDrawings(data),
+      reshapePositionDrawing: (id, levels) => {
+        const chart = chartRef.current;
+        if (!chart) return false;
+        const drawing = chart.serializeDrawings().find((item) => item.id === id);
+        if (!drawing) return false;
+        const next = reshapePositionDrawingPoints(drawing, levels);
+        if (!next) return false;
+        chart.updateDrawingPoints(id, next.points);
+        return true;
+      },
       canCaptureSnapshot: () => chartRef.current?.canCaptureSnapshot() ?? false,
       captureSnapshot: (opts?: SnapshotCaptureOptions) => {
         const chart = chartRef.current;

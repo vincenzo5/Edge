@@ -6,6 +6,7 @@ import {
   type PolicyTradeDraftPatch,
 } from "@/lib/risk/policy/applyPolicyToTradeDraft";
 import { resolvePolicyTicketBudget } from "@/lib/risk/policy/resolvePolicyTicketBudget";
+import { readDefaultPolicyForSide } from "@/lib/risk/policy/defaultPolicyPreference";
 import { recordLastUsedPolicy } from "@/lib/risk/policy/lastUsedPreference";
 import type { RiskSettings } from "@/lib/risk/riskSettings";
 import type { PositionOrderLevels } from "@/lib/trading/positionTradeSetup";
@@ -17,10 +18,14 @@ import {
   applyRiskPolicyToBinding,
   clearPlannedPolicyBinding,
 } from "@/lib/trading/tradingClient";
+import {
+  mergePlaybookTemplateLibrary,
+  setCachedPlaybookTemplates,
+} from "@/lib/trading/playbookTemplateCache";
 
 type TemplateLibraryResponse = {
-  presets: PlaybookTemplate[];
-  userTemplates: PlaybookTemplate[];
+  presets?: PlaybookTemplate[] | null;
+  userTemplates?: PlaybookTemplate[] | null;
 };
 
 async function fetchTemplates(): Promise<PlaybookTemplate[]> {
@@ -28,10 +33,28 @@ async function fetchTemplates(): Promise<PlaybookTemplate[]> {
     const res = await fetch("/api/trading/playbooks/templates");
     if (!res.ok) return PLAYBOOK_PRESET_LIST;
     const body = (await res.json()) as TemplateLibraryResponse;
-    return [...body.presets, ...body.userTemplates];
+    const merged = mergePlaybookTemplateLibrary(body);
+    if (merged.length === 0) return PLAYBOOK_PRESET_LIST;
+    setCachedPlaybookTemplates(merged);
+    return merged;
   } catch {
     return PLAYBOOK_PRESET_LIST;
   }
+}
+
+function notifyDrawingReshape(
+  planLevels: PositionOrderLevels | null | undefined,
+  patch: PolicyTradeDraftPatch,
+  onReshape: ((levels: DrawingLevelsReshape) => void) | undefined,
+): void {
+  if (!onReshape || !planLevels || patch.takeProfitPrice == null) return;
+  const target = patch.takeProfitPrice;
+  if (Math.abs(target - planLevels.target) < 1e-12) return;
+  onReshape({
+    entry: planLevels.entry,
+    stop: planLevels.stop,
+    target,
+  });
 }
 
 export type TradePolicyApplyBind = {
@@ -43,6 +66,12 @@ export type TradePolicyFormContext = {
   side: OrderSide;
   entryPrice: number | null;
   existingStop: number | null;
+};
+
+export type DrawingLevelsReshape = {
+  entry: number;
+  stop: number;
+  target: number;
 };
 
 export function useTradePolicyApply(args: {
@@ -61,12 +90,15 @@ export function useTradePolicyApply(args: {
   instances: PlaybookInstance[];
   onInstancesChange?: () => void;
   onDraftApplied?: (patch: PolicyTradeDraftPatch) => void;
+  onDrawingLevelsReshaped?: (levels: DrawingLevelsReshape) => void;
 }) {
   const [templates, setTemplates] = useState<PlaybookTemplate[]>(PLAYBOOK_PRESET_LIST);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draftPolicyId, setDraftPolicyId] = useState<string | null>(null);
   const prevBindRef = useRef<string | null>(null);
+  const prevSideRef = useRef<OrderSide>(args.side);
+  const userClearedSideRef = useRef<OrderSide | null>(null);
 
   const plannedInstance = useMemo(
     () =>
@@ -145,6 +177,7 @@ export function useTradePolicyApply(args: {
         onConflict: "swap",
       });
       recordLastUsedPolicy(args.planLevels.side, templateId);
+      notifyDrawingReshape(args.planLevels, patch, args.onDrawingLevelsReshaped);
       args.onDraftApplied?.(patch);
       await refresh();
     },
@@ -156,6 +189,7 @@ export function useTradePolicyApply(args: {
       args.environment,
       args.existingStop,
       args.onDraftApplied,
+      args.onDrawingLevelsReshaped,
       args.planLevels,
       args.side,
       args.symbol,
@@ -184,6 +218,7 @@ export function useTradePolicyApply(args: {
       setDraftPolicyId(template.id);
       recordLastUsedPolicy(args.side, template.id);
       setError(null);
+      notifyDrawingReshape(args.planLevels, patch, args.onDrawingLevelsReshaped);
       args.onDraftApplied?.(patch);
     },
     [
@@ -191,6 +226,7 @@ export function useTradePolicyApply(args: {
       args.entryQty,
       args.existingStop,
       args.onDraftApplied,
+      args.onDrawingLevelsReshaped,
       args.planLevels,
       args.side,
       resolveTemplateBudget,
@@ -203,6 +239,9 @@ export function useTradePolicyApply(args: {
 
       if (templateId == null) {
         setDraftPolicyId(null);
+        if (!isBound) {
+          userClearedSideRef.current = args.side;
+        }
         if (isBound && args.bind?.drawingId) {
           setLoading(true);
           try {
@@ -250,12 +289,46 @@ export function useTradePolicyApply(args: {
       applyDraft,
       args.bind?.drawingId,
       args.entryQty,
+      args.side,
       isBound,
       persistPolicy,
       refresh,
       templates,
     ],
   );
+
+  useEffect(() => {
+    if (prevSideRef.current === args.side) return;
+    prevSideRef.current = args.side;
+    if (plannedInstance?.templateId) return;
+    setDraftPolicyId(null);
+    userClearedSideRef.current = null;
+  }, [args.side, plannedInstance?.templateId]);
+
+  useEffect(() => {
+    if (plannedInstance?.templateId) return;
+    if (userClearedSideRef.current === args.side) return;
+    if (draftPolicyId != null) return;
+
+    const defaultId = readDefaultPolicyForSide(args.side);
+    if (!defaultId) return;
+
+    const template = templates.find(
+      (item) => item.id === defaultId && item.id.startsWith("user_"),
+    );
+    if (!template) return;
+
+    if (!Number.isFinite(args.entryQty) || args.entryQty <= 0) return;
+
+    applyDraft(template);
+  }, [
+    applyDraft,
+    args.entryQty,
+    args.side,
+    draftPolicyId,
+    plannedInstance?.templateId,
+    templates,
+  ]);
 
   useEffect(() => {
     const drawingId = args.bind?.drawingId ?? null;
@@ -291,7 +364,11 @@ export function useTradePolicyApply(args: {
   }, [plannedInstance?.templateId]);
 
   const userTemplates = useMemo(
-    () => templates.filter((item) => item.id.startsWith("user_")),
+    () =>
+      templates.filter(
+        (item): item is PlaybookTemplate =>
+          item != null && typeof item.id === "string" && item.id.startsWith("user_"),
+      ),
     [templates],
   );
 

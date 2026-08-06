@@ -38,6 +38,8 @@ export const PromotePlannedInstanceRequestSchema = z.object({
   liveConfirmation: z.string().optional(),
   unprotectedConfirm: z.boolean().optional(),
   takeProfitPrice: z.number().positive().optional(),
+  takeProfitQuantity: z.number().positive().optional(),
+  stopQuantity: z.number().positive().optional(),
 });
 
 export type PromotePlannedInstanceRequest = z.infer<typeof PromotePlannedInstanceRequestSchema>;

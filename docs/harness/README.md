@@ -56,7 +56,7 @@ Packs are ≤ ~80 lines: seed, load set, sensors, status prefix, security pins. 
 | OPS | [branches/OPS.md](./branches/OPS.md) |
 | HARNESS | [branches/HARNESS.md](./branches/HARNESS.md) |
 
-**BRAND** — side door only (no peer pack): `.cursor/skills/visual-assets/`, `.cursor/skills/visual-production/`, dashmotion.
+**BRAND** — side door only (no peer pack): `.cursor/skills/visual-assets/`, `.cursor/skills/visual-production/`, dashmotion; MCPs: LogoLoom, QuiverAI, **Higgsfield** (characters / logo concepts / marketing media — not production SVG).
 
 ---
 
@@ -91,12 +91,12 @@ Router picks **one primary** lane by changed invariant, then optional **secondar
 | Workspace, research desk, journal, screener, design system, persistence UX | APP | — |
 | Container deploy/rollback, readyz, HTTPS, env verify | OPS | — |
 | Harness rules, checklists, steward, closeout, PROJECT-STATUS | HARNESS | — |
-| Landing page brand kit, logos, mockups, animations | BRAND | — (side door via visual skills) |
+| Landing page brand kit, logos, characters, mockups, animations | BRAND | — (side door via visual skills + LogoLoom/QuiverAI/Higgsfield) |
 
 **Specialty side doors (router-owned):**
 
 - **OPS** — `.cursor/rules/deploy-local-prod.mdc`, `.cursor/skills/deploy-local-prod/`, `/deploy-prod` — OPS-forced; plan with `Branch: OPS` + [OPS.md](./branches/OPS.md)
-- **BRAND** — `.cursor/rules/visual-assets.mdc`, `.cursor/skills/visual-assets/`, `.cursor/skills/visual-production/`, dashmotion — side door only (no peer pack)
+- **BRAND** — `.cursor/rules/visual-assets.mdc`, `.cursor/skills/visual-assets/`, `.cursor/skills/visual-production/`, dashmotion; LogoLoom + QuiverAI + Higgsfield MCPs — side door only (no peer pack)
 - **HARNESS** — `.cursor/rules/harness-steward.mdc`, `npm run harness:closeout` — quarantined; harness **or** product per turn
 
 **Active Work naming:** new rows prefer lane prefixes (`DATA — …`, `OPS — …`, etc.). Roadmap track names (`Sub-harness tree — Phase N`) remain valid for HARNESS track work. No fail-closed lint on prefixes.

@@ -66,7 +66,14 @@ export async function syncManagePlaybookToJournal(
   const trade = findTradeForOrderRef(fills, trades, orderRef);
   if (!trade) return;
 
-  if (tradePlannedRiskIsEmpty(trade)) {
+  if (
+    tradePlannedRiskIsEmpty(
+      trade as {
+        plannedRiskMode?: string | null;
+        plannedRiskValue?: number | null;
+      },
+    )
+  ) {
     const derived = derivePlannedRiskFromPositionPlan(instance.positionPlan);
     if (derived) {
       await patchJournalTrade(userId, trade.id, {

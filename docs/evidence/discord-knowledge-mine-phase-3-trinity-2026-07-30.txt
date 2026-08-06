@@ -1,0 +1,76 @@
+# OPS — Discord knowledge mine — Phase 3 evidence (Trinity)
+# Date: 2026-07-30
+
+## Scope
+Full mine phase A → B → C for Trinity Trading Partners (1305230430458351626).
+Bootstrap + read_messages hours_back=168 max_messages=100 for 5 priority channels.
+Knowledge synthesis from digests. No Edge product code. No send_message calls.
+
+## MCP
+Command: user-discord mcp_auth
+Result: Successfully authenticated MCP server: user-discord
+
+Command: user-discord get_servers
+Result: Trinity Trading Partners (1305230430458351626) present in guild list
+
+Command: user-discord get_channels server_id=1305230430458351626
+Result: 22 text channels returned
+
+Channel count: 22
+
+Command: user-discord read_messages (x5 priority channels)
+Parameters: server_id=1305230430458351626, hours_back=168, max_messages=100
+
+Channel results:
+- ruleswelcome (1399164490368679940): 0 messages — gap: no messages in window (168h)
+- ttp-orientation (1513338424847896766): 1 message — channel-start marker only (limited)
+- educational-resources (1330289061470142475): 1 message — channel-start marker only (limited)
+- faq (1320638429654028302): 1 message — channel-start marker only (limited)
+- alerts (1305230620791672953): 32 messages captured (44 returned by MCP)
+
+send_message calls this session: 0
+
+## Classification
+Server class: Trading / research
+Rationale: options alert community; owner-traders; trim/rollup/lotto vocabulary
+
+## Priority channels (≤5)
+1. ruleswelcome (1399164490368679940) — rules / welcome / norms
+2. ttp-orientation (1513338424847896766) — onboarding / orientation
+3. educational-resources (1330289061470142475) — resources / docs
+4. faq (1320638429654028302) — help / Q&A
+5. alerts (1305230620791672953) — primary trade alerts signal
+
+## Local artifacts
+Root: /Users/vincentn/Knowledge/discord/
+Server dir: by-server/trinity-trading-partners--1305230430458351626/
+
+Command: ls -la /Users/vincentn/Knowledge/discord/by-server/trinity-trading-partners--1305230430458351626/
+Output:
+meta.json channels.json profile.md channels/ knowledge/ runs/
+
+Command: ls knowledge/ && ls knowledge/topics/
+Output:
+overview.md resources.md glossary.md people.md open-questions.md topics/
+options-alerts.md
+
+Command: find channels -name '*.json' then wc -l
+Output: 5
+
+Command: test -f meta.json channels.json profile.md knowledge/overview.md runs/2026-07-30.md
+Output: artifacts: OK
+
+## Index update
+Trinity Trading Partners: not_started → partial
+last_run: 2026-07-30
+phase: 3 Passing
+Active server: none — next Phase 4 WolvesOfWealth
+
+## Architecture review
+N/A — operator workflow + local filesystem only; no Edge runtime contracts.
+
+## App-level
+App-level: get_channels returned 22 channels; 5 raw JSON files; 35 messages captured; 6 knowledge files; _index status partial; send_message calls 0
+
+## Next
+Phase 4 — Mine WolvesOfWealth (783160857139740713)

@@ -1,0 +1,90 @@
+Step trail 0.25R break-even ratchet paper test
+Date: 2026-08-05
+Overall verdict: INCONCLUSIVE
+
+Reason
+------
+The run stopped at TC-PREFLIGHT. During regular trading hours, the paper sidecar
+returned a null AAPL price in six consecutive quote responses. The plan requires
+a current broker quote and says to abort before ordering when the quote check
+fails. No paper order was submitted.
+
+Execution variables
+-------------------
+ACCOUNT_ID=DUP586813
+POLICY_TEMPLATE_ID=user_b09503b5-ea9c-48de-953f-17f5da9e2501
+SYMBOL=AAPL
+QTY=1 (planned; not submitted)
+ENTRY_LIMIT=N/A
+ENTRY_ORDER_ID=N/A
+BROKER_AVG_FILL_PRICE=N/A
+LOCKED_ENTRY=N/A
+INITIAL_STOP=N/A
+R_UNIT=N/A
+BE_TRIGGER=N/A
+EXPECTED_STOP_AFTER=N/A
+STOP_ORDER_ID=N/A
+INSTANCE_ID=N/A
+QUOTE_AT_ARM=N/A
+SESSION_HIGH_AFTER_ARM=N/A
+OBSERVED_STOP_BEFORE=N/A
+OBSERVED_STOP_AFTER=N/A
+
+TC-PREFLIGHT: INCONCLUSIVE
+--------------------------
+- Time: 2026-08-05 13:17 EDT. This was inside the preferred 09:45-15:30 ET window.
+- App: http://127.0.0.1:3003 returned HTTP 200.
+- Sidecar: /health returned HTTP 200, ok=true, connected to the paper Gateway.
+- Account: Paper IB account DUP586813 was online. Environment lock was paper.
+- Auto-manage: paperEnabled=true, liveEnabled=false.
+- Kill state: paperKillActive=false, liveKillActive=false.
+- Environment: TWS_ENABLED=true; EDGE_TRADING_KILL_SWITCH unset;
+  EDGE_MANAGE_WORKER unset (enabled by default); DATABASE_URL, EDGE_AUTH_SECRET,
+  and TWS_SIDECAR_SECRET present. Secret values were not printed.
+- Positions: AAPL and F were flat.
+- Working orders: no working AAPL or F entry, stop, or target orders.
+- Active instances: no AAPL or F pending_fill, armed, or paused instance.
+- Policy: Step trail 0.25R existed with template id
+  user_b09503b5-ea9c-48de-953f-17f5da9e2501.
+- Focused sanity:
+  Test Files 3 passed (3); Tests 9 passed (9).
+- Startup gate: npm run check:startup stopped in lint:instructions on two
+  pre-existing harness issues: a missing 2026-08-05 Session Log entry and a
+  missing Task Contract for "APP - Journal trade stop risk".
+- Quote gate: six POST /quotes checks for AAPL returned price=null between
+  approximately 13:18:34 and 13:18:44 EDT. No qualifying bid, ask, or last was
+  available from the paper broker feed.
+
+TC-ATTACH: NOT RUN
+------------------
+No /api/trading/brackets request was made. Bracket-versus-naked proof is N/A.
+No entry or stop quantity reached the broker.
+
+TC-ARM: NOT RUN
+---------------
+No playbook instance was created or armed. LOCKED_ENTRY, R_UNIT, and BE_TRIGGER
+could not be computed.
+
+TC-BE-RATCHET: INCONCLUSIVE
+---------------------------
+No real qualifying quote was available, so the test could not observe a stop
+move. Stop before and after are both N/A. The cron watchdog was not called.
+
+TC-FLATTEN: PASS (no-op)
+------------------------
+The account was already flat. No protective order or instance required cleanup.
+
+TC-TEARDOWN: PASS
+-----------------
+- AAPL and F positions: flat.
+- AAPL and F working orders: none.
+- Active Step trail instances for AAPL or F: none.
+- paperKillActive=false.
+- liveEnabled=false.
+- No kill state was changed.
+
+Result definition
+-----------------
+INCONCLUSIVE matches the plan because broker quotes were unavailable during the
+preflight and no real broker stop modification could be observed. Safety gates
+remained intact. No product code was edited and no commit was created.

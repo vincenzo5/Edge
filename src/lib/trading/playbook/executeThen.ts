@@ -34,6 +34,11 @@ export type PlaybookMutationPort = {
     environment?: TradingEnvironment,
     liveConfirmation?: string,
   ): Promise<{ order: PlacedOrderResult["order"]; intent: unknown | null }>;
+  exitAndCleanup?(args: {
+    instanceId: string;
+    liveConfirmation?: string;
+    reason?: string;
+  }): Promise<unknown>;
 };
 
 export type ExecuteThenContext = {
@@ -59,6 +64,15 @@ function resolveLiveConfirmation(
 function resolveStopPrice(rule: PlaybookRule, instance: PlaybookInstance): number | null {
   if (rule.then.kind !== "modifyStop") return null;
   if (rule.then.breakEven) return instance.positionPlan.entry;
+  if (rule.then.stopRMultiple != null) {
+    const plan = instance.positionPlan;
+    const multiple = rule.then.stopRMultiple;
+    if (!(Number.isFinite(multiple) && multiple >= 0 && plan.rUnit > 0)) return null;
+    if (multiple === 0) return plan.entry;
+    return plan.side === "BUY"
+      ? plan.entry + multiple * plan.rUnit
+      : plan.entry - multiple * plan.rUnit;
+  }
   return rule.then.stopPrice ?? null;
 }
 
@@ -261,6 +275,43 @@ export async function executePlaybookThen(
   }
 
   if (rule.then.kind === "flatten") {
+    if ("exitAndCleanup" in tradingService && typeof tradingService.exitAndCleanup === "function") {
+      try {
+        await (
+          tradingService as PlaybookMutationPort & {
+            exitAndCleanup: (args: {
+              instanceId: string;
+              liveConfirmation?: string;
+              reason?: string;
+            }) => Promise<unknown>;
+          }
+        ).exitAndCleanup({
+          instanceId: instance.id,
+          liveConfirmation: resolveLiveConfirmation(plan.environment, liveConfirmation),
+          reason: "rule_flatten",
+        });
+        appendAudit({
+          action: "submit",
+          outcome: "success",
+          accountId: plan.accountId,
+          intentId: instance.orderIntentId,
+          orderRef: instance.orderRef,
+          detail: `playbook:${instance.id}:${rule.id}:flatten:cleanup`,
+        });
+        return { ok: true, stopOrderId: null };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        appendAudit({
+          action: "submit",
+          outcome: "failed",
+          accountId: plan.accountId,
+          intentId: instance.orderIntentId,
+          orderRef: instance.orderRef,
+          detail: `playbook:${instance.id}:${rule.id}:${message}`,
+        });
+        return { ok: false, error: message };
+      }
+    }
     const qty = filledQty;
     if (qty <= 0) {
       return { ok: false, error: "No remaining qty to flatten", skippedReason: "zero_qty" };

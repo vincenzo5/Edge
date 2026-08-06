@@ -1,0 +1,33 @@
+# LIVE — Risk policy data model — Phase 1 evidence
+# Date: 2026-07-31
+
+## Scope
+Zod / TS spine for RiskPolicyTemplate / Instance / ExitRule / EntrySchedule;
+structural completeness + integrity helpers; preset → incomplete Manage-only adapter;
+last-used-by-side preference stub. No persistence, store rename, or apply UX.
+
+## Delivered
+- src/lib/risk/policy/types.ts — Zod schemas (template, instance, ExitRule, EntrySchedule, ProtectBinding)
+- src/lib/risk/policy/fromPlaybook.ts — playbookRuleToExitRule, playbookTemplateToRiskPolicyTemplate
+- src/lib/risk/policy/completeness.ts — assessTemplateCompleteness, preset mappers
+- src/lib/risk/policy/integrity.ts — derivePolicyIntegrity, conflictPolicy re-exports
+- src/lib/risk/policy/lastUsedPreference.ts — edge:risk:lastUsedPolicyBySide:v1 stub
+- src/lib/risk/policy/index.ts — public barrel
+- src/lib/risk/policy/policy.test.ts, lastUsedPreference.test.ts
+- src/lib/risk/ARCHITECTURE.md — Phase 1 section
+- src/lib/trading/ARCHITECTURE.md — RiskPolicy spine note (types under risk/policy/)
+- docs/roadmaps/risk-policy-data-model-roadmap.md — Phase 1 Passing
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — types additive under src/lib/risk/policy/; PlaybookTemplateSchema and stores unchanged; conflictPolicy invariants wrapped; no src/lib → src/app imports.
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/policy/ src/lib/trading/playbook/presets.test.ts
+Output:
+Test Files  3 passed (3)
+Tests  20 passed (20)
+exit=0
+
+App-level: N/A — lib contracts only.

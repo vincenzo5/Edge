@@ -555,6 +555,38 @@ describe('ChartCanvas drawing pointer vs pan', () => {
 
     fireEvent.mouseUp(canvas);
   });
+
+  it('keeps a drawing drag active after canvas leave until document mouseup', () => {
+    const width = 800;
+    const height = 400;
+    const onDrawingPointer = vi.fn((event: { phase: string }) => event.phase === 'down');
+    const { container } = renderChartCanvas(width, height, {
+      drawingMode: 'navigate',
+      onDrawingPointer,
+    });
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('canvas not found');
+
+    const bodyX = plotBodyClientX(width);
+    const y = height / 2;
+    fireEvent.mouseDown(canvas, { clientX: bodyX, clientY: y });
+    fireEvent.mouseLeave(canvas, {
+      clientX: width + 10,
+      clientY: y,
+      relatedTarget: document.body,
+    });
+
+    expect(onDrawingPointer.mock.calls.map(([event]) => event.phase)).toEqual(['down']);
+
+    fireEvent.mouseMove(document, { clientX: width + 30, clientY: y });
+    fireEvent.mouseUp(document, { clientX: width + 30, clientY: y });
+
+    expect(onDrawingPointer.mock.calls.map(([event]) => event.phase)).toEqual([
+      'down',
+      'move',
+      'up',
+    ]);
+  });
 });
 
 describe('ChartCanvas event badge interaction', () => {

@@ -55,6 +55,8 @@ export type DrawingStyles = {
    * Stop and take-profit stay fixed. Explicit `false` pins entry.
    */
   stickEntryToLastPrice?: boolean;
+  /** Long/short Inputs: account risk percent used for sizing display. */
+  riskPercent?: number;
 };
 
 export type SerializedDrawing = {

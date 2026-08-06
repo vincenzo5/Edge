@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { parseJsonBody, persistenceError } from "@/lib/persistence/common";
+import {
+  isPersistenceDatabaseUnavailable,
+  parseJsonBody,
+  persistenceError,
+} from "@/lib/persistence/common";
 import { journalTradePatchSchema } from "@/lib/persistence/schemas/journal";
 import {
   getJournalTradeById,
@@ -43,6 +47,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       if (!trade) return persistenceError(404, "not_found", "Journal trade not found.");
       return NextResponse.json(trade);
     } catch (error) {
+      if (isPersistenceDatabaseUnavailable(error)) {
+        return persistenceError(
+          503,
+          "database_unavailable",
+          "Persistence database is unavailable. Local storage fallback remains active.",
+        );
+      }
       if (error instanceof Error) {
         return persistenceError(400, "validation", error.message);
       }

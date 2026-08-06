@@ -34,7 +34,6 @@ function renderRail(overrides: Partial<ComponentProps<typeof CopilotHistoryRail>
       onSwitchThread={vi.fn()}
       onDeleteThread={vi.fn()}
       onSearchOpen={vi.fn()}
-      onSeeAll={vi.fn()}
       onRenameThread={vi.fn()}
       {...overrides}
     />,
@@ -42,6 +41,83 @@ function renderRail(overrides: Partial<ComponentProps<typeof CopilotHistoryRail>
 }
 
 describe("CopilotHistoryRail", () => {
+  it("places Copilot title and collapse above search and new chat", () => {
+    renderRail();
+
+    const rail = screen.getByTestId("copilot-history-rail");
+    const title = screen.getByTestId("copilot-history-title");
+    const collapse = screen.getByTestId("copilot-history-collapse");
+    const search = screen.getByTestId("copilot-history-search");
+    const newChat = screen.getByTestId("copilot-history-new-chat");
+
+    expect(title).toHaveTextContent("Copilot");
+    expect(title.className).toContain("font-bold");
+    expect(title.className).toContain("px-3");
+    expect(title.parentElement?.className).toContain("justify-between");
+    expect(
+      title.compareDocumentPosition(collapse) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      collapse.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      search.compareDocumentPosition(newChat) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(rail.contains(title)).toBe(true);
+  });
+
+  it("styles search and new chat as transparent nav rows until hover", () => {
+    renderRail();
+
+    const search = screen.getByTestId("copilot-history-search");
+    const newChat = screen.getByTestId("copilot-history-new-chat");
+
+    expect(search).toHaveTextContent("Search");
+    expect(newChat).toHaveTextContent("New Chat");
+    expect(search.className).toContain("copilot-history-nav-btn");
+    expect(newChat.className).toContain("copilot-history-nav-btn");
+    expect(search.className).not.toContain("copilot-history-new-chat-btn");
+    expect(newChat.className).not.toContain("copilot-history-new-chat-btn");
+  });
+
+  it("uses pointer cursor on enabled history rail controls", () => {
+    renderRail();
+
+    const search = screen.getByTestId("copilot-history-search");
+    const newChat = screen.getByTestId("copilot-history-new-chat");
+    const collapse = screen.getByTestId("copilot-history-collapse");
+    const sectionToggle = screen.getByTestId("copilot-history-section-toggle");
+    const inactiveThread = screen.getByTestId(`copilot-history-thread-${THREAD_B}`);
+    const activeThread = screen.getByTestId(`copilot-history-thread-${THREAD_A}`);
+    const seeAll = screen.getByTestId("copilot-history-see-all");
+    const menu = screen.getByTestId(`copilot-history-menu-${THREAD_B}`);
+
+    for (const control of [search, newChat, collapse, sectionToggle, inactiveThread, seeAll, menu]) {
+      expect(control.className).toContain("cursor-pointer");
+    }
+    expect(search.className).toContain("disabled:cursor-not-allowed");
+    expect(activeThread.className).toContain("disabled:cursor-default");
+  });
+
+  it("styles thread rows with the same nav row treatment as search and new chat", () => {
+    renderRail();
+
+    const search = screen.getByTestId("copilot-history-search");
+    const activeThread = screen.getByTestId(`copilot-history-thread-${THREAD_A}`);
+    const inactiveThread = screen.getByTestId(`copilot-history-thread-${THREAD_B}`);
+    const activeRow = activeThread.parentElement;
+    const inactiveRow = inactiveThread.parentElement;
+
+    expect(activeRow?.className).toContain("copilot-history-thread-row");
+    expect(activeRow?.className).toContain("is-active");
+    expect(inactiveRow?.className).toContain("copilot-history-thread-row");
+    expect(inactiveRow?.className).not.toContain("is-active");
+    expect(activeThread.className).not.toContain("text-sm");
+    expect(inactiveThread.className).not.toContain("text-sm");
+    expect(search.className).toContain("copilot-history-nav-btn");
+    expect(getComputedStyle(search).minHeight).toBe(getComputedStyle(activeRow!).minHeight);
+  });
+
   it("lists threads newest first and highlights the active thread", () => {
     renderRail();
 
@@ -87,17 +163,32 @@ describe("CopilotHistoryRail", () => {
     expect(onRenameThread).toHaveBeenCalledWith(THREAD_A);
   });
 
-  it("opens search and see-all handlers", () => {
+  it("opens search from search and see-all rows", () => {
     const onSearchOpen = vi.fn();
-    const onSeeAll = vi.fn();
 
-    renderRail({ onSearchOpen, onSeeAll });
+    renderRail({ onSearchOpen });
 
     fireEvent.click(screen.getByTestId("copilot-history-search"));
     fireEvent.click(screen.getByTestId("copilot-history-see-all"));
 
-    expect(onSearchOpen).toHaveBeenCalledTimes(1);
-    expect(onSeeAll).toHaveBeenCalledTimes(1);
+    expect(onSearchOpen).toHaveBeenCalledTimes(2);
+  });
+
+  it("places muted see-all as the last element inside the history list", () => {
+    renderRail();
+
+    const list = screen.getByTestId("copilot-history-list");
+    const seeAll = screen.getByTestId("copilot-history-see-all");
+    const children = Array.from(list.children);
+
+    expect(list.contains(seeAll)).toBe(true);
+    expect(children[children.length - 1]).toBe(seeAll);
+    expect(seeAll).toHaveTextContent("See all");
+    expect(seeAll.className).toContain("text-[var(--edge-text-muted)]");
+    expect(seeAll.className).toContain("hover:text-[var(--edge-text-primary)]");
+    expect(seeAll.className).not.toContain("hover:bg-");
+    expect(seeAll.className).toContain("mt-0.5");
+    expect(seeAll.parentElement?.className).not.toContain("border-t");
   });
 
   it("collapses and expands the rail", () => {
@@ -108,5 +199,23 @@ describe("CopilotHistoryRail", () => {
 
     fireEvent.click(screen.getByTestId("copilot-history-expand"));
     expect(screen.getByTestId("copilot-history-rail")).toHaveAttribute("data-collapsed", "false");
+  });
+
+  it("collapses and expands the history section", () => {
+    renderRail();
+
+    const toggle = screen.getByTestId("copilot-history-section-toggle");
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("copilot-history-list")).toBeTruthy();
+    expect(screen.getByTestId("copilot-history-see-all")).toBeTruthy();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("copilot-history-list")).toBeNull();
+    expect(screen.queryByTestId("copilot-history-see-all")).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("copilot-history-list")).toBeTruthy();
   });
 });

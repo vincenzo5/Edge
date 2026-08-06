@@ -363,7 +363,7 @@ describe("orchestrateChat", () => {
       type: "tool-result",
       callId: "call_client",
       ok: true,
-      summary: expect.stringMatching(/client_only_read ok/i),
+      summary: "Done",
     });
   });
 });

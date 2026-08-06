@@ -14,7 +14,9 @@ export type PlaybookInstancePatch = {
   status?: PlaybookInstanceStatus;
   ruleRuntimes?: RuleRuntime[];
   stopOrderId?: number | null;
+  takeProfitOrderId?: number | null;
   filledQty?: number | null;
+  manageState?: PlaybookInstance["manageState"] | null;
   alertBundleId?: string | null;
   controlMode?: PlaybookInstance["controlMode"];
   offReason?: PlaybookInstance["offReason"];
@@ -91,6 +93,9 @@ function applyPlaybookPatch(
     ...(patch.stopOrderId !== undefined
       ? { stopOrderId: patch.stopOrderId ?? undefined }
       : {}),
+    ...(patch.takeProfitOrderId !== undefined
+      ? { takeProfitOrderId: patch.takeProfitOrderId ?? undefined }
+      : {}),
     ...(patch.filledQty !== undefined
       ? {
           filledQty:
@@ -98,6 +103,9 @@ function applyPlaybookPatch(
               ? patch.filledQty
               : undefined,
         }
+      : {}),
+    ...(patch.manageState !== undefined
+      ? { manageState: patch.manageState ?? undefined }
       : {}),
     ...(patch.alertBundleId !== undefined
       ? { alertBundleId: patch.alertBundleId ?? undefined }

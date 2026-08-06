@@ -65,12 +65,19 @@ Walk selected checklists internally. Every plan MUST include these sections in o
 
 ### 1. Intent Classification
 
+Open with a plain-language glance layer, then harness routing:
+
 ```md
 ## Intent Classification
+- What: <one plain-language line — what this plan builds for the user>
+- Roadmap: <one plain-language line — role in the larger capability (not "after N / before N+1")>
+- Why: <one plain-language line — benefit once this ships>
 - Branch: <ENGINE|DATA|LIVE|AGENT|APP|OPS|HARNESS> (secondary: <lane|none>)
 - Primary / Secondary. Arch: N/A (reason) | Required (reviewer, Pending|Passed|Blocked).
 - Assumptions: only non-obvious deltas (omit checklist file lists).
 ```
+
+**What / Roadmap / Why:** plain language only (no APIs, types, files). **Roadmap** = role in the bigger capability, not phase ordinals. Non-roadmap work still fills **Roadmap** with the product arc. Detail stays in Checklist Review / Proposed Plan.
 
 ### 2. Checklist Review
 
@@ -103,12 +110,15 @@ One line: Activate `<name>`; WIP=1; on Passing quote evidence; Task Contract / S
 
 ### Do not drop
 
-Architecture decision; focused command when code changes; app-level when UI+state / API+persist / AI+app cross; harness activate + quoted evidence; concrete files for non-trivial work.
+What / Roadmap / Why (plain language); architecture decision; focused command when code changes; app-level when UI+state / API+persist / AI+app cross; harness activate + quoted evidence; concrete files for non-trivial work.
 
 ### Compact example
 
 ```md
 ## Intent Classification
+- What: Let you rename and keep a short list of saved preferences in Settings.
+- Roadmap: App settings — this is the first cut that makes preferences persist across reloads; richer editing can come later.
+- Why: Changes you make in Settings stick after a refresh.
 - Branch: APP (secondary: none)
 - Primary: Feature. Arch: Required (self-review, Pending).
 

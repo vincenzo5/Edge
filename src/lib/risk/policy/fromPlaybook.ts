@@ -69,6 +69,7 @@ export function playbookTemplateToRiskPolicyTemplate(
     scope: "trade",
     budget: { kind: "inherits" },
     sizing: { kind: "inherits" },
+    ...(template.geometry ? { geometry: template.geometry } : {}),
     exits: template.rules.map(playbookRuleToExitRule),
     adds: [],
   });

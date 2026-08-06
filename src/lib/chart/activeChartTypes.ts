@@ -18,6 +18,10 @@ export type ActiveChartCommands = {
   getSelectedDrawingId: () => string | null;
   updateDrawingStyles: (id: string, patch: Partial<DrawingStyles>) => void;
   restoreDrawings: (data: SerializedDrawing[]) => void;
+  reshapePositionDrawing: (
+    id: string,
+    levels: { entry: number; stop: number; target: number },
+  ) => boolean;
   canCaptureSnapshot: () => boolean;
   captureSnapshot: (opts?: SnapshotCaptureOptions) => Promise<Blob>;
 };

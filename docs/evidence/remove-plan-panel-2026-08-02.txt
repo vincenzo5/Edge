@@ -1,0 +1,25 @@
+# LIVE — Remove Plan panel evidence
+# Date: 2026-08-02
+
+## Scope
+Remove floating chart Plan panel and chart-side policy apply wiring.
+Trade panel and risk-policy apply APIs unchanged for a future session.
+
+## Delivered
+- src/app/components/drawing/DrawingSelectionChrome.tsx — toolbar only; no Plan panel
+- src/app/components/chart-cell/ChartCellView.tsx — drop policyApply props
+- src/app/components/chart-cell/buildChartCellViewProps.ts — drop policyApply
+- src/app/components/chart-cell/ChartCell.tsx — drop policyApply wiring
+- Deleted PositionPlanPanel.tsx + PositionPlanPanel.test.tsx
+- src/app/components/drawing/drawingSelectionToolbarPosition.ts — remove plan panel positioning
+- src/app/components/risk/RiskPoliciesSection.tsx — apply blurb updated
+- src/lib/risk/ARCHITECTURE.md, src/lib/trading/ARCHITECTURE.md — Plan panel removed note
+- Kept usePositionPlanPolicy.ts for future Trade panel reuse
+
+## Focused
+Command:
+npm test -- --run src/app/components/drawing/drawingSelectionToolbarPosition.test.ts src/app/components/risk/RiskPoliciesSection.test.tsx src/app/components/chart-cell/overlayContextMenu.test.ts src/app/components/chart-cell/tradeSetupRiskBindSync.test.ts src/app/components/chart-cell/buildChartCellViewProps.test.ts
+
+Result:
+Test Files  4 passed (4)
+Tests  16 passed (16)

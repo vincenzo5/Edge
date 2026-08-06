@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { toClipboardItem } from '@edge/chart-core/drawingClone';
 import { useDrawingController } from './useDrawingController';
@@ -28,6 +28,35 @@ describe('useDrawingController pointer interactions', () => {
 
     expect(result.current.selectedDrawingId).toBe('d-trend');
     expect(result.current.drawingMode).toBe('edit');
+  });
+
+  it('opens settings on double-click hit without starting a drag', () => {
+    const existing = sampleTrendLine();
+    const onDrawingOpenSettings = vi.fn();
+    const deps = {
+      ...makeDrawingControllerDeps([existing]),
+      onDrawingOpenSettings,
+    };
+    const vp = deps.latestVpRef.current!;
+    const hit = findHitOnDrawing(existing, vp);
+    const { result } = renderHook(() => useDrawingController(deps));
+
+    act(() => {
+      result.current.handleDrawingPointer({
+        phase: 'down',
+        plotX: hit.x,
+        plotY: hit.y,
+        button: 0,
+        detail: 2,
+        paneId: 'price',
+      });
+    });
+
+    expect(result.current.selectedDrawingId).toBe('d-trend');
+    expect(onDrawingOpenSettings).toHaveBeenCalledTimes(1);
+    expect(onDrawingOpenSettings).toHaveBeenCalledWith('d-trend');
+    // Selected, not mid-drag — host can open the settings modal cleanly.
+    expect(result.current.drawingFsmRef.current.fsm).toBe('selected');
   });
 
   it('deselects when clicking empty space while selected', () => {

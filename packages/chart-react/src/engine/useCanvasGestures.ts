@@ -1,4 +1,4 @@
-import { useCallback, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import type {
   Candle,
   VisibleRange,
@@ -48,6 +48,11 @@ type DragCrosshairAnchor = {
   timestamp: number | null;
   price: number;
 };
+
+type MouseGestureEvent = Pick<
+  MouseEvent,
+  'button' | 'clientX' | 'clientY' | 'detail' | 'shiftKey' | 'target'
+>;
 
 type CanvasGesturesParams = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -176,8 +181,8 @@ export function useCanvasGestures({
   pendingHoverRef,
 }: CanvasGesturesParams) {
   const toPlotEvent = useCallback(
-    (e: React.MouseEvent, phase: DrawingPointerEvent['phase']): DrawingPointerEvent => {
-      const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
+    (e: MouseGestureEvent, phase: DrawingPointerEvent['phase']): DrawingPointerEvent => {
+      const rect = canvasRef.current?.getBoundingClientRect() ?? { left: 0, top: 0 };
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const plot = clampPlot(x, y, width, height, showTimeAxis);
@@ -191,7 +196,7 @@ export function useCanvasGestures({
         paneId,
       };
     },
-    [width, height, showTimeAxis, paneId],
+    [canvasRef, width, height, showTimeAxis, paneId],
   );
 
   const emitCrosshairMove = useCallback(
@@ -412,9 +417,9 @@ export function useCanvasGestures({
     applyCursor(x, y, true, e.shiftKey);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: MouseGestureEvent) => {
     if (!vpRef.current) return;
-    const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
+    const rect = canvasRef.current?.getBoundingClientRect() ?? { left: 0, top: 0 };
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     lastLocalRef.current = { x, y };
@@ -564,11 +569,11 @@ export function useCanvasGestures({
     }
   };
 
-  const handleMouseUp = (e?: React.MouseEvent) => {
+  const handleMouseUp = (e?: MouseGestureEvent) => {
     if (drawingDragRef.current && onDrawingPointerRef.current && e) {
       onDrawingPointerRef.current(toPlotEvent(e, 'up'));
     } else if (onDrawingPointerRef.current && e) {
-      const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
+      const rect = canvasRef.current?.getBoundingClientRect() ?? { left: 0, top: 0 };
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       if (isPlotBody(x, y)) {
@@ -645,6 +650,41 @@ export function useCanvasGestures({
     });
     if (consumed) e.stopPropagation();
   };
+
+  const handleMouseMoveRef = useRef(handleMouseMove);
+  const handleMouseUpRef = useRef(handleMouseUp);
+  handleMouseMoveRef.current = handleMouseMove;
+  handleMouseUpRef.current = handleMouseUp;
+
+  useEffect(() => {
+    const handleDocumentMouseMove = (event: MouseEvent) => {
+      if (
+        !drawingDragRef.current ||
+        !isDraggingRef.current ||
+        event.target === canvasRef.current
+      ) {
+        return;
+      }
+      handleMouseMoveRef.current(event);
+    };
+    const handleDocumentMouseUp = (event: MouseEvent) => {
+      if (
+        !drawingDragRef.current ||
+        !isDraggingRef.current ||
+        event.target === canvasRef.current
+      ) {
+        return;
+      }
+      handleMouseUpRef.current(event);
+    };
+
+    document.addEventListener('mousemove', handleDocumentMouseMove, true);
+    document.addEventListener('mouseup', handleDocumentMouseUp, true);
+    return () => {
+      document.removeEventListener('mousemove', handleDocumentMouseMove, true);
+      document.removeEventListener('mouseup', handleDocumentMouseUp, true);
+    };
+  }, [canvasRef, drawingDragRef, isDraggingRef]);
 
   return {
     handleMouseDown,

@@ -1,0 +1,21 @@
+Fix stop-only draft policy bracket attach — 2026-08-05
+
+Behavior: Unbound trade ticket + stop-only risk policy (Step trail 0.25R) now
+sets attachBracket when stop is enabled/priced even if takeProfitEnabled=false,
+submits via submitBracket with playbookTemplateId, omits takeProfitPrice.
+
+Files:
+- src/app/components/trading/TradeOrderForm.tsx
+- src/app/components/trading/TradeOrderForm.test.tsx
+
+Focused verify:
+Command: npm test -- --run src/app/components/trading/TradeOrderForm.test.tsx src/lib/risk/policy/applyPolicyToTradeDraft.test.ts src/lib/trading/bracketPlan.test.ts
+Output:
+ Test Files  3 passed (3)
+      Tests  48 passed (48)
+ Duration  1.96s
+exit=0
+
+Result: Passing
+Next: Re-run paper TC-01 on ticket UI (Step trail → Market Buy 1) and confirm
+playbook_instances row + STP child + no TP leg.

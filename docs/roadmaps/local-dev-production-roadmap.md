@@ -272,7 +272,7 @@ EDGE_CACHE_ENV=prod
 EDGE_REQUIRE_REDIS=1
 EDGE_API_KEY=<secret>
 EDGE_AUTH_SECRET=<secret>
-EDGE_ALLOW_OPEN_DEV_SESSION=0
+EDGE_ALLOW_OPEN_DEV_SESSION=1
 ```
 
 Production may add `EDGE_READYZ_REQUIRE_TWS=1` only when the broker sidecar is required for that deployment profile. Real values belong in ignored, permission-restricted local files.

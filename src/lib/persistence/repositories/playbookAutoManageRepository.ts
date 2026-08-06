@@ -17,6 +17,8 @@ function rowToSettings(row: typeof playbookAutoManage.$inferSelect): PlaybookAut
     paperEnabled: row.paperEnabled,
     liveEnabled: row.liveEnabled,
     liveConsentAt: row.liveConsentAt?.toISOString(),
+    paperKillActive: row.paperKillActive,
+    liveKillActive: row.liveKillActive,
   });
 }
 
@@ -49,6 +51,8 @@ export async function patchPlaybookAutoManageSettings(
       paperEnabled: next.paperEnabled,
       liveEnabled: next.liveEnabled,
       liveConsentAt: next.liveConsentAt ? new Date(next.liveConsentAt) : null,
+      paperKillActive: next.paperKillActive,
+      liveKillActive: next.liveKillActive,
       updatedAt: now,
     })
     .onConflictDoUpdate({
@@ -57,6 +61,8 @@ export async function patchPlaybookAutoManageSettings(
         paperEnabled: next.paperEnabled,
         liveEnabled: next.liveEnabled,
         liveConsentAt: next.liveConsentAt ? new Date(next.liveConsentAt) : null,
+        paperKillActive: next.paperKillActive,
+        liveKillActive: next.liveKillActive,
         updatedAt: now,
       },
     });

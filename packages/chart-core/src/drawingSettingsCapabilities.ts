@@ -36,12 +36,15 @@ export function dashPresetFromArray(dash: number[] | undefined): LineDashPreset 
 }
 
 export function drawingSettingsCapabilities(toolName: string) {
+  const isPosition = POSITION_TOOLS.has(toolName);
   return {
     showLine: LINE_TOOLS.has(toolName) || FILL_TOOLS.has(toolName) || toolName === 'annotation',
     showDash: LINE_TOOLS.has(toolName) || FILL_TOOLS.has(toolName),
     showExtend: EXTEND_TOOLS.has(toolName),
     showFill: FILL_TOOLS.has(toolName),
     showText: TEXT_TOOLS.has(toolName),
-    showStickEntryToLastPrice: POSITION_TOOLS.has(toolName),
+    showStickEntryToLastPrice: isPosition,
+    /** Long/short Inputs tab: risk, entry, profit/stop levels. */
+    showPositionInputs: isPosition,
   };
 }

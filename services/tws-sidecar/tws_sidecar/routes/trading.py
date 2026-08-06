@@ -13,6 +13,7 @@ from fastapi import HTTPException, Query
 from tws_sidecar import config
 from tws_sidecar.mapping import _map_order
 from tws_sidecar.runtime.connections import _get_ib, _get_ib_for_connection
+from tws_sidecar.runtime.state import *  # noqa: F403 — route handlers use shared account caches
 from tws_sidecar.runtime.worker import run_on_ib_thread
 from tws_sidecar.trading.guards import _require_trading_enabled, _validate_account_id
 from tws_sidecar.trading.models import BracketOrderRequest, ModifyOrderRequest, PlaceOrderRequest, ProtectiveOcoRequest
@@ -53,6 +54,8 @@ def trading_place_order(body: PlaceOrderRequest) -> dict[str, Any]:
                 order_ref=order_ref,
                 tif=body.tif,
                 outside_rth=body.outsideRth,
+                all_or_none=body.allOrNone,
+                use_price_mgmt_algo=body.usePriceMgmtAlgo,
             )
             trade = ib.placeOrder(contract, order)
             ib.sleep(0.5)

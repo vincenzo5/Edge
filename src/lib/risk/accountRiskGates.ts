@@ -1,4 +1,4 @@
-import type { AccountPnL } from "@/lib/marketData/contracts/brokerage";
+import type { AccountPnL, AccountSummary } from "@/lib/marketData/contracts/brokerage";
 import { derivePlannedRiskFromPositionPlan } from "@/lib/trading/playbook/journalRiskHandoff";
 import type { PlaybookInstance } from "@/lib/trading/playbook/types";
 import type { OrderDraft } from "@/lib/trading/types";
@@ -172,7 +172,7 @@ export function accountGateBlockReasons(
 
 export function buildAccountGateEvaluationInput(args: {
   settings: RiskSettings;
-  accountSummary: { tags: Record<string, { tag: string; value: string }> } | null;
+  accountSummary: AccountSummary | null;
   pnl: AccountPnL | null | undefined;
   playbookInstances: PlaybookInstance[];
   openPositionCount: number;

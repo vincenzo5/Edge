@@ -141,14 +141,16 @@ describe("TradeSidebarPanel", () => {
   it("defaults market entry to quote last price", async () => {
     mockBinding.symbol = "AAPL";
     render(<TradeSidebarPanel />);
-    expect(await screen.findByTestId("trade-entry-display")).toHaveTextContent("~150.00");
+    expect(await screen.findByTestId("trade-last-price-pill")).toHaveTextContent("150.00");
+    expect(screen.queryByTestId("trade-entry-display")).not.toBeInTheDocument();
   });
 
   it("falls back to chart last candle close when quote is missing", async () => {
     mockQuote = null;
     mockBinding.symbol = "AAPL";
     render(<TradeSidebarPanel />);
-    expect(await screen.findByTestId("trade-entry-display")).toHaveTextContent("~148.50");
+    expect(await screen.findByTestId("trade-last-price-pill")).toHaveTextContent("148.50");
+    expect(screen.queryByTestId("trade-entry-display")).not.toBeInTheDocument();
   });
 
   it("shows policy picker on unbound chart trade ticket", async () => {

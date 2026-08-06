@@ -134,7 +134,7 @@ After this track:
 
 | ID | Work |
 |----|------|
-| H1 | When persistence is enabled, require `EDGE_DEV_PASSPHRASE` (or documented `EDGE_ALLOW_OPEN_DEV_SESSION=1` only in development). Remove silent `ensurePersistenceSession` bootstrap in deploy profiles. |
+| H1 | When persistence is enabled, require `EDGE_DEV_PASSPHRASE` (or documented `EDGE_ALLOW_OPEN_DEV_SESSION=1` only in development). Remove silent `ensurePersistenceSession` bootstrap in deploy profiles. **Superseded for single-user local container prod (2026-07-30):** local prod requires `EDGE_ALLOW_OPEN_DEV_SESSION=1` and forbids `EDGE_DEV_PASSPHRASE`; deploy preflight enforces both. |
 | H3 | Gate `GET`/`POST` `/api/dev/local-errors` behind API key, passphrase, or `NODE_ENV !== "production"` + localhost peer. Prefer 404 in production builds. |
 | H4 | Require `EDGE_CRON_SECRET` (Bearer / header) for all `/api/cron/*`; refuse with 401 when unset outside explicit dev-open mode. Do not map anonymous cron to the shared user. |
 

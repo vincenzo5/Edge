@@ -20,12 +20,17 @@ import {
   syncPlannedInstance,
 } from "@/lib/trading/tradingClient";
 import { PLAYBOOK_PRESET_LIST } from "@/lib/trading/playbook/presets";
-import type { PlaybookInstance, PlaybookTemplate } from "@/lib/trading/playbook/types";
+import { mergePlaybookTemplateLibrary } from "@/lib/trading/playbookTemplateCache";
+import type {
+  PlaybookInstance,
+  PlaybookInstanceWithPolicy,
+  PlaybookTemplate,
+} from "@/lib/trading/playbook/types";
 import type { TradingEnvironment } from "@/lib/trading/types";
 
 type TemplateLibraryResponse = {
-  presets: PlaybookTemplate[];
-  userTemplates: PlaybookTemplate[];
+  presets?: PlaybookTemplate[] | null;
+  userTemplates?: PlaybookTemplate[] | null;
 };
 
 async function fetchTemplates(): Promise<PlaybookTemplate[]> {
@@ -33,7 +38,8 @@ async function fetchTemplates(): Promise<PlaybookTemplate[]> {
     const res = await fetch("/api/trading/playbooks/templates");
     if (!res.ok) return PLAYBOOK_PRESET_LIST;
     const body = (await res.json()) as TemplateLibraryResponse;
-    return [...body.presets, ...body.userTemplates];
+    const merged = mergePlaybookTemplateLibrary(body);
+    return merged.length > 0 ? merged : PLAYBOOK_PRESET_LIST;
   } catch {
     return PLAYBOOK_PRESET_LIST;
   }
@@ -70,16 +76,16 @@ export function usePositionPlanPolicy(args: {
     [args.drawing, args.dollarRisk],
   );
 
-  const plannedInstance = useMemo(
-    () =>
+  const plannedInstance = useMemo((): PlaybookInstanceWithPolicy | null => {
+    const row =
       args.instances.find(
         (item) =>
           item.status === "planned" &&
           item.bindingRef?.kind === "drawing" &&
           item.bindingRef.id === args.drawing.id,
-      ) ?? null,
-    [args.drawing.id, args.instances],
-  );
+      ) ?? null;
+    return row as PlaybookInstanceWithPolicy | null;
+  }, [args.drawing.id, args.instances]);
 
   const selectedTemplateId = plannedInstance?.templateId ?? null;
 
@@ -96,12 +102,17 @@ export function usePositionPlanPolicy(args: {
         setError("Select an account and complete plan geometry first.");
         return;
       }
+      const drawingId = args.drawing.id;
+      if (!drawingId) {
+        setError("Drawing id is missing.");
+        return;
+      }
       setLoading(true);
       try {
         if (templateId == null) {
           await clearPlannedPolicyBinding({
             kind: "drawing",
-            id: args.drawing.id,
+            id: drawingId,
           });
           await refresh();
           return;
@@ -117,7 +128,7 @@ export function usePositionPlanPolicy(args: {
         await applyRiskPolicyToBinding({
           templateId,
           positionPlan,
-          bindingRef: { kind: "drawing", id: args.drawing.id },
+          bindingRef: { kind: "drawing", id: drawingId },
           onConflict: "swap",
         });
         recordLastUsedPolicy(preview.side, templateId);
@@ -161,8 +172,10 @@ export function usePositionPlanPolicy(args: {
   useEffect(() => {
     if (!preview || !args.accountId.trim()) return;
     if (plannedInstance) return;
-    if (autoAppliedRef.current === args.drawing.id) return;
-    autoAppliedRef.current = args.drawing.id;
+    const drawingId = args.drawing.id;
+    if (!drawingId) return;
+    if (autoAppliedRef.current === drawingId) return;
+    autoAppliedRef.current = drawingId;
     const templateId = resolveAutoApplyTemplateId(preview.side);
     void applyPolicy(templateId);
   }, [applyPolicy, args.accountId, args.drawing.id, plannedInstance, preview]);

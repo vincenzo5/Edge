@@ -80,7 +80,9 @@ The app **is** the workspace: `/workspace` is the primary shell (not a peer modu
 
 **Exit:** **Done** or **Escape** commits the draft and returns to Use mode (no separate Save button or confirm dialog).
 
-**App context menu:** **Control + right-click** (`ctrlKey && button === 2`) anywhere on the app shell opens a global menu: Edit layout, Order account, Market data, Settings. Over a workspace tile (`data-workspace-tile-id`), a **Change panel** section at the bottom lists Chart / Screener / Journal / Scripts inline (no submenu). Plain right-click keeps chart-scoped menus. In **Use** mode, panel swaps persist immediately; in **Edit** mode they mutate the draft until **Done**.
+**Context menus:**
+- **App header** (`data-app-context-menu-surface`): plain or Control+right-click opens the application menu (Edit layout, Order account, Market data, Settings) via `AppContextMenuProvider`.
+- **Workspace tile** (`data-workspace-tile-id`): Control+right-click opens **Change panel** (Chart / Screener / Journal / Scripts / Alerts / Copilot / Expectancy) via `WorkspacePanelContextMenu` (mounted inside `AppWorkspaceProvider`). Plain right-click keeps chart/module-scoped menus. In **Use** mode, panel swaps persist immediately; in **Edit** mode they mutate the draft until **Done**.
 
 ## App header (module shell)
 

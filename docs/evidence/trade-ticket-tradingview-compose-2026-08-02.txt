@@ -1,0 +1,26 @@
+# LIVE — Trade ticket TradingView compose evidence
+# Date: 2026-08-02
+
+## Scope
+TradingView-style compose: Buy|last|Sell toggle, order type underline tabs (Market/Limit/Stop/Stop Limit),
+type-dependent price fields, linked editable TP/SL (Offset/Price/USD/%) seeded from drawing,
+Review above summarizing CTA (BUY 1 SYM @ price TYPE), preview→confirm unchanged.
+
+## Delivered
+- src/app/components/trading/BuySellToggle.tsx (+ test)
+- src/app/components/trading/LinkedProtectLevelsEditor.tsx
+- src/lib/trading/linkedProtectLevels.ts (+ test)
+- src/lib/trading/summarizeOrderCta.ts (+ test)
+- src/lib/trading/bracketPlan.ts — buildBracketPlanWithPrices + override prices
+- src/app/components/trading/TradeOrderForm.tsx (+ test) — TV layout rewire
+- src/app/components/trading/TradeTicketModal.test.tsx — summarizing CTA
+- src/lib/trading/ARCHITECTURE.md — ticket layout sync
+
+## Verification
+Command:
+npm test -- --run src/lib/trading/linkedProtectLevels.test.ts src/lib/trading/summarizeOrderCta.test.ts src/app/components/trading/BuySellToggle.test.tsx src/app/components/trading/TradeOrderForm.test.tsx src/app/components/trading/TradeOrderImpact.test.tsx src/app/components/trading/TradeTicketModal.test.tsx src/app/components/sidebar/panels/TradeSidebarPanel.test.tsx src/lib/trading/bracketPlan.test.ts
+
+Result:
+ Test Files  8 passed (8)
+ Tests  44 passed (44)
+exit=0

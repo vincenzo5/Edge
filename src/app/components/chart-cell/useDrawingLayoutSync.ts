@@ -143,22 +143,23 @@ export function useDrawingLayoutSync({
     const sameGeneration = chartEngineGeneration === lastRestoreGenerationRef.current;
     if (configRevision === lastRestoreRevisionRef.current && sameGeneration) return;
 
-    const current = chartRef.current?.serializeDrawings();
     const targetRevision = chartRef.current?.getDrawingRevision?.() ?? -1;
+    // Local persist echo: chart already at the revision we just wrote — skip restore
+    // so DrawingStore undo/redo history survives the config round-trip.
     if (
-      current &&
-      configRevision === lastRestoreRevisionRef.current &&
-      targetRevision === lastAppliedDrawingRevisionRef.current &&
-      sameGeneration
+      sameGeneration &&
+      targetRevision >= 0 &&
+      targetRevision === lastAppliedDrawingRevisionRef.current
     ) {
+      lastRestoreRevisionRef.current = configRevision;
       return;
     }
 
     lastRestoreRevisionRef.current = configRevision;
     lastRestoreGenerationRef.current = chartEngineGeneration;
-    lastAppliedDrawingRevisionRef.current = chartRef.current?.getDrawingRevision?.() ?? -1;
     suppressDrawingPersistRef.current = true;
     chartRef.current?.restoreDrawings?.(config.drawings ?? []);
+    lastAppliedDrawingRevisionRef.current = chartRef.current?.getDrawingRevision?.() ?? -1;
   }, [config.drawings, configRevision, chartRef, chartEngineGeneration]);
 
   // Persist drawings to config when overlays change.

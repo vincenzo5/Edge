@@ -141,6 +141,21 @@ describe("EdgeSelect", () => {
     expect(className).not.toContain("min-w-[8rem]");
   });
 
+  it("renders menu above viewport modal z-index", () => {
+    render(
+      <EdgeSelect
+        testId="period-select"
+        value="all"
+        options={[...OPTIONS]}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("period-select"));
+    const menu = screen.getByRole("menu");
+    expect(menu.className).toContain("z-[1400]");
+  });
+
   it("does not open when disabled", () => {
     render(
       <EdgeSelect

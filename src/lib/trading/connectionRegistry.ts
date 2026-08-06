@@ -72,6 +72,18 @@ export function listIbConnections(): ConnectionDescriptor[] {
   return IB_CONNECTION_DEFS.map(buildConnection);
 }
 
+/**
+ * Manage evaluation quotes always use the live IB Gateway socket. When both
+ * Gateways run, IBKR grants market data to one session only — paper quotes
+ * are typically null. Order, account, and stop-modify paths stay on the
+ * instance environment (paper vs live).
+ */
+export function resolveManageQuoteConnectionId(
+  _environment: TradingEnvironment,
+): string {
+  return IB_LIVE_CONNECTION_ID;
+}
+
 export function resolveConnectionByEnvironment(
   environment: TradingEnvironment,
 ): ConnectionDescriptor {

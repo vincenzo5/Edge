@@ -10,7 +10,10 @@ import {
   withStickEntryDisabled,
 } from '@edge/chart-core';
 import { plotToPoint, pointToPlot, translateDrawingPoints, resolveMagnetDragPlot } from '@edge/chart-core/drawingCoords';
-import { resolveMagnetDragAxisForCp } from '@edge/chart-core/drawings/positionGeometry';
+import {
+  isPositionDrawingName,
+  resolveMagnetDragAxisForCp,
+} from '@edge/chart-core/drawings/positionGeometry';
 import { scheduleDragReplace, flushDragReplace } from './drawingDragCoalesce';
 import {
   type DrawingControllerState,
@@ -57,6 +60,8 @@ export type DrawingPointerContext = {
   placingAnchorRef: { current: { plotX: number; plotY: number } | null };
   syncDrawingState: (next: DrawingControllerState) => void;
   notifySelectionChange: (id: string | null) => void;
+  /** Double-click on an existing drawing — host opens settings for that id. */
+  onDrawingOpenSettings?: (id: string) => void;
   addCommittedDrawing: (drawing: SerializedDrawing) => string;
   stampPaneId: (draft: SerializedDrawing, paneId: string) => SerializedDrawing;
   finishAfterCommit: (state: DrawingControllerState) => DrawingControllerState;
@@ -84,6 +89,7 @@ export function applyDrawingPointerTransition(
     placingAnchorRef,
     syncDrawingState,
     notifySelectionChange,
+    onDrawingOpenSettings,
     addCommittedDrawing,
     stampPaneId,
     finishAfterCommit,
@@ -120,17 +126,19 @@ export function applyDrawingPointerTransition(
     if (!start) return points.map((p) => ({ ...p }));
     const plugin = drawing ? getPluginForTool(drawing.name) : undefined;
     const anchorIndex = plugin?.magnetAnchorIndex?.(drawing!) ?? 0;
+    const translateOptions = {
+      ...plotOpts,
+      magnet: magnetEnabledRef.current,
+      magnetAnchorIndex: anchorIndex,
+      preserveTimeSpan: drawing ? isPositionDrawingName(drawing.name) : false,
+    };
     return translateDrawingPoints(
       points,
       { x: start.plotX, y: start.plotY },
       { x: event.plotX, y: event.plotY },
       vp,
       candlesRef.current,
-      {
-        ...plotOpts,
-        magnet: magnetEnabledRef.current,
-        magnetAnchorIndex: anchorIndex,
-      },
+      translateOptions,
     );
   };
   const paneDrawings = drawingsRef.current.filter((d) => (d.paneId ?? 'price') === paneId);
@@ -231,6 +239,28 @@ export function applyDrawingPointerTransition(
             return true;
           }
         }
+      }
+    }
+
+    // Double-click an existing drawing → select + open settings (no drag).
+    if (
+      event.detail === 2 &&
+      (state.fsm === 'idle' || state.fsm === 'selected' || state.fsm === 'tool_armed')
+    ) {
+      const settingsHitId = hitTestAll(
+        event.plotX,
+        event.plotY,
+        paneDrawings,
+        vp,
+        candlesRef.current,
+        showTimeAxis,
+      );
+      if (settingsHitId) {
+        state = selectDrawingState(state, settingsHitId);
+        syncDrawingState(state);
+        notifySelectionChange(settingsHitId);
+        onDrawingOpenSettings?.(settingsHitId);
+        return true;
       }
     }
 

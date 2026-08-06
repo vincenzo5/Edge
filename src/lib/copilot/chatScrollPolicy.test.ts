@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { isNearBottom, NEAR_BOTTOM_THRESHOLD_PX } from "./chatScrollPolicy";
+import {
+  distanceFromBottom,
+  isNearBottom,
+  NEAR_BOTTOM_THRESHOLD_PX,
+} from "./chatScrollPolicy";
 
 function mockScrollElement(options: {
   scrollHeight: number;
@@ -17,6 +21,15 @@ function mockScrollElement(options: {
 describe("chatScrollPolicy", () => {
   it("exports the frozen near-bottom threshold", () => {
     expect(NEAR_BOTTOM_THRESHOLD_PX).toBe(96);
+  });
+
+  it("returns distance from the bottom edge", () => {
+    const element = mockScrollElement({
+      scrollHeight: 1000,
+      scrollTop: 400,
+      clientHeight: 96,
+    });
+    expect(distanceFromBottom(element)).toBe(504);
   });
 
   it("returns true when within threshold of bottom", () => {

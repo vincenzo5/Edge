@@ -98,11 +98,57 @@ function isTrailOrder(order: AccountOrder): boolean {
 }
 
 function resolveStopPrice(order: AccountOrder): number | null {
+  if (isTrailOrder(order)) return null;
   const aux = order.auxPrice;
   if (aux != null && Number.isFinite(aux)) return aux;
   const lmt = order.lmtPrice;
   if (lmt != null && Number.isFinite(lmt) && isProtectiveStopOrder(order)) return lmt;
   return null;
+}
+
+export type OpenPositionProtectStop = {
+  kind: "stop" | "trail" | null;
+  stopPrice: number | null;
+  trailAmount: number | null;
+};
+
+/** Resolve resting protect stop for open-position economics (stop price or trail amount). */
+export function resolveOpenPositionProtectStop(args: {
+  position: AccountPosition;
+  orders: AccountOrder[];
+  manageInstance?: PlaybookInstance | null;
+}): OpenPositionProtectStop {
+  const symbol = normalizeSymbol(args.position.contract.symbol);
+  const qty = args.position.position ?? 0;
+  const accountId = args.position.account?.trim() ?? null;
+  const closingAction = closingActionForPosition(qty);
+
+  const stopOrder = resolvePrimaryStopOrder({
+    orders: args.orders,
+    symbol,
+    accountId,
+    closingAction,
+    manageInstance: args.manageInstance,
+  });
+
+  if (!stopOrder) {
+    return { kind: null, stopPrice: null, trailAmount: null };
+  }
+
+  if (isTrailOrder(stopOrder)) {
+    const trailAmount = stopOrder.auxPrice;
+    return {
+      kind: "trail",
+      stopPrice: null,
+      trailAmount: trailAmount != null && Number.isFinite(trailAmount) ? trailAmount : null,
+    };
+  }
+
+  return {
+    kind: "stop",
+    stopPrice: resolveStopPrice(stopOrder),
+    trailAmount: null,
+  };
 }
 
 export function formatProtectOrderLabel(stopOrder: AccountOrder, takeProfitOrder?: AccountOrder | null): string {
@@ -220,18 +266,19 @@ export function summarizeOpenPositionExits(args: {
     ? formatProtectOrderLabel(stopOrder, takeProfitOrder)
     : "Unprotected";
 
-  const manageAttached = args.manageInstance != null;
+  const manageInstance = args.manageInstance;
+  const manageAttached = manageInstance != null;
   const manageLabel = manageAttached
-    ? formatPlaybookManageLabel(args.manageInstance)
+    ? formatPlaybookManageLabel(manageInstance)
     : "Off";
   const lastPrice = args.lastPrice ?? args.position.marketPrice ?? null;
   const nextDistance =
-    manageAttached && args.manageInstance
-      ? formatNextManageDistance(args.manageInstance, lastPrice)
+    manageAttached
+      ? formatNextManageDistance(manageInstance, lastPrice)
       : null;
   const nextActionPreview =
-    manageAttached && args.manageInstance
-      ? formatNextManageActionPreview(args.manageInstance)
+    manageAttached
+      ? formatNextManageActionPreview(manageInstance)
       : null;
   const completedLabels =
     manageAttached && args.manageInstance

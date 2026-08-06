@@ -1,0 +1,32 @@
+# LIVE — Trade ticket order surface evidence
+# Date: 2026-08-04
+
+## Scope
+Expand Trade ticket with API-backed order types (Trail, Trail Lmt, MOC, LOC), TIF (IOC, OPG), All-or-None, and Price Management Algo — domain through TWS sidecar. No Overnight TIF.
+
+## Delivered
+- src/lib/trading/types.ts — MOC/LOC, IOC/OPG, allOrNone, usePriceMgmtAlgo
+- src/lib/trading/orderTicketOptions.ts — TIF×type allowlists, bracket/PMA helpers
+- services/tws-sidecar/tws_sidecar/trading/{models,orders}.py — place mapping
+- src/lib/trading/adapters/ibTws.ts — forward AON/PMA; what-if coerces MOC/LOC/TRAIL→MKT
+- src/lib/ai/tools/trading.ts — preview_order schema aligned
+- src/app/components/trading/TradeOrderForm.tsx — tabs, fields, session row
+
+## Focused
+Command:
+npm test -- --run src/lib/trading/orderTicketOptions.test.ts src/lib/trading/validateOrder.test.ts src/lib/trading/adapters/ibTws.test.ts src/lib/trading/summarizeOrderCta.test.ts src/app/components/trading/TradeOrderForm.test.tsx src/lib/ai/tools/trading.test.ts
+
+Result:
+Test Files  6 passed (6)
+Tests  73 passed (73)
+exit=0
+
+Command:
+cd services/tws-sidecar && python3 -m pytest test_main.py -k "build_stock_order or PlaceOrder" -q
+
+Result:
+8 passed, 49 deselected
+exit=0
+
+## App-level (paper Gateway)
+Deferred — IB Gateway paper not exercised in this session. Sidecar unit tests verify Order.allOrNone, usePriceMgmtAlgo, MOC/LOC orderType, and IOC tif mapping. Manual paper round-trip when Gateway is up: place TRAIL $, MOC, LOC, IOC LMT, AON LMT; confirm PMA accept/reject on far LMT.

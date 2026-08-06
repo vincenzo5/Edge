@@ -25,18 +25,30 @@ const trade: JournalTradeResponse = {
 };
 
 describe("journalTradeDetailTitle", () => {
-  it("builds slide-over title and humanized subtitle", () => {
-    expect(journalTradeDetailTitleText(trade)).toBe("AAPL · STK · closed");
-    expect(journalTradeDetailSubtitle(trade)).toContain("Opened");
-    expect(journalTradeDetailSubtitle(trade)).toContain("Closed");
-    expect(journalTradeDetailSubtitle(trade)).toContain("ET");
+  it("builds slide-over title and date-only subtitle", () => {
+    expect(journalTradeDetailTitleText(trade)).toBe("AAPL · WIN · $100.00");
+    expect(journalTradeDetailSubtitle(trade)).toBe("Opened 07/01/2026 · Closed 07/01/2026");
+    expect(journalTradeDetailSubtitle(trade)).not.toContain("ET");
     expect(journalTradeDetailTitle(trade)).toEqual({
-      title: "AAPL · STK · closed",
+      title: "AAPL · WIN · $100.00",
       subtitle: journalTradeDetailSubtitle(trade),
     });
   });
 
-  it("builds aria label for slide-over", () => {
-    expect(journalTradeDetailAriaLabel(trade)).toBe("AAPL STK closed trade");
+  it("builds aria label with outcome and pnl for closed trades", () => {
+    expect(journalTradeDetailAriaLabel(trade)).toBe("AAPL WIN $100.00 long trade");
+    expect(journalTradeDetailAriaLabel({ ...trade, direction: "short", netPnL: -50 })).toBe(
+      "AAPL LOSS -$50.00 short trade",
+    );
+  });
+
+  it("omits closed date when trade is still open", () => {
+    expect(
+      journalTradeDetailSubtitle({
+        ...trade,
+        status: "open",
+        closedAt: null,
+      }),
+    ).toBe("Opened 07/01/2026");
   });
 });

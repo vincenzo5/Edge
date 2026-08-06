@@ -1,0 +1,112 @@
+Step trail 0.25R — paper functional recheck — 2026-08-05
+Tester: Cursor agent (execute-from-plan)
+Environment: paper / http://127.0.0.1:3003
+Account: DUP586813
+Policy template id: user_e9c90a6e-1b2c-4bcf-a472-5ab425da3a18
+
+Preflight: PASS
+- .env.local present. DATABASE_URL and EDGE_AUTH_SECRET are set.
+- TWS_ENABLED=true. Trading kill was not active. Manage worker was not disabled.
+- EDGE_TRADING_ENVIRONMENT_LOCK=paper or safe.
+- Sidecar /health passed. Dev app :3003 returned 200.
+- DB policy picker template exists. Migration columns manage_state and take_profit_order_id exist.
+- Paper auto-manage was ON. UI account was DUP586813. F position was flat before TC-01.
+- Focused sanity tests: 5 files passed, 19 tests passed.
+- npm run check:startup failed only on the pre-existing harness lint:
+  docs/PROJECT-STATUS.md requires a 2026-08-05 Session Log entry while current state is Passing.
+  The user-specified service checks and §1.1–1.5 runtime checks passed.
+
+TC-01 stop-only bracket: PASS
+- Used the UI trade ticket on F.
+- Selected Step trail 0.25R.
+- Take Profit was OFF and disabled. Stop Loss was ON at 13.94.
+- Policy risk sizing changed size to about 3508. Forced entry Size=1 and stop quantity=1 before preview.
+- Market Buy → Preview → Confirm buy.
+- Captured UI request: POST /api/trading/brackets, status 200.
+- No naked POST /api/trading/orders was used for this submission.
+- Response included playbookInstance.
+- instance_id=7b1bba19-104f-4687-94dd-55aa0df4b0a2
+- entry_order_id=10944
+- stop_order_id=10945
+- DB immediately after submit:
+  status=pending_fill
+  manage_state={"kind":"stepTrailR","stepR":0.25,"highestMilestoneR":0}
+  take_profit_order_id=null
+- Sidecar:
+  10944 BUY 1 MKT Filled avgFillPrice=14.24
+  10945 SELL 1 STP PreSubmitted auxPrice=13.94 parentId=10944
+  No TP limit order was created.
+
+TC-02 fill arm: FAIL
+- Broker entry filled and paper position became F qty=1.
+- Waited about 30 seconds. Instance stayed pending_fill.
+- Manual authenticated POST /api/cron/playbook-evaluate returned HTTP 200:
+  {"evaluated":1,"fired":0,"skipped":0,"errors":["No quote for F (7b1bba19-104f-4687-94dd-55aa0df4b0a2)"],"promoted":0}
+- DB remained:
+  status=pending_fill
+  armed_at=null
+  filled_qty=null
+  position_plan.entry=14.225000381469727
+  position_plan.rUnit=0.28500038146972706
+- Sidecar /quotes for F returned a quote row with price=null, although the account position showed marketPrice=14.23600005.
+- TC-02 required status=armed, entryFillPrice set, rUnit>0, and position qty nonzero. Position and rUnit passed, but arming and entryFillPrice failed.
+
+TC-03 BE ratchet at +0.25R: SKIP (TC-02 prerequisite / quote unavailable)
+- Planned trigger from position plan: 14.225000381469727 + 0.25 * 0.28500038146972706 = 14.296250476837159.
+- Instance never armed, so the ratchet could not be tested safely.
+- TC-03b forced evaluation was not clean: errors contained "No quote for F".
+
+TC-04 flatten cleanup: PASS
+- Open Risk showed F Long 1 and protective STP 13.94, but showed Close instead of data-testid=open-risk-flatten-F because the instance never armed/bound.
+- Used the plan API alternative:
+  POST /api/trading/playbooks/7b1bba19-104f-4687-94dd-55aa0df4b0a2/exit-cleanup
+  body={"reason":"llm_functional_test"}
+- Response HTTP 200: flattened=true; cancelledOrderIds included 10945.
+- DB:
+  status=closed
+  closed_at=2026-08-05 16:21:27.53+00
+  off_reason=llm_functional_test
+  stop_order_id=null
+  take_profit_order_id=null
+- Sidecar: F position []; order 10945 status=Cancelled.
+- Audit: exitAndCleanup:7b1bba19-104f-4687-94dd-55aa0df4b0a2:cancelled=1:flat=true:qty=0
+
+TC-05 kill blocks entry: PASS
+- Account UI Kill paper & flatten completed.
+- Authenticated GET /api/trading/playbooks/auto-manage:
+  paperEnabled=true
+  paperKillActive=true
+- New API Step trail stop-only bracket attempt returned HTTP 400:
+  "Trading kill is active for paper. New entries blocked."
+- Audit recorded blocked: Trading kill is active for paper. New entries blocked.
+- Reset DB paper_kill_active=false after the test.
+- Final DB: paper_enabled=true, paper_kill_active=false.
+- Final sidecar F positions: [].
+
+TC-06 second ratchet (optional): SKIP
+
+Overall: FAIL
+
+Reason:
+- The attachBracket regression is fixed. TC-01 passed through the required UI path and used /api/trading/brackets with a stop-only child and playbook instance.
+- TC-02 failed because the filled instance could not arm while the trading-decision quote was null. The forced evaluator reported "No quote for F".
+- TC-03 could not run because TC-02 never armed and TC-03b was not clean.
+- TC-04 and TC-05 passed. Final paper state is flat, kill reset, and paper auto-manage left enabled.
+
+Commands and checks run:
+- npm run harness:activate -- --name "Step trail 0.25R paper recheck after attach fix"
+- Environment checks through node parsing .env.local without printing values
+- curl sidecar /health and app :3003
+- psql policy, migration columns, auto-manage, instance lifecycle
+- npm run check:startup
+- npm test -- --run bracketPlan/stepTrailRatchet/manageWorker/exitAndCleanup/applyPolicyToTradeDraft
+  Test Files 5 passed (5); Tests 19 passed (19)
+- Browser UI ticket, fetch capture, cron evaluation, exit-cleanup, Account kill
+- Sidecar positions, orders, status, and quotes
+- npm run report:trading-audit -- --limit 20
+
+Blockers / follow-ups:
+1. Trading-decision TWS quote for F returned price=null during the fill-arm evaluation. The account position had marketPrice, but runPlaybookEvaluation rejected the instance with "No quote for F".
+2. The manage worker did not arm the filled pending_fill instance before manual evaluation.
+3. Open Risk showed Close, not Flatten now, while the instance remained pending_fill.
+4. No product code was changed in this recheck.

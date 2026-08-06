@@ -1,0 +1,72 @@
+# OPS — Discord knowledge mine — Phase 10 evidence (Algo systems)
+# Date: 2026-07-30
+
+## Scope
+Systems extraction (step E) for Algo Trading, Coding (928315068955893760).
+read_messages on 6 deferred/structural/desk channels; pattern digests; operator-system.md.
+No Edge product code. No send_message calls.
+
+## App-level
+App-level: 6 channels attempted; 79 MCP messages; operator-system.md 7 sections; 6 raw JSON files; send_message calls 0
+
+## MCP
+Command: user-discord mcp_auth
+Result: Successfully authenticated MCP server: user-discord
+
+Command: user-discord read_messages (x6 systems channels)
+Parameters: server_id=928315068955893760, default hours_back=168 max_messages=100
+
+Channel results:
+- algo-traders (1134300348807380992): 22 messages captured — first read of deferred limited desk
+- rules-welcome-info (928315319225819166): 0 messages — gap: h168 empty; widened to h720 still empty (pinned/static not in window)
+- strategy-indicator-share (1204425023029379122): 0 messages — gap: limited-access empty/restricted (same as Phase 3)
+- general (928315069396303882): 0 messages — gap: Phase 10 retry empty; Phase 3 window (50 msgs) unchanged
+- coding (928316746992078898): 47 messages captured (first attempt timed out; retry OK)
+- stratgen (928316769918148609): 10 messages captured (first attempt timed out; retry OK)
+
+send_message calls this session: 0
+
+## Deliverable
+File: ~/Knowledge/discord/by-server/algo-trading-coding--928315068955893760/knowledge/operator-system.md
+Sections: 7 (Who it's for, Daily/weekly workflow, Setup types, Risk language, Tools & resources, Access limits, Leave-ready summary)
+Lines: 138
+
+## Local artifacts
+Root: /Users/vincentn/Knowledge/discord/
+Server dir: by-server/algo-trading-coding--928315068955893760/
+
+Command: find channels -name '2026-07-30T172830Z__*.json' then wc -l
+Output: 6
+
+Command: test -f knowledge/operator-system.md && test -f runs/2026-07-30.md
+Output: artifacts: OK
+
+New raw JSON: 6
+New/updated digests: 6
+Total MCP messages this session: 79
+Phase 3 prior messages: 107 (general/coding/stratgen unchanged where retry empty)
+
+## Index update
+Algo Trading, Coding: partial (systems phase 10 complete; status stays partial until Phase 11)
+last_run: 2026-07-30
+
+## Architecture review
+N/A — operator workflow + local filesystem only; no Edge runtime contracts.
+
+## Focused (filesystem verification)
+Command: grep -c "^## " knowledge/operator-system.md
+Output: 7
+
+Command: find channels -name '2026-07-30T172830Z__*.json' then wc -l
+Output: 6
+
+Command: wc -l knowledge/operator-system.md
+Output: 138 operator-system.md
+
+Command: grep -c "Phase 10" runs/2026-07-30.md
+Output: 2
+
+exit=0
+
+## Next
+Phase 11 — Systems: MarketLife (778344907378655283)

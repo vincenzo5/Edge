@@ -211,6 +211,8 @@ export type PlotToPointOptions = {
   indicators?: IndicatorConfig[];
   /** Whole-tool drag: snap this point index to OHLC; others follow rigidly. */
   magnetAnchorIndex?: number;
+  /** Whole-tool drag: apply one shared bar delta so horizontal spans stay rigid. */
+  preserveTimeSpan?: boolean;
 };
 
 function snapToIndicatorValue(
@@ -376,6 +378,37 @@ export function translateDrawingPoints(
   const showTimeAxis = opts.showTimeAxis ?? true;
   const magnet = opts.magnet ?? false;
   const anchorIndex = opts.magnetAnchorIndex ?? 0;
+  const preserveTimeSpan = opts.preserveTimeSpan ?? false;
+
+  const translateWithSharedTimeDelta = (
+    translatedDeltaY: number,
+    dataIndexDelta: number,
+  ): SerializedDrawing['points'] =>
+    points.map((p) => {
+      const origin = pointToPlot(p, vp, candles, showTimeAxis);
+      const translated = plotToPoint(
+        origin.x,
+        origin.y + translatedDeltaY,
+        vp,
+        candles,
+        {
+          ...opts,
+          magnet: false,
+          snapXCandle: false,
+        },
+      );
+      const originDataIndex =
+        p.timestamp != null && p.timestamp !== 0
+          ? resolveDataIndexFromTimestamp(p.timestamp, candles)
+          : p.dataIndex;
+      const dataIndex = (originDataIndex ?? candles.length - 1) + dataIndexDelta;
+      return {
+        ...p,
+        timestamp: timestampForDataIndex(candles, dataIndex),
+        value: translated.value,
+        dataIndex,
+      };
+    });
 
   if (magnet && points.length > 0 && anchorIndex >= 0 && anchorIndex < points.length) {
     const anchorOrigin = pointToPlot(points[anchorIndex]!, vp, candles, showTimeAxis);
@@ -394,6 +427,26 @@ export function translateDrawingPoints(
     const correctedDeltaX = snappedAnchorPlot.x - anchorOrigin.x;
     const correctedDeltaY = snappedAnchorPlot.y - anchorOrigin.y;
 
+    if (preserveTimeSpan) {
+      const anchor = points[anchorIndex]!;
+      const anchorDataIndex =
+        anchor.timestamp != null && anchor.timestamp !== 0
+          ? resolveDataIndexFromTimestamp(anchor.timestamp, candles)
+          : anchor.dataIndex;
+      const snappedAnchor = plotToPoint(
+        anchorOrigin.x + deltaX,
+        anchorOrigin.y + deltaY,
+        vp,
+        candles,
+        { ...opts, magnet: true },
+      );
+      const originAnchorDataIndex = anchorDataIndex ?? candles.length - 1;
+      return translateWithSharedTimeDelta(
+        correctedDeltaY,
+        (snappedAnchor.dataIndex ?? originAnchorDataIndex) - originAnchorDataIndex,
+      );
+    }
+
     return points.map((p) => {
       const origin = pointToPlot(p, vp, candles, showTimeAxis);
       const translated = plotToPoint(
@@ -410,6 +463,11 @@ export function translateDrawingPoints(
         dataIndex: translated.dataIndex,
       };
     });
+  }
+
+  if (preserveTimeSpan) {
+    const dataIndexDelta = vp.indexForX(currentPlot.x) - vp.indexForX(startPlot.x);
+    return translateWithSharedTimeDelta(deltaY, dataIndexDelta);
   }
 
   return points.map((p) => {

@@ -1,0 +1,33 @@
+# LIVE — Risk management system — Phase 4 evidence
+# Date: 2026-07-29
+
+## Scope
+UX: Trade ticket submit — pre-submit Risk plan summary (Budget / Size / Protect / Manage / failure mode).
+
+## Delivered
+- src/lib/risk/summarizeSubmitRiskPlan.ts — submit RiskPolicy summary derivation
+- src/lib/risk/summarizeSubmitRiskPlan.test.ts
+- src/app/components/risk/SubmitRiskPlanSummary.tsx — read-only Risk plan strip
+- src/app/components/risk/SubmitRiskPlanSummary.test.tsx
+- src/app/components/trading/TradeOrderForm.tsx — compose + confirm summary; replaces separate bracket/manage blocks on confirm
+- src/app/components/trading/TradeOrderForm.test.tsx — Risk plan summary test
+- src/app/components/trading/ProtectiveOcoForm.tsx — Risk plan summary before submit
+- src/app/components/trading/ProtectiveOcoForm.test.tsx — summary test
+- src/lib/risk/ARCHITECTURE.md — Phase 4 section
+- src/lib/trading/ARCHITECTURE.md — Phase 4 pointer
+- docs/roadmaps/risk-management-system-roadmap.md — Phase 4 Passing; open Q#1 soft warn
+- docs/roadmaps/README.md, docs/ROADMAP.md — index sync
+
+## Architecture review
+Self-review Passed — pure lib summarizer in src/lib/risk; no runtime RiskPolicy Zod type; live without Protect soft warn only (submit not blocked); failure-mode copy matches hybrid Protect-at-broker policy.
+
+## Focused
+Command:
+npm test -- --run src/lib/risk/summarizeSubmitRiskPlan.test.ts src/app/components/risk/SubmitRiskPlanSummary.test.tsx src/app/components/trading/TradeOrderForm.test.tsx src/app/components/trading/ProtectiveOcoForm.test.tsx
+
+Output:
+Test Files  4 passed (4)
+Tests  16 passed (16)
+
+## App-level
+Manual: bind plan + bracket + Manage preset → compose/confirm show Budget/Size/Protect/Manage + failure-mode line; live compose without bracket → soft warn visible, Preview/Submit still enabled; Protective OCO form shows summary with failure mode when stop+TP complete.

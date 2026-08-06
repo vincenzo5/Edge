@@ -4,7 +4,7 @@ Living track for **server-by-server Discord mining** via the Discord MCP: extrac
 
 **Last updated:** 2026-07-30
 
-**Status:** Phase 0–6 **Passing** (first-pass mines complete for Algo, Trinity, Wolves, MarketLife, SMB). Phase 7 **Passing** — Systems: WolvesOfWealth. Phase 8 **Passing** — Systems: Trinity. Phase 9 **Passing** — Systems: SMB Students. Phases 10–11 **Pending** — Algo, MarketLife. ChadGPT / Cursor / ServiceNow **omitted**. Refresh (step D) **deferred** — not the user goal.
+**Status:** Phase 0–6 **Passing** (first-pass mines complete for Algo, Trinity, Wolves, MarketLife, SMB). Phase 7 **Passing** — Systems: WolvesOfWealth. Phase 8 **Passing** — Systems: Trinity. Phase 9 **Passing** — Systems: SMB Students. Phase 10 **Passing** — Systems: Algo Trading, Coding. Phase 11 **Passing** — Systems: MarketLife. ChadGPT / Cursor / ServiceNow **omitted**. Refresh (step D) **deferred** — not the user goal. **Track complete.**
 
 **Branch:** OPS (secondary: none). Not an Edge product surface — local operator / research knowledge workflow.
 
@@ -68,25 +68,25 @@ User selection (2026-07-30): mine servers **1–5**; omit **6–8**. Status valu
 
 | # | Server | id | Board status | Roadmap phase | Notes |
 |---|--------|-----|--------------|---------------|-------|
-| 1 | Algo Trading, Coding | `928315068955893760` | `partial` | **Phase 2 Passing** | Full A→B→C done. Gaps: rules empty in 168h; limited channels. |
-| 2 | Trinity Trading Partners | `1305230430458351626` | `partial` | **Phase 3 Passing** | Full A→B→C done. Gaps: rules empty; orientation/education/faq limited. |
-| 3 | WolvesOfWealth | `783160857139740713` | `partial` | **Phase 4 Passing** | Full A→B→C done. Gaps: read-first empty; Morning Watch video-only. |
-| 4 | MarketLife | `778344907378655283` | `partial` | **Phase 5 Passing** | Full A→B→C done. Gaps: announcements/trading-chat empty; rules header only. |
-| 5 | SMB Students | `755810120486879314` | `partial` | **Phase 6 Passing** | Full A→B→C done. Gaps: rules/help-center headers only; trade desks deferred. |
+| 1 | Algo Trading, Coding | `928315068955893760` | `current` | **Phase 2 Passing / 10 systems** | operator-system.md; gaps documented |
+| 2 | Trinity Trading Partners | `1305230430458351626` | `current` | **Phase 3 Passing / 8 systems** | operator-system.md; orientation/education gated |
+| 3 | WolvesOfWealth | `783160857139740713` | `current` | **Phase 4 Passing / 7 systems** | operator-system.md; Edge wolves-discord cited |
+| 4 | MarketLife | `778344907378655283` | `current` | **Phase 5 Passing / 11 systems** | operator-system.md; thin signal; forum gap |
+| 5 | SMB Students | `755810120486879314` | `current` | **Phase 6 Passing / 9 systems** | operator-system.md; free tier only |
 | 6 | ChadGPT Course's Discord Community | `1345810177135476768` | `omitted` | — | Out of scope. |
 | 7 | Cursor | `1074847526655643750` | `omitted` | — | Out of scope. |
 | 8 | ServiceNow Developers | `289994252241338369` | `omitted` | — | Out of scope. |
 
 **Done (first-pass mine):** 5 / 5 chosen servers (Phases 2–6).  
-**Next:** Systems extraction Phases 10–11 (step E), one server per phase. Refresh (D) deferred.
+**Done (systems extraction):** 5 / 5 chosen servers (Phases 7–11). Track complete.
 
 | # | Server | Systems phase | Systems status | Access note |
 |---|--------|---------------|----------------|-------------|
 | 3 | WolvesOfWealth | Phase 7 | **Passing** | operator-system.md; Edge `docs/trading/wolves-discord/` cited |
 | 2 | Trinity Trading Partners | Phase 8 | **Passing** | operator-system.md; orientation/education/FAQ still gated |
 | 5 | SMB Students | Phase 9 | **Passing** | Free tier only — operator-system.md; IA/trade desks largely gated |
-| 1 | Algo Trading, Coding | Phase 10 | **Pending** | Smaller surface; limited first-pass channels |
-| 4 | MarketLife | Phase 11 | **Pending** | Thin first-pass signal; extract what free access allows |
+| 1 | Algo Trading, Coding | Phase 10 | **Passing** | operator-system.md; rules pinned; strategy-indicator-share gated |
+| 4 | MarketLife | Phase 11 | **Passing** | operator-system.md; thin signal; adams-blog forum MCP timeout |
 
 ---
 
@@ -319,23 +319,25 @@ Each systems phase runs **E** for exactly one server. Order is by expected opera
 
 ### Phase 10 — Systems: Algo Trading, Coding
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Server:** Algo Trading, Coding (`928315068955893760`)  
-**Process:** E — systems extraction.  
-**Note:** Smaller channel surface; systems file may be shorter — quality over padding.  
-**Evidence (when done):** `docs/evidence/discord-knowledge-mine-phase-10-algo-systems-YYYY-MM-DD.txt`
+**Process:** E — systems extraction (6 channels; 79 MCP messages; operator-system.md).  
+**Channels:** algo-traders, rules-welcome-info (h720 gap), strategy-indicator-share (gap), general (retry empty; Phase 3 prior), coding, stratgen.  
+**Note:** Smaller channel surface; `#algo-traders` first successful read of deferred limited desk.  
+**Evidence:** `docs/evidence/discord-knowledge-mine-phase-10-algo-systems-2026-07-30.txt`
 
 ---
 
 ### Phase 11 — Systems: MarketLife
 
-**Status:** **Pending**
+**Status:** **Passing** (2026-07-30)
 
 **Server:** MarketLife (`778344907378655283`)  
-**Process:** E — systems extraction.  
-**Note:** First pass was thin; extract what free access allows; accept a short leave-ready summary if signal stays low.  
-**Evidence (when done):** `docs/evidence/discord-knowledge-mine-phase-11-marketlife-systems-YYYY-MM-DD.txt`
+**Process:** E — systems extraction (7 channels; 14 MCP message objects; operator-system.md).  
+**Note:** First pass was thin; h720 widen on structural channels; `#adams-blog` forum MCP timeout.  
+**Channels:** first-steps-in-trading, taas-trading-course, swing-trading, trading-questions, investing, scam-alert, adams-blog.  
+**Evidence:** `docs/evidence/discord-knowledge-mine-phase-11-marketlife-systems-2026-07-30.txt`
 
 ---
 
@@ -455,8 +457,8 @@ Edge `npm run check` / product tests: **not required** (outside app code unless 
 3. ~~Default extract window.~~ **Resolved** — `hours_back=168`, `max_messages=100`.
 4. ~~Should Wolves's existing `docs/trading/wolves-discord/` notes be imported into the local store during Phase 4, or left as a separate Edge research archive?~~ **Resolved Phase 4** — left separate; one-line pointer in `knowledge/overview.md` only.
 5. ~~Next after first-pass mines?~~ **Resolved 2026-07-30** — systems extraction Phases 7–11 (step E) for all five servers; refresh deferred; no paid unlocks.
-6. Is a Cursor skill worth it after systems phases land?
-7. After Phase 11, should `_index` status move from `partial` → `current` for servers with a leave-ready `operator-system.md`?
+6. ~~Cursor skill after systems phases?~~ **Deferred** — track complete without one; reopen only if repeat mining or refresh (D) becomes regular.
+7. ~~`_index` status `partial` → `current`?~~ **Resolved 2026-07-30** — all five mined servers flipped to `current` in `~/Knowledge/discord/_index.md` (leave-ready `operator-system.md` on disk).
 
 ---
 
@@ -472,8 +474,8 @@ Phase 5 MarketLife               → A → B → C (Passing)
 Phase 6 SMB Students             → A → B → C (Passing)
 Phase 7 WolvesOfWealth           → E systems (Passing)
 Phase 8 Trinity Trading Partners → E systems (Passing)
-Phase 10 Algo Trading, Coding        → E systems (Pending)  ← next
-Phase 10 Algo Trading, Coding    → E systems (Pending)
-Phase 11 MarketLife              → E systems (Pending)
+Phase 9 SMB Students             → E systems (Passing)
+Phase 10 Algo Trading, Coding    → E systems (Passing)
+Phase 11 MarketLife              → E systems (Passing)
 Deferred: D refresh / deep archive (only if user reopens)
 ```

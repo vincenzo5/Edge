@@ -1,0 +1,25 @@
+# APP — Live functional QA remediation — Phase 1 evidence
+# Date: 2026-07-28
+# Scope: QA-01 — cache stable empty getServerSnapshot in useResearchEvidence
+
+## Delivered
+- src/app/components/research/useResearchEvidence.ts — EMPTY_EVIDENCE_CARDS + named getServerSnapshot
+- src/app/components/research/useResearchEvidence.test.tsx — snapshot stability regression tests
+
+## Architecture review
+Self-review Passed — contained hook fix; no AI registry or persistence contract changes.
+
+## Focused
+Command:
+npm test -- --run src/app/components/research/useResearchEvidence.test.tsx
+
+Output:
+Test Files  1 passed (1)
+Tests  3 passed (3)
+
+## App-level
+Routes: GET /copilot 200; workspace Copilot sidebar opened via aria-label "Copilot".
+Dev-server [browser] logs after reload (terminal 1.txt, 2026-07-28T21:09:39Z session): no `getServerSnapshot should be cached` line; only unrelated image aspect-ratio warning.
+Browser console capture (CDP addScriptToEvaluateOnNewDocument + reload): snapshot filter `getServerSnapshot` → [].
+
+Closes: QA-01.

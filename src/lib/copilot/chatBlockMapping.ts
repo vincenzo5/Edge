@@ -65,6 +65,38 @@ export function chartOpenHref(symbol: string, interval: string): string {
   return `/chart?${params.toString()}`;
 }
 
+type ResearchPreviewTable = {
+  columns: string[];
+  rows: (string | number | null)[][];
+};
+
+function previewTableToDataBlock(
+  preview: ResearchPreviewTable,
+  title: string,
+  pinHint: ResearchArtifactHint,
+): DataChatBlock {
+  const columns = preview.columns.map((label, index) => ({
+    id: `c${index}`,
+    label,
+  }));
+  const rows = preview.rows.map((row) => {
+    const record: Record<string, string> = {};
+    preview.columns.forEach((_, index) => {
+      const cell = row[index];
+      record[`c${index}`] = cell == null ? "" : String(cell);
+    });
+    return record;
+  });
+  return {
+    kind: "data",
+    shape: "table",
+    title,
+    columns,
+    rows,
+    pinHint,
+  };
+}
+
 type ReferenceChipDraft = ReferenceChatBlock["chips"][number];
 
 function chartReferenceLabel(symbol: string, interval: string): string {
@@ -219,14 +251,7 @@ export function hintToBlockSketch(hint: ResearchArtifactHint): ChatBlock | null 
           : (hint.title ?? "Research profile");
       const block: DataChatBlock =
         preview && preview.columns.length > 0 && preview.rows.length > 0
-          ? {
-              kind: "data",
-              shape: "table",
-              title,
-              columns: preview.columns,
-              rows: preview.rows,
-              pinHint: hint,
-            }
+          ? previewTableToDataBlock(preview, title, hint)
           : {
               kind: "data",
               shape: "kv",

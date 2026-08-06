@@ -2,24 +2,21 @@
 # Date: 2026-08-01
 
 ## Scope
-Compact chart trade ticket: primary Side/Qty/Type dropdown; Advanced disclosure for Bracket + TIF + Outside RTH; Bracket user-facing copy (internal protect APIs unchanged).
+Compact chart trade ticket: Side/Qty/Type on one row; Bracket toggle + risk line on compose; Buy/Sell CTA → preview → inline confirm (Cancel / Confirm buy|sell). Advanced holds stop leg, Manage, TIF, Outside RTH.
 
 ## Delivered
-- src/app/components/trading/TradeOrderForm.tsx — compact compose layout + Advanced panel
-- src/app/components/risk/SubmitRiskPlanSummary.tsx — Bracket label
-- src/lib/risk/summarizeSubmitRiskPlan.ts — live unprotected warning copy
-- src/app/components/trading/TradeOrderForm.test.tsx — Advanced + type dropdown tests
-- src/app/components/risk/SubmitRiskPlanSummary.test.tsx — Bracket copy
-- src/lib/risk/summarizeSubmitRiskPlan.test.ts — Bracket warning copy
-- src/lib/trading/ARCHITECTURE.md — ticket layout note
+- src/app/components/trading/TradeOrderForm.tsx — primary row, bracket surface, compose status, Buy/Sell CTA, confirm copy
+- src/app/components/trading/TradeOrderForm.test.tsx — side row, bracket surface, CTA, confirm flow tests
+- src/app/components/trading/TradeTicketModal.test.tsx — Buy AAPL / Confirm buy labels
+- src/lib/trading/ARCHITECTURE.md — ticket layout bullet aligned
 
 ## Focused
 Command:
-npm test -- --run src/app/components/trading/TradeOrderForm.test.tsx src/app/components/risk/SubmitRiskPlanSummary.test.tsx src/lib/risk/summarizeSubmitRiskPlan.test.ts
+npm test -- --run src/app/components/trading/TradeOrderForm.test.tsx src/app/components/trading/TradeTicketModal.test.tsx
 Output:
-Test Files  3 passed (3)
-Tests  17 passed (17)
+Test Files  2 passed (2)
+Tests  19 passed (19)
 exit=0
 
 ## App-level
-Deferred — paper preview/bracket walkthrough; submit payloads unchanged (OrderDraft / BracketPlan).
+Deferred — paper drawing-bound ticket Buy → confirm (entry/qty/stop/risk) → Cancel → Confirm buy walkthrough.

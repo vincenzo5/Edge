@@ -13,6 +13,7 @@ export type ChartCursor =
   | 'crosshair'
   | 'grab'
   | 'grabbing'
+  | 'move'
   | 'ns-resize'
   | 'ew-resize'
   | 'pointer'
@@ -30,9 +31,22 @@ export type CursorContext = {
   overControlPoint?: boolean;
   /** Selected/hovered drawing is locked — CP drag rejected. */
   controlPointLocked?: boolean;
+  /**
+   * Cursor for the hovered control point when not locked.
+   * Derived from `getControlPoints` role (`price` → ns-resize, `time` → ew-resize, `move` → move).
+   */
+  controlPointCursor?: ChartCursor;
   /** Pointer is over a drawing body (hit-test), even if not selected. */
   overDrawing?: boolean;
 };
+
+/** Map a control-point role (`price` / `time` / `move`) to a cursor; default grab. */
+export function cursorForControlPointRole(role?: string): ChartCursor {
+  if (role === 'price') return 'ns-resize';
+  if (role === 'time') return 'ew-resize';
+  if (role === 'move') return 'move';
+  return 'grab';
+}
 
 export function plotLeftOffset(side: PriceScaleSide = 'right'): number {
   return side === 'left' ? PRICE_AXIS_WIDTH : 0;
@@ -92,7 +106,8 @@ export function resolveHoverCursor(
   if (zone === 'timeAxis') return 'crosshair';
 
   if (ctx.overControlPoint) {
-    return ctx.controlPointLocked ? 'not-allowed' : 'grab';
+    if (ctx.controlPointLocked) return 'not-allowed';
+    return ctx.controlPointCursor ?? 'grab';
   }
 
   if (ctx.overDrawing && !isDrawingToolActive(ctx.activeTool)) {

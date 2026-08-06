@@ -472,7 +472,7 @@ export async function patchJournalTradeRemote(
     body: JSON.stringify(patch),
   });
 
-  if (response.status === 503) {
+  if (await shouldUseLocalJournalTradePatchFallback(response, tradeId)) {
     const local = patchLocalJournalTrade(tradeId, {
       tags: patch.tags,
       setup: patch.setup as JournalTrade["setup"],
@@ -547,6 +547,35 @@ export function journalTradeScreenshotImageUrl(tradeId: string, screenshotId: st
 /** In-memory blobs from the just-uploaded file so previews never depend on a racey refetch. */
 const screenshotPreviewBlobCache = new Map<string, Blob>();
 
+function localJournalTradeExists(tradeId: string): boolean {
+  return readLocalJournalSnapshot().trades.some((trade) => trade.id === tradeId);
+}
+
+function shouldUseLocalJournalTradeStore(status: number, tradeId: string): boolean {
+  return status === 503 || (status === 404 && localJournalTradeExists(tradeId));
+}
+
+type PersistenceErrorBody = {
+  code?: string;
+  error?: string;
+};
+
+function isDatabaseUnavailablePersistenceBody(body: PersistenceErrorBody | null): boolean {
+  if (body?.code === "database_unavailable") return true;
+  const message = typeof body?.error === "string" ? body.error : "";
+  return message.includes("Failed query") || message.includes("ECONNREFUSED");
+}
+
+async function shouldUseLocalJournalTradePatchFallback(
+  response: Response,
+  tradeId: string,
+): Promise<boolean> {
+  if (shouldUseLocalJournalTradeStore(response.status, tradeId)) return true;
+  if (!localJournalTradeExists(tradeId) || response.status !== 400) return false;
+  const body = await parseJsonResponse<PersistenceErrorBody>(response);
+  return isDatabaseUnavailablePersistenceBody(body);
+}
+
 export function cacheJournalTradeScreenshotBlob(screenshotId: string, blob: Blob): void {
   screenshotPreviewBlobCache.set(screenshotId, blob);
 }
@@ -561,12 +590,18 @@ export async function fetchJournalTradeScreenshots(
   const response = await persistenceFetch(`/api/me/journal/trades/${tradeId}/screenshots`, {
     method: "GET",
   });
+  const local = await listLocalJournalTradeScreenshots(tradeId).catch(() => []);
+  const localMetadata = local.map(({ blob: _blob, ...meta }) => meta);
   if (response.status === 503 || !response.ok) {
-    const local = await listLocalJournalTradeScreenshots(tradeId);
-    return local.map(({ blob: _blob, ...meta }) => meta);
+    return localMetadata;
   }
   const body = await parseJsonResponse<{ screenshots: JournalScreenshotResponse[] }>(response);
-  return body?.screenshots ?? [];
+  const merged = new Map<string, JournalScreenshotResponse>();
+  for (const screenshot of localMetadata) merged.set(screenshot.id, screenshot);
+  for (const screenshot of body?.screenshots ?? []) merged.set(screenshot.id, screenshot);
+  return [...merged.values()].sort(
+    (a, b) => a.sortIndex - b.sortIndex || a.createdAt.localeCompare(b.createdAt),
+  );
 }
 
 export async function uploadJournalTradeScreenshot(
@@ -589,7 +624,7 @@ export async function uploadJournalTradeScreenshot(
     body: form,
   });
 
-  if (response.status === 503) {
+  if (shouldUseLocalJournalTradeStore(response.status, tradeId)) {
     const local = await addLocalJournalTradeScreenshot(tradeId, {
       file,
       mimeType: file.type || "image/png",
@@ -623,7 +658,7 @@ export async function patchJournalTradeScreenshotRemote(
     },
   );
 
-  if (response.status === 503) {
+  if (shouldUseLocalJournalTradeStore(response.status, tradeId)) {
     return patchLocalJournalTradeScreenshot(tradeId, screenshotId, patch);
   }
 
@@ -701,7 +736,7 @@ export async function createJournalTradeChartSnapshotRemote(
     body: JSON.stringify(input),
   });
 
-  if (response.status === 503) {
+  if (shouldUseLocalJournalTradeStore(response.status, tradeId)) {
     return addLocalJournalTradeChartSnapshot(tradeId, input);
   }
 

@@ -1,6 +1,6 @@
 ---
 name: visual-assets
-description: Generate visual assets for the Edge landing page — logos, icons, mockups, and animations. Use when creating or updating brand identity assets, custom SVG icons, product mockups, or animated data-flow visuals for the Edge project. Covers assets 1.1–1.3 (brand identity), 2.1–2.3 (product visuals), 3.1–3.6 (custom icons), and 4.8 (signature animation).
+description: Generate visual assets for the Edge landing page — logos, icons, characters, mockups, and animations. Use when creating or updating brand identity assets, custom SVG icons, mascot/character art, logo concept moodboards, cinematic marketing stills/video, product mockups, or animated data-flow visuals for the Edge project. Covers assets 1.1–1.3 (brand identity), 2.1–2.3 (product visuals), 3.1–3.6 (custom icons), 4.8 (signature animation), plus Higgsfield character/marketing media.
 ---
 
 # Visual Assets Production
@@ -13,14 +13,26 @@ Asset inventory and production guide for the Edge landing page. Maps each visual
 
 | Asset | Tool | Method |
 |-------|------|--------|
-| 1.1 Logo / Wordmark | LogoLoom MCP | `text_to_path` → `optimize_svg` → `export_brand_kit` |
+| 1.1 Logo / Wordmark (production SVG) | LogoLoom MCP | `text_to_path` → `optimize_svg` → `export_brand_kit` |
+| 1.1b Logo *concepts* / moodboards | Higgsfield MCP | `generate_image` concept sheets → pick winners → rebuild in LogoLoom |
 | 1.2 Favicon | LogoLoom MCP | Included in brand kit export |
 | 1.3 OG Image | LogoLoom MCP | Included in brand kit export |
-| 2.1 Hero Product Mockup | Superdesign (web) | Generate mockup, then CSS for device frame + glow |
+| 1.4 Character / mascot sheets | Higgsfield MCP | `generate_image` (prefer `soul_2`); save under `public/brand/character/` |
+| 1.5 Marketing stills / short video | Higgsfield MCP | `generate_image` / `generate_video`; check `balance` first |
+| 2.1 Hero Product Mockup | Superdesign (web) or Higgsfield | Generate mockup, then CSS for device frame + glow |
 | 2.2 Solution Diagram | Dashmotion skill | Animated flow diagram |
 | 2.3 How It Works Visuals | Dashmotion skill | Animated step flow |
 | 3.1–3.6 Custom Icons | QuiverAI MCP | `create_generation` → `get_creation_content` |
 | 4.8 Data Flow Animation | Dashmotion skill | Animated flow with traveling dots |
+
+### Tool boundaries (fail-closed)
+
+| Tool | Use for | Do **not** use for |
+|------|---------|-------------------|
+| **LogoLoom** | Final SVG wordmark, favicon, brand kit | Photoreal scenes, video, character exploration |
+| **QuiverAI** | Production SVG icons (24×24 stroke) | Logo wordmarks, video, photoreal heroes |
+| **Higgsfield** | Characters, logo moodboards, cinematic stills/clips, raster marketing | Shipping production SVG logos (rebuild winners in LogoLoom) |
+| **Dashmotion** | Animated HTML/SVG flow diagrams | Static brand kits |
 
 ## Brand Context (All Tools Must Use)
 
@@ -46,6 +58,25 @@ Before generating any asset, apply these design tokens from the Edge design syst
 4. Save output to `public/brand/` directory
 
 Logo design spec: "Edge" wordmark in Space Grotesk Bold. The "E" has a subtle Electric Green accent — either a small signal icon mark or a green stroke on one serif. Dark background variants must use `#0A0B0E`. Light/mono variants for contrast situations.
+
+### Higgsfield — Characters, Concepts, Marketing Media (Assets 1.1b, 1.4, 1.5)
+
+Server: `higgsfield` / `user-higgsfield` at `https://mcp.higgsfield.ai/mcp` (also in `.cursor/mcp.json`). Auth via Cursor OAuth — no API key. Call `balance` before batches; free plan allows **1 concurrent job**.
+
+**Core tools:** `generate_image`, `generate_video`, `generate_audio`, `models_explore`, `job_status` (`sync: true` in text clients), `balance`. Prefer `get_cost: true` preflight on expensive models. For text-only character refs on free tier, `soul_2` is the usual workhorse; `soul_cast` may require a paid plan. `nano_banana_pro` follows strict style prompts better (higher credit cost).
+
+**Workflow**
+
+1. Confirm server `ready` via MCP tools (not `needsAuth`).
+2. `models_explore(action: 'recommend'|…)` when unsure which model fits.
+3. `generate_image` / `generate_video` with Edge tokens in the prompt (`#0A0B0E`, `#00FF88`, `#E8E9ED`).
+4. Poll with `job_status` until completed; download PNG/MP4 into the paths below.
+5. For logo exploration: generate **concept sheets** (grid of marks) → user picks winners → **rebuild production logo in LogoLoom**.
+6. Reuse prior `job_id` as `medias[].value` for consistency (never pass raw `https://` URLs in `medias`).
+
+**Prompt hygiene for logos/concepts:** flat vector, 2–3 colors, no photoreal, no gibberish text, no third-party logos (Nike etc.), favicon-legible when claiming app-icon scale.
+
+**Character baseline (unnamed WFH discretionary trader):** late 20s–early 30s white male, dark hoodie, Electric Green accents, headphones; realistic-cartoon and pixel variants live under `public/brand/character/`.
 
 ### QuiverAI — Custom Icons (Assets 3.1–3.6)
 
@@ -115,8 +146,10 @@ Generated assets should be saved to:
 
 ```
 public/
-├── brand/           # Logo, favicon, OG image (from LogoLoom)
-├── icons/           # Custom SVG icons (from QuiverAI)
-├── mockups/         # Product mockup images (from Superdesign)
-└── animations/      # Lottie/SVG animations (from Dashmotion)
+├── brand/                # Logo, favicon, OG image (from LogoLoom)
+│   ├── character/        # Mascot / character sheets (from Higgsfield)
+│   └── logo-concepts/    # Logo moodboard PNGs (from Higgsfield; not final SVG)
+├── icons/                # Custom SVG icons (from QuiverAI)
+├── mockups/              # Product mockup images (Superdesign or Higgsfield)
+└── animations/           # Lottie/SVG animations (from Dashmotion)
 ```

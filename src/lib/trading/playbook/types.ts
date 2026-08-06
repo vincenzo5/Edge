@@ -129,6 +129,11 @@ export const PlaybookThenSchema = z.discriminatedUnion("kind", [
     stopPrice: z.number().positive().optional(),
     /** When true, stop moves to locked entry (break-even). */
     breakEven: z.boolean().optional(),
+    /**
+     * Move stop to entry ± (stopRMultiple × rUnit).
+     * 0 = break-even; positive locks profit in R units.
+     */
+    stopRMultiple: z.number().min(0).optional(),
   }),
   z.object({
     kind: z.literal("reduceQty"),
@@ -169,10 +174,15 @@ export const PlaybookRuleSchema = z
   })
   .superRefine((value, ctx) => {
     const { then } = value;
-    if (then.kind === "modifyStop" && then.breakEven !== true && then.stopPrice == null) {
+    if (
+      then.kind === "modifyStop" &&
+      then.breakEven !== true &&
+      then.stopPrice == null &&
+      then.stopRMultiple == null
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "modifyStop requires stopPrice or breakEven",
+        message: "modifyStop requires stopPrice, breakEven, or stopRMultiple",
         path: ["then", "stopPrice"],
       });
     }
@@ -237,6 +247,16 @@ export const PlaybookInstanceStatusSchema = z.enum([
 
 export type PlaybookInstanceStatus = z.infer<typeof PlaybookInstanceStatusSchema>;
 
+export const ManageStateSchema = z.object({
+  kind: z.literal("stepTrailR"),
+  stepR: z.number().positive(),
+  entryFillPrice: z.number().positive().optional(),
+  highestMilestoneR: z.number().optional(),
+  lastAppliedStopPrice: z.number().positive().optional(),
+});
+
+export type ManageState = z.infer<typeof ManageStateSchema>;
+
 export const PlaybookInstanceSchema = z.object({
   id: z.string().min(1),
   templateId: z.string().min(1),
@@ -271,6 +291,8 @@ export const PlaybookInstanceSchema = z.object({
   takeProfitOrderId: z.number().int().positive().nullable().optional(),
   /** Filled entry qty observed at arm time — basis for scale-out fractions. */
   filledQty: z.number().positive().nullable().optional(),
+  /** Parametric manage ratchet state (step trail, etc.). */
+  manageState: ManageStateSchema.optional(),
   /** Notify-only alert bundle linked at attach (Phase 6). */
   alertBundleId: z.string().uuid().optional(),
   createdAt: z.string().datetime(),
@@ -291,6 +313,7 @@ export function createPlaybookInstance(args: {
   status?: PlaybookInstanceStatus;
   orderIntentId?: string;
   orderRef?: string;
+  manageState?: ManageState;
   createdAt?: string;
 }): PlaybookInstance {
   const now = args.createdAt ?? new Date().toISOString();
@@ -314,6 +337,7 @@ export function createPlaybookInstance(args: {
     protectState: "unknown",
     orderIntentId: args.orderIntentId,
     orderRef: args.orderRef,
+    ...(args.manageState ? { manageState: args.manageState } : {}),
     createdAt: now,
     updatedAt: now,
   });

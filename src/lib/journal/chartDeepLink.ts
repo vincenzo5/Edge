@@ -44,6 +44,26 @@ export type ChartDeepLinkParams = {
   goto?: number;
 };
 
+/** Query keys preserved across /chart → /workspace redirect and workspace ingress. */
+export const CHART_DEEP_LINK_QUERY_KEYS = [
+  "symbol",
+  "interval",
+  "journalTrade",
+  "goto",
+] as const;
+
+export function appendChartDeepLinkSearchParams(
+  target: URLSearchParams,
+  source: URLSearchParams,
+): void {
+  for (const key of CHART_DEEP_LINK_QUERY_KEYS) {
+    const value = source.get(key);
+    if (value != null && value !== "") {
+      target.set(key, value);
+    }
+  }
+}
+
 export function parseChartDeepLinkParams(
   searchParams: URLSearchParams,
 ): ChartDeepLinkParams | null {

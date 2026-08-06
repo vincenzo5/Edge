@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -67,6 +68,11 @@ describe("parseLocalHttpsArgs", () => {
 });
 
 describe("assertLoopbackCaddyfile", () => {
+  it("forwards the loopback client IP through the committed proxy", () => {
+    const caddyfile = readFileSync("ops/caddy/Caddyfile", "utf8");
+    expect(caddyfile).toMatch(/\bheader_up\s+X-Real-IP\s+\{remote_host\}/);
+  });
+
   it("accepts loopback bind", () => {
     expect(() =>
       assertLoopbackCaddyfile("edge.local { bind 127.0.0.1 reverse_proxy 127.0.0.1:3000 }"),

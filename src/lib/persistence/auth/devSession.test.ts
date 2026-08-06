@@ -82,12 +82,13 @@ describe("devSession", () => {
     expect(cookieStore.set).not.toHaveBeenCalled();
   });
 
-  it("rejects bootstrap in production even when open dev session env is set", async () => {
+  it("bootstraps in production when open dev session env is set", async () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.EDGE_ALLOW_OPEN_DEV_SESSION = "1";
-    expect(isOpenDevSessionAllowed()).toBe(false);
+    expect(isOpenDevSessionAllowed()).toBe(true);
     const user = await establishDevSession({ bootstrap: true });
-    expect(user).toBeNull();
+    expect(user?.id).toBe("22222222-2222-2222-2222-222222222222");
+    expect(cookieStore.set).toHaveBeenCalled();
   });
 
   it("rejects bootstrap when passphrase is required", async () => {

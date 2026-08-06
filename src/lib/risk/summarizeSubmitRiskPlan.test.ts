@@ -77,6 +77,9 @@ describe("summarizeSubmitRiskPlan", () => {
     expect(formatProtectStopLegLabel(buildTrailStopLeg({ trailPercent: 3 }))).toBe(
       "TRAIL 3%",
     );
+    expect(formatProtectStopLegLabel(buildTrailStopLeg({ trailRMultiple: 0.5 }))).toBe(
+      "TRAIL 0.5R",
+    );
     expect(
       formatProtectLabel({
         attached: true,

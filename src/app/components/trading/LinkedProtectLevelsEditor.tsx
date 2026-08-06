@@ -41,13 +41,13 @@ function useLegValues(args: {
 }
 
 function LegFieldInput({
-  enabled,
+  visible,
   value,
   onChange,
   testId,
   label,
 }: {
-  enabled: boolean;
+  visible: boolean;
   value: string;
   onChange: (raw: string) => void;
   testId: string;
@@ -58,14 +58,15 @@ function LegFieldInput({
       type="number"
       min={0}
       step="0.01"
-      className={`${fieldClass({ density: "compact" })} w-full font-mono text-[11px] ${
-        enabled ? "" : "opacity-50"
-      }`}
+      className={`${fieldClass({ density: "compact" })} w-full font-mono text-[11px]`}
+      style={{ visibility: visible ? "visible" : "hidden" }}
       value={value}
-      disabled={!enabled}
+      disabled={!visible}
+      tabIndex={visible ? undefined : -1}
       onChange={(event) => onChange(event.target.value)}
       data-testid={testId}
       aria-label={label}
+      aria-hidden={!visible}
     />
   );
 }
@@ -124,6 +125,7 @@ export function LinkedProtectLevelsEditor({
     direction,
     leg: "stop",
   });
+  const showFields = takeProfitEnabled || stopLossEnabled;
 
   const handleFieldChange = (
     leg: ProtectLegKind,
@@ -178,58 +180,60 @@ export function LinkedProtectLevelsEditor({
         </label>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-2 gap-y-1.5">
-        <LegFieldInput
-          enabled={takeProfitEnabled}
-          value={String(takeProfitQuantity)}
-          onChange={(raw) => {
-            const parsed = parseProtectInput(raw);
-            if (parsed == null || parsed <= 0) return;
-            onTakeProfitQuantityChange(Math.round(parsed));
-          }}
-          testId={`${testId}-take-profit-qty`}
-          label="Take profit quantity"
-        />
-        <span className="px-1 text-center text-[10px] text-[var(--edge-text-secondary)]">
-          {QTY_ROW.label}
-        </span>
-        <LegFieldInput
-          enabled={stopLossEnabled}
-          value={String(stopLossQuantity)}
-          onChange={(raw) => {
-            const parsed = parseProtectInput(raw);
-            if (parsed == null || parsed <= 0) return;
-            onStopLossQuantityChange(Math.round(parsed));
-          }}
-          testId={`${testId}-stop-loss-qty`}
-          label="Stop loss quantity"
-        />
-        {ROWS.map(({ field, label }) => (
-          <div key={field} className="contents">
-            <LegFieldInput
-              enabled={takeProfitEnabled}
-              value={formatProtectInput(takeProfitValues[field])}
-              onChange={(raw) =>
-                handleFieldChange("target", field, raw, takeProfitPrice, onTakeProfitPriceChange)
-              }
-              testId={`${testId}-take-profit-${field}`}
-              label={`Take profit ${label}`}
-            />
-            <span className="px-1 text-center text-[10px] text-[var(--edge-text-secondary)]">
-              {label}
-            </span>
-            <LegFieldInput
-              enabled={stopLossEnabled}
-              value={formatProtectInput(stopLossValues[field])}
-              onChange={(raw) =>
-                handleFieldChange("stop", field, raw, stopLossPrice, onStopLossPriceChange)
-              }
-              testId={`${testId}-stop-loss-${field}`}
-              label={`Stop loss ${label}`}
-            />
-          </div>
-        ))}
-      </div>
+      {showFields ? (
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-2 gap-y-1.5">
+          <LegFieldInput
+            visible={takeProfitEnabled}
+            value={String(takeProfitQuantity)}
+            onChange={(raw) => {
+              const parsed = parseProtectInput(raw);
+              if (parsed == null || parsed <= 0) return;
+              onTakeProfitQuantityChange(Math.round(parsed));
+            }}
+            testId={`${testId}-take-profit-qty`}
+            label="Take profit quantity"
+          />
+          <span className="px-1 text-center text-[10px] text-[var(--edge-text-secondary)]">
+            {QTY_ROW.label}
+          </span>
+          <LegFieldInput
+            visible={stopLossEnabled}
+            value={String(stopLossQuantity)}
+            onChange={(raw) => {
+              const parsed = parseProtectInput(raw);
+              if (parsed == null || parsed <= 0) return;
+              onStopLossQuantityChange(Math.round(parsed));
+            }}
+            testId={`${testId}-stop-loss-qty`}
+            label="Stop loss quantity"
+          />
+          {ROWS.map(({ field, label }) => (
+            <div key={field} className="contents">
+              <LegFieldInput
+                visible={takeProfitEnabled}
+                value={formatProtectInput(takeProfitValues[field])}
+                onChange={(raw) =>
+                  handleFieldChange("target", field, raw, takeProfitPrice, onTakeProfitPriceChange)
+                }
+                testId={`${testId}-take-profit-${field}`}
+                label={`Take profit ${label}`}
+              />
+              <span className="px-1 text-center text-[10px] text-[var(--edge-text-secondary)]">
+                {label}
+              </span>
+              <LegFieldInput
+                visible={stopLossEnabled}
+                value={formatProtectInput(stopLossValues[field])}
+                onChange={(raw) =>
+                  handleFieldChange("stop", field, raw, stopLossPrice, onStopLossPriceChange)
+                }
+                testId={`${testId}-stop-loss-${field}`}
+                label={`Stop loss ${label}`}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

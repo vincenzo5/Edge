@@ -38,6 +38,8 @@ type InstanceRowSnapshot = {
   orderRef: string | null;
   stopOrderId: number | null;
   filledQty: number | null;
+  takeProfitOrderId: number | null;
+  manageState: unknown;
   alertBundleId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -103,7 +105,9 @@ export function rowToPlaybookInstance(row: InstanceRowSnapshot): PlaybookInstanc
     orderIntentId: row.orderIntentId ?? undefined,
     orderRef: row.orderRef ?? undefined,
     stopOrderId: row.stopOrderId ?? undefined,
+    takeProfitOrderId: row.takeProfitOrderId ?? undefined,
     filledQty: filledQty != null && Number.isFinite(filledQty) ? filledQty : undefined,
+    ...(row.manageState != null ? { manageState: row.manageState } : {}),
     alertBundleId: row.alertBundleId ?? undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -151,7 +155,9 @@ export function instanceToRowValues(instance: PlaybookInstanceWithPolicy) {
     orderIntentId: instance.orderIntentId ?? null,
     orderRef: instance.orderRef ?? null,
     stopOrderId: instance.stopOrderId ?? null,
+    takeProfitOrderId: instance.takeProfitOrderId ?? null,
     filledQty: instance.filledQty ?? null,
+    manageState: instance.manageState ?? null,
     alertBundleId: instance.alertBundleId ?? null,
     createdAt: new Date(instance.createdAt),
     updatedAt: new Date(instance.updatedAt),

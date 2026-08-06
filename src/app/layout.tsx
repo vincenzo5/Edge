@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { DevPersistenceLoginBanner } from "@/app/components/DevPersistenceLoginBanner";
+import { DevSessionAligner } from "@/app/components/DevSessionAligner";
 
 export const metadata: Metadata = {
   title: {
@@ -55,6 +56,7 @@ export default async function RootLayout({
       </head>
       <body className="antialiased">
         <DevPersistenceLoginBanner />
+        <DevSessionAligner />
         {children}
       </body>
     </html>

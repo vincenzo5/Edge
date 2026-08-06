@@ -4,6 +4,7 @@ import type { SerializedDrawing } from '@edge/chart-core';
 import { DrawingRegistry, hitTestControlPoint } from '@edge/chart-core/pluginHost';
 import { yForPricePlot, translateDrawingPoints, MAGNET_THRESHOLD_PX } from '@edge/chart-core/drawingCoords';
 import { POSITION_CP } from '@edge/chart-core/drawings/positionGeometry';
+import { attachViewportHelpers } from '../engine/viewport';
 import { useDrawingController } from './useDrawingController';
 import {
   makeDrawingControllerDeps,
@@ -206,6 +207,107 @@ describe('applyDrawingPointerTransition position magnet', () => {
     expect(drawings[0]?.points[1]?.value).toBeCloseTo(expected[1]?.value ?? 0, 4);
     expect(drawings[0]?.points[2]?.value).toBeCloseTo(expected[2]?.value ?? 0, 4);
     expect([candle.o, candle.h, candle.l, candle.c]).toContain(drawings[0]?.points[0]?.value);
+  });
+
+  it('whole-drag preserves position width while crossing the last candle', async () => {
+    const existing = sampleLongPosition();
+    existing.points = [
+      { timestamp: 3_000, value: 100, dataIndex: 2 },
+      { timestamp: 3_000, value: 95, dataIndex: 2 },
+      { timestamp: 3_000, value: 110, dataIndex: 2 },
+      { timestamp: 13_000, value: 100, dataIndex: 12 },
+    ];
+    const deps = makeDrawingControllerDeps([existing]);
+    const vp = attachViewportHelpers(
+      { ...deps.latestVpRef.current!, startIndex: 0, endIndex: 20 },
+      testCandles.length,
+    );
+    deps.latestVpRef.current = vp;
+    vi.spyOn(deps.paneHandlesRef.current!.get('price')!, 'getViewport').mockReturnValue(vp);
+    const bodyY = vp.yForPrice(100);
+    const startX = vp.xForIndex(7);
+    const endX = vp.xForIndex(8);
+    const { result } = renderHook(() => useDrawingController(deps));
+
+    act(() => {
+      result.current.drawingHandleSlice.selectDrawing('d-long');
+      result.current.drawingHandleSlice.setMagnet(false);
+      result.current.handleDrawingPointer({
+        phase: 'down',
+        plotX: startX,
+        plotY: bodyY,
+        button: 0,
+        paneId: 'price',
+      });
+      result.current.handleDrawingPointer({
+        phase: 'move',
+        plotX: endX,
+        plotY: bodyY,
+        button: 0,
+        paneId: 'price',
+      });
+    });
+
+    await flushDragRaf();
+
+    const moved = result.current.drawingHandleSlice.serializeDrawings()[0]!;
+    expect(moved.points[0]?.dataIndex).toBe(3);
+    expect(moved.points[3]?.dataIndex).toBe(13);
+    expect(moved.points[3]!.dataIndex! - moved.points[0]!.dataIndex!).toBe(10);
+    expect(moved.points[3]!.timestamp - moved.points[0]!.timestamp).toBe(10_000);
+  });
+
+  it('magnet whole-drag keeps rendered position width past the live edge', async () => {
+    const existing = sampleLongPosition();
+    existing.points = [
+      { timestamp: 3_000, value: 100, dataIndex: 2 },
+      { timestamp: 3_000, value: 95, dataIndex: 2 },
+      { timestamp: 3_000, value: 110, dataIndex: 2 },
+      { timestamp: 13_000, value: 100, dataIndex: 12 },
+    ];
+    const deps = makeDrawingControllerDeps([existing]);
+    const vp = attachViewportHelpers(
+      { ...deps.latestVpRef.current!, startIndex: 0, endIndex: 20 },
+      testCandles.length,
+    );
+    deps.latestVpRef.current = vp;
+    vi.spyOn(deps.paneHandlesRef.current!.get('price')!, 'getViewport').mockReturnValue(vp);
+    const bodyY = vp.yForPrice(100);
+    const { result } = renderHook(() => useDrawingController(deps));
+
+    act(() => {
+      result.current.drawingHandleSlice.selectDrawing('d-long');
+      result.current.drawingHandleSlice.setMagnet(true);
+      result.current.handleDrawingPointer({
+        phase: 'down',
+        plotX: vp.xForIndex(7),
+        plotY: bodyY,
+        button: 0,
+        paneId: 'price',
+      });
+      result.current.handleDrawingPointer({
+        phase: 'move',
+        plotX: vp.xForIndex(20),
+        plotY: bodyY,
+        button: 0,
+        paneId: 'price',
+      });
+    });
+
+    await flushDragRaf();
+
+    const moved = result.current.drawingHandleSlice.serializeDrawings()[0]!;
+    const plugin = DrawingRegistry.get('long_position')!;
+    const cps = plugin.getControlPoints!(moved, vp, testCandles, true);
+    const expectedWidth = vp.xForIndex(10) - vp.xForIndex(0);
+
+    expect(moved.points[0]?.dataIndex).toBe(15);
+    expect(moved.points[3]?.dataIndex).toBe(25);
+    expect(moved.points[3]!.dataIndex! - moved.points[0]!.dataIndex!).toBe(10);
+    expect(cps[POSITION_CP.RIGHT]!.x - cps[POSITION_CP.ENTRY_LEFT]!.x).toBeCloseTo(
+      expectedWidth,
+      5,
+    );
   });
 
   it('stop handle drag snaps only stop to nearest OHLC', async () => {

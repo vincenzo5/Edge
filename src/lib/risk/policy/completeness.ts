@@ -47,7 +47,7 @@ export function assessTemplateCompleteness(
   const budgetPresent = template.budget != null && !hasInheritsSlot(template.budget);
   const budgetInherits = template.budget?.kind === "inherits";
   const sizingPresent = template.sizing != null && !hasInheritsSlot(template.sizing);
-  const sizingInherits = template.sizing?.kind === "inherits";
+  const sizingInherits = hasInheritsSlot(template.sizing);
   const geometryPresent = template.geometry != null;
   const protectPresent = resolveTemplateExits(template).some(isRestingBrokerProtectExit);
 

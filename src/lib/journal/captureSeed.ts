@@ -4,19 +4,21 @@ import {
   type CellConfig,
   type Theme,
 } from "@/lib/chartConfig";
-import { chartSymbolForTrade, resolveChartInterval } from "@/lib/journal/chartDeepLink";
+import { chartSymbolForTrade } from "@/lib/journal/chartDeepLink";
 
 export type JournalCaptureTradeContext = {
   id: string;
   symbol: string;
   openedAt?: string;
   closedAt?: string | null;
+  fillExecIds?: string[];
 };
 
 export type JournalCaptureSeed = {
   requestId: string;
   tradeId: string;
   symbol: string;
+  fillExecIds?: string[];
   cellConfig: CellConfig;
   theme: Theme;
 };
@@ -49,13 +51,14 @@ export function buildJournalCaptureSeed(args: {
   const cellConfig = cloneCellConfig(source, { sharedDrawingIds: false });
   cellConfig.symbol = symbol;
   if (!args.activeCellConfig) {
-    cellConfig.interval = resolveChartInterval(args.trade);
+    cellConfig.interval = DEFAULT_CELL.interval;
   }
 
   return {
     requestId,
     tradeId: args.trade.id,
     symbol,
+    fillExecIds: args.trade.fillExecIds?.length ? [...args.trade.fillExecIds] : undefined,
     cellConfig,
     theme: args.theme ?? "dark",
   };

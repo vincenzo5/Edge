@@ -1,0 +1,36 @@
+Trade lifecycle automation — paper soak evidence (2026-08-04)
+
+Phase 1 — Stop-only protect
+- BracketPlan.takeProfitPrice optional; validateBracketGeometry accepts stop-only long/short
+- applyPolicyToTradeDraft: targetless step-trail policy → takeProfitEnabled=false
+- Tests: bracketPlan.test.ts (stop-only), applyPolicyToTradeDraft.test.ts (step trail TP off)
+
+Phase 2 — Fill-armed R + step ratchet
+- manage_state jsonb on playbook_instances; ManageState stepTrailR on instance
+- runPlaybookEvaluation: pending→armed locks R from fill; parametric stepTrail modifyStop; skip step-* rules
+- Tests: stepTrailRatchet.test.ts (0.25R ratchet, never loosen)
+
+Phase 3 — Manage worker
+- manageWorker.ts: 2s active / 15s idle; started from instrumentation.ts unless EDGE_MANAGE_WORKER=0
+- Tests: manageWorker.test.ts (cadence, idle vs armed)
+
+Phase 4 — exitAndCleanup
+- TradingService.exitAndCleanup: pause → cancel correlated orders → flatten if qty → closed instance
+- Wired: OpenRiskPositionsMenu, ClosePositionConfirmModal, AccountPanel (managed flatten)
+- Evaluator flatten + armed-flat reconcile route through exitAndCleanup
+- Tests: exitAndCleanup.test.ts (cancel+flat, kill-switch bypass)
+
+Phase 5 — Env kill-and-flatten
+- paper_kill_active / live_kill_active on playbook_auto_manage
+- killAndFlattenEnvironment + POST /api/trading/playbooks/kill-flatten
+- assertNewRiskAllowed blocks entries when env kill active; emergency exit bypasses global kill
+- UI: PlaybookAutoManageSettings kill controls
+
+Phase 6 — Docs
+- src/lib/trading/ARCHITECTURE.md updated (worker cadence, kill, exitAndCleanup)
+
+Focused verification:
+npm test -- --run src/lib/trading/bracketPlan.test.ts src/lib/trading/playbook/stepTrailRatchet.test.ts src/lib/trading/manageWorker.test.ts src/lib/trading/exitAndCleanup.test.ts src/lib/risk/policy/applyPolicyToTradeDraft.test.ts
+→ 19 passed
+
+App-level paper round-trip (manual): deferred — requires live TWS paper session for ratchet observe.

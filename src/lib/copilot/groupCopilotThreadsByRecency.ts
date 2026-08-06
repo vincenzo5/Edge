@@ -10,6 +10,8 @@ export type CopilotThreadRecencyGroup = {
 
 export const COPILOT_HISTORY_RAIL_VISIBLE_LIMIT = 15;
 export const COPILOT_HISTORY_RAIL_COLLAPSED_KEY = "tv-ai:copilot-history-rail:collapsed";
+export const COPILOT_HISTORY_SECTION_COLLAPSED_KEY =
+  "tv-ai:copilot-history-section:collapsed";
 
 const BUCKET_LABELS: Record<CopilotThreadRecencyBucket, string> = {
   today: "Today",
@@ -93,6 +95,31 @@ export function writeCopilotHistoryRailCollapsed(collapsed: boolean): void {
   }
   try {
     window.localStorage.setItem(COPILOT_HISTORY_RAIL_COLLAPSED_KEY, collapsed ? "true" : "false");
+  } catch {
+    // ignore quota / privacy mode
+  }
+}
+
+export function readCopilotHistorySectionCollapsed(): boolean {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem(COPILOT_HISTORY_SECTION_COLLAPSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function writeCopilotHistorySectionCollapsed(collapsed: boolean): void {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(
+      COPILOT_HISTORY_SECTION_COLLAPSED_KEY,
+      collapsed ? "true" : "false",
+    );
   } catch {
     // ignore quota / privacy mode
   }
