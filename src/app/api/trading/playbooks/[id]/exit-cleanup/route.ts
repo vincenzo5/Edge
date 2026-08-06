@@ -10,12 +10,13 @@ import {
   tradingErrorResponse,
 } from "@/lib/trading/routeHelpers";
 import { requireTradingMutateAuth } from "@/lib/trading/tradingMutateAuth";
+import { RiskPolicyOffReasonSchema } from "@/lib/risk/policy/slotSchemas";
 
 export const runtime = "nodejs";
 
 const ExitCleanupBodySchema = z.object({
   liveConfirmation: z.string().optional(),
-  reason: z.string().optional(),
+  reason: RiskPolicyOffReasonSchema.optional(),
 });
 
 type RouteContext = {

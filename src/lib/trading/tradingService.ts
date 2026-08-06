@@ -1264,7 +1264,7 @@ export class TradingService {
   async exitAndCleanup(args: {
     instanceId: string;
     liveConfirmation?: string;
-    reason?: string;
+    reason?: PlaybookInstance["offReason"];
   }): Promise<{
     instance: PlaybookInstance;
     cancelledOrderIds: number[];

@@ -17,6 +17,7 @@ import type {
 } from "./types";
 import type { ManageStep, PlaybookInstance, PositionPlan } from "./playbook/types";
 import type { EntryOrder, EntrySchedule, PolicyBindingRef } from "@/lib/risk/policy/slotSchemas";
+import type { ApplyRiskPolicyRequest } from "@/lib/risk/policy/applyRequests";
 
 export class TradingApiError extends Error {
   readonly status: number;
@@ -328,7 +329,7 @@ export async function fetchPlaybookAutoManageSettings(
   const res = await fetch(`${baseUrl}/api/trading/playbooks/auto-manage`, {
     cache: "no-store",
   });
-  const body = await parseTradingResponse<{ settings: PlaybookAutoManageSettings }>(res);
+  const body = await parseTradingResponse<{ settings: PlaybookAutoManageClientSettings }>(res);
   return body.settings;
 }
 
@@ -347,7 +348,7 @@ export async function patchPlaybookAutoManageSettings(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
-  const body = await parseTradingResponse<{ settings: PlaybookAutoManageSettings }>(res);
+  const body = await parseTradingResponse<{ settings: PlaybookAutoManageClientSettings }>(res);
   return body.settings;
 }
 
