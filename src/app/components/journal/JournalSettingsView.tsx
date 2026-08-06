@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import JournalSetupsSettingsSection from "@/app/components/journal/JournalSetupsSettingsSection";
+import JournalCapitalSettingsSection from "@/app/components/journal/JournalCapitalSettingsSection";
 import {
   JournalTileActions,
   JournalTileTitle,
@@ -42,7 +43,10 @@ export default function JournalSettingsView() {
         </JournalModuleHeader>
       ) : null}
       <main className="min-h-0 flex-1 overflow-y-auto p-4" data-testid="journal-settings-view">
-        <JournalSetupsSettingsSection />
+        <div className="space-y-8">
+          <JournalCapitalSettingsSection />
+          <JournalSetupsSettingsSection />
+        </div>
       </main>
     </>
   );

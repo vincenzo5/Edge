@@ -4,6 +4,7 @@ import { writeAppTimeZonePreference } from "@/lib/app/appTimeZonePreference";
 import { ensureLiveDataConnectionPreference } from "@/lib/marketData/dataConnectionPreference";
 import { writeDataProviderPreference } from "@/lib/marketData/dataProviderPreference";
 import { writeJournalTradesTablePrefs } from "@/lib/journal/journalTradesTableControls";
+import { writeJournalCapitalEvents } from "@/lib/journal/journalCapitalPreference";
 import { writeJournalSetupValues } from "@/lib/journal/journalSetupPreference";
 import type { UserPreferencesSnapshot } from "@/lib/persistence/schemas/userPreferences";
 import { saveRiskSettingsToStorage } from "@/lib/risk/riskSettings";
@@ -38,6 +39,7 @@ export function applyUserPreferencesSnapshot(snapshot: UserPreferencesSnapshot):
     saveRiskSettingsToStorage(snapshot.riskSettings);
     writeJournalTradesTablePrefs(snapshot.journalTradesTablePrefs);
     writeJournalSetupValues(snapshot.journalSetupValues);
+    writeJournalCapitalEvents(snapshot.journalCapitalEvents);
     writeDataProviderPreference(snapshot.dataProviderPreference);
   });
 }

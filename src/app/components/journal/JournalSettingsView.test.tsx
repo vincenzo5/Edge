@@ -29,6 +29,7 @@ describe("JournalSettingsView", () => {
   it("renders setups settings", () => {
     render(<JournalSettingsView />);
     expect(screen.getByTestId("journal-settings-view")).toBeInTheDocument();
+    expect(screen.getByTestId("journal-capital-settings")).toBeInTheDocument();
     expect(screen.getByTestId("journal-setups-settings")).toBeInTheDocument();
     expect(screen.queryByText("Settings coming soon.")).not.toBeInTheDocument();
   });

@@ -11,6 +11,10 @@ import { DATA_PROVIDER_PREFERENCE_KEY } from "@/lib/marketData/dataProviderPrefe
 import { createDefaultDataProviderPreference } from "@/lib/marketData/providerWaterfall";
 import { JOURNAL_TRADES_TABLE_STORAGE_KEY } from "@/lib/journal/journalTradesTableControls";
 import {
+  DEFAULT_JOURNAL_CAPITAL_EVENTS,
+  JOURNAL_CAPITAL_EVENTS_STORAGE_KEY,
+} from "@/lib/journal/journalCapitalPreference";
+import {
   DEFAULT_JOURNAL_SETUP_VALUES,
   JOURNAL_SETUP_VALUES_STORAGE_KEY,
 } from "@/lib/journal/journalSetupPreference";
@@ -47,6 +51,7 @@ describe("assembleUserPreferencesSnapshot", () => {
     expect(snapshot.activeAccount).toBeNull();
     expect(snapshot.timeZone.length).toBeGreaterThan(0);
     expect(snapshot.journalSetupValues).toEqual([...DEFAULT_JOURNAL_SETUP_VALUES]);
+    expect(snapshot.journalCapitalEvents).toEqual([...DEFAULT_JOURNAL_CAPITAL_EVENTS]);
   });
 
   it("always reports live display data even when stale paper keys exist", () => {
@@ -118,6 +123,7 @@ describe("applyUserPreferencesSnapshot", () => {
     expect(localStorage.getItem(ACCOUNT_ALIASES_STORAGE_KEY)).toContain("Desk");
     expect(localStorage.getItem(ACTIVE_TRADING_ACCOUNT_KEY)).toContain("DU123");
     expect(localStorage.getItem(JOURNAL_SETUP_VALUES_STORAGE_KEY)).toContain("custom setup");
+    expect(localStorage.getItem(JOURNAL_CAPITAL_EVENTS_STORAGE_KEY)).toContain("seed-2026-06-04-11000");
     expect(getUserPreferencesGeneration()).toBe(0);
   });
 

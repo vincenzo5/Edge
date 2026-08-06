@@ -10,6 +10,10 @@ import {
   type JournalTradesTableSortKey,
 } from "@/lib/journal/journalTradesTableControls";
 import {
+  DEFAULT_JOURNAL_CAPITAL_EVENTS,
+  journalCapitalEventsSchema,
+} from "@/lib/journal/journalCapitalPreference";
+import {
   DEFAULT_JOURNAL_SETUP_VALUES,
   journalSetupValuesSchema,
 } from "@/lib/journal/journalSetupPreference";
@@ -70,6 +74,7 @@ export const userPreferencesSnapshotSchema = z.object({
   riskSettings: RiskSettingsSchema,
   journalTradesTablePrefs: journalTradesTablePrefsSchema,
   journalSetupValues: journalSetupValuesSchema.default([...DEFAULT_JOURNAL_SETUP_VALUES]),
+  journalCapitalEvents: journalCapitalEventsSchema.default([...DEFAULT_JOURNAL_CAPITAL_EVENTS]),
 });
 
 export type UserPreferencesSnapshot = z.infer<typeof userPreferencesSnapshotSchema>;
@@ -88,6 +93,7 @@ export const USER_PREFERENCES_LOCAL_SOURCE_KEYS = {
   riskSettings: "edge.riskSettings.v1",
   journalTradesTablePrefs: "edge.journal.tradesTable.v1",
   journalSetupValues: "edge.journal.setupValues.v1",
+  journalCapitalEvents: "edge.journal.capitalEvents.v1",
 } as const;
 
 export const userPreferencesLibraryWriteSchema = z.object({

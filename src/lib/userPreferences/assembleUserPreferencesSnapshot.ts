@@ -9,6 +9,10 @@ import {
   readJournalTradesTablePrefs,
 } from "@/lib/journal/journalTradesTableControls";
 import {
+  DEFAULT_JOURNAL_CAPITAL_EVENTS,
+  readJournalCapitalEvents,
+} from "@/lib/journal/journalCapitalPreference";
+import {
   DEFAULT_JOURNAL_SETUP_VALUES,
   readJournalSetupValues,
 } from "@/lib/journal/journalSetupPreference";
@@ -47,6 +51,7 @@ export function createDefaultUserPreferencesSnapshot(): UserPreferencesSnapshot 
           : 50,
     },
     journalSetupValues: [...DEFAULT_JOURNAL_SETUP_VALUES],
+    journalCapitalEvents: [...DEFAULT_JOURNAL_CAPITAL_EVENTS],
   };
 }
 
@@ -85,5 +90,6 @@ export function assembleUserPreferencesSnapshot(): UserPreferencesSnapshot {
           : 50,
     },
     journalSetupValues: [...readJournalSetupValues()],
+    journalCapitalEvents: [...readJournalCapitalEvents()],
   };
 }
