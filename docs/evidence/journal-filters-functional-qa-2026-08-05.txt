@@ -1,0 +1,47 @@
+# Journal filters functional QA — 2026-08-05
+
+App: http://localhost:3003
+Tooling: Playwright headless (chromium)
+Data: live journal API (GET /api/me/journal/trades) — rich demo history present
+
+## Focused tests
+Command:
+npm test -- --run src/lib/journal/journalFilterHelpers.test.ts src/lib/journal/journalStats.test.ts src/app/components/journal/JournalFilterDrawer.test.tsx src/app/components/journal/JournalScopeBar.test.tsx
+
+```
+Test Files  4 passed (4)
+Tests  65 passed (65)
+```
+
+## App-level
+**App-level:** Playwright pack on http://localhost:3003 — 18/18 filter checks PASS.
+
+1. Dashboard scope bar present — PASS — journal-scope-bar
+2. Period preset Today vs All — PASS — All=131 trades; Today=0 trades
+3. Symbol filter AAPL (dashboard) — PASS — closed=17 trades; clearAll=true; chipsAbsent=true
+4. Drawer draft discard on backdrop (dashboard) — PASS — panel=true; noStatus=true; chipsAfterBackdrop=0
+5. Setup=breakout apply + chip — PASS — chip=breakout; trigger=Filters (1); closed=25 trades
+6. AND setup+outcome chips — PASS — trigger=Filters (2); closed=17 trades; outcomeChip=Wins
+7. Dismiss outcome chip keeps setup — PASS — outcomeChips=0; setupChips=1
+8. Tag=fomo filter — PASS — chip=fomo; closed=21 trades
+9. Rating=5 filter — PASS — chip=Rating 5; closed=35 trades
+10. Custom date range Jul 2026 — PASS — chip=Jul 1 – Jul 31; periodCtrl=Custom range; closed=31 trades
+11. Period All clears custom range — PASS — dateChips=0
+12. Clear all resets filters — PASS — chips=0; clearGone=true
+13. Trades status=open filter — PASS — statusField=true; baseline=137; openRows=4; chip=Open
+14. Trades closed+spread AND — PASS — baseline=137; closed+spread=31
+15. Drawer Clear resets draft — PASS — setup=All setups; tag=""
+16. Open view: no status; setup=pullback — PASS — noStatus=true; baseline=4; filtered=2
+17. Trades symbol=SPY exact — PASS — total=22; visible=22; allVisibleSPY=true
+18. Trades outcome=loss — PASS — rows=42; chip=Losses
+
+Totals: 18 PASS / 0 FAIL / 0 SKIP
+
+## Bugs
+- none
+
+## Notes
+- Symbol filter is not rendered as a dismissible chip; Clear all covers it.
+- Status field only on Trades mode (not Dashboard / Open).
+- Custom date range overrides period preset; choosing a preset clears custom range.
+- Trades table is virtualized; pack uses journal-trades-result-count for totals.
