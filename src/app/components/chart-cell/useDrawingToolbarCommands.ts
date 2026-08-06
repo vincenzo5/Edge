@@ -286,7 +286,10 @@ export function useDrawingToolbarCommands({
         patch: Parameters<NonNullable<typeof chartRef.current>["updateDrawingStyles"]>[1],
       ) => chartRef.current?.updateDrawingStyles(id, patch),
       restoreDrawings: (data: SerializedDrawing[]) => chartRef.current?.restoreDrawings(data),
-      reshapePositionDrawing: (id, levels) => {
+      reshapePositionDrawing: (
+        id: string,
+        levels: { entry: number; stop: number; target: number },
+      ) => {
         const chart = chartRef.current;
         if (!chart) return false;
         const drawing = chart.serializeDrawings().find((item) => item.id === id);
