@@ -106,10 +106,16 @@ export function PolicyEditorLabeledTextarea({
   className = "",
   disabled,
   readOnly,
+  testId,
   ...rest
 }: LabeledControlProps &
-  TextareaHTMLAttributes<HTMLTextAreaElement> & { readOnly?: boolean }) {
+  TextareaHTMLAttributes<HTMLTextAreaElement> & { readOnly?: boolean; testId?: string }) {
   const labelId = useId();
+  const resolvedTestId =
+    testId ??
+    (typeof (rest as { "data-testid"?: unknown })["data-testid"] === "string"
+      ? ((rest as { "data-testid"?: string })["data-testid"] as string)
+      : undefined);
 
   if (readOnly) {
     return (
@@ -117,7 +123,7 @@ export function PolicyEditorLabeledTextarea({
         label={label}
         help={help}
         value={formatPolicyReadoutValue(rest.value, "—")}
-        testId={typeof rest["data-testid"] === "string" ? rest["data-testid"] : undefined}
+        testId={resolvedTestId}
       />
     );
   }

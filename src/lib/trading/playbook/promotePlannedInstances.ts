@@ -182,7 +182,7 @@ export async function promotePlannedInstanceNow(args: {
         orderIntentId: placed.intent.intentId,
         orderRef: placed.orderRef,
         stopOrderId: placed.stopOrder.orderId ?? null,
-        takeProfitOrderId: placed.takeProfitOrder.orderId ?? null,
+        takeProfitOrderId: placed.takeProfitOrder?.orderId ?? null,
         scheduledAt: now.toISOString(),
       })) ?? args.instance;
     return patched;

@@ -94,6 +94,8 @@ function buildPreviewBracketPlan(input: ComposeRiskPolicyViewInput): BracketPlan
       environment: input.environment,
       outsideRth: false,
       tif: "DAY",
+      allOrNone: false,
+      usePriceMgmtAlgo: false,
     },
     stopLeg,
     takeProfitPrice,

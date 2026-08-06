@@ -28,6 +28,8 @@ export function buildClosePositionDraft({
     environment: account.environment,
     outsideRth: false,
     tif: "DAY",
+    allOrNone: false,
+    usePriceMgmtAlgo: false,
   };
 }
 

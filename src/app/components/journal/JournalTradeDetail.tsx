@@ -175,12 +175,13 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
   const draftStop = initialStopInput.trim() ? Number.parseFloat(initialStopInput) : null;
   const riskQuantityInput = useMemo(
     () => ({
+      direction: trade.direction,
       netQuantity: trade.netQuantity,
       legs: trade.legs,
       managePlaybook: trade.managePlaybook,
       fillQuantities: tradeFills.map((fill) => fill.quantity),
     }),
-    [trade.legs, trade.managePlaybook, trade.netQuantity, tradeFills],
+    [trade.direction, trade.legs, trade.managePlaybook, trade.netQuantity, tradeFills],
   );
   const shareQuantity = useMemo(
     () => resolveTradeRiskQuantity(riskQuantityInput),

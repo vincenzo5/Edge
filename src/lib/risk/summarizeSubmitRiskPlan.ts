@@ -218,7 +218,7 @@ export function summarizeSubmitRiskPlanFromBracket(args: {
     plannedRiskDollars: args.plannedRiskDollars,
     protectAttached,
     stopLeg: protectAttached ? args.bracketPlan!.stopLeg : null,
-    takeProfitPrice: protectAttached ? args.bracketPlan!.takeProfitPrice : null,
+    takeProfitPrice: protectAttached ? args.bracketPlan!.takeProfitPrice ?? null : null,
     managePresetId: protectAttached ? args.managePresetId : "off",
     accountGates: args.accountGates,
     side: args.side,

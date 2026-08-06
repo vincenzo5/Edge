@@ -194,6 +194,19 @@ const LegacyEntryOrderSchema = z.object({
   limitPrice: z.number().positive().optional(),
 });
 
+const EntryOrderObjectSchema = z.object({
+  orderType: OrderTypeSchema.default("MKT"),
+  limitPrice: z.number().positive().optional(),
+  stopPrice: z.number().positive().optional(),
+  trailPercent: z.number().positive().optional(),
+  outsideRth: z.boolean().default(false),
+  tif: TimeInForceSchema.default("DAY"),
+  allOrNone: z.boolean().default(false),
+  usePriceMgmtAlgo: z.boolean().default(false),
+});
+
+export type EntryOrder = z.infer<typeof EntryOrderObjectSchema>;
+
 function legacyToRecipe(raw: z.infer<typeof LegacyEntryOrderSchema>): EntryOrder {
   const orderType = raw.type === "STP_LMT" ? "STP LMT" : raw.type;
   return {
@@ -215,18 +228,7 @@ export const EntryOrderSchema = z.preprocess((raw) => {
     if (parsed.success) return legacyToRecipe(parsed.data);
   }
   return raw;
-}, z.object({
-  orderType: OrderTypeSchema.default("MKT"),
-  limitPrice: z.number().positive().optional(),
-  stopPrice: z.number().positive().optional(),
-  trailPercent: z.number().positive().optional(),
-  outsideRth: z.boolean().default(false),
-  tif: TimeInForceSchema.default("DAY"),
-  allOrNone: z.boolean().default(false),
-  usePriceMgmtAlgo: z.boolean().default(false),
-}));
-
-export type EntryOrder = z.infer<typeof EntryOrderSchema>;
+}, EntryOrderObjectSchema);
 
 export function validateStrictEntryOrder(recipe: EntryOrder): OrderExecutionRecipe {
   return OrderExecutionRecipeSchema.parse(recipe);

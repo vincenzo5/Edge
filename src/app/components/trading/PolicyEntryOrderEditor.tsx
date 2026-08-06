@@ -2,13 +2,13 @@
 
 import { useMemo } from "react";
 import EdgeLabeledInput from "../design-system/EdgeLabeledInput";
-import { EdgeMicroSelect, EdgeSegmentedTabs, EdgeToggleSwitch, EdgeUnderlineTabs } from "../design-system";
+import { EdgeSegmentedTabs, EdgeToggleSwitch, EdgeUnderlineTabs } from "../design-system";
 import {
   defaultEntryOrder,
   type EntryOrder,
 } from "@/lib/trading/orderExecutionRecipe";
 import {
-  composeOrderTypeForFamily,
+  composeOrderType,
   decomposeOrderType,
   EXEC_TYPE_SEGMENTS,
   FILL_SEGMENTS,
@@ -17,7 +17,7 @@ import {
   type OrderFamily,
   type OrderFillTiming,
 } from "@/lib/trading/orderTypeFamily";
-import type { OrderType, TimeInForce } from "@/lib/trading/types";
+import type { TimeInForce } from "@/lib/trading/types";
 import {
   isTifValidForOrderType,
   supportsPriceMgmtAlgo,
@@ -63,7 +63,7 @@ export function PolicyEntryOrderEditor({
   const patch = (partial: Partial<EntryOrder>) => onChange({ ...value, ...partial });
 
   const applyFamilyTab = (family: OrderFamily) => {
-    const next = composeOrderTypeForFamily({
+    const next = composeOrderType({
       family,
       fill: orderTypeFamily.fill,
       execType: orderTypeFamily.execType,
@@ -79,43 +79,40 @@ export function PolicyEntryOrderEditor({
   return (
     <div className="flex flex-col gap-4" data-testid="policy-entry-order-editor">
       <EdgeUnderlineTabs
-        tabs={ORDER_FAMILY_TABS.map((tab) => ({ id: tab.id, label: tab.label }))}
+        segments={ORDER_FAMILY_TABS.map((tab) => ({ id: tab.id, label: tab.label }))}
         value={orderTypeFamily.family}
         onChange={(family) => applyFamilyTab(family as OrderFamily)}
-        disabled={disabled}
       />
 
       {(orderTypeFamily.family === "market" || orderTypeFamily.family === "limit") && (
         <EdgeSegmentedTabs
-          segments={FILL_SEGMENTS}
+          segments={[...FILL_SEGMENTS]}
           value={orderTypeFamily.fill ?? "now"}
           onChange={(fill) =>
             patch({
-              orderType: composeOrderTypeForFamily({
+              orderType: composeOrderType({
                 family: orderTypeFamily.family,
                 fill: fill as OrderFillTiming,
                 execType: orderTypeFamily.execType,
               }),
             })
           }
-          disabled={disabled}
         />
       )}
 
       {(orderTypeFamily.family === "stop" || orderTypeFamily.family === "trail") && (
         <EdgeSegmentedTabs
-          segments={EXEC_TYPE_SEGMENTS}
+          segments={[...EXEC_TYPE_SEGMENTS]}
           value={orderTypeFamily.execType ?? "market"}
           onChange={(execType) =>
             patch({
-              orderType: composeOrderTypeForFamily({
+              orderType: composeOrderType({
                 family: orderTypeFamily.family,
                 fill: orderTypeFamily.fill,
                 execType: execType as OrderExecType,
               }),
             })
           }
-          disabled={disabled}
         />
       )}
 
@@ -176,9 +173,9 @@ export function PolicyEntryOrderEditor({
         <span>All or none</span>
         <EdgeToggleSwitch
           checked={value.allOrNone ?? false}
-          onCheckedChange={(checked) => patch({ allOrNone: checked })}
+          onChange={(checked) => patch({ allOrNone: checked })}
           disabled={disabled}
-          aria-label="All or none"
+          ariaLabel="All or none"
         />
       </label>
 
@@ -186,9 +183,9 @@ export function PolicyEntryOrderEditor({
         <span>Extended hours</span>
         <EdgeToggleSwitch
           checked={value.outsideRth ?? false}
-          onCheckedChange={(checked) => patch({ outsideRth: checked })}
+          onChange={(checked) => patch({ outsideRth: checked })}
           disabled={disabled}
-          aria-label="Extended hours"
+          ariaLabel="Extended hours"
         />
       </label>
 
@@ -197,9 +194,9 @@ export function PolicyEntryOrderEditor({
           <span>Price management algo</span>
           <EdgeToggleSwitch
             checked={value.usePriceMgmtAlgo ?? false}
-            onCheckedChange={(checked) => patch({ usePriceMgmtAlgo: checked })}
+            onChange={(checked) => patch({ usePriceMgmtAlgo: checked })}
             disabled={disabled}
-            aria-label="Price management algo"
+            ariaLabel="Price management algo"
           />
         </label>
       ) : null}

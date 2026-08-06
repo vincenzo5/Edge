@@ -7,7 +7,10 @@ import {
 } from "./dataConnectionPreference";
 import { IB_LIVE_CONNECTION_ID } from "@/lib/trading/connectionRegistry";
 
-export function useDataConnectionPreference() {
+export function useDataConnectionPreference(): {
+  preference: DataConnectionId;
+  setPreference: (connectionId: DataConnectionId) => void;
+} {
   useEffect(() => {
     readDataConnectionPreference();
   }, []);
