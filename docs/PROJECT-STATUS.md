@@ -84,6 +84,14 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 | APP — Journal trade stop risk | Trade detail modal: editable stop under screenshot defines 1R from entry geometry; `initial_stop` persisted and derives planned risk USD | **Passing** | # Journal trade stop risk — 2026-08-05; ## Focused tests; Command: `npm test -- --run src/app/components/journal/JournalTradeDetail.test.tsx src/lib/persistence/schemas/journal.test.ts src/lib/journal/tradeRiskGeometry.test.ts src/lib/journal/localJournalStore.test.ts`; ```; Test Files  4 passed (4); Tests  18 passed (18); ```; ## Broader journal suite; Command: `npm test -- --run src/lib/journal src/app/components/journal/JournalTradeDetail.test.tsx src/app/journal/JournalPage.test.tsx`; ```; Test Files  33 passed (33); Tests  227 passed (227); ```; ## Behavior; - Added `initial_stop` column on `journal_trades`; PATCH accepts `initialStop`; - Saving stop derives `plannedRiskMode=usd`, `plannedRiskValue`, `plannedRiskUsd` from entry→stop×qty; - Trade detail modal: Risk block under screenshot (entry auto, stop editable, live R preview); - Fills, excursion, chart snapshots, risk policy collapsed under Execution details; - Removed planned risk $/% from Review section | `src/lib/journal/tradeRiskGeometry.ts`, `src/app/components/journal/JournalTradeDetail.tsx`, `src/db/migrations/0042_journal_trade_initial_stop.sql`, `src/lib/persistence/repositories/journalRepository.ts` |
 | APP — Journal policy replay | CLI replays closed journal STK trades through risk policies; writes evidence JSON + refreshes comparison canvas | **Passing** | # Journal policy replay — 2026-08-04; ## Focused tests; Command: `npm test -- --run src/lib/journal/policyReplay/`; ```; Test Files  4 passed (4); Tests  14 passed (14); Duration  787ms; ```; ## Live smoke; Command: `npm run journal:policy-replay`; Exit: 0; ```; Policy replay — 9 trades (8L / 1S); Wrote /Users/vincentn/TV AI/docs/evidence/policy-replay-latest.json; Canvas /Users/vincentn/.cursor/projects/Users-vincentn-TV-AI/canvases/ib-live-risk-policy-replay.canvas.tsx; Scoreboard (all) — top policies by net R:; Step trail 0.25R             +12.34R; Step trail 0.5R              +9.65R; Full trail 0.5R (continuous) +9.63R; Full trail 1R (continuous)   +8.59R; Step trail 1R                +8.29R; Fixed 3R TP                  +7.29R; Step trail 0.25R: net +12.34R · WR 66.7% · exp +1.37R; ```; tradeCount: 9 (>= 1). Step trail 0.25R row present in stdout. Canvas rewritten.; ## Artifacts; - Lib: `src/lib/journal/policyReplay/`; - CLI: `scripts/journal-policy-replay.mts` · `npm run journal:policy-replay`; - Skill: `.cursor/skills/journal-policy-replay/SKILL.md`; - JSON: `docs/evidence/policy-replay-latest.json` | src/lib/journal/policyReplay/,scripts/journal-policy-replay.mts,.cursor/skills/journal-policy-replay/SKILL.md |
 
+## Task Contract — APP — Journal filters functional QA
+
+- **Status:** **Passing** (2026-08-05 app-level; harness date 2026-08-06)
+- **Goal:** App-level journal filter pack (period, symbol, drawer, chips, clear-all) across Dashboard / Trades / Open.
+- **Verification:** Playwright 18/18 PASS + focused 65 tests — `docs/evidence/journal-filters-functional-qa-2026-08-05.txt`
+- **Blockers:** none
+- **Next:** none (production promote of HEAD)
+
 ## Task Contract — Grok Copilot UX parity
 
 - **Status:** Phase 0–3 **Passing** (2026-07-24); Phases 4–5 **Pending**
@@ -106,6 +114,11 @@ Use verification levels: **Focused** (targeted Vitest), **Build** (`npm run buil
 - **Next:** Activate Connections Phase 5 under WIP=1 when prioritized — Gateway connect chrome (5.2–5.5).
 
 ## Session Log
+
+### 2026-08-06 — Production promote prep
+
+- **Completed:** Committed WIP batch (`d7eae23`); harness gate fix for session-exit lint; push `main` then `local:prod:container:deploy -- --revision HEAD`.
+- **Next best step:** Confirm `:3000` `/healthz` + `/readyz` after container promote.
 
 - **2026-07-30 — Gateway 1s quotes: sidecar fire-and-forget refresh; client SSE rejoin with REST bridge; server TWS SSE retry before poll fallback.**
 
