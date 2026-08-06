@@ -175,29 +175,20 @@ export default function JournalTradeDetail({ trade, onUpdated, embedded = false 
   const stopSeededFromPlan =
     trade.initialStop == null && positionPlanSnapshot?.initialStop != null;
   const draftStop = initialStopInput.trim() ? Number.parseFloat(initialStopInput) : null;
-  const riskQuantityInput = useMemo(() => {
-    const roleByExecId = new Map(
-      (trade.fillLinks ?? []).map((link) => [link.execId, link.role] as const),
-    );
-    return {
+  const riskQuantityInput = useMemo(
+    () => ({
       direction: trade.direction,
       netQuantity: trade.netQuantity,
       legs: trade.legs,
       managePlaybook: trade.managePlaybook,
+      // API trade rows do not carry fillLinks; entry-side sum uses fill.side + direction.
       fills: tradeFills.map((fill) => ({
         quantity: fill.quantity,
-        role: roleByExecId.get(fill.execId) ?? null,
         side: fill.side,
       })),
-    };
-  }, [
-    trade.direction,
-    trade.fillLinks,
-    trade.legs,
-    trade.managePlaybook,
-    trade.netQuantity,
-    tradeFills,
-  ]);
+    }),
+    [trade.direction, trade.legs, trade.managePlaybook, trade.netQuantity, tradeFills],
+  );
   const shareQuantity = useMemo(
     () => resolveTradeRiskQuantity(riskQuantityInput),
     [riskQuantityInput],
