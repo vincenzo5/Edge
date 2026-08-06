@@ -1,5 +1,5 @@
 # Journal Flex time + qty repair evidence
-generated_at: 2026-08-06T18:15:28.870Z
+generated_at: 2026-08-06T18:31:22.379Z
 database: postgres://tvai:***@localhost:5432/edge_prod
 account: U25026894
 user_id: e30ce874-c305-40a5-b581-bc14d257cfa4
@@ -23,21 +23,21 @@ status: closed
 net_quantity: 400
 avg_entry: 83.56985
 avg_exit: 89.58695
-net_pnl: 2401.205208
+net_pnl: 2402.0214035319996
 planned_risk_usd: 2399.9400000000037
 initial_stop: null
-opened_at: 2026-08-03T19:43:09.000Z
-closed_at: 2026-08-05T18:35:35.000Z
-r_multiple: 1.0005
+opened_at: 2026-08-03T15:43:09.000Z
+closed_at: 2026-08-05T14:35:35.000Z
+r_multiple: 1.0009
 
 fills:
-  2026-08-03T19:43:09.000Z BOT 100 flex_csv 00030e5e.6e2b1106.01.01
-  2026-08-03T19:43:09.000Z BOT 100 flex_csv 0001830e.6a70ecb3.01.01
-  2026-08-03T19:43:09.000Z BOT 100 flex_csv 0001830e.6a70ecb1.01.01
-  2026-08-03T19:43:09.000Z BOT 100 flex_csv 00024969.6a70d973.01.01
-  2026-08-05T18:35:35.000Z SLD 122 live 0000d8a2.6a7359f4.01.01
-  2026-08-05T18:35:35.000Z SLD 80 live 00019367.6a733a3b.01.01
-  2026-08-05T18:35:35.000Z SLD 198 live 0000d8a2.6a7359f2.01.01
+  2026-08-03T15:43:09.000Z BOT 100 flex_csv 0001830e.6a70ecb1.01.01
+  2026-08-03T15:43:09.000Z BOT 100 flex_csv 00024969.6a70d973.01.01
+  2026-08-03T15:43:09.000Z BOT 100 flex_csv 00030e5e.6e2b1106.01.01
+  2026-08-03T15:43:09.000Z BOT 100 flex_csv 0001830e.6a70ecb3.01.01
+  2026-08-05T14:35:35.000Z SLD 198 flex_csv 0000d8a2.6a7359f2.01.01
+  2026-08-05T14:35:35.000Z SLD 122 flex_csv 0000d8a2.6a7359f4.01.01
+  2026-08-05T14:35:35.000Z SLD 80 flex_csv 00019367.6a733a3b.01.01
 
 ## Manual follow-up
 - If LQDA initial_stop is null, re-save stop at 77.57 in the UI (or patch) so planned_risk recomputes to ~$2400 / ~1.0R.
