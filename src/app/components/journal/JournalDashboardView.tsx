@@ -33,6 +33,7 @@ import {
   computeBreakdownReport,
   computeTimeBreakdownReport,
   computeJournalDashboardMetrics,
+  computeTradeFrequency,
   EMPTY_JOURNAL_FILTERS,
   filterJournalTrades,
   scopeClosedTradesForReporting,
@@ -151,6 +152,11 @@ export default function JournalDashboardView() {
     [scopedClosedTrades, accountEquity],
   );
 
+  const tradeFrequency = useMemo(
+    () => computeTradeFrequency(scopedClosedTrades, window, filters),
+    [scopedClosedTrades, window, filters],
+  );
+
   return (
     <>
       <JournalModuleHeader
@@ -175,6 +181,7 @@ export default function JournalDashboardView() {
               stats={stats}
               accountEquity={accountEquity}
               dashboardMetrics={dashboardMetrics}
+              frequency={tradeFrequency}
             />
           </div>
           <div className={journalDashboardSectionGridClass(mode, "min-h-96")}>

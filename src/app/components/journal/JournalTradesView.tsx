@@ -23,6 +23,7 @@ import {
 import {
   computeJournalStats,
   computeJournalDashboardMetrics,
+  computeTradeFrequency,
   EMPTY_JOURNAL_FILTERS,
   filterJournalTrades,
   filterOpenJournalTrades,
@@ -149,6 +150,11 @@ export default function JournalTradesView({ variant = "trades" }: Props) {
     [scopedClosedTrades, accountEquity],
   );
 
+  const tradeFrequency = useMemo(
+    () => computeTradeFrequency(scopedClosedTrades, window, filters),
+    [scopedClosedTrades, window, filters],
+  );
+
   const liveUnrealizedByTradeId = useMemo(() => {
     if (!isOpenView) return {};
     const positions = account?.positions ?? [];
@@ -199,6 +205,7 @@ export default function JournalTradesView({ variant = "trades" }: Props) {
             stats={stats}
             accountEquity={accountEquity}
             dashboardMetrics={dashboardMetrics}
+            frequency={tradeFrequency}
           />
           <div className="mt-4 flex min-h-0 flex-1 flex-col">
             {emptyVariant === "none" ? (

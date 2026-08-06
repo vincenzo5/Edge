@@ -47,7 +47,7 @@ Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md
 | `src/lib/journal/rebuildTrades.ts` | Idempotent regroup + note preservation |
 | `src/lib/journal/flexImport/parseFlexCsv.ts` | IB Flex Trades CSV parser |
 | `src/lib/journal/flexImport/flexWebService.ts` | Optional server Flex Web Service pull |
-| `src/lib/journal/journalStats.ts` | Win rate, P&L, profit factor, filters, daily P&L, equity curve, intraday curve, day summary stats, breakdown reports, time breakdown, calendar builder |
+| `src/lib/journal/journalStats.ts` | Win rate, P&L, profit factor, filters, daily P&L, equity curve, intraday curve, day summary stats, breakdown reports, time breakdown, calendar builder, trade frequency (trades/wk · trades/mo) |
 | `src/lib/journal/rMultiple.ts` | Planned risk ($/%) and R-multiple math |
 | `src/lib/journal/policyReplay/` | CLI-backed journal→policy replay (daily close paths, scoreboards) — `npm run journal:policy-replay` |
 | `src/lib/journal/chartDeepLink.ts` | Chart deep-link with journalTrade + goto params |
@@ -58,7 +58,7 @@ Primary durable path for live fills. See [docs/roadmaps/broker-ledger-roadmap.md
 | `src/app/components/journal/JournalMetricGrid.tsx` | Reusable label/value metric grid |
 | `src/app/components/journal/JournalDayTradesTable.tsx` | Day summary trades table |
 | `src/app/components/journal/JournalEquityChart.tsx` | Daily cumulative P&L area chart (TradeZella-style axes, gradient fill, hover tooltip) |
-| `src/app/components/journal/JournalSummaryCards.tsx` | Dashboard hero KPI cards — account equity (live IB NetLiquidation) with scoped net P&L, percent change, and net R; trade win %; expected value + avg win/loss with $/%/R toggle; max drawdown with % and R secondary |
+| `src/app/components/journal/JournalSummaryCards.tsx` | Dashboard hero KPI cards — account equity (live IB NetLiquidation) with scoped net P&L, percent change, net R, and trade pace (`/wk` · `/mo`); trade win %; expected value + avg win/loss with $/%/R toggle; max drawdown with % and R secondary |
 | `src/app/components/journal/JournalHistorySyncChip.tsx` | Compact chrome chip when journal open trades ≠ live IB positions (`History lagging` / `Catching up`); tooltip holds full sync explanation |
 | `src/app/components/journal/useJournalHistoryOutOfSync.ts` | Hook wrapping `reconcileJournalOpensWithPositions` for sync chip |
 | `src/app/components/journal/JournalTradeListCard.tsx` | Dashboard recent closed trades list card |

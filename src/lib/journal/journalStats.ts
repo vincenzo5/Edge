@@ -101,6 +101,24 @@ export type JournalDashboardMetrics = {
   rStats: JournalDashboardRStats;
 };
 
+/** Observed trade pace over the reporting scope (closed trades ÷ elapsed calendar days). */
+export type JournalTradeFrequency = {
+  tradesPerWeek: number | null;
+  tradesPerMonth: number | null;
+  elapsedDays: number | null;
+};
+
+export const EMPTY_JOURNAL_TRADE_FREQUENCY: JournalTradeFrequency = {
+  tradesPerWeek: null,
+  tradesPerMonth: null,
+  elapsedDays: null,
+};
+
+const DAY_MS = 86_400_000;
+const DAYS_PER_WEEK = 7;
+/** Mean Gregorian month length for annualizing daily pace. */
+const DAYS_PER_MONTH = 365.2425 / 12;
+
 export type IntradayPnLPoint = {
   closedAt: string;
   tradePnL: number;
@@ -232,14 +250,13 @@ export type CalendarMonth = {
 export const CALENDAR_WEEKDAY_COLUMNS = 5;
 
 function windowStart(window: JournalStatsWindow, now = Date.now()): number {
-  const dayMs = 86_400_000;
   switch (window) {
     case "today":
       return new Date(new Date(now).toDateString()).getTime();
     case "7d":
-      return now - 7 * dayMs;
+      return now - 7 * DAY_MS;
     case "30d":
-      return now - 30 * dayMs;
+      return now - 30 * DAY_MS;
     default:
       return 0;
   }
@@ -327,6 +344,90 @@ export function matchesJournalFilters(
 
 export function hasCustomClosedDateRange(filters: JournalFilters): boolean {
   return Boolean(filters.closedFrom?.trim() || filters.closedTo?.trim());
+}
+
+function presetWindowElapsedDays(window: JournalStatsWindow): number | null {
+  switch (window) {
+    case "today":
+      return 1;
+    case "7d":
+      return 7;
+    case "30d":
+      return 30;
+    default:
+      return null;
+  }
+}
+
+function parseClosedDateBoundary(value: string | undefined, endOfDay: boolean): number | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const suffix = endOfDay ? "T23:59:59.999Z" : "T00:00:00.000Z";
+    const ms = Date.parse(`${trimmed}${suffix}`);
+    return Number.isFinite(ms) ? ms : null;
+  }
+  const ms = Date.parse(trimmed);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Calendar-day denominator for pace. Preset windows use fixed length (1/7/30).
+ * Custom closedFrom/closedTo use the inclusive range. `all` uses first close → now.
+ */
+export function resolveTradeFrequencyElapsedDays(
+  closedTrades: JournalStatsTradeInput[],
+  window: JournalStatsWindow,
+  filters: JournalFilters = EMPTY_JOURNAL_FILTERS,
+  now = Date.now(),
+): number | null {
+  if (hasCustomClosedDateRange(filters)) {
+    const fromMs = parseClosedDateBoundary(filters.closedFrom, false);
+    const toMs = parseClosedDateBoundary(filters.closedTo, true);
+    const closedTimes = closedTrades
+      .map((trade) => (trade.closedAt ? Date.parse(trade.closedAt) : NaN))
+      .filter((ms) => Number.isFinite(ms));
+    const start =
+      fromMs ?? (closedTimes.length > 0 ? Math.min(...closedTimes) : null);
+    const end = toMs ?? now;
+    if (start == null || end < start) return null;
+    return Math.max((end - start) / DAY_MS, 1);
+  }
+
+  const preset = presetWindowElapsedDays(window);
+  if (preset != null) return preset;
+
+  const closedTimes = closedTrades
+    .map((trade) => (trade.closedAt ? Date.parse(trade.closedAt) : NaN))
+    .filter((ms) => Number.isFinite(ms));
+  if (closedTimes.length === 0) return null;
+  const first = Math.min(...closedTimes);
+  return Math.max((now - first) / DAY_MS, 1);
+}
+
+/** Pace from already-scoped closed trades: count ÷ elapsed days → /wk and /mo. */
+export function computeTradeFrequency(
+  closedTrades: JournalStatsTradeInput[],
+  window: JournalStatsWindow,
+  filters: JournalFilters = EMPTY_JOURNAL_FILTERS,
+  now = Date.now(),
+): JournalTradeFrequency {
+  const closed = closedTrades.filter((trade) => trade.status === "closed");
+  if (closed.length === 0) {
+    return { ...EMPTY_JOURNAL_TRADE_FREQUENCY };
+  }
+
+  const elapsedDays = resolveTradeFrequencyElapsedDays(closed, window, filters, now);
+  if (elapsedDays == null || elapsedDays <= 0) {
+    return { ...EMPTY_JOURNAL_TRADE_FREQUENCY, elapsedDays };
+  }
+
+  const tradesPerDay = closed.length / elapsedDays;
+  return {
+    elapsedDays,
+    tradesPerWeek: tradesPerDay * DAYS_PER_WEEK,
+    tradesPerMonth: tradesPerDay * DAYS_PER_MONTH,
+  };
 }
 
 export function scopeClosedTradesForReporting(

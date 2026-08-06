@@ -1,0 +1,25 @@
+# Journal trade pace KPI — 2026-08-06
+Task: Journal trade pace KPI
+Branch: APP
+
+## Behavior
+- Account equity KPI shows observed pace: `{n}/wk · {n}/mo` from scoped closed trades
+- Denominator: Today=1d, 7d=7, 30d=30; custom closedFrom/To span; All = first close → now
+- Wired on Dashboard and Trades summary cards
+
+## Focused tests
+Command:
+npm test -- --run src/lib/journal/journalStats.test.ts src/app/components/journal/JournalSummaryCards.test.tsx
+```
+ Test Files  2 passed (2)
+      Tests  73 passed (73)
+```
+
+## Files
+- src/lib/journal/journalStats.ts
+- src/lib/journal/journalStats.test.ts
+- src/app/components/journal/JournalSummaryCards.tsx
+- src/app/components/journal/JournalSummaryCards.test.tsx
+- src/app/components/journal/JournalDashboardView.tsx
+- src/app/components/journal/JournalTradesView.tsx
+- src/lib/journal/ARCHITECTURE.md

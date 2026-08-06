@@ -10,13 +10,18 @@ import {
   journalSummaryGridClass,
 } from "@/lib/responsive/tileDensity";
 import {
+  EMPTY_JOURNAL_TRADE_FREQUENCY,
   scaleJournalMetricByStartingEquity,
   type JournalDashboardMetrics,
   type JournalStats,
+  type JournalTradeFrequency,
 } from "@/lib/journal/journalStats";
 
 const ACCOUNT_EQUITY_HELP =
-  "Total portfolio value (net liquidation) from your connected IB account. Secondary lines show scoped net P&L, percent change from the inferred starting equity, and net R when planned risk is available.";
+  "Total portfolio value (net liquidation) from your connected IB account. Secondary lines show scoped net P&L, percent change vs starting equity, and net R when planned risk is available.";
+
+const TRADE_PACE_HELP =
+  "Observed closed-trade pace for the current scope: trades per week and per month (count ÷ elapsed calendar days in the selected period).";
 
 const NET_PNL_HELP =
   "The total realized net profit and loss for all closed trades in the current scope.";
@@ -221,6 +226,12 @@ function tradeCountLabel(count: number, singular: string, plural: string): strin
   return count === 1 ? `1 ${singular}` : `${count} ${plural}`;
 }
 
+function formatPaceRate(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 function outcomePillLabel(segment: OutcomeSegment, count: number): string {
   switch (segment) {
     case "win":
@@ -286,12 +297,14 @@ type Props = {
   stats: JournalStats;
   accountEquity: number | null;
   dashboardMetrics: JournalDashboardMetrics;
+  frequency?: JournalTradeFrequency;
 };
 
 export default function JournalSummaryCards({
   stats,
   accountEquity,
   dashboardMetrics,
+  frequency = EMPTY_JOURNAL_TRADE_FREQUENCY,
 }: Props) {
   const { mode } = useTileDensity();
   const heroSpan = journalHeroCardSpanClass(mode);
@@ -306,6 +319,7 @@ export default function JournalSummaryCards({
           equityChangePct={dashboardMetrics.equityChangePct}
           netR={dashboardMetrics.rStats.netR}
           tradeCountWithR={dashboardMetrics.rStats.tradeCountWithR}
+          frequency={frequency}
           heroSpan={heroSpan}
         />
         <WinRateMetricCard
@@ -425,6 +439,7 @@ function AccountEquityMetricCard({
   equityChangePct,
   netR,
   tradeCountWithR,
+  frequency,
   heroSpan,
 }: {
   accountEquity: number | null;
@@ -433,6 +448,7 @@ function AccountEquityMetricCard({
   equityChangePct: number | null;
   netR: number | null;
   tradeCountWithR: number;
+  frequency: JournalTradeFrequency;
   heroSpan: string;
 }) {
   const prevEquityRef = useRef<number | null>(null);
@@ -498,11 +514,24 @@ function AccountEquityMetricCard({
         helpContent={ACCOUNT_EQUITY_HELP}
         helpAriaLabel="Account equity help"
         headerTrailing={
-          <span
-            data-testid="journal-net-pnl-closed-count"
-            className="text-xs tabular-nums text-[var(--edge-text-muted)]"
-          >
-            {tradeCountLabel(closedCount, "trade", "trades")}
+          <span className="inline-flex min-w-0 flex-col items-end gap-0.5 text-right">
+            <span
+              data-testid="journal-net-pnl-closed-count"
+              className="text-xs tabular-nums text-[var(--edge-text-muted)]"
+            >
+              {tradeCountLabel(closedCount, "trade", "trades")}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span
+                data-testid="journal-trade-pace"
+                className="text-[10px] tabular-nums text-[var(--edge-text-muted)]"
+              >
+                {frequency.tradesPerWeek == null && frequency.tradesPerMonth == null
+                  ? "— /wk · — /mo"
+                  : `${formatPaceRate(frequency.tradesPerWeek)}/wk · ${formatPaceRate(frequency.tradesPerMonth)}/mo`}
+              </span>
+              <MetricHelpIcon content={TRADE_PACE_HELP} ariaLabel="Trade pace help" />
+            </span>
           </span>
         }
         value={

@@ -3,7 +3,11 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import JournalSummaryCards from "./JournalSummaryCards";
 import { TileDensityOverrideProvider } from "@/app/components/app-workspace/TileDensityContext";
-import type { JournalDashboardMetrics, JournalStats } from "@/lib/journal/journalStats";
+import type {
+  JournalDashboardMetrics,
+  JournalStats,
+  JournalTradeFrequency,
+} from "@/lib/journal/journalStats";
 
 const stats: JournalStats = {
   tradeCount: 10,
@@ -41,6 +45,12 @@ const defaultDashboardMetrics: JournalDashboardMetrics = {
   },
 };
 
+const defaultFrequency: JournalTradeFrequency = {
+  tradesPerWeek: 2.5,
+  tradesPerMonth: 10.9,
+  elapsedDays: 7,
+};
+
 function renderCards(
   statsOverrides: Partial<JournalStats> = {},
   equity: number | null = accountEquity,
@@ -49,6 +59,7 @@ function renderCards(
     mode: "wide",
     width: 1200,
   },
+  frequency: JournalTradeFrequency = defaultFrequency,
 ) {
   const mergedStats = { ...stats, ...statsOverrides };
   const dashboardMetrics: JournalDashboardMetrics = {
@@ -81,6 +92,7 @@ function renderCards(
         stats={mergedStats}
         accountEquity={equity}
         dashboardMetrics={dashboardMetrics}
+        frequency={frequency}
       />
     </TileDensityOverrideProvider>,
   );
@@ -212,7 +224,17 @@ describe("JournalSummaryCards", () => {
     expect(screen.getByTestId("journal-equity-change-pct")).toHaveTextContent("+0.3%");
     expect(screen.getByTestId("journal-equity-net-r")).toHaveTextContent("+2.5R");
     expect(screen.getByTestId("journal-net-pnl-closed-count")).toHaveTextContent("8 trades");
+    expect(screen.getByTestId("journal-trade-pace")).toHaveTextContent("2.5/wk · 10.9/mo");
     expect(screen.getByTestId("journal-account-equity-card").className).toContain("md:col-span-2");
+  });
+
+  it("renders empty trade pace placeholders when frequency is missing", () => {
+    renderCards({}, accountEquity, {}, { mode: "wide", width: 1200 }, {
+      tradesPerWeek: null,
+      tradesPerMonth: null,
+      elapsedDays: null,
+    });
+    expect(screen.getByTestId("journal-trade-pace")).toHaveTextContent("— /wk · — /mo");
   });
 
   it("flashes green when account equity increases", () => {

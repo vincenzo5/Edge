@@ -20,11 +20,13 @@ import {
   resolveJournalStartingEquity,
   scaleJournalMetricByStartingEquity,
   computeJournalStats,
+  computeTradeFrequency,
   computeTimeBreakdownReport,
   filterJournalTrades,
   filterOpenJournalTrades,
   filterTradesClosedOnDate,
   hasCustomClosedDateRange,
+  resolveTradeFrequencyElapsedDays,
   scopeClosedTradesForReporting,
   scopeTradesForTradesView,
   scopeTradesForReporting,
@@ -70,6 +72,65 @@ describe("journalStats", () => {
     expect(stats.totalProfit).toBe(100);
     expect(stats.totalLoss).toBe(-50);
     expect(stats.profitFactor).toBe(2);
+  });
+
+  describe("computeTradeFrequency", () => {
+    const now = Date.parse("2026-06-30T16:00:00.000Z");
+
+    it("returns null rates when there are no closed trades", () => {
+      expect(computeTradeFrequency([], "7d", {}, now)).toEqual({
+        tradesPerWeek: null,
+        tradesPerMonth: null,
+        elapsedDays: null,
+      });
+    });
+
+    it("uses fixed 7d window as denominator", () => {
+      const trades = [
+        closedTrade({ netPnL: 10, closedAt: "2026-06-28T16:00:00.000Z" }),
+        closedTrade({ netPnL: 20, closedAt: "2026-06-29T16:00:00.000Z" }),
+      ];
+      const freq = computeTradeFrequency(trades, "7d", {}, now);
+      expect(freq.elapsedDays).toBe(7);
+      expect(freq.tradesPerWeek).toBeCloseTo(2, 5);
+      expect(freq.tradesPerMonth).toBeCloseTo((2 / 7) * (365.2425 / 12), 5);
+    });
+
+    it("uses fixed 30d window as denominator", () => {
+      const trades = Array.from({ length: 15 }, (_, i) =>
+        closedTrade({
+          id: `t-${i}`,
+          netPnL: 1,
+          closedAt: `2026-06-${String(i + 1).padStart(2, "0")}T16:00:00.000Z`,
+        }),
+      );
+      const freq = computeTradeFrequency(trades, "30d", {}, now);
+      expect(freq.elapsedDays).toBe(30);
+      expect(freq.tradesPerWeek).toBeCloseTo(15 / 30 * 7, 5);
+      expect(freq.tradesPerMonth).toBeCloseTo(15 / 30 * (365.2425 / 12), 5);
+    });
+
+    it("uses first close → now for all-time pace", () => {
+      const trades = [
+        closedTrade({ netPnL: 10, closedAt: "2026-06-02T16:00:00.000Z" }),
+        closedTrade({ netPnL: 20, closedAt: "2026-06-16T16:00:00.000Z" }),
+      ];
+      const freq = computeTradeFrequency(trades, "all", {}, now);
+      const expectedDays = (now - Date.parse("2026-06-02T16:00:00.000Z")) / 86_400_000;
+      expect(freq.elapsedDays).toBeCloseTo(expectedDays, 5);
+      expect(freq.tradesPerWeek).toBeCloseTo((2 / expectedDays) * 7, 5);
+    });
+
+    it("uses custom closedFrom/closedTo span", () => {
+      const trades = [
+        closedTrade({ netPnL: 10, closedAt: "2026-06-05T16:00:00.000Z" }),
+        closedTrade({ netPnL: 20, closedAt: "2026-06-10T16:00:00.000Z" }),
+      ];
+      const filters = { closedFrom: "2026-06-01", closedTo: "2026-06-30" };
+      expect(resolveTradeFrequencyElapsedDays(trades, "all", filters, now)).toBeCloseTo(30, 5);
+      const freq = computeTradeFrequency(trades, "all", filters, now);
+      expect(freq.tradesPerWeek).toBeCloseTo((2 / 30) * 7, 5);
+    });
   });
 
   describe("computeDailyPnL", () => {
